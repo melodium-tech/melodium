@@ -1,0 +1,164 @@
+
+model reseau(ConfigurableVarFfn) {
+	
+
+}
+
+sequence GMEPRES10 {
+
+	/*
+	 *
+	 * PROC 2
+	 *
+	 */
+	
+	
+	MidiAnalyst(presenceOnly=true)
+	FrameCutter(frameSize=4096, hopSize=2048, startFromZero=true, lastFrameToEndOfFile=true)
+	Windowing(type="blackmanharris92", size=4096)
+	Spectrum(size=4096)
+	
+	MonoLoader.audio -> FrameCutter.signal,frame -> Windowing.frame,frame -> Spectrum.frame
+	
+	
+	SpectralPeaks(sampleRate=44100, orderBy="magnitude", magnitudeThreshold=0.00001, minFrequency=40, maxFrequency=5000, maxPeaks=10000)
+	HPCP(sampleRate=44100, windowSize=0.5, harmonics=8, weightType="cosine", size=120)
+	
+	Spectrum.spectrum ----------> SpectralPeaks.spectrum
+	SpectralPeaks.frequencies --> HPCP.frequencies
+	SpectralPeaks.magnitudes ---> HPCP.magnitudes
+	
+	
+	/*
+	 *
+	 * MFCC Treatments
+	 *
+	 */
+	 
+	MFCC_m1(MFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=31.25, lowFrequencyBound=15.9, numberBands=12, numberCoefficients=12)
+	MFCC_0(MFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=62.5, lowFrequencyBound=31.25, numberBands=12, numberCoefficients=12)
+	MFCC_1(MFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=125, lowFrequencyBound=62.5, numberBands=12, numberCoefficients=12)
+	MFCC_2(MFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=250, lowFrequencyBound=125, numberBands=12, numberCoefficients=12)
+	MFCC_3(MFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=500, lowFrequencyBound=250, numberBands=12, numberCoefficients=12)
+	MFCC_4(MFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=1000, lowFrequencyBound=500, numberBands=12, numberCoefficients=12)
+	MFCC_5(MFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=2000, lowFrequencyBound=1000, numberBands=12, numberCoefficients=12)
+	MFCC_6(MFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=4000, lowFrequencyBound=2000, numberBands=12, numberCoefficients=12)
+	MFCC_7(MFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=8000, lowFrequencyBound=4000, numberBands=12, numberCoefficients=12)
+	MFCC_8(MFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=16000, lowFrequencyBound=8000, numberBands=12, numberCoefficients=12)
+	
+	MFCC_Concat_0(Concatenator)
+	MFCC_Concat_1(Concatenator)
+	MFCC_Concat_2(Concatenator)
+	MFCC_Concat_3(Concatenator)
+	MFCC_Concat_4(Concatenator)
+	MFCC_Concat_5(Concatenator)
+	MFCC_Concat_6(Concatenator)
+	MFCC_Concat_7(Concatenator)
+	MFCC_Concat_8(Concatenator)
+	
+	Spectrum.spectrum --> MFCC_m1.spectrum,bands -> MFCC_Concat_0.first
+	Spectrum.spectrum --> MFCC_0.spectrum,bands --> MFCC_Concat_0.second,output -> MFCC_Concat_1.first
+	Spectrum.spectrum --> MFCC_1.spectrum,bands --> MFCC_Concat_1.second,output -> MFCC_Concat_2.first
+	Spectrum.spectrum --> MFCC_2.spectrum,bands --> MFCC_Concat_2.second,output -> MFCC_Concat_3.first
+	Spectrum.spectrum --> MFCC_3.spectrum,bands --> MFCC_Concat_3.second,output -> MFCC_Concat_4.first
+	Spectrum.spectrum --> MFCC_4.spectrum,bands --> MFCC_Concat_4.second,output -> MFCC_Concat_5.first
+	Spectrum.spectrum --> MFCC_5.spectrum,bands --> MFCC_Concat_5.second,output -> MFCC_Concat_6.first
+	Spectrum.spectrum --> MFCC_6.spectrum,bands --> MFCC_Concat_6.second,output -> MFCC_Concat_7.first
+	Spectrum.spectrum --> MFCC_7.spectrum,bands --> MFCC_Concat_7.second,output -> MFCC_Concat_8.first
+	Spectrum.spectrum --> MFCC_8.spectrum,bands --> MFCC_Concat_8.second
+	
+	MFCCBandsScaler(Scaler)
+	MFCC_Concat_8.output -> MFCCBandsScaler.input
+	
+	/*
+	 *
+	 * GFCC Treatments
+	 *
+	 */
+	
+	GFCC_m1(GFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=31.25, lowFrequencyBound=15.9, numberBands=12, numberCoefficients=12)
+	GFCC_0(GFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=62.5, lowFrequencyBound=31.25, numberBands=12, numberCoefficients=12)
+	GFCC_1(GFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=125, lowFrequencyBound=62.5, numberBands=12, numberCoefficients=12)
+	GFCC_2(GFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=250, lowFrequencyBound=125, numberBands=12, numberCoefficients=12)
+	GFCC_3(GFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=500, lowFrequencyBound=250, numberBands=12, numberCoefficients=12)
+	GFCC_4(GFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=1000, lowFrequencyBound=500, numberBands=12, numberCoefficients=12)
+	GFCC_5(GFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=2000, lowFrequencyBound=1000, numberBands=12, numberCoefficients=12)
+	GFCC_6(GFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=4000, lowFrequencyBound=2000, numberBands=12, numberCoefficients=12)
+	GFCC_7(GFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=8000, lowFrequencyBound=4000, numberBands=12, numberCoefficients=12)
+	GFCC_8(GFCC, inputSize=4096, sampleRate=44100, highFrequencyBound=16000, lowFrequencyBound=8000, numberBands=12, numberCoefficients=12)
+	
+	GFCC_Concat_0(Concatenator)
+	GFCC_Concat_1(Concatenator)
+	GFCC_Concat_2(Concatenator)
+	GFCC_Concat_3(Concatenator)
+	GFCC_Concat_4(Concatenator)
+	GFCC_Concat_5(Concatenator)
+	GFCC_Concat_6(Concatenator)
+	GFCC_Concat_7(Concatenator)
+	GFCC_Concat_8(Concatenator)
+	
+	Spectrum.spectrum --> GFCC_m1.spectrum,bands -> GFCC_Concat_0.first
+	Spectrum.spectrum --> GFCC_0.spectrum,bands --> GFCC_Concat_0.second,output -> GFCC_Concat_1.first
+	Spectrum.spectrum --> GFCC_1.spectrum,bands --> GFCC_Concat_1.second,output -> GFCC_Concat_2.first
+	Spectrum.spectrum --> GFCC_2.spectrum,bands --> GFCC_Concat_2.second,output -> GFCC_Concat_3.first
+	Spectrum.spectrum --> GFCC_3.spectrum,bands --> GFCC_Concat_3.second,output -> GFCC_Concat_4.first
+	Spectrum.spectrum --> GFCC_4.spectrum,bands --> GFCC_Concat_4.second,output -> GFCC_Concat_5.first
+	Spectrum.spectrum --> GFCC_5.spectrum,bands --> GFCC_Concat_5.second,output -> GFCC_Concat_6.first
+	Spectrum.spectrum --> GFCC_6.spectrum,bands --> GFCC_Concat_6.second,output -> GFCC_Concat_7.first
+	Spectrum.spectrum --> GFCC_7.spectrum,bands --> GFCC_Concat_7.second,output -> GFCC_Concat_8.first
+	Spectrum.spectrum --> GFCC_8.spectrum,bands --> GFCC_Concat_8.second
+	
+	GFCCBandsScaler(Scaler)
+	GFCC_Concat_8.output -> GFCCBandsScaler.input
+	
+	/*
+	 *
+	 * Final concatenation
+	 *
+	 */
+	 
+	AllFCCConcat(Concatenator)
+	
+	MFCCBandsScaler.output -> AllFCCConcat.first
+	GFCCBandsScaler.output -> AllFCCConcat.second
+	
+	FinalConcat(Concatenator)
+	
+	AllFCCConcat.output -> FinalConcat.first
+	HPCP.hpcp -----------> FinalConcat.second
+	
+	FinalImage(ImageExporter, filename="./preprocessed_data.png", autoScale=true)
+	FinalConcat.output -> FinalImage.data
+	
+	Accumulator(cumulation=9)
+	
+	FinalConcat.output -> Accumulator.input
+
+	FFNFeeder(MlpackModelFeeder)
+
+	Accumulator.output -------------> FFNFeeder.data
+	MidiAnalyst.midiTrackContent1 --> FFNFeeder.label
+	
+	TruthImage(ImageExporter, filename="./truth.png", autoScale=true)
+	MidiAnalyst.midiTrackContent1 --> TruthImage.data
+	
+	// Iteration 0
+	FFNFeeder --> FFNTrainer_0
+	
+	FFNTrainer_0(MlpackModelTrainer, trainingOutput="./output/ffn_trainings_0.log", trainings=1)
+	FFNSaver_0(MlpackModelSaver, filename="./output/model_0.xml")
+	FFNPredictor_0(MlpackModelPredictor)
+	
+	FFNFeeder ---> FFNTrainer_0 -> FFNSaver_0 --> FFNPredictor_0
+	Accumulator.output --> FFNPredictor_0.data
+	
+	Thresholder_0(Thresholder)
+	Evaluator_0(Evaluator, output="./output/eval_0.csv")
+	OutImage_0(ImageExporter, filename="./output/out_0.png", autoScale=true)
+	
+	FFNPredictor_0.assignments -> Thresholder_0.input,output ------> OutImage_0.data
+	                            Thresholder_0.output ------------> Evaluator_0.values
+	                            MidiAnalyst.midiTrackContent1 -> Evaluator_0.ground
+	
+}
+
