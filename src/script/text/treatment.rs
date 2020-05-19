@@ -11,7 +11,7 @@ pub struct Treatment {
 }
 
 impl Treatment {
-    pub fn build(name: String, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
+    pub fn build_from_parameters(name: String, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
 
         let mut r#type: Option<String> = None;
         let mut parameters = Vec::new();

@@ -85,7 +85,7 @@ impl Sequence {
                 else if word.text == "origin" {
                     if origin.is_none() {
                         let origin_name = expect_word_kind(Kind::Name, "Origin name expected.", &mut iter)?;
-                        origin = Some(Treatment::build(origin_name, &mut iter)?);
+                        origin = Some(Treatment::build_from_parameters(origin_name, &mut iter)?);
                     }
                     else {
                         return Err(ScriptError::new("Origin already declared.".to_string(), word.text, word.line, word.line_position, word.absolute_position));
@@ -178,7 +178,7 @@ impl Sequence {
 
             // If determinant is an opening parenthesis '(', we are in a treatment declaration.
             if determinant.kind == Some(Kind::OpeningParenthesis) {
-                treatments.push(Treatment::build(element_name, &mut iter)?);
+                treatments.push(Treatment::build_from_parameters(element_name, &mut iter)?);
             }
             // If determinant is a dot '.', we are in a connection declaration, with data transmission (1).
             else if determinant.kind == Some(Kind::Dot) {
