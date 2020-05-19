@@ -15,6 +15,7 @@ pub mod model;
 pub mod parameter;
 pub mod sequence;
 pub mod treatment;
+pub mod r#type;
 pub mod value;
 
 pub use script::Script;
@@ -24,4 +25,5 @@ pub use model::Model;
 pub use parameter::Parameter;
 pub use sequence::Sequence;
 pub use treatment::Treatment;
+pub use r#type::Type;
 pub use value::Value;

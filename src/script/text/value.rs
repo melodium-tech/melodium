@@ -8,6 +8,7 @@ pub enum Value {
     Number(String),
     String(String),
     Array(Vec<Value>),
+    Reference(String),
 }
 
 impl Value {
@@ -39,6 +40,7 @@ impl Value {
             match value.kind {
                 Some(Kind::Number) => Ok(Self::Number(value.text)),
                 Some(Kind::String) => Ok(Self::String(value.text)),
+                Some(Kind::Reference) => Ok(Self::Reference(value.text)),
                 Some(Kind::Name) => {
                     if value.text == "true" || value.text == "false" {
                         Ok(Self::Boolean(value.text))

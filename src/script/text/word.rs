@@ -25,11 +25,16 @@ pub enum Kind {
     ClosingBrace,
     OpeningBracket,
     ClosingBracket,
+    OpeningChevron,
+    ClosingChevron,
     Equal,
+    Colon,
     Comma,
     Dot,
+    Slash,
     RightArrow,
     Name,
+    Reference,
     Number,
     String,
 }
@@ -144,12 +149,33 @@ pub fn get_words(script: & str) -> Result<Vec<Word>, Vec<Word>> {
         } {
             kind = Some(Kind::ClosingBracket);
         }
+        // Check if word is OpeningChevron
+        else if {
+            kind_check = manage_single_char('<', remaining_script);
+            kind_check.is_that_kind
+        } {
+            kind = Some(Kind::OpeningChevron);
+        }
+        // Check if word is ClosingChevron
+        else if {
+            kind_check = manage_single_char('>', remaining_script);
+            kind_check.is_that_kind
+        } {
+            kind = Some(Kind::ClosingChevron);
+        }
         // Check if word is Equal
         else if {
             kind_check = manage_single_char('=', remaining_script);
             kind_check.is_that_kind
         } {
             kind = Some(Kind::Equal);
+        }
+        // Check if word is Colon
+        else if {
+            kind_check = manage_single_char(':', remaining_script);
+            kind_check.is_that_kind
+        } {
+            kind = Some(Kind::Colon);
         }
         // Check if word is Comma
         else if {
@@ -165,6 +191,13 @@ pub fn get_words(script: & str) -> Result<Vec<Word>, Vec<Word>> {
         } {
             kind = Some(Kind::Dot);
         }
+        // Check if word is Slash
+        else if {
+            kind_check = manage_single_char('/', remaining_script);
+            kind_check.is_that_kind
+        } {
+            kind = Some(Kind::Slash);
+        }
         // Check if word is RightArrow
         else if {
             kind_check = manage_right_arrow(remaining_script);
@@ -178,6 +211,13 @@ pub fn get_words(script: & str) -> Result<Vec<Word>, Vec<Word>> {
             kind_check.is_that_kind
         } {
             kind = Some(Kind::Name);
+        }
+        // Check if word is Reference
+        else if {
+            kind_check = manage_reference(remaining_script);
+            kind_check.is_that_kind
+        } {
+            kind = Some(Kind::Reference);
         }
         // Check if word is Number
         else if {
@@ -312,6 +352,21 @@ fn manage_name(text: &str) -> KindCheck {
         static ref REGEX_NAME: Regex = Regex::new(r"^[\p{Alphabetic}\p{M}\p{Pc}\p{Join_Control}]\w*").unwrap();
     }
     let mat = REGEX_NAME.find(text);
+    if mat.is_some() {
+        KindCheck {
+            is_that_kind: true,
+            end_at: mat.unwrap().end(),
+            is_well_formed: true,
+        }
+    }
+    else { KindCheck::default() }
+}
+
+fn manage_reference(text: &str) -> KindCheck {
+    lazy_static! {
+        static ref REGEX_REFERENCE: Regex = Regex::new(r"^@[\p{Alphabetic}\p{M}\p{Pc}\p{Join_Control}]\w*").unwrap();
+    }
+    let mat = REGEX_REFERENCE.find(text);
     if mat.is_some() {
         KindCheck {
             is_that_kind: true,

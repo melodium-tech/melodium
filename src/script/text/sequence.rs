@@ -2,11 +2,16 @@
 use crate::script::error::ScriptError;
 
 use super::word::{expect_word, expect_word_kind, Kind, Word};
+use super::parameter::Parameter;
 use super::treatment::Treatment;
 use super::connection::Connection;
 
 pub struct Sequence {
     pub name: String,
+    pub parameters: Vec<Parameter>,
+    pub origin: Option<Treatment>,
+    pub inputs: Vec<Parameter>,
+    pub outputs: Vec<Parameter>,
     pub treatments: Vec<Treatment>,
     pub connections: Vec<Connection>,
 }
@@ -15,7 +20,84 @@ impl Sequence {
     pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
 
         let name = expect_word_kind(Kind::Name, "Sequence name expected.", &mut iter)?;
-        expect_word_kind(Kind::OpeningBrace, "Sequence content declaration expected '{'.", &mut iter)?;
+
+        /*
+            First of all, we parse sequence's parameters.
+        */
+        expect_word_kind(Kind::OpeningParenthesis, "Sequence parameters declaration expected '('.", &mut iter)?;
+
+        let mut parameters = Vec::new();
+
+        let mut first_param = true;
+        loop {
+
+            let word = expect_word("Unexpected end of script.", &mut iter)?;
+
+            if first_param && word.kind == Some(Kind::ClosingParenthesis) {
+                break;
+            }
+            else if word.kind == Some(Kind::Name) {
+                first_param = false;
+
+                expect_word_kind(Kind::Colon, "Parameter type declaration expected.", &mut iter)?;
+                parameters.push(Parameter::build_from_type(word.text, &mut iter)?);
+
+                let delimiter = expect_word("Unexpected end of script.", &mut iter)?;
+                
+                if delimiter.kind == Some(Kind::Comma) {
+                    continue;
+                }
+                else if delimiter.kind == Some(Kind::ClosingParenthesis) {
+                    break;
+                }
+                else {
+                    return Err(ScriptError::new("Comma or closing parenthesis expected.".to_string(), delimiter.text, delimiter.line, delimiter.line_position, delimiter.absolute_position));
+                }
+            }
+            else {
+                return Err(ScriptError::new("Parameter declaration expected.".to_string(), word.text, word.line, word.line_position, word.absolute_position));
+            }
+        }
+
+        let mut origin = None;
+        let mut inputs = Vec::new();
+        let mut outputs = Vec::new();
+
+        /*
+            We examine the presence (or abscence) of inputs and outputs declarations.
+        */
+        loop {
+            let word = expect_word("Unexpected end of script.", &mut iter)?;
+
+            if word.kind == Some(Kind::OpeningBrace) {
+                break;
+            }
+            else if word.kind == Some(Kind::Name) {
+                if word.text == "input" {
+
+                    let input_name = expect_word_kind(Kind::Name, "Input name expected.", &mut iter)?;
+                    inputs.push(Parameter::build_from_type(input_name, &mut iter)?);
+                }
+                else if word.text == "output" {
+                    let output_name = expect_word_kind(Kind::Name, "Output name expected.", &mut iter)?;
+                    outputs.push(Parameter::build_from_type(output_name, &mut iter)?);
+                }
+                else if word.text == "origin" {
+                    if origin.is_none() {
+                        let origin_name = expect_word_kind(Kind::Name, "Origin name expected.", &mut iter)?;
+                        origin = Some(Treatment::build(origin_name, &mut iter)?);
+                    }
+                    else {
+                        return Err(ScriptError::new("Origin already declared.".to_string(), word.text, word.line, word.line_position, word.absolute_position));
+                    }
+                }
+            }
+            else {
+                return Err(ScriptError::new("Sequence attributes or content declaration expected.".to_string(), word.text, word.line, word.line_position, word.absolute_position));
+            }
+        }
+
+        //expect_word_kind(Kind::OpeningBrace, "Sequence content declaration expected '{'.", &mut iter)?;
 
         let mut treatments = Vec::new();
         let mut connections = Vec::new();
@@ -122,6 +204,10 @@ impl Sequence {
 
         Ok(Self {
             name,
+            parameters,
+            origin,
+            inputs,
+            outputs,
             treatments,
             connections,
         })
