@@ -1,4 +1,8 @@
 
+//! Module in charge of textual words parsing and analysis.
+//! 
+//! This module contains low-level functions doing parsing and analysis of text, as well as [word elements](struct.Word.html), the smallest unit of text that can be parsed.
+//! All functions there are unicode-aware.
 
 extern crate regex;
 
@@ -6,39 +10,78 @@ use std::str;
 use regex::Regex;
 use crate::script::error::ScriptError;
 
+/// Word, smallest unit of parsed text.
+/// 
+/// This structure embeds informations about a word, that can be anything like a name `MyFashionName`, value `12.345`, or any symbol like parenthesis, bracket, comma, etc.
+/// 
+/// # Note
+/// All positions (`absolute_position`, `line_position`) are expected to be bytes indexes, not chars.
 #[derive(Debug, Clone)]
 pub struct Word {
+    /// Literal text of the word.
     pub text: String,
+    /// Absolute position of the word inside the text script, as byte index.
     pub absolute_position: usize,
+    /// Line where the word is (starting at 1).
     pub line: usize,
+    /// Position of the word on its line , as byte index, zero meaning the first char after '\n'.
     pub line_position: usize,
+    /// Kind of the word, may be None if the word is of an unknown kind.
     pub kind: Option<Kind>,
 }
 
+/// Kind of word.
+/// 
+/// "Kind" designates what the word fundamentaly is, meaning a `Name` is some text that designates name of something (including keyword), `Opening*` and `Closing*` are obvious, as well as `Equal`, `Colon`, `Comma`, etc.
+/// 
+/// Some "special" kinds of words, like `Comment`, `Annotations`, or `RightArrow` are there because they designates very specific patterns of text that can be easily and cheaply identified, and considered as single elements for all other parsing steps.
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Kind {
+    /// Comment, anything like `//…` or `/* … */`.
     Comment,
+    /// Annotation, anything like `#…`.
     Annotation,
+    /// `(`
     OpeningParenthesis,
+    /// `)`
     ClosingParenthesis,
+    /// `{`
     OpeningBrace,
+    /// `}`
     ClosingBrace,
+    /// `[`
     OpeningBracket,
+    /// `]`
     ClosingBracket,
+    /// `<`
     OpeningChevron,
+    /// `>`
     ClosingChevron,
+    /// `=`
     Equal,
+    /// `:`
     Colon,
+    /// `,`
     Comma,
+    /// `.`
     Dot,
+    /// `/`
     Slash,
+    /// An arrow made of one or more `-` terminated by `>`, `--->`.
     RightArrow,
+    /// Anything corresponding to a name, meaning anything that is composed of letters (Unicode definition) or numbers, but not starting with a number.
     Name,
+    /// Same thing than `Name`, but having `@` in the first place.
     Reference,
+    /// Anything matching a number, starting with `+`, `-`, or any digit, and having an arbitrary number of digits, with at most one point `.` inside.
     Number,
+    /// Any string starting and ending with `"` (with a preservation of `\"` and `\\`).
     String,
 }
 
+/// Convenience structure for internal treatments.
+/// 
+/// Embeds different informations in fancy way, instead of a tuple.
 struct KindCheck {
     pub is_that_kind: bool,
     pub end_at: usize,
@@ -55,6 +98,26 @@ impl Default for KindCheck {
     }
 }
 
+/// Give next word or create error.
+/// 
+/// Return the next word if any, or create a [ScriptError](../../error/struct.ScriptError.html), with `error_str` as message.
+/// This function always increment `iter` from one.
+/// 
+/// ```
+/// # use lang_trial::script::text::word::*;
+/// # use lang_trial::script::error::ScriptError;
+/// let words = get_words("myNumber= 876").unwrap();
+/// let mut iter = words.iter();
+/// 
+/// let name = expect_word("Word expected.", &mut iter)?;
+/// let equal = expect_word("Word expected.", &mut iter)?;
+/// let value = expect_word("Word expected.", &mut iter)?;
+/// 
+/// assert_eq!(name.kind, Some(Kind::Name));
+/// assert_eq!(equal.kind, Some(Kind::Equal));
+/// assert_eq!(value.kind, Some(Kind::Number));
+/// # Ok::<(), ScriptError>(())
+/// ```
 pub fn expect_word(error_str: &'static str, iter: &mut std::slice::Iter<Word>) -> Result<Word, ScriptError> {
     let word = iter.next();
     if word.is_some() {
@@ -67,6 +130,26 @@ pub fn expect_word(error_str: &'static str, iter: &mut std::slice::Iter<Word>) -
     Err(ScriptError::end_of_script(error_str.to_string()))
 }
 
+/// Check aext word kind and returns its text, or create error.
+/// 
+/// Return next word text if any and matches `kind`, else create a [ScriptError](../../error/struct.ScriptError.html), with `error_str` as message.
+/// This function always increment `iter` from one.
+/// 
+/// ```
+/// # use lang_trial::script::text::word::*;
+/// # use lang_trial::script::error::ScriptError;
+/// let words = get_words("myNumber= 876").unwrap();
+/// let mut iter = words.iter();
+/// 
+/// let name = expect_word_kind(Kind::Name, "Name expected.", &mut iter)?;
+/// let equal = expect_word_kind(Kind::Equal, "Equal sign expected.", &mut iter)?;
+/// let value = expect_word_kind(Kind::Number, "Number expected.", &mut iter)?;
+/// 
+/// assert_eq!(name, "myNumber");
+/// assert_eq!(equal, "=");
+/// assert_eq!(value, "876");
+/// # Ok::<(), ScriptError>(())
+/// ```
 pub fn expect_word_kind(kind: Kind, error_str: &'static str, iter: &mut std::slice::Iter<Word>) -> Result<String, ScriptError> {
     let word = iter.next();
     if word.is_some() {
@@ -83,6 +166,11 @@ pub fn expect_word_kind(kind: Kind, error_str: &'static str, iter: &mut std::sli
     }
 }
 
+/// Make primary parsing of text, and return words inside it.
+/// 
+/// Returns a list of [words](./struct.Word.html) contained inside the text, as `Ok` if parsing went without error (implying every word has an associated kind), or as `Err` if something hasn't been recognized (the last word will be the erroneous one, and may be without kind).
+/// 
+/// See [expect_word](./fn.expect_word.html) and [expect_word_kind](./fn.expect_word_kind.html) for example of usage.
 pub fn get_words(script: & str) -> Result<Vec<Word>, Vec<Word>> {
     let mut words = Vec::new();
     let mut remaining_script = script.trim_start();

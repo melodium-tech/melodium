@@ -8,6 +8,7 @@ pub enum Value {
     Number(String),
     String(String),
     Array(Vec<Value>),
+    Name(String),
     Reference(String),
 }
 
@@ -46,7 +47,7 @@ impl Value {
                         Ok(Self::Boolean(value.text))
                     }
                     else {
-                        Err(ScriptError::new("Value expected.".to_string(), value.text, value.line, value.line_position, value.absolute_position))
+                        Ok(Self::Name(value.text))
                     }
                 },
                 _ => Err(ScriptError::new("Value expected.".to_string(), value.text, value.line, value.line_position, value.absolute_position))

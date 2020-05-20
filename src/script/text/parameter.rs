@@ -22,6 +22,27 @@ impl Parameter {
     /// 
     /// * `name`: The name already parsed for the `Parameter` (its accuracy is under responsibility of the caller).
     /// * `iter`: Iterator over words list, next() being expected to be about [Type](../type/struct.Type.html).
+    ///
+    /// ```
+    /// # use lang_trial::script::text::parameter::*;
+    /// # use lang_trial::script::error::ScriptError;
+    /// # use lang_trial::script::text::word::*;
+    /// # use lang_trial::script::text::value::Value;
+    /// let words = get_words("myParameter: Vec<Int> = [1, 3, 5, 7, 11]").unwrap();
+    /// let mut iter = words.iter();
+    /// 
+    /// // Taking 'myParameter' in name.
+    /// let name = expect_word_kind(Kind::Name, "Name expected.", &mut iter)?;
+    /// // Checking and discarding ':'.
+    /// expect_word_kind(Kind::Colon, "Colon expected.", &mut iter)?;
+    /// 
+    /// let parameter = Parameter::build_from_type(name, &mut iter)?;
+    /// 
+    /// assert!(parameter.r#type.is_some());
+    /// assert_eq!(parameter.r#type.unwrap().name, "Int");
+    /// assert!(parameter.value.is_some());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn build_from_type(name: String, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
 
         let r#type = Type::build(&mut iter)?;
@@ -53,6 +74,25 @@ impl Parameter {
     ///
     /// * `name`: The name already parsed for the `Parameter` (its accuracy is under responsibility of the caller).
     /// * `iter`: Iterator over words list, next() being expected to be about [Value](../value/enum.Value.html).
+    /// 
+    /// ```
+    /// # use lang_trial::script::text::parameter::*;
+    /// # use lang_trial::script::error::ScriptError;
+    /// # use lang_trial::script::text::word::*;
+    /// # use lang_trial::script::text::value::Value;
+    /// let words = get_words("myParameter = 0.248").unwrap();
+    /// let mut iter = words.iter();
+    /// 
+    /// // Taking 'myParameter' in name.
+    /// let name = expect_word_kind(Kind::Name, "Name expected.", &mut iter)?;
+    /// // Checking and discarding '='.
+    /// expect_word_kind(Kind::Equal, "Equal expected.", &mut iter)?;
+    /// 
+    /// let parameter = Parameter::build_from_value(name, &mut iter)?;
+    /// 
+    /// assert!(parameter.value.is_some());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn build_from_value(name: String, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
 
         let value = Value::build_from_first_item(&mut iter)?;

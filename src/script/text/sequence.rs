@@ -1,4 +1,6 @@
 
+//! Module dedicated to [Sequence](struct.Sequence.html) parsing.
+
 use crate::script::error::ScriptError;
 
 use super::word::{expect_word, expect_word_kind, Kind, Word};
@@ -6,6 +8,9 @@ use super::parameter::Parameter;
 use super::treatment::Treatment;
 use super::connection::Connection;
 
+/// Structure describing a textual sequence.
+/// 
+/// It owns the name, and the attributes of the sequence, as well as its internal treatments and connections. There is no logical dependency between them at this point.
 pub struct Sequence {
     pub name: String,
     pub parameters: Vec<Parameter>,
@@ -17,6 +22,42 @@ pub struct Sequence {
 }
 
 impl Sequence {
+    /// Build a sequence by parsing words.
+    /// 
+    /// * `iter`: Iterator over words list, next() being expected to be the name of the sequence.
+    /// 
+    /// ```
+    /// # use lang_trial::script::error::ScriptError;
+    /// # use lang_trial::script::text::word::*;
+    /// # use lang_trial::script::text::sequence::Sequence;
+    /// 
+    /// let text = r##"
+    /// sequence PrepareAudioFiles(path: Vec<String>, sampleRate: Int = 44100, frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String)
+	///     origin AudioFiles(path=path, sampleRate=sampleRate)
+	///     output spectrum: Mat<Int>
+    /// {
+	/// MakeSpectrum(frameSize = frameSize, hopSize = hopSize, windowingType = windowingType)
+	/// 
+	/// AudioFiles.signal -> MakeSpectrum.signal,spectrum -> Self.spectrum
+    /// }
+    /// "##;
+    /// 
+    /// let words = get_words(text).unwrap();
+    /// let mut iter = words.iter();
+    /// 
+    /// let sequence_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
+    /// assert_eq!(sequence_keyword, "sequence");
+    /// 
+    /// let sequence = Sequence::build(&mut iter)?;
+    /// 
+    /// assert_eq!(sequence.parameters.len(), 5);
+    /// assert!(sequence.origin.is_some());
+    /// assert_eq!(sequence.inputs.len(), 0);
+    /// assert_eq!(sequence.outputs.len(), 1);
+    /// assert_eq!(sequence.treatments.len(), 1);
+    /// assert_eq!(sequence.connections.len(), 2);
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
 
         let name = expect_word_kind(Kind::Name, "Sequence name expected.", &mut iter)?;
@@ -76,15 +117,20 @@ impl Sequence {
                 if word.text == "input" {
 
                     let input_name = expect_word_kind(Kind::Name, "Input name expected.", &mut iter)?;
+                    expect_word_kind(Kind::Colon, "Input type declaration expected.", &mut iter)?;
                     inputs.push(Parameter::build_from_type(input_name, &mut iter)?);
                 }
                 else if word.text == "output" {
+
                     let output_name = expect_word_kind(Kind::Name, "Output name expected.", &mut iter)?;
+                    expect_word_kind(Kind::Colon, "Output type declaration expected.", &mut iter)?;
                     outputs.push(Parameter::build_from_type(output_name, &mut iter)?);
                 }
                 else if word.text == "origin" {
+
                     if origin.is_none() {
                         let origin_name = expect_word_kind(Kind::Name, "Origin name expected.", &mut iter)?;
+                        expect_word_kind(Kind::OpeningParenthesis, "Origin parameters declaration '(' expected.", &mut iter)?;
                         origin = Some(Treatment::build_from_parameters(origin_name, &mut iter)?);
                     }
                     else {
@@ -96,8 +142,6 @@ impl Sequence {
                 return Err(ScriptError::new("Sequence attributes or content declaration expected.".to_string(), word.text, word.line, word.line_position, word.absolute_position));
             }
         }
-
-        //expect_word_kind(Kind::OpeningBrace, "Sequence content declaration expected '{'.", &mut iter)?;
 
         let mut treatments = Vec::new();
         let mut connections = Vec::new();

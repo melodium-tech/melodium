@@ -1,4 +1,6 @@
 
+//! Module dedicated to [Script](struct.Script.html) parsing.
+
 use crate::script::error::ScriptError;
 
 use super::word::{expect_word, get_words, Kind};
@@ -6,6 +8,10 @@ use super::annotation::Annotation;
 use super::model::Model;
 use super::sequence::Sequence;
 
+/// Structure managing and describing textual script.
+/// 
+/// It owns the whole script text, as well as parsed attributes, including [Annotations](../annotation/struct.Annotation.html), [Models](../model/struct.Model.html), and [Sequences](../sequence/struct.Sequence.html).
+/// There is no logical coherence involved there, only syntax analysis and parsing.
 pub struct Script {
     pub text: String,
     pub annotations: Vec<Annotation>,
@@ -14,7 +20,38 @@ pub struct Script {
 }
 
 impl Script {
-    pub fn build(text: & String) -> Result<Self, ScriptError> {
+    /// Build script by parsing the whole content.
+    /// 
+    /// This is the main function of the whole [text module](../index.html), it process the entire textual content of script and build a syntax tree.
+    /// It also makes a copy of `text` and keeps it by its own.
+    /// 
+    /// * `text`: The text of the script itself.
+    /// 
+    /// # Note
+    /// It doesn't check any logic, only syntax analysis and parsing.
+    /// 
+    /// ```
+    /// # use lang_trial::script::error::ScriptError;
+    /// # use lang_trial::script::text::script::Script;
+    /// 
+    /// let text = r##"
+    /// // Main sequence
+    /// sequence Main()
+	///     origin PrepareAudioFiles(path="Musique/", sampleRate=44100, frameSize=4096, hopSize=2048, windowingType="blackmanharris92")
+    /// {
+    /// 
+    ///     MakeHPCP(sampleRate=@sampleRate, minFrequency=40, maxFrequency=5000, harmonics=8, size=120)
+    /// 
+    ///     PrepareAudioFiles.spectrum -> MakeHPCP.spectrum
+    /// }
+    /// "##;
+    /// 
+    /// let script = Script::build(text)?;
+    /// 
+    /// assert_eq!(script.sequences.len(), 1);
+    /// # Ok::<(), ScriptError>(())
+    /// ```
+    pub fn build(text: & str) -> Result<Self, ScriptError> {
         let mut annotations = Vec::new();
         let mut models = Vec::new();
         let mut sequences = Vec::new();

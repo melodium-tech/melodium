@@ -1,8 +1,8 @@
 
 //! Proceed to basic text parsing and analysis of Mélodium scripts.
 //! 
-//! The main type of this module is `Script`, aimed to handle and build a syntax tree of a script.
-//! Other types may be useful only for extracting specific contents, and are primarily available as branches and leafs of tree built by `Script`.
+//! The main type of this module is [Script](./script/struct.Script.html), aimed to handle and build a syntax tree of a script.
+//! Other types may be useful only for extracting specific contents, and are primarily available as branches of tree built by [Script](./script/struct.Script.html).
 //!
 
 pub mod script;
