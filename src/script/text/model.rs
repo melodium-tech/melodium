@@ -1,14 +1,48 @@
 
+//! Module dedicated to [Model](struct.Model.html) parsing.
+
 use crate::script::error::ScriptError;
 
 use super::word::{expect_word_kind, Kind, Word};
 
+/// Structure describing a textual model.
+/// 
+/// It owns a name, and a type (model type, not [data type](../type/struct.Type.html)).
 pub struct Model {
     pub name: String,
     pub r#type: String,
 }
 
 impl Model {
+    /// Build a model by parsing words.
+    /// 
+    /// * `iter`: Iterator over words list, next() being expected to be the name.
+    ///
+    /// # Warning
+    /// Models don't support any kind of content in the current implementation. Their specification is not finished.
+    /// 
+    /// ```
+    /// # use lang_trial::script::error::ScriptError;
+    /// # use lang_trial::script::text::word::*;
+    /// # use lang_trial::script::text::model::Model;
+    /// let text = r##"
+    /// model MachineLearningModel(SparseAutoencoder)
+    /// {
+    /// }
+    /// "##;
+    /// 
+    /// let words = get_words(text).unwrap();
+    /// let mut iter = words.iter();
+    /// 
+    /// let model_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
+    /// assert_eq!(model_keyword, "model");
+    /// 
+    /// let model = Model::build(&mut iter)?;
+    /// 
+    /// assert_eq!(model.name, "MachineLearningModel");
+    /// assert_eq!(model.r#type, "SparseAutoencoder");
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
 
         let name = expect_word_kind(Kind::Name, "Model name expected.", &mut iter)?;

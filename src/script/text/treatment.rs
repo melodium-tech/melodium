@@ -1,9 +1,14 @@
 
+//! Module dedicated to [Treatment](struct.Treatment.html) parsing.
+
 use crate::script::error::ScriptError;
 
 use super::word::{expect_word, Kind, Word};
 use super::parameter::Parameter;
 
+/// Structure describing a textual treatment.
+/// 
+/// It owns a name, a type (treatment type, not [data type](../type/struct.Type.html)), and list of [parameters](../parameter/struct.Parameter.html).
 pub struct Treatment {
     pub name: String,
     pub r#type: String,
@@ -11,6 +16,30 @@ pub struct Treatment {
 }
 
 impl Treatment {
+    /// Build a treatment by parsing words, starting when named [Parameter](../parameter/struct.Parameter.html) is expected.
+    /// 
+    /// * `name`: The name already parsed for the `Treatment` (its accuracy is under responsibility of the caller).
+    /// * `iter`: Iterator over words list, next() being expected to be about [Parameter](../type/struct.Parameter.html).
+    /// 
+    /// ```
+    /// # use lang_trial::script::error::ScriptError;
+    /// # use lang_trial::script::text::word::*;
+    /// # use lang_trial::script::text::treatment::Treatment;
+    /// let text = r##"MakeSpectrum(frameSize = 1024, hopSize = 512, windowingType = "blackmanharris92")"##;
+    /// 
+    /// let words = get_words(text).unwrap();
+    /// let mut iter = words.iter();
+    /// 
+    /// let treatment_name = expect_word_kind(Kind::Name, "Name expected.", &mut iter)?;
+    /// expect_word_kind(Kind::OpeningParenthesis, "Opening parenthesis '(' expected.", &mut iter)?;
+    /// 
+    /// let treatment = Treatment::build_from_parameters(treatment_name, &mut iter)?;
+    /// 
+    /// assert_eq!(treatment.name, "MakeSpectrum");
+    /// assert_eq!(treatment.r#type, "MakeSpectrum");
+    /// assert_eq!(treatment.parameters.len(), 3);
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn build_from_parameters(name: String, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
 
         let mut r#type: Option<String> = None;

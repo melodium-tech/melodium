@@ -1,14 +1,38 @@
 
+//! Module dedicated to [Type](struct.Type.html) parsing.
+
 use crate::script::error::ScriptError;
 
 use super::word::{expect_word_kind, Kind, Word};
 
+/// Structure describing a textual type.
+/// 
+/// It owns a name, and a structure, if any.
 pub struct Type {
     pub structure: Option<String>,
     pub name: String
 }
 
 impl Type {
+    /// Build a type by parsing words.
+    /// 
+    /// * `iter`: Iterator over words list, next() being expected to be either the name or structure.
+    /// 
+    /// ```
+    /// # use lang_trial::script::error::ScriptError;
+    /// # use lang_trial::script::text::word::*;
+    /// # use lang_trial::script::text::r#type::Type;
+    /// let text = "Vec<Int>";
+    /// 
+    /// let words = get_words(text).unwrap();
+    /// let mut iter = words.iter();
+    /// 
+    /// let r#type = Type::build(&mut iter)?;
+    /// 
+    /// assert_eq!(r#type.name, "Int");
+    /// assert_eq!(r#type.structure, Some("Vec".to_string()));
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
 
         let name_or_structure = expect_word_kind(Kind::Name, "Type name expected.", &mut iter)?;
