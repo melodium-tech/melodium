@@ -5,6 +5,7 @@ use crate::script::error::ScriptError;
 
 use super::word::{expect_word, expect_word_kind, Kind, Word};
 use super::parameter::Parameter;
+use super::requirement::Requirement;
 use super::treatment::Treatment;
 use super::connection::Connection;
 
@@ -14,6 +15,7 @@ use super::connection::Connection;
 pub struct Sequence {
     pub name: String,
     pub parameters: Vec<Parameter>,
+    pub requirements: Vec<Requirement>,
     pub origin: Option<Treatment>,
     pub inputs: Vec<Parameter>,
     pub outputs: Vec<Parameter>,
@@ -35,6 +37,8 @@ impl Sequence {
     /// sequence PrepareAudioFiles(path: Vec<String>, sampleRate: Int = 44100, frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String)
 	///     origin AudioFiles(path=path, sampleRate=sampleRate)
 	///     output spectrum: Mat<Int>
+    ///     require @File
+    ///     require @Signal
     /// {
 	/// MakeSpectrum(frameSize = frameSize, hopSize = hopSize, windowingType = windowingType)
 	/// 
@@ -51,6 +55,7 @@ impl Sequence {
     /// let sequence = Sequence::build(&mut iter)?;
     /// 
     /// assert_eq!(sequence.parameters.len(), 5);
+    /// assert_eq!(sequence.requirements.len(), 2);
     /// assert!(sequence.origin.is_some());
     /// assert_eq!(sequence.inputs.len(), 0);
     /// assert_eq!(sequence.outputs.len(), 1);
@@ -101,11 +106,12 @@ impl Sequence {
         }
 
         let mut origin = None;
+        let mut requirements = Vec::new();
         let mut inputs = Vec::new();
         let mut outputs = Vec::new();
 
         /*
-            We examine the presence (or abscence) of inputs and outputs declarations.
+            We examine the presence (or abscence) of origin, inputs, outputs, and requirements declarations.
         */
         loop {
             let word = expect_word("Unexpected end of script.", &mut iter)?;
@@ -125,6 +131,10 @@ impl Sequence {
                     let output_name = expect_word_kind(Kind::Name, "Output name expected.", &mut iter)?;
                     expect_word_kind(Kind::Colon, "Output type declaration expected.", &mut iter)?;
                     outputs.push(Parameter::build_from_type(output_name, &mut iter)?);
+                }
+                else if word.text == "require" {
+
+                    requirements.push(Requirement::build(&mut iter)?);
                 }
                 else if word.text == "origin" {
 
@@ -249,6 +259,7 @@ impl Sequence {
         Ok(Self {
             name,
             parameters,
+            requirements,
             origin,
             inputs,
             outputs,

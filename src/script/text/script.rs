@@ -42,6 +42,8 @@ impl Script {
     /// // Main sequence
     /// sequence Main()
 	///     origin PrepareAudioFiles(path="Musique/", sampleRate=44100, frameSize=4096, hopSize=2048, windowingType="blackmanharris92")
+    ///     require @File
+    ///     require @Signal
     /// {
     /// 
     ///     MakeHPCP(sampleRate=@sampleRate, minFrequency=40, maxFrequency=5000, harmonics=8, size=120)
