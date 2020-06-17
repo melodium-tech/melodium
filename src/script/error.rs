@@ -35,6 +35,7 @@ pub enum ScriptErrorKind {
     Word,
     /// The error is about an unexcpected end of script.
     EndOfScript,
+    Semantic,
 }
 
 impl ScriptError {
@@ -64,6 +65,17 @@ impl ScriptError {
             line_position: 0,
             absolute_position: 0,
             kind: ScriptErrorKind::EndOfScript,
+        }
+    }
+
+    pub fn semantic(message: String) -> Self {
+        Self {
+            message,
+            word: String::new(),
+            line: 0,
+            line_position: 0,
+            absolute_position: 0,
+            kind: ScriptErrorKind::Semantic,
         }
     }
 }

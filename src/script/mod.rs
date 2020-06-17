@@ -5,3 +5,4 @@
 
 pub mod error;
 pub mod text;
+pub mod semantic;
