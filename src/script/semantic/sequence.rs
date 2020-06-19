@@ -58,39 +58,43 @@ impl Sequence {
             }
         }
 
-        {
+        for p in text.parameters {
+            let declared_parameter = DeclaredParameter::new(Rc::clone(&sequence), p)?;
+            sequence.borrow_mut().parameters.push(declared_parameter);
+        }
+
+        for r in text.requirements {
+            let requirement = Requirement::new(Rc::clone(&sequence), r)?;
+            sequence.borrow_mut().requirements.push(requirement);
+        }
+
+        if text.origin.is_some() {
+
+            let origin = Treatment::new(Rc::clone(&sequence), text.origin.unwrap())?;
+
             let mut borrowed_sequence = sequence.borrow_mut();
+            borrowed_sequence.origin = Some(Rc::clone(&origin));
+            borrowed_sequence.treatments.push(Rc::clone(&origin));
+        }
 
-            for p in text.parameters {
-                borrowed_sequence.parameters.push(DeclaredParameter::new(Rc::clone(&sequence), p)?);
-            }
+        for i in text.inputs {
+            let input = Input::new(Rc::clone(&sequence), i)?;
+            sequence.borrow_mut().inputs.push(input);
+        }
 
-            for r in text.requirements {
-                borrowed_sequence.requirements.push(Requirement::new(Rc::clone(&sequence), r)?);
-            }
+        for o in text.outputs {
+            let output = Output::new(Rc::clone(&sequence), o)?;
+            sequence.borrow_mut().outputs.push(output);
+        }
 
-            if text.origin.is_some() {
-                
-                let origin = Treatment::new(Rc::clone(&sequence), text.origin.unwrap())?;
-                borrowed_sequence.origin = Some(Rc::clone(&origin));
-                borrowed_sequence.treatments.push(Rc::clone(&origin));
-            }
+        for t in text.treatments {
+            let treatment = Treatment::new(Rc::clone(&sequence), t)?;
+            sequence.borrow_mut().treatments.push(treatment);
+        }
 
-            for i in text.inputs {
-                borrowed_sequence.inputs.push(Input::new(Rc::clone(&sequence), i)?);
-            }
-
-            for o in text.outputs {
-                borrowed_sequence.outputs.push(Output::new(Rc::clone(&sequence), o)?);
-            }
-
-            for t in text.treatments {
-                borrowed_sequence.treatments.push(Treatment::new(Rc::clone(&sequence), t)?);
-            }
-
-            for c in text.connections {
-                borrowed_sequence.connections.push(Connection::new(Rc::clone(&sequence), c)?);
-            }
+        for c in text.connections {
+            let connection = Connection::new(Rc::clone(&sequence), c)?;
+            sequence.borrow_mut().connections.push(connection);
         }
 
         Ok(sequence)

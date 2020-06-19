@@ -29,20 +29,19 @@ impl Script {
             sequences: Vec::new(),
         }));
 
-        {
-            let mut borrowed_script = script.borrow_mut();
+        for u in text.uses {
+            let r#use = Use::new(Rc::clone(&script), u.clone())?;
+            script.borrow_mut().uses.push(r#use);
+        }
 
-            for u in text.uses {
-                borrowed_script.uses.push(Use::new(Rc::clone(&script), u.clone())?);
-            }
+        for m in text.models {
+            let model = Model::new(Rc::clone(&script), m.clone())?;
+            script.borrow_mut().models.push(model);
+        }
 
-            for m in text.models {
-                borrowed_script.models.push(Model::new(Rc::clone(&script), m.clone())?);
-            }
-
-            for s in text.sequences {
-                borrowed_script.sequences.push(Sequence::new(Rc::clone(&script), s.clone())?);
-            }
+        for s in text.sequences {
+            let sequence = Sequence::new(Rc::clone(&script), s.clone())?;
+            script.borrow_mut().sequences.push(sequence);
         }
 
         Ok(script)
@@ -71,5 +70,27 @@ impl Script {
 
     pub fn find_sequence(&self, name: & str) -> Option<&Rc<RefCell<Sequence>>> {
         self.sequences.iter().find(|&s| s.borrow().name == name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use crate::script_file::ScriptFile;
+
+    #[test]
+    fn test_simple_semantic() {
+
+        let address = "examples/exemple_01.mel";
+
+        let mut script_file = ScriptFile::new(address);
+
+        script_file.load().unwrap();
+        script_file.parse().unwrap();
+        
+        let script = Script::new(address, script_file.script().clone()).unwrap();
+
+        assert_eq!(script.borrow().sequences.len(), 4);
     }
 }

@@ -1,0 +1,47 @@
+sequence MakeSpectrum(frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String) 
+	input signal: Vec<Int>
+	output spectrum: Mat<Int>
+{
+
+	FrameCutter(frameSize=frameSize, hopSize=hopSize, startFromZero=true, lastFrameToEndOfFile=true)
+	Windowing(type=windowingType, size=frameSize)
+	Spectrum(size=frameSize)
+
+	Self.signal -> FrameCutter.signal,frame -> Windowing.frame,frame -> Spectrum.frame,spectrum -> Self.spectrum
+}
+
+sequence MakeHPCP(sampleRate: Int = 44100, minFrequency: Int = 50, maxFrequency: Int = 1000, harmonics: Int = 8, size: Int = 120)
+	input spectrum: Mat<Int>
+	output hpcp: Mat<Int>
+{
+
+	SpectralPeaks(sampleRate=sampleRate, orderBy=order, magnitudeThreshold=0.00001, minFrequency=minFrequency, maxFrequency=maxFrequency, maxPeaks=10000)
+	HPCP(sampleRate=sampleRate, windowSize=0.5, harmonics=harmonics, weightType="cosine", size=size)
+
+	Self.spectrum --------------> SpectralPeaks.spectrum
+	SpectralPeaks.frequencies --> HPCP.frequencies
+	SpectralPeaks.magnitudes ---> HPCP.magnitudes
+	HPCP.hpcp ------------------> Self.hpcp
+}
+
+sequence PrepareAudioFiles(path: Vec<String>, sampleRate: Int = 44100, frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String)
+	origin AudioFiles(path=path, sampleRate=sampleRate) // AudioFiles is a source
+	output spectrum: Mat<Int>
+{
+	MakeSpectrum(frameSize = frameSize, hopSize = hopSize, windowingType = windowingType)
+	
+	AudioFiles.signal -> MakeSpectrum.signal,spectrum -> Self.spectrum
+}
+
+sequence Main()
+	origin PrepareAudioFiles(path="Musique/Expériences", sampleRate=44100, frameSize=4096, hopSize=2048, windowingType="blackmanharris92")
+	require @File
+	require @Signal
+{
+
+	MakeHPCP(sampleRate=@sampleRate, minFrequency=40, maxFrequency=5000, harmonics=8, size=120)
+
+	PrepareAudioFiles.spectrum -> MakeHPCP.spectrum
+}
+
+

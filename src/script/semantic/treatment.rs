@@ -45,12 +45,9 @@ impl Treatment {
             }
         }
 
-        {
-            let mut borrowed_treatment = treatment.borrow_mut();
-
-            for p in text.parameters {
-                borrowed_treatment.parameters.push(AssignedParameter::new(Rc::clone(&treatment), p)?);
-            }
+        for p in text.parameters {
+            let assigned_parameter = AssignedParameter::new(Rc::clone(&treatment), p)?;
+            treatment.borrow_mut().parameters.push(assigned_parameter);
         }
 
         Ok(treatment)
