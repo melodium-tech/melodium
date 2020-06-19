@@ -13,6 +13,7 @@ use super::sequence::Sequence;
 /// 
 /// It owns the whole script text, as well as parsed attributes, including [Uses](../use/struct.Use.html), [Annotations](../annotation/struct.Annotation.html), [Models](../model/struct.Model.html), and [Sequences](../sequence/struct.Sequence.html).
 /// There is no logical coherence involved there, only syntax analysis and parsing.
+#[derive(Clone)]
 pub struct Script {
     pub text: String,
     pub uses: Vec<Use>,

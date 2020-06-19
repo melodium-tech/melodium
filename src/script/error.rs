@@ -35,6 +35,7 @@ pub enum ScriptErrorKind {
     Word,
     /// The error is about an unexcpected end of script.
     EndOfScript,
+    /// The error is about semantic.
     Semantic,
 }
 
@@ -91,6 +92,7 @@ impl fmt::Display for ScriptError {
                 write!(f, "line {} position {} (absolute {}): {}", self.line, self.line_position, self.absolute_position, self.message)
             },
             ScriptErrorKind::EndOfScript => write!(f, "{}", self.message),
+            ScriptErrorKind::Semantic => write!(f, "{}", self.message),
         }
         
     }

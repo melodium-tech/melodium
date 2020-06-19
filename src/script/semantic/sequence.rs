@@ -1,4 +1,6 @@
 
+use std::rc::Rc;
+use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Sequence as TextSequence;
 
@@ -10,29 +12,29 @@ use super::output::Output;
 use super::treatment::Treatment;
 use super::connection::Connection;
 
-pub struct Sequence<'a> {
+pub struct Sequence {
     pub text: TextSequence,
 
-    pub script: &'a Script<'a>,
+    pub script: Rc<RefCell<Script>>,
 
     pub name: String,
 
-    pub parameters: Vec<DeclaredParameter<'a>>,
-    pub requirements: Vec<Requirement<'a>>,
-    pub origin: Option<Treatment<'a>>,
-    pub inputs: Vec<Input<'a>>,
-    pub outputs: Vec<Output<'a>>,
-    pub treatments: Vec<Treatment<'a>>,
-    pub connections: Vec<Connection<'a>>
+    pub parameters: Vec<Rc<RefCell<DeclaredParameter>>>,
+    pub requirements: Vec<Rc<RefCell<Requirement>>>,
+    pub origin: Option<Rc<RefCell<Treatment>>>,
+    pub inputs: Vec<Rc<RefCell<Input>>>,
+    pub outputs: Vec<Rc<RefCell<Output>>>,
+    pub treatments: Vec<Rc<RefCell<Treatment>>>,
+    pub connections: Vec<Rc<RefCell<Connection>>>
 }
 
-impl<'a> Sequence<'a> {
-    pub fn new(script: &'a Script, text: TextSequence) -> Result<Self, ScriptError> {
+impl Sequence {
+    pub fn new(script: Rc<RefCell<Script>>, text: TextSequence) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
-        let mut sequence = Self {
-            text,
-            script,
-            name: text.name,
+        let sequence = Rc::<RefCell<Self>>::new(RefCell::new(Self {
+            text: text.clone(),
+            script: Rc::clone(&script),
+            name: text.name.clone(),
             parameters: Vec::new(),
             requirements: Vec::new(),
             origin: None,
@@ -40,68 +42,94 @@ impl<'a> Sequence<'a> {
             outputs: Vec::new(),
             treatments: Vec::new(),
             connections: Vec::new(),
-        };
+        }));
 
         {
-            let sequence = script.find_sequence(&text.name);
+            let borrowed_script = script.borrow();
+
+            let sequence = borrowed_script.find_sequence(&text.name);
             if sequence.is_some() {
                 return Err(ScriptError::semantic("Sequence '".to_string() + &text.name + "' is already declared."))
             }
 
-            let r#use = script.find_use(&text.name);
+            let r#use = borrowed_script.find_use(&text.name);
             if r#use.is_some() {
                 return Err(ScriptError::semantic("Element '".to_string() + &text.name + "' is already declared as used."))
             }
         }
 
-        for p in text.parameters {
-            sequence.parameters.push(DeclaredParameter::new(&sequence, p)?);
-        }
+        {
+            let mut borrowed_sequence = sequence.borrow_mut();
 
-        for r in text.requirements {
-            sequence.requirements.push(Requirement::new(&sequence, r)?);
-        }
+            for p in text.parameters {
+                borrowed_sequence.parameters.push(DeclaredParameter::new(Rc::clone(&sequence), p)?);
+            }
 
-        if text.origin.is_some() {
-            sequence.origin = Some(Treatment::new(&sequence, text.origin.unwrap())?);
-        }
+            for r in text.requirements {
+                borrowed_sequence.requirements.push(Requirement::new(Rc::clone(&sequence), r)?);
+            }
 
-        for i in text.inputs {
-            sequence.inputs.push(Input::new(&sequence, i)?);
-        }
+            if text.origin.is_some() {
+                
+                let origin = Treatment::new(Rc::clone(&sequence), text.origin.unwrap())?;
+                borrowed_sequence.origin = Some(Rc::clone(&origin));
+                borrowed_sequence.treatments.push(Rc::clone(&origin));
+            }
 
-        for o in text.outputs {
-            sequence.outputs.push(Output::new(&sequence, o)?);
-        }
+            for i in text.inputs {
+                borrowed_sequence.inputs.push(Input::new(Rc::clone(&sequence), i)?);
+            }
 
-        for t in text.treatments {
-            sequence.treatments.push(Treatment::new(&sequence, t)?);
-        }
+            for o in text.outputs {
+                borrowed_sequence.outputs.push(Output::new(Rc::clone(&sequence), o)?);
+            }
 
-        for c in text.connections {
-            sequence.connections.push(Connection::new(&sequence, c)?);
+            for t in text.treatments {
+                borrowed_sequence.treatments.push(Treatment::new(Rc::clone(&sequence), t)?);
+            }
+
+            for c in text.connections {
+                borrowed_sequence.connections.push(Connection::new(Rc::clone(&sequence), c)?);
+            }
         }
 
         Ok(sequence)
     }
 
-    pub fn find_parameter(&self, name: & str) -> Option<&DeclaredParameter> {
-        self.parameters.iter().find(|&p| p.name == name)
+    pub fn make_references(&self) -> Result<(), ScriptError> {
+
+        if self.origin.is_some() {
+            self.origin.as_ref().unwrap().borrow_mut().make_references()?;
+        }
+
+        for t in &self.treatments {
+            t.borrow_mut().make_references()?;
+        }
+
+        for c in &self.connections {
+            c.borrow_mut().make_references()?;
+        }
+
+        Ok(())
     }
 
-    pub fn find_requirement(&self, name: & str) -> Option<&Requirement> {
-        self.requirements.iter().find(|&r| r.name == name) 
+    pub fn find_parameter(&self, name: & str) -> Option<&Rc<RefCell<DeclaredParameter>>> {
+        self.parameters.iter().find(|&p| p.borrow().name == name)
     }
 
-    pub fn find_input(&self, name: & str) -> Option<&Input> {
-        self.inputs.iter().find(|&i| i.name == name) 
+    pub fn find_requirement(&self, name: & str) -> Option<&Rc<RefCell<Requirement>>> {
+        self.requirements.iter().find(|&r| r.borrow().name == name) 
     }
 
-    pub fn find_output(&self, name: & str) -> Option<&Output> {
-        self.outputs.iter().find(|&o| o.name == name) 
+    pub fn find_input(&self, name: & str) -> Option<&Rc<RefCell<Input>>> {
+        self.inputs.iter().find(|&i| i.borrow().name == name) 
     }
 
-    pub fn find_treatment(&self, name: & str) -> Option<&Treatment> {
-        self.treatments.iter().find(|&t| t.name == name) 
+    pub fn find_output(&self, name: & str) -> Option<&Rc<RefCell<Output>>> {
+        self.outputs.iter().find(|&o| o.borrow().name == name) 
+    }
+
+    pub fn find_treatment(&self, name: & str) -> Option<&Rc<RefCell<Treatment>>> {
+        self.treatments.iter().find(|&t| t.borrow().name == name) 
     }
 }

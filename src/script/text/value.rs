@@ -8,6 +8,7 @@ use super::word::{expect_word, Kind, Word};
 /// Enum describing a textual value.
 /// 
 /// It sets what kind of value is represented, as well as its associated text.
+#[derive(Clone)]
 pub enum Value {
     /// `true` or `false`.
     Boolean(String),

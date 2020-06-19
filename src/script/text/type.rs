@@ -8,6 +8,7 @@ use super::word::{expect_word_kind, Kind, Word};
 /// Structure describing a textual type.
 /// 
 /// It owns a name, and a structure, if any.
+#[derive(Clone)]
 pub struct Type {
     pub structure: Option<String>,
     pub name: String

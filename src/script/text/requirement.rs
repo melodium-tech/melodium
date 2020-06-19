@@ -8,6 +8,7 @@ use super::word::{expect_word_kind, Kind, Word};
 /// Structure describing a textual requirement.
 /// 
 /// It owns the requirement name.
+#[derive(Clone)]
 pub struct Requirement {
     pub name: String
 }

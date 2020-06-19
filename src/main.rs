@@ -1,9 +1,9 @@
 
-extern crate lang_trial;
+extern crate melodium_rust;
 
 use std::env;
 use std::ffi::OsString;
-use lang_trial::script_file::ScriptFile;
+use melodium_rust::script_file::ScriptFile;
 
 fn main() {
 

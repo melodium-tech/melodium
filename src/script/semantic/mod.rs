@@ -6,6 +6,7 @@ pub mod declared_parameter;
 pub mod input;
 pub mod model;
 pub mod output;
+pub mod reference;
 pub mod requirement;
 pub mod script;
 pub mod sequence;

@@ -9,6 +9,7 @@ use super::parameter::Parameter;
 /// Structure describing a textual treatment.
 /// 
 /// It owns a name, a type (treatment type, not [data type](../type/struct.Type.html)), and list of [parameters](../parameter/struct.Parameter.html).
+#[derive(Clone)]
 pub struct Treatment {
     pub name: String,
     pub r#type: String,

@@ -1,29 +1,35 @@
 
+use std::rc::Rc;
+use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Requirement as TextRequirement;
 
 use super::sequence::Sequence;
 
-pub struct Requirement<'a> {
+pub struct Requirement {
     pub text: TextRequirement,
 
-    pub sequence: &'a Sequence<'a>,
+    pub sequence: Rc<RefCell<Sequence>>,
 
     pub name: String,
 }
 
-impl<'a> Requirement<'a> {
-    pub fn new(sequence: &'a Sequence, text: TextRequirement) -> Result<Self, ScriptError> {
+impl Requirement {
+    pub fn new(sequence: Rc<RefCell<Sequence>>, text: TextRequirement) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
-        let requirement = sequence.find_requirement(&text.name);
-        if requirement.is_some() {
-            return Err(ScriptError::semantic("'".to_string() + &text.name + "' is already required."))
+        {
+            let borrowed_sequence = sequence.borrow();
+
+            let requirement = borrowed_sequence.find_requirement(&text.name);
+            if requirement.is_some() {
+                return Err(ScriptError::semantic("'".to_string() + &text.name + "' is already required."))
+            }
         }
 
-        Ok(Self{
-            text,
+        Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self{
             sequence,
-            name: text.name,
-        })
+            name: text.name.clone(),
+            text,
+        })))
     }
 }

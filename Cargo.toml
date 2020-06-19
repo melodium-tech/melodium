@@ -1,5 +1,5 @@
 [package]
-name = "lang-trial"
+name = "melodium-rust"
 version = "0.1.0"
 authors = ["Quentin VIGNAUD <qvignaud@gmail.com>"]
 edition = "2018"

@@ -8,6 +8,7 @@ use super::word::*;
 /// Structure describing a textual use.
 /// 
 /// It owns the path, as vector of strings (which were separated by slashes `/`), and the used element name. There is no logical nor existence check at this point.
+#[derive(Clone)]
 pub struct Use {
     pub path: Vec<String>,
     pub element: String,
