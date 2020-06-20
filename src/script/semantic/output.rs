@@ -1,4 +1,6 @@
 
+use super::SemanticNode;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
@@ -47,3 +49,6 @@ impl Output {
     }
 }
 
+impl SemanticNode for Output {
+    
+}

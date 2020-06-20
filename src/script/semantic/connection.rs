@@ -1,4 +1,6 @@
 
+use super::SemanticNode;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
@@ -40,7 +42,10 @@ impl Connection {
         })))
     }
 
-    pub fn make_references(&mut self) -> Result<(), ScriptError> {
+}
+
+impl SemanticNode for Connection {
+    fn make_references(&mut self) -> Result<(), ScriptError> {
 
         let sequence = self.sequence.borrow();
 

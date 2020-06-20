@@ -1,4 +1,6 @@
 
+use super::SemanticNode;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
@@ -43,12 +45,15 @@ impl AssignedParameter {
             value,
         })))
     }
+}
 
-    pub fn make_references(&self) -> Result<(), ScriptError> {
+impl SemanticNode for AssignedParameter {
+    fn children(&self) -> Vec<Rc<RefCell<dyn SemanticNode>>> {
 
-        self.value.borrow_mut().make_references()?;
+        let mut children: Vec<Rc<RefCell<dyn SemanticNode>>> = Vec::new();
 
-        Ok(())
+        children.push(Rc::clone(&self.value) as Rc<RefCell<dyn SemanticNode>>);
+
+        children
     }
-
 }

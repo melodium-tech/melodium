@@ -1,4 +1,6 @@
 
+use super::SemanticNode;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
@@ -100,23 +102,6 @@ impl Sequence {
         Ok(sequence)
     }
 
-    pub fn make_references(&self) -> Result<(), ScriptError> {
-
-        if self.origin.is_some() {
-            self.origin.as_ref().unwrap().borrow_mut().make_references()?;
-        }
-
-        for t in &self.treatments {
-            t.borrow_mut().make_references()?;
-        }
-
-        for c in &self.connections {
-            c.borrow_mut().make_references()?;
-        }
-
-        Ok(())
-    }
-
     pub fn find_parameter(&self, name: & str) -> Option<&Rc<RefCell<DeclaredParameter>>> {
         self.parameters.iter().find(|&p| p.borrow().name == name)
     }
@@ -135,5 +120,21 @@ impl Sequence {
 
     pub fn find_treatment(&self, name: & str) -> Option<&Rc<RefCell<Treatment>>> {
         self.treatments.iter().find(|&t| t.borrow().name == name) 
+    }
+}
+
+impl SemanticNode for Sequence {
+    fn children(&self) -> Vec<Rc<RefCell<dyn SemanticNode>>> {
+
+        let mut children: Vec<Rc<RefCell<dyn SemanticNode>>> = Vec::new();
+
+        self.parameters.iter().for_each(|p| children.push(Rc::clone(&p) as Rc<RefCell<dyn SemanticNode>>));
+        self.requirements.iter().for_each(|r| children.push(Rc::clone(&r) as Rc<RefCell<dyn SemanticNode>>));
+        self.inputs.iter().for_each(|i| children.push(Rc::clone(&i) as Rc<RefCell<dyn SemanticNode>>));
+        self.outputs.iter().for_each(|o| children.push(Rc::clone(&o) as Rc<RefCell<dyn SemanticNode>>));
+        self.treatments.iter().for_each(|t| children.push(Rc::clone(&t) as Rc<RefCell<dyn SemanticNode>>));
+        self.connections.iter().for_each(|c| children.push(Rc::clone(&c) as Rc<RefCell<dyn SemanticNode>>));
+
+        children
     }
 }

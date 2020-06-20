@@ -1,4 +1,6 @@
 
+use super::SemanticNode;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
@@ -32,4 +34,8 @@ impl Requirement {
             text,
         })))
     }
+}
+
+impl SemanticNode for Requirement {
+    
 }

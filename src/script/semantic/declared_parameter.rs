@@ -1,4 +1,6 @@
 
+use super::SemanticNode;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
@@ -52,5 +54,9 @@ impl DeclaredParameter {
             value,
         })))
     }
+}
+
+impl SemanticNode for DeclaredParameter {
+    
 }
 

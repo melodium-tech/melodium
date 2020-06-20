@@ -1,4 +1,6 @@
 
+use super::SemanticNode;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
@@ -102,15 +104,6 @@ impl Value {
         Ok(ValueContent::Array(values))
     }
 
-    pub fn make_references(&mut self) -> Result<(), ScriptError> {
-
-        let content = self.make_reference_valuecontent(&self.content)?;
-
-        self.content = content;
-
-        Ok(())
-    }
-
     fn make_reference_valuecontent(&self, value: &ValueContent) -> Result<ValueContent, ScriptError> {
 
         let content;
@@ -169,4 +162,15 @@ impl Value {
         Ok(content)
     }
 
+}
+
+impl SemanticNode for Value {
+    fn make_references(&mut self) -> Result<(), ScriptError> {
+
+        let content = self.make_reference_valuecontent(&self.content)?;
+
+        self.content = content;
+
+        Ok(())
+    }
 }

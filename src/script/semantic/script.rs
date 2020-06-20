@@ -1,4 +1,7 @@
 
+
+use super::SemanticNode;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
@@ -47,19 +50,6 @@ impl Script {
         Ok(script)
     }
 
-    pub fn make_references(&self) -> Result<(), ScriptError> {
-
-        for m in &self.models {
-            m.borrow_mut().make_references()?;
-        }
-
-        for s in &self.sequences {
-            s.borrow_mut().make_references()?;
-        }
-
-        Ok(())
-    }
-
     pub fn find_use(&self, element: & str) -> Option<&Rc<RefCell<Use>>> {
         self.uses.iter().find(|&u| u.borrow().element == element)
     }
@@ -73,24 +63,39 @@ impl Script {
     }
 }
 
+impl SemanticNode for Script {
+    fn children(&self) -> Vec<Rc<RefCell<dyn SemanticNode>>> {
+
+        let mut children: Vec<Rc<RefCell<dyn SemanticNode>>> = Vec::new();
+
+        self.uses.iter().for_each(|u| children.push(Rc::clone(&u) as Rc<RefCell<dyn SemanticNode>>));
+        self.models.iter().for_each(|m| children.push(Rc::clone(&m) as Rc<RefCell<dyn SemanticNode>>));
+        self.sequences.iter().for_each(|s| children.push(Rc::clone(&s) as Rc<RefCell<dyn SemanticNode>>));
+
+        children
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
-    use super::*;
+    use super::{Script, SemanticNode};
+    use crate::script::semantic::SemanticTree;
     use crate::script_file::ScriptFile;
 
     #[test]
     fn test_simple_semantic() {
 
-        let address = "examples/exemple_01.mel";
+        let address = "examples/semantic/simple_build.mel";
 
         let mut script_file = ScriptFile::new(address);
 
         script_file.load().unwrap();
         script_file.parse().unwrap();
-        
-        let script = Script::new(address, script_file.script().clone()).unwrap();
 
-        assert_eq!(script.borrow().sequences.len(), 4);
+        let semantic_tree = SemanticTree::new(address, script_file.script().clone());
+        semantic_tree.make_references().unwrap();
+
+        assert_eq!(semantic_tree.script.borrow().sequences.len(), 4);
     }
 }

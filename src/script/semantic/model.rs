@@ -1,4 +1,6 @@
 
+use super::SemanticNode;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
@@ -36,8 +38,11 @@ impl Model {
             text,
         })))
     }
+}
 
-    pub fn make_references(&mut self) -> Result<(), ScriptError> {
+impl SemanticNode for Model {
+    
+    fn make_references(&mut self) -> Result<(), ScriptError> {
 
         let borrowed_script = self.script.borrow();
 

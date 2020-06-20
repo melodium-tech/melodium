@@ -1,4 +1,6 @@
 
+use super::SemanticNode;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
@@ -53,11 +55,22 @@ impl Treatment {
         Ok(treatment)
     }
 
-    pub fn make_references(&mut self) -> Result<(), ScriptError> {
+    pub fn find_parameter(&self, name: & str) -> Option<&Rc<RefCell<AssignedParameter>>> {
+        self.parameters.iter().find(|&p| p.borrow().name == name) 
+    }
+}
 
-        for p in &self.parameters {
-            p.borrow().make_references()?;
-        }
+impl SemanticNode for Treatment {
+    fn children(&self) -> Vec<Rc<RefCell<dyn SemanticNode>>> {
+
+        let mut children: Vec<Rc<RefCell<dyn SemanticNode>>> = Vec::new();
+
+        self.parameters.iter().for_each(|p| children.push(Rc::clone(&p) as Rc<RefCell<dyn SemanticNode>>));
+
+        children
+    }
+
+    fn make_references(&mut self) -> Result<(), ScriptError> {
 
         if let RefersTo::Unkown(reference) = &self.r#type {
 
@@ -88,9 +101,5 @@ impl Treatment {
         }
 
         Ok(())
-    }
-
-    pub fn find_parameter(&self, name: & str) -> Option<&Rc<RefCell<AssignedParameter>>> {
-        self.parameters.iter().find(|&p| p.borrow().name == name) 
     }
 }
