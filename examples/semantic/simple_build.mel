@@ -1,3 +1,8 @@
+
+use core/signal::FrameCutter
+use core/signal::Windowing
+use core/signal::Spectrum
+
 sequence MakeSpectrum(frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String) 
 	input signal: Vec<Int>
 	output spectrum: Mat<Int>
