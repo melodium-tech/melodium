@@ -1,5 +1,5 @@
 
-use super::SemanticNode;
+use super::common::Node;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -47,12 +47,12 @@ impl AssignedParameter {
     }
 }
 
-impl SemanticNode for AssignedParameter {
-    fn children(&self) -> Vec<Rc<RefCell<dyn SemanticNode>>> {
+impl Node for AssignedParameter {
+    fn children(&self) -> Vec<Rc<RefCell<dyn Node>>> {
 
-        let mut children: Vec<Rc<RefCell<dyn SemanticNode>>> = Vec::new();
+        let mut children: Vec<Rc<RefCell<dyn Node>>> = Vec::new();
 
-        children.push(Rc::clone(&self.value) as Rc<RefCell<dyn SemanticNode>>);
+        children.push(Rc::clone(&self.value) as Rc<RefCell<dyn Node>>);
 
         children
     }

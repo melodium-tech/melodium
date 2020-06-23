@@ -1,5 +1,5 @@
 
-use super::SemanticNode;
+use super::common::Node;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -123,17 +123,17 @@ impl Sequence {
     }
 }
 
-impl SemanticNode for Sequence {
-    fn children(&self) -> Vec<Rc<RefCell<dyn SemanticNode>>> {
+impl Node for Sequence {
+    fn children(&self) -> Vec<Rc<RefCell<dyn Node>>> {
 
-        let mut children: Vec<Rc<RefCell<dyn SemanticNode>>> = Vec::new();
+        let mut children: Vec<Rc<RefCell<dyn Node>>> = Vec::new();
 
-        self.parameters.iter().for_each(|p| children.push(Rc::clone(&p) as Rc<RefCell<dyn SemanticNode>>));
-        self.requirements.iter().for_each(|r| children.push(Rc::clone(&r) as Rc<RefCell<dyn SemanticNode>>));
-        self.inputs.iter().for_each(|i| children.push(Rc::clone(&i) as Rc<RefCell<dyn SemanticNode>>));
-        self.outputs.iter().for_each(|o| children.push(Rc::clone(&o) as Rc<RefCell<dyn SemanticNode>>));
-        self.treatments.iter().for_each(|t| children.push(Rc::clone(&t) as Rc<RefCell<dyn SemanticNode>>));
-        self.connections.iter().for_each(|c| children.push(Rc::clone(&c) as Rc<RefCell<dyn SemanticNode>>));
+        self.parameters.iter().for_each(|p| children.push(Rc::clone(&p) as Rc<RefCell<dyn Node>>));
+        self.requirements.iter().for_each(|r| children.push(Rc::clone(&r) as Rc<RefCell<dyn Node>>));
+        self.inputs.iter().for_each(|i| children.push(Rc::clone(&i) as Rc<RefCell<dyn Node>>));
+        self.outputs.iter().for_each(|o| children.push(Rc::clone(&o) as Rc<RefCell<dyn Node>>));
+        self.treatments.iter().for_each(|t| children.push(Rc::clone(&t) as Rc<RefCell<dyn Node>>));
+        self.connections.iter().for_each(|c| children.push(Rc::clone(&c) as Rc<RefCell<dyn Node>>));
 
         children
     }

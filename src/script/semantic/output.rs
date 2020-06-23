@@ -1,5 +1,5 @@
 
-use super::SemanticNode;
+use super::common::Node;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -49,6 +49,6 @@ impl Output {
     }
 }
 
-impl SemanticNode for Output {
+impl Node for Output {
     
 }

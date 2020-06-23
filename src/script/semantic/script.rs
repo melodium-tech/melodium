@@ -1,6 +1,6 @@
 
 
-use super::SemanticNode;
+use super::common::Node;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -63,14 +63,14 @@ impl Script {
     }
 }
 
-impl SemanticNode for Script {
-    fn children(&self) -> Vec<Rc<RefCell<dyn SemanticNode>>> {
+impl Node for Script {
+    fn children(&self) -> Vec<Rc<RefCell<dyn Node>>> {
 
-        let mut children: Vec<Rc<RefCell<dyn SemanticNode>>> = Vec::new();
+        let mut children: Vec<Rc<RefCell<dyn Node>>> = Vec::new();
 
-        self.uses.iter().for_each(|u| children.push(Rc::clone(&u) as Rc<RefCell<dyn SemanticNode>>));
-        self.models.iter().for_each(|m| children.push(Rc::clone(&m) as Rc<RefCell<dyn SemanticNode>>));
-        self.sequences.iter().for_each(|s| children.push(Rc::clone(&s) as Rc<RefCell<dyn SemanticNode>>));
+        self.uses.iter().for_each(|u| children.push(Rc::clone(&u) as Rc<RefCell<dyn Node>>));
+        self.models.iter().for_each(|m| children.push(Rc::clone(&m) as Rc<RefCell<dyn Node>>));
+        self.sequences.iter().for_each(|s| children.push(Rc::clone(&s) as Rc<RefCell<dyn Node>>));
 
         children
     }
@@ -79,8 +79,8 @@ impl SemanticNode for Script {
 #[cfg(test)]
 mod tests {
 
-    use super::{Script, SemanticNode};
-    use crate::script::semantic::SemanticTree;
+    use super::Node;
+    use crate::script::semantic::common::Tree;
     use crate::script_file::ScriptFile;
 
     #[test]
@@ -93,7 +93,7 @@ mod tests {
         script_file.load().unwrap();
         script_file.parse().unwrap();
 
-        let semantic_tree = SemanticTree::new(address, script_file.script().clone());
+        let semantic_tree = Tree::new(address, script_file.script().clone());
         semantic_tree.make_references().unwrap();
 
         assert_eq!(semantic_tree.script.borrow().sequences.len(), 4);

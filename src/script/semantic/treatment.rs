@@ -1,5 +1,5 @@
 
-use super::SemanticNode;
+use super::common::Node;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -8,7 +8,7 @@ use crate::script::text::Treatment as TextTreatment;
 
 use super::r#use::Use;
 use super::sequence::Sequence;
-use super::reference::Reference;
+use super::common::Reference;
 use super::assigned_parameter::AssignedParameter;
 
 pub struct Treatment {
@@ -60,12 +60,12 @@ impl Treatment {
     }
 }
 
-impl SemanticNode for Treatment {
-    fn children(&self) -> Vec<Rc<RefCell<dyn SemanticNode>>> {
+impl Node for Treatment {
+    fn children(&self) -> Vec<Rc<RefCell<dyn Node>>> {
 
-        let mut children: Vec<Rc<RefCell<dyn SemanticNode>>> = Vec::new();
+        let mut children: Vec<Rc<RefCell<dyn Node>>> = Vec::new();
 
-        self.parameters.iter().for_each(|p| children.push(Rc::clone(&p) as Rc<RefCell<dyn SemanticNode>>));
+        self.parameters.iter().for_each(|p| children.push(Rc::clone(&p) as Rc<RefCell<dyn Node>>));
 
         children
     }

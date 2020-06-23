@@ -1,5 +1,5 @@
 
-use super::SemanticNode;
+use super::common::Node;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -56,7 +56,7 @@ impl DeclaredParameter {
     }
 }
 
-impl SemanticNode for DeclaredParameter {
+impl Node for DeclaredParameter {
     
 }
 

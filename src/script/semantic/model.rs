@@ -1,5 +1,5 @@
 
-use super::SemanticNode;
+use super::common::Node;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -7,7 +7,7 @@ use crate::script::error::ScriptError;
 use crate::script::text::Model as TextModel;
 
 use super::script::Script;
-use super::reference::Reference;
+use super::common::Reference;
 use super::r#use::Use;
 
 pub struct Model {
@@ -40,7 +40,7 @@ impl Model {
     }
 }
 
-impl SemanticNode for Model {
+impl Node for Model {
     
     fn make_references(&mut self) -> Result<(), ScriptError> {
 

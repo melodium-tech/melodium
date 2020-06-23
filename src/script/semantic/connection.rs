@@ -1,5 +1,5 @@
 
-use super::SemanticNode;
+use super::common::Node;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -7,7 +7,7 @@ use crate::script::error::ScriptError;
 use crate::script::text::Connection as TextConnection;
 
 use super::sequence::Sequence;
-use super::reference::Reference;
+use super::common::Reference;
 use super::treatment::Treatment;
 
 pub struct Connection {
@@ -44,7 +44,7 @@ impl Connection {
 
 }
 
-impl SemanticNode for Connection {
+impl Node for Connection {
     fn make_references(&mut self) -> Result<(), ScriptError> {
 
         let sequence = self.sequence.borrow();

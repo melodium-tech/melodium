@@ -1,5 +1,5 @@
 
-use super::SemanticNode;
+use super::common::Node;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -7,7 +7,7 @@ use crate::script::error::ScriptError;
 use crate::script::text::value::Value as TextValue;
 
 use super::sequence::Sequence;
-use super::reference::Reference;
+use super::common::Reference;
 use super::declared_parameter::DeclaredParameter;
 use super::requirement::Requirement;
 
@@ -164,7 +164,7 @@ impl Value {
 
 }
 
-impl SemanticNode for Value {
+impl Node for Value {
     fn make_references(&mut self) -> Result<(), ScriptError> {
 
         let content = self.make_reference_valuecontent(&self.content)?;
