@@ -30,9 +30,9 @@ impl Sequence {
     /// * `iter`: Iterator over words list, next() being expected to be the name of the sequence.
     /// 
     /// ```
-    /// # use lang_trial::script::error::ScriptError;
-    /// # use lang_trial::script::text::word::*;
-    /// # use lang_trial::script::text::sequence::Sequence;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::word::*;
+    /// # use melodium_rust::script::text::sequence::Sequence;
     /// 
     /// let text = r##"
     /// sequence PrepareAudioFiles(path: Vec<String>, sampleRate: Int = 44100, frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String)

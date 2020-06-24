@@ -19,9 +19,9 @@ impl Requirement {
     /// * `iter`: Iterator over words list, next() being expected to be the named reference required, see [Kind::Reference](../word/enum.Kind.html#variant.Reference).
     /// 
     /// ```
-    /// # use lang_trial::script::error::ScriptError;
-    /// # use lang_trial::script::text::word::*;
-    /// # use lang_trial::script::text::requirement::Requirement;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::word::*;
+    /// # use melodium_rust::script::text::requirement::Requirement;
     /// let words = get_words("require @Signal").unwrap();
     /// let mut iter = words.iter();
     /// 

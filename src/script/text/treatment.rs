@@ -23,9 +23,9 @@ impl Treatment {
     /// * `iter`: Iterator over words list, next() being expected to be about [Parameter](../type/struct.Parameter.html).
     /// 
     /// ```
-    /// # use lang_trial::script::error::ScriptError;
-    /// # use lang_trial::script::text::word::*;
-    /// # use lang_trial::script::text::treatment::Treatment;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::word::*;
+    /// # use melodium_rust::script::text::treatment::Treatment;
     /// let text = r##"MakeSpectrum(frameSize = 1024, hopSize = 512, windowingType = "blackmanharris92")"##;
     /// 
     /// let words = get_words(text).unwrap();

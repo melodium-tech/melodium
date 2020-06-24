@@ -20,9 +20,9 @@ impl Use {
     /// * `iter`: Iterator over words list, next() being expected to be the beginning of the path.
     /// 
     /// ```
-    /// # use lang_trial::script::error::ScriptError;
-    /// # use lang_trial::script::text::word::*;
-    /// # use lang_trial::script::text::r#use::Use;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::word::*;
+    /// # use melodium_rust::script::text::r#use::Use;
     /// let words = get_words("use path/where/is::Element").unwrap();
     /// let mut iter = words.iter();
     /// 

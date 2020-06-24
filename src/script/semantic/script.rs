@@ -1,4 +1,5 @@
 
+//! Module dedicated to Script semantic analysis.
 
 use super::common::Node;
 
@@ -11,6 +12,11 @@ use super::r#use::Use;
 use super::model::Model;
 use super::sequence::Sequence;
 
+/// Structure managing and describing semantic of a script.
+/// 
+/// Matches the concept of a script file content.
+/// It owns the whole [text script](../../text/script/struct.Script.html), as well as references to semantical contained [Uses](../use/struct.Use.html), [Models](../model/struct.Model.html), and [Sequences](../sequence/struct.Sequence.html).
+/// There is a logical coherence equivalent to the one expressed in the text script, but this coherence, as in the text, may be _incomplete_ or _broken_.
 pub struct Script {
     pub text: TextScript,
 
@@ -22,6 +28,35 @@ pub struct Script {
 }
 
 impl Script {
+    /// Create a new semantic script, based on textual script.
+    /// 
+    /// * `address`: the literal string specifiyng the script location (i.e. the filepath).
+    /// * `text`: the textual script.
+    /// 
+    /// # Note
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(address, text_script)?;
+    /// 
+    /// assert_eq!(script.borrow().uses.len(), 3);
+    /// assert_eq!(script.borrow().models.len(), 0);
+    /// assert_eq!(script.borrow().sequences.len(), 4);
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn new(address: & str, text: TextScript) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         let script = Rc::<RefCell<Self>>::new(RefCell::new(Self {
@@ -50,14 +85,88 @@ impl Script {
         Ok(script)
     }
 
+    /// Search for an element imported through a use.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(address, text_script)?;
+    /// let borrowed_script = script.borrow();
+    /// 
+    /// let spectrum = borrowed_script.find_use("Spectrum");
+    /// let dont_exist = borrowed_script.find_use("DontExist");
+    /// assert!(spectrum.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn find_use(&self, element: & str) -> Option<&Rc<RefCell<Use>>> {
         self.uses.iter().find(|&u| u.borrow().element == element)
     }
 
-    pub fn find_models(&self, name: & str) -> Option<&Rc<RefCell<Model>>> {
+    /// Search for a model.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(address, text_script)?;
+    /// let borrowed_script = script.borrow();
+    /// 
+    /// // [Sic] There is no models used in this example.
+    /// let dont_exist = borrowed_script.find_model("DontExist");
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
+    pub fn find_model(&self, name: & str) -> Option<&Rc<RefCell<Model>>> {
         self.models.iter().find(|&m| m.borrow().name == name)
     }
 
+    /// Search for a sequence.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(address, text_script)?;
+    /// let borrowed_script = script.borrow();
+    /// 
+    /// let make_hpcp = borrowed_script.find_sequence("MakeHPCP");
+    /// let dont_exist = borrowed_script.find_sequence("DontExist");
+    /// assert!(make_hpcp.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn find_sequence(&self, name: & str) -> Option<&Rc<RefCell<Sequence>>> {
         self.sequences.iter().find(|&s| s.borrow().name == name)
     }

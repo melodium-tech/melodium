@@ -25,7 +25,7 @@ impl Model {
         {
             let borrowed_script = script.borrow();
 
-            let model = borrowed_script.find_models(&text.name);
+            let model = borrowed_script.find_model(&text.name);
             if model.is_some() {
                 return Err(ScriptError::semantic("'".to_string() + &text.name+ "' is already declared."))
             }

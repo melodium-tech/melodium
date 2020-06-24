@@ -23,9 +23,9 @@ impl Model {
     /// Models don't support any kind of content in the current implementation. Their specification is not finished.
     /// 
     /// ```
-    /// # use lang_trial::script::error::ScriptError;
-    /// # use lang_trial::script::text::word::*;
-    /// # use lang_trial::script::text::model::Model;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::word::*;
+    /// # use melodium_rust::script::text::model::Model;
     /// let text = r##"
     /// model MachineLearningModel(SparseAutoencoder)
     /// {

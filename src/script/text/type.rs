@@ -20,9 +20,9 @@ impl Type {
     /// * `iter`: Iterator over words list, next() being expected to be either the name or structure.
     /// 
     /// ```
-    /// # use lang_trial::script::error::ScriptError;
-    /// # use lang_trial::script::text::word::*;
-    /// # use lang_trial::script::text::r#type::Type;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::word::*;
+    /// # use melodium_rust::script::text::r#type::Type;
     /// let text = "Vec<Int>";
     /// 
     /// let words = get_words(text).unwrap();
