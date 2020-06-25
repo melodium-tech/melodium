@@ -2,6 +2,7 @@
 use crate::script::error::ScriptError;
 use crate::script::text::Type as TextType;
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum TypeStructure {
     Scalar,
     Vector,
@@ -9,6 +10,7 @@ pub enum TypeStructure {
     Collection,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum TypeName {
     Boolean,
     Integer,

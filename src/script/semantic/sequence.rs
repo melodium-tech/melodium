@@ -1,4 +1,6 @@
 
+//! Module dedicated to Sequence semantic analysis.
+
 use super::common::Node;
 
 use std::rc::Rc;
@@ -14,6 +16,9 @@ use super::output::Output;
 use super::treatment::Treatment;
 use super::connection::Connection;
 
+/// Structure managing and describing semantic of a sequence.
+/// 
+/// It owns the whole [text sequence](../../text/sequence/struct.Sequence.html).
 pub struct Sequence {
     pub text: TextSequence,
 
@@ -31,6 +36,39 @@ pub struct Sequence {
 }
 
 impl Sequence {
+    /// Create a new semantic sequence, based on textual sequence.
+    /// 
+    /// * `script`: the parent script that "owns" this sequence.
+    /// * `text`: the textual sequence.
+    /// 
+    /// # Note
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(address, text_script)?;
+    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence)
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("PrepareAudioFiles").unwrap().borrow();
+    /// 
+    /// assert_eq!(borrowed_sequence.parameters.len(), 5);
+    /// assert_eq!(borrowed_sequence.treatments.len(), 2);
+    /// assert_eq!(borrowed_sequence.origin.as_ref().unwrap().borrow().name, "AudioFiles");
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn new(script: Rc<RefCell<Script>>, text: TextSequence) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         let sequence = Rc::<RefCell<Self>>::new(RefCell::new(Self {
@@ -102,22 +140,157 @@ impl Sequence {
         Ok(sequence)
     }
 
+    /// Search for a parameter.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(address, text_script)?;
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("PrepareAudioFiles").unwrap().borrow();
+    /// 
+    /// let sample_rate = borrowed_sequence.find_parameter("sampleRate");
+    /// let dont_exist = borrowed_sequence.find_parameter("dontExist");
+    /// assert!(sample_rate.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn find_parameter(&self, name: & str) -> Option<&Rc<RefCell<DeclaredParameter>>> {
         self.parameters.iter().find(|&p| p.borrow().name == name)
     }
 
+    /// Search for a requirement.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(address, text_script)?;
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().borrow();
+    /// 
+    /// let signal = borrowed_sequence.find_requirement("@Signal");
+    /// let dont_exist = borrowed_sequence.find_requirement("@dontExist");
+    /// assert!(signal.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn find_requirement(&self, name: & str) -> Option<&Rc<RefCell<Requirement>>> {
         self.requirements.iter().find(|&r| r.borrow().name == name) 
     }
 
+    /// Search for an input.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(address, text_script)?;
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("MakeHPCP").unwrap().borrow();
+    /// 
+    /// let spectrum = borrowed_sequence.find_input("spectrum");
+    /// let dont_exist = borrowed_sequence.find_input("dontExist");
+    /// assert!(spectrum.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn find_input(&self, name: & str) -> Option<&Rc<RefCell<Input>>> {
         self.inputs.iter().find(|&i| i.borrow().name == name) 
     }
 
+    /// Search for an output.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(address, text_script)?;
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("MakeHPCP").unwrap().borrow();
+    /// 
+    /// let hpcp = borrowed_sequence.find_output("hpcp");
+    /// let dont_exist = borrowed_sequence.find_output("dontExist");
+    /// assert!(hpcp.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn find_output(&self, name: & str) -> Option<&Rc<RefCell<Output>>> {
         self.outputs.iter().find(|&o| o.borrow().name == name) 
     }
 
+    /// Search for a treatment.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(address, text_script)?;
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("MakeSpectrum").unwrap().borrow();
+    /// 
+    /// let frame_cutter = borrowed_sequence.find_treatment("FrameCutter");
+    /// let dont_exist = borrowed_sequence.find_treatment("dontExist");
+    /// assert!(frame_cutter.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn find_treatment(&self, name: & str) -> Option<&Rc<RefCell<Treatment>>> {
         self.treatments.iter().find(|&t| t.borrow().name == name) 
     }

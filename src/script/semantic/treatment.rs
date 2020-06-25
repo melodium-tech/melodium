@@ -1,4 +1,6 @@
 
+//! Module dedicated to Treatment semantic analysis.
+
 use super::common::Node;
 
 use std::rc::Rc;
@@ -11,6 +13,9 @@ use super::sequence::Sequence;
 use super::common::Reference;
 use super::assigned_parameter::AssignedParameter;
 
+/// Structure managing and describing semantic of a treatment.
+/// 
+/// It owns the whole [text treatment](../../text/treatment/struct.Treatment.html).
 pub struct Treatment {
     pub text: TextTreatment,
 
@@ -21,6 +26,10 @@ pub struct Treatment {
     pub parameters: Vec<Rc<RefCell<AssignedParameter>>>,
 }
 
+/// Enumeration managing what treatment type refers to.
+/// 
+/// This is a convenience enum, as a treatment type may refer either on a [Use](../use/struct.Use.html) or a [Sequence](../sequence/struct.Sequence.html).
+/// The `Unknown` variant is aimed to hold a reference-to-nothing, as long as `make_references() hasn't been called.
 pub enum RefersTo {
     Unkown(Reference<()>),
     Use(Reference<Use>),
@@ -28,6 +37,40 @@ pub enum RefersTo {
 }
 
 impl Treatment {
+    /// Create a new semantic treatment, based on textual treatment.
+    /// 
+    /// * `sequence`: the parent sequence that "owns" this treatment.
+    /// * `text`: the textual treatment.
+    /// 
+    /// # Note
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(address, text_script)?;
+    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
+    /// // which will itself call Treatment::new(Rc::clone(&sequence), text_treatment).
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("MakeHPCP").unwrap().borrow();
+    /// let borrowed_treatment = borrowed_sequence.find_treatment("SpectralPeaks").unwrap().borrow();
+    /// 
+    /// assert_eq!(borrowed_treatment.name, "SpectralPeaks");
+    /// assert_eq!(borrowed_treatment.parameters.len(), 6);
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn new(sequence: Rc<RefCell<Sequence>>, text: TextTreatment) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         let treatment = Rc::<RefCell<Self>>::new(RefCell::new(Self {
@@ -55,6 +98,34 @@ impl Treatment {
         Ok(treatment)
     }
 
+    /// Search for a parameter.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(address, text_script)?;
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("MakeHPCP").unwrap().borrow();
+    /// let borrowed_treatment = borrowed_sequence.find_treatment("SpectralPeaks").unwrap().borrow();
+    /// 
+    /// let magnitude_threshold = borrowed_treatment.find_parameter("magnitudeThreshold");
+    /// let dont_exist = borrowed_treatment.find_parameter("dontExist");
+    /// assert!(magnitude_threshold.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn find_parameter(&self, name: & str) -> Option<&Rc<RefCell<AssignedParameter>>> {
         self.parameters.iter().find(|&p| p.borrow().name == name) 
     }

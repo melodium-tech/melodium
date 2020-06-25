@@ -1,4 +1,6 @@
 
+//! Module dedicated to Input semantic analysis.
+
 use super::common::Node;
 
 use std::rc::Rc;
@@ -9,6 +11,9 @@ use crate::script::text::Parameter as TextParameter;
 use super::sequence::Sequence;
 use super::r#type::Type;
 
+/// Structure managing and describing semantic of an input.
+/// 
+/// It owns the whole [text parameter](../../text/parameter/struct.Parameter.html).
 pub struct Input {
     pub text: TextParameter,
 
@@ -19,6 +24,42 @@ pub struct Input {
 }
 
 impl Input {
+    /// Create a new semantic input, based on textual parameter.
+    /// 
+    /// * `sequence`: the parent sequence that "owns" this input.
+    /// * `text`: the textual parameter.
+    /// 
+    /// # Note
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// # use melodium_rust::script::semantic::r#type::{TypeName, TypeStructure};
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(address, text_script)?;
+    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
+    /// // which will itself call Input::new(Rc::clone(&sequence), text_parameter).
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("MakeSpectrum").unwrap().borrow();
+    /// let borrowed_input = borrowed_sequence.find_input("signal").unwrap().borrow();
+    /// 
+    /// assert_eq!(borrowed_input.name, "signal");
+    /// assert_eq!(borrowed_input.r#type.structure, TypeStructure::Vector);
+    /// assert_eq!(borrowed_input.r#type.name, TypeName::Integer);
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn new(sequence: Rc<RefCell<Sequence>>, text: TextParameter) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         let r#type;

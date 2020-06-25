@@ -1,4 +1,6 @@
 
+//! Module dedicated to Model semantic analysis.
+
 use super::common::Node;
 
 use std::rc::Rc;
@@ -10,6 +12,9 @@ use super::script::Script;
 use super::common::Reference;
 use super::r#use::Use;
 
+/// Structure managing and describing semantic of a model.
+/// 
+/// It owns the whole [text model](../../text/model/struct.Model.html).
 pub struct Model {
     pub text: TextModel,
 
@@ -20,6 +25,13 @@ pub struct Model {
 }
 
 impl Model {
+    /// Create a new semantic model, based on textual model.
+    /// 
+    /// * `script`: the parent script that "owns" this model.
+    /// * `text`: the textual model.
+    /// 
+    /// # Note
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
     pub fn new(script: Rc<RefCell<Script>>, text: TextModel) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         {

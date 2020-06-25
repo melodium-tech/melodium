@@ -1,10 +1,15 @@
 
+//! Module dedicated to common semantic elements & traits.
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use super::script::Script;
 use crate::script::text::Script as TextScript;
 use crate::script::error::ScriptError;
 
+/// Semantic tree.
+/// 
+/// Currently holds the root script, which itself owns all other elements.
 pub struct Tree {
     pub script: Rc<RefCell<Script>>,
 }
@@ -37,16 +42,25 @@ impl Tree {
     }
 }
 
+/// Semantic node.
+/// 
+/// Allows making cross-references and create semantic relationships.
+/// Any semantic element should implement this trait.
 pub trait Node {
+    /// Create references to the other elements the actual node relies on.
+    /// 
+    /// This exclude parent-child references, which are made when creating the elements.
     fn make_references(&mut self) -> Result<(), ScriptError> {
         Ok(())
     }
 
+    /// Give a vector of all children the node have, whatever kind they can be.
     fn children(&self) -> Vec<Rc<RefCell<dyn Node>>> {
         vec![]
     }
 }
 
+/// Structure holding name and counted reference to another element.
 #[derive(Default)]
 pub struct Reference<T> {
     pub name: String,

@@ -1,4 +1,6 @@
 
+//! Module dedicated to Connection semantic analysis.
+
 use super::common::Node;
 
 use std::rc::Rc;
@@ -10,6 +12,9 @@ use super::sequence::Sequence;
 use super::common::Reference;
 use super::treatment::Treatment;
 
+/// Structure managing and describing semantic of a connection.
+/// 
+/// It owns the whole [text connection](../../text/connection/struct.Connection.html).
 pub struct Connection {
     pub text: TextConnection,
 
@@ -24,6 +29,13 @@ pub struct Connection {
 }
 
 impl Connection {
+    /// Create a new semantic connection, based on textual connection.
+    /// 
+    /// * `sequence`: the parent sequence that "owns" this connection.
+    /// * `text`: the textual connection.
+    /// 
+    /// # Note
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
     pub fn new(sequence: Rc<RefCell<Sequence>>, text: TextConnection) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         if text.name_data_out.is_some() ^ text.name_data_in.is_some() {
