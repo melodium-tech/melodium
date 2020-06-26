@@ -1,4 +1,6 @@
 
+//! Module for Value identification and structure semantic analysis.
+
 use super::common::Node;
 
 use std::rc::Rc;
@@ -11,16 +13,24 @@ use super::common::Reference;
 use super::declared_parameter::DeclaredParameter;
 use super::requirement::Requirement;
 
+/// Enum holding value or reference designating the value.
 pub enum ValueContent {
     Boolean(bool),
     Integer(i64),
     Real(f64),
     String(String),
+    /// Array, allowing recursive values (in case of vectors, matrices, or collections).
     Array(Vec<ValueContent>),
+    /// Named value, referring to a parameter of the hosting sequence.
     Name(Reference<DeclaredParameter>),
+    /// Named reference, referring to a requirement of the hosting sequence.
     Reference(Reference<Requirement>)
 }
 
+/// Structure managing and describing Value semantic analysis.
+/// 
+/// It owns the whole [text value](../../text/value/enum.Value.html).
+/// A reference to the sequence it belongs to is needed for cases the value is or contains a name or reference.
 pub struct Value {
     pub text: TextValue,
 
@@ -30,6 +40,13 @@ pub struct Value {
 }
 
 impl Value {
+    /// Create a new semantic value, based on textual value.
+    /// 
+    /// * `sequence`: the parent sequence that host the value.
+    /// * `text`: the textual value.
+    /// 
+    /// # Note
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
     pub fn new(sequence: Rc<RefCell<Sequence>>, text: TextValue) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self{
