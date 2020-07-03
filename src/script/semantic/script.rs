@@ -188,7 +188,6 @@ impl Node for Script {
 #[cfg(test)]
 mod tests {
 
-    use super::Node;
     use crate::script::semantic::common::Tree;
     use crate::script_file::ScriptFile;
 
