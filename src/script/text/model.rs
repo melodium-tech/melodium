@@ -3,6 +3,7 @@
 
 use crate::script::error::ScriptError;
 
+use super::PositionnedString;
 use super::word::{expect_word_kind, Kind, Word};
 
 /// Structure describing a textual model.
@@ -10,8 +11,8 @@ use super::word::{expect_word_kind, Kind, Word};
 /// It owns a name, and a type (model type, not [data type](../type/struct.Type.html)).
 #[derive(Clone)]
 pub struct Model {
-    pub name: String,
-    pub r#type: String,
+    pub name: PositionnedString,
+    pub r#type: PositionnedString,
 }
 
 impl Model {

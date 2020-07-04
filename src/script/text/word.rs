@@ -13,21 +13,34 @@ use crate::script::error::ScriptError;
 /// Word, smallest unit of parsed text.
 /// 
 /// This structure embeds informations about a word, that can be anything like a name `MyFashionName`, value `12.345`, or any symbol like parenthesis, bracket, comma, etc.
-/// 
-/// # Note
-/// All positions (`absolute_position`, `line_position`) are expected to be bytes indexes, not chars.
 #[derive(Debug, Clone)]
 pub struct Word {
     /// Literal text of the word.
     pub text: String,
+    /// Kind of the word, may be None if the word is of an unknown kind.
+    pub kind: Option<Kind>,
+    /// Position of the word in the file.
+    pub position: Position,
+}
+
+/// Position of a word or element in text.
+/// 
+/// # Note
+/// All positions (`absolute_position`, `line_position`) are expected to be bytes indexes, not chars.
+#[derive(Default, Debug, Copy, Clone)]
+pub struct Position {
     /// Absolute position of the word inside the text script, as byte index.
     pub absolute_position: usize,
     /// Line where the word is (starting at 1).
-    pub line: usize,
+    pub line_number: usize,
     /// Position of the word on its line , as byte index, zero meaning the first char after '\n'.
     pub line_position: usize,
-    /// Kind of the word, may be None if the word is of an unknown kind.
-    pub kind: Option<Kind>,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct PositionnedString {
+    pub string: String,
+    pub position: Position,
 }
 
 /// Kind of word.
@@ -150,15 +163,15 @@ pub fn expect_word(error_str: &'static str, iter: &mut std::slice::Iter<Word>) -
 /// assert_eq!(value, "876");
 /// # Ok::<(), ScriptError>(())
 /// ```
-pub fn expect_word_kind(kind: Kind, error_str: &'static str, iter: &mut std::slice::Iter<Word>) -> Result<String, ScriptError> {
+pub fn expect_word_kind(kind: Kind, error_str: &'static str, iter: &mut std::slice::Iter<Word>) -> Result<PositionnedString, ScriptError> {
     let word = iter.next();
     if word.is_some() {
         let word = word.unwrap();
         if word.kind == Some(kind) {
-            Ok(word.text.to_string())
+            Ok(PositionnedString{string: word.text.to_string(), position: word.position})
         }
         else {
-            Err(ScriptError::new(error_str.to_string(), word.text.to_string(), word.line, word.line_position, word.absolute_position))
+            Err(ScriptError::word(error_str.to_string(), word.text.to_string(), word.position))
         }
     }
     else {
@@ -335,9 +348,11 @@ pub fn get_words(script: & str) -> Result<Vec<Word>, Vec<Word>> {
         let (line, pos_in_line) = get_line_pos(script, actual_position);
         let word = Word {
             text: splitted_script.0.to_string(),
-            absolute_position: actual_position,
-            line: line,
-            line_position: pos_in_line,
+            position: Position {
+                absolute_position: actual_position,
+                line_position: pos_in_line,
+                line_number: line,
+            },
             kind: kind,
         };
 

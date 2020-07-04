@@ -84,24 +84,28 @@ impl Type {
     /// ```
     pub fn new(text: TextType) -> Result<Self, ScriptError> {
 
-        let name = match text.name.as_ref() {
+        let name = match text.name.string.as_ref() {
             "Bool" => TypeName::Boolean,
             "Int" => TypeName::Integer,
             "Real" => TypeName::Real,
             "String" => TypeName::String,
             _ => {
-                return Err(ScriptError::semantic("'".to_string() + &text.name + "' is not a valid type."))
+                return Err(ScriptError::semantic("'".to_string() + &text.name.string + "' is not a valid type.", text.name.position))
             }
         };
 
-        let structure = match text.structure.as_deref() {
+        let structure_name = match text.structure.clone() {
+            None => None,
+            Some(s) => Some(s.string)
+        };
+        let structure = match structure_name.as_deref() {
             None => TypeStructure::Scalar,
             Some("Scal") => TypeStructure::Scalar,
             Some("Vec") => TypeStructure::Vector,
             Some("Mat") => TypeStructure::Matrix,
             Some("Col") => TypeStructure::Collection,
             _ => {
-                return Err(ScriptError::semantic("'".to_string() + &text.name + "' is not a valid structure."))
+                return Err(ScriptError::semantic("'".to_string() + &structure_name.unwrap() + "' is not a valid structure.", text.structure.unwrap().position))
             }
         };
 

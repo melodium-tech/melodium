@@ -2,7 +2,7 @@
 //! Module dedicated to [Connection](struct.Connection.html) parsing.
 
 use crate::script::error::ScriptError;
-
+use super::PositionnedString;
 use super::word::{expect_word_kind, Kind, Word};
 
 /// Structure describing a textual connection.
@@ -10,10 +10,10 @@ use super::word::{expect_word_kind, Kind, Word};
 /// It owns starting point and ending point names, and the names of data associated with, if any.
 #[derive(Clone)]
 pub struct Connection {
-    pub name_start_point: String,
-    pub name_data_out: Option<String>,
-    pub name_end_point: String,
-    pub name_data_in: Option<String>
+    pub name_start_point: PositionnedString,
+    pub name_data_out: Option<PositionnedString>,
+    pub name_end_point: PositionnedString,
+    pub name_data_in: Option<PositionnedString>
 }
 
 impl Connection {
@@ -41,7 +41,7 @@ impl Connection {
     /// assert_eq!(connection.name_end_point, "Trainer");
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn build_from_name_end_point(name: String, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
+    pub fn build_from_name_end_point(name: PositionnedString, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
 
         let name_end_point = expect_word_kind(Kind::Name, "Connection endpoint name expected.", &mut iter)?;
 
@@ -88,7 +88,7 @@ impl Connection {
     /// assert_eq!(second_connection.name_data_in, Some("spectrum".to_string()));
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn build_from_name_data_out(name: String, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
+    pub fn build_from_name_data_out(name: PositionnedString, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
 
         let name_data_out = expect_word_kind(Kind::Name, "Connection data output name expected.", &mut iter)?;
         expect_word_kind(Kind::RightArrow, "Connection arrow expected.", &mut iter)?;

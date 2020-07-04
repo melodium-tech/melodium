@@ -37,16 +37,16 @@ impl Model {
         {
             let borrowed_script = script.borrow();
 
-            let model = borrowed_script.find_model(&text.name);
+            let model = borrowed_script.find_model(&text.name.string);
             if model.is_some() {
-                return Err(ScriptError::semantic("'".to_string() + &text.name+ "' is already declared."))
+                return Err(ScriptError::semantic("'".to_string() + &text.name.string + "' is already declared.", text.name.position))
             }
         }
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
             script,
-            name: text.name.clone(),
-            r#type: Reference::new(text.r#type.clone()),
+            name: text.name.string.clone(),
+            r#type: Reference::new(text.r#type.string.clone()),
             text,
         })))
     }
@@ -60,7 +60,7 @@ impl Node for Model {
 
         let r#use = borrowed_script.find_use(&self.r#type.name);
         if r#use.is_none() {
-            return Err(ScriptError::semantic("'".to_string() + &self.r#type.name + "' is unkown."))
+            return Err(ScriptError::semantic("'".to_string() + &self.r#type.name + "' is unkown.", self.text.r#type.position))
         }
 
         self.r#type.reference = Some(Rc::clone(r#use.unwrap()));

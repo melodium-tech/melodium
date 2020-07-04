@@ -4,6 +4,7 @@
 
 use crate::script::error::ScriptError;
 
+use super::PositionnedString;
 use super::word::*;
 use super::r#type::Type;
 use super::value::Value;
@@ -13,7 +14,7 @@ use super::value::Value;
 /// It owns a name, and optionnal [Type](../type/struct.Type.html) and/or [Value](../value/enum.Value.html). There is no logical dependency between them at this point.
 #[derive(Clone)]
 pub struct Parameter {
-    pub name: String,
+    pub name: PositionnedString,
     pub r#type: Option<Type>,
     pub value: Option<Value>,
 }
@@ -44,7 +45,7 @@ impl Parameter {
     /// assert!(parameter.value.is_some());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn build_from_type(name: String, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
+    pub fn build_from_type(name: PositionnedString, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
 
         let r#type = Type::build(&mut iter)?;
 
@@ -94,7 +95,7 @@ impl Parameter {
     /// assert!(parameter.value.is_some());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn build_from_value(name: String, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
+    pub fn build_from_value(name: PositionnedString, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
 
         let value = Value::build_from_first_item(&mut iter)?;
 

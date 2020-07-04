@@ -3,6 +3,7 @@
 
 use crate::script::error::ScriptError;
 
+use super::PositionnedString;
 use super::word::{expect_word, Kind, Word};
 
 /// Enum describing a textual value.
@@ -11,17 +12,17 @@ use super::word::{expect_word, Kind, Word};
 #[derive(Clone)]
 pub enum Value {
     /// `true` or `false`.
-    Boolean(String),
+    Boolean(PositionnedString),
     /// Number, see [Kind::Number](../word/enum.Kind.html#variant.Number).
-    Number(String),
+    Number(PositionnedString),
     /// String, see [Kind::String](../word/enum.Kind.html#variant.String).
-    String(String),
+    String(PositionnedString),
     /// Array, representing an arbitrary long vector of values, each of which may be of its own variant kind.
     Array(Vec<Value>),
     /// Name, see [Kind::Name](../word/enum.Kind.html#variant.Name).
-    Name(String),
+    Name(PositionnedString),
     /// Reference, see [Kind::Reference](../word/enum.Kind.html#variant.Reference).
-    Reference(String),
+    Reference(PositionnedString),
 }
 
 impl Value {
@@ -82,7 +83,7 @@ impl Value {
                     return Ok(Self::Array(sub_values));
                 }
                 else if delimiter.kind != Some(Kind::Comma) {
-                    return Err(ScriptError::new("Unexpected symbol.".to_string(), delimiter.text, delimiter.line, delimiter.line_position, delimiter.absolute_position));
+                    return Err(ScriptError::word("Unexpected symbol.".to_string(), delimiter.text, delimiter.position));
                 }
                 // Else delimiter_kind is equal to comma, so continue…
             }
@@ -91,18 +92,18 @@ impl Value {
         // Value is a single element.
         else {
             match value.kind {
-                Some(Kind::Number) => Ok(Self::Number(value.text)),
-                Some(Kind::String) => Ok(Self::String(value.text)),
-                Some(Kind::Reference) => Ok(Self::Reference(value.text)),
+                Some(Kind::Number) => Ok(Self::Number(PositionnedString { string: value.text, position: value.position})),
+                Some(Kind::String) => Ok(Self::String(PositionnedString { string: value.text, position: value.position})),
+                Some(Kind::Reference) => Ok(Self::Reference(PositionnedString { string: value.text, position: value.position})),
                 Some(Kind::Name) => {
                     if value.text == "true" || value.text == "false" {
-                        Ok(Self::Boolean(value.text))
+                        Ok(Self::Boolean(PositionnedString { string: value.text, position: value.position}))
                     }
                     else {
-                        Ok(Self::Name(value.text))
+                        Ok(Self::Name(PositionnedString { string: value.text, position: value.position}))
                     }
                 },
-                _ => Err(ScriptError::new("Value expected.".to_string(), value.text, value.line, value.line_position, value.absolute_position))
+                _ => Err(ScriptError::word("Value expected.".to_string(), value.text, value.position))
             }
         }
     }

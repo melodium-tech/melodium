@@ -3,6 +3,7 @@
 
 use crate::script::error::ScriptError;
 
+use super::PositionnedString;
 use super::word::*;
 
 /// Structure describing a textual use.
@@ -10,8 +11,8 @@ use super::word::*;
 /// It owns the path, as vector of strings (which were separated by slashes `/`), and the used element name. There is no logical nor existence check at this point.
 #[derive(Clone)]
 pub struct Use {
-    pub path: Vec<String>,
-    pub element: String,
+    pub path: Vec<PositionnedString>,
+    pub element: PositionnedString,
 }
 
 impl Use {
@@ -53,7 +54,7 @@ impl Use {
                 break;
             }
             else {
-                return Err(ScriptError::new("Slash or double-colon expected.".to_string(), delimiter.text, delimiter.line, delimiter.line_position, delimiter.absolute_position));
+                return Err(ScriptError::word("Slash or double-colon expected.".to_string(), delimiter.text, delimiter.position));
             }
         }
 

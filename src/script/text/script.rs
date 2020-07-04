@@ -3,6 +3,7 @@
 
 use crate::script::error::ScriptError;
 
+use super::PositionnedString;
 use super::word::{expect_word, get_words, Kind};
 use super::r#use::Use;
 use super::annotation::Annotation;
@@ -70,7 +71,7 @@ impl Script {
             let err_word = err_words.last();
             if err_word.is_some() {
                 let err_word = err_word.unwrap();
-                return Err(ScriptError::new("Unkown word.".to_string(), err_word.text.to_string(), err_word.line, err_word.line_position, err_word.absolute_position));
+                return Err(ScriptError::word("Unkown word.".to_string(), err_word.text.to_string(), err_word.position));
             }
             else {
                 return Err(ScriptError::end_of_script("Script is empty.".to_string()));
@@ -90,7 +91,7 @@ impl Script {
                 let word = possible_word.unwrap();
 
                 if word.kind == Some(Kind::Annotation) {
-                    annotations.push(Annotation{text: word.text});
+                    annotations.push(Annotation{text: PositionnedString{string: word.text, position: word.position}});
                 }
                 else if word.kind == Some(Kind::Name) {
                     if word.text == "use" {
@@ -103,11 +104,11 @@ impl Script {
                         sequences.push(Sequence::build(&mut iter)?);
                     }
                     else {
-                        return Err(ScriptError::new("Unkown declaration.".to_string(), word.text, word.line, word.line_position, word.absolute_position));
+                        return Err(ScriptError::word("Unkown declaration.".to_string(), word.text, word.position));
                     }
                 }
                 else {
-                    return Err(ScriptError::new("Unexpected symbol.".to_string(), word.text, word.line, word.line_position, word.absolute_position));
+                    return Err(ScriptError::word("Unexpected symbol.".to_string(), word.text, word.position));
                 }
             }
             else {

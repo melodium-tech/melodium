@@ -60,15 +60,15 @@ impl Requirement {
         {
             let borrowed_sequence = sequence.borrow();
 
-            let requirement = borrowed_sequence.find_requirement(&text.name);
+            let requirement = borrowed_sequence.find_requirement(&text.name.string);
             if requirement.is_some() {
-                return Err(ScriptError::semantic("'".to_string() + &text.name + "' is already required."))
+                return Err(ScriptError::semantic("'".to_string() + &text.name.string + "' is already required.", text.name.position))
             }
         }
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self{
             sequence,
-            name: text.name.clone(),
+            name: text.name.string.clone(),
             text,
         })))
     }

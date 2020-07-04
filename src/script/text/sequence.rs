@@ -3,6 +3,7 @@
 
 use crate::script::error::ScriptError;
 
+use super::PositionnedString;
 use super::word::{expect_word, expect_word_kind, Kind, Word};
 use super::parameter::Parameter;
 use super::requirement::Requirement;
@@ -14,7 +15,7 @@ use super::connection::Connection;
 /// It owns the name, and the attributes of the sequence, as well as its internal treatments and connections. There is no logical dependency between them at this point.
 #[derive(Clone)]
 pub struct Sequence {
-    pub name: String,
+    pub name: PositionnedString,
     pub parameters: Vec<Parameter>,
     pub requirements: Vec<Requirement>,
     pub origin: Option<Treatment>,
@@ -87,7 +88,7 @@ impl Sequence {
                 first_param = false;
 
                 expect_word_kind(Kind::Colon, "Parameter type declaration expected.", &mut iter)?;
-                parameters.push(Parameter::build_from_type(word.text, &mut iter)?);
+                parameters.push(Parameter::build_from_type(PositionnedString{string: word.text, position: word.position}, &mut iter)?);
 
                 let delimiter = expect_word("Unexpected end of script.", &mut iter)?;
                 
@@ -98,11 +99,11 @@ impl Sequence {
                     break;
                 }
                 else {
-                    return Err(ScriptError::new("Comma or closing parenthesis expected.".to_string(), delimiter.text, delimiter.line, delimiter.line_position, delimiter.absolute_position));
+                    return Err(ScriptError::word("Comma or closing parenthesis expected.".to_string(), delimiter.text, delimiter.position));
                 }
             }
             else {
-                return Err(ScriptError::new("Parameter declaration expected.".to_string(), word.text, word.line, word.line_position, word.absolute_position));
+                return Err(ScriptError::word("Parameter declaration expected.".to_string(), word.text, word.position));
             }
         }
 
@@ -145,12 +146,12 @@ impl Sequence {
                         origin = Some(Treatment::build_from_parameters(origin_name, &mut iter)?);
                     }
                     else {
-                        return Err(ScriptError::new("Origin already declared.".to_string(), word.text, word.line, word.line_position, word.absolute_position));
+                        return Err(ScriptError::word("Origin already declared.".to_string(), word.text, word.position));
                     }
                 }
             }
             else {
-                return Err(ScriptError::new("Sequence attributes or content declaration expected.".to_string(), word.text, word.line, word.line_position, word.absolute_position));
+                return Err(ScriptError::word("Sequence attributes or content declaration expected.".to_string(), word.text, word.position));
             }
         }
 
@@ -163,7 +164,7 @@ impl Sequence {
             the type of last connection, we have to keep track on (1) was the last
             connection including data transmission, or (2) was it only a chain of treatments.
         */
-        let mut last_connection_name_end_point: Option<String> = None;
+        let mut last_connection_name_end_point: Option<PositionnedString> = None;
         let mut may_be_connection_data_out = false; //  (1)
         let mut may_be_connection_end_point = false; // (2)
         
@@ -182,7 +183,7 @@ impl Sequence {
                 word.kind == Some(Kind::Comma) {
                     // So it means we expect continuing a connection with data tramsission (1).
                     let connection = Connection::build_from_name_data_out(last_connection_name_end_point.unwrap(), &mut iter)?;
-                    last_connection_name_end_point = Some(connection.name_end_point.to_string());
+                    last_connection_name_end_point = Some(connection.name_end_point.clone());
                     connections.push(connection);
                     
                     // Redundant assignation, as will stay as true
@@ -198,7 +199,7 @@ impl Sequence {
                 word.kind == Some(Kind::RightArrow) {
                     // So it means we expect continuing a connection that only chains treatments (2).
                     let connection = Connection::build_from_name_end_point(last_connection_name_end_point.unwrap(), &mut iter)?;
-                    last_connection_name_end_point = Some(connection.name_end_point.to_string());
+                    last_connection_name_end_point = Some(connection.name_end_point.clone());
                     connections.push(connection);
 
                     // Redundant assignation, as will stay as true
@@ -217,7 +218,7 @@ impl Sequence {
                 // If we're not continuing a connection, word have to be the name of an element.
                 if word.kind == Some(Kind::Name) {
                     
-                    element_name = word.text;
+                    element_name = PositionnedString {string: word.text, position: word.position};
 
                     // And the next word is determinant of what can follow.
                     determinant = expect_word("Unexpected end of script.", &mut iter)?;
@@ -227,7 +228,7 @@ impl Sequence {
                     break;
                 }
                 else {
-                    return Err(ScriptError::new("Element name expected.".to_string(), word.text, word.line, word.line_position, word.absolute_position));
+                    return Err(ScriptError::word("Element name expected.".to_string(), word.text, word.position));
                 }
             }
 
@@ -238,7 +239,7 @@ impl Sequence {
             // If determinant is a dot '.', we are in a connection declaration, with data transmission (1).
             else if determinant.kind == Some(Kind::Dot) {
                 let connection = Connection::build_from_name_data_out(element_name, &mut iter)?;
-                last_connection_name_end_point = Some(connection.name_end_point.to_string());
+                last_connection_name_end_point = Some(connection.name_end_point.clone());
                 connections.push(connection);
                 // We remind that next iteration may be a continuation of connections.
                 may_be_connection_data_out = true;
@@ -246,14 +247,14 @@ impl Sequence {
             // If determinant is an arrow '-->', we are in a connection declaration, without data transmission (2).
             else if determinant.kind == Some(Kind::RightArrow) {
                 let connection = Connection::build_from_name_end_point(element_name, &mut iter)?;
-                last_connection_name_end_point = Some(connection.name_end_point.to_string());
+                last_connection_name_end_point = Some(connection.name_end_point.clone());
                 connections.push(connection);
                 // We remind that next iteration may be a continuation of connections.
                 may_be_connection_end_point = true;
             }
             // In other cases, we're not getting what's expected.
             else {
-                return Err(ScriptError::new("Symbol expected.".to_string(), determinant.text, determinant.line, determinant.line_position, determinant.absolute_position));
+                return Err(ScriptError::word("Symbol expected.".to_string(), determinant.text, determinant.position));
             }
         }
 

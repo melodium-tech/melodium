@@ -26,6 +26,8 @@ pub use annotation::Annotation;
 pub use connection::Connection;
 pub use model::Model;
 pub use parameter::Parameter;
+pub use word::Position;
+pub use word::PositionnedString;
 pub use requirement::Requirement;
 pub use sequence::Sequence;
 pub use treatment::Treatment;

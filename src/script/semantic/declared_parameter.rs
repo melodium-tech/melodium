@@ -72,13 +72,13 @@ impl DeclaredParameter {
         {
             let borrowed_sequence = sequence.borrow();
 
-            let parameter = borrowed_sequence.find_parameter(&text.name);
+            let parameter = borrowed_sequence.find_parameter(&text.name.string);
             if parameter.is_some() {
-                return Err(ScriptError::semantic("Parameter '".to_string() + &text.name + "' is already declared."))
+                return Err(ScriptError::semantic("Parameter '".to_string() + &text.name.string + "' is already declared.", text.name.position))
             }
 
             if text.r#type.is_none() {
-                return Err(ScriptError::semantic("Parameter '".to_string() + &text.name + "' do not have type."))
+                return Err(ScriptError::semantic("Parameter '".to_string() + &text.name.string + "' do not have type.", text.name.position))
             }
             r#type = Type::new(text.r#type.as_ref().unwrap().clone())?;
 
@@ -92,7 +92,7 @@ impl DeclaredParameter {
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
             sequence,
-            name: text.name.clone(),
+            name: text.name.string.clone(),
             text,
             r#type,
             value,

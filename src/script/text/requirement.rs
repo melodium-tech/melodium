@@ -3,6 +3,7 @@
 
 use crate::script::error::ScriptError;
 
+use super::PositionnedString;
 use super::word::{expect_word_kind, Kind, Word};
 
 /// Structure describing a textual requirement.
@@ -10,7 +11,7 @@ use super::word::{expect_word_kind, Kind, Word};
 /// It owns the requirement name.
 #[derive(Clone)]
 pub struct Requirement {
-    pub name: String
+    pub name: PositionnedString
 }
 
 impl Requirement {

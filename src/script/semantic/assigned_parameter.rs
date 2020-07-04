@@ -68,21 +68,21 @@ impl AssignedParameter {
         {
             let borrowed_treatment = treatment.borrow();
 
-            let parameter = borrowed_treatment.find_parameter(&text.name);
+            let parameter = borrowed_treatment.find_parameter(&text.name.string);
             if parameter.is_some() {
-                return Err(ScriptError::semantic("Parameter '".to_string() + &text.name + "' is already assigned."))
+                return Err(ScriptError::semantic("Parameter '".to_string() + &text.name.string + "' is already assigned.", text.name.position))
             }
 
             if text.value.is_some() {
                 value = Value::new(Rc::clone(&borrowed_treatment.sequence), text.value.as_ref().unwrap().clone())?;
             }
             else {
-                return Err(ScriptError::semantic("Parameter '".to_string() + &text.name + "' is missing value."))
+                return Err(ScriptError::semantic("Parameter '".to_string() + &text.name.string + "' is missing value.", text.name.position))
             }
         }
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
-            name: text.name.clone(),
+            name: text.name.string.clone(),
             text,
             treatment,
             value,

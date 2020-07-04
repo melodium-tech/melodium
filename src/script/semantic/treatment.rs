@@ -76,17 +76,17 @@ impl Treatment {
         let treatment = Rc::<RefCell<Self>>::new(RefCell::new(Self {
             text: text.clone(),
             sequence: Rc::clone(&sequence),
-            name: text.name.clone(),
-            r#type: RefersTo::Unkown(Reference::new(text.r#type)),
+            name: text.name.string.clone(),
+            r#type: RefersTo::Unkown(Reference::new(text.r#type.string)),
             parameters: Vec::new(),
         }));
 
         {
             let borrowed_sequence = sequence.borrow();
 
-            let treatment = borrowed_sequence.find_treatment(&text.name);
+            let treatment = borrowed_sequence.find_treatment(&text.name.string);
             if treatment.is_some() {
-                return Err(ScriptError::semantic("Treatment '".to_string() + &text.name + "' is already declared."))
+                return Err(ScriptError::semantic("Treatment '".to_string() + &text.name.string + "' is already declared.", text.name.position))
             }
         }
 
@@ -166,7 +166,7 @@ impl Node for Treatment {
                     });
                 }
                 else {
-                    return Err(ScriptError::semantic("'".to_string() + &reference.name + "' is unkown."))
+                    return Err(ScriptError::semantic("'".to_string() + &reference.name + "' is unkown.", self.text.r#type.position))
                 }
             }
         }

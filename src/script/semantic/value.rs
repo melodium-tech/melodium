@@ -6,6 +6,7 @@ use super::common::Node;
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
+use crate::script::text::{PositionnedString, Position};
 use crate::script::text::value::Value as TextValue;
 
 use super::sequence::Sequence;
@@ -59,51 +60,51 @@ impl Value {
     fn parse(text: &TextValue) -> Result<ValueContent, ScriptError> {
 
         let content = match text {
-            TextValue::Boolean(b) => Self::parse_boolean(&b)?,
-            TextValue::Number(n) => Self::parse_number(&n)?,
-            TextValue::String(s) => Self::parse_string(&s)?,
+            TextValue::Boolean(b) => Self::parse_boolean(b)?,
+            TextValue::Number(n) => Self::parse_number(n)?,
+            TextValue::String(s) => Self::parse_string(s)?,
             TextValue::Array(a) => Self::parse_vector(&a)?,
-            TextValue::Name(n) => ValueContent::Name(Reference::new(n.to_string())),
-            TextValue::Reference(r) => ValueContent::Reference(Reference::new(r.to_string())),
+            TextValue::Name(n) => ValueContent::Name(Reference::new(n.string.to_string())),
+            TextValue::Reference(r) => ValueContent::Reference(Reference::new(r.string.to_string())),
         };
 
         Ok(content)
     }
 
-    fn parse_boolean(b: &str) -> Result<ValueContent, ScriptError> {
+    fn parse_boolean(b: & PositionnedString) -> Result<ValueContent, ScriptError> {
         Ok(ValueContent::Boolean(
-            if b == "true" { true }
-            else if b == "false" { false }
+            if b.string == "true" { true }
+            else if b.string == "false" { false }
             else {
-                return Err(ScriptError::semantic("'".to_string() + &b + "' is not a valid boolean."))
+                return Err(ScriptError::semantic("'".to_string() + &b.string + "' is not a valid boolean.", b.position))
             }
         ))
     }
 
-    fn parse_number(n: &str) -> Result<ValueContent, ScriptError> {
+    fn parse_number(n: & PositionnedString) -> Result<ValueContent, ScriptError> {
 
-        let integer = n.parse::<i64>();
+        let integer = n.string.parse::<i64>();
         if integer.is_ok() {
             return Ok(ValueContent::Integer(integer.unwrap()));
         }
 
-        let real = n.parse::<f64>();
+        let real = n.string.parse::<f64>();
         if real.is_ok() {
             return Ok(ValueContent::Real(real.unwrap()));
         }
 
-        Err(ScriptError::semantic("'".to_string() + &n + "' is not a valid number."))
+        Err(ScriptError::semantic("'".to_string() + &n.string + "' is not a valid number.", n.position))
     }
 
-    fn parse_string(s: &str) -> Result<ValueContent, ScriptError> {
+    fn parse_string(s: & PositionnedString) -> Result<ValueContent, ScriptError> {
 
-        let string = s.strip_prefix('"');
+        let string = s.string.strip_prefix('"');
         if string.is_none() {
-            return Err(ScriptError::semantic("String not starting with '\"', this is an internal bug.".to_string()));
+            return Err(ScriptError::semantic("String not starting with '\"', this is an internal bug.".to_string(), s.position));
         }
         let string = string.unwrap().strip_suffix('"');
         if string.is_none() {
-            return Err(ScriptError::semantic("String not ending with '\"', this is an internal bug.".to_string()));
+            return Err(ScriptError::semantic("String not ending with '\"', this is an internal bug.".to_string(), s.position));
         }
 
         let string = string.unwrap().replace(r#"\""#, r#"""#).replace(r#"\\"#, r#"\"#);
@@ -149,7 +150,11 @@ impl Value {
                     });
                 }
                 else {
-                    return Err(ScriptError::semantic("Unkown name '".to_string() + &n.name + "' in sequence parameters."));
+                    let position = match &self.text {
+                        TextValue::Name(ps) => ps.position,
+                        _ => Position::default(),
+                    };
+                    return Err(ScriptError::semantic("Unkown name '".to_string() + &n.name + "' in sequence parameters.", position));
                 }
             },
             ValueContent::Reference(r) => {
@@ -162,7 +167,11 @@ impl Value {
                     });
                 }
                 else {
-                    return Err(ScriptError::semantic("Unkown reference '".to_string() + &r.name + "' in sequence requirements."));
+                    let position = match &self.text {
+                        TextValue::Reference(ps) => ps.position,
+                        _ => Position::default(),
+                    };
+                    return Err(ScriptError::semantic("Unkown reference '".to_string() + &r.name + "' in sequence requirements.", position));
                 }
             },
             ValueContent::Array(a) => {

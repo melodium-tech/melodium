@@ -3,6 +3,7 @@
 
 use crate::script::error::ScriptError;
 
+use super::PositionnedString;
 use super::word::{expect_word_kind, Kind, Word};
 
 /// Structure describing a textual type.
@@ -10,8 +11,8 @@ use super::word::{expect_word_kind, Kind, Word};
 /// It owns a name, and a structure, if any.
 #[derive(Clone)]
 pub struct Type {
-    pub structure: Option<String>,
-    pub name: String
+    pub structure: Option<PositionnedString>,
+    pub name: PositionnedString
 }
 
 impl Type {

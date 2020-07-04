@@ -66,24 +66,24 @@ impl Input {
         {
             let borrowed_sequence = sequence.borrow();
 
-            let input = borrowed_sequence.find_input(&text.name);
+            let input = borrowed_sequence.find_input(&text.name.string);
             if input.is_some() {
-                return Err(ScriptError::semantic("Input '".to_string() + &text.name + "' is already declared."))
+                return Err(ScriptError::semantic("Input '".to_string() + &text.name.string + "' is already declared.", text.name.position))
             }
 
             if text.r#type.is_none() {
-                return Err(ScriptError::semantic("Input '".to_string() + &text.name + "' do not have type."))
+                return Err(ScriptError::semantic("Input '".to_string() + &text.name.string + "' do not have type.", text.name.position))
             }
             r#type = Type::new(text.r#type.as_ref().unwrap().clone())?;
 
             if text.value.is_some() {
-                return Err(ScriptError::semantic("Input '".to_string() + &text.name + "' cannot have default value."))
+                return Err(ScriptError::semantic("Input '".to_string() + &text.name.string + "' cannot have default value.", text.name.position))
             }
         }
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self{
             sequence,
-            name: text.name.clone(),
+            name: text.name.string.clone(),
             text,
             r#type,
         })))

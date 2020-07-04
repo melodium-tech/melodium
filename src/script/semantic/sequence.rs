@@ -74,7 +74,7 @@ impl Sequence {
         let sequence = Rc::<RefCell<Self>>::new(RefCell::new(Self {
             text: text.clone(),
             script: Rc::clone(&script),
-            name: text.name.clone(),
+            name: text.name.string.clone(),
             parameters: Vec::new(),
             requirements: Vec::new(),
             origin: None,
@@ -87,14 +87,14 @@ impl Sequence {
         {
             let borrowed_script = script.borrow();
 
-            let sequence = borrowed_script.find_sequence(&text.name);
+            let sequence = borrowed_script.find_sequence(&text.name.string);
             if sequence.is_some() {
-                return Err(ScriptError::semantic("Sequence '".to_string() + &text.name + "' is already declared."))
+                return Err(ScriptError::semantic("Sequence '".to_string() + &text.name.string + "' is already declared.", text.name.position))
             }
 
-            let r#use = borrowed_script.find_use(&text.name);
+            let r#use = borrowed_script.find_use(&text.name.string);
             if r#use.is_some() {
-                return Err(ScriptError::semantic("Element '".to_string() + &text.name + "' is already declared as used."))
+                return Err(ScriptError::semantic("Element '".to_string() + &text.name.string + "' is already declared as used.", text.name.position))
             }
         }
 
