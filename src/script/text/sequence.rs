@@ -52,10 +52,11 @@ impl Sequence {
     /// let mut iter = words.iter();
     /// 
     /// let sequence_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
-    /// assert_eq!(sequence_keyword, "sequence");
+    /// assert_eq!(sequence_keyword.string, "sequence");
     /// 
     /// let sequence = Sequence::build(&mut iter)?;
     /// 
+    /// assert_eq!(sequence.name.string, "PrepareAudioFiles");
     /// assert_eq!(sequence.parameters.len(), 5);
     /// assert_eq!(sequence.requirements.len(), 2);
     /// assert!(sequence.origin.is_some());

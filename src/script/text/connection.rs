@@ -37,8 +37,8 @@ impl Connection {
     /// 
     /// let connection = Connection::build_from_name_end_point(start_point_name, &mut iter)?;
     /// 
-    /// assert_eq!(connection.name_start_point, "Feeder");
-    /// assert_eq!(connection.name_end_point, "Trainer");
+    /// assert_eq!(connection.name_start_point.string, "Feeder");
+    /// assert_eq!(connection.name_end_point.string, "Trainer");
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn build_from_name_end_point(name: PositionnedString, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
@@ -77,15 +77,15 @@ impl Connection {
     /// 
     /// let second_connection = Connection::build_from_name_data_out(first_connection.name_end_point.clone(), &mut iter)?;
     /// 
-    /// assert_eq!(first_connection.name_start_point, "AudioFiles");
-    /// assert_eq!(first_connection.name_data_out, Some("signal".to_string()));
-    /// assert_eq!(first_connection.name_end_point, "MakeSpectrum");
-    /// assert_eq!(first_connection.name_data_in, Some("signal".to_string()));
+    /// assert_eq!(first_connection.name_start_point.string, "AudioFiles");
+    /// assert_eq!(first_connection.name_data_out.unwrap().string, "signal");
+    /// assert_eq!(first_connection.name_end_point.string, "MakeSpectrum");
+    /// assert_eq!(first_connection.name_data_in.unwrap().string, "signal");
     /// 
-    /// assert_eq!(second_connection.name_start_point, "MakeSpectrum");
-    /// assert_eq!(second_connection.name_data_out, Some("spectrum".to_string()));
-    /// assert_eq!(second_connection.name_end_point, "Self");
-    /// assert_eq!(second_connection.name_data_in, Some("spectrum".to_string()));
+    /// assert_eq!(second_connection.name_start_point.string, "MakeSpectrum");
+    /// assert_eq!(second_connection.name_data_out.unwrap().string, "spectrum");
+    /// assert_eq!(second_connection.name_end_point.string, "Self");
+    /// assert_eq!(second_connection.name_data_in.unwrap().string, "spectrum");
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn build_from_name_data_out(name: PositionnedString, mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {

@@ -37,8 +37,8 @@ impl Treatment {
     /// 
     /// let treatment = Treatment::build_from_parameters(treatment_name, &mut iter)?;
     /// 
-    /// assert_eq!(treatment.name, "MakeSpectrum");
-    /// assert_eq!(treatment.r#type, "MakeSpectrum");
+    /// assert_eq!(treatment.name.string, "MakeSpectrum");
+    /// assert_eq!(treatment.r#type.string, "MakeSpectrum");
     /// assert_eq!(treatment.parameters.len(), 3);
     /// # Ok::<(), ScriptError>(())
     /// ```

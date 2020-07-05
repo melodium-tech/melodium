@@ -37,12 +37,12 @@ impl Model {
     /// let mut iter = words.iter();
     /// 
     /// let model_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
-    /// assert_eq!(model_keyword, "model");
+    /// assert_eq!(model_keyword.string, "model");
     /// 
     /// let model = Model::build(&mut iter)?;
     /// 
-    /// assert_eq!(model.name, "MachineLearningModel");
-    /// assert_eq!(model.r#type, "SparseAutoencoder");
+    /// assert_eq!(model.name.string, "MachineLearningModel");
+    /// assert_eq!(model.r#type.string, "SparseAutoencoder");
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {

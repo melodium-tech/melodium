@@ -27,11 +27,11 @@ impl Requirement {
     /// let mut iter = words.iter();
     /// 
     /// let require_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
-    /// assert_eq!(require_keyword, "require");
+    /// assert_eq!(require_keyword.string, "require");
     /// 
     /// let requirement = Requirement::build(&mut iter)?;
     /// 
-    /// assert_eq!(requirement.name, "@Signal");
+    /// assert_eq!(requirement.name.string, "@Signal");
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {

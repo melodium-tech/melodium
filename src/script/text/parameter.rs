@@ -41,7 +41,7 @@ impl Parameter {
     /// let parameter = Parameter::build_from_type(name, &mut iter)?;
     /// 
     /// assert!(parameter.r#type.is_some());
-    /// assert_eq!(parameter.r#type.unwrap().name, "Int");
+    /// assert_eq!(parameter.r#type.unwrap().name.string, "Int");
     /// assert!(parameter.value.is_some());
     /// # Ok::<(), ScriptError>(())
     /// ```

@@ -48,22 +48,22 @@ impl Value {
     /// let mut iter = words.iter();
     /// 
     /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Boolean("".to_string())));
+    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Boolean(PositionnedString::default())));
     /// 
     /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Number("".to_string())));
+    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Number(PositionnedString::default())));
     /// 
     /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::String("".to_string())));
+    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::String(PositionnedString::default())));
     /// 
     /// let value = Value::build_from_first_item(&mut iter)?;
     /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Array(vec![])));
     /// 
     /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Name("".to_string())));
+    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Name(PositionnedString::default())));
     /// 
     /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Reference("".to_string())));
+    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Reference(PositionnedString::default())));
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn build_from_first_item(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {

@@ -28,12 +28,12 @@ impl Use {
     /// let mut iter = words.iter();
     /// 
     /// let use_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
-    /// assert_eq!(use_keyword, "use");
+    /// assert_eq!(use_keyword.string, "use");
     /// 
     /// let r#use = Use::build(&mut iter)?;
     /// 
-    /// assert_eq!(r#use.path, vec!["path", "where", "is"]);
-    /// assert_eq!(r#use.element, "Element");
+    /// assert_eq!(r#use.path.iter().map(|p| p.string.clone()).collect::<Vec<String>>(), vec!["path", "where", "is"]);
+    /// assert_eq!(r#use.element.string, "Element");
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {

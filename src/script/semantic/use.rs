@@ -51,7 +51,7 @@ impl Use {
     /// let borrowed_script = script.borrow();
     /// let borrowed_use = borrowed_script.find_use("Spectrum").unwrap().borrow();
     /// 
-    /// assert_eq!(borrowed_use.file_path, "core/signal");
+    /// assert_eq!(borrowed_use.path, vec!["core", "signal"]);
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn new(script: Rc<RefCell<Script>>, text: TextUse) -> Result<Rc<RefCell<Self>>, ScriptError> {

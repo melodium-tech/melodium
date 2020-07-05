@@ -31,8 +31,8 @@ impl Type {
     /// 
     /// let r#type = Type::build(&mut iter)?;
     /// 
-    /// assert_eq!(r#type.name, "Int");
-    /// assert_eq!(r#type.structure, Some("Vec".to_string()));
+    /// assert_eq!(r#type.name.string, "Int");
+    /// assert_eq!(r#type.structure.unwrap().string, "Vec");
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {

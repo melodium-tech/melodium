@@ -158,9 +158,9 @@ pub fn expect_word(error_str: &'static str, iter: &mut std::slice::Iter<Word>) -
 /// let equal = expect_word_kind(Kind::Equal, "Equal sign expected.", &mut iter)?;
 /// let value = expect_word_kind(Kind::Number, "Number expected.", &mut iter)?;
 /// 
-/// assert_eq!(name, "myNumber");
-/// assert_eq!(equal, "=");
-/// assert_eq!(value, "876");
+/// assert_eq!(name.string, "myNumber");
+/// assert_eq!(equal.string, "=");
+/// assert_eq!(value.string, "876");
 /// # Ok::<(), ScriptError>(())
 /// ```
 pub fn expect_word_kind(kind: Kind, error_str: &'static str, iter: &mut std::slice::Iter<Word>) -> Result<PositionnedString, ScriptError> {
