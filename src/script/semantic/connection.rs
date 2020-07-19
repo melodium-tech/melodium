@@ -20,7 +20,9 @@ pub struct Connection {
 
     pub sequence: Rc<RefCell<Sequence>>,
 
+    pub start_point_self: bool,
     pub start_point: Reference<Treatment>,
+    pub end_point_self: bool,
     pub end_point: Reference<Treatment>,
 
     pub data_transmission: bool,
@@ -61,7 +63,9 @@ impl Connection {
         }
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
+            start_point_self: false,
             start_point: Reference::new(text.name_start_point.string.clone()),
+            end_point_self: false,
             end_point: Reference::new(text.name_end_point.string.clone()),
             data_transmission: text.name_data_out.is_some(),
             name_data_out,
@@ -82,6 +86,9 @@ impl Node for Connection {
         if treatment_start.is_some() {
             self.start_point.reference = Some(Rc::clone(treatment_start.unwrap()));
         }
+        else if self.start_point.name == "Self" {
+            self.start_point_self = true;
+        }
         else {
             return Err(ScriptError::semantic("Treatment '".to_string() + &self.start_point.name + "' is unknown.", self.text.name_start_point.position));
         }
@@ -90,8 +97,16 @@ impl Node for Connection {
         if treatment_end.is_some() {
             self.end_point.reference = Some(Rc::clone(treatment_end.unwrap()));
         }
+        else if self.end_point.name == "Self" {
+            self.end_point_self = true;
+        }
         else {
             return Err(ScriptError::semantic("Treatment '".to_string() + &self.end_point.name + "' is unknown.", self.text.name_end_point.position));
+        }
+
+        // In case 'Self' is used but no data are transmitted.
+        if (self.start_point_self || self.end_point_self) && !self.data_transmission {
+            return Err(ScriptError::semantic("Connection with 'Self' require data to be transmitted.".to_string(), self.text.name_start_point.position));
         }
 
         Ok(())

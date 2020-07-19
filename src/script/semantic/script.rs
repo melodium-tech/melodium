@@ -52,7 +52,7 @@ impl Script {
     /// 
     /// let script = Script::new(address, text_script)?;
     /// 
-    /// assert_eq!(script.borrow().uses.len(), 3);
+    /// assert_eq!(script.borrow().uses.len(), 6);
     /// assert_eq!(script.borrow().models.len(), 0);
     /// assert_eq!(script.borrow().sequences.len(), 4);
     /// # Ok::<(), ScriptError>(())

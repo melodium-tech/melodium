@@ -2,6 +2,9 @@
 use core/signal::FrameCutter
 use core/signal::Windowing
 use core/signal::Spectrum
+use core/signal::SpectralPeaks
+use core/signal::HPCP
+use core/file::AudioFiles
 
 sequence MakeSpectrum(frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String) 
 	input signal: Vec<Int>
@@ -20,7 +23,7 @@ sequence MakeHPCP(sampleRate: Int = 44100, minFrequency: Int = 50, maxFrequency:
 	output hpcp: Mat<Int>
 {
 
-	SpectralPeaks(sampleRate=sampleRate, orderBy=order, magnitudeThreshold=0.00001, minFrequency=minFrequency, maxFrequency=maxFrequency, maxPeaks=10000)
+	SpectralPeaks(sampleRate=sampleRate, orderBy="magnitude", magnitudeThreshold=0.00001, minFrequency=minFrequency, maxFrequency=maxFrequency, maxPeaks=10000)
 	HPCP(sampleRate=sampleRate, windowSize=0.5, harmonics=harmonics, weightType="cosine", size=size)
 
 	Self.spectrum --------------> SpectralPeaks.spectrum
@@ -42,6 +45,7 @@ sequence Main()
 	origin PrepareAudioFiles(path="Musique/Expériences", sampleRate=44100, frameSize=4096, hopSize=2048, windowingType="blackmanharris92")
 	require @File
 	require @Signal
+	require @sampleRate
 {
 
 	MakeHPCP(sampleRate=@sampleRate, minFrequency=40, maxFrequency=5000, harmonics=8, size=120)
