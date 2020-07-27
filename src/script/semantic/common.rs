@@ -15,11 +15,11 @@ pub struct Tree {
 }
 
 impl Tree {
-    pub fn new(address: & str, text: TextScript) -> Self {
+    pub fn new(text: TextScript) -> Result<Self, ScriptError> {
 
-        Self {
-            script: Script::new(address, text).unwrap()
-        }
+        Ok(Self {
+            script: Script::new(text)?
+        })
     }
 
     pub fn make_references(&self) -> Result<(), ScriptError> {

@@ -7,6 +7,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Use as TextUse;
+use crate::script::path::Path;
 
 use super::script::Script;
 
@@ -18,7 +19,7 @@ pub struct Use {
 
     pub script: Rc<RefCell<Script>>,
 
-    pub path: Vec<String>,
+    pub path: Path,
     pub element: String,
 }
 
@@ -65,7 +66,7 @@ impl Use {
             }
         }
 
-        let path = text.path.iter().map(|i| i.string.clone()).collect();
+        let path = Path::new(text.path.iter().map(|i| i.string.clone()).collect());
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
             script,

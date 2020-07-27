@@ -20,8 +20,6 @@ use super::sequence::Sequence;
 pub struct Script {
     pub text: TextScript,
 
-    pub address: String,
-
     pub uses: Vec<Rc<RefCell<Use>>>,
     pub models: Vec<Rc<RefCell<Model>>>,
     pub sequences: Vec<Rc<RefCell<Sequence>>>,
@@ -57,11 +55,10 @@ impl Script {
     /// assert_eq!(script.borrow().sequences.len(), 4);
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(address: & str, text: TextScript) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(text: TextScript) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         let script = Rc::<RefCell<Self>>::new(RefCell::new(Self {
             text: text.clone(),
-            address: address.to_string(),
             uses: Vec::new(),
             models: Vec::new(),
             sequences: Vec::new(),
@@ -201,7 +198,7 @@ mod tests {
         script_file.load().unwrap();
         script_file.parse().unwrap();
 
-        let semantic_tree = Tree::new(address, script_file.script().clone());
+        let semantic_tree = Tree::new(script_file.script().clone()).unwrap();
         semantic_tree.make_references().unwrap();
 
         assert_eq!(semantic_tree.script.borrow().sequences.len(), 4);
