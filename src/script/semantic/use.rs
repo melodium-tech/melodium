@@ -39,6 +39,7 @@ impl Use {
     /// # use melodium_rust::script::error::ScriptError;
     /// # use melodium_rust::script::text::script::Script as TextScript;
     /// # use melodium_rust::script::semantic::script::Script;
+    /// # use melodium_rust::script::path::Path;
     /// let address = "examples/semantic/simple_build.mel";
     /// let mut raw_text = String::new();
     /// # let mut file = File::open(address).unwrap();
@@ -46,13 +47,13 @@ impl Use {
     /// 
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
-    /// let script = Script::new(address, text_script)?;
+    /// let script = Script::new(text_script)?;
     /// // Internally, Script::new call Use::new(Rc::clone(&script), text_use)
     /// 
     /// let borrowed_script = script.borrow();
     /// let borrowed_use = borrowed_script.find_use("Spectrum").unwrap().borrow();
     /// 
-    /// assert_eq!(borrowed_use.path, vec!["core", "signal"]);
+    /// assert_eq!(borrowed_use.path, Path::new(vec!["core".to_string(), "signal".to_string()]));
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn new(script: Rc<RefCell<Script>>, text: TextUse) -> Result<Rc<RefCell<Self>>, ScriptError> {

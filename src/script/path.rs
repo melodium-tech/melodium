@@ -1,11 +1,11 @@
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Path {
     path: Vec<String>,
     root: PathRoot
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum PathRoot {
     Core,
     Std,

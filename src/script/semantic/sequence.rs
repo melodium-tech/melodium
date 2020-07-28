@@ -58,7 +58,7 @@ impl Sequence {
     /// 
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
-    /// let script = Script::new(address, text_script)?;
+    /// let script = Script::new(text_script)?;
     /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence)
     /// 
     /// let borrowed_script = script.borrow();
@@ -156,7 +156,7 @@ impl Sequence {
     /// 
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
-    /// let script = Script::new(address, text_script)?;
+    /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.borrow();
     /// let borrowed_sequence = borrowed_script.find_sequence("PrepareAudioFiles").unwrap().borrow();
@@ -187,7 +187,7 @@ impl Sequence {
     /// 
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
-    /// let script = Script::new(address, text_script)?;
+    /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.borrow();
     /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().borrow();
@@ -218,7 +218,7 @@ impl Sequence {
     /// 
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
-    /// let script = Script::new(address, text_script)?;
+    /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.borrow();
     /// let borrowed_sequence = borrowed_script.find_sequence("MakeHPCP").unwrap().borrow();
@@ -249,7 +249,7 @@ impl Sequence {
     /// 
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
-    /// let script = Script::new(address, text_script)?;
+    /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.borrow();
     /// let borrowed_sequence = borrowed_script.find_sequence("MakeHPCP").unwrap().borrow();
@@ -280,7 +280,7 @@ impl Sequence {
     /// 
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
-    /// let script = Script::new(address, text_script)?;
+    /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.borrow();
     /// let borrowed_sequence = borrowed_script.find_sequence("MakeSpectrum").unwrap().borrow();

@@ -48,7 +48,7 @@ impl Script {
     /// 
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
-    /// let script = Script::new(address, text_script)?;
+    /// let script = Script::new(text_script)?;
     /// 
     /// assert_eq!(script.borrow().uses.len(), 6);
     /// assert_eq!(script.borrow().models.len(), 0);
@@ -98,7 +98,7 @@ impl Script {
     /// 
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
-    /// let script = Script::new(address, text_script)?;
+    /// let script = Script::new(text_script)?;
     /// let borrowed_script = script.borrow();
     /// 
     /// let spectrum = borrowed_script.find_use("Spectrum");
@@ -127,7 +127,7 @@ impl Script {
     /// 
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
-    /// let script = Script::new(address, text_script)?;
+    /// let script = Script::new(text_script)?;
     /// let borrowed_script = script.borrow();
     /// 
     /// // [Sic] There is no models used in this example.
@@ -155,7 +155,7 @@ impl Script {
     /// 
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
-    /// let script = Script::new(address, text_script)?;
+    /// let script = Script::new(text_script)?;
     /// let borrowed_script = script.borrow();
     /// 
     /// let make_hpcp = borrowed_script.find_sequence("MakeHPCP");

@@ -47,7 +47,7 @@ impl Input {
     /// 
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
-    /// let script = Script::new(address, text_script)?;
+    /// let script = Script::new(text_script)?;
     /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
     /// // which will itself call Input::new(Rc::clone(&sequence), text_parameter).
     /// 
