@@ -184,7 +184,7 @@ impl Node for Script {
 
 #[cfg(test)]
 mod tests {
-
+/*
     use crate::script::semantic::common::Tree;
     use crate::script_file::ScriptFile;
 
@@ -202,5 +202,5 @@ mod tests {
         semantic_tree.make_references().unwrap();
 
         assert_eq!(semantic_tree.script.borrow().sequences.len(), 4);
-    }
+    }*/
 }
