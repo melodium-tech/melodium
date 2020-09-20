@@ -24,8 +24,8 @@ pub enum ValueContent {
     Array(Vec<ValueContent>),
     /// Named value, referring to a parameter of the hosting sequence.
     Name(Reference<DeclaredParameter>),
-    /// Named reference, referring to a requirement of the hosting sequence.
-    Reference(Reference<Requirement>)
+    /// Named reference, referring to a requirement of the hosting sequence, and an inner element.
+    Reference((Reference<Requirement>, String))
 }
 
 /// Structure managing and describing Value semantic analysis.
@@ -65,7 +65,7 @@ impl Value {
             TextValue::String(s) => Self::parse_string(s)?,
             TextValue::Array(a) => Self::parse_vector(&a)?,
             TextValue::Name(n) => ValueContent::Name(Reference::new(n.string.to_string())),
-            TextValue::Reference(r) => ValueContent::Reference(Reference::new(r.string.to_string())),
+            TextValue::Reference((r, e)) => ValueContent::Reference((Reference::new(r.string.to_string()), e.string.to_string())),
         };
 
         Ok(content)
@@ -157,18 +157,18 @@ impl Value {
                     return Err(ScriptError::semantic("Unkown name '".to_string() + &n.name + "' in sequence parameters.", position));
                 }
             },
-            ValueContent::Reference(r) => {
+            ValueContent::Reference((r, e)) => {
                 let requirement = borrowed_sequence.find_requirement(&r.name);
                 if requirement.is_some() {
 
-                    content = ValueContent::Reference(Reference {
+                    content = ValueContent::Reference((Reference {
                         name: r.name.clone(),
                         reference: Some(Rc::clone(requirement.unwrap())),
-                    });
+                    }, e.clone()));
                 }
                 else {
                     let position = match &self.text {
-                        TextValue::Reference(ps) => ps.position,
+                        TextValue::Reference((ps, _)) => ps.position,
                         _ => Position::default(),
                     };
                     return Err(ScriptError::semantic("Unkown reference '".to_string() + &r.name + "' in sequence requirements.", position));

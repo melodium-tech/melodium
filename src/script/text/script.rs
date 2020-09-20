@@ -48,7 +48,7 @@ impl Script {
     ///     require @Signal
     /// {
     /// 
-    ///     MakeHPCP(sampleRate=@sampleRate, minFrequency=40, maxFrequency=5000, harmonics=8, size=120)
+    ///     MakeHPCP(sampleRate=@Signal[sampleRate], minFrequency=40, maxFrequency=5000, harmonics=8, size=120)
     /// 
     ///     PrepareAudioFiles.spectrum -> MakeHPCP.spectrum
     /// }

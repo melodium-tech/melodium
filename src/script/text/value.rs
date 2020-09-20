@@ -4,7 +4,7 @@
 use crate::script::error::ScriptError;
 
 use super::PositionnedString;
-use super::word::{expect_word, Kind, Word};
+use super::word::{expect_word, expect_word_kind, Kind, Word};
 
 /// Enum describing a textual value.
 /// 
@@ -22,7 +22,9 @@ pub enum Value {
     /// Name, see [Kind::Name](../word/enum.Kind.html#variant.Name).
     Name(PositionnedString),
     /// Reference, see [Kind::Reference](../word/enum.Kind.html#variant.Reference).
-    Reference(PositionnedString),
+    /// First element being the reference itself, second element the inner refered component.
+    /// `@Foo[bar]`: (`@Foo`, `bar`)
+    Reference((PositionnedString, PositionnedString)),
 }
 
 impl Value {
@@ -41,7 +43,7 @@ impl Value {
     /// "I am a string."
     /// [1, 3, 5, 7]
     /// hereIsName
-    /// @hereIsReference
+    /// @HereIsReference[toSomething]
     /// "##;
     /// 
     /// let words = get_words(text).unwrap();
@@ -63,7 +65,7 @@ impl Value {
     /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Name(PositionnedString::default())));
     /// 
     /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Reference(PositionnedString::default())));
+    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Reference((PositionnedString::default(), PositionnedString::default()))));
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn build_from_first_item(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
@@ -89,12 +91,25 @@ impl Value {
             }
 
         }
+        // Value is a reference.
+        else if value.kind == Some(Kind::Reference) {
+
+            let reference = value;
+
+            expect_word_kind(Kind::OpeningBracket, "Opening bracket '[' expected.", &mut iter)?;
+            let inner_reference = expect_word_kind(Kind::Name, "Element name expected.", &mut iter)?;
+            expect_word_kind(Kind::ClosingBracket, "Closing bracket ']' expected.", &mut iter)?;
+
+            Ok(Self::Reference((
+                PositionnedString { string: reference.text, position: reference.position},
+                inner_reference
+            )))
+        }
         // Value is a single element.
         else {
             match value.kind {
                 Some(Kind::Number) => Ok(Self::Number(PositionnedString { string: value.text, position: value.position})),
                 Some(Kind::String) => Ok(Self::String(PositionnedString { string: value.text, position: value.position})),
-                Some(Kind::Reference) => Ok(Self::Reference(PositionnedString { string: value.text, position: value.position})),
                 Some(Kind::Name) => {
                     if value.text == "true" || value.text == "false" {
                         Ok(Self::Boolean(PositionnedString { string: value.text, position: value.position}))
