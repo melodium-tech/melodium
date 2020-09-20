@@ -83,6 +83,7 @@ impl Script {
     }
 
     /// Search for an element imported through a use.
+    /// This search using the `as` property.
     /// 
     /// # Example
     /// ```
@@ -107,8 +108,8 @@ impl Script {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn find_use(&self, element: & str) -> Option<&Rc<RefCell<Use>>> {
-        self.uses.iter().find(|&u| u.borrow().element == element)
+    pub fn find_use(&self, element_as: & str) -> Option<&Rc<RefCell<Use>>> {
+        self.uses.iter().find(|&u| u.borrow().r#as == element_as)
     }
 
     /// Search for a model.
