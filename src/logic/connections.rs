@@ -1,10 +1,10 @@
 
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::sync::Arc;
 use super::descriptor::{ConnectionDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor as DataStructure, DataTypeTypeDescriptor as DataType};
 
 pub struct Connections {
-    connections: HashMap<(Option<DataTypeDescriptor>, Option<DataTypeDescriptor>), Rc<ConnectionDescriptor>>
+    connections: HashMap<(Option<DataTypeDescriptor>, Option<DataTypeDescriptor>), Arc<ConnectionDescriptor>>
 }
 
 impl Connections {
@@ -90,14 +90,14 @@ impl Connections {
     }
 
     fn insert(&mut self, connection: ConnectionDescriptor) {
-        self.connections.insert((*connection.output_type(), *connection.input_type()), Rc::new(connection));
+        self.connections.insert((*connection.output_type(), *connection.input_type()), Arc::new(connection));
     }
 
     fn insert_oi(&mut self, output_structure: DataStructure, output_type: DataType, input_structure: DataStructure, input_type: DataType) {
         self.insert(ConnectionDescriptor::new(Some(DataTypeDescriptor::new(output_structure, output_type)), Some(DataTypeDescriptor::new(input_structure, input_type))));
     }
 
-    pub fn get(output_type: &Option<DataTypeDescriptor>, input_type: &Option<DataTypeDescriptor>) -> Option<&'static Rc<ConnectionDescriptor>> {
+    pub fn get(output_type: &Option<DataTypeDescriptor>, input_type: &Option<DataTypeDescriptor>) -> Option<&'static Arc<ConnectionDescriptor>> {
 
         Self::singleton().connections.get(&(*output_type, *input_type))
     }
