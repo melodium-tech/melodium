@@ -8,11 +8,12 @@ use super::word::*;
 
 /// Structure describing a textual use.
 /// 
-/// It owns the path, as vector of strings (which were separated by slashes `/`), and the used element name. There is no logical nor existence check at this point.
+/// It owns the path, as vector of strings (which were separated by slashes `/`), the used element name, and optionally the alias. There is no logical nor existence check at this point.
 #[derive(Clone)]
 pub struct Use {
     pub path: Vec<PositionnedString>,
     pub element: PositionnedString,
+    pub r#as: Option<PositionnedString>,
 }
 
 impl Use {
@@ -24,7 +25,7 @@ impl Use {
     /// # use melodium_rust::script::error::ScriptError;
     /// # use melodium_rust::script::text::word::*;
     /// # use melodium_rust::script::text::r#use::Use;
-    /// let words = get_words("use path/where/is::Element").unwrap();
+    /// let words = get_words("use path/where/is::Element as MyElement").unwrap();
     /// let mut iter = words.iter();
     /// 
     /// let use_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
@@ -34,11 +35,13 @@ impl Use {
     /// 
     /// assert_eq!(r#use.path.iter().map(|p| p.string.clone()).collect::<Vec<String>>(), vec!["path", "where", "is"]);
     /// assert_eq!(r#use.element.string, "Element");
+    /// assert_eq!(r#use.r#as.unwrap().string, "MyElement");
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
         let mut path = Vec::new();
         let element;
+        let use_as;
 
         loop {
             let name = expect_word_kind(Kind::Name, "Path name expected.", &mut iter)?;
@@ -51,6 +54,19 @@ impl Use {
             else if delimiter.kind == Some(Kind::Colon) {
                 expect_word_kind(Kind::Colon, "Double colon expected.", &mut iter)?;
                 element = expect_word_kind(Kind::Name, "Element name expected.", &mut iter)?;
+
+                // We check if we are in "use as" case, _cloning_ the iterator in case next word is not about us.
+                let possible_as = expect_word_kind(Kind::Name, "", &mut iter.clone());
+                if possible_as.is_ok() && possible_as.unwrap().string == "as" {
+                    // We discard "as".
+                    iter.next();
+
+                    use_as = Some(expect_word_kind(Kind::Name, "Alias name expected.", &mut iter)?);
+                }
+                else {
+                    use_as = None;
+                }
+
                 break;
             }
             else {
@@ -61,6 +77,7 @@ impl Use {
         Ok(Self{
             path,
             element,
+            r#as: use_as,
         })
     }
 }

@@ -21,6 +21,7 @@ pub struct Use {
 
     pub path: Path,
     pub element: String,
+    pub r#as: String,
 }
 
 impl Use {
@@ -58,12 +59,20 @@ impl Use {
     /// ```
     pub fn new(script: Rc<RefCell<Script>>, text: TextUse) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
+        let r#as;
+        if let Some(ps) = &text.r#as {
+            r#as = ps;
+        }
+        else {
+            r#as = &text.element;
+        }
+
         {
             let borrowed_script = script.borrow();
 
-            let r#use = borrowed_script.find_use(&text.element.string);
+            let r#use = borrowed_script.find_use(&r#as.string);
             if r#use.is_some() {
-                return Err(ScriptError::semantic("'".to_string() + &text.element.string + "' is already used.", text.element.position))
+                return Err(ScriptError::semantic("'".to_string() + &r#as.string + "' is already used.", r#as.position))
             }
         }
 
@@ -73,6 +82,7 @@ impl Use {
             script,
             path,
             element: text.element.string.clone(),
+            r#as: r#as.string.clone(),
             text,
         })))
     }
