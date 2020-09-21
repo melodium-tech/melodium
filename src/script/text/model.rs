@@ -28,7 +28,7 @@ impl Model {
     /// # use melodium_rust::script::text::word::*;
     /// # use melodium_rust::script::text::model::Model;
     /// let text = r##"
-    /// model MachineLearningModel(SparseAutoencoder)
+    /// model MachineLearningModel(): SparseAutoencoder
     /// {
     /// }
     /// "##;
@@ -49,8 +49,11 @@ impl Model {
 
         let name = expect_word_kind(Kind::Name, "Model name expected.", &mut iter)?;
         expect_word_kind(Kind::OpeningParenthesis, "Parameters declaration expected '('.", &mut iter)?;
-        let r#type = expect_word_kind(Kind::Name, "Model type expected.", &mut iter)?;
+        // TODO models parameters.
         expect_word_kind(Kind::ClosingParenthesis, "End of parameters declaration expected ')'.", &mut iter)?;
+        expect_word_kind(Kind::Colon, "Model type declaration expected ':'.", &mut iter)?;
+        let r#type = expect_word_kind(Kind::Name, "Model type expected.", &mut iter)?;
+        // TODO model type parameters.
         expect_word_kind(Kind::OpeningBrace, "Model content declaration expected '{'.", &mut iter)?;
         expect_word_kind(Kind::ClosingBrace, "End of model content declaration expected '}'.", &mut iter)?;
 
