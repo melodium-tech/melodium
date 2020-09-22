@@ -9,6 +9,7 @@ use crate::script::error::ScriptError;
 use crate::script::text::Sequence as TextSequence;
 
 use super::script::Script;
+use super::model_instance::ModelInstance;
 use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::declared_parameter::DeclaredParameter;
 use super::requirement::Requirement;
@@ -27,6 +28,7 @@ pub struct Sequence {
 
     pub name: String,
 
+    pub model_instances: Vec<Rc<RefCell<ModelInstance>>>,
     pub parameters: Vec<Rc<RefCell<DeclaredParameter>>>,
     pub requirements: Vec<Rc<RefCell<Requirement>>>,
     pub origin: Option<Rc<RefCell<Treatment>>>,
@@ -76,6 +78,7 @@ impl Sequence {
             text: text.clone(),
             script: Rc::clone(&script),
             name: text.name.string.clone(),
+            model_instances: Vec::new(),
             parameters: Vec::new(),
             requirements: Vec::new(),
             origin: None,
@@ -97,6 +100,11 @@ impl Sequence {
             if r#use.is_some() {
                 return Err(ScriptError::semantic("Element '".to_string() + &text.name.string + "' is already declared as used.", text.name.position))
             }
+        }
+
+        for m in text.parametric_models {
+            let model_instance = ModelInstance::new(Rc::clone(&sequence), m)?;
+            sequence.borrow_mut().model_instances.push(model_instance);
         }
 
         for p in text.parameters {
@@ -139,6 +147,10 @@ impl Sequence {
         }
 
         Ok(sequence)
+    }
+
+    pub fn find_model_instance(&self, name: & str) -> Option<&Rc<RefCell<ModelInstance>>> {
+        self.model_instances.iter().find(|&m| m.borrow().name == name) 
     }
 
     /// Search for a requirement.
@@ -271,6 +283,7 @@ impl Node for Sequence {
 
         let mut children: Vec<Rc<RefCell<dyn Node>>> = Vec::new();
 
+        self.model_instances.iter().for_each(|m| children.push(Rc::clone(&m) as Rc<RefCell<dyn Node>>));
         self.parameters.iter().for_each(|p| children.push(Rc::clone(&p) as Rc<RefCell<dyn Node>>));
         self.requirements.iter().for_each(|r| children.push(Rc::clone(&r) as Rc<RefCell<dyn Node>>));
         self.inputs.iter().for_each(|i| children.push(Rc::clone(&i) as Rc<RefCell<dyn Node>>));

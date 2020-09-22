@@ -5,7 +5,7 @@ use crate::script::error::ScriptError;
 
 use super::PositionnedString;
 use super::word::{expect_word, expect_word_kind, Kind, Word};
-use super::common::parse_parameters;
+use super::common::{parse_parameters, parse_parametric_models};
 use super::parameter::Parameter;
 use super::requirement::Requirement;
 use super::treatment::Treatment;
@@ -17,6 +17,7 @@ use super::connection::Connection;
 #[derive(Clone)]
 pub struct Sequence {
     pub name: PositionnedString,
+    pub parametric_models: Vec<Parameter>,
     pub parameters: Vec<Parameter>,
     pub requirements: Vec<Requirement>,
     pub origin: Option<Treatment>,
@@ -71,9 +72,17 @@ impl Sequence {
 
         let name = expect_word_kind(Kind::Name, "Sequence name expected.", &mut iter)?;
 
-        /*
-            First of all, we parse sequence's parameters.
-        */
+        // We check if there are parametric models.
+        let parametric_models;
+        let possible_open_bracket = expect_word_kind(Kind::OpeningBracket, "", &mut iter.clone());
+        if possible_open_bracket.is_ok() {
+            parametric_models = parse_parametric_models(&mut iter)?;
+        }
+        else {
+            parametric_models = Vec::new();
+        }
+
+        // We parse parameters.
         let parameters = parse_parameters(&mut iter)?;
 
         let mut origin = None;
@@ -229,6 +238,7 @@ impl Sequence {
 
         Ok(Self {
             name,
+            parametric_models,
             parameters,
             requirements,
             origin,

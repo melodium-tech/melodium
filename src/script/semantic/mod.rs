@@ -11,6 +11,8 @@ pub mod declarative_element;
 pub mod declared_parameter;
 pub mod input;
 pub mod model;
+pub mod model_instance;
+pub mod model_instanciation;
 pub mod output;
 pub mod requirement;
 pub mod script;
