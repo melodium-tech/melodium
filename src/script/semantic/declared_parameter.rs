@@ -8,20 +8,20 @@ use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
 
-use super::sequence::Sequence;
+use super::declarative_element::DeclarativeElement;
 use super::r#type::Type;
 use super::value::Value;
 
 /// Structure managing and describing semantic of a declared parameter.
 /// 
 /// A _declared_ parameter is a parameter for which name and type are expected, as well as an optionnal value.
-/// It is used by [Sequences](../sequence/struct.Sequence.html).
+/// It is used by [Sequences](../sequence/struct.Sequence.html) and [Models](../model/struct.Model.html).
 /// 
 /// It owns the whole [text parameter](../../text/parameter/struct.Parameter.html).
 pub struct DeclaredParameter {
     pub text: TextParameter,
 
-    pub sequence: Rc<RefCell<Sequence>>,
+    pub parent: Rc<RefCell<dyn DeclarativeElement>>,
 
     pub name: String,
     pub r#type: Type,
@@ -31,7 +31,7 @@ pub struct DeclaredParameter {
 impl DeclaredParameter {
     /// Create a new semantic declared parameter, based on textual parameter.
     /// 
-    /// * `sequence`: the parent sequence that "owns" this declared parameter.
+    /// * `parent`: the parent element that "owns" this declared parameter.
     /// * `text`: the textual parameter.
     /// 
     /// # Note
@@ -44,6 +44,7 @@ impl DeclaredParameter {
     /// # use melodium_rust::script::error::ScriptError;
     /// # use melodium_rust::script::text::script::Script as TextScript;
     /// # use melodium_rust::script::semantic::script::Script;
+    /// # use melodium_rust::script::semantic::declarative_element::DeclarativeElement;
     /// # use melodium_rust::script::semantic::r#type::{TypeName, TypeStructure};
     /// let address = "examples/semantic/simple_build.mel";
     /// let mut raw_text = String::new();
@@ -58,21 +59,21 @@ impl DeclaredParameter {
     /// 
     /// let borrowed_script = script.borrow();
     /// let borrowed_sequence = borrowed_script.find_sequence("PrepareAudioFiles").unwrap().borrow();
-    /// let borrowed_declared_parameter = borrowed_sequence.find_parameter("sampleRate").unwrap().borrow();
+    /// let borrowed_declared_parameter = borrowed_sequence.find_declared_parameter("sampleRate").unwrap().borrow();
     /// 
     /// assert_eq!(borrowed_declared_parameter.name, "sampleRate");
     /// assert_eq!(borrowed_declared_parameter.r#type.structure, TypeStructure::Scalar);
     /// assert_eq!(borrowed_declared_parameter.r#type.name, TypeName::Integer);
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(sequence: Rc<RefCell<Sequence>>, text: TextParameter) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(parent: Rc<RefCell<dyn DeclarativeElement>>, text: TextParameter) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         let r#type;
         let value;
         {
-            let borrowed_sequence = sequence.borrow();
+            let borrowed_parent = parent.borrow();
 
-            let parameter = borrowed_sequence.find_parameter(&text.name.string);
+            let parameter = borrowed_parent.find_declared_parameter(&text.name.string);
             if parameter.is_some() {
                 return Err(ScriptError::semantic("Parameter '".to_string() + &text.name.string + "' is already declared.", text.name.position))
             }
@@ -83,7 +84,7 @@ impl DeclaredParameter {
             r#type = Type::new(text.r#type.as_ref().unwrap().clone())?;
 
             if text.value.is_some() {
-                value = Some(Value::new(Rc::clone(&sequence), text.value.as_ref().unwrap().clone())?);
+                value = Some(Value::new(Rc::clone(&parent), text.value.as_ref().unwrap().clone())?);
             }
             else {
                 value = None;
@@ -91,7 +92,7 @@ impl DeclaredParameter {
         }
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
-            sequence,
+            parent,
             name: text.name.string.clone(),
             text,
             r#type,

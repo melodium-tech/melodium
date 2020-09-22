@@ -9,6 +9,7 @@
 pub mod script;
 
 pub mod word;
+pub mod common;
 
 pub mod annotation;
 pub mod connection;

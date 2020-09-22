@@ -7,6 +7,7 @@
 pub mod assigned_parameter;
 pub mod common;
 pub mod connection;
+pub mod declarative_element;
 pub mod declared_parameter;
 pub mod input;
 pub mod model;

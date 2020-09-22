@@ -9,7 +9,7 @@ use crate::script::error::ScriptError;
 use crate::script::text::{PositionnedString, Position};
 use crate::script::text::value::Value as TextValue;
 
-use super::sequence::Sequence;
+use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::common::Reference;
 use super::declared_parameter::DeclaredParameter;
 use super::requirement::Requirement;
@@ -31,11 +31,11 @@ pub enum ValueContent {
 /// Structure managing and describing Value semantic analysis.
 /// 
 /// It owns the whole [text value](../../text/value/enum.Value.html).
-/// A reference to the sequence it belongs to is needed for cases the value is or contains a name or reference.
+/// A reference to the declarative element it belongs to is needed for cases the value is or contains a name or reference.
 pub struct Value {
     pub text: TextValue,
 
-    pub sequence: Rc<RefCell<Sequence>>,
+    pub parent: Rc<RefCell<dyn DeclarativeElement>>,
 
     pub content: ValueContent,
 }
@@ -43,15 +43,15 @@ pub struct Value {
 impl Value {
     /// Create a new semantic value, based on textual value.
     /// 
-    /// * `sequence`: the parent sequence that host the value.
+    /// * `parent`: the parent element that host the value.
     /// * `text`: the textual value.
     /// 
     /// # Note
     /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
-    pub fn new(sequence: Rc<RefCell<Sequence>>, text: TextValue) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(parent: Rc<RefCell<dyn DeclarativeElement>>, text: TextValue) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self{
-            sequence,
+            parent,
             content: Self::parse(&text)?,
             text,
         })))
@@ -125,7 +125,7 @@ impl Value {
     fn make_reference_valuecontent(&self, value: &ValueContent) -> Result<ValueContent, ScriptError> {
 
         let content;
-        let borrowed_sequence = self.sequence.borrow();
+        let borrowed_parent = self.parent.borrow();
 
         match value {
             ValueContent::Boolean(b) => {
@@ -141,7 +141,7 @@ impl Value {
                 content = ValueContent::String(s.clone());
             },
             ValueContent::Name(n) => {
-                let param = borrowed_sequence.find_parameter(&n.name);
+                let param = borrowed_parent.find_declared_parameter(&n.name);
                 if param.is_some() {
                     
                     content = ValueContent::Name(Reference {
@@ -158,7 +158,12 @@ impl Value {
                 }
             },
             ValueContent::Reference((r, e)) => {
-                let requirement = borrowed_sequence.find_requirement(&r.name);
+
+                let requirement = match &borrowed_parent.declarative_element() {
+                    DeclarativeElementType::Sequence(s) => s.find_requirement(&r.name),
+                    _ => None,
+                };
+
                 if requirement.is_some() {
 
                     content = ValueContent::Reference((Reference {

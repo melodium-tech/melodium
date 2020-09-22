@@ -5,6 +5,7 @@ use crate::script::error::ScriptError;
 
 use super::PositionnedString;
 use super::word::{expect_word, expect_word_kind, Kind, Word};
+use super::common::parse_parameters;
 use super::parameter::Parameter;
 use super::requirement::Requirement;
 use super::treatment::Treatment;
@@ -73,40 +74,7 @@ impl Sequence {
         /*
             First of all, we parse sequence's parameters.
         */
-        expect_word_kind(Kind::OpeningParenthesis, "Sequence parameters declaration expected '('.", &mut iter)?;
-
-        let mut parameters = Vec::new();
-
-        let mut first_param = true;
-        loop {
-
-            let word = expect_word("Unexpected end of script.", &mut iter)?;
-
-            if first_param && word.kind == Some(Kind::ClosingParenthesis) {
-                break;
-            }
-            else if word.kind == Some(Kind::Name) {
-                first_param = false;
-
-                expect_word_kind(Kind::Colon, "Parameter type declaration expected.", &mut iter)?;
-                parameters.push(Parameter::build_from_type(PositionnedString{string: word.text, position: word.position}, &mut iter)?);
-
-                let delimiter = expect_word("Unexpected end of script.", &mut iter)?;
-                
-                if delimiter.kind == Some(Kind::Comma) {
-                    continue;
-                }
-                else if delimiter.kind == Some(Kind::ClosingParenthesis) {
-                    break;
-                }
-                else {
-                    return Err(ScriptError::word("Comma or closing parenthesis expected.".to_string(), delimiter.text, delimiter.position));
-                }
-            }
-            else {
-                return Err(ScriptError::word("Parameter declaration expected.".to_string(), word.text, word.position));
-            }
-        }
+        let parameters = parse_parameters(&mut iter)?;
 
         let mut origin = None;
         let mut requirements = Vec::new();

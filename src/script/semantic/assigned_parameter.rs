@@ -8,6 +8,7 @@ use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
 
+use super::declarative_element::DeclarativeElement;
 use super::treatment::Treatment;
 use super::value::Value;
 
@@ -74,7 +75,7 @@ impl AssignedParameter {
             }
 
             if text.value.is_some() {
-                value = Value::new(Rc::clone(&borrowed_treatment.sequence), text.value.as_ref().unwrap().clone())?;
+                value = Value::new(Rc::clone(&borrowed_treatment.sequence) as Rc<RefCell<dyn DeclarativeElement>>, text.value.as_ref().unwrap().clone())?;
             }
             else {
                 return Err(ScriptError::semantic("Parameter '".to_string() + &text.name.string + "' is missing value.", text.name.position))

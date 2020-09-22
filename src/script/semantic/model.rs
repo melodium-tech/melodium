@@ -9,6 +9,8 @@ use crate::script::error::ScriptError;
 use crate::script::text::Model as TextModel;
 
 use super::script::Script;
+use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
+use super::declared_parameter::DeclaredParameter;
 use super::common::Reference;
 use super::r#use::Use;
 
@@ -21,6 +23,7 @@ pub struct Model {
     pub script: Rc<RefCell<Script>>,
 
     pub name: String,
+    pub parameters: Vec<Rc<RefCell<DeclaredParameter>>>,
     pub r#type: Reference<Use>,
 }
 
@@ -34,6 +37,14 @@ impl Model {
     /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
     pub fn new(script: Rc<RefCell<Script>>, text: TextModel) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
+        let model = Rc::<RefCell<Self>>::new(RefCell::new(Self {
+            text: text.clone(),
+            script: Rc::clone(&script),
+            name: text.name.string.clone(),
+            parameters: Vec::new(),
+            r#type: Reference::new(text.r#type.string.clone()),
+        }));
+
         {
             let borrowed_script = script.borrow();
 
@@ -43,13 +54,26 @@ impl Model {
             }
         }
 
-        Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
-            script,
-            name: text.name.string.clone(),
-            r#type: Reference::new(text.r#type.string.clone()),
-            text,
-        })))
+        for p in text.parameters {
+            let declared_parameter = DeclaredParameter::new(Rc::clone(&model) as Rc<RefCell<dyn DeclarativeElement>>, p)?;
+            model.borrow_mut().parameters.push(declared_parameter);
+        }
+
+        Ok(model)
     }
+}
+
+impl DeclarativeElement for Model {
+    
+    fn declarative_element(&self) -> DeclarativeElementType {
+        DeclarativeElementType::Model(&self)
+    }
+
+    /// Search for a declared parameter.
+    fn find_declared_parameter(&self, name: & str) -> Option<&Rc<RefCell<DeclaredParameter>>> {
+        self.parameters.iter().find(|&p| p.borrow().name == name)
+    }
+
 }
 
 impl Node for Model {

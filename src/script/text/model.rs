@@ -5,14 +5,18 @@ use crate::script::error::ScriptError;
 
 use super::PositionnedString;
 use super::word::{expect_word_kind, Kind, Word};
+use super::common::parse_parameters;
+use super::parameter::Parameter;
 
 /// Structure describing a textual model.
 /// 
-/// It owns a name, and a type (model type, not [data type](../type/struct.Type.html)).
+/// It owns a name, parameters, and a type (model type, not [data type](../type/struct.Type.html)).
 #[derive(Clone)]
 pub struct Model {
     pub name: PositionnedString,
+    pub parameters: Vec<Parameter>,
     pub r#type: PositionnedString,
+    pub assignations: Vec<Parameter>,
 }
 
 impl Model {
@@ -28,7 +32,7 @@ impl Model {
     /// # use melodium_rust::script::text::word::*;
     /// # use melodium_rust::script::text::model::Model;
     /// let text = r##"
-    /// model MachineLearningModel(): SparseAutoencoder
+    /// model MachineLearningModel(layers: Int, function: String = "sigmoid"): SparseAutoencoder
     /// {
     /// }
     /// "##;
@@ -42,15 +46,16 @@ impl Model {
     /// let model = Model::build(&mut iter)?;
     /// 
     /// assert_eq!(model.name.string, "MachineLearningModel");
+    /// assert_eq!(model.parameters.len(), 2);
     /// assert_eq!(model.r#type.string, "SparseAutoencoder");
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
 
         let name = expect_word_kind(Kind::Name, "Model name expected.", &mut iter)?;
-        expect_word_kind(Kind::OpeningParenthesis, "Parameters declaration expected '('.", &mut iter)?;
-        // TODO models parameters.
-        expect_word_kind(Kind::ClosingParenthesis, "End of parameters declaration expected ')'.", &mut iter)?;
+
+        let parameters = parse_parameters(&mut iter)?;
+
         expect_word_kind(Kind::Colon, "Model type declaration expected ':'.", &mut iter)?;
         let r#type = expect_word_kind(Kind::Name, "Model type expected.", &mut iter)?;
         // TODO model type parameters.
@@ -59,7 +64,9 @@ impl Model {
 
         Ok(Self {
             name,
+            parameters,
             r#type,
+            assignations: Vec::new()
         })
 
     }

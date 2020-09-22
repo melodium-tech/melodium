@@ -9,6 +9,7 @@ use crate::script::error::ScriptError;
 use crate::script::text::Sequence as TextSequence;
 
 use super::script::Script;
+use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::declared_parameter::DeclaredParameter;
 use super::requirement::Requirement;
 use super::input::Input;
@@ -99,7 +100,7 @@ impl Sequence {
         }
 
         for p in text.parameters {
-            let declared_parameter = DeclaredParameter::new(Rc::clone(&sequence), p)?;
+            let declared_parameter = DeclaredParameter::new(Rc::clone(&sequence) as Rc<RefCell<dyn DeclarativeElement>>, p)?;
             sequence.borrow_mut().parameters.push(declared_parameter);
         }
 
@@ -138,37 +139,6 @@ impl Sequence {
         }
 
         Ok(sequence)
-    }
-
-    /// Search for a parameter.
-    /// 
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium_rust::script::error::ScriptError;
-    /// # use melodium_rust::script::text::script::Script as TextScript;
-    /// # use melodium_rust::script::semantic::script::Script;
-    /// let address = "examples/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    /// 
-    /// let text_script = TextScript::build(&raw_text)?;
-    /// 
-    /// let script = Script::new(text_script)?;
-    /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("PrepareAudioFiles").unwrap().borrow();
-    /// 
-    /// let sample_rate = borrowed_sequence.find_parameter("sampleRate");
-    /// let dont_exist = borrowed_sequence.find_parameter("dontExist");
-    /// assert!(sample_rate.is_some());
-    /// assert!(dont_exist.is_none());
-    /// # Ok::<(), ScriptError>(())
-    /// ```
-    pub fn find_parameter(&self, name: & str) -> Option<&Rc<RefCell<DeclaredParameter>>> {
-        self.parameters.iter().find(|&p| p.borrow().name == name)
     }
 
     /// Search for a requirement.
@@ -309,5 +279,44 @@ impl Node for Sequence {
         self.connections.iter().for_each(|c| children.push(Rc::clone(&c) as Rc<RefCell<dyn Node>>));
 
         children
+    }
+}
+
+impl DeclarativeElement for Sequence {
+
+    fn declarative_element(&self) -> DeclarativeElementType {
+        DeclarativeElementType::Sequence(&self)
+    }
+
+    /// Search for a parameter.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// # use melodium_rust::script::semantic::declarative_element::DeclarativeElement;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(text_script)?;
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("PrepareAudioFiles").unwrap().borrow();
+    /// 
+    /// let sample_rate = borrowed_sequence.find_declared_parameter("sampleRate");
+    /// let dont_exist = borrowed_sequence.find_declared_parameter("dontExist");
+    /// assert!(sample_rate.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
+    fn find_declared_parameter(&self, name: & str) -> Option<&Rc<RefCell<DeclaredParameter>>> {
+        self.parameters.iter().find(|&p| p.borrow().name == name)
     }
 }
