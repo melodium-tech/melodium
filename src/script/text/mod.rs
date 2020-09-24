@@ -14,6 +14,7 @@ pub mod common;
 pub mod annotation;
 pub mod connection;
 pub mod model;
+pub mod model_instanciation;
 pub mod parameter;
 pub mod requirement;
 pub mod sequence;

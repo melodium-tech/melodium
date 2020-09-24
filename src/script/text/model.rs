@@ -5,7 +5,7 @@ use crate::script::error::ScriptError;
 
 use super::PositionnedString;
 use super::word::{expect_word_kind, Kind, Word};
-use super::common::parse_parameters;
+use super::common::parse_parameters_declarations;
 use super::parameter::Parameter;
 
 /// Structure describing a textual model.
@@ -54,7 +54,7 @@ impl Model {
 
         let name = expect_word_kind(Kind::Name, "Model name expected.", &mut iter)?;
 
-        let parameters = parse_parameters(&mut iter)?;
+        let parameters = parse_parameters_declarations(&mut iter)?;
 
         expect_word_kind(Kind::Colon, "Model type declaration expected ':'.", &mut iter)?;
         let r#type = expect_word_kind(Kind::Name, "Model type expected.", &mut iter)?;

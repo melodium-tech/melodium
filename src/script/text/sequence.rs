@@ -5,8 +5,9 @@ use crate::script::error::ScriptError;
 
 use super::PositionnedString;
 use super::word::{expect_word, expect_word_kind, Kind, Word};
-use super::common::{parse_parameters, parse_parametric_models};
+use super::common::{parse_parameters_declarations, parse_parametric_models};
 use super::parameter::Parameter;
+use super::model_instanciation::ModelInstanciation;
 use super::requirement::Requirement;
 use super::treatment::Treatment;
 use super::connection::Connection;
@@ -19,6 +20,7 @@ pub struct Sequence {
     pub name: PositionnedString,
     pub parametric_models: Vec<Parameter>,
     pub parameters: Vec<Parameter>,
+    pub model_instanciations: Vec<ModelInstanciation>,
     pub requirements: Vec<Requirement>,
     pub origin: Option<Treatment>,
     pub inputs: Vec<Parameter>,
@@ -41,6 +43,7 @@ impl Sequence {
     /// sequence PrepareAudioFiles(path: Vec<String>, sampleRate: Int = 44100, frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String)
 	///     origin AudioFiles(path=path, sampleRate=sampleRate)
 	///     output spectrum: Mat<Int>
+    ///     model Audio: AudioAccess(sampleRate = 44100, channels = "mono")
     ///     require @File
     ///     require @Signal
     /// {
@@ -83,9 +86,10 @@ impl Sequence {
         }
 
         // We parse parameters.
-        let parameters = parse_parameters(&mut iter)?;
+        let parameters = parse_parameters_declarations(&mut iter)?;
 
         let mut origin = None;
+        let mut model_instanciations = Vec::new();
         let mut requirements = Vec::new();
         let mut inputs = Vec::new();
         let mut outputs = Vec::new();
@@ -111,6 +115,10 @@ impl Sequence {
                     let output_name = expect_word_kind(Kind::Name, "Output name expected.", &mut iter)?;
                     expect_word_kind(Kind::Colon, "Output type declaration expected.", &mut iter)?;
                     outputs.push(Parameter::build_from_type(output_name, &mut iter)?);
+                }
+                else if word.text == "model" {
+                    
+                    model_instanciations.push(ModelInstanciation::build(&mut iter)?);
                 }
                 else if word.text == "require" {
 
@@ -240,6 +248,7 @@ impl Sequence {
             name,
             parametric_models,
             parameters,
+            model_instanciations,
             requirements,
             origin,
             inputs,
