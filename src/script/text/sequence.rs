@@ -5,11 +5,10 @@ use crate::script::error::ScriptError;
 
 use super::PositionnedString;
 use super::word::{expect_word, expect_word_kind, Kind, Word};
-use super::common::{parse_parameters_declarations, parse_parametric_models};
+use super::common::{parse_parameters_declarations, parse_configuration_declarations};
 use super::parameter::Parameter;
-use super::model_instanciation::ModelInstanciation;
 use super::requirement::Requirement;
-use super::treatment::Treatment;
+use super::instanciation::Instanciation;
 use super::connection::Connection;
 
 /// Structure describing a textual sequence.
@@ -18,14 +17,14 @@ use super::connection::Connection;
 #[derive(Clone)]
 pub struct Sequence {
     pub name: PositionnedString,
-    pub parametric_models: Vec<Parameter>,
+    pub configuration: Vec<Parameter>,
     pub parameters: Vec<Parameter>,
-    pub model_instanciations: Vec<ModelInstanciation>,
+    pub models: Vec<Instanciation>,
     pub requirements: Vec<Requirement>,
-    pub origin: Option<Treatment>,
+    pub origin: Option<Instanciation>,
     pub inputs: Vec<Parameter>,
     pub outputs: Vec<Parameter>,
-    pub treatments: Vec<Treatment>,
+    pub treatments: Vec<Instanciation>,
     pub connections: Vec<Connection>,
 }
 
@@ -75,21 +74,33 @@ impl Sequence {
 
         let name = expect_word_kind(Kind::Name, "Sequence name expected.", &mut iter)?;
 
-        // We check if there are parametric models.
-        let parametric_models;
-        let possible_open_bracket = expect_word_kind(Kind::OpeningBracket, "", &mut iter.clone());
-        if possible_open_bracket.is_ok() {
-            parametric_models = parse_parametric_models(&mut iter)?;
+
+        let configuration;
+        let mut determinant = expect_word("Unexpected end of script.", &mut iter)?;
+        // We check if there are configuration items.
+        if determinant.kind == Some(Kind::OpeningBracket) {
+            // If so, parsing it.
+            configuration = parse_configuration_declarations(&mut iter)?;
+            // And updating determinant.
+            determinant = expect_word("Unexpected end of script.", &mut iter)?;
         }
         else {
-            parametric_models = Vec::new();
+            configuration = Vec::new();
         }
-
-        // We parse parameters.
-        let parameters = parse_parameters_declarations(&mut iter)?;
+        
+        let parameters;
+        // We parse parameters, which are mandatory, even if empty.
+        if determinant.kind == Some(Kind::OpeningParenthesis) {
+            
+            parameters = parse_parameters_declarations(&mut iter)?;
+        }
+        else {
+            return Err(ScriptError::word("Configuration or parameter declaration expected.".to_string(), determinant.text, determinant.position));
+        }
+        
 
         let mut origin = None;
-        let mut model_instanciations = Vec::new();
+        let mut models = Vec::new();
         let mut requirements = Vec::new();
         let mut inputs = Vec::new();
         let mut outputs = Vec::new();
@@ -118,7 +129,7 @@ impl Sequence {
                 }
                 else if word.text == "model" {
                     
-                    model_instanciations.push(ModelInstanciation::build(&mut iter)?);
+                    models.push(Instanciation::build(&mut iter)?);
                 }
                 else if word.text == "require" {
 
@@ -127,9 +138,7 @@ impl Sequence {
                 else if word.text == "origin" {
 
                     if origin.is_none() {
-                        let origin_name = expect_word_kind(Kind::Name, "Origin name expected.", &mut iter)?;
-                        expect_word_kind(Kind::OpeningParenthesis, "Origin parameters declaration '(' expected.", &mut iter)?;
-                        origin = Some(Treatment::build_from_parameters(origin_name, &mut iter)?);
+                        origin = Some(Instanciation::build(&mut iter)?);
                     }
                     else {
                         return Err(ScriptError::word("Origin already declared.".to_string(), word.text, word.position));
@@ -218,9 +227,15 @@ impl Sequence {
                 }
             }
 
-            // If determinant is an opening parenthesis '(', we are in a treatment declaration.
-            if determinant.kind == Some(Kind::OpeningParenthesis) {
-                treatments.push(Treatment::build_from_parameters(element_name, &mut iter)?);
+            // If determinant is ':', '[', or '(', we are in a treatment declaration.
+            if determinant.kind == Some(Kind::Colon) {
+                treatments.push(Instanciation::build_from_type(element_name.clone(), &mut iter)?);
+            }
+            else if determinant.kind == Some(Kind::OpeningBracket) {
+                treatments.push(Instanciation::build_from_configuration(element_name.clone(), element_name.clone(), &mut iter)?);
+            }
+            else if determinant.kind == Some(Kind::OpeningParenthesis) {
+                treatments.push(Instanciation::build_from_parameters(element_name.clone(), element_name.clone(), Vec::new(), &mut iter)?);
             }
             // If determinant is a dot '.', we are in a connection declaration, with data transmission (1).
             else if determinant.kind == Some(Kind::Dot) {
@@ -246,9 +261,9 @@ impl Sequence {
 
         Ok(Self {
             name,
-            parametric_models,
+            configuration,
             parameters,
-            model_instanciations,
+            models,
             requirements,
             origin,
             inputs,

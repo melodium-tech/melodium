@@ -102,8 +102,8 @@ impl Sequence {
             }
         }
 
-        for m in text.parametric_models {
-            let model_instance = ModelInstance::new(Rc::clone(&sequence), m)?;
+        for c in text.configuration {
+            let model_instance = ModelInstance::new(Rc::clone(&sequence), c)?;
             sequence.borrow_mut().model_instances.push(model_instance);
         }
 

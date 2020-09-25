@@ -6,7 +6,7 @@ use super::common::Node;
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
-use crate::script::text::Treatment as TextTreatment;
+use crate::script::text::Instanciation as TextTreatment;
 
 use super::r#use::Use;
 use super::sequence::Sequence;

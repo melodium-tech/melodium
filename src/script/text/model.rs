@@ -54,6 +54,7 @@ impl Model {
 
         let name = expect_word_kind(Kind::Name, "Model name expected.", &mut iter)?;
 
+        expect_word_kind(Kind::OpeningParenthesis, "Parameters declaration expected '('.", &mut iter)?;
         let parameters = parse_parameters_declarations(&mut iter)?;
 
         expect_word_kind(Kind::Colon, "Model type declaration expected ':'.", &mut iter)?;
