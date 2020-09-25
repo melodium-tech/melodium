@@ -17,7 +17,7 @@ pub struct Requirement {
 impl Requirement {
     /// Build requirement by parsing words.
     /// 
-    /// * `iter`: Iterator over words list, next() being expected to be the named reference required, see [Kind::Reference](../word/enum.Kind.html#variant.Reference).
+    /// * `iter`: Iterator over words list, next() being expected to be the context required, see [Kind::Context](../word/enum.Kind.html#variant.Context).
     /// 
     /// ```
     /// # use melodium_rust::script::error::ScriptError;
@@ -36,7 +36,7 @@ impl Requirement {
     /// ```
     pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
 
-        let name = expect_word_kind(Kind::Reference, "Requirement name expected.", &mut iter)?;
+        let name = expect_word_kind(Kind::Context, "Context name expected.", &mut iter)?;
 
         Ok(Self {
             name

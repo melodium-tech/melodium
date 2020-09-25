@@ -85,7 +85,7 @@ pub enum Kind {
     /// Anything corresponding to a name, meaning anything that is composed of letters (Unicode definition) or numbers, but not starting with a number.
     Name,
     /// Same thing than `Name`, but having `@` in the first place.
-    Reference,
+    Context,
     /// Anything matching a number, starting with `+`, `-`, or any digit, and having an arbitrary number of digits, with at most one point `.` inside.
     Number,
     /// Any string starting and ending with `"` (with a preservation of `\"` and `\\`).
@@ -313,12 +313,12 @@ pub fn get_words(script: & str) -> Result<Vec<Word>, Vec<Word>> {
         } {
             kind = Some(Kind::Name);
         }
-        // Check if word is Reference
+        // Check if word is Context
         else if {
-            kind_check = manage_reference(remaining_script);
+            kind_check = manage_context(remaining_script);
             kind_check.is_that_kind
         } {
-            kind = Some(Kind::Reference);
+            kind = Some(Kind::Context);
         }
         // Check if word is Number
         else if {
@@ -465,11 +465,11 @@ fn manage_name(text: &str) -> KindCheck {
     else { KindCheck::default() }
 }
 
-fn manage_reference(text: &str) -> KindCheck {
+fn manage_context(text: &str) -> KindCheck {
     lazy_static! {
-        static ref REGEX_REFERENCE: Regex = Regex::new(r"^@[\p{Alphabetic}\p{M}\p{Pc}\p{Join_Control}]\w*").unwrap();
+        static ref REGEX_CONTEXT: Regex = Regex::new(r"^@[\p{Alphabetic}\p{M}\p{Pc}\p{Join_Control}]\w*").unwrap();
     }
-    let mat = REGEX_REFERENCE.find(text);
+    let mat = REGEX_CONTEXT.find(text);
     if mat.is_some() {
         KindCheck {
             is_that_kind: true,

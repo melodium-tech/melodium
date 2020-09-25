@@ -21,10 +21,10 @@ pub enum Value {
     Array(Vec<Value>),
     /// Name, see [Kind::Name](../word/enum.Kind.html#variant.Name).
     Name(PositionnedString),
-    /// Reference, see [Kind::Reference](../word/enum.Kind.html#variant.Reference).
-    /// First element being the reference itself, second element the inner refered component.
+    /// ContextReference, see [Kind::Context](../word/enum.Kind.html#variant.Context).
+    /// First element being the context itself, second element the inner refered component.
     /// `@Foo[bar]`: (`@Foo`, `bar`)
-    Reference((PositionnedString, PositionnedString)),
+    ContextReference((PositionnedString, PositionnedString)),
 }
 
 impl Value {
@@ -65,7 +65,7 @@ impl Value {
     /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Name(PositionnedString::default())));
     /// 
     /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Reference((PositionnedString::default(), PositionnedString::default()))));
+    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::ContextReference((PositionnedString::default(), PositionnedString::default()))));
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn build_from_first_item(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
@@ -91,17 +91,17 @@ impl Value {
             }
 
         }
-        // Value is a reference.
-        else if value.kind == Some(Kind::Reference) {
+        // Value is a context (so a reference to something in it).
+        else if value.kind == Some(Kind::Context) {
 
-            let reference = value;
+            let context = value;
 
             expect_word_kind(Kind::OpeningBracket, "Opening bracket '[' expected.", &mut iter)?;
             let inner_reference = expect_word_kind(Kind::Name, "Element name expected.", &mut iter)?;
             expect_word_kind(Kind::ClosingBracket, "Closing bracket ']' expected.", &mut iter)?;
 
-            Ok(Self::Reference((
-                PositionnedString { string: reference.text, position: reference.position},
+            Ok(Self::ContextReference((
+                PositionnedString { string: context.text, position: context.position},
                 inner_reference
             )))
         }

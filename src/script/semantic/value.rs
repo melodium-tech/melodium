@@ -24,8 +24,8 @@ pub enum ValueContent {
     Array(Vec<ValueContent>),
     /// Named value, referring to a parameter of the hosting sequence.
     Name(Reference<DeclaredParameter>),
-    /// Named reference, referring to a requirement of the hosting sequence, and an inner element.
-    Reference((Reference<Requirement>, String))
+    /// Context reference, referring to a requirement of the hosting sequence, and an inner element.
+    ContextReference((Reference<Requirement>, String))
 }
 
 /// Structure managing and describing Value semantic analysis.
@@ -65,7 +65,7 @@ impl Value {
             TextValue::String(s) => Self::parse_string(s)?,
             TextValue::Array(a) => Self::parse_vector(&a)?,
             TextValue::Name(n) => ValueContent::Name(Reference::new(n.string.to_string())),
-            TextValue::Reference((r, e)) => ValueContent::Reference((Reference::new(r.string.to_string()), e.string.to_string())),
+            TextValue::ContextReference((r, e)) => ValueContent::ContextReference((Reference::new(r.string.to_string()), e.string.to_string())),
         };
 
         Ok(content)
@@ -157,7 +157,7 @@ impl Value {
                     return Err(ScriptError::semantic("Unkown name '".to_string() + &n.name + "' in sequence parameters.", position));
                 }
             },
-            ValueContent::Reference((r, e)) => {
+            ValueContent::ContextReference((r, e)) => {
 
                 let requirement = match &borrowed_parent.declarative_element() {
                     DeclarativeElementType::Sequence(s) => s.find_requirement(&r.name),
@@ -166,14 +166,14 @@ impl Value {
 
                 if requirement.is_some() {
 
-                    content = ValueContent::Reference((Reference {
+                    content = ValueContent::ContextReference((Reference {
                         name: r.name.clone(),
                         reference: Some(Rc::clone(requirement.unwrap())),
                     }, e.clone()));
                 }
                 else {
                     let position = match &self.text {
-                        TextValue::Reference((ps, _)) => ps.position,
+                        TextValue::ContextReference((ps, _)) => ps.position,
                         _ => Position::default(),
                     };
                     return Err(ScriptError::semantic("Unkown reference '".to_string() + &r.name + "' in sequence requirements.", position));
