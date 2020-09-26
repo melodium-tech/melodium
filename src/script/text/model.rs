@@ -4,7 +4,7 @@
 use crate::script::error::ScriptError;
 
 use super::PositionnedString;
-use super::word::{expect_word_kind, Kind, Word};
+use super::word::{expect_word, expect_word_kind, Kind, Word};
 use super::common::parse_parameters_declarations;
 use super::parameter::Parameter;
 
@@ -34,6 +34,8 @@ impl Model {
     /// let text = r##"
     /// model MachineLearningModel(layers: Int, function: String = "sigmoid"): SparseAutoencoder
     /// {
+    ///     layers = layers
+    ///     function = function
     /// }
     /// "##;
     /// 
@@ -54,20 +56,42 @@ impl Model {
 
         let name = expect_word_kind(Kind::Name, "Model name expected.", &mut iter)?;
 
+        // We parse declarations.
         expect_word_kind(Kind::OpeningParenthesis, "Parameters declaration expected '('.", &mut iter)?;
         let parameters = parse_parameters_declarations(&mut iter)?;
 
+        // The model type.
         expect_word_kind(Kind::Colon, "Model type declaration expected ':'.", &mut iter)?;
         let r#type = expect_word_kind(Kind::Name, "Model type expected.", &mut iter)?;
-        // TODO model type parameters.
+        
+        // And then the internal assignations.
         expect_word_kind(Kind::OpeningBrace, "Model content declaration expected '{'.", &mut iter)?;
-        expect_word_kind(Kind::ClosingBrace, "End of model content declaration expected '}'.", &mut iter)?;
+
+        let mut assignations = Vec::new();
+
+        loop {
+
+            let word = expect_word("Unexpected end of script.", &mut iter)?;
+
+            if word.kind == Some(Kind::ClosingBrace) {
+                break;
+            }
+            else if word.kind == Some(Kind::Name) {
+
+                expect_word_kind(Kind::Equal, "Component value expected.", &mut iter)?;
+                assignations.push(Parameter::build_from_value(PositionnedString{string: word.text, position: word.position}, &mut iter)?);
+
+            }
+            else {
+                return Err(ScriptError::word("Model content declaration or end '}' expected.".to_string(), word.text, word.position));
+            }
+        }
 
         Ok(Self {
             name,
             parameters,
             r#type,
-            assignations: Vec::new()
+            assignations,
         })
 
     }
