@@ -8,20 +8,23 @@ use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
 
+use super::parameter::Parameter;
+use super::assignative_element::{AssignativeElement, AssignativeElementType};
 use super::declarative_element::DeclarativeElement;
-use super::treatment::Treatment;
+use super::declared_parameter::DeclaredParameter;
 use super::value::Value;
+use super::requirement::Requirement;
 
 /// Structure managing and describing semantic of an assigned parameter.
 /// 
 /// A _assigned_ parameter is a parameter for which name and value are expected, but _no_ type.
-/// It is used by [Treatments](../treatment/struct.Treatment.html).
+/// It is used by [Treatments](../treatment/struct.Treatment.html) and [Models](../model/struct.Model.html).
 /// 
 /// It owns the whole [text parameter](../../text/parameter/struct.Parameter.html).
 pub struct AssignedParameter {
     pub text: TextParameter,
 
-    pub treatment: Rc<RefCell<Treatment>>,
+    pub parent: Rc<RefCell<dyn AssignativeElement>>,
 
     pub name: String,
     pub value: Rc<RefCell<Value>>,
@@ -43,6 +46,7 @@ impl AssignedParameter {
     /// # use melodium_rust::script::error::ScriptError;
     /// # use melodium_rust::script::text::script::Script as TextScript;
     /// # use melodium_rust::script::semantic::script::Script;
+    /// # use melodium_rust::script::semantic::assignative_element::AssignativeElement;
     /// let address = "examples/semantic/simple_build.mel";
     /// let mut raw_text = String::new();
     /// # let mut file = File::open(address).unwrap();
@@ -58,36 +62,85 @@ impl AssignedParameter {
     /// let borrowed_script = script.borrow();
     /// let borrowed_sequence = borrowed_script.find_sequence("MakeHPCP").unwrap().borrow();
     /// let borrowed_treatment = borrowed_sequence.find_treatment("SpectralPeaks").unwrap().borrow();
-    /// let borrowed_parameter = borrowed_treatment.find_parameter("magnitudeThreshold").unwrap().borrow();
+    /// let borrowed_parameter = borrowed_treatment.find_assigned_parameter("magnitudeThreshold").unwrap().borrow();
     /// 
     /// assert_eq!(borrowed_parameter.name, "magnitudeThreshold");
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(treatment: Rc<RefCell<Treatment>>, text: TextParameter) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(parent: Rc<RefCell<dyn AssignativeElement>>, text: TextParameter) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         let value;
         {
-            let borrowed_treatment = treatment.borrow();
+            let borrowed_parent = parent.borrow();
 
-            let parameter = borrowed_treatment.find_parameter(&text.name.string);
+            let parameter = borrowed_parent.find_assigned_parameter(&text.name.string);
             if parameter.is_some() {
                 return Err(ScriptError::semantic("Parameter '".to_string() + &text.name.string + "' is already assigned.", text.name.position))
             }
 
             if text.value.is_some() {
-                value = Value::new(Rc::clone(&borrowed_treatment.sequence) as Rc<RefCell<dyn DeclarativeElement>>, text.value.as_ref().unwrap().clone())?;
+
+                value = Value::new(text.value.as_ref().unwrap().clone())?;
             }
             else {
                 return Err(ScriptError::semantic("Parameter '".to_string() + &text.name.string + "' is missing value.", text.name.position))
             }
         }
 
-        Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
+        let parameter = Rc::<RefCell<Self>>::new(RefCell::new(Self {
             name: text.name.string.clone(),
             text,
-            treatment,
+            parent,
             value,
-        })))
+        }));
+
+        parameter.borrow().value.borrow_mut().parent = Some(Rc::clone(&parameter) as Rc<RefCell<dyn Parameter>>);
+
+        Ok(parameter)
+    }
+}
+
+impl Parameter for AssignedParameter {
+
+    fn find_declared_parameter(&self, name: & str) -> Option<Rc<RefCell<DeclaredParameter>>> {
+
+        let borrowed_parent = self.parent.borrow();
+        match borrowed_parent.assignative_element() {
+            AssignativeElementType::Model(m) => {
+                if let Some(param) = m.find_declared_parameter(name) {
+                    Some(Rc::clone(param))
+                }
+                else {
+                    None
+                }
+            }
+            AssignativeElementType::Treatment(t) => {
+                let sequence = t.sequence.borrow();
+                if let Some(param) = sequence.find_declared_parameter(name) {
+                    Some(Rc::clone(param))
+                }
+                else {
+                    None
+                }
+            }
+        }
+    }
+
+    fn find_requirement(&self, name: & str) -> Option<Rc<RefCell<Requirement>>> {
+        
+        let borrowed_parent = self.parent.borrow();
+        match borrowed_parent.assignative_element() {
+            AssignativeElementType::Treatment(t) => {
+                let sequence = t.sequence.borrow();
+                if let Some(param) = sequence.find_requirement(name) {
+                    Some(Rc::clone(param))
+                }
+                else {
+                    None
+                }
+            },
+            _ => None
+        }
     }
 }
 

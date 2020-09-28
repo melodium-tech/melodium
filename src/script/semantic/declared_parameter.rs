@@ -8,9 +8,11 @@ use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
 
-use super::declarative_element::DeclarativeElement;
+use super::parameter::Parameter;
+use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::r#type::Type;
 use super::value::Value;
+use super::requirement::Requirement;
 
 /// Structure managing and describing semantic of a declared parameter.
 /// 
@@ -84,20 +86,58 @@ impl DeclaredParameter {
             r#type = Type::new(text.r#type.as_ref().unwrap().clone())?;
 
             if text.value.is_some() {
-                value = Some(Value::new(Rc::clone(&parent), text.value.as_ref().unwrap().clone())?);
+                value = Some(Value::new(text.value.as_ref().unwrap().clone())?);
             }
             else {
                 value = None;
             }
         }
 
-        Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
+        let parameter = Rc::<RefCell<Self>>::new(RefCell::new(Self {
             parent,
             name: text.name.string.clone(),
             text,
             r#type,
             value,
-        })))
+        }));
+
+        if let Some(value) = &parameter.borrow().value {
+            value.borrow_mut().parent = Some(Rc::clone(&parameter) as Rc<RefCell<dyn Parameter>>);
+        }
+
+        Ok(parameter)
+    }
+}
+
+impl Parameter for DeclaredParameter {
+    
+    fn find_declared_parameter(&self, name: & str) -> Option<Rc<RefCell<DeclaredParameter>>> {
+
+        let borrowed_parent = self.parent.borrow();
+        let dp = borrowed_parent.find_declared_parameter(name);
+
+        if let Some(param) = dp {
+            Some(Rc::clone(param))
+        }
+        else {
+            None
+        }
+    }
+
+    fn find_requirement(&self, name: & str) -> Option<Rc<RefCell<Requirement>>> {
+        
+        let borrowed_parent = self.parent.borrow();
+        match borrowed_parent.declarative_element() {
+            DeclarativeElementType::Sequence(s) => {
+                if let Some(requirement) = s.find_requirement(name) {
+                    Some(Rc::clone(requirement))
+                }
+                else {
+                    None
+                }
+            },
+            _ => None
+        }
     }
 }
 

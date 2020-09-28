@@ -24,9 +24,6 @@ impl Model {
     /// 
     /// * `iter`: Iterator over words list, next() being expected to be the name.
     ///
-    /// # Warning
-    /// Models don't support any kind of content in the current implementation. Their specification is not finished.
-    /// 
     /// ```
     /// # use melodium_rust::script::error::ScriptError;
     /// # use melodium_rust::script::text::word::*;

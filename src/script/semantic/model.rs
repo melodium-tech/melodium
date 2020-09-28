@@ -11,6 +11,8 @@ use crate::script::text::Model as TextModel;
 use super::script::Script;
 use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::declared_parameter::DeclaredParameter;
+use super::assignative_element::{AssignativeElement, AssignativeElementType};
+use super::assigned_parameter::AssignedParameter;
 use super::common::Reference;
 use super::r#use::Use;
 
@@ -25,6 +27,7 @@ pub struct Model {
     pub name: String,
     pub parameters: Vec<Rc<RefCell<DeclaredParameter>>>,
     pub r#type: Reference<Use>,
+    pub assignations: Vec<Rc<RefCell<AssignedParameter>>>,
 }
 
 impl Model {
@@ -43,6 +46,7 @@ impl Model {
             name: text.name.string.clone(),
             parameters: Vec::new(),
             r#type: Reference::new(text.r#type.string.clone()),
+            assignations: Vec::new(),
         }));
 
         {
@@ -72,6 +76,19 @@ impl DeclarativeElement for Model {
     /// Search for a declared parameter.
     fn find_declared_parameter(&self, name: & str) -> Option<&Rc<RefCell<DeclaredParameter>>> {
         self.parameters.iter().find(|&p| p.borrow().name == name)
+    }
+
+}
+
+impl AssignativeElement for Model {
+    
+    fn assignative_element(&self) -> AssignativeElementType {
+        AssignativeElementType::Model(&self)
+    }
+
+    /// Search for a assigned parameter.
+    fn find_assigned_parameter(&self, name: & str) -> Option<&Rc<RefCell<AssignedParameter>>> {
+        self.assignations.iter().find(|&a| a.borrow().name == name)
     }
 
 }

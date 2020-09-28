@@ -9,7 +9,7 @@ use crate::script::error::ScriptError;
 use crate::script::text::{PositionnedString, Position};
 use crate::script::text::value::Value as TextValue;
 
-use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
+use super::parameter::Parameter;
 use super::common::Reference;
 use super::declared_parameter::DeclaredParameter;
 use super::requirement::Requirement;
@@ -35,7 +35,7 @@ pub enum ValueContent {
 pub struct Value {
     pub text: TextValue,
 
-    pub parent: Rc<RefCell<dyn DeclarativeElement>>,
+    pub parent: Option<Rc<RefCell<dyn Parameter>>>,
 
     pub content: ValueContent,
 }
@@ -43,15 +43,15 @@ pub struct Value {
 impl Value {
     /// Create a new semantic value, based on textual value.
     /// 
-    /// * `parent`: the parent element that host the value.
+    /// * `host`: the declarative element that host the value.
     /// * `text`: the textual value.
     /// 
     /// # Note
     /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
-    pub fn new(parent: Rc<RefCell<dyn DeclarativeElement>>, text: TextValue) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(text: TextValue) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self{
-            parent,
+            parent: None,
             content: Self::parse(&text)?,
             text,
         })))
@@ -125,7 +125,6 @@ impl Value {
     fn make_reference_valuecontent(&self, value: &ValueContent) -> Result<ValueContent, ScriptError> {
 
         let content;
-        let borrowed_parent = self.parent.borrow();
 
         match value {
             ValueContent::Boolean(b) => {
@@ -141,12 +140,25 @@ impl Value {
                 content = ValueContent::String(s.clone());
             },
             ValueContent::Name(n) => {
+
+                let borrowed_parent;
+                if let Some(parent) = &self.parent {
+                    borrowed_parent = parent.borrow();
+                }
+                else {
+                    let position = match &self.text {
+                        TextValue::Name(ps) => ps.position,
+                        _ => Position::default(),
+                    };
+                    return Err(ScriptError::semantic("No parent element to refer to for '".to_string() + &n.name + "'.", position));
+                }
+
                 let param = borrowed_parent.find_declared_parameter(&n.name);
                 if param.is_some() {
                     
                     content = ValueContent::Name(Reference {
                         name: n.name.clone(),
-                        reference: Some(Rc::clone(param.unwrap())),
+                        reference: Some(Rc::clone(&param.unwrap())),
                     });
                 }
                 else {
@@ -154,21 +166,29 @@ impl Value {
                         TextValue::Name(ps) => ps.position,
                         _ => Position::default(),
                     };
-                    return Err(ScriptError::semantic("Unkown name '".to_string() + &n.name + "' in sequence parameters.", position));
+                    return Err(ScriptError::semantic("Unkown name '".to_string() + &n.name + "' in declared parameters.", position));
                 }
             },
             ValueContent::ContextReference((r, e)) => {
 
-                let requirement = match &borrowed_parent.declarative_element() {
-                    DeclarativeElementType::Sequence(s) => s.find_requirement(&r.name),
-                    _ => None,
-                };
+                let borrowed_parent;
+                if let Some(parent) = &self.parent {
+                    borrowed_parent = parent.borrow();
+                }
+                else {
+                    let position = match &self.text {
+                        TextValue::Name(ps) => ps.position,
+                        _ => Position::default(),
+                    };
+                    return Err(ScriptError::semantic("No context to refer there for '".to_string() + &r.name + "'.", position));
+                }
 
+                let requirement = borrowed_parent.find_requirement(&r.name);
                 if requirement.is_some() {
 
                     content = ValueContent::ContextReference((Reference {
                         name: r.name.clone(),
-                        reference: Some(Rc::clone(requirement.unwrap())),
+                        reference: Some(Rc::clone(&requirement.unwrap())),
                     }, e.clone()));
                 }
                 else {
@@ -176,7 +196,7 @@ impl Value {
                         TextValue::ContextReference((ps, _)) => ps.position,
                         _ => Position::default(),
                     };
-                    return Err(ScriptError::semantic("Unkown reference '".to_string() + &r.name + "' in sequence requirements.", position));
+                    return Err(ScriptError::semantic("Unkown context '".to_string() + &r.name + "' in sequence requirements.", position));
                 }
             },
             ValueContent::Array(a) => {

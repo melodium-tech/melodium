@@ -11,6 +11,7 @@ use crate::script::text::Instanciation as TextTreatment;
 use super::r#use::Use;
 use super::sequence::Sequence;
 use super::common::Reference;
+use super::assignative_element::{AssignativeElement, AssignativeElementType};
 use super::assigned_parameter::AssignedParameter;
 
 /// Structure managing and describing semantic of a treatment.
@@ -91,11 +92,18 @@ impl Treatment {
         }
 
         for p in text.parameters {
-            let assigned_parameter = AssignedParameter::new(Rc::clone(&treatment), p)?;
+            let assigned_parameter = AssignedParameter::new(Rc::clone(&treatment) as Rc<RefCell<dyn AssignativeElement>>, p)?;
             treatment.borrow_mut().parameters.push(assigned_parameter);
         }
 
         Ok(treatment)
+    }
+}
+
+impl AssignativeElement for Treatment {
+
+    fn assignative_element(&self) -> AssignativeElementType {
+        AssignativeElementType::Treatment(&self)
     }
 
     /// Search for a parameter.
@@ -107,6 +115,7 @@ impl Treatment {
     /// # use melodium_rust::script::error::ScriptError;
     /// # use melodium_rust::script::text::script::Script as TextScript;
     /// # use melodium_rust::script::semantic::script::Script;
+    /// # use melodium_rust::script::semantic::assignative_element::AssignativeElement;
     /// let address = "examples/semantic/simple_build.mel";
     /// let mut raw_text = String::new();
     /// # let mut file = File::open(address).unwrap();
@@ -120,14 +129,14 @@ impl Treatment {
     /// let borrowed_sequence = borrowed_script.find_sequence("MakeHPCP").unwrap().borrow();
     /// let borrowed_treatment = borrowed_sequence.find_treatment("SpectralPeaks").unwrap().borrow();
     /// 
-    /// let magnitude_threshold = borrowed_treatment.find_parameter("magnitudeThreshold");
-    /// let dont_exist = borrowed_treatment.find_parameter("dontExist");
+    /// let magnitude_threshold = borrowed_treatment.find_assigned_parameter("magnitudeThreshold");
+    /// let dont_exist = borrowed_treatment.find_assigned_parameter("dontExist");
     /// assert!(magnitude_threshold.is_some());
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn find_parameter(&self, name: & str) -> Option<&Rc<RefCell<AssignedParameter>>> {
-        self.parameters.iter().find(|&p| p.borrow().name == name) 
+    fn find_assigned_parameter(&self, name: & str) -> Option<&Rc<RefCell<AssignedParameter>>> {
+        self.parameters.iter().find(|&a| a.borrow().name == name)
     }
 }
 
