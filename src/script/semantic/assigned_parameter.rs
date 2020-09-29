@@ -8,12 +8,8 @@ use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
 
-use super::parameter::Parameter;
-use super::assignative_element::{AssignativeElement, AssignativeElementType};
-use super::declarative_element::DeclarativeElement;
-use super::declared_parameter::DeclaredParameter;
+use super::assignative_element::AssignativeElement;
 use super::value::Value;
-use super::requirement::Requirement;
 
 /// Structure managing and describing semantic of an assigned parameter.
 /// 
@@ -80,67 +76,19 @@ impl AssignedParameter {
 
             if text.value.is_some() {
 
-                value = Value::new(text.value.as_ref().unwrap().clone())?;
+                value = Value::new(borrowed_parent.associated_declarative_element(), text.value.as_ref().unwrap().clone())?;
             }
             else {
                 return Err(ScriptError::semantic("Parameter '".to_string() + &text.name.string + "' is missing value.", text.name.position))
             }
         }
 
-        let parameter = Rc::<RefCell<Self>>::new(RefCell::new(Self {
+        Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
             name: text.name.string.clone(),
             text,
             parent,
             value,
-        }));
-
-        parameter.borrow().value.borrow_mut().parent = Some(Rc::clone(&parameter) as Rc<RefCell<dyn Parameter>>);
-
-        Ok(parameter)
-    }
-}
-
-impl Parameter for AssignedParameter {
-
-    fn find_declared_parameter(&self, name: & str) -> Option<Rc<RefCell<DeclaredParameter>>> {
-
-        let borrowed_parent = self.parent.borrow();
-        match borrowed_parent.assignative_element() {
-            AssignativeElementType::Model(m) => {
-                if let Some(param) = m.find_declared_parameter(name) {
-                    Some(Rc::clone(param))
-                }
-                else {
-                    None
-                }
-            }
-            AssignativeElementType::Treatment(t) => {
-                let sequence = t.sequence.borrow();
-                if let Some(param) = sequence.find_declared_parameter(name) {
-                    Some(Rc::clone(param))
-                }
-                else {
-                    None
-                }
-            }
-        }
-    }
-
-    fn find_requirement(&self, name: & str) -> Option<Rc<RefCell<Requirement>>> {
-        
-        let borrowed_parent = self.parent.borrow();
-        match borrowed_parent.assignative_element() {
-            AssignativeElementType::Treatment(t) => {
-                let sequence = t.sequence.borrow();
-                if let Some(param) = sequence.find_requirement(name) {
-                    Some(Rc::clone(param))
-                }
-                else {
-                    None
-                }
-            },
-            _ => None
-        }
+        })))
     }
 }
 

@@ -13,6 +13,7 @@ use super::sequence::Sequence;
 use super::common::Reference;
 use super::assignative_element::{AssignativeElement, AssignativeElementType};
 use super::assigned_parameter::AssignedParameter;
+use super::declarative_element::DeclarativeElement;
 
 /// Structure managing and describing semantic of a treatment.
 /// 
@@ -104,6 +105,10 @@ impl AssignativeElement for Treatment {
 
     fn assignative_element(&self) -> AssignativeElementType {
         AssignativeElementType::Treatment(&self)
+    }
+
+    fn associated_declarative_element(&self) -> Rc<RefCell<dyn DeclarativeElement>> {
+        Rc::clone(&self.sequence) as Rc<RefCell<dyn DeclarativeElement>>
     }
 
     /// Search for a parameter.

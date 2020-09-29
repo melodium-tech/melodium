@@ -3,7 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Model as TextModel;
@@ -28,6 +28,8 @@ pub struct Model {
     pub parameters: Vec<Rc<RefCell<DeclaredParameter>>>,
     pub r#type: Reference<Use>,
     pub assignations: Vec<Rc<RefCell<AssignedParameter>>>,
+
+    auto_reference: Weak<RefCell<Self>>,
 }
 
 impl Model {
@@ -47,6 +49,7 @@ impl Model {
             parameters: Vec::new(),
             r#type: Reference::new(text.r#type.string.clone()),
             assignations: Vec::new(),
+            auto_reference: Weak::new(),
         }));
 
         {
@@ -62,6 +65,8 @@ impl Model {
             let declared_parameter = DeclaredParameter::new(Rc::clone(&model) as Rc<RefCell<dyn DeclarativeElement>>, p)?;
             model.borrow_mut().parameters.push(declared_parameter);
         }
+
+        model.borrow_mut().auto_reference = Rc::downgrade(&model);
 
         Ok(model)
     }
@@ -84,6 +89,10 @@ impl AssignativeElement for Model {
     
     fn assignative_element(&self) -> AssignativeElementType {
         AssignativeElementType::Model(&self)
+    }
+
+    fn associated_declarative_element(&self) -> Rc<RefCell<dyn DeclarativeElement>> {
+        self.auto_reference.upgrade().unwrap()
     }
 
     /// Search for a assigned parameter.

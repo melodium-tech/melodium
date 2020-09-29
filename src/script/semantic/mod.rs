@@ -15,7 +15,6 @@ pub mod model;
 pub mod model_instance;
 pub mod model_instanciation;
 pub mod output;
-pub mod parameter;
 pub mod requirement;
 pub mod script;
 pub mod sequence;
