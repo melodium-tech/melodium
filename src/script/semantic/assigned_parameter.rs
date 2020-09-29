@@ -3,7 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
@@ -20,7 +20,7 @@ use super::value::Value;
 pub struct AssignedParameter {
     pub text: TextParameter,
 
-    pub parent: Rc<RefCell<dyn AssignativeElement>>,
+    pub parent: Weak<RefCell<dyn AssignativeElement>>,
 
     pub name: String,
     pub value: Rc<RefCell<Value>>,
@@ -86,7 +86,7 @@ impl AssignedParameter {
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
             name: text.name.string.clone(),
             text,
-            parent,
+            parent: Rc::downgrade(&parent),
             value,
         })))
     }

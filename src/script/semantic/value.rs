@@ -3,7 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::{PositionnedString, Position};
@@ -35,7 +35,7 @@ pub enum ValueContent {
 pub struct Value {
     pub text: TextValue,
 
-    pub host: Rc<RefCell<dyn DeclarativeElement>>,
+    pub host: Weak<RefCell<dyn DeclarativeElement>>,
 
     pub content: ValueContent,
 }
@@ -51,7 +51,7 @@ impl Value {
     pub fn new(host: Rc<RefCell<dyn DeclarativeElement>>, text: TextValue) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self{
-            host,
+            host: Rc::downgrade(&host),
             content: Self::parse(&text)?,
             text,
         })))
@@ -124,7 +124,8 @@ impl Value {
 
     fn make_reference_valuecontent(&self, value: &ValueContent) -> Result<ValueContent, ScriptError> {
 
-        let borrowed_host = self.host.borrow();
+        let rc_host = self.host.upgrade().unwrap();
+        let borrowed_host = rc_host.borrow();
         let content;
 
         match value {
@@ -147,7 +148,7 @@ impl Value {
                     
                     content = ValueContent::Name(Reference {
                         name: n.name.clone(),
-                        reference: Some(Rc::clone(&param.unwrap())),
+                        reference: Some(Rc::downgrade(&param.unwrap())),
                     });
                 }
                 else {
@@ -169,7 +170,7 @@ impl Value {
 
                     content = ValueContent::ContextReference((Reference {
                         name: r.name.clone(),
-                        reference: Some(Rc::clone(&requirement.unwrap())),
+                        reference: Some(Rc::downgrade(&requirement.unwrap())),
                     }, e.clone()));
                 }
                 else {

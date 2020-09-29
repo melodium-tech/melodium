@@ -3,7 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Use as TextUse;
@@ -17,7 +17,7 @@ use super::script::Script;
 pub struct Use {
     pub text: TextUse,
 
-    pub script: Rc<RefCell<Script>>,
+    pub script: Weak<RefCell<Script>>,
 
     pub path: Path,
     pub element: String,
@@ -79,7 +79,7 @@ impl Use {
         let path = Path::new(text.path.iter().map(|i| i.string.clone()).collect());
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
-            script,
+            script: Rc::downgrade(&script),
             path,
             element: text.element.string.clone(),
             r#as: r#as.string.clone(),

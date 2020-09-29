@@ -22,7 +22,7 @@ use super::r#use::Use;
 pub struct Model {
     pub text: TextModel,
 
-    pub script: Rc<RefCell<Script>>,
+    pub script: Weak<RefCell<Script>>,
 
     pub name: String,
     pub parameters: Vec<Rc<RefCell<DeclaredParameter>>>,
@@ -44,7 +44,7 @@ impl Model {
 
         let model = Rc::<RefCell<Self>>::new(RefCell::new(Self {
             text: text.clone(),
-            script: Rc::clone(&script),
+            script: Rc::downgrade(&script),
             name: text.name.string.clone(),
             parameters: Vec::new(),
             r#type: Reference::new(text.r#type.string.clone()),
@@ -106,14 +106,15 @@ impl Node for Model {
     
     fn make_references(&mut self) -> Result<(), ScriptError> {
 
-        let borrowed_script = self.script.borrow();
+        let rc_script = self.script.upgrade().unwrap();
+        let borrowed_script = rc_script.borrow();
 
         let r#use = borrowed_script.find_use(&self.r#type.name);
         if r#use.is_none() {
             return Err(ScriptError::semantic("'".to_string() + &self.r#type.name + "' is unkown.", self.text.r#type.position))
         }
 
-        self.r#type.reference = Some(Rc::clone(r#use.unwrap()));
+        self.r#type.reference = Some(Rc::downgrade(r#use.unwrap()));
 
         Ok(())
     }

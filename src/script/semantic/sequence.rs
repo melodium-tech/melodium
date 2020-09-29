@@ -3,7 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Sequence as TextSequence;
@@ -24,7 +24,7 @@ use super::connection::Connection;
 pub struct Sequence {
     pub text: TextSequence,
 
-    pub script: Rc<RefCell<Script>>,
+    pub script: Weak<RefCell<Script>>,
 
     pub name: String,
 
@@ -76,7 +76,7 @@ impl Sequence {
 
         let sequence = Rc::<RefCell<Self>>::new(RefCell::new(Self {
             text: text.clone(),
-            script: Rc::clone(&script),
+            script: Rc::downgrade(&script),
             name: text.name.string.clone(),
             model_instances: Vec::new(),
             parameters: Vec::new(),

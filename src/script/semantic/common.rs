@@ -1,7 +1,7 @@
 
 //! Module dedicated to common semantic elements & traits.
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use super::script::Script;
 use crate::script::text::Script as TextScript;
@@ -60,11 +60,11 @@ pub trait Node {
     }
 }
 
-/// Structure holding name and counted reference to another element.
+/// Structure holding name and weak-counted reference to another element.
 #[derive(Default)]
 pub struct Reference<T> {
     pub name: String,
-    pub reference: Option<Rc<RefCell<T>>>,
+    pub reference: Option<Weak<RefCell<T>>>,
 }
 
 impl<T> Reference<T> {

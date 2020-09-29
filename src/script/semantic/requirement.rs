@@ -3,7 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Requirement as TextRequirement;
@@ -16,7 +16,7 @@ use super::sequence::Sequence;
 pub struct Requirement {
     pub text: TextRequirement,
 
-    pub sequence: Rc<RefCell<Sequence>>,
+    pub sequence: Weak<RefCell<Sequence>>,
 
     pub name: String,
 }
@@ -67,7 +67,7 @@ impl Requirement {
         }
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self{
-            sequence,
+            sequence: Rc::downgrade(&sequence),
             name: text.name.string.clone(),
             text,
         })))

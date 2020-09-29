@@ -3,7 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
@@ -21,7 +21,7 @@ use super::value::Value;
 pub struct DeclaredParameter {
     pub text: TextParameter,
 
-    pub parent: Rc<RefCell<dyn DeclarativeElement>>,
+    pub parent: Weak<RefCell<dyn DeclarativeElement>>,
 
     pub name: String,
     pub r#type: Type,
@@ -92,7 +92,7 @@ impl DeclaredParameter {
         }
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
-            parent,
+            parent: Rc::downgrade(&parent),
             name: text.name.string.clone(),
             text,
             r#type,

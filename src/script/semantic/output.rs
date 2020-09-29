@@ -3,7 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
@@ -17,7 +17,7 @@ use super::r#type::Type;
 pub struct Output {
     pub text: TextParameter,
 
-    pub sequence: Rc<RefCell<Sequence>>,
+    pub sequence: Weak<RefCell<Sequence>>,
 
     pub name: String,
     pub r#type: Type,
@@ -82,7 +82,7 @@ impl Output {
         }
 
         Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self{
-            sequence,
+            sequence: Rc::downgrade(&sequence),
             name: text.name.string.clone(),
             text,
             r#type,

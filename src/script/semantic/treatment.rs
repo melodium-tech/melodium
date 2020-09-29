@@ -3,7 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Instanciation as TextTreatment;
@@ -21,7 +21,7 @@ use super::declarative_element::DeclarativeElement;
 pub struct Treatment {
     pub text: TextTreatment,
 
-    pub sequence: Rc<RefCell<Sequence>>,
+    pub sequence: Weak<RefCell<Sequence>>,
 
     pub name: String,
     pub r#type: RefersTo,
@@ -77,7 +77,7 @@ impl Treatment {
 
         let treatment = Rc::<RefCell<Self>>::new(RefCell::new(Self {
             text: text.clone(),
-            sequence: Rc::clone(&sequence),
+            sequence: Rc::downgrade(&sequence),
             name: text.name.string.clone(),
             r#type: RefersTo::Unkown(Reference::new(text.r#type.string)),
             parameters: Vec::new(),
@@ -108,7 +108,7 @@ impl AssignativeElement for Treatment {
     }
 
     fn associated_declarative_element(&self) -> Rc<RefCell<dyn DeclarativeElement>> {
-        Rc::clone(&self.sequence) as Rc<RefCell<dyn DeclarativeElement>>
+        self.sequence.upgrade().unwrap() as Rc<RefCell<dyn DeclarativeElement>>
     }
 
     /// Search for a parameter.
@@ -159,15 +159,17 @@ impl Node for Treatment {
 
         if let RefersTo::Unkown(reference) = &self.r#type {
 
-            let borrowed_sequence = self.sequence.borrow();
-            let borrowed_script = borrowed_sequence.script.borrow();
+            let rc_sequence = self.sequence.upgrade().unwrap();
+            let borrowed_sequence = rc_sequence.borrow();
+            let rc_script = borrowed_sequence.script.upgrade().unwrap();
+            let borrowed_script = rc_script.borrow();
 
             let r#use = borrowed_script.find_use(&reference.name);
             if r#use.is_some() {
 
                 self.r#type = RefersTo::Use(Reference{
                     name: reference.name.clone(),
-                    reference: Some(Rc::clone(r#use.unwrap()))
+                    reference: Some(Rc::downgrade(r#use.unwrap()))
                 });
             }
             else {
@@ -176,7 +178,7 @@ impl Node for Treatment {
 
                     self.r#type = RefersTo::Sequence(Reference{
                         name: reference.name.clone(),
-                        reference: Some(Rc::clone(sequence.unwrap()))
+                        reference: Some(Rc::downgrade(sequence.unwrap()))
                     });
                 }
                 else {

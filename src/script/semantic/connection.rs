@@ -3,7 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use crate::script::error::ScriptError;
 use crate::script::text::Connection as TextConnection;
@@ -18,7 +18,7 @@ use super::treatment::Treatment;
 pub struct Connection {
     pub text: TextConnection,
 
-    pub sequence: Rc<RefCell<Sequence>>,
+    pub sequence: Weak<RefCell<Sequence>>,
 
     pub start_point_self: bool,
     pub start_point: Reference<Treatment>,
@@ -71,7 +71,7 @@ impl Connection {
             name_data_out,
             name_data_in,
             text,
-            sequence,
+            sequence: Rc::downgrade(&sequence),
         })))
     }
 
@@ -80,11 +80,12 @@ impl Connection {
 impl Node for Connection {
     fn make_references(&mut self) -> Result<(), ScriptError> {
 
-        let sequence = self.sequence.borrow();
+        let rc_sequence = self.sequence.upgrade().unwrap();
+        let sequence = rc_sequence.borrow();
 
         let treatment_start = sequence.find_treatment(&self.start_point.name);
         if treatment_start.is_some() {
-            self.start_point.reference = Some(Rc::clone(treatment_start.unwrap()));
+            self.start_point.reference = Some(Rc::downgrade(treatment_start.unwrap()));
         }
         else if self.start_point.name == "Self" {
             self.start_point_self = true;
@@ -95,7 +96,7 @@ impl Node for Connection {
 
         let treatment_end = sequence.find_treatment(&self.end_point.name);
         if treatment_end.is_some() {
-            self.end_point.reference = Some(Rc::clone(treatment_end.unwrap()));
+            self.end_point.reference = Some(Rc::downgrade(treatment_end.unwrap()));
         }
         else if self.end_point.name == "Self" {
             self.end_point_self = true;
