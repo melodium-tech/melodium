@@ -6,14 +6,15 @@
 
 pub mod assignative_element;
 pub mod assigned_parameter;
+pub mod assigned_model;
 pub mod common;
 pub mod connection;
 pub mod declarative_element;
 pub mod declared_parameter;
+pub mod declared_model;
 pub mod input;
+pub mod instancied_model;
 pub mod model;
-pub mod model_instance;
-pub mod model_instanciation;
 pub mod output;
 pub mod requirement;
 pub mod script;

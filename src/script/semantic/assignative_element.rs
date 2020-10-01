@@ -8,6 +8,7 @@ use super::common::Node;
 use super::assigned_parameter::AssignedParameter;
 use super::declarative_element::DeclarativeElement;
 use super::model::Model;
+use super::instancied_model::InstanciedModel;
 use super::treatment::Treatment;
 
 /// Trait for elements that are assignative blocks or components.
@@ -32,5 +33,6 @@ pub trait AssignativeElement : Node {
 /// Enum listing possible declarative elements.
 pub enum AssignativeElementType<'a> {
     Model(&'a Model),
+    InstanciedModel(&'a InstanciedModel),
     Treatment(&'a Treatment)
 }

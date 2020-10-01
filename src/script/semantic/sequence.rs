@@ -9,9 +9,10 @@ use crate::script::error::ScriptError;
 use crate::script::text::Sequence as TextSequence;
 
 use super::script::Script;
-use super::model_instance::ModelInstance;
+use super::declared_model::DeclaredModel;
 use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::declared_parameter::DeclaredParameter;
+use super::instancied_model::InstanciedModel;
 use super::requirement::Requirement;
 use super::input::Input;
 use super::output::Output;
@@ -28,8 +29,9 @@ pub struct Sequence {
 
     pub name: String,
 
-    pub model_instances: Vec<Rc<RefCell<ModelInstance>>>,
+    pub declared_models: Vec<Rc<RefCell<DeclaredModel>>>,
     pub parameters: Vec<Rc<RefCell<DeclaredParameter>>>,
+    pub instancied_models: Vec<Rc<RefCell<InstanciedModel>>>,
     pub requirements: Vec<Rc<RefCell<Requirement>>>,
     pub origin: Option<Rc<RefCell<Treatment>>>,
     pub inputs: Vec<Rc<RefCell<Input>>>,
@@ -78,8 +80,9 @@ impl Sequence {
             text: text.clone(),
             script: Rc::downgrade(&script),
             name: text.name.string.clone(),
-            model_instances: Vec::new(),
+            declared_models: Vec::new(),
             parameters: Vec::new(),
+            instancied_models: Vec::new(),
             requirements: Vec::new(),
             origin: None,
             inputs: Vec::new(),
@@ -103,13 +106,19 @@ impl Sequence {
         }
 
         for c in text.configuration {
-            let model_instance = ModelInstance::new(Rc::clone(&sequence), c)?;
-            sequence.borrow_mut().model_instances.push(model_instance);
+            let declared_model = DeclaredModel::new(Rc::clone(&sequence), c)?;
+            sequence.borrow_mut().declared_models.push(declared_model);
         }
 
         for p in text.parameters {
             let declared_parameter = DeclaredParameter::new(Rc::clone(&sequence) as Rc<RefCell<dyn DeclarativeElement>>, p)?;
             sequence.borrow_mut().parameters.push(declared_parameter);
+        }
+
+        for m in text.models {
+            let instancied_model = InstanciedModel::new(Rc::clone(&sequence), m)?;
+            sequence.borrow_mut().instancied_models.push(Rc::clone(&instancied_model));
+            sequence.borrow_mut().declared_models.push(DeclaredModel::from_instancied_model(instancied_model)?);
         }
 
         for r in text.requirements {
@@ -149,8 +158,12 @@ impl Sequence {
         Ok(sequence)
     }
 
-    pub fn find_model_instance(&self, name: & str) -> Option<&Rc<RefCell<ModelInstance>>> {
-        self.model_instances.iter().find(|&m| m.borrow().name == name) 
+    pub fn find_declared_model(&self, name: & str) -> Option<&Rc<RefCell<DeclaredModel>>> {
+        self.declared_models.iter().find(|&m| m.borrow().name == name) 
+    }
+
+    pub fn find_instancied_model(&self, name: & str) -> Option<&Rc<RefCell<InstanciedModel>>> {
+        self.instancied_models.iter().find(|&m| m.borrow().name == name) 
     }
 
     /// Search for a requirement.
@@ -283,8 +296,9 @@ impl Node for Sequence {
 
         let mut children: Vec<Rc<RefCell<dyn Node>>> = Vec::new();
 
-        self.model_instances.iter().for_each(|m| children.push(Rc::clone(&m) as Rc<RefCell<dyn Node>>));
+        self.declared_models.iter().for_each(|m| children.push(Rc::clone(&m) as Rc<RefCell<dyn Node>>));
         self.parameters.iter().for_each(|p| children.push(Rc::clone(&p) as Rc<RefCell<dyn Node>>));
+        self.instancied_models.iter().for_each(|m| children.push(Rc::clone(&m) as Rc<RefCell<dyn Node>>));
         self.requirements.iter().for_each(|r| children.push(Rc::clone(&r) as Rc<RefCell<dyn Node>>));
         self.inputs.iter().for_each(|i| children.push(Rc::clone(&i) as Rc<RefCell<dyn Node>>));
         self.outputs.iter().for_each(|o| children.push(Rc::clone(&o) as Rc<RefCell<dyn Node>>));
