@@ -5,6 +5,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 use super::common::Node;
+use super::assigned_model::AssignedModel;
 use super::assigned_parameter::AssignedParameter;
 use super::declarative_element::DeclarativeElement;
 use super::model::Model;
@@ -25,6 +26,11 @@ pub trait AssignativeElement : Node {
     /// 
     /// This gives access to what the assignation might be if referring to declared items.
     fn associated_declarative_element(&self) -> Rc<RefCell<dyn DeclarativeElement>>;
+
+    /// Search for an assigned model.
+    fn find_assigned_model(&self, _name: & str) -> Option<&Rc<RefCell<AssignedModel>>> {
+        None
+    }
 
     /// Search for an assigned parameter.
     fn find_assigned_parameter(&self, name: & str) -> Option<&Rc<RefCell<AssignedParameter>>>;

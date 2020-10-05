@@ -12,6 +12,7 @@ use super::r#use::Use;
 use super::sequence::Sequence;
 use super::common::Reference;
 use super::assignative_element::{AssignativeElement, AssignativeElementType};
+use super::assigned_model::AssignedModel;
 use super::assigned_parameter::AssignedParameter;
 use super::declarative_element::DeclarativeElement;
 
@@ -25,6 +26,7 @@ pub struct Treatment {
 
     pub name: String,
     pub r#type: RefersTo,
+    pub models: Vec<Rc<RefCell<AssignedModel>>>,
     pub parameters: Vec<Rc<RefCell<AssignedParameter>>>,
 }
 
@@ -80,6 +82,7 @@ impl Treatment {
             sequence: Rc::downgrade(&sequence),
             name: text.name.string.clone(),
             r#type: RefersTo::Unkown(Reference::new(text.r#type.string)),
+            models: Vec::new(),
             parameters: Vec::new(),
         }));
 
@@ -90,6 +93,11 @@ impl Treatment {
             if treatment.is_some() {
                 return Err(ScriptError::semantic("Treatment '".to_string() + &text.name.string + "' is already declared.", text.name.position))
             }
+        }
+
+        for m in text.configuration {
+            let assigned_model = AssignedModel::new(Rc::clone(&treatment) as Rc<RefCell<dyn AssignativeElement>>, m)?;
+            treatment.borrow_mut().models.push(assigned_model);
         }
 
         for p in text.parameters {
@@ -109,6 +117,11 @@ impl AssignativeElement for Treatment {
 
     fn associated_declarative_element(&self) -> Rc<RefCell<dyn DeclarativeElement>> {
         self.sequence.upgrade().unwrap() as Rc<RefCell<dyn DeclarativeElement>>
+    }
+
+    /// Search for an assigned model.
+    fn find_assigned_model(&self, name: & str) -> Option<&Rc<RefCell<AssignedModel>>> {
+        self.models.iter().find(|&m| m.borrow().name == name)
     }
 
     /// Search for a parameter.
@@ -150,6 +163,7 @@ impl Node for Treatment {
 
         let mut children: Vec<Rc<RefCell<dyn Node>>> = Vec::new();
 
+        self.models.iter().for_each(|m| children.push(Rc::clone(&m) as Rc<RefCell<dyn Node>>));
         self.parameters.iter().for_each(|p| children.push(Rc::clone(&p) as Rc<RefCell<dyn Node>>));
 
         children
