@@ -118,7 +118,8 @@ impl Sequence {
         for m in text.models {
             let instancied_model = InstanciedModel::new(Rc::clone(&sequence), m)?;
             sequence.borrow_mut().instancied_models.push(Rc::clone(&instancied_model));
-            sequence.borrow_mut().declared_models.push(DeclaredModel::from_instancied_model(instancied_model)?);
+            let declared_model = DeclaredModel::from_instancied_model(instancied_model)?;
+            sequence.borrow_mut().declared_models.push(declared_model);
         }
 
         for r in text.requirements {
