@@ -68,10 +68,10 @@ impl Treatment {
     /// // which will itself call Treatment::new(Rc::clone(&sequence), text_treatment).
     /// 
     /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("MakeHPCP").unwrap().borrow();
-    /// let borrowed_treatment = borrowed_sequence.find_treatment("SpectralPeaks").unwrap().borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().borrow();
+    /// let borrowed_treatment = borrowed_sequence.find_treatment("CoreSpectralPeaks").unwrap().borrow();
     /// 
-    /// assert_eq!(borrowed_treatment.name, "SpectralPeaks");
+    /// assert_eq!(borrowed_treatment.name, "CoreSpectralPeaks");
     /// assert_eq!(borrowed_treatment.parameters.len(), 6);
     /// # Ok::<(), ScriptError>(())
     /// ```
@@ -144,8 +144,8 @@ impl AssignativeElement for Treatment {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("MakeHPCP").unwrap().borrow();
-    /// let borrowed_treatment = borrowed_sequence.find_treatment("SpectralPeaks").unwrap().borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().borrow();
+    /// let borrowed_treatment = borrowed_sequence.find_treatment("CoreSpectralPeaks").unwrap().borrow();
     /// 
     /// let magnitude_threshold = borrowed_treatment.find_assigned_parameter("magnitudeThreshold");
     /// let dont_exist = borrowed_treatment.find_assigned_parameter("dontExist");

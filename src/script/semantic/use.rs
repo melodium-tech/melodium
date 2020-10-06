@@ -52,9 +52,11 @@ impl Use {
     /// // Internally, Script::new call Use::new(Rc::clone(&script), text_use)
     /// 
     /// let borrowed_script = script.borrow();
-    /// let borrowed_use = borrowed_script.find_use("Spectrum").unwrap().borrow();
+    /// let borrowed_use = borrowed_script.find_use("CoreSpectrum").unwrap().borrow();
     /// 
     /// assert_eq!(borrowed_use.path, Path::new(vec!["core".to_string(), "signal".to_string()]));
+    /// assert_eq!(borrowed_use.element, "Spectrum");
+    /// assert_eq!(borrowed_use.r#as, "CoreSpectrum");
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn new(script: Rc<RefCell<Script>>, text: TextUse) -> Result<Rc<RefCell<Self>>, ScriptError> {

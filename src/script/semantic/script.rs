@@ -50,9 +50,9 @@ impl Script {
     /// 
     /// let script = Script::new(text_script)?;
     /// 
-    /// assert_eq!(script.borrow().uses.len(), 6);
-    /// assert_eq!(script.borrow().models.len(), 0);
-    /// assert_eq!(script.borrow().sequences.len(), 4);
+    /// assert_eq!(script.borrow().uses.len(), 11);
+    /// assert_eq!(script.borrow().models.len(), 2);
+    /// assert_eq!(script.borrow().sequences.len(), 5);
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn new(text: TextScript) -> Result<Rc<RefCell<Self>>, ScriptError> {
@@ -102,9 +102,9 @@ impl Script {
     /// let script = Script::new(text_script)?;
     /// let borrowed_script = script.borrow();
     /// 
-    /// let spectrum = borrowed_script.find_use("Spectrum");
+    /// let core_spectrum = borrowed_script.find_use("CoreSpectrum");
     /// let dont_exist = borrowed_script.find_use("DontExist");
-    /// assert!(spectrum.is_some());
+    /// assert!(core_spectrum.is_some());
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
@@ -131,8 +131,9 @@ impl Script {
     /// let script = Script::new(text_script)?;
     /// let borrowed_script = script.borrow();
     /// 
-    /// // [Sic] There is no models used in this example.
+    /// let audio_engine = borrowed_script.find_model("AudioEngine");
     /// let dont_exist = borrowed_script.find_model("DontExist");
+    /// assert!(audio_engine.is_some());
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
@@ -159,9 +160,9 @@ impl Script {
     /// let script = Script::new(text_script)?;
     /// let borrowed_script = script.borrow();
     /// 
-    /// let make_hpcp = borrowed_script.find_sequence("MakeHPCP");
+    /// let hpcp = borrowed_script.find_sequence("HPCP");
     /// let dont_exist = borrowed_script.find_sequence("DontExist");
-    /// assert!(make_hpcp.is_some());
+    /// assert!(hpcp.is_some());
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```

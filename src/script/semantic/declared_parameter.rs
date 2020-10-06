@@ -58,10 +58,10 @@ impl DeclaredParameter {
     /// // which will itself call DeclaredParameter::new(Rc::clone(&sequence), text_parameter).
     /// 
     /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("PrepareAudioFiles").unwrap().borrow();
-    /// let borrowed_declared_parameter = borrowed_sequence.find_declared_parameter("sampleRate").unwrap().borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().borrow();
+    /// let borrowed_declared_parameter = borrowed_sequence.find_declared_parameter("hopSize").unwrap().borrow();
     /// 
-    /// assert_eq!(borrowed_declared_parameter.name, "sampleRate");
+    /// assert_eq!(borrowed_declared_parameter.name, "hopSize");
     /// assert_eq!(borrowed_declared_parameter.r#type.structure, TypeStructure::Scalar);
     /// assert_eq!(borrowed_declared_parameter.r#type.name, TypeName::Integer);
     /// # Ok::<(), ScriptError>(())

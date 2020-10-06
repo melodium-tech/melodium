@@ -56,8 +56,8 @@ impl AssignedParameter {
     /// // which will then call AssignedParameter::new(Rc::clone(&treatment), text_parameter).
     /// 
     /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("MakeHPCP").unwrap().borrow();
-    /// let borrowed_treatment = borrowed_sequence.find_treatment("SpectralPeaks").unwrap().borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().borrow();
+    /// let borrowed_treatment = borrowed_sequence.find_treatment("CoreSpectralPeaks").unwrap().borrow();
     /// let borrowed_parameter = borrowed_treatment.find_assigned_parameter("magnitudeThreshold").unwrap().borrow();
     /// 
     /// assert_eq!(borrowed_parameter.name, "magnitudeThreshold");

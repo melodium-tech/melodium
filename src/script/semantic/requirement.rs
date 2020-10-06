@@ -49,7 +49,7 @@ impl Requirement {
     /// // which will itself call Requirement::new(Rc::clone(&sequence), text_requirement).
     /// 
     /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().borrow();
     /// let borrowed_requirement = borrowed_sequence.find_requirement("@Signal").unwrap().borrow();
     /// 
     /// assert_eq!(borrowed_requirement.name, "@Signal");

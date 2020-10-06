@@ -67,11 +67,14 @@ impl Sequence {
     /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence)
     /// 
     /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("PrepareAudioFiles").unwrap().borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().borrow();
     /// 
-    /// assert_eq!(borrowed_sequence.parameters.len(), 5);
-    /// assert_eq!(borrowed_sequence.treatments.len(), 2);
-    /// assert_eq!(borrowed_sequence.origin.as_ref().unwrap().borrow().name, "AudioFiles");
+    /// assert_eq!(borrowed_sequence.declared_models.len(), 1);
+    /// assert_eq!(borrowed_sequence.parameters.len(), 3);
+    /// assert_eq!(borrowed_sequence.requirements.len(), 2);
+    /// assert_eq!(borrowed_sequence.treatments.len(), 4);
+    /// assert!(borrowed_sequence.origin.is_some());
+    /// assert_eq!(borrowed_sequence.origin.as_ref().unwrap().borrow().name, "AudioSignal");
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn new(script: Rc<RefCell<Script>>, text: TextSequence) -> Result<Rc<RefCell<Self>>, ScriptError> {
@@ -186,10 +189,10 @@ impl Sequence {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().borrow();
     /// 
     /// let signal = borrowed_sequence.find_requirement("@Signal");
-    /// let dont_exist = borrowed_sequence.find_requirement("@dontExist");
+    /// let dont_exist = borrowed_sequence.find_requirement("@DontExist");
     /// assert!(signal.is_some());
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
@@ -217,7 +220,7 @@ impl Sequence {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("MakeHPCP").unwrap().borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().borrow();
     /// 
     /// let spectrum = borrowed_sequence.find_input("spectrum");
     /// let dont_exist = borrowed_sequence.find_input("dontExist");
@@ -248,7 +251,7 @@ impl Sequence {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("MakeHPCP").unwrap().borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().borrow();
     /// 
     /// let hpcp = borrowed_sequence.find_output("hpcp");
     /// let dont_exist = borrowed_sequence.find_output("dontExist");
@@ -279,11 +282,11 @@ impl Sequence {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("MakeSpectrum").unwrap().borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Spectrum").unwrap().borrow();
     /// 
-    /// let frame_cutter = borrowed_sequence.find_treatment("FrameCutter");
-    /// let dont_exist = borrowed_sequence.find_treatment("dontExist");
-    /// assert!(frame_cutter.is_some());
+    /// let core_frame_cutter = borrowed_sequence.find_treatment("CoreFrameCutter");
+    /// let dont_exist = borrowed_sequence.find_treatment("DontExist");
+    /// assert!(core_frame_cutter.is_some());
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
@@ -336,11 +339,11 @@ impl DeclarativeElement for Sequence {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("PrepareAudioFiles").unwrap().borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Spectrum").unwrap().borrow();
     /// 
-    /// let sample_rate = borrowed_sequence.find_declared_parameter("sampleRate");
+    /// let frame_size = borrowed_sequence.find_declared_parameter("frameSize");
     /// let dont_exist = borrowed_sequence.find_declared_parameter("dontExist");
-    /// assert!(sample_rate.is_some());
+    /// assert!(frame_size.is_some());
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```

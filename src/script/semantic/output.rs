@@ -52,7 +52,7 @@ impl Output {
     /// // which will itself call Output::new(Rc::clone(&sequence), text_parameter).
     /// 
     /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("MakeHPCP").unwrap().borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().borrow();
     /// let borrowed_output = borrowed_sequence.find_output("hpcp").unwrap().borrow();
     /// 
     /// assert_eq!(borrowed_output.name, "hpcp");

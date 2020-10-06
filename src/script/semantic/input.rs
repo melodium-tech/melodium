@@ -52,7 +52,7 @@ impl Input {
     /// // which will itself call Input::new(Rc::clone(&sequence), text_parameter).
     /// 
     /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("MakeSpectrum").unwrap().borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Spectrum").unwrap().borrow();
     /// let borrowed_input = borrowed_sequence.find_input("signal").unwrap().borrow();
     /// 
     /// assert_eq!(borrowed_input.name, "signal");

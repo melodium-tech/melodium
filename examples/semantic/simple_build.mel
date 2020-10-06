@@ -1,55 +1,118 @@
 
-use core/signal::FrameCutter
-use core/signal::Windowing
-use core/signal::Spectrum
-use core/signal::SpectralPeaks
-use core/signal::HPCP
-use core/file::AudioFiles
+/*
+ * Computes the HPCP of audio files and render them as images.
+ * 
+ * This script is an example of basic Mélodium usage, as well as a test file.
+ * As aimed as example for beginners, it is overdocumented on purpose,
+ * repeating even syntaxically explicit expressions.
+ *
+ * /!\ Be careful when modifying, as tests use this file (especially documentation),
+ *     any change may result in tests failures. Check `cargo test` before and after.
+ *     
+ */
 
-sequence MakeSpectrum(frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String) 
-	input signal: Vec<Int>
-	output spectrum: Mat<Int>
+use core/file::FileManager
+use core/file::FlatFile
+use core/audio::AudioManager
+use core/audio::Decoder
+use core/audio::Signal
+
+use core/signal::FrameCutter as CoreFrameCutter
+use core/signal::Windowing as CoreWindowing
+use core/signal::Spectrum as CoreSpectrum
+use core/signal::SpectralPeaks as CoreSpectralPeaks
+use core/signal::HPCP as CoreHPCP
+
+use std/image::SimpleImageRender
+
+/*
+ * Model definition called `Files`, from type `FileManager`.
+ * - `directory`: working directory of the file manager
+ */
+model Files(directory: String): FileManager
 {
-
-	FrameCutter(frameSize=frameSize, hopSize=hopSize, startFromZero=true, lastFrameToEndOfFile=true)
-	Windowing(type=windowingType, size=frameSize)
-	Spectrum(size=frameSize)
-
-	Self.signal -> FrameCutter.signal,frame -> Windowing.frame,frame -> Spectrum.frame,spectrum -> Self.spectrum
+    // Assignation of the `directory` parameter
+    // from model type `FileManager` (left) to 
+    // the local parameter `directory` of our `Files`
+    // model definition (right).
+    directory = directory
 }
 
-sequence MakeHPCP(sampleRate: Int = 44100, minFrequency: Int = 50, maxFrequency: Int = 1000, harmonics: Int = 8, size: Int = 120)
-	input spectrum: Mat<Int>
-	output hpcp: Mat<Int>
+/*
+ * Model definition called `AudioEngine`, from type `AudioManager`.
+ */
+model AudioEngine(): AudioManager
 {
-
-	SpectralPeaks(sampleRate=sampleRate, orderBy="magnitude", magnitudeThreshold=0.00001, minFrequency=minFrequency, maxFrequency=maxFrequency, maxPeaks=10000)
-	HPCP(sampleRate=sampleRate, windowSize=0.5, harmonics=harmonics, weightType="cosine", size=size)
-
-	Self.spectrum --------------> SpectralPeaks.spectrum
-	SpectralPeaks.frequencies --> HPCP.frequencies
-	SpectralPeaks.magnitudes ---> HPCP.magnitudes
-	HPCP.hpcp ------------------> Self.hpcp
+    // Assignation of the `sampleRate` parameter
+    // from model type `AudioManager` to the
+    // constant `44100`.
+    sampleRate = 44100
 }
 
-sequence PrepareAudioFiles(path: Vec<String>, sampleRate: Int = 44100, frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String)
-	origin AudioFiles(path=path, sampleRate=sampleRate) // AudioFiles is a source
-	output spectrum: Mat<Int>
+/*
+ * Sequence reading files and giving their content to an audio manager
+ * for decoding.
+ * - `Files`: model of `FileManager`
+ * - `Audio`: model of `AudioManager`
+ */
+sequence ReadAudioFiles[Files: FileManager, Audio: AudioManager]()
+    // Declaring treatment `FlatFile` as origin for the sequence,
+    // based on `Files` model.
+    origin File: FlatFile[Files=Files]()
 {
-	MakeSpectrum(frameSize = frameSize, hopSize = hopSize, windowingType = windowingType)
-	
-	AudioFiles.signal -> MakeSpectrum.signal,spectrum -> Self.spectrum
+    // Declaring treatment `Decoder`, based on `Audio` model.
+    Decoder[AudioManager=Audio]()
+    
+    // Connecting `data` output from `File` to `data` input of `Decoder`.
+    File.data -> Decoder.data
 }
 
-sequence Main()
-	origin PrepareAudioFiles(path="Musique/Expériences", sampleRate=44100, frameSize=4096, hopSize=2048, windowingType="blackmanharris92")
-	require @File
-	require @Signal
+sequence AudioToHpcpImage[AudioManager: AudioManager](frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String)
+    origin AudioSignal: Signal[AudioManager=AudioManager]()
+    require @File
+    require @Signal
+{
+    Spectrum(frameSize=frameSize, hopSize=hopSize, windowingType=windowingType)
+    HPCP(sampleRate=@Signal[sampleRate], minFrequency=40, maxFrequency=5000, harmonics=8, size=120)
+    Image: SimpleImageRender(fileName=@File[name], format="png")
+    
+    AudioSignal.signal -> Spectrum.frame,spectrum -> HPCP.spectrum,hpcp -> Image.input
+}
+
+sequence Main(directory: String)
+    model Files: Files(directory=directory)
+    model Audio: AudioEngine()
+{
+    ReadAudioFiles[Files=Files, AudioManager=Audio]()
+    AudioToHpcpImage[AudioManager=Audio]()
+}
+
+sequence Spectrum(frameSize: Int, hopSize: Int, windowingType: String) 
+    input signal: Vec<Int>
+    output spectrum: Mat<Int>
 {
 
-	MakeHPCP(sampleRate=@Signal[sampleRate], minFrequency=40, maxFrequency=5000, harmonics=8, size=120)
+    CoreFrameCutter(frameSize=frameSize, hopSize=hopSize, startFromZero=true, lastFrameToEndOfFile=true)
+    CoreWindowing(type=windowingType, size=frameSize)
+    CoreSpectrum(size=frameSize)
 
-	PrepareAudioFiles.spectrum -> MakeHPCP.spectrum
+    Self.signal -> CoreFrameCutter.signal,frame -> CoreWindowing.frame,frame -> CoreSpectrum.frame,spectrum -> Self.spectrum
+}
+
+sequence HPCP(sampleRate: Int = 44100, minFrequency: Int = 50, maxFrequency: Int = 1000, harmonics: Int = 8, size: Int = 120)
+    input spectrum: Mat<Int>
+    output hpcp: Mat<Int>
+{
+
+    CoreSpectralPeaks(sampleRate=sampleRate, orderBy="magnitude", magnitudeThreshold=0.00001, minFrequency=minFrequency, maxFrequency=maxFrequency, maxPeaks=10000)
+    CoreHPCP(sampleRate=sampleRate, windowSize=0.5, harmonics=harmonics, weightType="cosine", size=size)
+
+    Self.spectrum ------------------> CoreSpectralPeaks.spectrum
+    
+    CoreSpectralPeaks.frequencies --> CoreHPCP.frequencies
+    CoreSpectralPeaks.magnitudes ---> CoreHPCP.magnitudes
+    
+    CoreHPCP.hpcp ------------------> Self.hpcp
 }
 
 
