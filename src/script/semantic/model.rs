@@ -40,6 +40,31 @@ impl Model {
     /// 
     /// # Note
     /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(text_script)?;
+    /// // Internally, Script::new call Model::new(Rc::clone(&script), text_model)
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_model = borrowed_script.find_model("Files").unwrap().borrow();
+    /// 
+    /// assert_eq!(borrowed_model.parameters.len(), 1);
+    /// assert_eq!(borrowed_model.assignations.len(), 1);
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn new(script: Rc<RefCell<Script>>, text: TextModel) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         let model = Rc::<RefCell<Self>>::new(RefCell::new(Self {
@@ -51,6 +76,8 @@ impl Model {
             assignations: Vec::new(),
             auto_reference: Weak::new(),
         }));
+
+        model.borrow_mut().auto_reference = Rc::downgrade(&model);
 
         {
             let borrowed_script = script.borrow();
@@ -66,7 +93,10 @@ impl Model {
             model.borrow_mut().parameters.push(declared_parameter);
         }
 
-        model.borrow_mut().auto_reference = Rc::downgrade(&model);
+        for a in text.assignations {
+            let assigned_parameter = AssignedParameter::new(Rc::clone(&model) as Rc<RefCell<dyn AssignativeElement>>, a)?;
+            model.borrow_mut().assignations.push(assigned_parameter);
+        }
 
         Ok(model)
     }
@@ -79,6 +109,33 @@ impl DeclarativeElement for Model {
     }
 
     /// Search for a declared parameter.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// # use melodium_rust::script::semantic::declarative_element::DeclarativeElement;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(text_script)?;
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_model = borrowed_script.find_model("Files").unwrap().borrow();
+    /// 
+    /// let directory = borrowed_model.find_declared_parameter("directory");
+    /// let dont_exist = borrowed_model.find_declared_parameter("dontExist");
+    /// assert!(directory.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     fn find_declared_parameter(&self, name: & str) -> Option<&Rc<RefCell<DeclaredParameter>>> {
         self.parameters.iter().find(|&p| p.borrow().name == name)
     }
@@ -95,7 +152,34 @@ impl AssignativeElement for Model {
         self.auto_reference.upgrade().unwrap()
     }
 
-    /// Search for a assigned parameter.
+    /// Search for an assigned parameter.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// # use melodium_rust::script::semantic::assignative_element::AssignativeElement;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(text_script)?;
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_model = borrowed_script.find_model("AudioEngine").unwrap().borrow();
+    /// 
+    /// let sample_rate = borrowed_model.find_assigned_parameter("sampleRate");
+    /// let dont_exist = borrowed_model.find_assigned_parameter("dontExist");
+    /// assert!(sample_rate.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     fn find_assigned_parameter(&self, name: & str) -> Option<&Rc<RefCell<AssignedParameter>>> {
         self.assignations.iter().find(|&a| a.borrow().name == name)
     }
