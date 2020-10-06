@@ -1,4 +1,6 @@
 
+//! Module dedicated to AssignedModel semantic analysis.
+
 use super::common::Node;
 
 use std::rc::{Rc, Weak};
@@ -12,6 +14,9 @@ use super::declarative_element::DeclarativeElementType;
 use super::common::Reference;
 use super::declared_model::DeclaredModel;
 
+/// Structure managing and describing semantic of an assigned model.
+/// 
+/// It owns the whole [text parameter](../../text/parameter/struct.Parameter.html).
 pub struct AssignedModel {
     pub text: TextParameter,
 
@@ -22,6 +27,42 @@ pub struct AssignedModel {
 }
 
 impl AssignedModel {
+    /// Create a new semantic assignation of model, based on textual parameter.
+    /// 
+    /// * `parent`: the parent element owning this assignation.
+    /// * `text`: the textual model.
+    /// 
+    /// # Note
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// # use melodium_rust::script::semantic::assignative_element::AssignativeElement;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(text_script)?;
+    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
+    /// // which will itself call Treatment::new(Rc::clone(&sequence), text_treatment),
+    /// // which will then call AssignedModel::new(Rc::clone(&treatment), text_parameter).
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("ReadAudioFiles").unwrap().borrow();
+    /// let borrowed_treatment = borrowed_sequence.find_treatment("Decoder").unwrap().borrow();
+    /// let borrowed_assigned_model = borrowed_treatment.find_assigned_model("AudioManager").unwrap().borrow();
+    /// 
+    /// assert_eq!(borrowed_assigned_model.name, "AudioManager");
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn new(parent: Rc<RefCell<dyn AssignativeElement>>, text: TextParameter) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         let referred_model_name;

@@ -29,7 +29,7 @@ pub struct AssignedParameter {
 impl AssignedParameter {
     /// Create a new semantic assigned parameter, based on textual parameter.
     /// 
-    /// * `treatment`: the parent treatment that "owns" this parameter.
+    /// * `parent`: the parent owning this parameter.
     /// * `text`: the textual parameter.
     /// 
     /// # Note

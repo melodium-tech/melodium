@@ -18,7 +18,7 @@ use super::declarative_element::DeclarativeElement;
 
 /// Structure managing and describing semantic of a treatment.
 /// 
-/// It owns the whole [text treatment](../../text/treatment/struct.Treatment.html).
+/// It owns the whole [text instanciation](../../text/instanciation/struct.Instanciation.html).
 pub struct Treatment {
     pub text: TextTreatment,
 
@@ -120,6 +120,34 @@ impl AssignativeElement for Treatment {
     }
 
     /// Search for an assigned model.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// # use melodium_rust::script::semantic::assignative_element::AssignativeElement;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(text_script)?;
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("ReadAudioFiles").unwrap().borrow();
+    /// let borrowed_treatment = borrowed_sequence.find_treatment("Decoder").unwrap().borrow();
+    /// 
+    /// let audio_manager = borrowed_treatment.find_assigned_model("AudioManager");
+    /// let dont_exist = borrowed_treatment.find_assigned_model("DontExist");
+    /// assert!(audio_manager.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     fn find_assigned_model(&self, name: & str) -> Option<&Rc<RefCell<AssignedModel>>> {
         self.models.iter().find(|&m| m.borrow().name == name)
     }

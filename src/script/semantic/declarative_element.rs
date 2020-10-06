@@ -1,4 +1,6 @@
 
+//! Module dedicated to DeclarativeElement trait definition.
+
 use std::rc::Rc;
 use std::cell::RefCell;
 

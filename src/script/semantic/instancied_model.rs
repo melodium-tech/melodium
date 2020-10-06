@@ -1,4 +1,6 @@
 
+//! Module dedicated to InstanciedModel semantic analysis.
+
 use super::common::Node;
 
 use std::rc::{Rc, Weak};
@@ -14,7 +16,9 @@ use super::assignative_element::{AssignativeElement, AssignativeElementType};
 use super::assigned_parameter::AssignedParameter;
 use super::declarative_element::DeclarativeElement;
 
-
+/// Structure managing and describing semantic of a model instanciation.
+/// 
+/// It owns the whole [text instanciation](../../text/instanciation/struct.Instanciation.html).
 pub struct InstanciedModel {
     pub text: TextInstanciation,
 
@@ -25,6 +29,10 @@ pub struct InstanciedModel {
     pub parameters: Vec<Rc<RefCell<AssignedParameter>>>,
 }
 
+/// Enumeration managing what model instanciation refers to.
+/// 
+/// This is a convenience enum, as a model instanciation may refer either on a [Use](../use/struct.Use.html) or a [Model](../model/struct.Model.html).
+/// The `Unknown` variant is aimed to hold a reference-to-nothing, as long as `make_references() hasn't been called.
 pub enum RefersTo {
     Unkown(Reference<()>),
     Use(Reference<Use>),
@@ -32,6 +40,40 @@ pub enum RefersTo {
 }
 
 impl InstanciedModel {
+    /// Create a new semantic model instanciation, based on textual instanciation.
+    /// 
+    /// * `sequence`: the parent sequence owning this instanciation.
+    /// * `text`: the textual instanciation.
+    /// 
+    /// # Note
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(text_script)?;
+    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
+    /// // which will itself call InstanciedModel::new(Rc::clone(&sequence), text_instanciation).
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().borrow();
+    /// let borrowed_instancied_model = borrowed_sequence.find_instancied_model("Files").unwrap().borrow();
+    /// 
+    /// assert_eq!(borrowed_instancied_model.name, "Files");
+    /// assert_eq!(borrowed_instancied_model.parameters.len(), 1);
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn new(sequence: Rc<RefCell<Sequence>>, text: TextInstanciation) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         let treatment = Rc::<RefCell<Self>>::new(RefCell::new(Self {
@@ -70,6 +112,35 @@ impl AssignativeElement for InstanciedModel {
         self.sequence.upgrade().unwrap() as Rc<RefCell<dyn DeclarativeElement>>
     }
 
+    /// Search for a parameter.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// # use melodium_rust::script::semantic::assignative_element::AssignativeElement;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(text_script)?;
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().borrow();
+    /// let borrowed_instancied_model = borrowed_sequence.find_instancied_model("Files").unwrap().borrow();
+    /// 
+    /// let directory = borrowed_instancied_model.find_assigned_parameter("directory");
+    /// let dont_exist = borrowed_instancied_model.find_assigned_parameter("dontExist");
+    /// assert!(directory.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     fn find_assigned_parameter(&self, name: & str) -> Option<&Rc<RefCell<AssignedParameter>>> {
         self.parameters.iter().find(|&a| a.borrow().name == name)
     }

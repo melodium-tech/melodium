@@ -162,10 +162,64 @@ impl Sequence {
         Ok(sequence)
     }
 
+    /// Search for a declared model.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(text_script)?;
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().borrow();
+    /// 
+    /// let audio_manager = borrowed_sequence.find_declared_model("AudioManager");
+    /// let dont_exist = borrowed_sequence.find_declared_model("DontExist");
+    /// assert!(audio_manager.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn find_declared_model(&self, name: & str) -> Option<&Rc<RefCell<DeclaredModel>>> {
         self.declared_models.iter().find(|&m| m.borrow().name == name) 
     }
 
+    /// Search for an instancied model.
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(text_script)?;
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().borrow();
+    /// 
+    /// let audio = borrowed_sequence.find_instancied_model("Audio");
+    /// let dont_exist = borrowed_sequence.find_instancied_model("DontExist");
+    /// assert!(audio.is_some());
+    /// assert!(dont_exist.is_none());
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn find_instancied_model(&self, name: & str) -> Option<&Rc<RefCell<InstanciedModel>>> {
         self.instancied_models.iter().find(|&m| m.borrow().name == name) 
     }

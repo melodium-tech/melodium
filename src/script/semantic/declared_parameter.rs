@@ -31,7 +31,7 @@ pub struct DeclaredParameter {
 impl DeclaredParameter {
     /// Create a new semantic declared parameter, based on textual parameter.
     /// 
-    /// * `parent`: the parent element that "owns" this declared parameter.
+    /// * `parent`: the parent element owning this declared parameter.
     /// * `text`: the textual parameter.
     /// 
     /// # Note

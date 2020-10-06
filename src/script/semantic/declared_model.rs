@@ -1,4 +1,6 @@
 
+//! Module dedicated to DeclaredModel semantic analysis.
+
 use super::common::Node;
 
 use std::rc::{Rc, Weak};
@@ -12,6 +14,10 @@ use super::sequence::Sequence;
 use super::r#use::Use;
 use super::instancied_model::InstanciedModel;
 
+/// Structure managing and describing semantic of a declared model.
+/// 
+/// It owns optionnally the whole [text parameter](../../text/parameter/struct.Parameter.html),
+/// depending on explicit or implicit declaration.
 pub struct DeclaredModel {
     pub text: Option<TextParameter>,
 
@@ -21,6 +27,11 @@ pub struct DeclaredModel {
     pub refers: RefersTo,
 }
 
+/// Enumeration managing what declared model type refers to.
+/// 
+/// This is a convenience enum, as a declared model type may refer either on a [Use](../use/struct.Use.html) or an [InstanciedModel](../instancied_model/struct.InstanciedModel.html).
+/// The `Unknown` variant is aimed to hold a reference-to-nothing, as long as `make_references() hasn't been called.
+
 pub enum RefersTo {
     Unkown(Reference<()>),
     Use(Reference<Use>),
@@ -28,6 +39,40 @@ pub enum RefersTo {
 }
 
 impl DeclaredModel {
+    /// Create a new semantic declaration of model, from an instancied model.
+    /// 
+    /// When using this creation method, the `text` member will be `None`.
+    /// 
+    /// * `instancied_model`: the InstanciedModel to use as declaration.
+    /// 
+    /// # Note
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(text_script)?;
+    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
+    /// // which will itself call DeclaredModel::from_instancied_model(Rc::clone(&instancied_model)).
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().borrow();
+    /// let borrowed_declared_model = borrowed_sequence.find_declared_model("Files").unwrap().borrow();
+    /// 
+    /// assert_eq!(borrowed_declared_model.name, "Files");
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn from_instancied_model(instancied_model: Rc<RefCell<InstanciedModel>>) -> Result<Rc<RefCell<Self>>, ScriptError> {
         
         let borrowed_instancied_model = instancied_model.borrow();
@@ -45,6 +90,39 @@ impl DeclaredModel {
         Ok(declared_model)
     }
 
+    /// Create a new semantic declaration of model, based on textual parameter.
+    /// 
+    /// * `sequence`: the sequence owning this declaration.
+    /// * `text`: the textual model.
+    /// 
+    /// # Note
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// 
+    /// # Example
+    /// ```
+    /// # use std::fs::File;
+    /// # use std::io::Read;
+    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium_rust::script::text::script::Script as TextScript;
+    /// # use melodium_rust::script::semantic::script::Script;
+    /// let address = "examples/semantic/simple_build.mel";
+    /// let mut raw_text = String::new();
+    /// # let mut file = File::open(address).unwrap();
+    /// # file.read_to_string(&mut raw_text);
+    /// 
+    /// let text_script = TextScript::build(&raw_text)?;
+    /// 
+    /// let script = Script::new(text_script)?;
+    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
+    /// // which will itself call DeclaredModel::new(Rc::clone(&sequence), text_parameter).
+    /// 
+    /// let borrowed_script = script.borrow();
+    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().borrow();
+    /// let borrowed_declared_model = borrowed_sequence.find_declared_model("AudioManager").unwrap().borrow();
+    /// 
+    /// assert_eq!(borrowed_declared_model.name, "AudioManager");
+    /// # Ok::<(), ScriptError>(())
+    /// ```
     pub fn new(sequence: Rc<RefCell<Sequence>>, text: TextParameter) -> Result<Rc<RefCell<Self>>, ScriptError> {
 
         let refers_string;
