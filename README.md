@@ -6,49 +6,82 @@ Mélodium is a dataflow-oriented language, focusing on treatments applied on dat
 
 Mélodium is a tool and language for manipulation of large amount of data, using the definition of treatments that applies on data through connections, with a track approach that makes any script higly scalable and implicitly parallelizable.
 
-This project was started as tool for experiments for signal analysis and musical informations retrieval. The first implementation was in C++ and is still available at <https://gitlab.com/qvignaud/Melodium>.
+Mélodium is **under development** and still being defined and improved to become fully operationnal. The development documentation is available at <https://qvignaud.gitlab.io/melodium-rust/>.
 
-Mélodium is **under development** and still being defined and improved to become fully operationnal.
+This project was started as tool for experiments for signal analysis and musical informations retrieval. The first implementation was in C++ and is still available at <https://gitlab.com/qvignaud/Melodium>.
 
 ### Example
 
-The following code computes the spectrum of audio files under `Music/Experiments`:
+The following code computes spectrum of audio files contained in the path given as `directory` and make pictures of them:
 ```
-use core/file::AudioFile
-use core/file::ImageFile
+use core/file::FileManager
+use core/file::FlatFile
+
+use core/audio::AudioManager
+use core/audio::Decoder
+use core/audio::Signal
+
 use core/signal::FrameCutter
 use core/signal::Windowing
 use core/signal::Spectrum
 
-sequence MakeSpectrum(frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String) 
-	input signal: Vec<Int>
-	output spectrum: Mat<Int>
+use core/image::SimpleImageRender
+
+model Files(directory: String): FileManager
 {
-
-	FrameCutter(frameSize=frameSize, hopSize=hopSize, startFromZero=true, lastFrameToEndOfFile=true)
-	Windowing(type=windowingType, size=frameSize)
-	Spectrum(size=frameSize)
-
-	Self.signal -> FrameCutter.signal,frame -> Windowing.frame,frame -> Spectrum.frame,spectrum -> Self.spectrum
+    directory = directory
 }
 
-sequence Main()
-	origin AudioFiles(path="Music/Experiments", sampleRate=44100)
-	require @File
+model AudioEngine(): AudioManager
 {
+    sampleRate = 44100
+}
 
-    MakeSpectrum(frameSize = 4096, hopSize = 2048, windowingType = "blackmanharris92")
-    ImageFile(filename= "@{File}.png")
+sequence Main(directory: String)
+    model Files: Files(directory=directory)
+    model Audio: AudioEngine()
+{
+    ReadAudioFiles[Files=Files, Audio=Audio]()
 
-    AudioFiles.signal -> MakeSpectrum.signal,spectrum -> ImageFile.input
+    AudioToImage[AudioManager=Audio]()
+}
+
+sequence ReadAudioFiles[Files: FileManager, Audio: AudioManager]()
+    origin File: FlatFile[Files=Files]()
+{
+    Decoder[AudioManager=Audio]()
+    
+    File.data -> Decoder.data
+}
+
+sequence ComputeSpectrum(frameSize: Int, hopSize: Int, windowingType: String)
+    input signal: Vec<Int>
+    output spectrum: Mat<Int>
+{
+    FrameCutter(frameSize=frameSize, hopSize=hopSize, startFromZero=true, lastFrameToEndOfFile=true)
+    Windowing(type=windowingType, size=frameSize)
+    Spectrum(size=frameSize)
+
+    Self.signal -> CoreFrameCutter.signal,frame -> CoreWindowing.frame,frame -> CoreSpectrum.frame,spectrum -> Self.spectrum
+}
+
+sequence AudioToImage[AudioManager: AudioManager](frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String = "blackmanharris92")
+    origin AudioSignal: Signal[AudioManager=AudioManager]()
+    require @File
+    require @Signal
+{
+    ComputeSpectrum(frameSize=frameSize, hopSize=hopSize, windowingType=windowingType)
+    Image: SimpleImageRender(fileName=@File[name], format="png")
+    
+    AudioSignal.signal -> Spectrum.signal,spectrum -> Image.input
 }
 ```
 
-Some more examples of Mélodium code can be found under `examples/`.
+A more complete and commented version is available under [examples/semantic](examples/semantic/simple_build.mel).
 
 ## Compilation
 
-Mélodium is purely written in Rust, and just need usual `cargo build` and `cargo test`.
+Mélodium is fully written in Rust, and just need usual `cargo build` and `cargo test`.
 ```shell
 git clone https://gitlab.com/qvignaud/melodium-rust.git
 cd melodium-rust
