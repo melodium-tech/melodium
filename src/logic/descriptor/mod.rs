@@ -1,6 +1,6 @@
 
-mod atomic_treatment;
 mod connection;
+mod core_treatment;
 mod datatype;
 mod identified;
 mod identifier;
@@ -13,8 +13,8 @@ mod requirement;
 mod sequence_treatment;
 mod treatment;
 
-pub use atomic_treatment::AtomicTreatment as AtomicTreatmentDescriptor;
 pub use connection::Connection as ConnectionDescriptor;
+pub use core_treatment::CoreTreatment as CoreTreatmentDescriptor;
 pub use datatype::DataType as DataTypeDescriptor;
 pub use datatype::Structure as DataTypeStructureDescriptor;
 pub use datatype::Type as DataTypeTypeDescriptor;

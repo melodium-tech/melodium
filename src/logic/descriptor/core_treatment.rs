@@ -9,14 +9,14 @@ use super::parameter::Parameter;
 use super::requirement::Requirement;
 use super::treatment::Treatment;
 
-pub struct AtomicTreatment {
+pub struct CoreTreatment {
     identifier: Identifier,
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
     outputs: HashMap<String, Output>,
 }
 
-impl AtomicTreatment {
+impl CoreTreatment {
     pub fn new(identifier: Identifier, parameters: Vec<Parameter>, inputs: Vec<Input>, outputs: Vec<Output>) -> Self {
         Self {
             identifier,
@@ -28,13 +28,13 @@ impl AtomicTreatment {
 
 }
 
-impl Identified for AtomicTreatment {
+impl Identified for CoreTreatment {
     fn identifier(&self) -> &Identifier {
         &self.identifier
     }
 }
 
-impl Treatment for AtomicTreatment {
+impl Treatment for CoreTreatment {
 
     fn inputs(&self) -> &HashMap<String, Input> {
         &self.inputs

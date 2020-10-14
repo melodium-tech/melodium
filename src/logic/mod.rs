@@ -12,7 +12,7 @@ pub mod descriptor;
 pub mod designer;
 pub mod error;
 
-pub use descriptor::AtomicTreatmentDescriptor;
+pub use descriptor::CoreTreatmentDescriptor;
 pub use descriptor::ConnectionDescriptor;
 pub use descriptor::DataTypeDescriptor;
 pub use descriptor::DataTypeStructureDescriptor;
