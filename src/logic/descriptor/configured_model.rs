@@ -38,4 +38,12 @@ impl Model for ConfiguredModel {
     fn parameters(&self) -> &HashMap<String, Parameter> {
         &self.parameters
     }
+
+    fn is_core_model(&self) -> bool {
+        false
+    }
+
+    fn core_model(&self) -> &CoreModel {
+        &self.core_model
+    }
 }

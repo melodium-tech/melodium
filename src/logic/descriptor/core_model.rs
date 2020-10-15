@@ -31,4 +31,12 @@ impl Model for CoreModel {
     fn parameters(&self) -> &HashMap<String, Parameter> {
         &self.parameters
     }
+
+    fn is_core_model(&self) -> bool {
+        true
+    }
+
+    fn core_model(&self) -> &CoreModel {
+        &self
+    }
 }
