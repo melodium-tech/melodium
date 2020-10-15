@@ -8,6 +8,7 @@ use super::super::collection_pool::CollectionPool;
 use super::super::IdentifierDescriptor;
 use super::super::SequenceTreatmentDescriptor;
 
+use super::model_instanciation::ModelInstanciation;
 use super::connection::Connection;
 use super::treatment::Treatment;
 
@@ -15,6 +16,7 @@ pub struct Sequence {
     collections: Rc<CollectionPool>,
     descriptor: Rc<SequenceTreatmentDescriptor>,
 
+    model_instanciations: HashMap<String, ModelInstanciation>,
     treatments: HashMap<String, Rc<RefCell<Treatment>>>,
     connections: HashSet<Rc<RefCell<Connection>>>,
 }
@@ -24,6 +26,7 @@ impl Sequence {
         Self {
             collections: Rc::clone(collections),
             descriptor: Rc::clone(descriptor),
+            model_instanciations: HashMap::new(),
             treatments: HashMap::new(),
             connections: HashSet::new(),
         }
@@ -51,7 +54,7 @@ impl Sequence {
 
     }
 
-    pub fn add_treatment_model(&mut self, model_identifier: &IdentifierDescriptor, model_designation: &str, name: &str) -> Result<(), LogicError> {
+    pub fn add_model_intanciation(&mut self, model_identifier: &IdentifierDescriptor, name: &str) -> Result<(), LogicError> {
         // TODO
         Err(LogicError{})
     }
