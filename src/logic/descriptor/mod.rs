@@ -1,12 +1,13 @@
 
 mod connection;
+mod configured_model;
+mod core_model;
 mod core_treatment;
 mod datatype;
 mod identified;
 mod identifier;
 mod input;
-mod model_config;
-mod model_type;
+mod model;
 mod output;
 mod parameter;
 mod requirement;
@@ -14,6 +15,8 @@ mod sequence_treatment;
 mod treatment;
 
 pub use connection::Connection as ConnectionDescriptor;
+pub use configured_model::ConfiguredModel as ConfiguredModelDescriptor;
+pub use core_model::CoreModel as CoreModelDescriptor;
 pub use core_treatment::CoreTreatment as CoreTreatmentDescriptor;
 pub use datatype::DataType as DataTypeDescriptor;
 pub use datatype::Structure as DataTypeStructureDescriptor;
@@ -21,8 +24,7 @@ pub use datatype::Type as DataTypeTypeDescriptor;
 pub use identified::Identified as IdentifiedDescriptor;
 pub use identifier::Identifier as IdentifierDescriptor;
 pub use input::Input as InputDescriptor;
-pub use model_config::ModelConfig as ModelConfigDescriptor;
-pub use model_type::ModelType as ModelTypeDescriptor;
+pub use model::Model as ModelDescriptor;
 pub use output::Output as OutputDescriptor;
 pub use parameter::Parameter as ParameterDescriptor;
 pub use sequence_treatment::SequenceTreatment as SequenceTreatmentDescriptor;

@@ -1,25 +1,29 @@
 
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::iter::FromIterator;
 use super::identified::Identified;
 use super::identifier::Identifier;
 use super::input::Input;
 use super::output::Output;
+use super::core_model::CoreModel;
 use super::parameter::Parameter;
 use super::requirement::Requirement;
 use super::treatment::Treatment;
 
 pub struct CoreTreatment {
     identifier: Identifier,
+    models: HashMap<String, Rc<CoreModel>>,
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
     outputs: HashMap<String, Output>,
 }
 
 impl CoreTreatment {
-    pub fn new(identifier: Identifier, parameters: Vec<Parameter>, inputs: Vec<Input>, outputs: Vec<Output>) -> Self {
+    pub fn new(identifier: Identifier, models: Vec<(String, Rc<CoreModel>)>, parameters: Vec<Parameter>, inputs: Vec<Input>, outputs: Vec<Output>) -> Self {
         Self {
             identifier,
+            models: HashMap::from_iter(models.iter().map(|m| (m.0.to_string(), Rc::clone(&m.1)))),
             parameters: HashMap::from_iter(parameters.iter().map(|p| (p.name().to_string(), p.clone()))),
             inputs: HashMap::from_iter(inputs.iter().map(|i| (i.name().to_string(), i.clone()))),
             outputs: HashMap::from_iter(outputs.iter().map(|o| (o.name().to_string(), o.clone()))),
@@ -42,6 +46,10 @@ impl Treatment for CoreTreatment {
 
     fn outputs(&self) -> &HashMap<String, Output> {
         &self.outputs
+    }
+
+    fn models(&self) -> &HashMap<String, Rc<CoreModel>> {
+        &self.models
     }
 
     fn parameters(&self) -> &HashMap<String, Parameter> {

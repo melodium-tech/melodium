@@ -1,15 +1,18 @@
 
 use std::collections::HashMap;
+use std::rc::Rc;
 use super::identified::Identified;
 use super::identifier::Identifier;
 use super::input::Input;
 use super::output::Output;
+use super::core_model::CoreModel;
 use super::parameter::Parameter;
 use super::requirement::Requirement;
 use super::treatment::Treatment;
 
 pub struct SequenceTreatment {
     identifier: Identifier,
+    models: HashMap<String, Rc<CoreModel>>,
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
     outputs: HashMap<String, Output>,
@@ -20,11 +23,16 @@ impl SequenceTreatment {
     pub fn new(identifier: Identifier) -> Self {
         Self {
             identifier,
+            models: HashMap::new(),
             parameters: HashMap::new(),
             inputs: HashMap::new(),
             outputs: HashMap::new(),
             requirements: HashMap::new()
         }
+    }
+
+    pub fn add_model(&mut self, name: &str, model: &Rc<CoreModel>) {
+        self.models.insert(name.to_string(), Rc::clone(model));
     }
 
     pub fn add_parameter(&mut self, parameter: Parameter) {
@@ -58,6 +66,10 @@ impl Treatment for SequenceTreatment {
 
     fn outputs(&self) -> &HashMap<String, Output> {
         &self.outputs
+    }
+
+    fn models(&self) -> &HashMap<String, Rc<CoreModel>> {
+        &self.models
     }
 
     fn parameters(&self) -> &HashMap<String, Parameter> {
