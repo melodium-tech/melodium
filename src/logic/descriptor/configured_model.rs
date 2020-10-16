@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use super::identified::Identified;
 use super::identifier::Identifier;
+use super::parameterized::Parameterized;
 use super::model::Model;
 use super::core_model::CoreModel;
 use super::parameter::Parameter;
@@ -33,11 +34,14 @@ impl Identified for ConfiguredModel {
     }
 }
 
-impl Model for ConfiguredModel {
-    
+impl Parameterized for ConfiguredModel {
+
     fn parameters(&self) -> &HashMap<String, Parameter> {
         &self.parameters
     }
+}
+
+impl Model for ConfiguredModel {
 
     fn is_core_model(&self) -> bool {
         false

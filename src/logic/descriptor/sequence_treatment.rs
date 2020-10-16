@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use super::identified::Identified;
 use super::identifier::Identifier;
+use super::parameterized::Parameterized;
 use super::input::Input;
 use super::output::Output;
 use super::core_model::CoreModel;
@@ -58,6 +59,13 @@ impl Identified for SequenceTreatment {
     }
 }
 
+impl Parameterized for SequenceTreatment {
+
+    fn parameters(&self) -> &HashMap<String, Parameter> {
+        &self.parameters
+    }
+}
+
 impl Treatment for SequenceTreatment {
 
     fn inputs(&self) -> &HashMap<String, Input> {
@@ -70,10 +78,6 @@ impl Treatment for SequenceTreatment {
 
     fn models(&self) -> &HashMap<String, Rc<CoreModel>> {
         &self.models
-    }
-
-    fn parameters(&self) -> &HashMap<String, Parameter> {
-        &self.parameters
     }
 
     fn requirements(&self) -> &HashMap<String, Requirement> {

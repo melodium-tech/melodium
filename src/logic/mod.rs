@@ -26,5 +26,6 @@ pub use descriptor::InputDescriptor;
 pub use descriptor::ModelDescriptor;
 pub use descriptor::OutputDescriptor;
 pub use descriptor::ParameterDescriptor;
+pub use descriptor::ParameterizedDescriptor;
 pub use descriptor::SequenceTreatmentDescriptor;
 pub use descriptor::TreatmentDescriptor;

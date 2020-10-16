@@ -4,6 +4,7 @@ use std::rc::Rc;
 use std::iter::FromIterator;
 use super::identified::Identified;
 use super::identifier::Identifier;
+use super::parameterized::Parameterized;
 use super::input::Input;
 use super::output::Output;
 use super::core_model::CoreModel;
@@ -38,6 +39,13 @@ impl Identified for CoreTreatment {
     }
 }
 
+impl Parameterized for CoreTreatment {
+
+    fn parameters(&self) -> &HashMap<String, Parameter> {
+        &self.parameters
+    }
+}
+
 impl Treatment for CoreTreatment {
 
     fn inputs(&self) -> &HashMap<String, Input> {
@@ -50,10 +58,6 @@ impl Treatment for CoreTreatment {
 
     fn models(&self) -> &HashMap<String, Rc<CoreModel>> {
         &self.models
-    }
-
-    fn parameters(&self) -> &HashMap<String, Parameter> {
-        &self.parameters
     }
 
     fn requirements(&self) -> &HashMap<String, Requirement> {

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::iter::FromIterator;
 use super::identified::Identified;
 use super::identifier::Identifier;
+use super::parameterized::Parameterized;
 use super::model::Model;
 use super::parameter::Parameter;
 
@@ -26,11 +27,14 @@ impl Identified for CoreModel {
     }
 }
 
-impl Model for CoreModel {
-    
+impl Parameterized for CoreModel {
+        
     fn parameters(&self) -> &HashMap<String, Parameter> {
         &self.parameters
     }
+}
+
+impl Model for CoreModel {
 
     fn is_core_model(&self) -> bool {
         true
