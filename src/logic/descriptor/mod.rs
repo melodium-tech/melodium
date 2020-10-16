@@ -1,6 +1,7 @@
 
 mod connection;
 mod configured_model;
+mod context;
 mod core_model;
 mod core_treatment;
 mod datatype;
@@ -16,6 +17,7 @@ mod treatment;
 
 pub use connection::Connection as ConnectionDescriptor;
 pub use configured_model::ConfiguredModel as ConfiguredModelDescriptor;
+pub use context::Context as ContextDescriptor;
 pub use core_model::CoreModel as CoreModelDescriptor;
 pub use core_treatment::CoreTreatment as CoreTreatmentDescriptor;
 pub use datatype::DataType as DataTypeDescriptor;

@@ -13,6 +13,7 @@ pub mod designer;
 pub mod error;
 
 pub use descriptor::ConfiguredModelDescriptor;
+pub use descriptor::ContextDescriptor;
 pub use descriptor::CoreModelDescriptor;
 pub use descriptor::CoreTreatmentDescriptor;
 pub use descriptor::ConnectionDescriptor;
