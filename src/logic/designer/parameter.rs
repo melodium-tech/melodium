@@ -1,31 +1,30 @@
 
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use super::super::error::LogicError;
-use super::super::TreatmentDescriptor;
+use super::super::ParameterizedDescriptor;
 use super::sequence::Sequence;
-use super::parameter::Parameter;
+use super::value::Value;
 
-pub struct Treatment {
+pub struct Parameter {
 
     sequence: Weak<RefCell<Sequence>>,
-    descriptor: Rc<dyn TreatmentDescriptor>,
+    descriptor: Rc<dyn ParameterizedDescriptor>,
     name: String,
-    parameters: HashMap<String, Rc<RefCell<Parameter>>>,
+    value: Option<Value>,
 }
 
-impl Treatment {
-    pub fn new(sequence: &Rc<RefCell<Sequence>>, descriptor: &Rc<dyn TreatmentDescriptor>, name: &str) -> Self {
+impl Parameter {
+    pub fn new(sequence: &Rc<RefCell<Sequence>>, descriptor: &Rc<dyn ParameterizedDescriptor>, name: &str) -> Self {
         Self {
             sequence: Rc::downgrade(sequence),
             descriptor: Rc::clone(descriptor),
             name: name.to_string(),
-            parameters: HashMap::with_capacity(descriptor.parameters().len()),
+            value: None,
         }
     }
 
-    pub fn descriptor(&self) -> &Rc<dyn TreatmentDescriptor> {
+    pub fn descriptor(&self) -> &Rc<dyn ParameterizedDescriptor> {
         &self.descriptor
     }
 

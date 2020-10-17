@@ -1,5 +1,5 @@
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -19,17 +19,24 @@ pub struct Sequence {
     model_instanciations: HashMap<String, ModelInstanciation>,
     treatments: HashMap<String, Rc<RefCell<Treatment>>>,
     connections: HashSet<Rc<RefCell<Connection>>>,
+
+    auto_reference: Weak<RefCell<Self>>,
 }
 
 impl Sequence {
-    pub fn new(collections: &Rc<CollectionPool>, descriptor: &Rc<SequenceTreatmentDescriptor>) -> Self {
-        Self {
+    pub fn new(collections: &Rc<CollectionPool>, descriptor: &Rc<SequenceTreatmentDescriptor>) -> Rc<RefCell<Self>> {
+        let sequence = Rc::<RefCell<Self>>::new(RefCell::new(Self {
             collections: Rc::clone(collections),
             descriptor: Rc::clone(descriptor),
             model_instanciations: HashMap::new(),
             treatments: HashMap::new(),
             connections: HashSet::new(),
-        }
+            auto_reference: Weak::new(),
+        }));
+
+        sequence.borrow_mut().auto_reference = Rc::downgrade(&sequence);
+
+        sequence
     }
 
     pub fn collections(&self) -> &Rc<CollectionPool> {
@@ -43,7 +50,7 @@ impl Sequence {
     pub fn add_treatment(&mut self, identifier: &IdentifierDescriptor, name: &str) -> Result<(), LogicError> {
         
         if let Some(treatment_descriptor) = self.collections.treatments.get(identifier) {
-            let treatment = Treatment::new(treatment_descriptor, name);
+            let treatment = Treatment::new(&self.auto_reference.upgrade().unwrap(), treatment_descriptor, name);
             self.treatments.insert(name.to_string(), Rc::new(RefCell::new(treatment)));
             Ok(())
         }
