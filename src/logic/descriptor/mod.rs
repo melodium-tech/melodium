@@ -1,10 +1,12 @@
 
+mod buildable;
 mod connection;
 mod configured_model;
 mod context;
 mod core_model;
 mod core_treatment;
 mod datatype;
+mod designable;
 mod identified;
 mod identifier;
 mod input;
@@ -16,6 +18,7 @@ mod requirement;
 mod sequence_treatment;
 mod treatment;
 
+pub use buildable::Buildable as BuildableDescriptor;
 pub use connection::Connection as ConnectionDescriptor;
 pub use configured_model::ConfiguredModel as ConfiguredModelDescriptor;
 pub use context::Context as ContextDescriptor;
@@ -24,6 +27,7 @@ pub use core_treatment::CoreTreatment as CoreTreatmentDescriptor;
 pub use datatype::DataType as DataTypeDescriptor;
 pub use datatype::Structure as DataTypeStructureDescriptor;
 pub use datatype::Type as DataTypeTypeDescriptor;
+pub use designable::Designable as DesignableDescriptor;
 pub use identified::Identified as IdentifiedDescriptor;
 pub use identifier::Identifier as IdentifierDescriptor;
 pub use input::Input as InputDescriptor;
