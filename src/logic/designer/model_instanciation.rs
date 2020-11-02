@@ -36,4 +36,11 @@ impl ModelInstanciation {
     pub fn validate(&self) -> Result<(), LogicError> {
         Ok(())
     }
+
+    pub fn register(&self) -> Result<(), LogicError> {
+        
+        self.validate()?;
+
+        todo!();
+    }
 }
