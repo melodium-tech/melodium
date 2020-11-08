@@ -16,7 +16,7 @@ pub struct Sequence {
     collections: Rc<CollectionPool>,
     descriptor: Rc<SequenceTreatmentDescriptor>,
 
-    model_instanciations: HashMap<String, ModelInstanciation>,
+    model_instanciations: HashMap<String, Rc<RefCell<ModelInstanciation>>>,
     treatments: HashMap<String, Rc<RefCell<Treatment>>>,
     connections: HashSet<Rc<RefCell<Connection>>>,
 
@@ -47,23 +47,24 @@ impl Sequence {
         &self.descriptor
     }
 
-    pub fn add_treatment(&mut self, identifier: &IdentifierDescriptor, name: &str) -> Result<(), LogicError> {
+    pub fn add_model_intanciation(&mut self, model_identifier: &IdentifierDescriptor, name: &str) -> Result<(), LogicError> {
+        // TODO
+        Err(LogicError{})
+    }
+
+    pub fn add_treatment(&mut self, identifier: &IdentifierDescriptor, name: &str) -> Result<Rc<RefCell<Treatment>>, LogicError> {
         
         if let Some(treatment_descriptor) = self.collections.treatments.get(identifier) {
             let treatment = Treatment::new(&self.auto_reference.upgrade().unwrap(), treatment_descriptor, name);
-            self.treatments.insert(name.to_string(), Rc::new(RefCell::new(treatment)));
-            Ok(())
+            let rc_treatment = Rc::new(RefCell::new(treatment));
+            self.treatments.insert(name.to_string(), Rc::clone(&rc_treatment));
+            Ok(rc_treatment)
         }
         else {
             // TODO
             Err(LogicError{})
         }
 
-    }
-
-    pub fn add_model_intanciation(&mut self, model_identifier: &IdentifierDescriptor, name: &str) -> Result<(), LogicError> {
-        // TODO
-        Err(LogicError{})
     }
 
     pub fn add_connection(&mut self, output_treatment: &str, output_name: &str, input_treatment: &str, intput_name: &str) -> Result<(), LogicError> {
@@ -76,9 +77,13 @@ impl Sequence {
         Err(LogicError{})
     }
 
-    pub fn add_out_connection(&mut self, self_output_name: &str, output_treatment: &str, output_name: &str) -> Result<(), LogicError> {
+    pub fn add_output_connection(&mut self, self_output_name: &str, output_treatment: &str, output_name: &str) -> Result<(), LogicError> {
         // TODO
         Err(LogicError{})
+    }
+
+    pub fn model_instanciations(&self) -> &HashMap<String, Rc<RefCell<ModelInstanciation>>> {
+        &self.model_instanciations
     }
 
     pub fn treatments(&self) -> &HashMap<String, Rc<RefCell<Treatment>>> {

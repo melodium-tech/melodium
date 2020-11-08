@@ -39,6 +39,10 @@ impl Model {
         &self.descriptor
     }
 
+    pub fn add_parameter(&mut self, name: &str) -> Result<Rc<RefCell<Parameter>>, LogicError> {
+        todo!();
+    }
+
     pub fn validate(&self) -> Result<(), LogicError> {
         Ok(())
     }
