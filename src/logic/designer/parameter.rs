@@ -1,27 +1,34 @@
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use super::super::error::LogicError;
 use super::super::ParameterizedDescriptor;
 use super::value::Value;
+use super::super::contexts::Contexts;
 
 pub struct Parameter {
 
-    descriptor: Rc<dyn ParameterizedDescriptor>,
+    scope: Weak<dyn ParameterizedDescriptor>,
+    parent_descriptor: Weak<dyn ParameterizedDescriptor>,
     name: String,
     value: Option<Value>,
 }
 
 impl Parameter {
-    pub fn new(descriptor: &Rc<dyn ParameterizedDescriptor>, name: &str) -> Self {
+    pub fn new(scope: &Rc<dyn ParameterizedDescriptor>, parent_descriptor: &Rc<dyn ParameterizedDescriptor>, name: &str) -> Self {
         Self {
-            descriptor: Rc::clone(descriptor),
+            scope: Rc::downgrade(scope),
+            parent_descriptor: Rc::downgrade(parent_descriptor),
             name: name.to_string(),
             value: None,
         }
     }
 
-    pub fn descriptor(&self) -> &Rc<dyn ParameterizedDescriptor> {
-        &self.descriptor
+    pub fn scope(&self) -> &Weak<dyn ParameterizedDescriptor> {
+        &self.scope
+    }
+
+    pub fn parent_descriptor(&self) -> &Weak<dyn ParameterizedDescriptor> {
+        &self.parent_descriptor
     }
 
     pub fn name(&self) -> &str {
@@ -30,6 +37,42 @@ impl Parameter {
 
     pub fn set_value(&mut self, value: Value) -> Result<(), LogicError> {
         
+        match &value {
+            Value::Raw() => {},
+            Value::Variable(name) => {
+
+                if let Some(scope_variable) = self.scope.upgrade().unwrap().parameters().get(name) {
+
+                    if scope_variable.datatype() != self.parent_descriptor.upgrade().unwrap().parameters().get(&self.name).unwrap().datatype() {
+                        return Err(LogicError::unmatching_datatype())
+                    }
+                }
+                else {
+                    return Err(LogicError::unexisting_variable())
+                }
+            },
+            Value::Context((context, name)) => {
+
+                if let Some(context_descriptor) = Contexts::get(context) {
+
+                    if let Some(context_variable_datatype) = context_descriptor.values().get(name) {
+                        
+                        if context_variable_datatype != self.parent_descriptor.upgrade().unwrap().parameters().get(&self.name).unwrap().datatype() {
+                            return Err(LogicError::unmatching_datatype())
+                        }
+                    }
+                    else {
+                        return Err(LogicError::unexisting_context_variable())
+                    }
+                }
+                else {
+                    return Err(LogicError::unexisting_context())
+                }
+            }
+        }
+
+        self.value = Some(value);
+
         Ok(())
     }
 

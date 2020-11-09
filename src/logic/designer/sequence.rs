@@ -48,8 +48,7 @@ impl Sequence {
     }
 
     pub fn add_model_intanciation(&mut self, model_identifier: &IdentifierDescriptor, name: &str) -> Result<(), LogicError> {
-        // TODO
-        Err(LogicError{})
+        todo!()
     }
 
     pub fn add_treatment(&mut self, identifier: &IdentifierDescriptor, name: &str) -> Result<Rc<RefCell<Treatment>>, LogicError> {
@@ -61,25 +60,21 @@ impl Sequence {
             Ok(rc_treatment)
         }
         else {
-            // TODO
-            Err(LogicError{})
+            todo!()
         }
 
     }
 
     pub fn add_connection(&mut self, output_treatment: &str, output_name: &str, input_treatment: &str, intput_name: &str) -> Result<(), LogicError> {
-        // TODO
-        Err(LogicError{})
+        todo!()
     }
 
     pub fn add_input_connection(&mut self, self_input_name: &str, input_treatment: &str, input_name: &str) -> Result<(), LogicError> {
-        // TODO
-        Err(LogicError{})
+        todo!()
     }
 
     pub fn add_output_connection(&mut self, self_output_name: &str, output_treatment: &str, output_name: &str) -> Result<(), LogicError> {
-        // TODO
-        Err(LogicError{})
+        todo!()
     }
 
     pub fn model_instanciations(&self) -> &HashMap<String, Rc<RefCell<ModelInstanciation>>> {
