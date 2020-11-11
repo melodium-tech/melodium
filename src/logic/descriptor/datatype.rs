@@ -1,4 +1,6 @@
 
+use crate::executive::data::Data;
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct DataType {
     r#type: Type,
@@ -19,6 +21,10 @@ impl DataType {
 
     pub fn r#type(&self) -> &Type {
         &self.r#type
+    }
+
+    pub fn is_compatible(&self, data: &Data) -> bool {
+        todo!()
     }
 }
 

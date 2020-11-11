@@ -1,4 +1,5 @@
 
+use std::rc::{Rc, Weak};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use super::identified::Identified;
@@ -10,6 +11,7 @@ use super::parameter::Parameter;
 pub struct CoreModel {
     identifier: Identifier,
     parameters: HashMap<String, Parameter>,
+    auto_reference: Weak<Self>,
 }
 
 impl CoreModel {
@@ -17,7 +19,12 @@ impl CoreModel {
         Self {
             identifier,
             parameters: HashMap::from_iter(parameters.iter().map(|p| (p.name().to_string(), p.clone()))),
+            auto_reference: Weak::new(),
         }
+    }
+
+    pub fn set_autoref(&mut self, reference: &Rc<Self>) {
+        self.auto_reference = Rc::downgrade(reference);
     }
 }
 
@@ -40,7 +47,7 @@ impl Model for CoreModel {
         true
     }
 
-    fn core_model(&self) -> &CoreModel {
-        &self
+    fn core_model(&self) -> Rc<CoreModel> {
+        self.auto_reference.upgrade().unwrap()
     }
 }

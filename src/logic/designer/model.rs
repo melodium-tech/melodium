@@ -5,6 +5,9 @@ use std::collections::HashMap;
 use super::super::error::LogicError;
 use super::super::collection_pool::CollectionPool;
 use super::super::ConfiguredModelDescriptor;
+use super::super::ModelDescriptor;
+use super::super::ParameterizedDescriptor;
+use super::super::ParameterDescriptor;
 use super::parameter::Parameter;
 
 pub struct Model {
@@ -40,11 +43,53 @@ impl Model {
     }
 
     pub fn add_parameter(&mut self, name: &str) -> Result<Rc<RefCell<Parameter>>, LogicError> {
-        todo!();
+        
+        if self.descriptor.core_model().parameters().contains_key(name) {
+            let parameter = Parameter::new( &(Rc::clone(&self.descriptor) as Rc<dyn ParameterizedDescriptor>), 
+                                            &(Rc::clone(&self.descriptor.core_model()) as Rc<dyn ParameterizedDescriptor>),
+                                            name
+                                        );
+            let rc_parameter = Rc::new(RefCell::new(parameter));
+
+            if self.parameters.insert(name.to_string(), Rc::clone(&rc_parameter)).is_none() {
+                Ok(rc_parameter)
+            }
+            else {
+                Err(LogicError::multiple_parameter_assignation())
+            }
+        }
+        else {
+            Err(LogicError::unexisting_parameter())
+        }
+    }
+
+    pub fn parameters(&self) -> &HashMap<String, Rc<RefCell<Parameter>>> {
+        &self.parameters
     }
 
     pub fn validate(&self) -> Result<(), LogicError> {
-        Ok(())
+
+        // Check if all parent parameters are filled.
+        let rc_core_model = self.descriptor.core_model();
+        let unset_params: Vec<&ParameterDescriptor> = rc_core_model.parameters().iter().filter_map(
+            |(core_param_name, core_param)|
+            if self.parameters.contains_key(core_param_name) {
+                None
+            }
+            else if core_param.default().is_some() {
+                None
+            }
+            else {
+                Some(core_param)
+            }
+        ).collect();
+
+        if unset_params.is_empty() {
+            Ok(())
+        }
+        else {
+            Err(LogicError::unset_parameter())
+        }
     }
 
     pub fn register(&self) -> Result<(), LogicError> {

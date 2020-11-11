@@ -47,7 +47,7 @@ impl Model for ConfiguredModel {
         false
     }
 
-    fn core_model(&self) -> &CoreModel {
-        &self.core_model
+    fn core_model(&self) -> Rc<CoreModel> {
+        Rc::clone(&self.core_model)
     }
 }

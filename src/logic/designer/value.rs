@@ -1,7 +1,9 @@
 
+use crate::executive::data::Data;
+
 #[derive(Clone)]
 pub enum Value {
-    Raw(/* To implement with executive value */),
+    Raw(Data),
     Variable(String),
     Context((String, String)),
 }

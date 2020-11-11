@@ -38,7 +38,11 @@ impl Parameter {
     pub fn set_value(&mut self, value: Value) -> Result<(), LogicError> {
         
         match &value {
-            Value::Raw() => {},
+            Value::Raw(data) => {
+                if !self.parent_descriptor.upgrade().unwrap().parameters().get(&self.name).unwrap().datatype().is_compatible(data) {
+                    return Err(LogicError::unmatching_datatype())
+                }
+            },
             Value::Variable(name) => {
 
                 if let Some(scope_variable) = self.scope.upgrade().unwrap().parameters().get(name) {
