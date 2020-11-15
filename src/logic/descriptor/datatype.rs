@@ -1,7 +1,7 @@
 
 use crate::executive::data::Data;
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DataType {
     r#type: Type,
     structure: Structure,
@@ -28,7 +28,7 @@ impl DataType {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Structure {
     Scalar,
     Vector,
@@ -36,7 +36,7 @@ pub enum Structure {
     Collection,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Type {
     Boolean,
     Integer,

@@ -1,7 +1,7 @@
 
 use super::datatype::DataType;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Output {
     name: String,
     datatype: DataType,

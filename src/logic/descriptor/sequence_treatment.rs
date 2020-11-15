@@ -1,6 +1,7 @@
 
 use std::collections::HashMap;
 use std::rc::Rc;
+use intertrait::cast_to;
 use super::identified::Identified;
 use super::identifier::Identifier;
 use super::parameterized::Parameterized;
@@ -11,6 +12,7 @@ use super::parameter::Parameter;
 use super::requirement::Requirement;
 use super::treatment::Treatment;
 
+#[derive(Debug)]
 pub struct SequenceTreatment {
     identifier: Identifier,
     models: HashMap<String, Rc<CoreModel>>,
@@ -53,12 +55,14 @@ impl SequenceTreatment {
     }
 }
 
+#[cast_to]
 impl Identified for SequenceTreatment {
     fn identifier(&self) -> &Identifier {
         &self.identifier
     }
 }
 
+#[cast_to]
 impl Parameterized for SequenceTreatment {
 
     fn parameters(&self) -> &HashMap<String, Parameter> {

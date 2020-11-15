@@ -1,5 +1,5 @@
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Value {
     Boolean(bool),
     Integer(i64),

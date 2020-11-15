@@ -2,7 +2,7 @@
 use super::datatype::DataType;
 use crate::executive::data::Data;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Parameter {
     name: String,
     datatype: DataType,

@@ -1,5 +1,5 @@
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Identifier {
     root: Root,
     path: Vec<String>,
@@ -28,7 +28,7 @@ impl Identifier {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Root {
     Core,
     Std,

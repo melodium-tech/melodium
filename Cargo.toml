@@ -9,3 +9,5 @@ edition = "2018"
 [dependencies]
 lazy_static = "1.4.0"
 regex = "1"
+intertrait = "0.2"
+linkme = "0.2"

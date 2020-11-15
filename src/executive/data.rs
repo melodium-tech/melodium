@@ -1,7 +1,7 @@
 
 use super::value::Value;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Data {
     Scalar(Value),
     Vector(Vec<Value>),

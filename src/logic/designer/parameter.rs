@@ -80,7 +80,17 @@ impl Parameter {
         Ok(())
     }
 
+    pub fn value(&self) -> &Option<Value> {
+        &self.value
+    }
+
     pub fn validate(&self) -> Result<(), LogicError> {
-        Ok(())
+        
+        if let Some(_v) = &self.value {
+            Ok(())
+        }
+        else {
+            Err(LogicError::no_value())
+        }
     }
 }

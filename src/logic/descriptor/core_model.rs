@@ -8,6 +8,7 @@ use super::parameterized::Parameterized;
 use super::model::Model;
 use super::parameter::Parameter;
 
+#[derive(Debug)]
 pub struct CoreModel {
     identifier: Identifier,
     parameters: HashMap<String, Parameter>,

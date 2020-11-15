@@ -7,6 +7,9 @@ pub enum LogicErrorKind {
     UnmatchingDataType,
     UnsetParameter,
     MultipleParameterAssignation,
+    NoValue,
+    NoContext,
+    UnavailableContext,
 }
 
 pub struct LogicError {
@@ -54,6 +57,24 @@ impl LogicError {
     pub fn multiple_parameter_assignation() -> Self {
         Self {
             kind: LogicErrorKind::MultipleParameterAssignation
+        }
+    }
+
+    pub fn no_value() -> Self {
+        Self {
+            kind: LogicErrorKind::NoValue
+        }
+    }
+
+    pub fn no_context() -> Self {
+        Self {
+            kind: LogicErrorKind::NoContext
+        }
+    }
+
+    pub fn unavailable_context() -> Self {
+        Self {
+            kind: LogicErrorKind::UnavailableContext
         }
     }
 }

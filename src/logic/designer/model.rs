@@ -9,6 +9,7 @@ use super::super::ModelDescriptor;
 use super::super::ParameterizedDescriptor;
 use super::super::ParameterDescriptor;
 use super::parameter::Parameter;
+use super::value::Value;
 
 pub struct Model {
     collections: Rc<CollectionPool>,
@@ -69,6 +70,10 @@ impl Model {
 
     pub fn validate(&self) -> Result<(), LogicError> {
 
+        for (_, param) in &self.parameters {
+            param.borrow().validate()?;
+        }
+
         // Check if all parent parameters are filled.
         let rc_core_model = self.descriptor.core_model();
         let unset_params: Vec<&ParameterDescriptor> = rc_core_model.parameters().iter().filter_map(
@@ -84,12 +89,16 @@ impl Model {
             }
         ).collect();
 
-        if unset_params.is_empty() {
-            Ok(())
+        if !unset_params.is_empty() {
+            return Err(LogicError::unset_parameter());
         }
-        else {
-            Err(LogicError::unset_parameter())
+
+        // Check all parameters does not refers to a context.
+        if let Some(_forbidden_context) = self.parameters.iter().find(|&(_param_name, param)| !matches!(param.borrow().value(), Some(Value::Context{..}))) {
+            return Err(LogicError::no_context())
         }
+
+        Ok(())
     }
 
     pub fn register(&self) -> Result<(), LogicError> {

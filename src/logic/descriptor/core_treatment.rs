@@ -12,6 +12,7 @@ use super::parameter::Parameter;
 use super::requirement::Requirement;
 use super::treatment::Treatment;
 
+#[derive(Debug)]
 pub struct CoreTreatment {
     identifier: Identifier,
     models: HashMap<String, Rc<CoreModel>>,
