@@ -1,6 +1,7 @@
 
 use std::collections::HashMap;
 use std::rc::Rc;
+use intertrait::cast_to;
 use super::identified::Identified;
 use super::identifier::Identifier;
 use super::parameterized::Parameterized;
@@ -8,6 +9,7 @@ use super::model::Model;
 use super::core_model::CoreModel;
 use super::parameter::Parameter;
 
+#[derive(Debug)]
 pub struct ConfiguredModel {
     identifier: Identifier,
     core_model: Rc<CoreModel>,
@@ -28,12 +30,14 @@ impl ConfiguredModel {
     }
 }
 
+#[cast_to]
 impl Identified for ConfiguredModel {
     fn identifier(&self) -> &Identifier {
         &self.identifier
     }
 }
 
+#[cast_to]
 impl Parameterized for ConfiguredModel {
 
     fn parameters(&self) -> &HashMap<String, Parameter> {

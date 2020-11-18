@@ -1,5 +1,6 @@
 
 use std::rc::{Rc, Weak};
+use intertrait::cast_to;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use super::identified::Identified;
@@ -29,12 +30,14 @@ impl CoreModel {
     }
 }
 
+#[cast_to]
 impl Identified for CoreModel {
     fn identifier(&self) -> &Identifier {
         &self.identifier
     }
 }
 
+#[cast_to]
 impl Parameterized for CoreModel {
         
     fn parameters(&self) -> &HashMap<String, Parameter> {
