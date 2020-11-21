@@ -10,6 +10,14 @@ pub enum LogicErrorKind {
     NoValue,
     NoContext,
     UnavailableContext,
+    ConnectionInputRequired,
+    ConnectionInputForbidden,
+    ConnectionInputNotFound,
+    ConnectionInputUnmatchingDataType,
+    ConnectionOutputRequired,
+    ConnectionOutputForbidden,
+    ConnectionOutputNotFound,
+    ConnectionOutputUnmatchingDataType,
 }
 
 pub struct LogicError {
@@ -75,6 +83,54 @@ impl LogicError {
     pub fn unavailable_context() -> Self {
         Self {
             kind: LogicErrorKind::UnavailableContext
+        }
+    }
+
+    pub fn connection_input_required() -> Self {
+        Self {
+            kind: LogicErrorKind::ConnectionInputRequired
+        }
+    }
+
+    pub fn connection_input_forbidden() -> Self {
+        Self {
+            kind: LogicErrorKind::ConnectionInputForbidden
+        }
+    }
+
+    pub fn connection_input_not_found() -> Self {
+        Self {
+            kind: LogicErrorKind::ConnectionInputNotFound
+        }
+    }
+
+    pub fn connection_input_unmatching_datatype() -> Self {
+        Self {
+            kind: LogicErrorKind::ConnectionInputUnmatchingDataType
+        }
+    }
+
+    pub fn connection_output_required() -> Self {
+        Self {
+            kind: LogicErrorKind::ConnectionOutputRequired
+        }
+    }
+
+    pub fn connection_output_forbidden() -> Self {
+        Self {
+            kind: LogicErrorKind::ConnectionOutputForbidden
+        }
+    }
+
+    pub fn connection_output_not_found() -> Self {
+        Self {
+            kind: LogicErrorKind::ConnectionOutputNotFound
+        }
+    }
+
+    pub fn connection_output_unmatching_datatype() -> Self {
+        Self {
+            kind: LogicErrorKind::ConnectionOutputUnmatchingDataType
         }
     }
 }

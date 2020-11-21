@@ -36,14 +36,80 @@ impl Connection {
         &self.descriptor
     }
 
-    pub fn set_output(&mut self, treatment: &Rc<RefCell<Treatment>>, output: String) {
-        self.output_treatment = Rc::downgrade(treatment);
-        self.output_name = Some(output);
+    pub fn set_output(&mut self, treatment: &Rc<RefCell<Treatment>>, output: Option<&str>) -> Result<(), LogicError> {
+
+        if output.is_none() {
+            if self.descriptor.output_type().is_none() {
+                self.output_treatment = Rc::downgrade(treatment);
+                self.output_name = None;
+
+                Ok(())
+            }
+            else {
+                Err(LogicError::connection_output_required())
+            }
+        }
+        else if let Some(output_descriptor) = treatment.borrow().descriptor().outputs().get(output.unwrap()) {
+
+            if self.descriptor.output_type().is_none() {
+                Err(LogicError::connection_output_forbidden())
+            }
+            else if output_descriptor.datatype() == self.descriptor.output_type().as_ref().unwrap() {
+
+                self.output_treatment = Rc::downgrade(treatment);
+                self.output_name = output.map(String::from);
+
+                Ok(())
+            }
+            else {
+                Err(LogicError::connection_output_unmatching_datatype())
+            }
+        }
+        else {
+            Err(LogicError::connection_output_not_found())
+        }
     }
 
-    pub fn set_input(&mut self, treatment: &Rc<RefCell<Treatment>>, input: String) {
-        self.input_treatment = Rc::downgrade(treatment);
-        self.input_name = Some(input);
+    pub fn set_self_output(&mut self, input_name: &str) {
+        self.output_name = Some(input_name.to_string());
+    }
+
+    pub fn set_input(&mut self, treatment: &Rc<RefCell<Treatment>>, input: Option<&str>) -> Result<(), LogicError> {
+
+        if input.is_none() {
+            if self.descriptor.input_type().is_none() {
+                self.input_treatment = Rc::downgrade(treatment);
+                self.input_name = None;
+
+                Ok(())
+            }
+            else {
+                Err(LogicError::connection_input_required())
+            }
+        }
+        else if let Some(input_descriptor) = treatment.borrow().descriptor().inputs().get(input.unwrap()) {
+
+            if self.descriptor.input_type().is_none() {
+                Err(LogicError::connection_input_forbidden())
+            }
+            else if input_descriptor.datatype() == self.descriptor.input_type().as_ref().unwrap() {
+
+                self.input_treatment = Rc::downgrade(treatment);
+                self.input_name = input.map(String::from);
+
+                Ok(())
+            }
+            else {
+                Err(LogicError::connection_input_unmatching_datatype())
+            }
+        }
+        else {
+            Err(LogicError::connection_input_not_found())
+        }
+    }
+
+    pub fn set_self_input(&mut self, output_name: &str) {
+        self.input_name = Some(output_name.to_string());
     }
 
     pub fn output_treatment(&self) -> Option<Rc<RefCell<Treatment>>> {
