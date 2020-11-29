@@ -191,7 +191,32 @@ impl Connection {
         &self.input_name
     }
 
-    pub fn validate() -> Result<(), LogicError> {
+    pub fn validate(&self) -> Result<(), LogicError> {
+
+        // Check if descriptor require an output or not, then if one is assigned.
+        if let Some(_output) = self.descriptor.output_type() {
+            if self.output_name.is_none() {
+                return Err(LogicError::connection_output_required())
+            }
+        }
+        else {
+            if self.output_name.is_some() {
+                return Err(LogicError::connection_output_forbidden())
+            }
+        }
+
+        // Check if descriptor require an input or not, then if one is assigned.
+        if let Some(_input) = self.descriptor.input_type() {
+            if self.input_name.is_none() {
+                return Err(LogicError::connection_input_required())
+            }
+        }
+        else {
+            if self.input_name.is_some() {
+                return Err(LogicError::connection_input_forbidden())
+            }
+        }
+
         Ok(())
     }
 }
