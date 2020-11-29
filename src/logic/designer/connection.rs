@@ -7,16 +7,21 @@ use super::super::TreatmentDescriptor;
 use super::treatment::Treatment;
 use super::sequence::Sequence;
 
+pub enum IO {
+    Sequence(),
+    Treatement(Weak<RefCell<Treatment>>)
+}
+
 pub struct Connection {
 
     sequence: Weak<RefCell<Sequence>>,
 
     descriptor: Rc<ConnectionDescriptor>,
 
-    output_treatment: Weak<RefCell<Treatment>>,
+    output_treatment: Option<IO>,
     output_name: Option<String>,
 
-    input_treatment: Weak<RefCell<Treatment>>,
+    input_treatment: Option<IO>,
     input_name: Option<String>,
     
 }
@@ -26,9 +31,9 @@ impl Connection {
         Self {
             sequence: Rc::downgrade(sequence),
             descriptor: Rc::clone(descriptor),
-            output_treatment: Weak::new(),
+            output_treatment: None,
             output_name: None,
-            input_treatment: Weak::new(),
+            input_treatment: None,
             input_name: None,
         }
     }
@@ -41,7 +46,7 @@ impl Connection {
 
         if output.is_none() {
             if self.descriptor.output_type().is_none() {
-                self.output_treatment = Rc::downgrade(treatment);
+                self.output_treatment = Some(IO::Treatement(Rc::downgrade(treatment)));
                 self.output_name = None;
 
                 Ok(())
@@ -57,7 +62,7 @@ impl Connection {
             }
             else if output_descriptor.datatype() == self.descriptor.output_type().as_ref().unwrap() {
 
-                self.output_treatment = Rc::downgrade(treatment);
+                self.output_treatment = Some(IO::Treatement(Rc::downgrade(treatment)));
                 self.output_name = output.map(String::from);
 
                 Ok(())
@@ -75,7 +80,7 @@ impl Connection {
         
         if input_name.is_none() {
             if self.descriptor.output_type().is_none() {
-                self.output_treatment = Weak::default();
+                self.output_treatment = Some(IO::Sequence());
                 self.output_name = None;
 
                 Ok(())
@@ -92,7 +97,7 @@ impl Connection {
             }
             else if input_descriptor.datatype() == self.descriptor.output_type().as_ref().unwrap() {
 
-                self.output_treatment = Weak::default();
+                self.output_treatment = Some(IO::Sequence());
                 self.output_name = input_name.map(String::from);
 
                 Ok(())
@@ -110,7 +115,7 @@ impl Connection {
 
         if input.is_none() {
             if self.descriptor.input_type().is_none() {
-                self.input_treatment = Rc::downgrade(treatment);
+                self.input_treatment = Some(IO::Treatement(Rc::downgrade(treatment)));
                 self.input_name = None;
 
                 Ok(())
@@ -126,7 +131,7 @@ impl Connection {
             }
             else if input_descriptor.datatype() == self.descriptor.input_type().as_ref().unwrap() {
 
-                self.input_treatment = Rc::downgrade(treatment);
+                self.input_treatment = Some(IO::Treatement(Rc::downgrade(treatment)));
                 self.input_name = input.map(String::from);
 
                 Ok(())
@@ -144,7 +149,7 @@ impl Connection {
 
         if output_name.is_none() {
             if self.descriptor.input_type().is_none() {
-                self.input_treatment = Weak::default();
+                self.input_treatment = Some(IO::Sequence());
                 self.input_name = None;
 
                 Ok(())
@@ -161,7 +166,7 @@ impl Connection {
             }
             else if output_descriptor.datatype() == self.descriptor.input_type().as_ref().unwrap() {
 
-                self.input_treatment = Weak::default();
+                self.input_treatment = Some(IO::Sequence());
                 self.input_name = output_name.map(String::from);
 
                 Ok(())
@@ -175,16 +180,16 @@ impl Connection {
         }
     }
 
-    pub fn output_treatment(&self) -> Option<Rc<RefCell<Treatment>>> {
-        self.output_treatment.upgrade()
+    pub fn output_treatment(&self) -> &Option<IO> {
+        &self.output_treatment
     }
 
     pub fn output_name(&self) -> &Option<String> {
         &self.output_name
     }
 
-    pub fn input_treatment(&self) -> Option<Rc<RefCell<Treatment>>> {
-        self.input_treatment.upgrade()
+    pub fn input_treatment(&self) -> &Option<IO> {
+        &self.input_treatment
     }
 
     pub fn input_name(&self) -> &Option<String> {
@@ -192,6 +197,14 @@ impl Connection {
     }
 
     pub fn validate(&self) -> Result<(), LogicError> {
+
+        if self.output_treatment.is_none() {
+            return Err(LogicError::connection_output_not_set())
+        }
+
+        if self.input_treatment.is_none() {
+            return Err(LogicError::connection_input_not_set())
+        }
 
         // Check if descriptor require an output or not, then if one is assigned.
         if let Some(_output) = self.descriptor.output_type() {

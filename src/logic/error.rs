@@ -14,10 +14,12 @@ pub enum LogicErrorKind {
     ConnectionInputForbidden,
     ConnectionInputNotFound,
     ConnectionInputUnmatchingDataType,
+    ConnectionInputNotSet,
     ConnectionOutputRequired,
     ConnectionOutputForbidden,
     ConnectionOutputNotFound,
     ConnectionOutputUnmatchingDataType,
+    ConnectionOutputNotSet,
 }
 
 pub struct LogicError {
@@ -110,6 +112,12 @@ impl LogicError {
         }
     }
 
+    pub fn connection_input_not_set() -> Self {
+        Self {
+            kind: LogicErrorKind::ConnectionInputNotSet
+        }
+    }
+
     pub fn connection_output_required() -> Self {
         Self {
             kind: LogicErrorKind::ConnectionOutputRequired
@@ -131,6 +139,12 @@ impl LogicError {
     pub fn connection_output_unmatching_datatype() -> Self {
         Self {
             kind: LogicErrorKind::ConnectionOutputUnmatchingDataType
+        }
+    }
+
+    pub fn connection_output_not_set() -> Self {
+        Self {
+            kind: LogicErrorKind::ConnectionOutputNotSet
         }
     }
 }
