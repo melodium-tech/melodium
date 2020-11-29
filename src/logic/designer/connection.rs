@@ -3,6 +3,7 @@ use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use super::super::error::LogicError;
 use super::super::ConnectionDescriptor;
+use super::super::TreatmentDescriptor;
 use super::treatment::Treatment;
 use super::sequence::Sequence;
 
@@ -70,8 +71,39 @@ impl Connection {
         }
     }
 
-    pub fn set_self_output(&mut self, input_name: &str) {
-        self.output_name = Some(input_name.to_string());
+    pub fn set_self_output(&mut self, input_name: Option<&str>) -> Result<(), LogicError> {
+        
+        if input_name.is_none() {
+            if self.descriptor.output_type().is_none() {
+                self.output_treatment = Weak::default();
+                self.output_name = None;
+
+                Ok(())
+            }
+            else {
+                Err(LogicError::connection_output_required())
+            }
+        }
+        else if let Some(input_descriptor) = self.sequence.upgrade().unwrap().borrow()
+                                                .descriptor().inputs().get(input_name.unwrap()) {
+
+            if self.descriptor.output_type().is_none() {
+                Err(LogicError::connection_output_forbidden())
+            }
+            else if input_descriptor.datatype() == self.descriptor.output_type().as_ref().unwrap() {
+
+                self.output_treatment = Weak::default();
+                self.output_name = input_name.map(String::from);
+
+                Ok(())
+            }
+            else {
+                Err(LogicError::connection_output_unmatching_datatype())
+            }
+        }
+        else {
+            Err(LogicError::connection_output_not_found())
+        }
     }
 
     pub fn set_input(&mut self, treatment: &Rc<RefCell<Treatment>>, input: Option<&str>) -> Result<(), LogicError> {
@@ -108,8 +140,39 @@ impl Connection {
         }
     }
 
-    pub fn set_self_input(&mut self, output_name: &str) {
-        self.input_name = Some(output_name.to_string());
+    pub fn set_self_input(&mut self, output_name: Option<&str>) -> Result<(), LogicError> {
+
+        if output_name.is_none() {
+            if self.descriptor.input_type().is_none() {
+                self.input_treatment = Weak::default();
+                self.input_name = None;
+
+                Ok(())
+            }
+            else {
+                Err(LogicError::connection_input_required())
+            }
+        }
+        else if let Some(output_descriptor) = self.sequence.upgrade().unwrap().borrow()
+                                                    .descriptor().outputs().get(output_name.unwrap()) {
+
+            if self.descriptor.input_type().is_none() {
+                Err(LogicError::connection_input_forbidden())
+            }
+            else if output_descriptor.datatype() == self.descriptor.input_type().as_ref().unwrap() {
+
+                self.input_treatment = Weak::default();
+                self.input_name = output_name.map(String::from);
+
+                Ok(())
+            }
+            else {
+                Err(LogicError::connection_input_unmatching_datatype())
+            }
+        }
+        else {
+            Err(LogicError::connection_input_not_found())
+        }
     }
 
     pub fn output_treatment(&self) -> Option<Rc<RefCell<Treatment>>> {
