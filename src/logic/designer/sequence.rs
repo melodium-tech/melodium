@@ -60,7 +60,7 @@ impl Sequence {
             Ok(rc_treatment)
         }
         else {
-            todo!()
+            Err(LogicError::unexisting_treatment())
         }
 
     }

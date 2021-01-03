@@ -20,6 +20,7 @@ pub enum LogicErrorKind {
     ConnectionOutputNotFound,
     ConnectionOutputUnmatchingDataType,
     ConnectionOutputNotSet,
+    UnexistingTreatment,
 }
 
 pub struct LogicError {
@@ -145,6 +146,12 @@ impl LogicError {
     pub fn connection_output_not_set() -> Self {
         Self {
             kind: LogicErrorKind::ConnectionOutputNotSet
+        }
+    }
+
+    pub fn unexisting_treatment() -> Self {
+        Self {
+            kind: LogicErrorKind::UnexistingTreatment
         }
     }
 }
