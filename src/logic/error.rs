@@ -21,6 +21,7 @@ pub enum LogicErrorKind {
     ConnectionOutputUnmatchingDataType,
     ConnectionOutputNotSet,
     UnexistingTreatment,
+    UnexistingModel,
 }
 
 pub struct LogicError {
@@ -152,6 +153,12 @@ impl LogicError {
     pub fn unexisting_treatment() -> Self {
         Self {
             kind: LogicErrorKind::UnexistingTreatment
+        }
+    }
+
+    pub fn unexisting_model() -> Self {
+        Self {
+            kind: LogicErrorKind::UnexistingModel
         }
     }
 }

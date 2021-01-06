@@ -47,8 +47,17 @@ impl Sequence {
         &self.descriptor
     }
 
-    pub fn add_model_intanciation(&mut self, model_identifier: &IdentifierDescriptor, name: &str) -> Result<(), LogicError> {
-        todo!()
+    pub fn add_model_intanciation(&mut self, model_identifier: &IdentifierDescriptor, name: &str) -> Result<Rc<RefCell<ModelInstanciation>>, LogicError> {
+        
+        if let Some(model_descriptor) = self.collections.models.get(model_identifier) {
+            let model = ModelInstanciation::new(&self.auto_reference.upgrade().unwrap(), model_descriptor, name);
+            let rc_model = Rc::new(RefCell::new(model));
+            self.model_instanciations.insert(name.to_string(), Rc::clone(&rc_model));
+            Ok(rc_model)
+        }
+        else {
+            Err(LogicError::unexisting_model())
+        }
     }
 
     pub fn add_treatment(&mut self, identifier: &IdentifierDescriptor, name: &str) -> Result<Rc<RefCell<Treatment>>, LogicError> {
