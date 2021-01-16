@@ -97,8 +97,8 @@ impl Connections {
         self.insert(ConnectionDescriptor::new(Some(DataTypeDescriptor::new(output_structure, output_type)), Some(DataTypeDescriptor::new(input_structure, input_type))));
     }
 
-    pub fn get(output_type: &Option<DataTypeDescriptor>, input_type: &Option<DataTypeDescriptor>) -> Option<&'static Arc<ConnectionDescriptor>> {
+    pub fn get(output_type: Option<DataTypeDescriptor>, input_type: Option<DataTypeDescriptor>) -> Option<&'static Arc<ConnectionDescriptor>> {
 
-        Self::singleton().connections.get(&(*output_type, *input_type))
+        Self::singleton().connections.get(&(output_type, input_type))
     }
 }

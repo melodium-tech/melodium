@@ -1,5 +1,6 @@
 
 use std::rc::{Rc, Weak};
+use std::sync::{Arc};
 use std::cell::RefCell;
 use super::super::error::LogicError;
 use super::super::ConnectionDescriptor;
@@ -16,7 +17,7 @@ pub struct Connection {
 
     sequence: Weak<RefCell<Sequence>>,
 
-    descriptor: Rc<ConnectionDescriptor>,
+    descriptor: Arc<ConnectionDescriptor>,
 
     output_treatment: Option<IO>,
     output_name: Option<String>,
@@ -27,10 +28,10 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn new(sequence: &Rc<RefCell<Sequence>>, descriptor: &Rc<ConnectionDescriptor>) -> Self {
+    pub fn new(sequence: &Rc<RefCell<Sequence>>, descriptor: &Arc<ConnectionDescriptor>) -> Self {
         Self {
             sequence: Rc::downgrade(sequence),
-            descriptor: Rc::clone(descriptor),
+            descriptor: Arc::clone(descriptor),
             output_treatment: None,
             output_name: None,
             input_treatment: None,
@@ -38,7 +39,7 @@ impl Connection {
         }
     }
 
-    pub fn descriptor(&self) -> &Rc<ConnectionDescriptor> {
+    pub fn descriptor(&self) -> &Arc<ConnectionDescriptor> {
         &self.descriptor
     }
 
