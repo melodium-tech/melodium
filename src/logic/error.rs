@@ -15,6 +15,7 @@ pub enum LogicErrorKind {
     ConnectionInputNotFound,
     ConnectionInputUnmatchingDataType,
     ConnectionInputNotSet,
+    ConnectionSelfInputNotFound,
     ConnectionOutputRequired,
     ConnectionOutputForbidden,
     ConnectionOutputNotFound,
@@ -119,6 +120,12 @@ impl LogicError {
     pub fn connection_input_not_set() -> Self {
         Self {
             kind: LogicErrorKind::ConnectionInputNotSet
+        }
+    }
+
+    pub fn connection_self_input_not_found() -> Self {
+        Self {
+            kind: LogicErrorKind::ConnectionSelfInputNotFound
         }
     }
 

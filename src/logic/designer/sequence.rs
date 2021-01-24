@@ -7,6 +7,7 @@ use super::super::collection_pool::CollectionPool;
 use super::super::connections::Connections;
 use super::super::IdentifierDescriptor;
 use super::super::SequenceTreatmentDescriptor;
+use super::super::TreatmentDescriptor;
 
 use super::model_instanciation::ModelInstanciation;
 use super::connection::Connection;
@@ -97,7 +98,7 @@ impl Sequence {
         if let Some(pos_rc_input_treatment) = self.treatments.get(input_treatment) {
             rc_input_treatment = pos_rc_input_treatment;
 
-            if let Some(pos_input) = rc_output_treatment.borrow().descriptor().inputs().get(input_name) {
+            if let Some(pos_input) = rc_input_treatment.borrow().descriptor().inputs().get(input_name) {
                 datatype_input = pos_input.datatype().clone();
             }
             else {
@@ -129,7 +130,49 @@ impl Sequence {
     }
 
     pub fn add_input_connection(&mut self, self_input_name: &str, input_treatment: &str, input_name: &str) -> Result<(), LogicError> {
-        todo!()
+        
+        let datatype_input_self;
+        if let Some(pos_input) = self.descriptor.inputs().get(self_input_name) {
+            datatype_input_self = pos_input.datatype().clone();
+        }
+        else {
+            return Err(LogicError::connection_self_input_not_found())
+        }
+
+        let rc_input_treatment;
+        let datatype_input_treatment;
+        if let Some(pos_rc_input_treatment) = self.treatments.get(input_treatment) {
+            rc_input_treatment = pos_rc_input_treatment;
+
+            if let Some(pos_input) = rc_input_treatment.borrow().descriptor().inputs().get(input_name) {
+                datatype_input_treatment = pos_input.datatype().clone();
+            }
+            else {
+                return Err(LogicError::connection_input_not_found())
+            }
+        }
+        else {
+            return Err(LogicError::undeclared_treatment())
+        }
+
+        if let Some(arc_connection_descriptor) = Connections::get(Some(datatype_input_self), Some(datatype_input_treatment)) {
+
+            let mut connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
+
+            connection.set_self_input(Some(self_input_name))?;
+
+            connection.set_input(rc_input_treatment, Some(input_name))?;
+
+            connection.validate()?;
+
+            let rc_connection = Rc::new(RefCell::new(connection));
+            self.connections.push(Rc::clone(&rc_connection));
+
+            Ok(())
+        }
+        else {
+            return Err(LogicError::unexisting_connexion_type())
+        }
     }
 
     pub fn add_output_connection(&mut self, self_output_name: &str, output_treatment: &str, output_name: &str) -> Result<(), LogicError> {
