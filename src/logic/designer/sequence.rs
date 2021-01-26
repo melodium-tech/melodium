@@ -176,7 +176,49 @@ impl Sequence {
     }
 
     pub fn add_output_connection(&mut self, self_output_name: &str, output_treatment: &str, output_name: &str) -> Result<(), LogicError> {
-        todo!()
+        
+        let datatype_output_self;
+        if let Some(pos_output) = self.descriptor.outputs().get(self_output_name) {
+            datatype_output_self = pos_output.datatype().clone();
+        }
+        else {
+            return Err(LogicError::connection_self_output_not_found())
+        }
+
+        let rc_output_treatment;
+        let datatype_output_treatment;
+        if let Some(pos_rc_output_treatment) = self.treatments.get(output_treatment) {
+            rc_output_treatment = pos_rc_output_treatment;
+
+            if let Some(pos_output) = rc_output_treatment.borrow().descriptor().outputs().get(output_name) {
+                datatype_output_treatment = pos_output.datatype().clone();
+            }
+            else {
+                return Err(LogicError::connection_output_not_found())
+            }
+        }
+        else {
+            return Err(LogicError::undeclared_treatment())
+        }
+
+        if let Some(arc_connection_descriptor) = Connections::get(Some(datatype_output_treatment), Some(datatype_output_self)) {
+
+            let mut connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
+
+            connection.set_self_input(Some(self_output_name))?;
+
+            connection.set_input(rc_output_treatment, Some(output_name))?;
+
+            connection.validate()?;
+
+            let rc_connection = Rc::new(RefCell::new(connection));
+            self.connections.push(Rc::clone(&rc_connection));
+
+            Ok(())
+        }
+        else {
+            return Err(LogicError::unexisting_connexion_type())
+        }
     }
 
     pub fn model_instanciations(&self) -> &HashMap<String, Rc<RefCell<ModelInstanciation>>> {
