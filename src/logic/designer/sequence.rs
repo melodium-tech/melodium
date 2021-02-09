@@ -129,6 +129,44 @@ impl Sequence {
         }
     }
 
+    pub fn add_void_connection(&mut self, output_treatment: &str, input_treatment: &str) -> Result<(), LogicError> {
+
+        let rc_output_treatment;
+        if let Some(pos_rc_output_treatment) = self.treatments.get(output_treatment) {
+            rc_output_treatment = pos_rc_output_treatment;
+        }
+        else {
+            return Err(LogicError::undeclared_treatment())
+        }
+
+        let rc_input_treatment;
+        if let Some(pos_rc_input_treatment) = self.treatments.get(input_treatment) {
+            rc_input_treatment = pos_rc_input_treatment;
+        }
+        else {
+            return Err(LogicError::undeclared_treatment())
+        }
+
+        if let Some(arc_connection_descriptor) = Connections::get(None, None) {
+
+            let mut connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
+
+            connection.set_output(rc_output_treatment, None)?;
+
+            connection.set_input(rc_input_treatment, None)?;
+
+            connection.validate()?;
+
+            let rc_connection = Rc::new(RefCell::new(connection));
+            self.connections.push(Rc::clone(&rc_connection));
+
+            Ok(())
+        }
+        else {
+            return Err(LogicError::unexisting_connexion_type())
+        }
+    }
+
     pub fn add_input_connection(&mut self, self_input_name: &str, input_treatment: &str, input_name: &str) -> Result<(), LogicError> {
         
         let datatype_input_self;
