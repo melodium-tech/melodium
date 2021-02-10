@@ -10,7 +10,7 @@ use super::super::SequenceTreatmentDescriptor;
 use super::super::TreatmentDescriptor;
 
 use super::model_instanciation::ModelInstanciation;
-use super::connection::Connection;
+use super::connection::{Connection, IO};
 use super::treatment::Treatment;
 
 pub struct Sequence {
@@ -272,6 +272,37 @@ impl Sequence {
     }
 
     pub fn validate(&self) -> Result<(), LogicError> {
+        
+        // TODO Maybe should we check if no circular
+        // references in connections there
+
+        // Counting number of outputs connected to self outputs.
+        let mut outputs_satisfaction = self.descriptor.outputs().iter().map(
+                |(name, _output)| -> (String, usize) { (name.to_string(), 0) }
+            ).collect::<HashMap<String, usize>>();
+
+        for connection in &self.connections {
+
+            let borrowed_connection = connection.borrow();
+            match borrowed_connection.output_treatment().as_ref().unwrap() {
+                IO::Sequence() => {
+                    *(outputs_satisfaction.get_mut(borrowed_connection.output_name().as_ref().unwrap()).unwrap()) += 1;
+                }
+                _ => {}
+            }
+        }
+        
+        // Check self outputs are connected to exactly one treatment output.
+        for (_output, count) in outputs_satisfaction {
+
+            if count < 1 {
+                return Err(LogicError::unsatisfied_output())
+            }
+            else if count > 1 {
+                return Err(LogicError::overloaded_output())
+            }
+        }
+
         Ok(())
     }
 

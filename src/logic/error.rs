@@ -26,6 +26,8 @@ pub enum LogicErrorKind {
     UnexistingModel,
     UndeclaredTreatment,
     UnexistingConnectionType,
+    UnsatisfiedOutput,
+    OverloadedOutput,
 }
 
 pub struct LogicError {
@@ -187,6 +189,18 @@ impl LogicError {
     pub fn unexisting_connexion_type() -> Self {
         Self {
             kind: LogicErrorKind::UnexistingConnectionType
+        }
+    }
+
+    pub fn unsatisfied_output() -> Self {
+        Self {
+            kind: LogicErrorKind::UnsatisfiedOutput
+        }
+    }
+
+    pub fn overloaded_output() -> Self {
+        Self {
+            kind: LogicErrorKind::OverloadedOutput
         }
     }
 }
