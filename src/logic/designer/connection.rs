@@ -3,8 +3,8 @@ use std::rc::{Rc, Weak};
 use std::sync::{Arc};
 use std::cell::RefCell;
 use super::super::error::LogicError;
-use super::super::ConnectionDescriptor;
-use super::super::TreatmentDescriptor;
+use super::super::descriptor::ConnectionDescriptor;
+use super::super::descriptor::TreatmentDescriptor;
 use super::treatment::Treatment;
 use super::sequence::Sequence;
 

@@ -5,9 +5,9 @@ use std::collections::HashMap;
 use super::super::error::LogicError;
 use super::super::collection_pool::CollectionPool;
 use super::super::connections::Connections;
-use super::super::IdentifierDescriptor;
-use super::super::SequenceTreatmentDescriptor;
-use super::super::TreatmentDescriptor;
+use super::super::descriptor::IdentifierDescriptor;
+use super::super::descriptor::SequenceTreatmentDescriptor;
+use super::super::descriptor::TreatmentDescriptor;
 
 use super::model_instanciation::ModelInstanciation;
 use super::connection::{Connection, IO};

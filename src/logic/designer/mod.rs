@@ -1,8 +1,17 @@
 
-mod connection;
+pub mod connection;
 pub mod model;
-mod model_instanciation;
-mod parameter;
+pub mod model_instanciation;
+pub mod parameter;
 pub mod sequence;
-mod treatment;
-mod value;
+pub mod treatment;
+pub mod value;
+
+pub use connection::Connection as ConnectionDesigner;
+pub use connection::IO as ConnectionIODesigner;
+pub use model::Model as ModelDesigner;
+pub use model_instanciation::ModelInstanciation as ModelInstanciationDesigner;
+pub use parameter::Parameter as ParameterDesigner;
+pub use sequence::Sequence as SequenceDesigner;
+pub use treatment::Treatment as TreatmentDesigner;
+pub use value::Value as ValueDesigner;

@@ -4,10 +4,10 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use super::super::error::LogicError;
 use super::super::collection_pool::CollectionPool;
-use super::super::ConfiguredModelDescriptor;
-use super::super::ModelDescriptor;
-use super::super::ParameterizedDescriptor;
-use super::super::ParameterDescriptor;
+use super::super::descriptor::ConfiguredModelDescriptor;
+use super::super::descriptor::ModelDescriptor;
+use super::super::descriptor::ParameterizedDescriptor;
+use super::super::descriptor::ParameterDescriptor;
 use super::parameter::Parameter;
 use super::value::Value;
 

@@ -1,7 +1,7 @@
 
 use std::rc::{Rc, Weak};
 use super::super::error::LogicError;
-use super::super::ParameterizedDescriptor;
+use super::super::descriptor::ParameterizedDescriptor;
 use super::value::Value;
 use super::super::contexts::Contexts;
 

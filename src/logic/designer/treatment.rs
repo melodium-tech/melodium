@@ -3,11 +3,11 @@ use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use super::super::error::LogicError;
-use super::super::TreatmentDescriptor;
+use super::super::descriptor::TreatmentDescriptor;
 use super::sequence::Sequence;
 use super::parameter::Parameter;
-use super::super::ParameterizedDescriptor;
-use super::super::ParameterDescriptor;
+use super::super::descriptor::ParameterizedDescriptor;
+use super::super::descriptor::ParameterDescriptor;
 use super::value::Value;
 use intertrait::cast::CastRc;
 
