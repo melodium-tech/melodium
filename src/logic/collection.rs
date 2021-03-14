@@ -1,4 +1,6 @@
 
+//! Provides generic collection for logical element types.
+
 use std::collections::HashMap;
 use std::rc::Rc;
 use super::descriptor::IdentifiedDescriptor;

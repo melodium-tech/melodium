@@ -1,4 +1,6 @@
 
+//! Describe logic elements available.
+
 pub mod buildable;
 pub mod connection;
 pub mod configured_model;

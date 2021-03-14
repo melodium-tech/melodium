@@ -1,4 +1,6 @@
 
+//! Provides collection of contexts types available.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use super::descriptor::ContextDescriptor;

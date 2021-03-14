@@ -1,4 +1,6 @@
 
+//! Provides common collections pool for logical environment.
+
 use super::collection::Collection;
 use super::descriptor::ModelDescriptor;
 use super::descriptor::TreatmentDescriptor;

@@ -1,4 +1,6 @@
 
+//! Provides collection of connections types available.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use super::descriptor::{ConnectionDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor as DataStructure, DataTypeTypeDescriptor as DataType};

@@ -1,4 +1,8 @@
 
+//! Allow design of logical elements.
+//! 
+//! Those structs are not aimed to be instancied directly, but through the [elements descriptors](super::descriptor).
+
 pub mod connection;
 pub mod model;
 pub mod model_instanciation;
