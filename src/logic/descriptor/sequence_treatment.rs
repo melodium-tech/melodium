@@ -1,10 +1,15 @@
 
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::RwLock;
 use intertrait::cast_to;
 use super::identified::Identified;
 use super::identifier::Identifier;
 use super::parameterized::Parameterized;
+use super::designable::Designable;
+use super::buildable::Buildable;
+use super::super::builder::Builder;
 use super::input::Input;
 use super::output::Output;
 use super::core_model::CoreModel;
@@ -20,6 +25,7 @@ pub struct SequenceTreatment {
     inputs: HashMap<String, Input>,
     outputs: HashMap<String, Output>,
     requirements: HashMap<String, Requirement>,
+    builder: RwLock<Option<Arc<Box<dyn Builder>>>>,
 }
 
 impl SequenceTreatment {
@@ -30,7 +36,8 @@ impl SequenceTreatment {
             parameters: HashMap::new(),
             inputs: HashMap::new(),
             outputs: HashMap::new(),
-            requirements: HashMap::new()
+            requirements: HashMap::new(),
+            builder: RwLock::new(None)
         }
     }
 
@@ -86,5 +93,19 @@ impl Treatment for SequenceTreatment {
 
     fn requirements(&self) -> &HashMap<String, Requirement> {
         &self.requirements
+    }
+}
+
+impl Designable for SequenceTreatment {
+    
+    fn register_builder(&self, builder: Box<dyn Builder>) {
+        *(self.builder.write().unwrap()) = Some(Arc::new(builder))
+    }
+}
+
+impl Buildable for SequenceTreatment {
+    
+    fn builder(&self) -> Arc<Box<dyn Builder>> {
+        Arc::clone(self.builder.read().unwrap().as_ref().unwrap())
     }
 }

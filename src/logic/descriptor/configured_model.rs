@@ -1,19 +1,24 @@
 
+use std::sync::{Arc, RwLock};
 use std::collections::HashMap;
 use std::rc::Rc;
 use intertrait::cast_to;
 use super::identified::Identified;
 use super::identifier::Identifier;
 use super::parameterized::Parameterized;
+use super::designable::Designable;
+use super::buildable::Buildable;
 use super::model::Model;
 use super::core_model::CoreModel;
 use super::parameter::Parameter;
+use super::super::builder::Builder;
 
 #[derive(Debug)]
 pub struct ConfiguredModel {
     identifier: Identifier,
     core_model: Rc<CoreModel>,
     parameters: HashMap<String, Parameter>,
+    builder: RwLock<Option<Arc<Box<dyn Builder>>>>,
 }
 
 impl ConfiguredModel {
@@ -22,6 +27,7 @@ impl ConfiguredModel {
             identifier,
             core_model: Rc::clone(core_model),
             parameters: HashMap::new(),
+            builder: RwLock::new(None),
         }
     }
 
@@ -42,6 +48,20 @@ impl Parameterized for ConfiguredModel {
 
     fn parameters(&self) -> &HashMap<String, Parameter> {
         &self.parameters
+    }
+}
+
+impl Designable for ConfiguredModel {
+    
+    fn register_builder(&self, builder: Box<dyn Builder>) {
+        *(self.builder.write().unwrap()) = Some(Arc::new(builder))
+    }
+}
+
+impl Buildable for ConfiguredModel {
+
+    fn builder(&self) -> Arc<Box<dyn Builder>> {
+        Arc::clone(self.builder.read().unwrap().as_ref().unwrap())
     }
 }
 
