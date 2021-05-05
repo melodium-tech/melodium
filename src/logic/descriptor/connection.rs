@@ -1,6 +1,7 @@
 
 use super::datatype::DataType;
 
+#[derive(Debug)]
 pub struct Connection {
 
     output_type: Option<DataType>,

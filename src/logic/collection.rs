@@ -6,6 +6,7 @@ use std::rc::Rc;
 use super::descriptor::IdentifiedDescriptor;
 use super::descriptor::IdentifierDescriptor;
 
+#[derive(Debug)]
 pub struct Collection<T: IdentifiedDescriptor + ?Sized> {
     descriptors: HashMap<IdentifierDescriptor, Rc<T>>,
 }

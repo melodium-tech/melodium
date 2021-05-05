@@ -8,11 +8,13 @@ use super::super::descriptor::TreatmentDescriptor;
 use super::treatment::Treatment;
 use super::sequence::Sequence;
 
+#[derive(Debug)]
 pub enum IO {
     Sequence(),
     Treatement(Weak<RefCell<Treatment>>)
 }
 
+#[derive(Debug)]
 pub struct Connection {
 
     sequence: Weak<RefCell<Sequence>>,

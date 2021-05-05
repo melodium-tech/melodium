@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::iter::FromIterator;
 use super::datatype::DataType;
 
+#[derive(Debug)]
 pub struct Context {
     name: String,
     values: HashMap<String, DataType>,

@@ -5,6 +5,7 @@ use super::super::descriptor::ParameterizedDescriptor;
 use super::value::Value;
 use super::super::contexts::Contexts;
 
+#[derive(Debug)]
 pub struct Parameter {
 
     scope: Weak<dyn ParameterizedDescriptor>,

@@ -11,6 +11,7 @@ use super::super::descriptor::ParameterDescriptor;
 use super::value::Value;
 use intertrait::cast::CastRc;
 
+#[derive(Debug)]
 pub struct Treatment {
 
     sequence: Weak<RefCell<Sequence>>,

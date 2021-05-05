@@ -6,11 +6,15 @@ use super::super::error::LogicError;
 use super::super::collection_pool::CollectionPool;
 use super::super::descriptor::ConfiguredModelDescriptor;
 use super::super::descriptor::ModelDescriptor;
+use super::super::descriptor::DesignableDescriptor;
 use super::super::descriptor::ParameterizedDescriptor;
 use super::super::descriptor::ParameterDescriptor;
 use super::parameter::Parameter;
 use super::value::Value;
 
+use super::super::builder::configured_model_builder::ConfiguredModelBuilder;
+
+#[derive(Debug)]
 pub struct Model {
     collections: Rc<CollectionPool>,
     descriptor: Rc<ConfiguredModelDescriptor>,
@@ -105,6 +109,8 @@ impl Model {
         
         self.validate()?;
 
-        todo!();
+        self.descriptor.register_builder(Box::new(ConfiguredModelBuilder::new(&self.auto_reference.upgrade().unwrap())));
+
+        Ok(())
     }
 }

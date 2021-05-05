@@ -7,12 +7,16 @@ use super::super::collection_pool::CollectionPool;
 use super::super::connections::Connections;
 use super::super::descriptor::IdentifierDescriptor;
 use super::super::descriptor::SequenceTreatmentDescriptor;
+use super::super::descriptor::DesignableDescriptor;
 use super::super::descriptor::TreatmentDescriptor;
 
 use super::model_instanciation::ModelInstanciation;
 use super::connection::{Connection, IO};
 use super::treatment::Treatment;
 
+use super::super::builder::sequence_builder::SequenceBuilder;
+
+#[derive(Debug)]
 pub struct Sequence {
     collections: Rc<CollectionPool>,
     descriptor: Rc<SequenceTreatmentDescriptor>,
@@ -310,7 +314,9 @@ impl Sequence {
 
         self.validate()?;
 
-        todo!()
+        self.descriptor.register_builder(Box::new(SequenceBuilder::new(&self.auto_reference.upgrade().unwrap())));
+
+        Ok(())
     }
 }
 

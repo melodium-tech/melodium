@@ -5,6 +5,9 @@
 //! 
 
 pub mod builder;
+pub mod configured_model_builder;
+pub mod core_model_builder;
+pub mod core_treatment_builder;
 pub mod sequence_builder;
 
 pub use builder::Builder as Builder;

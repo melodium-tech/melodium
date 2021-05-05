@@ -5,6 +5,7 @@ use super::collection::Collection;
 use super::descriptor::ModelDescriptor;
 use super::descriptor::TreatmentDescriptor;
 
+#[derive(Debug)]
 pub struct CollectionPool {
     pub models: Collection<dyn ModelDescriptor>,
     pub treatments: Collection<dyn TreatmentDescriptor>,
