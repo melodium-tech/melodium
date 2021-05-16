@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use super::Builder;
 use super::super::designer::SequenceDesigner;
-use super::super::super::executive::environment::{Environment, ContextualEnvironment};
+use super::super::super::executive::environment::{GenesisEnvironment, ContextualEnvironment};
 
 #[derive(Debug)]
 pub struct SequenceBuilder {
@@ -20,7 +20,7 @@ impl SequenceBuilder {
 
 impl Builder for SequenceBuilder {
 
-    fn static_build(&self, environment: &dyn Environment) {
+    fn static_build(&self, environment: &dyn GenesisEnvironment) {
 
     }
 
