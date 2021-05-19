@@ -5,7 +5,7 @@ use super::Builder;
 use super::super::descriptor::CoreTreatmentDescriptor;
 use super::super::super::executive::environment::{GenesisEnvironment, ContextualEnvironment};
 
-#[derive(Debug)]
+/*#[derive(Debug)]
 pub struct CoreTreatmentBuilder {
 
 }
@@ -19,4 +19,8 @@ impl Builder for CoreTreatmentBuilder {
     fn dynamic_build(&self,  environment: &dyn ContextualEnvironment) {
 
     }
+}*/
+
+pub struct CoreTreatmentBuilder {
+
 }

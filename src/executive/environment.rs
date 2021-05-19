@@ -26,10 +26,9 @@ impl Environment {
         }
     }
 
-    fn register_model(&self, name: &str, model: Arc<dyn Model>) {
+    fn register_model(&self, model: Arc<dyn Model>) {
 
         self.world.add_model(Arc::clone(&model));
-        //self.models.insert(name.to_string(), model);
     }
 
     fn add_model(&mut self, name: &str, model: Arc<dyn Model>) {
@@ -60,7 +59,7 @@ impl Environment {
 pub trait GenesisEnvironment : Debug {
 
     fn base(&self) -> Box<dyn GenesisEnvironment>;
-    fn register_model(&self, name: &str, model: Arc<dyn Model>);
+    fn register_model(&self, model: Arc<dyn Model>);
     fn add_model(&mut self, name: &str, model: Arc<dyn Model>);
     fn get_model(&self, name: &str) -> Option<&Arc<dyn Model>>;
     fn add_variable(&mut self, name: &str, value: Value);
@@ -84,8 +83,8 @@ impl GenesisEnvironment for Environment {
         Box::new(self.base())
     }
 
-    fn register_model(&self, name: &str, model: Arc<dyn Model>) {
-        self.register_model(name, model)
+    fn register_model(&self, model: Arc<dyn Model>) {
+        self.register_model(model)
     }
 
     fn add_model(&mut self, name: &str, model: Arc<dyn Model>) {
@@ -135,12 +134,3 @@ impl ContextualEnvironment for Environment {
         self.get_context(name)
     }
 }
-
-/*pub trait Environment {
-
-    fn register_model(&mut self, model: Arc<dyn Model>);
-}
-
-pub trait ContextualEnvironment {
-
-}*/

@@ -1,30 +1,18 @@
 
-/*
 use std::sync::Arc;
-use std::collections::HashMap;
-use super::data::Data;
+use async_std::future::Future;
+use super::result_status::ResultStatus;
+use super::transmitter::Transmitter;
+use super::value::Value;
 use super::model::Model;
-use super::super::logic::descriptor::CoreTreatmentDescriptor;
 
-pub struct Treatment {
-    descriptor: Arc<CoreTreatmentDescriptor>,
-    parameters: HashMap<String, Data>,
-    models: HashMap<String, Model>,
-    method: fn(HashMap<String, Data>) -> HashMap<String, Data>,
+pub trait Treatment{
+
+    fn set_parameter(&mut self, param: &str, value: &Value);
+    fn set_model(&mut self, name: &str, model: &Arc<dyn Model>);
+
+    fn get_output(&mut self, output_name: &str) -> Option<Transmitter>;
+    fn set_input(&mut self, input_name: &str, transmitter: Transmitter) -> Result<(), ()>;
+
+    fn prepare(&self) -> Vec<Box<dyn Future<Output = ResultStatus>>>;
 }
-
-pub struct AdditionTreatment {
-    vectorA: Vec<i64>,
-    vectorB: Vec<i64>,
-
-    method: fn(),
-
-    vectorOut: &fn(Vec<i64>)
-}
-
-pub struct Interface<'a> {
-    inputs: HashMap<&'a str, &'a fn()>,
-
-    outputs: HashMap<&'a str, &'a fn()>
-}
-*/

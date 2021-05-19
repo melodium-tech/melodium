@@ -5,7 +5,6 @@
 //! This module is currently being designed.
 
 pub mod environment;
-pub mod manager;
 pub mod model;
 pub mod context;
 pub mod data;
