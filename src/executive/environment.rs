@@ -4,14 +4,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use super::world::World;
 use super::model::Model;
-use super::value::Value;
+use super::data::Data;
 use super::context::Context;
 
 #[derive(Debug)]
 struct Environment {
     world: Arc<World>,
     models: HashMap<String, Arc<dyn Model>>,
-    variables: HashMap<String, Value>,
+    variables: HashMap<String, Data>,
     contextes: HashMap<String, Context>,
 }
 
@@ -39,11 +39,11 @@ impl Environment {
         self.models.get(name)
     }
 
-    fn add_variable(&mut self, name: &str, value: Value) {
-        self.variables.insert(name.to_string(), value);
+    fn add_variable(&mut self, name: &str, data: Data) {
+        self.variables.insert(name.to_string(), data);
     }
 
-    fn get_variable(&self, name: &str) -> Option<&Value> {
+    fn get_variable(&self, name: &str) -> Option<&Data> {
         self.variables.get(name)
     }
 
@@ -62,8 +62,8 @@ pub trait GenesisEnvironment : Debug {
     fn register_model(&self, model: Arc<dyn Model>);
     fn add_model(&mut self, name: &str, model: Arc<dyn Model>);
     fn get_model(&self, name: &str) -> Option<&Arc<dyn Model>>;
-    fn add_variable(&mut self, name: &str, value: Value);
-    fn get_variable(&self, name: &str) -> Option<&Value>;
+    fn add_variable(&mut self, name: &str, data: Data);
+    fn get_variable(&self, name: &str) -> Option<&Data>;
 }
 
 pub trait ContextualEnvironment : Debug {
@@ -71,8 +71,8 @@ pub trait ContextualEnvironment : Debug {
     fn base(&self) -> Box<dyn ContextualEnvironment>;
     fn add_model(&mut self, name: &str, model: Arc<dyn Model>);
     fn get_model(&self, name: &str) -> Option<&Arc<dyn Model>>;
-    fn add_variable(&mut self, name: &str, value: Value);
-    fn get_variable(&self, name: &str) -> Option<&Value>;
+    fn add_variable(&mut self, name: &str, data: Data);
+    fn get_variable(&self, name: &str) -> Option<&Data>;
     fn add_context(&mut self, name: &str, context: Context);
     fn get_context(&self, name: &str) -> Option<&Context>;
 }
@@ -95,11 +95,11 @@ impl GenesisEnvironment for Environment {
         self.get_model(name)
     }
 
-    fn add_variable(&mut self, name: &str, value: Value) {
-        self.add_variable(name, value)
+    fn add_variable(&mut self, name: &str, data: Data) {
+        self.add_variable(name, data)
     }
 
-    fn get_variable(&self, name: &str) -> Option<&Value> {
+    fn get_variable(&self, name: &str) -> Option<&Data> {
         self.get_variable(name)
     }
 }
@@ -118,11 +118,11 @@ impl ContextualEnvironment for Environment {
         self.get_model(name)
     }
 
-    fn add_variable(&mut self, name: &str, value: Value) {
-        self.add_variable(name, value)
+    fn add_variable(&mut self, name: &str, data: Data) {
+        self.add_variable(name, data)
     }
 
-    fn get_variable(&self, name: &str) -> Option<&Value> {
+    fn get_variable(&self, name: &str) -> Option<&Data> {
         self.get_variable(name)
     }
 
