@@ -20,7 +20,7 @@ pub enum ValueContent {
     Integer(i64),
     Real(f64),
     String(String),
-    /// Array, allowing recursive values (in case of vectors, matrices, or collections).
+    /// Array, allowing recursive values (in case of vectors).
     Array(Vec<ValueContent>),
     /// Named value, referring to a parameter of the hosting sequence.
     Name(Reference<DeclaredParameter>),

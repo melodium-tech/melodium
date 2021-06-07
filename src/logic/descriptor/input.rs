@@ -1,17 +1,20 @@
 
 use super::datatype::DataType;
+use super::flow::Flow;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Input {
     name: String,
     datatype: DataType,
+    flow: Flow,
 }
 
 impl Input {
-    pub fn new(name: &str, datatype: DataType) -> Self {
+    pub fn new(name: &str, datatype: DataType, flow: Flow) -> Self {
         Self {
             name: name.to_string(),
-            datatype
+            datatype,
+            flow,
         }
     }
 

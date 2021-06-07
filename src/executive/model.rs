@@ -3,7 +3,6 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use std::collections::HashMap;
 //use super::manager::Manager;
-use super::data::Data;
 use super::value::Value;
 use super::super::logic::descriptor::CoreModelDescriptor;
 

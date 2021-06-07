@@ -1,5 +1,5 @@
 
-use crate::executive::data::Data;
+use crate::executive::value::Value;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DataType {
@@ -23,17 +23,22 @@ impl DataType {
         &self.r#type
     }
 
-    pub fn is_compatible(&self, data: &Data) -> bool {
+    pub fn is_compatible(&self, value: &Value) -> bool {
         todo!()
     }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Flow {
+    Indifferent,
+    Block,
+    Stream,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Structure {
     Scalar,
     Vector,
-    Matrix,
-    Collection,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
