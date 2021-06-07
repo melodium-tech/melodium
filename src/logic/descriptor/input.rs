@@ -25,4 +25,8 @@ impl Input {
     pub fn datatype(&self) -> &DataType {
         &self.datatype
     }
+
+    pub fn flow(&self) -> &Flow {
+        &self.flow
+    }
 }

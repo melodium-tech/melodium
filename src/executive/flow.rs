@@ -2,7 +2,7 @@
 use super::value::Value;
 
 #[derive(Clone, PartialEq, Debug)]
-pub enum Data {
+pub enum Flow {
     Block(Value),
     Stream(Vec<Value>),
 }

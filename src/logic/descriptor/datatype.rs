@@ -29,13 +29,6 @@ impl DataType {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Flow {
-    Indifferent,
-    Block,
-    Stream,
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Structure {
     Scalar,
     Vector,

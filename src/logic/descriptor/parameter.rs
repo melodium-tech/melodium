@@ -1,16 +1,16 @@
 
 use super::datatype::DataType;
-use crate::executive::data::Data;
+use crate::executive::value::Value;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Parameter {
     name: String,
     datatype: DataType,
-    default: Option<Data>,
+    default: Option<Value>,
 }
 
 impl Parameter {
-    pub fn new(name: &str, datatype: DataType, default: Option<Data>) -> Self {
+    pub fn new(name: &str, datatype: DataType, default: Option<Value>) -> Self {
         Self {
             name: name.to_string(),
             datatype,
@@ -26,7 +26,7 @@ impl Parameter {
         &self.datatype
     }
 
-    pub fn default(&self) -> &Option<Data> {
+    pub fn default(&self) -> &Option<Value> {
         &self.default
     }
 }
