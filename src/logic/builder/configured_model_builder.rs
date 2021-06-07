@@ -1,5 +1,6 @@
 
 use std::rc::Rc;
+use std::sync::Arc;
 use std::cell::RefCell;
 use super::Builder;
 use super::super::descriptor::model::Model;
@@ -7,6 +8,7 @@ use super::super::descriptor::buildable::Buildable;
 use super::super::designer::ModelDesigner;
 use super::super::descriptor::parameterized::Parameterized;
 use super::super::super::executive::environment::{GenesisEnvironment, ContextualEnvironment};
+use super::super::super::executive::model::Model as ExecutiveModel;
 use super::super::designer::value::Value;
 
 #[derive(Debug)]
@@ -24,7 +26,7 @@ impl ConfiguredModelBuilder {
 
 impl Builder for ConfiguredModelBuilder {
 
-    fn static_build(&self, environment: &dyn GenesisEnvironment) {
+    fn static_build(&self, environment: &dyn GenesisEnvironment) -> Option<Arc<dyn ExecutiveModel>> {
 
         let mut remastered_environment = environment.base();
 
@@ -51,9 +53,9 @@ impl Builder for ConfiguredModelBuilder {
             };
 
             remastered_environment.add_variable(borrowed_param.name(), data.clone());
-
-            self.designer.borrow().descriptor().core_model().builder().static_build(&*remastered_environment);
         }
+
+        self.designer.borrow().descriptor().core_model().builder().static_build(&*remastered_environment)
     }
 
     fn dynamic_build(&self,  _environment: &dyn ContextualEnvironment) {
