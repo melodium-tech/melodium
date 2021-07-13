@@ -12,7 +12,7 @@ struct Environment {
     world: Arc<World>,
     models: HashMap<String, Arc<dyn Model>>,
     variables: HashMap<String, Value>,
-    contextes: HashMap<String, Context>,
+    contexts: HashMap<String, Context>,
 }
 
 impl Environment {
@@ -22,7 +22,7 @@ impl Environment {
             world: Arc::clone(&self.world),
             models: HashMap::new(),
             variables: HashMap::new(),
-            contextes: HashMap::new(),
+            contexts: HashMap::new(),
         }
     }
 
@@ -48,11 +48,11 @@ impl Environment {
     }
 
     fn add_context(&mut self, name: &str, context: Context) {
-        self.contextes.insert(name.to_string(), context);
+        self.contexts.insert(name.to_string(), context);
     }
 
     fn get_context(&self, name: &str) -> Option<&Context> {
-        self.contextes.get(name)
+        self.contexts.get(name)
     }
 }
 

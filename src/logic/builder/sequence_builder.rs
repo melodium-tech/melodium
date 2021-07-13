@@ -42,7 +42,7 @@ impl Builder for SequenceBuilder {
                     Value::Variable(name) => {
                         environment.get_variable(&name).unwrap()
                     },
-                    // Not possible in model instanciation to use context, should have been catcher by designed, aborting
+                    // Not possible in model instanciation to use context, should have been catched by designer, aborting
                     _ => panic!("Impossible data recoverage")
                 };
 
@@ -58,6 +58,68 @@ impl Builder for SequenceBuilder {
     }
 
     fn dynamic_build(&self,  environment: &dyn ContextualEnvironment) {
+
+        // Invoke all treatments builders
+
+        for (_, treatment) in self.designer.borrow().treatments() {
+
+            let borrowed_treatment = treatment.borrow();
+            let mut remastered_environment = environment.base();
+
+            // Setup models
+            for (model_treatment_name, _model) in borrowed_treatment.descriptor().models() {
+
+                // model_treatment_name is the name of the model as seen by the treatment,
+                // while model_sequence_name is the name of the model as it exists within the sequence.
+                // Treatment[model_treatment_name = model_sequence_name]
+
+                let model_sequence_name = borrowed_treatment.models().get(model_treatment_name).unwrap();
+
+                let mut executive_model = None;
+                
+                if let Some(sequence_parameter_given_model) = environment.get_model(model_sequence_name) {
+                    executive_model = Some(Arc::clone(sequence_parameter_given_model));
+                }
+                else {
+                    let instancied_models = self.instancied_models.read().unwrap();
+                    
+                    if let Some(instancied_model) = instancied_models.get(model_sequence_name) {
+                        executive_model = Some(Arc::clone(instancied_model));
+                    }
+                }
+
+                if let Some(executive_model) = executive_model {
+
+                    remastered_environment.add_model(model_treatment_name, executive_model);
+                }
+                else {
+                    // We should have a model there, should have been catched by designer, aborting
+                    panic!("Impossible model recoverage")
+                }
+            }
+
+            // Setup parameters
+            for (_, parameter) in borrowed_treatment.parameters() {
+
+                let borrowed_param = parameter.borrow();
+
+                let data = match borrowed_param.value().as_ref().unwrap() {
+                    Value::Raw(data) => data,
+                    Value::Variable(name) => {
+                        environment.get_variable(&name).unwrap()
+                    },
+                    Value::Context((context, name)) => {
+                        environment.get_context(context).unwrap().get_value(name).unwrap()
+                    }
+                };
+
+                remastered_environment.add_variable(borrowed_param.name(), data.clone());
+            }
+
+        }
+
+        // Create all connections
+
 
     }
 }

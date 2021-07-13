@@ -61,6 +61,10 @@ pub enum LogicErrorKind {
     UnsatisfiedOutput,
     /// The sequence output is overloaded, having multiple treatment outputs connected to.
     OverloadedOutput,
+    /// The (core) model type does not match.
+    UnmatchingModelType,
+    /// There are no matching pararmetric model.
+    UnexistingParametricModel,
 }
 
 /// Handles and describe a Mélodium logic error.
@@ -264,6 +268,20 @@ impl LogicError {
     pub fn overloaded_output() -> Self {
         Self {
             kind: LogicErrorKind::OverloadedOutput
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::UnmatchingModelType`] kind.
+    pub fn unmatching_model_type() -> Self {
+        Self {
+            kind: LogicErrorKind::UnmatchingModelType
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::UnexistingParametricModel`] kind.
+    pub fn unexisting_parametric_model() -> Self {
+        Self {
+            kind: LogicErrorKind::UnexistingParametricModel
         }
     }
 }

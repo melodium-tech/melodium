@@ -8,7 +8,7 @@ use super::super::logic::descriptor::CoreModelDescriptor;
 
 pub trait Model : Debug {
 
-    // Maybe add reference to descriptor?
+    fn descriptor(&self) -> Arc<CoreModelDescriptor>;
 
     fn set_parameter(&mut self, param: &str, value: &Value);
 

@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use super::super::error::LogicError;
 use super::super::descriptor::TreatmentDescriptor;
+use super::super::descriptor::model::Model;
 use super::sequence::Sequence;
 use super::parameter::Parameter;
 use super::super::descriptor::ParameterizedDescriptor;
@@ -17,6 +18,7 @@ pub struct Treatment {
     sequence: Weak<RefCell<Sequence>>,
     descriptor: Rc<dyn TreatmentDescriptor>,
     name: String,
+    models: HashMap<String, String>,
     parameters: HashMap<String, Rc<RefCell<Parameter>>>,
 }
 
@@ -26,6 +28,7 @@ impl Treatment {
             sequence: Rc::downgrade(sequence),
             descriptor: Rc::clone(descriptor),
             name: name.to_string(),
+            models: HashMap::with_capacity(descriptor.models().len()),
             parameters: HashMap::with_capacity(descriptor.parameters().len()),
         }
     }
@@ -36,6 +39,42 @@ impl Treatment {
 
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn add_model(&mut self, parametric_name: &str, local_name: &str) -> Result<(), LogicError> {
+
+        if self.descriptor().models().contains_key(parametric_name) {
+
+            let rc_sequence = self.sequence.upgrade().unwrap();
+            let borrowed_sequence = rc_sequence.borrow();
+
+            let mut core_model_descriptor = None;
+            if let Some(model_descriptor) = borrowed_sequence.descriptor().models().get(local_name) {
+                core_model_descriptor = Some(model_descriptor.core_model());
+            }
+            else if let Some(model_instanciation) = borrowed_sequence.model_instanciations().get(local_name) {
+                core_model_descriptor = Some(model_instanciation.borrow().descriptor().core_model());
+            }
+
+            if let Some(model_descriptor) = core_model_descriptor {
+
+                if Rc::ptr_eq(&model_descriptor, self.descriptor().models().get(parametric_name).unwrap()) {
+                    self.models.insert(parametric_name.to_string(), local_name.to_string());
+
+                    Ok(())
+                }
+                else {
+                    Err(LogicError::unmatching_model_type())
+                }
+            }
+            else {
+                Err(LogicError::unexisting_model())
+            }
+        }
+        else {
+            Err(LogicError::unexisting_parametric_model())
+        }
+
     }
 
     pub fn add_parameter(&mut self, name: &str) -> Result<Rc<RefCell<Parameter>>, LogicError> {
@@ -57,6 +96,10 @@ impl Treatment {
         else {
             Err(LogicError::unexisting_parameter())
         }
+    }
+
+    pub fn models(&self) -> &HashMap<String, String> {
+        &self.models
     }
 
     pub fn parameters(&self) -> &HashMap<String, Rc<RefCell<Parameter>>> {
@@ -86,6 +129,8 @@ impl Treatment {
         if !unset_params.is_empty() {
             return Err(LogicError::unset_parameter());
         }
+
+        // TODO check if all models are filled
 
         // Check if context values refers to available context.
         let rc_sequence = self.sequence.upgrade().unwrap();
