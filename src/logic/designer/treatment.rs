@@ -130,7 +130,20 @@ impl Treatment {
             return Err(LogicError::unset_parameter());
         }
 
-        // TODO check if all models are filled
+        // Check if all models are filled
+        let unset_models: Vec<&String> = self.descriptor.models().iter().filter_map(
+            |(model_name, _)|
+            if self.models.contains_key(model_name) {
+                None
+            }
+            else {
+                Some(model_name)
+            }
+        ).collect();
+
+        if !unset_models.is_empty() {
+            return Err(LogicError::unset_model());
+        }
 
         // Check if context values refers to available context.
         let rc_sequence = self.sequence.upgrade().unwrap();

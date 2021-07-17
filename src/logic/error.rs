@@ -65,6 +65,8 @@ pub enum LogicErrorKind {
     UnmatchingModelType,
     /// There are no matching pararmetric model.
     UnexistingParametricModel,
+    /// A model hasn't been set up compared to descriptor.
+    UnsetModel,
 }
 
 /// Handles and describe a Mélodium logic error.
@@ -282,6 +284,13 @@ impl LogicError {
     pub fn unexisting_parametric_model() -> Self {
         Self {
             kind: LogicErrorKind::UnexistingParametricModel
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::UnsetModel`] kind.
+    pub fn unset_model() -> Self {
+        Self {
+            kind: LogicErrorKind::UnsetModel
         }
     }
 }
