@@ -11,7 +11,24 @@ use super::sequence::Sequence;
 #[derive(Debug)]
 pub enum IO {
     Sequence(),
-    Treatement(Weak<RefCell<Treatment>>)
+    Treatment(Weak<RefCell<Treatment>>)
+}
+
+impl PartialEq for IO {
+    
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            IO::Sequence() => false,
+            IO::Treatment(s_t) => {
+                match other {
+                    IO::Sequence() => false,
+                    IO::Treatment(o_t) => {
+                        s_t.ptr_eq(o_t)
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -49,7 +66,7 @@ impl Connection {
 
         if output.is_none() {
             if self.descriptor.output_type().is_none() {
-                self.output_treatment = Some(IO::Treatement(Rc::downgrade(treatment)));
+                self.output_treatment = Some(IO::Treatment(Rc::downgrade(treatment)));
                 self.output_name = None;
 
                 Ok(())
@@ -65,7 +82,7 @@ impl Connection {
             }
             else if output_descriptor.datatype() == self.descriptor.output_type().as_ref().unwrap() {
 
-                self.output_treatment = Some(IO::Treatement(Rc::downgrade(treatment)));
+                self.output_treatment = Some(IO::Treatment(Rc::downgrade(treatment)));
                 self.output_name = output.map(String::from);
 
                 Ok(())
@@ -118,7 +135,7 @@ impl Connection {
 
         if input.is_none() {
             if self.descriptor.input_type().is_none() {
-                self.input_treatment = Some(IO::Treatement(Rc::downgrade(treatment)));
+                self.input_treatment = Some(IO::Treatment(Rc::downgrade(treatment)));
                 self.input_name = None;
 
                 Ok(())
@@ -134,7 +151,7 @@ impl Connection {
             }
             else if input_descriptor.datatype() == self.descriptor.input_type().as_ref().unwrap() {
 
-                self.input_treatment = Some(IO::Treatement(Rc::downgrade(treatment)));
+                self.input_treatment = Some(IO::Treatment(Rc::downgrade(treatment)));
                 self.input_name = input.map(String::from);
 
                 Ok(())

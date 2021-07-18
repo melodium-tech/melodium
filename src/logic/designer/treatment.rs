@@ -2,11 +2,13 @@
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::cmp::Ordering;
 use super::super::error::LogicError;
 use super::super::descriptor::TreatmentDescriptor;
 use super::super::descriptor::model::Model;
 use super::sequence::Sequence;
 use super::parameter::Parameter;
+use super::connection::{IO, Connection};
 use super::super::descriptor::ParameterizedDescriptor;
 use super::super::descriptor::ParameterDescriptor;
 use super::value::Value;
@@ -20,17 +22,24 @@ pub struct Treatment {
     name: String,
     models: HashMap<String, String>,
     parameters: HashMap<String, Rc<RefCell<Parameter>>>,
+
+    auto_reference: Weak<RefCell<Self>>,
 }
 
 impl Treatment {
-    pub fn new(sequence: &Rc<RefCell<Sequence>>, descriptor: &Rc<dyn TreatmentDescriptor>, name: &str) -> Self {
-        Self {
+    pub fn new(sequence: &Rc<RefCell<Sequence>>, descriptor: &Rc<dyn TreatmentDescriptor>, name: &str) -> Rc<RefCell<Self>> {
+        let treatment = Rc::<RefCell<Self>>::new(RefCell::new(Self {
             sequence: Rc::downgrade(sequence),
             descriptor: Rc::clone(descriptor),
             name: name.to_string(),
             models: HashMap::with_capacity(descriptor.models().len()),
             parameters: HashMap::with_capacity(descriptor.parameters().len()),
-        }
+            auto_reference: Weak::new(),
+        }));
+
+        treatment.borrow_mut().auto_reference = Rc::downgrade(&treatment);
+
+        treatment
     }
 
     pub fn descriptor(&self) -> &Rc<dyn TreatmentDescriptor> {
@@ -160,5 +169,91 @@ impl Treatment {
         }
 
         Ok(())
+    }
+
+    pub fn level(&self) -> usize {
+
+        let rc_sequence = self.sequence.upgrade().unwrap();
+        let borrowed_sequence = rc_sequence.borrow();
+        let all_connections = borrowed_sequence.connections();
+
+        // We initialize the considered connection by taking only the ones were the current treatment
+        // is set as input (end point of the connection).
+        let mut considered_connections: Vec<Rc<RefCell<Connection>>> = all_connections.iter().filter_map(
+            |raw_conn|
+            if let Some(treatment) = raw_conn.borrow().input_treatment() {
+                match treatment {
+                    IO::Sequence() => None,
+                    IO::Treatment(t) => {
+                        // We want the input (end point) to be the current treatment, and the output (start point) to not be 'Self'-sequence.
+                        if self.auto_reference.ptr_eq(t) && raw_conn.borrow().output_treatment() != &Some(IO::Sequence()) {
+                            Some(Rc::clone(&raw_conn))
+                        }
+                        else {
+                            None
+                        }
+                    }
+                }
+            }
+            else {
+                None
+            }
+        ).collect();
+
+        let mut level = 0;
+
+        while considered_connections.len() > 0 {
+
+            level += 1;
+
+            // We retain only connections that have as input (end point) a treatment which is an ancestor
+            // of the current treatment (output, start point).
+            let next_considered_connections = all_connections.iter().filter_map(
+                |raw_conn|
+
+                if considered_connections.iter().any(
+                    |conn|
+                    conn.borrow().output_treatment() == raw_conn.borrow().input_treatment()
+                ) {
+                    Some(Rc::clone(&raw_conn))
+                }
+                else {
+                    None
+                }
+            ).collect();
+
+            considered_connections = next_considered_connections;
+        }
+
+        level
+    }
+}
+
+impl PartialOrd for Treatment {
+    
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+
+        if self.sequence.ptr_eq(&other.sequence) {
+
+            let self_level = self.level();
+            let other_level = other.level();
+
+            self_level.partial_cmp(&other_level)
+        }
+        else {
+            None
+        }
+    }
+}
+
+impl PartialEq for Treatment {
+    
+    fn eq(&self, other: &Self) -> bool {
+        if self.sequence.ptr_eq(&other.sequence) {
+            self.level() == other.level()
+        }
+        else {
+            false
+        }
     }
 }

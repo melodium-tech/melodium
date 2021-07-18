@@ -5,6 +5,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use super::Builder;
 use super::super::designer::SequenceDesigner;
+use super::super::designer::TreatmentDesigner;
 use super::super::descriptor::parameterized::Parameterized;
 use super::super::super::executive::environment::{GenesisEnvironment, ContextualEnvironment};
 use super::super::super::executive::model::Model;
@@ -14,6 +15,7 @@ use super::super::designer::value::Value;
 pub struct SequenceBuilder {
     designer: Rc<RefCell<SequenceDesigner>>,
     instancied_models: RwLock<HashMap<String, Arc<dyn Model>>>,
+    ordered_treatments: RwLock<Vec<Rc<RefCell<TreatmentDesigner>>>>,
 }
 
 impl SequenceBuilder {
@@ -21,6 +23,7 @@ impl SequenceBuilder {
         Self {
             designer: Rc::clone(designer),
             instancied_models: RwLock::new(HashMap::new()),
+            ordered_treatments: RwLock::new(Vec::new()),
         }
     }
 }
@@ -53,6 +56,8 @@ impl Builder for SequenceBuilder {
             self.instancied_models.write().unwrap().insert(instanciation_name.to_string(), instancied_model.unwrap());
 
         }
+
+        
 
         None
     }

@@ -68,8 +68,7 @@ impl Sequence {
     pub fn add_treatment(&mut self, identifier: &IdentifierDescriptor, name: &str) -> Result<Rc<RefCell<Treatment>>, LogicError> {
         
         if let Some(treatment_descriptor) = self.collections.treatments.get(identifier) {
-            let treatment = Treatment::new(&self.auto_reference.upgrade().unwrap(), treatment_descriptor, name);
-            let rc_treatment = Rc::new(RefCell::new(treatment));
+            let rc_treatment = Treatment::new(&self.auto_reference.upgrade().unwrap(), treatment_descriptor, name);
             self.treatments.insert(name.to_string(), Rc::clone(&rc_treatment));
             Ok(rc_treatment)
         }
