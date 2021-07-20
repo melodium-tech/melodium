@@ -2,6 +2,7 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use super::Builder;
 use super::super::descriptor::model::Model;
 use super::super::descriptor::buildable::Buildable;
@@ -9,6 +10,7 @@ use super::super::designer::ModelDesigner;
 use super::super::descriptor::parameterized::Parameterized;
 use super::super::super::executive::environment::{GenesisEnvironment, ContextualEnvironment};
 use super::super::super::executive::model::Model as ExecutiveModel;
+use super::super::super::executive::transmitter::Transmitter;
 use super::super::designer::value::Value;
 
 #[derive(Debug)]
@@ -58,8 +60,10 @@ impl Builder for ConfiguredModelBuilder {
         self.designer.borrow().descriptor().core_model().builder().static_build(&*remastered_environment)
     }
 
-    fn dynamic_build(&self,  _environment: &dyn ContextualEnvironment) {
+    fn dynamic_build(&self,  _environment: &dyn ContextualEnvironment) -> Option<HashMap<String, Transmitter>> {
 
         // Doing nothing, models are not supposed to have dynamic building phase
+
+        None
     }
 }

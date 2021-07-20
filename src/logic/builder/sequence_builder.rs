@@ -6,9 +6,11 @@ use std::cell::RefCell;
 use super::Builder;
 use super::super::designer::SequenceDesigner;
 use super::super::designer::TreatmentDesigner;
+use super::super::designer::{ConnectionDesigner, ConnectionIODesigner};
 use super::super::descriptor::parameterized::Parameterized;
 use super::super::super::executive::environment::{GenesisEnvironment, ContextualEnvironment};
 use super::super::super::executive::model::Model;
+use super::super::super::executive::transmitter::Transmitter;
 use super::super::designer::value::Value;
 
 #[derive(Debug)]
@@ -57,16 +59,23 @@ impl Builder for SequenceBuilder {
 
         }
 
-        
+        // Esthablishing the order of creation of treatments.
+        let mut ordered_treatments: Vec<Rc<RefCell<TreatmentDesigner>>> = self.designer.borrow().treatments().values().cloned().collect();
+        ordered_treatments.sort_by(
+            |a, b|
+            a.borrow().partial_cmp(&b.borrow()).unwrap()
+        );
+        *self.ordered_treatments.write().unwrap() = ordered_treatments;
 
         None
     }
 
-    fn dynamic_build(&self,  environment: &dyn ContextualEnvironment) {
+    fn dynamic_build(&self,  environment: &dyn ContextualEnvironment) -> Option<HashMap<String, Transmitter>> {
+
+        let mut treatments_outputs: HashMap<String, HashMap<String, Transmitter>> = HashMap::new();
 
         // Invoke all treatments builders
-
-        for (_, treatment) in self.designer.borrow().treatments() {
+        for treatment in &*self.ordered_treatments.read().unwrap() {
 
             let borrowed_treatment = treatment.borrow();
             let mut remastered_environment = environment.base();
@@ -121,11 +130,88 @@ impl Builder for SequenceBuilder {
                 remastered_environment.add_variable(borrowed_param.name(), data.clone());
             }
 
+            // Setup inputs
+
+            //We get all connections that have the treatment as input (end point).
+            let input_connections: Vec<Rc<RefCell<ConnectionDesigner>>> = self.designer.borrow().connections().iter().filter_map(
+                |conn|
+                if conn.borrow().input_treatment() == &Some(ConnectionIODesigner::Treatment(Rc::downgrade(treatment))) {
+                    Some(Rc::clone(conn))
+                }
+                else {
+                    None
+                }
+            ).collect();
+
+            // We get all the inputs required by the treatment
+            for input_connection in input_connections {
+
+                let borrowed_connection = input_connection.borrow();
+                match borrowed_connection.output_treatment().as_ref().unwrap() {
+                    ConnectionIODesigner::Sequence() => {
+
+                        remastered_environment.add_input(
+                            &borrowed_connection.input_name().as_ref().unwrap(),
+                            environment.get_input(borrowed_connection.output_name().as_ref().unwrap()).unwrap().clone()
+                        );
+                    },
+                    ConnectionIODesigner::Treatment(output_treatment) => {
+
+                        let rc_output_treatment = output_treatment.upgrade().unwrap();
+                        let borrowed_output_treatment = rc_output_treatment.borrow();
+
+                        remastered_environment.add_input(
+                            &borrowed_connection.input_name().as_ref().unwrap(),
+                            treatments_outputs.get(borrowed_output_treatment.name()).unwrap()
+                                .get(borrowed_connection.output_name().as_ref().unwrap()).unwrap().clone()
+                        );
+                    },
+                };
+            }
+
+            let treatment_outputs = borrowed_treatment.descriptor().builder().dynamic_build(&*remastered_environment).unwrap();
+            treatments_outputs.insert(borrowed_treatment.name().to_string(), treatment_outputs);
+
         }
 
-        // Create all connections
 
+        // We get all connections that are to sequence output.
+        let self_output_connections: Vec<Rc<RefCell<ConnectionDesigner>>> = self.designer.borrow().connections().iter().filter_map(
+            |conn|
+            match conn.borrow().input_treatment().as_ref().unwrap() {
+                ConnectionIODesigner::Sequence() => Some(Rc::clone(conn)),
+                _ => None,
+            }
+        ).collect();
 
+        // We fill the 'Self' outputs that will be returned by the builder.
+        let mut outputs: HashMap<String, Transmitter> = HashMap::new();
+        for connection in self_output_connections {
+
+            let borrowed_connection = connection.borrow();
+            match borrowed_connection.output_treatment().as_ref().unwrap() {
+                ConnectionIODesigner::Sequence() => {
+
+                    outputs.insert(
+                        borrowed_connection.input_name().as_ref().unwrap().to_string(),
+                        environment.get_input(borrowed_connection.output_name().as_ref().unwrap()).unwrap().clone()
+                    );
+                },
+                ConnectionIODesigner::Treatment(output_treatment) => {
+
+                    let rc_output_treatment = output_treatment.upgrade().unwrap();
+                    let borrowed_output_treatment = rc_output_treatment.borrow();
+
+                    outputs.insert(
+                        borrowed_connection.input_name().as_ref().unwrap().to_string(),
+                        treatments_outputs.get(borrowed_output_treatment.name()).unwrap()
+                            .get(borrowed_connection.output_name().as_ref().unwrap()).unwrap().clone()
+                    );
+                },
+            };
+        }
+
+        Some(outputs)
     }
 }
 

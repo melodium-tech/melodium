@@ -6,6 +6,7 @@ use super::world::World;
 use super::model::Model;
 use super::value::Value;
 use super::context::Context;
+use super::transmitter::Transmitter;
 
 #[derive(Debug)]
 struct Environment {
@@ -13,6 +14,7 @@ struct Environment {
     models: HashMap<String, Arc<dyn Model>>,
     variables: HashMap<String, Value>,
     contexts: HashMap<String, Context>,
+    inputs: HashMap<String, Transmitter>,
 }
 
 impl Environment {
@@ -23,6 +25,7 @@ impl Environment {
             models: HashMap::new(),
             variables: HashMap::new(),
             contexts: HashMap::new(),
+            inputs: HashMap::new(),
         }
     }
 
@@ -54,6 +57,14 @@ impl Environment {
     fn get_context(&self, name: &str) -> Option<&Context> {
         self.contexts.get(name)
     }
+
+    fn add_input(&mut self, name: &str, input: Transmitter) {
+        self.inputs.insert(name.to_string(), input);
+    }
+
+    fn get_input(&self, name: &str) -> Option<&Transmitter> {
+        self.inputs.get(name)
+    }
 }
 
 pub trait GenesisEnvironment : Debug {
@@ -75,6 +86,8 @@ pub trait ContextualEnvironment : Debug {
     fn get_variable(&self, name: &str) -> Option<&Value>;
     fn add_context(&mut self, name: &str, context: Context);
     fn get_context(&self, name: &str) -> Option<&Context>;
+    fn add_input(&mut self, name: &str, input: Transmitter);
+    fn get_input(&self, name: &str) -> Option<&Transmitter>;
 }
 
 impl GenesisEnvironment for Environment {
@@ -132,5 +145,13 @@ impl ContextualEnvironment for Environment {
 
     fn get_context(&self, name: &str) -> Option<&Context> {
         self.get_context(name)
+    }
+
+    fn add_input(&mut self, name: &str, input: Transmitter) {
+        self.add_input(name, input);
+    }
+
+    fn get_input(&self, name: &str) -> Option<&Transmitter> {
+        self.get_input(name)
     }
 }
