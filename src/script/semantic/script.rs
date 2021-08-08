@@ -3,8 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::Rc;
-use std::cell::RefCell;
+use std::sync::{Arc, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Script as TextScript;
 
@@ -20,9 +19,9 @@ use super::sequence::Sequence;
 pub struct Script {
     pub text: TextScript,
 
-    pub uses: Vec<Rc<RefCell<Use>>>,
-    pub models: Vec<Rc<RefCell<Model>>>,
-    pub sequences: Vec<Rc<RefCell<Sequence>>>,
+    pub uses: Vec<Arc<RwLock<Use>>>,
+    pub models: Vec<Arc<RwLock<Model>>>,
+    pub sequences: Vec<Arc<RwLock<Sequence>>>,
 }
 
 impl Script {
@@ -55,9 +54,9 @@ impl Script {
     /// assert_eq!(script.borrow().sequences.len(), 5);
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(text: TextScript) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(text: TextScript) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
-        let script = Rc::<RefCell<Self>>::new(RefCell::new(Self {
+        let script = Arc::<RwLock<Self>>::new(RwLock::new(Self {
             text: text.clone(),
             uses: Vec::new(),
             models: Vec::new(),
@@ -65,18 +64,18 @@ impl Script {
         }));
 
         for u in text.uses {
-            let r#use = Use::new(Rc::clone(&script), u.clone())?;
-            script.borrow_mut().uses.push(r#use);
+            let r#use = Use::new(Arc::clone(&script), u.clone())?;
+            script.write().unwrap().uses.push(r#use);
         }
 
         for m in text.models {
-            let model = Model::new(Rc::clone(&script), m.clone())?;
-            script.borrow_mut().models.push(model);
+            let model = Model::new(Arc::clone(&script), m.clone())?;
+            script.write().unwrap().models.push(model);
         }
 
         for s in text.sequences {
-            let sequence = Sequence::new(Rc::clone(&script), s.clone())?;
-            script.borrow_mut().sequences.push(sequence);
+            let sequence = Sequence::new(Arc::clone(&script), s.clone())?;
+            script.write().unwrap().sequences.push(sequence);
         }
 
         Ok(script)
@@ -108,8 +107,8 @@ impl Script {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn find_use(&self, element_as: & str) -> Option<&Rc<RefCell<Use>>> {
-        self.uses.iter().find(|&u| u.borrow().r#as == element_as)
+    pub fn find_use(&self, element_as: & str) -> Option<&Arc<RwLock<Use>>> {
+        self.uses.iter().find(|&u| u.read().unwrap().r#as == element_as)
     }
 
     /// Search for a model.
@@ -137,8 +136,8 @@ impl Script {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn find_model(&self, name: & str) -> Option<&Rc<RefCell<Model>>> {
-        self.models.iter().find(|&m| m.borrow().name == name)
+    pub fn find_model(&self, name: & str) -> Option<&Arc<RwLock<Model>>> {
+        self.models.iter().find(|&m| m.read().unwrap().name == name)
     }
 
     /// Search for a sequence.
@@ -166,19 +165,19 @@ impl Script {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn find_sequence(&self, name: & str) -> Option<&Rc<RefCell<Sequence>>> {
-        self.sequences.iter().find(|&s| s.borrow().name == name)
+    pub fn find_sequence(&self, name: & str) -> Option<&Arc<RwLock<Sequence>>> {
+        self.sequences.iter().find(|&s| s.read().unwrap().name == name)
     }
 }
 
 impl Node for Script {
-    fn children(&self) -> Vec<Rc<RefCell<dyn Node>>> {
+    fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
 
-        let mut children: Vec<Rc<RefCell<dyn Node>>> = Vec::new();
+        let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();
 
-        self.uses.iter().for_each(|u| children.push(Rc::clone(&u) as Rc<RefCell<dyn Node>>));
-        self.models.iter().for_each(|m| children.push(Rc::clone(&m) as Rc<RefCell<dyn Node>>));
-        self.sequences.iter().for_each(|s| children.push(Rc::clone(&s) as Rc<RefCell<dyn Node>>));
+        self.uses.iter().for_each(|u| children.push(Arc::clone(&u) as Arc<RwLock<dyn Node>>));
+        self.models.iter().for_each(|m| children.push(Arc::clone(&m) as Arc<RwLock<dyn Node>>));
+        self.sequences.iter().for_each(|s| children.push(Arc::clone(&s) as Arc<RwLock<dyn Node>>));
 
         children
     }

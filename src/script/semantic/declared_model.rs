@@ -3,8 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
 use crate::script::text::word::PositionnedString;
@@ -21,7 +20,7 @@ use super::instancied_model::InstanciedModel;
 pub struct DeclaredModel {
     pub text: Option<TextParameter>,
 
-    pub sequence: Weak<RefCell<Sequence>>,
+    pub sequence: Weak<RwLock<Sequence>>,
 
     pub name: String,
     pub refers: RefersTo,
@@ -73,18 +72,18 @@ impl DeclaredModel {
     /// assert_eq!(borrowed_declared_model.name, "Files");
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn from_instancied_model(instancied_model: Rc<RefCell<InstanciedModel>>) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn from_instancied_model(instancied_model: Arc<RwLock<InstanciedModel>>) -> Result<Arc<RwLock<Self>>, ScriptError> {
         
-        let borrowed_instancied_model = instancied_model.borrow();
+        let borrowed_instancied_model = instancied_model.read().unwrap();
 
         let sequence = borrowed_instancied_model.sequence.upgrade().unwrap();
         let name = borrowed_instancied_model.name.clone();
 
         let declared_model = Self::make(sequence, borrowed_instancied_model.text.name.clone())?;
 
-        declared_model.borrow_mut().refers = RefersTo::InstanciedModel(Reference {
+        declared_model.write().unwrap().refers = RefersTo::InstanciedModel(Reference {
             name: name,
-            reference: Some(Rc::downgrade(&instancied_model))
+            reference: Some(Arc::downgrade(&instancied_model))
         });
 
         Ok(declared_model)
@@ -123,7 +122,7 @@ impl DeclaredModel {
     /// assert_eq!(borrowed_declared_model.name, "AudioManager");
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(sequence: Rc<RefCell<Sequence>>, text: TextParameter) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(sequence: Arc<RwLock<Sequence>>, text: TextParameter) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
         let refers_string;
         if let Some(r#type) = &text.r#type {
@@ -143,24 +142,26 @@ impl DeclaredModel {
         }
 
         let declared_model = Self::make(sequence, text.name.clone())?;
-
-        declared_model.borrow_mut().text = Some(text);
-        declared_model.borrow_mut().refers = RefersTo::Unkown(Reference::new(refers_string));
+        {
+            let mut borrowed_declared_model = declared_model.write().unwrap();
+            borrowed_declared_model.text = Some(text);
+            borrowed_declared_model.refers = RefersTo::Unkown(Reference::new(refers_string));
+        }
 
         Ok(declared_model)
     }
 
-    fn make(sequence: Rc<RefCell<Sequence>>, name: PositionnedString) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    fn make(sequence: Arc<RwLock<Sequence>>, name: PositionnedString) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
-        let borrowed_sequence = sequence.borrow();
+        let borrowed_sequence = sequence.read().unwrap();
 
         let declared_model = borrowed_sequence.find_declared_model(&name.string.clone());
         if declared_model.is_some() {
             return Err(ScriptError::semantic("Model '".to_string() + &name.string.clone() + "' is already declared.", name.position.clone()))
         }
 
-        Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
-            sequence: Rc::downgrade(&sequence),
+        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
+            sequence: Arc::downgrade(&sequence),
             name: name.string.clone(),
             text: None,
             refers: RefersTo::Unkown(Reference::new(name.string))
@@ -176,16 +177,16 @@ impl Node for DeclaredModel {
         if let RefersTo::Unkown(reference) = &self.refers {
 
             let rc_sequence = self.sequence.upgrade().unwrap();
-            let borrowed_sequence = rc_sequence.borrow();
+            let borrowed_sequence = rc_sequence.read().unwrap();
             let rc_script = borrowed_sequence.script.upgrade().unwrap();
-            let borrowed_script = rc_script.borrow();
+            let borrowed_script = rc_script.read().unwrap();
 
             let r#use = borrowed_script.find_use(&reference.name);
             if r#use.is_some() {
 
                 self.refers = RefersTo::Use(Reference{
                     name: reference.name.clone(),
-                    reference: Some(Rc::downgrade(r#use.unwrap()))
+                    reference: Some(Arc::downgrade(r#use.unwrap()))
                 });
             }
             else {

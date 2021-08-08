@@ -1,8 +1,7 @@
 
 //! Module dedicated to AssignativeElement trait definition.
 
-use std::rc::Rc;
-use std::cell::RefCell;
+use std::sync::{Arc, RwLock};
 
 use super::common::Node;
 use super::assigned_model::AssignedModel;
@@ -25,15 +24,15 @@ pub trait AssignativeElement : Node {
     /// Returns the associated declarative element.
     /// 
     /// This gives access to what the assignation might be if referring to declared items.
-    fn associated_declarative_element(&self) -> Rc<RefCell<dyn DeclarativeElement>>;
+    fn associated_declarative_element(&self) -> Arc<RwLock<dyn DeclarativeElement>>;
 
     /// Search for an assigned model.
-    fn find_assigned_model(&self, _name: & str) -> Option<&Rc<RefCell<AssignedModel>>> {
+    fn find_assigned_model(&self, _name: & str) -> Option<&Arc<RwLock<AssignedModel>>> {
         None
     }
 
     /// Search for an assigned parameter.
-    fn find_assigned_parameter(&self, name: & str) -> Option<&Rc<RefCell<AssignedParameter>>>;
+    fn find_assigned_parameter(&self, name: & str) -> Option<&Arc<RwLock<AssignedParameter>>>;
 }
 
 /// Enum listing possible declarative elements.

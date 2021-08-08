@@ -3,8 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
 
@@ -21,11 +20,11 @@ use super::value::Value;
 pub struct DeclaredParameter {
     pub text: TextParameter,
 
-    pub parent: Weak<RefCell<dyn DeclarativeElement>>,
+    pub parent: Weak<RwLock<dyn DeclarativeElement>>,
 
     pub name: String,
     pub r#type: Type,
-    pub value: Option<Rc<RefCell<Value>>>,
+    pub value: Option<Arc<RwLock<Value>>>,
 }
 
 impl DeclaredParameter {
@@ -66,12 +65,12 @@ impl DeclaredParameter {
     /// assert_eq!(borrowed_declared_parameter.r#type.name, TypeName::Integer);
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(parent: Rc<RefCell<dyn DeclarativeElement>>, text: TextParameter) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(parent: Arc<RwLock<dyn DeclarativeElement>>, text: TextParameter) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
         let r#type;
         let value;
         {
-            let borrowed_parent = parent.borrow();
+            let borrowed_parent = parent.read().unwrap();
 
             let parameter = borrowed_parent.find_declared_parameter(&text.name.string);
             if parameter.is_some() {
@@ -84,15 +83,15 @@ impl DeclaredParameter {
             r#type = Type::new(text.r#type.as_ref().unwrap().clone())?;
 
             if text.value.is_some() {
-                value = Some(Value::new(Rc::clone(&parent), text.value.as_ref().unwrap().clone())?);
+                value = Some(Value::new(Arc::clone(&parent), text.value.as_ref().unwrap().clone())?);
             }
             else {
                 value = None;
             }
         }
 
-        Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
-            parent: Rc::downgrade(&parent),
+        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
+            parent: Arc::downgrade(&parent),
             name: text.name.string.clone(),
             text,
             r#type,

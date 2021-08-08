@@ -3,8 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
 use crate::script::text::Value as TextValue;
@@ -20,7 +19,7 @@ use super::declared_model::DeclaredModel;
 pub struct AssignedModel {
     pub text: TextParameter,
 
-    pub parent: Weak<RefCell<dyn AssignativeElement>>,
+    pub parent: Weak<RwLock<dyn AssignativeElement>>,
 
     pub name: String,
     pub model: Reference<DeclaredModel>,
@@ -63,11 +62,11 @@ impl AssignedModel {
     /// assert_eq!(borrowed_assigned_model.name, "AudioManager");
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(parent: Rc<RefCell<dyn AssignativeElement>>, text: TextParameter) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(parent: Arc<RwLock<dyn AssignativeElement>>, text: TextParameter) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
         let referred_model_name;
         {
-            let borrowed_parent = parent.borrow();
+            let borrowed_parent = parent.read().unwrap();
 
             let assigned_model = borrowed_parent.find_assigned_model(&text.name.string);
             if assigned_model.is_some() {
@@ -86,10 +85,10 @@ impl AssignedModel {
             }
         }
 
-        Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
+        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
             name: text.name.string.clone(),
             text,
-            parent: Rc::downgrade(&parent),
+            parent: Arc::downgrade(&parent),
             model: Reference {
                 name: referred_model_name,
                 reference: None,
@@ -104,17 +103,17 @@ impl Node for AssignedModel {
         if self.model.reference.is_none() {
             
             let rc_parent = self.parent.upgrade().unwrap();
-            let borrowed_parent = rc_parent.borrow();
+            let borrowed_parent = rc_parent.read().unwrap();
 
             let rc_declarative_element = borrowed_parent.associated_declarative_element();
-            let borrowed_declarative_element = rc_declarative_element.borrow();
+            let borrowed_declarative_element = rc_declarative_element.read().unwrap();
             let refered_model = match &borrowed_declarative_element.declarative_element() {
                 DeclarativeElementType::Sequence(s) => s.find_declared_model(&self.model.name),
                 _ => None,
             };
 
             if let Some(rc_refered_model) = refered_model {
-                self.model.reference = Some(Rc::downgrade(rc_refered_model));
+                self.model.reference = Some(Arc::downgrade(rc_refered_model));
             }
             else {
                 return Err(ScriptError::semantic("Unkown name '".to_string() + &self.name + "' in declared models.", self.text.name.position));

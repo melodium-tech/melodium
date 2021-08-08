@@ -3,8 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Requirement as TextRequirement;
 
@@ -16,7 +15,7 @@ use super::sequence::Sequence;
 pub struct Requirement {
     pub text: TextRequirement,
 
-    pub sequence: Weak<RefCell<Sequence>>,
+    pub sequence: Weak<RwLock<Sequence>>,
 
     pub name: String,
 }
@@ -55,10 +54,10 @@ impl Requirement {
     /// assert_eq!(borrowed_requirement.name, "@Signal");
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(sequence: Rc<RefCell<Sequence>>, text: TextRequirement) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(sequence: Arc<RwLock<Sequence>>, text: TextRequirement) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
         {
-            let borrowed_sequence = sequence.borrow();
+            let borrowed_sequence = sequence.read().unwrap();
 
             let requirement = borrowed_sequence.find_requirement(&text.name.string);
             if requirement.is_some() {
@@ -66,8 +65,8 @@ impl Requirement {
             }
         }
 
-        Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self{
-            sequence: Rc::downgrade(&sequence),
+        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self{
+            sequence: Arc::downgrade(&sequence),
             name: text.name.string.clone(),
             text,
         })))

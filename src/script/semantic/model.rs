@@ -3,8 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Model as TextModel;
 
@@ -22,14 +21,14 @@ use super::r#use::Use;
 pub struct Model {
     pub text: TextModel,
 
-    pub script: Weak<RefCell<Script>>,
+    pub script: Weak<RwLock<Script>>,
 
     pub name: String,
-    pub parameters: Vec<Rc<RefCell<DeclaredParameter>>>,
+    pub parameters: Vec<Arc<RwLock<DeclaredParameter>>>,
     pub r#type: Reference<Use>,
-    pub assignations: Vec<Rc<RefCell<AssignedParameter>>>,
+    pub assignations: Vec<Arc<RwLock<AssignedParameter>>>,
 
-    auto_reference: Weak<RefCell<Self>>,
+    auto_reference: Weak<RwLock<Self>>,
 }
 
 impl Model {
@@ -65,11 +64,11 @@ impl Model {
     /// assert_eq!(borrowed_model.assignations.len(), 1);
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(script: Rc<RefCell<Script>>, text: TextModel) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(script: Arc<RwLock<Script>>, text: TextModel) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
-        let model = Rc::<RefCell<Self>>::new(RefCell::new(Self {
+        let model = Arc::<RwLock<Self>>::new(RwLock::new(Self {
             text: text.clone(),
-            script: Rc::downgrade(&script),
+            script: Arc::downgrade(&script),
             name: text.name.string.clone(),
             parameters: Vec::new(),
             r#type: Reference::new(text.r#type.string.clone()),
@@ -77,10 +76,10 @@ impl Model {
             auto_reference: Weak::new(),
         }));
 
-        model.borrow_mut().auto_reference = Rc::downgrade(&model);
+        model.write().unwrap().auto_reference = Arc::downgrade(&model);
 
         {
-            let borrowed_script = script.borrow();
+            let borrowed_script = script.read().unwrap();
 
             let model = borrowed_script.find_model(&text.name.string);
             if model.is_some() {
@@ -89,13 +88,13 @@ impl Model {
         }
 
         for p in text.parameters {
-            let declared_parameter = DeclaredParameter::new(Rc::clone(&model) as Rc<RefCell<dyn DeclarativeElement>>, p)?;
-            model.borrow_mut().parameters.push(declared_parameter);
+            let declared_parameter = DeclaredParameter::new(Arc::clone(&model) as Arc<RwLock<dyn DeclarativeElement>>, p)?;
+            model.write().unwrap().parameters.push(declared_parameter);
         }
 
         for a in text.assignations {
-            let assigned_parameter = AssignedParameter::new(Rc::clone(&model) as Rc<RefCell<dyn AssignativeElement>>, a)?;
-            model.borrow_mut().assignations.push(assigned_parameter);
+            let assigned_parameter = AssignedParameter::new(Arc::clone(&model) as Arc<RwLock<dyn AssignativeElement>>, a)?;
+            model.write().unwrap().assignations.push(assigned_parameter);
         }
 
         Ok(model)
@@ -136,8 +135,8 @@ impl DeclarativeElement for Model {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    fn find_declared_parameter(&self, name: & str) -> Option<&Rc<RefCell<DeclaredParameter>>> {
-        self.parameters.iter().find(|&p| p.borrow().name == name)
+    fn find_declared_parameter(&self, name: & str) -> Option<&Arc<RwLock<DeclaredParameter>>> {
+        self.parameters.iter().find(|&p| p.read().unwrap().name == name)
     }
 
 }
@@ -148,7 +147,7 @@ impl AssignativeElement for Model {
         AssignativeElementType::Model(&self)
     }
 
-    fn associated_declarative_element(&self) -> Rc<RefCell<dyn DeclarativeElement>> {
+    fn associated_declarative_element(&self) -> Arc<RwLock<dyn DeclarativeElement>> {
         self.auto_reference.upgrade().unwrap()
     }
 
@@ -180,8 +179,8 @@ impl AssignativeElement for Model {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    fn find_assigned_parameter(&self, name: & str) -> Option<&Rc<RefCell<AssignedParameter>>> {
-        self.assignations.iter().find(|&a| a.borrow().name == name)
+    fn find_assigned_parameter(&self, name: & str) -> Option<&Arc<RwLock<AssignedParameter>>> {
+        self.assignations.iter().find(|&a| a.read().unwrap().name == name)
     }
 
 }
@@ -191,14 +190,14 @@ impl Node for Model {
     fn make_references(&mut self) -> Result<(), ScriptError> {
 
         let rc_script = self.script.upgrade().unwrap();
-        let borrowed_script = rc_script.borrow();
+        let borrowed_script = rc_script.read().unwrap();
 
         let r#use = borrowed_script.find_use(&self.r#type.name);
         if r#use.is_none() {
             return Err(ScriptError::semantic("'".to_string() + &self.r#type.name + "' is unkown.", self.text.r#type.position))
         }
 
-        self.r#type.reference = Some(Rc::downgrade(r#use.unwrap()));
+        self.r#type.reference = Some(Arc::downgrade(r#use.unwrap()));
 
         Ok(())
     }

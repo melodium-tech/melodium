@@ -3,8 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
 
@@ -20,10 +19,10 @@ use super::value::Value;
 pub struct AssignedParameter {
     pub text: TextParameter,
 
-    pub parent: Weak<RefCell<dyn AssignativeElement>>,
+    pub parent: Weak<RwLock<dyn AssignativeElement>>,
 
     pub name: String,
-    pub value: Rc<RefCell<Value>>,
+    pub value: Arc<RwLock<Value>>,
 }
 
 impl AssignedParameter {
@@ -63,11 +62,11 @@ impl AssignedParameter {
     /// assert_eq!(borrowed_parameter.name, "magnitudeThreshold");
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(parent: Rc<RefCell<dyn AssignativeElement>>, text: TextParameter) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(parent: Arc<RwLock<dyn AssignativeElement>>, text: TextParameter) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
         let value;
         {
-            let borrowed_parent = parent.borrow();
+            let borrowed_parent = parent.read().unwrap();
 
             let parameter = borrowed_parent.find_assigned_parameter(&text.name.string);
             if parameter.is_some() {
@@ -83,21 +82,21 @@ impl AssignedParameter {
             }
         }
 
-        Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
+        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
             name: text.name.string.clone(),
             text,
-            parent: Rc::downgrade(&parent),
+            parent: Arc::downgrade(&parent),
             value,
         })))
     }
 }
 
 impl Node for AssignedParameter {
-    fn children(&self) -> Vec<Rc<RefCell<dyn Node>>> {
+    fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
 
-        let mut children: Vec<Rc<RefCell<dyn Node>>> = Vec::new();
+        let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();
 
-        children.push(Rc::clone(&self.value) as Rc<RefCell<dyn Node>>);
+        children.push(Arc::clone(&self.value) as Arc<RwLock<dyn Node>>);
 
         children
     }

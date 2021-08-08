@@ -3,8 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::{PositionnedString, Position};
 use crate::script::text::value::Value as TextValue;
@@ -35,7 +34,7 @@ pub enum ValueContent {
 pub struct Value {
     pub text: TextValue,
 
-    pub host: Weak<RefCell<dyn DeclarativeElement>>,
+    pub host: Weak<RwLock<dyn DeclarativeElement>>,
 
     pub content: ValueContent,
 }
@@ -48,10 +47,10 @@ impl Value {
     /// 
     /// # Note
     /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
-    pub fn new(host: Rc<RefCell<dyn DeclarativeElement>>, text: TextValue) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(host: Arc<RwLock<dyn DeclarativeElement>>, text: TextValue) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
-        Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self{
-            host: Rc::downgrade(&host),
+        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self{
+            host: Arc::downgrade(&host),
             content: Self::parse(&text)?,
             text,
         })))
@@ -125,7 +124,7 @@ impl Value {
     fn make_reference_valuecontent(&self, value: &ValueContent) -> Result<ValueContent, ScriptError> {
 
         let rc_host = self.host.upgrade().unwrap();
-        let borrowed_host = rc_host.borrow();
+        let borrowed_host = rc_host.read().unwrap();
         let content;
 
         match value {
@@ -148,7 +147,7 @@ impl Value {
                     
                     content = ValueContent::Name(Reference {
                         name: n.name.clone(),
-                        reference: Some(Rc::downgrade(&param.unwrap())),
+                        reference: Some(Arc::downgrade(&param.unwrap())),
                     });
                 }
                 else {
@@ -170,7 +169,7 @@ impl Value {
 
                     content = ValueContent::ContextReference((Reference {
                         name: r.name.clone(),
-                        reference: Some(Rc::downgrade(&requirement.unwrap())),
+                        reference: Some(Arc::downgrade(&requirement.unwrap())),
                     }, e.clone()));
                 }
                 else {

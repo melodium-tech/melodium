@@ -3,8 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
 
@@ -17,7 +16,7 @@ use super::r#type::Type;
 pub struct Input {
     pub text: TextParameter,
 
-    pub sequence: Weak<RefCell<Sequence>>,
+    pub sequence: Weak<RwLock<Sequence>>,
 
     pub name: String,
     pub r#type: Type,
@@ -60,11 +59,11 @@ impl Input {
     /// assert_eq!(borrowed_input.r#type.name, TypeName::Integer);
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(sequence: Rc<RefCell<Sequence>>, text: TextParameter) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(sequence: Arc<RwLock<Sequence>>, text: TextParameter) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
         let r#type;
         {
-            let borrowed_sequence = sequence.borrow();
+            let borrowed_sequence = sequence.read().unwrap();
 
             let input = borrowed_sequence.find_input(&text.name.string);
             if input.is_some() {
@@ -81,8 +80,8 @@ impl Input {
             }
         }
 
-        Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self{
-            sequence: Rc::downgrade(&sequence),
+        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self{
+            sequence: Arc::downgrade(&sequence),
             name: text.name.string.clone(),
             text,
             r#type,

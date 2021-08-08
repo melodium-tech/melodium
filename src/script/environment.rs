@@ -67,9 +67,9 @@ impl Environment {
         let mut inclusions = Vec::new();
         for file in &self.files {
 
-            for usage in &file.semantic.as_ref().unwrap().script.borrow().uses {
+            for usage in &file.semantic.as_ref().unwrap().script.read().unwrap().uses {
 
-                let usage = usage.borrow();
+                let usage = usage.read().unwrap();
 
                 let canonical = self.get_canonical_path(&file.absolute_path, &usage.path);
 

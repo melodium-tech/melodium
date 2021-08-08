@@ -3,8 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Instanciation as TextInstanciation;
 
@@ -22,11 +21,11 @@ use super::declarative_element::DeclarativeElement;
 pub struct InstanciedModel {
     pub text: TextInstanciation,
 
-    pub sequence: Weak<RefCell<Sequence>>,
+    pub sequence: Weak<RwLock<Sequence>>,
 
     pub name: String,
     pub r#type: RefersTo,
-    pub parameters: Vec<Rc<RefCell<AssignedParameter>>>,
+    pub parameters: Vec<Arc<RwLock<AssignedParameter>>>,
 }
 
 /// Enumeration managing what model instanciation refers to.
@@ -74,18 +73,18 @@ impl InstanciedModel {
     /// assert_eq!(borrowed_instancied_model.parameters.len(), 1);
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(sequence: Rc<RefCell<Sequence>>, text: TextInstanciation) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(sequence: Arc<RwLock<Sequence>>, text: TextInstanciation) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
-        let treatment = Rc::<RefCell<Self>>::new(RefCell::new(Self {
+        let treatment = Arc::<RwLock<Self>>::new(RwLock::new(Self {
             text: text.clone(),
-            sequence: Rc::downgrade(&sequence),
+            sequence: Arc::downgrade(&sequence),
             name: text.name.string.clone(),
             r#type: RefersTo::Unkown(Reference::new(text.r#type.string)),
             parameters: Vec::new(),
         }));
 
         {
-            let borrowed_sequence = sequence.borrow();
+            let borrowed_sequence = sequence.read().unwrap();
 
             let treatment = borrowed_sequence.find_instancied_model(&text.name.string);
             if treatment.is_some() {
@@ -94,8 +93,8 @@ impl InstanciedModel {
         }
 
         for p in text.parameters {
-            let assigned_parameter = AssignedParameter::new(Rc::clone(&treatment) as Rc<RefCell<dyn AssignativeElement>>, p)?;
-            treatment.borrow_mut().parameters.push(assigned_parameter);
+            let assigned_parameter = AssignedParameter::new(Arc::clone(&treatment) as Arc<RwLock<dyn AssignativeElement>>, p)?;
+            treatment.write().unwrap().parameters.push(assigned_parameter);
         }
 
         Ok(treatment)
@@ -108,8 +107,8 @@ impl AssignativeElement for InstanciedModel {
         AssignativeElementType::InstanciedModel(&self)
     }
 
-    fn associated_declarative_element(&self) -> Rc<RefCell<dyn DeclarativeElement>> {
-        self.sequence.upgrade().unwrap() as Rc<RefCell<dyn DeclarativeElement>>
+    fn associated_declarative_element(&self) -> Arc<RwLock<dyn DeclarativeElement>> {
+        self.sequence.upgrade().unwrap() as Arc<RwLock<dyn DeclarativeElement>>
     }
 
     /// Search for a parameter.
@@ -141,17 +140,17 @@ impl AssignativeElement for InstanciedModel {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    fn find_assigned_parameter(&self, name: & str) -> Option<&Rc<RefCell<AssignedParameter>>> {
-        self.parameters.iter().find(|&a| a.borrow().name == name)
+    fn find_assigned_parameter(&self, name: & str) -> Option<&Arc<RwLock<AssignedParameter>>> {
+        self.parameters.iter().find(|&a| a.read().unwrap().name == name)
     }
 }
 
 impl Node for InstanciedModel {
-    fn children(&self) -> Vec<Rc<RefCell<dyn Node>>> {
+    fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
 
-        let mut children: Vec<Rc<RefCell<dyn Node>>> = Vec::new();
+        let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();
 
-        self.parameters.iter().for_each(|p| children.push(Rc::clone(&p) as Rc<RefCell<dyn Node>>));
+        self.parameters.iter().for_each(|p| children.push(Arc::clone(&p) as Arc<RwLock<dyn Node>>));
 
         children
     }
@@ -161,16 +160,16 @@ impl Node for InstanciedModel {
         if let RefersTo::Unkown(reference) = &self.r#type {
 
             let rc_sequence = self.sequence.upgrade().unwrap();
-            let borrowed_sequence = rc_sequence.borrow();
+            let borrowed_sequence = rc_sequence.read().unwrap();
             let rc_script = borrowed_sequence.script.upgrade().unwrap();
-            let borrowed_script = rc_script.borrow();
+            let borrowed_script = rc_script.read().unwrap();
 
             let r#use = borrowed_script.find_use(&reference.name);
             if r#use.is_some() {
 
                 self.r#type = RefersTo::Use(Reference{
                     name: reference.name.clone(),
-                    reference: Some(Rc::downgrade(r#use.unwrap()))
+                    reference: Some(Arc::downgrade(r#use.unwrap()))
                 });
             }
             else {
@@ -179,7 +178,7 @@ impl Node for InstanciedModel {
 
                     self.r#type = RefersTo::Model(Reference{
                         name: reference.name.clone(),
-                        reference: Some(Rc::downgrade(model.unwrap()))
+                        reference: Some(Arc::downgrade(model.unwrap()))
                     });
                 }
                 else {

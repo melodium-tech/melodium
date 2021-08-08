@@ -3,8 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Use as TextUse;
 use crate::script::path::Path;
@@ -17,7 +16,7 @@ use super::script::Script;
 pub struct Use {
     pub text: TextUse,
 
-    pub script: Weak<RefCell<Script>>,
+    pub script: Weak<RwLock<Script>>,
 
     pub path: Path,
     pub element: String,
@@ -59,7 +58,7 @@ impl Use {
     /// assert_eq!(borrowed_use.r#as, "CoreSpectrum");
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(script: Rc<RefCell<Script>>, text: TextUse) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(script: Arc<RwLock<Script>>, text: TextUse) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
         let r#as;
         if let Some(ps) = &text.r#as {
@@ -70,7 +69,7 @@ impl Use {
         }
 
         {
-            let borrowed_script = script.borrow();
+            let borrowed_script = script.read().unwrap();
 
             let r#use = borrowed_script.find_use(&r#as.string);
             if r#use.is_some() {
@@ -80,8 +79,8 @@ impl Use {
 
         let path = Path::new(text.path.iter().map(|i| i.string.clone()).collect());
 
-        Ok(Rc::<RefCell<Self>>::new(RefCell::new(Self {
-            script: Rc::downgrade(&script),
+        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
+            script: Arc::downgrade(&script),
             path,
             element: text.element.string.clone(),
             r#as: r#as.string.clone(),

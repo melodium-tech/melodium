@@ -1,8 +1,7 @@
 
 //! Module dedicated to DeclarativeElement trait definition.
 
-use std::rc::Rc;
-use std::cell::RefCell;
+use std::sync::{Arc, RwLock};
 
 use super::common::Node;
 use super::declared_parameter::DeclaredParameter;
@@ -18,7 +17,7 @@ pub trait DeclarativeElement : Node {
     fn declarative_element(&self) -> DeclarativeElementType;
 
     /// Search for a declared parameter.
-    fn find_declared_parameter(&self, name: & str) -> Option<&Rc<RefCell<DeclaredParameter>>>;
+    fn find_declared_parameter(&self, name: & str) -> Option<&Arc<RwLock<DeclaredParameter>>>;
 }
 
 /// Enum listing possible declarative elements.

@@ -3,8 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Instanciation as TextTreatment;
 
@@ -22,12 +21,12 @@ use super::declarative_element::DeclarativeElement;
 pub struct Treatment {
     pub text: TextTreatment,
 
-    pub sequence: Weak<RefCell<Sequence>>,
+    pub sequence: Weak<RwLock<Sequence>>,
 
     pub name: String,
     pub r#type: RefersTo,
-    pub models: Vec<Rc<RefCell<AssignedModel>>>,
-    pub parameters: Vec<Rc<RefCell<AssignedParameter>>>,
+    pub models: Vec<Arc<RwLock<AssignedModel>>>,
+    pub parameters: Vec<Arc<RwLock<AssignedParameter>>>,
 }
 
 /// Enumeration managing what treatment type refers to.
@@ -75,11 +74,11 @@ impl Treatment {
     /// assert_eq!(borrowed_treatment.parameters.len(), 6);
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(sequence: Rc<RefCell<Sequence>>, text: TextTreatment) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(sequence: Arc<RwLock<Sequence>>, text: TextTreatment) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
-        let treatment = Rc::<RefCell<Self>>::new(RefCell::new(Self {
+        let treatment = Arc::<RwLock<Self>>::new(RwLock::new(Self {
             text: text.clone(),
-            sequence: Rc::downgrade(&sequence),
+            sequence: Arc::downgrade(&sequence),
             name: text.name.string.clone(),
             r#type: RefersTo::Unkown(Reference::new(text.r#type.string)),
             models: Vec::new(),
@@ -87,7 +86,7 @@ impl Treatment {
         }));
 
         {
-            let borrowed_sequence = sequence.borrow();
+            let borrowed_sequence = sequence.read().unwrap();
 
             let treatment = borrowed_sequence.find_treatment(&text.name.string);
             if treatment.is_some() {
@@ -96,13 +95,13 @@ impl Treatment {
         }
 
         for m in text.configuration {
-            let assigned_model = AssignedModel::new(Rc::clone(&treatment) as Rc<RefCell<dyn AssignativeElement>>, m)?;
-            treatment.borrow_mut().models.push(assigned_model);
+            let assigned_model = AssignedModel::new(Arc::clone(&treatment) as Arc<RwLock<dyn AssignativeElement>>, m)?;
+            treatment.write().unwrap().models.push(assigned_model);
         }
 
         for p in text.parameters {
-            let assigned_parameter = AssignedParameter::new(Rc::clone(&treatment) as Rc<RefCell<dyn AssignativeElement>>, p)?;
-            treatment.borrow_mut().parameters.push(assigned_parameter);
+            let assigned_parameter = AssignedParameter::new(Arc::clone(&treatment) as Arc<RwLock<dyn AssignativeElement>>, p)?;
+            treatment.write().unwrap().parameters.push(assigned_parameter);
         }
 
         Ok(treatment)
@@ -115,8 +114,8 @@ impl AssignativeElement for Treatment {
         AssignativeElementType::Treatment(&self)
     }
 
-    fn associated_declarative_element(&self) -> Rc<RefCell<dyn DeclarativeElement>> {
-        self.sequence.upgrade().unwrap() as Rc<RefCell<dyn DeclarativeElement>>
+    fn associated_declarative_element(&self) -> Arc<RwLock<dyn DeclarativeElement>> {
+        self.sequence.upgrade().unwrap() as Arc<RwLock<dyn DeclarativeElement>>
     }
 
     /// Search for an assigned model.
@@ -148,8 +147,8 @@ impl AssignativeElement for Treatment {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    fn find_assigned_model(&self, name: & str) -> Option<&Rc<RefCell<AssignedModel>>> {
-        self.models.iter().find(|&m| m.borrow().name == name)
+    fn find_assigned_model(&self, name: & str) -> Option<&Arc<RwLock<AssignedModel>>> {
+        self.models.iter().find(|&m| m.read().unwrap().name == name)
     }
 
     /// Search for a parameter.
@@ -181,18 +180,18 @@ impl AssignativeElement for Treatment {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    fn find_assigned_parameter(&self, name: & str) -> Option<&Rc<RefCell<AssignedParameter>>> {
-        self.parameters.iter().find(|&a| a.borrow().name == name)
+    fn find_assigned_parameter(&self, name: & str) -> Option<&Arc<RwLock<AssignedParameter>>> {
+        self.parameters.iter().find(|&a| a.read().unwrap().name == name)
     }
 }
 
 impl Node for Treatment {
-    fn children(&self) -> Vec<Rc<RefCell<dyn Node>>> {
+    fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
 
-        let mut children: Vec<Rc<RefCell<dyn Node>>> = Vec::new();
+        let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();
 
-        self.models.iter().for_each(|m| children.push(Rc::clone(&m) as Rc<RefCell<dyn Node>>));
-        self.parameters.iter().for_each(|p| children.push(Rc::clone(&p) as Rc<RefCell<dyn Node>>));
+        self.models.iter().for_each(|m| children.push(Arc::clone(&m) as Arc<RwLock<dyn Node>>));
+        self.parameters.iter().for_each(|p| children.push(Arc::clone(&p) as Arc<RwLock<dyn Node>>));
 
         children
     }
@@ -202,16 +201,16 @@ impl Node for Treatment {
         if let RefersTo::Unkown(reference) = &self.r#type {
 
             let rc_sequence = self.sequence.upgrade().unwrap();
-            let borrowed_sequence = rc_sequence.borrow();
+            let borrowed_sequence = rc_sequence.read().unwrap();
             let rc_script = borrowed_sequence.script.upgrade().unwrap();
-            let borrowed_script = rc_script.borrow();
+            let borrowed_script = rc_script.read().unwrap();
 
             let r#use = borrowed_script.find_use(&reference.name);
             if r#use.is_some() {
 
                 self.r#type = RefersTo::Use(Reference{
                     name: reference.name.clone(),
-                    reference: Some(Rc::downgrade(r#use.unwrap()))
+                    reference: Some(Arc::downgrade(r#use.unwrap()))
                 });
             }
             else {
@@ -220,7 +219,7 @@ impl Node for Treatment {
 
                     self.r#type = RefersTo::Sequence(Reference{
                         name: reference.name.clone(),
-                        reference: Some(Rc::downgrade(sequence.unwrap()))
+                        reference: Some(Arc::downgrade(sequence.unwrap()))
                     });
                 }
                 else {

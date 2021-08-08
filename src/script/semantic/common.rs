@@ -1,8 +1,7 @@
 
 //! Module dedicated to common semantic elements & traits.
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use super::script::Script;
 use crate::script::text::Script as TextScript;
 use crate::script::error::ScriptError;
@@ -11,7 +10,7 @@ use crate::script::error::ScriptError;
 /// 
 /// Currently holds the root script, which itself owns all other elements.
 pub struct Tree {
-    pub script: Rc<RefCell<Script>>,
+    pub script: Arc<RwLock<Script>>,
 }
 
 impl Tree {
@@ -24,16 +23,16 @@ impl Tree {
 
     pub fn make_references(&self) -> Result<(), ScriptError> {
 
-        Self::make_references_node(Rc::clone(&self.script) as Rc<RefCell<dyn Node>>)?;
+        Self::make_references_node(Arc::clone(&self.script) as Arc<RwLock<dyn Node>>)?;
 
         Ok(())
     }
 
-    fn make_references_node(node: Rc<RefCell<dyn Node>>) -> Result<(), ScriptError> {
+    fn make_references_node(node: Arc<RwLock<dyn Node>>) -> Result<(), ScriptError> {
 
-        node.borrow_mut().make_references()?;
+        node.write().unwrap().make_references()?;
 
-        let children = node.borrow().children();
+        let children = node.read().unwrap().children();
         for child in children {
             Self::make_references_node(child)?;
         }
@@ -55,7 +54,7 @@ pub trait Node {
     }
 
     /// Give a vector of all children the node have, whatever kind they can be.
-    fn children(&self) -> Vec<Rc<RefCell<dyn Node>>> {
+    fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
         vec![]
     }
 }
@@ -64,7 +63,7 @@ pub trait Node {
 #[derive(Default)]
 pub struct Reference<T> {
     pub name: String,
-    pub reference: Option<Weak<RefCell<T>>>,
+    pub reference: Option<Weak<RwLock<T>>>,
 }
 
 impl<T> Reference<T> {

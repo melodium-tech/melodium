@@ -3,8 +3,7 @@
 
 use super::common::Node;
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Sequence as TextSequence;
 
@@ -25,19 +24,19 @@ use super::connection::Connection;
 pub struct Sequence {
     pub text: TextSequence,
 
-    pub script: Weak<RefCell<Script>>,
+    pub script: Weak<RwLock<Script>>,
 
     pub name: String,
 
-    pub declared_models: Vec<Rc<RefCell<DeclaredModel>>>,
-    pub parameters: Vec<Rc<RefCell<DeclaredParameter>>>,
-    pub instancied_models: Vec<Rc<RefCell<InstanciedModel>>>,
-    pub requirements: Vec<Rc<RefCell<Requirement>>>,
-    pub origin: Option<Rc<RefCell<Treatment>>>,
-    pub inputs: Vec<Rc<RefCell<Input>>>,
-    pub outputs: Vec<Rc<RefCell<Output>>>,
-    pub treatments: Vec<Rc<RefCell<Treatment>>>,
-    pub connections: Vec<Rc<RefCell<Connection>>>
+    pub declared_models: Vec<Arc<RwLock<DeclaredModel>>>,
+    pub parameters: Vec<Arc<RwLock<DeclaredParameter>>>,
+    pub instancied_models: Vec<Arc<RwLock<InstanciedModel>>>,
+    pub requirements: Vec<Arc<RwLock<Requirement>>>,
+    pub origin: Option<Arc<RwLock<Treatment>>>,
+    pub inputs: Vec<Arc<RwLock<Input>>>,
+    pub outputs: Vec<Arc<RwLock<Output>>>,
+    pub treatments: Vec<Arc<RwLock<Treatment>>>,
+    pub connections: Vec<Arc<RwLock<Connection>>>
 }
 
 impl Sequence {
@@ -77,11 +76,11 @@ impl Sequence {
     /// assert_eq!(borrowed_sequence.origin.as_ref().unwrap().borrow().name, "AudioSignal");
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(script: Rc<RefCell<Script>>, text: TextSequence) -> Result<Rc<RefCell<Self>>, ScriptError> {
+    pub fn new(script: Arc<RwLock<Script>>, text: TextSequence) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
-        let sequence = Rc::<RefCell<Self>>::new(RefCell::new(Self {
+        let sequence = Arc::<RwLock<Self>>::new(RwLock::new(Self {
             text: text.clone(),
-            script: Rc::downgrade(&script),
+            script: Arc::downgrade(&script),
             name: text.name.string.clone(),
             declared_models: Vec::new(),
             parameters: Vec::new(),
@@ -95,7 +94,7 @@ impl Sequence {
         }));
 
         {
-            let borrowed_script = script.borrow();
+            let borrowed_script = script.read().unwrap();
 
             let sequence = borrowed_script.find_sequence(&text.name.string);
             if sequence.is_some() {
@@ -109,54 +108,54 @@ impl Sequence {
         }
 
         for c in text.configuration {
-            let declared_model = DeclaredModel::new(Rc::clone(&sequence), c)?;
-            sequence.borrow_mut().declared_models.push(declared_model);
+            let declared_model = DeclaredModel::new(Arc::clone(&sequence), c)?;
+            sequence.write().unwrap().declared_models.push(declared_model);
         }
 
         for p in text.parameters {
-            let declared_parameter = DeclaredParameter::new(Rc::clone(&sequence) as Rc<RefCell<dyn DeclarativeElement>>, p)?;
-            sequence.borrow_mut().parameters.push(declared_parameter);
+            let declared_parameter = DeclaredParameter::new(Arc::clone(&sequence) as Arc<RwLock<dyn DeclarativeElement>>, p)?;
+            sequence.write().unwrap().parameters.push(declared_parameter);
         }
 
         for m in text.models {
-            let instancied_model = InstanciedModel::new(Rc::clone(&sequence), m)?;
-            sequence.borrow_mut().instancied_models.push(Rc::clone(&instancied_model));
+            let instancied_model = InstanciedModel::new(Arc::clone(&sequence), m)?;
+            sequence.write().unwrap().instancied_models.push(Arc::clone(&instancied_model));
             let declared_model = DeclaredModel::from_instancied_model(instancied_model)?;
-            sequence.borrow_mut().declared_models.push(declared_model);
+            sequence.write().unwrap().declared_models.push(declared_model);
         }
 
         for r in text.requirements {
-            let requirement = Requirement::new(Rc::clone(&sequence), r)?;
-            sequence.borrow_mut().requirements.push(requirement);
+            let requirement = Requirement::new(Arc::clone(&sequence), r)?;
+            sequence.write().unwrap().requirements.push(requirement);
         }
 
         if text.origin.is_some() {
 
-            let origin = Treatment::new(Rc::clone(&sequence), text.origin.unwrap())?;
+            let origin = Treatment::new(Arc::clone(&sequence), text.origin.unwrap())?;
 
-            let mut borrowed_sequence = sequence.borrow_mut();
-            borrowed_sequence.origin = Some(Rc::clone(&origin));
-            borrowed_sequence.treatments.push(Rc::clone(&origin));
+            let mut borrowed_sequence = sequence.write().unwrap();
+            borrowed_sequence.origin = Some(Arc::clone(&origin));
+            borrowed_sequence.treatments.push(Arc::clone(&origin));
         }
 
         for i in text.inputs {
-            let input = Input::new(Rc::clone(&sequence), i)?;
-            sequence.borrow_mut().inputs.push(input);
+            let input = Input::new(Arc::clone(&sequence), i)?;
+            sequence.write().unwrap().inputs.push(input);
         }
 
         for o in text.outputs {
-            let output = Output::new(Rc::clone(&sequence), o)?;
-            sequence.borrow_mut().outputs.push(output);
+            let output = Output::new(Arc::clone(&sequence), o)?;
+            sequence.write().unwrap().outputs.push(output);
         }
 
         for t in text.treatments {
-            let treatment = Treatment::new(Rc::clone(&sequence), t)?;
-            sequence.borrow_mut().treatments.push(treatment);
+            let treatment = Treatment::new(Arc::clone(&sequence), t)?;
+            sequence.write().unwrap().treatments.push(treatment);
         }
 
         for c in text.connections {
-            let connection = Connection::new(Rc::clone(&sequence), c)?;
-            sequence.borrow_mut().connections.push(connection);
+            let connection = Connection::new(Arc::clone(&sequence), c)?;
+            sequence.write().unwrap().connections.push(connection);
         }
 
         Ok(sequence)
@@ -189,8 +188,8 @@ impl Sequence {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn find_declared_model(&self, name: & str) -> Option<&Rc<RefCell<DeclaredModel>>> {
-        self.declared_models.iter().find(|&m| m.borrow().name == name) 
+    pub fn find_declared_model(&self, name: & str) -> Option<&Arc<RwLock<DeclaredModel>>> {
+        self.declared_models.iter().find(|&m| m.read().unwrap().name == name) 
     }
 
     /// Search for an instancied model.
@@ -220,8 +219,8 @@ impl Sequence {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn find_instancied_model(&self, name: & str) -> Option<&Rc<RefCell<InstanciedModel>>> {
-        self.instancied_models.iter().find(|&m| m.borrow().name == name) 
+    pub fn find_instancied_model(&self, name: & str) -> Option<&Arc<RwLock<InstanciedModel>>> {
+        self.instancied_models.iter().find(|&m| m.read().unwrap().name == name) 
     }
 
     /// Search for a requirement.
@@ -251,8 +250,8 @@ impl Sequence {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn find_requirement(&self, name: & str) -> Option<&Rc<RefCell<Requirement>>> {
-        self.requirements.iter().find(|&r| r.borrow().name == name) 
+    pub fn find_requirement(&self, name: & str) -> Option<&Arc<RwLock<Requirement>>> {
+        self.requirements.iter().find(|&r| r.read().unwrap().name == name) 
     }
 
     /// Search for an input.
@@ -282,8 +281,8 @@ impl Sequence {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn find_input(&self, name: & str) -> Option<&Rc<RefCell<Input>>> {
-        self.inputs.iter().find(|&i| i.borrow().name == name) 
+    pub fn find_input(&self, name: & str) -> Option<&Arc<RwLock<Input>>> {
+        self.inputs.iter().find(|&i| i.read().unwrap().name == name) 
     }
 
     /// Search for an output.
@@ -313,8 +312,8 @@ impl Sequence {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn find_output(&self, name: & str) -> Option<&Rc<RefCell<Output>>> {
-        self.outputs.iter().find(|&o| o.borrow().name == name) 
+    pub fn find_output(&self, name: & str) -> Option<&Arc<RwLock<Output>>> {
+        self.outputs.iter().find(|&o| o.read().unwrap().name == name) 
     }
 
     /// Search for a treatment.
@@ -344,24 +343,24 @@ impl Sequence {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn find_treatment(&self, name: & str) -> Option<&Rc<RefCell<Treatment>>> {
-        self.treatments.iter().find(|&t| t.borrow().name == name) 
+    pub fn find_treatment(&self, name: & str) -> Option<&Arc<RwLock<Treatment>>> {
+        self.treatments.iter().find(|&t| t.read().unwrap().name == name) 
     }
 }
 
 impl Node for Sequence {
-    fn children(&self) -> Vec<Rc<RefCell<dyn Node>>> {
+    fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
 
-        let mut children: Vec<Rc<RefCell<dyn Node>>> = Vec::new();
+        let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();
 
-        self.declared_models.iter().for_each(|m| children.push(Rc::clone(&m) as Rc<RefCell<dyn Node>>));
-        self.parameters.iter().for_each(|p| children.push(Rc::clone(&p) as Rc<RefCell<dyn Node>>));
-        self.instancied_models.iter().for_each(|m| children.push(Rc::clone(&m) as Rc<RefCell<dyn Node>>));
-        self.requirements.iter().for_each(|r| children.push(Rc::clone(&r) as Rc<RefCell<dyn Node>>));
-        self.inputs.iter().for_each(|i| children.push(Rc::clone(&i) as Rc<RefCell<dyn Node>>));
-        self.outputs.iter().for_each(|o| children.push(Rc::clone(&o) as Rc<RefCell<dyn Node>>));
-        self.treatments.iter().for_each(|t| children.push(Rc::clone(&t) as Rc<RefCell<dyn Node>>));
-        self.connections.iter().for_each(|c| children.push(Rc::clone(&c) as Rc<RefCell<dyn Node>>));
+        self.declared_models.iter().for_each(|m| children.push(Arc::clone(&m) as Arc<RwLock<dyn Node>>));
+        self.parameters.iter().for_each(|p| children.push(Arc::clone(&p) as Arc<RwLock<dyn Node>>));
+        self.instancied_models.iter().for_each(|m| children.push(Arc::clone(&m) as Arc<RwLock<dyn Node>>));
+        self.requirements.iter().for_each(|r| children.push(Arc::clone(&r) as Arc<RwLock<dyn Node>>));
+        self.inputs.iter().for_each(|i| children.push(Arc::clone(&i) as Arc<RwLock<dyn Node>>));
+        self.outputs.iter().for_each(|o| children.push(Arc::clone(&o) as Arc<RwLock<dyn Node>>));
+        self.treatments.iter().for_each(|t| children.push(Arc::clone(&t) as Arc<RwLock<dyn Node>>));
+        self.connections.iter().for_each(|c| children.push(Arc::clone(&c) as Arc<RwLock<dyn Node>>));
 
         children
     }
@@ -401,7 +400,7 @@ impl DeclarativeElement for Sequence {
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
     /// ```
-    fn find_declared_parameter(&self, name: & str) -> Option<&Rc<RefCell<DeclaredParameter>>> {
-        self.parameters.iter().find(|&p| p.borrow().name == name)
+    fn find_declared_parameter(&self, name: & str) -> Option<&Arc<RwLock<DeclaredParameter>>> {
+        self.parameters.iter().find(|&p| p.read().unwrap().name == name)
     }
 }
