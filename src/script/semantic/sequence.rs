@@ -63,17 +63,17 @@ impl Sequence {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence)
+    /// // Internally, Script::new call Sequence::new(Arc::clone(&script), text_sequence)
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_sequence.declared_models.len(), 1);
     /// assert_eq!(borrowed_sequence.parameters.len(), 3);
     /// assert_eq!(borrowed_sequence.requirements.len(), 2);
     /// assert_eq!(borrowed_sequence.treatments.len(), 4);
     /// assert!(borrowed_sequence.origin.is_some());
-    /// assert_eq!(borrowed_sequence.origin.as_ref().unwrap().borrow().name, "AudioSignal");
+    /// assert_eq!(borrowed_sequence.origin.as_ref().unwrap().read().unwrap().name, "AudioSignal");
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn new(script: Arc<RwLock<Script>>, text: TextSequence) -> Result<Arc<RwLock<Self>>, ScriptError> {
@@ -179,8 +179,8 @@ impl Sequence {
     /// 
     /// let script = Script::new(text_script)?;
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().read().unwrap();
     /// 
     /// let audio_manager = borrowed_sequence.find_declared_model("AudioManager");
     /// let dont_exist = borrowed_sequence.find_declared_model("DontExist");
@@ -210,8 +210,8 @@ impl Sequence {
     /// 
     /// let script = Script::new(text_script)?;
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().read().unwrap();
     /// 
     /// let audio = borrowed_sequence.find_instancied_model("Audio");
     /// let dont_exist = borrowed_sequence.find_instancied_model("DontExist");
@@ -241,8 +241,8 @@ impl Sequence {
     /// 
     /// let script = Script::new(text_script)?;
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().read().unwrap();
     /// 
     /// let signal = borrowed_sequence.find_requirement("@Signal");
     /// let dont_exist = borrowed_sequence.find_requirement("@DontExist");
@@ -272,8 +272,8 @@ impl Sequence {
     /// 
     /// let script = Script::new(text_script)?;
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().read().unwrap();
     /// 
     /// let spectrum = borrowed_sequence.find_input("spectrum");
     /// let dont_exist = borrowed_sequence.find_input("dontExist");
@@ -303,8 +303,8 @@ impl Sequence {
     /// 
     /// let script = Script::new(text_script)?;
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().read().unwrap();
     /// 
     /// let hpcp = borrowed_sequence.find_output("hpcp");
     /// let dont_exist = borrowed_sequence.find_output("dontExist");
@@ -334,8 +334,8 @@ impl Sequence {
     /// 
     /// let script = Script::new(text_script)?;
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("Spectrum").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Spectrum").unwrap().read().unwrap();
     /// 
     /// let core_frame_cutter = borrowed_sequence.find_treatment("CoreFrameCutter");
     /// let dont_exist = borrowed_sequence.find_treatment("DontExist");
@@ -391,8 +391,8 @@ impl DeclarativeElement for Sequence {
     /// 
     /// let script = Script::new(text_script)?;
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("Spectrum").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Spectrum").unwrap().read().unwrap();
     /// 
     /// let frame_size = borrowed_sequence.find_declared_parameter("frameSize");
     /// let dont_exist = borrowed_sequence.find_declared_parameter("dontExist");

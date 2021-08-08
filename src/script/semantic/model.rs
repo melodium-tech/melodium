@@ -55,10 +55,10 @@ impl Model {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Model::new(Rc::clone(&script), text_model)
+    /// // Internally, Script::new call Model::new(Arc::clone(&script), text_model)
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_model = borrowed_script.find_model("Files").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_model = borrowed_script.find_model("Files").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_model.parameters.len(), 1);
     /// assert_eq!(borrowed_model.assignations.len(), 1);
@@ -126,8 +126,8 @@ impl DeclarativeElement for Model {
     /// 
     /// let script = Script::new(text_script)?;
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_model = borrowed_script.find_model("Files").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_model = borrowed_script.find_model("Files").unwrap().read().unwrap();
     /// 
     /// let directory = borrowed_model.find_declared_parameter("directory");
     /// let dont_exist = borrowed_model.find_declared_parameter("dontExist");
@@ -170,8 +170,8 @@ impl AssignativeElement for Model {
     /// 
     /// let script = Script::new(text_script)?;
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_model = borrowed_script.find_model("AudioEngine").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_model = borrowed_script.find_model("AudioEngine").unwrap().read().unwrap();
     /// 
     /// let sample_rate = borrowed_model.find_assigned_parameter("sampleRate");
     /// let dont_exist = borrowed_model.find_assigned_parameter("dontExist");

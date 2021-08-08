@@ -47,12 +47,12 @@ impl Input {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
-    /// // which will itself call Input::new(Rc::clone(&sequence), text_parameter).
+    /// // Internally, Script::new call Sequence::new(Arc::clone(&script), text_sequence),
+    /// // which will itself call Input::new(Arc::clone(&sequence), text_parameter).
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("Spectrum").unwrap().borrow();
-    /// let borrowed_input = borrowed_sequence.find_input("signal").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Spectrum").unwrap().read().unwrap();
+    /// let borrowed_input = borrowed_sequence.find_input("signal").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_input.name, "signal");
     /// assert_eq!(borrowed_input.r#type.structure, TypeStructure::Vector);

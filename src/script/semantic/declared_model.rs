@@ -62,12 +62,12 @@ impl DeclaredModel {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
-    /// // which will itself call DeclaredModel::from_instancied_model(Rc::clone(&instancied_model)).
+    /// // Internally, Script::new call Sequence::new(Arc::clone(&script), text_sequence),
+    /// // which will itself call DeclaredModel::from_instancied_model(Arc::clone(&instancied_model)).
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().borrow();
-    /// let borrowed_declared_model = borrowed_sequence.find_declared_model("Files").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().read().unwrap();
+    /// let borrowed_declared_model = borrowed_sequence.find_declared_model("Files").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_declared_model.name, "Files");
     /// # Ok::<(), ScriptError>(())
@@ -112,12 +112,12 @@ impl DeclaredModel {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
-    /// // which will itself call DeclaredModel::new(Rc::clone(&sequence), text_parameter).
+    /// // Internally, Script::new call Sequence::new(Arc::clone(&script), text_sequence),
+    /// // which will itself call DeclaredModel::new(Arc::clone(&sequence), text_parameter).
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().borrow();
-    /// let borrowed_declared_model = borrowed_sequence.find_declared_model("AudioManager").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().read().unwrap();
+    /// let borrowed_declared_model = borrowed_sequence.find_declared_model("AudioManager").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_declared_model.name, "AudioManager");
     /// # Ok::<(), ScriptError>(())

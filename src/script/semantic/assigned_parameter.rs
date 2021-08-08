@@ -50,14 +50,14 @@ impl AssignedParameter {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
-    /// // which will itself call Treatment::new(Rc::clone(&sequence), text_treatment),
-    /// // which will then call AssignedParameter::new(Rc::clone(&treatment), text_parameter).
+    /// // Internally, Script::new call Sequence::new(Arc::clone(&script), text_sequence),
+    /// // which will itself call Treatment::new(Arc::clone(&sequence), text_treatment),
+    /// // which will then call AssignedParameter::new(Arc::clone(&treatment), text_parameter).
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().borrow();
-    /// let borrowed_treatment = borrowed_sequence.find_treatment("CoreSpectralPeaks").unwrap().borrow();
-    /// let borrowed_parameter = borrowed_treatment.find_assigned_parameter("magnitudeThreshold").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_sequence.find_treatment("CoreSpectralPeaks").unwrap().read().unwrap();
+    /// let borrowed_parameter = borrowed_treatment.find_assigned_parameter("magnitudeThreshold").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_parameter.name, "magnitudeThreshold");
     /// # Ok::<(), ScriptError>(())

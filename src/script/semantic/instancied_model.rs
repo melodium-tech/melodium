@@ -62,12 +62,12 @@ impl InstanciedModel {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
-    /// // which will itself call InstanciedModel::new(Rc::clone(&sequence), text_instanciation).
+    /// // Internally, Script::new call Sequence::new(Arc::clone(&script), text_sequence),
+    /// // which will itself call InstanciedModel::new(Arc::clone(&sequence), text_instanciation).
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().borrow();
-    /// let borrowed_instancied_model = borrowed_sequence.find_instancied_model("Files").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().read().unwrap();
+    /// let borrowed_instancied_model = borrowed_sequence.find_instancied_model("Files").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_instancied_model.name, "Files");
     /// assert_eq!(borrowed_instancied_model.parameters.len(), 1);
@@ -130,9 +130,9 @@ impl AssignativeElement for InstanciedModel {
     /// 
     /// let script = Script::new(text_script)?;
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().borrow();
-    /// let borrowed_instancied_model = borrowed_sequence.find_instancied_model("Files").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().read().unwrap();
+    /// let borrowed_instancied_model = borrowed_sequence.find_instancied_model("Files").unwrap().read().unwrap();
     /// 
     /// let directory = borrowed_instancied_model.find_assigned_parameter("directory");
     /// let dont_exist = borrowed_instancied_model.find_assigned_parameter("dontExist");

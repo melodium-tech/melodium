@@ -50,8 +50,8 @@ impl Use {
     /// let script = Script::new(text_script)?;
     /// // Internally, Script::new call Use::new(Rc::clone(&script), text_use)
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_use = borrowed_script.find_use("CoreSpectrum").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_use = borrowed_script.find_use("CoreSpectrum").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_use.path, Path::new(vec!["core".to_string(), "signal".to_string()]));
     /// assert_eq!(borrowed_use.element, "Spectrum");

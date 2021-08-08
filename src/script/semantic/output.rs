@@ -47,12 +47,12 @@ impl Output {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
-    /// // which will itself call Output::new(Rc::clone(&sequence), text_parameter).
+    /// // Internally, Script::new call Sequence::new(Arc::clone(&script), text_sequence),
+    /// // which will itself call Output::new(Arc::clone(&sequence), text_parameter).
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().borrow();
-    /// let borrowed_output = borrowed_sequence.find_output("hpcp").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().read().unwrap();
+    /// let borrowed_output = borrowed_sequence.find_output("hpcp").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_output.name, "hpcp");
     /// assert_eq!(borrowed_output.r#type.structure, TypeStructure::Matrix);

@@ -49,9 +49,9 @@ impl Script {
     /// 
     /// let script = Script::new(text_script)?;
     /// 
-    /// assert_eq!(script.borrow().uses.len(), 11);
-    /// assert_eq!(script.borrow().models.len(), 2);
-    /// assert_eq!(script.borrow().sequences.len(), 5);
+    /// assert_eq!(script.read().unwrap().uses.len(), 11);
+    /// assert_eq!(script.read().unwrap().models.len(), 2);
+    /// assert_eq!(script.read().unwrap().sequences.len(), 5);
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn new(text: TextScript) -> Result<Arc<RwLock<Self>>, ScriptError> {
@@ -99,7 +99,7 @@ impl Script {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// let borrowed_script = script.borrow();
+    /// let borrowed_script = script.read().unwrap();
     /// 
     /// let core_spectrum = borrowed_script.find_use("CoreSpectrum");
     /// let dont_exist = borrowed_script.find_use("DontExist");
@@ -128,7 +128,7 @@ impl Script {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// let borrowed_script = script.borrow();
+    /// let borrowed_script = script.read().unwrap();
     /// 
     /// let audio_engine = borrowed_script.find_model("AudioEngine");
     /// let dont_exist = borrowed_script.find_model("DontExist");
@@ -157,7 +157,7 @@ impl Script {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// let borrowed_script = script.borrow();
+    /// let borrowed_script = script.read().unwrap();
     /// 
     /// let hpcp = borrowed_script.find_sequence("HPCP");
     /// let dont_exist = borrowed_script.find_sequence("DontExist");

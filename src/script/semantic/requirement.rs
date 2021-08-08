@@ -44,12 +44,12 @@ impl Requirement {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
-    /// // which will itself call Requirement::new(Rc::clone(&sequence), text_requirement).
+    /// // Internally, Script::new call Sequence::new(Arc::clone(&script), text_sequence),
+    /// // which will itself call Requirement::new(Arc::clone(&sequence), text_requirement).
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().borrow();
-    /// let borrowed_requirement = borrowed_sequence.find_requirement("@Signal").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().read().unwrap();
+    /// let borrowed_requirement = borrowed_sequence.find_requirement("@Signal").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_requirement.name, "@Signal");
     /// # Ok::<(), ScriptError>(())

@@ -50,14 +50,14 @@ impl AssignedModel {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Sequence::new(Rc::clone(&script), text_sequence),
-    /// // which will itself call Treatment::new(Rc::clone(&sequence), text_treatment),
-    /// // which will then call AssignedModel::new(Rc::clone(&treatment), text_parameter).
+    /// // Internally, Script::new call Sequence::new(Arc::clone(&script), text_sequence),
+    /// // which will itself call Treatment::new(Arc::clone(&sequence), text_treatment),
+    /// // which will then call AssignedModel::new(Arc::clone(&treatment), text_parameter).
     /// 
-    /// let borrowed_script = script.borrow();
-    /// let borrowed_sequence = borrowed_script.find_sequence("ReadAudioFiles").unwrap().borrow();
-    /// let borrowed_treatment = borrowed_sequence.find_treatment("Decoder").unwrap().borrow();
-    /// let borrowed_assigned_model = borrowed_treatment.find_assigned_model("AudioManager").unwrap().borrow();
+    /// let borrowed_script = script.read().unwrap();
+    /// let borrowed_sequence = borrowed_script.find_sequence("ReadAudioFiles").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_sequence.find_treatment("Decoder").unwrap().read().unwrap();
+    /// let borrowed_assigned_model = borrowed_treatment.find_assigned_model("AudioManager").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_assigned_model.name, "AudioManager");
     /// # Ok::<(), ScriptError>(())
