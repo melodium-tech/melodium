@@ -1,31 +1,31 @@
 
-//! Provides script environment management.
+//! Provides script instance management.
 
 use std::path::PathBuf;
 use super::file::File;
 use super::path::{Path, PathRoot};
 use super::error::ScriptError;
 
-/// Manage script environment.
+/// Manage script instance.
 /// 
-/// Handle the whole environment of a Mélodium script, the files involved, and the logic associated with.
+/// Handle the whole instance of a Mélodium script, the files involved, and the logic associated with.
 pub struct Environment {
     /// Path of the main script file.
     pub main_path: PathBuf,
     /// Path of the standard library.
     pub standard_path: PathBuf,
-    /// Files used in the environment.
+    /// Files used in the instance.
     /// 
-    /// This include the main file, and may be empty for many reasons (environment not built, or errors, etc.)
+    /// This include the main file, and may be empty for many reasons (instance not built, or errors, etc.)
     pub files: Vec<File>,
-    /// Errors present in the environment.
+    /// Errors present in the instance.
     pub errors: Vec<ScriptError>
 }
 
 impl Environment {
-    /// Create a new environment, based on main file and standard library path given.
+    /// Create a new instance, based on main file and standard library path given.
     /// 
-    /// This does not build anything, nor check paths, just create an empty environment.
+    /// This does not build anything, nor check paths, just create an empty instance.
     /// 
     /// * `main_path`: path to the main script file.
     /// * `standard_path`: path to the standard library root.
@@ -39,9 +39,9 @@ impl Environment {
         }
     }
 
-    /// Build the environment.
+    /// Build the instance.
     /// 
-    /// After building environment, check if it is valid and what errors occured.
+    /// After building instance, check if it is valid and what errors occured.
     pub fn build(&mut self) {
 
         // We create the "main" path.
@@ -54,9 +54,9 @@ impl Environment {
         while self.manage_inclusions() {}
     }
 
-    /// Manage inclusions of files in the environment.
+    /// Manage inclusions of files in the instance.
     /// 
-    /// This method checks what files/entities are used in _already included_ files, and check if they are present in the environment,
+    /// This method checks what files/entities are used in _already included_ files, and check if they are present in the instance,
     /// if not, it includes the file relatively from the `use` instruction, but *do not* manage inclusions of the newly included files.
     /// 
     /// Returns `true` if new files were included by the call, or `false` if not.
@@ -91,16 +91,16 @@ impl Environment {
         !inclusions.is_empty()
     }
 
-    /// Manage inclusion of a file in the environment.
+    /// Manage inclusion of a file in the instance.
     /// 
     /// If the file is not already present, it includes it.
-    /// It makes the new file being read and parsed _before_ pushing it in environment.
+    /// It makes the new file being read and parsed _before_ pushing it in instance.
     /// 
-    /// * `path`: canonical path of the file inside the Mélodium environment (see [File::path](super::file::File::path)).
+    /// * `path`: canonical path of the file inside the Mélodium instance (see [File::path](super::file::File::path)).
     /// * `absolute_path`: absolute system path to the file in filesystem (see [File::absolute_path](super::file::File::absolute_path)).
     fn manage_file(&mut self, path: Path, absolute_path: PathBuf) {
 
-        // We check if the file is in the environment.
+        // We check if the file is in the instance.
         let file_request = self.find_file(&absolute_path);
 
         // If it is not, then we include it.
@@ -123,7 +123,7 @@ impl Environment {
         }
     }
 
-    /// Tells if a file exists in the environment, and give reference to it.
+    /// Tells if a file exists in the instance, and give reference to it.
     fn find_file(&self, path: &PathBuf) -> Option<&File> {
         self.files.iter().find(|file| &file.absolute_path == path)
     }
