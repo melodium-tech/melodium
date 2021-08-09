@@ -9,7 +9,7 @@ use super::error::ScriptError;
 /// Manage script instance.
 /// 
 /// Handle the whole instance of a Mélodium script, the files involved, and the logic associated with.
-pub struct Environment {
+pub struct Instance {
     /// Path of the main script file.
     pub main_path: PathBuf,
     /// Path of the standard library.
@@ -22,7 +22,7 @@ pub struct Environment {
     pub errors: Vec<ScriptError>
 }
 
-impl Environment {
+impl Instance {
     /// Create a new instance, based on main file and standard library path given.
     /// 
     /// This does not build anything, nor check paths, just create an empty instance.
