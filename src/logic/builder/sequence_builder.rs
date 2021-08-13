@@ -1,8 +1,6 @@
 
 use std::sync::{Arc, RwLock};
 use std::collections::HashMap;
-use std::rc::Rc;
-use std::cell::RefCell;
 use super::Builder;
 use super::super::designer::SequenceDesigner;
 use super::super::designer::TreatmentDesigner;
@@ -15,15 +13,15 @@ use super::super::designer::value::Value;
 
 #[derive(Debug)]
 pub struct SequenceBuilder {
-    designer: Rc<RefCell<SequenceDesigner>>,
+    designer: Arc<RwLock<SequenceDesigner>>,
     instancied_models: RwLock<HashMap<String, Arc<dyn Model>>>,
-    ordered_treatments: RwLock<Vec<Rc<RefCell<TreatmentDesigner>>>>,
+    ordered_treatments: RwLock<Vec<Arc<RwLock<TreatmentDesigner>>>>,
 }
 
 impl SequenceBuilder {
-    pub fn new(designer: &Rc<RefCell<SequenceDesigner>>) -> Self {
+    pub fn new(designer: &Arc<RwLock<SequenceDesigner>>) -> Self {
         Self {
-            designer: Rc::clone(designer),
+            designer: Arc::clone(designer),
             instancied_models: RwLock::new(HashMap::new()),
             ordered_treatments: RwLock::new(Vec::new()),
         }
@@ -34,13 +32,13 @@ impl Builder for SequenceBuilder {
 
     fn static_build(&self, environment: &dyn GenesisEnvironment) -> Option<Arc<dyn Model>> {
 
-        for (instanciation_name, model_instanciation) in self.designer.borrow().model_instanciations() {
+        for (instanciation_name, model_instanciation) in self.designer.read().unwrap().model_instanciations() {
 
             let mut remastered_environment = environment.base();
 
-            for (_, parameter) in model_instanciation.borrow().parameters() {
+            for (_, parameter) in model_instanciation.read().unwrap().parameters() {
 
-                let borrowed_param = parameter.borrow();
+                let borrowed_param = parameter.read().unwrap();
 
                 let data = match borrowed_param.value().as_ref().unwrap() {
                     Value::Raw(data) => data,
@@ -54,16 +52,16 @@ impl Builder for SequenceBuilder {
                 remastered_environment.add_variable(borrowed_param.name(), data.clone());
             }
 
-            let instancied_model = model_instanciation.borrow().descriptor().builder().static_build(&*remastered_environment);
+            let instancied_model = model_instanciation.read().unwrap().descriptor().builder().static_build(&*remastered_environment);
             self.instancied_models.write().unwrap().insert(instanciation_name.to_string(), instancied_model.unwrap());
 
         }
 
         // Esthablishing the order of creation of treatments.
-        let mut ordered_treatments: Vec<Rc<RefCell<TreatmentDesigner>>> = self.designer.borrow().treatments().values().cloned().collect();
+        let mut ordered_treatments: Vec<Arc<RwLock<TreatmentDesigner>>> = self.designer.read().unwrap().treatments().values().cloned().collect();
         ordered_treatments.sort_by(
             |a, b|
-            a.borrow().partial_cmp(&b.borrow()).unwrap()
+            a.read().unwrap().partial_cmp(&b.read().unwrap()).unwrap()
         );
         *self.ordered_treatments.write().unwrap() = ordered_treatments;
 
@@ -77,7 +75,7 @@ impl Builder for SequenceBuilder {
         // Invoke all treatments builders
         for treatment in &*self.ordered_treatments.read().unwrap() {
 
-            let borrowed_treatment = treatment.borrow();
+            let borrowed_treatment = treatment.read().unwrap();
             let mut remastered_environment = environment.base();
 
             // Setup models
@@ -115,7 +113,7 @@ impl Builder for SequenceBuilder {
             // Setup parameters
             for (_, parameter) in borrowed_treatment.parameters() {
 
-                let borrowed_param = parameter.borrow();
+                let borrowed_param = parameter.read().unwrap();
 
                 let data = match borrowed_param.value().as_ref().unwrap() {
                     Value::Raw(data) => data,
@@ -133,10 +131,10 @@ impl Builder for SequenceBuilder {
             // Setup inputs
 
             //We get all connections that have the treatment as input (end point).
-            let input_connections: Vec<Rc<RefCell<ConnectionDesigner>>> = self.designer.borrow().connections().iter().filter_map(
+            let input_connections: Vec<Arc<RwLock<ConnectionDesigner>>> = self.designer.read().unwrap().connections().iter().filter_map(
                 |conn|
-                if conn.borrow().input_treatment() == &Some(ConnectionIODesigner::Treatment(Rc::downgrade(treatment))) {
-                    Some(Rc::clone(conn))
+                if conn.read().unwrap().input_treatment() == &Some(ConnectionIODesigner::Treatment(Arc::downgrade(treatment))) {
+                    Some(Arc::clone(conn))
                 }
                 else {
                     None
@@ -146,7 +144,7 @@ impl Builder for SequenceBuilder {
             // We get all the inputs required by the treatment
             for input_connection in input_connections {
 
-                let borrowed_connection = input_connection.borrow();
+                let borrowed_connection = input_connection.read().unwrap();
                 match borrowed_connection.output_treatment().as_ref().unwrap() {
                     ConnectionIODesigner::Sequence() => {
 
@@ -158,7 +156,7 @@ impl Builder for SequenceBuilder {
                     ConnectionIODesigner::Treatment(output_treatment) => {
 
                         let rc_output_treatment = output_treatment.upgrade().unwrap();
-                        let borrowed_output_treatment = rc_output_treatment.borrow();
+                        let borrowed_output_treatment = rc_output_treatment.read().unwrap();
 
                         remastered_environment.add_input(
                             &borrowed_connection.input_name().as_ref().unwrap(),
@@ -176,10 +174,10 @@ impl Builder for SequenceBuilder {
 
 
         // We get all connections that are to sequence output.
-        let self_output_connections: Vec<Rc<RefCell<ConnectionDesigner>>> = self.designer.borrow().connections().iter().filter_map(
+        let self_output_connections: Vec<Arc<RwLock<ConnectionDesigner>>> = self.designer.read().unwrap().connections().iter().filter_map(
             |conn|
-            match conn.borrow().input_treatment().as_ref().unwrap() {
-                ConnectionIODesigner::Sequence() => Some(Rc::clone(conn)),
+            match conn.read().unwrap().input_treatment().as_ref().unwrap() {
+                ConnectionIODesigner::Sequence() => Some(Arc::clone(conn)),
                 _ => None,
             }
         ).collect();
@@ -188,7 +186,7 @@ impl Builder for SequenceBuilder {
         let mut outputs: HashMap<String, Transmitter> = HashMap::new();
         for connection in self_output_connections {
 
-            let borrowed_connection = connection.borrow();
+            let borrowed_connection = connection.read().unwrap();
             match borrowed_connection.output_treatment().as_ref().unwrap() {
                 ConnectionIODesigner::Sequence() => {
 
@@ -200,7 +198,7 @@ impl Builder for SequenceBuilder {
                 ConnectionIODesigner::Treatment(output_treatment) => {
 
                     let rc_output_treatment = output_treatment.upgrade().unwrap();
-                    let borrowed_output_treatment = rc_output_treatment.borrow();
+                    let borrowed_output_treatment = rc_output_treatment.read().unwrap();
 
                     outputs.insert(
                         borrowed_connection.input_name().as_ref().unwrap().to_string(),

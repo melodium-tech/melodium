@@ -1,5 +1,5 @@
 
-use std::rc::{Rc, Weak};
+use std::sync::{Arc, Weak};
 use super::super::error::LogicError;
 use super::super::descriptor::ParameterizedDescriptor;
 use super::value::Value;
@@ -15,10 +15,10 @@ pub struct Parameter {
 }
 
 impl Parameter {
-    pub fn new(scope: &Rc<dyn ParameterizedDescriptor>, parent_descriptor: &Rc<dyn ParameterizedDescriptor>, name: &str) -> Self {
+    pub fn new(scope: &Arc<dyn ParameterizedDescriptor>, parent_descriptor: &Arc<dyn ParameterizedDescriptor>, name: &str) -> Self {
         Self {
-            scope: Rc::downgrade(scope),
-            parent_descriptor: Rc::downgrade(parent_descriptor),
+            scope: Arc::downgrade(scope),
+            parent_descriptor: Arc::downgrade(parent_descriptor),
             name: name.to_string(),
             value: None,
         }

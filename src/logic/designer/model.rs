@@ -1,6 +1,5 @@
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use std::collections::HashMap;
 use super::super::error::LogicError;
 use super::super::collection_pool::CollectionPool;
@@ -16,47 +15,47 @@ use super::super::builder::configured_model_builder::ConfiguredModelBuilder;
 
 #[derive(Debug)]
 pub struct Model {
-    collections: Rc<CollectionPool>,
-    descriptor: Rc<ConfiguredModelDescriptor>,
+    collections: Arc<CollectionPool>,
+    descriptor: Arc<ConfiguredModelDescriptor>,
 
-    parameters: HashMap<String, Rc<RefCell<Parameter>>>,
+    parameters: HashMap<String, Arc<RwLock<Parameter>>>,
 
-    auto_reference: Weak<RefCell<Self>>,
+    auto_reference: Weak<RwLock<Self>>,
 }
 
 impl Model {
 
-    pub fn new(collections: &Rc<CollectionPool>, descriptor: &Rc<ConfiguredModelDescriptor>) -> Rc<RefCell<Self>> {
-        let model = Rc::<RefCell<Self>>::new(RefCell::new(Self {
-            collections: Rc::clone(collections),
-            descriptor: Rc::clone(descriptor),
+    pub fn new(collections: &Arc<CollectionPool>, descriptor: &Arc<ConfiguredModelDescriptor>) -> Arc<RwLock<Self>> {
+        let model = Arc::<RwLock<Self>>::new(RwLock::new(Self {
+            collections: Arc::clone(collections),
+            descriptor: Arc::clone(descriptor),
             parameters: HashMap::new(),
             auto_reference: Weak::new(),
         }));
 
-        model.borrow_mut().auto_reference = Rc::downgrade(&model);
+        model.write().unwrap().auto_reference = Arc::downgrade(&model);
 
         model
     }
 
-    pub fn collections(&self) -> &Rc<CollectionPool> {
+    pub fn collections(&self) -> &Arc<CollectionPool> {
         &self.collections
     }
 
-    pub fn descriptor(&self) -> &Rc<ConfiguredModelDescriptor> {
+    pub fn descriptor(&self) -> &Arc<ConfiguredModelDescriptor> {
         &self.descriptor
     }
 
-    pub fn add_parameter(&mut self, name: &str) -> Result<Rc<RefCell<Parameter>>, LogicError> {
+    pub fn add_parameter(&mut self, name: &str) -> Result<Arc<RwLock<Parameter>>, LogicError> {
         
         if self.descriptor.core_model().parameters().contains_key(name) {
-            let parameter = Parameter::new( &(Rc::clone(&self.descriptor) as Rc<dyn ParameterizedDescriptor>), 
-                                            &(Rc::clone(&self.descriptor.core_model()) as Rc<dyn ParameterizedDescriptor>),
+            let parameter = Parameter::new( &(Arc::clone(&self.descriptor) as Arc<dyn ParameterizedDescriptor>), 
+                                            &(Arc::clone(&self.descriptor.core_model()) as Arc<dyn ParameterizedDescriptor>),
                                             name
                                         );
-            let rc_parameter = Rc::new(RefCell::new(parameter));
+            let rc_parameter = Arc::new(RwLock::new(parameter));
 
-            if self.parameters.insert(name.to_string(), Rc::clone(&rc_parameter)).is_none() {
+            if self.parameters.insert(name.to_string(), Arc::clone(&rc_parameter)).is_none() {
                 Ok(rc_parameter)
             }
             else {
@@ -68,14 +67,14 @@ impl Model {
         }
     }
 
-    pub fn parameters(&self) -> &HashMap<String, Rc<RefCell<Parameter>>> {
+    pub fn parameters(&self) -> &HashMap<String, Arc<RwLock<Parameter>>> {
         &self.parameters
     }
 
     pub fn validate(&self) -> Result<(), LogicError> {
 
         for (_, param) in &self.parameters {
-            param.borrow().validate()?;
+            param.read().unwrap().validate()?;
         }
 
         // Check if all parent parameters are filled.
@@ -98,7 +97,7 @@ impl Model {
         }
 
         // Check all parameters does not refers to a context.
-        if let Some(_forbidden_context) = self.parameters.iter().find(|&(_param_name, param)| !matches!(param.borrow().value(), Some(Value::Context{..}))) {
+        if let Some(_forbidden_context) = self.parameters.iter().find(|&(_param_name, param)| !matches!(param.read().unwrap().value(), Some(Value::Context{..}))) {
             return Err(LogicError::no_context())
         }
 

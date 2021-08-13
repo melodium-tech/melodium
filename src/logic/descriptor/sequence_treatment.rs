@@ -1,9 +1,6 @@
 
 use std::collections::HashMap;
-use std::rc::Rc;
-use std::sync::Arc;
-use std::sync::RwLock;
-use intertrait::cast_to;
+use std::sync::{Arc, Weak, RwLock};
 use super::identified::Identified;
 use super::identifier::Identifier;
 use super::parameterized::Parameterized;
@@ -20,12 +17,13 @@ use super::treatment::Treatment;
 #[derive(Debug)]
 pub struct SequenceTreatment {
     identifier: Identifier,
-    models: HashMap<String, Rc<CoreModel>>,
+    models: HashMap<String, Arc<CoreModel>>,
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
     outputs: HashMap<String, Output>,
     requirements: HashMap<String, Requirement>,
     builder: RwLock<Option<Arc<Box<dyn Builder>>>>,
+    auto_reference: Weak<Self>,
 }
 
 impl SequenceTreatment {
@@ -37,12 +35,17 @@ impl SequenceTreatment {
             inputs: HashMap::new(),
             outputs: HashMap::new(),
             requirements: HashMap::new(),
-            builder: RwLock::new(None)
+            builder: RwLock::new(None),
+            auto_reference: Weak::new(),
         }
     }
 
-    pub fn add_model(&mut self, name: &str, model: &Rc<CoreModel>) {
-        self.models.insert(name.to_string(), Rc::clone(model));
+    pub fn set_autoref(&mut self, reference: &Arc<Self>) {
+        self.auto_reference = Arc::downgrade(reference);
+    }
+
+    pub fn add_model(&mut self, name: &str, model: &Arc<CoreModel>) {
+        self.models.insert(name.to_string(), Arc::clone(model));
     }
 
     pub fn add_parameter(&mut self, parameter: Parameter) {
@@ -62,18 +65,20 @@ impl SequenceTreatment {
     }
 }
 
-#[cast_to]
 impl Identified for SequenceTreatment {
     fn identifier(&self) -> &Identifier {
         &self.identifier
     }
 }
 
-#[cast_to]
 impl Parameterized for SequenceTreatment {
 
     fn parameters(&self) -> &HashMap<String, Parameter> {
         &self.parameters
+    }
+
+    fn as_parameterized(&self) -> Arc<dyn Parameterized> {
+        self.auto_reference.upgrade().unwrap()
     }
 }
 
@@ -87,7 +92,7 @@ impl Treatment for SequenceTreatment {
         &self.outputs
     }
 
-    fn models(&self) -> &HashMap<String, Rc<CoreModel>> {
+    fn models(&self) -> &HashMap<String, Arc<CoreModel>> {
         &self.models
     }
 

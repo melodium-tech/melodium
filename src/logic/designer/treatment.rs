@@ -1,6 +1,5 @@
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use std::collections::HashMap;
 use std::cmp::Ordering;
 use super::super::error::LogicError;
@@ -12,37 +11,36 @@ use super::connection::{IO, Connection};
 use super::super::descriptor::ParameterizedDescriptor;
 use super::super::descriptor::ParameterDescriptor;
 use super::value::Value;
-use intertrait::cast::CastRc;
 
 #[derive(Debug)]
 pub struct Treatment {
 
-    sequence: Weak<RefCell<Sequence>>,
-    descriptor: Rc<dyn TreatmentDescriptor>,
+    sequence: Weak<RwLock<Sequence>>,
+    descriptor: Arc<dyn TreatmentDescriptor>,
     name: String,
     models: HashMap<String, String>,
-    parameters: HashMap<String, Rc<RefCell<Parameter>>>,
+    parameters: HashMap<String, Arc<RwLock<Parameter>>>,
 
-    auto_reference: Weak<RefCell<Self>>,
+    auto_reference: Weak<RwLock<Self>>,
 }
 
 impl Treatment {
-    pub fn new(sequence: &Rc<RefCell<Sequence>>, descriptor: &Rc<dyn TreatmentDescriptor>, name: &str) -> Rc<RefCell<Self>> {
-        let treatment = Rc::<RefCell<Self>>::new(RefCell::new(Self {
-            sequence: Rc::downgrade(sequence),
-            descriptor: Rc::clone(descriptor),
+    pub fn new(sequence: &Arc<RwLock<Sequence>>, descriptor: &Arc<dyn TreatmentDescriptor>, name: &str) -> Arc<RwLock<Self>> {
+        let treatment = Arc::<RwLock<Self>>::new(RwLock::new(Self {
+            sequence: Arc::downgrade(sequence),
+            descriptor: Arc::clone(descriptor),
             name: name.to_string(),
             models: HashMap::with_capacity(descriptor.models().len()),
             parameters: HashMap::with_capacity(descriptor.parameters().len()),
             auto_reference: Weak::new(),
         }));
 
-        treatment.borrow_mut().auto_reference = Rc::downgrade(&treatment);
+        treatment.write().unwrap().auto_reference = Arc::downgrade(&treatment);
 
         treatment
     }
 
-    pub fn descriptor(&self) -> &Rc<dyn TreatmentDescriptor> {
+    pub fn descriptor(&self) -> &Arc<dyn TreatmentDescriptor> {
         &self.descriptor
     }
 
@@ -55,19 +53,19 @@ impl Treatment {
         if self.descriptor().models().contains_key(parametric_name) {
 
             let rc_sequence = self.sequence.upgrade().unwrap();
-            let borrowed_sequence = rc_sequence.borrow();
+            let borrowed_sequence = rc_sequence.read().unwrap();
 
             let mut core_model_descriptor = None;
             if let Some(model_descriptor) = borrowed_sequence.descriptor().models().get(local_name) {
                 core_model_descriptor = Some(model_descriptor.core_model());
             }
             else if let Some(model_instanciation) = borrowed_sequence.model_instanciations().get(local_name) {
-                core_model_descriptor = Some(model_instanciation.borrow().descriptor().core_model());
+                core_model_descriptor = Some(model_instanciation.read().unwrap().descriptor().core_model());
             }
 
             if let Some(model_descriptor) = core_model_descriptor {
 
-                if Rc::ptr_eq(&model_descriptor, self.descriptor().models().get(parametric_name).unwrap()) {
+                if Arc::ptr_eq(&model_descriptor, self.descriptor().models().get(parametric_name).unwrap()) {
                     self.models.insert(parametric_name.to_string(), local_name.to_string());
 
                     Ok(())
@@ -86,16 +84,16 @@ impl Treatment {
 
     }
 
-    pub fn add_parameter(&mut self, name: &str) -> Result<Rc<RefCell<Parameter>>, LogicError> {
+    pub fn add_parameter(&mut self, name: &str) -> Result<Arc<RwLock<Parameter>>, LogicError> {
         
         if self.descriptor.parameters().contains_key(name) {
-            let parameter = Parameter::new( &(Rc::clone(self.sequence.upgrade().unwrap().borrow().descriptor()) as Rc<dyn ParameterizedDescriptor>), 
-                                            &(Rc::clone(&self.descriptor).cast::<dyn ParameterizedDescriptor>().unwrap()),
+            let parameter = Parameter::new( &(Arc::clone(self.sequence.upgrade().unwrap().read().unwrap().descriptor()) as Arc<dyn ParameterizedDescriptor>), 
+                                            &self.descriptor.as_parameterized(),
                                             name
                                         );
-            let rc_parameter = Rc::new(RefCell::new(parameter));
+            let rc_parameter = Arc::new(RwLock::new(parameter));
 
-            if self.parameters.insert(name.to_string(), Rc::clone(&rc_parameter)).is_none() {
+            if self.parameters.insert(name.to_string(), Arc::clone(&rc_parameter)).is_none() {
                 Ok(rc_parameter)
             }
             else {
@@ -111,14 +109,14 @@ impl Treatment {
         &self.models
     }
 
-    pub fn parameters(&self) -> &HashMap<String, Rc<RefCell<Parameter>>> {
+    pub fn parameters(&self) -> &HashMap<String, Arc<RwLock<Parameter>>> {
         &self.parameters
     }
 
     pub fn validate(&self) -> Result<(), LogicError> {
 
         for (_, param) in &self.parameters {
-            param.borrow().validate()?;
+            param.read().unwrap().validate()?;
         }
         
         // Check if all parameters are filled.
@@ -156,10 +154,10 @@ impl Treatment {
 
         // Check if context values refers to available context.
         let rc_sequence = self.sequence.upgrade().unwrap();
-        let borrowed_sequence = rc_sequence.borrow();
+        let borrowed_sequence = rc_sequence.read().unwrap();
         if let Some(_unavailable_context) = self.parameters.iter().find(
             |(_param_name, param)|
-            match param.borrow().value().as_ref().unwrap() {
+            match param.read().unwrap().value().as_ref().unwrap() {
                 Value::Context((name, _var)) => 
                     !borrowed_sequence.descriptor().requirements().contains_key(name),
                 _ => false
@@ -174,20 +172,20 @@ impl Treatment {
     pub fn level(&self) -> usize {
 
         let rc_sequence = self.sequence.upgrade().unwrap();
-        let borrowed_sequence = rc_sequence.borrow();
+        let borrowed_sequence = rc_sequence.read().unwrap();
         let all_connections = borrowed_sequence.connections();
 
         // We initialize the considered connection by taking only the ones were the current treatment
         // is set as input (end point of the connection).
-        let mut considered_connections: Vec<Rc<RefCell<Connection>>> = all_connections.iter().filter_map(
+        let mut considered_connections: Vec<Arc<RwLock<Connection>>> = all_connections.iter().filter_map(
             |raw_conn|
-            if let Some(treatment) = raw_conn.borrow().input_treatment() {
+            if let Some(treatment) = raw_conn.read().unwrap().input_treatment() {
                 match treatment {
                     IO::Sequence() => None,
                     IO::Treatment(t) => {
                         // We want the input (end point) to be the current treatment, and the output (start point) to not be 'Self'-sequence.
-                        if self.auto_reference.ptr_eq(t) && raw_conn.borrow().output_treatment() != &Some(IO::Sequence()) {
-                            Some(Rc::clone(&raw_conn))
+                        if self.auto_reference.ptr_eq(t) && raw_conn.read().unwrap().output_treatment() != &Some(IO::Sequence()) {
+                            Some(Arc::clone(&raw_conn))
                         }
                         else {
                             None
@@ -213,9 +211,9 @@ impl Treatment {
 
                 if considered_connections.iter().any(
                     |conn|
-                    conn.borrow().output_treatment() == raw_conn.borrow().input_treatment()
+                    conn.read().unwrap().output_treatment() == raw_conn.read().unwrap().input_treatment()
                 ) {
-                    Some(Rc::clone(&raw_conn))
+                    Some(Arc::clone(&raw_conn))
                 }
                 else {
                     None

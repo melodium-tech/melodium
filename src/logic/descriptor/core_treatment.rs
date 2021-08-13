@@ -1,7 +1,6 @@
 
 use std::collections::HashMap;
-use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::iter::FromIterator;
 use super::identified::Identified;
 use super::identifier::Identifier;
@@ -18,23 +17,29 @@ use super::super::builder::Builder;
 #[derive(Debug)]
 pub struct CoreTreatment {
     identifier: Identifier,
-    models: HashMap<String, Rc<CoreModel>>,
+    models: HashMap<String, Arc<CoreModel>>,
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
     outputs: HashMap<String, Output>,
     builder: Arc<Box<dyn Builder>>,
+    auto_reference: Weak<Self>,
 }
 
 impl CoreTreatment {
-    pub fn new(identifier: Identifier, models: Vec<(String, Rc<CoreModel>)>, parameters: Vec<Parameter>, inputs: Vec<Input>, outputs: Vec<Output>, builder: Box<dyn Builder>) -> Self {
+    pub fn new(identifier: Identifier, models: Vec<(String, Arc<CoreModel>)>, parameters: Vec<Parameter>, inputs: Vec<Input>, outputs: Vec<Output>, builder: Box<dyn Builder>) -> Self {
         Self {
             identifier,
-            models: HashMap::from_iter(models.iter().map(|m| (m.0.to_string(), Rc::clone(&m.1)))),
+            models: HashMap::from_iter(models.iter().map(|m| (m.0.to_string(), Arc::clone(&m.1)))),
             parameters: HashMap::from_iter(parameters.iter().map(|p| (p.name().to_string(), p.clone()))),
             inputs: HashMap::from_iter(inputs.iter().map(|i| (i.name().to_string(), i.clone()))),
             outputs: HashMap::from_iter(outputs.iter().map(|o| (o.name().to_string(), o.clone()))),
             builder: Arc::new(builder),
+            auto_reference: Weak::new(),
         }
+    }
+
+    pub fn set_autoref(&mut self, reference: &Arc<Self>) {
+        self.auto_reference = Arc::downgrade(reference);
     }
 
 }
@@ -49,6 +54,10 @@ impl Parameterized for CoreTreatment {
 
     fn parameters(&self) -> &HashMap<String, Parameter> {
         &self.parameters
+    }
+
+    fn as_parameterized(&self) -> Arc<dyn Parameterized> {
+        self.auto_reference.upgrade().unwrap()
     }
 }
 
@@ -69,7 +78,7 @@ impl Treatment for CoreTreatment {
         &self.outputs
     }
 
-    fn models(&self) -> &HashMap<String, Rc<CoreModel>> {
+    fn models(&self) -> &HashMap<String, Arc<CoreModel>> {
         &self.models
     }
 

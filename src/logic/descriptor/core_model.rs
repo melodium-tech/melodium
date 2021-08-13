@@ -1,7 +1,5 @@
 
-use std::rc::{Rc, Weak};
-use std::sync::Arc;
-use intertrait::cast_to;
+use std::sync::{Arc, Weak};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use super::identified::Identified;
@@ -30,23 +28,25 @@ impl CoreModel {
         }
     }
 
-    pub fn set_autoref(&mut self, reference: &Rc<Self>) {
-        self.auto_reference = Rc::downgrade(reference);
+    pub fn set_autoref(&mut self, reference: &Arc<Self>) {
+        self.auto_reference = Arc::downgrade(reference);
     }
 }
 
-#[cast_to]
 impl Identified for CoreModel {
     fn identifier(&self) -> &Identifier {
         &self.identifier
     }
 }
 
-#[cast_to]
 impl Parameterized for CoreModel {
         
     fn parameters(&self) -> &HashMap<String, Parameter> {
         &self.parameters
+    }
+
+    fn as_parameterized(&self) -> Arc<dyn Parameterized> {
+        self.auto_reference.upgrade().unwrap()
     }
 }
 
@@ -63,7 +63,7 @@ impl Model for CoreModel {
         true
     }
 
-    fn core_model(&self) -> Rc<CoreModel> {
+    fn core_model(&self) -> Arc<CoreModel> {
         self.auto_reference.upgrade().unwrap()
     }
 }

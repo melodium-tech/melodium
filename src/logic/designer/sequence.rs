@@ -1,6 +1,5 @@
 
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::sync::{Arc, Weak, RwLock};
 use std::collections::HashMap;
 use super::super::error::LogicError;
 use super::super::collection_pool::CollectionPool;
@@ -18,46 +17,46 @@ use super::super::builder::sequence_builder::SequenceBuilder;
 
 #[derive(Debug)]
 pub struct Sequence {
-    collections: Rc<CollectionPool>,
-    descriptor: Rc<SequenceTreatmentDescriptor>,
+    collections: Arc<CollectionPool>,
+    descriptor: Arc<SequenceTreatmentDescriptor>,
 
-    model_instanciations: HashMap<String, Rc<RefCell<ModelInstanciation>>>,
-    treatments: HashMap<String, Rc<RefCell<Treatment>>>,
-    connections: Vec<Rc<RefCell<Connection>>>,
+    model_instanciations: HashMap<String, Arc<RwLock<ModelInstanciation>>>,
+    treatments: HashMap<String, Arc<RwLock<Treatment>>>,
+    connections: Vec<Arc<RwLock<Connection>>>,
 
-    auto_reference: Weak<RefCell<Self>>,
+    auto_reference: Weak<RwLock<Self>>,
 }
 
 impl Sequence {
-    pub fn new(collections: &Rc<CollectionPool>, descriptor: &Rc<SequenceTreatmentDescriptor>) -> Rc<RefCell<Self>> {
-        let sequence = Rc::<RefCell<Self>>::new(RefCell::new(Self {
-            collections: Rc::clone(collections),
-            descriptor: Rc::clone(descriptor),
+    pub fn new(collections: &Arc<CollectionPool>, descriptor: &Arc<SequenceTreatmentDescriptor>) -> Arc<RwLock<Self>> {
+        let sequence = Arc::<RwLock<Self>>::new(RwLock::new(Self {
+            collections: Arc::clone(collections),
+            descriptor: Arc::clone(descriptor),
             model_instanciations: HashMap::new(),
             treatments: HashMap::new(),
             connections: Vec::new(),
             auto_reference: Weak::new(),
         }));
 
-        sequence.borrow_mut().auto_reference = Rc::downgrade(&sequence);
+        sequence.write().unwrap().auto_reference = Arc::downgrade(&sequence);
 
         sequence
     }
 
-    pub fn collections(&self) -> &Rc<CollectionPool> {
+    pub fn collections(&self) -> &Arc<CollectionPool> {
         &self.collections
     }
 
-    pub fn descriptor(&self) -> &Rc<SequenceTreatmentDescriptor> {
+    pub fn descriptor(&self) -> &Arc<SequenceTreatmentDescriptor> {
         &self.descriptor
     }
 
-    pub fn add_model_intanciation(&mut self, model_identifier: &IdentifierDescriptor, name: &str) -> Result<Rc<RefCell<ModelInstanciation>>, LogicError> {
+    pub fn add_model_intanciation(&mut self, model_identifier: &IdentifierDescriptor, name: &str) -> Result<Arc<RwLock<ModelInstanciation>>, LogicError> {
         
         if let Some(model_descriptor) = self.collections.models.get(model_identifier) {
             let model = ModelInstanciation::new(&self.auto_reference.upgrade().unwrap(), model_descriptor, name);
-            let rc_model = Rc::new(RefCell::new(model));
-            self.model_instanciations.insert(name.to_string(), Rc::clone(&rc_model));
+            let rc_model = Arc::new(RwLock::new(model));
+            self.model_instanciations.insert(name.to_string(), Arc::clone(&rc_model));
             Ok(rc_model)
         }
         else {
@@ -65,11 +64,11 @@ impl Sequence {
         }
     }
 
-    pub fn add_treatment(&mut self, identifier: &IdentifierDescriptor, name: &str) -> Result<Rc<RefCell<Treatment>>, LogicError> {
+    pub fn add_treatment(&mut self, identifier: &IdentifierDescriptor, name: &str) -> Result<Arc<RwLock<Treatment>>, LogicError> {
         
         if let Some(treatment_descriptor) = self.collections.treatments.get(identifier) {
             let rc_treatment = Treatment::new(&self.auto_reference.upgrade().unwrap(), treatment_descriptor, name);
-            self.treatments.insert(name.to_string(), Rc::clone(&rc_treatment));
+            self.treatments.insert(name.to_string(), Arc::clone(&rc_treatment));
             Ok(rc_treatment)
         }
         else {
@@ -85,7 +84,7 @@ impl Sequence {
         if let Some(pos_rc_output_treatment) = self.treatments.get(output_treatment) {
             rc_output_treatment = pos_rc_output_treatment;
 
-            if let Some(pos_output) = rc_output_treatment.borrow().descriptor().outputs().get(output_name) {
+            if let Some(pos_output) = rc_output_treatment.read().unwrap().descriptor().outputs().get(output_name) {
                 datatype_output = pos_output.datatype().clone();
             }
             else {
@@ -101,7 +100,7 @@ impl Sequence {
         if let Some(pos_rc_input_treatment) = self.treatments.get(input_treatment) {
             rc_input_treatment = pos_rc_input_treatment;
 
-            if let Some(pos_input) = rc_input_treatment.borrow().descriptor().inputs().get(input_name) {
+            if let Some(pos_input) = rc_input_treatment.read().unwrap().descriptor().inputs().get(input_name) {
                 datatype_input = pos_input.datatype().clone();
             }
             else {
@@ -122,8 +121,8 @@ impl Sequence {
 
             connection.validate()?;
 
-            let rc_connection = Rc::new(RefCell::new(connection));
-            self.connections.push(Rc::clone(&rc_connection));
+            let rc_connection = Arc::new(RwLock::new(connection));
+            self.connections.push(Arc::clone(&rc_connection));
 
             Ok(())
         }
@@ -160,8 +159,8 @@ impl Sequence {
 
             connection.validate()?;
 
-            let rc_connection = Rc::new(RefCell::new(connection));
-            self.connections.push(Rc::clone(&rc_connection));
+            let rc_connection = Arc::new(RwLock::new(connection));
+            self.connections.push(Arc::clone(&rc_connection));
 
             Ok(())
         }
@@ -185,7 +184,7 @@ impl Sequence {
         if let Some(pos_rc_input_treatment) = self.treatments.get(input_treatment) {
             rc_input_treatment = pos_rc_input_treatment;
 
-            if let Some(pos_input) = rc_input_treatment.borrow().descriptor().inputs().get(input_name) {
+            if let Some(pos_input) = rc_input_treatment.read().unwrap().descriptor().inputs().get(input_name) {
                 datatype_input_treatment = pos_input.datatype().clone();
             }
             else {
@@ -206,8 +205,8 @@ impl Sequence {
 
             connection.validate()?;
 
-            let rc_connection = Rc::new(RefCell::new(connection));
-            self.connections.push(Rc::clone(&rc_connection));
+            let rc_connection = Arc::new(RwLock::new(connection));
+            self.connections.push(Arc::clone(&rc_connection));
 
             Ok(())
         }
@@ -231,7 +230,7 @@ impl Sequence {
         if let Some(pos_rc_output_treatment) = self.treatments.get(output_treatment) {
             rc_output_treatment = pos_rc_output_treatment;
 
-            if let Some(pos_output) = rc_output_treatment.borrow().descriptor().outputs().get(output_name) {
+            if let Some(pos_output) = rc_output_treatment.read().unwrap().descriptor().outputs().get(output_name) {
                 datatype_output_treatment = pos_output.datatype().clone();
             }
             else {
@@ -252,8 +251,8 @@ impl Sequence {
 
             connection.validate()?;
 
-            let rc_connection = Rc::new(RefCell::new(connection));
-            self.connections.push(Rc::clone(&rc_connection));
+            let rc_connection = Arc::new(RwLock::new(connection));
+            self.connections.push(Arc::clone(&rc_connection));
 
             Ok(())
         }
@@ -262,15 +261,15 @@ impl Sequence {
         }
     }
 
-    pub fn model_instanciations(&self) -> &HashMap<String, Rc<RefCell<ModelInstanciation>>> {
+    pub fn model_instanciations(&self) -> &HashMap<String, Arc<RwLock<ModelInstanciation>>> {
         &self.model_instanciations
     }
 
-    pub fn treatments(&self) -> &HashMap<String, Rc<RefCell<Treatment>>> {
+    pub fn treatments(&self) -> &HashMap<String, Arc<RwLock<Treatment>>> {
         &self.treatments
     }
 
-    pub fn connections(&self) -> &Vec<Rc<RefCell<Connection>>> {
+    pub fn connections(&self) -> &Vec<Arc<RwLock<Connection>>> {
         &self.connections
     }
 
@@ -286,7 +285,7 @@ impl Sequence {
 
         for connection in &self.connections {
 
-            let borrowed_connection = connection.borrow();
+            let borrowed_connection = connection.read().unwrap();
             match borrowed_connection.output_treatment().as_ref().unwrap() {
                 IO::Sequence() => {
                     *(outputs_satisfaction.get_mut(borrowed_connection.output_name().as_ref().unwrap()).unwrap()) += 1;

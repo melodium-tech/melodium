@@ -1,8 +1,6 @@
 
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Weak, RwLock};
 use std::collections::HashMap;
-use std::rc::Rc;
-use intertrait::cast_to;
 use super::identified::Identified;
 use super::identifier::Identifier;
 use super::parameterized::Parameterized;
@@ -16,19 +14,25 @@ use super::super::builder::Builder;
 #[derive(Debug)]
 pub struct ConfiguredModel {
     identifier: Identifier,
-    core_model: Rc<CoreModel>,
+    core_model: Arc<CoreModel>,
     parameters: HashMap<String, Parameter>,
     builder: RwLock<Option<Arc<Box<dyn Builder>>>>,
+    auto_reference: Weak<Self>,
 }
 
 impl ConfiguredModel {
-    pub fn new(identifier: Identifier, core_model: &Rc<CoreModel>) -> Self {
+    pub fn new(identifier: Identifier, core_model: &Arc<CoreModel>) -> Self {
         Self {
             identifier,
-            core_model: Rc::clone(core_model),
+            core_model: Arc::clone(core_model),
             parameters: HashMap::new(),
             builder: RwLock::new(None),
+            auto_reference: Weak::new(),
         }
+    }
+
+    pub fn set_autoref(&mut self, reference: &Arc<Self>) {
+        self.auto_reference = Arc::downgrade(reference);
     }
 
     pub fn add_parameter(&mut self, parameter: Parameter) {
@@ -36,18 +40,20 @@ impl ConfiguredModel {
     }
 }
 
-#[cast_to]
 impl Identified for ConfiguredModel {
     fn identifier(&self) -> &Identifier {
         &self.identifier
     }
 }
 
-#[cast_to]
 impl Parameterized for ConfiguredModel {
 
     fn parameters(&self) -> &HashMap<String, Parameter> {
         &self.parameters
+    }
+
+    fn as_parameterized(&self) -> Arc<dyn Parameterized> {
+        self.auto_reference.upgrade().unwrap()
     }
 }
 
@@ -71,7 +77,7 @@ impl Model for ConfiguredModel {
         false
     }
 
-    fn core_model(&self) -> Rc<CoreModel> {
-        Rc::clone(&self.core_model)
+    fn core_model(&self) -> Arc<CoreModel> {
+        Arc::clone(&self.core_model)
     }
 }
