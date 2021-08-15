@@ -19,6 +19,7 @@
 #[macro_use]
 extern crate lazy_static;
 
+pub mod core;
 pub mod executive;
 pub mod logic;
 pub mod script;

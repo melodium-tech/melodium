@@ -27,3 +27,12 @@ impl<T: IdentifiedDescriptor + ?Sized> Collection<T> {
         self.descriptors.get(id)
     }
 }
+
+impl<T: IdentifiedDescriptor + ?Sized> Clone for Collection<T> {
+    
+    fn clone(&self) -> Self {
+        Self {
+            descriptors: self.descriptors.into_iter().map(|(k,v)| (k, Arc::clone(&v))).collect()
+        }
+    }
+}
