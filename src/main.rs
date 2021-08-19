@@ -1,5 +1,5 @@
 
-extern crate melodium_rust;
+//extern crate melodium_rust;
 
 use std::env;
 use std::ffi::OsString;

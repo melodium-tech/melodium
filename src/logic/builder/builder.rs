@@ -8,7 +8,7 @@ use super::super::super::executive::value::Value;
 use super::super::super::executive::model::Model;
 use super::super::super::executive::transmitter::Transmitter;
 
-pub trait Builder : Debug {
+pub trait Builder : Debug + Send + Sync {
     
     fn static_build(&self, environment: &dyn GenesisEnvironment) -> Option<Arc<dyn Model>>;
     fn dynamic_build(&self, environment: &dyn ContextualEnvironment) -> Option<HashMap<String, Transmitter>>;

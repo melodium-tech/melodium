@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use super::value::Value;
 use super::super::logic::descriptor::CoreModelDescriptor;
 
-pub trait Model : Debug {
+pub trait Model : Debug + Send + Sync {
 
     fn descriptor(&self) -> Arc<CoreModelDescriptor>;
 

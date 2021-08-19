@@ -10,7 +10,7 @@ use super::output::Output;
 use super::core_model::CoreModel;
 use super::requirement::Requirement;
 
-pub trait Treatment: Identified + Parameterized + Buildable + Debug {
+pub trait Treatment: Identified + Parameterized + Buildable + Debug + Send + Sync {
     fn inputs(&self) -> &HashMap<String, Input>;
     fn outputs(&self) -> &HashMap<String, Output>;
     fn models(&self) -> &HashMap<String, Arc<CoreModel>>;

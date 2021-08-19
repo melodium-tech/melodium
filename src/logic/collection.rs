@@ -7,11 +7,11 @@ use super::descriptor::IdentifiedDescriptor;
 use super::descriptor::IdentifierDescriptor;
 
 #[derive(Debug)]
-pub struct Collection<T: IdentifiedDescriptor + ?Sized> {
+pub struct Collection<T: IdentifiedDescriptor + Send + Sync + ?Sized> {
     descriptors: HashMap<IdentifierDescriptor, Arc<T>>,
 }
 
-impl<T: IdentifiedDescriptor + ?Sized> Collection<T> {
+impl<T: IdentifiedDescriptor + Send + Sync + ?Sized> Collection<T> {
 
     pub fn new() -> Self {
         Self {
@@ -28,11 +28,11 @@ impl<T: IdentifiedDescriptor + ?Sized> Collection<T> {
     }
 }
 
-impl<T: IdentifiedDescriptor + ?Sized> Clone for Collection<T> {
+impl<T: IdentifiedDescriptor + Send + Sync + ?Sized> Clone for Collection<T> {
     
     fn clone(&self) -> Self {
         Self {
-            descriptors: self.descriptors.into_iter().map(|(k,v)| (k, Arc::clone(&v))).collect()
+            descriptors: self.descriptors.iter().map(|(k,v)| (k.clone(), Arc::clone(&v))).collect()
         }
     }
 }
