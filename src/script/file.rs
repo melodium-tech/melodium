@@ -124,7 +124,7 @@ impl File {
         let parsed_text = TextScript::build(self.text.as_ref().unwrap())?;
 
         let semantic_tree = Tree::new(parsed_text)?;
-        semantic_tree.make_references()?;
+        semantic_tree.make_references(&self.path)?;
 
         self.semantic = Some(semantic_tree);
 

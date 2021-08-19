@@ -5,6 +5,7 @@ use super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
+use crate::script::path::Path;
 use crate::script::text::Parameter as TextParameter;
 use crate::script::text::word::PositionnedString;
 
@@ -170,7 +171,7 @@ impl DeclaredModel {
 }
 
 impl Node for DeclaredModel {
-    fn make_references(&mut self) -> Result<(), ScriptError> {
+    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
         
         // Reference to an instancied model already been done through Self::from_instancied_model
         // so we only look for reference to a use.

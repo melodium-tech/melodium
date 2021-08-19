@@ -5,6 +5,7 @@ use super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
+use crate::script::path::Path;
 use crate::script::text::{PositionnedString, Position};
 use crate::script::text::value::Value as TextValue;
 
@@ -197,7 +198,7 @@ impl Value {
 }
 
 impl Node for Value {
-    fn make_references(&mut self) -> Result<(), ScriptError> {
+    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
 
         let content = self.make_reference_valuecontent(&self.content)?;
 

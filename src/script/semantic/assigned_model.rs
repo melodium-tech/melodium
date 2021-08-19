@@ -5,6 +5,7 @@ use super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
+use crate::script::path::Path;
 use crate::script::text::Parameter as TextParameter;
 use crate::script::text::Value as TextValue;
 
@@ -98,7 +99,7 @@ impl AssignedModel {
 }
 
 impl Node for AssignedModel {
-    fn make_references(&mut self) -> Result<(), ScriptError> {
+    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
 
         if self.model.reference.is_none() {
             

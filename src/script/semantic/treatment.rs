@@ -5,6 +5,7 @@ use super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
+use crate::script::path::Path;
 use crate::script::text::Instanciation as TextTreatment;
 
 use super::r#use::Use;
@@ -196,7 +197,7 @@ impl Node for Treatment {
         children
     }
 
-    fn make_references(&mut self) -> Result<(), ScriptError> {
+    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
 
         if let RefersTo::Unkown(reference) = &self.r#type {
 

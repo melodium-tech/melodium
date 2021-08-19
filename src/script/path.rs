@@ -1,14 +1,16 @@
 
 //! Provides script paths management.
 
+use crate::logic::descriptor::identifier::{Identifier, Root};
+
 /// Container-helper structure for paths in scripts.
 /// 
-/// It is mainly used for handling `use` paths.
+/// It is used for handling `use` paths, as well as representing paths up to elements to build identifiers.
 #[derive(Clone, PartialEq, Debug)]
 pub struct Path {
     /// Vector of string containing literally the path steps.
     path: Vec<String>,
-    root: PathRoot
+    root: PathRoot,
 }
 
 /// Convenience enum for handling and identifying path root types.
@@ -66,7 +68,7 @@ impl Path {
 
         Self {
             path,
-            root
+            root,
         }
     }
 
@@ -84,5 +86,26 @@ impl Path {
     /// It is a shorthand for `path.root() != PathRoot::Other`.
     pub fn is_valid(&self) -> bool {
         self.root != PathRoot::Other
+    }
+
+    /// Turn the path into an identifier.
+    /// 
+    /// * `element_name`: name of the element supposed to be identified under that path.
+    /// 
+    /// # Warning
+    /// A path can only be turned into identifier if its root is `std`/[PathRoot::Std](super::path::PathRoot::Std) or `main`/[PathRoot::Main](super::path::PathRoot::Main) (local paths are not absolute so not usable to make idenfier).
+    pub fn to_identifier(&self, element_name: &str) -> Option<Identifier> {
+
+        if let Some(root) = match self.root {
+            PathRoot::Std => Some(Root::Std),
+            PathRoot::Main => Some(Root::Main),
+            _ => None
+        } {
+            Some(Identifier::new(root, self.path.clone(), element_name))
+        }
+        else {
+            None
+        }
+        
     }
 }

@@ -5,6 +5,7 @@ use super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
+use crate::script::path::Path;
 use crate::script::text::Connection as TextConnection;
 
 use super::sequence::Sequence;
@@ -77,7 +78,7 @@ impl Connection {
 }
 
 impl Node for Connection {
-    fn make_references(&mut self) -> Result<(), ScriptError> {
+    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
 
         let rc_sequence = self.sequence.upgrade().unwrap();
         let sequence = rc_sequence.read().unwrap();

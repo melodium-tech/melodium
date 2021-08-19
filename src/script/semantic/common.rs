@@ -5,6 +5,7 @@ use std::sync::{Arc, Weak, RwLock};
 use super::script::Script;
 use crate::script::text::Script as TextScript;
 use crate::script::error::ScriptError;
+use crate::script::path::Path;
 
 /// Semantic tree.
 /// 
@@ -21,20 +22,20 @@ impl Tree {
         })
     }
 
-    pub fn make_references(&self) -> Result<(), ScriptError> {
+    pub fn make_references(&self, path: &Path) -> Result<(), ScriptError> {
 
-        Self::make_references_node(Arc::clone(&self.script) as Arc<RwLock<dyn Node>>)?;
+        Self::make_references_node(Arc::clone(&self.script) as Arc<RwLock<dyn Node>>, path)?;
 
         Ok(())
     }
 
-    fn make_references_node(node: Arc<RwLock<dyn Node>>) -> Result<(), ScriptError> {
+    fn make_references_node(node: Arc<RwLock<dyn Node>>, path: &Path) -> Result<(), ScriptError> {
 
-        node.write().unwrap().make_references()?;
+        node.write().unwrap().make_references(path)?;
 
         let children = node.read().unwrap().children();
         for child in children {
-            Self::make_references_node(child)?;
+            Self::make_references_node(child, path)?;
         }
 
         Ok(())
@@ -49,7 +50,9 @@ pub trait Node {
     /// Create references to the other elements the actual node relies on.
     /// 
     /// This exclude parent-child references, which are made when creating the elements.
-    fn make_references(&mut self) -> Result<(), ScriptError> {
+    /// 
+    /// * `path`: path to the current element, its root can ony be `std`/[PathRoot::Std](super::path::PathRoot::Std) or `main`/[PathRoot::Main](super::path::PathRoot::Main)
+    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
         Ok(())
     }
 

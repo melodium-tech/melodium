@@ -6,7 +6,8 @@ use super::common::Node;
 use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Use as TextUse;
-use crate::script::path::Path;
+use crate::script::path::{Path, PathRoot};
+use crate::logic::descriptor::identifier::{Identifier, Root};
 
 use super::script::Script;
 
@@ -21,6 +22,8 @@ pub struct Use {
     pub path: Path,
     pub element: String,
     pub r#as: String,
+
+    pub identifier: Option<Identifier>,
 }
 
 impl Use {
@@ -85,10 +88,46 @@ impl Use {
             element: text.element.string.clone(),
             r#as: r#as.string.clone(),
             text,
+            identifier: None,
         })))
     }
 }
 
 impl Node for Use {
-    
+    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
+
+        if self.path.root() == PathRoot::Other {
+            Err(ScriptError::semantic("Root '".to_string() + self.path.path().first().unwrap_or(&"".to_string()) + "' is not valid.", self.text.element.position))
+        }
+        else {
+            if let Some(root) = match self.path.root() {
+                PathRoot::Core => Some(Root::Core),
+                PathRoot::Std => Some(Root::Std),
+                PathRoot::Main => Some(Root::Main),
+                _ => None
+            } { // "Non-local" case
+
+                self.identifier = Some(Identifier::new(root, self.path.path().clone(), &self.element));
+
+                Ok(())
+            }
+            else { // "Local" case
+                
+                let mut steps = path.path().clone();
+                steps.append(&mut self.path.path().clone());
+
+                let root = match path.root() {
+                    PathRoot::Std => Some(Root::Std),
+                    PathRoot::Main => Some(Root::Main),
+                    _ => None
+                };
+
+                self.identifier = Some(Identifier::new(root.unwrap(), steps, &self.element));
+
+                Ok(())
+            }
+        }
+
+        
+    }
 }
