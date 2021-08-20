@@ -6,6 +6,8 @@ use super::common::Node;
 use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Sequence as TextSequence;
+use crate::script::path::Path;
+use crate::logic::descriptor::identifier::Identifier;
 
 use super::script::Script;
 use super::declared_model::DeclaredModel;
@@ -36,7 +38,9 @@ pub struct Sequence {
     pub inputs: Vec<Arc<RwLock<Input>>>,
     pub outputs: Vec<Arc<RwLock<Output>>>,
     pub treatments: Vec<Arc<RwLock<Treatment>>>,
-    pub connections: Vec<Arc<RwLock<Connection>>>
+    pub connections: Vec<Arc<RwLock<Connection>>>,
+
+    pub identifier: Option<Identifier>,
 }
 
 impl Sequence {
@@ -91,6 +95,7 @@ impl Sequence {
             outputs: Vec::new(),
             treatments: Vec::new(),
             connections: Vec::new(),
+            identifier: None,
         }));
 
         {
@@ -349,6 +354,14 @@ impl Sequence {
 }
 
 impl Node for Sequence {
+    
+    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
+
+        self.identifier = path.to_identifier(&self.name);
+
+        Ok(())
+    }
+
     fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
 
         let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();

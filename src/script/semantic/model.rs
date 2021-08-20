@@ -7,6 +7,7 @@ use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::path::Path;
 use crate::script::text::Model as TextModel;
+use crate::logic::descriptor::identifier::Identifier;
 
 use super::script::Script;
 use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
@@ -28,6 +29,8 @@ pub struct Model {
     pub parameters: Vec<Arc<RwLock<DeclaredParameter>>>,
     pub r#type: Reference<Use>,
     pub assignations: Vec<Arc<RwLock<AssignedParameter>>>,
+
+    pub identifier: Option<Identifier>,
 
     auto_reference: Weak<RwLock<Self>>,
 }
@@ -74,6 +77,7 @@ impl Model {
             parameters: Vec::new(),
             r#type: Reference::new(text.r#type.string.clone()),
             assignations: Vec::new(),
+            identifier: None,
             auto_reference: Weak::new(),
         }));
 
@@ -199,6 +203,8 @@ impl Node for Model {
         }
 
         self.r#type.reference = Some(Arc::downgrade(r#use.unwrap()));
+
+        self.identifier = path.to_identifier(&self.name);
 
         Ok(())
     }
