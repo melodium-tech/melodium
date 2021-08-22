@@ -8,6 +8,7 @@ use crate::script::error::ScriptError;
 use crate::script::path::Path;
 use crate::script::text::{PositionnedString, Position};
 use crate::script::text::value::Value as TextValue;
+use crate::executive::value::Value as ExecutiveValue;
 
 use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::common::Reference;
@@ -26,6 +27,58 @@ pub enum ValueContent {
     Name(Reference<DeclaredParameter>),
     /// Context reference, referring to a requirement of the hosting sequence, and an inner element.
     ContextReference((Reference<Requirement>, String))
+}
+
+impl ValueContent {
+    pub fn make_executive_value(&self) -> Result<ExecutiveValue, ScriptError> {
+
+        let value = match *self {
+            ValueContent::Boolean(b) => Some(ExecutiveValue::Boolean(b)),
+            ValueContent::Integer(i) => Some(ExecutiveValue::Integer(i)),
+            ValueContent::Real(r) => Some(ExecutiveValue::Real(r)),
+            ValueContent::String(s) => Some(ExecutiveValue::String(s)),
+            ValueContent::Array(a) => {
+
+                let exp_val_type;
+                if let Some(first_val) = a.first() {
+                    exp_val_type = first_val.make_executive_value()?;
+
+                    match exp_val_type {
+                        ExecutiveValue::Boolean(_) => {
+                            let vec = a.iter().map(|val| match val{ValueContent::Boolean(b)=>*b}).collect();
+                            Some(ExecutiveValue::VecBoolean(vec))
+                        },
+                        ExecutiveValue::Integer(_) => {
+                            let vec = a.iter().map(|val| match val{ValueContent::Integer(i)=>*i}).collect();
+                            Some(ExecutiveValue::VecInteger(vec))
+                        },
+                        ExecutiveValue::Real(_) => {
+                            let vec = a.iter().map(|val| match val{ValueContent::Real(r)=>*r}).collect();
+                            Some(ExecutiveValue::VecReal(vec))
+                        },
+                        ExecutiveValue::String(_) => {
+                            let vec = a.iter().map(|val| match val{ValueContent::String(s)=>*s}).collect();
+                            Some(ExecutiveValue::VecString(vec))
+                        },
+                        _ => None
+                    }
+                }
+                else {
+                    // TODO
+                    panic!("Empty array, implement management");
+                }
+            },
+            _ => None
+        };
+
+        if value.is_some() {
+            Ok(value.unwrap())
+        }
+        else {
+            // TODO
+            panic!("Wrong value typing, implement management");
+        }
+    }
 }
 
 /// Structure managing and describing Value semantic analysis.
