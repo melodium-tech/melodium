@@ -7,7 +7,10 @@ use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::path::Path;
 use crate::script::text::Model as TextModel;
+use crate::logic::collection_pool::CollectionPool;
 use crate::logic::descriptor::identifier::Identifier;
+use crate::logic::descriptor::configured_model::ConfiguredModel;
+use crate::logic::descriptor::ModelDescriptor;
 
 use super::script::Script;
 use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
@@ -103,6 +106,32 @@ impl Model {
         }
 
         Ok(model)
+    }
+
+    pub fn make_descriptor(&self, collection: &mut CollectionPool) -> Result<(), ScriptError>  {
+
+        if let Some(core_descriptor) = collection.models.get(&self.r#type.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().identifier.as_ref().unwrap()) {
+
+            let mut descriptor = ConfiguredModel::new(self.identifier.as_ref().unwrap().clone(), &core_descriptor.core_model());
+
+            for rc_parameter in &self.parameters {
+
+                let borrowed_parameter = rc_parameter.read().unwrap();
+                let parameter_descriptor = borrowed_parameter.make_descriptor()?;
+
+                descriptor.add_parameter(parameter_descriptor);
+            }
+
+            let arc_descriptor = Arc::new(descriptor);
+            arc_descriptor.set_autoref(&arc_descriptor);
+
+            collection.models.insert(&(arc_descriptor as Arc<dyn ModelDescriptor>));
+
+            Ok(())
+        }
+        else {
+            Err(ScriptError::semantic("Unknown model \'".to_string() , self.r#type.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().text.element.position))
+        }
     }
 }
 

@@ -6,6 +6,7 @@ use super::common::Node;
 use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
+use crate::logic::descriptor::{DataTypeDescriptor, ParameterDescriptor};
 
 use super::declarative_element::DeclarativeElement;
 use super::r#type::Type;
@@ -97,6 +98,17 @@ impl DeclaredParameter {
             r#type,
             value,
         })))
+    }
+
+    pub fn make_descriptor(&self) -> Result<ParameterDescriptor, ScriptError> {
+
+        //todo!()
+        //let parameter = ParameterDescriptor::new(&self.name, )
+
+        let datatype: DataTypeDescriptor;
+        let value: Option<Value>;
+
+        let parameter = ParameterDescriptor(&self.name, datatype)
     }
 }
 

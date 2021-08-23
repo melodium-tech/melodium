@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use super::file::File;
 use super::path::{Path, PathRoot};
 use super::error::ScriptError;
+use crate::logic::collection_pool::CollectionPool;
+use crate::core::core_collection::core_collection;
 
 /// Manage script instance.
 /// 
@@ -19,7 +21,9 @@ pub struct Instance {
     /// This include the main file, and may be empty for many reasons (instance not built, or errors, etc.)
     pub files: Vec<File>,
     /// Errors present in the instance.
-    pub errors: Vec<ScriptError>
+    pub errors: Vec<ScriptError>,
+
+    pub logic_collection: CollectionPool,
 }
 
 impl Instance {
@@ -36,6 +40,7 @@ impl Instance {
             standard_path: standard_path.into(),
             files: Vec::new(),
             errors: Vec::new(),
+            logic_collection: core_collection().clone(),
         }
     }
 
@@ -52,6 +57,8 @@ impl Instance {
         self.manage_file(Path::new(main), self.main_path.clone());
 
         while self.manage_inclusions() {}
+
+        self.make_descriptors();
     }
 
     /// Manage inclusions of files in the instance.
@@ -190,6 +197,33 @@ impl Instance {
             None
         }
 
+    }
+
+    fn make_descriptors(&mut self) {
+
+        // We declare first all models
+        for file in &self.files {
+            let borrowed_script = &file.semantic.as_ref().unwrap().script.read().unwrap();
+
+            for rc_model in &borrowed_script.models {
+
+                let borrowed_model = rc_model.read().unwrap();
+
+                borrowed_model.make_descriptor(&mut self.logic_collection);
+            }
+        }
+
+        // Then we declare all sequences
+        for file in &self.files {
+            let borrowed_script = &file.semantic.as_ref().unwrap().script.read().unwrap();
+
+            for rc_sequence in &borrowed_script.sequences {
+
+                let borrowed_sequence = rc_sequence.read().unwrap();
+
+                //borrowed_sequence.
+            }
+        }
     }
 
     /// Tell if environment is valid.
