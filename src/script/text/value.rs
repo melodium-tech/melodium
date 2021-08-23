@@ -3,7 +3,7 @@
 
 use crate::script::error::ScriptError;
 
-use super::PositionnedString;
+use super::{PositionnedString, Position};
 use super::word::{expect_word, expect_word_kind, Kind, Word};
 
 /// Enum describing a textual value.
@@ -18,7 +18,7 @@ pub enum Value {
     /// String, see [Kind::String](../word/enum.Kind.html#variant.String).
     String(PositionnedString),
     /// Array, representing an arbitrary long vector of values, each of which may be of its own variant kind.
-    Array(Vec<Value>),
+    Array(PositionnedString, Vec<Value>),
     /// Name, see [Kind::Name](../word/enum.Kind.html#variant.Name).
     Name(PositionnedString),
     /// ContextReference, see [Kind::Context](../word/enum.Kind.html#variant.Context).
@@ -82,7 +82,10 @@ impl Value {
                 let delimiter = expect_word("Unexpected end of script.", &mut iter)?;
 
                 if delimiter.kind == Some(Kind::ClosingBracket) {
-                    return Ok(Self::Array(sub_values));
+                    return Ok(Self::Array(
+                        PositionnedString { string: delimiter.text, position: delimiter.position} ,
+                        sub_values
+                    ));
                 }
                 else if delimiter.kind != Some(Kind::Comma) {
                     return Err(ScriptError::word("Unexpected symbol.".to_string(), delimiter.text, delimiter.position));
@@ -120,6 +123,18 @@ impl Value {
                 },
                 _ => Err(ScriptError::word("Value expected.".to_string(), value.text, value.position))
             }
+        }
+    }
+
+    pub fn get_position(&self) -> Position {
+        
+        match self {
+            Value::Boolean(ps) => ps.position,
+            Value::Number(ps) => ps.position,
+            Value::String(ps) => ps.position,
+            Value::Array(ps, _) => ps.position,
+            Value::Name(ps) => ps.position,
+            Value::ContextReference((ps, _)) => ps.position,
         }
     }
 }
