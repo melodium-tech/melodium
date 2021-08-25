@@ -3,6 +3,7 @@
 
 use crate::script::error::ScriptError;
 use crate::script::text::Type as TextType;
+use crate::logic::descriptor::{DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor};
 
 /// Enum for type structure identification.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -108,6 +109,23 @@ impl Type {
             name,
             structure,
         })
+    }
+
+    pub fn make_descriptor(&self) -> Result<DataTypeDescriptor, ScriptError> {
+
+        let structure = match self.structure {
+            TypeStructure::Scalar => DataTypeStructureDescriptor::Scalar,
+            TypeStructure::Vector => DataTypeStructureDescriptor::Vector,
+        };
+
+        let r#type = match self.name {
+            TypeName::Boolean => DataTypeTypeDescriptor::Boolean,
+            TypeName::Integer => DataTypeTypeDescriptor::Integer,
+            TypeName::Real => DataTypeTypeDescriptor::Real,
+            TypeName::String => DataTypeTypeDescriptor::String,
+        };
+
+        Ok(DataTypeDescriptor::new(structure, r#type))
     }
 }
 

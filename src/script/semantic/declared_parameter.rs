@@ -102,13 +102,17 @@ impl DeclaredParameter {
 
     pub fn make_descriptor(&self) -> Result<ParameterDescriptor, ScriptError> {
 
-        //todo!()
-        //let parameter = ParameterDescriptor::new(&self.name, )
+        let datatype = self.r#type.make_descriptor()?;
+        let value = if let Some(val) = &self.value {
+            Some(val.read().unwrap().make_executive_value(&datatype)?)
+        }
+        else {
+            None
+        };
 
-        let datatype: DataTypeDescriptor;
-        let value: Option<Value>;
+        let parameter = ParameterDescriptor::new(&self.name, datatype, value);
 
-        let parameter = ParameterDescriptor(&self.name, datatype)
+        Ok(parameter)
     }
 }
 
