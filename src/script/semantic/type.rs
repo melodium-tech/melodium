@@ -11,10 +11,6 @@ pub enum TypeStructure {
     Scalar,
     /// Data is a continuous one-dimension vector.
     Vector,
-    /// Data is a matrix of values.
-    Matrix,
-    /// Data is a collection of one-dimensions vectors of a type, but all vectors are not required to be the same size.
-    Collection,
 }
 
 /// Enum for type identification.
@@ -102,8 +98,6 @@ impl Type {
             None => TypeStructure::Scalar,
             Some("Scal") => TypeStructure::Scalar,
             Some("Vec") => TypeStructure::Vector,
-            Some("Mat") => TypeStructure::Matrix,
-            Some("Col") => TypeStructure::Collection,
             _ => {
                 return Err(ScriptError::semantic("'".to_string() + &structure_name.unwrap() + "' is not a valid structure.", text.structure.unwrap().position))
             }

@@ -24,7 +24,37 @@ impl DataType {
     }
 
     pub fn is_compatible(&self, value: &Value) -> bool {
-        todo!()
+        
+        match &self.structure {
+
+            Structure::Scalar => {
+
+                match &self.r#type {
+                    Type::Boolean =>
+                        match value { Value::Boolean(_) => true, _ => false },
+                    Type::Integer =>
+                        match value { Value::Integer(_) => true, _ => false },
+                    Type::Real =>
+                        match value { Value::Real(_) => true, _ => false },
+                    Type::String =>
+                        match value { Value::String(_) => true, _ => false },
+                }
+            },
+
+            Structure::Vector => {
+
+                match &self.r#type {
+                    Type::Boolean =>
+                        match value { Value::VecBoolean(_) => true, _ => false },
+                    Type::Integer =>
+                        match value { Value::VecInteger(_) => true, _ => false },
+                    Type::Real =>
+                        match value { Value::VecReal(_) => true, _ => false },
+                    Type::String =>
+                        match value { Value::VecString(_) => true, _ => false },
+                }
+            },
+        }
     }
 }
 
