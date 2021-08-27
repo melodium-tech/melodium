@@ -7,10 +7,12 @@ use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Sequence as TextSequence;
 use crate::script::path::Path;
+use crate::logic::collection_pool::CollectionPool;
 use crate::logic::descriptor::identifier::Identifier;
+use crate::logic::descriptor::SequenceTreatmentDescriptor;
 
 use super::script::Script;
-use super::declared_model::DeclaredModel;
+use super::declared_model::{DeclaredModel, RefersTo as DeclaredModelRefersTo};
 use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::declared_parameter::DeclaredParameter;
 use super::instancied_model::InstanciedModel;
@@ -351,6 +353,44 @@ impl Sequence {
     pub fn find_treatment(&self, name: & str) -> Option<&Arc<RwLock<Treatment>>> {
         self.treatments.iter().find(|&t| t.read().unwrap().name == name) 
     }
+
+    pub fn make_descriptor(&self, collection: &mut CollectionPool) -> Result<(), ScriptError> {
+
+        let mut descriptor = SequenceTreatmentDescriptor::new(self.identifier.as_ref().unwrap().clone());
+
+        /*
+        models: HashMap<String, Arc<CoreModel>>,
+    parameters: HashMap<String, Parameter>,
+    inputs: HashMap<String, Input>,
+    outputs: HashMap<String, Output>,
+    requirements: HashMap<String, Requirement>,
+    builder: RwLock<Option<Arc<Box<dyn Builder>>>>,
+    auto_reference: Weak<Self>,
+    */
+        for rc_model in &self.declared_models {
+
+            let borrowed_model = rc_model.read().unwrap();
+            let model_identifier = match &borrowed_model.refers {
+                DeclaredModelRefersTo::Use(u) => {
+                    u.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().identifier.as_ref().unwrap().clone()
+                },
+                _ => panic!()
+            };
+
+            let core_model_descriptor = if let Some(model_descriptor) = collection.models.get(&model_identifier) {
+                model_descriptor.core_model()
+            }
+            else {
+                return Err(ScriptError::semantic("Model \"".to_string() + &model_identifier.to_string() + "\" does not exist.", borrowed_model.text.as_ref().unwrap().name.position))
+            };
+
+            descriptor.add_model(&borrowed_model.name, &core_model_descriptor)
+        }
+
+        Ok(())
+
+    }
+    
 }
 
 impl Node for Sequence {
