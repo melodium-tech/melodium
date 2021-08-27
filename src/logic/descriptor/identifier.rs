@@ -28,6 +28,26 @@ impl Identifier {
     }
 }
 
+impl ToString for Identifier {
+    
+    fn to_string(&self) -> String {
+
+        let mut string = match self.root {
+            Root::Core => "core",
+            Root::Std => "std",
+            Root::Main => "main",
+        }.to_string();
+
+        for step in &self.path {
+            string = string + "/" + &step;
+        }
+
+        string = string + "::" + &self.name;
+
+        string
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Root {
     Core,
