@@ -6,6 +6,7 @@ use super::common::Node;
 use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
+use crate::logic::descriptor::{OutputDescriptor, FlowDescriptor};
 
 use super::sequence::Sequence;
 use super::r#type::Type;
@@ -86,6 +87,15 @@ impl Output {
             text,
             r#type,
         })))
+    }
+
+    pub fn make_descriptor(&self) -> Result<OutputDescriptor, ScriptError> {
+
+        let datatype = self.r#type.make_descriptor()?;
+
+        let output = OutputDescriptor::new(&self.name, datatype, FlowDescriptor::Indifferent);
+
+        Ok(output)
     }
 }
 

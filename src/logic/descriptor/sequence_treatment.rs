@@ -23,7 +23,7 @@ pub struct SequenceTreatment {
     outputs: HashMap<String, Output>,
     requirements: HashMap<String, Requirement>,
     builder: RwLock<Option<Arc<Box<dyn Builder>>>>,
-    auto_reference: Weak<Self>,
+    auto_reference: RwLock<Weak<Self>>,
 }
 
 impl SequenceTreatment {
@@ -36,12 +36,12 @@ impl SequenceTreatment {
             outputs: HashMap::new(),
             requirements: HashMap::new(),
             builder: RwLock::new(None),
-            auto_reference: Weak::new(),
+            auto_reference: RwLock::new(Weak::new()),
         }
     }
 
-    pub fn set_autoref(&mut self, reference: &Arc<Self>) {
-        self.auto_reference = Arc::downgrade(reference);
+    pub fn set_autoref(&self, reference: &Arc<Self>) {
+        *self.auto_reference.write().unwrap() = Arc::downgrade(reference);
     }
 
     pub fn add_model(&mut self, name: &str, model: &Arc<CoreModel>) {
@@ -78,7 +78,7 @@ impl Parameterized for SequenceTreatment {
     }
 
     fn as_parameterized(&self) -> Arc<dyn Parameterized> {
-        self.auto_reference.upgrade().unwrap()
+        self.auto_reference.read().unwrap().upgrade().unwrap()
     }
 }
 

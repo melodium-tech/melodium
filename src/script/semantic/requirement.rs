@@ -6,6 +6,7 @@ use super::common::Node;
 use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Requirement as TextRequirement;
+use crate::logic::descriptor::requirement::Requirement as RequirementDescriptor;
 
 use super::sequence::Sequence;
 
@@ -70,6 +71,13 @@ impl Requirement {
             name: text.name.string.clone(),
             text,
         })))
+    }
+
+    pub fn make_descriptor(&self) -> Result<RequirementDescriptor, ScriptError> {
+
+        let requirement = RequirementDescriptor::new(&self.name);
+
+        Ok(requirement)
     }
 }
 

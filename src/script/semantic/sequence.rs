@@ -9,7 +9,7 @@ use crate::script::text::Sequence as TextSequence;
 use crate::script::path::Path;
 use crate::logic::collection_pool::CollectionPool;
 use crate::logic::descriptor::identifier::Identifier;
-use crate::logic::descriptor::SequenceTreatmentDescriptor;
+use crate::logic::descriptor::{SequenceTreatmentDescriptor, TreatmentDescriptor};
 
 use super::script::Script;
 use super::declared_model::{DeclaredModel, RefersTo as DeclaredModelRefersTo};
@@ -358,15 +358,7 @@ impl Sequence {
 
         let mut descriptor = SequenceTreatmentDescriptor::new(self.identifier.as_ref().unwrap().clone());
 
-        /*
-        models: HashMap<String, Arc<CoreModel>>,
-    parameters: HashMap<String, Parameter>,
-    inputs: HashMap<String, Input>,
-    outputs: HashMap<String, Output>,
-    requirements: HashMap<String, Requirement>,
-    builder: RwLock<Option<Arc<Box<dyn Builder>>>>,
-    auto_reference: Weak<Self>,
-    */
+        // We manage declaration of each model given to the sequence
         for rc_model in &self.declared_models {
 
             let borrowed_model = rc_model.read().unwrap();
@@ -374,6 +366,7 @@ impl Sequence {
                 DeclaredModelRefersTo::Use(u) => {
                     u.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().identifier.as_ref().unwrap().clone()
                 },
+                // Not possible to have model not based on use
                 _ => panic!()
             };
 
@@ -386,6 +379,45 @@ impl Sequence {
 
             descriptor.add_model(&borrowed_model.name, &core_model_descriptor)
         }
+
+        // We proceed to declaration of all other charateristics of the sequence
+
+        for rc_parameter in &self.parameters {
+
+            let borrowed_parameter = rc_parameter.read().unwrap();
+            let parameter_descriptor = borrowed_parameter.make_descriptor()?;
+
+            descriptor.add_parameter(parameter_descriptor);
+        }
+
+        for rc_input in &self.inputs {
+
+            let borrowed_input = rc_input.read().unwrap();
+            let input_descriptor = borrowed_input.make_descriptor()?;
+
+            descriptor.add_input(input_descriptor);
+        }
+
+        for rc_output in &self.outputs {
+
+            let borrowed_output = rc_output.read().unwrap();
+            let output_descriptor = borrowed_output.make_descriptor()?;
+
+            descriptor.add_output(output_descriptor);
+        }
+
+        for rc_requirement in &self.requirements {
+
+            let borrowed_requirement = rc_requirement.read().unwrap();
+            let requirement_descriptor = borrowed_requirement.make_descriptor()?;
+
+            descriptor.add_requirement(requirement_descriptor);
+        }
+
+        let rc_descriptor = Arc::new(descriptor);
+        rc_descriptor.set_autoref(&rc_descriptor);
+
+        collection.treatments.insert(&(rc_descriptor as Arc<dyn TreatmentDescriptor>));
 
         Ok(())
 
