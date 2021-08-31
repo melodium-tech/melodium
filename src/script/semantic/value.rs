@@ -10,6 +10,7 @@ use crate::script::text::{PositionnedString, Position};
 use crate::script::text::value::Value as TextValue;
 use crate::executive::value::Value as ExecutiveValue;
 use crate::logic::descriptor::datatype::{DataType, Structure, Type};
+use crate::logic::designer::ValueDesigner;
 
 use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::common::Reference;
@@ -325,6 +326,21 @@ impl Value {
                             Err(ScriptError::semantic("Array of string values expected.".to_string(), self.text.get_position()))
                         },
                 }
+            },
+        }
+    }
+
+    pub fn make_designed_value(&self, datatype: &DataType) -> Result<ValueDesigner, ScriptError> {
+
+        match &self.content {
+            ValueContent::Name(decl_param) => {
+                Ok(ValueDesigner::Variable(decl_param.name.clone()))
+            },
+            ValueContent::ContextReference((context, name)) => {
+                Ok(ValueDesigner::Context((context.name.clone(), name.clone())))
+            },
+            _ => {
+                Ok(ValueDesigner::Raw(self.make_executive_value(datatype)?))
             },
         }
     }

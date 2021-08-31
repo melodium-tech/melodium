@@ -2,6 +2,7 @@
 //! Provides script instance management.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 use super::file::File;
 use super::path::{Path, PathRoot};
 use super::error::ScriptError;
@@ -23,7 +24,7 @@ pub struct Instance {
     /// Errors present in the instance.
     pub errors: Vec<ScriptError>,
 
-    pub logic_collection: CollectionPool,
+    pub logic_collection: Option<Arc<CollectionPool>>,
 }
 
 impl Instance {
@@ -40,7 +41,7 @@ impl Instance {
             standard_path: standard_path.into(),
             files: Vec::new(),
             errors: Vec::new(),
-            logic_collection: core_collection().clone(),
+            logic_collection: None,
         }
     }
 
@@ -59,6 +60,8 @@ impl Instance {
         while self.manage_inclusions() {}
 
         self.make_descriptors();
+
+        self.make_designs();
     }
 
     /// Manage inclusions of files in the instance.
@@ -201,6 +204,8 @@ impl Instance {
 
     fn make_descriptors(&mut self) {
 
+        let mut logic_collection = core_collection().clone();
+
         // We declare first all models
         for file in &self.files {
             let borrowed_script = &file.semantic.as_ref().unwrap().script.read().unwrap();
@@ -209,7 +214,7 @@ impl Instance {
 
                 let borrowed_model = rc_model.read().unwrap();
 
-                borrowed_model.make_descriptor(&mut self.logic_collection);
+                borrowed_model.make_descriptor(&mut logic_collection);
             }
         }
 
@@ -221,7 +226,32 @@ impl Instance {
 
                 let borrowed_sequence = rc_sequence.read().unwrap();
 
-                //borrowed_sequence.
+                borrowed_sequence.make_descriptor(&mut logic_collection);
+            }
+        }
+
+        self.logic_collection = Some(Arc::new(logic_collection));
+    }
+
+    fn make_designs(&self) {
+
+        // No order is required there, should be parrelizable easily
+
+        for file in &self.files {
+            let borrowed_script = &file.semantic.as_ref().unwrap().script.read().unwrap();
+
+            for rc_model in &borrowed_script.models {
+
+                let borrowed_model = rc_model.read().unwrap();
+
+                borrowed_model.make_design(self.logic_collection.as_ref().unwrap());
+            }
+
+            for rc_sequence in &borrowed_script.sequences {
+
+                let borrowed_sequence = rc_sequence.read().unwrap();
+
+                //borrowed_sequence.make_design(&self.logic_collection);
             }
         }
     }

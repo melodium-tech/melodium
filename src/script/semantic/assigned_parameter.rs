@@ -6,6 +6,7 @@ use super::common::Node;
 use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
+use crate::logic::designer::ParameterDesigner;
 
 use super::assignative_element::AssignativeElement;
 use super::value::Value;
@@ -88,6 +89,19 @@ impl AssignedParameter {
             parent: Arc::downgrade(&parent),
             value,
         })))
+    }
+
+    pub fn make_design(&self, designer: &Arc<RwLock<ParameterDesigner>>) -> Result<(), ScriptError> {
+
+        let mut designer = designer.write().unwrap();
+        let descriptor = designer.parent_descriptor().upgrade().unwrap().parameters().get(&self.name).unwrap().clone();
+
+        let value = self.value.read().unwrap().make_designed_value(descriptor.datatype())?;
+
+        designer.set_value(value).unwrap();
+
+        Ok(())
+
     }
 }
 

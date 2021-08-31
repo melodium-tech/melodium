@@ -11,6 +11,7 @@ use crate::logic::collection_pool::CollectionPool;
 use crate::logic::descriptor::identifier::Identifier;
 use crate::logic::descriptor::configured_model::ConfiguredModel;
 use crate::logic::descriptor::ModelDescriptor;
+use crate::logic::designer::ModelDesigner;
 
 use super::script::Script;
 use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
@@ -132,6 +133,25 @@ impl Model {
         else {
             Err(ScriptError::semantic("Unknown model \'".to_string() , self.r#type.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().text.element.position))
         }
+    }
+
+    pub fn make_design(&self, collections: &Arc<CollectionPool>) -> Result<(), ScriptError>  {
+
+        let descriptor = collections.models.get(self.identifier.as_ref().unwrap()).unwrap().clone();
+
+        let rc_designer = ModelDesigner::new(collections, &descriptor.downcast_arc::<ConfiguredModel>().unwrap());
+        let mut designer = rc_designer.write().unwrap();
+
+        for rc_assignation in &self.assignations {
+
+            let borrowed_assignation = rc_assignation.read().unwrap();
+
+            let assignation_designer = designer.add_parameter(&borrowed_assignation.name).unwrap();
+
+            borrowed_assignation.make_design(&assignation_designer);
+        }
+
+        Ok(())
     }
 }
 

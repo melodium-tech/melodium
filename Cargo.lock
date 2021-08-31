@@ -204,6 +204,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "downcast-rs"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
+
+[[package]]
 name = "event-listener"
 version = "2.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -350,6 +356,7 @@ name = "melodium-rust"
 version = "0.1.0"
 dependencies = [
  "async-std",
+ "downcast-rs",
  "lazy_static",
  "linkme",
  "regex",

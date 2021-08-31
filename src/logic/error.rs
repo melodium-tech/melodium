@@ -3,7 +3,10 @@
 //! 
 //! The main type of this module is [`LogicError`], which handles most of the management, combined with kind of errors detailed with [`LogicErrorKind`].
 
+use std::fmt::Debug;
+
 /// Kind of logic error that might happen.
+#[derive(Debug)]
 pub enum LogicErrorKind {
     /// The referenced variable for value doesn't exist.
     UnexistingVariable,
@@ -70,6 +73,7 @@ pub enum LogicErrorKind {
 }
 
 /// Handles and describe a Mélodium logic error.
+#[derive(Debug)]
 pub struct LogicError {
     /// Kind of error.
     pub kind: LogicErrorKind
