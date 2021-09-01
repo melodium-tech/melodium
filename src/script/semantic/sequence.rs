@@ -10,6 +10,7 @@ use crate::script::path::Path;
 use crate::logic::collection_pool::CollectionPool;
 use crate::logic::descriptor::identifier::Identifier;
 use crate::logic::descriptor::{SequenceTreatmentDescriptor, TreatmentDescriptor};
+use crate::logic::designer::SequenceDesigner;
 
 use super::script::Script;
 use super::declared_model::{DeclaredModel, RefersTo as DeclaredModelRefersTo};
@@ -421,6 +422,36 @@ impl Sequence {
 
         Ok(())
 
+    }
+
+    pub fn make_design(&self, collections: &Arc<CollectionPool>) -> Result<(), ScriptError>  {
+
+        let descriptor = collections.treatments.get(self.identifier.as_ref().unwrap()).unwrap().clone();
+
+        let rc_designer = SequenceDesigner::new(collections, &descriptor.downcast_arc::<SequenceTreatmentDescriptor>().unwrap());
+        let mut designer = rc_designer.write().unwrap();
+
+        // Models instanciations
+        for rc_instancied_model in &self.instancied_models {
+
+            let instancied_model = rc_instancied_model.read().unwrap();
+
+            let instanciation_designer = designer.add_model_instanciation(
+                    instancied_model.type_identifier.as_ref().unwrap(),
+                    &instancied_model.name
+                ).unwrap();
+
+            instancied_model.make_design(&instanciation_designer).unwrap();
+        }
+
+        // Treatments
+
+        // Connections
+
+        
+        designer.register().unwrap();
+
+        Ok(())
     }
     
 }

@@ -148,8 +148,10 @@ impl Model {
 
             let assignation_designer = designer.add_parameter(&borrowed_assignation.name).unwrap();
 
-            borrowed_assignation.make_design(&assignation_designer);
+            borrowed_assignation.make_design(&assignation_designer).unwrap();
         }
+        
+        designer.register().unwrap();
 
         Ok(())
     }

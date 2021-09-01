@@ -51,7 +51,7 @@ impl Sequence {
         &self.descriptor
     }
 
-    pub fn add_model_intanciation(&mut self, model_identifier: &IdentifierDescriptor, name: &str) -> Result<Arc<RwLock<ModelInstanciation>>, LogicError> {
+    pub fn add_model_instanciation(&mut self, model_identifier: &IdentifierDescriptor, name: &str) -> Result<Arc<RwLock<ModelInstanciation>>, LogicError> {
         
         if let Some(model_descriptor) = self.collections.models.get(model_identifier) {
             let model = ModelInstanciation::new(&self.auto_reference.upgrade().unwrap(), model_descriptor, name);

@@ -7,6 +7,8 @@ use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::path::Path;
 use crate::script::text::Instanciation as TextInstanciation;
+use crate::logic::descriptor::identifier::Identifier;
+use crate::logic::designer::ModelInstanciationDesigner;
 
 use super::r#use::Use;
 use super::model::Model;
@@ -27,6 +29,8 @@ pub struct InstanciedModel {
     pub name: String,
     pub r#type: RefersTo,
     pub parameters: Vec<Arc<RwLock<AssignedParameter>>>,
+
+    pub type_identifier: Option<Identifier>,
 }
 
 /// Enumeration managing what model instanciation refers to.
@@ -82,6 +86,7 @@ impl InstanciedModel {
             name: text.name.string.clone(),
             r#type: RefersTo::Unkown(Reference::new(text.r#type.string)),
             parameters: Vec::new(),
+            type_identifier: None,
         }));
 
         {
@@ -99,6 +104,25 @@ impl InstanciedModel {
         }
 
         Ok(treatment)
+    }
+
+    pub fn make_design(&self, designer: &Arc<RwLock<ModelInstanciationDesigner>>) -> Result<(), ScriptError> {
+
+        let mut designer = designer.write().unwrap();
+
+        for rc_assignation in &self.parameters {
+
+            let borrowed_assignation = rc_assignation.read().unwrap();
+
+            let assignation_designer = designer.add_parameter(&borrowed_assignation.name).unwrap();
+
+            borrowed_assignation.make_design(&assignation_designer).unwrap();
+        }
+
+        designer.validate().unwrap();
+
+        Ok(())
+
     }
 }
 
@@ -168,14 +192,20 @@ impl Node for InstanciedModel {
             let r#use = borrowed_script.find_use(&reference.name);
             if r#use.is_some() {
 
+                let r#use = r#use.unwrap();
+
+                self.type_identifier = r#use.read().unwrap().identifier.clone();
+
                 self.r#type = RefersTo::Use(Reference{
                     name: reference.name.clone(),
-                    reference: Some(Arc::downgrade(r#use.unwrap()))
+                    reference: Some(Arc::downgrade(r#use))
                 });
             }
             else {
                 let model = borrowed_script.find_model(&reference.name);
                 if model.is_some() {
+
+                    self.type_identifier = path.to_identifier(&reference.name);
 
                     self.r#type = RefersTo::Model(Reference{
                         name: reference.name.clone(),
