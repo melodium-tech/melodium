@@ -7,6 +7,8 @@ use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::path::Path;
 use crate::script::text::Instanciation as TextTreatment;
+use crate::logic::descriptor::identifier::Identifier;
+use crate::logic::designer::TreatmentDesigner;
 
 use super::r#use::Use;
 use super::sequence::Sequence;
@@ -28,6 +30,8 @@ pub struct Treatment {
     pub r#type: RefersTo,
     pub models: Vec<Arc<RwLock<AssignedModel>>>,
     pub parameters: Vec<Arc<RwLock<AssignedParameter>>>,
+
+    pub type_identifier: Option<Identifier>,
 }
 
 /// Enumeration managing what treatment type refers to.
@@ -84,6 +88,7 @@ impl Treatment {
             r#type: RefersTo::Unkown(Reference::new(text.r#type.string)),
             models: Vec::new(),
             parameters: Vec::new(),
+            type_identifier: None,
         }));
 
         {
@@ -106,6 +111,32 @@ impl Treatment {
         }
 
         Ok(treatment)
+    }
+
+    pub fn make_design(&self, designer: &Arc<RwLock<TreatmentDesigner>>) -> Result<(), ScriptError> {
+
+        let mut designer = designer.write().unwrap();
+
+        for rc_model_assignation in &self.models {
+
+            let borrowed_model_assignation = rc_model_assignation.read().unwrap();
+
+            designer.add_model(&borrowed_model_assignation.name, &borrowed_model_assignation.model.name).unwrap();
+        }
+
+        for rc_param_assignation in &self.parameters {
+
+            let borrowed_param_assignation = rc_param_assignation.read().unwrap();
+
+            let param_assignation_designer = designer.add_parameter(&borrowed_param_assignation.name).unwrap();
+
+            borrowed_param_assignation.make_design(&param_assignation_designer).unwrap();
+        }
+
+        designer.validate().unwrap();
+
+        Ok(())
+
     }
 }
 
@@ -209,14 +240,20 @@ impl Node for Treatment {
             let r#use = borrowed_script.find_use(&reference.name);
             if r#use.is_some() {
 
+                let r#use = r#use.unwrap();
+
+                self.type_identifier = r#use.read().unwrap().identifier.clone();
+
                 self.r#type = RefersTo::Use(Reference{
                     name: reference.name.clone(),
-                    reference: Some(Arc::downgrade(r#use.unwrap()))
+                    reference: Some(Arc::downgrade(r#use))
                 });
             }
             else {
                 let sequence = borrowed_script.find_sequence(&reference.name);
                 if sequence.is_some() {
+
+                    self.type_identifier = path.to_identifier(&reference.name);
 
                     self.r#type = RefersTo::Sequence(Reference{
                         name: reference.name.clone(),

@@ -445,6 +445,17 @@ impl Sequence {
         }
 
         // Treatments
+        for rc_treatment in &self.treatments {
+
+            let treatment = rc_treatment.read().unwrap();
+
+            let treatment_designer = designer.add_treatment(
+                    treatment.type_identifier.as_ref().unwrap(),
+                    &treatment.name
+                ).unwrap();
+
+            treatment.make_design(&treatment_designer).unwrap();
+        }
 
         // Connections
 
