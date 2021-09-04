@@ -458,6 +458,12 @@ impl Sequence {
         }
 
         // Connections
+        for rc_connection in &self.connections {
+
+            let connection = rc_connection.read().unwrap();
+
+            connection.make_design(&mut designer).unwrap();
+        }
 
         
         designer.register().unwrap();

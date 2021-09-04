@@ -7,6 +7,7 @@ use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::path::Path;
 use crate::script::text::Connection as TextConnection;
+use crate::logic::designer::SequenceDesigner;
 
 use super::sequence::Sequence;
 use super::common::Reference;
@@ -73,6 +74,55 @@ impl Connection {
             text,
             sequence: Arc::downgrade(&sequence),
         })))
+    }
+
+    pub fn make_design(&self, designer: &mut SequenceDesigner) -> Result<(), ScriptError> {
+
+        // Data connection
+        if self.data_transmission {
+
+            // something to something
+            if !self.start_point_self && !self.end_point_self {
+
+                designer.add_connection(
+                    &self.start_point.name,
+                    self.name_data_out.as_ref().unwrap(),
+                    &self.end_point.name,
+                    self.name_data_in.as_ref().unwrap(),
+                ).unwrap();
+            }
+
+            // Self to something
+            else if self.start_point_self {
+
+                designer.add_input_connection(
+                    self.name_data_out.as_ref().unwrap(),
+                    &self.end_point.name,
+                    self.name_data_in.as_ref().unwrap(),
+                ).unwrap();
+            }
+
+            // Something to Self
+            else if self.end_point_self {
+
+                designer.add_output_connection(
+                    self.name_data_in.as_ref().unwrap(),
+                    &self.start_point.name,
+                    self.name_data_out.as_ref().unwrap(),
+                ).unwrap();
+            }
+        }
+
+        // Void connection
+        else {
+            designer.add_void_connection(
+                &self.start_point.name,
+                &self.end_point.name,
+            ).unwrap();
+        }
+
+        Ok(())
+
     }
 
 }
