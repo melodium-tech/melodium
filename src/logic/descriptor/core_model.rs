@@ -1,6 +1,5 @@
 
 use std::sync::{Arc, Weak};
-use std::any::Any;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use super::identified::Identified;
@@ -66,9 +65,5 @@ impl Model for CoreModel {
 
     fn core_model(&self) -> Arc<CoreModel> {
         self.auto_reference.upgrade().unwrap()
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
