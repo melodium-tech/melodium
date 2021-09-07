@@ -214,7 +214,7 @@ impl Instance {
 
                 let borrowed_model = rc_model.read().unwrap();
 
-                borrowed_model.make_descriptor(&mut logic_collection);
+                borrowed_model.make_descriptor(&mut logic_collection).unwrap();
             }
         }
 
@@ -226,7 +226,7 @@ impl Instance {
 
                 let borrowed_sequence = rc_sequence.read().unwrap();
 
-                borrowed_sequence.make_descriptor(&mut logic_collection);
+                borrowed_sequence.make_descriptor(&mut logic_collection).unwrap();
             }
         }
 
@@ -244,14 +244,14 @@ impl Instance {
 
                 let borrowed_model = rc_model.read().unwrap();
 
-                borrowed_model.make_design(self.logic_collection.as_ref().unwrap());
+                borrowed_model.make_design(self.logic_collection.as_ref().unwrap()).unwrap();
             }
 
             for rc_sequence in &borrowed_script.sequences {
 
                 let borrowed_sequence = rc_sequence.read().unwrap();
 
-                //borrowed_sequence.make_design(&self.logic_collection);
+                borrowed_sequence.make_design(&self.logic_collection.as_ref().unwrap()).unwrap();
             }
         }
     }
