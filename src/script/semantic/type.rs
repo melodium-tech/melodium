@@ -5,6 +5,15 @@ use crate::script::error::ScriptError;
 use crate::script::text::Type as TextType;
 use crate::logic::descriptor::{DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor};
 
+/// Enum for type flow identification.
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum TypeFlow {
+    /// Data flow is blocking.
+    Block,
+    /// Data flow is a stream.
+    Stream,
+}
+
 /// Enum for type structure identification.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum TypeStructure {
@@ -37,6 +46,7 @@ pub struct Type {
     pub text: TextType,
 
     pub name: TypeName,
+    pub flow: TypeFlow,
     pub structure: TypeStructure,
 }
 
@@ -91,7 +101,24 @@ impl Type {
             }
         };
 
-        let structure_name = match text.structure.clone() {
+        // Keep if flow has been specified.
+        let mut valid_flow = true;
+        let flow_name = match text.first_level_structure.clone() {
+            None => None,
+            Some(s) => Some(s.string),
+        };
+        let flow = match flow_name.as_deref() {
+            None => TypeFlow::Block,
+            Some("Block") => TypeFlow::Block,
+            Some("Stream") => TypeFlow::Stream,
+            _ => {
+                valid_flow = false;
+                TypeFlow::Block
+            }
+        };
+
+        let raw_structure = if valid_flow {&text.second_level_structure} else {&text.first_level_structure};
+        let structure_name = match raw_structure.clone() {
             None => None,
             Some(s) => Some(s.string)
         };
@@ -100,13 +127,15 @@ impl Type {
             Some("Scal") => TypeStructure::Scalar,
             Some("Vec") => TypeStructure::Vector,
             _ => {
-                return Err(ScriptError::semantic("'".to_string() + &structure_name.unwrap() + "' is not a valid structure.", text.structure.unwrap().position))
+                return Err(ScriptError::semantic("'".to_string() + &structure_name.unwrap() + "' is not a valid structure.",
+                raw_structure.as_ref().unwrap().position))
             }
         };
 
         Ok(Self{
             text,
             name,
+            flow,
             structure,
         })
     }

@@ -128,7 +128,7 @@ impl DeclaredModel {
         let refers_string;
         if let Some(r#type) = &text.r#type {
 
-            if r#type.structure.is_some() {
+            if r#type.first_level_structure.is_some() || r#type.second_level_structure.is_some() {
                 return Err(ScriptError::semantic("Model '".to_string() + &text.name.string + "' cannot have type structure.", text.name.position))
             }
 
