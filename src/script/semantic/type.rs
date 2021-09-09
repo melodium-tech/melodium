@@ -3,7 +3,7 @@
 
 use crate::script::error::ScriptError;
 use crate::script::text::Type as TextType;
-use crate::logic::descriptor::{DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor};
+use crate::logic::descriptor::{DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, FlowDescriptor};
 
 /// Enum for type flow identification.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -140,7 +140,12 @@ impl Type {
         })
     }
 
-    pub fn make_descriptor(&self) -> Result<DataTypeDescriptor, ScriptError> {
+    pub fn make_descriptor(&self) -> Result<(DataTypeDescriptor, FlowDescriptor), ScriptError> {
+
+        let flow = match self.flow {
+            TypeFlow::Block => FlowDescriptor::Block,
+            TypeFlow::Stream => FlowDescriptor::Stream,
+        };
 
         let structure = match self.structure {
             TypeStructure::Scalar => DataTypeStructureDescriptor::Scalar,
@@ -154,7 +159,7 @@ impl Type {
             TypeName::String => DataTypeTypeDescriptor::String,
         };
 
-        Ok(DataTypeDescriptor::new(structure, r#type))
+        Ok((DataTypeDescriptor::new(structure, r#type), flow))
     }
 }
 

@@ -91,9 +91,9 @@ impl Output {
 
     pub fn make_descriptor(&self) -> Result<OutputDescriptor, ScriptError> {
 
-        let datatype = self.r#type.make_descriptor()?;
+        let (datatype, flow) = self.r#type.make_descriptor()?;
 
-        let output = OutputDescriptor::new(&self.name, datatype, FlowDescriptor::Indifferent);
+        let output = OutputDescriptor::new(&self.name, datatype, flow);
 
         Ok(output)
     }

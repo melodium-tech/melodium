@@ -6,7 +6,7 @@ use super::common::Node;
 use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
-use crate::logic::descriptor::{DataTypeDescriptor, ParameterDescriptor};
+use crate::logic::descriptor::{DataTypeDescriptor, ParameterDescriptor, FlowDescriptor};
 
 use super::declarative_element::DeclarativeElement;
 use super::r#type::Type;
@@ -102,7 +102,11 @@ impl DeclaredParameter {
 
     pub fn make_descriptor(&self) -> Result<ParameterDescriptor, ScriptError> {
 
-        let datatype = self.r#type.make_descriptor()?;
+        let (datatype, flow) = self.r#type.make_descriptor()?;
+        if flow != FlowDescriptor::Block {
+            return Err(ScriptError::semantic("Parameter '".to_string() + &self.text.name.string + "' cannot have flow.", self.text.name.position));
+        }
+
         let value = if let Some(val) = &self.value {
             Some(val.read().unwrap().make_executive_value(&datatype)?)
         }
