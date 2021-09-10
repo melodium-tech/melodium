@@ -9,7 +9,7 @@ use super::context::Context;
 use super::transmitter::Transmitter;
 
 #[derive(Debug)]
-struct Environment {
+pub struct Environment {
     world: Arc<World>,
     models: HashMap<String, Arc<dyn Model>>,
     variables: HashMap<String, Value>,
@@ -18,6 +18,16 @@ struct Environment {
 }
 
 impl Environment {
+
+    pub fn new(world: Arc<World>) -> Self {
+        Self {
+            world,
+            models: HashMap::new(),
+            variables: HashMap::new(),
+            contexts: HashMap::new(),
+            inputs: HashMap::new(),
+        }
+    }
 
     fn base(&self) -> Environment {
         Self {
