@@ -61,10 +61,10 @@ impl Type {
     /// # use melodium_rust::script::text::word::*;
     /// # use melodium_rust::script::text::r#type::Type as TextType;
     /// # use melodium_rust::script::semantic::r#type::*;
-    /// let str_vec_int = "Vec<Int>";
-    /// let str_scal_string = "String";
-    /// let str_col_real = "Col<Real>";
-    /// let str_mat_bool = "Mat<Bool>";
+    /// let str_block_vec_int = "Vec<Int>";
+    /// let str_block_scal_string = "String";
+    /// let str_stream_vec_real = "Stream<Vec<Real>>";
+    /// let str_stream_scal_bool = "Stream<Bool>";
     /// 
     /// fn get_text_type(str: & str) -> TextType {
     ///     let words = get_words(str).unwrap();
@@ -72,21 +72,25 @@ impl Type {
     ///     TextType::build(&mut iter).unwrap()
     /// }
     /// 
-    /// let type_vec_int = Type::new(get_text_type(str_vec_int))?;
-    /// assert_eq!(type_vec_int.name, TypeName::Integer);
-    /// assert_eq!(type_vec_int.structure, TypeStructure::Vector);
+    /// let type_block_vec_int = Type::new(get_text_type(str_block_vec_int))?;
+    /// assert_eq!(type_block_vec_int.name, TypeName::Integer);
+    /// assert_eq!(type_block_vec_int.flow, TypeFlow::Block);
+    /// assert_eq!(type_block_vec_int.structure, TypeStructure::Vector);
     /// 
-    /// let type_scal_string = Type::new(get_text_type(str_scal_string))?;
-    /// assert_eq!(type_scal_string.name, TypeName::String);
-    /// assert_eq!(type_scal_string.structure, TypeStructure::Scalar);
+    /// let type_block_scal_string = Type::new(get_text_type(str_block_scal_string))?;
+    /// assert_eq!(type_block_scal_string.name, TypeName::String);
+    /// assert_eq!(type_block_scal_string.flow, TypeFlow::Block);
+    /// assert_eq!(type_block_scal_string.structure, TypeStructure::Scalar);
     /// 
-    /// let type_col_real = Type::new(get_text_type(str_col_real))?;
-    /// assert_eq!(type_col_real.name, TypeName::Real);
-    /// assert_eq!(type_col_real.structure, TypeStructure::Collection);
+    /// let type_stream_vec_real = Type::new(get_text_type(str_stream_vec_real))?;
+    /// assert_eq!(type_stream_vec_real.name, TypeName::Real);
+    /// assert_eq!(type_stream_vec_real.flow, TypeFlow::Stream);
+    /// assert_eq!(type_stream_vec_real.structure, TypeStructure::Vector);
     /// 
-    /// let type_mat_bool = Type::new(get_text_type(str_mat_bool))?;
-    /// assert_eq!(type_mat_bool.name, TypeName::Boolean);
-    /// assert_eq!(type_mat_bool.structure, TypeStructure::Matrix);
+    /// let type_stream_scal_bool = Type::new(get_text_type(str_stream_scal_bool))?;
+    /// assert_eq!(type_stream_scal_bool.name, TypeName::Boolean);
+    /// assert_eq!(type_stream_scal_bool.flow, TypeFlow::Stream);
+    /// assert_eq!(type_stream_scal_bool.structure, TypeStructure::Scalar);
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn new(text: TextType) -> Result<Self, ScriptError> {

@@ -39,7 +39,7 @@ impl Output {
     /// # use melodium_rust::script::error::ScriptError;
     /// # use melodium_rust::script::text::script::Script as TextScript;
     /// # use melodium_rust::script::semantic::script::Script;
-    /// # use melodium_rust::script::semantic::r#type::{TypeName, TypeStructure};
+    /// # use melodium_rust::script::semantic::r#type::{TypeName, TypeFlow, TypeStructure};
     /// let address = "examples/semantic/simple_build.mel";
     /// let mut raw_text = String::new();
     /// # let mut file = File::open(address).unwrap();
@@ -56,7 +56,8 @@ impl Output {
     /// let borrowed_output = borrowed_sequence.find_output("hpcp").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_output.name, "hpcp");
-    /// assert_eq!(borrowed_output.r#type.structure, TypeStructure::Matrix);
+    /// assert_eq!(borrowed_output.r#type.flow, TypeFlow::Stream);
+    /// assert_eq!(borrowed_output.r#type.structure, TypeStructure::Vector);
     /// assert_eq!(borrowed_output.r#type.name, TypeName::Integer);
     /// # Ok::<(), ScriptError>(())
     /// ```

@@ -59,7 +59,7 @@ impl Value {
     /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::String(PositionnedString::default())));
     /// 
     /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Array(vec![])));
+    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Array(PositionnedString::default(), vec![])));
     /// 
     /// let value = Value::build_from_first_item(&mut iter)?;
     /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Name(PositionnedString::default())));

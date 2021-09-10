@@ -39,7 +39,7 @@ impl Input {
     /// # use melodium_rust::script::error::ScriptError;
     /// # use melodium_rust::script::text::script::Script as TextScript;
     /// # use melodium_rust::script::semantic::script::Script;
-    /// # use melodium_rust::script::semantic::r#type::{TypeName, TypeStructure};
+    /// # use melodium_rust::script::semantic::r#type::{TypeName, TypeFlow, TypeStructure};
     /// let address = "examples/semantic/simple_build.mel";
     /// let mut raw_text = String::new();
     /// # let mut file = File::open(address).unwrap();
@@ -56,7 +56,8 @@ impl Input {
     /// let borrowed_input = borrowed_sequence.find_input("signal").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_input.name, "signal");
-    /// assert_eq!(borrowed_input.r#type.structure, TypeStructure::Vector);
+    /// assert_eq!(borrowed_input.r#type.flow, TypeFlow::Stream);
+    /// assert_eq!(borrowed_input.r#type.structure, TypeStructure::Scalar);
     /// assert_eq!(borrowed_input.r#type.name, TypeName::Integer);
     /// # Ok::<(), ScriptError>(())
     /// ```

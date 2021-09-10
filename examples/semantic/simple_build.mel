@@ -133,10 +133,10 @@ sequence Main(directory: String)
  * - `windowingType`: type of windowing to use, string type
  */
 sequence Spectrum(frameSize: Int, hopSize: Int, windowingType: String)
-    // Declaring input named `signal`, taking a vector of integers.
-    input signal: Vec<Int>
-    // Declaring output named `spectrum`, taking a matrix of integers.
-    output spectrum: Mat<Int>
+    // Declaring input named `signal`, taking a stream of integers.
+    input signal: Stream<Int>
+    // Declaring output named `spectrum`, taking a stream of vectors of integers.
+    output spectrum: Stream<Vec<Int>>
 {
 
     // Declaring treatment `CoreFrameCutter`, setting up parameters `frameSize` and
@@ -168,9 +168,9 @@ sequence Spectrum(frameSize: Int, hopSize: Int, windowingType: String)
  */
 sequence HPCP(sampleRate: Int = 44100, minFrequency: Int = 50, maxFrequency: Int = 1000, harmonics: Int = 8, size: Int = 120)
     // Declaring input named `spectrum`, taking a matrix of integers.
-    input spectrum: Mat<Int>
+    input spectrum: Stream<Vec<Int>>
     // Declaring output named `hpcp`, taking a matrix of integers.
-    output hpcp: Mat<Int>
+    output hpcp: Stream<Vec<Int>>
 {
 
     // Declaring treatment `CoreSpectralPeaks`, setting up parameters `sampleRate`, `minFrequency`, and

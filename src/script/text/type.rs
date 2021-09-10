@@ -57,7 +57,7 @@ impl Type {
                 iter.next();
                 let name = expect_word_kind(Kind::Name, "Type name expected.", &mut iter)?;
 
-                for _ in 0..1 {
+                for _ in 0..2 {
                     expect_word_kind(Kind::ClosingChevron, "Closing chevron expected.", &mut iter)?;
                 }
 
