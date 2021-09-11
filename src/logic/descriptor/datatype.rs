@@ -30,12 +30,36 @@ impl DataType {
             Structure::Scalar => {
 
                 match &self.r#type {
-                    Type::Boolean =>
-                        match value { Value::Boolean(_) => true, _ => false },
-                    Type::Integer =>
-                        match value { Value::Integer(_) => true, _ => false },
-                    Type::Real =>
-                        match value { Value::Real(_) => true, _ => false },
+                    Type::I8 =>
+                        match value { Value::I8(_) => true, _ => false },
+                    Type::I16 =>
+                        match value { Value::I16(_) => true, _ => false },
+                    Type::I32 =>
+                        match value { Value::I32(_) => true, _ => false },
+                    Type::I64 =>
+                        match value { Value::I64(_) => true, _ => false },
+                    Type::I128 =>
+                        match value { Value::I128(_) => true, _ => false },
+                    Type::U8 =>
+                        match value { Value::U8(_) => true, _ => false },
+                    Type::U16 =>
+                        match value { Value::U16(_) => true, _ => false },
+                    Type::U32 =>
+                        match value { Value::U32(_) => true, _ => false },
+                    Type::U64 =>
+                        match value { Value::U64(_) => true, _ => false },
+                    Type::U128 =>
+                        match value { Value::U128(_) => true, _ => false },
+                    Type::F32 =>
+                        match value { Value::F32(_) => true, _ => false },
+                    Type::F64 =>
+                        match value { Value::F64(_) => true, _ => false },
+                    Type::Bool =>
+                        match value { Value::Bool(_) => true, _ => false },
+                    Type::Byte =>
+                        match value { Value::Byte(_) => true, _ => false },
+                    Type::Char =>
+                        match value { Value::Char(_) => true, _ => false },
                     Type::String =>
                         match value { Value::String(_) => true, _ => false },
                 }
@@ -44,12 +68,36 @@ impl DataType {
             Structure::Vector => {
 
                 match &self.r#type {
-                    Type::Boolean =>
-                        match value { Value::VecBoolean(_) => true, _ => false },
-                    Type::Integer =>
-                        match value { Value::VecInteger(_) => true, _ => false },
-                    Type::Real =>
-                        match value { Value::VecReal(_) => true, _ => false },
+                    Type::I8 =>
+                        match value { Value::VecI8(_) => true, _ => false },
+                    Type::I16 =>
+                        match value { Value::VecI16(_) => true, _ => false },
+                    Type::I32 =>
+                        match value { Value::VecI32(_) => true, _ => false },
+                    Type::I64 =>
+                        match value { Value::VecI64(_) => true, _ => false },
+                    Type::I128 =>
+                        match value { Value::VecI128(_) => true, _ => false },
+                    Type::U8 =>
+                        match value { Value::VecU8(_) => true, _ => false },
+                    Type::U16 =>
+                        match value { Value::VecU16(_) => true, _ => false },
+                    Type::U32 =>
+                        match value { Value::VecU32(_) => true, _ => false },
+                    Type::U64 =>
+                        match value { Value::VecU64(_) => true, _ => false },
+                    Type::U128 =>
+                        match value { Value::VecU128(_) => true, _ => false },
+                    Type::F32 =>
+                        match value { Value::VecF32(_) => true, _ => false },
+                    Type::F64 =>
+                        match value { Value::VecF64(_) => true, _ => false },
+                    Type::Bool =>
+                        match value { Value::VecBool(_) => true, _ => false },
+                    Type::Byte =>
+                        match value { Value::VecByte(_) => true, _ => false },
+                    Type::Char =>
+                        match value { Value::VecChar(_) => true, _ => false },
                     Type::String =>
                         match value { Value::VecString(_) => true, _ => false },
                 }
@@ -66,8 +114,23 @@ pub enum Structure {
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Type {
-    Boolean,
-    Integer,
-    Real,
+    I8,
+    I16,
+    I32,
+    I64,
+    I128,
+
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
+
+    F32,
+    F64,
+
+    Bool,
+    Byte,
+    Char,
     String,
 }

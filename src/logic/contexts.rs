@@ -20,8 +20,8 @@ impl Contexts {
         };
 
         contexts.insert(ContextDescriptor::new("Track", vec![
-            ("number", Data::new(Structure::Scalar, Type::Integer)),
-            ("time",  Data::new(Structure::Scalar, Type::Real)),
+            ("number", Data::new(Structure::Scalar, Type::U128)),
+            ("time",  Data::new(Structure::Scalar, Type::F64)),
         ]));
 
         contexts.insert(ContextDescriptor::new("File", vec![
@@ -33,7 +33,7 @@ impl Contexts {
         ]));
 
         contexts.insert(ContextDescriptor::new("Signal", vec![
-            ("sampleRate", Data::new(Structure::Scalar, Type::Integer)),
+            ("sampleRate", Data::new(Structure::Scalar, Type::U64)),
         ]));
 
         // Add there existing contexts.
