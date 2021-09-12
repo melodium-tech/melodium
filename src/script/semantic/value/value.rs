@@ -4,6 +4,7 @@
 use super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
+use std::convert::TryFrom;
 use crate::script::error::ScriptError;
 use crate::script::path::Path;
 use crate::script::text::{PositionnedString, Position};
@@ -16,87 +17,6 @@ use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::common::Reference;
 use super::declared_parameter::DeclaredParameter;
 use super::requirement::Requirement;
-
-/// Enum holding value or reference designating the value.
-pub enum ValueContent {
-    Boolean(bool),
-    Integer(i64),
-    Real(f64),
-    String(String),
-    /// Array, allowing recursive values (in case of vectors).
-    Array(Vec<ValueContent>),
-    /// Named value, referring to a parameter of the hosting sequence.
-    Name(Reference<DeclaredParameter>),
-    /// Context reference, referring to a requirement of the hosting sequence, and an inner element.
-    ContextReference((Reference<Requirement>, String))
-}
-
-impl ValueContent {
-
-    pub fn to_vector_bool(&self) -> Option<Vec<bool>> {
-        match self {
-            ValueContent::Array(vec) => {
-                let mut arr: Vec<bool> = Vec::with_capacity(vec.len());
-                for val in vec {
-                    match val {
-                        ValueContent::Boolean(b) => arr.push(*b),
-                        _ => return None,
-                    }
-                }
-                Some(arr)
-            },
-            _ => None
-        }
-    }
-
-    pub fn to_vector_integer(&self) -> Option<Vec<i64>> {
-        match self {
-            ValueContent::Array(vec) => {
-                let mut arr: Vec<i64> = Vec::with_capacity(vec.len());
-                for val in vec {
-                    match val {
-                        ValueContent::Integer(i) => arr.push(*i),
-                        _ => return None,
-                    }
-                }
-                Some(arr)
-            },
-            _ => None
-        }
-    }
-
-    pub fn to_vector_real(&self) -> Option<Vec<f64>> {
-        match self {
-            ValueContent::Array(vec) => {
-                let mut arr: Vec<f64> = Vec::with_capacity(vec.len());
-                for val in vec {
-                    match val {
-                        ValueContent::Real(r) => arr.push(*r),
-                        _ => return None,
-                    }
-                }
-                Some(arr)
-            },
-            _ => None
-        }
-    }
-
-    pub fn to_vector_string(&self) -> Option<Vec<String>> {
-        match self {
-            ValueContent::Array(vec) => {
-                let mut arr: Vec<String> = Vec::with_capacity(vec.len());
-                for val in vec {
-                    match val {
-                        ValueContent::String(s) => arr.push(s.clone()),
-                        _ => return None,
-                    }
-                }
-                Some(arr)
-            },
-            _ => None
-        }
-    }
-}
 
 /// Structure managing and describing Value semantic analysis.
 /// 
@@ -153,7 +73,12 @@ impl Value {
 
     fn parse_number(n: & PositionnedString) -> Result<ValueContent, ScriptError> {
 
-        let integer = n.string.parse::<i64>();
+        let unsigned = n.string.parse::<u128>();
+        if unsigned.is_ok() {
+            return Ok(ValueContent::Unsigned(unsigned.unwrap()));
+        }
+
+        let integer = n.string.parse::<i128>();
         if integer.is_ok() {
             return Ok(ValueContent::Integer(integer.unwrap()));
         }
@@ -267,67 +192,7 @@ impl Value {
 
     pub fn make_executive_value(&self, datatype: &DataType) -> Result<ExecutiveValue, ScriptError> {
 
-        match datatype.structure() {
-            Structure::Scalar => {
-                match datatype.r#type() {
-
-                    Type::Boolean =>
-                        match &self.content {
-                            ValueContent::Boolean(b) => Ok(ExecutiveValue::Boolean(*b)),
-                            _ => Err(ScriptError::semantic("Boolean value expected.".to_string(), self.text.get_position()))
-                        },
-
-                    Type::Integer => 
-                        match &self.content {
-                            ValueContent::Integer(i) => Ok(ExecutiveValue::Integer(*i)),
-                            _ => Err(ScriptError::semantic("Integer value expected.".to_string(), self.text.get_position()))
-                        },
-                    Type::Real => 
-                        match &self.content {
-                            ValueContent::Real(b) => Ok(ExecutiveValue::Real(*b)),
-                            _ => Err(ScriptError::semantic("Real value expected.".to_string(), self.text.get_position()))
-                        },
-                    Type::String => 
-                        match &self.content {
-                            ValueContent::String(b) => Ok(ExecutiveValue::String(b.clone())),
-                            _ => Err(ScriptError::semantic("String value expected.".to_string(), self.text.get_position()))
-                        },
-
-                }
-            },
-            Structure::Vector => {
-                match datatype.r#type() {
-                    Type::Boolean => 
-                        if let Some(vec) = self.content.to_vector_bool() {
-                            Ok(ExecutiveValue::VecBoolean(vec))
-                        }
-                        else {
-                            Err(ScriptError::semantic("Array of boolean values expected.".to_string(), self.text.get_position()))
-                        },
-                    Type::Integer =>
-                        if let Some(vec) = self.content.to_vector_integer() {
-                            Ok(ExecutiveValue::VecInteger(vec))
-                        }
-                        else {
-                            Err(ScriptError::semantic("Array of integer values expected.".to_string(), self.text.get_position()))
-                        },
-                    Type::Real => 
-                        if let Some(vec) = self.content.to_vector_real() {
-                            Ok(ExecutiveValue::VecReal(vec))
-                        }
-                        else {
-                            Err(ScriptError::semantic("Array of real values expected.".to_string(), self.text.get_position()))
-                        },
-                    Type::String => 
-                        if let Some(vec) = self.content.to_vector_string() {
-                            Ok(ExecutiveValue::VecString(vec))
-                        }
-                        else {
-                            Err(ScriptError::semantic("Array of string values expected.".to_string(), self.text.get_position()))
-                        },
-                }
-            },
-        }
+        self.content.make_executive_value(datatype)
     }
 
     pub fn make_designed_value(&self, datatype: &DataType) -> Result<ValueDesigner, ScriptError> {

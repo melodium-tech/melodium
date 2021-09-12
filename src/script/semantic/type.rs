@@ -26,14 +26,71 @@ pub enum TypeStructure {
 /// Enum for type identification.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum TypeName {
-    /// Value is either `true` or `false`.
-    Boolean,
-    /// Value is any positive or negative integer number.
-    Integer,
-    /// Value is any positive or negative real number.
-    Real,
-    /// Value is any string of characters.
+    I8,
+    I16,
+    I32,
+    I64,
+    I128,
+
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
+
+    F32,
+    F64,
+
+    Bool,
+    Byte,
+    Char,
     String,
+}
+
+impl TypeName {
+
+    fn from_string(name: &str) -> Option<Self> {
+        match name {
+            "i8" => Some(Self::I8),
+			"i16" => Some(Self::I16),
+			"i32" => Some(Self::I32),
+			"i64" => Some(Self::I64),
+			"i128" => Some(Self::I128),
+			"u8" => Some(Self::U8),
+			"u16" => Some(Self::U16),
+			"u32" => Some(Self::U32),
+			"u64" => Some(Self::U64),
+			"u128" => Some(Self::U128),
+			"f32" => Some(Self::F32),
+			"f64" => Some(Self::F64),
+			"bool" => Some(Self::Bool),
+			"byte" => Some(Self::Byte),
+			"char" => Some(Self::Char),
+			"string" => Some(Self::String),
+            _ => None
+        }
+    }
+
+    fn to_descriptor(&self) -> DataTypeTypeDescriptor {
+        match self {
+            Self::I8 => DataTypeTypeDescriptor::I8,
+			Self::I16 => DataTypeTypeDescriptor::I16,
+			Self::I32 => DataTypeTypeDescriptor::I32,
+			Self::I64 => DataTypeTypeDescriptor::I64,
+			Self::I128 => DataTypeTypeDescriptor::I128,
+			Self::U8 => DataTypeTypeDescriptor::U8,
+			Self::U16 => DataTypeTypeDescriptor::U16,
+			Self::U32 => DataTypeTypeDescriptor::U32,
+			Self::U64 => DataTypeTypeDescriptor::U64,
+			Self::U128 => DataTypeTypeDescriptor::U128,
+			Self::F32 => DataTypeTypeDescriptor::F32,
+			Self::F64 => DataTypeTypeDescriptor::F64,
+			Self::Bool => DataTypeTypeDescriptor::Bool,
+			Self::Byte => DataTypeTypeDescriptor::Byte,
+			Self::Char => DataTypeTypeDescriptor::Char,
+			Self::String => DataTypeTypeDescriptor::String,
+        }
+    }
 }
 
 /// Structure managing and describing Type semantic analysis.
@@ -95,15 +152,14 @@ impl Type {
     /// ```
     pub fn new(text: TextType) -> Result<Self, ScriptError> {
 
-        let name = match text.name.string.as_ref() {
-            "Bool" => TypeName::Boolean,
-            "Int" => TypeName::Integer,
-            "Real" => TypeName::Real,
-            "String" => TypeName::String,
-            _ => {
-                return Err(ScriptError::semantic("'".to_string() + &text.name.string + "' is not a valid type.", text.name.position))
-            }
-        };
+        // Get type name.
+        let name;
+        if let Some(opt_name) = TypeName::from_string(text.name.string.as_ref()) {
+            name = opt_name;
+        }
+        else {
+            return Err(ScriptError::semantic("'".to_string() + &text.name.string + "' is not a valid type.", text.name.position))
+        }
 
         // Keep if flow has been specified.
         let mut valid_flow = true;
@@ -156,12 +212,7 @@ impl Type {
             TypeStructure::Vector => DataTypeStructureDescriptor::Vector,
         };
 
-        let r#type = match self.name {
-            TypeName::Boolean => DataTypeTypeDescriptor::Boolean,
-            TypeName::Integer => DataTypeTypeDescriptor::Integer,
-            TypeName::Real => DataTypeTypeDescriptor::Real,
-            TypeName::String => DataTypeTypeDescriptor::String,
-        };
+        let r#type = self.name.to_descriptor();
 
         Ok((DataTypeDescriptor::new(structure, r#type), flow))
     }
