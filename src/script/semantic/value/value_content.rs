@@ -1,15 +1,8 @@
 
-use std::sync::{Arc, Weak, RwLock};
 use std::convert::TryFrom;
-use crate::script::error::ScriptError;
-use crate::script::path::Path;
-use crate::script::text::{PositionnedString, Position};
-use crate::script::text::value::Value as TextValue;
 use crate::executive::value::Value as ExecutiveValue;
 use crate::logic::descriptor::datatype::{DataType, Structure, Type};
-use crate::logic::designer::ValueDesigner;
 
-use super::super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::super::common::Reference;
 use super::super::declared_parameter::DeclaredParameter;
 use super::super::requirement::Requirement;
@@ -31,7 +24,7 @@ pub enum ValueContent {
 
 impl ValueContent {
 
-    pub fn make_executive_value(&self, datatype: &DataType) -> Result<ExecutiveValue, ScriptError> {
+    pub fn make_executive_value(&self, datatype: &DataType) -> Result<ExecutiveValue, String> {
 
         match datatype.structure() {
             Structure::Scalar => {
@@ -44,7 +37,7 @@ impl ValueContent {
                                     Ok(ExecutiveValue::U8(u))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for u8.".to_string(), self.text.get_position()))
+                                    Err("Value too large for u8.".to_string())
                                 }
                             },
                             ValueContent::Integer(i) => {
@@ -52,10 +45,10 @@ impl ValueContent {
                                     Ok(ExecutiveValue::U8(u))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for u8.".to_string(), self.text.get_position()))
+                                    Err("Value too large for u8.".to_string())
                                 }
                             },
-                            _ => Err(ScriptError::semantic("u8 value expected.".to_string(), self.text.get_position()))
+                            _ => Err("u8 value expected.".to_string())
                         },
                     
                     Type::U16 =>
@@ -65,7 +58,7 @@ impl ValueContent {
                                     Ok(ExecutiveValue::U16(u))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for u16.".to_string(), self.text.get_position()))
+                                    Err("Value too large for u16.".to_string())
                                 }
                             },
                             ValueContent::Integer(i) => {
@@ -73,10 +66,10 @@ impl ValueContent {
                                     Ok(ExecutiveValue::U16(u))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for u16.".to_string(), self.text.get_position()))
+                                    Err("Value too large for u16.".to_string())
                                 }
                             },
-                            _ => Err(ScriptError::semantic("u16 value expected.".to_string(), self.text.get_position()))
+                            _ => Err("u16 value expected.".to_string())
                         },
                     
                     Type::U32 =>
@@ -86,7 +79,7 @@ impl ValueContent {
                                     Ok(ExecutiveValue::U32(u))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for u32.".to_string(), self.text.get_position()))
+                                    Err("Value too large for u32.".to_string())
                                 }
                             },
                             ValueContent::Integer(i) => {
@@ -94,10 +87,10 @@ impl ValueContent {
                                     Ok(ExecutiveValue::U32(u))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for u32.".to_string(), self.text.get_position()))
+                                    Err("Value too large for u32.".to_string())
                                 }
                             },
-                            _ => Err(ScriptError::semantic("u32 value expected.".to_string(), self.text.get_position()))
+                            _ => Err("u32 value expected.".to_string())
                         },
                     
                     Type::U64 =>
@@ -107,7 +100,7 @@ impl ValueContent {
                                     Ok(ExecutiveValue::U64(u))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for u64.".to_string(), self.text.get_position()))
+                                    Err("Value too large for u64.".to_string())
                                 }
                             },
                             ValueContent::Integer(i) => {
@@ -115,10 +108,10 @@ impl ValueContent {
                                     Ok(ExecutiveValue::U64(u))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for u64.".to_string(), self.text.get_position()))
+                                    Err("Value too large for u64.".to_string())
                                 }
                             },
-                            _ => Err(ScriptError::semantic("u64 value expected.".to_string(), self.text.get_position()))
+                            _ => Err("u64 value expected.".to_string())
                         },
                     
                     Type::U128 =>
@@ -129,10 +122,10 @@ impl ValueContent {
                                     Ok(ExecutiveValue::U128(u))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for u128.".to_string(), self.text.get_position()))
+                                    Err("Value too large for u128.".to_string())
                                 }
                             },
-                            _ => Err(ScriptError::semantic("u128 value expected.".to_string(), self.text.get_position()))
+                            _ => Err("u128 value expected.".to_string())
                         },
 
                     Type::I8 =>
@@ -142,7 +135,7 @@ impl ValueContent {
                                     Ok(ExecutiveValue::I8(i))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for i8.".to_string(), self.text.get_position()))
+                                    Err("Value too large for i8.".to_string())
                                 }
                             },
                             ValueContent::Integer(i) => {
@@ -150,10 +143,10 @@ impl ValueContent {
                                     Ok(ExecutiveValue::I8(i))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for i8.".to_string(), self.text.get_position()))
+                                    Err("Value too large for i8.".to_string())
                                 }
                             },
-                            _ => Err(ScriptError::semantic("i8 value expected.".to_string(), self.text.get_position()))
+                            _ => Err("i8 value expected.".to_string())
                         },
 
                     Type::I16 =>
@@ -163,7 +156,7 @@ impl ValueContent {
                                     Ok(ExecutiveValue::I16(i))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for i16.".to_string(), self.text.get_position()))
+                                    Err("Value too large for i16.".to_string())
                                 }
                             },
                             ValueContent::Integer(i) => {
@@ -171,10 +164,10 @@ impl ValueContent {
                                     Ok(ExecutiveValue::I16(i))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for i16.".to_string(), self.text.get_position()))
+                                    Err("Value too large for i16.".to_string())
                                 }
                             },
-                            _ => Err(ScriptError::semantic("i16 value expected.".to_string(), self.text.get_position()))
+                            _ => Err("i16 value expected.".to_string())
                         },
                     
                     Type::I32 =>
@@ -184,7 +177,7 @@ impl ValueContent {
                                     Ok(ExecutiveValue::I32(i))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for i32.".to_string(), self.text.get_position()))
+                                    Err("Value too large for i32.".to_string())
                                 }
                             },
                             ValueContent::Integer(i) => {
@@ -192,10 +185,10 @@ impl ValueContent {
                                     Ok(ExecutiveValue::I32(i))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for i32.".to_string(), self.text.get_position()))
+                                    Err("Value too large for i32.".to_string())
                                 }
                             },
-                            _ => Err(ScriptError::semantic("i32 value expected.".to_string(), self.text.get_position()))
+                            _ => Err("i32 value expected.".to_string())
                         },
 
                     Type::I64 =>
@@ -205,7 +198,7 @@ impl ValueContent {
                                     Ok(ExecutiveValue::I64(i))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for i64.".to_string(), self.text.get_position()))
+                                    Err("Value too large for i64.".to_string())
                                 }
                             },
                             ValueContent::Integer(i) => {
@@ -213,10 +206,10 @@ impl ValueContent {
                                     Ok(ExecutiveValue::I64(i))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for i64.".to_string(), self.text.get_position()))
+                                    Err("Value too large for i64.".to_string())
                                 }
                             },
-                            _ => Err(ScriptError::semantic("i64 value expected.".to_string(), self.text.get_position()))
+                            _ => Err("i64 value expected.".to_string())
                         },
                     
                     Type::I128 =>
@@ -226,11 +219,11 @@ impl ValueContent {
                                     Ok(ExecutiveValue::I128(i))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for i128.".to_string(), self.text.get_position()))
+                                    Err("Value too large for i128.".to_string())
                                 }
                             },
                             ValueContent::Integer(i) => Ok(ExecutiveValue::I128(*i)),
-                            _ => Err(ScriptError::semantic("i128 value expected.".to_string(), self.text.get_position()))
+                            _ => Err("i128 value expected.".to_string())
                         },
                     
                     Type::F32 =>
@@ -241,7 +234,7 @@ impl ValueContent {
                                     Ok(ExecutiveValue::F32(f32::from(u)))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for f32.".to_string(), self.text.get_position()))
+                                    Err("Value too large for f32.".to_string())
                                 }
                             },
                             ValueContent::Integer(i) => {
@@ -250,11 +243,11 @@ impl ValueContent {
                                     Ok(ExecutiveValue::F32(f32::from(i)))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for f32.".to_string(), self.text.get_position()))
+                                    Err("Value too large for f32.".to_string())
                                 }
                             },
                             ValueContent::Real(b) => Ok(ExecutiveValue::F32(*b as f32)),
-                            _ => Err(ScriptError::semantic("f32 value expected.".to_string(), self.text.get_position()))
+                            _ => Err("f32 value expected.".to_string())
                         },
                     
                     Type::F64 =>
@@ -265,7 +258,7 @@ impl ValueContent {
                                     Ok(ExecutiveValue::F64(f64::from(u)))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for f64.".to_string(), self.text.get_position()))
+                                    Err("Value too large for f64.".to_string())
                                 }
                             },
                             ValueContent::Integer(i) => {
@@ -274,17 +267,17 @@ impl ValueContent {
                                     Ok(ExecutiveValue::F64(f64::from(i)))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for f64.".to_string(), self.text.get_position()))
+                                    Err("Value too large for f64.".to_string())
                                 }
                             },
                             ValueContent::Real(b) => Ok(ExecutiveValue::F64(*b)),
-                            _ => Err(ScriptError::semantic("f64 value expected.".to_string(), self.text.get_position()))
+                            _ => Err("f64 value expected.".to_string())
                         },
                     
                     Type::Bool =>
                         match &self {
                             ValueContent::Boolean(b) => Ok(ExecutiveValue::Bool(*b)),
-                            _ => Err(ScriptError::semantic("Boolean value expected.".to_string(), self.text.get_position()))
+                            _ => Err("Boolean value expected.".to_string())
                         },
                     
                     Type::Byte =>
@@ -294,7 +287,7 @@ impl ValueContent {
                                     Ok(ExecutiveValue::Byte(u))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for byte.".to_string(), self.text.get_position()))
+                                    Err("Value too large for byte.".to_string())
                                 }
                             },
                             ValueContent::Integer(i) => {
@@ -302,10 +295,10 @@ impl ValueContent {
                                     Ok(ExecutiveValue::Byte(u))
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for byte.".to_string(), self.text.get_position()))
+                                    Err("Value too large for byte.".to_string())
                                 }
                             },
-                            _ => Err(ScriptError::semantic("byte value expected.".to_string(), self.text.get_position()))
+                            _ => Err("byte value expected.".to_string())
                         },
                     
                     Type::Char =>
@@ -316,11 +309,11 @@ impl ValueContent {
                                         Ok(ExecutiveValue::Char(c))
                                     }
                                     else {
-                                        Err(ScriptError::semantic("Value cannot be a char.".to_string(), self.text.get_position()))
+                                        Err("Value cannot be a char.".to_string())
                                     }
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for char.".to_string(), self.text.get_position()))
+                                    Err("Value too large for char.".to_string())
                                 }
                             },
                             ValueContent::Integer(i) => {
@@ -329,121 +322,372 @@ impl ValueContent {
                                         Ok(ExecutiveValue::Char(c))
                                     }
                                     else {
-                                        Err(ScriptError::semantic("Value cannot be a char.".to_string(), self.text.get_position()))
+                                        Err("Value cannot be a char.".to_string())
                                     }
                                 }
                                 else {
-                                    Err(ScriptError::semantic("Value too large for char.".to_string(), self.text.get_position()))
+                                    Err("Value too large for char.".to_string())
                                 }
                             },
-                            _ => Err(ScriptError::semantic("char value expected.".to_string(), self.text.get_position()))
+                            _ => Err("char value expected.".to_string())
                         },
 
                     Type::String => 
                         match &self {
                             ValueContent::String(s) => Ok(ExecutiveValue::String(s.clone())),
-                            _ => Err(ScriptError::semantic("String value expected.".to_string(), self.text.get_position()))
+                            _ => Err("String value expected.".to_string())
                         },
 
                 }
             },
             Structure::Vector => {
                 match datatype.r#type() {
-                    Type::Boolean => 
-                        if let Some(vec) = self.content.to_vector_bool() {
-                            Ok(ExecutiveValue::VecBoolean(vec))
-                        }
-                        else {
-                            Err(ScriptError::semantic("Array of boolean values expected.".to_string(), self.text.get_position()))
-                        },
-                    Type::Integer =>
-                        if let Some(vec) = self.content.to_vector_integer() {
-                            Ok(ExecutiveValue::VecInteger(vec))
-                        }
-                        else {
-                            Err(ScriptError::semantic("Array of integer values expected.".to_string(), self.text.get_position()))
-                        },
-                    Type::Real => 
-                        if let Some(vec) = self.content.to_vector_real() {
-                            Ok(ExecutiveValue::VecReal(vec))
-                        }
-                        else {
-                            Err(ScriptError::semantic("Array of real values expected.".to_string(), self.text.get_position()))
-                        },
-                    Type::String => 
-                        if let Some(vec) = self.content.to_vector_string() {
-                            Ok(ExecutiveValue::VecString(vec))
-                        }
-                        else {
-                            Err(ScriptError::semantic("Array of string values expected.".to_string(), self.text.get_position()))
-                        },
+                    Type::U8     => Ok(ExecutiveValue::VecU8(self.to_vector_u8()?)),
+                    Type::U16    => Ok(ExecutiveValue::VecU16(self.to_vector_u16()?)),
+                    Type::U32    => Ok(ExecutiveValue::VecU32(self.to_vector_u32()?)),
+                    Type::U64    => Ok(ExecutiveValue::VecU64(self.to_vector_u64()?)),
+                    Type::U128   => Ok(ExecutiveValue::VecU128(self.to_vector_u128()?)),
+                    Type::I8     => Ok(ExecutiveValue::VecI8(self.to_vector_i8()?)),
+                    Type::I16    => Ok(ExecutiveValue::VecI16(self.to_vector_i16()?)),
+                    Type::I32    => Ok(ExecutiveValue::VecI32(self.to_vector_i32()?)),
+                    Type::I64    => Ok(ExecutiveValue::VecI64(self.to_vector_i64()?)),
+                    Type::I128   => Ok(ExecutiveValue::VecI128(self.to_vector_i128()?)),
+                    Type::F32    => Ok(ExecutiveValue::VecF32(self.to_vector_f32()?)),
+                    Type::F64    => Ok(ExecutiveValue::VecF64(self.to_vector_f64()?)),
+                    Type::Bool   => Ok(ExecutiveValue::VecBool(self.to_vector_bool()?)),
+                    Type::Byte   => Ok(ExecutiveValue::VecByte(self.to_vector_byte()?)),
+                    Type::Char   => Ok(ExecutiveValue::VecChar(self.to_vector_char()?)),
+                    Type::String => Ok(ExecutiveValue::VecString(self.to_vector_string()?)),
                 }
             },
         }
     }
 
-    pub fn to_vector_bool(&self) -> Option<Vec<bool>> {
+    pub fn to_vector_u8(&self) -> Result<Vec<u8>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::U8);
+
         match self {
             ValueContent::Array(vec) => {
-                let mut arr: Vec<bool> = Vec::with_capacity(vec.len());
+                let mut arr: Vec<u8> = Vec::with_capacity(vec.len());
                 for val in vec {
-                    match val {
-                        ValueContent::Boolean(b) => arr.push(*b),
-                        _ => return None,
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::U8(u) => arr.push(u),
+                        _ => panic!("Impossible semantic error case"),
                     }
                 }
-                Some(arr)
+                Ok(arr)
             },
-            _ => None
+            _ => Err("Array of u8 values expected.".to_string())
         }
     }
 
-    pub fn to_vector_integer(&self) -> Option<Vec<i64>> {
+    pub fn to_vector_u16(&self) -> Result<Vec<u16>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::U16);
+
+        match self {
+            ValueContent::Array(vec) => {
+                let mut arr: Vec<u16> = Vec::with_capacity(vec.len());
+                for val in vec {
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::U16(u) => arr.push(u),
+                        _ => panic!("Impossible semantic error case"),
+                    }
+                }
+                Ok(arr)
+            },
+            _ => Err("Array of u16 values expected.".to_string())
+        }
+    }
+
+    pub fn to_vector_u32(&self) -> Result<Vec<u32>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::U32);
+
+        match self {
+            ValueContent::Array(vec) => {
+                let mut arr: Vec<u32> = Vec::with_capacity(vec.len());
+                for val in vec {
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::U32(u) => arr.push(u),
+                        _ => panic!("Impossible semantic error case"),
+                    }
+                }
+                Ok(arr)
+            },
+            _ => Err("Array of u32 values expected.".to_string())
+        }
+    }
+
+    pub fn to_vector_u64(&self) -> Result<Vec<u64>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::U64);
+
+        match self {
+            ValueContent::Array(vec) => {
+                let mut arr: Vec<u64> = Vec::with_capacity(vec.len());
+                for val in vec {
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::U64(u) => arr.push(u),
+                        _ => panic!("Impossible semantic error case"),
+                    }
+                }
+                Ok(arr)
+            },
+            _ => Err("Array of u64 values expected.".to_string())
+        }
+    }
+
+    pub fn to_vector_u128(&self) -> Result<Vec<u128>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::U128);
+
+        match self {
+            ValueContent::Array(vec) => {
+                let mut arr: Vec<u128> = Vec::with_capacity(vec.len());
+                for val in vec {
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::U128(u) => arr.push(u),
+                        _ => panic!("Impossible semantic error case"),
+                    }
+                }
+                Ok(arr)
+            },
+            _ => Err("Array of u128 values expected.".to_string())
+        }
+    }
+
+    pub fn to_vector_i8(&self) -> Result<Vec<i8>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::I8);
+
+        match self {
+            ValueContent::Array(vec) => {
+                let mut arr: Vec<i8> = Vec::with_capacity(vec.len());
+                for val in vec {
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::I8(i) => arr.push(i),
+                        _ => panic!("Impossible semantic error case"),
+                    }
+                }
+                Ok(arr)
+            },
+            _ => Err("Array of i8 values expected.".to_string())
+        }
+    }
+
+    pub fn to_vector_i16(&self) -> Result<Vec<i16>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::I16);
+
+        match self {
+            ValueContent::Array(vec) => {
+                let mut arr: Vec<i16> = Vec::with_capacity(vec.len());
+                for val in vec {
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::I16(i) => arr.push(i),
+                        _ => panic!("Impossible semantic error case"),
+                    }
+                }
+                Ok(arr)
+            },
+            _ => Err("Array of i16 values expected.".to_string())
+        }
+    }
+
+    pub fn to_vector_i32(&self) -> Result<Vec<i32>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::I32);
+
+        match self {
+            ValueContent::Array(vec) => {
+                let mut arr: Vec<i32> = Vec::with_capacity(vec.len());
+                for val in vec {
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::I32(i) => arr.push(i),
+                        _ => panic!("Impossible semantic error case"),
+                    }
+                }
+                Ok(arr)
+            },
+            _ => Err("Array of i32 values expected.".to_string())
+        }
+    }
+
+    pub fn to_vector_i64(&self) -> Result<Vec<i64>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::I64);
+
         match self {
             ValueContent::Array(vec) => {
                 let mut arr: Vec<i64> = Vec::with_capacity(vec.len());
                 for val in vec {
-                    match val {
-                        ValueContent::Integer(i) => arr.push(*i),
-                        _ => return None,
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::I64(i) => arr.push(i),
+                        _ => panic!("Impossible semantic error case"),
                     }
                 }
-                Some(arr)
+                Ok(arr)
             },
-            _ => None
+            _ => Err("Array of i64 values expected.".to_string())
         }
     }
 
-    pub fn to_vector_real(&self) -> Option<Vec<f64>> {
+    pub fn to_vector_i128(&self) -> Result<Vec<i128>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::I128);
+
+        match self {
+            ValueContent::Array(vec) => {
+                let mut arr: Vec<i128> = Vec::with_capacity(vec.len());
+                for val in vec {
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::I128(i) => arr.push(i),
+                        _ => panic!("Impossible semantic error case"),
+                    }
+                }
+                Ok(arr)
+            },
+            _ => Err("Array of i128 values expected.".to_string())
+        }
+    }
+
+    pub fn to_vector_f32(&self) -> Result<Vec<f32>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::F32);
+
+        match self {
+            ValueContent::Array(vec) => {
+                let mut arr: Vec<f32> = Vec::with_capacity(vec.len());
+                for val in vec {
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::F32(f) => arr.push(f),
+                        _ => panic!("Impossible semantic error case"),
+                    }
+                }
+                Ok(arr)
+            },
+            _ => Err("Array of f32 values expected.".to_string())
+        }
+    }
+
+    pub fn to_vector_f64(&self) -> Result<Vec<f64>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::F64);
+
         match self {
             ValueContent::Array(vec) => {
                 let mut arr: Vec<f64> = Vec::with_capacity(vec.len());
                 for val in vec {
-                    match val {
-                        ValueContent::Real(r) => arr.push(*r),
-                        _ => return None,
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::F64(f) => arr.push(f),
+                        _ => panic!("Impossible semantic error case"),
                     }
                 }
-                Some(arr)
+                Ok(arr)
             },
-            _ => None
+            _ => Err("Array of f64 values expected.".to_string())
         }
     }
 
-    pub fn to_vector_string(&self) -> Option<Vec<String>> {
+    pub fn to_vector_bool(&self) -> Result<Vec<bool>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::Bool);
+
+        match self {
+            ValueContent::Array(vec) => {
+                let mut arr: Vec<bool> = Vec::with_capacity(vec.len());
+                for val in vec {
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::Bool(b) => arr.push(b),
+                        _ => panic!("Impossible semantic error case"),
+                    }
+                }
+                Ok(arr)
+            },
+            _ => Err("Array of bool values expected.".to_string())
+        }
+    }
+
+    pub fn to_vector_byte(&self) -> Result<Vec<u8>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::Byte);
+
+        match self {
+            ValueContent::Array(vec) => {
+                let mut arr: Vec<u8> = Vec::with_capacity(vec.len());
+                for val in vec {
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::Byte(b) => arr.push(b),
+                        _ => panic!("Impossible semantic error case"),
+                    }
+                }
+                Ok(arr)
+            },
+            _ => Err("Array of byte values expected.".to_string())
+        }
+    }
+
+    pub fn to_vector_char(&self) -> Result<Vec<char>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::Char);
+
+        match self {
+            ValueContent::Array(vec) => {
+                let mut arr: Vec<char> = Vec::with_capacity(vec.len());
+                for val in vec {
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::Char(c) => arr.push(c),
+                        _ => panic!("Impossible semantic error case"),
+                    }
+                }
+                Ok(arr)
+            },
+            _ => Err("Array of char values expected.".to_string())
+        }
+    }
+
+    pub fn to_vector_string(&self) -> Result<Vec<String>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::String);
+
         match self {
             ValueContent::Array(vec) => {
                 let mut arr: Vec<String> = Vec::with_capacity(vec.len());
                 for val in vec {
-                    match val {
-                        ValueContent::String(s) => arr.push(s.clone()),
-                        _ => return None,
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::String(s) => arr.push(s),
+                        _ => panic!("Impossible semantic error case"),
                     }
                 }
-                Some(arr)
+                Ok(arr)
             },
-            _ => None
+            _ => Err("Array of string values expected.".to_string())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use crate::logic::descriptor::datatype::{DataType, Structure, Type};
+
+    #[test]
+    fn test_make_executive_values() {
+        
+            /* Try for:
+            ValueContent::Boolean(true),
+            ValueContent::Unsigned(456),
+            ValueContent::Integer(-789),
+            ValueContent::Real(12.3),
+            ValueContent::String("Foo bar".to_string()),
+            */
+
+        assert_eq!(ValueContent::Boolean(true).make_executive_value(&DataType::new(Structure::Scalar, Type::Bool)).unwrap(), ExecutiveValue::Bool(true));
+        assert_eq!(ValueContent::Boolean(false).make_executive_value(&DataType::new(Structure::Scalar, Type::Bool)).unwrap(), ExecutiveValue::Bool(false));
+        assert_eq!(ValueContent::Unsigned(123).make_executive_value(&DataType::new(Structure::Scalar, Type::I8)).unwrap(), ExecutiveValue::I8(123));
     }
 }
 

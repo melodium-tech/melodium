@@ -1,22 +1,20 @@
 
 //! Module for Value identification and structure semantic analysis.
 
-use super::common::Node;
+use super::super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
-use std::convert::TryFrom;
 use crate::script::error::ScriptError;
 use crate::script::path::Path;
 use crate::script::text::{PositionnedString, Position};
 use crate::script::text::value::Value as TextValue;
 use crate::executive::value::Value as ExecutiveValue;
-use crate::logic::descriptor::datatype::{DataType, Structure, Type};
+use crate::logic::descriptor::datatype::DataType;
 use crate::logic::designer::ValueDesigner;
 
-use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
-use super::common::Reference;
-use super::declared_parameter::DeclaredParameter;
-use super::requirement::Requirement;
+use super::ValueContent;
+use super::super::declarative_element::{DeclarativeElement, DeclarativeElementType};
+use super::super::common::Reference;
 
 /// Structure managing and describing Value semantic analysis.
 /// 
@@ -127,6 +125,9 @@ impl Value {
             ValueContent::Boolean(b) => {
                 content = ValueContent::Boolean(*b);
             },
+            ValueContent::Unsigned(u) => {
+                content = ValueContent::Unsigned(*u);
+            },
             ValueContent::Integer(i) => {
                 content = ValueContent::Integer(*i);
             },
@@ -192,7 +193,14 @@ impl Value {
 
     pub fn make_executive_value(&self, datatype: &DataType) -> Result<ExecutiveValue, ScriptError> {
 
-        self.content.make_executive_value(datatype)
+        let possible_value = self.content.make_executive_value(datatype);
+
+        if possible_value.is_ok() {
+            Ok(possible_value.unwrap())
+        }
+        else {
+            Err(ScriptError::semantic(possible_value.unwrap_err(), self.text.get_position()))
+        }
     }
 
     pub fn make_designed_value(&self, datatype: &DataType) -> Result<ValueDesigner, ScriptError> {
