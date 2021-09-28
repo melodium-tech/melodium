@@ -1,4 +1,5 @@
 
+use std::hash::Hash;
 use std::fmt::Debug;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -8,30 +9,69 @@ use super::value::Value;
 use super::context::Context;
 use super::transmitter::Transmitter;
 
-#[derive(Debug)]
-pub struct Environment {
+#[derive(Debug, Clone)]
+pub struct GenesisEnvironment {
     world: Arc<World>,
     models: HashMap<String, Arc<dyn Model>>,
     variables: HashMap<String, Value>,
-    contexts: HashMap<String, Context>,
-    inputs: HashMap<String, Transmitter>,
 }
 
-impl Environment {
+impl GenesisEnvironment {
 
     pub fn new(world: Arc<World>) -> Self {
         Self {
             world,
             models: HashMap::new(),
             variables: HashMap::new(),
-            contexts: HashMap::new(),
-            inputs: HashMap::new(),
         }
     }
 
-    fn base(&self) -> Environment {
+    pub fn base(&self) -> Self {
         Self {
             world: Arc::clone(&self.world),
+            models: HashMap::new(),
+            variables: HashMap::new(),
+        }
+    }
+
+    pub fn register_model(&self, model: Arc<dyn Model>) {
+
+        self.world.add_model(Arc::clone(&model));
+    }
+
+    pub fn add_model(&mut self, name: &str, model: Arc<dyn Model>) {
+        self.models.insert(name.to_string(), model);
+    }
+
+    pub fn get_model(&self, name: &str) -> Option<&Arc<dyn Model>> {
+        self.models.get(name)
+    }
+
+    pub fn add_variable(&mut self, name: &str, value: Value) {
+        self.variables.insert(name.to_string(), value);
+    }
+
+    pub fn get_variable(&self, name: &str) -> Option<&Value> {
+        self.variables.get(name)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ContextualEnvironment {
+    world: Arc<World>,
+    track_id: u64,
+    models: HashMap<String, Arc<dyn Model>>,
+    variables: HashMap<String, Value>,
+    contexts: HashMap<String, Context>,
+    inputs: HashMap<String, Transmitter>,
+}
+
+impl ContextualEnvironment {
+
+    pub fn new(world: Arc<World>, track_id: u64) -> Self {
+        Self {
+            world,
+            track_id,
             models: HashMap::new(),
             variables: HashMap::new(),
             contexts: HashMap::new(),
@@ -39,129 +79,50 @@ impl Environment {
         }
     }
 
-    fn register_model(&self, model: Arc<dyn Model>) {
-
-        self.world.add_model(Arc::clone(&model));
+    pub fn base(&self) -> Self {
+        Self {
+            world: Arc::clone(&self.world),
+            track_id: self.track_id,
+            models: HashMap::new(),
+            variables: HashMap::new(),
+            contexts: HashMap::new(),
+            inputs: HashMap::new(),
+        }
     }
 
-    fn add_model(&mut self, name: &str, model: Arc<dyn Model>) {
+    pub fn track_id(&self) -> u64 {
+        self.track_id
+    }
+
+    pub fn add_model(&mut self, name: &str, model: Arc<dyn Model>) {
         self.models.insert(name.to_string(), model);
     }
 
-    fn get_model(&self, name: &str) -> Option<&Arc<dyn Model>> {
+    pub fn get_model(&self, name: &str) -> Option<&Arc<dyn Model>> {
         self.models.get(name)
     }
 
-    fn add_variable(&mut self, name: &str, value: Value) {
+    pub fn add_variable(&mut self, name: &str, value: Value) {
         self.variables.insert(name.to_string(), value);
     }
 
-    fn get_variable(&self, name: &str) -> Option<&Value> {
+    pub fn get_variable(&self, name: &str) -> Option<&Value> {
         self.variables.get(name)
     }
 
-    fn add_context(&mut self, name: &str, context: Context) {
+    pub fn add_context(&mut self, name: &str, context: Context) {
         self.contexts.insert(name.to_string(), context);
     }
 
-    fn get_context(&self, name: &str) -> Option<&Context> {
+    pub fn get_context(&self, name: &str) -> Option<&Context> {
         self.contexts.get(name)
     }
 
-    fn add_input(&mut self, name: &str, input: Transmitter) {
+    pub fn add_input(&mut self, name: &str, input: Transmitter) {
         self.inputs.insert(name.to_string(), input);
     }
 
-    fn get_input(&self, name: &str) -> Option<&Transmitter> {
+    pub fn get_input(&self, name: &str) -> Option<&Transmitter> {
         self.inputs.get(name)
-    }
-}
-
-pub trait GenesisEnvironment : Debug {
-
-    fn base(&self) -> Box<dyn GenesisEnvironment>;
-    fn register_model(&self, model: Arc<dyn Model>);
-    fn add_model(&mut self, name: &str, model: Arc<dyn Model>);
-    fn get_model(&self, name: &str) -> Option<&Arc<dyn Model>>;
-    fn add_variable(&mut self, name: &str, value: Value);
-    fn get_variable(&self, name: &str) -> Option<&Value>;
-}
-
-pub trait ContextualEnvironment : Debug {
-
-    fn base(&self) -> Box<dyn ContextualEnvironment>;
-    fn add_model(&mut self, name: &str, model: Arc<dyn Model>);
-    fn get_model(&self, name: &str) -> Option<&Arc<dyn Model>>;
-    fn add_variable(&mut self, name: &str, value: Value);
-    fn get_variable(&self, name: &str) -> Option<&Value>;
-    fn add_context(&mut self, name: &str, context: Context);
-    fn get_context(&self, name: &str) -> Option<&Context>;
-    fn add_input(&mut self, name: &str, input: Transmitter);
-    fn get_input(&self, name: &str) -> Option<&Transmitter>;
-}
-
-impl GenesisEnvironment for Environment {
-
-    fn base(&self) -> Box<dyn GenesisEnvironment> {
-        Box::new(self.base())
-    }
-
-    fn register_model(&self, model: Arc<dyn Model>) {
-        self.register_model(model)
-    }
-
-    fn add_model(&mut self, name: &str, model: Arc<dyn Model>) {
-        self.add_model(name, model)
-    }
-
-    fn get_model(&self, name: &str) -> Option<&Arc<dyn Model>> {
-        self.get_model(name)
-    }
-
-    fn add_variable(&mut self, name: &str, value: Value) {
-        self.add_variable(name, value)
-    }
-
-    fn get_variable(&self, name: &str) -> Option<&Value> {
-        self.get_variable(name)
-    }
-}
-
-impl ContextualEnvironment for Environment {
-
-    fn base(&self) -> Box<dyn ContextualEnvironment> {
-        Box::new(self.base())
-    }
-
-    fn add_model(&mut self, name: &str, model: Arc<dyn Model>) {
-        self.add_model(name, model)
-    }
-
-    fn get_model(&self, name: &str) -> Option<&Arc<dyn Model>> {
-        self.get_model(name)
-    }
-
-    fn add_variable(&mut self, name: &str, value: Value) {
-        self.add_variable(name, value)
-    }
-
-    fn get_variable(&self, name: &str) -> Option<&Value> {
-        self.get_variable(name)
-    }
-
-    fn add_context(&mut self, name: &str, context: Context) {
-        self.add_context(name, context)
-    }
-
-    fn get_context(&self, name: &str) -> Option<&Context> {
-        self.get_context(name)
-    }
-
-    fn add_input(&mut self, name: &str, input: Transmitter) {
-        self.add_input(name, input);
-    }
-
-    fn get_input(&self, name: &str) -> Option<&Transmitter> {
-        self.get_input(name)
     }
 }

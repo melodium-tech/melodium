@@ -1,7 +1,7 @@
 
 use std::sync::{Arc, Weak, RwLock};
 use super::model::Model;
-use super::environment::Environment;
+use super::environment::GenesisEnvironment;
 use super::super::logic::descriptor::BuildableDescriptor;
 
 #[derive(Debug)]
@@ -30,9 +30,9 @@ impl World {
 
     pub fn genesis(&self, beginning: &dyn BuildableDescriptor) {
 
-        let gen_env = Environment::new(Weak::upgrade(&self.auto_reference.read().unwrap()).unwrap());
+        let gen_env = GenesisEnvironment::new(Weak::upgrade(&self.auto_reference.read().unwrap()).unwrap());
 
-        beginning.builder().static_build(&gen_env);
+        //beginning.builder().static_build(&gen_env);
 
         self.models.read().unwrap().iter().for_each(|m| m.initialize());
     }

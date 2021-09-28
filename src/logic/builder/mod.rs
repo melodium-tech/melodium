@@ -11,3 +11,7 @@ pub mod core_treatment_builder;
 pub mod sequence_builder;
 
 pub use builder::Builder as Builder;
+pub use builder::BuildId as BuildId;
+pub use builder::StaticBuildResult as StaticBuildResult;
+pub use builder::DynamicBuildResult as DynamicBuildResult;
+
