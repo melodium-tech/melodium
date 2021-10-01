@@ -24,6 +24,16 @@ pub struct DynamicBuildResult {
     pub feeding_inputs: HashMap<String, Transmitter>,
 }
 
+impl DynamicBuildResult {
+
+    pub fn new() -> Self {
+        Self {
+            prepared_futures: Vec::new(),
+            feeding_inputs: HashMap::new(),
+        }
+    }
+}
+
 impl Debug for DynamicBuildResult {
 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
