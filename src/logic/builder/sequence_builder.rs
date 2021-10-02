@@ -36,7 +36,8 @@ struct BuildSample {
     next_treatments_build_ids: HashMap<(String, u64), Vec<(String, u64)>>,
     next_connections: HashMap<(String, u64), Vec<Arc<RwLock<ConnectionDesigner>>>>,
     last_treatments_build_ids: Vec<(String, u64)>,
-    last_connections: Vec<Arc<RwLock<ConnectionDesigner>>>,
+    last_connections: HashMap<(String, u64), Vec<Arc<RwLock<ConnectionDesigner>>>>,
+    direct_connections: Vec<Arc<RwLock<ConnectionDesigner>>>,
 }
 
 impl BuildSample {
@@ -53,7 +54,8 @@ impl BuildSample {
             next_treatments_build_ids: HashMap::new(),
             next_connections: HashMap::new(),
             last_treatments_build_ids: Vec::new(),
-            last_connections: Vec::new(),
+            last_connections: HashMap::new(),
+            direct_connections: Vec::new(),
         }
     }
 }
@@ -188,13 +190,21 @@ impl Builder for SequenceBuilder {
 
             match borrowed_connection.output_treatment().unwrap() {
                 ConnectionIODesigner::Sequence() => {
-                    let treatment_name = match borrowed_connection.input_treatment().unwrap() { ConnectionIODesigner::Treatment(t) => t.upgrade().unwrap().read().unwrap().name() };
+                    
+                    match borrowed_connection.input_treatment().unwrap() {
+                        ConnectionIODesigner::Treatment(t) => {
+                            let treatment_name = t.upgrade().unwrap().read().unwrap().name();
 
-                    build_sample.root_treatments_build_ids.push((
-                        treatment_name.to_string(),
-                        *build_sample.treatment_build_ids.get(treatment_name).unwrap()
-                    ));
-                    build_sample.root_connections.push(Arc::clone(connection));
+                            build_sample.root_treatments_build_ids.push((
+                                treatment_name.to_string(),
+                                *build_sample.treatment_build_ids.get(treatment_name).unwrap()
+                            ));
+                            build_sample.root_connections.push(Arc::clone(connection));
+                        },
+                        ConnectionIODesigner::Sequence() => {
+                            build_sample.direct_connections.push(Arc::clone(connection));
+                        }
+                    }
                 },
                 ConnectionIODesigner::Treatment(t) => {
                     let treatment_name = t.upgrade().unwrap().read().unwrap().name();
@@ -228,7 +238,17 @@ impl Builder for SequenceBuilder {
                         },
                         ConnectionIODesigner::Sequence() => {
                             build_sample.last_treatments_build_ids.push(treatment_tuple);
-                            build_sample.last_connections.push(Arc::clone(connection));
+
+                            let last_connections_list: Vec<Arc<RwLock<ConnectionDesigner>>> = if let Some(list) = build_sample.last_connections.get(&treatment_tuple) {
+                                list.clone()
+                            }
+                            else {
+                                Vec::new()
+                            };
+
+                            last_connections_list.push(Arc::clone(connection));
+
+                            build_sample.last_connections.insert(treatment_tuple, last_connections_list);
                         }
                     }
                 }
@@ -340,102 +360,68 @@ impl Builder for SequenceBuilder {
 
             result.prepared_futures.extend(treatment_build_result.prepared_futures);
         }
+
+        // If there are some direct connections, call the give_next host method
+        if !build_sample.direct_connections.is_empty() {
+
+            let host_build = build_sample.host_treatment.unwrap().builder().give_next(
+                build_sample.host_build_id.unwrap(),
+                build_sample.label,
+                &environment.base(),
+            ).unwrap();
+
+            for direct_connection in build_sample.direct_connections {
+
+                let borrowed_connection = direct_connection.read().unwrap();
+
+                let input_name = borrowed_connection.input_name().unwrap();
+
+                let transmitter = host_build.feeding_inputs.get(&input_name).unwrap();
+
+                result.feeding_inputs.insert(borrowed_connection.output_name().unwrap(), transmitter.clone());
+            }
+
+            result.prepared_futures.extend(host_build.prepared_futures);
+        }
         
-        return Some(result);
+        Some(result)
     }
 
     fn give_next(&self, within_build: BuildId, for_label: String, environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
 
-        // Look for existing build
+        // Get build
+        let borrowed_builds = self.builds.read().unwrap();
+        let build_sample = borrowed_builds.get(within_build as usize).unwrap();
+
+        let asking_treatment_tuple = (for_label.to_string(), *build_sample.treatment_build_ids.get(&for_label).unwrap());
 
         // Get the treatments connected right after the given label in the reffered build
+        let next_treatments = build_sample.next_treatments_build_ids.get(&asking_treatment_tuple).unwrap();
+        let mut next_treatments_build_results: HashMap<String, DynamicBuildResult> = HashMap::new();
+        for (next_treatment_name, next_treatment_id) in next_treatments {
 
-        // Call their dynamic_build method and give them the right contextual environment
-        // -or-
-        // if the claiming treatment is connected to Self as output, call the give_next host method the same way
-
-        // Take transmitters and report them accordingly to _outputs_ characteristics
-    }
-
-    fn check_dynamic_build(&self, build: BuildId, ) -> Vec<LogicError> {
-
-    }
-
-    fn check_give_next(&self, within_build: BuildId, for_label: String, ) -> Vec<LogicError> {
-
-    }
-}
-
-/*impl Builder for SequenceBuilder {
-
-    fn static_build(&self, environment: &dyn GenesisEnvironment) -> Option<Arc<dyn Model>> {
-
-        for (instanciation_name, model_instanciation) in self.designer.read().unwrap().model_instanciations() {
-
+            let borrowed_next_treatment = self.designer.read().unwrap().treatments().get(next_treatment_name).unwrap().read().unwrap();
+            let next_treatment_builder = borrowed_next_treatment.descriptor().builder();
             let mut remastered_environment = environment.base();
 
-            for (_, parameter) in model_instanciation.read().unwrap().parameters() {
-
-                let borrowed_param = parameter.read().unwrap();
-
-                let data = match borrowed_param.value().as_ref().unwrap() {
-                    Value::Raw(data) => data,
-                    Value::Variable(name) => {
-                        environment.get_variable(&name).unwrap()
-                    },
-                    // Not possible in model instanciation to use context, should have been catched by designer, aborting
-                    _ => panic!("Impossible data recoverage")
-                };
-
-                remastered_environment.add_variable(borrowed_param.name(), data.clone());
-            }
-
-            let instancied_model = model_instanciation.read().unwrap().descriptor().builder().static_build(&*remastered_environment);
-            self.instancied_models.write().unwrap().insert(instanciation_name.to_string(), instancied_model.unwrap());
-
-        }
-
-        // Esthablishing the order of creation of treatments.
-        let mut ordered_treatments: Vec<Arc<RwLock<TreatmentDesigner>>> = self.designer.read().unwrap().treatments().values().cloned().collect();
-        ordered_treatments.sort_by(
-            |a, b|
-            a.read().unwrap().partial_cmp(&b.read().unwrap()).unwrap()
-        );
-        *self.ordered_treatments.write().unwrap() = ordered_treatments;
-
-        None
-    }
-
-    fn dynamic_build(&self, environment: &dyn ContextualEnvironment) -> Option<HashMap<String, Transmitter>> {
-
-        let mut treatments_outputs: HashMap<String, HashMap<String, Transmitter>> = HashMap::new();
-
-        // Invoke all treatments builders
-        for treatment in &*self.ordered_treatments.read().unwrap() {
-
-            let borrowed_treatment = treatment.read().unwrap();
-            let mut remastered_environment = environment.base();
+            // Make the right contextual environment
 
             // Setup models
-            for (model_treatment_name, _model) in borrowed_treatment.descriptor().models() {
+            for (model_treatment_name, _model) in borrowed_next_treatment.descriptor().models() {
 
                 // model_treatment_name is the name of the model as seen by the treatment,
                 // while model_sequence_name is the name of the model as it exists within the sequence.
                 // Treatment[model_treatment_name = model_sequence_name]
 
-                let model_sequence_name = borrowed_treatment.models().get(model_treatment_name).unwrap();
+                let model_sequence_name = borrowed_next_treatment.models().get(model_treatment_name).unwrap();
 
                 let mut executive_model = None;
                 
                 if let Some(sequence_parameter_given_model) = environment.get_model(model_sequence_name) {
                     executive_model = Some(Arc::clone(sequence_parameter_given_model));
                 }
-                else {
-                    let instancied_models = self.instancied_models.read().unwrap();
-                    
-                    if let Some(instancied_model) = instancied_models.get(model_sequence_name) {
-                        executive_model = Some(Arc::clone(instancied_model));
-                    }
+                else if let Some(instancied_model) = build_sample.instancied_models.get(model_sequence_name) {
+                    executive_model = Some(Arc::clone(instancied_model));
                 }
 
                 if let Some(executive_model) = executive_model {
@@ -446,109 +432,90 @@ impl Builder for SequenceBuilder {
                     // We should have a model there, should have been catched by designer, aborting
                     panic!("Impossible model recoverage")
                 }
-            }
 
-            // Setup parameters
-            for (_, parameter) in borrowed_treatment.parameters() {
+                // Setup parameters
+                for (_, parameter) in borrowed_next_treatment.parameters() {
 
-                let borrowed_param = parameter.read().unwrap();
+                    let borrowed_param = parameter.read().unwrap();
 
-                let data = match borrowed_param.value().as_ref().unwrap() {
-                    Value::Raw(data) => data,
-                    Value::Variable(name) => {
-                        environment.get_variable(&name).unwrap()
-                    },
-                    Value::Context((context, name)) => {
-                        environment.get_context(context).unwrap().get_value(name).unwrap()
-                    }
-                };
+                    let data = match borrowed_param.value().as_ref().unwrap() {
+                        Value::Raw(data) => data,
+                        Value::Variable(name) => {
+                            environment.get_variable(&name).unwrap()
+                        },
+                        Value::Context((context, name)) => {
+                            environment.get_context(context).unwrap().get_value(name).unwrap()
+                        }
+                    };
 
-                remastered_environment.add_variable(borrowed_param.name(), data.clone());
-            }
-
-            // Setup inputs
-
-            //We get all connections that have the treatment as input (end point).
-            let input_connections: Vec<Arc<RwLock<ConnectionDesigner>>> = self.designer.read().unwrap().connections().iter().filter_map(
-                |conn|
-                if conn.read().unwrap().input_treatment() == &Some(ConnectionIODesigner::Treatment(Arc::downgrade(treatment))) {
-                    Some(Arc::clone(conn))
+                    remastered_environment.add_variable(borrowed_param.name(), data.clone());
                 }
-                else {
-                    None
-                }
-            ).collect();
 
-            // We get all the inputs required by the treatment
-            for input_connection in input_connections {
-
-                let borrowed_connection = input_connection.read().unwrap();
-                match borrowed_connection.output_treatment().as_ref().unwrap() {
-                    ConnectionIODesigner::Sequence() => {
-
-                        remastered_environment.add_input(
-                            &borrowed_connection.input_name().as_ref().unwrap(),
-                            environment.get_input(borrowed_connection.output_name().as_ref().unwrap()).unwrap().clone()
-                        );
-                    },
-                    ConnectionIODesigner::Treatment(output_treatment) => {
-
-                        let rc_output_treatment = output_treatment.upgrade().unwrap();
-                        let borrowed_output_treatment = rc_output_treatment.read().unwrap();
-
-                        remastered_environment.add_input(
-                            &borrowed_connection.input_name().as_ref().unwrap(),
-                            treatments_outputs.get(borrowed_output_treatment.name()).unwrap()
-                                .get(borrowed_connection.output_name().as_ref().unwrap()).unwrap().clone()
-                        );
-                    },
-                };
+                // Call their dynamic_build method with right contextual environment
+                next_treatments_build_results.insert(next_treatment_name.to_string(), next_treatment_builder.dynamic_build(*next_treatment_id, &remastered_environment).unwrap());
             }
-
-            let treatment_outputs = borrowed_treatment.descriptor().builder().dynamic_build(&*remastered_environment).unwrap();
-            treatments_outputs.insert(borrowed_treatment.name().to_string(), treatment_outputs);
-
         }
 
+        let mut result = DynamicBuildResult::new();
 
-        // We get all connections that are to sequence output.
-        let self_output_connections: Vec<Arc<RwLock<ConnectionDesigner>>> = self.designer.read().unwrap().connections().iter().filter_map(
-            |conn|
-            match conn.read().unwrap().input_treatment().as_ref().unwrap() {
-                ConnectionIODesigner::Sequence() => Some(Arc::clone(conn)),
-                _ => None,
-            }
-        ).collect();
+        // Take transmitters and report them accordingly to _outputs_ characteristics
+        let next_connections = build_sample.next_connections.get(&asking_treatment_tuple).unwrap_or(&Vec::new());
+        for next_connection in next_connections {
 
-        // We fill the 'Self' outputs that will be returned by the builder.
-        let mut outputs: HashMap<String, Transmitter> = HashMap::new();
-        for connection in self_output_connections {
+            let borrowed_connection = next_connection.read().unwrap();
 
-            let borrowed_connection = connection.read().unwrap();
-            match borrowed_connection.output_treatment().as_ref().unwrap() {
-                ConnectionIODesigner::Sequence() => {
-
-                    outputs.insert(
-                        borrowed_connection.input_name().as_ref().unwrap().to_string(),
-                        environment.get_input(borrowed_connection.output_name().as_ref().unwrap()).unwrap().clone()
-                    );
-                },
-                ConnectionIODesigner::Treatment(output_treatment) => {
-
-                    let rc_output_treatment = output_treatment.upgrade().unwrap();
-                    let borrowed_output_treatment = rc_output_treatment.read().unwrap();
-
-                    outputs.insert(
-                        borrowed_connection.input_name().as_ref().unwrap().to_string(),
-                        treatments_outputs.get(borrowed_output_treatment.name()).unwrap()
-                            .get(borrowed_connection.output_name().as_ref().unwrap()).unwrap().clone()
-                    );
-                },
+            let treatment_name = match borrowed_connection.input_treatment().unwrap() {
+                ConnectionIODesigner::Treatment(t) => t.upgrade().unwrap().read().unwrap().name().to_string(),
+                _ => panic!("Connection to treatment expected")
             };
+
+            let input_name = borrowed_connection.input_name().unwrap();
+
+            let treatment_build_result = next_treatments_build_results.get(&treatment_name).unwrap();
+            let transmitter = treatment_build_result.feeding_inputs.get(&input_name).unwrap();
+
+            result.feeding_inputs.insert(borrowed_connection.output_name().unwrap(), transmitter.clone());
         }
 
-        Some(outputs)
+        // Taking all the futures returned by the next treatments
+        for (_, treatment_build_result) in next_treatments_build_results {
+
+            result.prepared_futures.extend(treatment_build_result.prepared_futures);
+        }
+
+        // If the claiming treatment is connected to Self as output, call the give_next host method
+        if let Some(last_connections) = build_sample.last_connections.get(&asking_treatment_tuple) {
+
+            let host_build = build_sample.host_treatment.unwrap().builder().give_next(
+                build_sample.host_build_id.unwrap(),
+                build_sample.label,
+                &environment.base(),
+            ).unwrap();
+
+            for last_connection in last_connections {
+
+                let borrowed_connection = last_connection.read().unwrap();
+
+                let input_name = borrowed_connection.input_name().unwrap();
+
+                let transmitter = host_build.feeding_inputs.get(&input_name).unwrap();
+
+                result.feeding_inputs.insert(borrowed_connection.output_name().unwrap(), transmitter.clone());
+            }
+
+            result.prepared_futures.extend(host_build.prepared_futures);
+        }
+
+        Some(result)
     }
-}*/
+
+    fn check_dynamic_build(&self, build: BuildId, ) -> Vec<LogicError> {
+
+    }
+
+    fn check_give_next(&self, within_build: BuildId, for_label: String, ) -> Vec<LogicError> {
+
+    }
+}
 
 
