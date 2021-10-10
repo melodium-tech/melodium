@@ -75,13 +75,17 @@ impl Builder for ConfiguredModelBuilder {
         None
     }
 
-    fn check_dynamic_build(&self, build: BuildId, ) -> Vec<LogicError> {
+    fn check_dynamic_build(&self, build: BuildId, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
+
         // Doing nothing, models are not supposed to have dynamic building phase
-        Vec::default()
+
+        None
     }
 
-    fn check_give_next(&self, within_build: BuildId, for_label: String, ) -> Vec<LogicError> {
+    fn check_give_next(&self, within_build: BuildId, for_label: String, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
+
         // Doing nothing, models are not supposed to have dynamic building phase
-        Vec::default()
+
+        None
     }
 }

@@ -8,6 +8,7 @@ use super::super::designer::TreatmentDesigner;
 use super::super::designer::{ConnectionDesigner, ConnectionIODesigner};
 use super::super::descriptor::parameterized::Parameterized;
 use super::super::descriptor::TreatmentDescriptor;
+use super::super::descriptor::IdentifiedDescriptor;
 use super::super::super::executive::environment::{GenesisEnvironment, ContextualEnvironment};
 use super::super::super::executive::model::Model;
 use super::super::super::executive::future::Future;
@@ -28,6 +29,7 @@ struct BuildSample {
     genesis_environment: GenesisEnvironment,
     host_treatment: Option<Arc<dyn TreatmentDescriptor>>,
     host_build_id: Option<BuildId>,
+    check: Arc<RwLock<CheckBuild>>,
     label: String,
     instancied_models: HashMap<String, Arc<dyn Model>>,
     treatment_build_ids: HashMap<String, u64>,
@@ -46,6 +48,7 @@ impl BuildSample {
             genesis_environment: environment.clone(),
             host_treatment: host_treatment.clone(),
             host_build_id: host_build.clone(),
+            check: Arc::new(RwLock::new(CheckBuild::new())),
             label: label.to_string(),
             instancied_models: HashMap::new(),
             treatment_build_ids: HashMap::new(),
@@ -194,6 +197,8 @@ impl Builder for SequenceBuilder {
                     match borrowed_connection.input_treatment().unwrap() {
                         ConnectionIODesigner::Treatment(t) => {
                             let treatment_name = t.upgrade().unwrap().read().unwrap().name();
+
+                            build_sample.check.write().unwrap().fed_inputs.insert(connection.read().unwrap().output_name().unwrap(), false);
 
                             build_sample.root_treatments_build_ids.push((
                                 treatment_name.to_string(),
@@ -509,12 +514,83 @@ impl Builder for SequenceBuilder {
         Some(result)
     }
 
-    fn check_dynamic_build(&self, build: BuildId, ) -> Vec<LogicError> {
+    fn check_dynamic_build(&self, build: BuildId, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
 
+        let errors = Vec::new();
+        // Check if environment is satisfied
+        for (name, _) in self.designer.read().unwrap().descriptor().requirements() {
+
+            let found = environment.contextes.iter().find(|&c| c == name);
+            if found.is_none() {
+                // Add error
+            }
+        }
+
+        // Check if we're not in our own previous steps
+        let check_step = CheckStep {
+            identifier: *self.designer.read().unwrap().descriptor().identifier(),
+            build_id: build,
+        };
+        if let Some(existing_check_step) = previous_steps.iter().find(|&&cs| cs == check_step) {
+            // Add error
+        }
+        let mut current_previous_steps = previous_steps.clone();
+        current_previous_steps.push(check_step);
+
+        // Get build
+        let borrowed_builds = self.builds.read().unwrap();
+        let build_sample = borrowed_builds.get(build as usize).unwrap();
+        let check_build = Arc::clone(&build_sample.check);
+
+        // Call each  treatments connected right after self, or first-range treatments
+        let mut treatment_build_results: HashMap<String, CheckBuildResult> = HashMap::new();
+        for (treatment_name, treatment_id) in build_sample.root_treatments_build_ids {
+            
+            let borrowed_treatment = self.designer.read().unwrap().treatments().get(&treatment_name).unwrap().read().unwrap();
+            let treatment_builder = borrowed_treatment.descriptor().builder();
+            
+            let check_result = treatment_builder.check_dynamic_build(treatment_id, environment, current_previous_steps).unwrap();
+
+            treatment_build_results.insert(treatment_name, check_result);
+        }
+
+        for root_connection in build_sample.root_connections {
+            
+            let borrowed_connection = root_connection.read().unwrap();
+
+            let treatment_name = match borrowed_connection.input_treatment().unwrap() {
+                ConnectionIODesigner::Treatment(t) => t.upgrade().unwrap().read().unwrap().name().to_string(),
+                _ => panic!("Root connection to (input) treatment expected")
+            };
+
+            let input_name = borrowed_connection.input_name().unwrap();
+
+            let treatment_build_result = treatment_build_results.get(&treatment_name).unwrap();
+            let borrowed_checked_build = treatment_build_result.build.write().unwrap();
+            borrowed_checked_build.fed_inputs.insert(input_name, true);
+        }
+
+        let all_builds = Vec::new();
+        let all_errors = errors;
+        for (_, build_result) in treatment_build_results {
+            all_builds.extend(build_result.checked_builds);
+            all_errors.extend(build_result.errors);
+        }
+        all_builds.push(Arc::clone(&check_build));
+
+        // Return checked build result
+        let own_checked_build_result = CheckBuildResult {
+            checked_builds: all_builds,
+            build: check_build,
+            errors: all_errors,
+        };
+
+        Some(own_checked_build_result)
     }
 
-    fn check_give_next(&self, within_build: BuildId, for_label: String, ) -> Vec<LogicError> {
+    fn check_give_next(&self, within_build: BuildId, for_label: String, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
 
+        None
     }
 }
 

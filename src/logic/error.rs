@@ -6,7 +6,7 @@
 use std::fmt::Debug;
 
 /// Kind of logic error that might happen.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LogicErrorKind {
     /// The referenced variable for value doesn't exist.
     UnexistingVariable,
@@ -73,7 +73,7 @@ pub enum LogicErrorKind {
 }
 
 /// Handles and describe a Mélodium logic error.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LogicError {
     /// Kind of error.
     pub kind: LogicErrorKind

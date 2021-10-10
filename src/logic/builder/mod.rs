@@ -14,4 +14,8 @@ pub use builder::Builder as Builder;
 pub use builder::BuildId as BuildId;
 pub use builder::StaticBuildResult as StaticBuildResult;
 pub use builder::DynamicBuildResult as DynamicBuildResult;
+pub use builder::CheckBuild as CheckBuild;
+pub use builder::CheckBuildResult as CheckBuildResult;
+pub use builder::CheckStep as CheckStep;
+pub use builder::CheckEnvironment as CheckEnvironment;
 
