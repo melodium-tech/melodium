@@ -285,11 +285,11 @@ impl Builder for SequenceBuilder {
             if let Some(existing_building_track) = borrowed_building_tracks.get(&(build, environment.track_id())) {
 
                 let mut dynamic_result = DynamicBuildResult::new();
-                //dynamic_result.prepared_futures.extend(existing_building_track.prepared_futures);
-                //dynamic_result.feeding_inputs.extend(existing_building_track.feeding_inputs);
+                // We only copy transmitters because prepared futures were already included the first time
+                // dynamic_build were called.
+                dynamic_result.feeding_inputs.extend(existing_building_track.feeding_inputs.clone());
 
                 return Some(dynamic_result);
-                //return Some(existing_building_track.clone());
             }
         }
 
@@ -536,13 +536,13 @@ impl Builder for SequenceBuilder {
 
     fn check_dynamic_build(&self, build: BuildId, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
 
-        let errors = Vec::new();
+        let mut errors = Vec::new();
         // Check if environment is satisfied
         for (name, _) in self.designer.read().unwrap().descriptor().requirements() {
 
             let found = environment.contextes.iter().find(|&c| c == name);
             if found.is_none() {
-                // Add error
+                errors.push(LogicError::unavailable_context());
             }
         }
 
@@ -552,7 +552,8 @@ impl Builder for SequenceBuilder {
             build_id: build,
         };
         if let Some(existing_check_step) = previous_steps.iter().find(|&cs| cs == &check_step) {
-            // Add error
+            
+            errors.push(LogicError::already_included_build_step());
         }
         let mut current_previous_steps = previous_steps.clone();
         current_previous_steps.push(check_step);
@@ -561,34 +562,37 @@ impl Builder for SequenceBuilder {
         let borrowed_builds = self.builds.read().unwrap();
         let build_sample = borrowed_builds.get(build as usize).unwrap();
         let check_build = Arc::clone(&build_sample.check);
-
-        // Call each  treatments connected right after self, or first-range treatments
+        
         let mut treatment_build_results: HashMap<String, CheckBuildResult> = HashMap::new();
-        for (treatment_name, treatment_id) in &build_sample.root_treatments_build_ids {
-            
-            let borrowed_designer = self.designer.read().unwrap();
-            let borrowed_treatment = borrowed_designer.treatments().get(treatment_name).unwrap().read().unwrap();
-            let treatment_builder = borrowed_treatment.descriptor().builder();
-            
-            let check_result = treatment_builder.check_dynamic_build(*treatment_id, environment.clone(), current_previous_steps.clone()).unwrap();
 
-            treatment_build_results.insert(treatment_name.to_string(), check_result);
-        }
+        if errors.is_empty() {
+            // Call each  treatments connected right after self, or first-range treatments
+            for (treatment_name, treatment_id) in &build_sample.root_treatments_build_ids {
+                
+                let borrowed_designer = self.designer.read().unwrap();
+                let borrowed_treatment = borrowed_designer.treatments().get(treatment_name).unwrap().read().unwrap();
+                let treatment_builder = borrowed_treatment.descriptor().builder();
+                
+                let check_result = treatment_builder.check_dynamic_build(*treatment_id, environment.clone(), current_previous_steps.clone()).unwrap();
 
-        for root_connection in &build_sample.root_connections {
-            
-            let borrowed_connection = root_connection.read().unwrap();
+                treatment_build_results.insert(treatment_name.to_string(), check_result);
+            }
 
-            let treatment_name = match borrowed_connection.input_treatment().as_ref().unwrap() {
-                ConnectionIODesigner::Treatment(t) => t.upgrade().unwrap().read().unwrap().name().to_string(),
-                _ => panic!("Root connection to (input) treatment expected")
-            };
+            for root_connection in &build_sample.root_connections {
+                
+                let borrowed_connection = root_connection.read().unwrap();
 
-            let input_name = borrowed_connection.input_name().as_ref().unwrap();
+                let treatment_name = match borrowed_connection.input_treatment().as_ref().unwrap() {
+                    ConnectionIODesigner::Treatment(t) => t.upgrade().unwrap().read().unwrap().name().to_string(),
+                    _ => panic!("Root connection to (input) treatment expected")
+                };
 
-            let treatment_build_result = treatment_build_results.get(&treatment_name).unwrap();
-            let mut borrowed_checked_build = treatment_build_result.build.write().unwrap();
-            borrowed_checked_build.fed_inputs.insert(input_name.to_string(), true);
+                let input_name = borrowed_connection.input_name().as_ref().unwrap();
+
+                let treatment_build_result = treatment_build_results.get(&treatment_name).unwrap();
+                let mut borrowed_checked_build = treatment_build_result.build.write().unwrap();
+                borrowed_checked_build.fed_inputs.insert(input_name.to_string(), true);
+            }
         }
 
         let mut all_builds = Vec::new();

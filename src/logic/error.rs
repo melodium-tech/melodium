@@ -70,6 +70,8 @@ pub enum LogicErrorKind {
     UnexistingParametricModel,
     /// A model hasn't been set up compared to descriptor.
     UnsetModel,
+    /// The build step is already included in the call stack, meaning there is an infinite call loop.
+    AlreadyIncludedBuildStep,
 }
 
 /// Handles and describe a Mélodium logic error.
@@ -295,6 +297,13 @@ impl LogicError {
     pub fn unset_model() -> Self {
         Self {
             kind: LogicErrorKind::UnsetModel
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::AlreadyIncludedBuildStep`] kind.
+    pub fn already_included_build_step() -> Self {
+        Self {
+            kind: LogicErrorKind::AlreadyIncludedBuildStep
         }
     }
 }
