@@ -70,7 +70,7 @@ pub struct CheckStep {
     pub build_id: BuildId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CheckEnvironment {
     pub contextes: Vec<String>
 }

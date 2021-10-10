@@ -165,7 +165,9 @@ impl Builder for SequenceBuilder {
                     Value::Raw(data) => data,
                     Value::Variable(name) => {
                         environment.get_variable(&name).unwrap()
-                    }
+                    },
+                    // We should have a value there, should have been catched by designer, aborting
+                    _ => panic!("Impossible data recoverage")
                 };
 
                 remastered_environment.add_variable(borrowed_param.name(), data.clone());
@@ -191,14 +193,19 @@ impl Builder for SequenceBuilder {
 
             let borrowed_connection = connection.read().unwrap();
 
-            match borrowed_connection.output_treatment().unwrap() {
+            match borrowed_connection.output_treatment().as_ref().unwrap() {
                 ConnectionIODesigner::Sequence() => {
                     
-                    match borrowed_connection.input_treatment().unwrap() {
+                    match borrowed_connection.input_treatment().as_ref().unwrap() {
                         ConnectionIODesigner::Treatment(t) => {
-                            let treatment_name = t.upgrade().unwrap().read().unwrap().name();
+                            let rc_treatment = t.upgrade().unwrap();
+                            let borrowed_treatment = rc_treatment.read().unwrap();
+                            let treatment_name = borrowed_treatment.name();
 
-                            build_sample.check.write().unwrap().fed_inputs.insert(connection.read().unwrap().output_name().unwrap(), false);
+                            build_sample.check.write().unwrap().fed_inputs.insert(
+                                connection.read().unwrap().output_name().as_ref().unwrap().clone(),
+                                false
+                            );
 
                             build_sample.root_treatments_build_ids.push((
                                 treatment_name.to_string(),
@@ -212,15 +219,19 @@ impl Builder for SequenceBuilder {
                     }
                 },
                 ConnectionIODesigner::Treatment(t) => {
-                    let treatment_name = t.upgrade().unwrap().read().unwrap().name();
+                    let rc_treatment = t.upgrade().unwrap();
+                    let borrowed_treatment = rc_treatment.read().unwrap();
+                    let treatment_name = borrowed_treatment.name();
                     let treatment_id = build_sample.treatment_build_ids.get(treatment_name).unwrap();
                     let treatment_tuple = (treatment_name.to_string(), *treatment_id);
 
-                    match borrowed_connection.input_treatment().unwrap() {
+                    match borrowed_connection.input_treatment().as_ref().unwrap() {
                         ConnectionIODesigner::Treatment(t) => {
-                            let next_treatment_name = t.upgrade().unwrap().read().unwrap().name();
+                            let rc_next_treatment = t.upgrade().unwrap();
+                            let borrowed_next_treatment = rc_next_treatment.read().unwrap();
+                            let next_treatment_name = borrowed_next_treatment.name();
 
-                            let next_treatments_list: Vec<(String, u64)> = if let Some(list) = build_sample.next_treatments_build_ids.get(&treatment_tuple) {
+                            let mut next_treatments_list: Vec<(String, u64)> = if let Some(list) = build_sample.next_treatments_build_ids.get(&treatment_tuple) {
                                 list.clone()
                             }
                             else {
@@ -229,7 +240,7 @@ impl Builder for SequenceBuilder {
 
                             next_treatments_list.push((next_treatment_name.to_string(), *build_sample.treatment_build_ids.get(next_treatment_name).unwrap()));
 
-                            let next_connections_list: Vec<Arc<RwLock<ConnectionDesigner>>> = if let Some(list) = build_sample.next_connections.get(&treatment_tuple) {
+                            let mut next_connections_list: Vec<Arc<RwLock<ConnectionDesigner>>> = if let Some(list) = build_sample.next_connections.get(&treatment_tuple) {
                                 list.clone()
                             }
                             else {
@@ -238,13 +249,13 @@ impl Builder for SequenceBuilder {
 
                             next_connections_list.push(Arc::clone(connection));
 
-                            build_sample.next_treatments_build_ids.insert(treatment_tuple, next_treatments_list);
-                            build_sample.next_connections.insert(treatment_tuple, next_connections_list);
+                            build_sample.next_treatments_build_ids.insert(treatment_tuple.clone(), next_treatments_list);
+                            build_sample.next_connections.insert(treatment_tuple.clone(), next_connections_list);
                         },
                         ConnectionIODesigner::Sequence() => {
-                            build_sample.last_treatments_build_ids.push(treatment_tuple);
+                            build_sample.last_treatments_build_ids.push(treatment_tuple.clone());
 
-                            let last_connections_list: Vec<Arc<RwLock<ConnectionDesigner>>> = if let Some(list) = build_sample.last_connections.get(&treatment_tuple) {
+                            let mut last_connections_list: Vec<Arc<RwLock<ConnectionDesigner>>> = if let Some(list) = build_sample.last_connections.get(&treatment_tuple) {
                                 list.clone()
                             }
                             else {
@@ -272,7 +283,13 @@ impl Builder for SequenceBuilder {
             let borrowed_building_tracks = self.building_tracks.read().unwrap();
 
             if let Some(existing_building_track) = borrowed_building_tracks.get(&(build, environment.track_id())) {
-                return Some(*existing_building_track);
+
+                let mut dynamic_result = DynamicBuildResult::new();
+                //dynamic_result.prepared_futures.extend(existing_building_track.prepared_futures);
+                //dynamic_result.feeding_inputs.extend(existing_building_track.feeding_inputs);
+
+                return Some(dynamic_result);
+                //return Some(existing_building_track.clone());
             }
         }
 
@@ -282,9 +299,10 @@ impl Builder for SequenceBuilder {
 
         // Get the treatments connected right after self, or first-range treatments
         let mut treatment_build_results: HashMap<String, DynamicBuildResult> = HashMap::new();
-        for (treatment_name, treatment_id) in build_sample.root_treatments_build_ids {
+        for (treatment_name, treatment_id) in &build_sample.root_treatments_build_ids {
             
-            let borrowed_treatment = self.designer.read().unwrap().treatments().get(&treatment_name).unwrap().read().unwrap();
+            let borrowed_designer = self.designer.read().unwrap();
+            let borrowed_treatment = borrowed_designer.treatments().get(treatment_name).unwrap().read().unwrap();
             let treatment_builder = borrowed_treatment.descriptor().builder();
             let mut remastered_environment = environment.base();
 
@@ -336,28 +354,28 @@ impl Builder for SequenceBuilder {
                 }
 
                 // Call their dynamic_build method with right contextual environment
-                treatment_build_results.insert(treatment_name, treatment_builder.dynamic_build(treatment_id, &remastered_environment).unwrap());
+                treatment_build_results.insert(treatment_name.to_string(), treatment_builder.dynamic_build(*treatment_id, &remastered_environment).unwrap());
             }
         }
         
         let mut result = DynamicBuildResult::new();
 
         // Take root treatments transmitters and report them accordingly to Self-input (connection output) characteritics
-        for root_connection in build_sample.root_connections {
+        for root_connection in &build_sample.root_connections {
 
             let borrowed_connection = root_connection.read().unwrap();
 
-            let treatment_name = match borrowed_connection.input_treatment().unwrap() {
+            let treatment_name = match borrowed_connection.input_treatment().as_ref().unwrap() {
                 ConnectionIODesigner::Treatment(t) => t.upgrade().unwrap().read().unwrap().name().to_string(),
                 _ => panic!("Root connection to (input) treatment expected")
             };
 
-            let input_name = borrowed_connection.input_name().unwrap();
+            let input_name = borrowed_connection.input_name().as_ref().unwrap();
 
             let treatment_build_result = treatment_build_results.get(&treatment_name).unwrap();
-            let transmitter = treatment_build_result.feeding_inputs.get(&input_name).unwrap();
+            let transmitter = treatment_build_result.feeding_inputs.get(input_name).unwrap();
 
-            result.feeding_inputs.insert(borrowed_connection.output_name().unwrap(), transmitter.clone());
+            result.feeding_inputs.insert(borrowed_connection.output_name().as_ref().unwrap().to_string(), transmitter.clone());
         }
 
         // Taking all the futures returned by the root treatments
@@ -369,21 +387,21 @@ impl Builder for SequenceBuilder {
         // If there are some direct connections, call the give_next host method
         if !build_sample.direct_connections.is_empty() {
 
-            let host_build = build_sample.host_treatment.unwrap().builder().give_next(
+            let host_build = build_sample.host_treatment.as_ref().unwrap().builder().give_next(
                 build_sample.host_build_id.unwrap(),
-                build_sample.label,
+                build_sample.label.to_string(),
                 &environment.base(),
             ).unwrap();
 
-            for direct_connection in build_sample.direct_connections {
+            for direct_connection in &build_sample.direct_connections {
 
                 let borrowed_connection = direct_connection.read().unwrap();
 
-                let input_name = borrowed_connection.input_name().unwrap();
+                let input_name = borrowed_connection.input_name().as_ref().unwrap();
 
-                let transmitter = host_build.feeding_inputs.get(&input_name).unwrap();
+                let transmitter = host_build.feeding_inputs.get(input_name).unwrap();
 
-                result.feeding_inputs.insert(borrowed_connection.output_name().unwrap(), transmitter.clone());
+                result.feeding_inputs.insert(borrowed_connection.output_name().as_ref().unwrap().to_string(), transmitter.clone());
             }
 
             result.prepared_futures.extend(host_build.prepared_futures);
@@ -405,7 +423,8 @@ impl Builder for SequenceBuilder {
         let mut next_treatments_build_results: HashMap<String, DynamicBuildResult> = HashMap::new();
         for (next_treatment_name, next_treatment_id) in next_treatments {
 
-            let borrowed_next_treatment = self.designer.read().unwrap().treatments().get(next_treatment_name).unwrap().read().unwrap();
+            let rc_designer = self.designer.read().unwrap();
+            let borrowed_next_treatment = rc_designer.treatments().get(next_treatment_name).unwrap().read().unwrap();
             let next_treatment_builder = borrowed_next_treatment.descriptor().builder();
             let mut remastered_environment = environment.base();
 
@@ -464,22 +483,23 @@ impl Builder for SequenceBuilder {
         let mut result = DynamicBuildResult::new();
 
         // Take transmitters and report them accordingly to _outputs_ characteristics
-        let next_connections = build_sample.next_connections.get(&asking_treatment_tuple).unwrap_or(&Vec::new());
-        for next_connection in next_connections {
+        if let Some(next_connections) = build_sample.next_connections.get(&asking_treatment_tuple) {
+            for next_connection in next_connections {
 
-            let borrowed_connection = next_connection.read().unwrap();
+                let borrowed_connection = next_connection.read().unwrap();
 
-            let treatment_name = match borrowed_connection.input_treatment().unwrap() {
-                ConnectionIODesigner::Treatment(t) => t.upgrade().unwrap().read().unwrap().name().to_string(),
-                _ => panic!("Connection to treatment expected")
-            };
+                let treatment_name = match borrowed_connection.input_treatment().as_ref().unwrap() {
+                    ConnectionIODesigner::Treatment(t) => t.upgrade().unwrap().read().unwrap().name().to_string(),
+                    _ => panic!("Connection to treatment expected")
+                };
 
-            let input_name = borrowed_connection.input_name().unwrap();
+                let input_name = borrowed_connection.input_name().as_ref().unwrap();
 
-            let treatment_build_result = next_treatments_build_results.get(&treatment_name).unwrap();
-            let transmitter = treatment_build_result.feeding_inputs.get(&input_name).unwrap();
+                let treatment_build_result = next_treatments_build_results.get(&treatment_name).unwrap();
+                let transmitter = treatment_build_result.feeding_inputs.get(input_name).unwrap();
 
-            result.feeding_inputs.insert(borrowed_connection.output_name().unwrap(), transmitter.clone());
+                result.feeding_inputs.insert(borrowed_connection.output_name().as_ref().unwrap().to_string(), transmitter.clone());
+            }
         }
 
         // Taking all the futures returned by the next treatments
@@ -491,9 +511,9 @@ impl Builder for SequenceBuilder {
         // If the claiming treatment is connected to Self as output, call the give_next host method
         if let Some(last_connections) = build_sample.last_connections.get(&asking_treatment_tuple) {
 
-            let host_build = build_sample.host_treatment.unwrap().builder().give_next(
+            let host_build = build_sample.host_treatment.as_ref().unwrap().builder().give_next(
                 build_sample.host_build_id.unwrap(),
-                build_sample.label,
+                build_sample.label.to_string(),
                 &environment.base(),
             ).unwrap();
 
@@ -501,11 +521,11 @@ impl Builder for SequenceBuilder {
 
                 let borrowed_connection = last_connection.read().unwrap();
 
-                let input_name = borrowed_connection.input_name().unwrap();
+                let input_name = borrowed_connection.input_name().as_ref().unwrap();
 
-                let transmitter = host_build.feeding_inputs.get(&input_name).unwrap();
+                let transmitter = host_build.feeding_inputs.get(input_name).unwrap();
 
-                result.feeding_inputs.insert(borrowed_connection.output_name().unwrap(), transmitter.clone());
+                result.feeding_inputs.insert(borrowed_connection.output_name().as_ref().unwrap().to_string(), transmitter.clone());
             }
 
             result.prepared_futures.extend(host_build.prepared_futures);
@@ -528,10 +548,10 @@ impl Builder for SequenceBuilder {
 
         // Check if we're not in our own previous steps
         let check_step = CheckStep {
-            identifier: *self.designer.read().unwrap().descriptor().identifier(),
+            identifier: self.designer.read().unwrap().descriptor().identifier().clone(),
             build_id: build,
         };
-        if let Some(existing_check_step) = previous_steps.iter().find(|&&cs| cs == check_step) {
+        if let Some(existing_check_step) = previous_steps.iter().find(|&cs| cs == &check_step) {
             // Add error
         }
         let mut current_previous_steps = previous_steps.clone();
@@ -544,34 +564,35 @@ impl Builder for SequenceBuilder {
 
         // Call each  treatments connected right after self, or first-range treatments
         let mut treatment_build_results: HashMap<String, CheckBuildResult> = HashMap::new();
-        for (treatment_name, treatment_id) in build_sample.root_treatments_build_ids {
+        for (treatment_name, treatment_id) in &build_sample.root_treatments_build_ids {
             
-            let borrowed_treatment = self.designer.read().unwrap().treatments().get(&treatment_name).unwrap().read().unwrap();
+            let borrowed_designer = self.designer.read().unwrap();
+            let borrowed_treatment = borrowed_designer.treatments().get(treatment_name).unwrap().read().unwrap();
             let treatment_builder = borrowed_treatment.descriptor().builder();
             
-            let check_result = treatment_builder.check_dynamic_build(treatment_id, environment, current_previous_steps).unwrap();
+            let check_result = treatment_builder.check_dynamic_build(*treatment_id, environment.clone(), current_previous_steps.clone()).unwrap();
 
-            treatment_build_results.insert(treatment_name, check_result);
+            treatment_build_results.insert(treatment_name.to_string(), check_result);
         }
 
-        for root_connection in build_sample.root_connections {
+        for root_connection in &build_sample.root_connections {
             
             let borrowed_connection = root_connection.read().unwrap();
 
-            let treatment_name = match borrowed_connection.input_treatment().unwrap() {
+            let treatment_name = match borrowed_connection.input_treatment().as_ref().unwrap() {
                 ConnectionIODesigner::Treatment(t) => t.upgrade().unwrap().read().unwrap().name().to_string(),
                 _ => panic!("Root connection to (input) treatment expected")
             };
 
-            let input_name = borrowed_connection.input_name().unwrap();
+            let input_name = borrowed_connection.input_name().as_ref().unwrap();
 
             let treatment_build_result = treatment_build_results.get(&treatment_name).unwrap();
-            let borrowed_checked_build = treatment_build_result.build.write().unwrap();
-            borrowed_checked_build.fed_inputs.insert(input_name, true);
+            let mut borrowed_checked_build = treatment_build_result.build.write().unwrap();
+            borrowed_checked_build.fed_inputs.insert(input_name.to_string(), true);
         }
 
-        let all_builds = Vec::new();
-        let all_errors = errors;
+        let mut all_builds = Vec::new();
+        let mut all_errors = errors;
         for (_, build_result) in treatment_build_results {
             all_builds.extend(build_result.checked_builds);
             all_errors.extend(build_result.errors);
