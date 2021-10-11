@@ -615,7 +615,96 @@ impl Builder for SequenceBuilder {
 
     fn check_give_next(&self, within_build: BuildId, for_label: String, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
 
-        None
+        let mut errors = Vec::new();
+        // (Check if environment is satisfied)
+        //  ↑ actually not because next treatment may not require it -checking evolution to do-
+
+        // (Check if we're not in our own previous steps)
+        //  ↑ actually not because we are necessarily in previous steps when give_next is called
+
+        // Get build
+        let borrowed_builds = self.builds.read().unwrap();
+        let build_sample = borrowed_builds.get(within_build as usize).unwrap();
+        let check_build = Arc::clone(&build_sample.check);
+        
+        let mut treatment_build_results: HashMap<String, CheckBuildResult> = HashMap::new();
+
+        if errors.is_empty() {
+            // Get the treatments connected right after the given label in the reffered build
+            // Call their check_dynamic_build
+
+            let asking_treatment_tuple = (for_label.to_string(), *build_sample.treatment_build_ids.get(&for_label).unwrap());
+
+            // Get the treatments connected right after the given label in the reffered build
+            let next_treatments = build_sample.next_treatments_build_ids.get(&asking_treatment_tuple).unwrap();
+            for (next_treatment_name, next_treatment_id) in next_treatments {
+
+                let rc_designer = self.designer.read().unwrap();
+                let borrowed_next_treatment = rc_designer.treatments().get(next_treatment_name).unwrap().read().unwrap();
+                let next_treatment_builder = borrowed_next_treatment.descriptor().builder();
+
+                let check_result = next_treatment_builder.check_dynamic_build(*next_treatment_id, environment.clone(), previous_steps.clone()).unwrap();
+
+                treatment_build_results.insert(next_treatment_name.to_string(), check_result);
+            }
+
+            if let Some(next_connections) = build_sample.next_connections.get(&asking_treatment_tuple) {
+                for next_connection in next_connections {
+    
+                    let borrowed_connection = next_connection.read().unwrap();
+    
+                    let treatment_name = match borrowed_connection.input_treatment().as_ref().unwrap() {
+                        ConnectionIODesigner::Treatment(t) => t.upgrade().unwrap().read().unwrap().name().to_string(),
+                        _ => panic!("Connection to treatment expected")
+                    };
+    
+                    let input_name = borrowed_connection.input_name().as_ref().unwrap();
+    
+                    let treatment_build_result = treatment_build_results.get(&treatment_name).unwrap();
+                    let mut borrowed_checked_build = treatment_build_result.build.write().unwrap();
+                    borrowed_checked_build.fed_inputs.insert(input_name.to_string(), true);
+                }
+            }
+
+            // If the claiming treatment is connected to Self as output, call the check_give_next host method
+            if let Some(last_connections) = build_sample.last_connections.get(&asking_treatment_tuple) {
+
+                let host_check_build = build_sample.host_treatment.as_ref().unwrap().builder().check_give_next(
+                    build_sample.host_build_id.unwrap(),
+                    build_sample.label.to_string(),
+                    environment.clone(),
+                    previous_steps.clone(),
+                ).unwrap();
+    
+                for last_connection in last_connections {
+    
+                    let borrowed_connection = last_connection.read().unwrap();
+    
+                    let input_name = borrowed_connection.input_name().as_ref().unwrap();
+    
+                    let mut borrowed_checked_build = host_check_build.build.write().unwrap();
+                    borrowed_checked_build.fed_inputs.insert(input_name.to_string(), true);
+                }
+            }
+        }
+
+        // Return checked build result
+        let mut all_builds = Vec::new();
+        let mut all_errors = errors;
+        for (_, build_result) in treatment_build_results {
+            all_builds.extend(build_result.checked_builds);
+            all_errors.extend(build_result.errors);
+        }
+        all_builds.push(Arc::clone(&check_build));
+
+        // Return checked build result
+        let own_checked_build_result = CheckBuildResult {
+            checked_builds: all_builds,
+            build: check_build,
+            errors: all_errors,
+        };
+
+        Some(own_checked_build_result)
     }
 }
 
