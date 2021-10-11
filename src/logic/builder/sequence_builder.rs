@@ -334,28 +334,28 @@ impl Builder for SequenceBuilder {
                     // We should have a model there, should have been catched by designer, aborting
                     panic!("Impossible model recoverage")
                 }
-
-                // Setup parameters
-                for (_, parameter) in borrowed_treatment.parameters() {
-
-                    let borrowed_param = parameter.read().unwrap();
-
-                    let data = match borrowed_param.value().as_ref().unwrap() {
-                        Value::Raw(data) => data,
-                        Value::Variable(name) => {
-                            environment.get_variable(&name).unwrap()
-                        },
-                        Value::Context((context, name)) => {
-                            environment.get_context(context).unwrap().get_value(name).unwrap()
-                        }
-                    };
-
-                    remastered_environment.add_variable(borrowed_param.name(), data.clone());
-                }
-
-                // Call their dynamic_build method with right contextual environment
-                treatment_build_results.insert(treatment_name.to_string(), treatment_builder.dynamic_build(*treatment_id, &remastered_environment).unwrap());
             }
+
+            // Setup parameters
+            for (_, parameter) in borrowed_treatment.parameters() {
+
+                let borrowed_param = parameter.read().unwrap();
+
+                let data = match borrowed_param.value().as_ref().unwrap() {
+                    Value::Raw(data) => data,
+                    Value::Variable(name) => {
+                        environment.get_variable(&name).unwrap()
+                    },
+                    Value::Context((context, name)) => {
+                        environment.get_context(context).unwrap().get_value(name).unwrap()
+                    }
+                };
+
+                remastered_environment.add_variable(borrowed_param.name(), data.clone());
+            }
+
+            // Call their dynamic_build method with right contextual environment
+            treatment_build_results.insert(treatment_name.to_string(), treatment_builder.dynamic_build(*treatment_id, &remastered_environment).unwrap());
         }
         
         let mut result = DynamicBuildResult::new();
@@ -456,28 +456,28 @@ impl Builder for SequenceBuilder {
                     // We should have a model there, should have been catched by designer, aborting
                     panic!("Impossible model recoverage")
                 }
-
-                // Setup parameters
-                for (_, parameter) in borrowed_next_treatment.parameters() {
-
-                    let borrowed_param = parameter.read().unwrap();
-
-                    let data = match borrowed_param.value().as_ref().unwrap() {
-                        Value::Raw(data) => data,
-                        Value::Variable(name) => {
-                            environment.get_variable(&name).unwrap()
-                        },
-                        Value::Context((context, name)) => {
-                            environment.get_context(context).unwrap().get_value(name).unwrap()
-                        }
-                    };
-
-                    remastered_environment.add_variable(borrowed_param.name(), data.clone());
-                }
-
-                // Call their dynamic_build method with right contextual environment
-                next_treatments_build_results.insert(next_treatment_name.to_string(), next_treatment_builder.dynamic_build(*next_treatment_id, &remastered_environment).unwrap());
             }
+
+            // Setup parameters
+            for (_, parameter) in borrowed_next_treatment.parameters() {
+
+                let borrowed_param = parameter.read().unwrap();
+
+                let data = match borrowed_param.value().as_ref().unwrap() {
+                    Value::Raw(data) => data,
+                    Value::Variable(name) => {
+                        environment.get_variable(&name).unwrap()
+                    },
+                    Value::Context((context, name)) => {
+                        environment.get_context(context).unwrap().get_value(name).unwrap()
+                    }
+                };
+
+                remastered_environment.add_variable(borrowed_param.name(), data.clone());
+            }
+
+            // Call their dynamic_build method with right contextual environment
+            next_treatments_build_results.insert(next_treatment_name.to_string(), next_treatment_builder.dynamic_build(*next_treatment_id, &remastered_environment).unwrap());
         }
 
         let mut result = DynamicBuildResult::new();
