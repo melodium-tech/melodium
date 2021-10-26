@@ -22,7 +22,7 @@ pub enum StaticBuildResult {
 
 pub struct DynamicBuildResult {
     pub prepared_futures: Vec<Box<Future>>,
-    pub feeding_inputs: HashMap<String, Transmitter>,
+    pub feeding_inputs: HashMap<String, Vec<Transmitter>>,
 }
 
 impl DynamicBuildResult {
