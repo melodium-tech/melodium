@@ -72,6 +72,8 @@ pub enum LogicErrorKind {
     UnsetModel,
     /// The build step is already included in the call stack, meaning there is an infinite call loop.
     AlreadyIncludedBuildStep,
+    /// The treatment input in not satisfied
+    UnsatisfiedInput,
 }
 
 /// Handles and describe a Mélodium logic error.
@@ -304,6 +306,13 @@ impl LogicError {
     pub fn already_included_build_step() -> Self {
         Self {
             kind: LogicErrorKind::AlreadyIncludedBuildStep
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::UnsatisfiedInput`] kind.
+    pub fn unsatisfied_input() -> Self {
+        Self {
+            kind: LogicErrorKind::UnsatisfiedInput
         }
     }
 }

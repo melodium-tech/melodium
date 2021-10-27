@@ -1,9 +1,12 @@
 
+use std::fmt::Debug;
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock};
+use futures::future::{JoinAll, join_all};
+use super::future::Future;
 use super::model::{Model, ModelId};
 use super::transmitter::Transmitter;
-use super::environment::GenesisEnvironment;
+use super::environment::{ContextualEnvironment, GenesisEnvironment};
 use super::context::Context;
 use super::super::logic::descriptor::BuildableDescriptor;
 use super::super::logic::error::LogicError;
@@ -15,7 +18,6 @@ struct SourceEntry {
     pub id: BuildId,
 }
 
-#[derive(Debug)]
 pub struct World {
 
     auto_reference: RwLock<Weak<Self>>,
@@ -25,6 +27,22 @@ pub struct World {
 
     errors: RwLock<Vec<LogicError>>,
     main_build_id: RwLock<BuildId>,
+
+    tracks: RwLock<Vec<JoinAll<Future>>>,
+}
+
+impl Debug for World {
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("World")
+         .field("auto_reference", &self.auto_reference)
+         .field("models", &self.models)
+         .field("sources", &self.sources)
+         .field("errors", &self.errors)
+         .field("main_build_id", &self.main_build_id)
+         .field("tracks", &self.tracks.read().unwrap().len())
+         .finish()
+    }
 }
 
 impl World {
@@ -36,6 +54,7 @@ impl World {
             sources: RwLock::new(HashMap::new()),
             errors: RwLock::new(Vec::new()),
             main_build_id: RwLock::new(0),
+            tracks: RwLock::new(Vec::new()),
         });
 
         *world.auto_reference.write().unwrap() = Arc::downgrade(&world);
@@ -92,6 +111,7 @@ impl World {
         
         // Check all the tracks/paths
         let models = self.models.read().unwrap();
+        let mut errors = Vec::new();
         for (model_id, model_sources) in self.sources.read().unwrap().iter() {
 
             let model = models.get(*model_id as usize).unwrap();
@@ -109,11 +129,28 @@ impl World {
                         Vec::new()
                     ).unwrap();
 
-                    let errors = result.errors;
+                    errors.extend(result.errors);
 
-                    // TODO check also that all inputs are satisfied.
+                    // Check that all inputs are satisfied.
+                    for rc_check_build in result.checked_builds {
+
+                        let borrowed_check_build = rc_check_build.read().unwrap();
+                        for (input_name, input_satisfied) in &borrowed_check_build.fed_inputs {
+
+                            if !input_satisfied {
+                                errors.push(LogicError::unsatisfied_input());
+                            }
+                        }
+                    }
                 }
             }
+        }
+
+        let mut borrowed_errors = self.errors.write().unwrap();
+        borrowed_errors.extend(errors);
+
+        if !borrowed_errors.is_empty() {
+            return false
         }
 
         self.models.read().unwrap().iter().for_each(|m| m.initialize());
@@ -121,9 +158,41 @@ impl World {
         true
     }
 
-    pub fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>) -> Option<HashMap<String, Transmitter>> {
+    pub fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>) -> Option<HashMap<String, Vec<Transmitter>>> {
 
-        // TODO instanciate track
-        None
+        let borrowed_sources = self.sources.read().unwrap();
+
+        let model_sources = borrowed_sources.get(&id).unwrap();
+
+        let entries = model_sources.get(source).unwrap();
+
+        let mut borrowed_tracks = self.tracks.write().unwrap();
+
+        let mut contextual_environment = ContextualEnvironment::new(
+            Weak::upgrade(&self.auto_reference.read().unwrap()).unwrap(),
+            borrowed_tracks.len() as u64
+        );
+
+        contexts.iter().for_each(|(name, context)| contextual_environment.add_context(name, context.clone()));
+        
+        let mut track_futures: Vec<Future> = Vec::new();
+        let mut inputs: HashMap<String, Vec<Transmitter>> = HashMap::new();
+
+        for entry in entries {
+
+            let build_result = entry.descriptor.builder().dynamic_build(entry.id, &contextual_environment).unwrap();
+
+            track_futures.extend(build_result.prepared_futures);
+
+            for (input_name, input_transmitters) in build_result.feeding_inputs {
+
+                inputs.entry(input_name).or_default().extend(input_transmitters);
+            }
+        }
+
+        let track = join_all(track_futures);
+        borrowed_tracks.push(track);
+
+        Some(inputs)
     }
 }
