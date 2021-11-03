@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::collections::HashMap;
 use std::sync::Arc;
 use super::world::World;
-use super::model::Model;
+use super::model::{Model, ModelId};
 use super::value::Value;
 use super::context::Context;
 use super::transmitter::Transmitter;
@@ -34,9 +34,9 @@ impl GenesisEnvironment {
         }
     }
 
-    pub fn register_model(&self, model: Arc<dyn Model>) {
+    pub fn register_model(&self, model: Arc<dyn Model>) -> ModelId  {
 
-        self.world.add_model(Arc::clone(&model));
+        self.world.add_model(Arc::clone(&model))
     }
 
     pub fn add_model(&mut self, name: &str, model: Arc<dyn Model>) {
@@ -47,12 +47,20 @@ impl GenesisEnvironment {
         self.models.get(name)
     }
 
+    pub fn models(&self) -> &HashMap<String, Arc<dyn Model>> {
+        &self.models
+    }
+
     pub fn add_variable(&mut self, name: &str, value: Value) {
         self.variables.insert(name.to_string(), value);
     }
 
     pub fn get_variable(&self, name: &str) -> Option<&Value> {
         self.variables.get(name)
+    }
+
+    pub fn variables(&self) -> &HashMap<String, Value> {
+        &self.variables
     }
 }
 

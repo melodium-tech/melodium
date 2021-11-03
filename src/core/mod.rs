@@ -6,3 +6,4 @@
 //! 
 
 pub mod core_collection;
+pub mod fs;

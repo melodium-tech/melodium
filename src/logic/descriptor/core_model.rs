@@ -1,5 +1,5 @@
 
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Weak, RwLock};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use super::identified::Identified;
@@ -15,7 +15,7 @@ pub struct CoreModel {
     identifier: Identifier,
     parameters: HashMap<String, Parameter>,
     builder: Arc<Box<dyn Builder>>,
-    auto_reference: Weak<Self>,
+    auto_reference: RwLock<Weak<Self>>,
 }
 
 impl CoreModel {
@@ -24,12 +24,12 @@ impl CoreModel {
             identifier,
             parameters: HashMap::from_iter(parameters.iter().map(|p| (p.name().to_string(), p.clone()))),
             builder: Arc::new(builder),
-            auto_reference: Weak::new(),
+            auto_reference: RwLock::new(Weak::new()),
         }
     }
 
-    pub fn set_autoref(&mut self, reference: &Arc<Self>) {
-        self.auto_reference = Arc::downgrade(reference);
+    pub fn set_autoref(&self, reference: &Arc<Self>) {
+        *self.auto_reference.write().unwrap() = Arc::downgrade(reference);
     }
 }
 
@@ -46,7 +46,7 @@ impl Parameterized for CoreModel {
     }
 
     fn as_parameterized(&self) -> Arc<dyn Parameterized> {
-        self.auto_reference.upgrade().unwrap()
+        self.auto_reference.read().unwrap().upgrade().unwrap()
     }
 }
 
@@ -64,6 +64,6 @@ impl Model for CoreModel {
     }
 
     fn core_model(&self) -> Arc<CoreModel> {
-        self.auto_reference.upgrade().unwrap()
+        self.auto_reference.read().unwrap().upgrade().unwrap()
     }
 }
