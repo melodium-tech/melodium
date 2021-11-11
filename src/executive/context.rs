@@ -9,6 +9,12 @@ pub struct Context {
 
 impl Context {
 
+    pub fn new() -> Self {
+        Self {
+            values: HashMap::new()
+        }
+    }
+
     pub fn get_value(&self, name: &str) -> Option<&Value> {
         self.values.get(name)
     }

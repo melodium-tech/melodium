@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock};
 use futures::future::{JoinAll, join_all};
-use super::future::Future;
+use super::future::*;
 use super::model::{Model, ModelId};
 use super::transmitter::Transmitter;
 use super::environment::{ContextualEnvironment, GenesisEnvironment};
@@ -28,7 +28,8 @@ pub struct World {
     errors: RwLock<Vec<LogicError>>,
     main_build_id: RwLock<BuildId>,
 
-    tracks: RwLock<Vec<JoinAll<Future>>>,
+    continuous_tasks: RwLock<Vec<ContinuousFuture>>,
+    tracks: RwLock<Vec<JoinAll<TrackFuture>>>,
 }
 
 impl Debug for World {
@@ -40,6 +41,7 @@ impl Debug for World {
          .field("sources", &self.sources)
          .field("errors", &self.errors)
          .field("main_build_id", &self.main_build_id)
+         .field("continuous_tasks", &self.continuous_tasks.read().unwrap().len())
          .field("tracks", &self.tracks.read().unwrap().len())
          .finish()
     }
@@ -54,6 +56,7 @@ impl World {
             sources: RwLock::new(HashMap::new()),
             errors: RwLock::new(Vec::new()),
             main_build_id: RwLock::new(0),
+            continuous_tasks: RwLock::new(Vec::new()),
             tracks: RwLock::new(Vec::new()),
         });
 
@@ -158,7 +161,14 @@ impl World {
         true
     }
 
-    pub fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>) -> Option<HashMap<String, Vec<Transmitter>>> {
+    pub fn add_continuous_task(&self, task: ContinuousFuture) {
+
+        let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
+
+        borrowed_continuous_tasks.push(task);
+    }
+
+    pub fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>) -> HashMap<String, Vec<Transmitter>> {
 
         let borrowed_sources = self.sources.read().unwrap();
 
@@ -175,7 +185,7 @@ impl World {
 
         contexts.iter().for_each(|(name, context)| contextual_environment.add_context(name, context.clone()));
         
-        let mut track_futures: Vec<Future> = Vec::new();
+        let mut track_futures: Vec<TrackFuture> = Vec::new();
         let mut inputs: HashMap<String, Vec<Transmitter>> = HashMap::new();
 
         for entry in entries {
@@ -193,6 +203,6 @@ impl World {
         let track = join_all(track_futures);
         borrowed_tracks.push(track);
 
-        Some(inputs)
+        inputs
     }
 }

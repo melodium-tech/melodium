@@ -8,7 +8,7 @@ use super::super::super::executive::environment::{GenesisEnvironment, Contextual
 use super::super::super::executive::value::Value;
 use super::super::super::executive::model::Model;
 use super::super::super::executive::transmitter::Transmitter;
-use super::super::super::executive::future::Future;
+use super::super::super::executive::future::*;
 use super::super::descriptor::TreatmentDescriptor;
 use super::super::descriptor::IdentifierDescriptor;
 
@@ -21,7 +21,7 @@ pub enum StaticBuildResult {
 }
 
 pub struct DynamicBuildResult {
-    pub prepared_futures: Vec<Future>,
+    pub prepared_futures: Vec<TrackFuture>,
     pub feeding_inputs: HashMap<String, Vec<Transmitter>>,
 }
 

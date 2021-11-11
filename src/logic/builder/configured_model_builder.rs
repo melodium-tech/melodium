@@ -10,7 +10,7 @@ use super::super::descriptor::parameterized::Parameterized;
 use super::super::super::executive::environment::{GenesisEnvironment, ContextualEnvironment};
 use super::super::super::executive::model::Model as ExecutiveModel;
 use super::super::super::executive::transmitter::Transmitter;
-use super::super::super::executive::future::Future;
+use super::super::super::executive::future::*;
 use super::super::descriptor::TreatmentDescriptor;
 use super::super::designer::value::Value;
 

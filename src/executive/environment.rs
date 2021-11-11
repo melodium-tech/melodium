@@ -39,6 +39,11 @@ impl GenesisEnvironment {
         self.world.add_model(Arc::clone(&model))
     }
 
+    pub fn world(&self) -> Arc<World> {
+
+        Arc::clone(&self.world)
+    }
+
     pub fn add_model(&mut self, name: &str, model: Arc<dyn Model>) {
         self.models.insert(name.to_string(), model);
     }

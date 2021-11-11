@@ -11,7 +11,7 @@ use super::super::descriptor::TreatmentDescriptor;
 use super::super::descriptor::IdentifiedDescriptor;
 use super::super::super::executive::environment::{GenesisEnvironment, ContextualEnvironment};
 use super::super::super::executive::model::Model;
-use super::super::super::executive::future::Future;
+use super::super::super::executive::future::*;
 use super::super::super::executive::transmitter::Transmitter;
 use super::super::designer::value::Value;
 

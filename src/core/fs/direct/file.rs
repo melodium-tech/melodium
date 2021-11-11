@@ -21,7 +21,42 @@ pub fn file_descriptor() -> Arc<CoreModelDescriptor> {
         None
     );
 
+    let read_parameter = ParameterDescriptor::new(
+        "read",
+        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Bool),
+        Some(Value::Bool(false))
+    );
+
+    let write_parameter = ParameterDescriptor::new(
+        "write",
+        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Bool),
+        Some(Value::Bool(false))
+    );
+
+    let append_parameter = ParameterDescriptor::new(
+        "append",
+        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Bool),
+        Some(Value::Bool(false))
+    );
+
+    let create_parameter = ParameterDescriptor::new(
+        "create",
+        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Bool),
+        Some(Value::Bool(true))
+    );
+
+    let new_parameter = ParameterDescriptor::new(
+        "new",
+        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Bool),
+        Some(Value::Bool(false))
+    );
+
     parameters.push(path_parameter);
+    parameters.push(read_parameter);
+    parameters.push(write_parameter);
+    parameters.push(append_parameter);
+    parameters.push(create_parameter);
+    parameters.push(new_parameter);
 
     let builder = FileBuilder::new();
 
@@ -97,7 +132,14 @@ struct FileModel {
     id: RwLock<Option<ModelId>>,
 
     path: String,
+    read: bool,
+    write: bool,
+    append: bool,
+    create: bool,
+    new: bool,
+
     os_path: PathBuf,
+    open_strategy: OpenOptions,
     file: Option<File>,
 }
 
@@ -106,8 +148,16 @@ impl FileModel {
     pub fn new() -> Self {
         Self {
             id: RwLock::new(None),
+
             path: String::new(),
+            read: false,
+            write: false,
+            append: false,
+            create: true,
+            new: false,
+
             os_path: PathBuf::new(),
+            open_strategy: OpenOptions::new(),
             file: None,
         }
     }
@@ -132,6 +182,36 @@ impl Model for FileModel {
                     _ => panic!("Unexpected value type for 'path'."),
                 }
             },
+            "read" => {
+                match value {
+                    Value::Bool(read) => self.read = *read,
+                    _ => panic!("Unexpected value type for 'read'."),
+                }
+            },
+            "write" => {
+                match value {
+                    Value::Bool(write) => self.write = *write,
+                    _ => panic!("Unexpected value type for 'write'."),
+                }
+            },
+            "append" => {
+                match value {
+                    Value::Bool(append) => self.append = *append,
+                    _ => panic!("Unexpected value type for 'append'."),
+                }
+            },
+            "create" => {
+                match value {
+                    Value::Bool(create) => self.create = *create,
+                    _ => panic!("Unexpected value type for 'create'."),
+                }
+            },
+            "new" => {
+                match value {
+                    Value::Bool(new) => self.new = *new,
+                    _ => panic!("Unexpected value type for 'new'."),
+                }
+            },
             _ => panic!("No parameter '{}' exists.", param)
         }
     }
@@ -148,8 +228,7 @@ impl Model for FileModel {
 
         let os_path = PathBuf::from(self.path.clone());
 
-        let mut read = false;
-        let mut write = false;
+        
 
         //if os_path.is_file
     }
