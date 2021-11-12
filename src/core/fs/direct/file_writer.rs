@@ -1,7 +1,9 @@
 
 use std::sync::{Arc, Weak, RwLock};
 use async_std::path::PathBuf;
+use async_std::channel::*;
 use async_std::fs::{File, OpenOptions};
+use async_std::io::BufWriter;
 use async_std::task::block_on;
 use async_std::prelude::*;
 use crate::executive::model::{Model, ModelId};
@@ -125,9 +127,9 @@ struct FileWriterModel {
     create: bool,
     new: bool,
 
-    os_path: RwLock<PathBuf>,
-    open_strategy: RwLock<OpenOptions>,
-    file: RwLock<Option<File>>,
+    write_channel: (Sender<u8>, Receiver<u8>),
+
+    auto_reference: Weak<Self>,
 }
 
 impl FileWriterModel {
@@ -142,14 +144,57 @@ impl FileWriterModel {
             create: true,
             new: false,
 
-            os_path: RwLock::new(PathBuf::new()),
-            open_strategy: RwLock::new(OpenOptions::new()),
-            file: RwLock::new(None),
+            write_channel: unbounded(),
+
+            auto_reference: Weak::new(),
         }
     }
 
     pub fn set_id(&self, id: ModelId) {
         *self.id.write().unwrap() = Some(id);
+    }
+
+    pub fn writer(&self) -> &Sender<u8> {
+        &self.write_channel.0
+    }
+
+    async fn write(&self) {
+
+        let os_path = PathBuf::from(self.path.clone());
+
+        let mut open_options = OpenOptions::new();
+        open_options
+            .append(self.append)
+            .create(self.create)
+            .create_new(self.new);
+
+        let open_result = open_options.open(&os_path).await;
+
+        if let Ok(file) = open_result {
+
+            let receiver = &self.write_channel.1;
+
+            let mut writer = BufWriter::with_capacity(1024, file);
+
+            // We don't handle the recv_error case as it means everything is empty and closed
+            while let Ok(data) = receiver.recv().await {
+
+                if let Err(write_err) = writer.write(&[data]).await {
+
+                    // Todo handle error
+                    panic!("Writing error: {}", write_err)
+                }
+
+            }
+
+            if let Err(write_err) =writer.flush().await {
+
+                // Todo handle error
+                panic!("Writing (flush) error: {}", write_err)
+            }
+        }
+
+        // Todo manage failures
     }
 }
 
@@ -192,33 +237,19 @@ impl Model for FileWriterModel {
 
     fn get_context_for(&self, source: &str) -> Vec<String> {
 
+        // Nothing is emitted for now by writer
         Vec::new()
     }
 
     fn initialize(&self) {
 
-        let os_path = PathBuf::from(self.path.clone());
+        let auto_self = self.auto_reference.upgrade().unwrap();
+        let future_write = async move { auto_self.write().await };
 
-        *self.os_path.write().unwrap() = os_path;
-
-        self.open_strategy.write().unwrap().write(true)
-            .append(self.append)
-            .truncate(!self.append)
-            .create(self.create)
-            .create_new(self.new);
-
-        // See where to enable reading itself
-        // probably register something inside the World.
+        self.world.add_continuous_task(Box::new(future_write));
     }
 
     fn shutdown(&self) {
 
-        if let Some(file) = &*self.file.read().unwrap() {
-            let result = block_on(file.sync_all());
-
-            if result.is_err() {
-                panic!("FileWriter #{} sync_all error '{}'", self.id.read().unwrap().unwrap(), result.unwrap_err())
-            }
-        }
     }
 }

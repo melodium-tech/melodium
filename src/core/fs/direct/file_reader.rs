@@ -104,10 +104,6 @@ struct FileReaderModel {
 
     path: String,
 
-    //os_path: RwLock<PathBuf>,
-    //open_strategy: RwLock<OpenOptions>,
-    //file: RwLock<Option<File>>,
-
     auto_reference: Weak<Self>,
 }
 
@@ -120,10 +116,6 @@ impl FileReaderModel {
 
             path: String::new(),
 
-            //os_path: RwLock::new(PathBuf::new()),
-            //open_strategy: RwLock::new(OpenOptions::new()),
-            //file: RwLock::new(None),
-
             auto_reference: Weak::new(),
         }
     }
@@ -131,9 +123,6 @@ impl FileReaderModel {
     pub fn set_id(&self, id: ModelId) {
         *self.id.write().unwrap() = Some(id);
     }
-}
-
-impl FileReaderModel {
 
     async fn read(&self) {
 
@@ -238,36 +227,13 @@ impl Model for FileReaderModel {
 
     fn initialize(&self) {
 
-        //let os_path = PathBuf::from(self.path.clone());
-
-        /* *self.os_path.write().unwrap() = os_path;
-
-        self.open_strategy.write().unwrap().read(true);*/
-
-        // See where to enable reading itself
-        // probably register something inside the World.
-
         let auto_self = self.auto_reference.upgrade().unwrap();
         let future_read = async move { auto_self.read().await };
-
-        /*let future_read = async move {
-            //auto_self.read().await
-            let open_strategy = OpenOptions::new().read(true);
-            let file = open_strategy.open(os_path).await;
-        };*/
 
         self.world.add_continuous_task(Box::new(future_read));
     }
 
     fn shutdown(&self) {
-
-        /*if let Some(file) = &*self.file.read().unwrap() {
-            let result = block_on(file.sync_all());
-
-            if result.is_err() {
-                panic!("FileReader #{} sync_all error '{}'", self.id.read().unwrap().unwrap(), result.unwrap_err())
-            }
-        }*/
 
     }
 }
