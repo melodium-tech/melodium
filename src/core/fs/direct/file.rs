@@ -173,8 +173,8 @@ impl Model for FileModel {
         file_descriptor()
     }
 
-    fn set_parameter(&mut self, param: &str, value: &Value) {
-
+    fn set_parameter(&self, param: &str, value: &Value) {
+        /*
         match param {
             "path" => {
                 match value {
@@ -214,6 +214,7 @@ impl Model for FileModel {
             },
             _ => panic!("No parameter '{}' exists.", param)
         }
+        */
     }
 
     fn get_context_for(&self, source: &str) -> Vec<String> {

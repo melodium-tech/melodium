@@ -70,13 +70,11 @@ impl Builder for FileReaderBuilder {
             file_model.set_parameter(name, value);
         }
 
-        let rc_model = Arc::new(file_model);
+        let id = environment.register_model(Arc::clone(&file_model) as Arc<dyn Model>);
 
-        let id = environment.register_model(Arc::clone(&rc_model) as Arc<dyn Model>);
-
-        rc_model.set_id(id);
+        file_model.set_id(id);
         
-        Ok(StaticBuildResult::Model(rc_model))
+        Ok(StaticBuildResult::Model(file_model))
     }
 
     fn dynamic_build(&self, build: BuildId, environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
@@ -102,31 +100,40 @@ struct FileReaderModel {
     world: Arc<World>,
     id: RwLock<Option<ModelId>>,
 
-    path: String,
+    path: RwLock<String>,
 
-    auto_reference: Weak<Self>,
+    auto_reference: RwLock<Weak<Self>>,
 }
 
 impl FileReaderModel {
 
-    pub fn new(world: Arc<World>) -> Self {
-        Self {
+    pub fn new(world: Arc<World>) -> Arc<Self> {
+
+        let model = Arc::new(Self {
             world,
             id: RwLock::new(None),
 
-            path: String::new(),
+            path: RwLock::new(String::new()),
 
-            auto_reference: Weak::new(),
-        }
+            auto_reference: RwLock::new(Weak::new()),
+        });
+
+        *model.auto_reference.write().unwrap() = Arc::downgrade(&model);
+
+        model
     }
 
     pub fn set_id(&self, id: ModelId) {
         *self.id.write().unwrap() = Some(id);
     }
 
+    pub fn path(&self) -> String {
+        self.path.read().unwrap().clone()
+    }
+
     async fn read(&self) {
 
-        let os_path = PathBuf::from(self.path.clone());
+        let os_path = PathBuf::from(self.path());
         let open_result = File::open(&os_path).await;
 
         if let Ok(file) = open_result {
@@ -204,12 +211,12 @@ impl Model for FileReaderModel {
         file_reader_descriptor()
     }
 
-    fn set_parameter(&mut self, param: &str, value: &Value) {
+    fn set_parameter(&self, param: &str, value: &Value) {
 
         match param {
             "path" => {
                 match value {
-                    Value::String(path) => self.path = path.to_string(),
+                    Value::String(path) => *self.path.write().unwrap() = path.to_string(),
                     _ => panic!("Unexpected value type for 'path'."),
                 }
             },
@@ -227,7 +234,7 @@ impl Model for FileReaderModel {
 
     fn initialize(&self) {
 
-        let auto_self = self.auto_reference.upgrade().unwrap();
+        let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
         let future_read = async move { auto_self.read().await };
 
         self.world.add_continuous_task(Box::new(future_read));

@@ -12,7 +12,7 @@ pub trait Model : Debug + Send + Sync {
 
     fn descriptor(&self) -> Arc<CoreModelDescriptor>;
 
-    fn set_parameter(&mut self, param: &str, value: &Value);
+    fn set_parameter(&self, param: &str, value: &Value);
 
     fn get_context_for(&self, source: &str) -> Vec<String>;
 

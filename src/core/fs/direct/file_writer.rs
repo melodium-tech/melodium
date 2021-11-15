@@ -90,13 +90,11 @@ impl Builder for FileWriterBuilder {
             file_model.set_parameter(name, value);
         }
 
-        let rc_model = Arc::new(file_model);
+        let id = environment.register_model(Arc::clone(&file_model) as Arc<dyn Model>);
 
-        let id = environment.register_model(Arc::clone(&rc_model) as Arc<dyn Model>);
-
-        rc_model.set_id(id);
+        file_model.set_id(id);
         
-        Ok(StaticBuildResult::Model(rc_model))
+        Ok(StaticBuildResult::Model(file_model))
     }
 
     fn dynamic_build(&self, build: BuildId, environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
@@ -122,36 +120,56 @@ struct FileWriterModel {
     world: Arc<World>,
     id: RwLock<Option<ModelId>>,
 
-    path: String,
-    append: bool,
-    create: bool,
-    new: bool,
+    path: RwLock<String>,
+    append: RwLock<bool>,
+    create: RwLock<bool>,
+    new: RwLock<bool>,
 
     write_channel: (Sender<u8>, Receiver<u8>),
 
-    auto_reference: Weak<Self>,
+    auto_reference: RwLock<Weak<Self>>,
 }
 
 impl FileWriterModel {
 
-    pub fn new(world: Arc<World>) -> Self {
-        Self {
+    pub fn new(world: Arc<World>) -> Arc<Self> {
+        let model = Arc::new(Self {
             world,
             id: RwLock::new(None),
 
-            path: String::new(),
-            append: false,
-            create: true,
-            new: false,
+            path: RwLock::new(String::new()),
+            append: RwLock::new(false),
+            create: RwLock::new(true),
+            new: RwLock::new(false),
 
             write_channel: unbounded(),
 
-            auto_reference: Weak::new(),
-        }
+            auto_reference: RwLock::new(Weak::new()),
+        });
+
+        *model.auto_reference.write().unwrap() = Arc::downgrade(&model);
+
+        model
     }
 
     pub fn set_id(&self, id: ModelId) {
         *self.id.write().unwrap() = Some(id);
+    }
+
+    pub fn path(&self) -> String {
+        self.path.read().unwrap().clone()
+    }
+
+    pub fn append(&self) -> bool {
+        *self.append.read().unwrap()
+    }
+
+    pub fn create(&self) -> bool {
+        *self.create.read().unwrap()
+    }
+
+    pub fn create_new(&self) -> bool {
+        *self.new.read().unwrap()
     }
 
     pub fn writer(&self) -> &Sender<u8> {
@@ -160,13 +178,13 @@ impl FileWriterModel {
 
     async fn write(&self) {
 
-        let os_path = PathBuf::from(self.path.clone());
+        let os_path = PathBuf::from(self.path());
 
         let mut open_options = OpenOptions::new();
         open_options
-            .append(self.append)
-            .create(self.create)
-            .create_new(self.new);
+            .append(self.append())
+            .create(self.create())
+            .create_new(self.create_new());
 
         let open_result = open_options.open(&os_path).await;
 
@@ -204,30 +222,30 @@ impl Model for FileWriterModel {
         file_writer_descriptor()
     }
 
-    fn set_parameter(&mut self, param: &str, value: &Value) {
+    fn set_parameter(&self, param: &str, value: &Value) {
 
         match param {
             "path" => {
                 match value {
-                    Value::String(path) => self.path = path.to_string(),
+                    Value::String(path) => *self.path.write().unwrap() = path.to_string(),
                     _ => panic!("Unexpected value type for 'path'."),
                 }
             },
             "append" => {
                 match value {
-                    Value::Bool(append) => self.append = *append,
+                    Value::Bool(append) => *self.append.write().unwrap() = *append,
                     _ => panic!("Unexpected value type for 'append'."),
                 }
             },
             "create" => {
                 match value {
-                    Value::Bool(create) => self.create = *create,
+                    Value::Bool(create) => *self.create.write().unwrap() = *create,
                     _ => panic!("Unexpected value type for 'create'."),
                 }
             },
             "new" => {
                 match value {
-                    Value::Bool(new) => self.new = *new,
+                    Value::Bool(new) => *self.new.write().unwrap() = *new,
                     _ => panic!("Unexpected value type for 'new'."),
                 }
             },
@@ -243,7 +261,7 @@ impl Model for FileWriterModel {
 
     fn initialize(&self) {
 
-        let auto_self = self.auto_reference.upgrade().unwrap();
+        let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
         let future_write = async move { auto_self.write().await };
 
         self.world.add_continuous_task(Box::new(future_write));
