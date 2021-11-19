@@ -8,11 +8,11 @@ use super::model::Model;
 
 pub trait Treatment{
 
-    fn set_parameter(&mut self, param: &str, value: &Value);
-    fn set_model(&mut self, name: &str, model: &Arc<dyn Model>);
+    fn set_parameter(&self, param: &str, value: &Value);
+    fn set_model(&self, name: &str, model: &Arc<dyn Model>);
 
-    fn get_output(&mut self, output_name: &str) -> Option<Transmitter>;
-    fn set_input(&mut self, input_name: &str, transmitter: Transmitter) -> Result<(), ()>;
+    fn get_output(&self, output_name: &str) -> Option<Transmitter>;
+    fn set_input(&self, input_name: &str, transmitter: Transmitter) -> Result<(), ()>;
 
     fn prepare(&self) -> Vec<Box<dyn Future<Output = ResultStatus>>>;
 }

@@ -18,4 +18,6 @@ pub use builder::CheckBuild as CheckBuild;
 pub use builder::CheckBuildResult as CheckBuildResult;
 pub use builder::CheckStep as CheckStep;
 pub use builder::CheckEnvironment as CheckEnvironment;
+pub use core_model_builder::CoreModelBuilder as CoreModelBuilder;
+pub use core_treatment_builder::CoreTreatmentBuilder as CoreTreatmentBuilder;
 

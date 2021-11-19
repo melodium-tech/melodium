@@ -123,6 +123,10 @@ impl ContextualEnvironment {
         self.variables.get(name)
     }
 
+    pub fn variables(&self) -> &HashMap<String, Value> {
+        &self.variables
+    }
+
     pub fn add_context(&mut self, name: &str, context: Context) {
         self.contexts.insert(name.to_string(), context);
     }
