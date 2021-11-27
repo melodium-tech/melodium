@@ -12,6 +12,7 @@ pub mod sequence_builder;
 
 pub use builder::Builder as Builder;
 pub use builder::BuildId as BuildId;
+pub use builder::FeedingInputs as FeedingInputs;
 pub use builder::StaticBuildResult as StaticBuildResult;
 pub use builder::DynamicBuildResult as DynamicBuildResult;
 pub use builder::CheckBuild as CheckBuild;

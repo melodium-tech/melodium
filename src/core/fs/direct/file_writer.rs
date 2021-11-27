@@ -16,52 +16,6 @@ use crate::logic::descriptor::{ParameterDescriptor, CoreModelDescriptor, DataTyp
 use crate::logic::descriptor::identifier::*;
 
 #[derive(Debug)]
-struct FileWriterBuilder {
-
-}
-
-impl FileWriterBuilder {
-
-    pub fn new() -> Self {
-        todo!()
-    }
-}
-
-impl Builder for FileWriterBuilder {
-
-    fn static_build(&self, host_treatment: Option<Arc<dyn TreatmentDescriptor>>, host_build: Option<BuildId>, label: String, environment: &GenesisEnvironment) -> Result<StaticBuildResult, LogicError> {
-
-        let mut file_model = FileWriterModel::new(environment.world());
-
-        for (name, value) in environment.variables() {
-            file_model.set_parameter(name, value);
-        }
-
-        let id = environment.register_model(Arc::clone(&file_model) as Arc<dyn Model>);
-
-        file_model.set_id(id);
-        
-        Ok(StaticBuildResult::Model(file_model))
-    }
-
-    fn dynamic_build(&self, build: BuildId, environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
-        None
-    }
-
-    fn give_next(&self, within_build: BuildId, for_label: String, environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
-        None
-    }
-
-    fn check_dynamic_build(&self, build: BuildId, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
-        None
-    }
-
-    fn check_give_next(&self, within_build: BuildId, for_label: String, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
-        None
-    }
-}
-
-#[derive(Debug)]
 struct FileWriterModel {
 
     world: Arc<World>,
@@ -79,7 +33,7 @@ struct FileWriterModel {
 
 impl FileWriterModel {
 
-    pub fn new(world: Arc<World>) -> Arc<Self> {
+    pub fn new(world: Arc<World>) -> Arc<dyn Model> {
         let model = Arc::new(Self {
             world,
             id: RwLock::new(None),
@@ -196,7 +150,7 @@ impl Model for FileWriterModel {
                 parameters.push(create_parameter);
                 parameters.push(new_parameter);
 
-                let builder = FileWriterBuilder::new();
+                let builder = CoreModelBuilder::new(FileWriterModel::new);
 
                 let descriptor = CoreModelDescriptor::new(
                     Identifier::new(Root::Core,

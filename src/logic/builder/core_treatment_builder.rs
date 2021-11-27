@@ -40,7 +40,7 @@ pub struct CoreTreatmentBuilder {
     new_treatment: fn(Arc<World>) -> Arc<dyn Treatment>,
 
     builds: RwLock<Vec<BuildSample>>,
-    building_tracks: RwLock<HashMap<(BuildId, u64), DynamicBuildResult>>
+    building_inputs: RwLock<HashMap<(BuildId, u64), FeedingInputs>>
 }
 
 impl CoreTreatmentBuilder {
@@ -49,7 +49,7 @@ impl CoreTreatmentBuilder {
         Self {
             new_treatment,
             builds: RwLock::new(Vec::new()),
-            building_tracks: RwLock::new(HashMap::new()),
+            building_inputs: RwLock::new(HashMap::new()),
         }
     }
 }
@@ -74,14 +74,12 @@ impl Builder for CoreTreatmentBuilder {
 
         // Look for existing build
         {
-            let borrowed_building_tracks = self.building_tracks.read().unwrap();
+            let borrowed_building_inputs = self.building_inputs.read().unwrap();
 
-            if let Some(existing_building_track) = borrowed_building_tracks.get(&(build, environment.track_id())) {
+            if let Some(existing_building_inputs) = borrowed_building_inputs.get(&(build, environment.track_id())) {
 
                 let mut dynamic_result = DynamicBuildResult::new();
-                // We only copy transmitters because prepared futures were already included the first time
-                // dynamic_build were called.
-                dynamic_result.feeding_inputs.extend(existing_building_track.feeding_inputs.clone());
+                dynamic_result.feeding_inputs.extend(existing_building_inputs.clone());
 
                 return Some(dynamic_result);
             }
@@ -121,8 +119,7 @@ impl Builder for CoreTreatmentBuilder {
         result.prepared_futures.extend(prepared_futures);
         result.prepared_futures.extend(host_build.prepared_futures);
 
-
-        // TODO check why result is not currently added in sequence builder?
+        self.building_inputs.write().unwrap().insert((build, environment.track_id()), result.feeding_inputs.clone());
 
         Some(result)
     }

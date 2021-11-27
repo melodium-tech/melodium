@@ -13,6 +13,7 @@ use super::super::descriptor::TreatmentDescriptor;
 use super::super::descriptor::IdentifierDescriptor;
 
 pub type BuildId = u64;
+pub type FeedingInputs = HashMap<String, Vec<Transmitter>>;
 
 #[derive(Debug)]
 pub enum StaticBuildResult {
@@ -22,7 +23,7 @@ pub enum StaticBuildResult {
 
 pub struct DynamicBuildResult {
     pub prepared_futures: Vec<TrackFuture>,
-    pub feeding_inputs: HashMap<String, Vec<Transmitter>>,
+    pub feeding_inputs: FeedingInputs,
 }
 
 impl DynamicBuildResult {
