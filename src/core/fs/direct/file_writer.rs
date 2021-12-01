@@ -16,7 +16,7 @@ use crate::logic::descriptor::{ParameterDescriptor, CoreModelDescriptor, DataTyp
 use crate::logic::descriptor::identifier::*;
 
 #[derive(Debug)]
-struct FileWriterModel {
+pub struct FileWriterModel {
 
     world: Arc<World>,
     id: RwLock<Option<ModelId>>,
