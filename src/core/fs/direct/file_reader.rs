@@ -29,6 +29,43 @@ pub struct FileReaderModel {
 
 impl FileReaderModel {
 
+    pub fn descriptor() -> Arc<CoreModelDescriptor> {
+
+        lazy_static! {
+            static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
+                let mut parameters = Vec::new();
+
+                let path_parameter = ParameterDescriptor::new(
+                    "path",
+                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::String),
+                    None
+                );
+
+                parameters.push(path_parameter);
+
+                let builder = CoreModelBuilder::new(FileReaderModel::new);
+
+                let descriptor = CoreModelDescriptor::new(
+                    Identifier::new(Root::Core,
+                        vec![
+                            "fs".to_string(),
+                            "direct".to_string(),
+                        ],
+                        "FileReader"),
+                    parameters,
+                    Box::new(builder)
+                );
+
+                let rc_descriptor = Arc::new(descriptor);
+                rc_descriptor.set_autoref(&rc_descriptor);
+
+                rc_descriptor
+            };
+        }
+        
+        Arc::clone(&DESCRIPTOR)
+    }
+
     pub fn new(world: Arc<World>) -> Arc<dyn Model> {
 
         let model = Arc::new(Self {
@@ -126,40 +163,7 @@ impl FileReaderModel {
 impl Model for FileReaderModel {
     
     fn descriptor(&self) -> &Arc<CoreModelDescriptor> {
-
-        lazy_static! {
-            static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-                let mut parameters = Vec::new();
-
-                let path_parameter = ParameterDescriptor::new(
-                    "path",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::String),
-                    None
-                );
-
-                parameters.push(path_parameter);
-
-                let builder = CoreModelBuilder::new(FileReaderModel::new);
-
-                let descriptor = CoreModelDescriptor::new(
-                    Identifier::new(Root::Core,
-                        vec![
-                            "fs".to_string(),
-                            "direct".to_string(),
-                        ],
-                        "FileReader"),
-                    parameters,
-                    Box::new(builder)
-                );
-
-                let rc_descriptor = Arc::new(descriptor);
-                rc_descriptor.set_autoref(&rc_descriptor);
-
-                rc_descriptor
-            };
-        }
-        
-        &DESCRIPTOR
+        self.descriptor()
     }
 
     fn set_id(&self, id: ModelId) {

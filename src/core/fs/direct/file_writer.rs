@@ -33,6 +33,64 @@ struct FileWriterModel {
 
 impl FileWriterModel {
 
+    pub fn descriptor() -> Arc<CoreModelDescriptor> {
+        
+        lazy_static! {
+            static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
+                let mut parameters = Vec::new();
+
+                let path_parameter = ParameterDescriptor::new(
+                    "path",
+                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::String),
+                    None
+                );
+
+                let append_parameter = ParameterDescriptor::new(
+                    "append",
+                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Bool),
+                    Some(Value::Bool(false))
+                );
+
+                let create_parameter = ParameterDescriptor::new(
+                    "create",
+                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Bool),
+                    Some(Value::Bool(true))
+                );
+
+                let new_parameter = ParameterDescriptor::new(
+                    "new",
+                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Bool),
+                    Some(Value::Bool(false))
+                );
+
+                parameters.push(path_parameter);
+                parameters.push(append_parameter);
+                parameters.push(create_parameter);
+                parameters.push(new_parameter);
+
+                let builder = CoreModelBuilder::new(FileWriterModel::new);
+
+                let descriptor = CoreModelDescriptor::new(
+                    Identifier::new(Root::Core,
+                        vec![
+                            "fs".to_string(),
+                            "direct".to_string(),
+                        ],
+                        "FileWriter"),
+                    parameters,
+                    Box::new(builder)
+                );
+
+                let rc_descriptor = Arc::new(descriptor);
+                rc_descriptor.set_autoref(&rc_descriptor);
+
+                rc_descriptor
+            };
+        }
+
+        Arc::clone(&DESCRIPTOR)
+    }
+
     pub fn new(world: Arc<World>) -> Arc<dyn Model> {
         let model = Arc::new(Self {
             world,
@@ -116,61 +174,7 @@ impl FileWriterModel {
 impl Model for FileWriterModel {
     
     fn descriptor(&self) -> &Arc<CoreModelDescriptor> {
-        
-        lazy_static! {
-            static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-                let mut parameters = Vec::new();
-
-                let path_parameter = ParameterDescriptor::new(
-                    "path",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::String),
-                    None
-                );
-
-                let append_parameter = ParameterDescriptor::new(
-                    "append",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Bool),
-                    Some(Value::Bool(false))
-                );
-
-                let create_parameter = ParameterDescriptor::new(
-                    "create",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Bool),
-                    Some(Value::Bool(true))
-                );
-
-                let new_parameter = ParameterDescriptor::new(
-                    "new",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Bool),
-                    Some(Value::Bool(false))
-                );
-
-                parameters.push(path_parameter);
-                parameters.push(append_parameter);
-                parameters.push(create_parameter);
-                parameters.push(new_parameter);
-
-                let builder = CoreModelBuilder::new(FileWriterModel::new);
-
-                let descriptor = CoreModelDescriptor::new(
-                    Identifier::new(Root::Core,
-                        vec![
-                            "fs".to_string(),
-                            "direct".to_string(),
-                        ],
-                        "FileWriter"),
-                    parameters,
-                    Box::new(builder)
-                );
-
-                let rc_descriptor = Arc::new(descriptor);
-                rc_descriptor.set_autoref(&rc_descriptor);
-
-                rc_descriptor
-            };
-        }
-
-        &DESCRIPTOR
+        self.descriptor()
     }
 
     fn set_id(&self, id: ModelId) {

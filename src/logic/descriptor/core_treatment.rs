@@ -1,6 +1,6 @@
 
 use std::collections::HashMap;
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Weak, RwLock};
 use std::iter::FromIterator;
 use super::identified::Identified;
 use super::identifier::Identifier;
@@ -22,7 +22,7 @@ pub struct CoreTreatment {
     inputs: HashMap<String, Input>,
     outputs: HashMap<String, Output>,
     builder: Arc<Box<dyn Builder>>,
-    auto_reference: Weak<Self>,
+    auto_reference: RwLock<Weak<Self>>,
 }
 
 impl CoreTreatment {
@@ -34,12 +34,12 @@ impl CoreTreatment {
             inputs: HashMap::from_iter(inputs.iter().map(|i| (i.name().to_string(), i.clone()))),
             outputs: HashMap::from_iter(outputs.iter().map(|o| (o.name().to_string(), o.clone()))),
             builder: Arc::new(builder),
-            auto_reference: Weak::new(),
+            auto_reference: RwLock::new(Weak::new()),
         }
     }
 
-    pub fn set_autoref(&mut self, reference: &Arc<Self>) {
-        self.auto_reference = Arc::downgrade(reference);
+    pub fn set_autoref(&self, reference: &Arc<Self>) {
+        *self.auto_reference.write().unwrap() = Arc::downgrade(reference);
     }
 
 }
@@ -57,7 +57,7 @@ impl Parameterized for CoreTreatment {
     }
 
     fn as_parameterized(&self) -> Arc<dyn Parameterized> {
-        self.auto_reference.upgrade().unwrap()
+        self.auto_reference.read().unwrap().upgrade().unwrap()
     }
 }
 
