@@ -30,23 +30,7 @@ pub struct WriteFileTreatment {
 
 impl WriteFileTreatment {
 
-    pub fn new(world: Arc<World>) -> Arc<dyn Treatment> {
-        let treatment = Arc::new(Self {
-            world,
-            file_writer: RwLock::new(None),
-            data_transmitters: RwLock::new(Vec::new()),
-            auto_reference: RwLock::new(Weak::new()),
-        });
-
-        *treatment.auto_reference.write().unwrap() = Arc::downgrade(&treatment);
-
-        treatment
-    }
-}
-
-impl Treatment for WriteFileTreatment {
-
-    fn descriptor(&self) -> &Arc<CoreTreatmentDescriptor> {
+    pub fn descriptor() -> Arc<CoreTreatmentDescriptor> {
 
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
@@ -78,7 +62,27 @@ impl Treatment for WriteFileTreatment {
             };
         }
 
-        &DESCRIPTOR
+        Arc::clone(&DESCRIPTOR)
+    }
+
+    pub fn new(world: Arc<World>) -> Arc<dyn Treatment> {
+        let treatment = Arc::new(Self {
+            world,
+            file_writer: RwLock::new(None),
+            data_transmitters: RwLock::new(Vec::new()),
+            auto_reference: RwLock::new(Weak::new()),
+        });
+
+        *treatment.auto_reference.write().unwrap() = Arc::downgrade(&treatment);
+
+        treatment
+    }
+}
+
+impl Treatment for WriteFileTreatment {
+
+    fn descriptor(&self) -> &Arc<CoreTreatmentDescriptor> {
+        self.descriptor()
     }
 
     fn set_parameter(&self, param: &str, value: &Value) {
