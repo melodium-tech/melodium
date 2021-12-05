@@ -2,7 +2,8 @@
 use std::fmt::Debug;
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock};
-use futures::future::{JoinAll, join_all};
+use futures::future::{BoxFuture, JoinAll, join_all};
+use async_std::task::block_on;
 use super::future::*;
 use super::model::{Model, ModelId};
 use super::transmitter::Transmitter;
@@ -36,9 +37,8 @@ impl Debug for World {
 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("World")
-         .field("auto_reference", &self.auto_reference)
-         .field("models", &self.models)
-         .field("sources", &self.sources)
+         .field("models", &self.models.read().unwrap().len())
+         .field("sources", &self.sources.read().unwrap().len())
          .field("errors", &self.errors)
          .field("main_build_id", &self.main_build_id)
          .field("continuous_tasks", &self.continuous_tasks.read().unwrap().len())
@@ -204,5 +204,18 @@ impl World {
         borrowed_tracks.push(track);
 
         inputs
+    }
+
+    pub fn live(&self) {
+
+        let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
+
+        let continuum = join_all(borrowed_continuous_tasks.iter_mut());
+
+        block_on(continuum);
+    }
+
+    async fn run_track(&self) {
+        
     }
 }

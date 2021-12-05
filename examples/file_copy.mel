@@ -9,7 +9,7 @@ sequence Main()
     model FileWriter: FileWriter(path="/tmp/output")
 {
     Reader: ReadFile[reader=FileReader]()
-    Writer: WriteFile[write=FileWriter]()
+    Writer: WriteFile[writer=FileWriter]()
     
     Reader.data -> Writer.data
 }

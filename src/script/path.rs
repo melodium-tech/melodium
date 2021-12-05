@@ -67,8 +67,8 @@ impl Path {
         };
 
         Self {
-            path,
             root,
+            path: path.iter().skip(1).map(|s| s.clone()).collect()
         }
     }
 

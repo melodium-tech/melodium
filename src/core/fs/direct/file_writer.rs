@@ -160,7 +160,7 @@ impl FileWriterModel {
 
             }
 
-            if let Err(write_err) =writer.flush().await {
+            if let Err(write_err) = writer.flush().await {
 
                 // Todo handle error
                 panic!("Writing (flush) error: {}", write_err)
@@ -221,7 +221,7 @@ impl Model for FileWriterModel {
     fn initialize(&self) {
 
         let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
-        let future_write = async move { auto_self.write().await };
+        let future_write = Box::pin(async move { auto_self.write().await });
 
         self.world.add_continuous_task(Box::new(future_write));
     }

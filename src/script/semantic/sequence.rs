@@ -368,15 +368,21 @@ impl Sequence {
                 DeclaredModelRefersTo::Use(u) => {
                     u.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().identifier.as_ref().unwrap().clone()
                 },
-                // Not possible to have model not based on use
+                DeclaredModelRefersTo::InstanciedModel(im) => {
+                    im.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().type_identifier.as_ref().unwrap().clone()
+                },
                 _ => panic!("{:?}", &borrowed_model.refers)
             };
+
+            println!("{:?}", model_identifier);
 
             let core_model_descriptor = if let Some(model_descriptor) = collection.models.get(&model_identifier) {
                 model_descriptor.core_model()
             }
             else {
-                return Err(ScriptError::semantic("Model \"".to_string() + &model_identifier.to_string() + "\" does not exist.", borrowed_model.text.as_ref().unwrap().name.position))
+                println!("{:?}", borrowed_model);
+                // Todo manage better position depending on Use/InstanciedModel case (currently borrowed_model.text.as_ref().unwrap().name.position only works for Use case)
+                return Err(ScriptError::semantic("Model \"".to_string() + &model_identifier.to_string() + "\" does not exist.", self.text.name.position))
             };
 
             descriptor.add_model(&borrowed_model.name, &core_model_descriptor)
@@ -430,14 +436,14 @@ impl Sequence {
         let descriptor = collections.treatments.get(self.identifier.as_ref().unwrap()).unwrap().clone();
 
         let rc_designer = SequenceDesigner::new(collections, &descriptor.downcast_arc::<SequenceTreatmentDescriptor>().unwrap());
-        let mut designer = rc_designer.write().unwrap();
+        //let mut designer = rc_designer.write().unwrap();
 
         // Models instanciations
         for rc_instancied_model in &self.instancied_models {
 
             let instancied_model = rc_instancied_model.read().unwrap();
 
-            let instanciation_designer = designer.add_model_instanciation(
+            let instanciation_designer = rc_designer.write().unwrap().add_model_instanciation(
                     instancied_model.type_identifier.as_ref().unwrap(),
                     &instancied_model.name
                 ).unwrap();
@@ -450,7 +456,7 @@ impl Sequence {
 
             let treatment = rc_treatment.read().unwrap();
 
-            let treatment_designer = designer.add_treatment(
+            let treatment_designer = rc_designer.write().unwrap().add_treatment(
                     treatment.type_identifier.as_ref().unwrap(),
                     &treatment.name
                 ).unwrap();
@@ -463,11 +469,11 @@ impl Sequence {
 
             let connection = rc_connection.read().unwrap();
 
-            connection.make_design(&mut designer).unwrap();
+            connection.make_design(&mut rc_designer.write().unwrap()).unwrap();
         }
 
         
-        designer.register().unwrap();
+        rc_designer.read().unwrap().register().unwrap();
 
         Ok(())
     }

@@ -194,7 +194,7 @@ impl Model for FileReaderModel {
     fn initialize(&self) {
 
         let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
-        let future_read = async move { auto_self.read().await };
+        let future_read = Box::pin(async move { auto_self.read().await });
 
         self.world.add_continuous_task(Box::new(future_read));
     }

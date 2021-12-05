@@ -19,6 +19,10 @@ impl<T: IdentifiedDescriptor + Send + Sync + ?Sized> Collection<T> {
         }
     }
 
+    pub fn identifiers(&self) -> Vec<IdentifierDescriptor> {
+        self.descriptors.keys().map(|i| i.clone()).collect()
+    }
+
     pub fn insert(&mut self, descriptor: &Arc<T>) {
         self.descriptors.insert(descriptor.identifier().clone(), Arc::clone(descriptor));
     }
