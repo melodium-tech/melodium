@@ -1,6 +1,7 @@
 
 //! Module dedicated to AssignativeElement trait definition.
 
+use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 
 use super::common::Node;
@@ -16,7 +17,7 @@ use super::treatment::Treatment;
 /// An assignative element is a block or component which assign value to parameters.
 /// An assignative element also always represent a subsitute for the declarative element
 /// it belongs to.
-pub trait AssignativeElement : Node {
+pub trait AssignativeElement : Node + Debug {
 
     /// Returns a reference on the structure.
     fn assignative_element(&self) -> AssignativeElementType;
@@ -36,6 +37,7 @@ pub trait AssignativeElement : Node {
 }
 
 /// Enum listing possible declarative elements.
+#[derive(Debug)]
 pub enum AssignativeElementType<'a> {
     Model(&'a Model),
     InstanciedModel(&'a InstanciedModel),

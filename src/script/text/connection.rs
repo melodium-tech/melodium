@@ -8,7 +8,7 @@ use super::word::{expect_word_kind, Kind, Word};
 /// Structure describing a textual connection.
 /// 
 /// It owns starting point and ending point names, and the names of data associated with, if any.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Connection {
     pub name_start_point: PositionnedString,
     pub name_data_out: Option<PositionnedString>,

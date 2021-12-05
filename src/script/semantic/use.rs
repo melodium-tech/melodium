@@ -14,6 +14,7 @@ use super::script::Script;
 /// Structure managing and describing semantic of a use.
 /// 
 /// It owns the whole [text use](../../text/use/struct.Use.html).
+#[derive(Debug)]
 pub struct Use {
     pub text: TextUse,
 

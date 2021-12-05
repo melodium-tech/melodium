@@ -8,6 +8,7 @@ use super::path::{Path, PathRoot};
 use super::error::ScriptError;
 use crate::logic::collection_pool::CollectionPool;
 use crate::core::core_collection::core_collection;
+use crate::logic::descriptor::TreatmentDescriptor;
 
 /// Manage script instance.
 /// 
@@ -57,11 +58,21 @@ impl Instance {
 
         self.manage_file(Path::new(main), self.main_path.clone());
 
+        println!("{}", self.files.len());
+
         while self.manage_inclusions() {}
 
         self.make_descriptors();
 
         self.make_designs();
+    }
+
+    pub fn collection(&self) -> &Option<Arc<CollectionPool>> {
+        &self.logic_collection
+    }
+
+    pub fn errors(&self) -> &Vec<ScriptError> {
+        &self.errors
     }
 
     /// Manage inclusions of files in the instance.
@@ -119,11 +130,13 @@ impl Instance {
             let mut file = File::new(path, absolute_path);
 
             let reading_result = file.read(); // TODO: Manage panic
+            println!("{:?}", reading_result);
             if reading_result.is_err() {
-                panic!(reading_result);
+                panic!("{:?}", reading_result);
             }
 
             let parsing_result = file.parse();
+            println!("{:?}", parsing_result);
             if parsing_result.is_err() {
                 self.errors.push(parsing_result.unwrap_err());
             }

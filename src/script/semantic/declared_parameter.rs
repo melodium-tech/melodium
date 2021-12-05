@@ -18,6 +18,7 @@ use super::value::Value;
 /// It is used by [Sequences](../sequence/struct.Sequence.html) and [Models](../model/struct.Model.html).
 /// 
 /// It owns the whole [text parameter](../../text/parameter/struct.Parameter.html).
+#[derive(Debug)]
 pub struct DeclaredParameter {
     pub text: TextParameter,
 

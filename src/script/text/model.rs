@@ -11,7 +11,7 @@ use super::parameter::Parameter;
 /// Structure describing a textual model.
 /// 
 /// It owns a name, parameters, and a type (model type, not [data type](../type/struct.Type.html)).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Model {
     pub name: PositionnedString,
     pub parameters: Vec<Parameter>,

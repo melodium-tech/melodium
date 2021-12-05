@@ -26,6 +26,7 @@ use super::connection::Connection;
 /// Structure managing and describing semantic of a sequence.
 /// 
 /// It owns the whole [text sequence](../../text/sequence/struct.Sequence.html).
+#[derive(Debug)]
 pub struct Sequence {
     pub text: TextSequence,
 
@@ -368,7 +369,7 @@ impl Sequence {
                     u.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().identifier.as_ref().unwrap().clone()
                 },
                 // Not possible to have model not based on use
-                _ => panic!()
+                _ => panic!("{:?}", &borrowed_model.refers)
             };
 
             let core_model_descriptor = if let Some(model_descriptor) = collection.models.get(&model_identifier) {

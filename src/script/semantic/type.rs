@@ -99,6 +99,7 @@ impl TypeName {
 /// 
 /// Unlike most other elements of the semantic module, it does _not_ implement [Node trait](../common/trait.Node.html), because a type is considered as a property of its owner, not a children.
 /// Also, it is a build-in element of Mélodium language so don't have any references to manage.
+#[derive(Debug)]
 pub struct Type {
     pub text: TextType,
 

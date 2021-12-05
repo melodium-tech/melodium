@@ -14,6 +14,7 @@ use super::r#type::Type;
 /// Structure managing and describing semantic of an output.
 /// 
 /// It owns the whole [text parameter](../../text/parameter/struct.Parameter.html).
+#[derive(Debug)]
 pub struct Output {
     pub text: TextParameter,
 

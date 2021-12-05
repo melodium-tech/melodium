@@ -9,7 +9,7 @@ use super::word::{expect_word_kind, Kind, Word};
 /// Structure describing a textual requirement.
 /// 
 /// It owns the requirement name.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Requirement {
     pub name: PositionnedString
 }

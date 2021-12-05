@@ -10,6 +10,7 @@ use crate::script::path::Path;
 /// Semantic tree.
 /// 
 /// Currently holds the root script, which itself owns all other elements.
+#[derive(Debug)]
 pub struct Tree {
     pub script: Arc<RwLock<Script>>,
 }
@@ -63,7 +64,7 @@ pub trait Node {
 }
 
 /// Structure holding name and weak-counted reference to another element.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Reference<T> {
     pub name: String,
     pub reference: Option<Weak<RwLock<T>>>,

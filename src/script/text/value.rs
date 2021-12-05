@@ -9,7 +9,7 @@ use super::word::{expect_word, expect_word_kind, Kind, Word};
 /// Enum describing a textual value.
 /// 
 /// It sets what kind of value is represented, as well as its associated text.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Value {
     /// `true` or `false`.
     Boolean(PositionnedString),

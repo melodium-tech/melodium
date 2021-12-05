@@ -16,6 +16,7 @@ use super::treatment::Treatment;
 /// Structure managing and describing semantic of a connection.
 /// 
 /// It owns the whole [text connection](../../text/connection/struct.Connection.html).
+#[derive(Debug)]
 pub struct Connection {
     pub text: TextConnection,
 

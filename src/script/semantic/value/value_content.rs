@@ -8,6 +8,7 @@ use super::super::declared_parameter::DeclaredParameter;
 use super::super::requirement::Requirement;
 
 /// Enum holding value or reference designating the value.
+#[derive(Debug)]
 pub enum ValueContent {
     Boolean(bool),
     Unsigned(u128),

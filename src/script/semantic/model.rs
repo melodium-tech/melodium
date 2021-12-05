@@ -24,6 +24,7 @@ use super::r#use::Use;
 /// Structure managing and describing semantic of a model.
 /// 
 /// It owns the whole [text model](../../text/model/struct.Model.html).
+#[derive(Debug)]
 pub struct Model {
     pub text: TextModel,
 

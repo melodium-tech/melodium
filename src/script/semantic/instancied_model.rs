@@ -21,6 +21,7 @@ use super::declarative_element::DeclarativeElement;
 /// Structure managing and describing semantic of a model instanciation.
 /// 
 /// It owns the whole [text instanciation](../../text/instanciation/struct.Instanciation.html).
+#[derive(Debug)]
 pub struct InstanciedModel {
     pub text: TextInstanciation,
 
@@ -37,6 +38,7 @@ pub struct InstanciedModel {
 /// 
 /// This is a convenience enum, as a model instanciation may refer either on a [Use](../use/struct.Use.html) or a [Model](../model/struct.Model.html).
 /// The `Unknown` variant is aimed to hold a reference-to-nothing, as long as `make_references() hasn't been called.
+#[derive(Debug)]
 pub enum RefersTo {
     Unkown(Reference<()>),
     Use(Reference<Use>),

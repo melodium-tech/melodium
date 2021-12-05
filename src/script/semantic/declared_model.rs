@@ -18,6 +18,7 @@ use super::instancied_model::InstanciedModel;
 /// 
 /// It owns optionnally the whole [text parameter](../../text/parameter/struct.Parameter.html),
 /// depending on explicit or implicit declaration.
+#[derive(Debug)]
 pub struct DeclaredModel {
     pub text: Option<TextParameter>,
 
@@ -31,7 +32,7 @@ pub struct DeclaredModel {
 /// 
 /// This is a convenience enum, as a declared model type may refer either on a [Use](../use/struct.Use.html) or an [InstanciedModel](../instancied_model/struct.InstanciedModel.html).
 /// The `Unknown` variant is aimed to hold a reference-to-nothing, as long as `make_references() hasn't been called.
-
+#[derive(Debug)]
 pub enum RefersTo {
     Unkown(Reference<()>),
     Use(Reference<Use>),

@@ -9,7 +9,7 @@ use super::word::{expect_word_kind, Kind, Word};
 /// Structure describing a textual type.
 /// 
 /// It owns a name, and a flow or structure, if any.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Type {
     pub first_level_structure: Option<PositionnedString>,
     pub second_level_structure: Option<PositionnedString>,

@@ -21,6 +21,7 @@ use super::declarative_element::DeclarativeElement;
 /// Structure managing and describing semantic of a treatment.
 /// 
 /// It owns the whole [text instanciation](../../text/instanciation/struct.Instanciation.html).
+#[derive(Debug)]
 pub struct Treatment {
     pub text: TextTreatment,
 
@@ -38,6 +39,7 @@ pub struct Treatment {
 /// 
 /// This is a convenience enum, as a treatment type may refer either on a [Use](../use/struct.Use.html) or a [Sequence](../sequence/struct.Sequence.html).
 /// The `Unknown` variant is aimed to hold a reference-to-nothing, as long as `make_references() hasn't been called.
+#[derive(Debug)]
 pub enum RefersTo {
     Unkown(Reference<()>),
     Use(Reference<Use>),

@@ -13,6 +13,7 @@ use super::sequence::Sequence;
 /// Structure managing and describing semantic of a requirement.
 /// 
 /// It owns the whole [text requirement](../../text/requirement/struct.Requirement.html).
+#[derive(Debug)]
 pub struct Requirement {
     pub text: TextRequirement,
 

@@ -12,7 +12,7 @@ use super::parameter::Parameter;
 /// 
 /// This match the conceptual syntax of calling a model, sequence, or treatment.
 /// It owns a name, a type (treatment or model type, not [data type](../type/struct.Type.html)), and list of [parameters](../parameter/struct.Parameter.html).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Instanciation {
     pub name: PositionnedString,
     pub r#type: PositionnedString,

@@ -17,6 +17,7 @@ use super::value::Value;
 /// It is used by [Treatments](../treatment/struct.Treatment.html) and [Models](../model/struct.Model.html).
 /// 
 /// It owns the whole [text parameter](../../text/parameter/struct.Parameter.html).
+#[derive(Debug)]
 pub struct AssignedParameter {
     pub text: TextParameter,
 

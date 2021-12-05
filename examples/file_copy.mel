@@ -1,0 +1,17 @@
+
+use core/fs/direct::FileReader
+use core/fs/direct::FileWriter
+use core/fs/direct::ReadFile
+use core/fs/direct::WriteFile
+
+sequence Main()
+    model FileReader: FileReader(path="/tmp/input")
+    model FileWriter: FileWriter(path="/tmp/output")
+{
+    Reader: ReadFile[reader=FileReader]()
+    Writer: WriteFile[write=FileWriter]()
+    
+    Reader.data -> Writer.data
+}
+
+

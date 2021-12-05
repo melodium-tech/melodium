@@ -16,6 +16,7 @@ use super::sequence::Sequence;
 /// Matches the concept of a script file content.
 /// It owns the whole [text script](../../text/script/struct.Script.html), as well as references to semantical contained [Uses](../use/struct.Use.html), [Models](../model/struct.Model.html), and [Sequences](../sequence/struct.Sequence.html).
 /// There is a logical coherence equivalent to the one expressed in the text script, but this coherence, as in the text, may be _incomplete_ or _broken_.
+#[derive(Debug)]
 pub struct Script {
     pub text: TextScript,
 

@@ -17,6 +17,7 @@ use super::declared_model::DeclaredModel;
 /// Structure managing and describing semantic of an assigned model.
 /// 
 /// It owns the whole [text parameter](../../text/parameter/struct.Parameter.html).
+#[derive(Debug)]
 pub struct AssignedModel {
     pub text: TextParameter,
 

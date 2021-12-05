@@ -12,7 +12,7 @@ use super::value::Value;
 /// Structure describing a textual parameter.
 /// 
 /// It owns a name, and optionnal [Type](../type/struct.Type.html) and/or [Value](../value/enum.Value.html). There is no logical dependency between them at this point.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Parameter {
     pub name: PositionnedString,
     pub r#type: Option<Type>,

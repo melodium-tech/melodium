@@ -1,6 +1,7 @@
 
 //! Module dedicated to DeclarativeElement trait definition.
 
+use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 
 use super::common::Node;
@@ -11,7 +12,7 @@ use super::sequence::Sequence;
 /// Trait for elements that are declarative blocks.
 /// 
 /// A declarative element is a block which owns declared parameters.
-pub trait DeclarativeElement : Node {
+pub trait DeclarativeElement : Node + Debug {
 
     /// Returns a reference on the structure.
     fn declarative_element(&self) -> DeclarativeElementType;
@@ -21,6 +22,7 @@ pub trait DeclarativeElement : Node {
 }
 
 /// Enum listing possible declarative elements.
+#[derive(Debug)]
 pub enum DeclarativeElementType<'a> {
     Model(&'a Model),
     Sequence(&'a Sequence)

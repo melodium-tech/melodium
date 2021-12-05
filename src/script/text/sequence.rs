@@ -14,7 +14,7 @@ use super::connection::Connection;
 /// Structure describing a textual sequence.
 /// 
 /// It owns the name, and the attributes of the sequence, as well as its internal treatments and connections. There is no logical dependency between them at this point.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Sequence {
     pub name: PositionnedString,
     pub configuration: Vec<Parameter>,
