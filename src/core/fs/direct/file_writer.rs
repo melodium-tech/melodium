@@ -139,6 +139,7 @@ impl FileWriterModel {
 
         let mut open_options = OpenOptions::new();
         open_options
+            .write(true)
             .append(self.append())
             .create(self.create())
             .create_new(self.create_new());
@@ -154,6 +155,8 @@ impl FileWriterModel {
             // We don't handle the recv_error case as it means everything is empty and closed
             while let Ok(data) = receiver.recv().await {
 
+                print!("{} ", data);
+
                 if let Err(write_err) = writer.write(&[data]).await {
 
                     // Todo handle error
@@ -167,6 +170,9 @@ impl FileWriterModel {
                 // Todo handle error
                 panic!("Writing (flush) error: {}", write_err)
             }
+        }
+        else if let Err(error) = open_result {
+            panic!("Unable to write file: {}", error)
         }
 
         // Todo manage failures

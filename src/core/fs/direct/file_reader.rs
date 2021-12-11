@@ -145,7 +145,8 @@ impl FileReaderModel {
             let mut contextes = HashMap::new();
             contextes.insert("File".to_string(), file_context);
 
-            let inputs = self.world.create_track(self.id.read().unwrap().unwrap(), "read", contextes, None);
+            let model_id = self.id.read().unwrap().unwrap();
+            let inputs = self.world.create_track(model_id, "read", contextes, None).await;
             let inputs_to_fill = inputs.get("data").unwrap();
 
             let mut bytes = file.bytes();
@@ -153,12 +154,22 @@ impl FileReaderModel {
 
                 let byte = possible_byte.unwrap();
 
+                //println!("Inputs: {}", inputs_to_fill.len());
+                print!("{} ", byte);
+
                 for transmitter in inputs_to_fill {
                     match transmitter {
                         Transmitter::Byte(sender) => sender.send(byte).await.unwrap(),
                         _ => panic!("Byte sender expected!")
                     }
                 }
+            }
+
+            for transmitter in inputs_to_fill {
+                match transmitter {
+                    Transmitter::Byte(sender) => sender.close(),
+                    _ => panic!("Byte sender expected!")
+                };
             }
         }
 

@@ -1,9 +1,10 @@
 
 use std::fmt::Debug;
 use std::collections::HashMap;
-use std::sync::{Arc, Weak, RwLock};
-use futures::future::{BoxFuture, JoinAll, join_all};
+use std::sync::{Arc, Weak, RwLock, Mutex};
+use futures::future::{JoinAll, join, join_all};
 use async_std::task::block_on;
+use async_std::channel::*;
 use super::future::*;
 use super::model::{Model, ModelId};
 use super::transmitter::Transmitter;
@@ -20,6 +21,20 @@ struct SourceEntry {
     pub id: BuildId,
 }
 
+struct Track {
+    pub id: u64,
+    pub future: JoinAll<TrackFuture>,
+}
+
+impl Track {
+    pub fn new(id: u64, future: JoinAll<TrackFuture>) -> Self {
+        Self {
+            id,
+            future,
+        }
+    }
+}
+
 pub struct World {
 
     auto_reference: RwLock<Weak<Self>>,
@@ -31,7 +46,11 @@ pub struct World {
     main_build_id: RwLock<BuildId>,
 
     continuous_tasks: RwLock<Vec<ContinuousFuture>>,
-    tracks: RwLock<Vec<JoinAll<TrackFuture>>>,
+
+    tracks_counter: Mutex<u64>,
+    tracks_sender: Sender<Track>,
+    tracks_receiver: Receiver<Track>,
+    //tracks: RwLock<Vec<JoinAll<TrackFuture>>>,
 }
 
 impl Debug for World {
@@ -43,7 +62,7 @@ impl Debug for World {
          .field("errors", &self.errors)
          .field("main_build_id", &self.main_build_id)
          .field("continuous_tasks", &self.continuous_tasks.read().unwrap().len())
-         .field("tracks", &self.tracks.read().unwrap().len())
+         //.field("tracks", &self.tracks.read().unwrap().len())
          .finish()
     }
 }
@@ -51,6 +70,9 @@ impl Debug for World {
 impl World {
 
     pub fn new() -> Arc<Self> {
+
+        let tracks_channel = unbounded();
+
         let world = Arc::new(Self {
             auto_reference: RwLock::new(Weak::default()),
             models: RwLock::new(Vec::new()),
@@ -58,7 +80,10 @@ impl World {
             errors: RwLock::new(Vec::new()),
             main_build_id: RwLock::new(0),
             continuous_tasks: RwLock::new(Vec::new()),
-            tracks: RwLock::new(Vec::new()),
+            tracks_counter: Mutex::new(0),
+            tracks_sender: tracks_channel.0,
+            tracks_receiver: tracks_channel.1,
+            //tracks: RwLock::new(Vec::new()),
         });
 
         *world.auto_reference.write().unwrap() = Arc::downgrade(&world);
@@ -170,42 +195,49 @@ impl World {
         borrowed_continuous_tasks.push(task);
     }
 
-    pub fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>) -> HashMap<String, Vec<Transmitter>> {
+    pub async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>) -> HashMap<String, Vec<Transmitter>> {
 
-        let borrowed_sources = self.sources.read().unwrap();
+        let track_id;
+        {
+            let mut counter = self.tracks_counter.lock().unwrap();
+            track_id = *counter;
+            *counter = track_id + 1;
+        }
 
-        let model_sources = borrowed_sources.get(&id).unwrap();
-
-        println!("Model #{} source '{}'", id, source);
-        println!("{:?}", model_sources.keys());
-        let entries = model_sources.get(source).unwrap();
-
-        let mut borrowed_tracks = self.tracks.write().unwrap();
-
-        let mut contextual_environment = ContextualEnvironment::new(
-            Weak::upgrade(&self.auto_reference.read().unwrap()).unwrap(),
-            borrowed_tracks.len() as u64
-        );
-
-        contexts.iter().for_each(|(name, context)| contextual_environment.add_context(name, context.clone()));
-        
         let mut track_futures: Vec<TrackFuture> = Vec::new();
         let mut inputs: HashMap<String, Vec<Transmitter>> = HashMap::new();
 
-        for entry in entries {
+        {
+            let borrowed_sources = self.sources.read().unwrap();
 
-            let build_result = entry.descriptor.builder().dynamic_build(entry.id, &contextual_environment).unwrap();
+            let model_sources = borrowed_sources.get(&id).unwrap();
 
-            track_futures.extend(build_result.prepared_futures);
+            println!("Model #{} source '{}'", id, source);
+            println!("{:?}", model_sources.keys());
+            let entries = model_sources.get(source).unwrap();
 
-            for (input_name, input_transmitters) in build_result.feeding_inputs {
+            let mut contextual_environment = ContextualEnvironment::new(
+                Weak::upgrade(&self.auto_reference.read().unwrap()).unwrap(),
+                track_id
+            );
 
-                inputs.entry(input_name).or_default().extend(input_transmitters);
+            contexts.iter().for_each(|(name, context)| contextual_environment.add_context(name, context.clone()));
+
+            for entry in entries {
+
+                let build_result = entry.descriptor.builder().dynamic_build(entry.id, &contextual_environment).unwrap();
+
+                track_futures.extend(build_result.prepared_futures);
+
+                for (input_name, input_transmitters) in build_result.feeding_inputs {
+
+                    inputs.entry(input_name).or_default().extend(input_transmitters);
+                }
             }
         }
 
-        let track = join_all(track_futures);
-        borrowed_tracks.push(track);
+        let track = Track::new(track_id, join_all(track_futures));
+        self.tracks_sender.send(track).await.unwrap();
 
         inputs
     }
@@ -216,10 +248,14 @@ impl World {
 
         let continuum = join_all(borrowed_continuous_tasks.iter_mut());
 
-        block_on(continuum);
+        block_on(join(self.run_track(), continuum));
     }
 
     async fn run_track(&self) {
         
+        while let Ok(track) = self.tracks_receiver.recv().await {
+
+            let _result = track.future.await;
+        }
     }
 }
