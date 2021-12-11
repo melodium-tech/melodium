@@ -22,6 +22,7 @@ pub struct SequenceTreatment {
     inputs: HashMap<String, Input>,
     outputs: HashMap<String, Output>,
     requirements: HashMap<String, Requirement>,
+    source_from: HashMap<Arc<CoreModel>, Vec<String>>,
     builder: RwLock<Option<Arc<Box<dyn Builder>>>>,
     auto_reference: RwLock<Weak<Self>>,
 }
@@ -35,6 +36,7 @@ impl SequenceTreatment {
             inputs: HashMap::new(),
             outputs: HashMap::new(),
             requirements: HashMap::new(),
+            source_from: HashMap::new(),
             builder: RwLock::new(None),
             auto_reference: RwLock::new(Weak::new()),
         }
@@ -98,6 +100,15 @@ impl Treatment for SequenceTreatment {
 
     fn requirements(&self) -> &HashMap<String, Requirement> {
         &self.requirements
+    }
+
+    fn source_from(&self) -> &HashMap<Arc<CoreModel>, Vec<String>> {
+        // Always empty
+        &self.source_from
+    }
+
+    fn as_buildable(&self) -> Arc<dyn Buildable> {
+        self.auto_reference.read().unwrap().upgrade().unwrap()
     }
 }
 

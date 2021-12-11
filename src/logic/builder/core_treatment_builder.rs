@@ -9,7 +9,7 @@ use crate::executive::environment::{ContextualEnvironment, GenesisEnvironment};
 use crate::logic::builder::*;
 use async_std::future::Future;
 use crate::executive::result_status::ResultStatus;
-use crate::logic::descriptor::{ParameterDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor};
+use crate::logic::descriptor::{ParameterDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor, BuildableDescriptor};
 use std::sync::{Arc, Weak, RwLock};
 use crate::logic::error::LogicError;
 
@@ -38,6 +38,7 @@ impl BuildSample {
 pub struct CoreTreatmentBuilder {
 
     new_treatment: fn(Arc<World>) -> Arc<dyn Treatment>,
+    descriptor: Weak<dyn TreatmentDescriptor>,
 
     builds: RwLock<Vec<BuildSample>>,
     building_inputs: RwLock<HashMap<(BuildId, u64), FeedingInputs>>
@@ -45,9 +46,10 @@ pub struct CoreTreatmentBuilder {
 
 impl CoreTreatmentBuilder {
 
-    pub fn new(new_treatment: fn(Arc<World>) -> Arc<dyn Treatment>) -> Self {
+    pub fn new(descriptor: &Arc<dyn TreatmentDescriptor>, new_treatment: fn(Arc<World>) -> Arc<dyn Treatment>) -> Self {
         Self {
             new_treatment,
+            descriptor: Arc::downgrade(descriptor),
             builds: RwLock::new(Vec::new()),
             building_inputs: RwLock::new(HashMap::new()),
         }
@@ -63,6 +65,17 @@ impl Builder for CoreTreatmentBuilder {
 
         let mut builds_writer = self.builds.write().unwrap();
         let idx = builds_writer.len() as BuildId;
+
+        let rc_descriptor = self.descriptor.upgrade().unwrap();
+        for (model_descriptor, sources) in rc_descriptor.source_from() {
+
+            let (_, matching_model) = environment.models().iter().find(|(_,model)| &model.descriptor() == model_descriptor).unwrap();
+
+            for source in sources {;
+                environment.world().add_source(matching_model.id().unwrap(), source, self.descriptor.upgrade().unwrap().as_buildable(), idx);
+            }
+            
+        }
 
         builds_writer.push(build_sample);
 
@@ -132,7 +145,8 @@ impl Builder for CoreTreatmentBuilder {
 
     fn check_dynamic_build(&self, build: BuildId, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
         
-        todo!()
+        //todo!()
+        Some(CheckBuildResult::new())
     }
 
     fn check_give_next(&self, within_build: BuildId, for_label: String, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {

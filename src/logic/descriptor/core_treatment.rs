@@ -13,6 +13,9 @@ use super::parameter::Parameter;
 use super::requirement::Requirement;
 use super::treatment::Treatment;
 use super::super::builder::Builder;
+use super::super::builder::CoreTreatmentBuilder;
+use crate::executive::world::World;
+use crate::executive::treatment::Treatment as ExecutiveTreatment;
 
 #[derive(Debug)]
 pub struct CoreTreatment {
@@ -21,25 +24,33 @@ pub struct CoreTreatment {
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
     outputs: HashMap<String, Output>,
-    builder: Arc<Box<dyn Builder>>,
+    source_from: HashMap<Arc<CoreModel>, Vec<String>>,
+    builder: RwLock<Option<Arc<Box<dyn Builder>>>>,
     auto_reference: RwLock<Weak<Self>>,
 }
 
+//, builder: Box<dyn Builder>
+
 impl CoreTreatment {
-    pub fn new(identifier: Identifier, models: Vec<(String, Arc<CoreModel>)>, parameters: Vec<Parameter>, inputs: Vec<Input>, outputs: Vec<Output>, builder: Box<dyn Builder>) -> Self {
-        Self {
+    pub fn new(identifier: Identifier, models: Vec<(String, Arc<CoreModel>)>, source_from: HashMap<Arc<CoreModel>, Vec<String>>, parameters: Vec<Parameter>, inputs: Vec<Input>, outputs: Vec<Output>, new_treatment: fn(Arc<World>) -> Arc<dyn ExecutiveTreatment>) -> Arc<Self> {
+        let mut descriptor = Arc::new(Self{
             identifier,
             models: HashMap::from_iter(models.iter().map(|m| (m.0.to_string(), Arc::clone(&m.1)))),
             parameters: HashMap::from_iter(parameters.iter().map(|p| (p.name().to_string(), p.clone()))),
             inputs: HashMap::from_iter(inputs.iter().map(|i| (i.name().to_string(), i.clone()))),
             outputs: HashMap::from_iter(outputs.iter().map(|o| (o.name().to_string(), o.clone()))),
-            builder: Arc::new(builder),
+            source_from,
+            builder: RwLock::new(None),
             auto_reference: RwLock::new(Weak::new()),
-        }
-    }
+        });
 
-    pub fn set_autoref(&self, reference: &Arc<Self>) {
-        *self.auto_reference.write().unwrap() = Arc::downgrade(reference);
+        let rc_descriptor = Arc::clone(&descriptor);
+        let rc_descriptor_treatment: Arc<dyn Treatment> = Arc::clone(&(descriptor as Arc<dyn Treatment>));
+        *rc_descriptor.builder.write().unwrap() = Some(Arc::new(Box::new(CoreTreatmentBuilder::new(&rc_descriptor_treatment, new_treatment))));
+
+        *rc_descriptor.auto_reference.write().unwrap() = Arc::downgrade(&rc_descriptor);
+
+        rc_descriptor
     }
 
 }
@@ -64,7 +75,7 @@ impl Parameterized for CoreTreatment {
 impl Buildable for CoreTreatment {
 
     fn builder(&self) -> Arc<Box<dyn Builder>> {
-        Arc::clone(&self.builder)
+        Arc::clone(&self.builder.read().unwrap().as_ref().unwrap())
     }
 }
 
@@ -89,5 +100,13 @@ impl Treatment for CoreTreatment {
         }
 
         &EMPTY_REQUIREMENTS
+    }
+
+    fn source_from(&self) -> &HashMap<Arc<CoreModel>, Vec<String>> {
+        &self.source_from
+    }
+
+    fn as_buildable(&self) -> Arc<dyn Buildable> {
+        self.auto_reference.read().unwrap().upgrade().unwrap()
     }
 }

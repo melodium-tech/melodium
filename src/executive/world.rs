@@ -10,6 +10,7 @@ use super::transmitter::Transmitter;
 use super::environment::{ContextualEnvironment, GenesisEnvironment};
 use super::context::Context;
 use super::super::logic::descriptor::BuildableDescriptor;
+use super::super::logic::descriptor::ModelDescriptor;
 use super::super::logic::error::LogicError;
 use super::super::logic::builder::*;
 
@@ -68,10 +69,15 @@ impl World {
     pub fn add_model(&self, model: Arc<dyn Model>) -> ModelId {
         let mut models = self.models.write().unwrap();
 
+        let mut sources = HashMap::new();
+        for (name, _) in model.descriptor().sources() {
+            sources.insert(name.to_owned(), Vec::new());
+        }
+
         let id: ModelId = models.len() as u64;
         models.push(model);
 
-        self.sources.write().unwrap().insert(id, HashMap::new());
+        self.sources.write().unwrap().insert(id, sources);
 
         id
     }
@@ -81,10 +87,6 @@ impl World {
         let mut sources = self.sources.write().unwrap();
 
         let model_sources = sources.get_mut(&model_id).unwrap();
-
-        if !model_sources.contains_key(&name.to_string()) {
-            model_sources.insert(name.to_string(), Vec::new());
-        }
 
         let sources = model_sources.get_mut(&name.to_string()).unwrap();
 
@@ -174,6 +176,8 @@ impl World {
 
         let model_sources = borrowed_sources.get(&id).unwrap();
 
+        println!("Model #{} source '{}'", id, source);
+        println!("{:?}", model_sources.keys());
         let entries = model_sources.get(source).unwrap();
 
         let mut borrowed_tracks = self.tracks.write().unwrap();

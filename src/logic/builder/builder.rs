@@ -65,6 +65,16 @@ pub struct CheckBuildResult {
     pub errors: Vec<LogicError>,
 }
 
+impl CheckBuildResult {
+    pub fn new() -> Self {
+        Self {
+            checked_builds: Vec::new(),
+            build: Arc::new(RwLock::new(CheckBuild::new())),
+            errors: Vec::new(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CheckStep {
     pub identifier: IdentifierDescriptor,

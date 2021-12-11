@@ -1,5 +1,6 @@
 
 use std::sync::{Arc, Weak, RwLock};
+use std::collections::HashMap;
 use async_std::path::PathBuf;
 use async_std::channel::*;
 use async_std::fs::{File, OpenOptions};
@@ -78,6 +79,7 @@ impl FileWriterModel {
                         ],
                         "FileWriter"),
                     parameters,
+                    HashMap::new(),
                     Box::new(builder)
                 );
 
@@ -173,8 +175,12 @@ impl FileWriterModel {
 
 impl Model for FileWriterModel {
     
-    fn descriptor(&self) -> &Arc<CoreModelDescriptor> {
-        self.descriptor()
+    fn descriptor(&self) -> Arc<CoreModelDescriptor> {
+        Self::descriptor()
+    }
+
+    fn id(&self) -> Option<ModelId> {
+        *self.id.read().unwrap()
     }
 
     fn set_id(&self, id: ModelId) {

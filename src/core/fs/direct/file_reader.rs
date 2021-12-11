@@ -13,6 +13,7 @@ use crate::executive::value::Value;
 use crate::executive::transmitter::Transmitter;
 use crate::logic::error::LogicError;
 use crate::logic::builder::*;
+use crate::logic::contexts::Contexts;
 use crate::logic::descriptor::{ParameterDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor};
 use crate::logic::descriptor::identifier::*;
 
@@ -43,6 +44,10 @@ impl FileReaderModel {
 
                 parameters.push(path_parameter);
 
+                let mut sources = HashMap::new();
+
+                sources.insert("read".to_string(), vec![Arc::clone(Contexts::get("File").unwrap())]);
+
                 let builder = CoreModelBuilder::new(FileReaderModel::new);
 
                 let descriptor = CoreModelDescriptor::new(
@@ -53,6 +58,7 @@ impl FileReaderModel {
                         ],
                         "FileReader"),
                     parameters,
+                    sources,
                     Box::new(builder)
                 );
 
@@ -162,8 +168,12 @@ impl FileReaderModel {
 
 impl Model for FileReaderModel {
     
-    fn descriptor(&self) -> &Arc<CoreModelDescriptor> {
-        self.descriptor()
+    fn descriptor(&self) -> Arc<CoreModelDescriptor> {
+        Self::descriptor()
+    }
+
+    fn id(&self) -> Option<ModelId> {
+        *self.id.read().unwrap()
     }
 
     fn set_id(&self, id: ModelId) {

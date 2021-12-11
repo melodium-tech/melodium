@@ -35,9 +35,7 @@ impl WriteFileTreatment {
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
 
-                let builder = CoreTreatmentBuilder::new(WriteFileTreatment::new);
-
-                let descriptor = CoreTreatmentDescriptor::new(
+                let rc_descriptor = CoreTreatmentDescriptor::new(
                     Identifier::new(Root::Core,
                         vec![
                             "fs".to_string(),
@@ -45,6 +43,7 @@ impl WriteFileTreatment {
                         ],
                         "WriteFile"),
                     vec![("writer".to_string(), FileWriterModel::descriptor())],
+                    HashMap::new(),
                     Vec::new(),
                     vec![InputDescriptor::new(
                         "data",
@@ -52,11 +51,8 @@ impl WriteFileTreatment {
                         FlowDescriptor::Stream
                     )],
                     Vec::new(),
-                    Box::new(builder)
+                    WriteFileTreatment::new,
                 );
-
-                let rc_descriptor = Arc::new(descriptor);
-                rc_descriptor.set_autoref(&rc_descriptor);
 
                 rc_descriptor
             };
@@ -81,8 +77,8 @@ impl WriteFileTreatment {
 
 impl Treatment for WriteFileTreatment {
 
-    fn descriptor(&self) -> &Arc<CoreTreatmentDescriptor> {
-        self.descriptor()
+    fn descriptor(&self) -> Arc<CoreTreatmentDescriptor> {
+        Self::descriptor()
     }
 
     fn set_parameter(&self, param: &str, value: &Value) {

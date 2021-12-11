@@ -16,5 +16,7 @@ pub trait Treatment: Identified + Parameterized + Buildable + DowncastSync + Deb
     fn outputs(&self) -> &HashMap<String, Output>;
     fn models(&self) -> &HashMap<String, Arc<CoreModel>>;
     fn requirements(&self) -> &HashMap<String, Requirement>;
+    fn source_from(&self) -> &HashMap<Arc<CoreModel>, Vec<String>>;
+    fn as_buildable(&self) -> Arc<dyn Buildable>;
 }
 impl_downcast!(sync Treatment);

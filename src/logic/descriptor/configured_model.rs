@@ -9,6 +9,7 @@ use super::buildable::Buildable;
 use super::model::Model;
 use super::core_model::CoreModel;
 use super::parameter::Parameter;
+use super::context::Context;
 use super::super::builder::Builder;
 
 #[derive(Debug)]
@@ -79,5 +80,9 @@ impl Model for ConfiguredModel {
 
     fn core_model(&self) -> Arc<CoreModel> {
         Arc::clone(&self.core_model)
+    }
+
+    fn sources(&self) -> &HashMap<String, Vec<Arc<Context>>> {
+        self.core_model.sources()
     }
 }

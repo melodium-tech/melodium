@@ -11,7 +11,7 @@ use crate::executive::environment::{ContextualEnvironment, GenesisEnvironment};
 use crate::logic::builder::*;
 use async_std::future::Future;
 use crate::executive::result_status::ResultStatus;
-use crate::logic::descriptor::{ParameterDescriptor, OutputDescriptor, FlowDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor};
+use crate::logic::descriptor::{ParameterDescriptor, OutputDescriptor, FlowDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor, BuildableDescriptor};
 use crate::logic::descriptor::identifier::*;
 use std::sync::{Arc, Weak, RwLock};
 use crate::logic::error::LogicError;
@@ -34,10 +34,11 @@ impl ReadFileTreatment {
 
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
+                let mut source_from = HashMap::new();
 
-                let builder = CoreTreatmentBuilder::new(ReadFileTreatment::new);
+                source_from.insert(FileReaderModel::descriptor(), vec!["read".to_string()]);
 
-                let descriptor = CoreTreatmentDescriptor::new(
+                let rc_descriptor = CoreTreatmentDescriptor::new(
                     Identifier::new(Root::Core,
                         vec![
                             "fs".to_string(),
@@ -45,6 +46,7 @@ impl ReadFileTreatment {
                         ],
                         "ReadFile"),
                     vec![("reader".to_string(), FileReaderModel::descriptor())],
+                    source_from,
                     Vec::new(),
                     Vec::new(),
                     vec![OutputDescriptor::new(
@@ -52,11 +54,8 @@ impl ReadFileTreatment {
                         DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Byte),
                         FlowDescriptor::Stream
                     )],
-                    Box::new(builder)
+                    ReadFileTreatment::new,
                 );
-
-                let rc_descriptor = Arc::new(descriptor);
-                rc_descriptor.set_autoref(&rc_descriptor);
 
                 rc_descriptor
             };
@@ -81,8 +80,8 @@ impl ReadFileTreatment {
 
 impl Treatment for ReadFileTreatment {
 
-    fn descriptor(&self) -> &Arc<CoreTreatmentDescriptor> {
-        self.descriptor()
+    fn descriptor(&self) -> Arc<CoreTreatmentDescriptor> {
+        Self::descriptor()
     }
 
     fn set_parameter(&self, param: &str, value: &Value) {

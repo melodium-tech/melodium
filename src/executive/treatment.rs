@@ -11,7 +11,7 @@ use super::model::Model;
 
 pub trait Treatment{
 
-    fn descriptor(&self) -> &Arc<CoreTreatmentDescriptor>;
+    fn descriptor(&self) -> Arc<CoreTreatmentDescriptor>;
 
     fn set_parameter(&self, param: &str, value: &Value);
     fn set_model(&self, name: &str, model: &Arc<dyn Model>);

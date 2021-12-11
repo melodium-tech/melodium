@@ -420,119 +420,121 @@ impl Builder for SequenceBuilder {
 
         let asking_treatment_tuple = (for_label.to_string(), *build_sample.treatment_build_ids.get(&for_label).unwrap());
 
-        // Get the treatments connected right after the given label in the reffered build
-        let next_treatments = build_sample.next_treatments_build_ids.get(&asking_treatment_tuple).unwrap();
-        let mut next_treatments_build_results: HashMap<String, DynamicBuildResult> = HashMap::new();
-        for (next_treatment_name, next_treatment_id) in next_treatments {
-
-            let rc_designer = self.designer.read().unwrap();
-            let borrowed_next_treatment = rc_designer.treatments().get(next_treatment_name).unwrap().read().unwrap();
-            let next_treatment_builder = borrowed_next_treatment.descriptor().builder();
-            let mut remastered_environment = environment.base();
-
-            // Make the right contextual environment
-
-            // Setup models
-            for (model_treatment_name, _model) in borrowed_next_treatment.descriptor().models() {
-
-                // model_treatment_name is the name of the model as seen by the treatment,
-                // while model_sequence_name is the name of the model as it exists within the sequence.
-                // Treatment[model_treatment_name = model_sequence_name]
-
-                let model_sequence_name = borrowed_next_treatment.models().get(model_treatment_name).unwrap();
-
-                let mut executive_model = None;
-                
-                if let Some(sequence_parameter_given_model) = environment.get_model(model_sequence_name) {
-                    executive_model = Some(Arc::clone(sequence_parameter_given_model));
-                }
-                else if let Some(instancied_model) = build_sample.instancied_models.get(model_sequence_name) {
-                    executive_model = Some(Arc::clone(instancied_model));
-                }
-
-                if let Some(executive_model) = executive_model {
-
-                    remastered_environment.add_model(model_treatment_name, executive_model);
-                }
-                else {
-                    // We should have a model there, should have been catched by designer, aborting
-                    panic!("Impossible model recoverage")
-                }
-            }
-
-            // Setup parameters
-            for (_, parameter) in borrowed_next_treatment.parameters() {
-
-                let borrowed_param = parameter.read().unwrap();
-
-                let data = match borrowed_param.value().as_ref().unwrap() {
-                    Value::Raw(data) => data,
-                    Value::Variable(name) => {
-                        environment.get_variable(&name).unwrap()
-                    },
-                    Value::Context((context, name)) => {
-                        environment.get_context(context).unwrap().get_value(name).unwrap()
-                    }
-                };
-
-                remastered_environment.add_variable(borrowed_param.name(), data.clone());
-            }
-
-            // Call their dynamic_build method with right contextual environment
-            next_treatments_build_results.insert(next_treatment_name.to_string(), next_treatment_builder.dynamic_build(*next_treatment_id, &remastered_environment).unwrap());
-        }
-
+        //println!("{:?}", build_sample);
         let mut result = DynamicBuildResult::new();
 
-        // Take transmitters and report them accordingly to _outputs_ characteristics
-        if let Some(next_connections) = build_sample.next_connections.get(&asking_treatment_tuple) {
-            for next_connection in next_connections {
+        // Get the treatments connected right after the given label in the reffered build
+        if let Some(next_treatments) = build_sample.next_treatments_build_ids.get(&asking_treatment_tuple) {
+            let mut next_treatments_build_results: HashMap<String, DynamicBuildResult> = HashMap::new();
+            for (next_treatment_name, next_treatment_id) in next_treatments {
 
-                let borrowed_connection = next_connection.read().unwrap();
+                let rc_designer = self.designer.read().unwrap();
+                let borrowed_next_treatment = rc_designer.treatments().get(next_treatment_name).unwrap().read().unwrap();
+                let next_treatment_builder = borrowed_next_treatment.descriptor().builder();
+                let mut remastered_environment = environment.base();
 
-                let treatment_name = match borrowed_connection.input_treatment().as_ref().unwrap() {
-                    ConnectionIODesigner::Treatment(t) => t.upgrade().unwrap().read().unwrap().name().to_string(),
-                    _ => panic!("Connection to treatment expected")
-                };
+                // Make the right contextual environment
 
-                let input_name = borrowed_connection.input_name().as_ref().unwrap();
+                // Setup models
+                for (model_treatment_name, _model) in borrowed_next_treatment.descriptor().models() {
 
-                let treatment_build_result = next_treatments_build_results.get(&treatment_name).unwrap();
-                let transmitters = treatment_build_result.feeding_inputs.get(input_name).unwrap().clone();
+                    // model_treatment_name is the name of the model as seen by the treatment,
+                    // while model_sequence_name is the name of the model as it exists within the sequence.
+                    // Treatment[model_treatment_name = model_sequence_name]
 
-                result.feeding_inputs.entry(borrowed_connection.output_name().as_ref().unwrap().to_string())
-                    .or_default().extend(transmitters);
+                    let model_sequence_name = borrowed_next_treatment.models().get(model_treatment_name).unwrap();
+
+                    let mut executive_model = None;
+                    
+                    if let Some(sequence_parameter_given_model) = environment.get_model(model_sequence_name) {
+                        executive_model = Some(Arc::clone(sequence_parameter_given_model));
+                    }
+                    else if let Some(instancied_model) = build_sample.instancied_models.get(model_sequence_name) {
+                        executive_model = Some(Arc::clone(instancied_model));
+                    }
+
+                    if let Some(executive_model) = executive_model {
+
+                        remastered_environment.add_model(model_treatment_name, executive_model);
+                    }
+                    else {
+                        // We should have a model there, should have been catched by designer, aborting
+                        panic!("Impossible model recoverage")
+                    }
+                }
+
+                // Setup parameters
+                for (_, parameter) in borrowed_next_treatment.parameters() {
+
+                    let borrowed_param = parameter.read().unwrap();
+
+                    let data = match borrowed_param.value().as_ref().unwrap() {
+                        Value::Raw(data) => data,
+                        Value::Variable(name) => {
+                            environment.get_variable(&name).unwrap()
+                        },
+                        Value::Context((context, name)) => {
+                            environment.get_context(context).unwrap().get_value(name).unwrap()
+                        }
+                    };
+
+                    remastered_environment.add_variable(borrowed_param.name(), data.clone());
+                }
+
+                // Call their dynamic_build method with right contextual environment
+                next_treatments_build_results.insert(next_treatment_name.to_string(), next_treatment_builder.dynamic_build(*next_treatment_id, &remastered_environment).unwrap());
             }
-        }
 
-        // Taking all the futures returned by the next treatments
-        for (_, treatment_build_result) in next_treatments_build_results {
+            // Take transmitters and report them accordingly to _outputs_ characteristics
+            if let Some(next_connections) = build_sample.next_connections.get(&asking_treatment_tuple) {
+                for next_connection in next_connections {
 
-            result.prepared_futures.extend(treatment_build_result.prepared_futures);
-        }
+                    let borrowed_connection = next_connection.read().unwrap();
 
-        // If the claiming treatment is connected to Self as output, call the give_next host method
-        if let Some(last_connections) = build_sample.last_connections.get(&asking_treatment_tuple) {
+                    let treatment_name = match borrowed_connection.input_treatment().as_ref().unwrap() {
+                        ConnectionIODesigner::Treatment(t) => t.upgrade().unwrap().read().unwrap().name().to_string(),
+                        _ => panic!("Connection to treatment expected")
+                    };
 
-            let host_build = build_sample.host_treatment.as_ref().unwrap().builder().give_next(
-                build_sample.host_build_id.unwrap(),
-                build_sample.label.to_string(),
-                &environment.base(),
-            ).unwrap();
+                    let input_name = borrowed_connection.input_name().as_ref().unwrap();
 
-            for last_connection in last_connections {
+                    let treatment_build_result = next_treatments_build_results.get(&treatment_name).unwrap();
+                    let transmitters = treatment_build_result.feeding_inputs.get(input_name).unwrap().clone();
 
-                let borrowed_connection = last_connection.read().unwrap();
-
-                let input_name = borrowed_connection.input_name().as_ref().unwrap();
-
-                let transmitters = host_build.feeding_inputs.get(input_name).unwrap().clone();
-
-                result.feeding_inputs.entry(borrowed_connection.output_name().as_ref().unwrap().to_string())
-                    .or_default().extend(transmitters);
+                    result.feeding_inputs.entry(borrowed_connection.output_name().as_ref().unwrap().to_string())
+                        .or_default().extend(transmitters);
+                }
             }
 
-            result.prepared_futures.extend(host_build.prepared_futures);
+            // Taking all the futures returned by the next treatments
+            for (_, treatment_build_result) in next_treatments_build_results {
+
+                result.prepared_futures.extend(treatment_build_result.prepared_futures);
+            }
+
+            // If the claiming treatment is connected to Self as output, call the give_next host method
+            if let Some(last_connections) = build_sample.last_connections.get(&asking_treatment_tuple) {
+
+                let host_build = build_sample.host_treatment.as_ref().unwrap().builder().give_next(
+                    build_sample.host_build_id.unwrap(),
+                    build_sample.label.to_string(),
+                    &environment.base(),
+                ).unwrap();
+
+                for last_connection in last_connections {
+
+                    let borrowed_connection = last_connection.read().unwrap();
+
+                    let input_name = borrowed_connection.input_name().as_ref().unwrap();
+
+                    let transmitters = host_build.feeding_inputs.get(input_name).unwrap().clone();
+
+                    result.feeding_inputs.entry(borrowed_connection.output_name().as_ref().unwrap().to_string())
+                        .or_default().extend(transmitters);
+                }
+
+                result.prepared_futures.extend(host_build.prepared_futures);
+            }
         }
 
         Some(result)
