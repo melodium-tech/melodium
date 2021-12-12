@@ -155,8 +155,6 @@ impl FileWriterModel {
             // We don't handle the recv_error case as it means everything is empty and closed
             while let Ok(data) = receiver.recv().await {
 
-                print!("{} ", data);
-
                 if let Err(write_err) = writer.write(&[data]).await {
 
                     // Todo handle error

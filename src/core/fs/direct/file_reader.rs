@@ -154,9 +154,6 @@ impl FileReaderModel {
 
                 let byte = possible_byte.unwrap();
 
-                //println!("Inputs: {}", inputs_to_fill.len());
-                print!("{} ", byte);
-
                 for transmitter in inputs_to_fill {
                     match transmitter {
                         Transmitter::Byte(sender) => sender.send(byte).await.unwrap(),

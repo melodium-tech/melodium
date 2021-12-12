@@ -212,8 +212,6 @@ impl World {
 
             let model_sources = borrowed_sources.get(&id).unwrap();
 
-            println!("Model #{} source '{}'", id, source);
-            println!("{:?}", model_sources.keys());
             let entries = model_sources.get(source).unwrap();
 
             let mut contextual_environment = ContextualEnvironment::new(

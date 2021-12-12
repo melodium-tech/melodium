@@ -90,8 +90,6 @@ impl File {
         let mut text = String::new();
         file.read_to_string(&mut text)?;
 
-        println!("{}", text);
-
         self.text = Some(text);
 
         Ok(())
@@ -127,8 +125,6 @@ impl File {
 
         let semantic_tree = Tree::new(parsed_text)?;
         semantic_tree.make_references(&self.path)?;
-
-        println!("Semantic tree assigned");
 
         self.semantic = Some(semantic_tree);
 

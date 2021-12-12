@@ -420,7 +420,6 @@ impl Builder for SequenceBuilder {
 
         let asking_treatment_tuple = (for_label.to_string(), *build_sample.treatment_build_ids.get(&for_label).unwrap());
 
-        //println!("{:?}", build_sample);
         let mut result = DynamicBuildResult::new();
 
         // Get the treatments connected right after the given label in the reffered build

@@ -374,13 +374,11 @@ impl Sequence {
                 _ => panic!("{:?}", &borrowed_model.refers)
             };
 
-            println!("{:?}", model_identifier);
 
             let core_model_descriptor = if let Some(model_descriptor) = collection.models.get(&model_identifier) {
                 model_descriptor.core_model()
             }
             else {
-                println!("{:?}", borrowed_model);
                 // Todo manage better position depending on Use/InstanciedModel case (currently borrowed_model.text.as_ref().unwrap().name.position only works for Use case)
                 return Err(ScriptError::semantic("Model \"".to_string() + &model_identifier.to_string() + "\" does not exist.", self.text.name.position))
             };
