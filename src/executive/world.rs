@@ -246,7 +246,13 @@ impl World {
 
         let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
 
-        let continuum = join_all(borrowed_continuous_tasks.iter_mut());
+        let model_futures = join_all(borrowed_continuous_tasks.iter_mut());
+
+        let continuum = async move {
+
+            model_futures.await;
+            self.tracks_sender.close();
+        };
 
         block_on(join(self.run_track(), continuum));
     }
