@@ -4,6 +4,7 @@
 use std::env;
 use std::ffi::OsString;
 use std::sync::Arc;
+use std::process::*;
 
 use melodium_rust::executive::world::World;
 use melodium_rust::logic::descriptor::SequenceTreatmentDescriptor;
@@ -21,6 +22,14 @@ fn main() {
 
     instance.build();
 
+    for error in instance.errors() {
+        eprintln!("Error: {}", error);
+    }
+
+    if instance.errors().len() > 0 {
+        exit(10);
+    }
+
     let collection = Arc::clone(instance.collection().as_ref().unwrap());
 
     let main = Arc::clone(&collection.treatments.get(
@@ -34,6 +43,12 @@ fn main() {
 
     if ready {
         world.live();
+    }
+    else {
+        for error in world.errors().read().unwrap().iter() {
+            eprintln!("Logic error: {:?}", error);
+        }
+        exit(11);
     }
 
 }

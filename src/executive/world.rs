@@ -188,6 +188,10 @@ impl World {
         true
     }
 
+    pub fn errors(&self) -> &RwLock<Vec<LogicError>> {
+        &self.errors
+    }
+
     pub fn add_continuous_task(&self, task: ContinuousFuture) {
 
         let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
