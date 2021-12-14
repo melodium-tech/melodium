@@ -9,6 +9,8 @@ use super::fs::direct::file_writer::FileWriterModel;
 use super::fs::direct::read_file::ReadFileTreatment;
 use super::fs::direct::write_file::WriteFileTreatment;
 
+use super::generation::scalar_u8_generator::ScalarU8Generator;
+
 
 pub fn core_collection() -> &'static CollectionPool {
 
@@ -18,6 +20,8 @@ pub fn core_collection() -> &'static CollectionPool {
 
             c.models.insert(&(FileReaderModel::descriptor() as Arc<dyn ModelDescriptor>));
             c.models.insert(&(FileWriterModel::descriptor() as Arc<dyn ModelDescriptor>));
+
+            c.models.insert(&(ScalarU8Generator::descriptor() as Arc<dyn ModelDescriptor>));
 
             c.treatments.insert(&(ReadFileTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
             c.treatments.insert(&(WriteFileTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));

@@ -7,3 +7,4 @@
 
 pub mod core_collection;
 pub mod fs;
+pub mod generation;
