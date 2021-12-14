@@ -1,4 +1,5 @@
 
+use futures::future::join_all;
 use std::sync::atomic::{Ordering, AtomicU64, AtomicU8};
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock};
@@ -21,6 +22,7 @@ pub struct ScalarU8Generator {
     world: Arc<World>,
     id: RwLock<Option<ModelId>>,
 
+    tracks: AtomicU64,
     length: AtomicU64,
     value: AtomicU8,
 
@@ -34,6 +36,14 @@ impl ScalarU8Generator {
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
                 let mut parameters = Vec::new();
+
+                let tracks_parameter = ParameterDescriptor::new(
+                    "tracks",
+                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::U64),
+                    Some(Value::U64(1))
+                );
+
+                parameters.push(tracks_parameter);
 
                 let length_parameter = ParameterDescriptor::new(
                     "length",
@@ -84,6 +94,7 @@ impl ScalarU8Generator {
             world,
             id: RwLock::new(None),
 
+            tracks: AtomicU64::new(1),
             length: AtomicU64::new(1024),
             value: AtomicU8::new(0),
 
@@ -98,11 +109,22 @@ impl ScalarU8Generator {
     pub async fn generate(&self) {
 
         let model_id = self.id.read().unwrap().unwrap();
-        let inputs = self.world.create_track(model_id, "data", HashMap::new(), None).await;
-        let inputs_to_fill = inputs.get("data").unwrap();
-
+        let tracks = self.tracks.load(Ordering::Relaxed);
         let length = self.length.load(Ordering::Relaxed);
         let value = self.value.load(Ordering::Relaxed);
+
+        let mut generators = Vec::new();
+        for _ in 0..tracks {
+            generators.push(self.generate_track(model_id, length, value));
+        }
+
+        join_all(generators).await;
+    }
+
+    async fn generate_track(&self, id: u64, length: u64, value: u8) {
+        
+        let inputs = self.world.create_track(id, "data", HashMap::new(), None).await;
+        let inputs_to_fill = inputs.get("data").unwrap();
 
         for transmitter in inputs_to_fill {
             match transmitter {
@@ -135,6 +157,12 @@ impl Model for ScalarU8Generator {
     fn set_parameter(&self, param: &str, value: &Value) {
 
         match param {
+            "tracks" => {
+                match value {
+                    Value::U64(tracks) => self.tracks.store(*tracks, Ordering::Relaxed),
+                    _ => panic!("Unexpected value type for 'tracks'."),
+                }
+            },
             "length" => {
                 match value {
                     Value::U64(length) => self.length.store(*length, Ordering::Relaxed),
