@@ -11,6 +11,8 @@ use super::fs::direct::write_file::WriteFileTreatment;
 
 use super::generation::scalar_u8_generator::ScalarU8Generator;
 
+use super::generation::generate_scalar_u8::GenerateScalarU8;
+
 
 pub fn core_collection() -> &'static CollectionPool {
 
@@ -25,6 +27,8 @@ pub fn core_collection() -> &'static CollectionPool {
 
             c.treatments.insert(&(ReadFileTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
             c.treatments.insert(&(WriteFileTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+            c.treatments.insert(&(GenerateScalarU8::descriptor() as Arc<dyn TreatmentDescriptor>));
 
             c
         };
