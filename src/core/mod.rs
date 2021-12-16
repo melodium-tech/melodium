@@ -6,5 +6,7 @@
 //! 
 
 pub mod core_collection;
-pub mod fs;
+
+pub mod conversion;
 pub mod generation;
+pub mod fs;

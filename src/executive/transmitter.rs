@@ -1,5 +1,7 @@
 
-use async_std::channel::Sender;
+pub use async_std::channel::Sender;
+pub use async_std::channel::Receiver;
+pub use async_std::channel::{bounded, unbounded};
 
 #[derive(Debug, Clone)]
 pub enum Transmitter {

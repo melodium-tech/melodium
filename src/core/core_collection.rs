@@ -13,6 +13,8 @@ use super::generation::scalar_u8_generator::ScalarU8Generator;
 
 use super::generation::generate_scalar_u8::GenerateScalarU8;
 
+use super::conversion::u8_to_byte::U8ToByte;
+
 
 pub fn core_collection() -> &'static CollectionPool {
 
@@ -29,6 +31,8 @@ pub fn core_collection() -> &'static CollectionPool {
             c.treatments.insert(&(WriteFileTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
 
             c.treatments.insert(&(GenerateScalarU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+            c.treatments.insert(&(U8ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
 
             c
         };
