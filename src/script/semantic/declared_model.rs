@@ -169,6 +169,13 @@ impl DeclaredModel {
             refers: RefersTo::Unkown(Reference::new(name.string))
         })))
     }
+
+    pub fn comes_from_instancied(&self) -> bool {
+        match self.refers {
+            RefersTo::InstanciedModel(_) => true,
+            _ => false
+        }
+    }
 }
 
 impl Node for DeclaredModel {

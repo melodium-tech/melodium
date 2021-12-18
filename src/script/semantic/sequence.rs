@@ -364,12 +364,14 @@ impl Sequence {
         for rc_model in &self.declared_models {
 
             let borrowed_model = rc_model.read().unwrap();
+
+            if borrowed_model.comes_from_instancied() {
+                continue;
+            }
+
             let model_identifier = match &borrowed_model.refers {
                 DeclaredModelRefersTo::Use(u) => {
                     u.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().identifier.as_ref().unwrap().clone()
-                },
-                DeclaredModelRefersTo::InstanciedModel(im) => {
-                    im.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().type_identifier.as_ref().unwrap().clone()
                 },
                 _ => panic!("{:?}", &borrowed_model.refers)
             };
@@ -380,7 +382,7 @@ impl Sequence {
             }
             else {
                 // Todo manage better position depending on Use/InstanciedModel case (currently borrowed_model.text.as_ref().unwrap().name.position only works for Use case)
-                return Err(ScriptError::semantic("Model \"".to_string() + &model_identifier.to_string() + "\" does not exist.", self.text.name.position))
+                return Err(ScriptError::semantic("Model \"".to_string() + &model_identifier.to_string() + "\" does not exist.", borrowed_model.text.as_ref().unwrap().name.position))
             };
 
             descriptor.add_model(&borrowed_model.name, &core_model_descriptor)

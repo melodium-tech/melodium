@@ -29,6 +29,6 @@ sequence WriteNullFile(filename: string)
 {
     Write: WriteFile[writer=File]()
 
-    Self.data -> Writer.data
+    Self.data -> Write.data
 }
 
