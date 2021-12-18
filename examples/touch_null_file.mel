@@ -1,0 +1,34 @@
+
+use core/fs/direct::FileWriter
+use core/fs/direct::WriteFile
+use core/generation::ScalarU8Generator
+use core/generation::GenerateScalarU8
+use core/conversion::U8ToByte
+
+sequence TouchFile()
+{
+    GenerateNullData(length=1048576)
+    WriteNullFile(filename="/tmp/null_file")
+    
+    GenerateNullData.data -> WriteNullFile.data
+}
+
+sequence GenerateNullData(length: u64)
+    model Generator: ScalarU8Generator(length=length)
+    output data: Stream<byte>
+{
+    Generate: GenerateScalarU8[generator=Generator]()
+    Convert: U8ToByte()
+    
+    Generate.data -> Convert.data,data -> Self.data
+}
+
+sequence WriteNullFile(filename: string)
+    model File: FileWriter(path=filename)
+    input data: Stream<byte>
+{
+    Write: WriteFile[writer=File]()
+
+    Self.data -> Writer.data
+}
+
