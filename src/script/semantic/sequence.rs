@@ -381,7 +381,7 @@ impl Sequence {
                 model_descriptor.core_model()
             }
             else {
-                // Todo manage better position depending on Use/InstanciedModel case (currently borrowed_model.text.as_ref().unwrap().name.position only works for Use case)
+                // Only the RefersTo::Use case can exist at that point.
                 return Err(ScriptError::semantic("Model \"".to_string() + &model_identifier.to_string() + "\" does not exist.", borrowed_model.text.as_ref().unwrap().name.position))
             };
 
