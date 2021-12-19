@@ -61,7 +61,7 @@ impl U8ToByte {
     }
 
     pub fn new(world: Arc<World>) -> Arc<dyn Treatment> {
-        let data_u8 = unbounded();
+        let data_u8 = bounded(1048576);
         let treatment = Arc::new(Self {
             world,
             data_byte_transmitters: RwLock::new(Vec::new()),

@@ -7,7 +7,7 @@ use core/conversion::U8ToByte
 
 sequence TouchFile()
 {
-    GenerateNullData(length=1048576)
+    GenerateNullData(length=1073741824)
     WriteNullFile(filename="/tmp/null_file")
     
     GenerateNullData.data -> WriteNullFile.data

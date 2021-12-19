@@ -138,7 +138,7 @@ impl Builder for CoreTreatmentBuilder {
     }
 
     fn give_next(&self, within_build: BuildId, for_label: String, environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
-        
+
         // A core treatment cannot have sub-treatments (its not a sequence), so nothing to ever return.
         None
     }

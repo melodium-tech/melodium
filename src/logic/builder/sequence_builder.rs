@@ -510,30 +510,30 @@ impl Builder for SequenceBuilder {
 
                 result.prepared_futures.extend(treatment_build_result.prepared_futures);
             }
+        }
 
-            // If the claiming treatment is connected to Self as output, call the give_next host method
-            if let Some(last_connections) = build_sample.last_connections.get(&asking_treatment_tuple) {
+        // If the claiming treatment is connected to Self as output, call the give_next host method
+        if let Some(last_connections) = build_sample.last_connections.get(&asking_treatment_tuple) {
 
-                let host_build = build_sample.host_treatment.as_ref().unwrap().builder().give_next(
-                    build_sample.host_build_id.unwrap(),
-                    build_sample.label.to_string(),
-                    &environment.base(),
-                ).unwrap();
+            let host_build = build_sample.host_treatment.as_ref().unwrap().builder().give_next(
+                build_sample.host_build_id.unwrap(),
+                build_sample.label.to_string(),
+                &environment.base(),
+            ).unwrap();
 
-                for last_connection in last_connections {
+            for last_connection in last_connections {
 
-                    let borrowed_connection = last_connection.read().unwrap();
+                let borrowed_connection = last_connection.read().unwrap();
 
-                    let input_name = borrowed_connection.input_name().as_ref().unwrap();
+                let input_name = borrowed_connection.input_name().as_ref().unwrap();
 
-                    let transmitters = host_build.feeding_inputs.get(input_name).unwrap().clone();
+                let transmitters = host_build.feeding_inputs.get(input_name).unwrap().clone();
 
-                    result.feeding_inputs.entry(borrowed_connection.output_name().as_ref().unwrap().to_string())
-                        .or_default().extend(transmitters);
-                }
-
-                result.prepared_futures.extend(host_build.prepared_futures);
+                result.feeding_inputs.entry(borrowed_connection.output_name().as_ref().unwrap().to_string())
+                    .or_default().extend(transmitters);
             }
+
+            result.prepared_futures.extend(host_build.prepared_futures);
         }
 
         Some(result)

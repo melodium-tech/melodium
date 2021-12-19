@@ -129,7 +129,7 @@ impl ScalarU8Generator {
         for transmitter in inputs_to_fill {
             match transmitter {
                 Transmitter::U8(sender) => {
-                    for _ in 0..length  {
+                    for _n in 0..length {
                         sender.send(value).await.unwrap();
                     }
                     sender.close();

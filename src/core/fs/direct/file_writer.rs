@@ -103,7 +103,7 @@ impl FileWriterModel {
             create: RwLock::new(true),
             new: RwLock::new(false),
 
-            write_channel: unbounded(),
+            write_channel: bounded(1048576),
 
             auto_reference: RwLock::new(Weak::new()),
         });
@@ -150,11 +150,10 @@ impl FileWriterModel {
 
             let receiver = &self.write_channel.1;
 
-            let mut writer = BufWriter::with_capacity(1024, file);
+            let mut writer = BufWriter::with_capacity(1048576, file);
 
             // We don't handle the recv_error case as it means everything is empty and closed
             while let Ok(data) = receiver.recv().await {
-
                 if let Err(write_err) = writer.write(&[data]).await {
 
                     // Todo handle error

@@ -77,7 +77,7 @@ impl Sequence {
 
     }
 
-    pub fn add_connection(&mut self, output_treatment: &str, output_name: &str, input_treatment: &str, input_name: &str) -> Result<(), LogicError> {
+    pub fn add_connection(&mut self, output_treatment: &str, output_name: &str, input_treatment: &str, input_name: &str) -> Result<Arc<RwLock<Connection>>, LogicError> {
         
         let rc_output_treatment;
         let datatype_output;
@@ -115,23 +115,17 @@ impl Sequence {
 
             let mut connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
 
-            connection.set_output(rc_output_treatment, Some(output_name))?;
-
-            connection.set_input(rc_input_treatment, Some(input_name))?;
-
-            connection.validate()?;
-
             let rc_connection = Arc::new(RwLock::new(connection));
             self.connections.push(Arc::clone(&rc_connection));
 
-            Ok(())
+            return Ok(rc_connection)
         }
         else {
             return Err(LogicError::unexisting_connexion_type())
         }
     }
 
-    pub fn add_void_connection(&mut self, output_treatment: &str, input_treatment: &str) -> Result<(), LogicError> {
+    pub fn add_void_connection(&mut self, output_treatment: &str, input_treatment: &str) -> Result<Arc<RwLock<Connection>>, LogicError> {
 
         let rc_output_treatment;
         if let Some(pos_rc_output_treatment) = self.treatments.get(output_treatment) {
@@ -153,23 +147,17 @@ impl Sequence {
 
             let mut connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
 
-            connection.set_output(rc_output_treatment, None)?;
-
-            connection.set_input(rc_input_treatment, None)?;
-
-            connection.validate()?;
-
             let rc_connection = Arc::new(RwLock::new(connection));
             self.connections.push(Arc::clone(&rc_connection));
 
-            Ok(())
+            return Ok(rc_connection)
         }
         else {
             return Err(LogicError::unexisting_connexion_type())
         }
     }
 
-    pub fn add_input_connection(&mut self, self_input_name: &str, input_treatment: &str, input_name: &str) -> Result<(), LogicError> {
+    pub fn add_input_connection(&mut self, self_input_name: &str, input_treatment: &str, input_name: &str) -> Result<Arc<RwLock<Connection>>, LogicError> {
         
         let datatype_input_self;
         if let Some(pos_input) = self.descriptor.inputs().get(self_input_name) {
@@ -199,23 +187,17 @@ impl Sequence {
 
             let mut connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
 
-            connection.set_self_input(Some(self_input_name))?;
-
-            connection.set_input(rc_input_treatment, Some(input_name))?;
-
-            connection.validate()?;
-
             let rc_connection = Arc::new(RwLock::new(connection));
             self.connections.push(Arc::clone(&rc_connection));
 
-            Ok(())
+            return Ok(rc_connection)
         }
         else {
             return Err(LogicError::unexisting_connexion_type())
         }
     }
 
-    pub fn add_output_connection(&mut self, self_output_name: &str, output_treatment: &str, output_name: &str) -> Result<(), LogicError> {
+    pub fn add_output_connection(&mut self, self_output_name: &str, output_treatment: &str, output_name: &str) -> Result<Arc<RwLock<Connection>>, LogicError> {
         
         let datatype_output_self;
         if let Some(pos_output) = self.descriptor.outputs().get(self_output_name) {
@@ -245,16 +227,10 @@ impl Sequence {
 
             let mut connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
 
-            connection.set_self_input(Some(self_output_name))?;
-
-            connection.set_input(rc_output_treatment, Some(output_name))?;
-
-            connection.validate()?;
-
             let rc_connection = Arc::new(RwLock::new(connection));
             self.connections.push(Arc::clone(&rc_connection));
 
-            Ok(())
+            return Ok(rc_connection)
         }
         else {
             return Err(LogicError::unexisting_connexion_type())
@@ -286,14 +262,14 @@ impl Sequence {
         for connection in &self.connections {
 
             let borrowed_connection = connection.read().unwrap();
-            match borrowed_connection.output_treatment().as_ref().unwrap() {
+            match borrowed_connection.input_treatment().as_ref().unwrap() {
                 IO::Sequence() => {
-                    *(outputs_satisfaction.get_mut(borrowed_connection.output_name().as_ref().unwrap()).unwrap()) += 1;
+                    *(outputs_satisfaction.get_mut(borrowed_connection.input_name().as_ref().unwrap()).unwrap()) += 1;
                 }
                 _ => {}
             }
         }
-        
+
         // Check self outputs are connected to exactly one treatment output.
         for (_output, count) in outputs_satisfaction {
 

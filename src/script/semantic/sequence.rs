@@ -469,10 +469,11 @@ impl Sequence {
 
             let connection = rc_connection.read().unwrap();
 
-            connection.make_design(&mut rc_designer.write().unwrap()).unwrap();
+            let connection_designer = connection.get_designer(&mut rc_designer.write().unwrap()).unwrap();
+
+            connection.make_design(&connection_designer, &rc_designer).unwrap();
         }
 
-        
         rc_designer.read().unwrap().register().unwrap();
 
         Ok(())

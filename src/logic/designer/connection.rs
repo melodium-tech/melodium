@@ -60,7 +60,7 @@ impl Connection {
         &self.descriptor
     }
 
-    pub fn set_output(&mut self, treatment: &Arc<RwLock<Treatment>>, output: Option<&str>) -> Result<(), LogicError> {
+    pub fn set_output(&mut self, treatment: &Arc<RwLock<Treatment>>, output: &Option<String>) -> Result<(), LogicError> {
 
         if output.is_none() {
             if self.descriptor.output_type().is_none() {
@@ -73,7 +73,7 @@ impl Connection {
                 Err(LogicError::connection_output_required())
             }
         }
-        else if let Some(output_descriptor) = treatment.read().unwrap().descriptor().outputs().get(output.unwrap()) {
+        else if let Some(output_descriptor) = treatment.read().unwrap().descriptor().outputs().get(output.as_ref().unwrap()) {
 
             if self.descriptor.output_type().is_none() {
                 Err(LogicError::connection_output_forbidden())
@@ -81,7 +81,7 @@ impl Connection {
             else if output_descriptor.datatype() == self.descriptor.output_type().as_ref().unwrap() {
 
                 self.output_treatment = Some(IO::Treatment(Arc::downgrade(treatment)));
-                self.output_name = output.map(String::from);
+                self.output_name = output.as_ref().map(String::from);
 
                 Ok(())
             }
@@ -94,7 +94,7 @@ impl Connection {
         }
     }
 
-    pub fn set_self_output(&mut self, input_name: Option<&str>) -> Result<(), LogicError> {
+    pub fn set_self_output(&mut self, input_name: &Option<String>) -> Result<(), LogicError> {
         
         if input_name.is_none() {
             if self.descriptor.output_type().is_none() {
@@ -108,7 +108,7 @@ impl Connection {
             }
         }
         else if let Some(input_descriptor) = self.sequence.upgrade().unwrap().read().unwrap()
-                                                .descriptor().inputs().get(input_name.unwrap()) {
+                                                .descriptor().inputs().get(input_name.as_ref().unwrap()) {
 
             if self.descriptor.output_type().is_none() {
                 Err(LogicError::connection_output_forbidden())
@@ -116,7 +116,7 @@ impl Connection {
             else if input_descriptor.datatype() == self.descriptor.output_type().as_ref().unwrap() {
 
                 self.output_treatment = Some(IO::Sequence());
-                self.output_name = input_name.map(String::from);
+                self.output_name = input_name.as_ref().map(String::from);
 
                 Ok(())
             }
@@ -129,7 +129,7 @@ impl Connection {
         }
     }
 
-    pub fn set_input(&mut self, treatment: &Arc<RwLock<Treatment>>, input: Option<&str>) -> Result<(), LogicError> {
+    pub fn set_input(&mut self, treatment: &Arc<RwLock<Treatment>>, input: &Option<String>) -> Result<(), LogicError> {
 
         if input.is_none() {
             if self.descriptor.input_type().is_none() {
@@ -142,7 +142,7 @@ impl Connection {
                 Err(LogicError::connection_input_required())
             }
         }
-        else if let Some(input_descriptor) = treatment.read().unwrap().descriptor().inputs().get(input.unwrap()) {
+        else if let Some(input_descriptor) = treatment.read().unwrap().descriptor().inputs().get(input.as_ref().unwrap()) {
 
             if self.descriptor.input_type().is_none() {
                 Err(LogicError::connection_input_forbidden())
@@ -150,7 +150,7 @@ impl Connection {
             else if input_descriptor.datatype() == self.descriptor.input_type().as_ref().unwrap() {
 
                 self.input_treatment = Some(IO::Treatment(Arc::downgrade(treatment)));
-                self.input_name = input.map(String::from);
+                self.input_name = input.as_ref().map(String::from);
 
                 Ok(())
             }
@@ -163,7 +163,7 @@ impl Connection {
         }
     }
 
-    pub fn set_self_input(&mut self, output_name: Option<&str>) -> Result<(), LogicError> {
+    pub fn set_self_input(&mut self, output_name: &Option<String>) -> Result<(), LogicError> {
 
         if output_name.is_none() {
             if self.descriptor.input_type().is_none() {
@@ -177,7 +177,7 @@ impl Connection {
             }
         }
         else if let Some(output_descriptor) = self.sequence.upgrade().unwrap().read().unwrap()
-                                                    .descriptor().outputs().get(output_name.unwrap()) {
+                                                    .descriptor().outputs().get(output_name.as_ref().unwrap()) {
 
             if self.descriptor.input_type().is_none() {
                 Err(LogicError::connection_input_forbidden())
@@ -185,7 +185,7 @@ impl Connection {
             else if output_descriptor.datatype() == self.descriptor.input_type().as_ref().unwrap() {
 
                 self.input_treatment = Some(IO::Sequence());
-                self.input_name = output_name.map(String::from);
+                self.input_name = output_name.as_ref().map(String::from);
 
                 Ok(())
             }
