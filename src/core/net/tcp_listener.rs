@@ -142,6 +142,15 @@ impl TcpListenerModel {
                 }
             }
 
+            for transmitter in data_output_transmitters {
+                match transmitter {
+                    Transmitter::Byte(sender) => {
+                        sender.close();
+                    },
+                    _ => panic!("Byte sender expected!")
+                }
+            }
+
             ResultStatus::Ok
         }));
 
