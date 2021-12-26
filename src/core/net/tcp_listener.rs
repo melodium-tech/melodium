@@ -26,6 +26,8 @@ pub struct TcpListenerModel {
 
     socket_address: RwLock<String>,
 
+    available_streams: RwLock<HashMap<(String, u16), TcpStream>>,
+
     auto_reference: RwLock<Weak<Self>>,
 }
 
@@ -80,6 +82,8 @@ impl TcpListenerModel {
 
             socket_address: RwLock::new(String::new()),
 
+            available_streams: RwLock::new(HashMap::new()),
+
             auto_reference: RwLock::new(Weak::new()),
         });
 
@@ -92,6 +96,10 @@ impl TcpListenerModel {
         self.socket_address.read().unwrap().clone()
     }
 
+    pub fn available_streams(&self) -> &RwLock<HashMap<(String, u16), TcpStream>> {
+        &self.available_streams
+    }
+
     async fn listen(&self) {
 
         let socket_address: SocketAddr = self.socket_address().parse().unwrap();
@@ -102,6 +110,8 @@ impl TcpListenerModel {
             let local_socket = listener.local_addr().unwrap();
 
             while let Ok((stream, addr)) = listener.accept().await {
+
+                self.available_streams.write().unwrap().insert((addr.ip().to_string(), addr.port()), stream.clone());
 
                 let data_reading = move |inputs| {
                     self.stream_read(&mut stream.clone(), inputs)
