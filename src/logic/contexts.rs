@@ -32,6 +32,15 @@ impl Contexts {
             ("extension",  Data::new(Structure::Scalar, Type::String)),
         ]));
 
+        contexts.insert(ContextDescriptor::new("TcpConnection", vec![
+            ("localIp", Data::new(Structure::Scalar, Type::String)),
+            ("localPort", Data::new(Structure::Scalar, Type::U16)),
+            ("remoteIp", Data::new(Structure::Scalar, Type::String)),
+            ("remotePort", Data::new(Structure::Scalar, Type::U16)),
+            ("isIpV4", Data::new(Structure::Scalar, Type::Bool)),
+            ("isIpV6", Data::new(Structure::Scalar, Type::Bool)),
+        ]));
+
         contexts.insert(ContextDescriptor::new("Signal", vec![
             ("sampleRate", Data::new(Structure::Scalar, Type::U64)),
         ]));

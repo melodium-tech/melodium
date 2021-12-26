@@ -94,8 +94,12 @@ impl TcpListenerModel {
 
     async fn listen(&self) {
 
+        let socket_address: SocketAddr = self.socket_address().parse().unwrap();
+
         // Todo manage io error
-        if let Ok(listener) = TcpListener::bind(self.socket_address()).await {
+        if let Ok(listener) = TcpListener::bind(socket_address).await {
+
+            let local_socket = listener.local_addr().unwrap();
 
             while let Ok((stream, addr)) = listener.accept().await {
 
@@ -104,6 +108,13 @@ impl TcpListenerModel {
                 };
 
                 let mut tcp_connection_context = Context::new();
+
+                tcp_connection_context.set_value("localIp", Value::String(local_socket.ip().to_string()));
+                tcp_connection_context.set_value("localPort", Value::U16(local_socket.port()));
+                tcp_connection_context.set_value("remoteIp", Value::String(addr.ip().to_string()));
+                tcp_connection_context.set_value("remotePort", Value::U16(addr.port()));
+                tcp_connection_context.set_value("isIpV4", Value::Bool(addr.is_ipv4()));
+                tcp_connection_context.set_value("isIpV6", Value::Bool(addr.is_ipv6()));
 
                 let mut contextes = HashMap::new();
                 contextes.insert("TcpConnection".to_string(), tcp_connection_context);
