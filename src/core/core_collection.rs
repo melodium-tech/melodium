@@ -17,6 +17,10 @@ use super::arithmetic::add_scalar_u8::AddScalarU8;
 
 use super::conversion::u8_to_byte::U8ToByte;
 
+use super::net::tcp_listener::TcpListenerModel;
+use super::net::read_tcp_connection::ReadTcpConnectionTreatment;
+use super::net::write_tcp_connection::WriteTcpConnectionTreatment;
+
 
 pub fn core_collection() -> &'static CollectionPool {
 
@@ -29,6 +33,8 @@ pub fn core_collection() -> &'static CollectionPool {
 
             c.models.insert(&(ScalarU8Generator::descriptor() as Arc<dyn ModelDescriptor>));
 
+            c.models.insert(&(TcpListenerModel::descriptor() as Arc<dyn ModelDescriptor>));
+
             c.treatments.insert(&(ReadFileTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
             c.treatments.insert(&(WriteFileTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
 
@@ -37,6 +43,9 @@ pub fn core_collection() -> &'static CollectionPool {
             c.treatments.insert(&(AddScalarU8::descriptor() as Arc<dyn TreatmentDescriptor>));
 
             c.treatments.insert(&(U8ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+            c.treatments.insert(&(ReadTcpConnectionTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(WriteTcpConnectionTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
 
             c
         };
