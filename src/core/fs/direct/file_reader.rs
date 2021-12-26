@@ -11,6 +11,8 @@ use crate::executive::environment::{ContextualEnvironment, GenesisEnvironment};
 use crate::executive::context::Context;
 use crate::executive::value::Value;
 use crate::executive::transmitter::Transmitter;
+use crate::executive::future::TrackFuture;
+use crate::executive::result_status::ResultStatus;
 use crate::logic::error::LogicError;
 use crate::logic::builder::*;
 use crate::logic::contexts::Contexts;
@@ -146,7 +148,18 @@ impl FileReaderModel {
             contextes.insert("File".to_string(), file_context);
 
             let model_id = self.id.read().unwrap().unwrap();
-            let inputs = self.world.create_track(model_id, "read", contextes, None).await;
+            let reader = |inputs| {
+                self.read_file(&file, inputs)
+            };
+            self.world.create_track(model_id, "read", contextes, None, Some(&reader)).await;
+        }
+
+        // Todo manage failures
+    }
+
+    fn read_file(&self, file: &File, inputs: HashMap<String, Vec<Transmitter>>) -> Vec<TrackFuture> {
+
+        let future = Box::new(Box::pin(async move {
             let inputs_to_fill = inputs.get("data").unwrap();
 
             let mut bytes = file.bytes();
@@ -168,9 +181,11 @@ impl FileReaderModel {
                     _ => panic!("Byte sender expected!")
                 };
             }
-        }
 
-        // Todo manage failures
+            ResultStatus::Ok
+        }));
+
+        vec![future]
     }
 }
 

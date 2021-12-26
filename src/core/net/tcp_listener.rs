@@ -1,5 +1,4 @@
 
-
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock};
 use async_std::net::*;
@@ -11,6 +10,8 @@ use crate::executive::environment::{ContextualEnvironment, GenesisEnvironment};
 use crate::executive::context::Context;
 use crate::executive::value::Value;
 use crate::executive::transmitter::Transmitter;
+use crate::executive::future::TrackFuture;
+use crate::executive::result_status::ResultStatus;
 use crate::logic::error::LogicError;
 use crate::logic::builder::*;
 use crate::logic::contexts::Contexts;
@@ -98,6 +99,9 @@ impl TcpListenerModel {
 
             while let Ok((stream, addr)) = listener.accept().await {
 
+                let data_reading = move |inputs| {
+                    self.stream_read(&mut stream.clone(), inputs)
+                };
 
                 let mut tcp_connection_context = Context::new();
 
@@ -105,14 +109,43 @@ impl TcpListenerModel {
                 contextes.insert("TcpConnection".to_string(), tcp_connection_context);
 
                 let model_id = self.id.read().unwrap().unwrap();
-                let inputs = self.world.create_track(model_id, "connection", contextes, None).await;
-                let inputs_to_fill = inputs.get("data").unwrap();
+                let inputs = self.world.create_track(model_id, "connection", contextes, None, Some(&data_reading)).await;
             }
         }
 
-        
-
         // Todo manage failures
+    }
+
+    fn stream_read(&self, stream: &mut TcpStream, inputs_to_fill: HashMap<String, Vec<Transmitter>>) -> Vec<TrackFuture> {
+
+        let data_output_transmitters = inputs_to_fill.get("data").unwrap();
+
+        let future = Box::new(Box::pin(async move {
+
+            let mut buf = vec![0u8; 1024];
+            while let Ok(num) = stream.read(&mut buf).await {
+
+                // Tcp-specific behavior
+                if num == 0 {
+                    break;
+                }
+
+                for transmitter in data_output_transmitters {
+                    match transmitter {
+                        Transmitter::Byte(sender) => {
+                            for n in 0..num {
+                                sender.send(buf[n]).await.unwrap()
+                            }
+                        },
+                        _ => panic!("Byte sender expected!")
+                    }
+                }
+            }
+
+            ResultStatus::Ok
+        }));
+
+        vec![future]
     }
 }
 

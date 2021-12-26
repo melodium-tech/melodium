@@ -10,6 +10,8 @@ use crate::executive::environment::{ContextualEnvironment, GenesisEnvironment};
 use crate::executive::context::Context;
 use crate::executive::value::Value;
 use crate::executive::transmitter::Transmitter;
+use crate::executive::future::TrackFuture;
+use crate::executive::result_status::ResultStatus;
 use crate::logic::error::LogicError;
 use crate::logic::builder::*;
 use crate::logic::contexts::Contexts;
@@ -113,30 +115,36 @@ impl ScalarU8Generator {
         let length = self.length.load(Ordering::Relaxed);
         let value = self.value.load(Ordering::Relaxed);
 
-        let mut generators = Vec::new();
-        for _ in 0..tracks {
-            generators.push(self.generate_track(model_id, length, value));
-        }
+        let generator = |inputs| {
+            self.generate_data(length, value, inputs)
+        };
 
-        join_all(generators).await;
+        for _ in 0..tracks {
+            self.world.create_track(model_id, "data", HashMap::new(), None, Some(&generator)).await;
+        }
     }
 
-    async fn generate_track(&self, id: u64, length: u64, value: u8) {
-        
-        let inputs = self.world.create_track(id, "data", HashMap::new(), None).await;
-        let inputs_to_fill = inputs.get("data").unwrap();
+    fn generate_data(&self, length: u64, value: u8, inputs: HashMap<String, Vec<Transmitter>>) -> Vec<TrackFuture> {
 
-        for transmitter in inputs_to_fill {
-            match transmitter {
-                Transmitter::U8(sender) => {
-                    for _n in 0..length {
-                        sender.send(value).await.unwrap();
-                    }
-                    sender.close();
-                },
-                _ => panic!("U8 sender expected!")
+        let future = Box::new(Box::pin(async move {
+            let inputs_to_fill = inputs.get("data").unwrap();
+
+            for transmitter in inputs_to_fill {
+                match transmitter {
+                    Transmitter::U8(sender) => {
+                        for _n in 0..length {
+                            sender.send(value).await.unwrap();
+                        }
+                        sender.close();
+                    },
+                    _ => panic!("U8 sender expected!")
+                }
             }
-        }
+
+            ResultStatus::Ok
+        }));
+
+        vec![future]
     }
 }
 

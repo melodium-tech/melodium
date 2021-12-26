@@ -1,4 +1,5 @@
 
+use std::future::Future;
 use std::fmt::Debug;
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock, Mutex};
@@ -199,7 +200,10 @@ impl World {
         borrowed_continuous_tasks.push(task);
     }
 
-    pub async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>) -> HashMap<String, Vec<Transmitter>> {
+    // Special syntax for workaroud of async fn implementation
+    // https://stackoverflow.com/questions/68591843/async-fn-reports-hidden-type-for-impl-trait-captures-lifetime-that-does-not-a
+    // https://github.com/rust-lang/rust/issues/63033#issuecomment-521234696
+    pub async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>, callback: Option<&impl Fn(HashMap<String, Vec<Transmitter>>) -> Vec<TrackFuture>>) {
 
         let track_id;
         {
@@ -238,10 +242,15 @@ impl World {
             }
         }
 
+        let model_futures = if let Some(callback) = callback {
+            callback(inputs)
+        }
+        else { Vec::new() };
+
+        track_futures.extend(model_futures);
+
         let track = Track::new(track_id, join_all(track_futures));
         self.tracks_sender.send(track).await.unwrap();
-
-        inputs
     }
 
     pub fn live(&self) {
