@@ -171,17 +171,20 @@ impl Treatment for WriteTcpConnectionTreatment {
 
         let mut hashmap = HashMap::new();
 
-        hashmap.insert("data".to_string(), vec![Transmitter::Byte(self.data_input_sender)]);
+        hashmap.insert("data".to_string(), vec![Transmitter::Byte(self.data_input_sender.clone())]);
 
         hashmap
     }
 
     fn prepare(&self) -> Vec<TrackFuture> {
 
-        let ip = self.to_ip.read().unwrap().unwrap();
+        let borrowed_ip = self.to_ip.read().unwrap();
+        let borrowed_tcp_listener = self.tcp_listener.read().unwrap();
+
+        let ip = borrowed_ip.as_ref().unwrap();
         let port = self.to_port.read().unwrap().unwrap();
 
-        *self.tcp_stream.write().unwrap() = Some(self.tcp_listener.read().unwrap().unwrap().available_streams().read().unwrap().get(&(ip, port)).unwrap().clone());
+        *self.tcp_stream.write().unwrap() = Some(borrowed_tcp_listener.as_ref().unwrap().available_streams().read().unwrap().get(&(ip.to_string(), port)).unwrap().clone());
 
         let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
         let future = Box::new(Box::pin(async move { auto_self.tcp_write().await }));

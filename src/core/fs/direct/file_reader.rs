@@ -149,15 +149,15 @@ impl FileReaderModel {
 
             let model_id = self.id.read().unwrap().unwrap();
             let reader = |inputs| {
-                self.read_file(&file, inputs)
+                self.read_file(file, inputs)
             };
-            self.world.create_track(model_id, "read", contextes, None, Some(&reader)).await;
+            self.world.create_track(model_id, "read", contextes, None, Some(reader)).await;
         }
 
         // Todo manage failures
     }
 
-    fn read_file(&self, file: &File, inputs: HashMap<String, Vec<Transmitter>>) -> Vec<TrackFuture> {
+    fn read_file(&self, file: File, inputs: HashMap<String, Vec<Transmitter>>) -> Vec<TrackFuture> {
 
         let future = Box::new(Box::pin(async move {
             let inputs_to_fill = inputs.get("data").unwrap();
@@ -183,7 +183,7 @@ impl FileReaderModel {
             }
 
             ResultStatus::Ok
-        }));
+        })) as TrackFuture;
 
         vec![future]
     }

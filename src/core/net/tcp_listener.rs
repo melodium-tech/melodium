@@ -113,8 +113,8 @@ impl TcpListenerModel {
 
                 self.available_streams.write().unwrap().insert((addr.ip().to_string(), addr.port()), stream.clone());
 
-                let data_reading = move |inputs| {
-                    self.stream_read(&mut stream.clone(), inputs)
+                let data_reading = |inputs| {
+                    self.stream_read(stream.clone(), inputs)
                 };
 
                 let mut tcp_connection_context = Context::new();
@@ -130,16 +130,16 @@ impl TcpListenerModel {
                 contextes.insert("TcpConnection".to_string(), tcp_connection_context);
 
                 let model_id = self.id.read().unwrap().unwrap();
-                let inputs = self.world.create_track(model_id, "connection", contextes, None, Some(&data_reading)).await;
+                let inputs = self.world.create_track(model_id, "connection", contextes, None, Some(data_reading)).await;
             }
         }
 
         // Todo manage failures
     }
 
-    fn stream_read(&self, stream: &mut TcpStream, inputs_to_fill: HashMap<String, Vec<Transmitter>>) -> Vec<TrackFuture> {
+    fn stream_read(&self, mut stream: TcpStream, inputs_to_fill: HashMap<String, Vec<Transmitter>>) -> Vec<TrackFuture> {
 
-        let data_output_transmitters = inputs_to_fill.get("data").unwrap();
+        let data_output_transmitters = inputs_to_fill.get("data").unwrap().clone();
 
         let future = Box::new(Box::pin(async move {
 
@@ -151,7 +151,7 @@ impl TcpListenerModel {
                     break;
                 }
 
-                for transmitter in data_output_transmitters {
+                for transmitter in &data_output_transmitters {
                     match transmitter {
                         Transmitter::Byte(sender) => {
                             for n in 0..num {
@@ -163,7 +163,7 @@ impl TcpListenerModel {
                 }
             }
 
-            for transmitter in data_output_transmitters {
+            for transmitter in &data_output_transmitters {
                 match transmitter {
                     Transmitter::Byte(sender) => {
                         sender.close();
@@ -173,7 +173,7 @@ impl TcpListenerModel {
             }
 
             ResultStatus::Ok
-        }));
+        })) as TrackFuture;
 
         vec![future]
     }
