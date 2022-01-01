@@ -8,7 +8,7 @@ use crate::executive::transmitter::*;
 use crate::executive::treatment::Treatment;
 use crate::executive::world::World;
 use crate::logic::descriptor::{InputDescriptor, OutputDescriptor, FlowDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor};
-use crate::logic::descriptor::identifier::*;
+use crate::logic::descriptor::identifier::core_identifier;
 use std::sync::{Arc, Weak, RwLock};
 use downcast_rs::DowncastSync;
 use crate::logic::descriptor::CoreTreatmentDescriptor;
@@ -32,11 +32,7 @@ impl U8ToByte {
             static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
-                    Identifier::new(Root::Core,
-                        vec![
-                            "conversion".to_string(),
-                        ],
-                        "U8ToByte"),
+                    core_identifier!("conversion";"U8ToByte"),
                     Vec::new(),
                     HashMap::new(),
                     Vec::new(),

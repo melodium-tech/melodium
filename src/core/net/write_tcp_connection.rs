@@ -15,7 +15,7 @@ use crate::logic::builder::*;
 use async_std::future::Future;
 use crate::executive::result_status::ResultStatus;
 use crate::logic::descriptor::{ParameterDescriptor, InputDescriptor, FlowDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor};
-use crate::logic::descriptor::identifier::*;
+use crate::logic::descriptor::identifier::core_identifier;
 use std::sync::{Arc, Weak, RwLock};
 use crate::logic::error::LogicError;
 use downcast_rs::DowncastSync;
@@ -62,11 +62,7 @@ impl WriteTcpConnectionTreatment {
                 parameters.push(port_parameter);
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
-                    Identifier::new(Root::Core,
-                        vec![
-                            "net".to_string(),
-                        ],
-                        "WriteTcpConnection"),
+                    core_identifier!("net";"WriteTcpConnection"),
                     vec![("listener".to_string(), TcpListenerModel::descriptor())],
                     HashMap::new(),
                     parameters,

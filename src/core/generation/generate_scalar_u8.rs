@@ -8,7 +8,7 @@ use crate::executive::transmitter::Transmitter;
 use crate::executive::treatment::Treatment;
 use crate::executive::world::World;
 use crate::logic::descriptor::{OutputDescriptor, FlowDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor};
-use crate::logic::descriptor::identifier::*;
+use crate::logic::descriptor::identifier::core_identifier;
 use std::sync::{Arc, Weak, RwLock};
 use downcast_rs::DowncastSync;
 use crate::logic::descriptor::CoreTreatmentDescriptor;
@@ -34,11 +34,7 @@ impl GenerateScalarU8 {
                 source_from.insert(ScalarU8Generator::descriptor(), vec!["data".to_string()]);
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
-                    Identifier::new(Root::Core,
-                        vec![
-                            "generation".to_string(),
-                        ],
-                        "GenerateScalarU8"),
+                    core_identifier!("generation";"GenerateScalarU8"),
                     vec![("generator".to_string(), ScalarU8Generator::descriptor())],
                     source_from,
                     Vec::new(),

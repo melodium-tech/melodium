@@ -16,7 +16,7 @@ use crate::logic::error::LogicError;
 use crate::logic::builder::*;
 use crate::logic::contexts::Contexts;
 use crate::logic::descriptor::{ParameterDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor};
-use crate::logic::descriptor::identifier::*;
+use crate::logic::descriptor::identifier::core_identifier;
 
 #[derive(Debug)]
 pub struct ScalarU8Generator {
@@ -70,11 +70,7 @@ impl ScalarU8Generator {
                 let builder = CoreModelBuilder::new(ScalarU8Generator::new);
 
                 let descriptor = CoreModelDescriptor::new(
-                    Identifier::new(Root::Core,
-                        vec![
-                            "generation".to_string(),
-                        ],
-                        "ScalarU8Generator"),
+                    core_identifier!("generation";"ScalarU8Generator"),
                     parameters,
                     sources,
                     Box::new(builder)

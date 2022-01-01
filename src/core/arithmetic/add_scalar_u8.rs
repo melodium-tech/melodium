@@ -9,7 +9,7 @@ use crate::executive::transmitter::*;
 use crate::executive::treatment::Treatment;
 use crate::executive::world::World;
 use crate::logic::descriptor::{ParameterDescriptor, InputDescriptor, OutputDescriptor, FlowDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor};
-use crate::logic::descriptor::identifier::*;
+use crate::logic::descriptor::identifier::core_identifier;
 use std::sync::{Arc, Weak, RwLock};
 use downcast_rs::DowncastSync;
 use crate::logic::descriptor::CoreTreatmentDescriptor;
@@ -46,11 +46,7 @@ impl AddScalarU8 {
                 parameters.push(value_parameter);
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
-                    Identifier::new(Root::Core,
-                        vec![
-                            "arithmetic".to_string(),
-                        ],
-                        "AddScalarU8"),
+                    core_identifier!("arithmetic";"AddScalarU8"),
                     Vec::new(),
                     HashMap::new(),
                     parameters,

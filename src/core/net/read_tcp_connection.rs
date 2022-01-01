@@ -12,7 +12,7 @@ use crate::logic::builder::*;
 use async_std::future::Future;
 use crate::executive::result_status::ResultStatus;
 use crate::logic::descriptor::{ParameterDescriptor, OutputDescriptor, FlowDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor, BuildableDescriptor};
-use crate::logic::descriptor::identifier::*;
+use crate::logic::descriptor::identifier::core_identifier;
 use std::sync::{Arc, Weak, RwLock};
 use crate::logic::error::LogicError;
 use downcast_rs::DowncastSync;
@@ -39,11 +39,7 @@ impl ReadTcpConnectionTreatment {
                 source_from.insert(TcpListenerModel::descriptor(), vec!["connection".to_string()]);
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
-                    Identifier::new(Root::Core,
-                        vec![
-                            "net".to_string(),
-                        ],
-                        "ReadTcpConnection"),
+                    core_identifier!("net";"ReadTcpConnection"),
                     vec![("listener".to_string(), TcpListenerModel::descriptor())],
                     source_from,
                     Vec::new(),

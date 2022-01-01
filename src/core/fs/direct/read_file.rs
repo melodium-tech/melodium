@@ -12,7 +12,7 @@ use crate::logic::builder::*;
 use async_std::future::Future;
 use crate::executive::result_status::ResultStatus;
 use crate::logic::descriptor::{ParameterDescriptor, OutputDescriptor, FlowDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor, BuildableDescriptor};
-use crate::logic::descriptor::identifier::*;
+use crate::logic::descriptor::identifier::core_identifier;
 use std::sync::{Arc, Weak, RwLock};
 use crate::logic::error::LogicError;
 use downcast_rs::DowncastSync;
@@ -39,12 +39,8 @@ impl ReadFileTreatment {
                 source_from.insert(FileReaderModel::descriptor(), vec!["read".to_string()]);
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
-                    Identifier::new(Root::Core,
-                        vec![
-                            "fs".to_string(),
-                            "direct".to_string(),
-                        ],
-                        "ReadFile"),
+                    core_identifier!("fs","direct";"ReadFile"),
+                        
                     vec![("reader".to_string(), FileReaderModel::descriptor())],
                     source_from,
                     Vec::new(),

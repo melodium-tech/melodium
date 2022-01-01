@@ -16,7 +16,7 @@ use crate::logic::error::LogicError;
 use crate::logic::builder::*;
 use crate::logic::contexts::Contexts;
 use crate::logic::descriptor::{ParameterDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor};
-use crate::logic::descriptor::identifier::*;
+use crate::logic::descriptor::identifier::core_identifier;
 
 #[derive(Debug)]
 pub struct TcpListenerModel {
@@ -54,11 +54,7 @@ impl TcpListenerModel {
                 let builder = CoreModelBuilder::new(TcpListenerModel::new);
 
                 let descriptor = CoreModelDescriptor::new(
-                    Identifier::new(Root::Core,
-                        vec![
-                            "net".to_string(),
-                        ],
-                        "TcpListener"),
+                    core_identifier!("net";"TcpListener"),
                     parameters,
                     sources,
                     Box::new(builder)

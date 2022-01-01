@@ -12,7 +12,7 @@ use crate::logic::builder::*;
 use async_std::future::Future;
 use crate::executive::result_status::ResultStatus;
 use crate::logic::descriptor::{ParameterDescriptor, InputDescriptor, FlowDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor};
-use crate::logic::descriptor::identifier::*;
+use crate::logic::descriptor::identifier::core_identifier;
 use std::sync::{Arc, Weak, RwLock};
 use crate::logic::error::LogicError;
 use downcast_rs::DowncastSync;
@@ -36,12 +36,7 @@ impl WriteFileTreatment {
             static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
-                    Identifier::new(Root::Core,
-                        vec![
-                            "fs".to_string(),
-                            "direct".to_string(),
-                        ],
-                        "WriteFile"),
+                    core_identifier!("fs","direct";"WriteFile"),
                     vec![("writer".to_string(), FileWriterModel::descriptor())],
                     HashMap::new(),
                     Vec::new(),

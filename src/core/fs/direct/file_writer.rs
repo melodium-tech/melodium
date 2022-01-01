@@ -14,7 +14,7 @@ use crate::executive::value::Value;
 use crate::logic::error::LogicError;
 use crate::logic::builder::*;
 use crate::logic::descriptor::{ParameterDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor};
-use crate::logic::descriptor::identifier::*;
+use crate::logic::descriptor::identifier::core_identifier;
 
 #[derive(Debug)]
 pub struct FileWriterModel {
@@ -72,12 +72,7 @@ impl FileWriterModel {
                 let builder = CoreModelBuilder::new(FileWriterModel::new);
 
                 let descriptor = CoreModelDescriptor::new(
-                    Identifier::new(Root::Core,
-                        vec![
-                            "fs".to_string(),
-                            "direct".to_string(),
-                        ],
-                        "FileWriter"),
+                    core_identifier!("fs","direct";"FileWriter"),
                     parameters,
                     HashMap::new(),
                     Box::new(builder)

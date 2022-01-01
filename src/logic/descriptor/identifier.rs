@@ -1,4 +1,19 @@
 
+macro_rules! core_identifier {
+    ($($step:expr),*;$name:expr) => {
+        crate::logic::descriptor::identifier::Identifier::new(
+            crate::logic::descriptor::identifier::Root::Core,
+            {
+                let mut path=Vec::new();
+                $(path.push($step.to_string());)*
+                path
+            },
+            $name
+        )
+    };
+}
+pub(crate) use core_identifier;
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Identifier {
     root: Root,
