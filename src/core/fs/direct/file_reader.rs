@@ -18,6 +18,7 @@ use crate::logic::builder::*;
 use crate::logic::contexts::Contexts;
 use crate::logic::descriptor::{ParameterDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor};
 use crate::logic::descriptor::identifier::core_identifier;
+use crate::logic::descriptor::core_model::model_sources;
 
 #[derive(Debug)]
 pub struct FileReaderModel {
@@ -55,7 +56,9 @@ impl FileReaderModel {
                 let descriptor = CoreModelDescriptor::new(
                     core_identifier!("fs","direct";"FileReader"),
                     parameters,
-                    sources,
+                    model_sources![
+                        ("read", "File")
+                    ],
                     Box::new(builder)
                 );
 

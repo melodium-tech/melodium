@@ -1,6 +1,16 @@
 
 use crate::executive::value::Value;
 
+macro_rules! datatype {
+    ($data_structure:ident,$data_type:ident) => {
+        crate::logic::descriptor::datatype::DataType::new(
+            crate::logic::descriptor::datatype::Structure::$data_structure,
+            crate::logic::descriptor::datatype::Type::$data_type,
+        )
+    };
+}
+pub(crate) use datatype;
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DataType {
     r#type: Type,

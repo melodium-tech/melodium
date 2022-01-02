@@ -10,6 +10,11 @@ use crate::executive::treatment::Treatment;
 use crate::executive::world::World;
 use crate::logic::descriptor::{ParameterDescriptor, InputDescriptor, OutputDescriptor, FlowDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor};
 use crate::logic::descriptor::identifier::core_identifier;
+use crate::logic::descriptor::datatype::datatype;
+use crate::logic::descriptor::input::input;
+use crate::logic::descriptor::output::output;
+use crate::logic::descriptor::parameter::parameter;
+use crate::logic::descriptor::core_treatment::models;
 use std::sync::{Arc, Weak, RwLock};
 use downcast_rs::DowncastSync;
 use crate::logic::descriptor::CoreTreatmentDescriptor;
@@ -39,7 +44,7 @@ impl AddScalarU8 {
 
                 let value_parameter = ParameterDescriptor::new(
                     "value",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::U8),
+                    datatype!(Scalar, U8),
                     None
                 );
 
@@ -47,19 +52,17 @@ impl AddScalarU8 {
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
                     core_identifier!("arithmetic";"AddScalarU8"),
-                    Vec::new(),
+                    models![],
                     HashMap::new(),
-                    parameters,
-                    vec![InputDescriptor::new(
-                        "data",
-                        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::U8),
-                        FlowDescriptor::Stream
-                    )],
-                    vec![OutputDescriptor::new(
-                        "data",
-                        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::U8),
-                        FlowDescriptor::Stream
-                    )],
+                    vec![
+                        parameter!("value",Scalar,U8,None)
+                    ],
+                    vec![
+                        input!("data",Scalar,U8,Stream)
+                    ],
+                    vec![
+                        output!("data",Scalar,U8,Stream)
+                    ],
                     AddScalarU8::new,
                 );
 

@@ -17,6 +17,29 @@ use super::super::builder::CoreTreatmentBuilder;
 use crate::executive::world::World;
 use crate::executive::treatment::Treatment as ExecutiveTreatment;
 
+macro_rules! models {
+    ($(($name:expr,$descriptor:expr)),*) => {
+        vec![
+            $(($name.to_string(),$descriptor),)*
+        ]
+    };
+}
+pub(crate) use models;
+
+macro_rules! treatment_sources {
+    ($(($descriptor:expr,$($source:expr),+)),*) => {{
+        let mut map = std::collections::HashMap::new();
+        $(map.insert(
+            $descriptor,
+            vec![
+                $($source.to_string(),)+
+            ]
+        );)*
+        map
+    }};
+}
+pub(crate) use treatment_sources;
+
 #[derive(Debug)]
 pub struct CoreTreatment {
     identifier: Identifier,
