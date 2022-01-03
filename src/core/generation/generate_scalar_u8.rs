@@ -1,17 +1,6 @@
 
-use crate::executive::future::TrackFuture;
-use std::collections::HashMap;
+use super::super::prelude::*;
 use super::scalar_u8_generator::ScalarU8Generator;
-use crate::executive::model::Model;
-use crate::executive::value::Value;
-use crate::executive::transmitter::Transmitter;
-use crate::executive::treatment::Treatment;
-use crate::executive::world::World;
-use crate::logic::descriptor::{OutputDescriptor, FlowDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor};
-use crate::logic::descriptor::identifier::core_identifier;
-use std::sync::{Arc, Weak, RwLock};
-use downcast_rs::DowncastSync;
-use crate::logic::descriptor::CoreTreatmentDescriptor;
 
 pub struct GenerateScalarU8 {
 
