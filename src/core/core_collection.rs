@@ -13,7 +13,7 @@ use super::generation::scalar_u8_generator::ScalarU8Generator;
 
 use super::generation::generate_scalar_u8::GenerateScalarU8;
 
-use super::arithmetic::add_scalar_u8::AddScalarU8;
+use super::arithmetic::add_scalar::*;
 
 use super::conversion::u8_to_byte::U8ToByte;
 
@@ -40,7 +40,21 @@ pub fn core_collection() -> &'static CollectionPool {
 
             c.treatments.insert(&(GenerateScalarU8::descriptor() as Arc<dyn TreatmentDescriptor>));
 
+            // Scalar additions
+            c.treatments.insert(&(AddScalarI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(AddScalarI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(AddScalarI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(AddScalarI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(AddScalarI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+
             c.treatments.insert(&(AddScalarU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(AddScalarU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(AddScalarU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(AddScalarU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(AddScalarU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+            c.treatments.insert(&(AddScalarF32::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(AddScalarF64::descriptor() as Arc<dyn TreatmentDescriptor>));
 
             c.treatments.insert(&(U8ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
 
