@@ -58,7 +58,7 @@ macro_rules! impl_CastScalar {
                 treatment
             }
         
-            async fn add(&self) -> ResultStatus {
+            async fn cast(&self) -> ResultStatus {
         
                 let inputs_to_fill = self.data_output_transmitters.read().unwrap().clone();
         
@@ -120,7 +120,7 @@ macro_rules! impl_CastScalar {
             fn prepare(&self) -> Vec<TrackFuture> {
         
                 let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
-                let future = Box::new(Box::pin(async move { auto_self.add().await }));
+                let future = Box::new(Box::pin(async move { auto_self.cast().await }));
         
                 vec![future]
             }
