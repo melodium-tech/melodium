@@ -1,2 +1,2 @@
 
-pub mod without_loss;
+pub mod lossless_scalar;

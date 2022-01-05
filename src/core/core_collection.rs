@@ -13,7 +13,7 @@ use super::generation::scalar_u8_generator::ScalarU8Generator;
 
 use super::generation::generate_scalar_u8::GenerateScalarU8;
 
-use super::cast::without_loss::*;
+use super::cast::lossless_scalar::*;
 
 use super::arithmetic::add_scalar::*;
 
