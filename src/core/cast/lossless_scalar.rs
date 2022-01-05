@@ -129,6 +129,11 @@ macro_rules! impl_CastScalar {
     };
 }
 
+// Casts for f32 and f64
+impl_CastScalar!(CastScalarF32ToF64, "CastScalarF32ToF64", f32, F32, f64, F64);
+impl_CastScalar!(CastScalarF64ToF32, "CastScalarF64ToF32", f64, F64, f32, F32);
+
+
 // Casts for u8
 impl_CastScalar!(CastScalarU8ToU16, "CastScalarU8ToU16", u8, U8, u16, U16);
 impl_CastScalar!(CastScalarU8ToU32, "CastScalarU8ToU32", u8, U8, u32, U32);

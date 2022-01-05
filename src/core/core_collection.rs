@@ -45,6 +45,10 @@ pub fn core_collection() -> &'static CollectionPool {
 
             c.treatments.insert(&(GenerateScalarU8::descriptor() as Arc<dyn TreatmentDescriptor>));
 
+            // Casts for f32 and f64
+            c.treatments.insert(&(CastScalarF32ToF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(CastScalarF64ToF32::descriptor() as Arc<dyn TreatmentDescriptor>));
+
             // Casts for u8
             c.treatments.insert(&(CastScalarU8ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
             c.treatments.insert(&(CastScalarU8ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
@@ -93,8 +97,9 @@ pub fn core_collection() -> &'static CollectionPool {
             // Casts for i64
             c.treatments.insert(&(CastScalarI64ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
 
-            // Cast for f32
+            // Casts for f32 and f64
             c.treatments.insert(&(CastVectorF32ToF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(CastVectorF64ToF32::descriptor() as Arc<dyn TreatmentDescriptor>));
 
             // Casts for u8
             c.treatments.insert(&(CastVectorU8ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));

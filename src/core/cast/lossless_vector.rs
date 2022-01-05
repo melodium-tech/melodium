@@ -130,7 +130,9 @@ macro_rules! impl_CastVector {
     };
 }
 
+// Casts for f32 and f64
 impl_CastVector!(CastVectorF32ToF64, "CastVectorF32ToF64", f32, F32, VecF32, f64, F64, VecF64);
+impl_CastVector!(CastVectorF64ToF32, "CastVectorF64ToF32", f64, F64, VecF64, f32, F32, VecF32);
 
 // Casts for u8
 impl_CastVector!(CastVectorU8ToU16, "CastVectorU8ToU16", u8, U8, VecU8, u16, U16, VecU16);
