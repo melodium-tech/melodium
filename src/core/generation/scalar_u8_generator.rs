@@ -1,22 +1,6 @@
 
-use futures::future::join_all;
+use super::super::prelude::*;
 use std::sync::atomic::{Ordering, AtomicU64, AtomicU8};
-use std::collections::HashMap;
-use std::sync::{Arc, Weak, RwLock};
-use async_std::prelude::*;
-use crate::executive::model::{Model, ModelId};
-use crate::executive::world::World;
-use crate::executive::environment::{ContextualEnvironment, GenesisEnvironment};
-use crate::executive::context::Context;
-use crate::executive::value::Value;
-use crate::executive::transmitter::Transmitter;
-use crate::executive::future::TrackFuture;
-use crate::executive::result_status::ResultStatus;
-use crate::logic::error::LogicError;
-use crate::logic::builder::*;
-use crate::logic::contexts::Contexts;
-use crate::logic::descriptor::{ParameterDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor};
-use crate::logic::descriptor::identifier::core_identifier;
 
 #[derive(Debug)]
 pub struct ScalarU8Generator {
@@ -37,42 +21,19 @@ impl ScalarU8Generator {
 
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-                let mut parameters = Vec::new();
-
-                let tracks_parameter = ParameterDescriptor::new(
-                    "tracks",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::U64),
-                    Some(Value::U64(1))
-                );
-
-                parameters.push(tracks_parameter);
-
-                let length_parameter = ParameterDescriptor::new(
-                    "length",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::U64),
-                    Some(Value::U64(1024))
-                );
-
-                parameters.push(length_parameter);
-
-                let value_parameter = ParameterDescriptor::new(
-                    "value",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::U8),
-                    Some(Value::U8(0))
-                );
-
-                parameters.push(value_parameter);
-
-                let mut sources = HashMap::new();
-
-                sources.insert("data".to_string(), vec![]);
 
                 let builder = CoreModelBuilder::new(ScalarU8Generator::new);
 
                 let descriptor = CoreModelDescriptor::new(
                     core_identifier!("generation";"ScalarU8Generator"),
-                    parameters,
-                    sources,
+                    vec![
+                        parameter!("tracks", Scalar, U64, Some(Value::U64(1))),
+                        parameter!("length", Scalar, U64, Some(Value::U64(1024))),
+                        parameter!("value", Scalar, U8, Some(Value::U8(0))),
+                    ],
+                    model_sources![
+                        ("data";)
+                    ],
                     Box::new(builder)
                 );
 

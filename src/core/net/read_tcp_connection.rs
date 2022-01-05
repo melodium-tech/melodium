@@ -1,22 +1,6 @@
 
-use crate::executive::future::TrackFuture;
-use std::collections::HashMap;
+use super::super::prelude::*;
 use super::tcp_listener::TcpListenerModel;
-use crate::executive::model::{Model, ModelId};
-use crate::executive::value::Value;
-use crate::executive::transmitter::Transmitter;
-use crate::executive::treatment::Treatment;
-use crate::executive::world::World;
-use crate::executive::environment::{ContextualEnvironment, GenesisEnvironment};
-use crate::logic::builder::*;
-use async_std::future::Future;
-use crate::executive::result_status::ResultStatus;
-use crate::logic::descriptor::{ParameterDescriptor, OutputDescriptor, FlowDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor, BuildableDescriptor};
-use crate::logic::descriptor::identifier::core_identifier;
-use std::sync::{Arc, Weak, RwLock};
-use crate::logic::error::LogicError;
-use downcast_rs::DowncastSync;
-use crate::logic::descriptor::CoreTreatmentDescriptor;
 
 pub struct ReadTcpConnectionTreatment {
 
@@ -34,21 +18,20 @@ impl ReadTcpConnectionTreatment {
 
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
-                let mut source_from = HashMap::new();
-
-                source_from.insert(TcpListenerModel::descriptor(), vec!["connection".to_string()]);
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
                     core_identifier!("net";"ReadTcpConnection"),
-                    vec![("listener".to_string(), TcpListenerModel::descriptor())],
-                    source_from,
-                    Vec::new(),
-                    Vec::new(),
-                    vec![OutputDescriptor::new(
-                        "data",
-                        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Byte),
-                        FlowDescriptor::Stream
-                    )],
+                    models![
+                        ("listener", TcpListenerModel::descriptor())
+                    ],
+                    treatment_sources![
+                        (TcpListenerModel::descriptor(), "connection")
+                    ],
+                    vec![],
+                    vec![],
+                    vec![
+                        output!("data", Scalar, Byte, Stream)
+                    ],
                     ReadTcpConnectionTreatment::new,
                 );
 

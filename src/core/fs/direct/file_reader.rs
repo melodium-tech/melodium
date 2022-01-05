@@ -1,24 +1,7 @@
 
-use std::collections::HashMap;
-use std::sync::{Arc, Weak, RwLock};
+use super::super::super::prelude::*;
 use async_std::path::PathBuf;
 use async_std::fs::{File, OpenOptions};
-use async_std::task::block_on;
-use async_std::prelude::*;
-use crate::executive::model::{Model, ModelId};
-use crate::executive::world::World;
-use crate::executive::environment::{ContextualEnvironment, GenesisEnvironment};
-use crate::executive::context::Context;
-use crate::executive::value::Value;
-use crate::executive::transmitter::Transmitter;
-use crate::executive::future::TrackFuture;
-use crate::executive::result_status::ResultStatus;
-use crate::logic::error::LogicError;
-use crate::logic::builder::*;
-use crate::logic::contexts::Contexts;
-use crate::logic::descriptor::{ParameterDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor};
-use crate::logic::descriptor::identifier::core_identifier;
-use crate::logic::descriptor::core_model::model_sources;
 
 #[derive(Debug)]
 pub struct FileReaderModel {
@@ -37,27 +20,16 @@ impl FileReaderModel {
 
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-                let mut parameters = Vec::new();
-
-                let path_parameter = ParameterDescriptor::new(
-                    "path",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::String),
-                    None
-                );
-
-                parameters.push(path_parameter);
-
-                let mut sources = HashMap::new();
-
-                sources.insert("read".to_string(), vec![Arc::clone(Contexts::get("File").unwrap())]);
-
+                
                 let builder = CoreModelBuilder::new(FileReaderModel::new);
 
                 let descriptor = CoreModelDescriptor::new(
                     core_identifier!("fs","direct";"FileReader"),
-                    parameters,
+                    vec![
+                        parameter!("path", Scalar, String, None)
+                    ],
                     model_sources![
-                        ("read", "File")
+                        ("read"; "File")
                     ],
                     Box::new(builder)
                 );
