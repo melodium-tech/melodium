@@ -18,26 +18,20 @@ impl ReadFileTreatment {
 
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
-                let mut source_from = HashMap::new();
-
-                source_from.insert(FileReaderModel::descriptor(), vec!["read".to_string()]);
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
                     core_identifier!("fs","direct";"ReadFile"),
-                    
                     models![
                         ("reader", FileReaderModel::descriptor())
                     ],
                     treatment_sources![
                         (FileReaderModel::descriptor(), "read")
                     ],
-                    Vec::new(),
-                    Vec::new(),
-                    vec![OutputDescriptor::new(
-                        "data",
-                        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Byte),
-                        FlowDescriptor::Stream
-                    )],
+                    vec![],
+                    vec![],
+                    vec![
+                        output!("data", Scalar, Byte, Stream)
+                    ],
                     ReadFileTreatment::new,
                 );
 

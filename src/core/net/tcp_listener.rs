@@ -21,26 +21,17 @@ impl TcpListenerModel {
 
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-                let mut parameters = Vec::new();
-
-                let socket_address_parameter = ParameterDescriptor::new(
-                    "socket_address",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::String),
-                    None
-                );
-
-                parameters.push(socket_address_parameter);
-
-                let mut sources = HashMap::new();
-
-                sources.insert("connection".to_string(), vec![Arc::clone(Contexts::get("TcpConnection").unwrap())]);
 
                 let builder = CoreModelBuilder::new(TcpListenerModel::new);
 
                 let descriptor = CoreModelDescriptor::new(
                     core_identifier!("net";"TcpListener"),
-                    parameters,
-                    sources,
+                    vec![
+                        parameter!("socket_address", Scalar, String, None)
+                    ],
+                    model_sources![
+                        ("connection"; "TcpConnection")
+                    ],
                     Box::new(builder)
                 );
 

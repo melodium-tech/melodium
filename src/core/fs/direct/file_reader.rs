@@ -20,27 +20,16 @@ impl FileReaderModel {
 
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-                let mut parameters = Vec::new();
-
-                let path_parameter = ParameterDescriptor::new(
-                    "path",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::String),
-                    None
-                );
-
-                parameters.push(path_parameter);
-
-                let mut sources = HashMap::new();
-
-                sources.insert("read".to_string(), vec![Arc::clone(Contexts::get("File").unwrap())]);
-
+                
                 let builder = CoreModelBuilder::new(FileReaderModel::new);
 
                 let descriptor = CoreModelDescriptor::new(
                     core_identifier!("fs","direct";"FileReader"),
-                    parameters,
+                    vec![
+                        parameter!("path", Scalar, String, None)
+                    ],
                     model_sources![
-                        ("read", "File")
+                        ("read"; "File")
                     ],
                     Box::new(builder)
                 );

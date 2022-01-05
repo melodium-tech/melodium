@@ -21,15 +21,15 @@ impl WriteFileTreatment {
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
                     core_identifier!("fs","direct";"WriteFile"),
-                    vec![("writer".to_string(), FileWriterModel::descriptor())],
-                    HashMap::new(),
-                    Vec::new(),
-                    vec![InputDescriptor::new(
-                        "data",
-                        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Byte),
-                        FlowDescriptor::Stream
-                    )],
-                    Vec::new(),
+                    models![
+                        ("writer", FileWriterModel::descriptor())
+                    ],
+                    treatment_sources![],
+                    vec![],
+                    vec![
+                        input!("data", Scalar, Byte, Stream)
+                    ],
+                    vec![],
                     WriteFileTreatment::new,
                 );
 

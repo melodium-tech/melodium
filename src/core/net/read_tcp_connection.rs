@@ -18,21 +18,20 @@ impl ReadTcpConnectionTreatment {
 
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
-                let mut source_from = HashMap::new();
-
-                source_from.insert(TcpListenerModel::descriptor(), vec!["connection".to_string()]);
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
                     core_identifier!("net";"ReadTcpConnection"),
-                    vec![("listener".to_string(), TcpListenerModel::descriptor())],
-                    source_from,
-                    Vec::new(),
-                    Vec::new(),
-                    vec![OutputDescriptor::new(
-                        "data",
-                        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Byte),
-                        FlowDescriptor::Stream
-                    )],
+                    models![
+                        ("listener", TcpListenerModel::descriptor())
+                    ],
+                    treatment_sources![
+                        (TcpListenerModel::descriptor(), "connection")
+                    ],
+                    vec![],
+                    vec![],
+                    vec![
+                        output!("data", Scalar, Byte, Stream)
+                    ],
                     ReadTcpConnectionTreatment::new,
                 );
 

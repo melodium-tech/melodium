@@ -26,35 +26,20 @@ impl WriteTcpConnectionTreatment {
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
 
-                let mut parameters = Vec::new();
-
-                let ip_parameter = ParameterDescriptor::new(
-                    "ip",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::String),
-                    None
-                );
-
-                parameters.push(ip_parameter);
-
-                let port_parameter = ParameterDescriptor::new(
-                    "port",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::U16),
-                    None
-                );
-
-                parameters.push(port_parameter);
-
                 let rc_descriptor = CoreTreatmentDescriptor::new(
                     core_identifier!("net";"WriteTcpConnection"),
-                    vec![("listener".to_string(), TcpListenerModel::descriptor())],
-                    HashMap::new(),
-                    parameters,
-                    vec![InputDescriptor::new(
-                        "data",
-                        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Byte),
-                        FlowDescriptor::Stream
-                    )],
-                    Vec::new(),
+                    models![
+                        ("listener", TcpListenerModel::descriptor())
+                    ],
+                    treatment_sources![],
+                    vec![
+                        parameter!("ip", Scalar, String, None),
+                        parameter!("port", Scalar, U16, None),
+                    ],
+                    vec![
+                        input!("data", Scalar, Byte, Stream)
+                    ],
+                    vec![],
                     WriteTcpConnectionTreatment::new,
                 );
 

@@ -52,8 +52,6 @@ pub struct CoreTreatment {
     auto_reference: RwLock<Weak<Self>>,
 }
 
-//, builder: Box<dyn Builder>
-
 impl CoreTreatment {
     pub fn new(identifier: Identifier, models: Vec<(String, Arc<CoreModel>)>, source_from: HashMap<Arc<CoreModel>, Vec<String>>, parameters: Vec<Parameter>, inputs: Vec<Input>, outputs: Vec<Output>, new_treatment: fn(Arc<World>) -> Arc<dyn ExecutiveTreatment>) -> Arc<Self> {
         let mut descriptor = Arc::new(Self{

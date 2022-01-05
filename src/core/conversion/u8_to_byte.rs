@@ -21,19 +21,15 @@ impl U8ToByte {
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
                     core_identifier!("conversion";"U8ToByte"),
-                    Vec::new(),
-                    HashMap::new(),
-                    Vec::new(),
-                    vec![InputDescriptor::new(
-                        "data",
-                        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::U8),
-                        FlowDescriptor::Stream
-                    )],
-                    vec![OutputDescriptor::new(
-                        "data",
-                        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Byte),
-                        FlowDescriptor::Stream
-                    )],
+                    models![],
+                    treatment_sources![],
+                    vec![],
+                    vec![
+                        input!("data", Scalar, U8, Stream)
+                    ],
+                    vec![
+                        output!("data", Scalar, Byte, Stream)
+                    ],
                     U8ToByte::new,
                 );
 

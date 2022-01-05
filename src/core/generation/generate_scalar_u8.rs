@@ -25,14 +25,14 @@ impl GenerateScalarU8 {
                 let rc_descriptor = CoreTreatmentDescriptor::new(
                     core_identifier!("generation";"GenerateScalarU8"),
                     vec![("generator".to_string(), ScalarU8Generator::descriptor())],
-                    source_from,
-                    Vec::new(),
-                    Vec::new(),
-                    vec![OutputDescriptor::new(
-                        "data",
-                        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::U8),
-                        FlowDescriptor::Stream
-                    )],
+                    treatment_sources![
+                        (ScalarU8Generator::descriptor(), "data")
+                    ],
+                    vec![],
+                    vec![],
+                    vec![
+                        output!("data", Scalar, U8, Stream)
+                    ],
                     GenerateScalarU8::new,
                 );
 
