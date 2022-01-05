@@ -8,6 +8,7 @@
 pub mod core_collection;
 
 pub mod arithmetic;
+pub mod cast;
 pub mod conversion;
 pub mod generation;
 pub mod fs;
