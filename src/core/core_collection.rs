@@ -18,6 +18,8 @@ use super::cast::lossless_vector::*;
 use super::cast::lossy_scalar::*;
 use super::cast::lossy_vector::*;
 
+use super::conversion::scalar_to_string::*;
+
 use super::arithmetic::add_scalar::*;
 
 use super::conversion::u8_to_byte::U8ToByte;
@@ -310,6 +312,23 @@ pub fn core_collection() -> &'static CollectionPool {
             c.treatments.insert(&(CastVectorI128ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
             c.treatments.insert(&(CastVectorI128ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
             c.treatments.insert(&(CastVectorI128ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+            // Conversions to string
+            c.treatments.insert(&(ScalarU8ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(ScalarU16ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(ScalarU32ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(ScalarU64ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(ScalarU128ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(ScalarI8ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(ScalarI16ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(ScalarI32ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(ScalarI64ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(ScalarI128ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(ScalarF32ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(ScalarF64ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(ScalarBoolToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(ScalarByteToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+            c.treatments.insert(&(ScalarCharToString::descriptor() as Arc<dyn TreatmentDescriptor>));
 
 
             // Scalar additions
