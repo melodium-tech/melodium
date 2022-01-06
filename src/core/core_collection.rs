@@ -19,6 +19,7 @@ use super::cast::lossy_scalar::*;
 use super::cast::lossy_vector::*;
 
 use super::conversion::scalar_to_string::*;
+use super::conversion::vector_to_string::*;
 
 use super::arithmetic::add_scalar::*;
 
@@ -406,7 +407,7 @@ fn add_lossy_cast_vector(c: &mut CollectionPool) {
 }
 
 fn add_converstion_to_string(c: &mut CollectionPool) {
-    // Conversions to string
+    // Scalar
     c.treatments.insert(&(ScalarU8ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
     c.treatments.insert(&(ScalarU16ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
     c.treatments.insert(&(ScalarU32ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
@@ -422,5 +423,23 @@ fn add_converstion_to_string(c: &mut CollectionPool) {
     c.treatments.insert(&(ScalarBoolToString::descriptor() as Arc<dyn TreatmentDescriptor>));
     c.treatments.insert(&(ScalarByteToString::descriptor() as Arc<dyn TreatmentDescriptor>));
     c.treatments.insert(&(ScalarCharToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Vector
+    c.treatments.insert(&(VectorU8ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorU16ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorU32ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorU64ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorU128ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorI8ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorI16ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorI32ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorI64ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorI128ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF32ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF64ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorBoolToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorByteToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorCharToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+
 }
 
