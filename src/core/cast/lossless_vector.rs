@@ -143,6 +143,8 @@ impl_CastVector!(CastVectorU8ToI16, "CastVectorU8ToI16", u8, U8, VecU8, i16, I16
 impl_CastVector!(CastVectorU8ToI32, "CastVectorU8ToI32", u8, U8, VecU8, i32, I32, VecI32);
 impl_CastVector!(CastVectorU8ToI64, "CastVectorU8ToI64", u8, U8, VecU8, i64, I64, VecI64);
 impl_CastVector!(CastVectorU8ToI128, "CastVectorU8ToI128", u8, U8, VecU8, i128, I128, VecI128);
+impl_CastVector!(CastVectorU8ToF32, "CastVectorU8ToF32", u8, U8, VecU8, f32, F32, VecF32);
+impl_CastVector!(CastVectorU8ToF64, "CastVectorU8ToF64", u8, U8, VecU8, f64, F64, VecF64);
 
 // Casts for u16
 impl_CastVector!(CastVectorU16ToU32, "CastVectorU16ToU32", u16, U16, VecU16, u32, U32, VecU32);
@@ -151,38 +153,56 @@ impl_CastVector!(CastVectorU16ToU128, "CastVectorU16ToU128", u16, U16, VecU16, u
 impl_CastVector!(CastVectorU16ToI32, "CastVectorU16ToI32", u16, U16, VecU16, i32, I32, VecI32);
 impl_CastVector!(CastVectorU16ToI64, "CastVectorU16ToI64", u16, U16, VecU16, i64, I64, VecI64);
 impl_CastVector!(CastVectorU16ToI128, "CastVectorU16ToI128", u16, U16, VecU16, i128, I128, VecI128);
+impl_CastVector!(CastVectorU16ToF32, "CastVectorU16ToF32", u16, U16, VecU16, f32, F32, VecF32);
+impl_CastVector!(CastVectorU16ToF64, "CastVectorU16ToF64", u16, U16, VecU16, f64, F64, VecF64);
 
 // Casts for u32
 impl_CastVector!(CastVectorU32ToU64, "CastVectorU32ToU64", u32, U32, VecU32, u64, U64, VecU64);
 impl_CastVector!(CastVectorU32ToU128, "CastVectorU32ToU128", u32, U32, VecU32, u128, U128, VecU128);
 impl_CastVector!(CastVectorU32ToI64, "CastVectorU32ToI64", u32, U32, VecU32, i64, I64, VecI64);
 impl_CastVector!(CastVectorU32ToI128, "CastVectorU32ToI128", u32, U32, VecU32, i128, I128, VecI128);
+impl_CastVector!(CastVectorU32ToF32, "CastVectorU32ToF32", u32, U32, VecU32, f32, F32, VecF32);
+impl_CastVector!(CastVectorU32ToF64, "CastVectorU32ToF64", u32, U32, VecU32, f64, F64, VecF64);
 
 // Casts for u64
 impl_CastVector!(CastVectorU64ToU128, "CastVectorU64ToU128", u64, U64, VecU64, u128, U128, VecU128);
 impl_CastVector!(CastVectorU64ToI128, "CastVectorU64ToI128", u64, U64, VecU64, i128, I128, VecI128);
+impl_CastVector!(CastVectorU64ToF32, "CastVectorU64ToF32", u64, U64, VecU64, f32, F32, VecF32);
+impl_CastVector!(CastVectorU64ToF64, "CastVectorU64ToF64", u64, U64, VecU64, f64, F64, VecF64);
 
 // Casts for u128
+impl_CastVector!(CastVectorU128ToF32, "CastVectorU128ToF32", u128, U128, VecU128, f32, F32, VecF32);
+impl_CastVector!(CastVectorU128ToF64, "CastVectorU128ToF64", u128, U128, VecU128, f64, F64, VecF64);
 
 // Casts for i8
 impl_CastVector!(CastVectorI8ToI16, "CastVectorI8ToI16", i8, I8, VecI8, i16, I16, VecI16);
 impl_CastVector!(CastVectorI8ToI32, "CastVectorI8ToI32", i8, I8, VecI8, i32, I32, VecI32);
 impl_CastVector!(CastVectorI8ToI64, "CastVectorI8ToI64", i8, I8, VecI8, i64, I64, VecI64);
 impl_CastVector!(CastVectorI8ToI128, "CastVectorI8ToI128", i8, I8, VecI8, i128, I128, VecI128);
+impl_CastVector!(CastVectorI8ToF32, "CastVectorI8ToF32", i8, I8, VecI8, f32, F32, VecF32);
+impl_CastVector!(CastVectorI8ToF64, "CastVectorI8ToF64", i8, I8, VecI8, f64, F64, VecF64);
 
 // Casts for i16
 impl_CastVector!(CastVectorI16ToI32, "CastVectorI16ToI32", i16, I16, VecI16, i32, I32, VecI32);
 impl_CastVector!(CastVectorI16ToI64, "CastVectorI16ToI64", i16, I16, VecI16, i64, I64, VecI64);
 impl_CastVector!(CastVectorI16ToI128, "CastVectorI16ToI128", i16, I16, VecI16, i128, I128, VecI128);
+impl_CastVector!(CastVectorI16ToF32, "CastVectorI16ToF32", i16, I16, VecI16, f32, F32, VecF32);
+impl_CastVector!(CastVectorI16ToF64, "CastVectorI16ToF64", i16, I16, VecI16, f64, F64, VecF64);
 
 // Casts for i32
 impl_CastVector!(CastVectorI32ToI64, "CastVectorI32ToI64", i32, I32, VecI32, i64, I64, VecI64);
 impl_CastVector!(CastVectorI32ToI128, "CastVectorI32ToI128", i32, I32, VecI32, i128, I128, VecI128);
+impl_CastVector!(CastVectorI32ToF32, "CastVectorI32ToF32", i32, I32, VecI32, f32, F32, VecF32);
+impl_CastVector!(CastVectorI32ToF64, "CastVectorI32ToF64", i32, I32, VecI32, f64, F64, VecF64);
 
 // Casts for i64
 impl_CastVector!(CastVectorI64ToI128, "CastVectorI64ToI128", i64, I64, VecI64, i128, I128, VecI128);
+impl_CastVector!(CastVectorI64ToF32, "CastVectorI64ToF32", i64, I64, VecI64, f32, F32, VecF32);
+impl_CastVector!(CastVectorI64ToF64, "CastVectorI64ToF64", i64, I64, VecI64, f64, F64, VecF64);
 
 // Casts for i128
+impl_CastVector!(CastVectorI128ToF32, "CastVectorI128ToF32", i128, I128, VecI128, f32, F32, VecF32);
+impl_CastVector!(CastVectorI128ToF64, "CastVectorI128ToF64", i128, I128, VecI128, f64, F64, VecF64);
 
 
 /*
@@ -191,8 +211,6 @@ impl_CastVector!(CastVectorI64ToI128, "CastVectorI64ToI128", i64, I64, VecI64, i
 The lines about u/i* casts can be regenerated as will using the following script:
 
 ```
-#!/bin/bash
-
 TYPES="u8 u16 u32 u64 u128 i8 i16 i32 i64 i128"
 
 for TYPE in $TYPES
@@ -211,6 +229,8 @@ do
         QUALIFIED_TYPES=`echo $QUALIFIED_TYPES | sed s/[a-z]$TYPE_SIZE//g`
         TYPE_SIZE=`expr $TYPE_SIZE / 2`
     done
+    
+    QUALIFIED_TYPES="$QUALIFIED_TYPES f32 f64"
     
     echo "// Casts for $TYPE"
     

@@ -133,7 +133,6 @@ macro_rules! impl_CastScalar {
 impl_CastScalar!(CastScalarF32ToF64, "CastScalarF32ToF64", f32, F32, f64, F64);
 impl_CastScalar!(CastScalarF64ToF32, "CastScalarF64ToF32", f64, F64, f32, F32);
 
-
 // Casts for u8
 impl_CastScalar!(CastScalarU8ToU16, "CastScalarU8ToU16", u8, U8, u16, U16);
 impl_CastScalar!(CastScalarU8ToU32, "CastScalarU8ToU32", u8, U8, u32, U32);
@@ -143,6 +142,8 @@ impl_CastScalar!(CastScalarU8ToI16, "CastScalarU8ToI16", u8, U8, i16, I16);
 impl_CastScalar!(CastScalarU8ToI32, "CastScalarU8ToI32", u8, U8, i32, I32);
 impl_CastScalar!(CastScalarU8ToI64, "CastScalarU8ToI64", u8, U8, i64, I64);
 impl_CastScalar!(CastScalarU8ToI128, "CastScalarU8ToI128", u8, U8, i128, I128);
+impl_CastScalar!(CastScalarU8ToF32, "CastScalarU8ToF32", u8, U8, f32, F32);
+impl_CastScalar!(CastScalarU8ToF64, "CastScalarU8ToF64", u8, U8, f64, F64);
 
 // Casts for u16
 impl_CastScalar!(CastScalarU16ToU32, "CastScalarU16ToU32", u16, U16, u32, U32);
@@ -151,36 +152,57 @@ impl_CastScalar!(CastScalarU16ToU128, "CastScalarU16ToU128", u16, U16, u128, U12
 impl_CastScalar!(CastScalarU16ToI32, "CastScalarU16ToI32", u16, U16, i32, I32);
 impl_CastScalar!(CastScalarU16ToI64, "CastScalarU16ToI64", u16, U16, i64, I64);
 impl_CastScalar!(CastScalarU16ToI128, "CastScalarU16ToI128", u16, U16, i128, I128);
+impl_CastScalar!(CastScalarU16ToF32, "CastScalarU16ToF32", u16, U16, f32, F32);
+impl_CastScalar!(CastScalarU16ToF64, "CastScalarU16ToF64", u16, U16, f64, F64);
 
 // Casts for u32
 impl_CastScalar!(CastScalarU32ToU64, "CastScalarU32ToU64", u32, U32, u64, U64);
 impl_CastScalar!(CastScalarU32ToU128, "CastScalarU32ToU128", u32, U32, u128, U128);
 impl_CastScalar!(CastScalarU32ToI64, "CastScalarU32ToI64", u32, U32, i64, I64);
 impl_CastScalar!(CastScalarU32ToI128, "CastScalarU32ToI128", u32, U32, i128, I128);
+impl_CastScalar!(CastScalarU32ToF32, "CastScalarU32ToF32", u32, U32, f32, F32);
+impl_CastScalar!(CastScalarU32ToF64, "CastScalarU32ToF64", u32, U32, f64, F64);
 
 // Casts for u64
 impl_CastScalar!(CastScalarU64ToU128, "CastScalarU64ToU128", u64, U64, u128, U128);
 impl_CastScalar!(CastScalarU64ToI128, "CastScalarU64ToI128", u64, U64, i128, I128);
+impl_CastScalar!(CastScalarU64ToF32, "CastScalarU64ToF32", u64, U64, f32, F32);
+impl_CastScalar!(CastScalarU64ToF64, "CastScalarU64ToF64", u64, U64, f64, F64);
 
 // Casts for u128
+impl_CastScalar!(CastScalarU128ToF32, "CastScalarU128ToF32", u128, U128, f32, F32);
+impl_CastScalar!(CastScalarU128ToF64, "CastScalarU128ToF64", u128, U128, f64, F64);
 
 // Casts for i8
 impl_CastScalar!(CastScalarI8ToI16, "CastScalarI8ToI16", i8, I8, i16, I16);
 impl_CastScalar!(CastScalarI8ToI32, "CastScalarI8ToI32", i8, I8, i32, I32);
 impl_CastScalar!(CastScalarI8ToI64, "CastScalarI8ToI64", i8, I8, i64, I64);
 impl_CastScalar!(CastScalarI8ToI128, "CastScalarI8ToI128", i8, I8, i128, I128);
+impl_CastScalar!(CastScalarI8ToF32, "CastScalarI8ToF32", i8, I8, f32, F32);
+impl_CastScalar!(CastScalarI8ToF64, "CastScalarI8ToF64", i8, I8, f64, F64);
 
 // Casts for i16
 impl_CastScalar!(CastScalarI16ToI32, "CastScalarI16ToI32", i16, I16, i32, I32);
 impl_CastScalar!(CastScalarI16ToI64, "CastScalarI16ToI64", i16, I16, i64, I64);
 impl_CastScalar!(CastScalarI16ToI128, "CastScalarI16ToI128", i16, I16, i128, I128);
+impl_CastScalar!(CastScalarI16ToF32, "CastScalarI16ToF32", i16, I16, f32, F32);
+impl_CastScalar!(CastScalarI16ToF64, "CastScalarI16ToF64", i16, I16, f64, F64);
 
 // Casts for i32
 impl_CastScalar!(CastScalarI32ToI64, "CastScalarI32ToI64", i32, I32, i64, I64);
 impl_CastScalar!(CastScalarI32ToI128, "CastScalarI32ToI128", i32, I32, i128, I128);
+impl_CastScalar!(CastScalarI32ToF32, "CastScalarI32ToF32", i32, I32, f32, F32);
+impl_CastScalar!(CastScalarI32ToF64, "CastScalarI32ToF64", i32, I32, f64, F64);
 
 // Casts for i64
 impl_CastScalar!(CastScalarI64ToI128, "CastScalarI64ToI128", i64, I64, i128, I128);
+impl_CastScalar!(CastScalarI64ToF32, "CastScalarI64ToF32", i64, I64, f32, F32);
+impl_CastScalar!(CastScalarI64ToF64, "CastScalarI64ToF64", i64, I64, f64, F64);
+
+// Casts for i128
+impl_CastScalar!(CastScalarI128ToF32, "CastScalarI128ToF32", i128, I128, f32, F32);
+impl_CastScalar!(CastScalarI128ToF64, "CastScalarI128ToF64", i128, I128, f64, F64);
+
 
 // Casts for i128
 
@@ -189,6 +211,7 @@ impl_CastScalar!(CastScalarI64ToI128, "CastScalarI64ToI128", i64, I64, i128, I12
 
 The lines about u/i* casts can be regenerated as will using the following script:
 
+```
 #!/bin/bash
 
 TYPES="u8 u16 u32 u64 u128 i8 i16 i32 i64 i128"
@@ -210,6 +233,8 @@ do
         TYPE_SIZE=`expr $TYPE_SIZE / 2`
     done
     
+    QUALIFIED_TYPES="$QUALIFIED_TYPES f32 f64"
+    
     echo "// Casts for $TYPE"
     
     UPPER_CASE_TYPE=`echo $TYPE | tr '[:lower:]' '[:upper:]'`
@@ -218,10 +243,11 @@ do
         UPPER_CASE_CAST_TYPE=`echo $CAST_TYPE | tr '[:lower:]' '[:upper:]'`
         
         echo "impl_CastScalar!(CastScalar${UPPER_CASE_TYPE}To${UPPER_CASE_CAST_TYPE}, \"CastScalar${UPPER_CASE_TYPE}To${UPPER_CASE_CAST_TYPE}\", $TYPE, $UPPER_CASE_TYPE, $CAST_TYPE, $UPPER_CASE_CAST_TYPE);"
-        # echo "c.treatments.insert(&(CastScalar${UPPER_CASE_TYPE}To${UPPER_CASE_CAST_TYPE}::descriptor() as Arc<dyn TreatmentDescriptor>));"
+        #echo "c.treatments.insert(&(CastScalar${UPPER_CASE_TYPE}To${UPPER_CASE_CAST_TYPE}::descriptor() as Arc<dyn TreatmentDescriptor>));"
     done
     
     echo 
 done
+```
     
 */
