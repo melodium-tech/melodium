@@ -20,6 +20,7 @@ use super::cast::lossy_vector::*;
 
 use super::conversion::scalar_to_string::*;
 use super::conversion::vector_to_string::*;
+use super::conversion::float_to_integer::*;
 
 use super::arithmetic::add_scalar::*;
 
@@ -58,6 +59,7 @@ pub fn core_collection() -> &'static CollectionPool {
 
             add_converstion_to_string(&mut c);
 
+            add_conversion_float_to_int(&mut c);
 
             // Scalar additions
             c.treatments.insert(&(AddScalarI8::descriptor() as Arc<dyn TreatmentDescriptor>));
@@ -443,3 +445,30 @@ fn add_converstion_to_string(c: &mut CollectionPool) {
 
 }
 
+fn add_conversion_float_to_int(c: &mut CollectionPool) {
+
+    // Conversions for f32
+    c.treatments.insert(&(ScalarF32ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF32ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF32ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF32ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF32ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF32ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF32ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF32ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF32ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF32ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Conversions for f64
+    c.treatments.insert(&(ScalarF64ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF64ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF64ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF64ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF64ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF64ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF64ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF64ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF64ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF64ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+        
+}
