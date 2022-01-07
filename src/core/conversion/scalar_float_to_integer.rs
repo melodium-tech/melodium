@@ -197,6 +197,7 @@ impl_ScalarFloatToInteger!(ScalarF64ToI128, "ScalarF64ToI128", f64, F64, i128, I
 
 The lines can be regenerated as will using the following script:
 
+```
 #!/bin/bash
 
 FLOAT_TYPES="f32 f64"
