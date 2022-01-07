@@ -13,8 +13,6 @@ use super::generation::scalar_u8_generator::ScalarU8Generator;
 
 use super::generation::generate_scalar_u8::GenerateScalarU8;
 
-use super::conversion::u8_to_byte::U8ToByte;
-
 use super::net::tcp_listener::TcpListenerModel;
 use super::net::read_tcp_connection::ReadTcpConnectionTreatment;
 use super::net::write_tcp_connection::WriteTcpConnectionTreatment;
@@ -49,9 +47,6 @@ pub fn core_collection() -> &'static CollectionPool {
             super::conversion::vector_float_to_integer::register(&mut c);
 
             super::arithmetic::add_scalar::register(&mut c);
-            
-
-            c.treatments.insert(&(U8ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
 
             c.treatments.insert(&(ReadTcpConnectionTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
             c.treatments.insert(&(WriteTcpConnectionTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
