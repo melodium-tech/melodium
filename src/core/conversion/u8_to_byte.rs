@@ -25,7 +25,7 @@ impl U8ToByte {
                     treatment_sources![],
                     vec![],
                     vec![
-                        input!("data", Scalar, U8, Stream)
+                        input!("value", Scalar, U8, Stream)
                     ],
                     vec![
                         output!("data", Scalar, Byte, Stream)
