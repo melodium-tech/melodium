@@ -3,7 +3,7 @@ use super::super::prelude::*;
 
 macro_rules! impl_ScalarToString {
     ($name:ident, $mel_name:expr, $input_rust_type:ty, $input_mel_type:ident) => {
-        pub struct $name {
+        struct $name {
 
             world: Arc<World>,
         
@@ -145,4 +145,23 @@ impl_ScalarToString!(ScalarBoolToString, "ScalarBoolToString", bool, Bool);
 impl_ScalarToString!(ScalarByteToString, "ScalarByteToString", u8, Byte);
 impl_ScalarToString!(ScalarCharToString, "ScalarCharToString", char, Char);
 
+pub fn register(c: &mut CollectionPool) {
+
+    // Scalar
+    c.treatments.insert(&(ScalarU8ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarU16ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarU32ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarU64ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarU128ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarI8ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarI16ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarI32ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarI64ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarI128ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF32ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarF64ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarBoolToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarByteToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(ScalarCharToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+}
 

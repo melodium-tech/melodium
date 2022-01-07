@@ -3,7 +3,7 @@ use super::super::prelude::*;
 
 macro_rules! impl_AddScalar {
     ($name:ident, $mel_name:expr, $rust_type:ty, $mel_type:ident) => {
-        pub struct $name {
+        struct $name {
 
             world: Arc<World>,
         
@@ -157,4 +157,22 @@ impl_AddScalar!(AddScalarU128, "AddScalarU128", u128, U128);
 
 impl_AddScalar!(AddScalarF32, "AddScalarF32", f32, F32);
 impl_AddScalar!(AddScalarF64, "AddScalarF64", f64, F64);
+
+pub fn register(c: &mut CollectionPool) {
+
+    c.treatments.insert(&(AddScalarI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(AddScalarI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(AddScalarI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(AddScalarI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(AddScalarI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    c.treatments.insert(&(AddScalarU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(AddScalarU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(AddScalarU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(AddScalarU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(AddScalarU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    c.treatments.insert(&(AddScalarF32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(AddScalarF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+}
 

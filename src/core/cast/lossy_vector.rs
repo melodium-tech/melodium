@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 macro_rules! impl_CastVector {
     ($name:ident, $mel_name:expr, $input_rust_type:ty, $input_mel_type:ident, $input_trans_type:ident, $output_rust_type:ty, $output_mel_type:ident, $output_trans_type:ident) => {
-        pub struct $name {
+        struct $name {
 
             world: Arc<World>,
 
@@ -274,6 +274,88 @@ impl_CastVector!(CastVectorI128ToI16, "CastVectorI128ToI16", i128, I128, VecI128
 impl_CastVector!(CastVectorI128ToI32, "CastVectorI128ToI32", i128, I128, VecI128, i32, I32, VecI32);
 impl_CastVector!(CastVectorI128ToI64, "CastVectorI128ToI64", i128, I128, VecI128, i64, I64, VecI64);
 
+pub fn register(c: &mut CollectionPool) {
+
+    // Lossy casts for u8
+    c.treatments.insert(&(CastVectorU8ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Lossy casts for u16
+    c.treatments.insert(&(CastVectorU16ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU16ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU16ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Lossy casts for u32
+    c.treatments.insert(&(CastVectorU32ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU32ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU32ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU32ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU32ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Lossy casts for u64
+    c.treatments.insert(&(CastVectorU64ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU64ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU64ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU64ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU64ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU64ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU64ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Lossy casts for u128
+    c.treatments.insert(&(CastVectorU128ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU128ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU128ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU128ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU128ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU128ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU128ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU128ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorU128ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Lossy casts for i8
+    c.treatments.insert(&(CastVectorI8ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI8ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI8ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI8ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI8ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Lossy casts for i16
+    c.treatments.insert(&(CastVectorI16ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI16ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI16ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI16ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI16ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI16ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Lossy casts for i32
+    c.treatments.insert(&(CastVectorI32ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI32ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI32ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI32ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI32ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI32ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI32ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Lossy casts for i64
+    c.treatments.insert(&(CastVectorI64ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI64ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI64ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI64ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI64ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI64ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI64ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI64ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Lossy casts for i128
+    c.treatments.insert(&(CastVectorI128ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI128ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI128ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI128ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI128ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI128ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI128ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI128ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastVectorI128ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+}
 
 /*
     FOR DEVELOPERS

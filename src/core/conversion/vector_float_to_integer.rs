@@ -4,7 +4,7 @@ use std::iter::Iterator;
 
 macro_rules! impl_VectorFloatToInteger {
     ($name:ident, $mel_name:expr, $input_rust_type:ty, $input_mel_type:ident, $input_trans_type:ident, $output_rust_type:ty, $output_mel_type:ident, $output_trans_type:ident) => {
-        pub struct $name {
+        struct $name {
 
             world: Arc<World>,
         
@@ -192,6 +192,33 @@ impl_VectorFloatToInteger!(VectorF64ToI16, "VectorF64ToI16", f64, F64, VecF64, i
 impl_VectorFloatToInteger!(VectorF64ToI32, "VectorF64ToI32", f64, F64, VecF64, i32, I32, VecI32);
 impl_VectorFloatToInteger!(VectorF64ToI64, "VectorF64ToI64", f64, F64, VecF64, i64, I64, VecI64);
 impl_VectorFloatToInteger!(VectorF64ToI128, "VectorF64ToI128", f64, F64, VecF64, i128, I128, VecI128);
+
+pub fn register(c: &mut CollectionPool) {
+
+    // Conversions for f32
+    c.treatments.insert(&(VectorF32ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF32ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF32ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF32ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF32ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF32ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF32ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF32ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF32ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF32ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Conversions for f64
+    c.treatments.insert(&(VectorF64ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF64ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF64ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF64ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF64ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF64ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF64ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF64ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF64ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF64ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+}
 
 /*
     FOR DEVELOPERS

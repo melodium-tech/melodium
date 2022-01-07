@@ -3,7 +3,7 @@ use super::super::prelude::*;
 
 macro_rules! impl_VectorToString {
     ($name:ident, $mel_name:expr, $input_rust_type:ty, $input_mel_type:ident, $input_trans_type:ident) => {
-        pub struct $name {
+        struct $name {
 
             world: Arc<World>,
         
@@ -145,5 +145,23 @@ impl_VectorToString!(VectorBoolToVectorString, "VectorBoolToVectorString", bool,
 impl_VectorToString!(VectorByteToVectorString, "VectorByteToVectorString", u8, Byte, VecByte);
 impl_VectorToString!(VectorCharToVectorString, "VectorCharToVectorString", char, Char, VecChar);
 
+pub fn register(c: &mut CollectionPool) {
 
+    // Vector
+    c.treatments.insert(&(VectorU8ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorU16ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorU32ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorU64ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorU128ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorI8ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorI16ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorI32ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorI64ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorI128ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF32ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorF64ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorBoolToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorByteToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(VectorCharToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));
+}
 

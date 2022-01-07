@@ -23,3 +23,4 @@ pub use std::sync::{Arc, Weak, RwLock};
 pub use downcast_rs::DowncastSync;
 pub use async_std::prelude::*;
 pub use crate::logic::descriptor::CoreTreatmentDescriptor;
+pub use crate::logic::collection_pool::CollectionPool;

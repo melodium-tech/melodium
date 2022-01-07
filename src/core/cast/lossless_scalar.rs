@@ -3,7 +3,7 @@ use super::super::prelude::*;
 
 macro_rules! impl_CastScalar {
     ($name:ident, $mel_name:expr, $input_rust_type:ty, $input_mel_type:ident, $output_rust_type:ty, $output_mel_type:ident) => {
-        pub struct $name {
+        struct $name {
 
             world: Arc<World>,
         
@@ -203,8 +203,83 @@ impl_CastScalar!(CastScalarI64ToF64, "CastScalarI64ToF64", i64, I64, f64, F64);
 impl_CastScalar!(CastScalarI128ToF32, "CastScalarI128ToF32", i128, I128, f32, F32);
 impl_CastScalar!(CastScalarI128ToF64, "CastScalarI128ToF64", i128, I128, f64, F64);
 
+pub fn register(c: &mut CollectionPool) {
 
-// Casts for i128
+    // Casts for f32 and f64
+    c.treatments.insert(&(CastScalarF32ToF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarF64ToF32::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Casts for u8
+    c.treatments.insert(&(CastScalarU8ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU8ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU8ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU8ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU8ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU8ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU8ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU8ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU8ToF32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU8ToF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Casts for u16
+    c.treatments.insert(&(CastScalarU16ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU16ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU16ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU16ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU16ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU16ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU16ToF32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU16ToF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Casts for u32
+    c.treatments.insert(&(CastScalarU32ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU32ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU32ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU32ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU32ToF32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU32ToF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Casts for u64
+    c.treatments.insert(&(CastScalarU64ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU64ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU64ToF32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU64ToF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Casts for u128
+    c.treatments.insert(&(CastScalarU128ToF32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarU128ToF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Casts for i8
+    c.treatments.insert(&(CastScalarI8ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI8ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI8ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI8ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI8ToF32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI8ToF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Casts for i16
+    c.treatments.insert(&(CastScalarI16ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI16ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI16ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI16ToF32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI16ToF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Casts for i32
+    c.treatments.insert(&(CastScalarI32ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI32ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI32ToF32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI32ToF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Casts for i64
+    c.treatments.insert(&(CastScalarI64ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI64ToF32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI64ToF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+
+    // Casts for i128
+    c.treatments.insert(&(CastScalarI128ToF32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(CastScalarI128ToF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+}
+
 
 /*
     FOR DEVELOPERS

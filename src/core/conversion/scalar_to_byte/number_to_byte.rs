@@ -142,6 +142,22 @@ impl_ScalarToByte!(I128ToByte, "I128ToByte", i128, I128);
 impl_ScalarToByte!(F32ToByte, "F32ToByte", f32, F32);
 impl_ScalarToByte!(F64ToByte, "F64ToByte", f64, F64);
 
+pub fn register(c: &mut CollectionPool) {
+
+    c.treatments.insert(&(U8ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(U16ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(U32ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(U64ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(U128ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(I8ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(I16ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(I32ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(I64ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(I128ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(F32ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
+    c.treatments.insert(&(F64ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));
+}
+
 /*
     FOR DEVELOPERS
 
@@ -156,7 +172,7 @@ for TYPE in $TYPES
 do
     UPPER_CASE_TYPE=${TYPE^}
     echo "impl_ScalarToByte!(${UPPER_CASE_TYPE}ToByte, \"${UPPER_CASE_TYPE}ToByte\", $TYPE, $UPPER_CASE_TYPE);"
-    #echo "c.treatments.insert(&(Vector${UPPER_CASE_TYPE}ToVectorString::descriptor() as Arc<dyn TreatmentDescriptor>));"
+    #echo "c.treatments.insert(&(${UPPER_CASE_TYPE}ToByte::descriptor() as Arc<dyn TreatmentDescriptor>));"
 
 done
 ```
