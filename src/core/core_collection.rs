@@ -35,6 +35,7 @@ pub fn core_collection() -> &'static CollectionPool {
             super::cast::lossy_scalar::register(&mut c);
             super::cast::lossy_vector::register(&mut c);
 
+            super::conversion::scalar_to_byte::register(&mut c);
             super::conversion::scalar_to_string::register(&mut c);
             super::conversion::vector_to_string::register(&mut c);
             super::conversion::scalar_float_to_integer::register(&mut c);
