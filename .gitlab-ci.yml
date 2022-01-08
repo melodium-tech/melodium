@@ -30,28 +30,32 @@ rust_build:
   script:
     - rustc --version && cargo --version  # Print version info for debugging
     - cargo build --verbose
+  artifacts:
+    paths:
+    - target/debug
+    expire_in: 1 day
 
-rust_unit_tests:
-  stage: test_rust
-  script:
-    - cargo test --tests --verbose
+#rust_unit_tests:
+#  stage: test_rust
+#  script:
+#    - cargo test --tests --verbose
 
-rust_doc_tests:
-  stage: test_rust
-  script:
-    - cargo test --doc --verbose
-
-rust_benchmark:
-  stage: benchmark_rust
-  script:
-    - cargo bench --benches --verbose
+#rust_doc_tests:
+#  stage: test_rust
+#  script:
+#    - cargo test --doc --verbose
+#
+#rust_benchmark:
+#  stage: benchmark_rust
+#  script:
+#    - cargo bench --benches --verbose
 
 melodium_tests:
   stage: test_melodium
   variables:
     PATH: '$PWD/target/debug:$PATH'
+    MELODIUM: 'melodium-rust'
   script:
-    - cargo build
     - melodium-tests/run.sh
 
 pages:
