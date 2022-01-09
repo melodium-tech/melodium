@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 
 ORIGINAL_DIR="$PWD"
-cd `dirname $BASH_SOURCE`
+TEST_DIR="$(dirname $(realpath $BASH_SOURCE))"
+cd "$TEST_DIR"
 
 if [ -z "$MELODIUM" ]
 then
     MELODIUM='melodium-rust'
 fi
 
-export PATH="`dirname $BASH_SOURCE`/../target/debug:$PATH"
+export PATH="$TEST_DIR/../target/debug:$PATH"
 export MELODIUM="$MELODIUM"
 export RUST_BACKTRACE=1
 
-ls "`dirname $BASH_SOURCE`/../target/debug"
 
 GLOBAL_RESULT=0
 declare -i GLOBAL_RESULT
