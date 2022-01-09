@@ -5,6 +5,7 @@ then
     MELODIUM='melodium-rust'
 fi
 
+export PATH="`dirname $BASH_SOURCE`/../target/debug:$PATH"
 export MELODIUM="$MELODIUM"
 export RUST_BACKTRACE=1
 

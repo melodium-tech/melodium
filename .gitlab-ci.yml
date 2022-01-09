@@ -52,8 +52,6 @@ rust_build:
 
 melodium_tests:
   stage: test_melodium
-  variables:
-    PATH: '$PWD/target/debug:$PATH'
   script:
     - melodium-tests/run.sh
 
