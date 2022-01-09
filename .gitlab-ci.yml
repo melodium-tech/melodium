@@ -52,6 +52,8 @@ rust_build:
 
 melodium_tests:
   stage: test_melodium
+  before_script:
+    - apt install xxd
   script:
     - melodium-tests/run.sh
 
