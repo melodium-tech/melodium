@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+ORIGINAL_DIR="$PWD"
+cd `dirname $BASH_SOURCE`
+
 if [ -z "$MELODIUM" ]
 then
     MELODIUM='melodium-rust'
@@ -37,8 +40,10 @@ mkdir -p /tmp/tests
 
 echo Running Mélodium tests…
 
+# Add tests there
 run_test generation_conversion_bytes
 
 date +"%Y-%m-%d %T"
 echo Run finished
 
+cd "$ORIGINAL_DIR"
