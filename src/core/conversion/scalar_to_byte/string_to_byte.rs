@@ -26,7 +26,7 @@ impl StringToByte {
                     treatment_sources![],
                     vec![],
                     vec![
-                        input!("value",Scalar,Char,Stream)
+                        input!("value",Scalar,String,Stream)
                     ],
                     vec![
                         output!("data",Scalar,Byte,Stream)

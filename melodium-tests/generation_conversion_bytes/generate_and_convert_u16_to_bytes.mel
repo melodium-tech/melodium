@@ -1,0 +1,19 @@
+
+use core/fs/direct::FileWriter
+use core/fs/direct::WriteFile
+use core/generation::ScalarU16Generator
+use core/generation::GenerateScalarU16
+use core/conversion::U16ToByte
+
+sequence Main()
+  model Generator: ScalarU16Generator(length=1024, value=42)
+  model File: FileWriter(path="/tmp/tests/generated_u16.mel_generation")
+{
+    Generate: GenerateScalarU16[generator=Generator]()
+    Convert: U16ToByte()
+    Write: WriteFile[writer=File]()
+    
+    Generate.data -> Convert.value,data -> Write.data
+}
+
+

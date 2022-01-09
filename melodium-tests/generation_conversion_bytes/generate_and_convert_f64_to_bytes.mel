@@ -1,0 +1,19 @@
+
+use core/fs/direct::FileWriter
+use core/fs/direct::WriteFile
+use core/generation::ScalarF64Generator
+use core/generation::GenerateScalarF64
+use core/conversion::F64ToByte
+
+sequence Main()
+  model Generator: ScalarF64Generator(length=1024, value=-1234.56789123456789)
+  model File: FileWriter(path="/tmp/tests/generated_f64.mel_generation")
+{
+    Generate: GenerateScalarF64[generator=Generator]()
+    Convert: F64ToByte()
+    Write: WriteFile[writer=File]()
+    
+    Generate.data -> Convert.value,data -> Write.data
+}
+
+
