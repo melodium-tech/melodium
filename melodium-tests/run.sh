@@ -12,6 +12,10 @@ export PATH="`dirname $BASH_SOURCE`/../target/debug:$PATH"
 export MELODIUM="$MELODIUM"
 export RUST_BACKTRACE=1
 
+ls "`dirname $BASH_SOURCE`/../target/debug"
+
+GLOBAL_RESULT=0
+declare -i GLOBAL_RESULT
 function run_test() {
     TEST_NAME="$1"
     
@@ -30,6 +34,7 @@ function run_test() {
         echo "$TEST_NAME OK"
     else
         echo "$TEST_NAME FAILURE ($RESULT)"
+        GLOBAL_RESULT+=1
     fi
 }
 
@@ -47,3 +52,5 @@ date +"%Y-%m-%d %T"
 echo Run finished
 
 cd "$ORIGINAL_DIR"
+
+exit $GLOBAL_RESULT
