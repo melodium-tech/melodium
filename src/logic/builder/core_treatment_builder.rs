@@ -71,7 +71,7 @@ impl Builder for CoreTreatmentBuilder {
 
             let (_, matching_model) = environment.models().iter().find(|(_,model)| &model.descriptor() == model_descriptor).unwrap();
 
-            for source in sources {;
+            for source in sources {
                 environment.world().add_source(matching_model.id().unwrap(), source, self.descriptor.upgrade().unwrap().as_buildable(), idx);
             }
             

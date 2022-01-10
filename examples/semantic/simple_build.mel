@@ -29,7 +29,7 @@ use std/image::SimpleImageRender
  * Model definition called `Files`, from type `FileManager`.
  * - `directory`: working directory of the file manager
  */
-model Files(directory: String): FileManager
+model Files(directory: string): FileManager
 {
     // Assignation of the `directory` parameter
     // from model type `FileManager` (left) to 
@@ -76,7 +76,7 @@ sequence ReadAudioFiles[Files: FileManager, Audio: AudioManager]()
  * - `hopSize`: size of hop between each frame, integer type, default to 2048
  * - `windowingType`: type of windowing to use, string type, default to "blackmanharris92"
  */
-sequence AudioToHpcpImage[AudioManager: AudioManager](frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String = "blackmanharris92")
+sequence AudioToHpcpImage[AudioManager: AudioManager](frameSize: u64 = 4096, hopSize: u64 = 2048, windowingType: string = "blackmanharris92")
     // Declaring treatment `Signal` as origin of for the sequence,
     // based on `AudioManager` model, called `AudioSignal`.
     origin AudioSignal: Signal[AudioManager=AudioManager]()
@@ -108,7 +108,7 @@ sequence AudioToHpcpImage[AudioManager: AudioManager](frameSize: Int = 4096, hop
  * Sequence being the entry point of the script.
  * - `directory`: string defining where are files to work on
  */
-sequence Main(directory: String)
+sequence Main(directory: string)
     // Instanciating model `Files` with the given
     // working directory.
     model Files: Files(directory=directory)
@@ -132,11 +132,11 @@ sequence Main(directory: String)
  * - `hopSize`: size of hop between each frame, integer type
  * - `windowingType`: type of windowing to use, string type
  */
-sequence Spectrum(frameSize: Int, hopSize: Int, windowingType: String)
+sequence Spectrum(frameSize: u64, hopSize: u64, windowingType: string)
     // Declaring input named `signal`, taking a stream of integers.
-    input signal: Stream<Int>
+    input signal: Stream<u64>
     // Declaring output named `spectrum`, taking a stream of vectors of integers.
-    output spectrum: Stream<Vec<Int>>
+    output spectrum: Stream<Vec<u64>>
 {
 
     // Declaring treatment `CoreFrameCutter`, setting up parameters `frameSize` and
@@ -166,11 +166,11 @@ sequence Spectrum(frameSize: Int, hopSize: Int, windowingType: String)
  * - `harmonics`: number of harmonics to include in HPCP, integer type, default to 8
  * - `size`: size of the HPCP, integer type, default to 120
  */
-sequence HPCP(sampleRate: Int = 44100, minFrequency: Int = 50, maxFrequency: Int = 1000, harmonics: Int = 8, size: Int = 120)
+sequence HPCP(sampleRate: u64 = 44100, minFrequency: u64 = 50, maxFrequency: u64 = 1000, harmonics: u64 = 8, size: u64 = 120)
     // Declaring input named `spectrum`, taking a matrix of integers.
-    input spectrum: Stream<Vec<Int>>
+    input spectrum: Stream<Vec<u64>>
     // Declaring output named `hpcp`, taking a matrix of integers.
-    output hpcp: Stream<Vec<Int>>
+    output hpcp: Stream<Vec<u64>>
 {
 
     // Declaring treatment `CoreSpectralPeaks`, setting up parameters `sampleRate`, `minFrequency`, and

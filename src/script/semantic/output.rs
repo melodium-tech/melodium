@@ -59,7 +59,7 @@ impl Output {
     /// assert_eq!(borrowed_output.name, "hpcp");
     /// assert_eq!(borrowed_output.r#type.flow, TypeFlow::Stream);
     /// assert_eq!(borrowed_output.r#type.structure, TypeStructure::Vector);
-    /// assert_eq!(borrowed_output.r#type.name, TypeName::Integer);
+    /// assert_eq!(borrowed_output.r#type.name, TypeName::U64);
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn new(sequence: Arc<RwLock<Sequence>>, text: TextParameter) -> Result<Arc<RwLock<Self>>, ScriptError> {

@@ -119,10 +119,10 @@ impl Type {
     /// # use melodium_rust::script::text::word::*;
     /// # use melodium_rust::script::text::r#type::Type as TextType;
     /// # use melodium_rust::script::semantic::r#type::*;
-    /// let str_block_vec_int = "Vec<Int>";
-    /// let str_block_scal_string = "String";
-    /// let str_stream_vec_real = "Stream<Vec<Real>>";
-    /// let str_stream_scal_bool = "Stream<Bool>";
+    /// let str_block_vec_int = "Vec<u64>";
+    /// let str_block_scal_string = "string";
+    /// let str_stream_vec_real = "Stream<Vec<f64>>";
+    /// let str_stream_scal_bool = "Stream<bool>";
     /// 
     /// fn get_text_type(str: & str) -> TextType {
     ///     let words = get_words(str).unwrap();
@@ -131,7 +131,7 @@ impl Type {
     /// }
     /// 
     /// let type_block_vec_int = Type::new(get_text_type(str_block_vec_int))?;
-    /// assert_eq!(type_block_vec_int.name, TypeName::Integer);
+    /// assert_eq!(type_block_vec_int.name, TypeName::U64);
     /// assert_eq!(type_block_vec_int.flow, TypeFlow::Block);
     /// assert_eq!(type_block_vec_int.structure, TypeStructure::Vector);
     /// 
@@ -141,12 +141,12 @@ impl Type {
     /// assert_eq!(type_block_scal_string.structure, TypeStructure::Scalar);
     /// 
     /// let type_stream_vec_real = Type::new(get_text_type(str_stream_vec_real))?;
-    /// assert_eq!(type_stream_vec_real.name, TypeName::Real);
+    /// assert_eq!(type_stream_vec_real.name, TypeName::F64);
     /// assert_eq!(type_stream_vec_real.flow, TypeFlow::Stream);
     /// assert_eq!(type_stream_vec_real.structure, TypeStructure::Vector);
     /// 
     /// let type_stream_scal_bool = Type::new(get_text_type(str_stream_scal_bool))?;
-    /// assert_eq!(type_stream_scal_bool.name, TypeName::Boolean);
+    /// assert_eq!(type_stream_scal_bool.name, TypeName::Bool);
     /// assert_eq!(type_stream_scal_bool.flow, TypeFlow::Stream);
     /// assert_eq!(type_stream_scal_bool.structure, TypeStructure::Scalar);
     /// # Ok::<(), ScriptError>(())

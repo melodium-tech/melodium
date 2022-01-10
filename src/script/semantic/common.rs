@@ -52,7 +52,7 @@ pub trait Node {
     /// 
     /// This exclude parent-child references, which are made when creating the elements.
     /// 
-    /// * `path`: path to the current element, its root can ony be `std`/[PathRoot::Std](super::path::PathRoot::Std) or `main`/[PathRoot::Main](super::path::PathRoot::Main)
+    /// * `path`: path to the current element, its root can ony be `std`/[PathRoot::Std](super::super::path::PathRoot::Std) or `main`/[PathRoot::Main](super::super::path::PathRoot::Main)
     fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
         Ok(())
     }

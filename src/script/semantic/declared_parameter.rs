@@ -64,7 +64,7 @@ impl DeclaredParameter {
     /// 
     /// assert_eq!(borrowed_declared_parameter.name, "hopSize");
     /// assert_eq!(borrowed_declared_parameter.r#type.structure, TypeStructure::Scalar);
-    /// assert_eq!(borrowed_declared_parameter.r#type.name, TypeName::Integer);
+    /// assert_eq!(borrowed_declared_parameter.r#type.name, TypeName::U64);
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn new(parent: Arc<RwLock<dyn DeclarativeElement>>, text: TextParameter) -> Result<Arc<RwLock<Self>>, ScriptError> {

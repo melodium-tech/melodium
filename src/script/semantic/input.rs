@@ -59,7 +59,7 @@ impl Input {
     /// assert_eq!(borrowed_input.name, "signal");
     /// assert_eq!(borrowed_input.r#type.flow, TypeFlow::Stream);
     /// assert_eq!(borrowed_input.r#type.structure, TypeStructure::Scalar);
-    /// assert_eq!(borrowed_input.r#type.name, TypeName::Integer);
+    /// assert_eq!(borrowed_input.r#type.name, TypeName::U64);
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn new(sequence: Arc<RwLock<Sequence>>, text: TextParameter) -> Result<Arc<RwLock<Self>>, ScriptError> {
