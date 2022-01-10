@@ -4,6 +4,7 @@
 //! The main type of this module is [`LogicError`], which handles most of the management, combined with kind of errors detailed with [`LogicErrorKind`].
 
 use std::fmt::Debug;
+use std::fmt::Display;
 
 /// Kind of logic error that might happen.
 #[derive(Debug, Clone)]

@@ -4,7 +4,7 @@
 use super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
-use crate::script::error::ScriptError;
+use crate::script::error::{ScriptError, wrap_logic_error};
 use crate::script::text::Sequence as TextSequence;
 use crate::script::path::Path;
 use crate::logic::collection_pool::CollectionPool;
@@ -443,12 +443,12 @@ impl Sequence {
 
             let instancied_model = rc_instancied_model.read().unwrap();
 
-            let instanciation_designer = rc_designer.write().unwrap().add_model_instanciation(
+            let instanciation_designer = wrap_logic_error!(rc_designer.write().unwrap().add_model_instanciation(
                     instancied_model.type_identifier.as_ref().unwrap(),
                     &instancied_model.name
-                ).unwrap();
+                ), instancied_model.text.name.position);
 
-            instancied_model.make_design(&instanciation_designer).unwrap();
+            instancied_model.make_design(&instanciation_designer)?;
         }
 
         // Treatments
@@ -461,7 +461,7 @@ impl Sequence {
                     &treatment.name
                 ).unwrap();
 
-            treatment.make_design(&treatment_designer).unwrap();
+            treatment.make_design(&treatment_designer)?;
         }
 
         // Connections
@@ -469,12 +469,15 @@ impl Sequence {
 
             let connection = rc_connection.read().unwrap();
 
-            let connection_designer = connection.get_designer(&mut rc_designer.write().unwrap()).unwrap();
+            let connection_designer = connection.get_designer(&mut rc_designer.write().unwrap())?;
 
-            connection.make_design(&connection_designer, &rc_designer).unwrap();
+            connection.make_design(&connection_designer, &rc_designer)?;
         }
 
-        rc_designer.read().unwrap().register().unwrap();
+        wrap_logic_error!(
+            rc_designer.read().unwrap().register(),
+            self.text.name.position
+        );
 
         Ok(())
     }
