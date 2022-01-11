@@ -1,0 +1,19 @@
+
+use core/fs/direct::FileWriter
+use core/fs/direct::WriteFile
+use core/generation::ScalarF32Generator
+use core/generation::GenerateScalarF32
+use core/conversion::F32ToByte
+
+sequence Main()
+  model Generator: ScalarF32Generator(length=1024, value=-1234.56789)
+  model File: FileWriter(path="/tmp/tests/generated_f32.mel_generation")
+{
+    Generate: GenerateScalarF32[generator=Generator]()
+    Convert: F32ToByte()
+    Write: WriteFile[writer=File]()
+    
+    Generate.data -> Convert.value,data -> Write.data
+}
+
+

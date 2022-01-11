@@ -1,0 +1,19 @@
+
+use core/fs/direct::FileWriter
+use core/fs/direct::WriteFile
+use core/generation::ScalarU8Generator
+use core/generation::GenerateScalarU8
+use core/conversion::U8ToByte
+
+sequence Main()
+  model Generator: ScalarU8Generator(length=1024, value=42)
+  model File: FileWriter(path="/tmp/tests/generated_u8.mel_generation")
+{
+    Generate: GenerateScalarU8[generator=Generator]()
+    Convert: U8ToByte()
+    Write: WriteFile[writer=File]()
+    
+    Generate.data -> Convert.value,data -> Write.data
+}
+
+

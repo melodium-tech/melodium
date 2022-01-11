@@ -2,6 +2,17 @@
 use super::datatype::DataType;
 use crate::executive::value::Value;
 
+macro_rules! parameter {
+    ($name:expr,$data_structure:ident,$data_type:ident,$default:expr) => {
+        crate::logic::descriptor::parameter::Parameter::new(
+            $name,
+            datatype!($data_structure,$data_type),
+            $default,
+        )
+    };
+}
+pub(crate) use parameter;
+
 #[derive(Clone, PartialEq, Debug)]
 pub struct Parameter {
     name: String,

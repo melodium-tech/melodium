@@ -1,0 +1,19 @@
+
+use core/fs/direct::FileWriter
+use core/fs/direct::WriteFile
+use core/generation::ScalarStringGenerator
+use core/generation::GenerateScalarString
+use core/conversion::StringToByte
+
+sequence Main()
+  model Generator: ScalarStringGenerator(length=1024, value="Mélodium")
+  model File: FileWriter(path="/tmp/tests/generated_string.mel_generation")
+{
+    Generate: GenerateScalarString[generator=Generator]()
+    Convert: StringToByte()
+    Write: WriteFile[writer=File]()
+    
+    Generate.data -> Convert.value,data -> Write.data
+}
+
+

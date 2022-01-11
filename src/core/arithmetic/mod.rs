@@ -1,2 +1,2 @@
 
-pub mod add_scalar_u8;
+pub mod add_scalar;

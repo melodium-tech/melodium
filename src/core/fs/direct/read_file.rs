@@ -1,22 +1,6 @@
 
-use crate::executive::future::TrackFuture;
-use std::collections::HashMap;
+use super::super::super::prelude::*;
 use super::file_reader::FileReaderModel;
-use crate::executive::model::{Model, ModelId};
-use crate::executive::value::Value;
-use crate::executive::transmitter::Transmitter;
-use crate::executive::treatment::Treatment;
-use crate::executive::world::World;
-use crate::executive::environment::{ContextualEnvironment, GenesisEnvironment};
-use crate::logic::builder::*;
-use async_std::future::Future;
-use crate::executive::result_status::ResultStatus;
-use crate::logic::descriptor::{ParameterDescriptor, OutputDescriptor, FlowDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor, BuildableDescriptor};
-use crate::logic::descriptor::identifier::*;
-use std::sync::{Arc, Weak, RwLock};
-use crate::logic::error::LogicError;
-use downcast_rs::DowncastSync;
-use crate::logic::descriptor::CoreTreatmentDescriptor;
 
 pub struct ReadFileTreatment {
 
@@ -34,26 +18,20 @@ impl ReadFileTreatment {
 
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
-                let mut source_from = HashMap::new();
-
-                source_from.insert(FileReaderModel::descriptor(), vec!["read".to_string()]);
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
-                    Identifier::new(Root::Core,
-                        vec![
-                            "fs".to_string(),
-                            "direct".to_string(),
-                        ],
-                        "ReadFile"),
-                    vec![("reader".to_string(), FileReaderModel::descriptor())],
-                    source_from,
-                    Vec::new(),
-                    Vec::new(),
-                    vec![OutputDescriptor::new(
-                        "data",
-                        DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Byte),
-                        FlowDescriptor::Stream
-                    )],
+                    core_identifier!("fs","direct";"ReadFile"),
+                    models![
+                        ("reader", FileReaderModel::descriptor())
+                    ],
+                    treatment_sources![
+                        (FileReaderModel::descriptor(), "read")
+                    ],
+                    vec![],
+                    vec![],
+                    vec![
+                        output!("data", Scalar, Byte, Stream)
+                    ],
                     ReadFileTreatment::new,
                 );
 

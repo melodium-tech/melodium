@@ -1,18 +1,18 @@
 
-use super::super::super::prelude::*;
-use super::file_writer::FileWriterModel;
+use super::super::prelude::*;
+use super::tcp_listener::TcpListenerModel;
 
-pub struct WriteFileTreatment {
+pub struct ReadTcpConnectionTreatment {
 
     world: Arc<World>,
 
-    file_writer: RwLock<Option<Arc<FileWriterModel>>>,
+    tcp_listener: RwLock<Option<Arc<TcpListenerModel>>>,
     data_transmitters: RwLock<Vec<Transmitter>>,
 
     auto_reference: RwLock<Weak<Self>>,
 }
 
-impl WriteFileTreatment {
+impl ReadTcpConnectionTreatment {
 
     pub fn descriptor() -> Arc<CoreTreatmentDescriptor> {
 
@@ -20,17 +20,19 @@ impl WriteFileTreatment {
             static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
 
                 let rc_descriptor = CoreTreatmentDescriptor::new(
-                    core_identifier!("fs","direct";"WriteFile"),
+                    core_identifier!("net";"ReadTcpConnection"),
                     models![
-                        ("writer", FileWriterModel::descriptor())
+                        ("listener", TcpListenerModel::descriptor())
                     ],
-                    treatment_sources![],
+                    treatment_sources![
+                        (TcpListenerModel::descriptor(), "connection")
+                    ],
+                    vec![],
                     vec![],
                     vec![
-                        input!("data", Scalar, Byte, Stream)
+                        output!("data", Scalar, Byte, Stream)
                     ],
-                    vec![],
-                    WriteFileTreatment::new,
+                    ReadTcpConnectionTreatment::new,
                 );
 
                 rc_descriptor
@@ -43,7 +45,7 @@ impl WriteFileTreatment {
     pub fn new(world: Arc<World>) -> Arc<dyn Treatment> {
         let treatment = Arc::new(Self {
             world,
-            file_writer: RwLock::new(None),
+            tcp_listener: RwLock::new(None),
             data_transmitters: RwLock::new(Vec::new()),
             auto_reference: RwLock::new(Weak::new()),
         });
@@ -54,7 +56,7 @@ impl WriteFileTreatment {
     }
 }
 
-impl Treatment for WriteFileTreatment {
+impl Treatment for ReadTcpConnectionTreatment {
 
     fn descriptor(&self) -> Arc<CoreTreatmentDescriptor> {
         Self::descriptor()
@@ -67,7 +69,7 @@ impl Treatment for WriteFileTreatment {
     fn set_model(&self, name: &str, model: &Arc<dyn Model>) {
 
         match name {
-            "writer" => *self.file_writer.write().unwrap() = Some(Arc::clone(&model).downcast_arc::<FileWriterModel>().unwrap()),
+            "listener" => *self.tcp_listener.write().unwrap() = Some(Arc::clone(&model).downcast_arc::<TcpListenerModel>().unwrap()),
             _ => panic!("No model '{}' expected.", name)
         }
     }
@@ -75,17 +77,16 @@ impl Treatment for WriteFileTreatment {
     fn set_output(&self, output_name: &str, transmitter: Vec<Transmitter>) {
         
         match output_name {
+            "data" => self.data_transmitters.write().unwrap().extend(transmitter),
             _ => panic!("No output '{}' exists.", output_name)
         }
     }
 
     fn get_inputs(&self) -> HashMap<String, Vec<Transmitter>> {
 
-        let writer_sender = self.file_writer.read().unwrap().as_ref().unwrap().writer().clone();
-
         let mut hashmap = HashMap::new();
 
-        hashmap.insert("data".to_string(), vec![Transmitter::Byte(writer_sender)]);
+        hashmap.insert("data".to_string(), self.data_transmitters.read().unwrap().clone());
 
         hashmap
     }
