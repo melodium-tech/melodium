@@ -39,6 +39,13 @@ fn main() {
             .short("L")
             .long("nolaunch")
             .help("Parse, make semantic analysis, design world and check it, but don't make it live"))
+        .arg(Arg::with_name("doc-list")
+            .long("doc-list")
+            .help("Print list of elements available, implies --parseonly"))
+        .arg(Arg::with_name("doc")
+            .long("doc")
+            .help("Print documentation of specified element, implies --parseonly")
+            .takes_value(true))
         .arg(Arg::with_name("script")
             .value_name("SCRIPT")
             .help("Script to run")
@@ -91,6 +98,39 @@ fn main() {
 
     for error in instance.errors() {
         eprintln!("Error: {}", error);
+    }
+
+    if matches.is_present("doc-list") {
+        if let Some(collection) = &instance.logic_collection {
+            for id in collection.models.identifiers() {
+                println!("(Model) {}", id.to_string());
+            }
+
+            for id in collection.treatments.identifiers() {
+                println!("(Treatment) {}", id.to_string());
+            }
+        }
+        exit(0);
+    }
+
+    if let Some(element) = matches.value_of("doc") {
+        if let Some(collection) = &instance.logic_collection {
+            let path_and_name: Vec<String> = element.split("::").map(|i| i.to_string()).collect();
+            let path: Vec<String> = path_and_name.get(0).unwrap().split("/").map(|i| i.to_string()).collect();
+
+            let identifier = Path::new(path).to_identifier(path_and_name.get(1).unwrap()).unwrap();
+
+            if let Some(model) = collection.models.get(&identifier) {
+                println!("{:?}", model);
+            }
+            else if let Some(treatment) = collection.treatments.get(&identifier) {
+                println!("{:?}", treatment);
+            }
+            else {
+                println!("No element for '{}'", element);
+            }
+        }
+        exit(0);
     }
 
     if instance.errors().len() > 0 {
