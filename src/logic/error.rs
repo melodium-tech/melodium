@@ -5,6 +5,7 @@
 
 use std::fmt::Debug;
 use std::fmt::Display;
+use std::string::ToString;
 
 /// Kind of logic error that might happen.
 #[derive(Debug, Clone)]
@@ -75,6 +76,15 @@ pub enum LogicErrorKind {
     AlreadyIncludedBuildStep,
     /// The treatment input in not satisfied
     UnsatisfiedInput,
+}
+
+impl ToString for LogicErrorKind {
+    
+    fn to_string(&self) -> String {
+        match self {
+            _ => "Unimplemented logic error type"
+        }.to_string()
+    }
 }
 
 /// Handles and describe a Mélodium logic error.
@@ -315,5 +325,12 @@ impl LogicError {
         Self {
             kind: LogicErrorKind::UnsatisfiedInput
         }
+    }
+}
+
+impl Display for LogicError {
+    
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        write!(f, "{}", self.kind.to_string())
     }
 }
