@@ -436,7 +436,6 @@ impl Sequence {
         let descriptor = collections.treatments.get(self.identifier.as_ref().unwrap()).unwrap().clone();
 
         let rc_designer = SequenceDesigner::new(collections, &descriptor.downcast_arc::<SequenceTreatmentDescriptor>().unwrap());
-        //let mut designer = rc_designer.write().unwrap();
 
         // Models instanciations
         for rc_instancied_model in &self.instancied_models {
