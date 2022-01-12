@@ -35,15 +35,15 @@ rust_build:
     - target/debug
     expire_in: 1 day
 
-#rust_unit_tests:
-#  stage: test_rust
-#  script:
-#    - cargo test --tests --verbose
+rust_unit_tests:
+ stage: test_rust
+ script:
+   - cargo test --tests --verbose
 
-#rust_doc_tests:
-#  stage: test_rust
-#  script:
-#    - cargo test --doc --verbose
+rust_doc_tests:
+ stage: test_rust
+ script:
+   - cargo test --doc --verbose
 #
 #rust_benchmark:
 #  stage: benchmark_rust
