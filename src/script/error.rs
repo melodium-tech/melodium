@@ -36,6 +36,8 @@ pub enum ScriptErrorKind {
     EndOfScript,
     /// The error is about semantic.
     Semantic,
+    /// The error is about file.
+    File,
     /// The error comes from logic.
     Logic(LogicError),
 }
@@ -79,6 +81,19 @@ impl ScriptError {
         }
     }
 
+    pub fn file(message: String) -> Self {
+        Self {
+            message,
+            word: String::new(),
+            position: Position {
+                line_number: 0,
+                line_position: 0,
+                absolute_position: 0,
+            },
+            kind: ScriptErrorKind::File,
+        }
+    }
+
     pub fn logic(logic_error: LogicError, position: Position) -> Self {
         Self {
             message: String::new(),
@@ -101,6 +116,7 @@ impl fmt::Display for ScriptError {
             },
             ScriptErrorKind::EndOfScript => write!(f, "{}", self.message),
             ScriptErrorKind::Semantic => write!(f, "{}", self.message),
+            ScriptErrorKind::File => write!(f, "{}", self.message),
             ScriptErrorKind::Logic(le) => write!(f, "line {} position {} (absolute {}): {}", self.position.line_number, self.position.line_position, self.position.absolute_position, le),
         }
         
