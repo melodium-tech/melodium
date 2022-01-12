@@ -251,6 +251,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
+name = "encoding_rs"
+version = "0.8.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7896dc8abb250ffdda33912550faa54c88ec8b998dec0b2c55ab224921ce11df"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "event-listener"
 version = "2.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -472,6 +481,7 @@ dependencies = [
  "async-std",
  "clap",
  "downcast-rs",
+ "encoding_rs",
  "futures",
  "lazy_static",
  "linkme",
