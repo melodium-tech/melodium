@@ -4,7 +4,7 @@
 use super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
-use crate::script::error::ScriptError;
+use crate::script::error::{ScriptError, wrap_logic_error};
 use crate::script::text::Parameter as TextParameter;
 use crate::logic::designer::ParameterDesigner;
 
@@ -99,7 +99,10 @@ impl AssignedParameter {
 
         let value = self.value.read().unwrap().make_designed_value(descriptor.datatype())?;
 
-        designer.set_value(value).unwrap();
+        wrap_logic_error!(
+            designer.set_value(value),
+            self.text.name.position
+        );
 
         Ok(())
 

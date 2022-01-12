@@ -127,10 +127,11 @@ impl Instance {
 
             let mut file = File::new(path, absolute_path);
 
-            let reading_result = file.read(); // TODO: Manage panic
+            let reading_result = file.read();
 
             if reading_result.is_err() {
-                panic!("{:?}", reading_result);
+                self.errors.push(ScriptError::file(reading_result.unwrap_err().to_string()));
+                return;
             }
 
             let parsing_result = file.parse();

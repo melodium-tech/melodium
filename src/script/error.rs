@@ -5,7 +5,9 @@
 
 use std::error;
 use std::fmt;
+use std::convert;
 use super::text::Position;
+use crate::logic::error::LogicError;
 
 /// Handles and describe a Mélodium script error.
 /// 
@@ -26,7 +28,7 @@ pub struct ScriptError {
 }
 
 /// Kind of script error that might happens.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub enum ScriptErrorKind {
     /// The error is related to a specific word that disable script to work.
     Word,
@@ -34,6 +36,10 @@ pub enum ScriptErrorKind {
     EndOfScript,
     /// The error is about semantic.
     Semantic,
+    /// The error is about file.
+    File,
+    /// The error comes from logic.
+    Logic(LogicError),
 }
 
 impl ScriptError {
@@ -74,11 +80,33 @@ impl ScriptError {
             kind: ScriptErrorKind::Semantic,
         }
     }
+
+    pub fn file(message: String) -> Self {
+        Self {
+            message,
+            word: String::new(),
+            position: Position {
+                line_number: 0,
+                line_position: 0,
+                absolute_position: 0,
+            },
+            kind: ScriptErrorKind::File,
+        }
+    }
+
+    pub fn logic(logic_error: LogicError, position: Position) -> Self {
+        Self {
+            message: String::new(),
+            word: String::new(),
+            position,
+            kind: ScriptErrorKind::Logic(logic_error),
+        }
+    }
 }
 
 impl fmt::Display for ScriptError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.kind {
+        match &self.kind {
             ScriptErrorKind::Word =>
             if self.word.len() > 0 && self.word.len() <= 12 {
                 write!(f, "\"{}\" at line {} position {} (absolute {}): {}", self.word, self.position.line_number, self.position.line_position, self.position.absolute_position, self.message)
@@ -88,8 +116,21 @@ impl fmt::Display for ScriptError {
             },
             ScriptErrorKind::EndOfScript => write!(f, "{}", self.message),
             ScriptErrorKind::Semantic => write!(f, "{}", self.message),
+            ScriptErrorKind::File => write!(f, "{}", self.message),
+            ScriptErrorKind::Logic(le) => write!(f, "line {} position {} (absolute {}): {}", self.position.line_number, self.position.line_position, self.position.absolute_position, le),
         }
         
+    }
+}
+
+impl convert::From<LogicError> for ScriptError {
+    
+    fn from(le: LogicError) -> Self {
+        ScriptError::logic(le, Position {
+            line_number: 0,
+            line_position: 0,
+            absolute_position: 0,
+        })
     }
 }
 
@@ -99,3 +140,14 @@ impl error::Error for ScriptError {
         None
     }
 }
+
+macro_rules! wrap_logic_error {
+    ($possible_error:expr, $position:expr) => {
+        match $possible_error {
+            Err(le) => return Err(ScriptError::logic(le, $position)),
+            Ok(v) => v,
+        }
+    };
+}
+pub(crate) use wrap_logic_error;
+

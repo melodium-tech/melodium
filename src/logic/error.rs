@@ -4,6 +4,8 @@
 //! The main type of this module is [`LogicError`], which handles most of the management, combined with kind of errors detailed with [`LogicErrorKind`].
 
 use std::fmt::Debug;
+use std::fmt::Display;
+use std::string::ToString;
 
 /// Kind of logic error that might happen.
 #[derive(Debug, Clone)]
@@ -74,6 +76,48 @@ pub enum LogicErrorKind {
     AlreadyIncludedBuildStep,
     /// The treatment input in not satisfied
     UnsatisfiedInput,
+}
+
+impl ToString for LogicErrorKind {
+    
+    fn to_string(&self) -> String {
+        match self {
+            Self::UnexistingVariable => "Referenced variable for value doesn't exist",
+            Self::UnexistingContext => "Referenced context does not exist",
+            Self::UnexistingContextVariable => "Referenced context value does not exist",
+            Self::UnexistingParameter => "Parameter does not exist",
+            Self::UnmatchingDataType => "Datatype does not match",
+            Self::UnsetParameter => "Parameter is not set",
+            Self::MultipleParameterAssignation => "Parameter assigned multiple times",
+            Self::NoValue => "No value assigned",
+            Self::NoContext => "Cannot use context value there",
+            Self::UnavailableContext => "Context not available in this scope",
+            Self::ConnectionInputRequired => "Connection input data is required, none provided",
+            Self::ConnectionInputForbidden => "Connection input data is provided, but none is allowed",
+            Self::ConnectionInputNotFound => "Connection input data is not provided by input treatment",
+            Self::ConnectionInputUnmatchingDataType => "Connection input data type provided by input treatment does not match the connection descriptor",
+            Self::ConnectionInputNotSet => "Connection input treatment is not setted up",
+            Self::ConnectionSelfInputNotFound => "Connection input data is not provided in self inputs",
+            Self::ConnectionOutputRequired => "Connection output data is required, none provided",
+            Self::ConnectionOutputForbidden => "Connection output data is provided, but none is allowed",
+            Self::ConnectionOutputNotFound => "Connection output data is not provided by output treatment",
+            Self::ConnectionOutputUnmatchingDataType => "Connection output data type provided by output treatment does not match the connection descriptor",
+            Self::ConnectionOutputNotSet => "Connection output treatment is not setted up",
+            Self::ConnectionSelfOutputNotFound => "Connection output data is not provided in self outputs",
+            Self::UnexistingTreatment => "Treatment does not exist",
+            Self::UnexistingModel => "Model does not exist",
+            Self::UndeclaredTreatment => "Treatment is not declared",
+            Self::UnexistingConnectionType => "Connection type does not exist",
+            Self::UnsatisfiedOutput => "Sequence output is not satisfied",
+            Self::OverloadedOutput => "Sequence output is overloaded",
+            Self::UnmatchingModelType => "Core model type does not match",
+            Self::UnexistingParametricModel => "Parametric model does not exist",
+            Self::UnsetModel => "Model is not setted up",
+            Self::AlreadyIncludedBuildStep => "This sequence is already called, causing infinite loop",
+            Self::UnsatisfiedInput => "Treatment input is not satisfied",
+            //_ => "Unimplemented logic error type",
+        }.to_string()
+    }
 }
 
 /// Handles and describe a Mélodium logic error.
@@ -314,5 +358,12 @@ impl LogicError {
         Self {
             kind: LogicErrorKind::UnsatisfiedInput
         }
+    }
+}
+
+impl Display for LogicError {
+    
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        write!(f, "{}", self.kind.to_string())
     }
 }

@@ -4,7 +4,7 @@
 use super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
-use crate::script::error::ScriptError;
+use crate::script::error::{ScriptError, wrap_logic_error};
 use crate::script::path::Path;
 use crate::script::text::Connection as TextConnection;
 use crate::logic::designer::{SequenceDesigner, ConnectionDesigner};
@@ -138,37 +138,61 @@ impl Connection {
             // something to something
             if !self.start_point_self && !self.end_point_self {
 
-                designer.set_output(sequence_designer.read().unwrap().treatments().get(&self.start_point.name).unwrap(), &self.name_data_out).unwrap();
+                wrap_logic_error!(
+                    designer.set_output(sequence_designer.read().unwrap().treatments().get(&self.start_point.name).unwrap(), &self.name_data_out),
+                    self.text.name_start_point.position
+                );
 
-                designer.set_input(sequence_designer.read().unwrap().treatments().get(&self.end_point.name).unwrap(), &self.name_data_in).unwrap();
+                wrap_logic_error!(
+                    designer.set_input(sequence_designer.read().unwrap().treatments().get(&self.end_point.name).unwrap(), &self.name_data_in),
+                    self.text.name_end_point.position
+                );
             }
 
             // Self to something
             else if self.start_point_self {
 
-                designer.set_self_output(&self.name_data_out).unwrap();
+                wrap_logic_error!(
+                    designer.set_self_output(&self.name_data_out),
+                    self.text.name_data_out.as_ref().unwrap().position
+                );
 
-                designer.set_input(sequence_designer.read().unwrap().treatments().get(&self.end_point.name).unwrap(), &self.name_data_in).unwrap();
+                wrap_logic_error!(
+                    designer.set_input(sequence_designer.read().unwrap().treatments().get(&self.end_point.name).unwrap(), &self.name_data_in),
+                    self.text.name_end_point.position
+                );
             }
 
             // Something to Self
             else if self.end_point_self {
 
-                designer.set_output(sequence_designer.read().unwrap().treatments().get(&self.start_point.name).unwrap(), &self.name_data_out).unwrap();
+                wrap_logic_error!(
+                    designer.set_output(sequence_designer.read().unwrap().treatments().get(&self.start_point.name).unwrap(), &self.name_data_out),
+                    self.text.name_start_point.position
+                );
 
-                designer.set_self_input(&self.name_data_in).unwrap();
+                wrap_logic_error!(
+                    designer.set_self_input(&self.name_data_in),
+                    self.text.name_data_in.as_ref().unwrap().position
+                );
             }
         }
 
         // Void connection
         else {
 
-            designer.set_output(sequence_designer.read().unwrap().treatments().get(&self.start_point.name).unwrap(), &None).unwrap();
+            wrap_logic_error!(
+                designer.set_output(sequence_designer.read().unwrap().treatments().get(&self.start_point.name).unwrap(), &None),
+                self.text.name_start_point.position
+            );
 
-            designer.set_input(sequence_designer.read().unwrap().treatments().get(&self.end_point.name).unwrap(), &None).unwrap();
+            wrap_logic_error!(
+                designer.set_input(sequence_designer.read().unwrap().treatments().get(&self.end_point.name).unwrap(), &None),
+                self.text.name_end_point.position
+            );
         }
 
-        designer.validate().unwrap();
+        wrap_logic_error!(designer.validate(), self.text.name_start_point.position);
 
         Ok(())
 

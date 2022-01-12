@@ -4,7 +4,7 @@
 use super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
-use crate::script::error::ScriptError;
+use crate::script::error::{ScriptError, wrap_logic_error};
 use crate::script::path::Path;
 use crate::script::text::Instanciation as TextInstanciation;
 use crate::logic::descriptor::identifier::Identifier;
@@ -116,12 +116,15 @@ impl InstanciedModel {
 
             let borrowed_assignation = rc_assignation.read().unwrap();
 
-            let assignation_designer = designer.add_parameter(&borrowed_assignation.name).unwrap();
+            let assignation_designer = wrap_logic_error!(
+                designer.add_parameter(&borrowed_assignation.name),
+                borrowed_assignation.text.name.position
+            );
 
-            borrowed_assignation.make_design(&assignation_designer).unwrap();
+            borrowed_assignation.make_design(&assignation_designer)?;
         }
 
-        designer.validate().unwrap();
+        wrap_logic_error!(designer.validate(), self.text.name.position);
 
         Ok(())
 
