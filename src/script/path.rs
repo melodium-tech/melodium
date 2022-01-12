@@ -93,10 +93,12 @@ impl Path {
     /// * `element_name`: name of the element supposed to be identified under that path.
     /// 
     /// # Warning
-    /// A path can only be turned into identifier if its root is `std`/[PathRoot::Std](super::path::PathRoot::Std) or `main`/[PathRoot::Main](super::path::PathRoot::Main) (local paths are not absolute so not usable to make idenfier).
+    /// A path can only be turned into identifier if its root is `core`/[PathRoot::Core](super::path::PathRoot::Core), `std`/[PathRoot::Std](super::path::PathRoot::Std) or `main`/[PathRoot::Main](super::path::PathRoot::Main) (local paths are not absolute so not usable to make idenfier).
+    /// The `core` conversion to identifier is available only for convenience, as nothing in scripted can become part of the core.
     pub fn to_identifier(&self, element_name: &str) -> Option<Identifier> {
 
         if let Some(root) = match self.root {
+            PathRoot::Core => Some(Root::Core),
             PathRoot::Std => Some(Root::Std),
             PathRoot::Main => Some(Root::Main),
             _ => None

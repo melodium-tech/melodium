@@ -1,0 +1,19 @@
+
+use core/fs/direct::FileWriter
+use core/fs/direct::WriteFile
+use core/generation::ScalarI64Generator
+use core/generation::GenerateScalarI64
+use core/conversion::I64ToByte
+
+sequence Main()
+  model Generator: ScalarI64Generator(length=1024, value=-42)
+  model File: FileWriter(path="/tmp/tests/generated_i64.mel_generation")
+{
+    Generate: GenerateScalarI64[generator=Generator]()
+    Convert: I64ToByte()
+    Write: WriteFile[writer=File]()
+    
+    Generate.data -> Convert.value,data -> Write.data
+}
+
+

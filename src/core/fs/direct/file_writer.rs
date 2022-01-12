@@ -1,20 +1,8 @@
 
-use std::sync::{Arc, Weak, RwLock};
-use std::collections::HashMap;
+use super::super::super::prelude::*;
 use async_std::path::PathBuf;
-use async_std::channel::*;
 use async_std::fs::{File, OpenOptions};
 use async_std::io::BufWriter;
-use async_std::task::block_on;
-use async_std::prelude::*;
-use crate::executive::model::{Model, ModelId};
-use crate::executive::world::World;
-use crate::executive::environment::{ContextualEnvironment, GenesisEnvironment};
-use crate::executive::value::Value;
-use crate::logic::error::LogicError;
-use crate::logic::builder::*;
-use crate::logic::descriptor::{ParameterDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor};
-use crate::logic::descriptor::identifier::*;
 
 #[derive(Debug)]
 pub struct FileWriterModel {
@@ -38,48 +26,18 @@ impl FileWriterModel {
         
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-                let mut parameters = Vec::new();
-
-                let path_parameter = ParameterDescriptor::new(
-                    "path",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::String),
-                    None
-                );
-
-                let append_parameter = ParameterDescriptor::new(
-                    "append",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Bool),
-                    Some(Value::Bool(false))
-                );
-
-                let create_parameter = ParameterDescriptor::new(
-                    "create",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Bool),
-                    Some(Value::Bool(true))
-                );
-
-                let new_parameter = ParameterDescriptor::new(
-                    "new",
-                    DataTypeDescriptor::new(DataTypeStructureDescriptor::Scalar, DataTypeTypeDescriptor::Bool),
-                    Some(Value::Bool(false))
-                );
-
-                parameters.push(path_parameter);
-                parameters.push(append_parameter);
-                parameters.push(create_parameter);
-                parameters.push(new_parameter);
-
+                
                 let builder = CoreModelBuilder::new(FileWriterModel::new);
 
                 let descriptor = CoreModelDescriptor::new(
-                    Identifier::new(Root::Core,
-                        vec![
-                            "fs".to_string(),
-                            "direct".to_string(),
-                        ],
-                        "FileWriter"),
-                    parameters,
-                    HashMap::new(),
+                    core_identifier!("fs","direct";"FileWriter"),
+                    vec![
+                        parameter!("path", Scalar, String, None),
+                        parameter!("append", Scalar, Bool, Some(Value::Bool(false))),
+                        parameter!("create", Scalar, Bool, Some(Value::Bool(true))),
+                        parameter!("new", Scalar, Bool, Some(Value::Bool(false))),
+                    ],
+                    model_sources![],
                     Box::new(builder)
                 );
 

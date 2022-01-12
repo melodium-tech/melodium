@@ -1,0 +1,19 @@
+
+use core/fs/direct::FileWriter
+use core/fs/direct::WriteFile
+use core/generation::ScalarBoolGenerator
+use core/generation::GenerateScalarBool
+use core/conversion::BoolToByte
+
+sequence Main()
+  model Generator: ScalarBoolGenerator(length=1024, value=true)
+  model File: FileWriter(path="/tmp/tests/generated_bool.mel_generation")
+{
+    Generate: GenerateScalarBool[generator=Generator]()
+    Convert: BoolToByte()
+    Write: WriteFile[writer=File]()
+    
+    Generate.data -> Convert.value,data -> Write.data
+}
+
+

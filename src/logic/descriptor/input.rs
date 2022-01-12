@@ -2,6 +2,17 @@
 use super::datatype::DataType;
 use super::flow::Flow;
 
+macro_rules! input {
+    ($name:expr,$data_structure:ident,$data_type:ident,$flow:ident) => {
+        crate::logic::descriptor::input::Input::new(
+            $name,
+            datatype!($data_structure,$data_type),
+            crate::logic::descriptor::flow::Flow::$flow,
+        )
+    };
+}
+pub(crate) use input;
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Input {
     name: String,

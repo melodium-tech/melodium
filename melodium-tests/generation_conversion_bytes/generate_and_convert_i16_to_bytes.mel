@@ -1,0 +1,19 @@
+
+use core/fs/direct::FileWriter
+use core/fs/direct::WriteFile
+use core/generation::ScalarI16Generator
+use core/generation::GenerateScalarI16
+use core/conversion::I16ToByte
+
+sequence Main()
+  model Generator: ScalarI16Generator(length=1024, value=-42)
+  model File: FileWriter(path="/tmp/tests/generated_i16.mel_generation")
+{
+    Generate: GenerateScalarI16[generator=Generator]()
+    Convert: I16ToByte()
+    Write: WriteFile[writer=File]()
+    
+    Generate.data -> Convert.value,data -> Write.data
+}
+
+

@@ -1,0 +1,19 @@
+
+use core/fs/direct::FileWriter
+use core/fs/direct::WriteFile
+use core/generation::ScalarCharGenerator
+use core/generation::GenerateScalarChar
+use core/conversion::CharToByte
+
+sequence Main()
+  model Generator: ScalarCharGenerator(length=1024, value=42)
+  model File: FileWriter(path="/tmp/tests/generated_char.mel_generation")
+{
+    Generate: GenerateScalarChar[generator=Generator]()
+    Convert: CharToByte()
+    Write: WriteFile[writer=File]()
+    
+    Generate.data -> Convert.value,data -> Write.data
+}
+
+

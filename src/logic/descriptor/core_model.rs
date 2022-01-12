@@ -12,6 +12,20 @@ use super::parameter::Parameter;
 use super::context::Context;
 use super::super::builder::Builder;
 
+macro_rules! model_sources {
+    ($(($source:expr;$($context:expr),*)),*) => {{
+        let mut map = std::collections::HashMap::new();
+        $(map.insert(
+            $source.to_string(),
+            vec![
+                $(Arc::clone(Contexts::get($context).unwrap()),)*
+            ]
+        );)*
+        map
+    }};
+}
+pub(crate) use model_sources;
+
 #[derive(Debug)]
 pub struct CoreModel {
     identifier: Identifier,
