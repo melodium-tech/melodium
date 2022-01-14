@@ -8,11 +8,9 @@ struct DecodeBytes {
 
     encoding: RwLock<String>,
 
-    decoder: RwLock<Option<Decoder>>,
-
     data_output_transmitters: RwLock<Vec<Transmitter>>,
-    data_input_sender: Sender<u8>,
-    data_input_receiver: Receiver<u8>,
+    data_input_sender: Sender<Vec<u8>>,
+    data_input_receiver: Receiver<Vec<u8>>,
 
     auto_reference: RwLock<Weak<Self>>,
 
@@ -33,10 +31,10 @@ impl DecodeBytes {
                         parameter!("encoding",Scalar,String,Some(Value::String("utf-8".to_string())))
                     ],
                     vec![
-                        input!("data",Scalar,Byte,Stream)
+                        input!("data",Vector,Byte,Block)
                     ],
                     vec![
-                        output!("value",Scalar,String,Stream)
+                        output!("value",Scalar,String,Block)
                     ],
                     DecodeBytes::new,
                 );
@@ -53,7 +51,6 @@ impl DecodeBytes {
         let treatment = Arc::new(Self {
             world,
             encoding: RwLock::new(String::from("utf-8")),
-            decoder: RwLock::new(None),
             data_output_transmitters: RwLock::new(Vec::new()),
             data_input_sender: data_input.0,
             data_input_receiver: data_input.1,
@@ -69,14 +66,11 @@ impl DecodeBytes {
 
         let inputs_to_fill = self.data_output_transmitters.read().unwrap().clone();
 
-        const BUF_SIZE: usize = 4096;
-        let input_buf: [u8; BUF_SIZE] = [0; BUF_SIZE];
+        let encoding = Encoding::for_label(self.encoding.read().unwrap().as_bytes()).unwrap_or(UTF_8);
 
-        // TODO continue there
+        if let Ok(data) = self.data_input_receiver.recv().await {
 
-        while let Ok(data) = self.data_input_receiver.recv().await {
-
-            let output_string = data.to_string();
+            let output_string: String = encoding.decode(&data).0.to_string();
 
             for transmitter in &inputs_to_fill {
                 match transmitter {
@@ -132,19 +126,12 @@ impl Treatment for DecodeBytes {
 
         let mut hashmap = HashMap::new();
 
-        hashmap.insert("data".to_string(), vec![Transmitter::Byte(self.data_input_sender.clone())]);
+        hashmap.insert("data".to_string(), vec![Transmitter::VecByte(self.data_input_sender.clone())]);
 
         hashmap
     }
 
     fn prepare(&self) -> Vec<TrackFuture> {
-
-        if let Some(encoding) = Encoding::for_label(self.encoding.read().unwrap().as_bytes()) {
-            *self.decoder.write().unwrap() = Some(encoding.new_decoder());
-        }
-        else {
-            *self.decoder.write().unwrap() = Some(UTF_8.new_decoder());
-        }
 
         let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
         let future = Box::new(Box::pin(async move { auto_self.decode().await }));
@@ -152,4 +139,10 @@ impl Treatment for DecodeBytes {
         vec![future]
     }
     
+}
+
+pub fn register(c: &mut CollectionPool) {
+
+    c.treatments.insert(&(DecodeBytes::descriptor() as Arc<dyn TreatmentDescriptor>));
+
 }

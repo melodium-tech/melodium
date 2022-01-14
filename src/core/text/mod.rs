@@ -1,2 +1,2 @@
 
-mod bytes_to_string;
+pub mod bytes_to_string;

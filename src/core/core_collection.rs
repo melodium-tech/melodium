@@ -43,6 +43,8 @@ pub fn core_collection() -> &'static CollectionPool {
 
             super::arithmetic::add_scalar::register(&mut c);
 
+            super::text::bytes_to_string::register(&mut c);
+
             c.treatments.insert(&(ReadTcpConnectionTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
             c.treatments.insert(&(WriteTcpConnectionTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
 
