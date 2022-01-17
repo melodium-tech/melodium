@@ -455,10 +455,10 @@ impl Sequence {
 
             let treatment = rc_treatment.read().unwrap();
 
-            let treatment_designer = rc_designer.write().unwrap().add_treatment(
+            let treatment_designer = wrap_logic_error!(rc_designer.write().unwrap().add_treatment(
                     treatment.type_identifier.as_ref().unwrap(),
                     &treatment.name
-                ).unwrap();
+                ), treatment.text.name.position);
 
             treatment.make_design(&treatment_designer)?;
         }

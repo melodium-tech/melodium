@@ -41,6 +41,9 @@ pub fn core_collection() -> &'static CollectionPool {
             super::conversion::scalar_float_to_integer::register(&mut c);
             super::conversion::vector_float_to_integer::register(&mut c);
 
+            super::flow::block_to_stream::register(&mut c);
+            super::flow::stream_to_block::register(&mut c);
+
             super::arithmetic::add_scalar::register(&mut c);
 
             super::text::bytes_to_string::register(&mut c);

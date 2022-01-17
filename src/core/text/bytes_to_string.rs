@@ -9,8 +9,8 @@ struct DecodeBytes {
     encoding: RwLock<String>,
 
     data_output_transmitters: RwLock<Vec<Transmitter>>,
-    data_input_sender: Sender<Vec<u8>>,
-    data_input_receiver: Receiver<Vec<u8>>,
+    data_input_sender: Sender<u8>,
+    data_input_receiver: Receiver<u8>,
 
     auto_reference: RwLock<Weak<Self>>,
 
@@ -31,10 +31,10 @@ impl DecodeBytes {
                         parameter!("encoding",Scalar,String,Some(Value::String("utf-8".to_string())))
                     ],
                     vec![
-                        input!("data",Vector,Byte,Block)
+                        input!("data",Scalar,Byte,Stream)
                     ],
                     vec![
-                        output!("value",Scalar,String,Block)
+                        output!("value",Scalar,String,Stream)
                     ],
                     DecodeBytes::new,
                 );
@@ -67,14 +67,31 @@ impl DecodeBytes {
         let inputs_to_fill = self.data_output_transmitters.read().unwrap().clone();
 
         let encoding = Encoding::for_label(self.encoding.read().unwrap().as_bytes()).unwrap_or(UTF_8);
+        let mut decoder = encoding.new_decoder();
 
-        if let Ok(data) = self.data_input_receiver.recv().await {
+        let mut finished = false;
+        while !finished {
 
-            let output_string: String = encoding.decode(&data).0.to_string();
+            let mut bytes = Vec::new();
+
+            finished = true;
+            while let Ok(data) = self.data_input_receiver.recv().await {
+
+                bytes.push(data);
+
+                if bytes.len() >= 2usize.pow(20) {
+                    finished = false;
+                    break;
+                }
+            }
+
+            let mut result = String::with_capacity(bytes.len() * 2);
+
+            decoder.decode_to_string(&bytes, &mut result, finished);
 
             for transmitter in &inputs_to_fill {
                 match transmitter {
-                    Transmitter::String(sender) => sender.send(output_string.clone()).await.unwrap(),
+                    Transmitter::String(sender) => sender.send(result.clone()).await.unwrap(),
                     _ => panic!("{} sender expected!", std::any::type_name::<String>())
                 };
             }
@@ -126,7 +143,7 @@ impl Treatment for DecodeBytes {
 
         let mut hashmap = HashMap::new();
 
-        hashmap.insert("data".to_string(), vec![Transmitter::VecByte(self.data_input_sender.clone())]);
+        hashmap.insert("data".to_string(), vec![Transmitter::Byte(self.data_input_sender.clone())]);
 
         hashmap
     }

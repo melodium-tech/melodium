@@ -85,32 +85,41 @@ impl Connection {
             // something to something
             if !self.start_point_self && !self.end_point_self {
 
-                Ok(designer.add_connection(
-                    &self.start_point.name,
-                    self.name_data_out.as_ref().unwrap(),
-                    &self.end_point.name,
-                    self.name_data_in.as_ref().unwrap(),
-                ).unwrap())
+                Ok(wrap_logic_error!(
+                    designer.add_connection(
+                        &self.start_point.name,
+                        self.name_data_out.as_ref().unwrap(),
+                        &self.end_point.name,
+                        self.name_data_in.as_ref().unwrap(),
+                        ),
+                    self.text.name_start_point.position)
+                )
             }
 
             // Self to something
             else if self.start_point_self {
 
-                Ok(designer.add_input_connection(
-                    self.name_data_out.as_ref().unwrap(),
-                    &self.end_point.name,
-                    self.name_data_in.as_ref().unwrap(),
-                ).unwrap())
+                Ok(wrap_logic_error!(
+                    designer.add_input_connection(
+                        self.name_data_out.as_ref().unwrap(),
+                        &self.end_point.name,
+                        self.name_data_in.as_ref().unwrap(),
+                    ),
+                    self.text.name_start_point.position)
+                )
             }
 
             // Something to Self
             else if self.end_point_self {
 
-                Ok(designer.add_output_connection(
-                    self.name_data_in.as_ref().unwrap(),
-                    &self.start_point.name,
-                    self.name_data_out.as_ref().unwrap(),
-                ).unwrap())
+                Ok(wrap_logic_error!(
+                    designer.add_output_connection(
+                        self.name_data_in.as_ref().unwrap(),
+                        &self.start_point.name,
+                        self.name_data_out.as_ref().unwrap(),
+                    ),
+                    self.text.name_start_point.position)
+                )
             }
 
             else {
