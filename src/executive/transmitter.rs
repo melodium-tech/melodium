@@ -55,11 +55,13 @@ const BUFFER_LIMIT: usize = 2usize.pow(20);
 pub type SendResult = Result<(), TransmissionError>;
 pub type RecvResult<T> = Result<T, TransmissionError>;
 
+#[derive(Debug, Clone)]
 pub enum TransmissionError {
     NoReceiver,
     EverythingClosed,
 }
 
+#[derive(Debug)]
 pub struct SendTransmitter<T> {
     senders: Mutex<Vec<Sender<Vec<T>>>>,
     buffer: Mutex<Vec<T>>,
@@ -153,6 +155,7 @@ trait SenderGetter<T> {
     fn get_sender(&self) -> Sender<Vec<T>>;
 }
 
+#[derive(Debug)]
 pub struct RecvTransmitter<T> {
     receiver: Receiver<Vec<T>>,
     sender: Sender<Vec<T>>,
