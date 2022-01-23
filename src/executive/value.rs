@@ -1,4 +1,6 @@
 
+use std::fmt::*;
+
 #[derive(Clone, PartialEq, Debug)]
 pub enum Value {
 
@@ -42,4 +44,12 @@ pub enum Value {
     VecChar(Vec<char>),
     VecString(Vec<String>),
 
+}
+
+impl Display for Value {
+    
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+
+        write!(f, "*To implement*")
+    }
 }

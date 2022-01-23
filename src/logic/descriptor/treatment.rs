@@ -1,5 +1,5 @@
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::collections::HashMap;
 use std::sync::Arc;
 use downcast_rs::{DowncastSync, impl_downcast};
@@ -11,7 +11,7 @@ use super::output::Output;
 use super::core_model::CoreModel;
 use super::requirement::Requirement;
 
-pub trait Treatment: Identified + Parameterized + Buildable + DowncastSync + Debug + Send + Sync {
+pub trait Treatment: Identified + Parameterized + Buildable + DowncastSync + Display + Debug + Send + Sync {
     fn inputs(&self) -> &HashMap<String, Input>;
     fn outputs(&self) -> &HashMap<String, Output>;
     fn models(&self) -> &HashMap<String, Arc<CoreModel>>;

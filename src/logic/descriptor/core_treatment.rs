@@ -1,4 +1,5 @@
 
+use std::fmt::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock};
 use std::iter::FromIterator;
@@ -131,3 +132,47 @@ impl Treatment for CoreTreatment {
         self.auto_reference.read().unwrap().upgrade().unwrap()
     }
 }
+
+impl Display for CoreTreatment {
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+
+        writeln!(f, "Treatment `{}`", self.identifier.to_string())?;
+
+        if !self.models.is_empty() {
+            writeln!(f, "Models:")?;
+
+            for model in &self.models {
+                writeln!(f, "- {}: `{}`", model.0, model.1.identifier().to_string())?;
+            }
+        }
+
+        if !self.parameters.is_empty() {
+            writeln!(f, "Parameters:")?;
+
+            for parameter in &self.parameters {
+                writeln!(f, "- {}", parameter.1)?;
+            }
+        }
+
+        if !self.inputs.is_empty() {
+            writeln!(f, "Inputs:")?;
+
+            for input in &self.inputs {
+                writeln!(f, "- {}", input.1)?;
+            }
+        }
+
+        if !self.outputs.is_empty() {
+            writeln!(f, "Outputs:")?;
+
+            for output in &self.outputs {
+                writeln!(f, "- {}", output.1)?;
+            }
+        }
+
+        Ok(())
+        
+    }
+}
+

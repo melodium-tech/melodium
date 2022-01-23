@@ -1,4 +1,5 @@
 
+use std::fmt::*;
 use std::sync::{Arc, Weak, RwLock};
 use std::collections::HashMap;
 use super::identified::Identified;
@@ -84,5 +85,24 @@ impl Model for ConfiguredModel {
 
     fn sources(&self) -> &HashMap<String, Vec<Arc<Context>>> {
         self.core_model.sources()
+    }
+}
+
+impl Display for ConfiguredModel {
+    
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        writeln!(f, "Model `{}`", self.identifier.to_string())?;
+        writeln!(f, "> `{}`", self.identifier.to_string())?;
+
+        if !self.parameters.is_empty() {
+            writeln!(f, "Parameters:")?;
+
+            for parameter in &self.parameters {
+                writeln!(f, "- {}", parameter.1)?;
+            }
+        }
+
+        Ok(())
+        
     }
 }

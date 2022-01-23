@@ -121,10 +121,10 @@ fn main() {
             let identifier = Path::new(path).to_identifier(path_and_name.get(1).unwrap()).unwrap();
 
             if let Some(model) = collection.models.get(&identifier) {
-                println!("{:?}", model);
+                println!("{}", model);
             }
             else if let Some(treatment) = collection.treatments.get(&identifier) {
-                println!("{:?}", treatment);
+                println!("{}", treatment);
             }
             else {
                 println!("No element for '{}'", element);

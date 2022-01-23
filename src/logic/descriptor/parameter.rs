@@ -1,4 +1,5 @@
 
+use std::fmt::*;
 use super::datatype::DataType;
 use crate::executive::value::Value;
 
@@ -39,5 +40,12 @@ impl Parameter {
 
     pub fn default(&self) -> &Option<Value> {
         &self.default
+    }
+}
+
+impl Display for Parameter {
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "{}: {}", self.name, self.datatype)
     }
 }
