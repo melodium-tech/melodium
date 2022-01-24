@@ -50,6 +50,90 @@ impl Display for Value {
     
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
 
-        write!(f, "*To implement*")
+        //write!(f, "*To implement*")
+
+        match self {
+            Value::I8(v) => write!(f, "{}", v),
+            Value::I16(v) => write!(f, "{}", v),
+            Value::I32(v) => write!(f, "{}", v),
+            Value::I64(v) => write!(f, "{}", v),
+            Value::I128(v) => write!(f, "{}", v),
+            Value::U8(v) => write!(f, "{}", v),
+            Value::U16(v) => write!(f, "{}", v),
+            Value::U32(v) => write!(f, "{}", v),
+            Value::U64(v) => write!(f, "{}", v),
+            Value::U128(v) => write!(f, "{}", v),
+            Value::F32(v) => write!(f, "{}", v),
+            Value::F64(v) => write!(f, "{}", v),
+            Value::Bool(v) => write!(f, "{}", v),
+            Value::Byte(v) => write!(f, "{}", v),
+            Value::Char(v) => write!(f, "'{}'", v),
+            Value::String(v) => write!(f, "\"{}\"", v),
+
+            Value::VecI8(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecI16(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecI32(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecI64(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecI128(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecU8(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecU16(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecU32(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecU64(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecU128(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecF32(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecF64(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecBool(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecByte(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecChar(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("'{}'", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+            Value::VecString(v) => {
+                let list: Vec<String> = v.iter().map(|v| format!("\"{}\"", v)).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
+        }
     }
 }

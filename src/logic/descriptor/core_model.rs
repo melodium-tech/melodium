@@ -111,7 +111,7 @@ impl Display for CoreModel {
         writeln!(f, "Model `{}`", self.identifier.to_string())?;
 
         if !self.parameters.is_empty() {
-            writeln!(f, "Parameters:")?;
+            writeln!(f, "\nParameters:")?;
 
             for parameter in &self.parameters {
                 writeln!(f, "- {}", parameter.1)?;

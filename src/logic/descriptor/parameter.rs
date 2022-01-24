@@ -46,6 +46,13 @@ impl Parameter {
 impl Display for Parameter {
 
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}: {}", self.name, self.datatype)
+
+        if let Some(default) = &self.default {
+            write!(f, "_{}_: `{}` (default `{}`)", self.name, self.datatype, default)
+        }
+        else {
+            write!(f, "_{}_: `{}`", self.name, self.datatype)
+        }
+        
     }
 }

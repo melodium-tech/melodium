@@ -140,15 +140,15 @@ impl Display for CoreTreatment {
         writeln!(f, "Treatment `{}`", self.identifier.to_string())?;
 
         if !self.models.is_empty() {
-            writeln!(f, "Models:")?;
+            writeln!(f, "\nModels:")?;
 
             for model in &self.models {
-                writeln!(f, "- {}: `{}`", model.0, model.1.identifier().to_string())?;
+                writeln!(f, "- _{}_: `{}`", model.0, model.1.identifier().to_string())?;
             }
         }
 
         if !self.parameters.is_empty() {
-            writeln!(f, "Parameters:")?;
+            writeln!(f, "\nParameters:")?;
 
             for parameter in &self.parameters {
                 writeln!(f, "- {}", parameter.1)?;
@@ -156,7 +156,7 @@ impl Display for CoreTreatment {
         }
 
         if !self.inputs.is_empty() {
-            writeln!(f, "Inputs:")?;
+            writeln!(f, "\nInputs:")?;
 
             for input in &self.inputs {
                 writeln!(f, "- {}", input.1)?;
@@ -164,7 +164,7 @@ impl Display for CoreTreatment {
         }
 
         if !self.outputs.is_empty() {
-            writeln!(f, "Outputs:")?;
+            writeln!(f, "\nOutputs:")?;
 
             for output in &self.outputs {
                 writeln!(f, "- {}", output.1)?;
