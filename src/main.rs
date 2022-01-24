@@ -1,6 +1,4 @@
 
-//extern crate melodium_rust;
-
 use std::env;
 use std::path::Path as StdPath;
 use std::sync::Arc;
@@ -9,10 +7,10 @@ use std::process::*;
 extern crate clap;
 use clap::{Arg, App};
 
-use melodium_rust::executive::world::World;
-use melodium_rust::logic::descriptor::SequenceTreatmentDescriptor;
-use melodium_rust::script::instance::Instance;
-use melodium_rust::script::path::Path;
+use melodium::executive::world::World;
+use melodium::logic::descriptor::SequenceTreatmentDescriptor;
+use melodium::script::instance::Instance;
+use melodium::script::path::Path;
 
 fn main() {
 

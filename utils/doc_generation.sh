@@ -6,7 +6,7 @@ OUTPUT="$1"
 
 if [ -z "$MELODIUM" ]
 then
-    MELODIUM='target/debug/melodium-rust'
+    MELODIUM='target/debug/melodium'
 fi
 
 mkdir -p "$OUTPUT"
