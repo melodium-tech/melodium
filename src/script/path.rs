@@ -30,7 +30,7 @@ impl Path {
     /// Instanciates a new path.
     /// 
     /// ```
-    /// # use melodium_rust::script::path::{Path, PathRoot};
+    /// # use melodium::script::path::{Path, PathRoot};
     /// // use main/foo/bar::UselessElement
     /// let raw_valid_path = vec![  "main".to_string(),
     ///                             "foo".to_string(),

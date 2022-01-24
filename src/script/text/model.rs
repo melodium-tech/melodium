@@ -25,9 +25,9 @@ impl Model {
     /// * `iter`: Iterator over words list, next() being expected to be the name.
     ///
     /// ```
-    /// # use melodium_rust::script::error::ScriptError;
-    /// # use melodium_rust::script::text::word::*;
-    /// # use melodium_rust::script::text::model::Model;
+    /// # use melodium::script::error::ScriptError;
+    /// # use melodium::script::text::word::*;
+    /// # use melodium::script::text::model::Model;
     /// let text = r##"
     /// model MachineLearningModel(layers: Int, function: String = "sigmoid"): SparseAutoencoder
     /// {

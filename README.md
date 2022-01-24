@@ -6,11 +6,13 @@ Mélodium is a dataflow-oriented language, focusing on treatments applied on dat
 
 Mélodium is a tool and language for manipulation of large amount of data, using the definition of treatments that applies on data through connections, with a track approach that makes any script higly scalable and implicitly parallelizable.
 
-Mélodium is **under development** and still being defined and improved to become fully operationnal. The development documentation is available at <https://qvignaud.gitlab.io/melodium-rust/>.
+For more exhaustive explanations, please refer to [the Mélodium Language book](https://melodium.gitlab.io/book/).
+
+Mélodium is _under development_ and continously being defined and improved. The development documentation is available at <https://melodium.gitlab.io/melodium/melodium/>, and the core reference at <https://melodium.gitlab.io/melodium/reference/>.
 
 ## Origin
 
-Mélodium were first developed during research in signal analysis and musical information retrieval, in need of a tool to manage large amount of records and easily write experimentations, without being concerned of underlying technical operations. It has been presented in [this thesis](https://www.researchgate.net/publication/344327676_Detection_et_classification_des_notes_d'une_piste_audio_musicale)(in French).
+Mélodium were first developed during research in signal analysis and musical information retrieval, in need of a tool to manage large amount of records and easily write experimentations, without being concerned of underlying technical operations. It has been presented in [this thesis](https://www.researchgate.net/publication/344327676_Detection_et_classification_des_notes_d'une_piste_audio_musicale) (in French).
 
 The first implementation was in C++ and ran well on high performance computers, such as those of Compute Canada. That tool appeared to be really useful, and the concepts used within its configuration language to deserve more attention. This first experimental design is still available at <https://gitlab.com/qvignaud/Melodium>.
 
@@ -18,69 +20,22 @@ The current project is the continuation of that work, rewritten from ground in R
 
 ## Example
 
-The following code computes spectrum of audio files contained in the path given as `directory` and make pictures of them. A more complete and commented version is available under [examples/semantic](examples/semantic/simple_build.mel).
+The following code makes a copy of the file `./input` to `./output`. More examples are available under [examples](examples/).
 
 ```
-use core/file::FileManager
-use core/file::FlatFile
+use core/fs/direct::FileReader
+use core/fs/direct::FileWriter
+use core/fs/direct::ReadFile
+use core/fs/direct::WriteFile
 
-use core/audio::AudioManager
-use core/audio::Decoder
-use core/audio::Signal
-
-use core/signal::FrameCutter
-use core/signal::Windowing
-use core/signal::Spectrum
-
-use core/image::SimpleImageRender
-
-model Files(directory: String): FileManager
+sequence Main()
+    model FileReader: FileReader(path="./input")
+    model FileWriter: FileWriter(path="./output")
 {
-    directory = directory
-}
-
-model AudioEngine(): AudioManager
-{
-    sampleRate = 44100
-}
-
-sequence Main(directory: String)
-    model Files: Files(directory=directory)
-    model Audio: AudioEngine()
-{
-    ReadAudioFiles[Files=Files, Audio=Audio]()
-
-    AudioToImage[AudioManager=Audio]()
-}
-
-sequence ReadAudioFiles[Files: FileManager, Audio: AudioManager]()
-    origin File: FlatFile[Files=Files]()
-{
-    Decoder[AudioManager=Audio]()
+    Reader: ReadFile[reader=FileReader]()
+    Writer: WriteFile[writer=FileWriter]()
     
-    File.data -> Decoder.data
-}
-
-sequence ComputeSpectrum(frameSize: Int, hopSize: Int, windowingType: String)
-    input signal: Vec<Int>
-    output spectrum: Mat<Int>
-{
-    FrameCutter(frameSize=frameSize, hopSize=hopSize, startFromZero=true, lastFrameToEndOfFile=true)
-    Windowing(type=windowingType, size=frameSize)
-    Spectrum(size=frameSize)
-
-    Self.signal -> CoreFrameCutter.signal,frame -> CoreWindowing.frame,frame -> CoreSpectrum.frame,spectrum -> Self.spectrum
-}
-
-sequence AudioToImage[AudioManager: AudioManager](frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String = "blackmanharris92")
-    origin AudioSignal: Signal[AudioManager=AudioManager]()
-    require @File
-    require @Signal
-{
-    ComputeSpectrum(frameSize=frameSize, hopSize=hopSize, windowingType=windowingType)
-    Image: SimpleImageRender(fileName=@File[name], format="png")
-    
-    AudioSignal.signal -> Spectrum.signal,spectrum -> Image.input
+    Reader.data -> Writer.data
 }
 ```
 
@@ -88,8 +43,8 @@ sequence AudioToImage[AudioManager: AudioManager](frameSize: Int = 4096, hopSize
 
 Mélodium is fully written in Rust, and just need usual `cargo build` and `cargo test`.
 ```shell
-git clone https://gitlab.com/qvignaud/melodium-rust.git
-cd melodium-rust
+git clone https://gitlab.com/melodium/melodium.git
+cd melodium
 cargo build
 ```
 
