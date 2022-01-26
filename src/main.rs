@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::process::*;
 
 extern crate clap;
-use clap::{Arg, App};
+use clap::{Arg, App, crate_version};
 
 use melodium::executive::world::World;
 use melodium::logic::descriptor::SequenceTreatmentDescriptor;
@@ -15,7 +15,7 @@ use melodium::script::path::Path;
 fn main() {
 
     let matches = App::new("Mélodium")
-        .version("0.1-dev")
+        .version(crate_version!())
         .author("Quentin Vignaud")
         .about("Mélodium script engine")
         .arg(Arg::with_name("stdlib")
