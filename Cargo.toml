@@ -10,6 +10,11 @@ readme = "README.md"
 description = "Dataflow-oriented language & tool, focusing on treatments applied on data, allowing high scalability and massive parallelization safely."
 keywords = ["dataflow","parallelization","scalability","async","signal"]
 categories = ["compilers", "science", "concurrency", "asynchronous"]
+exclude = [
+    "melodium-tests/*",
+    "examples/*",
+    "utils/*"
+]
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -22,5 +27,4 @@ lazy_static = "1.4.0"
 linkme = "0.2"
 regex = "1"
 clap = "2"
-
 
