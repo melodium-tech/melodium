@@ -47,6 +47,43 @@ pub enum Output {
 
 impl Output {
 
+    pub fn close(&self) {
+        match self {
+            Output::U8(t) => t.close(),
+            Output::U16(t) => t.close(),
+            Output::U32(t) => t.close(),
+            Output::U64(t) => t.close(),
+            Output::U128(t) => t.close(),
+            Output::I8(t) => t.close(),
+            Output::I16(t) => t.close(),
+            Output::I32(t) => t.close(),
+            Output::I64(t) => t.close(),
+            Output::I128(t) => t.close(),
+            Output::F32(t) => t.close(),
+            Output::F64(t) => t.close(),
+            Output::Bool(t) => t.close(),
+            Output::Byte(t) => t.close(),
+            Output::Char(t) => t.close(),
+            Output::String(t) => t.close(),
+            Output::VecU8(t) => t.close(),
+            Output::VecU16(t) => t.close(),
+            Output::VecU32(t) => t.close(),
+            Output::VecU64(t) => t.close(),
+            Output::VecU128(t) => t.close(),
+            Output::VecI8(t) => t.close(),
+            Output::VecI16(t) => t.close(),
+            Output::VecI32(t) => t.close(),
+            Output::VecI64(t) => t.close(),
+            Output::VecI128(t) => t.close(),
+            Output::VecF32(t) => t.close(),
+            Output::VecF64(t) => t.close(),
+            Output::VecBool(t) => t.close(),
+            Output::VecByte(t) => t.close(),
+            Output::VecChar(t) => t.close(),
+            Output::VecString(t) => t.close(),
+        }
+    }
+
     pub async fn send_u8(&self, data: u8) -> SendResult {
         match self {
             Output::U8(t) => t.send(data).await,
