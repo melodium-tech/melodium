@@ -1,6 +1,7 @@
 
 use std::sync::Arc;
 use super::transmitter::*;
+use super::super::logic::descriptor::InputDescriptor;
 
 #[derive(Debug, Clone)]
 pub enum Input {
@@ -46,6 +47,10 @@ pub enum Input {
 }
 
 impl Input {
+
+    pub fn new(descriptor: &InputDescriptor) -> Self {
+        todo!()
+    }
 
     pub fn close(&self) {
         match self {
