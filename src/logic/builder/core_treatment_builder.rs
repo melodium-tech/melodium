@@ -121,12 +121,14 @@ impl Builder for CoreTreatmentBuilder {
         ).unwrap();
 
         for (io_name, inputs) in host_build.feeding_inputs {
-            treatment.set_output(&io_name, inputs);
+            for input in inputs {
+                treatment.set_output(&io_name, &input);
+            }
         }
 
         let inputs = treatment.get_inputs();
 
-        result.feeding_inputs = inputs;
+        result.feeding_inputs = inputs.iter().map(|(name, input)| (name.to_string(), vec![input.clone()])).collect();
 
         let prepared_futures = treatment.prepare();
         result.prepared_futures.extend(prepared_futures);

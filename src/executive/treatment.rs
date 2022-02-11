@@ -11,7 +11,7 @@ use super::model::Model;
 use super::input::Input;
 use super::output::Output;
 
-pub trait Treatment{
+pub trait Treatment {
 
     fn descriptor(&self) -> Arc<CoreTreatmentDescriptor>;
 
@@ -28,11 +28,11 @@ pub trait TreatmentImpl : Debug {
     fn prepare(&self) -> Vec<TrackFuture>;
 }
 
-#[derive(Debug)]
-pub struct TreatmentHost<'a> {
+//#[derive(Debug)]
+pub struct TreatmentHost {
 
-    treatment_impl: &'a Box<dyn TreatmentImpl>,
     descriptor: Arc<CoreTreatmentDescriptor>,
+    prepare: fn(&TreatmentHost) -> Vec<TrackFuture>,
 
     models: Mutex<HashMap<String, Arc<dyn Model>>>,
     parameters: Mutex<HashMap<String, Value>>,
@@ -41,9 +41,9 @@ pub struct TreatmentHost<'a> {
     outputs: Mutex<HashMap<String, Output>>,
 }
 
-impl<'a> TreatmentHost<'a> {
+impl TreatmentHost {
 
-    pub fn new(treatment_impl: &'a Box<dyn TreatmentImpl>, descriptor: Arc<CoreTreatmentDescriptor>) -> Self {
+    pub fn new(descriptor: Arc<CoreTreatmentDescriptor>, prepare: fn(&TreatmentHost) -> Vec<TrackFuture>) -> Self {
 
         let parameters = descriptor.parameters().iter().filter_map(
             |(_, param)| {
@@ -69,8 +69,8 @@ impl<'a> TreatmentHost<'a> {
         ).collect();
 
         Self {
-            treatment_impl,
             descriptor,
+            prepare,
             models: Mutex::new(HashMap::new()),
             parameters: Mutex::new(parameters),
             inputs: Mutex::new(inputs),
@@ -95,7 +95,7 @@ impl<'a> TreatmentHost<'a> {
     }
 }
 
-impl Treatment for TreatmentHost<'_> {
+impl Treatment for TreatmentHost {
 
     fn descriptor(&self) -> Arc<CoreTreatmentDescriptor> {
         Arc::clone(&self.descriptor)
@@ -152,6 +152,6 @@ impl Treatment for TreatmentHost<'_> {
     }
 
     fn prepare(&self) -> Vec<TrackFuture> {
-        self.treatment_impl.prepare()
+        (self.prepare)(&self)
     }
 }

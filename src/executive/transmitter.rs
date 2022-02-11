@@ -117,12 +117,13 @@ impl<T: Clone> SendTransmitter<T> {
 
     async fn check_send(&self) -> SendResult {
 
-        let mut buffer = self.buffer.lock().unwrap();
+        let buffer = self.buffer.lock().unwrap().clone();
 
         if buffer.len() >= BUFFER_LIMIT {
 
             let mut statuses = Vec::new();
-            for sender in self.senders.lock().unwrap().iter() {
+            let senders = self.senders.lock().unwrap().clone();
+            for sender in senders.iter() {
                 statuses.push(
                     match sender.send(buffer.clone()).await {
                         Ok(()) => true,
@@ -138,7 +139,7 @@ impl<T: Clone> SendTransmitter<T> {
                 Err(TransmissionError::EverythingClosed)
             };
 
-            buffer.clear();
+            self.buffer.lock().unwrap().clear();
 
             return status;
         }
