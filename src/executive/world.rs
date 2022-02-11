@@ -2,15 +2,18 @@
 use std::future::Future;
 use std::fmt::Debug;
 use std::collections::HashMap;
-use std::sync::{Arc, Weak, RwLock, Mutex};
+use std::sync::{Arc, Weak, RwLock, Mutex, atomic::{AtomicBool, Ordering}};
 use futures::future::{JoinAll, join, join_all};
+use futures::stream::{FuturesUnordered, StreamExt};
 use async_std::task::block_on;
 use async_std::channel::*;
+use async_std::sync::Mutex as AsyncMutex;
 use super::future::*;
 use super::model::{Model, ModelId};
 use super::transmitter::Transmitter;
 use super::environment::{ContextualEnvironment, GenesisEnvironment};
 use super::context::Context;
+use super::result_status::ResultStatus;
 use super::super::logic::descriptor::BuildableDescriptor;
 use super::super::logic::descriptor::ModelDescriptor;
 use super::super::logic::error::LogicError;
@@ -49,9 +52,9 @@ pub struct World {
     continuous_tasks: RwLock<Vec<ContinuousFuture>>,
 
     tracks_counter: Mutex<u64>,
-    tracks_sender: Sender<Track>,
-    tracks_receiver: Receiver<Track>,
-    //tracks: RwLock<Vec<JoinAll<TrackFuture>>>,
+    tracks_stream: AsyncMutex<FuturesUnordered<TrackFuture>>,
+
+    closing: AtomicBool,
 }
 
 impl Debug for World {
@@ -63,7 +66,6 @@ impl Debug for World {
          .field("errors", &self.errors)
          .field("main_build_id", &self.main_build_id)
          .field("continuous_tasks", &self.continuous_tasks.read().unwrap().len())
-         //.field("tracks", &self.tracks.read().unwrap().len())
          .finish()
     }
 }
@@ -71,8 +73,6 @@ impl Debug for World {
 impl World {
 
     pub fn new() -> Arc<Self> {
-
-        let tracks_channel = unbounded();
 
         let world = Arc::new(Self {
             auto_reference: RwLock::new(Weak::default()),
@@ -82,9 +82,8 @@ impl World {
             main_build_id: RwLock::new(0),
             continuous_tasks: RwLock::new(Vec::new()),
             tracks_counter: Mutex::new(0),
-            tracks_sender: tracks_channel.0,
-            tracks_receiver: tracks_channel.1,
-            //tracks: RwLock::new(Vec::new()),
+            tracks_stream: AsyncMutex::new(FuturesUnordered::new()),
+            closing: AtomicBool::new(false),
         });
 
         *world.auto_reference.write().unwrap() = Arc::downgrade(&world);
@@ -200,9 +199,6 @@ impl World {
         borrowed_continuous_tasks.push(task);
     }
 
-    // Special syntax for workaroud of async fn implementation
-    // https://stackoverflow.com/questions/68591843/async-fn-reports-hidden-type-for-impl-trait-captures-lifetime-that-does-not-a
-    // https://github.com/rust-lang/rust/issues/63033#issuecomment-521234696
     pub async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>, callback: Option<impl FnOnce(HashMap<String, Vec<Transmitter>>) -> Vec<TrackFuture>>) {
 
         let track_id;
@@ -249,8 +245,10 @@ impl World {
 
         track_futures.extend(model_futures);
 
-        let track = Track::new(track_id, join_all(track_futures));
-        self.tracks_sender.send(track).await.unwrap();
+        let tracks_stream = self.tracks_stream.lock().await;
+        for fut in track_futures {
+            tracks_stream.push(fut);
+        }
     }
 
     pub fn live(&self) {
@@ -259,20 +257,27 @@ impl World {
 
         let model_futures = join_all(borrowed_continuous_tasks.iter_mut());
 
-        let continuum = async move {
-
-            model_futures.await;
-            self.tracks_sender.close();
-        };
-
-        block_on(join(self.run_track(), continuum));
+        block_on(join(self.run_tracks(), model_futures));
     }
 
-    async fn run_track(&self) {
-        
-        while let Ok(track) = self.tracks_receiver.recv().await {
+    async fn run_tracks(&self) {
 
-            let _result = track.future.await;
+        let mut tracks_stream_empty = false;
+
+        while !tracks_stream_empty || !self.closing.load(Ordering::Relaxed) {
+
+            let mut tracks_stream = self.tracks_stream.lock().await;
+
+            match tracks_stream.next().await {
+                Some(result) => {
+                    match result {
+                        ResultStatus::Ok => (),
+                    }
+                },
+                None => (),
+            }
+
+            tracks_stream_empty = tracks_stream.is_empty();
         }
     }
 }
