@@ -257,7 +257,17 @@ impl World {
 
         let model_futures = join_all(borrowed_continuous_tasks.iter_mut());
 
-        block_on(join(self.run_tracks(), model_futures));
+        let continuum = async move {
+
+            model_futures.await;
+            self.end();
+        };
+
+        block_on(join(self.run_tracks(), continuum));
+    }
+
+    pub fn end(&self) {
+        self.closing.store(true, Ordering::Relaxed);
     }
 
     async fn run_tracks(&self) {
