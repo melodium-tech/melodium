@@ -27,4 +27,3 @@ lazy_static = "1.4.0"
 linkme = "0.2"
 regex = "1"
 clap = "2"
-

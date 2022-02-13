@@ -2,12 +2,12 @@
 use std::future::Future;
 use std::fmt::Debug;
 use std::collections::HashMap;
-use std::sync::{Arc, Weak, RwLock, Mutex, atomic::{AtomicBool, Ordering}};
+use std::sync::{Arc, Weak, RwLock, atomic::{AtomicBool, Ordering}};
 use futures::future::{JoinAll, join, join_all};
 use futures::stream::{FuturesUnordered, StreamExt};
 use async_std::task::block_on;
+use async_std::sync::Mutex;
 use async_std::channel::*;
-use async_std::sync::Mutex as AsyncMutex;
 use super::future::*;
 use super::model::{Model, ModelId};
 use super::transmitter::Transmitter;
@@ -52,7 +52,8 @@ pub struct World {
     continuous_tasks: RwLock<Vec<ContinuousFuture>>,
 
     tracks_counter: Mutex<u64>,
-    tracks_stream: AsyncMutex<FuturesUnordered<TrackFuture>>,
+    tracks_sender: Sender<Track>,
+    tracks_receiver: Receiver<Track>,
 
     closing: AtomicBool,
 }
@@ -74,6 +75,8 @@ impl World {
 
     pub fn new() -> Arc<Self> {
 
+        let (sender, receiver) = unbounded();
+
         let world = Arc::new(Self {
             auto_reference: RwLock::new(Weak::default()),
             models: RwLock::new(Vec::new()),
@@ -82,7 +85,8 @@ impl World {
             main_build_id: RwLock::new(0),
             continuous_tasks: RwLock::new(Vec::new()),
             tracks_counter: Mutex::new(0),
-            tracks_stream: AsyncMutex::new(FuturesUnordered::new()),
+            tracks_sender: sender,
+            tracks_receiver: receiver,
             closing: AtomicBool::new(false),
         });
 
@@ -203,7 +207,7 @@ impl World {
 
         let track_id;
         {
-            let mut counter = self.tracks_counter.lock().unwrap();
+            let mut counter = self.tracks_counter.lock().await;
             track_id = *counter;
             *counter = track_id + 1;
         }
@@ -245,10 +249,8 @@ impl World {
 
         track_futures.extend(model_futures);
 
-        let tracks_stream = self.tracks_stream.lock().await;
-        for fut in track_futures {
-            tracks_stream.push(fut);
-        }
+        let track = Track::new(track_id, join_all(track_futures));
+        self.tracks_sender.send(track).await.unwrap();
     }
 
     pub fn live(&self) {
@@ -260,10 +262,12 @@ impl World {
         let continuum = async move {
 
             model_futures.await;
+
+            self.tracks_sender.close();
             self.end();
         };
 
-        block_on(join(self.run_tracks(), continuum));
+        block_on(join(continuum, self.run_tracks()));
     }
 
     pub fn end(&self) {
@@ -272,22 +276,28 @@ impl World {
 
     async fn run_tracks(&self) {
 
-        let mut tracks_stream_empty = false;
+        let mut futures = FuturesUnordered::new();
 
-        while !tracks_stream_empty || !self.closing.load(Ordering::Relaxed) {
+        while !self.closing.load(Ordering::Relaxed) {
 
-            let mut tracks_stream = self.tracks_stream.lock().await;
+            if !self.tracks_receiver.is_empty() {
 
-            match tracks_stream.next().await {
-                Some(result) => {
-                    match result {
-                        ResultStatus::Ok => (),
-                    }
-                },
-                None => (),
+                while let Ok(track) = self.tracks_receiver.try_recv() {
+
+                    futures.push(track.future);
+                }
+            }
+            else if futures.is_empty() {
+
+                if let Ok(track) = self.tracks_receiver.recv().await {
+
+                    futures.push(track.future);
+                }
             }
 
-            tracks_stream_empty = tracks_stream.is_empty();
+            while let Some(_result) = futures.next().await {
+                // Todo see track results
+            }
         }
     }
 }
