@@ -1,4 +1,39 @@
 
+use crate::core::prelude::*;
+
+macro_rules! impl_ScalarToByte {
+    ($mod:ident, $mel_name:expr, $mel_type:ident, $recv_func:ident) => {
+        treatment!($mod,
+            core_identifier!("conversion";$mel_name),
+            models![],
+            treatment_sources![],
+            parameters![],
+            inputs![
+                input!("value",Scalar,$mel_type,Stream)
+            ],
+            outputs![
+                output!("data",Scalar,Byte,Stream)
+            ],
+            host {
+                let input = host.get_input("value");
+                let output = host.get_output("data");
+            
+                while let Ok(numbers) = input.$recv_func().await {
+            
+                    for number in numbers {
+                        output.send_multiple_byte(number.to_be_bytes().to_vec()).await;
+                    }
+                }
+            
+                ResultStatus::Ok
+            }
+        );
+    }
+}
+
+impl_ScalarToByte!(u8_to_byte, "U8ToByte", U8, recv_u8);
+
+/*
 use super::super::super::prelude::*;
 
 macro_rules! impl_ScalarToByte {
@@ -179,3 +214,4 @@ done
     
 */
 
+*/

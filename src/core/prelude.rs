@@ -54,7 +54,7 @@ pub(crate) use outputs;
 
 macro_rules! treatment {
     ($mod:ident,$identifier:expr,$models:expr,$sources:expr,$parameters:expr,$inputs:expr,$outputs:expr,$host:ident $treatment:expr) => {
-        mod $mod {
+        pub mod $mod {
 
             use crate::core::prelude::*;
         
@@ -92,7 +92,15 @@ macro_rules! treatment {
             
             fn prepare(host: &TreatmentHost) -> Vec<TrackFuture> {
                 
-                let future = Box::new(Box::pin(async move { execute(host).await }));
+                let future = Box::new(Box::pin(
+                    async move {
+
+                        let result = execute(host).await;
+                        host.close_all();
+
+                        result
+                    }
+                ));
             
                 vec![future]
             }

@@ -59,7 +59,7 @@
     }
 }*/
 
-use super::super::super::prelude::*;
+use crate::core::prelude::*;
 
 treatment!(char_to_byte,
     core_identifier!("conversion";"NewCharToByte"),

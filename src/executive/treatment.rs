@@ -93,6 +93,19 @@ impl TreatmentHost {
     pub fn get_output(&self, name: &str) -> Output {
         self.outputs.lock().unwrap().get(name).unwrap().clone()
     }
+
+    pub fn close_inputs(&self) {
+        self.inputs.lock().unwrap().iter().for_each(|(_, i)| i.close());
+    }
+
+    pub fn close_outputs(&self) {
+        self.outputs.lock().unwrap().iter().for_each(|(_, o)| o.close());
+    }
+
+    pub fn close_all(&self) {
+        self.close_inputs();
+        self.close_outputs();
+    }
 }
 
 impl Treatment for TreatmentHost {
