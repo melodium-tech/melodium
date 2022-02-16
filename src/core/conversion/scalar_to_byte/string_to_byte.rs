@@ -2,7 +2,7 @@
 use crate::core::prelude::*;
 
 treatment!(string_to_byte,
-    core_identifier!("conversion";"StringToByte"),
+    core_identifier!("conversion","scalar";"StringToByte"),
     models![],
     treatment_sources![],
     parameters![],
