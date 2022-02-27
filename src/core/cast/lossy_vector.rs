@@ -5,356 +5,236 @@ use std::convert::TryFrom;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 macro_rules! impl_CastVector {
-    ($name:ident, $mel_name:expr, $input_rust_type:ty, $input_mel_type:ident, $input_trans_type:ident, $output_rust_type:ty, $output_mel_type:ident, $output_trans_type:ident) => {
-        struct $name {
+    ($mod:ident, $mel_name:expr, $input_mel_type:ident, $recv_func:ident, $output_mel_value_type:ident, $output_mel_type:ident, $output_rust_type:ty, $send_func:ident) => {
+        treatment!($mod,
+            core_identifier!("cast","vector";$mel_name),
+            models![],
+            treatment_sources![],
+            parameters![
+                parameter!("truncate", Scalar, Bool, Some(Value::Bool(true))),
+                parameter!("or_default", Scalar, $output_mel_type, Some(Value::$output_mel_type(<$output_rust_type>::default())))
+            ],
+            inputs![
+                input!("value",Vector,$input_mel_type,Stream)
+            ],
+            outputs![
+                output!("value",Vector,$output_mel_type,Stream)
+            ],
+            host {
+                let input = host.get_input("value");
+                let output = host.get_output("value");
 
-            world: Arc<World>,
+                if host.get_parameter("truncate").bool() {
 
-            truncate: AtomicBool,
-            or_default: RwLock<$output_rust_type>,
-        
-            data_output_transmitters: RwLock<Vec<Transmitter>>,
-            data_input_sender: Sender<Vec<$input_rust_type>>,
-            data_input_receiver: Receiver<Vec<$input_rust_type>>,
-        
-            auto_reference: RwLock<Weak<Self>>,
-        
-        }
+                    while let Ok(vecs_numbers) = input.$recv_func().await {
 
-        impl $name {
-
-            pub fn descriptor() -> Arc<CoreTreatmentDescriptor> {
-        
-                lazy_static! {
-                    static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
-        
-                        let rc_descriptor = CoreTreatmentDescriptor::new(
-                            core_identifier!("cast";$mel_name),
-                            models![],
-                            treatment_sources![],
-                            vec![
-                                parameter!("truncate", Scalar, Bool, Some(Value::Bool(true))),
-                                parameter!("or_default", Scalar, $output_mel_type, Some(Value::$output_mel_type(<$output_rust_type>::default()))),
-                            ],
-                            vec![
-                                input!("value",Vector,$input_mel_type,Stream)
-                            ],
-                            vec![
-                                output!("value",Vector,$output_mel_type,Stream)
-                            ],
-                            $name::new,
-                        );
-        
-                        rc_descriptor
-                    };
-                }
-        
-                Arc::clone(&DESCRIPTOR)
-            }
-        
-            pub fn new(world: Arc<World>) -> Arc<dyn Treatment> {
-                let data_input = unbounded();
-                let treatment = Arc::new(Self {
-                    world,
-                    truncate: AtomicBool::new(true),
-                    or_default: RwLock::new(<$output_rust_type>::default()),
-                    data_output_transmitters: RwLock::new(Vec::new()),
-                    data_input_sender: data_input.0,
-                    data_input_receiver: data_input.1,
-                    auto_reference: RwLock::new(Weak::new()),
-                });
-        
-                *treatment.auto_reference.write().unwrap() = Arc::downgrade(&treatment);
-        
-                treatment
-            }
-        
-            async fn cast_truncate(&self) -> ResultStatus {
-        
-                let inputs_to_fill = self.data_output_transmitters.read().unwrap().clone();
-        
-                while let Ok(data) = self.data_input_receiver.recv().await {
-        
-                    let output_data : Vec<$output_rust_type> = data.iter().map(|v| *v as $output_rust_type).collect();
-        
-                    for transmitter in &inputs_to_fill {
-                        match transmitter {
-                            Transmitter::$output_trans_type(sender) => sender.send(output_data.clone()).await.unwrap(),
-                            _ => panic!("{} sender expected!", std::any::type_name::<Vec<$output_rust_type>>())
-                        };
-                    }
-                }
-        
-                for transmitter in inputs_to_fill {
-                    match transmitter {
-                        Transmitter::$output_trans_type(sender) => sender.close(),
-                        _ => panic!("{} sender expected!", std::any::type_name::<Vec<$output_rust_type>>())
-                    };
-                }
-        
-                ResultStatus::default()
-            }
-
-            async fn cast_default(&self) -> ResultStatus {
-        
-                let default = *self.or_default.read().unwrap();
-                let inputs_to_fill = self.data_output_transmitters.read().unwrap().clone();
-        
-                while let Ok(data) = self.data_input_receiver.recv().await {
-        
-                    //let output_data : Vec<$output_rust_type> = data.iter().map(|v| *v as $output_rust_type).collect();
-
-                    let output_data : Vec<$output_rust_type> = data.iter().map(|v| {
-                        if let Ok(casted_data) = <$output_rust_type>::try_from(*v) {
-                            casted_data
+                        for vec_numbers in vecs_numbers {
+                            output.$send_func(
+                                vec_numbers.iter().map(|v| *v as $output_rust_type).collect()
+                            ).await;
                         }
-                        else {
-                            default
-                        }
-                    }).collect();
-        
-                    for transmitter in &inputs_to_fill {
-                        match transmitter {
-                            Transmitter::$output_trans_type(sender) => sender.send(output_data.clone()).await.unwrap(),
-                            _ => panic!("{} sender expected!", std::any::type_name::<Vec<$output_rust_type>>())
-                        };
-                    }
-                }
-        
-                for transmitter in inputs_to_fill {
-                    match transmitter {
-                        Transmitter::$output_trans_type(sender) => sender.close(),
-                        _ => panic!("{} sender expected!", std::any::type_name::<Vec<$output_rust_type>>())
-                    };
-                }
-        
-                ResultStatus::default()
-            }
-        }
-
-        impl Treatment for $name {
-
-            fn descriptor(&self) -> Arc<CoreTreatmentDescriptor> {
-                Self::descriptor()
-            }
-        
-            fn set_parameter(&self, param: &str, value: &Value) {
-                
-                match param {
-                    "truncate" => {
-                        match value {
-                            Value::Bool(truncate) => self.truncate.store(*truncate, Ordering::Relaxed),
-                            _ => panic!("Unexpected value type for 'truncate'."),
-                        }
-                    },
-                    "or_default" => {
-                        match value {
-                            Value::$output_mel_type(value) => *self.or_default.write().unwrap() = *value,
-                            _ => panic!("Unexpected value type for 'or_default'."),
-                        }
-                    },
-                    _ => panic!("No parameter '{}' exists.", param)
-                }
-            }
-        
-            fn set_model(&self, name: &str, model: &Arc<dyn Model>) {
-                panic!("No model expected.")
-            }
-        
-            fn set_output(&self, output_name: &str, transmitter: Vec<Transmitter>) {
-                
-                match output_name {
-                    "value" => self.data_output_transmitters.write().unwrap().extend(transmitter),
-                    _ => panic!("No output '{}' exists.", output_name)
-                }
-            }
-        
-            fn get_inputs(&self) -> HashMap<String, Vec<Transmitter>> {
-        
-                let mut hashmap = HashMap::new();
-        
-                hashmap.insert("value".to_string(), vec![Transmitter::$input_trans_type(self.data_input_sender.clone())]);
-        
-                hashmap
-            }
-        
-            fn prepare(&self) -> Vec<TrackFuture> {
-        
-                let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
-                
-                let future = match self.truncate.load(Ordering::Relaxed) {
-                    true => Box::new(Box::pin(async move { auto_self.cast_truncate().await })) as TrackFuture,
-                    false => Box::new(Box::pin(async move { auto_self.cast_default().await })) as TrackFuture,
-                };
-        
-                vec![future]
-            }
+                        
             
-        }
-    };
+                    }
+                
+                    ResultStatus::Ok
+                }
+                else {
+
+                    use std::convert::TryFrom;
+
+                    let default = host.get_parameter("or_default").$output_mel_value_type();
+
+                    while let Ok(vecs_numbers) = input.$recv_func().await {
+
+                        for vec_numbers in vecs_numbers {
+                            output.$send_func(
+                                vec_numbers.iter().map(
+                                    |v| {
+                                        if let Ok(casted_data) = <$output_rust_type>::try_from(*v) {
+                                            casted_data
+                                        }
+                                        else {
+                                            default
+                                        }
+                                    }
+                                ).collect()
+                            ).await;
+                        }
+            
+                    }
+                
+                    ResultStatus::Ok
+                }
+            
+                
+            }
+        );
+    }
 }
 
 // Lossy casts for u8
-impl_CastVector!(CastVectorU8ToI8, "CastVectorU8ToI8", u8, U8, VecU8, i8, I8, VecI8);
+impl_CastVector!(u8_to_i8, "CastVectorU8ToI8", U8, recv_vec_u8, i8, I8, i8, send_vec_i8);
 
 // Lossy casts for u16
-impl_CastVector!(CastVectorU16ToU8, "CastVectorU16ToU8", u16, U16, VecU16, u8, U8, VecU8);
-impl_CastVector!(CastVectorU16ToI8, "CastVectorU16ToI8", u16, U16, VecU16, i8, I8, VecI8);
-impl_CastVector!(CastVectorU16ToI16, "CastVectorU16ToI16", u16, U16, VecU16, i16, I16, VecI16);
+impl_CastVector!(u16_to_u8, "CastVectorU16ToU8", U16, recv_vec_u16, u8, U8, u8, send_vec_u8);
+impl_CastVector!(u16_to_i8, "CastVectorU16ToI8", U16, recv_vec_u16, i8, I8, i8, send_vec_i8);
+impl_CastVector!(u16_to_i16, "CastVectorU16ToI16", U16, recv_vec_u16, i16, I16, i16, send_vec_i16);
 
 // Lossy casts for u32
-impl_CastVector!(CastVectorU32ToU8, "CastVectorU32ToU8", u32, U32, VecU32, u8, U8, VecU8);
-impl_CastVector!(CastVectorU32ToU16, "CastVectorU32ToU16", u32, U32, VecU32, u16, U16, VecU16);
-impl_CastVector!(CastVectorU32ToI8, "CastVectorU32ToI8", u32, U32, VecU32, i8, I8, VecI8);
-impl_CastVector!(CastVectorU32ToI16, "CastVectorU32ToI16", u32, U32, VecU32, i16, I16, VecI16);
-impl_CastVector!(CastVectorU32ToI32, "CastVectorU32ToI32", u32, U32, VecU32, i32, I32, VecI32);
+impl_CastVector!(u32_to_u8, "CastVectorU32ToU8", U32, recv_vec_u32, u8, U8, u8, send_vec_u8);
+impl_CastVector!(u32_to_u16, "CastVectorU32ToU16", U32, recv_vec_u32, u16, U16, u16, send_vec_u16);
+impl_CastVector!(u32_to_i8, "CastVectorU32ToI8", U32, recv_vec_u32, i8, I8, i8, send_vec_i8);
+impl_CastVector!(u32_to_i16, "CastVectorU32ToI16", U32, recv_vec_u32, i16, I16, i16, send_vec_i16);
+impl_CastVector!(u32_to_i32, "CastVectorU32ToI32", U32, recv_vec_u32, i32, I32, i32, send_vec_i32);
 
 // Lossy casts for u64
-impl_CastVector!(CastVectorU64ToU8, "CastVectorU64ToU8", u64, U64, VecU64, u8, U8, VecU8);
-impl_CastVector!(CastVectorU64ToU16, "CastVectorU64ToU16", u64, U64, VecU64, u16, U16, VecU16);
-impl_CastVector!(CastVectorU64ToU32, "CastVectorU64ToU32", u64, U64, VecU64, u32, U32, VecU32);
-impl_CastVector!(CastVectorU64ToI8, "CastVectorU64ToI8", u64, U64, VecU64, i8, I8, VecI8);
-impl_CastVector!(CastVectorU64ToI16, "CastVectorU64ToI16", u64, U64, VecU64, i16, I16, VecI16);
-impl_CastVector!(CastVectorU64ToI32, "CastVectorU64ToI32", u64, U64, VecU64, i32, I32, VecI32);
-impl_CastVector!(CastVectorU64ToI64, "CastVectorU64ToI64", u64, U64, VecU64, i64, I64, VecI64);
+impl_CastVector!(u64_to_u8, "CastVectorU64ToU8", U64, recv_vec_u64, u8, U8, u8, send_vec_u8);
+impl_CastVector!(u64_to_u16, "CastVectorU64ToU16", U64, recv_vec_u64, u16, U16, u16, send_vec_u16);
+impl_CastVector!(u64_to_u32, "CastVectorU64ToU32", U64, recv_vec_u64, u32, U32, u32, send_vec_u32);
+impl_CastVector!(u64_to_i8, "CastVectorU64ToI8", U64, recv_vec_u64, i8, I8, i8, send_vec_i8);
+impl_CastVector!(u64_to_i16, "CastVectorU64ToI16", U64, recv_vec_u64, i16, I16, i16, send_vec_i16);
+impl_CastVector!(u64_to_i32, "CastVectorU64ToI32", U64, recv_vec_u64, i32, I32, i32, send_vec_i32);
+impl_CastVector!(u64_to_i64, "CastVectorU64ToI64", U64, recv_vec_u64, i64, I64, i64, send_vec_i64);
 
 // Lossy casts for u128
-impl_CastVector!(CastVectorU128ToU8, "CastVectorU128ToU8", u128, U128, VecU128, u8, U8, VecU8);
-impl_CastVector!(CastVectorU128ToU16, "CastVectorU128ToU16", u128, U128, VecU128, u16, U16, VecU16);
-impl_CastVector!(CastVectorU128ToU32, "CastVectorU128ToU32", u128, U128, VecU128, u32, U32, VecU32);
-impl_CastVector!(CastVectorU128ToU64, "CastVectorU128ToU64", u128, U128, VecU128, u64, U64, VecU64);
-impl_CastVector!(CastVectorU128ToI8, "CastVectorU128ToI8", u128, U128, VecU128, i8, I8, VecI8);
-impl_CastVector!(CastVectorU128ToI16, "CastVectorU128ToI16", u128, U128, VecU128, i16, I16, VecI16);
-impl_CastVector!(CastVectorU128ToI32, "CastVectorU128ToI32", u128, U128, VecU128, i32, I32, VecI32);
-impl_CastVector!(CastVectorU128ToI64, "CastVectorU128ToI64", u128, U128, VecU128, i64, I64, VecI64);
-impl_CastVector!(CastVectorU128ToI128, "CastVectorU128ToI128", u128, U128, VecU128, i128, I128, VecI128);
+impl_CastVector!(u128_to_u8, "CastVectorU128ToU8", U128, recv_vec_u128, u8, U8, u8, send_vec_u8);
+impl_CastVector!(u128_to_u16, "CastVectorU128ToU16", U128, recv_vec_u128, u16, U16, u16, send_vec_u16);
+impl_CastVector!(u128_to_u32, "CastVectorU128ToU32", U128, recv_vec_u128, u32, U32, u32, send_vec_u32);
+impl_CastVector!(u128_to_u64, "CastVectorU128ToU64", U128, recv_vec_u128, u64, U64, u64, send_vec_u64);
+impl_CastVector!(u128_to_i8, "CastVectorU128ToI8", U128, recv_vec_u128, i8, I8, i8, send_vec_i8);
+impl_CastVector!(u128_to_i16, "CastVectorU128ToI16", U128, recv_vec_u128, i16, I16, i16, send_vec_i16);
+impl_CastVector!(u128_to_i32, "CastVectorU128ToI32", U128, recv_vec_u128, i32, I32, i32, send_vec_i32);
+impl_CastVector!(u128_to_i64, "CastVectorU128ToI64", U128, recv_vec_u128, i64, I64, i64, send_vec_i64);
+impl_CastVector!(u128_to_i128, "CastVectorU128ToI128", U128, recv_vec_u128, i128, I128, i128, send_vec_i128);
 
 // Lossy casts for i8
-impl_CastVector!(CastVectorI8ToU8, "CastVectorI8ToU8", i8, I8, VecI8, u8, U8, VecU8);
-impl_CastVector!(CastVectorI8ToU16, "CastVectorI8ToU16", i8, I8, VecI8, u16, U16, VecU16);
-impl_CastVector!(CastVectorI8ToU32, "CastVectorI8ToU32", i8, I8, VecI8, u32, U32, VecU32);
-impl_CastVector!(CastVectorI8ToU64, "CastVectorI8ToU64", i8, I8, VecI8, u64, U64, VecU64);
-impl_CastVector!(CastVectorI8ToU128, "CastVectorI8ToU128", i8, I8, VecI8, u128, U128, VecU128);
+impl_CastVector!(i8_to_u8, "CastVectorI8ToU8", I8, recv_vec_i8, u8, U8, u8, send_vec_u8);
+impl_CastVector!(i8_to_u16, "CastVectorI8ToU16", I8, recv_vec_i8, u16, U16, u16, send_vec_u16);
+impl_CastVector!(i8_to_u32, "CastVectorI8ToU32", I8, recv_vec_i8, u32, U32, u32, send_vec_u32);
+impl_CastVector!(i8_to_u64, "CastVectorI8ToU64", I8, recv_vec_i8, u64, U64, u64, send_vec_u64);
+impl_CastVector!(i8_to_u128, "CastVectorI8ToU128", I8, recv_vec_i8, u128, U128, u128, send_vec_u128);
 
 // Lossy casts for i16
-impl_CastVector!(CastVectorI16ToU8, "CastVectorI16ToU8", i16, I16, VecI16, u8, U8, VecU8);
-impl_CastVector!(CastVectorI16ToU16, "CastVectorI16ToU16", i16, I16, VecI16, u16, U16, VecU16);
-impl_CastVector!(CastVectorI16ToU32, "CastVectorI16ToU32", i16, I16, VecI16, u32, U32, VecU32);
-impl_CastVector!(CastVectorI16ToU64, "CastVectorI16ToU64", i16, I16, VecI16, u64, U64, VecU64);
-impl_CastVector!(CastVectorI16ToU128, "CastVectorI16ToU128", i16, I16, VecI16, u128, U128, VecU128);
-impl_CastVector!(CastVectorI16ToI8, "CastVectorI16ToI8", i16, I16, VecI16, i8, I8, VecI8);
+impl_CastVector!(i16_to_u8, "CastVectorI16ToU8", I16, recv_vec_i16, u8, U8, u8, send_vec_u8);
+impl_CastVector!(i16_to_u16, "CastVectorI16ToU16", I16, recv_vec_i16, u16, U16, u16, send_vec_u16);
+impl_CastVector!(i16_to_u32, "CastVectorI16ToU32", I16, recv_vec_i16, u32, U32, u32, send_vec_u32);
+impl_CastVector!(i16_to_u64, "CastVectorI16ToU64", I16, recv_vec_i16, u64, U64, u64, send_vec_u64);
+impl_CastVector!(i16_to_u128, "CastVectorI16ToU128", I16, recv_vec_i16, u128, U128, u128, send_vec_u128);
+impl_CastVector!(i16_to_i8, "CastVectorI16ToI8", I16, recv_vec_i16, i8, I8, i8, send_vec_i8);
 
 // Lossy casts for i32
-impl_CastVector!(CastVectorI32ToU8, "CastVectorI32ToU8", i32, I32, VecI32, u8, U8, VecU8);
-impl_CastVector!(CastVectorI32ToU16, "CastVectorI32ToU16", i32, I32, VecI32, u16, U16, VecU16);
-impl_CastVector!(CastVectorI32ToU32, "CastVectorI32ToU32", i32, I32, VecI32, u32, U32, VecU32);
-impl_CastVector!(CastVectorI32ToU64, "CastVectorI32ToU64", i32, I32, VecI32, u64, U64, VecU64);
-impl_CastVector!(CastVectorI32ToU128, "CastVectorI32ToU128", i32, I32, VecI32, u128, U128, VecU128);
-impl_CastVector!(CastVectorI32ToI8, "CastVectorI32ToI8", i32, I32, VecI32, i8, I8, VecI8);
-impl_CastVector!(CastVectorI32ToI16, "CastVectorI32ToI16", i32, I32, VecI32, i16, I16, VecI16);
+impl_CastVector!(i32_to_u8, "CastVectorI32ToU8", I32, recv_vec_i32, u8, U8, u8, send_vec_u8);
+impl_CastVector!(i32_to_u16, "CastVectorI32ToU16", I32, recv_vec_i32, u16, U16, u16, send_vec_u16);
+impl_CastVector!(i32_to_u32, "CastVectorI32ToU32", I32, recv_vec_i32, u32, U32, u32, send_vec_u32);
+impl_CastVector!(i32_to_u64, "CastVectorI32ToU64", I32, recv_vec_i32, u64, U64, u64, send_vec_u64);
+impl_CastVector!(i32_to_u128, "CastVectorI32ToU128", I32, recv_vec_i32, u128, U128, u128, send_vec_u128);
+impl_CastVector!(i32_to_i8, "CastVectorI32ToI8", I32, recv_vec_i32, i8, I8, i8, send_vec_i8);
+impl_CastVector!(i32_to_i16, "CastVectorI32ToI16", I32, recv_vec_i32, i16, I16, i16, send_vec_i16);
 
 // Lossy casts for i64
-impl_CastVector!(CastVectorI64ToU8, "CastVectorI64ToU8", i64, I64, VecI64, u8, U8, VecU8);
-impl_CastVector!(CastVectorI64ToU16, "CastVectorI64ToU16", i64, I64, VecI64, u16, U16, VecU16);
-impl_CastVector!(CastVectorI64ToU32, "CastVectorI64ToU32", i64, I64, VecI64, u32, U32, VecU32);
-impl_CastVector!(CastVectorI64ToU64, "CastVectorI64ToU64", i64, I64, VecI64, u64, U64, VecU64);
-impl_CastVector!(CastVectorI64ToU128, "CastVectorI64ToU128", i64, I64, VecI64, u128, U128, VecU128);
-impl_CastVector!(CastVectorI64ToI8, "CastVectorI64ToI8", i64, I64, VecI64, i8, I8, VecI8);
-impl_CastVector!(CastVectorI64ToI16, "CastVectorI64ToI16", i64, I64, VecI64, i16, I16, VecI16);
-impl_CastVector!(CastVectorI64ToI32, "CastVectorI64ToI32", i64, I64, VecI64, i32, I32, VecI32);
+impl_CastVector!(i64_to_u8, "CastVectorI64ToU8", I64, recv_vec_i64, u8, U8, u8, send_vec_u8);
+impl_CastVector!(i64_to_u16, "CastVectorI64ToU16", I64, recv_vec_i64, u16, U16, u16, send_vec_u16);
+impl_CastVector!(i64_to_u32, "CastVectorI64ToU32", I64, recv_vec_i64, u32, U32, u32, send_vec_u32);
+impl_CastVector!(i64_to_u64, "CastVectorI64ToU64", I64, recv_vec_i64, u64, U64, u64, send_vec_u64);
+impl_CastVector!(i64_to_u128, "CastVectorI64ToU128", I64, recv_vec_i64, u128, U128, u128, send_vec_u128);
+impl_CastVector!(i64_to_i8, "CastVectorI64ToI8", I64, recv_vec_i64, i8, I8, i8, send_vec_i8);
+impl_CastVector!(i64_to_i16, "CastVectorI64ToI16", I64, recv_vec_i64, i16, I16, i16, send_vec_i16);
+impl_CastVector!(i64_to_i32, "CastVectorI64ToI32", I64, recv_vec_i64, i32, I32, i32, send_vec_i32);
 
 // Lossy casts for i128
-impl_CastVector!(CastVectorI128ToU8, "CastVectorI128ToU8", i128, I128, VecI128, u8, U8, VecU8);
-impl_CastVector!(CastVectorI128ToU16, "CastVectorI128ToU16", i128, I128, VecI128, u16, U16, VecU16);
-impl_CastVector!(CastVectorI128ToU32, "CastVectorI128ToU32", i128, I128, VecI128, u32, U32, VecU32);
-impl_CastVector!(CastVectorI128ToU64, "CastVectorI128ToU64", i128, I128, VecI128, u64, U64, VecU64);
-impl_CastVector!(CastVectorI128ToU128, "CastVectorI128ToU128", i128, I128, VecI128, u128, U128, VecU128);
-impl_CastVector!(CastVectorI128ToI8, "CastVectorI128ToI8", i128, I128, VecI128, i8, I8, VecI8);
-impl_CastVector!(CastVectorI128ToI16, "CastVectorI128ToI16", i128, I128, VecI128, i16, I16, VecI16);
-impl_CastVector!(CastVectorI128ToI32, "CastVectorI128ToI32", i128, I128, VecI128, i32, I32, VecI32);
-impl_CastVector!(CastVectorI128ToI64, "CastVectorI128ToI64", i128, I128, VecI128, i64, I64, VecI64);
+impl_CastVector!(i128_to_u8, "CastVectorI128ToU8", I128, recv_vec_i128, u8, U8, u8, send_vec_u8);
+impl_CastVector!(i128_to_u16, "CastVectorI128ToU16", I128, recv_vec_i128, u16, U16, u16, send_vec_u16);
+impl_CastVector!(i128_to_u32, "CastVectorI128ToU32", I128, recv_vec_i128, u32, U32, u32, send_vec_u32);
+impl_CastVector!(i128_to_u64, "CastVectorI128ToU64", I128, recv_vec_i128, u64, U64, u64, send_vec_u64);
+impl_CastVector!(i128_to_u128, "CastVectorI128ToU128", I128, recv_vec_i128, u128, U128, u128, send_vec_u128);
+impl_CastVector!(i128_to_i8, "CastVectorI128ToI8", I128, recv_vec_i128, i8, I8, i8, send_vec_i8);
+impl_CastVector!(i128_to_i16, "CastVectorI128ToI16", I128, recv_vec_i128, i16, I16, i16, send_vec_i16);
+impl_CastVector!(i128_to_i32, "CastVectorI128ToI32", I128, recv_vec_i128, i32, I32, i32, send_vec_i32);
+impl_CastVector!(i128_to_i64, "CastVectorI128ToI64", I128, recv_vec_i128, i64, I64, i64, send_vec_i64);
 
 pub fn register(c: &mut CollectionPool) {
 
     // Lossy casts for u8
-    c.treatments.insert(&(CastVectorU8ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    u8_to_i8::register(&mut c);
 
     // Lossy casts for u16
-    c.treatments.insert(&(CastVectorU16ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU16ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU16ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    u16_to_u8::register(&mut c);
+    u16_to_i8::register(&mut c);
+    u16_to_i16::register(&mut c);
 
     // Lossy casts for u32
-    c.treatments.insert(&(CastVectorU32ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU32ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU32ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU32ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU32ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    u32_to_u8::register(&mut c);
+    u32_to_u16::register(&mut c);
+    u32_to_i8::register(&mut c);
+    u32_to_i16::register(&mut c);
+    u32_to_i32::register(&mut c);
 
     // Lossy casts for u64
-    c.treatments.insert(&(CastVectorU64ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU64ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU64ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU64ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU64ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU64ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU64ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    u64_to_u8::register(&mut c);
+    u64_to_u16::register(&mut c);
+    u64_to_u32::register(&mut c);
+    u64_to_i8::register(&mut c);
+    u64_to_i16::register(&mut c);
+    u64_to_i32::register(&mut c);
+    u64_to_i64::register(&mut c);
 
     // Lossy casts for u128
-    c.treatments.insert(&(CastVectorU128ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU128ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU128ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU128ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU128ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU128ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU128ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU128ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorU128ToI128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    u128_to_u8::register(&mut c);
+    u128_to_u16::register(&mut c);
+    u128_to_u32::register(&mut c);
+    u128_to_u64::register(&mut c);
+    u128_to_i8::register(&mut c);
+    u128_to_i16::register(&mut c);
+    u128_to_i32::register(&mut c);
+    u128_to_i64::register(&mut c);
+    u128_to_i128::register(&mut c);
 
     // Lossy casts for i8
-    c.treatments.insert(&(CastVectorI8ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI8ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI8ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI8ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI8ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
+    i8_to_u8::register(&mut c);
+    i8_to_u16::register(&mut c);
+    i8_to_u32::register(&mut c);
+    i8_to_u64::register(&mut c);
+    i8_to_u128::register(&mut c);
 
     // Lossy casts for i16
-    c.treatments.insert(&(CastVectorI16ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI16ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI16ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI16ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI16ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI16ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
+    i16_to_u8::register(&mut c);
+    i16_to_u16::register(&mut c);
+    i16_to_u32::register(&mut c);
+    i16_to_u64::register(&mut c);
+    i16_to_u128::register(&mut c);
+    i16_to_i8::register(&mut c);
 
     // Lossy casts for i32
-    c.treatments.insert(&(CastVectorI32ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI32ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI32ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI32ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI32ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI32ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI32ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
+    i32_to_u8::register(&mut c);
+    i32_to_u16::register(&mut c);
+    i32_to_u32::register(&mut c);
+    i32_to_u64::register(&mut c);
+    i32_to_u128::register(&mut c);
+    i32_to_i8::register(&mut c);
+    i32_to_i16::register(&mut c);
 
     // Lossy casts for i64
-    c.treatments.insert(&(CastVectorI64ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI64ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI64ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI64ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI64ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI64ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI64ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI64ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
+    i64_to_u8::register(&mut c);
+    i64_to_u16::register(&mut c);
+    i64_to_u32::register(&mut c);
+    i64_to_u64::register(&mut c);
+    i64_to_u128::register(&mut c);
+    i64_to_i8::register(&mut c);
+    i64_to_i16::register(&mut c);
+    i64_to_i32::register(&mut c);
 
     // Lossy casts for i128
-    c.treatments.insert(&(CastVectorI128ToU8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI128ToU16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI128ToU32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI128ToU64::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI128ToU128::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI128ToI8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI128ToI16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI128ToI32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(CastVectorI128ToI64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    i128_to_u8::register(&mut c);
+    i128_to_u16::register(&mut c);
+    i128_to_u32::register(&mut c);
+    i128_to_u64::register(&mut c);
+    i128_to_u128::register(&mut c);
+    i128_to_i8::register(&mut c);
+    i128_to_i16::register(&mut c);
+    i128_to_i32::register(&mut c);
+    i128_to_i64::register(&mut c);
+
 }
 
 /*
@@ -397,8 +277,8 @@ do
     do
         UPPER_CASE_CAST_TYPE=`echo $CAST_TYPE | tr '[:lower:]' '[:upper:]'`
         
-        echo "impl_CastVector!(CastVector${UPPER_CASE_TYPE}To${UPPER_CASE_CAST_TYPE}, \"CastVector${UPPER_CASE_TYPE}To${UPPER_CASE_CAST_TYPE}\", $TYPE, $UPPER_CASE_TYPE, Vec$UPPER_CASE_TYPE, $CAST_TYPE, $UPPER_CASE_CAST_TYPE, Vec$UPPER_CASE_CAST_TYPE);"
-        #echo "c.treatments.insert(&(CastVector${UPPER_CASE_TYPE}To${UPPER_CASE_CAST_TYPE}::descriptor() as Arc<dyn TreatmentDescriptor>));"
+        echo "impl_CastVector!(${TYPE}_to_${CAST_TYPE}, \"CastVector${UPPER_CASE_TYPE}To${UPPER_CASE_CAST_TYPE}\", $UPPER_CASE_TYPE, recv_vec_$TYPE, $CAST_TYPE, $UPPER_CASE_CAST_TYPE, $CAST_TYPE, send_vec_$CAST_TYPE);"
+        #echo "${TYPE}_to_${CAST_TYPE}::register(&mut c);"
     done
     
     echo 
