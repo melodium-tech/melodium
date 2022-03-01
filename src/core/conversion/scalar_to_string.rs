@@ -31,21 +31,21 @@ macro_rules! impl_ScalarToString {
     }
 }
 
-impl_ScalarToString!(u8_to_string, "U8ToByte", U8, recv_u8);
-impl_ScalarToString!(u16_to_string, "U16ToByte", U16, recv_u16);
-impl_ScalarToString!(u32_to_string, "U32ToByte", U32, recv_u32);
-impl_ScalarToString!(u64_to_string, "U64ToByte", U64, recv_u64);
-impl_ScalarToString!(u128_to_string, "U128ToByte", U128, recv_u128);
-impl_ScalarToString!(i8_to_string, "I8ToByte", I8, recv_i8);
-impl_ScalarToString!(i16_to_string, "I16ToByte", I16, recv_i16);
-impl_ScalarToString!(i32_to_string, "I32ToByte", I32, recv_i32);
-impl_ScalarToString!(i64_to_string, "I64ToByte", I64, recv_i64);
-impl_ScalarToString!(i128_to_string, "I128ToByte", I128, recv_i128);
-impl_ScalarToString!(f32_to_string, "F32ToByte", F32, recv_f32);
-impl_ScalarToString!(f64_to_string, "F64ToByte", F64, recv_f64);
-impl_ScalarToString!(bool_to_string, "BoolToByte", Bool, recv_bool);
-impl_ScalarToString!(byte_to_string, "ByteToByte", Byte, recv_byte);
-impl_ScalarToString!(char_to_string, "CharToByte", Char, recv_char);
+impl_ScalarToString!(u8_to_string, "U8ToString", U8, recv_u8);
+impl_ScalarToString!(u16_to_string, "U16ToString", U16, recv_u16);
+impl_ScalarToString!(u32_to_string, "U32ToString", U32, recv_u32);
+impl_ScalarToString!(u64_to_string, "U64ToString", U64, recv_u64);
+impl_ScalarToString!(u128_to_string, "U128ToString", U128, recv_u128);
+impl_ScalarToString!(i8_to_string, "I8ToString", I8, recv_i8);
+impl_ScalarToString!(i16_to_string, "I16ToString", I16, recv_i16);
+impl_ScalarToString!(i32_to_string, "I32ToString", I32, recv_i32);
+impl_ScalarToString!(i64_to_string, "I64ToString", I64, recv_i64);
+impl_ScalarToString!(i128_to_string, "I128ToString", I128, recv_i128);
+impl_ScalarToString!(f32_to_string, "F32ToString", F32, recv_f32);
+impl_ScalarToString!(f64_to_string, "F64ToString", F64, recv_f64);
+impl_ScalarToString!(bool_to_string, "BoolToString", Bool, recv_bool);
+impl_ScalarToString!(byte_to_string, "ByteToString", Byte, recv_byte);
+impl_ScalarToString!(char_to_string, "CharToString", Char, recv_char);
 
 pub fn register(c: &mut CollectionPool) {
 
@@ -80,7 +80,7 @@ TYPES="u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 f32 f64 bool byte char"
 for TYPE in $TYPES
 do
     UPPER_CASE_TYPE=${TYPE^}
-    #echo "impl_ScalarToString!(${TYPE}_to_string, \"${UPPER_CASE_TYPE}ToByte\", $UPPER_CASE_TYPE, recv_$TYPE);"
+    #echo "impl_ScalarToString!(${TYPE}_to_string, \"${UPPER_CASE_TYPE}ToString\", $UPPER_CASE_TYPE, recv_$TYPE);"
     echo "${TYPE}_to_string::register(&mut c);"
 
 done

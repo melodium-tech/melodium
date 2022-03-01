@@ -4,7 +4,7 @@ use crate::core::prelude::*;
 macro_rules! impl_VectorToString {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $recv_func:ident) => {
         treatment!($mod,
-            core_identifier!("conversion","scalar";$mel_name),
+            core_identifier!("conversion","vector";$mel_name),
             models![],
             treatment_sources![],
             parameters![],
