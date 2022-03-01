@@ -2,7 +2,7 @@
 use std::fmt::Debug;
 use crate::logic::descriptor::{CoreTreatmentDescriptor, ParameterizedDescriptor, TreatmentDescriptor};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Weak, Mutex};
 use async_std::future::Future;
 use super::result_status::ResultStatus;
 use super::future::TrackFuture;
@@ -32,7 +32,8 @@ pub trait TreatmentImpl : Debug {
 pub struct TreatmentHost {
 
     descriptor: Arc<CoreTreatmentDescriptor>,
-    prepare: fn(&TreatmentHost) -> Vec<TrackFuture>,
+    auto_reference: Weak<TreatmentHost>,
+    prepare: fn(Arc<TreatmentHost>) -> Vec<TrackFuture>,
 
     models: Mutex<HashMap<String, Arc<dyn Model>>>,
     parameters: Mutex<HashMap<String, Value>>,
@@ -43,7 +44,7 @@ pub struct TreatmentHost {
 
 impl TreatmentHost {
 
-    pub fn new(descriptor: Arc<CoreTreatmentDescriptor>, prepare: fn(&TreatmentHost) -> Vec<TrackFuture>) -> Self {
+    pub fn new(descriptor: Arc<CoreTreatmentDescriptor>, prepare: fn(Arc<TreatmentHost>) -> Vec<TrackFuture>) -> Arc<Self> {
 
         let parameters = descriptor.parameters().iter().filter_map(
             |(_, param)| {
@@ -68,14 +69,19 @@ impl TreatmentHost {
             }
         ).collect();
 
-        Self {
+        let treatment_host = Arc::new(Self {
             descriptor,
+            auto_reference: Weak::new(),
             prepare,
             models: Mutex::new(HashMap::new()),
             parameters: Mutex::new(parameters),
             inputs: Mutex::new(inputs),
             outputs: Mutex::new(outputs),
-        }
+        });
+
+        treatment_host.auto_reference = Arc::downgrade(&treatment_host);
+
+        treatment_host
     }
 
     pub fn get_model(&self, model: &str) -> Arc<dyn Model> {
@@ -165,6 +171,6 @@ impl Treatment for TreatmentHost {
     }
 
     fn prepare(&self) -> Vec<TrackFuture> {
-        (self.prepare)(&self)
+        (self.prepare)(self.auto_reference.upgrade().unwrap())
     }
 }

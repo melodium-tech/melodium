@@ -90,12 +90,12 @@ macro_rules! treatment {
                 $treatment
             }
             
-            fn prepare(host: &TreatmentHost) -> Vec<TrackFuture> {
+            fn prepare(host: Arc<TreatmentHost>) -> Vec<TrackFuture> {
                 
                 let future = Box::new(Box::pin(
                     async move {
 
-                        let result = execute(host).await;
+                        let result = execute(&host).await;
                         host.close_all();
 
                         result
@@ -109,7 +109,7 @@ macro_rules! treatment {
             
                 let treatment = TreatmentHost::new(desc(), prepare);
             
-                Arc::new(treatment)
+                treatment
             }
         }
     };
