@@ -1,167 +1,90 @@
 
-use super::super::prelude::*;
+use crate::core::prelude::*;
 
 macro_rules! impl_ScalarToString {
-    ($name:ident, $mel_name:expr, $input_rust_type:ty, $input_mel_type:ident) => {
-        struct $name {
-
-            world: Arc<World>,
-        
-            data_output_transmitters: RwLock<Vec<Transmitter>>,
-            data_input_sender: Sender<$input_rust_type>,
-            data_input_receiver: Receiver<$input_rust_type>,
-        
-            auto_reference: RwLock<Weak<Self>>,
-        
-        }
-
-        impl $name {
-
-            pub fn descriptor() -> Arc<CoreTreatmentDescriptor> {
-        
-                lazy_static! {
-                    static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
-        
-                        let rc_descriptor = CoreTreatmentDescriptor::new(
-                            core_identifier!("conversion";$mel_name),
-                            models![],
-                            treatment_sources![],
-                            vec![],
-                            vec![
-                                input!("value",Scalar,$input_mel_type,Stream)
-                            ],
-                            vec![
-                                output!("value",Scalar,String,Stream)
-                            ],
-                            $name::new,
-                        );
-        
-                        rc_descriptor
-                    };
-                }
-        
-                Arc::clone(&DESCRIPTOR)
-            }
-        
-            pub fn new(world: Arc<World>) -> Arc<dyn Treatment> {
-                let data_input = unbounded();
-                let treatment = Arc::new(Self {
-                    world,
-                    data_output_transmitters: RwLock::new(Vec::new()),
-                    data_input_sender: data_input.0,
-                    data_input_receiver: data_input.1,
-                    auto_reference: RwLock::new(Weak::new()),
-                });
-        
-                *treatment.auto_reference.write().unwrap() = Arc::downgrade(&treatment);
-        
-                treatment
-            }
-        
-            async fn stringify(&self) -> ResultStatus {
-        
-                let inputs_to_fill = self.data_output_transmitters.read().unwrap().clone();
-        
-                while let Ok(data) = self.data_input_receiver.recv().await {
-        
-                    let output_string = data.to_string();
-        
-                    for transmitter in &inputs_to_fill {
-                        match transmitter {
-                            Transmitter::String(sender) => sender.send(output_string.clone()).await.unwrap(),
-                            _ => panic!("{} sender expected!", std::any::type_name::<String>())
-                        };
+    ($mod:ident, $mel_name:expr, $mel_type:ident, $recv_func:ident) => {
+        treatment!($mod,
+            core_identifier!("conversion","scalar";$mel_name),
+            models![],
+            treatment_sources![],
+            parameters![],
+            inputs![
+                input!("value",Scalar,$mel_type,Stream)
+            ],
+            outputs![
+                output!("value",Scalar,String,Stream)
+            ],
+            host {
+                let input = host.get_input("value");
+                let output = host.get_output("value");
+            
+                while let Ok(values) = input.$recv_func().await {
+            
+                    for value in values {
+                        output.send_string(value.to_string()).await;
                     }
                 }
-        
-                for transmitter in inputs_to_fill {
-                    match transmitter {
-                        Transmitter::String(sender) => sender.close(),
-                        _ => panic!("{} sender expected!", std::any::type_name::<String>())
-                    };
-                }
-        
-                ResultStatus::default()
-            }
-        }
-
-        impl Treatment for $name {
-
-            fn descriptor(&self) -> Arc<CoreTreatmentDescriptor> {
-                Self::descriptor()
-            }
-        
-            fn set_parameter(&self, param: &str, value: &Value) {
-                
-                panic!("No parameter expected.")
-            }
-        
-            fn set_model(&self, name: &str, model: &Arc<dyn Model>) {
-                panic!("No model expected.")
-            }
-        
-            fn set_output(&self, output_name: &str, transmitter: Vec<Transmitter>) {
-                
-                match output_name {
-                    "value" => self.data_output_transmitters.write().unwrap().extend(transmitter),
-                    _ => panic!("No output '{}' exists.", output_name)
-                }
-            }
-        
-            fn get_inputs(&self) -> HashMap<String, Vec<Transmitter>> {
-        
-                let mut hashmap = HashMap::new();
-        
-                hashmap.insert("value".to_string(), vec![Transmitter::$input_mel_type(self.data_input_sender.clone())]);
-        
-                hashmap
-            }
-        
-            fn prepare(&self) -> Vec<TrackFuture> {
-        
-                let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
-                let future = Box::new(Box::pin(async move { auto_self.stringify().await }));
-        
-                vec![future]
-            }
             
-        }
-    };
+                ResultStatus::Ok
+            }
+        );
+    }
 }
 
-impl_ScalarToString!(ScalarU8ToString, "ScalarU8ToString", u8, U8);
-impl_ScalarToString!(ScalarU16ToString, "ScalarU16ToString", u16, U16);
-impl_ScalarToString!(ScalarU32ToString, "ScalarU32ToString", u32, U32);
-impl_ScalarToString!(ScalarU64ToString, "ScalarU64ToString", u64, U64);
-impl_ScalarToString!(ScalarU128ToString, "ScalarU128ToString", u128, U128);
-impl_ScalarToString!(ScalarI8ToString, "ScalarI8ToString", i8, I8);
-impl_ScalarToString!(ScalarI16ToString, "ScalarI16ToString", i16, I16);
-impl_ScalarToString!(ScalarI32ToString, "ScalarI32ToString", i32, I32);
-impl_ScalarToString!(ScalarI64ToString, "ScalarI64ToString", i64, I64);
-impl_ScalarToString!(ScalarI128ToString, "ScalarI128ToString", i128, I128);
-impl_ScalarToString!(ScalarF32ToString, "ScalarF32ToString", f32, F32);
-impl_ScalarToString!(ScalarF64ToString, "ScalarF64ToString", f64, F64);
-impl_ScalarToString!(ScalarBoolToString, "ScalarBoolToString", bool, Bool);
-impl_ScalarToString!(ScalarByteToString, "ScalarByteToString", u8, Byte);
-impl_ScalarToString!(ScalarCharToString, "ScalarCharToString", char, Char);
+impl_ScalarToString!(u8_to_string, "U8ToByte", U8, recv_u8);
+impl_ScalarToString!(u16_to_string, "U16ToByte", U16, recv_u16);
+impl_ScalarToString!(u32_to_string, "U32ToByte", U32, recv_u32);
+impl_ScalarToString!(u64_to_string, "U64ToByte", U64, recv_u64);
+impl_ScalarToString!(u128_to_string, "U128ToByte", U128, recv_u128);
+impl_ScalarToString!(i8_to_string, "I8ToByte", I8, recv_i8);
+impl_ScalarToString!(i16_to_string, "I16ToByte", I16, recv_i16);
+impl_ScalarToString!(i32_to_string, "I32ToByte", I32, recv_i32);
+impl_ScalarToString!(i64_to_string, "I64ToByte", I64, recv_i64);
+impl_ScalarToString!(i128_to_string, "I128ToByte", I128, recv_i128);
+impl_ScalarToString!(f32_to_string, "F32ToByte", F32, recv_f32);
+impl_ScalarToString!(f64_to_string, "F64ToByte", F64, recv_f64);
+impl_ScalarToString!(bool_to_string, "BoolToByte", Bool, recv_bool);
+impl_ScalarToString!(byte_to_string, "ByteToByte", Byte, recv_byte);
+impl_ScalarToString!(char_to_string, "CharToByte", Char, recv_char);
 
 pub fn register(c: &mut CollectionPool) {
 
-    // Scalar
-    c.treatments.insert(&(ScalarU8ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(ScalarU16ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(ScalarU32ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(ScalarU64ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(ScalarU128ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(ScalarI8ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(ScalarI16ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(ScalarI32ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(ScalarI64ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(ScalarI128ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(ScalarF32ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(ScalarF64ToString::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(ScalarBoolToString::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(ScalarByteToString::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(ScalarCharToString::descriptor() as Arc<dyn TreatmentDescriptor>));
+    u8_to_string::register(&mut c);
+    u16_to_string::register(&mut c);
+    u32_to_string::register(&mut c);
+    u64_to_string::register(&mut c);
+    u128_to_string::register(&mut c);
+    i8_to_string::register(&mut c);
+    i16_to_string::register(&mut c);
+    i32_to_string::register(&mut c);
+    i64_to_string::register(&mut c);
+    i128_to_string::register(&mut c);
+    f32_to_string::register(&mut c);
+    f64_to_string::register(&mut c);
+    bool_to_string::register(&mut c);
+    byte_to_string::register(&mut c);
+    char_to_string::register(&mut c);
+
 }
+
+/*
+    FOR DEVELOPERS
+
+The lines can be regenerated as will using the following script:
+
+```
+#!/bin/bash
+
+TYPES="u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 f32 f64 bool byte char"
+
+for TYPE in $TYPES
+do
+    UPPER_CASE_TYPE=${TYPE^}
+    #echo "impl_ScalarToString!(${TYPE}_to_string, \"${UPPER_CASE_TYPE}ToByte\", $UPPER_CASE_TYPE, recv_$TYPE);"
+    echo "${TYPE}_to_string::register(&mut c);"
+
+done
+```
+    
+*/
 
