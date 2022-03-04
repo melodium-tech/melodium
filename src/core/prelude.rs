@@ -8,6 +8,8 @@ pub use crate::executive::transmitter::*;
 pub use crate::executive::treatment::*;
 pub use crate::executive::world::World;
 pub use crate::executive::context::Context;
+pub use crate::executive::input::Input;
+pub use crate::executive::output::Output;
 pub use crate::logic::descriptor::*;
 pub use crate::logic::error::LogicError;
 pub use crate::logic::builder::*;

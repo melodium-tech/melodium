@@ -2,6 +2,7 @@
 use std::sync::Arc;
 use super::transmitter::*;
 use super::super::logic::descriptor::InputDescriptor;
+use super::super::logic::descriptor::datatype::{Type, Structure};
 
 #[derive(Debug, Clone)]
 pub enum Input {
@@ -49,7 +50,49 @@ pub enum Input {
 impl Input {
 
     pub fn new(descriptor: &InputDescriptor) -> Self {
-        todo!()
+        
+        match descriptor.datatype().structure() {
+            Structure::Scalar => {
+                match descriptor.datatype().r#type() {
+                    Type::U8 => Input::U8(Arc::new(RecvTransmitter::new())),
+                    Type::U16 => Input::U16(Arc::new(RecvTransmitter::new())),
+                    Type::U32 => Input::U32(Arc::new(RecvTransmitter::new())),
+                    Type::U64 => Input::U64(Arc::new(RecvTransmitter::new())),
+                    Type::U128 => Input::U128(Arc::new(RecvTransmitter::new())),
+                    Type::I8 => Input::I8(Arc::new(RecvTransmitter::new())),
+                    Type::I16 => Input::I16(Arc::new(RecvTransmitter::new())),
+                    Type::I32 => Input::I32(Arc::new(RecvTransmitter::new())),
+                    Type::I64 => Input::I64(Arc::new(RecvTransmitter::new())),
+                    Type::I128 => Input::I128(Arc::new(RecvTransmitter::new())),
+                    Type::F32 => Input::F32(Arc::new(RecvTransmitter::new())),
+                    Type::F64 => Input::F64(Arc::new(RecvTransmitter::new())),
+                    Type::Bool => Input::Bool(Arc::new(RecvTransmitter::new())),
+                    Type::Byte => Input::Byte(Arc::new(RecvTransmitter::new())),
+                    Type::Char => Input::Char(Arc::new(RecvTransmitter::new())),
+                    Type::String => Input::String(Arc::new(RecvTransmitter::new())),
+                }
+            },
+            Structure::Vector => {
+                match descriptor.datatype().r#type() {
+                    Type::U8 => Input::VecU8(Arc::new(RecvTransmitter::new())),
+                    Type::U16 => Input::VecU16(Arc::new(RecvTransmitter::new())),
+                    Type::U32 => Input::VecU32(Arc::new(RecvTransmitter::new())),
+                    Type::U64 => Input::VecU64(Arc::new(RecvTransmitter::new())),
+                    Type::U128 => Input::VecU128(Arc::new(RecvTransmitter::new())),
+                    Type::I8 => Input::VecI8(Arc::new(RecvTransmitter::new())),
+                    Type::I16 => Input::VecI16(Arc::new(RecvTransmitter::new())),
+                    Type::I32 => Input::VecI32(Arc::new(RecvTransmitter::new())),
+                    Type::I64 => Input::VecI64(Arc::new(RecvTransmitter::new())),
+                    Type::I128 => Input::VecI128(Arc::new(RecvTransmitter::new())),
+                    Type::F32 => Input::VecF32(Arc::new(RecvTransmitter::new())),
+                    Type::F64 => Input::VecF64(Arc::new(RecvTransmitter::new())),
+                    Type::Bool => Input::VecBool(Arc::new(RecvTransmitter::new())),
+                    Type::Byte => Input::VecByte(Arc::new(RecvTransmitter::new())),
+                    Type::Char => Input::VecChar(Arc::new(RecvTransmitter::new())),
+                    Type::String => Input::VecString(Arc::new(RecvTransmitter::new())),
+                }
+            },
+        }
     }
 
     pub fn close(&self) {

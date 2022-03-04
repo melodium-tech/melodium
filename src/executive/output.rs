@@ -3,6 +3,7 @@ use std::sync::Arc;
 use super::transmitter::*;
 use super::input::Input;
 use super::super::logic::descriptor::OutputDescriptor;
+use super::super::logic::descriptor::datatype::{Type, Structure};
 
 #[derive(Debug, Clone)]
 pub enum Output {
@@ -50,11 +51,245 @@ pub enum Output {
 impl Output {
 
     pub fn new(descriptor: &OutputDescriptor) -> Self {
-        todo!()
+        match descriptor.datatype().structure() {
+            Structure::Scalar => {
+                match descriptor.datatype().r#type() {
+                    Type::U8 => Output::U8(Arc::new(SendTransmitter::new())),
+                    Type::U16 => Output::U16(Arc::new(SendTransmitter::new())),
+                    Type::U32 => Output::U32(Arc::new(SendTransmitter::new())),
+                    Type::U64 => Output::U64(Arc::new(SendTransmitter::new())),
+                    Type::U128 => Output::U128(Arc::new(SendTransmitter::new())),
+                    Type::I8 => Output::I8(Arc::new(SendTransmitter::new())),
+                    Type::I16 => Output::I16(Arc::new(SendTransmitter::new())),
+                    Type::I32 => Output::I32(Arc::new(SendTransmitter::new())),
+                    Type::I64 => Output::I64(Arc::new(SendTransmitter::new())),
+                    Type::I128 => Output::I128(Arc::new(SendTransmitter::new())),
+                    Type::F32 => Output::F32(Arc::new(SendTransmitter::new())),
+                    Type::F64 => Output::F64(Arc::new(SendTransmitter::new())),
+                    Type::Bool => Output::Bool(Arc::new(SendTransmitter::new())),
+                    Type::Byte => Output::Byte(Arc::new(SendTransmitter::new())),
+                    Type::Char => Output::Char(Arc::new(SendTransmitter::new())),
+                    Type::String => Output::String(Arc::new(SendTransmitter::new())),
+                }
+            },
+            Structure::Vector => {
+                match descriptor.datatype().r#type() {
+                    Type::U8 => Output::VecU8(Arc::new(SendTransmitter::new())),
+                    Type::U16 => Output::VecU16(Arc::new(SendTransmitter::new())),
+                    Type::U32 => Output::VecU32(Arc::new(SendTransmitter::new())),
+                    Type::U64 => Output::VecU64(Arc::new(SendTransmitter::new())),
+                    Type::U128 => Output::VecU128(Arc::new(SendTransmitter::new())),
+                    Type::I8 => Output::VecI8(Arc::new(SendTransmitter::new())),
+                    Type::I16 => Output::VecI16(Arc::new(SendTransmitter::new())),
+                    Type::I32 => Output::VecI32(Arc::new(SendTransmitter::new())),
+                    Type::I64 => Output::VecI64(Arc::new(SendTransmitter::new())),
+                    Type::I128 => Output::VecI128(Arc::new(SendTransmitter::new())),
+                    Type::F32 => Output::VecF32(Arc::new(SendTransmitter::new())),
+                    Type::F64 => Output::VecF64(Arc::new(SendTransmitter::new())),
+                    Type::Bool => Output::VecBool(Arc::new(SendTransmitter::new())),
+                    Type::Byte => Output::VecByte(Arc::new(SendTransmitter::new())),
+                    Type::Char => Output::VecChar(Arc::new(SendTransmitter::new())),
+                    Type::String => Output::VecString(Arc::new(SendTransmitter::new())),
+                }
+            },
+        }
     }
 
     pub fn add_input(&self, input: &Input) {
-        todo!()
+        match self {
+            Output::U8(st) => {
+                match input {
+                    Input::U8(it) => st.add_transmitter(it),
+                    _ => panic!("u8 send transmitter expected"),
+                }
+            },
+            Output::U16(st) => {
+                match input {
+                    Input::U16(it) => st.add_transmitter(it),
+                    _ => panic!("u16 send transmitter expected"),
+                }
+            },
+            Output::U32(st) => {
+                match input {
+                    Input::U32(it) => st.add_transmitter(it),
+                    _ => panic!("u32 send transmitter expected"),
+                }
+            },
+            Output::U64(st) => {
+                match input {
+                    Input::U64(it) => st.add_transmitter(it),
+                    _ => panic!("u64 send transmitter expected"),
+                }
+            },
+            Output::U128(st) => {
+                match input {
+                    Input::U128(it) => st.add_transmitter(it),
+                    _ => panic!("u128 send transmitter expected"),
+                }
+            },
+            Output::I8(st) => {
+                match input {
+                    Input::I8(it) => st.add_transmitter(it),
+                    _ => panic!("i8 send transmitter expected"),
+                }
+            },
+            Output::I16(st) => {
+                match input {
+                    Input::I16(it) => st.add_transmitter(it),
+                    _ => panic!("i16 send transmitter expected"),
+                }
+            },
+            Output::I32(st) => {
+                match input {
+                    Input::I32(it) => st.add_transmitter(it),
+                    _ => panic!("i32 send transmitter expected"),
+                }
+            },
+            Output::I64(st) => {
+                match input {
+                    Input::I64(it) => st.add_transmitter(it),
+                    _ => panic!("i64 send transmitter expected"),
+                }
+            },
+            Output::I128(st) => {
+                match input {
+                    Input::I128(it) => st.add_transmitter(it),
+                    _ => panic!("i128 send transmitter expected"),
+                }
+            },
+            Output::F32(st) => {
+                match input {
+                    Input::F32(it) => st.add_transmitter(it),
+                    _ => panic!("f32 send transmitter expected"),
+                }
+            },
+            Output::F64(st) => {
+                match input {
+                    Input::F64(it) => st.add_transmitter(it),
+                    _ => panic!("f64 send transmitter expected"),
+                }
+            },
+            Output::Bool(st) => {
+                match input {
+                    Input::Bool(it) => st.add_transmitter(it),
+                    _ => panic!("bool send transmitter expected"),
+                }
+            },
+            Output::Byte(st) => {
+                match input {
+                    Input::Byte(it) => st.add_transmitter(it),
+                    _ => panic!("byte send transmitter expected"),
+                }
+            },
+            Output::Char(st) => {
+                match input {
+                    Input::Char(it) => st.add_transmitter(it),
+                    _ => panic!("char send transmitter expected"),
+                }
+            },
+            Output::String(st) => {
+                match input {
+                    Input::String(it) => st.add_transmitter(it),
+                    _ => panic!("string send transmitter expected"),
+                }
+            },
+            Output::VecU8(st) => {
+                match input {
+                    Input::VecU8(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<u8> send transmitter expected"),
+                }
+            },
+            Output::VecU16(st) => {
+                match input {
+                    Input::VecU16(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<u16> send transmitter expected"),
+                }
+            },
+            Output::VecU32(st) => {
+                match input {
+                    Input::VecU32(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<u32> send transmitter expected"),
+                }
+            },
+            Output::VecU64(st) => {
+                match input {
+                    Input::VecU64(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<u64> send transmitter expected"),
+                }
+            },
+            Output::VecU128(st) => {
+                match input {
+                    Input::VecU128(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<u128> send transmitter expected"),
+                }
+            },
+            Output::VecI8(st) => {
+                match input {
+                    Input::VecI8(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<i8> send transmitter expected"),
+                }
+            },
+            Output::VecI16(st) => {
+                match input {
+                    Input::VecI16(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<i16> send transmitter expected"),
+                }
+            },
+            Output::VecI32(st) => {
+                match input {
+                    Input::VecI32(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<i32> send transmitter expected"),
+                }
+            },
+            Output::VecI64(st) => {
+                match input {
+                    Input::VecI64(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<i64> send transmitter expected"),
+                }
+            },
+            Output::VecI128(st) => {
+                match input {
+                    Input::VecI128(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<i128> send transmitter expected"),
+                }
+            },
+            Output::VecF32(st) => {
+                match input {
+                    Input::VecF32(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<f32> send transmitter expected"),
+                }
+            },
+            Output::VecF64(st) => {
+                match input {
+                    Input::VecF64(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<f64> send transmitter expected"),
+                }
+            },
+            Output::VecBool(st) => {
+                match input {
+                    Input::VecBool(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<bool> send transmitter expected"),
+                }
+            },
+            Output::VecByte(st) => {
+                match input {
+                    Input::VecByte(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<byte> send transmitter expected"),
+                }
+            },
+            Output::VecChar(st) => {
+                match input {
+                    Input::VecChar(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<char> send transmitter expected"),
+                }
+            },
+            Output::VecString(st) => {
+                match input {
+                    Input::VecString(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<string> send transmitter expected"),
+                }
+            },
+        }
     }
 
     pub fn close(&self) {
