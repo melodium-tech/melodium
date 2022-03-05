@@ -3,12 +3,6 @@ use std::sync::Arc;
 use crate::logic::descriptor::{ModelDescriptor, TreatmentDescriptor};
 use crate::logic::collection_pool::CollectionPool;
 
-use super::fs::direct::file_reader::FileReaderModel;
-use super::fs::direct::file_writer::FileWriterModel;
-
-use super::fs::direct::read_file::ReadFileTreatment;
-use super::fs::direct::write_file::WriteFileTreatment;
-
 use super::net::tcp_listener::TcpListenerModel;
 use super::net::read_tcp_connection::ReadTcpConnectionTreatment;
 use super::net::write_tcp_connection::WriteTcpConnectionTreatment;
@@ -20,13 +14,7 @@ pub fn core_collection() -> &'static CollectionPool {
         static ref SINGLETON: CollectionPool = {
             let mut c = CollectionPool::new();
 
-            c.models.insert(&(FileReaderModel::descriptor() as Arc<dyn ModelDescriptor>));
-            c.models.insert(&(FileWriterModel::descriptor() as Arc<dyn ModelDescriptor>));
-
             c.models.insert(&(TcpListenerModel::descriptor() as Arc<dyn ModelDescriptor>));
-
-            c.treatments.insert(&(ReadFileTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
-            c.treatments.insert(&(WriteFileTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
 
             super::generation::scalar_generator::register(&mut c);
 
@@ -42,6 +30,8 @@ pub fn core_collection() -> &'static CollectionPool {
             super::conversion::vector_float_to_integer::register(&mut c);
 
             super::arithmetic::add_scalar::register(&mut c);
+
+            super::fs::register(&mut c);
 
             c.treatments.insert(&(ReadTcpConnectionTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
             c.treatments.insert(&(WriteTcpConnectionTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));

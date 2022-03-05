@@ -1,98 +1,32 @@
 
-use super::super::super::prelude::*;
-use super::file_reader::FileReaderModel;
+use crate::core::prelude::*;
 
-pub struct ReadFileTreatment {
-
-    world: Arc<World>,
-
-    file_reader: RwLock<Option<Arc<FileReaderModel>>>,
-    data_transmitters: RwLock<Vec<Transmitter>>,
-
-    auto_reference: RwLock<Weak<Self>>,
-}
-
-impl ReadFileTreatment {
-
-    pub fn descriptor() -> Arc<CoreTreatmentDescriptor> {
-
-        lazy_static! {
-            static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
-
-                let rc_descriptor = CoreTreatmentDescriptor::new(
-                    core_identifier!("fs","direct";"ReadFile"),
-                    models![
-                        ("reader", FileReaderModel::descriptor())
-                    ],
-                    treatment_sources![
-                        (FileReaderModel::descriptor(), "read")
-                    ],
-                    vec![],
-                    vec![],
-                    vec![
-                        output!("data", Scalar, Byte, Stream)
-                    ],
-                    ReadFileTreatment::new,
-                );
-
-                rc_descriptor
-            };
-        }
-
-        Arc::clone(&DESCRIPTOR)
-    }
-
-    pub fn new(world: Arc<World>) -> Arc<dyn Treatment> {
-        let treatment = Arc::new(Self {
-            world,
-            file_reader: RwLock::new(None),
-            data_transmitters: RwLock::new(Vec::new()),
-            auto_reference: RwLock::new(Weak::new()),
-        });
-
-        *treatment.auto_reference.write().unwrap() = Arc::downgrade(&treatment);
-
-        treatment
-    }
-}
-
-impl Treatment for ReadFileTreatment {
-
-    fn descriptor(&self) -> Arc<CoreTreatmentDescriptor> {
-        Self::descriptor()
-    }
-
-    fn set_parameter(&self, param: &str, value: &Value) {
-        panic!("No parameter expected.")
-    }
-
-    fn set_model(&self, name: &str, model: &Arc<dyn Model>) {
-
-        match name {
-            "reader" => *self.file_reader.write().unwrap() = Some(Arc::clone(&model).downcast_arc::<FileReaderModel>().unwrap()),
-            _ => panic!("No model '{}' expected.", name)
-        }
-    }
-
-    fn set_output(&self, output_name: &str, transmitter: Vec<Transmitter>) {
-        
-        match output_name {
-            "data" => self.data_transmitters.write().unwrap().extend(transmitter),
-            _ => panic!("No output '{}' exists.", output_name)
-        }
-    }
-
-    fn get_inputs(&self) -> HashMap<String, Vec<Transmitter>> {
-
-        let mut hashmap = HashMap::new();
-
-        hashmap.insert("data".to_string(), self.data_transmitters.read().unwrap().clone());
-
-        hashmap
-    }
-
-    fn prepare(&self) -> Vec<TrackFuture> {
-        Vec::new()
-    }
+treatment!(file_reader_treatment,
+    core_identifier!("fs","direct";"ReadFile"),
+    models![
+        ("reader", crate::core::fs::direct::file_reader::FileReaderModel::descriptor())
+    ],
+    treatment_sources![
+        (crate::core::fs::direct::file_reader::FileReaderModel::descriptor(), "read")
+    ],
+    parameters![],
+    inputs![
+        input!("_data",Scalar,Byte,Stream)
+    ],
+    outputs![
+        output!("data",Scalar,Byte,Stream)
+    ],
+    host {
+        let input = host.get_input("_data");
+        let output = host.get_output("data");
     
-}
+        while let Ok(bytes) = input.recv_byte().await {
+
+            output.send_multiple_byte(bytes);
+        }
+    
+        ResultStatus::Ok
+    }
+);
+
+

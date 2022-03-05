@@ -1,5 +1,5 @@
 
-use super::super::super::prelude::*;
+use crate::core::prelude::*;
 use async_std::path::PathBuf;
 use async_std::fs::{File, OpenOptions};
 
@@ -132,7 +132,7 @@ impl FileReaderModel {
         let future = Box::new(Box::pin(async move {
 
             let data_output = Output::Byte(Arc::new(SendTransmitter::new()));
-            inputs.get("data").unwrap().iter().for_each(|i| data_output.add_input(i));
+            inputs.get("_data").unwrap().iter().for_each(|i| data_output.add_input(i));
 
             let mut bytes = file.bytes();
             while let Some(possible_byte) = bytes.next().await {
