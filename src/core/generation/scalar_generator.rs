@@ -1,321 +1,241 @@
 
 use crate::core::prelude::*;
-use std::sync::atomic::{Ordering, AtomicU64};
 
 macro_rules! impl_ScalarGeneration {
-    ($model_name:ident, $model_mel_name:expr, $treatment_name:ident, $treatment_mel_name:expr, $rust_type:ty, $mel_type:ident) => {
+    ($mod:ident, $model_mel_name:expr, $treatment_mel_name:expr, $rust_type:ty, $mel_type:ident, $send_func:ident, $send_multi_func:ident, $recv_func:ident) => {
+        pub mod $mod {
+            use crate::core::prelude::*;
+            use std::sync::atomic::{Ordering, AtomicU64};
 
-        #[derive(Debug)]
-        struct $model_name {
+            #[derive(Debug)]
+            struct ModelGenerator {
 
-            world: Arc<World>,
-            id: RwLock<Option<ModelId>>,
+                world: Arc<World>,
+                id: RwLock<Option<ModelId>>,
 
-            tracks: AtomicU64,
-            length: AtomicU64,
-            value: RwLock<$rust_type>,
+                tracks: AtomicU64,
+                length: AtomicU64,
+                value: RwLock<$rust_type>,
 
-            auto_reference: RwLock<Weak<Self>>,
-        }
-
-        impl $model_name {
-
-            pub fn descriptor() -> Arc<CoreModelDescriptor> {
-
-                lazy_static! {
-                    static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-
-                        let builder = CoreModelBuilder::new($model_name::new);
-
-                        let descriptor = CoreModelDescriptor::new(
-                            core_identifier!("generation";$model_mel_name),
-                            vec![
-                                parameter!("tracks", Scalar, U64, Some(Value::U64(1))),
-                                parameter!("length", Scalar, U64, Some(Value::U64(1024))),
-                                parameter!("value", Scalar, $mel_type, Some(Value::$mel_type(<$rust_type>::default()))),
-                            ],
-                            model_sources![
-                                ("data";)
-                            ],
-                            Box::new(builder)
-                        );
-
-                        let rc_descriptor = Arc::new(descriptor);
-                        rc_descriptor.set_autoref(&rc_descriptor);
-
-                        rc_descriptor
-                    };
-                }
-                
-                Arc::clone(&DESCRIPTOR)
+                auto_reference: RwLock<Weak<Self>>,
             }
 
-            pub fn new(world: Arc<World>) -> Arc<dyn Model> {
+            impl ModelGenerator {
 
-                let model = Arc::new(Self {
-                    world,
-                    id: RwLock::new(None),
+                pub fn descriptor() -> Arc<CoreModelDescriptor> {
 
-                    tracks: AtomicU64::new(1),
-                    length: AtomicU64::new(1024),
-                    value: RwLock::new(<$rust_type>::default()),
+                    lazy_static! {
+                        static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
 
-                    auto_reference: RwLock::new(Weak::new()),
-                });
+                            let builder = CoreModelBuilder::new(ModelGenerator::new);
 
-                *model.auto_reference.write().unwrap() = Arc::downgrade(&model);
+                            let descriptor = CoreModelDescriptor::new(
+                                core_identifier!("generation";$model_mel_name),
+                                vec![
+                                    parameter!("tracks", Scalar, U64, Some(Value::U64(1))),
+                                    parameter!("length", Scalar, U64, Some(Value::U64(1024))),
+                                    parameter!("value", Scalar, $mel_type, Some(Value::$mel_type(<$rust_type>::default()))),
+                                ],
+                                model_sources![
+                                    ("data";)
+                                ],
+                                Box::new(builder)
+                            );
 
-                model
-            }
+                            let rc_descriptor = Arc::new(descriptor);
+                            rc_descriptor.set_autoref(&rc_descriptor);
 
-            pub async fn generate(&self) {
-
-                let model_id = self.id.read().unwrap().unwrap();
-                let tracks = self.tracks.load(Ordering::Relaxed);
-                let length = self.length.load(Ordering::Relaxed);
-
-                let generator = |inputs| {
-                    self.generate_data(
-                        length,
-                        self.value.read().unwrap().clone(),
-                        inputs
-                    )
-                };
-
-                for _ in 0..tracks {
-                    self.world.create_track(model_id, "data", HashMap::new(), None, Some(&generator)).await;
-                }
-            }
-
-            fn generate_data(&self, length: u64, value: $rust_type, inputs: HashMap<String, Vec<Transmitter>>) -> Vec<TrackFuture> {
-
-                let future = Box::new(Box::pin(async move {
-                    let inputs_to_fill = inputs.get("data").unwrap();
-
-                    for transmitter in inputs_to_fill {
-                        match transmitter {
-                            Transmitter::$mel_type(sender) => {
-                                for _n in 0..length {
-                                    sender.send(value.clone()).await.unwrap();
-                                }
-                                sender.close();
-                            },
-                            _ => panic!("{} sender expected!", std::any::type_name::<$rust_type>())
-                        }
+                            rc_descriptor
+                        };
                     }
-
-                    ResultStatus::Ok
-                }));
-
-                vec![future]
-            }
-        }
-
-        impl Model for $model_name {
-
-            fn descriptor(&self) -> Arc<CoreModelDescriptor> {
-                Self::descriptor()
-            }
-
-            fn id(&self) -> Option<ModelId> {
-                *self.id.read().unwrap()
-            }
-
-            fn set_id(&self, id: ModelId) {
-                *self.id.write().unwrap() = Some(id);
-            }
-
-            fn set_parameter(&self, param: &str, value: &Value) {
-
-                match param {
-                    "tracks" => {
-                        match value {
-                            Value::U64(tracks) => self.tracks.store(*tracks, Ordering::Relaxed),
-                            _ => panic!("Unexpected value type for 'tracks'."),
-                        }
-                    },
-                    "length" => {
-                        match value {
-                            Value::U64(length) => self.length.store(*length, Ordering::Relaxed),
-                            _ => panic!("Unexpected value type for 'length'."),
-                        }
-                    },
-                    "value" => {
-                        match value {
-                            Value::$mel_type(value) => *self.value.write().unwrap() = value.clone(),
-                            _ => panic!("Unexpected value type for 'value'."),
-                        }
-                    },
-                    _ => panic!("No parameter '{}' exists.", param)
+                    
+                    Arc::clone(&DESCRIPTOR)
                 }
-            }
 
-            fn get_context_for(&self, source: &str) -> Vec<String> {
+                pub fn new(world: Arc<World>) -> Arc<dyn Model> {
 
-                Vec::new()
-            }
+                    let model = Arc::new(Self {
+                        world,
+                        id: RwLock::new(None),
 
-            fn initialize(&self) {
+                        tracks: AtomicU64::new(1),
+                        length: AtomicU64::new(1024),
+                        value: RwLock::new(<$rust_type>::default()),
 
-                let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
-                let future_generate = Box::pin(async move { auto_self.generate().await });
+                        auto_reference: RwLock::new(Weak::new()),
+                    });
 
-                self.world.add_continuous_task(Box::new(future_generate));
-            }
+                    *model.auto_reference.write().unwrap() = Arc::downgrade(&model);
 
-            fn shutdown(&self) {
+                    model
+                }
 
-            }
+                pub async fn generate(&self) {
 
-        }
+                    let model_id = self.id.read().unwrap().unwrap();
+                    let tracks = self.tracks.load(Ordering::Relaxed);
+                    let length = self.length.load(Ordering::Relaxed);
 
-        struct $treatment_name {
-
-            world: Arc<World>,
-        
-            generator: RwLock<Option<Arc<$model_name>>>,
-            data_transmitters: RwLock<Vec<Transmitter>>,
-        
-            auto_reference: RwLock<Weak<Self>>,
-        }
-        
-        impl $treatment_name {
-        
-            pub fn descriptor() -> Arc<CoreTreatmentDescriptor> {
-        
-                lazy_static! {
-                    static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
-        
-                        let rc_descriptor = CoreTreatmentDescriptor::new(
-                            core_identifier!("generation";$treatment_mel_name),
-                            vec![("generator".to_string(), $model_name::descriptor())],
-                            treatment_sources![
-                                ($model_name::descriptor(), "data")
-                            ],
-                            vec![],
-                            vec![],
-                            vec![
-                                output!("data", Scalar, $mel_type, Stream)
-                            ],
-                            $treatment_name::new,
-                        );
-        
-                        rc_descriptor
+                    let generator = |inputs| {
+                        self.generate_data(
+                            length,
+                            self.value.read().unwrap().clone(),
+                            inputs
+                        )
                     };
+
+                    for _ in 0..tracks {
+                        self.world.create_track(model_id, "data", HashMap::new(), None, Some(&generator)).await;
+                    }
                 }
-        
-                Arc::clone(&DESCRIPTOR)
-            }
-        
-            pub fn new(world: Arc<World>) -> Arc<dyn Treatment> {
-                let treatment = Arc::new(Self {
-                    world,
-                    generator: RwLock::new(None),
-                    data_transmitters: RwLock::new(Vec::new()),
-                    auto_reference: RwLock::new(Weak::new()),
-                });
-        
-                *treatment.auto_reference.write().unwrap() = Arc::downgrade(&treatment);
-        
-                treatment
-            }
-        }
-        
-        impl Treatment for $treatment_name {
-        
-            fn descriptor(&self) -> Arc<CoreTreatmentDescriptor> {
-                Self::descriptor()
-            }
-        
-            fn set_parameter(&self, param: &str, value: &Value) {
-                panic!("No parameter expected.")
-            }
-        
-            fn set_model(&self, name: &str, model: &Arc<dyn Model>) {
-        
-                match name {
-                    "generator" => *self.generator.write().unwrap() = Some(Arc::clone(&model).downcast_arc::<$model_name>().unwrap()),
-                    _ => panic!("No model '{}' expected.", name)
+
+                fn generate_data(&self, length: u64, value: $rust_type, inputs: HashMap<String, Vec<Input>>) -> Vec<TrackFuture> {
+
+                    let future = Box::new(Box::pin(async move {
+
+                        let data_output = Output::$mel_type(Arc::new(SendTransmitter::new()));
+                        inputs.get("_data").unwrap().iter().for_each(|i| data_output.add_input(i));
+
+                        for _ in 0..length {
+                            data_output.$send_func(value.clone()).await;
+                        }
+
+                        data_output.close();
+
+                        ResultStatus::Ok
+                    }));
+
+                    vec![future]
                 }
             }
-        
-            fn set_output(&self, output_name: &str, transmitter: Vec<Transmitter>) {
+
+            impl Model for ModelGenerator {
+
+                fn descriptor(&self) -> Arc<CoreModelDescriptor> {
+                    Self::descriptor()
+                }
+
+                fn id(&self) -> Option<ModelId> {
+                    *self.id.read().unwrap()
+                }
+
+                fn set_id(&self, id: ModelId) {
+                    *self.id.write().unwrap() = Some(id);
+                }
+
+                fn set_parameter(&self, param: &str, value: &Value) {
+
+                    match param {
+                        "tracks" => {
+                            match value {
+                                Value::U64(tracks) => self.tracks.store(*tracks, Ordering::Relaxed),
+                                _ => panic!("Unexpected value type for 'tracks'."),
+                            }
+                        },
+                        "length" => {
+                            match value {
+                                Value::U64(length) => self.length.store(*length, Ordering::Relaxed),
+                                _ => panic!("Unexpected value type for 'length'."),
+                            }
+                        },
+                        "value" => {
+                            match value {
+                                Value::$mel_type(value) => *self.value.write().unwrap() = value.clone(),
+                                _ => panic!("Unexpected value type for 'value'."),
+                            }
+                        },
+                        _ => panic!("No parameter '{}' exists.", param)
+                    }
+                }
+
+                fn get_context_for(&self, source: &str) -> Vec<String> {
+
+                    Vec::new()
+                }
+
+                fn initialize(&self) {
+
+                    let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
+                    let future_generate = Box::pin(async move { auto_self.generate().await });
+
+                    self.world.add_continuous_task(Box::new(future_generate));
+                }
+
+                fn shutdown(&self) {
+
+                }
+
+            }
+
+            treatment!(treatment_generation,
+                core_identifier!("generation";$treatment_mel_name),
+                models![("generator".to_string(), super::ModelGenerator::descriptor())],
+                treatment_sources![
+                    (super::ModelGenerator::descriptor(), "data")
+                ],
+                parameters![],
+                inputs![
+                    input!("_data",Scalar,$mel_type,Stream)
+                ],
+                outputs![
+                    output!("data",Scalar,$mel_type,Stream)
+                ],
+                host {
+                    let input = host.get_input("_data");
+                    let output = host.get_output("data");
                 
-                match output_name {
-                    "data" => self.data_transmitters.write().unwrap().extend(transmitter),
-                    _ => panic!("No output '{}' exists.", output_name)
+                    while let Ok(data) = input.$recv_func().await {
+                
+                        output.$send_multi_func(data).await;
+                    }
+                
+                    ResultStatus::Ok
                 }
+            );
+
+            pub fn register(mut c: &mut CollectionPool) {
+                c.models.insert(&(ModelGenerator::descriptor() as Arc<dyn ModelDescriptor>));
+                treatment_generation::register(&mut c);
             }
-        
-            fn get_inputs(&self) -> HashMap<String, Vec<Transmitter>> {
-        
-                let mut hashmap = HashMap::new();
-        
-                hashmap.insert("data".to_string(), self.data_transmitters.read().unwrap().clone());
-        
-                hashmap
-            }
-        
-            fn prepare(&self) -> Vec<TrackFuture> {
-                Vec::new()
-            }
-            
         }
     };
 }
 
-impl_ScalarGeneration!(ScalarU8Generator, "ScalarU8Generator", GenerateScalarU8, "GenerateScalarU8", u8, U8);
-impl_ScalarGeneration!(ScalarU16Generator, "ScalarU16Generator", GenerateScalarU16, "GenerateScalarU16", u16, U16);
-impl_ScalarGeneration!(ScalarU32Generator, "ScalarU32Generator", GenerateScalarU32, "GenerateScalarU32", u32, U32);
-impl_ScalarGeneration!(ScalarU64Generator, "ScalarU64Generator", GenerateScalarU64, "GenerateScalarU64", u64, U64);
-impl_ScalarGeneration!(ScalarU128Generator, "ScalarU128Generator", GenerateScalarU128, "GenerateScalarU128", u128, U128);
-impl_ScalarGeneration!(ScalarI8Generator, "ScalarI8Generator", GenerateScalarI8, "GenerateScalarI8", i8, I8);
-impl_ScalarGeneration!(ScalarI16Generator, "ScalarI16Generator", GenerateScalarI16, "GenerateScalarI16", i16, I16);
-impl_ScalarGeneration!(ScalarI32Generator, "ScalarI32Generator", GenerateScalarI32, "GenerateScalarI32", i32, I32);
-impl_ScalarGeneration!(ScalarI64Generator, "ScalarI64Generator", GenerateScalarI64, "GenerateScalarI64", i64, I64);
-impl_ScalarGeneration!(ScalarI128Generator, "ScalarI128Generator", GenerateScalarI128, "GenerateScalarI128", i128, I128);
-impl_ScalarGeneration!(ScalarF32Generator, "ScalarF32Generator", GenerateScalarF32, "GenerateScalarF32", f32, F32);
-impl_ScalarGeneration!(ScalarF64Generator, "ScalarF64Generator", GenerateScalarF64, "GenerateScalarF64", f64, F64);
-impl_ScalarGeneration!(ScalarBoolGenerator, "ScalarBoolGenerator", GenerateScalarBool, "GenerateScalarBool", bool, Bool);
-impl_ScalarGeneration!(ScalarByteGenerator, "ScalarByteGenerator", GenerateScalarByte, "GenerateScalarByte", u8, Byte);
-impl_ScalarGeneration!(ScalarCharGenerator, "ScalarCharGenerator", GenerateScalarChar, "GenerateScalarChar", char, Char);
-impl_ScalarGeneration!(ScalarStringGenerator, "ScalarStringGenerator", GenerateScalarString, "GenerateScalarString", String, String);
+impl_ScalarGeneration!(u8_generation, "ScalarU8Generator", "GenerateScalarU8", u8, U8, send_u8, send_multiple_u8, recv_u8);
+impl_ScalarGeneration!(u16_generation, "ScalarU16Generator", "GenerateScalarU16", u16, U16, send_u16, send_multiple_u16, recv_u16);
+impl_ScalarGeneration!(u32_generation, "ScalarU32Generator", "GenerateScalarU32", u32, U32, send_u32, send_multiple_u32, recv_u32);
+impl_ScalarGeneration!(u64_generation, "ScalarU64Generator", "GenerateScalarU64", u64, U64, send_u64, send_multiple_u64, recv_u64);
+impl_ScalarGeneration!(u128_generation, "ScalarU128Generator", "GenerateScalarU128", u128, U128, send_u128, send_multiple_u128, recv_u128);
+impl_ScalarGeneration!(i8_generation, "ScalarI8Generator", "GenerateScalarI8", i8, I8, send_i8, send_multiple_i8, recv_i8);
+impl_ScalarGeneration!(i16_generation, "ScalarI16Generator", "GenerateScalarI16", i16, I16, send_i16, send_multiple_i16, recv_i16);
+impl_ScalarGeneration!(i32_generation, "ScalarI32Generator", "GenerateScalarI32", i32, I32, send_i32, send_multiple_i32, recv_i32);
+impl_ScalarGeneration!(i64_generation, "ScalarI64Generator", "GenerateScalarI64", i64, I64, send_i64, send_multiple_i64, recv_i64);
+impl_ScalarGeneration!(i128_generation, "ScalarI128Generator", "GenerateScalarI128", i128, I128, send_i128, send_multiple_i128, recv_i128);
+impl_ScalarGeneration!(f32_generation, "ScalarF32Generator", "GenerateScalarF32", f32, F32, send_f32, send_multiple_f32, recv_f32);
+impl_ScalarGeneration!(f64_generation, "ScalarF64Generator", "GenerateScalarF64", f64, F64, send_f64, send_multiple_f64, recv_f64);
+impl_ScalarGeneration!(bool_generation, "ScalarBoolGenerator", "GenerateScalarBool", bool, Bool, send_bool, send_multiple_bool, recv_bool);
+impl_ScalarGeneration!(byte_generation, "ScalarByteGenerator", "GenerateScalarByte", u8, Byte, send_byte, send_multiple_byte, recv_byte);
+impl_ScalarGeneration!(char_generation, "ScalarCharGenerator", "GenerateScalarChar", char, Char, send_char, send_multiple_char, recv_char);
+impl_ScalarGeneration!(string_generation, "ScalarStringGenerator", "GenerateScalarString", String, String, send_string, send_multiple_string, recv_string);
 
-pub fn register(c: &mut CollectionPool) {
+pub fn register(mut c: &mut CollectionPool) {
 
-    c.models.insert(&(ScalarU8Generator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarU8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarU16Generator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarU16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarU32Generator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarU32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarU64Generator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarU64::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarU128Generator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarU128::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarI8Generator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarI8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarI16Generator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarI16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarI32Generator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarI32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarI64Generator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarI64::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarI128Generator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarI128::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarF32Generator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarF32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarF64Generator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarF64::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarBoolGenerator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarBool::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarByteGenerator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarByte::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarCharGenerator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarChar::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.models.insert(&(ScalarStringGenerator::descriptor() as Arc<dyn ModelDescriptor>));
-    c.treatments.insert(&(GenerateScalarString::descriptor() as Arc<dyn TreatmentDescriptor>));
-
+    u8_generation::register(&mut c);
+    u16_generation::register(&mut c);
+    u32_generation::register(&mut c);
+    u64_generation::register(&mut c);
+    u128_generation::register(&mut c);
+    i8_generation::register(&mut c);
+    i16_generation::register(&mut c);
+    i32_generation::register(&mut c);
+    i64_generation::register(&mut c);
+    i128_generation::register(&mut c);
+    f32_generation::register(&mut c);
+    f64_generation::register(&mut c);
+    bool_generation::register(&mut c);
+    byte_generation::register(&mut c);
+    char_generation::register(&mut c);
+    string_generation::register(&mut c);
 }
 
 /*
@@ -331,9 +251,8 @@ TYPES="u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 f32 f64 bool byte char string"
 for TYPE in $TYPES
 do
     UPPER_CASE_TYPE=${TYPE^}
-    #echo "impl_ScalarGeneration!(Scalar${UPPER_CASE_TYPE}Generator, \"Scalar${UPPER_CASE_TYPE}Generator\", GenerateScalar${UPPER_CASE_TYPE}, \"GenerateScalar${UPPER_CASE_TYPE}\", $TYPE, $UPPER_CASE_TYPE);"
-    echo "c.models.insert(&(Scalar${UPPER_CASE_TYPE}Generator::descriptor() as Arc<dyn ModelDescriptor>));"
-    echo "c.treatments.insert(&(GenerateScalar${UPPER_CASE_TYPE}::descriptor() as Arc<dyn TreatmentDescriptor>));"
+    echo "impl_ScalarGeneration!(${TYPE}_generation, \"Scalar${UPPER_CASE_TYPE}Generator\", \"GenerateScalar${UPPER_CASE_TYPE}\", $TYPE, $UPPER_CASE_TYPE, send_$TYPE, send_multiple_$TYPE, recv_$TYPE);"
+    #echo "${TYPE}_generation::register(&mut c);"
 
 done
 ```

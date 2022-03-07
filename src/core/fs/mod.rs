@@ -9,7 +9,7 @@ pub mod write_files;
 
 use crate::core::prelude::*;
 
-pub fn register(c: &mut CollectionPool) {
+pub fn register(mut c: &mut CollectionPool) {
 
     direct::register(&mut c);
 }

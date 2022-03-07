@@ -104,7 +104,7 @@ impl_CastVector!(i128_to_f32, "VecI128ToVecF32", I128, recv_vec_i128, F32, f32, 
 impl_CastVector!(i128_to_f64, "VecI128ToVecF64", I128, recv_vec_i128, F64, f64, send_vec_f64);
 
 
-pub fn register(c: &mut CollectionPool) {
+pub fn register(mut c: &mut CollectionPool) {
 
     // Casts for u8
     u8_to_u16::register(&mut c);

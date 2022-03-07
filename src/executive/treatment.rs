@@ -2,7 +2,7 @@
 use std::fmt::Debug;
 use crate::logic::descriptor::{CoreTreatmentDescriptor, ParameterizedDescriptor, TreatmentDescriptor};
 use std::collections::HashMap;
-use std::sync::{Arc, Weak, Mutex};
+use std::sync::{Arc, Weak, Mutex, RwLock};
 use async_std::future::Future;
 use super::result_status::ResultStatus;
 use super::future::TrackFuture;
@@ -28,11 +28,11 @@ pub trait TreatmentImpl : Debug {
     fn prepare(&self) -> Vec<TrackFuture>;
 }
 
-//#[derive(Debug)]
+#[derive(Debug)]
 pub struct TreatmentHost {
 
     descriptor: Arc<CoreTreatmentDescriptor>,
-    auto_reference: Weak<TreatmentHost>,
+    auto_reference: RwLock<Weak<TreatmentHost>>,
     prepare: fn(Arc<TreatmentHost>) -> Vec<TrackFuture>,
 
     models: Mutex<HashMap<String, Arc<dyn Model>>>,
@@ -49,7 +49,7 @@ impl TreatmentHost {
         let parameters = descriptor.parameters().iter().filter_map(
             |(_, param)| {
                 if let Some(default) = param.default() {
-                    Some((param.name().to_string(), *default))
+                    Some((param.name().to_string(), default.clone()))
                 }
                 else {
                     None
@@ -71,7 +71,7 @@ impl TreatmentHost {
 
         let treatment_host = Arc::new(Self {
             descriptor,
-            auto_reference: Weak::new(),
+            auto_reference: RwLock::new(Weak::new()),
             prepare,
             models: Mutex::new(HashMap::new()),
             parameters: Mutex::new(parameters),
@@ -79,7 +79,7 @@ impl TreatmentHost {
             outputs: Mutex::new(outputs),
         });
 
-        treatment_host.auto_reference = Arc::downgrade(&treatment_host);
+        *treatment_host.auto_reference.write().unwrap() = Arc::downgrade(&treatment_host);
 
         treatment_host
     }
@@ -126,7 +126,7 @@ impl Treatment for TreatmentHost {
 
             if param_descriptor.datatype().is_compatible(&value) {
 
-                self.parameters.lock().unwrap().insert(param.to_string(), *value);
+                self.parameters.lock().unwrap().insert(param.to_string(), value.clone());
             }
             else {
                 panic!("Uncompatible value type for '{}'", param)
@@ -171,6 +171,6 @@ impl Treatment for TreatmentHost {
     }
 
     fn prepare(&self) -> Vec<TrackFuture> {
-        (self.prepare)(self.auto_reference.upgrade().unwrap())
+        (self.prepare)(self.auto_reference.read().unwrap().upgrade().unwrap())
     }
 }

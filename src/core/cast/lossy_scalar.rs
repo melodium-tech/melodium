@@ -147,7 +147,7 @@ impl_CastScalar!(i128_to_i16, "CastScalarI128ToI16", I128, recv_i128, i16, I16, 
 impl_CastScalar!(i128_to_i32, "CastScalarI128ToI32", I128, recv_i128, i32, I32, i32, send_multiple_i32);
 impl_CastScalar!(i128_to_i64, "CastScalarI128ToI64", I128, recv_i128, i64, I64, i64, send_multiple_i64);
 
-pub fn register(c: &mut CollectionPool) {
+pub fn register(mut c: &mut CollectionPool) {
 
     // Lossy casts for u8
     u8_to_i8::register(&mut c);

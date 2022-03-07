@@ -71,7 +71,7 @@ impl_ScalarFloatToInteger!(f64_to_i32, "ScalarF64ToI32", F64, recv_f64, i32, I32
 impl_ScalarFloatToInteger!(f64_to_i64, "ScalarF64ToI64", F64, recv_f64, i64, I64, i64, send_i64);
 impl_ScalarFloatToInteger!(f64_to_i128, "ScalarF64ToI128", F64, recv_f64, i128, I128, i128, send_i128);
 
-pub fn register(c: &mut CollectionPool) {
+pub fn register(mut c: &mut CollectionPool) {
 
     // Conversions for f32
     f32_to_u8::register(&mut c);

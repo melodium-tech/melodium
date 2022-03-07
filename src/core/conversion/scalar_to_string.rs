@@ -47,7 +47,7 @@ impl_ScalarToString!(bool_to_string, "BoolToString", Bool, recv_bool);
 impl_ScalarToString!(byte_to_string, "ByteToString", Byte, recv_byte);
 impl_ScalarToString!(char_to_string, "CharToString", Char, recv_char);
 
-pub fn register(c: &mut CollectionPool) {
+pub fn register(mut c: &mut CollectionPool) {
 
     u8_to_string::register(&mut c);
     u16_to_string::register(&mut c);

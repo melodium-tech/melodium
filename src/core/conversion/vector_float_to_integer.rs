@@ -71,7 +71,7 @@ impl_VectorFloatToInteger!(f64_to_i32, "VectorF64ToI32", F64, recv_vec_f64, i32,
 impl_VectorFloatToInteger!(f64_to_i64, "VectorF64ToI64", F64, recv_vec_f64, i64, I64, i64, send_vec_i64);
 impl_VectorFloatToInteger!(f64_to_i128, "VectorF64ToI128", F64, recv_vec_f64, i128, I128, i128, send_vec_i128);
 
-pub fn register(c: &mut CollectionPool) {
+pub fn register(mut c: &mut CollectionPool) {
 
     // Conversions for f32
     f32_to_u8::register(&mut c);

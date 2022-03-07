@@ -6,7 +6,7 @@ mod bool_to_byte;
 mod char_to_byte;
 mod string_to_byte;
 
-pub fn register(c: &mut CollectionPool) {
+pub fn register(mut c: &mut CollectionPool) {
 
     bool_to_byte::bool_to_byte::register(&mut c);
     char_to_byte::char_to_byte::register(&mut c);

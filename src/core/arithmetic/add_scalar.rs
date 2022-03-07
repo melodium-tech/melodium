@@ -46,7 +46,7 @@ impl_AddScalar!(add_i128, "AddI128", I128, i128, i128, recv_i128, send_multiple_
 impl_AddScalar!(add_f32, "AddF32", F32, f32, f32, recv_f32, send_multiple_f32);
 impl_AddScalar!(add_f64, "AddF64", F64, f64, f64, recv_f64, send_multiple_f64);
 
-pub fn register(c: &mut CollectionPool) {
+pub fn register(mut c: &mut CollectionPool) {
 
     add_u8::register(&mut c);
     add_u16::register(&mut c);

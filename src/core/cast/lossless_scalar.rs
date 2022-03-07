@@ -102,7 +102,7 @@ impl_CastScalar!(i128_to_f32, "I128ToF32", I128, recv_i128, F32, f32, send_f32);
 impl_CastScalar!(i128_to_f64, "I128ToF64", I128, recv_i128, F64, f64, send_f64);
 
 
-pub fn register(c: &mut CollectionPool) {
+pub fn register(mut c: &mut CollectionPool) {
 
     // Casts for u8
     u8_to_u16::register(&mut c);

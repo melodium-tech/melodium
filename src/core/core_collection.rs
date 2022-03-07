@@ -3,18 +3,11 @@ use std::sync::Arc;
 use crate::logic::descriptor::{ModelDescriptor, TreatmentDescriptor};
 use crate::logic::collection_pool::CollectionPool;
 
-use super::net::tcp_listener::TcpListenerModel;
-use super::net::read_tcp_connection::ReadTcpConnectionTreatment;
-use super::net::write_tcp_connection::WriteTcpConnectionTreatment;
-
-
 pub fn core_collection() -> &'static CollectionPool {
 
     lazy_static! {
         static ref SINGLETON: CollectionPool = {
             let mut c = CollectionPool::new();
-
-            c.models.insert(&(TcpListenerModel::descriptor() as Arc<dyn ModelDescriptor>));
 
             super::generation::scalar_generator::register(&mut c);
 
@@ -33,12 +26,12 @@ pub fn core_collection() -> &'static CollectionPool {
 
             super::fs::register(&mut c);
 
-            c.treatments.insert(&(ReadTcpConnectionTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
-            c.treatments.insert(&(WriteTcpConnectionTreatment::descriptor() as Arc<dyn TreatmentDescriptor>));
+            super::net::register(&mut c);
 
             c
         };
     }
     &SINGLETON
 }
+
 

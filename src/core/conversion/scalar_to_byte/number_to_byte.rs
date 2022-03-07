@@ -44,7 +44,7 @@ impl_ScalarToByte!(i128_to_byte, "I128ToByte", I128, recv_i128);
 impl_ScalarToByte!(f32_to_byte, "F32ToByte", F32, recv_f32);
 impl_ScalarToByte!(f64_to_byte, "F64ToByte", F64, recv_f64);
 
-pub fn register(c: &mut CollectionPool) {
+pub fn register(mut c: &mut CollectionPool) {
 
     u8_to_byte::register(&mut c);
     u16_to_byte::register(&mut c);

@@ -5,7 +5,7 @@ pub mod file_writer;
 pub mod read_file;
 pub mod write_file;
 
-pub fn register(c: &mut CollectionPool) {
+pub fn register(mut c: &mut CollectionPool) {
 
     c.models.insert(&(file_reader::FileReaderModel::descriptor() as Arc<dyn ModelDescriptor>));
     c.models.insert(&(file_writer::FileWriterModel::descriptor() as Arc<dyn ModelDescriptor>));

@@ -49,7 +49,7 @@ impl_VectorToString!(bool_to_string, "BoolToString", Bool, recv_vec_bool);
 impl_VectorToString!(byte_to_string, "ByteToString", Byte, recv_vec_byte);
 impl_VectorToString!(char_to_string, "CharToString", Char, recv_vec_char);
 
-pub fn register(c: &mut CollectionPool) {
+pub fn register(mut c: &mut CollectionPool) {
 
     u8_to_string::register(&mut c);
     u16_to_string::register(&mut c);
