@@ -29,9 +29,9 @@ macro_rules! impl_CastVector {
                     while let Ok(vecs_numbers) = input.$recv_func().await {
 
                         for vec_numbers in vecs_numbers {
-                            output.$send_func(
+                            ok_or_break!(output.$send_func(
                                 vec_numbers.iter().map(|v| *v as $output_rust_type).collect()
-                            ).await;
+                            ).await);
                         }
                         
             
@@ -45,10 +45,10 @@ macro_rules! impl_CastVector {
 
                     let default = host.get_parameter("or_default").$output_mel_value_type();
 
-                    while let Ok(vecs_numbers) = input.$recv_func().await {
+                    'main: while let Ok(vecs_numbers) = input.$recv_func().await {
 
                         for vec_numbers in vecs_numbers {
-                            output.$send_func(
+                            ok_or_break!('main, output.$send_func(
                                 vec_numbers.iter().map(
                                     |v| {
                                         if let Ok(casted_data) = <$output_rust_type>::try_from(*v) {
@@ -59,7 +59,7 @@ macro_rules! impl_CastVector {
                                         }
                                     }
                                 ).collect()
-                            ).await;
+                            ).await);
                         }
             
                     }

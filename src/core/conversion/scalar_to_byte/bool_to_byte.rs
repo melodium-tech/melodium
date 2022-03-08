@@ -16,15 +16,15 @@ treatment!(bool_to_byte,
         let input = host.get_input("value");
         let output = host.get_output("data");
     
-        while let Ok(bools) = input.recv_bool().await {
+        'main: while let Ok(bools) = input.recv_bool().await {
 
-            output.send_multiple_byte(bools.iter().map(
+            ok_or_break!('main, output.send_multiple_byte(bools.iter().map(
                 |b|
                 match b {
                     true => 1,
                     false => 0,
                 }
-            ).collect()).await;
+            ).collect()).await);
         }
     
         ResultStatus::Ok

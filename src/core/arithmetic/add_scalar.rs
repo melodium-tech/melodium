@@ -24,7 +24,7 @@ macro_rules! impl_AddScalar {
             
                 while let Ok(values) = input.$recv_func().await {
 
-                    output.$send_func(values.iter().map(|v| v + add).collect()).await;
+                    ok_or_break!(output.$send_func(values.iter().map(|v| v + add).collect()).await);
                 }
             
                 ResultStatus::Ok

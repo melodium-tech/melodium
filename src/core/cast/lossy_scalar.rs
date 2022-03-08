@@ -27,9 +27,9 @@ macro_rules! impl_CastScalar {
 
                     while let Ok(numbers) = input.$recv_func().await {
 
-                        output.$send_func(
+                        ok_or_break!(output.$send_func(
                             numbers.iter().map(|v| *v as $output_rust_type).collect()
-                        ).await;
+                        ).await);
             
                     }
                 
@@ -43,18 +43,20 @@ macro_rules! impl_CastScalar {
 
                     while let Ok(numbers) = input.$recv_func().await {
 
-                        output.$send_func(
-                            numbers.iter().map(
-                                |v| {
-                                    if let Ok(casted_data) = <$output_rust_type>::try_from(*v) {
-                                        casted_data
+                        ok_or_break!(
+                            output.$send_func(
+                                numbers.iter().map(
+                                    |v| {
+                                        if let Ok(casted_data) = <$output_rust_type>::try_from(*v) {
+                                            casted_data
+                                        }
+                                        else {
+                                            default
+                                        }
                                     }
-                                    else {
-                                        default
-                                    }
-                                }
-                            ).collect()
-                        ).await;
+                                ).collect()
+                            ).await
+                        );
             
                     }
                 

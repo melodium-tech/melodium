@@ -18,10 +18,10 @@ macro_rules! impl_CastScalar {
                 let input = host.get_input("value");
                 let output = host.get_output("value");
             
-                while let Ok(numbers) = input.$recv_func().await {
+                'main: while let Ok(numbers) = input.$recv_func().await {
             
                     for number in numbers {
-                        output.$send_func(number as $output_rust_type).await;
+                        ok_or_break!('main, output.$send_func(number as $output_rust_type).await);
                     }
                 }
             

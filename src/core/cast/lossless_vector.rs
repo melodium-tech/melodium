@@ -18,12 +18,12 @@ macro_rules! impl_CastVector {
                 let input = host.get_input("value");
                 let output = host.get_output("value");
             
-                while let Ok(vecs_numbers) = input.$recv_func().await {
+                'main: while let Ok(vecs_numbers) = input.$recv_func().await {
             
                     for vec_numbers in vecs_numbers {
-                        output.$send_func(
+                        ok_or_break!('main, output.$send_func(
                             vec_numbers.iter().map(|v| *v as $output_rust_type).collect()
-                        ).await;
+                        ).await);
                     }
                 }
             

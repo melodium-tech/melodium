@@ -16,10 +16,10 @@ treatment!(string_to_byte,
         let input = host.get_input("value");
         let output = host.get_output("data");
     
-        while let Ok(strings) = input.recv_string().await {
+        'main: while let Ok(strings) = input.recv_string().await {
     
             for string in strings {
-                output.send_multiple_byte(string.as_bytes().to_vec()).await;
+                ok_or_break!('main, output.send_multiple_byte(string.as_bytes().to_vec()).await);
             }
         }
     
