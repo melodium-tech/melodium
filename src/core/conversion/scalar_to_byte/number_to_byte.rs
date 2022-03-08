@@ -18,10 +18,12 @@ macro_rules! impl_ScalarToByte {
                 let input = host.get_input("value");
                 let output = host.get_output("data");
             
-                while let Ok(numbers) = input.$recv_func().await {
+                'main: while let Ok(numbers) = input.$recv_func().await {
+
+                    println!("Converting {} numbers", numbers.len());
             
                     for number in numbers {
-                        output.send_multiple_byte(number.to_be_bytes().to_vec()).await;
+                        ok_or_break!('main, output.send_multiple_byte(number.to_be_bytes().to_vec()).await);
                     }
                 }
             

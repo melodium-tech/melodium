@@ -98,7 +98,7 @@ macro_rules! treatment {
                     async move {
 
                         let result = execute(&host).await;
-                        host.close_all();
+                        host.close_all().await;
 
                         result
                     }
@@ -117,3 +117,18 @@ macro_rules! treatment {
     };
 }
 pub(crate) use treatment;
+
+macro_rules! ok_or_break {
+    ($l:tt, $x:expr) => {
+        if let Err(_) = $x {
+            break $l;
+        }
+    };
+    
+    ($x:expr) => {
+        if let Err(_) = $x {
+            break;
+        }
+    };
+}
+pub(crate) use ok_or_break;

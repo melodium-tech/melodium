@@ -128,7 +128,7 @@ impl TcpListenerModel {
                 data_output.send_multiple_byte(buf.clone()).await;
             }
 
-            data_output.close();
+            data_output.close().await;
 
             ResultStatus::Ok
         })) as TrackFuture;

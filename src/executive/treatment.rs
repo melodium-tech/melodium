@@ -4,6 +4,7 @@ use crate::logic::descriptor::{CoreTreatmentDescriptor, ParameterizedDescriptor,
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, Mutex, RwLock};
 use async_std::future::Future;
+use futures::future::join_all;
 use super::result_status::ResultStatus;
 use super::future::TrackFuture;
 use super::value::Value;
@@ -104,13 +105,17 @@ impl TreatmentHost {
         self.inputs.lock().unwrap().iter().for_each(|(_, i)| i.close());
     }
 
-    pub fn close_outputs(&self) {
-        self.outputs.lock().unwrap().iter().for_each(|(_, o)| o.close());
+    pub async fn close_outputs(&self) {
+        let outputs: Vec<Output> = self.outputs.lock().unwrap().iter().map(|(_, o)| o.clone()).collect();
+
+        for o in outputs {
+            o.close().await;
+        }
     }
 
-    pub fn close_all(&self) {
+    pub async fn close_all(&self) {
         self.close_inputs();
-        self.close_outputs();
+        self.close_outputs().await;
     }
 }
 

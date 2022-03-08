@@ -20,6 +20,7 @@ treatment!(file_writer_treatment,
     
         while let Ok(bytes) = input.recv_byte().await {
 
+            println!("Writing {} bytes", bytes.len());
             for byte in bytes {
                 writer_sender.send(byte).await;
             }

@@ -141,7 +141,7 @@ impl FileReaderModel {
                 data_output.send_byte(byte).await;
             }
 
-            data_output.close();
+            data_output.close().await;
 
             ResultStatus::Ok
         })) as TrackFuture;

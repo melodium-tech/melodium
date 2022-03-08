@@ -117,37 +117,49 @@ impl<T: Clone> SendTransmitter<T> {
 
     async fn check_send(&self) -> SendResult {
 
-        let buffer = self.buffer.lock().unwrap().clone();
+        let buffer_len = self.buffer.lock().unwrap().len();
 
-        if buffer.len() >= BUFFER_LIMIT {
+        if buffer_len >= BUFFER_LIMIT {
 
-            let mut statuses = Vec::new();
-            let senders = self.senders.lock().unwrap().clone();
-            for sender in senders.iter() {
-                statuses.push(
-                    match sender.send(buffer.clone()).await {
-                        Ok(()) => true,
-                        Err(_) => false,
-                    }
-                );
-            };
-
-            let status = if let Some(_) = statuses.iter().find(|s| **s) {
-                Ok(())
-            }
-            else {
-                Err(TransmissionError::EverythingClosed)
-            };
-
-            self.buffer.lock().unwrap().clear();
-
-            return status;
+            self.do_send().await
         }
-
-        Ok(())
+        else {
+            Ok(())
+        }
     }
 
-    pub fn close(&self) {
+    async fn do_send(&self) -> SendResult {
+
+        let buffer = self.buffer.lock().unwrap().clone();
+
+        let mut statuses = Vec::new();
+        let senders = self.senders.lock().unwrap().clone();
+        for sender in senders.iter() {
+            statuses.push(
+                match sender.send(buffer.clone()).await {
+                    Ok(()) => true,
+                    Err(_) => false,
+                }
+            );
+        };
+
+        let status = if let Some(_) = statuses.iter().find(|s| **s) {
+            Ok(())
+        }
+        else {
+            Err(TransmissionError::EverythingClosed)
+        };
+
+        self.buffer.lock().unwrap().clear();
+
+        return status;
+    }
+
+    pub async fn close(&self) {
+
+        // In closing we don't care for send result
+        let _result = self.do_send().await;
+
         self.senders.lock().unwrap().iter().for_each(|s| { s.close(); } );
     }
 }
