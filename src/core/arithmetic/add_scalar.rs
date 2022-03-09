@@ -1,178 +1,84 @@
 
-use super::super::prelude::*;
+use crate::core::prelude::*;
 
 macro_rules! impl_AddScalar {
-    ($name:ident, $mel_name:expr, $rust_type:ty, $mel_type:ident) => {
-        struct $name {
+    ($mod:ident, $mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+        treatment!($mod,
+            core_identifier!("arithmetic","scalar";$mel_name),
+            models![],
+            treatment_sources![],
+            parameters![
+                parameter!("add",Scalar,$mel_type,Some(Value::$mel_type(<$rust_type>::default())))
+            ],
+            inputs![
+                input!("value",Scalar,$mel_type,Stream)
+            ],
+            outputs![
+                output!("value",Scalar,$mel_type,Stream)
+            ],
+            host {
+                let input = host.get_input("value");
+                let output = host.get_output("value");
 
-            world: Arc<World>,
-        
-            value: RwLock<$rust_type>,
-        
-            data_output_transmitters: RwLock<Vec<Transmitter>>,
-            data_input_sender: Sender<$rust_type>,
-            data_input_receiver: Receiver<$rust_type>,
-        
-            auto_reference: RwLock<Weak<Self>>,
-        
-        }
-
-        impl $name {
-
-            pub fn descriptor() -> Arc<CoreTreatmentDescriptor> {
-        
-                lazy_static! {
-                    static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
-        
-                        let rc_descriptor = CoreTreatmentDescriptor::new(
-                            core_identifier!("arithmetic";$mel_name),
-                            models![],
-                            treatment_sources![],
-                            vec![
-                                parameter!("value",Scalar,$mel_type,Some(crate::executive::value::Value::$mel_type(<$rust_type>::default())))
-                            ],
-                            vec![
-                                input!("data",Scalar,$mel_type,Stream)
-                            ],
-                            vec![
-                                output!("data",Scalar,$mel_type,Stream)
-                            ],
-                            $name::new,
-                        );
-        
-                        rc_descriptor
-                    };
-                }
-        
-                Arc::clone(&DESCRIPTOR)
-            }
-        
-            pub fn new(world: Arc<World>) -> Arc<dyn Treatment> {
-                let data_input = unbounded();
-                let treatment = Arc::new(Self {
-                    world,
-                    value: RwLock::new(<$rust_type>::default()),
-                    data_output_transmitters: RwLock::new(Vec::new()),
-                    data_input_sender: data_input.0,
-                    data_input_receiver: data_input.1,
-                    auto_reference: RwLock::new(Weak::new()),
-                });
-        
-                *treatment.auto_reference.write().unwrap() = Arc::downgrade(&treatment);
-        
-                treatment
-            }
-        
-            async fn add(&self) -> ResultStatus {
-        
-                let value = *self.value.read().unwrap();
-                let inputs_to_fill = self.data_output_transmitters.read().unwrap().clone();
-        
-                while let Ok(data) = self.data_input_receiver.recv().await {
-        
-                    let output_data = data + value;
-        
-                    for transmitter in &inputs_to_fill {
-                        match transmitter {
-                            Transmitter::$mel_type(sender) => sender.send(output_data).await.unwrap(),
-                            _ => panic!("{} sender expected!", std::any::type_name::<$rust_type>())
-                        };
-                    }
-                }
-        
-                for transmitter in inputs_to_fill {
-                    match transmitter {
-                        Transmitter::$mel_type(sender) => sender.close(),
-                        _ => panic!("{} sender expected!", std::any::type_name::<$rust_type>())
-                    };
-                }
-        
-                ResultStatus::default()
-            }
-        }
-
-        impl Treatment for $name {
-
-            fn descriptor(&self) -> Arc<CoreTreatmentDescriptor> {
-                Self::descriptor()
-            }
-        
-            fn set_parameter(&self, param: &str, value: &Value) {
-                
-                match param {
-                    "value" => {
-                        match value {
-                            Value::$mel_type(value) => *self.value.write().unwrap() = *value,
-                            _ => panic!("Unexpected value type for 'value'."),
-                        }
-                    },
-                    _ => panic!("No parameter '{}' exists.", param)
-                }
-            }
-        
-            fn set_model(&self, name: &str, model: &Arc<dyn Model>) {
-                panic!("No model expected.")
-            }
-        
-            fn set_output(&self, output_name: &str, transmitter: Vec<Transmitter>) {
-                
-                match output_name {
-                    "data" => self.data_output_transmitters.write().unwrap().extend(transmitter),
-                    _ => panic!("No output '{}' exists.", output_name)
-                }
-            }
-        
-            fn get_inputs(&self) -> HashMap<String, Vec<Transmitter>> {
-        
-                let mut hashmap = HashMap::new();
-        
-                hashmap.insert("data".to_string(), vec![Transmitter::$mel_type(self.data_input_sender.clone())]);
-        
-                hashmap
-            }
-        
-            fn prepare(&self) -> Vec<TrackFuture> {
-        
-                let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
-                let future = Box::new(Box::pin(async move { auto_self.add().await }));
-        
-                vec![future]
-            }
+                let add = host.get_parameter("add").$mel_value_type();
             
-        }
-    };
+                while let Ok(values) = input.$recv_func().await {
+
+                    ok_or_break!(output.$send_func(values.iter().map(|v| v + add).collect()).await);
+                }
+            
+                ResultStatus::Ok
+            }
+        );
+    }
 }
 
-impl_AddScalar!(AddScalarI8, "AddScalarI8", i8, I8);
-impl_AddScalar!(AddScalarI16, "AddScalarI16", i16, I16);
-impl_AddScalar!(AddScalarI32, "AddScalarI32", i32, I32);
-impl_AddScalar!(AddScalarI64, "AddScalarI64", i64, I64);
-impl_AddScalar!(AddScalarI128, "AddScalarI128", i128, I128);
+impl_AddScalar!(add_u8, "AddU8", U8, u8, u8, recv_u8, send_multiple_u8);
+impl_AddScalar!(add_u16, "AddU16", U16, u16, u16, recv_u16, send_multiple_u16);
+impl_AddScalar!(add_u32, "AddU32", U32, u32, u32, recv_u32, send_multiple_u32);
+impl_AddScalar!(add_u64, "AddU64", U64, u64, u64, recv_u64, send_multiple_u64);
+impl_AddScalar!(add_u128, "AddU128", U128, u128, u128, recv_u128, send_multiple_u128);
+impl_AddScalar!(add_i8, "AddI8", I8, i8, i8, recv_i8, send_multiple_i8);
+impl_AddScalar!(add_i16, "AddI16", I16, i16, i16, recv_i16, send_multiple_i16);
+impl_AddScalar!(add_i32, "AddI32", I32, i32, i32, recv_i32, send_multiple_i32);
+impl_AddScalar!(add_i64, "AddI64", I64, i64, i64, recv_i64, send_multiple_i64);
+impl_AddScalar!(add_i128, "AddI128", I128, i128, i128, recv_i128, send_multiple_i128);
+impl_AddScalar!(add_f32, "AddF32", F32, f32, f32, recv_f32, send_multiple_f32);
+impl_AddScalar!(add_f64, "AddF64", F64, f64, f64, recv_f64, send_multiple_f64);
 
-impl_AddScalar!(AddScalarU8, "AddScalarU8", u8, U8);
-impl_AddScalar!(AddScalarU16, "AddScalarU16", u16, U16);
-impl_AddScalar!(AddScalarU32, "AddScalarU32", u32, U32);
-impl_AddScalar!(AddScalarU64, "AddScalarU64", u64, U64);
-impl_AddScalar!(AddScalarU128, "AddScalarU128", u128, U128);
+pub fn register(mut c: &mut CollectionPool) {
 
-impl_AddScalar!(AddScalarF32, "AddScalarF32", f32, F32);
-impl_AddScalar!(AddScalarF64, "AddScalarF64", f64, F64);
-
-pub fn register(c: &mut CollectionPool) {
-
-    c.treatments.insert(&(AddScalarI8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(AddScalarI16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(AddScalarI32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(AddScalarI64::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(AddScalarI128::descriptor() as Arc<dyn TreatmentDescriptor>));
-
-    c.treatments.insert(&(AddScalarU8::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(AddScalarU16::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(AddScalarU32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(AddScalarU64::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(AddScalarU128::descriptor() as Arc<dyn TreatmentDescriptor>));
-
-    c.treatments.insert(&(AddScalarF32::descriptor() as Arc<dyn TreatmentDescriptor>));
-    c.treatments.insert(&(AddScalarF64::descriptor() as Arc<dyn TreatmentDescriptor>));
+    add_u8::register(&mut c);
+    add_u16::register(&mut c);
+    add_u32::register(&mut c);
+    add_u64::register(&mut c);
+    add_u128::register(&mut c);
+    add_i8::register(&mut c);
+    add_i16::register(&mut c);
+    add_i32::register(&mut c);
+    add_i64::register(&mut c);
+    add_i128::register(&mut c);
+    add_f32::register(&mut c);
+    add_f64::register(&mut c);
 }
+
+/*
+    FOR DEVELOPERS
+
+The lines above can be regenerated as will using the following script:
+
+```
+#!/bin/bash
+
+TYPES="u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 f32 f64"
+
+for TYPE in $TYPES
+do
+    UPPER_CASE_TYPE=${TYPE^}
+    #echo "impl_AddScalar!(add_${TYPE}, \"Add${UPPER_CASE_TYPE}\", $UPPER_CASE_TYPE, $TYPE, $TYPE, recv_$TYPE, send_multiple_$TYPE);"
+    echo "add_${TYPE}::register(&mut c);"
+
+done
+```
+*/
 

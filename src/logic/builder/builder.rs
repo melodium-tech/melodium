@@ -8,12 +8,13 @@ use super::super::super::executive::environment::{GenesisEnvironment, Contextual
 use super::super::super::executive::value::Value;
 use super::super::super::executive::model::Model;
 use super::super::super::executive::transmitter::Transmitter;
+use super::super::super::executive::input::Input;
 use super::super::super::executive::future::*;
 use super::super::descriptor::TreatmentDescriptor;
 use super::super::descriptor::IdentifierDescriptor;
 
 pub type BuildId = u64;
-pub type FeedingInputs = HashMap<String, Vec<Transmitter>>;
+pub type FeedingInputs = HashMap<String, Vec<Input>>;
 
 #[derive(Debug)]
 pub enum StaticBuildResult {

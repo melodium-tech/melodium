@@ -9,6 +9,8 @@ use async_std::channel::*;
 use super::future::*;
 use super::model::{Model, ModelId};
 use super::transmitter::Transmitter;
+use super::input::Input;
+use super::output::Output;
 use super::environment::{ContextualEnvironment, GenesisEnvironment};
 use super::context::Context;
 use super::super::logic::descriptor::BuildableDescriptor;
@@ -203,7 +205,7 @@ impl World {
     // Special syntax for workaroud of async fn implementation
     // https://stackoverflow.com/questions/68591843/async-fn-reports-hidden-type-for-impl-trait-captures-lifetime-that-does-not-a
     // https://github.com/rust-lang/rust/issues/63033#issuecomment-521234696
-    pub async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>, callback: Option<impl FnOnce(HashMap<String, Vec<Transmitter>>) -> Vec<TrackFuture>>) {
+    pub async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>, callback: Option<impl FnOnce(HashMap<String, Vec<Input>>) -> Vec<TrackFuture>>) {
 
         let track_id;
         {
@@ -213,7 +215,7 @@ impl World {
         }
 
         let mut track_futures: Vec<TrackFuture> = Vec::new();
-        let mut inputs: HashMap<String, Vec<Transmitter>> = HashMap::new();
+        let mut inputs: HashMap<String, Vec<Input>> = HashMap::new();
 
         {
             let borrowed_sources = self.sources.read().unwrap();

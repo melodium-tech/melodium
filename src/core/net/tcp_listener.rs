@@ -108,9 +108,12 @@ impl TcpListenerModel {
         // Todo manage failures
     }
 
-    fn stream_read(&self, mut stream: TcpStream, inputs_to_fill: HashMap<String, Vec<Transmitter>>) -> Vec<TrackFuture> {
+    fn stream_read(&self, mut stream: TcpStream, inputs: HashMap<String, Vec<Input>>) -> Vec<TrackFuture> {
 
-        let data_output_transmitters = inputs_to_fill.get("data").unwrap().clone();
+        let data_output_transmitters = inputs.get("_data").unwrap().clone();
+
+        let data_output = Output::Byte(Arc::new(SendTransmitter::new()));
+        inputs.get("_data").unwrap().iter().for_each(|i| data_output.add_input(i));
 
         let future = Box::new(Box::pin(async move {
 
@@ -122,26 +125,10 @@ impl TcpListenerModel {
                     break;
                 }
 
-                for transmitter in &data_output_transmitters {
-                    match transmitter {
-                        Transmitter::Byte(sender) => {
-                            for n in 0..num {
-                                sender.send(buf[n]).await.unwrap()
-                            }
-                        },
-                        _ => panic!("Byte sender expected!")
-                    }
-                }
+                ok_or_break!(data_output.send_multiple_byte(buf.clone()).await);
             }
 
-            for transmitter in &data_output_transmitters {
-                match transmitter {
-                    Transmitter::Byte(sender) => {
-                        sender.close();
-                    },
-                    _ => panic!("Byte sender expected!")
-                }
-            }
+            data_output.close().await;
 
             ResultStatus::Ok
         })) as TrackFuture;
