@@ -26,7 +26,7 @@ macro_rules! impl_VectorFloatToInteger {
                 let neg_infinity = host.get_parameter("neg_infinity").$output_mel_value_type();
                 let nan = host.get_parameter("nan").$output_mel_value_type();
             
-                while let Ok(vecs_numbers) = input.$recv_func().await {
+                'main: while let Ok(vecs_numbers) = input.$recv_func().await {
             
                     for vec_number in vecs_numbers {
 
@@ -37,7 +37,7 @@ macro_rules! impl_VectorFloatToInteger {
                             else /*if number.is_sign_negative()*/ { neg_infinity }
                         }).collect();
 
-                        output.$send_func(output_vector).await;
+                        ok_or_break!('main, output.$send_func(output_vector).await);
                     }
                 }
             

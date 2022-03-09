@@ -18,10 +18,10 @@ macro_rules! impl_ScalarToString {
                 let input = host.get_input("value");
                 let output = host.get_output("value");
             
-                while let Ok(values) = input.$recv_func().await {
+                'main: while let Ok(values) = input.$recv_func().await {
             
                     for value in values {
-                        output.send_string(value.to_string()).await;
+                        ok_or_break!('main, output.send_string(value.to_string()).await);
                     }
                 }
             

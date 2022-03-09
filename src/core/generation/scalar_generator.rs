@@ -96,8 +96,6 @@ macro_rules! impl_ScalarGeneration {
                         let data_output = Output::$mel_type(Arc::new(SendTransmitter::new()));
                         inputs.get("_data").unwrap().iter().for_each(|i| data_output.add_input(i));
 
-                        println!("Generating data…");
-
                         for _ in 0..length {
                             ok_or_break!(data_output.$send_func(value.clone()).await);
                         }
@@ -188,8 +186,7 @@ macro_rules! impl_ScalarGeneration {
                 
                     while let Ok(data) = input.$recv_func().await {
                 
-                        println!("Generating {} items", data.len());
-                        output.$send_multi_func(data).await;
+                        ok_or_break!(output.$send_multi_func(data).await);
                     }
                 
                     ResultStatus::Ok

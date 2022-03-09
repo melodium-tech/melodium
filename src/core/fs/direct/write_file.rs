@@ -18,13 +18,14 @@ treatment!(file_writer_treatment,
         let input = host.get_input("data");
         let writer_sender = writer.writer().clone();
     
-        while let Ok(bytes) = input.recv_byte().await {
+        'main: while let Ok(bytes) = input.recv_byte().await {
 
-            println!("Writing {} bytes", bytes.len());
             for byte in bytes {
-                writer_sender.send(byte).await;
+                ok_or_break!('main, writer_sender.send(byte).await);
             }
         }
+
+        writer_sender.close();
     
         ResultStatus::Ok
     }

@@ -26,7 +26,7 @@ macro_rules! impl_ScalarFloatToInteger {
                 let neg_infinity = host.get_parameter("neg_infinity").$output_mel_value_type();
                 let nan = host.get_parameter("nan").$output_mel_value_type();
             
-                while let Ok(numbers) = input.$recv_func().await {
+                'main: while let Ok(numbers) = input.$recv_func().await {
             
                     for number in numbers {
 
@@ -37,7 +37,7 @@ macro_rules! impl_ScalarFloatToInteger {
                         else /*if number.is_sign_negative()*/ { neg_infinity }
                         ;
 
-                        output.$send_func(output_number).await;
+                        ok_or_break!('main, output.$send_func(output_number).await);
                     }
                 }
             

@@ -18,12 +18,12 @@ macro_rules! impl_VectorToString {
                 let input = host.get_input("value");
                 let output = host.get_output("value");
             
-                while let Ok(vecs_values) = input.$recv_func().await {
+                'main: while let Ok(vecs_values) = input.$recv_func().await {
             
                     for vec_values in vecs_values {
-                        output.send_vec_string(
+                        ok_or_break!('main, output.send_vec_string(
                             vec_values.iter().map(|v| v.to_string()).collect()
-                        ).await;
+                        ).await);
                     }
                 }
             

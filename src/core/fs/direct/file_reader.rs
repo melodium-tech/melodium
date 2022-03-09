@@ -138,7 +138,7 @@ impl FileReaderModel {
             while let Some(possible_byte) = bytes.next().await {
 
                 let byte = possible_byte.unwrap();
-                data_output.send_byte(byte).await;
+                ok_or_break!(data_output.send_byte(byte).await);
             }
 
             data_output.close().await;

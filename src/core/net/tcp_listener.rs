@@ -125,7 +125,7 @@ impl TcpListenerModel {
                     break;
                 }
 
-                data_output.send_multiple_byte(buf.clone()).await;
+                ok_or_break!(data_output.send_multiple_byte(buf.clone()).await);
             }
 
             data_output.close().await;

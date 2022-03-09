@@ -22,7 +22,7 @@ treatment!(file_reader_treatment,
     
         while let Ok(bytes) = input.recv_byte().await {
 
-            output.send_multiple_byte(bytes).await;
+            ok_or_break!(output.send_multiple_byte(bytes).await);
         }
     
         ResultStatus::Ok

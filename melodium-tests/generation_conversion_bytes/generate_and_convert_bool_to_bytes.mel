@@ -3,7 +3,7 @@ use core/fs/direct::FileWriter
 use core/fs/direct::WriteFile
 use core/generation::ScalarBoolGenerator
 use core/generation::GenerateScalarBool
-use core/conversion::BoolToByte
+use core/conversion/scalar::BoolToByte
 
 sequence Main()
   model Generator: ScalarBoolGenerator(length=1024, value=true)

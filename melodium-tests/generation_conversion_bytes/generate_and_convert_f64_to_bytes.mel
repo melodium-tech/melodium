@@ -3,7 +3,7 @@ use core/fs/direct::FileWriter
 use core/fs/direct::WriteFile
 use core/generation::ScalarF64Generator
 use core/generation::GenerateScalarF64
-use core/conversion::F64ToByte
+use core/conversion/scalar::F64ToByte
 
 sequence Main()
   model Generator: ScalarF64Generator(length=1024, value=-1234.56789123456789)

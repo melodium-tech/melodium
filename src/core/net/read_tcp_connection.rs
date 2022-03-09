@@ -22,7 +22,7 @@ treatment!(read_tcp_connection,
     
         while let Ok(bytes) = input.recv_byte().await {
 
-            output.send_multiple_byte(bytes).await;
+            ok_or_break!(output.send_multiple_byte(bytes).await);
         }
     
         ResultStatus::Ok

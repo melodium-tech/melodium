@@ -118,8 +118,6 @@ impl FileWriterModel {
                     panic!("Writing error: {}", write_err)
                 }
 
-                println!("Bytes written");
-
             }
 
             if let Err(write_err) = writer.flush().await {
@@ -128,7 +126,6 @@ impl FileWriterModel {
                 panic!("Writing (flush) error: {}", write_err)
             }
 
-            println!("Bytes written (flush)");
         }
         else if let Err(error) = open_result {
             panic!("Unable to write file: {}", error)

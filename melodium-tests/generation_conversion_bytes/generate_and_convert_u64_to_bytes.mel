@@ -3,7 +3,7 @@ use core/fs/direct::FileWriter
 use core/fs/direct::WriteFile
 use core/generation::ScalarU64Generator
 use core/generation::GenerateScalarU64
-use core/conversion::U64ToByte
+use core/conversion/scalar::U64ToByte
 
 sequence Main()
   model Generator: ScalarU64Generator(length=1024, value=42)
