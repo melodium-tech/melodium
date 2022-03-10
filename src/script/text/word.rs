@@ -117,8 +117,8 @@ impl Default for KindCheck {
 /// This function always increment `iter` from one.
 /// 
 /// ```
-/// # use melodium_rust::script::text::word::*;
-/// # use melodium_rust::script::error::ScriptError;
+/// # use melodium::script::text::word::*;
+/// # use melodium::script::error::ScriptError;
 /// let words = get_words("myNumber= 876").unwrap();
 /// let mut iter = words.iter();
 /// 
@@ -149,8 +149,8 @@ pub fn expect_word(error_str: &'static str, iter: &mut std::slice::Iter<Word>) -
 /// This function always increment `iter` from one.
 /// 
 /// ```
-/// # use melodium_rust::script::text::word::*;
-/// # use melodium_rust::script::error::ScriptError;
+/// # use melodium::script::text::word::*;
+/// # use melodium::script::error::ScriptError;
 /// let words = get_words("myNumber= 876").unwrap();
 /// let mut iter = words.iter();
 /// 

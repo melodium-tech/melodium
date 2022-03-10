@@ -3,7 +3,7 @@ use core/fs/direct::FileWriter
 use core/fs/direct::WriteFile
 use core/generation::ScalarStringGenerator
 use core/generation::GenerateScalarString
-use core/conversion::StringToByte
+use core/conversion/scalar::StringToByte
 
 sequence Main()
   model Generator: ScalarStringGenerator(length=1024, value="Mélodium")

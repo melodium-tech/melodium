@@ -3,7 +3,7 @@ use core/fs/direct::FileWriter
 use core/fs/direct::WriteFile
 use core/generation::ScalarI64Generator
 use core/generation::GenerateScalarI64
-use core/conversion::I64ToByte
+use core/conversion/scalar::I64ToByte
 
 sequence Main()
   model Generator: ScalarI64Generator(length=1024, value=-42)

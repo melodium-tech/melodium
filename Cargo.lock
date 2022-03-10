@@ -475,7 +475,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "melodium-rust"
+name = "melodium"
 version = "0.1.0"
 dependencies = [
  "async-std",

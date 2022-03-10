@@ -3,7 +3,7 @@ use core/fs/direct::FileWriter
 use core/fs/direct::WriteFile
 use core/generation::ScalarCharGenerator
 use core/generation::GenerateScalarChar
-use core/conversion::CharToByte
+use core/conversion/scalar::CharToByte
 
 sequence Main()
   model Generator: ScalarCharGenerator(length=1024, value=42)

@@ -6,7 +6,7 @@ cd "$TEST_DIR"
 
 if [ -z "$MELODIUM" ]
 then
-    MELODIUM='melodium-rust'
+    MELODIUM='melodium'
 fi
 
 export PATH="$TEST_DIR/../target/debug:$PATH"

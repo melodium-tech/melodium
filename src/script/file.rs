@@ -36,8 +36,8 @@ impl File {
     /// 
     /// This does not open nor even test if file exists, see `read()` and `parse()` methods.
     /// ```
-    /// # use melodium_rust::script::file::File;
-    /// # use melodium_rust::script::path::Path;
+    /// # use melodium::script::file::File;
+    /// # use melodium::script::path::Path;
     /// # use std::path::PathBuf;
     /// // main/simple_build
     /// let path = Path::new(vec!["main".to_string(), "simple_build".to_string()]);
@@ -65,8 +65,8 @@ impl File {
     /// Any read error is reported through the result return value.
     /// 
     /// ```
-    /// # use melodium_rust::script::file::File;
-    /// # use melodium_rust::script::path::Path;
+    /// # use melodium::script::file::File;
+    /// # use melodium::script::path::Path;
     /// # use std::path::PathBuf;
     /// # use std::io::Error;
     /// // main/simple_build
@@ -100,10 +100,10 @@ impl File {
     /// This method have to be used after a successful call on `read()`. It makes the parsing of `text` and builds the semantic tree.
     /// 
     /// ```
-    /// # use melodium_rust::script::file::File;
-    /// # use melodium_rust::script::path::Path;
+    /// # use melodium::script::file::File;
+    /// # use melodium::script::path::Path;
     /// # use std::path::PathBuf;
-    /// # use melodium_rust::script::error::ScriptError;
+    /// # use melodium::script::error::ScriptError;
     /// // main/simple_build
     /// let path = Path::new(vec!["main".to_string(), "simple_build".to_string()]);
     /// 

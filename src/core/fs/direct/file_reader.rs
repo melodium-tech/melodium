@@ -1,5 +1,5 @@
 
-use super::super::super::prelude::*;
+use crate::core::prelude::*;
 use async_std::path::PathBuf;
 use async_std::fs::{File, OpenOptions};
 
@@ -127,30 +127,21 @@ impl FileReaderModel {
         // Todo manage failures
     }
 
-    fn read_file(&self, file: File, inputs: HashMap<String, Vec<Transmitter>>) -> Vec<TrackFuture> {
+    fn read_file(&self, file: File, inputs: HashMap<String, Vec<Input>>) -> Vec<TrackFuture> {
 
         let future = Box::new(Box::pin(async move {
-            let inputs_to_fill = inputs.get("data").unwrap();
+
+            let data_output = Output::Byte(Arc::new(SendTransmitter::new()));
+            inputs.get("_data").unwrap().iter().for_each(|i| data_output.add_input(i));
 
             let mut bytes = file.bytes();
             while let Some(possible_byte) = bytes.next().await {
 
                 let byte = possible_byte.unwrap();
-
-                for transmitter in inputs_to_fill {
-                    match transmitter {
-                        Transmitter::Byte(sender) => sender.send(byte).await.unwrap(),
-                        _ => panic!("Byte sender expected!")
-                    }
-                }
+                ok_or_break!(data_output.send_byte(byte).await);
             }
 
-            for transmitter in inputs_to_fill {
-                match transmitter {
-                    Transmitter::Byte(sender) => sender.close(),
-                    _ => panic!("Byte sender expected!")
-                };
-            }
+            data_output.close().await;
 
             ResultStatus::Ok
         })) as TrackFuture;

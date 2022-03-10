@@ -115,10 +115,10 @@ impl Type {
     /// 
     /// # Example
     /// ```
-    /// # use melodium_rust::script::error::ScriptError;
-    /// # use melodium_rust::script::text::word::*;
-    /// # use melodium_rust::script::text::r#type::Type as TextType;
-    /// # use melodium_rust::script::semantic::r#type::*;
+    /// # use melodium::script::error::ScriptError;
+    /// # use melodium::script::text::word::*;
+    /// # use melodium::script::text::r#type::Type as TextType;
+    /// # use melodium::script::semantic::r#type::*;
     /// let str_block_vec_int = "Vec<u64>";
     /// let str_block_scal_string = "string";
     /// let str_stream_vec_real = "Stream<Vec<f64>>";

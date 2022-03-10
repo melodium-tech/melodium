@@ -60,10 +60,14 @@ melodium_tests:
 
 pages:
   stage: deploy
+  before_script:
+    - mkdir bin && curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.15/mdbook-v0.4.15-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=bin
   script:
     - cargo doc --no-deps
     - mv target/doc public
-    - echo "/melodium-rust/ /melodium-rust/melodium_rust/" > public/_redirects
+    - utils/doc_generation.sh /tmp/doc
+    - bin/mdbook build /tmp/doc
+    - mv /tmp/doc/book public/reference
   artifacts:
     paths:
       - public

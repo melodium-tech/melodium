@@ -1,4 +1,5 @@
 
+use std::fmt::*;
 use std::sync::{Arc, Weak, RwLock};
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -101,5 +102,23 @@ impl Model for CoreModel {
 
     fn sources(&self) -> &HashMap<String, Vec<Arc<Context>>> {
         &self.sources
+    }
+}
+
+impl Display for CoreModel {
+    
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        writeln!(f, "Model `{}`", self.identifier.to_string())?;
+
+        if !self.parameters.is_empty() {
+            writeln!(f, "\nParameters:")?;
+
+            for parameter in &self.parameters {
+                writeln!(f, "- {}", parameter.1)?;
+            }
+        }
+
+        Ok(())
+        
     }
 }

@@ -1,4 +1,5 @@
 
+use std::fmt::*;
 use super::datatype::DataType;
 use super::flow::Flow;
 
@@ -39,5 +40,21 @@ impl Input {
 
     pub fn flow(&self) -> &Flow {
         &self.flow
+    }
+}
+
+impl Display for Input {
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+
+        match self.flow {
+            Flow::Block => {
+                write!(f, "_{}_: `Block<{}>`", self.name, self.datatype)
+            },
+            Flow::Stream => {
+                write!(f, "_{}_: `Stream<{}>`", self.name, self.datatype)
+            }
+        }
+        
     }
 }

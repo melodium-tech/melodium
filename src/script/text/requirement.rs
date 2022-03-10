@@ -20,9 +20,9 @@ impl Requirement {
     /// * `iter`: Iterator over words list, next() being expected to be the context required, see [Kind::Context](../word/enum.Kind.html#variant.Context).
     /// 
     /// ```
-    /// # use melodium_rust::script::error::ScriptError;
-    /// # use melodium_rust::script::text::word::*;
-    /// # use melodium_rust::script::text::requirement::Requirement;
+    /// # use melodium::script::error::ScriptError;
+    /// # use melodium::script::text::word::*;
+    /// # use melodium::script::text::requirement::Requirement;
     /// let words = get_words("require @Signal").unwrap();
     /// let mut iter = words.iter();
     /// 

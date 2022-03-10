@@ -1,4 +1,5 @@
 
+use std::fmt::*;
 use crate::executive::value::Value;
 
 macro_rules! datatype {
@@ -143,4 +144,45 @@ pub enum Type {
     Byte,
     Char,
     String,
+}
+
+impl Display for Type {
+    
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+
+        write!(f, "{}", match self {
+            Type::I8 => "i8",
+            Type::I16 => "i16",
+            Type::I32 => "i32",
+            Type::I64 => "i64",
+            Type::I128 => "i128",
+            Type::U8 => "u8",
+            Type::U16 => "u16",
+            Type::U32 => "u32",
+            Type::U64 => "u64",
+            Type::U128 => "u128",
+            Type::F32 => "f32",
+            Type::F64 => "f64",
+            Type::Bool => "bool",
+            Type::Byte => "byte",
+            Type::Char => "char",
+            Type::String => "string",
+        })
+    }
+}
+
+impl Display for DataType {
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+
+        match self.structure {
+            Structure::Scalar => {
+                write!(f, "{}", self.r#type)
+            },
+            Structure::Vector => {
+                write!(f, "Vec<{}>", self.r#type)
+            }
+        }
+        
+    }
 }

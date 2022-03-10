@@ -1,5 +1,5 @@
 
-use super::super::super::prelude::*;
+use crate::core::prelude::*;
 use async_std::path::PathBuf;
 use async_std::fs::{File, OpenOptions};
 use async_std::io::BufWriter;
@@ -125,6 +125,7 @@ impl FileWriterModel {
                 // Todo handle error
                 panic!("Writing (flush) error: {}", write_err)
             }
+
         }
         else if let Err(error) = open_result {
             panic!("Unable to write file: {}", error)

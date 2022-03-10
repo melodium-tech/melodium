@@ -2,15 +2,20 @@
 use std::future::Future;
 use std::fmt::Debug;
 use std::collections::HashMap;
-use std::sync::{Arc, Weak, RwLock, Mutex};
+use std::sync::{Arc, Weak, RwLock, atomic::{AtomicBool, Ordering}};
 use futures::future::{JoinAll, join, join_all};
+use futures::stream::{FuturesUnordered, StreamExt};
 use async_std::task::block_on;
+use async_std::sync::Mutex;
 use async_std::channel::*;
 use super::future::*;
 use super::model::{Model, ModelId};
 use super::transmitter::Transmitter;
+use super::input::Input;
+use super::output::Output;
 use super::environment::{ContextualEnvironment, GenesisEnvironment};
 use super::context::Context;
+use super::result_status::ResultStatus;
 use super::super::logic::descriptor::BuildableDescriptor;
 use super::super::logic::descriptor::ModelDescriptor;
 use super::super::logic::error::LogicError;
@@ -51,7 +56,8 @@ pub struct World {
     tracks_counter: Mutex<u64>,
     tracks_sender: Sender<Track>,
     tracks_receiver: Receiver<Track>,
-    //tracks: RwLock<Vec<JoinAll<TrackFuture>>>,
+
+    closing: AtomicBool,
 }
 
 impl Debug for World {
@@ -63,7 +69,6 @@ impl Debug for World {
          .field("errors", &self.errors)
          .field("main_build_id", &self.main_build_id)
          .field("continuous_tasks", &self.continuous_tasks.read().unwrap().len())
-         //.field("tracks", &self.tracks.read().unwrap().len())
          .finish()
     }
 }
@@ -72,7 +77,7 @@ impl World {
 
     pub fn new() -> Arc<Self> {
 
-        let tracks_channel = unbounded();
+        let (sender, receiver) = unbounded();
 
         let world = Arc::new(Self {
             auto_reference: RwLock::new(Weak::default()),
@@ -82,9 +87,9 @@ impl World {
             main_build_id: RwLock::new(0),
             continuous_tasks: RwLock::new(Vec::new()),
             tracks_counter: Mutex::new(0),
-            tracks_sender: tracks_channel.0,
-            tracks_receiver: tracks_channel.1,
-            //tracks: RwLock::new(Vec::new()),
+            tracks_sender: sender,
+            tracks_receiver: receiver,
+            closing: AtomicBool::new(false),
         });
 
         *world.auto_reference.write().unwrap() = Arc::downgrade(&world);
@@ -200,20 +205,17 @@ impl World {
         borrowed_continuous_tasks.push(task);
     }
 
-    // Special syntax for workaroud of async fn implementation
-    // https://stackoverflow.com/questions/68591843/async-fn-reports-hidden-type-for-impl-trait-captures-lifetime-that-does-not-a
-    // https://github.com/rust-lang/rust/issues/63033#issuecomment-521234696
-    pub async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>, callback: Option<impl FnOnce(HashMap<String, Vec<Transmitter>>) -> Vec<TrackFuture>>) {
+    pub async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>, callback: Option<impl FnOnce(HashMap<String, Vec<Input>>) -> Vec<TrackFuture>>) {
 
         let track_id;
         {
-            let mut counter = self.tracks_counter.lock().unwrap();
+            let mut counter = self.tracks_counter.lock().await;
             track_id = *counter;
             *counter = track_id + 1;
         }
 
         let mut track_futures: Vec<TrackFuture> = Vec::new();
-        let mut inputs: HashMap<String, Vec<Transmitter>> = HashMap::new();
+        let mut inputs: HashMap<String, Vec<Input>> = HashMap::new();
 
         {
             let borrowed_sources = self.sources.read().unwrap();
@@ -262,17 +264,42 @@ impl World {
         let continuum = async move {
 
             model_futures.await;
+
             self.tracks_sender.close();
+            self.end();
         };
 
-        block_on(join(self.run_track(), continuum));
+        block_on(join(continuum, self.run_tracks()));
     }
 
-    async fn run_track(&self) {
-        
-        while let Ok(track) = self.tracks_receiver.recv().await {
+    pub fn end(&self) {
+        self.closing.store(true, Ordering::Relaxed);
+    }
 
-            let _result = track.future.await;
+    async fn run_tracks(&self) {
+
+        let mut futures = FuturesUnordered::new();
+
+        while !self.closing.load(Ordering::Relaxed) {
+
+            if !self.tracks_receiver.is_empty() {
+
+                while let Ok(track) = self.tracks_receiver.try_recv() {
+
+                    futures.push(track.future);
+                }
+            }
+            else if futures.is_empty() {
+
+                if let Ok(track) = self.tracks_receiver.recv().await {
+
+                    futures.push(track.future);
+                }
+            }
+
+            while let Some(_result) = futures.next().await {
+                // Todo see track results
+            }
         }
     }
 }

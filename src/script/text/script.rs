@@ -35,8 +35,8 @@ impl Script {
     /// It doesn't check any logic, only syntax analysis and parsing.
     /// 
     /// ```
-    /// # use melodium_rust::script::error::ScriptError;
-    /// # use melodium_rust::script::text::script::Script;
+    /// # use melodium::script::error::ScriptError;
+    /// # use melodium::script::text::script::Script;
     /// 
     /// let text = r##"
     /// use project/subpath/to/utils::MakeHPCP

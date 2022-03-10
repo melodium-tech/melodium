@@ -26,10 +26,10 @@ impl Parameter {
     /// * `iter`: Iterator over words list, next() being expected to be about [Type](../type/struct.Type.html).
     ///
     /// ```
-    /// # use melodium_rust::script::text::parameter::*;
-    /// # use melodium_rust::script::error::ScriptError;
-    /// # use melodium_rust::script::text::word::*;
-    /// # use melodium_rust::script::text::value::Value;
+    /// # use melodium::script::text::parameter::*;
+    /// # use melodium::script::error::ScriptError;
+    /// # use melodium::script::text::word::*;
+    /// # use melodium::script::text::value::Value;
     /// let words = get_words("myParameter: Vec<Int> = [1, 3, 5, 7, 11]").unwrap();
     /// let mut iter = words.iter();
     /// 
@@ -78,10 +78,10 @@ impl Parameter {
     /// * `iter`: Iterator over words list, next() being expected to be about [Value](../value/enum.Value.html).
     /// 
     /// ```
-    /// # use melodium_rust::script::text::parameter::*;
-    /// # use melodium_rust::script::error::ScriptError;
-    /// # use melodium_rust::script::text::word::*;
-    /// # use melodium_rust::script::text::value::Value;
+    /// # use melodium::script::text::parameter::*;
+    /// # use melodium::script::error::ScriptError;
+    /// # use melodium::script::text::word::*;
+    /// # use melodium::script::text::value::Value;
     /// let words = get_words("myParameter = 0.248").unwrap();
     /// let mut iter = words.iter();
     /// 

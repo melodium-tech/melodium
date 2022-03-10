@@ -33,9 +33,9 @@ impl Value {
     /// * `iter`: Iterator over words list, next() being expected to be the declaration of value.
     /// 
     /// ```
-    /// # use melodium_rust::script::error::ScriptError;
-    /// # use melodium_rust::script::text::word::*;
-    /// # use melodium_rust::script::text::value::Value;
+    /// # use melodium::script::error::ScriptError;
+    /// # use melodium::script::text::word::*;
+    /// # use melodium::script::text::value::Value;
     /// # use std::mem;
     /// let text = r##"
     /// true

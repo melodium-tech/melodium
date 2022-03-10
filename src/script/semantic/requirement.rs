@@ -35,9 +35,9 @@ impl Requirement {
     /// ```
     /// # use std::fs::File;
     /// # use std::io::Read;
-    /// # use melodium_rust::script::error::ScriptError;
-    /// # use melodium_rust::script::text::script::Script as TextScript;
-    /// # use melodium_rust::script::semantic::script::Script;
+    /// # use melodium::script::error::ScriptError;
+    /// # use melodium::script::text::script::Script as TextScript;
+    /// # use melodium::script::semantic::script::Script;
     /// let address = "examples/semantic/simple_build.mel";
     /// let mut raw_text = String::new();
     /// # let mut file = File::open(address).unwrap();

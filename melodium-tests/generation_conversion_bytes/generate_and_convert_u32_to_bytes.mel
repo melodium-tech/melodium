@@ -3,7 +3,7 @@ use core/fs/direct::FileWriter
 use core/fs/direct::WriteFile
 use core/generation::ScalarU32Generator
 use core/generation::GenerateScalarU32
-use core/conversion::U32ToByte
+use core/conversion/scalar::U32ToByte
 
 sequence Main()
   model Generator: ScalarU32Generator(length=1024, value=42)

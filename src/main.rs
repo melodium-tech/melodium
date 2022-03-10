@@ -1,23 +1,21 @@
 
-//extern crate melodium_rust;
-
 use std::env;
 use std::path::Path as StdPath;
 use std::sync::Arc;
 use std::process::*;
 
 extern crate clap;
-use clap::{Arg, App};
+use clap::{Arg, App, crate_version};
 
-use melodium_rust::executive::world::World;
-use melodium_rust::logic::descriptor::SequenceTreatmentDescriptor;
-use melodium_rust::script::instance::Instance;
-use melodium_rust::script::path::Path;
+use melodium::executive::world::World;
+use melodium::logic::descriptor::SequenceTreatmentDescriptor;
+use melodium::script::instance::Instance;
+use melodium::script::path::Path;
 
 fn main() {
 
     let matches = App::new("Mélodium")
-        .version("0.1-dev")
+        .version(crate_version!())
         .author("Quentin Vignaud")
         .about("Mélodium script engine")
         .arg(Arg::with_name("stdlib")
@@ -121,10 +119,10 @@ fn main() {
             let identifier = Path::new(path).to_identifier(path_and_name.get(1).unwrap()).unwrap();
 
             if let Some(model) = collection.models.get(&identifier) {
-                println!("{:?}", model);
+                println!("{}", model);
             }
             else if let Some(treatment) = collection.treatments.get(&identifier) {
-                println!("{:?}", treatment);
+                println!("{}", treatment);
             }
             else {
                 println!("No element for '{}'", element);

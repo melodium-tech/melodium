@@ -10,9 +10,9 @@ use super::parameter::Parameter;
 /// 
 /// * `iter`: Iterator over words list, next() being expected to be the first parameter, _not_ parenthesis.
 /// ```
-/// # use melodium_rust::script::error::ScriptError;
-/// # use melodium_rust::script::text::word::*;
-/// # use melodium_rust::script::text::common::parse_parameters_declarations;
+/// # use melodium::script::error::ScriptError;
+/// # use melodium::script::text::word::*;
+/// # use melodium::script::text::common::parse_parameters_declarations;
 /// 
 /// let text = r##"
 /// (path: Vec<String>, sampleRate: Int = 44100, frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String)
@@ -69,9 +69,9 @@ pub fn parse_parameters_declarations(mut iter: &mut std::slice::Iter<Word>) -> R
 /// 
 /// * `iter`: Iterator over words list, next() being expected to be the the first parameter, _not_ parenthesis.
 /// ```
-/// # use melodium_rust::script::error::ScriptError;
-/// # use melodium_rust::script::text::word::*;
-/// # use melodium_rust::script::text::common::parse_parameters_assignations;
+/// # use melodium::script::error::ScriptError;
+/// # use melodium::script::text::word::*;
+/// # use melodium::script::text::common::parse_parameters_assignations;
 /// 
 /// let text = r##"
 /// (path = "my/path/to/something", sampleRate = 44100, frameSize = 4096, hopSize= 2048, windowingType="square")
@@ -128,9 +128,9 @@ pub fn parse_parameters_assignations(mut iter: &mut std::slice::Iter<Word>) -> R
 /// 
 /// * `iter`: Iterator over words list, next() being expected to be the first parameter, _not_ bracket.
 /// ```
-/// # use melodium_rust::script::error::ScriptError;
-/// # use melodium_rust::script::text::word::*;
-/// # use melodium_rust::script::text::common::parse_configuration_declarations;
+/// # use melodium::script::error::ScriptError;
+/// # use melodium::script::text::word::*;
+/// # use melodium::script::text::common::parse_configuration_declarations;
 /// 
 /// let text = r##"
 /// [Files: FileManager, Audio: AudioManager]
@@ -187,9 +187,9 @@ pub fn parse_configuration_declarations(mut iter: &mut std::slice::Iter<Word>) -
 /// 
 /// * `iter`: Iterator over words list, next() being expected to be the first parameter, _not_ bracket.
 /// ```
-/// # use melodium_rust::script::error::ScriptError;
-/// # use melodium_rust::script::text::word::*;
-/// # use melodium_rust::script::text::common::parse_configuration_assignations;
+/// # use melodium::script::error::ScriptError;
+/// # use melodium::script::text::word::*;
+/// # use melodium::script::text::common::parse_configuration_assignations;
 /// 
 /// let text = r##"
 /// [Files=DataFiles, Audio=AudioConnection]

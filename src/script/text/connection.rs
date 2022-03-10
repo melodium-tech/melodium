@@ -23,9 +23,9 @@ impl Connection {
     /// * `iter`: Iterator over words list, next() being expected to be the end point name.
     /// 
     /// ```
-    /// # use melodium_rust::script::error::ScriptError;
-    /// # use melodium_rust::script::text::word::*;
-    /// # use melodium_rust::script::text::connection::Connection;
+    /// # use melodium::script::error::ScriptError;
+    /// # use melodium::script::text::word::*;
+    /// # use melodium::script::text::connection::Connection;
     /// 
     /// let text = r##"Feeder --> Trainer"##;
     /// 
@@ -59,9 +59,9 @@ impl Connection {
     /// * `iter`: Iterator over words list, next() being expected to be the data out name.
     /// 
     /// ```
-    /// # use melodium_rust::script::error::ScriptError;
-    /// # use melodium_rust::script::text::word::*;
-    /// # use melodium_rust::script::text::connection::Connection;
+    /// # use melodium::script::error::ScriptError;
+    /// # use melodium::script::text::word::*;
+    /// # use melodium::script::text::connection::Connection;
     /// 
     /// let text = r##"AudioFiles.signal -> MakeSpectrum.signal,spectrum -> Self.spectrum"##;
     /// 
