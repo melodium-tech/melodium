@@ -3,7 +3,7 @@ use core/fs/direct::FileWriter
 use core/fs/direct::WriteFile
 use core/generation::ScalarI16Generator
 use core/generation::GenerateScalarI16
-use core/conversion::I16ToByte
+use core/conversion/scalar::I16ToByte
 
 sequence Main()
   model Generator: ScalarI16Generator(length=1024, value=-42)

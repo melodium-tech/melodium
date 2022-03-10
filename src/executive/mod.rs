@@ -11,6 +11,8 @@ pub mod flow;
 pub mod future;
 pub mod result_status;
 pub mod transmitter;
+pub mod input;
+pub mod output;
 pub mod treatment;
 pub mod value;
 pub mod world;

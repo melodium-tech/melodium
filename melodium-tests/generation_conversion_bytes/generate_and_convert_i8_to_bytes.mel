@@ -3,7 +3,7 @@ use core/fs/direct::FileWriter
 use core/fs/direct::WriteFile
 use core/generation::ScalarI8Generator
 use core/generation::GenerateScalarI8
-use core/conversion::I8ToByte
+use core/conversion/scalar::I8ToByte
 
 sequence Main()
   model Generator: ScalarI8Generator(length=1024, value=-42)

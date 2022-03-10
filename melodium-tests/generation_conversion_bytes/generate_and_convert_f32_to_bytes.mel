@@ -3,7 +3,7 @@ use core/fs/direct::FileWriter
 use core/fs/direct::WriteFile
 use core/generation::ScalarF32Generator
 use core/generation::GenerateScalarF32
-use core/conversion::F32ToByte
+use core/conversion/scalar::F32ToByte
 
 sequence Main()
   model Generator: ScalarF32Generator(length=1024, value=-1234.56789)
