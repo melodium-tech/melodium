@@ -28,5 +28,5 @@ linkme = "0.2"
 regex = "1"
 clap = "2"
 encoding_rs = "0.8"
-
+cpal = "0.13"
 
