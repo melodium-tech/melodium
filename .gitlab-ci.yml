@@ -24,12 +24,14 @@ stages:
 
 image: rust:latest
 
+# Installing ALSA dependency
+before_script:
+    - apt-get update
+    - apt-get install -y libasound2-dev
+
 # Use cargo to build the project
 rust_build:
   stage: build
-  before_script:
-    - apt-get update
-    - apt-get install -y libasound2-dev
   script:
     - rustc --version && cargo --version  # Print version info for debugging
     - cargo build --verbose
