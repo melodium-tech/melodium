@@ -72,7 +72,31 @@ impl AudioInputModel {
 
     async fn receive(&self) {
 
-        
+        let model_id = self.id.read().unwrap().unwrap();
+
+        let /*mut*/ contextes = HashMap::new();
+
+        let mut recv = self.stream_recv.clone();
+        let receiver = move |inputs: HashMap<String, Vec<Input>>| {
+            
+            let future = Box::new(Box::pin(async move {
+
+                let data_output = Output::F32(Arc::new(SendTransmitter::new()));
+                inputs.get("_signal").unwrap().iter().for_each(|i| data_output.add_input(i));
+    
+                while let Some(possible_f32) = recv.next().await {
+    
+                    ok_or_break!(data_output.send_multiple_f32(possible_f32).await);
+                }
+    
+                data_output.close().await;
+    
+                ResultStatus::Ok
+            })) as TrackFuture;
+    
+            vec![future]
+        };
+        self.world.create_track(model_id, "receive", contextes, None, Some(receiver)).await;
     }
 }
 
@@ -148,7 +172,36 @@ impl Model for AudioInputModel {
 
     fn shutdown(&self) {
 
+        self.stream_recv.close();
         self.stream_end_barrier.wait();
         //self.stream_thread.into_inner().unwrap().unwrap().join();
     }
 }
+
+treatment!(receive_audio_treatment,
+    core_identifier!("audio";"ReceiveAudio"),
+    models![
+        ("input", crate::core::audio::input::AudioInputModel::descriptor())
+    ],
+    treatment_sources![
+        (crate::core::audio::input::AudioInputModel::descriptor(), "receive")
+    ],
+    parameters![],
+    inputs![
+        input!("_signal",Scalar,F32,Stream)
+    ],
+    outputs![
+        output!("signal",Scalar,F32,Stream)
+    ],
+    host {
+        let input = host.get_input("_signal");
+        let output = host.get_output("signal");
+    
+        while let Ok(signal) = input.recv_f32().await {
+
+            ok_or_break!(output.send_multiple_f32(signal).await);
+        }
+    
+        ResultStatus::Ok
+    }
+);
