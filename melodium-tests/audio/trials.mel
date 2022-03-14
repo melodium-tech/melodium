@@ -1,10 +1,16 @@
 
 use core/audio::AudioInput
 use core/audio::ReceiveAudio
+use core/audio::AudioOutput
+use core/audio::SendAudio
 
 sequence Main()
-    model Audio: AudioInput()
+    model Input: AudioInput()
+    model Output: AudioOutput()
 {
-    ReceiveAudio[input=Audio]()
+    ReceiveAudio[input=Input]()
+    SendAudio[output=Output]()
+
+    ReceiveAudio.signal -> SendAudio.signal
 }
 

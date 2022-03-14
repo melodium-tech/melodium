@@ -8,7 +8,7 @@ use cpal::traits::{HostTrait, DeviceTrait};
 use cpal::SampleRate;
 
 #[derive(Debug)]
-pub struct AudioInputModel {
+pub struct AudioOutputModel {
 
     world: Arc<World>,
     id: RwLock<Option<ModelId>>,
@@ -16,26 +16,26 @@ pub struct AudioInputModel {
     stream_thread: RwLock<Option<JoinHandle<()>>>,
     stream_end_barrier: Arc<Barrier>,
 
-    stream_send: Sender<Vec<f32>>,
-    stream_recv: Receiver<Vec<f32>>,
+    stream_send: Sender<f32>,
+    stream_recv: Receiver<f32>,
 
     auto_reference: RwLock<Weak<Self>>,
 }
 
-impl AudioInputModel {
+impl AudioOutputModel {
 
     pub fn descriptor() -> Arc<CoreModelDescriptor> {
 
         lazy_static! {
             static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
                 
-                let builder = CoreModelBuilder::new(AudioInputModel::new);
+                let builder = CoreModelBuilder::new(AudioOutputModel::new);
 
                 let descriptor = CoreModelDescriptor::new(
-                    core_identifier!("audio";"AudioInput"),
+                    core_identifier!("audio";"AudioOutput"),
                     vec![],
                     model_sources![
-                        ("receive"; )
+                        ("send"; )
                     ],
                     Box::new(builder)
                 );
@@ -72,40 +72,14 @@ impl AudioInputModel {
         model
     }
 
-    async fn receive(&self) {
+    async fn wait_for_init(&self) {
 
-        let model_id = self.id.read().unwrap().unwrap();
-
+        // Let time for the output thread to init with system audio service
         sleep(std::time::Duration::from_secs(1)).await;
-
-        let /*mut*/ contextes = HashMap::new();
-
-        let mut recv = self.stream_recv.clone();
-        let receiver = move |inputs: HashMap<String, Vec<Input>>| {
-            
-            let future = Box::new(Box::pin(async move {
-
-                let data_output = Output::F32(Arc::new(SendTransmitter::new()));
-                inputs.get("_signal").unwrap().iter().for_each(|i| data_output.add_input(i));
-    
-                while let Some(possible_f32) = recv.next().await {
-    
-                    ok_or_break!(data_output.send_multiple_f32(possible_f32).await);
-                }
-    
-                data_output.close().await;
-    
-                ResultStatus::Ok
-            })) as TrackFuture;
-    
-            vec![future]
-        };
-
-        self.world.create_track(model_id, "receive", contextes, None, Some(receiver)).await;
     }
 }
 
-impl Model for AudioInputModel {
+impl Model for AudioOutputModel {
     
     fn descriptor(&self) -> Arc<CoreModelDescriptor> {
         Self::descriptor()
@@ -128,34 +102,38 @@ impl Model for AudioInputModel {
 
     fn get_context_for(&self, source: &str) -> Vec<String> {
 
-        match source {
-            "receive" => vec![],
-            _ => Vec::new(),
-        }
+        vec![]
     }
 
     fn initialize(&self) {
 
-        let sender = self.stream_send.clone();
+        let receiver = self.stream_recv.clone();
         let barrier = Arc::clone(&self.stream_end_barrier);
         let stream_thread = spawn(move || {
 
             let host = cpal::default_host();
 
-            if let Some(input_device) = host.default_input_device() {
+            if let Some(output_device) = host.default_output_device() {
 
-                if let Ok(mut supported_config_range) = input_device.supported_input_configs() {
+                if let Ok(mut supported_config_range) = output_device.supported_output_configs() {
 
                     if let Some(supported_config) = supported_config_range.next() {
 
                         let config = supported_config.with_sample_rate(SampleRate(44100)).config();
 
-                        if let Ok(_stream) = input_device.build_input_stream(
+                        if let Ok(_stream) = output_device.build_output_stream(
                             &config,
-                            move |data: &[f32], _: &cpal::InputCallbackInfo| {
+                            move |output: &mut [f32], _: &cpal::OutputCallbackInfo| {
 
-                                let vec = Vec::from(data);
-                                let _ = async_std::task::block_on(async { sender.send(vec).await });
+                                for sample in output.iter_mut() {
+                                    if let Ok(input) = receiver.try_recv() {
+                                        *sample = input
+                                    }
+                                    else {
+                                        *sample = 0.0
+                                    }
+                                }
+
                             },
                             move |_err| {
 
@@ -172,7 +150,7 @@ impl Model for AudioInputModel {
         *self.stream_thread.write().unwrap() = Some(stream_thread);
 
         let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
-        let future = Box::pin(async move { auto_self.receive().await });
+        let future = Box::pin(async move { auto_self.wait_for_init().await });
 
         self.world.add_continuous_task(Box::new(future));
     }
@@ -185,29 +163,32 @@ impl Model for AudioInputModel {
     }
 }
 
-treatment!(receive_audio_treatment,
-    core_identifier!("audio";"ReceiveAudio"),
+treatment!(send_audio_treatment,
+    core_identifier!("audio";"SendAudio"),
     models![
-        ("input", crate::core::audio::input::AudioInputModel::descriptor())
+        ("output", crate::core::audio::output::AudioOutputModel::descriptor())
     ],
     treatment_sources![
-        (crate::core::audio::input::AudioInputModel::descriptor(), "receive")
+        (crate::core::audio::output::AudioOutputModel::descriptor(), "send")
     ],
     parameters![],
     inputs![
-        input!("_signal",Scalar,F32,Stream)
+        input!("signal",Scalar,F32,Stream)
     ],
-    outputs![
-        output!("signal",Scalar,F32,Stream)
-    ],
+    outputs![],
     host {
-        let input = host.get_input("_signal");
-        let output = host.get_output("signal");
+        let input = host.get_input("signal");
+        let audio_model = Arc::clone(&host.get_model("output")).downcast_arc::<crate::core::audio::output::AudioOutputModel>().unwrap();
     
-        while let Ok(signal) = input.recv_f32().await {
+        'main: while let Ok(signal) = input.recv_f32().await {
 
-            ok_or_break!(output.send_multiple_f32(signal).await);
+            for sample in signal {
+                ok_or_break!('main, audio_model.stream_send.send(sample).await);
+            }
+            
         }
+
+        audio_model.stream_send.close();
     
         ResultStatus::Ok
     }
