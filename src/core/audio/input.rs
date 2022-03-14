@@ -3,6 +3,7 @@ use std::thread::*;
 use std::sync::{Arc, Barrier};
 use crate::core::prelude::*;
 use async_std::channel::*;
+use async_std::task::sleep;
 use cpal::traits::{HostTrait, DeviceTrait};
 
 #[derive(Debug)]
@@ -74,6 +75,8 @@ impl AudioInputModel {
 
         let model_id = self.id.read().unwrap().unwrap();
 
+        sleep(std::time::Duration::from_secs(1)).await;
+
         let /*mut*/ contextes = HashMap::new();
 
         let mut recv = self.stream_recv.clone();
@@ -96,6 +99,7 @@ impl AudioInputModel {
     
             vec![future]
         };
+
         self.world.create_track(model_id, "receive", contextes, None, Some(receiver)).await;
     }
 }
@@ -134,7 +138,9 @@ impl Model for AudioInputModel {
         let sender = self.stream_send.clone();
         let barrier = Arc::clone(&self.stream_end_barrier);
         let stream_thread = spawn(move || {
+
             let host = cpal::default_host();
+
             if let Some(input_device) = host.default_input_device() {
 
                 if let Ok(mut supported_config_range) = input_device.supported_input_configs() {

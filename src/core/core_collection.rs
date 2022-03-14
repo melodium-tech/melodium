@@ -33,6 +33,8 @@ pub fn core_collection() -> &'static CollectionPool {
 
             super::net::register(&mut c);
 
+            super::audio::register(&mut c);
+
             c
         };
     }

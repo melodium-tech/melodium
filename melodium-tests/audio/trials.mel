@@ -1,0 +1,10 @@
+
+use core/audio::AudioInput
+use core/audio::ReceiveAudio
+
+sequence Main()
+    model Audio: AudioInput()
+{
+    ReceiveAudio[input=Audio]()
+}
+
