@@ -1,10 +1,13 @@
 
 pub mod input;
 pub mod output;
+pub mod encoding;
 
 use crate::core::prelude::*;
 
 pub fn register(mut c: &mut CollectionPool) {
+
+    encoding::register(&mut c);
 
     c.models.insert(&(input::AudioInputModel::descriptor() as Arc<dyn ModelDescriptor>));
     input::receive_audio_treatment::register(&mut c);

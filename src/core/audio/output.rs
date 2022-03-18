@@ -19,6 +19,8 @@ pub struct AudioOutputModel {
     stream_send: Sender<f32>,
     stream_recv: Receiver<f32>,
 
+    early_end: RwLock<bool>,
+
     auto_reference: RwLock<Weak<Self>>,
 }
 
@@ -33,7 +35,9 @@ impl AudioOutputModel {
 
                 let descriptor = CoreModelDescriptor::new(
                     core_identifier!("audio";"AudioOutput"),
-                    vec![],
+                    vec![
+                        parameter!("early_end", Scalar, Bool, Some(Value::Bool(true))),
+                    ],
                     model_sources![
                         ("send"; )
                     ],
@@ -64,6 +68,8 @@ impl AudioOutputModel {
             stream_send: send,
             stream_recv: recv,
 
+            early_end: RwLock::new(true),
+
             auto_reference: RwLock::new(Weak::new()),
         });
 
@@ -76,6 +82,14 @@ impl AudioOutputModel {
 
         // Let time for the output thread to init with system audio service
         sleep(std::time::Duration::from_secs(1)).await;
+
+        let early_end = *self.early_end.read().unwrap();
+
+        if !early_end {
+            while !self.stream_recv.is_empty() {
+                sleep(std::time::Duration::from_millis(100)).await;
+            }
+        }
     }
 }
 
@@ -96,6 +110,9 @@ impl Model for AudioOutputModel {
     fn set_parameter(&self, param: &str, value: &Value) {
 
         match param {
+            "early_end" => {
+                *self.early_end.write().unwrap() = value.clone().bool();
+            },
             _ => panic!("No parameter '{}' exists.", param)
         }
     }

@@ -29,4 +29,5 @@ regex = "1"
 clap = "2"
 encoding_rs = "0.8"
 cpal = "0.13"
+hound = "3.4"
 

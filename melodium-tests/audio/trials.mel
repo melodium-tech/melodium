@@ -4,6 +4,15 @@ use core/audio::ReceiveAudio
 use core/audio::AudioOutput
 use core/audio::SendAudio
 
+use core/fs/direct::FileReader
+use core/fs/direct::ReadFile
+use core/fs/direct::FileWriter
+use core/fs/direct::WriteFile
+use core/flow::StreamByteToBlockVecByte
+use core/audio/encoding/wave::DecodeWave
+use core/conversion/scalar::F32ToByte
+
+/*
 sequence Main()
     model Input: AudioInput()
     model Output: AudioOutput()
@@ -12,5 +21,22 @@ sequence Main()
     SendAudio[output=Output]()
 
     ReceiveAudio.signal -> SendAudio.signal
+}
+*/
+
+sequence Main()
+    model File: FileReader(path="/tmp/audio.wav")
+    model Output: AudioOutput(early_end=false)
+    //model FileOut: FileWriter(path="/tmp/dump.audio")
+{
+    ReadFile[reader=File]()
+    StreamByteToBlockVecByte()
+    DecodeWave()
+    SendAudio[output=Output]()
+    //F32ToByte()
+    //WriteFile[writer=FileOut]()
+
+    ReadFile.data -> StreamByteToBlockVecByte.data,data -> DecodeWave.data,signal -> SendAudio.signal
+    //ReadFile.data -> StreamByteToBlockVecByte.data,data -> DecodeWave.data,signal -> F32ToByte.value,data -> WriteFile.data
 }
 

@@ -589,6 +589,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hound"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a164bb2ceaeff4f42542bdb847c41517c78a60f5649671b2a07312b6e117549"
+
+[[package]]
 name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -736,6 +742,7 @@ dependencies = [
  "downcast-rs",
  "encoding_rs",
  "futures",
+ "hound",
  "lazy_static",
  "linkme",
  "regex",

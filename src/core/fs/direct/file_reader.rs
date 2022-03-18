@@ -127,18 +127,21 @@ impl FileReaderModel {
         // Todo manage failures
     }
 
-    fn read_file(&self, file: File, inputs: HashMap<String, Vec<Input>>) -> Vec<TrackFuture> {
+    fn read_file(&self, mut file: File, inputs: HashMap<String, Vec<Input>>) -> Vec<TrackFuture> {
 
         let future = Box::new(Box::pin(async move {
 
             let data_output = Output::Byte(Arc::new(SendTransmitter::new()));
             inputs.get("_data").unwrap().iter().for_each(|i| data_output.add_input(i));
 
-            let mut bytes = file.bytes();
-            while let Some(possible_byte) = bytes.next().await {
+            let mut buf = vec![0; 1048576];
+            while let Ok(n) = file.read(&mut buf).await {
 
-                let byte = possible_byte.unwrap();
-                ok_or_break!(data_output.send_byte(byte).await);
+                if n == 0 {
+                    break;
+                }
+
+                ok_or_break!(data_output.send_multiple_byte(buf.get(0..n).unwrap().to_vec()).await);
             }
 
             data_output.close().await;
