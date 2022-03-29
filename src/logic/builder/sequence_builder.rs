@@ -342,7 +342,13 @@ impl Builder for SequenceBuilder {
                 let data = match borrowed_param.value().as_ref().unwrap() {
                     Value::Raw(data) => data,
                     Value::Variable(name) => {
-                        environment.get_variable(&name).unwrap()
+                        // TODO change once distinction between const & var is fully implemented
+                        if let Some(data) = environment.get_variable(&name) {
+                            data
+                        }
+                        else {
+                            build_sample.genesis_environment.get_variable(&name).unwrap()
+                        }
                     },
                     Value::Context((context, name)) => {
                         environment.get_context(context).unwrap().get_value(name).unwrap()
@@ -470,7 +476,13 @@ impl Builder for SequenceBuilder {
                     let data = match borrowed_param.value().as_ref().unwrap() {
                         Value::Raw(data) => data,
                         Value::Variable(name) => {
-                            environment.get_variable(&name).unwrap()
+                            // TODO change once distinction between const & var is fully implemented
+                            if let Some(data) = environment.get_variable(&name) {
+                                data
+                            }
+                            else {
+                                build_sample.genesis_environment.get_variable(&name).unwrap()
+                            }
                         },
                         Value::Context((context, name)) => {
                             environment.get_context(context).unwrap().get_value(name).unwrap()
