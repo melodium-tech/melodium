@@ -1,0 +1,30 @@
+
+use core/fs/direct::FileReader
+use core/fs/direct::ReadFile
+use core/fs/direct::FileWriter
+use core/fs/direct::WriteFile
+use core/text::DecodeBytes
+use core/conversion/scalar::StringToByte
+
+sequence Reencoding(input_encoding: string, input: string, output: string)
+  model FileReader(path=input)
+  model FileWriter(path=output)
+{
+    ReadFile[reader=FileReader]()
+    DecodeBytes(encoding=input_encoding)
+    StringToByte()
+    WriteFile[writer=FileWriter]()
+    
+    ReadFile.data -> DecodeBytes.data,value -> StringToByte.value,data -> WriteFile.data
+}
+
+sequence Main()
+{
+    Re_utf8: Reencoding(input_encoding="utf-8", input="./input_utf-8.txt", output="./output_for_input_utf-8.txt")
+    Re_iso885915: Reencoding(input_encoding="iso-8859-15", input="./input_iso-8859-15.txt", output="./output_for_input_iso-8859-15.txt")
+    Re_ascii: Reencoding(input_encoding="ascii", input="./input_ascii.txt", output="./output_for_input_ascii.txt")
+    Re_utf16le: Reencoding(input_encoding="utf-16le", input="./input_utf-16le.txt", output="./output_for_input_utf-16le.txt")
+    Re_utf16be: Reencoding(input_encoding="utf-16be", input="./input_utf-16be.txt", output="./output_for_input_utf-16be.txt")
+}
+
+
