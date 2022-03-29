@@ -138,6 +138,7 @@ impl Instance {
 
             if parsing_result.is_err() {
                 self.errors.push(parsing_result.unwrap_err());
+                return;
             }
 
             // We add it to the files list.

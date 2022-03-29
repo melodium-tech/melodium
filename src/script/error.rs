@@ -115,7 +115,7 @@ impl fmt::Display for ScriptError {
                 write!(f, "line {} position {} (absolute {}): {}", self.position.line_number, self.position.line_position, self.position.absolute_position, self.message)
             },
             ScriptErrorKind::EndOfScript => write!(f, "{}", self.message),
-            ScriptErrorKind::Semantic => write!(f, "{}", self.message),
+            ScriptErrorKind::Semantic => write!(f, "line {} position {} (absolute {}): {}", self.position.line_number, self.position.line_position, self.position.absolute_position, self.message),
             ScriptErrorKind::File => write!(f, "{}", self.message),
             ScriptErrorKind::Logic(le) => write!(f, "line {} position {} (absolute {}): {}", self.position.line_number, self.position.line_position, self.position.absolute_position, le),
         }
