@@ -59,7 +59,7 @@ melodium_tests:
   stage: test_melodium
   before_script:
     - apt-get update
-    - apt-get install -y xxd libasound2 hexdump
+    - apt-get install -y xxd libasound2 bsdmainutils
   script:
     - melodium-tests/run.sh
 
