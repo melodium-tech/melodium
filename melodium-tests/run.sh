@@ -47,6 +47,7 @@ echo Running Mélodium tests…
 
 # Add tests there
 run_test generation_conversion_bytes
+run_test audio
 
 date +"%Y-%m-%d %T"
 echo Run finished

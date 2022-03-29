@@ -1,0 +1,32 @@
+
+use core/fs/direct::FileReader
+use core/fs/direct::ReadFile
+use core/fs/direct::FileWriter
+use core/fs/direct::WriteFile
+use core/flow::StreamByteToBlockVecByte
+use core/flow::BlockVecByteToStreamByte
+use core/audio/encoding/wave::DecodeWave
+use core/audio/encoding/wave::EncodeWave
+
+sequence Main()
+{
+    RWi16: ReencodeWave(input="./input_i16.wav", output="./reencoded_i16.wav")
+    RWi24: ReencodeWave(input="./input_i24.wav", output="./reencoded_i24.wav")
+    RWf32: ReencodeWave(input="./input_f32.wav", output="./reencoded_f32.wav")
+}
+
+sequence ReencodeWave(input: string, output: string)
+    model File: FileReader(path=input)
+    model FileOut: FileWriter(path=output)
+{
+    ReadFile[reader=File]()
+    StreamByteToBlockVecByte()
+    DecodeWave()
+    BlockVecByteToStreamByte()
+    EncodeWave()
+    WriteFile[writer=FileOut]()
+    
+
+    ReadFile.data -> StreamByteToBlockVecByte.data,data -> DecodeWave.data,signal -> EncodeWave.signal,data -> BlockVecByteToStreamByte.data,data -> WriteFile.data
+}
+
