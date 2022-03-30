@@ -2,8 +2,7 @@
 
 stages:
   - build
-  - test_rust
-  - test_melodium
+  - test
   - benchmark_rust
   - benchmark_melodium
   - deploy
@@ -37,11 +36,11 @@ rust_build:
     - cargo build --verbose
   artifacts:
     paths:
-    - target/debug
+    - target/debug/melodium
     expire_in: 1 day
 
 rust_unit_tests:
- stage: test_rust
+ stage: test
  script:
    - cargo test --tests --verbose
 
@@ -56,7 +55,7 @@ rust_doc_tests:
 #    - cargo bench --benches --verbose
 
 melodium_tests:
-  stage: test_melodium
+  stage: test
   before_script:
     - apt-get update
     - apt-get install -y xxd libasound2
