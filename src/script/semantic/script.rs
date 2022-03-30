@@ -4,6 +4,7 @@
 use super::common::Node;
 
 use std::sync::{Arc, RwLock};
+use std::collections::HashMap;
 use crate::script::error::ScriptError;
 use crate::script::text::Script as TextScript;
 
@@ -21,8 +22,8 @@ pub struct Script {
     pub text: TextScript,
 
     pub uses: Vec<Arc<RwLock<Use>>>,
-    pub models: Vec<Arc<RwLock<Model>>>,
-    pub sequences: Vec<Arc<RwLock<Sequence>>>,
+    pub models: HashMap<String, Arc<RwLock<Model>>>,
+    pub sequences: HashMap<String, Arc<RwLock<Sequence>>>,
 }
 
 impl Script {
@@ -60,8 +61,8 @@ impl Script {
         let script = Arc::<RwLock<Self>>::new(RwLock::new(Self {
             text: text.clone(),
             uses: Vec::new(),
-            models: Vec::new(),
-            sequences: Vec::new(),
+            models: HashMap::new(),
+            sequences: HashMap::new(),
         }));
 
         for u in text.uses {
@@ -71,12 +72,14 @@ impl Script {
 
         for m in text.models {
             let model = Model::new(Arc::clone(&script), m.clone())?;
-            script.write().unwrap().models.push(model);
+            let name = model.read().unwrap().name.clone();
+            script.write().unwrap().models.insert(name, model);
         }
 
         for s in text.sequences {
             let sequence = Sequence::new(Arc::clone(&script), s.clone())?;
-            script.write().unwrap().sequences.push(sequence);
+            let name = sequence.read().unwrap().name.clone();
+            script.write().unwrap().sequences.insert(name, sequence);
         }
 
         Ok(script)
@@ -138,7 +141,7 @@ impl Script {
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn find_model(&self, name: & str) -> Option<&Arc<RwLock<Model>>> {
-        self.models.iter().find(|&m| m.read().unwrap().name == name)
+        self.models.get(name)
     }
 
     /// Search for a sequence.
@@ -167,7 +170,7 @@ impl Script {
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn find_sequence(&self, name: & str) -> Option<&Arc<RwLock<Sequence>>> {
-        self.sequences.iter().find(|&s| s.read().unwrap().name == name)
+        self.sequences.get(name)
     }
 }
 
@@ -177,8 +180,8 @@ impl Node for Script {
         let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();
 
         self.uses.iter().for_each(|u| children.push(Arc::clone(&u) as Arc<RwLock<dyn Node>>));
-        self.models.iter().for_each(|m| children.push(Arc::clone(&m) as Arc<RwLock<dyn Node>>));
-        self.sequences.iter().for_each(|s| children.push(Arc::clone(&s) as Arc<RwLock<dyn Node>>));
+        self.models.iter().for_each(|(_, m)| children.push(Arc::clone(&m) as Arc<RwLock<dyn Node>>));
+        self.sequences.iter().for_each(|(_, s)| children.push(Arc::clone(&s) as Arc<RwLock<dyn Node>>));
 
         children
     }

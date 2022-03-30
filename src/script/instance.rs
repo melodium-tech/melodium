@@ -58,7 +58,11 @@ impl Instance {
 
         self.manage_file(Path::new(main), self.main_path.clone());
 
-        while self.manage_inclusions() {}
+        while self.manage_inclusions() {
+            if !self.errors.is_empty() {
+                return;
+            }
+        }
 
         self.make_descriptors();
 
@@ -148,7 +152,9 @@ impl Instance {
 
     /// Tells if a file exists in the instance, and give reference to it.
     fn find_file(&self, path: &PathBuf) -> Option<&File> {
-        self.files.iter().find(|file| &file.absolute_path == path)
+        self.files.iter().find(|file| {
+            &file.absolute_path == path
+        })
     }
 
     /// Get the canonical path based on includer and possibly relative path.
@@ -165,7 +171,7 @@ impl Instance {
 
                 //path.path().iter().map(|name| canonical_path.push(name));
                 // Skipping "std" step, and pushing each intermediate name.
-                for name in path.path().iter().skip(1) {
+                for name in path.path().iter() {
                     canonical_path.push(name);
                 }
 
@@ -223,7 +229,7 @@ impl Instance {
         for file in &self.files {
             let borrowed_script = &file.semantic.as_ref().unwrap().script.read().unwrap();
 
-            for rc_model in &borrowed_script.models {
+            for (_, rc_model) in &borrowed_script.models {
 
                 let borrowed_model = rc_model.read().unwrap();
 
@@ -235,7 +241,7 @@ impl Instance {
         for file in &self.files {
             let borrowed_script = &file.semantic.as_ref().unwrap().script.read().unwrap();
 
-            for rc_sequence in &borrowed_script.sequences {
+            for (_, rc_sequence) in &borrowed_script.sequences {
 
                 let borrowed_sequence = rc_sequence.read().unwrap();
 
@@ -253,14 +259,14 @@ impl Instance {
         for file in &self.files {
             let borrowed_script = &file.semantic.as_ref().unwrap().script.read().unwrap();
 
-            for rc_model in &borrowed_script.models {
+            for (_, rc_model) in &borrowed_script.models {
 
                 let borrowed_model = rc_model.read().unwrap();
 
                 borrowed_model.make_design(self.logic_collection.as_ref().unwrap()).unwrap();
             }
 
-            for rc_sequence in &borrowed_script.sequences {
+            for (_, rc_sequence) in &borrowed_script.sequences {
 
                 let borrowed_sequence = rc_sequence.read().unwrap();
 

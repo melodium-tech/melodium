@@ -373,6 +373,9 @@ impl Sequence {
                 DeclaredModelRefersTo::Use(u) => {
                     u.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().identifier.as_ref().unwrap().clone()
                 },
+                DeclaredModelRefersTo::Model(m) => {
+                    m.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().identifier.as_ref().unwrap().clone()
+                },
                 _ => panic!("{:?}", &borrowed_model.refers)
             };
 

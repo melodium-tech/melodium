@@ -39,16 +39,17 @@ function run_test() {
 }
 
 
-mkdir -p /tmp/fake_std
+rm -r /tmp/fake_std
+cp -r ../std /tmp/fake_std
 rm -rf /tmp/tests
 mkdir -p /tmp/tests
 
 echo Running Mélodium tests…
 
 # Add tests there
-run_test generation_conversion_bytes
 run_test text_decoding
 run_test audio
+run_test generation_conversion_bytes
 
 date +"%Y-%m-%d %T"
 echo Run finished

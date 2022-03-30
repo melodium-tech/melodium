@@ -97,7 +97,7 @@ impl Model {
         }
 
         // Check all parameters does not refers to a context.
-        if let Some(_forbidden_context) = self.parameters.iter().find(|&(_param_name, param)| !matches!(param.read().unwrap().value(), Some(Value::Context{..}))) {
+        if let Some(_forbidden_context) = self.parameters.iter().find(|&(_param_name, param)| matches!(param.read().unwrap().value(), Some(Value::Context{..}))) {
             return Err(LogicError::no_context())
         }
 

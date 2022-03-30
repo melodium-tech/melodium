@@ -33,8 +33,10 @@ impl Builder for ConfiguredModelBuilder {
 
         let mut remastered_environment = environment.base();
 
+        let borrowed_designer = self.designer.read().unwrap();
+
         // We do assign default values (will be replaced if some other explicitly assigned)
-        for (_, declared_parameter) in self.designer.read().unwrap().descriptor().parameters() {
+        for (_, declared_parameter) in borrowed_designer.descriptor().parameters() {
 
             if let Some(data) = declared_parameter.default() {
                 remastered_environment.add_variable(declared_parameter.name(), data.clone());
@@ -42,14 +44,19 @@ impl Builder for ConfiguredModelBuilder {
         }
 
         // Assigning explicit data
-        for (_, parameter) in self.designer.read().unwrap().parameters().iter() {
+        for (_, parameter) in borrowed_designer.parameters().iter() {
 
             let borrowed_param = parameter.read().unwrap();
 
             let data = match borrowed_param.value().as_ref().unwrap() {
                 Value::Raw(data) => data,
                 Value::Variable(name) => {
-                    environment.get_variable(&name).unwrap()
+                    if let Some(data) = environment.get_variable(&name) {
+                        data
+                    }
+                    else {
+                        borrowed_designer.descriptor().parameters().get(name).unwrap().default().as_ref().unwrap()
+                    }
                 },
                 // Not possible in model to use context, should have been catcher by designed, aborting
                 _ => panic!("Impossible data recoverage")
@@ -58,7 +65,7 @@ impl Builder for ConfiguredModelBuilder {
             remastered_environment.add_variable(borrowed_param.name(), data.clone());
         }
 
-        self.designer.read().unwrap().descriptor().core_model().builder().static_build(host_treatment, host_build, label, &remastered_environment)
+        borrowed_designer.descriptor().core_model().builder().static_build(host_treatment, host_build, label, &remastered_environment)
     }
 
     fn dynamic_build(&self, build: BuildId, environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {

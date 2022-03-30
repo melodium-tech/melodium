@@ -12,6 +12,7 @@ use crate::script::text::word::PositionnedString;
 use super::common::Reference;
 use super::sequence::Sequence;
 use super::r#use::Use;
+use super::model::Model;
 use super::instancied_model::InstanciedModel;
 
 /// Structure managing and describing semantic of a declared model.
@@ -30,12 +31,13 @@ pub struct DeclaredModel {
 
 /// Enumeration managing what declared model type refers to.
 /// 
-/// This is a convenience enum, as a declared model type may refer either on a [Use](../use/struct.Use.html) or an [InstanciedModel](../instancied_model/struct.InstanciedModel.html).
+/// This is a convenience enum, as a declared model type may refer either on a [Use](../use/struct.Use.html), a [Model](../use/struct.Model.html), or an [InstanciedModel](../instancied_model/struct.InstanciedModel.html).
 /// The `Unknown` variant is aimed to hold a reference-to-nothing, as long as `make_references() hasn't been called.
 #[derive(Debug)]
 pub enum RefersTo {
     Unkown(Reference<()>),
     Use(Reference<Use>),
+    Model(Reference<Model>),
     InstanciedModel(Reference<InstanciedModel>),
 }
 
@@ -190,12 +192,18 @@ impl Node for DeclaredModel {
             let rc_script = borrowed_sequence.script.upgrade().unwrap();
             let borrowed_script = rc_script.read().unwrap();
 
-            let r#use = borrowed_script.find_use(&reference.name);
-            if r#use.is_some() {
+            if let Some(model) = borrowed_script.find_model(&reference.name) {
+
+                self.refers = RefersTo::Model(Reference{
+                    name: reference.name.clone(),
+                    reference: Some(Arc::downgrade(model))
+                });
+            }
+            else if let Some(r#use) = borrowed_script.find_use(&reference.name) {
 
                 self.refers = RefersTo::Use(Reference{
                     name: reference.name.clone(),
-                    reference: Some(Arc::downgrade(r#use.unwrap()))
+                    reference: Some(Arc::downgrade(r#use))
                 });
             }
             else {

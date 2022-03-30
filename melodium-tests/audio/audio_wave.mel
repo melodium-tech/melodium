@@ -1,8 +1,8 @@
 
-use core/fs/direct::FileReader
-use core/fs/direct::ReadFile
-use core/fs/direct::FileWriter
-use core/fs/direct::WriteFile
+use std/fs/direct::FileReader
+use std/fs/direct::ReadFile
+use std/fs/direct::DirectFileWriter
+use std/fs/direct::WriteFile
 use core/flow::StreamByteToBlockVecByte
 use core/flow::BlockVecByteToStreamByte
 use core/audio/encoding/wave::DecodeWave
@@ -17,7 +17,7 @@ sequence Main()
 
 sequence ReencodeWave(input: string, output: string)
     model File: FileReader(path=input)
-    model FileOut: FileWriter(path=output)
+    model FileOut: DirectFileWriter(path=output)
 {
     ReadFile[reader=File]()
     StreamByteToBlockVecByte()

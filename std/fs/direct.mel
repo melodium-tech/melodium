@@ -1,0 +1,34 @@
+
+use core/fs/direct::FileReader as CoreFileReader
+use core/fs/direct::ReadFile as CoreReadFile
+use core/fs/direct::FileWriter as CoreFileWriter
+use core/fs/direct::WriteFile as CoreWriteFile
+
+model FileReader(path: string): CoreFileReader
+{
+    path = path
+}
+
+sequence ReadFile[reader: FileReader]()
+    output data: Stream<byte>
+{
+    CoreReadFile[reader=reader]()
+
+    CoreReadFile.data -> Self.data
+}
+
+model DirectFileWriter(path: string, append: bool = false, create: bool = true, new: bool = false): CoreFileWriter
+{
+    path = path
+    append = append
+    create = create
+    new = new
+}
+
+sequence WriteFile[writer: DirectFileWriter]()
+    input data: Stream<byte>
+{
+    CoreWriteFile[writer=writer]()
+
+    Self.data -> CoreWriteFile.data
+}

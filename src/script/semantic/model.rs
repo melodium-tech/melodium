@@ -32,12 +32,19 @@ pub struct Model {
 
     pub name: String,
     pub parameters: Vec<Arc<RwLock<DeclaredParameter>>>,
-    pub r#type: Reference<Use>,
+    pub r#type: RefersTo,
     pub assignations: Vec<Arc<RwLock<AssignedParameter>>>,
 
     pub identifier: Option<Identifier>,
 
     auto_reference: Weak<RwLock<Self>>,
+}
+
+#[derive(Debug)]
+pub enum RefersTo {
+    Unkown(Reference<()>),
+    Use(Reference<Use>),
+    Model(Reference<Model>),
 }
 
 impl Model {
@@ -80,7 +87,7 @@ impl Model {
             script: Arc::downgrade(&script),
             name: text.name.string.clone(),
             parameters: Vec::new(),
-            r#type: Reference::new(text.r#type.string.clone()),
+            r#type: RefersTo::Unkown(Reference::new(text.r#type.string.clone())),
             assignations: Vec::new(),
             identifier: None,
             auto_reference: Weak::new(),
@@ -112,7 +119,28 @@ impl Model {
 
     pub fn make_descriptor(&self, collection: &mut CollectionPool) -> Result<(), ScriptError>  {
 
-        if let Some(core_descriptor) = collection.models.get(&self.r#type.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().identifier.as_ref().unwrap()) {
+        let (type_identifier, position) = match &self.r#type {
+            RefersTo::Model(m) => {
+                (
+                    m.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().identifier.as_ref().unwrap().clone(),
+                    m.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().text.name.position,
+                )
+            },
+            RefersTo::Use(u) => {
+                (
+                    u.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().identifier.as_ref().unwrap().clone(),
+                    u.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().text.element.position,
+                )
+            },
+            _ => panic!("Descriptor cannot be made without type reference being setted up.")
+        };
+
+        if let Some(core_descriptor) = collection.models.get(&type_identifier) {
+
+            if !core_descriptor.is_core_model() {
+                // This should be removed once improvement has been made to inherit scripted model types.
+                return Err(ScriptError::semantic("Model type '".to_string() + type_identifier.name() + "' is not a core model.", position));
+            }
 
             let mut descriptor = ConfiguredModel::new(self.identifier.as_ref().unwrap().clone(), &core_descriptor.core_model());
 
@@ -132,7 +160,7 @@ impl Model {
             Ok(())
         }
         else {
-            Err(ScriptError::semantic("Unknown model \'".to_string() , self.r#type.reference.as_ref().unwrap().upgrade().unwrap().read().unwrap().text.element.position))
+            Err(ScriptError::semantic("Unknown model type '".to_string() + type_identifier.name() + "'.", position))
         }
     }
 
@@ -249,17 +277,31 @@ impl Node for Model {
     
     fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
 
-        let rc_script = self.script.upgrade().unwrap();
-        let borrowed_script = rc_script.read().unwrap();
+        if let RefersTo::Unkown(r#type) = &self.r#type {
 
-        let r#use = borrowed_script.find_use(&self.r#type.name);
-        if r#use.is_none() {
-            return Err(ScriptError::semantic("'".to_string() + &self.r#type.name + "' is unkown.", self.text.r#type.position))
+            let rc_script = self.script.upgrade().unwrap();
+            let borrowed_script = rc_script.read().unwrap();
+
+            if let Some(model) = borrowed_script.find_model(&r#type.name) {
+
+                self.r#type = RefersTo::Model(Reference{
+                    name: r#type.name.clone(),
+                    reference: Some(Arc::downgrade(model))
+                });
+            }
+            else if let Some(r#use) = borrowed_script.find_use(&r#type.name) {
+
+                self.r#type = RefersTo::Use(Reference{
+                    name: r#type.name.clone(),
+                    reference: Some(Arc::downgrade(r#use))
+                });
+            }
+            else {
+                return Err(ScriptError::semantic("'".to_string() + &r#type.name + "' is unkown.", self.text.r#type.position))
+            }
+
+            self.identifier = path.to_identifier(&self.name);
         }
-
-        self.r#type.reference = Some(Arc::downgrade(r#use.unwrap()));
-
-        self.identifier = path.to_identifier(&self.name);
 
         Ok(())
     }
