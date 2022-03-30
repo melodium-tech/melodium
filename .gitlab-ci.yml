@@ -45,7 +45,7 @@ rust_unit_tests:
    - cargo test --tests --verbose
 
 rust_doc_tests:
- stage: test_rust
+ stage: test
  script:
    - cargo test --doc --verbose
 #
