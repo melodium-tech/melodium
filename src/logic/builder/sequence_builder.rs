@@ -83,8 +83,18 @@ impl Builder for SequenceBuilder {
         let mut builds_writer = self.builds.write().unwrap();
         let idx = builds_writer.len() as BuildId;
 
+        let rc_designer = self.designer.read().unwrap();
+
+        // Assigning missing default values
+        let mut missing_default = HashMap::new();
+        for (name, parameter) in rc_designer.descriptor().parameters().iter().filter(|(_, p)| p.default().is_some()) {
+            if !environment.variables().contains_key(name) {
+                missing_default.insert(name, parameter.default().as_ref().unwrap().clone());
+            }
+        }
+
         // Instanciate models
-        for (instanciation_name, model_instanciation) in self.designer.read().unwrap().model_instanciations() {
+        for (instanciation_name, model_instanciation) in rc_designer.model_instanciations() {
 
             let mut remastered_environment = environment.base();
 
@@ -95,7 +105,12 @@ impl Builder for SequenceBuilder {
                 let data = match borrowed_param.value().as_ref().unwrap() {
                     Value::Raw(data) => data,
                     Value::Variable(name) => {
-                        environment.get_variable(&name).unwrap()
+                        if let Some(data) = environment.get_variable(&name) {
+                            data
+                        }
+                        else {
+                            missing_default.get(name).unwrap()
+                        }
                     },
                     // Not possible in model instanciation to use context, should have been catched by designer, aborting
                     _ => panic!("Impossible data recoverage")
@@ -105,7 +120,7 @@ impl Builder for SequenceBuilder {
             }
 
             let instanciation_result = model_instanciation.read().unwrap().descriptor().builder().static_build(
-                Some(Arc::clone(self.designer.read().unwrap().descriptor()) as Arc<dyn TreatmentDescriptor>),
+                Some(Arc::clone(rc_designer.descriptor()) as Arc<dyn TreatmentDescriptor>),
                 Some(idx),
                 instanciation_name.to_string(),
                 &remastered_environment
@@ -121,7 +136,7 @@ impl Builder for SequenceBuilder {
         }
 
         // Make the internal treatments being built
-        for (treatment_name, treatment) in self.designer.read().unwrap().treatments() {
+        for (treatment_name, treatment) in rc_designer.treatments() {
 
             let borrowed_treatment = treatment.read().unwrap();
             let mut remastered_environment = environment.base();
@@ -164,7 +179,12 @@ impl Builder for SequenceBuilder {
                 let data = match borrowed_param.value().as_ref().unwrap() {
                     Value::Raw(data) => data,
                     Value::Variable(name) => {
-                        environment.get_variable(&name).unwrap()
+                        if let Some(data) = environment.get_variable(&name) {
+                            data
+                        }
+                        else {
+                            missing_default.get(name).unwrap()
+                        }
                     },
                     // We should have a value there, should have been catched by designer, aborting
                     _ => panic!("Impossible data recoverage")
@@ -174,7 +194,7 @@ impl Builder for SequenceBuilder {
             }
 
             let build_result = borrowed_treatment.descriptor().builder().static_build(
-                Some(Arc::clone(self.designer.read().unwrap().descriptor()) as Arc<dyn TreatmentDescriptor>),
+                Some(Arc::clone(rc_designer.descriptor()) as Arc<dyn TreatmentDescriptor>),
                 Some(idx),
                 treatment_name.to_string(),
                 &remastered_environment
@@ -189,7 +209,7 @@ impl Builder for SequenceBuilder {
         }
 
         // Order the internal treatments
-        for connection in self.designer.read().unwrap().connections() {
+        for connection in rc_designer.connections() {
 
             let borrowed_connection = connection.read().unwrap();
 
