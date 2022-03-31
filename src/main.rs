@@ -6,6 +6,7 @@ use std::process::*;
 
 extern crate clap;
 use clap::{Arg, App, crate_version};
+use colored::*;
 
 use melodium::executive::world::World;
 use melodium::logic::descriptor::SequenceTreatmentDescriptor;
@@ -94,8 +95,8 @@ fn main() {
 
     instance.build();
 
-    for error in instance.errors() {
-        eprintln!("Error: {}", error);
+    for (path, error) in instance.errors() {
+        eprintln!("{}: in file \"{}\" {}", "error".bold().red(), path.as_os_str().to_string_lossy(), error);
     }
 
     if matches.is_present("doc-list") {

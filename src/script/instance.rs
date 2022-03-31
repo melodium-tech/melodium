@@ -1,6 +1,7 @@
 
 //! Provides script instance management.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use super::file::File;
@@ -8,7 +9,6 @@ use super::path::{Path, PathRoot};
 use super::error::ScriptError;
 use crate::logic::collection_pool::CollectionPool;
 use crate::core::core_collection::core_collection;
-use crate::logic::descriptor::TreatmentDescriptor;
 
 /// Manage script instance.
 /// 
@@ -23,7 +23,7 @@ pub struct Instance {
     /// This include the main file, and may be empty for many reasons (instance not built, or errors, etc.)
     pub files: Vec<File>,
     /// Errors present in the instance.
-    pub errors: Vec<ScriptError>,
+    pub errors: HashMap<PathBuf, ScriptError>,
 
     pub logic_collection: Option<Arc<CollectionPool>>,
 }
@@ -41,7 +41,7 @@ impl Instance {
             main_path: main_path.into(),
             standard_path: standard_path.into(),
             files: Vec::new(),
-            errors: Vec::new(),
+            errors: HashMap::new(),
             logic_collection: None,
         }
     }
@@ -73,7 +73,7 @@ impl Instance {
         &self.logic_collection
     }
 
-    pub fn errors(&self) -> &Vec<ScriptError> {
+    pub fn errors(&self) -> &HashMap<PathBuf, ScriptError> {
         &self.errors
     }
 
@@ -129,19 +129,19 @@ impl Instance {
         // If it is not, then we include it.
         if file_request.is_none() {
 
-            let mut file = File::new(path, absolute_path);
+            let mut file = File::new(path, absolute_path.clone());
 
             let reading_result = file.read();
 
             if reading_result.is_err() {
-                self.errors.push(ScriptError::file(reading_result.unwrap_err().to_string()));
+                self.errors.insert(absolute_path.clone(), ScriptError::file(reading_result.unwrap_err().to_string()));
                 return;
             }
 
             let parsing_result = file.parse();
 
             if parsing_result.is_err() {
-                self.errors.push(parsing_result.unwrap_err());
+                self.errors.insert(absolute_path.clone(), parsing_result.unwrap_err());
                 return;
             }
 
@@ -233,7 +233,9 @@ impl Instance {
 
                 let borrowed_model = rc_model.read().unwrap();
 
-                borrowed_model.make_descriptor(&mut logic_collection).unwrap();
+                if let Err(e) = borrowed_model.make_descriptor(&mut logic_collection) {
+                    self.errors.insert(file.absolute_path.clone(), e);
+                }
             }
         }
 
@@ -245,14 +247,16 @@ impl Instance {
 
                 let borrowed_sequence = rc_sequence.read().unwrap();
 
-                borrowed_sequence.make_descriptor(&mut logic_collection).unwrap();
+                if let Err(e) = borrowed_sequence.make_descriptor(&mut logic_collection) {
+                    self.errors.insert(file.absolute_path.clone(), e);
+                }
             }
         }
 
         self.logic_collection = Some(Arc::new(logic_collection));
     }
 
-    fn make_designs(&self) {
+    fn make_designs(&mut self) {
 
         // No order is required there, should be parrelizable easily
 
@@ -263,14 +267,18 @@ impl Instance {
 
                 let borrowed_model = rc_model.read().unwrap();
 
-                borrowed_model.make_design(self.logic_collection.as_ref().unwrap()).unwrap();
+                if let Err(e) = borrowed_model.make_design(self.logic_collection.as_ref().unwrap()) {
+                    self.errors.insert(file.absolute_path.clone(), e);
+                }
             }
 
             for (_, rc_sequence) in &borrowed_script.sequences {
 
                 let borrowed_sequence = rc_sequence.read().unwrap();
 
-                borrowed_sequence.make_design(&self.logic_collection.as_ref().unwrap()).unwrap();
+                if let Err(e) = borrowed_sequence.make_design(&self.logic_collection.as_ref().unwrap()) {
+                    self.errors.insert(file.absolute_path.clone(), e);
+                }
             }
         }
     }
