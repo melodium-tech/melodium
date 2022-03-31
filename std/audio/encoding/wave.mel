@@ -1,0 +1,26 @@
+
+use core/audio/encoding/wave::DecodeWave
+use core/audio/encoding/wave::EncodeWave
+use std/flow::BlockBytes
+use std/flow::StreamBytes
+
+sequence Decode()
+    input data:     Stream<byte>
+    output signal:  Stream<f32>
+{
+    BlockBytes()
+    DecodeWave()
+
+    Self.data -> BlockBytes.stream,block -> DecodeWave.data,signal -> Self.signal
+}
+
+sequence Encode()
+    input signal:   Stream<f32>
+    output data:    Stream<byte>
+{
+    StreamBytes()
+    EncodeWave()
+
+    Self.signal -> EncodeWave.signal,data -> StreamBytes.block,stream -> Self.data
+}
+
