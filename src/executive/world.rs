@@ -167,7 +167,7 @@ impl World {
                     for rc_check_build in result.checked_builds {
 
                         let borrowed_check_build = rc_check_build.read().unwrap();
-                        for (input_name, input_satisfied) in &borrowed_check_build.fed_inputs {
+                        for (_input_name, input_satisfied) in &borrowed_check_build.fed_inputs {
 
                             if !input_satisfied {
                                 errors.push(LogicError::unsatisfied_input());

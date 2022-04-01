@@ -101,7 +101,7 @@ impl TcpListenerModel {
                 contextes.insert("TcpConnection".to_string(), tcp_connection_context);
 
                 let model_id = self.id.read().unwrap().unwrap();
-                let inputs = self.world.create_track(model_id, "connection", contextes, None, Some(data_reading)).await;
+                self.world.create_track(model_id, "connection", contextes, None, Some(data_reading)).await;
             }
         }
 
@@ -109,8 +109,6 @@ impl TcpListenerModel {
     }
 
     fn stream_read(&self, mut stream: TcpStream, inputs: HashMap<String, Vec<Input>>) -> Vec<TrackFuture> {
-
-        let data_output_transmitters = inputs.get("_data").unwrap().clone();
 
         let data_output = Output::Byte(Arc::new(SendTransmitter::new()));
         inputs.get("_data").unwrap().iter().for_each(|i| data_output.add_input(i));

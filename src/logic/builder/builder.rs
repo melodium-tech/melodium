@@ -1,13 +1,11 @@
 
 
 use std::collections::HashMap;
-use std::sync::{Arc, Weak, RwLock};
+use std::sync::{Arc, RwLock};
 use std::fmt::Debug;
 use super::super::error::LogicError;
 use super::super::super::executive::environment::{GenesisEnvironment, ContextualEnvironment};
-use super::super::super::executive::value::Value;
 use super::super::super::executive::model::Model;
-use super::super::super::executive::transmitter::Transmitter;
 use super::super::super::executive::input::Input;
 use super::super::super::executive::future::*;
 use super::super::descriptor::TreatmentDescriptor;

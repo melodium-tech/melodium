@@ -1,7 +1,7 @@
 
 use crate::core::prelude::*;
 use async_std::path::PathBuf;
-use async_std::fs::{File, OpenOptions};
+use async_std::fs::File;
 
 #[derive(Debug)]
 pub struct FileReaderModel {

@@ -28,6 +28,9 @@ macro_rules! models {
 pub(crate) use models;
 
 macro_rules! treatment_sources {
+    () => {{
+        std::collections::HashMap::new()
+    }};
     ($(($descriptor:expr,$($source:expr),+)),*) => {{
         let mut map = std::collections::HashMap::new();
         $(map.insert(
@@ -55,7 +58,7 @@ pub struct CoreTreatment {
 
 impl CoreTreatment {
     pub fn new(identifier: Identifier, models: Vec<(String, Arc<CoreModel>)>, source_from: HashMap<Arc<CoreModel>, Vec<String>>, parameters: Vec<Parameter>, inputs: Vec<Input>, outputs: Vec<Output>, new_treatment: fn(Arc<World>) -> Arc<dyn ExecutiveTreatment>) -> Arc<Self> {
-        let mut descriptor = Arc::new(Self{
+        let descriptor = Arc::new(Self{
             identifier,
             models: HashMap::from_iter(models.iter().map(|m| (m.0.to_string(), Arc::clone(&m.1)))),
             parameters: HashMap::from_iter(parameters.iter().map(|p| (p.name().to_string(), p.clone()))),

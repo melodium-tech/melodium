@@ -119,7 +119,7 @@ impl Model for AudioInputModel {
         *self.id.write().unwrap() = Some(id);
     }
 
-    fn set_parameter(&self, param: &str, value: &Value) {
+    fn set_parameter(&self, param: &str, _value: &Value) {
 
         match param {
             _ => panic!("No parameter '{}' exists.", param)

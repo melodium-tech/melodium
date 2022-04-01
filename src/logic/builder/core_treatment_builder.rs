@@ -1,15 +1,10 @@
 
 use std::collections::HashMap;
-use crate::executive::model::{Model, ModelId};
-use crate::executive::value::Value;
-use crate::executive::transmitter::Transmitter;
 use crate::executive::treatment::Treatment;
 use crate::executive::world::World;
 use crate::executive::environment::{ContextualEnvironment, GenesisEnvironment};
 use crate::logic::builder::*;
-use async_std::future::Future;
-use crate::executive::result_status::ResultStatus;
-use crate::logic::descriptor::{ParameterDescriptor, CoreModelDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, TreatmentDescriptor, BuildableDescriptor};
+use crate::logic::descriptor::TreatmentDescriptor;
 use std::sync::{Arc, Weak, RwLock};
 use crate::logic::error::LogicError;
 
@@ -139,19 +134,19 @@ impl Builder for CoreTreatmentBuilder {
         Some(result)
     }
 
-    fn give_next(&self, within_build: BuildId, for_label: String, environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
+    fn give_next(&self, _within_build: BuildId, _for_label: String, _environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
 
         // A core treatment cannot have sub-treatments (its not a sequence), so nothing to ever return.
         None
     }
 
-    fn check_dynamic_build(&self, build: BuildId, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
+    fn check_dynamic_build(&self, _build: BuildId, _environment: CheckEnvironment, _previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
         
         //todo!()
         Some(CheckBuildResult::new())
     }
 
-    fn check_give_next(&self, within_build: BuildId, for_label: String, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
+    fn check_give_next(&self, _within_build: BuildId, _for_label: String, _environment: CheckEnvironment, _previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
         
         // A core treatment cannot have sub-treatments (its not a sequence), so nothing to ever return.
         None

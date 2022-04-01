@@ -210,7 +210,7 @@ impl Connection {
 }
 
 impl Node for Connection {
-    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
+    fn make_references(&mut self, _path: &Path) -> Result<(), ScriptError> {
 
         let rc_sequence = self.sequence.upgrade().unwrap();
         let sequence = rc_sequence.read().unwrap();

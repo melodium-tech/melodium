@@ -1,6 +1,5 @@
 
 use std::sync::{Arc, RwLock};
-use std::collections::HashMap;
 use super::*;
 use super::super::error::LogicError;
 use super::super::descriptor::model::Model;
@@ -8,9 +7,6 @@ use super::super::descriptor::buildable::Buildable;
 use super::super::designer::ModelDesigner;
 use super::super::descriptor::parameterized::Parameterized;
 use super::super::super::executive::environment::{GenesisEnvironment, ContextualEnvironment};
-use super::super::super::executive::model::Model as ExecutiveModel;
-use super::super::super::executive::transmitter::Transmitter;
-use super::super::super::executive::future::*;
 use super::super::descriptor::TreatmentDescriptor;
 use super::super::designer::value::Value;
 
@@ -68,28 +64,28 @@ impl Builder for ConfiguredModelBuilder {
         borrowed_designer.descriptor().core_model().builder().static_build(host_treatment, host_build, label, &remastered_environment)
     }
 
-    fn dynamic_build(&self, build: BuildId, environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
+    fn dynamic_build(&self, _build: BuildId, _environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
 
         // Doing nothing, models are not supposed to have dynamic building phase
 
         None
     }
 
-    fn give_next(&self, within_build: BuildId, for_label: String, environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
+    fn give_next(&self, _within_build: BuildId, _for_label: String, _environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
         
         // Doing nothing, models are not supposed to have dynamic building phase
         
         None
     }
 
-    fn check_dynamic_build(&self, build: BuildId, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
+    fn check_dynamic_build(&self, _build: BuildId, _environment: CheckEnvironment, _previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
 
         // Doing nothing, models are not supposed to have dynamic building phase
 
         None
     }
 
-    fn check_give_next(&self, within_build: BuildId, for_label: String, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
+    fn check_give_next(&self, _within_build: BuildId, _for_label: String, _environment: CheckEnvironment, _previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
 
         // Doing nothing, models are not supposed to have dynamic building phase
 
