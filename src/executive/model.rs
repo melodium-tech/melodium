@@ -1,9 +1,7 @@
 
 use std::fmt::Debug;
 use std::sync::Arc;
-use std::collections::HashMap;
 use downcast_rs::{DowncastSync, impl_downcast};
-//use super::manager::Manager;
 use super::value::Value;
 use super::super::logic::descriptor::CoreModelDescriptor;
 

@@ -1,5 +1,4 @@
 
-use std::future::Future;
 use std::fmt::Debug;
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock, atomic::{AtomicBool, Ordering}};
@@ -10,12 +9,9 @@ use async_std::sync::Mutex;
 use async_std::channel::*;
 use super::future::*;
 use super::model::{Model, ModelId};
-use super::transmitter::Transmitter;
 use super::input::Input;
-use super::output::Output;
 use super::environment::{ContextualEnvironment, GenesisEnvironment};
 use super::context::Context;
-use super::result_status::ResultStatus;
 use super::super::logic::descriptor::BuildableDescriptor;
 use super::super::logic::descriptor::ModelDescriptor;
 use super::super::logic::error::LogicError;
