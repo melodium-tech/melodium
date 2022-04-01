@@ -164,11 +164,6 @@ impl Model for TcpListenerModel {
         }
     }
 
-    fn get_context_for(&self, source: &str) -> Vec<String> {
-
-        Vec::new()
-    }
-
     fn initialize(&self) {
 
         let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();

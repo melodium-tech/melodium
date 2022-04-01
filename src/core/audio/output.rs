@@ -117,11 +117,6 @@ impl Model for AudioOutputModel {
         }
     }
 
-    fn get_context_for(&self, source: &str) -> Vec<String> {
-
-        vec![]
-    }
-
     fn initialize(&self) {
 
         let receiver = self.stream_recv.clone();

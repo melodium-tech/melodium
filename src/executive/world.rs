@@ -151,7 +151,7 @@ impl World {
             for (source, entries) in model_sources {
 
                 let check_environment = CheckEnvironment {
-                    contextes: model.get_context_for(source)
+                    contextes: model.descriptor().sources().get(source).unwrap().iter().map(|context| context.name().to_string()).collect()
                 };
 
                 for entry in entries {

@@ -180,12 +180,6 @@ impl Model for FileWriterModel {
         }
     }
 
-    fn get_context_for(&self, source: &str) -> Vec<String> {
-
-        // Nothing is emitted for now by writer
-        Vec::new()
-    }
-
     fn initialize(&self) {
 
         let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();

@@ -16,8 +16,6 @@ pub trait Model : Debug + DowncastSync + Send + Sync {
 
     fn set_parameter(&self, param: &str, value: &Value);
 
-    fn get_context_for(&self, source: &str) -> Vec<String>;
-
     fn initialize(&self);
     fn shutdown(&self);
 }
