@@ -1,17 +1,28 @@
 
+use core/audio/encoding/wave::WaveDecoder
 use core/audio/encoding/wave::DecodeWave
+use core/audio/encoding/wave::MonoWave
+use core/audio/encoding/wave::StereoWave
 use core/audio/encoding/wave::EncodeWave
 use std/flow::BlockBytes
 use std/flow::StreamBytes
 
 sequence Decode()
-    input data:     Stream<byte>
-    output signal:  Stream<f32>
+    model decoder:      WaveDecoder()
+    input data:         Stream<byte>
+    output mono:        Stream<f32>
+    output stereo_left: Stream<f32>
+    output stereo_right:Stream<f32>
 {
     BlockBytes()
-    DecodeWave()
+    DecodeWave[decoder=decoder]()
+    MonoWave[decoder=decoder]()
+    StereoWave[decoder=decoder]()
 
-    Self.data -> BlockBytes.stream,block -> DecodeWave.data,signal -> Self.signal
+    Self.data -> BlockBytes.stream,block -> DecodeWave.data
+    MonoWave.mono ------------------------> Self.mono
+    StereoWave.left ----------------------> Self.stereo_left
+    StereoWave.right ---------------------> Self.stereo_right
 }
 
 sequence Encode()

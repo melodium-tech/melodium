@@ -1,6 +1,5 @@
 
 use crate::core::prelude::*;
-use async_std::channel::*;
 use hound::*;
 use itertools::Itertools;
 
@@ -9,9 +8,6 @@ pub struct WaveDecoderModel {
 
     world: Arc<World>,
     id: RwLock<Option<ModelId>>,
-
-    blocks_send: Sender<Vec<u8>>,
-    blocks_recv: Receiver<Vec<u8>>,
 
     auto_reference: RwLock<Weak<Self>>,
 }
@@ -47,14 +43,9 @@ impl WaveDecoderModel {
 
     pub fn new(world: Arc<World>) -> Arc<dyn Model> {
 
-        let (blocks_send, blocks_recv) = unbounded();
-
         let model = Arc::new(Self {
             world,
             id: RwLock::new(None),
-
-            blocks_send,
-            blocks_recv,
 
             auto_reference: RwLock::new(Weak::new()),
         });
@@ -64,38 +55,30 @@ impl WaveDecoderModel {
         model
     }
 
-    pub async fn add_to_decode(&self, block: Vec<u8>) {
+    pub async fn decode(&self, block: Vec<u8>) {
 
-        let _ = self.blocks_send.send(block).await;
-    }
+        let reader = WavReader::new(block.as_slice()).unwrap();
 
-    async fn decode(&self) {
+        let spec = reader.spec();
 
-        while let Ok(block) = self.blocks_recv.recv().await {
+        let mut signal_context = Context::new();
+        signal_context.set_value("sampleRate", Value::U64(spec.sample_rate.into()));
+        signal_context.set_value("channels", Value::U32(spec.channels.into()));
 
-            let reader = WavReader::new(block.as_slice()).unwrap();
+        let mut contextes = HashMap::new();
+        contextes.insert("Signal".to_string(), signal_context);
 
-            let spec = reader.spec();
+        let data_decoding = |inputs| {
+            Self::decode_block(block, spec.channels, inputs)
+        };
 
-            let mut signal_context = Context::new();
-            signal_context.set_value("sampleRate", Value::U64(spec.sample_rate.into()));
-            signal_context.set_value("channels", Value::U32(spec.channels.into()));
+        let model_id = self.id.read().unwrap().unwrap();
 
-            let mut contextes = HashMap::new();
-            contextes.insert("Signal".to_string(), signal_context);
-
-            let data_decoding = |inputs| {
-                Self::decode_block(block, spec.channels, inputs)
-            };
-
-            let model_id = self.id.read().unwrap().unwrap();
-
-            if spec.channels == 1 {
-                self.world.create_track(model_id, "mono", contextes, None, Some(data_decoding)).await;
-            }
-            else if spec.channels == 2 {
-                self.world.create_track(model_id, "stereo", contextes, None, Some(data_decoding)).await;
-            }
+        if spec.channels == 1 {
+            self.world.create_track(model_id, "mono", contextes, None, Some(data_decoding)).await;
+        }
+        else if spec.channels == 2 {
+            self.world.create_track(model_id, "stereo", contextes, None, Some(data_decoding)).await;
         }
     }
 
@@ -307,6 +290,10 @@ impl WaveDecoderModel {
                 _ => ()
             }
 
+            mono_output.close().await;
+            stereo_l_output.close().await;
+            stereo_r_output.close().await;
+
             ResultStatus::Ok
         })) as TrackFuture;
 
@@ -343,10 +330,6 @@ impl Model for WaveDecoderModel {
 
     fn initialize(&self) {
 
-        let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
-        let future_read = Box::pin(async move { auto_self.decode().await });
-
-        self.world.add_continuous_task(Box::new(future_read));
     }
 
     fn shutdown(&self) {
@@ -397,15 +380,15 @@ treatment!(stereo_decode,
         input!("_stereo_r",Scalar,F32,Stream)
     ],
     outputs![
-        output!("stereo_l",Scalar,F32,Stream),
-        output!("stereo_r",Scalar,F32,Stream)
+        output!("left",Scalar,F32,Stream),
+        output!("right",Scalar,F32,Stream)
     ],
     host {
 
         let input_stereo_l = host.get_input("_stereo_l");
         let input_stereo_r = host.get_input("_stereo_r");
-        let output_stereo_l = host.get_output("stereo_l");
-        let output_stereo_r = host.get_output("stereo_r");
+        let output_stereo_l = host.get_output("left");
+        let output_stereo_r = host.get_output("right");
 
         loop {
             if let Ok(signal) = input_stereo_l.recv_f32().await {

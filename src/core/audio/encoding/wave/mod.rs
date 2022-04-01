@@ -36,7 +36,7 @@ treatment!(decode,
             let data = data.get(0).unwrap();
             input.close();
 
-            decoder.add_to_decode(data.to_vec()).await;
+            decoder.decode(data.to_vec()).await;
         }
     
         ResultStatus::Ok
