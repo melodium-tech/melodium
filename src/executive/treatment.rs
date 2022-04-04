@@ -22,10 +22,6 @@ pub trait Treatment {
     fn prepare(&self) -> Vec<TrackFuture>;
 }
 
-pub trait TreatmentImpl : Debug {
-    fn prepare(&self) -> Vec<TrackFuture>;
-}
-
 #[derive(Debug)]
 pub struct TreatmentHost {
 
