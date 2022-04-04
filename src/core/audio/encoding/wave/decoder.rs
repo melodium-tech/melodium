@@ -320,14 +320,6 @@ impl Model for WaveDecoderModel {
         panic!("No parameter '{}' exists.", param)
     }
 
-    fn get_context_for(&self, source: &str) -> Vec<String> {
-
-        match source {
-            "read" => vec!["File".to_string()],
-            _ => Vec::new(),
-        }
-    }
-
     fn initialize(&self) {
 
     }
