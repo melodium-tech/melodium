@@ -1,5 +1,4 @@
 
-use std::future::Future;
 use std::fmt::Debug;
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock, atomic::{AtomicBool, Ordering}};
@@ -10,12 +9,9 @@ use async_std::sync::Mutex;
 use async_std::channel::*;
 use super::future::*;
 use super::model::{Model, ModelId};
-use super::transmitter::Transmitter;
 use super::input::Input;
-use super::output::Output;
 use super::environment::{ContextualEnvironment, GenesisEnvironment};
 use super::context::Context;
-use super::result_status::ResultStatus;
 use super::super::logic::descriptor::BuildableDescriptor;
 use super::super::logic::descriptor::ModelDescriptor;
 use super::super::logic::error::LogicError;
@@ -155,7 +151,7 @@ impl World {
             for (source, entries) in model_sources {
 
                 let check_environment = CheckEnvironment {
-                    contextes: model.get_context_for(source)
+                    contextes: model.descriptor().sources().get(source).unwrap().iter().map(|context| context.name().to_string()).collect()
                 };
 
                 for entry in entries {
@@ -171,7 +167,7 @@ impl World {
                     for rc_check_build in result.checked_builds {
 
                         let borrowed_check_build = rc_check_build.read().unwrap();
-                        for (input_name, input_satisfied) in &borrowed_check_build.fed_inputs {
+                        for (_input_name, input_satisfied) in &borrowed_check_build.fed_inputs {
 
                             if !input_satisfied {
                                 errors.push(LogicError::unsatisfied_input());

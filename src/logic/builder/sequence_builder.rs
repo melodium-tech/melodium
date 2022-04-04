@@ -4,15 +4,12 @@ use std::collections::HashMap;
 use super::*;
 use super::super::error::LogicError;
 use super::super::designer::SequenceDesigner;
-use super::super::designer::TreatmentDesigner;
 use super::super::designer::{ConnectionDesigner, ConnectionIODesigner};
 use super::super::descriptor::parameterized::Parameterized;
 use super::super::descriptor::TreatmentDescriptor;
 use super::super::descriptor::IdentifiedDescriptor;
 use super::super::super::executive::environment::{GenesisEnvironment, ContextualEnvironment};
 use super::super::super::executive::model::Model;
-use super::super::super::executive::future::*;
-use super::super::super::executive::transmitter::Transmitter;
 use super::super::designer::value::Value;
 
 #[derive(Debug)]
@@ -588,7 +585,7 @@ impl Builder for SequenceBuilder {
             identifier: self.designer.read().unwrap().descriptor().identifier().clone(),
             build_id: build,
         };
-        if let Some(existing_check_step) = previous_steps.iter().find(|&cs| cs == &check_step) {
+        if let Some(_existing_check_step) = previous_steps.iter().find(|&cs| cs == &check_step) {
             
             errors.push(LogicError::already_included_build_step());
         }
@@ -652,7 +649,7 @@ impl Builder for SequenceBuilder {
 
     fn check_give_next(&self, within_build: BuildId, for_label: String, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
 
-        let mut errors = Vec::new();
+        let errors = Vec::new();
         // (Check if environment is satisfied)
         //  ↑ actually not because next treatment may not require it -checking evolution to do-
 

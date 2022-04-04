@@ -3,9 +3,6 @@ use std::fmt::Debug;
 use crate::logic::descriptor::{CoreTreatmentDescriptor, ParameterizedDescriptor, TreatmentDescriptor};
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, Mutex, RwLock};
-use async_std::future::Future;
-use futures::future::join_all;
-use super::result_status::ResultStatus;
 use super::future::TrackFuture;
 use super::value::Value;
 use super::model::Model;
@@ -22,10 +19,6 @@ pub trait Treatment {
     fn set_output(&self, output_name: &str, transmitter: &Input);
     fn get_inputs(&self) -> HashMap<String, Input>;
 
-    fn prepare(&self) -> Vec<TrackFuture>;
-}
-
-pub trait TreatmentImpl : Debug {
     fn prepare(&self) -> Vec<TrackFuture>;
 }
 

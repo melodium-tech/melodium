@@ -14,6 +14,9 @@ use super::context::Context;
 use super::super::builder::Builder;
 
 macro_rules! model_sources {
+    () => {{
+        std::collections::HashMap::new()
+    }};
     ($(($source:expr;$($context:expr),*)),*) => {{
         let mut map = std::collections::HashMap::new();
         $(map.insert(

@@ -113,7 +113,7 @@ impl Sequence {
 
         if let Some(arc_connection_descriptor) = Connections::get(Some(datatype_output), Some(datatype_input)) {
 
-            let mut connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
+            let connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
 
             let rc_connection = Arc::new(RwLock::new(connection));
             self.connections.push(Arc::clone(&rc_connection));
@@ -127,25 +127,17 @@ impl Sequence {
 
     pub fn add_void_connection(&mut self, output_treatment: &str, input_treatment: &str) -> Result<Arc<RwLock<Connection>>, LogicError> {
 
-        let rc_output_treatment;
-        if let Some(pos_rc_output_treatment) = self.treatments.get(output_treatment) {
-            rc_output_treatment = pos_rc_output_treatment;
-        }
-        else {
+        if self.treatments.get(output_treatment).is_none() {
             return Err(LogicError::undeclared_treatment())
         }
 
-        let rc_input_treatment;
-        if let Some(pos_rc_input_treatment) = self.treatments.get(input_treatment) {
-            rc_input_treatment = pos_rc_input_treatment;
-        }
-        else {
+        if self.treatments.get(input_treatment).is_none() {
             return Err(LogicError::undeclared_treatment())
         }
 
         if let Some(arc_connection_descriptor) = Connections::get(None, None) {
 
-            let mut connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
+            let connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
 
             let rc_connection = Arc::new(RwLock::new(connection));
             self.connections.push(Arc::clone(&rc_connection));
@@ -185,7 +177,7 @@ impl Sequence {
 
         if let Some(arc_connection_descriptor) = Connections::get(Some(datatype_input_self), Some(datatype_input_treatment)) {
 
-            let mut connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
+            let connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
 
             let rc_connection = Arc::new(RwLock::new(connection));
             self.connections.push(Arc::clone(&rc_connection));
@@ -225,7 +217,7 @@ impl Sequence {
 
         if let Some(arc_connection_descriptor) = Connections::get(Some(datatype_output_treatment), Some(datatype_output_self)) {
 
-            let mut connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
+            let connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
 
             let rc_connection = Arc::new(RwLock::new(connection));
             self.connections.push(Arc::clone(&rc_connection));

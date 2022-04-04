@@ -100,7 +100,7 @@ impl AssignedModel {
 }
 
 impl Node for AssignedModel {
-    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
+    fn make_references(&mut self, _path: &Path) -> Result<(), ScriptError> {
 
         if self.model.reference.is_none() {
             

@@ -1,7 +1,7 @@
 
 use crate::core::prelude::*;
 use async_std::path::PathBuf;
-use async_std::fs::{File, OpenOptions};
+use async_std::fs::File;
 
 #[derive(Debug)]
 pub struct FileReaderModel {
@@ -177,14 +177,6 @@ impl Model for FileReaderModel {
                 }
             },
             _ => panic!("No parameter '{}' exists.", param)
-        }
-    }
-
-    fn get_context_for(&self, source: &str) -> Vec<String> {
-
-        match source {
-            "read" => vec!["File".to_string()],
-            _ => Vec::new(),
         }
     }
 

@@ -1,6 +1,4 @@
 
-use std::sync::Arc;
-use crate::logic::descriptor::{ModelDescriptor, TreatmentDescriptor};
 use crate::logic::collection_pool::CollectionPool;
 
 pub fn core_collection() -> &'static CollectionPool {

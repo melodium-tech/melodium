@@ -1,7 +1,7 @@
 
 use crate::core::prelude::*;
 use async_std::path::PathBuf;
-use async_std::fs::{File, OpenOptions};
+use async_std::fs::OpenOptions;
 use async_std::io::BufWriter;
 
 #[derive(Debug)]
@@ -178,12 +178,6 @@ impl Model for FileWriterModel {
             },
             _ => panic!("No parameter '{}' exists.", param)
         }
-    }
-
-    fn get_context_for(&self, source: &str) -> Vec<String> {
-
-        // Nothing is emitted for now by writer
-        Vec::new()
     }
 
     fn initialize(&self) {

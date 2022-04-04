@@ -119,18 +119,10 @@ impl Model for AudioInputModel {
         *self.id.write().unwrap() = Some(id);
     }
 
-    fn set_parameter(&self, param: &str, value: &Value) {
+    fn set_parameter(&self, param: &str, _value: &Value) {
 
         match param {
             _ => panic!("No parameter '{}' exists.", param)
-        }
-    }
-
-    fn get_context_for(&self, source: &str) -> Vec<String> {
-
-        match source {
-            "receive" => vec![],
-            _ => Vec::new(),
         }
     }
 

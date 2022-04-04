@@ -1,7 +1,5 @@
 
 use super::super::prelude::*;
-use std::convert::TryFrom;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 macro_rules! impl_CastScalar {
     ($mod:ident, $mel_name:expr, $input_mel_type:ident, $recv_func:ident, $output_mel_value_type:ident, $output_mel_type:ident, $output_rust_type:ty, $send_func:ident) => {
