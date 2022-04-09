@@ -2,7 +2,7 @@
 pub use crate::executive::result_status::ResultStatus;
 pub use crate::executive::future::TrackFuture;
 pub use std::collections::HashMap;
-pub use crate::executive::model::{Model, ModelId};
+pub use crate::executive::model::{Model, ModelId, ModelHelper};
 pub use crate::executive::value::Value;
 pub use crate::executive::transmitter::*;
 pub use crate::executive::treatment::*;
@@ -120,26 +120,28 @@ pub(crate) use treatment;
 
 macro_rules! model_desc {
     ($rust_identifier:ident,$identifier:expr,$parameters:expr,$sources:expr) => {
-        lazy_static! {
-            static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-                
-                let builder = CoreModelBuilder::new($rust_identifier::new);
+        {
+            lazy_static! {
+                static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
+                    
+                    let builder = CoreModelBuilder::new($rust_identifier::new);
 
-                let descriptor = CoreModelDescriptor::new(
-                    $identifier,
-                    $parameters,
-                    $sources,
-                    Box::new(builder)
-                );
+                    let descriptor = CoreModelDescriptor::new(
+                        $identifier,
+                        $parameters,
+                        $sources,
+                        Box::new(builder)
+                    );
 
-                let rc_descriptor = Arc::new(descriptor);
-                rc_descriptor.set_autoref(&rc_descriptor);
+                    let rc_descriptor = Arc::new(descriptor);
+                    rc_descriptor.set_autoref(&rc_descriptor);
 
-                rc_descriptor
-            };
+                    rc_descriptor
+                };
+            }
+            
+            Arc::clone(&DESCRIPTOR)
         }
-        
-        Arc::clone(&DESCRIPTOR)
     };
 }
 pub(crate) use model_desc;

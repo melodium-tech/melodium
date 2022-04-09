@@ -24,7 +24,7 @@ pub trait Model : Debug + DowncastSync + Send + Sync {
 }
 impl_downcast!(sync Model);
 
-
+#[derive(Debug)]
 pub struct ModelHelper {
 
     descriptor: Arc<CoreModelDescriptor>,

@@ -6,8 +6,7 @@ use itertools::Itertools;
 #[derive(Debug)]
 pub struct WaveDecoderModel {
 
-    world: Arc<World>,
-    id: RwLock<Option<ModelId>>,
+    helper: ModelHelper,
 
     auto_reference: RwLock<Weak<Self>>,
 }
@@ -15,37 +14,21 @@ pub struct WaveDecoderModel {
 impl WaveDecoderModel {
 
     pub fn descriptor() -> Arc<CoreModelDescriptor> {
-
-        lazy_static! {
-            static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-                
-                let builder = CoreModelBuilder::new(WaveDecoderModel::new);
-
-                let descriptor = CoreModelDescriptor::new(
-                    core_identifier!("audio","encoding","wave";"WaveDecoder"),
-                    vec![],
-                    model_sources![
-                        ("mono";    "Signal"),
-                        ("stereo";  "Signal")
-                    ],
-                    Box::new(builder)
-                );
-
-                let rc_descriptor = Arc::new(descriptor);
-                rc_descriptor.set_autoref(&rc_descriptor);
-
-                rc_descriptor
-            };
-        }
-        
-        Arc::clone(&DESCRIPTOR)
+        model_desc!(
+            WaveDecoderModel,
+            core_identifier!("audio","encoding","wave";"WaveDecoder"),
+            vec![],
+            model_sources![
+                ("mono";    "Signal"),
+                ("stereo";  "Signal")
+            ]
+        )
     }
 
     pub fn new(world: Arc<World>) -> Arc<dyn Model> {
 
         let model = Arc::new(Self {
-            world,
-            id: RwLock::new(None),
+            helper: ModelHelper::new(Self::descriptor(), world),
 
             auto_reference: RwLock::new(Weak::new()),
         });
@@ -72,13 +55,13 @@ impl WaveDecoderModel {
             Self::decode_block(block, spec.channels, inputs)
         };
 
-        let model_id = self.id.read().unwrap().unwrap();
+        let model_id = self.helper.id().unwrap();
 
         if spec.channels == 1 {
-            self.world.create_track(model_id, "mono", contextes, None, Some(data_decoding)).await;
+            self.helper.world().create_track(model_id, "mono", contextes, None, Some(data_decoding)).await;
         }
         else if spec.channels == 2 {
-            self.world.create_track(model_id, "stereo", contextes, None, Some(data_decoding)).await;
+            self.helper.world().create_track(model_id, "stereo", contextes, None, Some(data_decoding)).await;
         }
     }
 
@@ -301,33 +284,7 @@ impl WaveDecoderModel {
     }
 }
 
-impl Model for WaveDecoderModel {
-    
-    fn descriptor(&self) -> Arc<CoreModelDescriptor> {
-        Self::descriptor()
-    }
-
-    fn id(&self) -> Option<ModelId> {
-        *self.id.read().unwrap()
-    }
-
-    fn set_id(&self, id: ModelId) {
-        *self.id.write().unwrap() = Some(id);
-    }
-
-    fn set_parameter(&self, param: &str, _value: &Value) {
-
-        panic!("No parameter '{}' exists.", param)
-    }
-
-    fn initialize(&self) {
-
-    }
-
-    fn shutdown(&self) {
-
-    }
-}
+model_trait!(WaveDecoderModel);
 
 treatment!(mono_decode,
     core_identifier!("audio","encoding","wave";"MonoWave"),
