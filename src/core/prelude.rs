@@ -118,6 +118,117 @@ macro_rules! treatment {
 }
 pub(crate) use treatment;
 
+macro_rules! model_desc {
+    ($rust_identifier:ident,$identifier:expr,$parameters:expr,$sources:expr) => {
+        lazy_static! {
+            static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
+                
+                let builder = CoreModelBuilder::new($rust_identifier::new);
+
+                let descriptor = CoreModelDescriptor::new(
+                    $identifier,
+                    $parameters,
+                    $sources,
+                    Box::new(builder)
+                );
+
+                let rc_descriptor = Arc::new(descriptor);
+                rc_descriptor.set_autoref(&rc_descriptor);
+
+                rc_descriptor
+            };
+        }
+        
+        Arc::clone(&DESCRIPTOR)
+    };
+}
+pub(crate) use model_desc;
+
+macro_rules! model_trait {
+    ($identifier:ident,$initialize:ident,$shutdown:ident) => {
+        impl Model for $identifier {
+    
+            fn descriptor(&self) -> Arc<CoreModelDescriptor> {
+                Self::descriptor()
+            }
+        
+            fn id(&self) -> Option<ModelId> {
+                self.helper.id()
+            }
+        
+            fn set_id(&self, id: ModelId) {
+                self.helper.set_id(id);
+            }
+        
+            fn set_parameter(&self, param: &str, value: &Value) {
+                self.helper.set_parameter(param, value);
+            }
+        
+            fn initialize(&self) {
+                self.$initialize()
+            }
+        
+            fn shutdown(&self) {
+                self.$shutdown()
+            }
+        }
+    };
+    ($identifier:ident,$initialize:ident) => {
+        impl Model for $identifier {
+    
+            fn descriptor(&self) -> Arc<CoreModelDescriptor> {
+                Self::descriptor()
+            }
+        
+            fn id(&self) -> Option<ModelId> {
+                self.helper.id()
+            }
+        
+            fn set_id(&self, id: ModelId) {
+                self.helper.set_id(id);
+            }
+        
+            fn set_parameter(&self, param: &str, value: &Value) {
+                self.helper.set_parameter(param, value);
+            }
+        
+            fn initialize(&self) {
+                self.$initialize()
+            }
+        
+            fn shutdown(&self) {
+            }
+        }
+    };
+    ($identifier:ident) => {
+        impl Model for $identifier {
+    
+            fn descriptor(&self) -> Arc<CoreModelDescriptor> {
+                Self::descriptor()
+            }
+        
+            fn id(&self) -> Option<ModelId> {
+                self.helper.id()
+            }
+        
+            fn set_id(&self, id: ModelId) {
+                self.helper.set_id(id);
+            }
+        
+            fn set_parameter(&self, param: &str, value: &Value) {
+                self.helper.set_parameter(param, value);
+            }
+        
+            fn initialize(&self) {
+            }
+        
+            fn shutdown(&self) {
+            }
+        }
+    };
+}
+pub(crate) use model_trait;
+
 macro_rules! ok_or_break {
     ($l:tt, $x:expr) => {
         if let Err(_) = $x {
