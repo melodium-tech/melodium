@@ -24,31 +24,17 @@ impl FileWriterModel {
 
     pub fn descriptor() -> Arc<CoreModelDescriptor> {
         
-        lazy_static! {
-            static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-                
-                let builder = CoreModelBuilder::new(FileWriterModel::new);
-
-                let descriptor = CoreModelDescriptor::new(
-                    core_identifier!("fs","direct";"FileWriter"),
-                    vec![
-                        parameter!("path", Scalar, String, None),
-                        parameter!("append", Scalar, Bool, Some(Value::Bool(false))),
-                        parameter!("create", Scalar, Bool, Some(Value::Bool(true))),
-                        parameter!("new", Scalar, Bool, Some(Value::Bool(false))),
-                    ],
-                    model_sources![],
-                    Box::new(builder)
-                );
-
-                let rc_descriptor = Arc::new(descriptor);
-                rc_descriptor.set_autoref(&rc_descriptor);
-
-                rc_descriptor
-            };
-        }
-
-        Arc::clone(&DESCRIPTOR)
+        model_desc!(
+            FileWriterModel,
+            core_identifier!("fs","direct";"FileWriter"),
+            vec![
+                parameter!("path", Scalar, String, None),
+                parameter!("append", Scalar, Bool, Some(Value::Bool(false))),
+                parameter!("create", Scalar, Bool, Some(Value::Bool(true))),
+                parameter!("new", Scalar, Bool, Some(Value::Bool(false))),
+            ],
+            model_sources![]
+        )
     }
 
     pub fn new(world: Arc<World>) -> Arc<dyn Model> {

@@ -24,32 +24,18 @@ macro_rules! impl_ScalarGeneration {
 
                 pub fn descriptor() -> Arc<CoreModelDescriptor> {
 
-                    lazy_static! {
-                        static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-
-                            let builder = CoreModelBuilder::new(ModelGenerator::new);
-
-                            let descriptor = CoreModelDescriptor::new(
-                                core_identifier!("generation";$model_mel_name),
-                                vec![
-                                    parameter!("tracks", Scalar, U64, Some(Value::U64(1))),
-                                    parameter!("length", Scalar, U64, Some(Value::U64(1024))),
-                                    parameter!("value", Scalar, $mel_type, Some(Value::$mel_type(<$rust_type>::default()))),
-                                ],
-                                model_sources![
-                                    ("data";)
-                                ],
-                                Box::new(builder)
-                            );
-
-                            let rc_descriptor = Arc::new(descriptor);
-                            rc_descriptor.set_autoref(&rc_descriptor);
-
-                            rc_descriptor
-                        };
-                    }
-                    
-                    Arc::clone(&DESCRIPTOR)
+                    model_desc!(
+                        ModelGenerator,
+                        core_identifier!("generation";$model_mel_name),
+                        vec![
+                            parameter!("tracks", Scalar, U64, Some(Value::U64(1))),
+                            parameter!("length", Scalar, U64, Some(Value::U64(1024))),
+                            parameter!("value", Scalar, $mel_type, Some(Value::$mel_type(<$rust_type>::default()))),
+                        ],
+                        model_sources![
+                            ("data";)
+                        ]
+                    )
                 }
 
                 pub fn new(world: Arc<World>) -> Arc<dyn Model> {

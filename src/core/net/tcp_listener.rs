@@ -19,30 +19,16 @@ impl TcpListenerModel {
 
     pub fn descriptor() -> Arc<CoreModelDescriptor> {
 
-        lazy_static! {
-            static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-
-                let builder = CoreModelBuilder::new(TcpListenerModel::new);
-
-                let descriptor = CoreModelDescriptor::new(
-                    core_identifier!("net";"TcpListener"),
-                    vec![
-                        parameter!("socket_address", Scalar, String, None)
-                    ],
-                    model_sources![
-                        ("connection"; "TcpConnection")
-                    ],
-                    Box::new(builder)
-                );
-
-                let rc_descriptor = Arc::new(descriptor);
-                rc_descriptor.set_autoref(&rc_descriptor);
-
-                rc_descriptor
-            };
-        }
-        
-        Arc::clone(&DESCRIPTOR)
+        model_desc!(
+            TcpListenerModel,
+            core_identifier!("net";"TcpListener"),
+            vec![
+                parameter!("socket_address", Scalar, String, None),
+            ],
+            model_sources![
+                ("connection"; "TcpConnection")
+            ]
+        )
     }
 
     pub fn new(world: Arc<World>) -> Arc<dyn Model> {
