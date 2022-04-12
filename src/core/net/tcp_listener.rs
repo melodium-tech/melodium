@@ -5,10 +5,7 @@ use async_std::net::*;
 #[derive(Debug)]
 pub struct TcpListenerModel {
 
-    world: Arc<World>,
-    id: RwLock<Option<ModelId>>,
-
-    socket_address: RwLock<String>,
+    helper: ModelHelper,
 
     available_streams: RwLock<HashMap<(String, u16), TcpStream>>,
 
@@ -34,10 +31,7 @@ impl TcpListenerModel {
     pub fn new(world: Arc<World>) -> Arc<dyn Model> {
 
         let model = Arc::new(Self {
-            world,
-            id: RwLock::new(None),
-
-            socket_address: RwLock::new(String::new()),
+            helper: ModelHelper::new(Self::descriptor(), world),
 
             available_streams: RwLock::new(HashMap::new()),
 
@@ -49,17 +43,21 @@ impl TcpListenerModel {
         model
     }
 
-    pub fn socket_address(&self) -> String {
-        self.socket_address.read().unwrap().clone()
-    }
-
     pub fn available_streams(&self) -> &RwLock<HashMap<(String, u16), TcpStream>> {
         &self.available_streams
     }
 
+    fn initialize(&self) {
+
+        let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
+        let continuous_future = Box::pin(async move { auto_self.listen().await });
+
+        self.helper.world().add_continuous_task(Box::new(continuous_future));
+    }
+
     async fn listen(&self) {
 
-        let socket_address: SocketAddr = self.socket_address().parse().unwrap();
+        let socket_address: SocketAddr = self.helper.get_parameter("socket_address").string().parse().unwrap();
 
         // Todo manage io error
         if let Ok(listener) = TcpListener::bind(socket_address).await {
@@ -86,8 +84,8 @@ impl TcpListenerModel {
                 let mut contextes = HashMap::new();
                 contextes.insert("TcpConnection".to_string(), tcp_connection_context);
 
-                let model_id = self.id.read().unwrap().unwrap();
-                self.world.create_track(model_id, "connection", contextes, None, Some(data_reading)).await;
+                let model_id = self.helper.id().unwrap();
+                self.helper.world().create_track(model_id, "connection", contextes, None, Some(data_reading)).await;
             }
         }
 
@@ -121,42 +119,4 @@ impl TcpListenerModel {
     }
 }
 
-impl Model for TcpListenerModel {
-    
-    fn descriptor(&self) -> Arc<CoreModelDescriptor> {
-        Self::descriptor()
-    }
-
-    fn id(&self) -> Option<ModelId> {
-        *self.id.read().unwrap()
-    }
-
-    fn set_id(&self, id: ModelId) {
-        *self.id.write().unwrap() = Some(id);
-    }
-
-    fn set_parameter(&self, param: &str, value: &Value) {
-
-        match param {
-            "socket_address" => {
-                match value {
-                    Value::String(path) => *self.socket_address.write().unwrap() = path.to_string(),
-                    _ => panic!("Unexpected value type for 'socket_address'."),
-                }
-            },
-            _ => panic!("No parameter '{}' exists.", param)
-        }
-    }
-
-    fn initialize(&self) {
-
-        let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
-        let continuous_future = Box::pin(async move { auto_self.listen().await });
-
-        self.world.add_continuous_task(Box::new(continuous_future));
-    }
-
-    fn shutdown(&self) {
-
-    }
-}
+model_trait!(TcpListenerModel, initialize);

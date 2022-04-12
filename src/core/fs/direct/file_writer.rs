@@ -7,13 +7,7 @@ use async_std::io::BufWriter;
 #[derive(Debug)]
 pub struct FileWriterModel {
 
-    world: Arc<World>,
-    id: RwLock<Option<ModelId>>,
-
-    path: RwLock<String>,
-    append: RwLock<bool>,
-    create: RwLock<bool>,
-    new: RwLock<bool>,
+    helper: ModelHelper,
 
     write_channel: (Sender<u8>, Receiver<u8>),
 
@@ -39,13 +33,7 @@ impl FileWriterModel {
 
     pub fn new(world: Arc<World>) -> Arc<dyn Model> {
         let model = Arc::new(Self {
-            world,
-            id: RwLock::new(None),
-
-            path: RwLock::new(String::new()),
-            append: RwLock::new(false),
-            create: RwLock::new(true),
-            new: RwLock::new(false),
+            helper: ModelHelper::new(Self::descriptor(), world),
 
             write_channel: bounded(1048576),
 
@@ -57,36 +45,28 @@ impl FileWriterModel {
         model
     }
 
-    pub fn path(&self) -> String {
-        self.path.read().unwrap().clone()
-    }
-
-    pub fn append(&self) -> bool {
-        *self.append.read().unwrap()
-    }
-
-    pub fn create(&self) -> bool {
-        *self.create.read().unwrap()
-    }
-
-    pub fn create_new(&self) -> bool {
-        *self.new.read().unwrap()
-    }
-
     pub fn writer(&self) -> &Sender<u8> {
         &self.write_channel.0
     }
 
+    fn initialize(&self) {
+
+        let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
+        let future_write = Box::pin(async move { auto_self.write().await });
+
+        self.helper.world().add_continuous_task(Box::new(future_write));
+    }
+
     async fn write(&self) {
 
-        let os_path = PathBuf::from(self.path());
+        let os_path = PathBuf::from(self.helper.get_parameter("path").string());
 
         let mut open_options = OpenOptions::new();
         open_options
             .write(true)
-            .append(self.append())
-            .create(self.create())
-            .create_new(self.create_new());
+            .append(self.helper.get_parameter("append").bool())
+            .create(self.helper.get_parameter("create").bool())
+            .create_new(self.helper.get_parameter("new").bool());
 
         let open_result = open_options.open(&os_path).await;
 
@@ -121,60 +101,4 @@ impl FileWriterModel {
     }
 }
 
-impl Model for FileWriterModel {
-    
-    fn descriptor(&self) -> Arc<CoreModelDescriptor> {
-        Self::descriptor()
-    }
-
-    fn id(&self) -> Option<ModelId> {
-        *self.id.read().unwrap()
-    }
-
-    fn set_id(&self, id: ModelId) {
-        *self.id.write().unwrap() = Some(id);
-    }
-
-    fn set_parameter(&self, param: &str, value: &Value) {
-
-        match param {
-            "path" => {
-                match value {
-                    Value::String(path) => *self.path.write().unwrap() = path.to_string(),
-                    _ => panic!("Unexpected value type for 'path'."),
-                }
-            },
-            "append" => {
-                match value {
-                    Value::Bool(append) => *self.append.write().unwrap() = *append,
-                    _ => panic!("Unexpected value type for 'append'."),
-                }
-            },
-            "create" => {
-                match value {
-                    Value::Bool(create) => *self.create.write().unwrap() = *create,
-                    _ => panic!("Unexpected value type for 'create'."),
-                }
-            },
-            "new" => {
-                match value {
-                    Value::Bool(new) => *self.new.write().unwrap() = *new,
-                    _ => panic!("Unexpected value type for 'new'."),
-                }
-            },
-            _ => panic!("No parameter '{}' exists.", param)
-        }
-    }
-
-    fn initialize(&self) {
-
-        let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
-        let future_write = Box::pin(async move { auto_self.write().await });
-
-        self.world.add_continuous_task(Box::new(future_write));
-    }
-
-    fn shutdown(&self) {
-
-    }
-}
+model_trait!(FileWriterModel, initialize);

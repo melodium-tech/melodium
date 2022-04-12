@@ -74,7 +74,14 @@ impl ModelHelper {
     }
 
     pub fn get_parameter(&self, param: &str) -> Value {
-        self.parameters.lock().unwrap().get(param).unwrap().clone()
+        let borrowed_params = self.parameters.lock().unwrap();
+        
+        if let Some(value) = borrowed_params.get(param) {
+            value.clone()
+        }
+        else {
+            self.descriptor.parameters().get(param).unwrap().default().as_ref().unwrap().clone()
+        }
     }
 }
 
