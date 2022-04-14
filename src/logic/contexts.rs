@@ -43,6 +43,7 @@ impl Contexts {
 
         contexts.insert(ContextDescriptor::new("Signal", vec![
             ("sampleRate", Data::new(Structure::Scalar, Type::U64)),
+            ("channels", Data::new(Structure::Scalar, Type::U32)),
         ]));
 
         // Add there existing contexts.

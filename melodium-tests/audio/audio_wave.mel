@@ -18,6 +18,6 @@ sequence ReencodeWave(input: string, output: string)
     Encode()
     WriteFile(path=output)
     
-    ReadFile.data -> Decode.data,signal -> Encode.signal,data -> WriteFile.data
+    ReadFile.data -> Decode.data,mono -> Encode.signal,data -> WriteFile.data
 }
 

@@ -4,7 +4,7 @@
 use super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
-use crate::script::error::ScriptError;
+use crate::script::error::{ScriptError, wrap_logic_error};
 use crate::script::path::Path;
 use crate::script::text::Instanciation as TextTreatment;
 use crate::logic::descriptor::identifier::Identifier;
@@ -132,10 +132,13 @@ impl Treatment {
 
             let param_assignation_designer = designer.add_parameter(&borrowed_param_assignation.name).unwrap();
 
-            borrowed_param_assignation.make_design(&param_assignation_designer).unwrap();
+            borrowed_param_assignation.make_design(&param_assignation_designer)?;
         }
 
-        designer.validate().unwrap();
+        wrap_logic_error!(
+            designer.validate(),
+            self.text.name.position
+        );
 
         Ok(())
 

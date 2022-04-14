@@ -10,8 +10,7 @@ use cpal::SampleRate;
 #[derive(Debug)]
 pub struct AudioOutputModel {
 
-    world: Arc<World>,
-    id: RwLock<Option<ModelId>>,
+    helper: ModelHelper,
 
     stream_thread: RwLock<Option<JoinHandle<()>>>,
     stream_end_barrier: Arc<Barrier>,
@@ -28,30 +27,16 @@ impl AudioOutputModel {
 
     pub fn descriptor() -> Arc<CoreModelDescriptor> {
 
-        lazy_static! {
-            static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-                
-                let builder = CoreModelBuilder::new(AudioOutputModel::new);
-
-                let descriptor = CoreModelDescriptor::new(
-                    core_identifier!("audio";"AudioOutput"),
-                    vec![
-                        parameter!("early_end", Scalar, Bool, Some(Value::Bool(true))),
-                    ],
-                    model_sources![
-                        ("send"; )
-                    ],
-                    Box::new(builder)
-                );
-
-                let rc_descriptor = Arc::new(descriptor);
-                rc_descriptor.set_autoref(&rc_descriptor);
-
-                rc_descriptor
-            };
-        }
-        
-        Arc::clone(&DESCRIPTOR)
+        model_desc!(
+            AudioOutputModel,
+            core_identifier!("audio";"AudioOutput"),
+            vec![
+                parameter!("early_end", Scalar, Bool, Some(Value::Bool(true))),
+            ],
+            model_sources![
+                ("send"; )
+            ]
+        )
     }
 
     pub fn new(world: Arc<World>) -> Arc<dyn Model> {
@@ -59,8 +44,7 @@ impl AudioOutputModel {
         let (send, recv) = unbounded();
 
         let model = Arc::new(Self {
-            world,
-            id: RwLock::new(None),
+            helper: ModelHelper::new(Self::descriptor(), world),
 
             stream_thread: RwLock::new(None),
             stream_end_barrier: Arc::new(Barrier::new(2)),
@@ -78,46 +62,7 @@ impl AudioOutputModel {
         model
     }
 
-    async fn wait_for_init(&self) {
-
-        // Let time for the output thread to init with system audio service
-        sleep(std::time::Duration::from_secs(1)).await;
-
-        let early_end = *self.early_end.read().unwrap();
-
-        if !early_end {
-            while !self.stream_recv.is_empty() {
-                sleep(std::time::Duration::from_millis(100)).await;
-            }
-        }
-    }
-}
-
-impl Model for AudioOutputModel {
-    
-    fn descriptor(&self) -> Arc<CoreModelDescriptor> {
-        Self::descriptor()
-    }
-
-    fn id(&self) -> Option<ModelId> {
-        *self.id.read().unwrap()
-    }
-
-    fn set_id(&self, id: ModelId) {
-        *self.id.write().unwrap() = Some(id);
-    }
-
-    fn set_parameter(&self, param: &str, value: &Value) {
-
-        match param {
-            "early_end" => {
-                *self.early_end.write().unwrap() = value.clone().bool();
-            },
-            _ => panic!("No parameter '{}' exists.", param)
-        }
-    }
-
-    fn initialize(&self) {
+    fn spawn_thread(&self) {
 
         let receiver = self.stream_recv.clone();
         let barrier = Arc::clone(&self.stream_end_barrier);
@@ -164,16 +109,32 @@ impl Model for AudioOutputModel {
         let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
         let future = Box::pin(async move { auto_self.wait_for_init().await });
 
-        self.world.add_continuous_task(Box::new(future));
+        self.helper.world().add_continuous_task(Box::new(future));
     }
 
-    fn shutdown(&self) {
+    async fn wait_for_init(&self) {
+
+        // Let time for the output thread to init with system audio service
+        sleep(std::time::Duration::from_secs(1)).await;
+
+        let early_end = *self.early_end.read().unwrap();
+
+        if !early_end {
+            while !self.stream_recv.is_empty() {
+                sleep(std::time::Duration::from_millis(100)).await;
+            }
+        }
+    }
+
+    fn close_wait(&self) {
 
         self.stream_recv.close();
         self.stream_end_barrier.wait();
         //self.stream_thread.into_inner().unwrap().unwrap().join();
     }
 }
+
+model_trait!(AudioOutputModel, spawn_thread, close_wait);
 
 treatment!(send_audio_treatment,
     core_identifier!("audio";"SendAudio"),
