@@ -152,10 +152,7 @@ impl Model {
                 descriptor.add_parameter(parameter_descriptor);
             }
 
-            let arc_descriptor = Arc::new(descriptor);
-            arc_descriptor.set_autoref(&arc_descriptor);
-
-            collection.models.insert(&(arc_descriptor as Arc<dyn ModelDescriptor>));
+            collection.models.insert(&(descriptor.commit() as Arc<dyn ModelDescriptor>));
 
             Ok(())
         }

@@ -425,10 +425,7 @@ impl Sequence {
             descriptor.add_requirement(requirement_descriptor);
         }
 
-        let rc_descriptor = Arc::new(descriptor);
-        rc_descriptor.set_autoref(&rc_descriptor);
-
-        collection.treatments.insert(&(rc_descriptor as Arc<dyn TreatmentDescriptor>));
+        collection.treatments.insert(&(descriptor.commit() as Arc<dyn TreatmentDescriptor>));
 
         Ok(())
 

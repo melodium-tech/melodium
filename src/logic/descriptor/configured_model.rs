@@ -19,7 +19,7 @@ pub struct ConfiguredModel {
     core_model: Arc<CoreModel>,
     parameters: HashMap<String, Parameter>,
     builder: RwLock<Option<Arc<Box<dyn Builder>>>>,
-    auto_reference: RwLock<Weak<Self>>,
+    auto_reference: Weak<Self>,
 }
 
 impl ConfiguredModel {
@@ -29,16 +29,22 @@ impl ConfiguredModel {
             core_model: Arc::clone(core_model),
             parameters: HashMap::new(),
             builder: RwLock::new(None),
-            auto_reference: RwLock::new(Weak::new()),
+            auto_reference: Weak::default(),
         }
-    }
-
-    pub fn set_autoref(&self, reference: &Arc<Self>) {
-        *self.auto_reference.write().unwrap() = Arc::downgrade(reference);
     }
 
     pub fn add_parameter(&mut self, parameter: Parameter) {
         self.parameters.insert(parameter.name().to_string(), parameter);
+    }
+
+    pub fn commit(self) -> Arc<Self> {
+        Arc::new_cyclic(|me| Self {
+            identifier: self.identifier,
+            core_model: self.core_model,
+            parameters: self.parameters,
+            builder: self.builder,
+            auto_reference: me.clone()
+        })
     }
 }
 
@@ -55,7 +61,7 @@ impl Parameterized for ConfiguredModel {
     }
 
     fn as_parameterized(&self) -> Arc<dyn Parameterized> {
-        self.auto_reference.read().unwrap().upgrade().unwrap()
+        self.auto_reference.upgrade().unwrap()
     }
 }
 
