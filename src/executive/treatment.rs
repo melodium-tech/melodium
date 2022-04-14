@@ -2,7 +2,7 @@
 use std::fmt::Debug;
 use crate::logic::descriptor::{CoreTreatmentDescriptor, ParameterizedDescriptor, TreatmentDescriptor};
 use std::collections::HashMap;
-use std::sync::{Arc, Weak, Mutex, RwLock};
+use std::sync::{Arc, Weak, Mutex};
 use super::future::TrackFuture;
 use super::value::Value;
 use super::model::Model;

@@ -1,7 +1,7 @@
 
 use std::fmt::*;
 use std::collections::HashMap;
-use std::sync::{Arc, Weak, RwLock};
+use std::sync::{Arc, Weak};
 use std::iter::FromIterator;
 use super::identified::Identified;
 use super::identifier::Identifier;
