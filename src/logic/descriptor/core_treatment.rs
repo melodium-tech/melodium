@@ -52,32 +52,23 @@ pub struct CoreTreatment {
     inputs: HashMap<String, Input>,
     outputs: HashMap<String, Output>,
     source_from: HashMap<Arc<CoreModel>, Vec<String>>,
-    builder: RwLock<Option<Arc<Box<dyn Builder>>>>,
-    auto_reference: RwLock<Weak<Self>>,
+    builder: Arc<Box<dyn Builder>>,
+    auto_reference: Weak<Self>,
 }
 
 impl CoreTreatment {
     pub fn new(identifier: Identifier, models: Vec<(String, Arc<CoreModel>)>, source_from: HashMap<Arc<CoreModel>, Vec<String>>, parameters: Vec<Parameter>, inputs: Vec<Input>, outputs: Vec<Output>, new_treatment: fn(Arc<World>) -> Arc<dyn ExecutiveTreatment>) -> Arc<Self> {
-        let descriptor = Arc::new(Self{
+        Arc::new_cyclic(|me| Self {
             identifier,
             models: HashMap::from_iter(models.iter().map(|m| (m.0.to_string(), Arc::clone(&m.1)))),
             parameters: HashMap::from_iter(parameters.iter().map(|p| (p.name().to_string(), p.clone()))),
             inputs: HashMap::from_iter(inputs.iter().map(|i| (i.name().to_string(), i.clone()))),
             outputs: HashMap::from_iter(outputs.iter().map(|o| (o.name().to_string(), o.clone()))),
             source_from,
-            builder: RwLock::new(None),
-            auto_reference: RwLock::new(Weak::new()),
-        });
-
-        let rc_descriptor = Arc::clone(&descriptor);
-        let rc_descriptor_treatment: Arc<dyn Treatment> = Arc::clone(&(descriptor as Arc<dyn Treatment>));
-        *rc_descriptor.builder.write().unwrap() = Some(Arc::new(Box::new(CoreTreatmentBuilder::new(&rc_descriptor_treatment, new_treatment))));
-
-        *rc_descriptor.auto_reference.write().unwrap() = Arc::downgrade(&rc_descriptor);
-
-        rc_descriptor
+            builder: Arc::new(Box::new(CoreTreatmentBuilder::new(me.clone() as Weak<dyn Treatment>, new_treatment))),
+            auto_reference: me.clone(),
+        })
     }
-
 }
 
 impl Identified for CoreTreatment {
@@ -93,14 +84,14 @@ impl Parameterized for CoreTreatment {
     }
 
     fn as_parameterized(&self) -> Arc<dyn Parameterized> {
-        self.auto_reference.read().unwrap().upgrade().unwrap()
+        self.auto_reference.upgrade().unwrap()
     }
 }
 
 impl Buildable for CoreTreatment {
 
     fn builder(&self) -> Arc<Box<dyn Builder>> {
-        Arc::clone(&self.builder.read().unwrap().as_ref().unwrap())
+        Arc::clone(&self.builder)
     }
 }
 
@@ -132,7 +123,7 @@ impl Treatment for CoreTreatment {
     }
 
     fn as_buildable(&self) -> Arc<dyn Buildable> {
-        self.auto_reference.read().unwrap().upgrade().unwrap()
+        self.auto_reference.upgrade().unwrap()
     }
 }
 

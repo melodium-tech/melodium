@@ -26,16 +26,12 @@ pub struct Model {
 impl Model {
 
     pub fn new(collections: &Arc<CollectionPool>, descriptor: &Arc<ConfiguredModelDescriptor>) -> Arc<RwLock<Self>> {
-        let model = Arc::<RwLock<Self>>::new(RwLock::new(Self {
+        Arc::<RwLock<Self>>::new_cyclic(|me| RwLock::new(Self {
             collections: Arc::clone(collections),
             descriptor: Arc::clone(descriptor),
             parameters: HashMap::new(),
-            auto_reference: Weak::new(),
-        }));
-
-        model.write().unwrap().auto_reference = Arc::downgrade(&model);
-
-        model
+            auto_reference: me.clone(),
+        }))
     }
 
     pub fn collections(&self) -> &Arc<CollectionPool> {

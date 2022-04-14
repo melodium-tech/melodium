@@ -26,7 +26,7 @@ pub trait Treatment {
 pub struct TreatmentHost {
 
     descriptor: Arc<CoreTreatmentDescriptor>,
-    auto_reference: RwLock<Weak<TreatmentHost>>,
+    auto_reference: Weak<TreatmentHost>,
     prepare: fn(Arc<TreatmentHost>) -> Vec<TrackFuture>,
 
     models: Mutex<HashMap<String, Arc<dyn Model>>>,
@@ -63,19 +63,15 @@ impl TreatmentHost {
             }
         ).collect();
 
-        let treatment_host = Arc::new(Self {
+        Arc::new_cyclic(|me| Self {
             descriptor,
-            auto_reference: RwLock::new(Weak::new()),
+            auto_reference: me.clone(),
             prepare,
             models: Mutex::new(HashMap::new()),
             parameters: Mutex::new(parameters),
             inputs: Mutex::new(inputs),
             outputs: Mutex::new(outputs),
-        });
-
-        *treatment_host.auto_reference.write().unwrap() = Arc::downgrade(&treatment_host);
-
-        treatment_host
+        })
     }
 
     pub fn get_model(&self, model: &str) -> Arc<dyn Model> {
@@ -169,6 +165,6 @@ impl Treatment for TreatmentHost {
     }
 
     fn prepare(&self) -> Vec<TrackFuture> {
-        (self.prepare)(self.auto_reference.read().unwrap().upgrade().unwrap())
+        (self.prepare)(self.auto_reference.upgrade().unwrap())
     }
 }

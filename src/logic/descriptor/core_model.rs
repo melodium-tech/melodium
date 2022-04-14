@@ -36,22 +36,18 @@ pub struct CoreModel {
     parameters: HashMap<String, Parameter>,
     sources: HashMap<String, Vec<Arc<Context>>>,
     builder: Arc<Box<dyn Builder>>,
-    auto_reference: RwLock<Weak<Self>>,
+    auto_reference: Weak<Self>,
 }
 
 impl CoreModel {
-    pub fn new(identifier: Identifier, parameters: Vec<Parameter>, sources: HashMap<String, Vec<Arc<Context>>>, builder: Box<dyn Builder>) -> Self {
-        Self {
+    pub fn new(identifier: Identifier, parameters: Vec<Parameter>, sources: HashMap<String, Vec<Arc<Context>>>, builder: Box<dyn Builder>) -> Arc<Self> {
+        Arc::new_cyclic(|me| Self {
             identifier,
             parameters: HashMap::from_iter(parameters.iter().map(|p| (p.name().to_string(), p.clone()))),
             sources,
             builder: Arc::new(builder),
-            auto_reference: RwLock::new(Weak::new()),
-        }
-    }
-
-    pub fn set_autoref(&self, reference: &Arc<Self>) {
-        *self.auto_reference.write().unwrap() = Arc::downgrade(reference);
+            auto_reference: me.clone(),
+        })
     }
 }
 
@@ -82,7 +78,7 @@ impl Parameterized for CoreModel {
     }
 
     fn as_parameterized(&self) -> Arc<dyn Parameterized> {
-        self.auto_reference.read().unwrap().upgrade().unwrap()
+        self.auto_reference.upgrade().unwrap()
     }
 }
 
@@ -100,7 +96,7 @@ impl Model for CoreModel {
     }
 
     fn core_model(&self) -> Arc<CoreModel> {
-        self.auto_reference.read().unwrap().upgrade().unwrap()
+        self.auto_reference.upgrade().unwrap()
     }
 
     fn sources(&self) -> &HashMap<String, Vec<Arc<Context>>> {

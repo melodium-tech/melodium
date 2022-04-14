@@ -41,10 +41,10 @@ pub struct CoreTreatmentBuilder {
 
 impl CoreTreatmentBuilder {
 
-    pub fn new(descriptor: &Arc<dyn TreatmentDescriptor>, new_treatment: fn(Arc<World>) -> Arc<dyn Treatment>) -> Self {
+    pub fn new(descriptor: Weak<dyn TreatmentDescriptor>, new_treatment: fn(Arc<World>) -> Arc<dyn Treatment>) -> Self {
         Self {
             new_treatment,
-            descriptor: Arc::downgrade(descriptor),
+            descriptor,
             builds: RwLock::new(Vec::new()),
             building_inputs: RwLock::new(HashMap::new()),
         }

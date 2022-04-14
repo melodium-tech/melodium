@@ -29,18 +29,14 @@ pub struct Sequence {
 
 impl Sequence {
     pub fn new(collections: &Arc<CollectionPool>, descriptor: &Arc<SequenceTreatmentDescriptor>) -> Arc<RwLock<Self>> {
-        let sequence = Arc::<RwLock<Self>>::new(RwLock::new(Self {
+        Arc::<RwLock<Self>>::new_cyclic(|me| RwLock::new(Self {
             collections: Arc::clone(collections),
             descriptor: Arc::clone(descriptor),
             model_instanciations: HashMap::new(),
             treatments: HashMap::new(),
             connections: Vec::new(),
-            auto_reference: Weak::new(),
-        }));
-
-        sequence.write().unwrap().auto_reference = Arc::downgrade(&sequence);
-
-        sequence
+            auto_reference: me.clone(),
+        }))
     }
 
     pub fn collections(&self) -> &Arc<CollectionPool> {
