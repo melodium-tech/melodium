@@ -18,7 +18,7 @@ pub struct AudioInputModel {
     stream_send: Sender<Vec<f32>>,
     stream_recv: Receiver<Vec<f32>>,
 
-    auto_reference: RwLock<Weak<Self>>,
+    auto_reference: Weak<Self>,
 }
 
 impl AudioInputModel {
@@ -39,7 +39,7 @@ impl AudioInputModel {
 
         let (send, recv) = unbounded();
 
-        let model = Arc::new(Self {
+        Arc::new_cyclic(|me| Self {
             helper: ModelHelper::new(Self::descriptor(), world),
 
             stream_thread: RwLock::new(None),
@@ -48,12 +48,8 @@ impl AudioInputModel {
             stream_send: send,
             stream_recv: recv,
 
-            auto_reference: RwLock::new(Weak::new()),
-        });
-
-        *model.auto_reference.write().unwrap() = Arc::downgrade(&model);
-
-        model
+            auto_reference: me.clone(),
+        })
     }
 
     fn spawn_thread(&self) {
@@ -93,7 +89,7 @@ impl AudioInputModel {
         
         *self.stream_thread.write().unwrap() = Some(stream_thread);
 
-        let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
+        let auto_self = self.auto_reference.upgrade().unwrap();
         let future = Box::pin(async move { auto_self.receive().await });
 
         self.helper.world().add_continuous_task(Box::new(future));

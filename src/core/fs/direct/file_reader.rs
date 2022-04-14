@@ -8,7 +8,7 @@ pub struct FileReaderModel {
 
     helper: ModelHelper,
 
-    auto_reference: RwLock<Weak<Self>>,
+    auto_reference: Weak<Self>,
 }
 
 impl FileReaderModel {
@@ -29,20 +29,16 @@ impl FileReaderModel {
 
     pub fn new(world: Arc<World>) -> Arc<dyn Model> {
 
-        let model = Arc::new(Self {
+        Arc::new_cyclic(|me| Self {
             helper: ModelHelper::new(Self::descriptor(), world),
 
-            auto_reference: RwLock::new(Weak::new()),
-        });
-
-        *model.auto_reference.write().unwrap() = Arc::downgrade(&model);
-
-        model
+            auto_reference: me.clone(),
+        })
     }
 
     fn initialize(&self) {
 
-        let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
+        let auto_self = self.auto_reference.upgrade().unwrap();
         let future_read = Box::pin(async move { auto_self.read().await });
 
         self.helper.world().add_continuous_task(Box::new(future_read));

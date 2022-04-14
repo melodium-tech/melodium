@@ -7,8 +7,6 @@ use itertools::Itertools;
 pub struct WaveDecoderModel {
 
     helper: ModelHelper,
-
-    auto_reference: RwLock<Weak<Self>>,
 }
 
 impl WaveDecoderModel {
@@ -27,15 +25,9 @@ impl WaveDecoderModel {
 
     pub fn new(world: Arc<World>) -> Arc<dyn Model> {
 
-        let model = Arc::new(Self {
+        Arc::new(Self {
             helper: ModelHelper::new(Self::descriptor(), world),
-
-            auto_reference: RwLock::new(Weak::new()),
-        });
-
-        *model.auto_reference.write().unwrap() = Arc::downgrade(&model);
-
-        model
+        })
     }
 
     pub async fn decode(&self, block: Vec<u8>) {

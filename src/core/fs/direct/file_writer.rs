@@ -11,7 +11,7 @@ pub struct FileWriterModel {
 
     write_channel: (Sender<u8>, Receiver<u8>),
 
-    auto_reference: RwLock<Weak<Self>>,
+    auto_reference: Weak<Self>,
 }
 
 impl FileWriterModel {
@@ -32,17 +32,14 @@ impl FileWriterModel {
     }
 
     pub fn new(world: Arc<World>) -> Arc<dyn Model> {
-        let model = Arc::new(Self {
+        
+        Arc::new_cyclic(|me| Self {
             helper: ModelHelper::new(Self::descriptor(), world),
 
             write_channel: bounded(1048576),
 
-            auto_reference: RwLock::new(Weak::new()),
-        });
-
-        *model.auto_reference.write().unwrap() = Arc::downgrade(&model);
-
-        model
+            auto_reference: me.clone(),
+        })
     }
 
     pub fn writer(&self) -> &Sender<u8> {
@@ -51,7 +48,7 @@ impl FileWriterModel {
 
     fn initialize(&self) {
 
-        let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
+        let auto_self = self.auto_reference.upgrade().unwrap();
         let future_write = Box::pin(async move { auto_self.write().await });
 
         self.helper.world().add_continuous_task(Box::new(future_write));
