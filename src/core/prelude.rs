@@ -63,9 +63,8 @@ macro_rules! treatment {
             pub fn desc() -> Arc<CoreTreatmentDescriptor> {
         
                 lazy_static! {
-                    static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
-            
-                        let rc_descriptor = CoreTreatmentDescriptor::new(
+                    static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = 
+                        CoreTreatmentDescriptor::new(
                             $identifier,
                             $models,
                             $sources,
@@ -74,9 +73,6 @@ macro_rules! treatment {
                             $outputs,
                             treatment,
                         );
-            
-                        rc_descriptor
-                    };
                 }
             
                 Arc::clone(&DESCRIPTOR)
@@ -122,22 +118,13 @@ macro_rules! model_desc {
     ($rust_identifier:ident,$identifier:expr,$parameters:expr,$sources:expr) => {
         {
             lazy_static! {
-                static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-                    
-                    let builder = CoreModelBuilder::new($rust_identifier::new);
-
-                    let descriptor = CoreModelDescriptor::new(
+                static ref DESCRIPTOR: Arc<CoreModelDescriptor> =
+                    CoreModelDescriptor::new(
                         $identifier,
                         $parameters,
                         $sources,
-                        Box::new(builder)
+                        $rust_identifier::new
                     );
-
-                    let rc_descriptor = Arc::new(descriptor);
-                    rc_descriptor.set_autoref(&rc_descriptor);
-
-                    rc_descriptor
-                };
             }
             
             Arc::clone(&DESCRIPTOR)

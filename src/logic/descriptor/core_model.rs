@@ -1,6 +1,6 @@
 
 use std::fmt::*;
-use std::sync::{Arc, Weak, RwLock};
+use std::sync::{Arc, Weak};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::hash::{Hash, Hasher};
@@ -12,6 +12,9 @@ use super::model::Model;
 use super::parameter::Parameter;
 use super::context::Context;
 use super::super::builder::Builder;
+use crate::logic::builder::CoreModelBuilder;
+use crate::executive::model::Model as ExecutiveModel;
+use crate::executive::world::World;
 
 macro_rules! model_sources {
     () => {{
@@ -40,12 +43,12 @@ pub struct CoreModel {
 }
 
 impl CoreModel {
-    pub fn new(identifier: Identifier, parameters: Vec<Parameter>, sources: HashMap<String, Vec<Arc<Context>>>, builder: Box<dyn Builder>) -> Arc<Self> {
+    pub fn new(identifier: Identifier, parameters: Vec<Parameter>, sources: HashMap<String, Vec<Arc<Context>>>, new_model: fn(Arc<World>) -> Arc<dyn ExecutiveModel>) -> Arc<Self> {
         Arc::new_cyclic(|me| Self {
             identifier,
             parameters: HashMap::from_iter(parameters.iter().map(|p| (p.name().to_string(), p.clone()))),
             sources,
-            builder: Arc::new(builder),
+            builder: Arc::new(Box::new(CoreModelBuilder::new(new_model))),
             auto_reference: me.clone(),
         })
     }
