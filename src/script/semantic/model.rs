@@ -82,7 +82,7 @@ impl Model {
     /// ```
     pub fn new(script: Arc<RwLock<Script>>, text: TextModel) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
-        let model = Arc::<RwLock<Self>>::new(RwLock::new(Self {
+        let model = Arc::<RwLock<Self>>::new_cyclic(|me| RwLock::new(Self {
             text: text.clone(),
             script: Arc::downgrade(&script),
             name: text.name.string.clone(),
@@ -90,10 +90,8 @@ impl Model {
             r#type: RefersTo::Unkown(Reference::new(text.r#type.string.clone())),
             assignations: Vec::new(),
             identifier: None,
-            auto_reference: Weak::new(),
+            auto_reference: me.clone(),
         }));
-
-        model.write().unwrap().auto_reference = Arc::downgrade(&model);
 
         {
             let borrowed_script = script.read().unwrap();
