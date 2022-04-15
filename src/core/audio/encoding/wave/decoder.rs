@@ -2,6 +2,7 @@
 use crate::core::prelude::*;
 use hound::*;
 use itertools::Itertools;
+use futures::future::join_all;
 
 #[derive(Debug)]
 pub struct WaveDecoderModel {
@@ -152,17 +153,15 @@ impl WaveDecoderModel {
                                 break;
                             }
                         },
-                        2 => for (sample_l, sample_r) in reader.samples::<f32>().tuples() {
+                        2 => for samples in reader.samples::<f32>().tuples() {
 
-                            if let Ok(sample_l) = sample_l {
-                                ok_or_break!(stereo_l_output.send_f32(sample_l).await);
-                            }
-                            else {
-                                break;
-                            }
-
-                            if let Ok(sample_r) = sample_r {
-                                ok_or_break!(stereo_r_output.send_f32(sample_r).await);
+                            if let (Ok(sample_l), Ok(sample_r)) = samples {
+                                ok_or_break!(
+                                    join_all(
+                                        vec![stereo_l_output.send_f32(sample_l),
+                                             stereo_r_output.send_f32(sample_r)]
+                                    ).await.iter().find(|r| r.is_ok()).cloned().transpose()
+                                );
                             }
                             else {
                                 break;
@@ -181,17 +180,15 @@ impl WaveDecoderModel {
                                 break;
                             }
                         },
-                        2 => for (sample_l, sample_r) in reader.samples::<i8>().tuples() {
-                            
-                            if let Ok(sample_l) = sample_l {
-                                ok_or_break!(stereo_l_output.send_f32(i8sample(sample_l)).await);
-                            }
-                            else {
-                                break;
-                            }
+                        2 => for samples in reader.samples::<i8>().tuples() {
 
-                            if let Ok(sample_r) = sample_r {
-                                ok_or_break!(stereo_r_output.send_f32(i8sample(sample_r)).await);
+                            if let (Ok(sample_l), Ok(sample_r)) = samples {
+                                ok_or_break!(
+                                    join_all(
+                                        vec![stereo_l_output.send_f32(i8sample(sample_l)),
+                                             stereo_r_output.send_f32(i8sample(sample_r))]
+                                    ).await.iter().find(|r| r.is_ok()).cloned().transpose()
+                                );
                             }
                             else {
                                 break;
@@ -210,17 +207,15 @@ impl WaveDecoderModel {
                                 break;
                             }
                         },
-                        2 => for (sample_l, sample_r) in reader.samples::<i16>().tuples() {
-                            
-                            if let Ok(sample_l) = sample_l {
-                                ok_or_break!(stereo_l_output.send_f32(i16sample(sample_l)).await);
-                            }
-                            else {
-                                break;
-                            }
+                        2 => for samples in reader.samples::<i16>().tuples() {
 
-                            if let Ok(sample_r) = sample_r {
-                                ok_or_break!(stereo_r_output.send_f32(i16sample(sample_r)).await);
+                            if let (Ok(sample_l), Ok(sample_r)) = samples {
+                                ok_or_break!(
+                                    join_all(
+                                        vec![stereo_l_output.send_f32(i16sample(sample_l)),
+                                             stereo_r_output.send_f32(i16sample(sample_r))]
+                                    ).await.iter().find(|r| r.is_ok()).cloned().transpose()
+                                );
                             }
                             else {
                                 break;
@@ -239,17 +234,15 @@ impl WaveDecoderModel {
                                 break;
                             }
                         },
-                        2 => for (sample_l, sample_r) in reader.samples::<i32>().tuples() {
-                            
-                            if let Ok(sample_l) = sample_l {
-                                ok_or_break!(stereo_l_output.send_f32(i24sample(sample_l)).await);
-                            }
-                            else {
-                                break;
-                            }
+                        2 => for samples in reader.samples::<i32>().tuples() {
 
-                            if let Ok(sample_r) = sample_r {
-                                ok_or_break!(stereo_r_output.send_f32(i24sample(sample_r)).await);
+                            if let (Ok(sample_l), Ok(sample_r)) = samples {
+                                ok_or_break!(
+                                    join_all(
+                                        vec![stereo_l_output.send_f32(i24sample(sample_l)),
+                                             stereo_r_output.send_f32(i24sample(sample_r))]
+                                    ).await.iter().find(|r| r.is_ok()).cloned().transpose()
+                                );
                             }
                             else {
                                 break;
@@ -268,17 +261,15 @@ impl WaveDecoderModel {
                                 break;
                             }
                         },
-                        2 => for (sample_l, sample_r) in reader.samples::<i32>().tuples() {
-                            
-                            if let Ok(sample_l) = sample_l {
-                                ok_or_break!(stereo_l_output.send_f32(i32sample(sample_l)).await);
-                            }
-                            else {
-                                break;
-                            }
+                        2 => for samples in reader.samples::<i32>().tuples() {
 
-                            if let Ok(sample_r) = sample_r {
-                                ok_or_break!(stereo_r_output.send_f32(i32sample(sample_r)).await);
+                            if let (Ok(sample_l), Ok(sample_r)) = samples {
+                                ok_or_break!(
+                                    join_all(
+                                        vec![stereo_l_output.send_f32(i32sample(sample_l)),
+                                             stereo_r_output.send_f32(i32sample(sample_r))]
+                                    ).await.iter().find(|r| r.is_ok()).cloned().transpose()
+                                );
                             }
                             else {
                                 break;
