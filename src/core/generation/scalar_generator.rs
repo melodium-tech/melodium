@@ -68,12 +68,11 @@ macro_rules! impl_ScalarGeneration {
                     }
                 }
 
-                fn generate_data(&self, length: u64, value: $rust_type, inputs: HashMap<String, Vec<Input>>) -> Vec<TrackFuture> {
+                fn generate_data(&self, length: u64, value: $rust_type, inputs: HashMap<String, Output>) -> Vec<TrackFuture> {
 
                     let future = Box::new(Box::pin(async move {
 
-                        let data_output = Output::$mel_type_upper(Arc::new(SendTransmitter::new()));
-                        inputs.get("_data").unwrap().iter().for_each(|i| data_output.add_input(i));
+                        let data_output = inputs.get("_data").unwrap();
 
                         for _ in 0..length {
                             ok_or_break!(data_output.$send_func(value.clone()).await);

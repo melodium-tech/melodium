@@ -58,7 +58,7 @@ impl WaveDecoderModel {
         }
     }
 
-    fn decode_block(block: Vec<u8>, channels: u16, inputs: HashMap<String, Vec<Input>>) -> Vec<TrackFuture> {
+    fn decode_block(block: Vec<u8>, channels: u16, inputs: HashMap<String, Output>) -> Vec<TrackFuture> {
 
         let future = Box::new(Box::pin(async move {
 
@@ -66,19 +66,10 @@ impl WaveDecoderModel {
 
             let spec = reader.spec();
 
-            let mono_output = Output::F32(Arc::new(SendTransmitter::new()));
-            if let Some(mono) = inputs.get("_mono"){
-                mono.iter().for_each(|i| mono_output.add_input(i));
-            }
+            let mono_output = inputs.get("_mono").unwrap();
 
-            let stereo_l_output = Output::F32(Arc::new(SendTransmitter::new()));
-            let stereo_r_output = Output::F32(Arc::new(SendTransmitter::new()));
-            if let Some(stereo_l) = inputs.get("_stereo_l"){
-                stereo_l.iter().for_each(|i| stereo_l_output.add_input(i));
-            }
-            if let Some(stereo_r) = inputs.get("_stereo_r"){
-                stereo_r.iter().for_each(|i| stereo_r_output.add_input(i));
-            }
+            let stereo_l_output = inputs.get("_stereo_l").unwrap();
+            let stereo_r_output = inputs.get("_stereo_r").unwrap();
 
             fn i8sample(sample: i8) -> f32 {
                 // Please keep linear conversion explicit

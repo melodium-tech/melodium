@@ -88,10 +88,9 @@ impl TcpListenerModel {
         // Todo manage failures
     }
 
-    fn stream_read(&self, mut stream: TcpStream, inputs: HashMap<String, Vec<Input>>) -> Vec<TrackFuture> {
+    fn stream_read(&self, mut stream: TcpStream, inputs: HashMap<String, Output>) -> Vec<TrackFuture> {
 
-        let data_output = Output::Byte(Arc::new(SendTransmitter::new()));
-        inputs.get("_data").unwrap().iter().for_each(|i| data_output.add_input(i));
+        let data_output = inputs.get("_data").unwrap().clone();
 
         let future = Box::new(Box::pin(async move {
 

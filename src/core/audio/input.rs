@@ -104,12 +104,11 @@ impl AudioInputModel {
         let /*mut*/ contextes = HashMap::new();
 
         let mut recv = self.stream_recv.clone();
-        let receiver = move |inputs: HashMap<String, Vec<Input>>| {
+        let receiver = move |inputs: HashMap<String, Output>| {
             
             let future = Box::new(Box::pin(async move {
 
-                let data_output = Output::F32(Arc::new(SendTransmitter::new()));
-                inputs.get("_signal").unwrap().iter().for_each(|i| data_output.add_input(i));
+                let data_output = inputs.get("_signal").unwrap();
     
                 while let Some(possible_f32) = recv.next().await {
     
