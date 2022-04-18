@@ -1,6 +1,6 @@
 
 use std::fmt::Debug;
-use std::collections::HashMap;
+use std::collections::{HashMap, hash_map::Entry};
 use std::sync::{Arc, Weak, RwLock, atomic::{AtomicBool, Ordering}};
 use futures::future::{JoinAll, join, join_all};
 use futures::stream::{FuturesUnordered, StreamExt};
@@ -10,6 +10,7 @@ use async_std::channel::*;
 use super::future::*;
 use super::model::{Model, ModelId};
 use super::input::Input;
+use super::output::Output;
 use super::environment::{ContextualEnvironment, GenesisEnvironment};
 use super::context::Context;
 use super::super::logic::descriptor::BuildableDescriptor;
@@ -197,7 +198,7 @@ impl World {
         borrowed_continuous_tasks.push(task);
     }
 
-    pub async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>, callback: Option<impl FnOnce(HashMap<String, Vec<Input>>) -> Vec<TrackFuture>>) {
+    pub async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>, callback: Option<impl FnOnce(HashMap<String, Output>) -> Vec<TrackFuture>>) {
 
         let track_id;
         {
@@ -207,7 +208,7 @@ impl World {
         }
 
         let mut track_futures: Vec<TrackFuture> = Vec::new();
-        let mut inputs: HashMap<String, Vec<Input>> = HashMap::new();
+        let mut outputs: HashMap<String, Output> = HashMap::new();
 
         {
             let borrowed_sources = self.sources.read().unwrap();
@@ -229,15 +230,23 @@ impl World {
 
                 track_futures.extend(build_result.prepared_futures);
 
-                for (input_name, input_transmitters) in build_result.feeding_inputs {
+                for (input_name, mut input_transmitters) in build_result.feeding_inputs {
 
-                    inputs.entry(input_name).or_default().extend(input_transmitters);
+                    match outputs.entry(input_name) {
+                        Entry::Vacant(e) => {
+                            let e = e.insert(Output::from(input_transmitters.pop().unwrap()));
+                            input_transmitters.iter().for_each(|i| e.add_input(i));
+                        },
+                        Entry::Occupied(e) => {
+                            input_transmitters.iter().for_each(|i| e.get().add_input(i));
+                        }
+                    }
                 }
             }
         }
 
         let model_futures = if let Some(callback) = callback {
-            callback(inputs)
+            callback(outputs)
         }
         else { Vec::new() };
 
