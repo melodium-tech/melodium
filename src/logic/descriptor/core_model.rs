@@ -1,6 +1,6 @@
 
 use std::fmt::*;
-use std::sync::{Arc, Weak, RwLock};
+use std::sync::{Arc, Weak};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::hash::{Hash, Hasher};
@@ -12,6 +12,9 @@ use super::model::Model;
 use super::parameter::Parameter;
 use super::context::Context;
 use super::super::builder::Builder;
+use crate::logic::builder::CoreModelBuilder;
+use crate::executive::model::Model as ExecutiveModel;
+use crate::executive::world::World;
 
 macro_rules! model_sources {
     () => {{
@@ -36,22 +39,18 @@ pub struct CoreModel {
     parameters: HashMap<String, Parameter>,
     sources: HashMap<String, Vec<Arc<Context>>>,
     builder: Arc<Box<dyn Builder>>,
-    auto_reference: RwLock<Weak<Self>>,
+    auto_reference: Weak<Self>,
 }
 
 impl CoreModel {
-    pub fn new(identifier: Identifier, parameters: Vec<Parameter>, sources: HashMap<String, Vec<Arc<Context>>>, builder: Box<dyn Builder>) -> Self {
-        Self {
+    pub fn new(identifier: Identifier, parameters: Vec<Parameter>, sources: HashMap<String, Vec<Arc<Context>>>, new_model: fn(Arc<World>) -> Arc<dyn ExecutiveModel>) -> Arc<Self> {
+        Arc::new_cyclic(|me| Self {
             identifier,
             parameters: HashMap::from_iter(parameters.iter().map(|p| (p.name().to_string(), p.clone()))),
             sources,
-            builder: Arc::new(builder),
-            auto_reference: RwLock::new(Weak::new()),
-        }
-    }
-
-    pub fn set_autoref(&self, reference: &Arc<Self>) {
-        *self.auto_reference.write().unwrap() = Arc::downgrade(reference);
+            builder: Arc::new(Box::new(CoreModelBuilder::new(new_model))),
+            auto_reference: me.clone(),
+        })
     }
 }
 
@@ -82,7 +81,7 @@ impl Parameterized for CoreModel {
     }
 
     fn as_parameterized(&self) -> Arc<dyn Parameterized> {
-        self.auto_reference.read().unwrap().upgrade().unwrap()
+        self.auto_reference.upgrade().unwrap()
     }
 }
 
@@ -100,7 +99,7 @@ impl Model for CoreModel {
     }
 
     fn core_model(&self) -> Arc<CoreModel> {
-        self.auto_reference.read().unwrap().upgrade().unwrap()
+        self.auto_reference.upgrade().unwrap()
     }
 
     fn sources(&self) -> &HashMap<String, Vec<Arc<Context>>> {

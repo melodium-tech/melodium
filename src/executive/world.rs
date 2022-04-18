@@ -39,7 +39,7 @@ impl Track {
 
 pub struct World {
 
-    auto_reference: RwLock<Weak<Self>>,
+    auto_reference: Weak<Self>,
 
     models: RwLock<Vec<Arc<dyn Model>>>,
     sources: RwLock<HashMap<ModelId, HashMap<String, Vec<SourceEntry>>>>,
@@ -75,8 +75,8 @@ impl World {
 
         let (sender, receiver) = unbounded();
 
-        let world = Arc::new(Self {
-            auto_reference: RwLock::new(Weak::default()),
+        Arc::new_cyclic(|me| Self {
+            auto_reference: me.clone(),
             models: RwLock::new(Vec::new()),
             sources: RwLock::new(HashMap::new()),
             errors: RwLock::new(Vec::new()),
@@ -86,11 +86,7 @@ impl World {
             tracks_sender: sender,
             tracks_receiver: receiver,
             closing: AtomicBool::new(false),
-        });
-
-        *world.auto_reference.write().unwrap() = Arc::downgrade(&world);
-
-        world
+        })
     }
 
     pub fn add_model(&self, model: Arc<dyn Model>) -> ModelId {
@@ -125,7 +121,7 @@ impl World {
 
     pub fn genesis(&self, beginning: &dyn BuildableDescriptor) -> bool {
 
-        let gen_env = GenesisEnvironment::new(Weak::upgrade(&self.auto_reference.read().unwrap()).unwrap());
+        let gen_env = GenesisEnvironment::new(Weak::upgrade(&self.auto_reference).unwrap());
 
         let result = beginning.builder().static_build(None, None, "main".to_string(), &gen_env);
         if result.is_err() {
@@ -221,7 +217,7 @@ impl World {
             let entries = model_sources.get(source).unwrap();
 
             let mut contextual_environment = ContextualEnvironment::new(
-                Weak::upgrade(&self.auto_reference.read().unwrap()).unwrap(),
+                Weak::upgrade(&self.auto_reference).unwrap(),
                 track_id
             );
 

@@ -26,18 +26,14 @@ pub struct Treatment {
 
 impl Treatment {
     pub fn new(sequence: &Arc<RwLock<Sequence>>, descriptor: &Arc<dyn TreatmentDescriptor>, name: &str) -> Arc<RwLock<Self>> {
-        let treatment = Arc::<RwLock<Self>>::new(RwLock::new(Self {
+        Arc::<RwLock<Self>>::new_cyclic(|me| RwLock::new(Self {
             sequence: Arc::downgrade(sequence),
             descriptor: Arc::clone(descriptor),
             name: name.to_string(),
             models: HashMap::with_capacity(descriptor.models().len()),
             parameters: HashMap::with_capacity(descriptor.parameters().len()),
-            auto_reference: Weak::new(),
-        }));
-
-        treatment.write().unwrap().auto_reference = Arc::downgrade(&treatment);
-
-        treatment
+            auto_reference: me.clone(),
+        }))
     }
 
     pub fn descriptor(&self) -> &Arc<dyn TreatmentDescriptor> {

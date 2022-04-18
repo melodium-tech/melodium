@@ -6,67 +6,47 @@ use async_std::fs::File;
 #[derive(Debug)]
 pub struct FileReaderModel {
 
-    world: Arc<World>,
-    id: RwLock<Option<ModelId>>,
+    helper: ModelHelper,
 
-    path: RwLock<String>,
-
-    auto_reference: RwLock<Weak<Self>>,
+    auto_reference: Weak<Self>,
 }
 
 impl FileReaderModel {
 
     pub fn descriptor() -> Arc<CoreModelDescriptor> {
-
-        lazy_static! {
-            static ref DESCRIPTOR: Arc<CoreModelDescriptor> = {
-                
-                let builder = CoreModelBuilder::new(FileReaderModel::new);
-
-                let descriptor = CoreModelDescriptor::new(
-                    core_identifier!("fs","direct";"FileReader"),
-                    vec![
-                        parameter!("path", Scalar, String, None)
-                    ],
-                    model_sources![
-                        ("read"; "File")
-                    ],
-                    Box::new(builder)
-                );
-
-                let rc_descriptor = Arc::new(descriptor);
-                rc_descriptor.set_autoref(&rc_descriptor);
-
-                rc_descriptor
-            };
-        }
         
-        Arc::clone(&DESCRIPTOR)
+        model_desc!(
+            FileReaderModel,
+            core_identifier!("fs","direct";"FileReader"),
+            vec![
+                parameter!("path", Scalar, String, None)
+            ],
+            model_sources![
+                ("read"; "File")
+            ]
+        )
     }
 
     pub fn new(world: Arc<World>) -> Arc<dyn Model> {
 
-        let model = Arc::new(Self {
-            world,
-            id: RwLock::new(None),
+        Arc::new_cyclic(|me| Self {
+            helper: ModelHelper::new(Self::descriptor(), world),
 
-            path: RwLock::new(String::new()),
-
-            auto_reference: RwLock::new(Weak::new()),
-        });
-
-        *model.auto_reference.write().unwrap() = Arc::downgrade(&model);
-
-        model
+            auto_reference: me.clone(),
+        })
     }
 
-    pub fn path(&self) -> String {
-        self.path.read().unwrap().clone()
+    fn initialize(&self) {
+
+        let auto_self = self.auto_reference.upgrade().unwrap();
+        let future_read = Box::pin(async move { auto_self.read().await });
+
+        self.helper.world().add_continuous_task(Box::new(future_read));
     }
 
     async fn read(&self) {
 
-        let os_path = PathBuf::from(self.path());
+        let os_path = PathBuf::from(self.helper.get_parameter("path").string());
         let open_result = File::open(&os_path).await;
 
         if let Ok(file) = open_result {
@@ -117,11 +97,11 @@ impl FileReaderModel {
             let mut contextes = HashMap::new();
             contextes.insert("File".to_string(), file_context);
 
-            let model_id = self.id.read().unwrap().unwrap();
+            let model_id = self.helper.id().unwrap();
             let reader = |inputs| {
                 self.read_file(file, inputs)
             };
-            self.world.create_track(model_id, "read", contextes, None, Some(reader)).await;
+            self.helper.world().create_track(model_id, "read", contextes, None, Some(reader)).await;
         }
 
         // Todo manage failures
@@ -153,42 +133,4 @@ impl FileReaderModel {
     }
 }
 
-impl Model for FileReaderModel {
-    
-    fn descriptor(&self) -> Arc<CoreModelDescriptor> {
-        Self::descriptor()
-    }
-
-    fn id(&self) -> Option<ModelId> {
-        *self.id.read().unwrap()
-    }
-
-    fn set_id(&self, id: ModelId) {
-        *self.id.write().unwrap() = Some(id);
-    }
-
-    fn set_parameter(&self, param: &str, value: &Value) {
-
-        match param {
-            "path" => {
-                match value {
-                    Value::String(path) => *self.path.write().unwrap() = path.to_string(),
-                    _ => panic!("Unexpected value type for 'path'."),
-                }
-            },
-            _ => panic!("No parameter '{}' exists.", param)
-        }
-    }
-
-    fn initialize(&self) {
-
-        let auto_self = self.auto_reference.read().unwrap().upgrade().unwrap();
-        let future_read = Box::pin(async move { auto_self.read().await });
-
-        self.world.add_continuous_task(Box::new(future_read));
-    }
-
-    fn shutdown(&self) {
-
-    }
-}
+model_trait!(FileReaderModel, initialize);

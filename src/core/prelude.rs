@@ -2,7 +2,7 @@
 pub use crate::executive::result_status::ResultStatus;
 pub use crate::executive::future::TrackFuture;
 pub use std::collections::HashMap;
-pub use crate::executive::model::{Model, ModelId};
+pub use crate::executive::model::{Model, ModelId, ModelHelper};
 pub use crate::executive::value::Value;
 pub use crate::executive::transmitter::*;
 pub use crate::executive::treatment::*;
@@ -63,9 +63,8 @@ macro_rules! treatment {
             pub fn desc() -> Arc<CoreTreatmentDescriptor> {
         
                 lazy_static! {
-                    static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = {
-            
-                        let rc_descriptor = CoreTreatmentDescriptor::new(
+                    static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = 
+                        CoreTreatmentDescriptor::new(
                             $identifier,
                             $models,
                             $sources,
@@ -74,9 +73,6 @@ macro_rules! treatment {
                             $outputs,
                             treatment,
                         );
-            
-                        rc_descriptor
-                    };
                 }
             
                 Arc::clone(&DESCRIPTOR)
@@ -117,6 +113,110 @@ macro_rules! treatment {
     };
 }
 pub(crate) use treatment;
+
+macro_rules! model_desc {
+    ($rust_identifier:ident,$identifier:expr,$parameters:expr,$sources:expr) => {
+        {
+            lazy_static! {
+                static ref DESCRIPTOR: Arc<CoreModelDescriptor> =
+                    CoreModelDescriptor::new(
+                        $identifier,
+                        $parameters,
+                        $sources,
+                        $rust_identifier::new
+                    );
+            }
+            
+            Arc::clone(&DESCRIPTOR)
+        }
+    };
+}
+pub(crate) use model_desc;
+
+macro_rules! model_trait {
+    ($identifier:ident,$initialize:ident,$shutdown:ident) => {
+        impl Model for $identifier {
+    
+            fn descriptor(&self) -> Arc<CoreModelDescriptor> {
+                Self::descriptor()
+            }
+        
+            fn id(&self) -> Option<ModelId> {
+                self.helper.id()
+            }
+        
+            fn set_id(&self, id: ModelId) {
+                self.helper.set_id(id);
+            }
+        
+            fn set_parameter(&self, param: &str, value: &Value) {
+                self.helper.set_parameter(param, value);
+            }
+        
+            fn initialize(&self) {
+                self.$initialize()
+            }
+        
+            fn shutdown(&self) {
+                self.$shutdown()
+            }
+        }
+    };
+    ($identifier:ident,$initialize:ident) => {
+        impl Model for $identifier {
+    
+            fn descriptor(&self) -> Arc<CoreModelDescriptor> {
+                Self::descriptor()
+            }
+        
+            fn id(&self) -> Option<ModelId> {
+                self.helper.id()
+            }
+        
+            fn set_id(&self, id: ModelId) {
+                self.helper.set_id(id);
+            }
+        
+            fn set_parameter(&self, param: &str, value: &Value) {
+                self.helper.set_parameter(param, value);
+            }
+        
+            fn initialize(&self) {
+                self.$initialize()
+            }
+        
+            fn shutdown(&self) {
+            }
+        }
+    };
+    ($identifier:ident) => {
+        impl Model for $identifier {
+    
+            fn descriptor(&self) -> Arc<CoreModelDescriptor> {
+                Self::descriptor()
+            }
+        
+            fn id(&self) -> Option<ModelId> {
+                self.helper.id()
+            }
+        
+            fn set_id(&self, id: ModelId) {
+                self.helper.set_id(id);
+            }
+        
+            fn set_parameter(&self, param: &str, value: &Value) {
+                self.helper.set_parameter(param, value);
+            }
+        
+            fn initialize(&self) {
+            }
+        
+            fn shutdown(&self) {
+            }
+        }
+    };
+}
+pub(crate) use model_trait;
 
 macro_rules! ok_or_break {
     ($l:tt, $x:expr) => {

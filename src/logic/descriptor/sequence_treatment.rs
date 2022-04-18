@@ -25,7 +25,7 @@ pub struct SequenceTreatment {
     requirements: HashMap<String, Requirement>,
     source_from: HashMap<Arc<CoreModel>, Vec<String>>,
     builder: RwLock<Option<Arc<Box<dyn Builder>>>>,
-    auto_reference: RwLock<Weak<Self>>,
+    auto_reference: Weak<Self>,
 }
 
 impl SequenceTreatment {
@@ -39,12 +39,8 @@ impl SequenceTreatment {
             requirements: HashMap::new(),
             source_from: HashMap::new(),
             builder: RwLock::new(None),
-            auto_reference: RwLock::new(Weak::new()),
+            auto_reference: Weak::default(),
         }
-    }
-
-    pub fn set_autoref(&self, reference: &Arc<Self>) {
-        *self.auto_reference.write().unwrap() = Arc::downgrade(reference);
     }
 
     pub fn add_model(&mut self, name: &str, model: &Arc<CoreModel>) {
@@ -66,6 +62,20 @@ impl SequenceTreatment {
     pub fn add_requirement(&mut self, requirement: Requirement) {
         self.requirements.insert(requirement.name().to_string(), requirement);
     }
+
+    pub fn commit(self) -> Arc<Self> {
+        Arc::new_cyclic(|me| Self {
+            identifier: self.identifier,
+            models: self.models,
+            parameters: self.parameters,
+            inputs: self.inputs,
+            outputs: self.outputs,
+            requirements: self.requirements,
+            source_from: self.source_from,
+            builder: self.builder,
+            auto_reference: me.clone(),
+        })
+    }
 }
 
 impl Identified for SequenceTreatment {
@@ -81,7 +91,7 @@ impl Parameterized for SequenceTreatment {
     }
 
     fn as_parameterized(&self) -> Arc<dyn Parameterized> {
-        self.auto_reference.read().unwrap().upgrade().unwrap()
+        self.auto_reference.upgrade().unwrap()
     }
 }
 
@@ -109,7 +119,7 @@ impl Treatment for SequenceTreatment {
     }
 
     fn as_buildable(&self) -> Arc<dyn Buildable> {
-        self.auto_reference.read().unwrap().upgrade().unwrap()
+        self.auto_reference.upgrade().unwrap()
     }
 }
 
