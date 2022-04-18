@@ -66,10 +66,10 @@ impl WaveDecoderModel {
 
             let spec = reader.spec();
 
-            let mono_output = inputs.get("_mono").unwrap();
+            let mono_output = inputs.get("_mono");
 
-            let stereo_l_output = inputs.get("_stereo_l").unwrap();
-            let stereo_r_output = inputs.get("_stereo_r").unwrap();
+            let stereo_l_output = inputs.get("_stereo_l");
+            let stereo_r_output = inputs.get("_stereo_r");
 
             fn i8sample(sample: i8) -> f32 {
                 // Please keep linear conversion explicit
@@ -113,7 +113,7 @@ impl WaveDecoderModel {
                     match channels {
                         1 => for sample in reader.samples::<f32>() {
                             if let Ok(sample) = sample {
-                                ok_or_break!(mono_output.send_f32(sample).await);
+                                ok_or_break!(mono_output.unwrap().send_f32(sample).await);
                             }
                             else {
                                 break;
@@ -124,8 +124,8 @@ impl WaveDecoderModel {
                             if let (Ok(sample_l), Ok(sample_r)) = samples {
                                 ok_or_break!(
                                     join_all(
-                                        vec![stereo_l_output.send_f32(sample_l),
-                                             stereo_r_output.send_f32(sample_r)]
+                                        vec![stereo_l_output.unwrap().send_f32(sample_l),
+                                             stereo_r_output.unwrap().send_f32(sample_r)]
                                     ).await.iter().find(|r| r.is_ok()).cloned().transpose()
                                 );
                             }
@@ -140,7 +140,7 @@ impl WaveDecoderModel {
                     match channels {
                         1 => for sample in reader.samples::<i8>() {
                             if let Ok(sample) = sample {
-                                ok_or_break!(mono_output.send_f32(i8sample(sample)).await);
+                                ok_or_break!(mono_output.unwrap().send_f32(i8sample(sample)).await);
                             }
                             else {
                                 break;
@@ -151,8 +151,8 @@ impl WaveDecoderModel {
                             if let (Ok(sample_l), Ok(sample_r)) = samples {
                                 ok_or_break!(
                                     join_all(
-                                        vec![stereo_l_output.send_f32(i8sample(sample_l)),
-                                             stereo_r_output.send_f32(i8sample(sample_r))]
+                                        vec![stereo_l_output.unwrap().send_f32(i8sample(sample_l)),
+                                             stereo_r_output.unwrap().send_f32(i8sample(sample_r))]
                                     ).await.iter().find(|r| r.is_ok()).cloned().transpose()
                                 );
                             }
@@ -167,7 +167,7 @@ impl WaveDecoderModel {
                     match channels {
                         1 => for sample in reader.samples::<i16>() {
                             if let Ok(sample) = sample {
-                                ok_or_break!(mono_output.send_f32(i16sample(sample)).await);
+                                ok_or_break!(mono_output.unwrap().send_f32(i16sample(sample)).await);
                             }
                             else {
                                 break;
@@ -178,8 +178,8 @@ impl WaveDecoderModel {
                             if let (Ok(sample_l), Ok(sample_r)) = samples {
                                 ok_or_break!(
                                     join_all(
-                                        vec![stereo_l_output.send_f32(i16sample(sample_l)),
-                                             stereo_r_output.send_f32(i16sample(sample_r))]
+                                        vec![stereo_l_output.unwrap().send_f32(i16sample(sample_l)),
+                                             stereo_r_output.unwrap().send_f32(i16sample(sample_r))]
                                     ).await.iter().find(|r| r.is_ok()).cloned().transpose()
                                 );
                             }
@@ -194,7 +194,7 @@ impl WaveDecoderModel {
                     match channels {
                         1 => for sample in reader.samples::<i32>() {
                             if let Ok(sample) = sample {
-                                ok_or_break!(mono_output.send_f32(i24sample(sample)).await);
+                                ok_or_break!(mono_output.unwrap().send_f32(i24sample(sample)).await);
                             }
                             else {
                                 break;
@@ -205,8 +205,8 @@ impl WaveDecoderModel {
                             if let (Ok(sample_l), Ok(sample_r)) = samples {
                                 ok_or_break!(
                                     join_all(
-                                        vec![stereo_l_output.send_f32(i24sample(sample_l)),
-                                             stereo_r_output.send_f32(i24sample(sample_r))]
+                                        vec![stereo_l_output.unwrap().send_f32(i24sample(sample_l)),
+                                             stereo_r_output.unwrap().send_f32(i24sample(sample_r))]
                                     ).await.iter().find(|r| r.is_ok()).cloned().transpose()
                                 );
                             }
@@ -221,7 +221,7 @@ impl WaveDecoderModel {
                     match channels {
                         1 => for sample in reader.samples::<i32>() {
                             if let Ok(sample) = sample {
-                                ok_or_break!(mono_output.send_f32(i32sample(sample)).await);
+                                ok_or_break!(mono_output.unwrap().send_f32(i32sample(sample)).await);
                             }
                             else {
                                 break;
@@ -232,8 +232,8 @@ impl WaveDecoderModel {
                             if let (Ok(sample_l), Ok(sample_r)) = samples {
                                 ok_or_break!(
                                     join_all(
-                                        vec![stereo_l_output.send_f32(i32sample(sample_l)),
-                                             stereo_r_output.send_f32(i32sample(sample_r))]
+                                        vec![stereo_l_output.unwrap().send_f32(i32sample(sample_l)),
+                                             stereo_r_output.unwrap().send_f32(i32sample(sample_r))]
                                     ).await.iter().find(|r| r.is_ok()).cloned().transpose()
                                 );
                             }
@@ -247,9 +247,14 @@ impl WaveDecoderModel {
                 _ => ()
             }
 
-            mono_output.close().await;
-            stereo_l_output.close().await;
-            stereo_r_output.close().await;
+            match channels {
+                1 => mono_output.unwrap().close().await,
+                2 => {
+                    stereo_l_output.unwrap().close().await;
+                    stereo_r_output.unwrap().close().await;
+                },
+                _ => ()
+            }
 
             ResultStatus::Ok
         })) as TrackFuture;
