@@ -4,6 +4,7 @@ use crate::logic::descriptor::{CoreTreatmentDescriptor, ParameterizedDescriptor,
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, Mutex};
 use super::future::TrackFuture;
+use super::world::TrackId;
 use super::value::Value;
 use super::model::Model;
 use super::input::Input;
@@ -27,6 +28,7 @@ pub struct TreatmentHost {
 
     descriptor: Arc<CoreTreatmentDescriptor>,
     auto_reference: Weak<TreatmentHost>,
+    track_id: TrackId,
     prepare: fn(Arc<TreatmentHost>) -> Vec<TrackFuture>,
 
     models: Mutex<HashMap<String, Arc<dyn Model>>>,
@@ -38,7 +40,7 @@ pub struct TreatmentHost {
 
 impl TreatmentHost {
 
-    pub fn new(descriptor: Arc<CoreTreatmentDescriptor>, prepare: fn(Arc<TreatmentHost>) -> Vec<TrackFuture>) -> Arc<Self> {
+    pub fn new(descriptor: Arc<CoreTreatmentDescriptor>, track_id: TrackId, prepare: fn(Arc<TreatmentHost>) -> Vec<TrackFuture>) -> Arc<Self> {
 
         let parameters = descriptor.parameters().iter().filter_map(
             |(_, param)| {
@@ -66,12 +68,17 @@ impl TreatmentHost {
         Arc::new_cyclic(|me| Self {
             descriptor,
             auto_reference: me.clone(),
+            track_id,
             prepare,
             models: Mutex::new(HashMap::new()),
             parameters: Mutex::new(parameters),
             inputs: Mutex::new(inputs),
             outputs: Mutex::new(outputs),
         })
+    }
+
+    pub fn track_id(&self) -> &TrackId {
+        &self.track_id
     }
 
     pub fn get_model(&self, model: &str) -> Arc<dyn Model> {

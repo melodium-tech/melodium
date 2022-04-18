@@ -2,7 +2,7 @@
 use std::fmt::Debug;
 use std::collections::HashMap;
 use std::sync::Arc;
-use super::world::World;
+use super::world::{World, TrackId};
 use super::model::{Model, ModelId};
 use super::value::Value;
 use super::context::Context;
@@ -71,7 +71,7 @@ impl GenesisEnvironment {
 #[derive(Debug, Clone)]
 pub struct ContextualEnvironment {
     world: Arc<World>,
-    track_id: u64,
+    track_id: TrackId,
     models: HashMap<String, Arc<dyn Model>>,
     variables: HashMap<String, Value>,
     contexts: HashMap<String, Context>,
@@ -80,7 +80,7 @@ pub struct ContextualEnvironment {
 
 impl ContextualEnvironment {
 
-    pub fn new(world: Arc<World>, track_id: u64) -> Self {
+    pub fn new(world: Arc<World>, track_id: TrackId) -> Self {
         Self {
             world,
             track_id,
@@ -102,7 +102,7 @@ impl ContextualEnvironment {
         }
     }
 
-    pub fn track_id(&self) -> u64 {
+    pub fn track_id(&self) -> TrackId {
         self.track_id
     }
 

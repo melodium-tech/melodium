@@ -15,7 +15,7 @@ use super::requirement::Requirement;
 use super::treatment::Treatment;
 use super::super::builder::Builder;
 use super::super::builder::CoreTreatmentBuilder;
-use crate::executive::world::World;
+use crate::executive::world::{World, TrackId};
 use crate::executive::treatment::Treatment as ExecutiveTreatment;
 
 macro_rules! models {
@@ -57,7 +57,7 @@ pub struct CoreTreatment {
 }
 
 impl CoreTreatment {
-    pub fn new(identifier: Identifier, models: Vec<(String, Arc<CoreModel>)>, source_from: HashMap<Arc<CoreModel>, Vec<String>>, parameters: Vec<Parameter>, inputs: Vec<Input>, outputs: Vec<Output>, new_treatment: fn(Arc<World>) -> Arc<dyn ExecutiveTreatment>) -> Arc<Self> {
+    pub fn new(identifier: Identifier, models: Vec<(String, Arc<CoreModel>)>, source_from: HashMap<Arc<CoreModel>, Vec<String>>, parameters: Vec<Parameter>, inputs: Vec<Input>, outputs: Vec<Output>, new_treatment: fn(Arc<World>, TrackId) -> Arc<dyn ExecutiveTreatment>) -> Arc<Self> {
         Arc::new_cyclic(|me| Self {
             identifier,
             models: HashMap::from_iter(models.iter().map(|m| (m.0.to_string(), Arc::clone(&m.1)))),

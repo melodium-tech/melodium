@@ -24,13 +24,15 @@ struct SourceEntry {
     pub id: BuildId,
 }
 
+pub type TrackId = u64;
+
 struct Track {
-    pub id: u64,
+    pub id: TrackId,
     pub future: JoinAll<TrackFuture>,
 }
 
 impl Track {
-    pub fn new(id: u64, future: JoinAll<TrackFuture>) -> Self {
+    pub fn new(id: TrackId, future: JoinAll<TrackFuture>) -> Self {
         Self {
             id,
             future,
@@ -198,7 +200,7 @@ impl World {
         borrowed_continuous_tasks.push(task);
     }
 
-    pub async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<u64>, callback: Option<impl FnOnce(HashMap<String, Output>) -> Vec<TrackFuture>>) {
+    pub async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<TrackId>, callback: Option<impl FnOnce(HashMap<String, Output>) -> Vec<TrackFuture>>) {
 
         let track_id;
         {

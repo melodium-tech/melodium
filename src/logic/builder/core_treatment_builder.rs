@@ -1,7 +1,7 @@
 
 use std::collections::HashMap;
 use crate::executive::treatment::Treatment;
-use crate::executive::world::World;
+use crate::executive::world::{World, TrackId};
 use crate::executive::environment::{ContextualEnvironment, GenesisEnvironment};
 use crate::logic::builder::*;
 use crate::logic::descriptor::TreatmentDescriptor;
@@ -32,16 +32,16 @@ impl BuildSample {
 #[derive(Debug)]
 pub struct CoreTreatmentBuilder {
 
-    new_treatment: fn(Arc<World>) -> Arc<dyn Treatment>,
+    new_treatment: fn(Arc<World>, TrackId) -> Arc<dyn Treatment>,
     descriptor: Weak<dyn TreatmentDescriptor>,
 
     builds: RwLock<Vec<BuildSample>>,
-    building_inputs: RwLock<HashMap<(BuildId, u64), FeedingInputs>>
+    building_inputs: RwLock<HashMap<(BuildId, TrackId), FeedingInputs>>
 }
 
 impl CoreTreatmentBuilder {
 
-    pub fn new(descriptor: Weak<dyn TreatmentDescriptor>, new_treatment: fn(Arc<World>) -> Arc<dyn Treatment>) -> Self {
+    pub fn new(descriptor: Weak<dyn TreatmentDescriptor>, new_treatment: fn(Arc<World>, TrackId) -> Arc<dyn Treatment>) -> Self {
         Self {
             new_treatment,
             descriptor,
@@ -99,7 +99,7 @@ impl Builder for CoreTreatmentBuilder {
 
         let mut result = DynamicBuildResult::new();
 
-        let treatment = (self.new_treatment)(build_sample.genesis_environment.world());
+        let treatment = (self.new_treatment)(build_sample.genesis_environment.world(), environment.track_id());
 
         for (name, model) in build_sample.genesis_environment.models() {
             treatment.set_model(name, model);

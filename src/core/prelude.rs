@@ -6,7 +6,7 @@ pub use crate::executive::model::{Model, ModelId, ModelHelper};
 pub use crate::executive::value::Value;
 pub use crate::executive::transmitter::*;
 pub use crate::executive::treatment::*;
-pub use crate::executive::world::World;
+pub use crate::executive::world::{World, TrackId};
 pub use crate::executive::context::Context;
 pub use crate::executive::input::Input;
 pub use crate::executive::output::Output;
@@ -103,9 +103,9 @@ macro_rules! treatment {
                 vec![future]
             }
             
-            fn treatment(_: Arc<World>) -> Arc<dyn Treatment> {
+            fn treatment(_: Arc<World>, track_id: TrackId) -> Arc<dyn Treatment> {
             
-                let treatment = TreatmentHost::new(desc(), prepare);
+                let treatment = TreatmentHost::new(desc(), track_id, prepare);
             
                 treatment
             }
