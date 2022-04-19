@@ -9,10 +9,10 @@ use async_std::sync::Mutex;
 use async_std::channel::*;
 use super::future::*;
 use super::model::{Model, ModelId};
-use super::input::Input;
 use super::output::Output;
 use super::environment::{ContextualEnvironment, GenesisEnvironment};
 use super::context::Context;
+use super::result_status::ResultStatus;
 use super::super::logic::descriptor::BuildableDescriptor;
 use super::super::logic::descriptor::ModelDescriptor;
 use super::super::logic::error::LogicError;
@@ -26,18 +26,43 @@ struct SourceEntry {
 
 pub type TrackId = u64;
 
-struct Track {
+struct InfoTrack {
     pub id: TrackId,
+    pub parent_id: Option<TrackId>,
+    pub ancestry_level: u64,
+    pub results: Option<TrackResult>,
+}
+
+impl InfoTrack {
+    pub fn new(id: TrackId, parent_id: Option<TrackId>, ancestry_level: u64) -> Self {
+        Self {
+            id,
+            parent_id,
+            ancestry_level,
+            results: None,
+        }
+    }
+}
+
+struct ExecutionTrack {
+    pub id: TrackId,
+    pub ancestry_level: u64,
     pub future: JoinAll<TrackFuture>,
 }
 
-impl Track {
-    pub fn new(id: TrackId, future: JoinAll<TrackFuture>) -> Self {
+impl ExecutionTrack {
+    pub fn new(id: TrackId, ancestry_level: u64, future: JoinAll<TrackFuture>) -> Self {
         Self {
             id,
+            ancestry_level,
             future,
         }
     }
+}
+
+enum TrackResult {
+    AllOk(TrackId),
+    NotAllOk(TrackId, Vec<ResultStatus>),
 }
 
 pub struct World {
@@ -53,8 +78,9 @@ pub struct World {
     continuous_tasks: RwLock<Vec<ContinuousFuture>>,
 
     tracks_counter: Mutex<u64>,
-    tracks_sender: Sender<Track>,
-    tracks_receiver: Receiver<Track>,
+    tracks_info: Mutex<HashMap<TrackId, InfoTrack>>,
+    tracks_sender: Sender<ExecutionTrack>,
+    tracks_receiver: Receiver<ExecutionTrack>,
 
     closing: AtomicBool,
 }
@@ -86,6 +112,7 @@ impl World {
             main_build_id: RwLock::new(0),
             continuous_tasks: RwLock::new(Vec::new()),
             tracks_counter: Mutex::new(0),
+            tracks_info: Mutex::new(HashMap::new()),
             tracks_sender: sender,
             tracks_receiver: receiver,
             closing: AtomicBool::new(false),
@@ -254,8 +281,17 @@ impl World {
 
         track_futures.extend(model_futures);
 
-        let track = Track::new(track_id, join_all(track_futures));
-        self.tracks_sender.send(track).await.unwrap();
+        let ancestry = if let Some(parent) = parent_track {
+            self.tracks_info.lock().await.get(&parent).unwrap().ancestry_level + 1
+        }
+        else {
+            0
+        };
+
+        let info_track = InfoTrack::new(track_id, parent_track, ancestry);
+        let execution_track = ExecutionTrack::new(track_id, ancestry, join_all(track_futures));
+        self.tracks_info.lock().await.insert(track_id, info_track);
+        self.tracks_sender.send(execution_track).await.unwrap();
     }
 
     pub fn live(&self) {
@@ -283,25 +319,47 @@ impl World {
 
         let mut futures = FuturesUnordered::new();
 
+        async fn track_future(track: ExecutionTrack) -> TrackResult {
+
+            let non_ok: Vec<ResultStatus> = track.future.await.iter().filter_map(
+                |r| match r { ResultStatus::Ok => None, _ => Some(r.clone()) }
+            ).collect();
+
+            if non_ok.is_empty() {
+                TrackResult::AllOk(track.id)
+            }
+            else {
+                TrackResult::NotAllOk(track.id, non_ok)
+            }
+        }
+
         while !self.closing.load(Ordering::Relaxed) {
 
             if !self.tracks_receiver.is_empty() {
 
                 while let Ok(track) = self.tracks_receiver.try_recv() {
 
-                    futures.push(track.future);
+                    futures.push(track_future(track));
                 }
             }
             else if futures.is_empty() {
 
                 if let Ok(track) = self.tracks_receiver.recv().await {
 
-                    futures.push(track.future);
+                    futures.push(track_future(track));
                 }
             }
 
-            while let Some(_result) = futures.next().await {
-                // Todo see track results
+            while let Some(result) = futures.next().await {
+
+                match result {
+                    TrackResult::AllOk(id) => {
+                        self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
+                    },
+                    TrackResult::NotAllOk(id, _) => {
+                        self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
+                    },
+                }
             }
         }
     }
