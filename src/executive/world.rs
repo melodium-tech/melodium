@@ -26,6 +26,8 @@ struct SourceEntry {
 
 pub type TrackId = u64;
 
+// We don't use id nor parent_id for now, but might be useful for reporting implementations.
+#[allow(dead_code)]
 struct InfoTrack {
     pub id: TrackId,
     pub parent_id: Option<TrackId>,
@@ -44,6 +46,8 @@ impl InfoTrack {
     }
 }
 
+// We don't use ancestry_level for now, but might be useful for scheduling implementations.
+#[allow(dead_code)]
 struct ExecutionTrack {
     pub id: TrackId,
     pub ancestry_level: u64,
@@ -322,6 +326,8 @@ impl World {
         async fn track_future(track: ExecutionTrack) -> TrackResult {
 
             let non_ok: Vec<ResultStatus> = track.future.await.iter().filter_map(
+                // The `_ =>` is unreachable for now, but will ResultStatus will be complexified.
+                #[allow(unreachable_patterns)]
                 |r| match r { ResultStatus::Ok => None, _ => Some(r.clone()) }
             ).collect();
 
