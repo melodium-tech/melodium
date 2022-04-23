@@ -2,7 +2,7 @@
 use core/text::DecodeBytes
 use core/conversion/scalar::StringToByte
 
-sequence Decode(encoding: string = "utf-8")
+sequence Decode(var encoding: string = "utf-8")
     input data: Stream<byte>
     output text: Stream<string>
 {

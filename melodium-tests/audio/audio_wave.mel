@@ -11,7 +11,7 @@ sequence Main()
     RWf32: ReencodeWave(input="./input_f32.wav", output="./reencoded_f32.wav")
 }
 
-sequence ReencodeWave(input: string, output: string)
+sequence ReencodeWave(const input: string, const output: string)
 {
     ReadFile(path=input)
     Decode()
