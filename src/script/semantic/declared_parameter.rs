@@ -8,7 +8,8 @@ use crate::script::error::ScriptError;
 use crate::script::text::Parameter as TextParameter;
 use crate::logic::descriptor::{ParameterDescriptor, FlowDescriptor};
 
-use super::declarative_element::DeclarativeElement;
+use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
+use super::variability::Variability;
 use super::r#type::Type;
 use super::value::Value;
 
@@ -25,6 +26,7 @@ pub struct DeclaredParameter {
     pub parent: Weak<RwLock<dyn DeclarativeElement>>,
 
     pub name: String,
+    pub variability: Variability,
     pub r#type: Type,
     pub value: Option<Arc<RwLock<Value>>>,
 }
@@ -69,6 +71,7 @@ impl DeclaredParameter {
     /// ```
     pub fn new(parent: Arc<RwLock<dyn DeclarativeElement>>, text: TextParameter) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
+        let variability;
         let r#type;
         let value;
         {
@@ -77,6 +80,23 @@ impl DeclaredParameter {
             let parameter = borrowed_parent.find_declared_parameter(&text.name.string);
             if parameter.is_some() {
                 return Err(ScriptError::semantic("Parameter '".to_string() + &text.name.string + "' is already declared.", text.name.position))
+            }
+
+            match borrowed_parent.declarative_element() {
+                DeclarativeElementType::Model(_) => {
+                    if text.variability.is_some() {
+                        return Err(ScriptError::semantic("Parameter '".to_string() + &text.name.string + "' cannot have variability defined (const required for models).", text.name.position))
+                    }
+                    variability = Variability::Const;
+                },
+                DeclarativeElementType::Sequence(_) => {
+                    if let Some(text_variability) = text.variability {
+                        variability = Variability::from_string(&text_variability.string).unwrap();
+                    }
+                    else {
+                        variability = Variability::Var;
+                    }
+                }
             }
 
             if text.r#type.is_none() {
@@ -96,6 +116,7 @@ impl DeclaredParameter {
             parent: Arc::downgrade(&parent),
             name: text.name.string.clone(),
             text,
+            variability,
             r#type,
             value,
         })))
@@ -115,7 +136,7 @@ impl DeclaredParameter {
             None
         };
 
-        let parameter = ParameterDescriptor::new(&self.name, datatype, value);
+        let parameter = ParameterDescriptor::new(&self.name, self.variability.to_descriptor(), datatype, value);
 
         Ok(parameter)
     }

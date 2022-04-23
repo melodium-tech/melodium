@@ -119,13 +119,13 @@ impl Sequence {
 
                     let input_name = expect_word_kind(Kind::Name, "Input name expected.", &mut iter)?;
                     expect_word_kind(Kind::Colon, "Input type declaration expected.", &mut iter)?;
-                    inputs.push(Parameter::build_from_type(input_name, &mut iter)?);
+                    inputs.push(Parameter::build_from_type(None, input_name, &mut iter)?);
                 }
                 else if word.text == "output" {
 
                     let output_name = expect_word_kind(Kind::Name, "Output name expected.", &mut iter)?;
                     expect_word_kind(Kind::Colon, "Output type declaration expected.", &mut iter)?;
-                    outputs.push(Parameter::build_from_type(output_name, &mut iter)?);
+                    outputs.push(Parameter::build_from_type(None, output_name, &mut iter)?);
                 }
                 else if word.text == "model" {
                     

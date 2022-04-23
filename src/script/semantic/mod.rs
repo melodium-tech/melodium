@@ -23,3 +23,4 @@ pub mod treatment;
 pub mod r#type;
 pub mod r#use;
 pub mod value;
+pub mod variability;

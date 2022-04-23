@@ -20,6 +20,7 @@ pub mod parameterized;
 pub mod requirement;
 pub mod sequence_treatment;
 pub mod treatment;
+pub mod variability;
 
 pub use buildable::Buildable as BuildableDescriptor;
 pub use connection::Connection as ConnectionDescriptor;
@@ -41,3 +42,4 @@ pub use parameter::Parameter as ParameterDescriptor;
 pub use parameterized::Parameterized as ParameterizedDescriptor;
 pub use sequence_treatment::SequenceTreatment as SequenceTreatmentDescriptor;
 pub use treatment::Treatment as TreatmentDescriptor;
+pub use variability::Variability as VariabilityDescriptor;

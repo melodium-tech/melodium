@@ -15,7 +15,7 @@ use super::parameter::Parameter;
 /// # use melodium::script::text::common::parse_parameters_declarations;
 /// 
 /// let text = r##"
-/// (path: Vec<String>, sampleRate: Int = 44100, frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String)
+/// (path: Vec<String>, const sampleRate: Int = 44100, const frameSize: Int = 4096, const hopSize: Int = 2048, var windowingType: String)
 /// "##;
 /// 
 /// let words = get_words(text).unwrap();
@@ -43,7 +43,7 @@ pub fn parse_parameters_declarations(mut iter: &mut std::slice::Iter<Word>) -> R
             first_param = false;
 
             expect_word_kind(Kind::Colon, "Parameter type declaration expected.", &mut iter)?;
-            parameters.push(Parameter::build_from_type(PositionnedString{string: word.text, position: word.position}, &mut iter)?);
+            parameters.push(Parameter::build_from_name(PositionnedString{string: word.text, position: word.position}, &mut iter)?);
 
             let delimiter = expect_word("Unexpected end of script.", &mut iter)?;
             
@@ -161,7 +161,7 @@ pub fn parse_configuration_declarations(mut iter: &mut std::slice::Iter<Word>) -
             first_param = false;
 
             expect_word_kind(Kind::Colon, "Model type declaration expected.", &mut iter)?;
-            parameters.push(Parameter::build_from_type(PositionnedString{string: word.text, position: word.position}, &mut iter)?);
+            parameters.push(Parameter::build_from_type(None, PositionnedString{string: word.text, position: word.position}, &mut iter)?);
 
             let delimiter = expect_word("Unexpected end of script.", &mut iter)?;
             
