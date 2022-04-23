@@ -173,6 +173,7 @@ impl World {
         
         // Check all the tracks/paths
         let models = self.models.read().unwrap();
+        let mut builds = Vec::new();
         let mut errors = Vec::new();
         for (model_id, model_sources) in self.sources.read().unwrap().iter() {
 
@@ -191,19 +192,20 @@ impl World {
                         Vec::new()
                     ).unwrap();
 
+                    builds.extend(result.checked_builds);
                     errors.extend(result.errors);
+                }
+            }
+        }
 
-                    // Check that all inputs are satisfied.
-                    for rc_check_build in result.checked_builds {
+        // Check that all inputs are satisfied.
+        for rc_check_build in builds {
 
-                        let borrowed_check_build = rc_check_build.read().unwrap();
-                        for (_input_name, input_satisfied) in &borrowed_check_build.fed_inputs {
+            let borrowed_check_build = rc_check_build.read().unwrap();
+            for (_input_name, input_satisfied) in &borrowed_check_build.fed_inputs {
 
-                            if !input_satisfied {
-                                errors.push(LogicError::unsatisfied_input());
-                            }
-                        }
-                    }
+                if !input_satisfied {
+                    errors.push(LogicError::unsatisfied_input());
                 }
             }
         }

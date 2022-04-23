@@ -140,10 +140,51 @@ impl Builder for CoreTreatmentBuilder {
         None
     }
 
-    fn check_dynamic_build(&self, _build: BuildId, _environment: CheckEnvironment, _previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
-        
-        //todo!()
-        Some(CheckBuildResult::new())
+    fn check_dynamic_build(&self, build: BuildId, environment: CheckEnvironment, previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {
+
+        let descriptor = self.descriptor.upgrade().unwrap();
+
+        let mut errors = Vec::new();
+        // Check if we're not in our own previous steps
+        let check_step = CheckStep {
+            identifier: descriptor.identifier().clone(),
+            build_id: build,
+        };
+        if let Some(_existing_check_step) = previous_steps.iter().find(|&cs| cs == &check_step) {
+            
+            errors.push(LogicError::already_included_build_step());
+        }
+        let mut current_previous_steps = previous_steps.clone();
+        current_previous_steps.push(check_step);
+
+        // Get build
+        let borrowed_builds = self.builds.read().unwrap();
+        let build_sample = borrowed_builds.get(build as usize).unwrap();
+
+        let mut all_builds = Vec::new();
+        if errors.is_empty() {
+
+            let build_result = build_sample.host_treatment.as_ref().unwrap().builder().check_give_next(
+                build_sample.host_build_id.unwrap(),
+                build_sample.label.to_string(),
+                environment.clone(),
+                current_previous_steps,
+            ).unwrap();
+
+            all_builds.extend(build_result.checked_builds);
+            all_builds.push(Arc::clone(&build_sample.check));
+
+            errors.extend(build_result.errors);
+        }        
+
+        // Return checked build result
+        let own_checked_build_result = CheckBuildResult {
+            checked_builds: all_builds,
+            build: Arc::clone(&build_sample.check),
+            errors,
+        };
+
+        Some(own_checked_build_result)
     }
 
     fn check_give_next(&self, _within_build: BuildId, _for_label: String, _environment: CheckEnvironment, _previous_steps: Vec<CheckStep>) -> Option<CheckBuildResult> {

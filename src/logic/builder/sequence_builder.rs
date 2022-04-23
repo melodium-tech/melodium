@@ -670,16 +670,17 @@ impl Builder for SequenceBuilder {
             let asking_treatment_tuple = (for_label.to_string(), *build_sample.treatment_build_ids.get(&for_label).unwrap());
 
             // Get the treatments connected right after the given label in the reffered build
-            let next_treatments = build_sample.next_treatments_build_ids.get(&asking_treatment_tuple).unwrap();
-            for (next_treatment_name, next_treatment_id) in next_treatments {
+            if let Some(next_treatments) = build_sample.next_treatments_build_ids.get(&asking_treatment_tuple) {
+                for (next_treatment_name, next_treatment_id) in next_treatments {
 
-                let rc_designer = self.designer.read().unwrap();
-                let borrowed_next_treatment = rc_designer.treatments().get(next_treatment_name).unwrap().read().unwrap();
-                let next_treatment_builder = borrowed_next_treatment.descriptor().builder();
+                    let rc_designer = self.designer.read().unwrap();
+                    let borrowed_next_treatment = rc_designer.treatments().get(next_treatment_name).unwrap().read().unwrap();
+                    let next_treatment_builder = borrowed_next_treatment.descriptor().builder();
 
-                let check_result = next_treatment_builder.check_dynamic_build(*next_treatment_id, environment.clone(), previous_steps.clone()).unwrap();
+                    let check_result = next_treatment_builder.check_dynamic_build(*next_treatment_id, environment.clone(), previous_steps.clone()).unwrap();
 
-                treatment_build_results.insert(next_treatment_name.to_string(), check_result);
+                    treatment_build_results.insert(next_treatment_name.to_string(), check_result);
+                }
             }
 
             if let Some(next_connections) = build_sample.next_connections.get(&asking_treatment_tuple) {
