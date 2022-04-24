@@ -12,11 +12,11 @@ treatment!(write_tcp_connection,
         (super::super::tcp_listener::TcpListenerModel::descriptor(), "connection")
     ],
     parameters![
-        parameter!("ip", Scalar, String, None),
-        parameter!("port", Scalar, U16, None)
+        parameter!("ip", Var, Scalar, String, None),
+        parameter!("port", Var, Scalar, U16, None)
     ],
     inputs![
-        input!("data",Scalar, Byte, Stream)
+        input!("data", Scalar, Byte, Stream)
     ],
     outputs![],
     host {

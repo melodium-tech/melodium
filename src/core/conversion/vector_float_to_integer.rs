@@ -8,9 +8,9 @@ macro_rules! impl_VectorFloatToInteger {
             models![],
             treatment_sources![],
             parameters![
-                parameter!("neg_infinity",Scalar,$output_mel_type,Some(Value::$output_mel_type(<$output_rust_type>::MIN))),
-                parameter!("pos_infinity",Scalar,$output_mel_type,Some(Value::$output_mel_type(<$output_rust_type>::MAX))),
-                parameter!("nan",Scalar,$output_mel_type,Some(Value::$output_mel_type(<$output_rust_type>::default())))
+                parameter!("neg_infinity",Var,Scalar,$output_mel_type,Some(Value::$output_mel_type(<$output_rust_type>::MIN))),
+                parameter!("pos_infinity",Var,Scalar,$output_mel_type,Some(Value::$output_mel_type(<$output_rust_type>::MAX))),
+                parameter!("nan",Var,Scalar,$output_mel_type,Some(Value::$output_mel_type(<$output_rust_type>::default())))
             ],
             inputs![
                 input!("value",Vector,$input_mel_type,Stream)

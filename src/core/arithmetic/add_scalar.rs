@@ -8,7 +8,7 @@ macro_rules! impl_AddScalar {
             models![],
             treatment_sources![],
             parameters![
-                parameter!("add",Scalar,$mel_type,Some(Value::$mel_type(<$rust_type>::default())))
+                parameter!("add",Var,Scalar,$mel_type,Some(Value::$mel_type(<$rust_type>::default())))
             ],
             inputs![
                 input!("value",Scalar,$mel_type,Stream)

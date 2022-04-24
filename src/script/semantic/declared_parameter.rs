@@ -90,7 +90,7 @@ impl DeclaredParameter {
                     variability = Variability::Const;
                 },
                 DeclarativeElementType::Sequence(_) => {
-                    if let Some(text_variability) = text.variability {
+                    if let Some(text_variability) = &text.variability {
                         variability = Variability::from_string(&text_variability.string).unwrap();
                     }
                     else {

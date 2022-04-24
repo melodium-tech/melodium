@@ -6,7 +6,7 @@ treatment!(byte_to_string,
     models![],
     treatment_sources![],
     parameters![
-        parameter!("encoding",Scalar,String,Some(Value::String("utf-8".to_string())))
+        parameter!("encoding",Var,Scalar,String,Some(Value::String("utf-8".to_string())))
     ],
     inputs![
         input!("data",Scalar,Byte,Stream)

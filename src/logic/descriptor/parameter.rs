@@ -5,10 +5,18 @@ use super::variability::Variability;
 use crate::executive::value::Value;
 
 macro_rules! parameter {
+    ($name:expr,$data_structure:ident,$data_type:ident,$default:expr) => {
+        crate::logic::descriptor::parameter::Parameter::new(
+            $name,
+            crate::logic::descriptor::variability::Variability::Const,
+            datatype!($data_structure,$data_type),
+            $default,
+        )
+    };
     ($name:expr,$variability:ident,$data_structure:ident,$data_type:ident,$default:expr) => {
         crate::logic::descriptor::parameter::Parameter::new(
             $name,
-            $variability,
+            crate::logic::descriptor::variability::Variability::$variability,
             datatype!($data_structure,$data_type),
             $default,
         )

@@ -8,8 +8,8 @@ macro_rules! impl_CastVector {
             models![],
             treatment_sources![],
             parameters![
-                parameter!("truncate", Scalar, Bool, Some(Value::Bool(true))),
-                parameter!("or_default", Scalar, $output_mel_type, Some(Value::$output_mel_type(<$output_rust_type>::default())))
+                parameter!("truncate", Var, Scalar, Bool, Some(Value::Bool(true))),
+                parameter!("or_default", Var, Scalar, $output_mel_type, Some(Value::$output_mel_type(<$output_rust_type>::default())))
             ],
             inputs![
                 input!("value",Vector,$input_mel_type,Stream)
