@@ -7,7 +7,7 @@ use core/conversion/scalar::U32ToByte
 
 sequence Main()
   model Generator: ScalarU32Generator(length=1024, value=42)
-  model File: FileWriter(path="/tmp/tests/generated_u32.mel_generation")
+  model File: FileWriter(path="generated_u32.mel_generation")
 {
     Generate: GenerateScalarU32[generator=Generator]()
     Convert: U32ToByte()

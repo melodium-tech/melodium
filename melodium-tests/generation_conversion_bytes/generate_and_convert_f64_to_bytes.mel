@@ -7,7 +7,7 @@ use core/conversion/scalar::F64ToByte
 
 sequence Main()
   model Generator: ScalarF64Generator(length=1024, value=-1234.56789123456789)
-  model File: FileWriter(path="/tmp/tests/generated_f64.mel_generation")
+  model File: FileWriter(path="generated_f64.mel_generation")
 {
     Generate: GenerateScalarF64[generator=Generator]()
     Convert: F64ToByte()

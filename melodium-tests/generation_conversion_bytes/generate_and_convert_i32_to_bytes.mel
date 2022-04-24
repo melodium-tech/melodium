@@ -7,7 +7,7 @@ use core/conversion/scalar::I32ToByte
 
 sequence Main()
   model Generator: ScalarI32Generator(length=1024, value=-42)
-  model File: FileWriter(path="/tmp/tests/generated_i32.mel_generation")
+  model File: FileWriter(path="generated_i32.mel_generation")
 {
     Generate: GenerateScalarI32[generator=Generator]()
     Convert: I32ToByte()

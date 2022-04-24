@@ -7,7 +7,7 @@ use core/conversion/scalar::I8ToByte
 
 sequence Main()
   model Generator: ScalarI8Generator(length=1024, value=-42)
-  model File: FileWriter(path="/tmp/tests/generated_i8.mel_generation")
+  model File: FileWriter(path="generated_i8.mel_generation")
 {
     Generate: GenerateScalarI8[generator=Generator]()
     Convert: I8ToByte()

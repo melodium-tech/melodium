@@ -41,8 +41,6 @@ function run_test() {
 
 rm -r /tmp/fake_std
 cp -r ../std /tmp/fake_std
-rm -rf /tmp/tests
-mkdir -p /tmp/tests
 
 echo Running Mélodium tests…
 

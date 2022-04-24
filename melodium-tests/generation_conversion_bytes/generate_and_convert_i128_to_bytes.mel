@@ -7,7 +7,7 @@ use core/conversion/scalar::I128ToByte
 
 sequence Main()
   model Generator: ScalarI128Generator(length=1024, value=-42)
-  model File: FileWriter(path="/tmp/tests/generated_i128.mel_generation")
+  model File: FileWriter(path="generated_i128.mel_generation")
 {
     Generate: GenerateScalarI128[generator=Generator]()
     Convert: I128ToByte()

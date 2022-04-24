@@ -19,7 +19,7 @@ impl FileReaderModel {
             FileReaderModel,
             core_identifier!("fs","direct";"FileReader"),
             vec![
-                parameter!("path", Scalar, String, None)
+                parameter!("path", Const, Scalar, String, None)
             ],
             model_sources![
                 ("read"; "File")
