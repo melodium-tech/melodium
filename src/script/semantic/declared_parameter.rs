@@ -84,10 +84,15 @@ impl DeclaredParameter {
 
             match borrowed_parent.declarative_element() {
                 DeclarativeElementType::Model(_) => {
-                    if text.variability.is_some() {
-                        return Err(ScriptError::semantic("Parameter '".to_string() + &text.name.string + "' cannot have variability defined (const required for models).", text.name.position))
+                    if let Some(text_variability) = &text.variability {
+                        variability = Variability::from_string(&text_variability.string).unwrap();
+                        if variability != Variability::Const {
+                            return Err(ScriptError::semantic("Parameter '".to_string() + &text.name.string + "' cannot be variable (const required for models).", text.name.position))
+                        }
                     }
-                    variability = Variability::Const;
+                    else {
+                        variability = Variability::Const;
+                    }
                 },
                 DeclarativeElementType::Sequence(_) => {
                     if let Some(text_variability) = &text.variability {

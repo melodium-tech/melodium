@@ -4,7 +4,7 @@ use std/fs/mono::WriteFile
 use std/text::Decode
 use std/text::EncodeAsUtf8
 
-sequence Reencoding(var input_encoding: string, const input: string, const output: string)
+sequence Reencoding(input_encoding: string, const input: string, const output: string)
 {
     ReadFile(path=input)
     Decode(encoding=input_encoding)
