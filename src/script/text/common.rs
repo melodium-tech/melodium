@@ -42,7 +42,6 @@ pub fn parse_parameters_declarations(mut iter: &mut std::slice::Iter<Word>) -> R
         else if word.kind == Some(Kind::Name) {
             first_param = false;
 
-            expect_word_kind(Kind::Colon, "Parameter type declaration expected.", &mut iter)?;
             parameters.push(Parameter::build_from_name(PositionnedString{string: word.text, position: word.position}, &mut iter)?);
 
             let delimiter = expect_word("Unexpected end of script.", &mut iter)?;

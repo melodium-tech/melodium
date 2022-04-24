@@ -54,6 +54,8 @@ impl Parameter {
 
             if word.kind == Some(Kind::Name) {
 
+                expect_word_kind(Kind::Colon, "Parameter type declaration expected.", &mut iter)?;
+
                 Self::build_from_type(Some(variability_or_name), PositionnedString{string: word.text, position: word.position}, &mut iter)
             }
             else {
@@ -61,6 +63,8 @@ impl Parameter {
             }
         }
         else {
+            expect_word_kind(Kind::Colon, "Parameter type declaration expected.", &mut iter)?;
+
             Self::build_from_type(None, variability_or_name, &mut iter)
         }
     }
@@ -84,7 +88,7 @@ impl Parameter {
     /// // Checking and discarding ':'.
     /// expect_word_kind(Kind::Colon, "Colon expected.", &mut iter)?;
     /// 
-    /// let parameter = Parameter::build_from_type(name, &mut iter)?;
+    /// let parameter = Parameter::build_from_type(None, name, &mut iter)?;
     /// 
     /// assert!(parameter.r#type.is_some());
     /// assert_eq!(parameter.r#type.unwrap().name.string, "Int");
