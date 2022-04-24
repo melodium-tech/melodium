@@ -23,7 +23,7 @@ function test_generation() {
     CHECK_VALUE="$3"
     OUTPUT_BASE_FILE="$4"
     
-    "$MELODIUM" --stdlib /tmp/fake_std "$MEL_SCRIPT"
+    "$MELODIUM" "$MEL_SCRIPT"
     # Enable this line to generate values and ignore already present files
     #bash_generation "$CHECK_VALUE" "$OUTPUT_BASE_FILE.bash_generation"
 

@@ -11,8 +11,8 @@ fi
 
 export PATH="$TEST_DIR/../target/debug:$PATH"
 export MELODIUM="$MELODIUM"
+export MELODIUM_STDLIB="$TEST_DIR/../std"
 export RUST_BACKTRACE=1
-
 
 GLOBAL_RESULT=0
 declare -i GLOBAL_RESULT
@@ -37,10 +37,6 @@ function run_test() {
         GLOBAL_RESULT+=1
     fi
 }
-
-
-rm -r /tmp/fake_std
-cp -r ../std /tmp/fake_std
 
 echo Running Mélodium tests…
 
