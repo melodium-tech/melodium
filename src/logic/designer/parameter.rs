@@ -50,7 +50,7 @@ impl Parameter {
 
                     if *self.parent_descriptor.upgrade().unwrap().parameters().get(&self.name).unwrap().variability() == VariabilityDescriptor::Const
                     && *scope_variable.variability() != VariabilityDescriptor::Const {
-                        // return truc const non respectée
+                        return Err(LogicError::const_required_var_provided())
                     }
 
                     if scope_variable.datatype() != self.parent_descriptor.upgrade().unwrap().parameters().get(&self.name).unwrap().datatype() {
@@ -64,7 +64,7 @@ impl Parameter {
             Value::Context((context, name)) => {
 
                 if *self.parent_descriptor.upgrade().unwrap().parameters().get(&self.name).unwrap().variability() == VariabilityDescriptor::Const {
-                    // return truc const non respectée
+                    return Err(LogicError::const_required_context_provided())
                 }
 
                 if let Some(context_descriptor) = Contexts::get(context) {

@@ -76,6 +76,12 @@ pub enum LogicErrorKind {
     AlreadyIncludedBuildStep,
     /// The treatment input in not satisfied
     UnsatisfiedInput,
+    /// A constant is required but the value assigned is variable
+    ConstRequiredVarProvided,
+    /// A constant is required but a context is provided
+    ConstRequiredContextProvided,
+    /// A model instanciation can only have const assignations
+    ModelInstanciationConstOnly,
 }
 
 impl ToString for LogicErrorKind {
@@ -115,6 +121,9 @@ impl ToString for LogicErrorKind {
             Self::UnsetModel => "Model is not setted up",
             Self::AlreadyIncludedBuildStep => "This sequence is already called, causing infinite loop",
             Self::UnsatisfiedInput => "Treatment input is not satisfied",
+            Self::ConstRequiredVarProvided => "Constant value required but variable is provided",
+            Self::ConstRequiredContextProvided => "Constant value required but context is provided",
+            Self::ModelInstanciationConstOnly => "Model instanciations can only get constants",
             //_ => "Unimplemented logic error type",
         }.to_string()
     }
@@ -357,6 +366,27 @@ impl LogicError {
     pub fn unsatisfied_input() -> Self {
         Self {
             kind: LogicErrorKind::UnsatisfiedInput
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::ConstRequiredVarProvided`] kind.
+    pub fn const_required_var_provided() -> Self {
+        Self {
+            kind: LogicErrorKind::ConstRequiredVarProvided
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::ConstRequiredContextProvided`] kind.
+    pub fn const_required_context_provided() -> Self {
+        Self {
+            kind: LogicErrorKind::ConstRequiredContextProvided
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::ModelInstanciationConstOnly`] kind.
+    pub fn model_instanciation_const_only() -> Self {
+        Self {
+            kind: LogicErrorKind::ModelInstanciationConstOnly
         }
     }
 }

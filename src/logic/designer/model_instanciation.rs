@@ -93,7 +93,7 @@ impl ModelInstanciation {
 
         // Check all parameters are const.
         if let Some(_forbidden_var) = self.parameters.iter().find(|&(param_name, param)| *param.read().unwrap().parent_descriptor().upgrade().unwrap().parameters().get(param_name).unwrap().variability() != VariabilityDescriptor::Const) {
-            // return Err truc const autorisées seulement
+            return Err(LogicError::model_instanciation_const_only())
         }
 
         Ok(())
