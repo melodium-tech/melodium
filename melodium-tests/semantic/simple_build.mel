@@ -2,7 +2,8 @@
 /*
  * Computes the HPCP of audio files and render them as images.
  * 
- * This script is an example of basic Mélodium usage, as well as a test file.
+ * This script is a test file for semantic parsing, it is not supposed to be
+ * executed at this point.
  * As aimed as example for beginners, it is overdocumented on purpose,
  * repeating even syntaxically explicit expressions.
  *

@@ -44,7 +44,7 @@ impl AssignedParameter {
     /// # use melodium::script::text::script::Script as TextScript;
     /// # use melodium::script::semantic::script::Script;
     /// # use melodium::script::semantic::assignative_element::AssignativeElement;
-    /// let address = "examples/semantic/simple_build.mel";
+    /// let address = "melodium-tests/semantic/simple_build.mel";
     /// let mut raw_text = String::new();
     /// # let mut file = File::open(address).unwrap();
     /// # file.read_to_string(&mut raw_text);

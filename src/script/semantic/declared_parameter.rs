@@ -49,7 +49,7 @@ impl DeclaredParameter {
     /// # use melodium::script::semantic::script::Script;
     /// # use melodium::script::semantic::declarative_element::DeclarativeElement;
     /// # use melodium::script::semantic::r#type::{TypeName, TypeStructure};
-    /// let address = "examples/semantic/simple_build.mel";
+    /// let address = "melodium-tests/semantic/simple_build.mel";
     /// let mut raw_text = String::new();
     /// # let mut file = File::open(address).unwrap();
     /// # file.read_to_string(&mut raw_text);

@@ -42,7 +42,7 @@ impl File {
     /// // main/simple_build
     /// let path = Path::new(vec!["main".to_string(), "simple_build".to_string()]);
     /// 
-    /// let relative_path = "examples/semantic/simple_build.mel";
+    /// let relative_path = "melodium-tests/semantic/simple_build.mel";
     /// let absolute_path = PathBuf::from(relative_path).canonicalize().unwrap();
     /// 
     /// let file = File::new(path, absolute_path);
@@ -72,7 +72,7 @@ impl File {
     /// // main/simple_build
     /// let path = Path::new(vec!["main".to_string(), "simple_build".to_string()]);
     /// 
-    /// let relative_path = "examples/semantic/simple_build.mel";
+    /// let relative_path = "melodium-tests/semantic/simple_build.mel";
     /// let absolute_path = PathBuf::from(relative_path).canonicalize().unwrap();
     /// 
     /// let mut file = File::new(path, absolute_path);
@@ -107,7 +107,7 @@ impl File {
     /// // main/simple_build
     /// let path = Path::new(vec!["main".to_string(), "simple_build".to_string()]);
     /// 
-    /// let relative_path = "examples/semantic/simple_build.mel";
+    /// let relative_path = "melodium-tests/semantic/simple_build.mel";
     /// let absolute_path = PathBuf::from(relative_path).canonicalize().unwrap();
     /// 
     /// let mut file = File::new(path, absolute_path);
