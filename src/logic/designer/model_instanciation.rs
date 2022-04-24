@@ -7,6 +7,7 @@ use super::sequence::Sequence;
 use super::parameter::Parameter;
 use super::super::descriptor::ParameterizedDescriptor;
 use super::super::descriptor::ParameterDescriptor;
+use super::super::descriptor::VariabilityDescriptor;
 use super::value::Value;
 
 #[derive(Debug)]
@@ -88,6 +89,11 @@ impl ModelInstanciation {
         // Check all parameters does not refers to a context.
         if let Some(_forbidden_context) = self.parameters.iter().find(|&(_param_name, param)| matches!(param.read().unwrap().value(), Some(Value::Context{..}))) {
             return Err(LogicError::no_context())
+        }
+
+        // Check all parameters are const.
+        if let Some(_forbidden_var) = self.parameters.iter().find(|&(param_name, param)| *param.read().unwrap().parent_descriptor().upgrade().unwrap().parameters().get(param_name).unwrap().variability() != VariabilityDescriptor::Const) {
+            // return Err truc const autorisées seulement
         }
 
         Ok(())

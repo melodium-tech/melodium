@@ -1,7 +1,7 @@
 
 use std::sync::{Arc, Weak};
 use super::super::error::LogicError;
-use super::super::descriptor::ParameterizedDescriptor;
+use super::super::descriptor::{ParameterizedDescriptor, VariabilityDescriptor};
 use super::value::Value;
 use super::super::contexts::Contexts;
 
@@ -48,6 +48,11 @@ impl Parameter {
 
                 if let Some(scope_variable) = self.scope.upgrade().unwrap().parameters().get(name) {
 
+                    if *self.parent_descriptor.upgrade().unwrap().parameters().get(&self.name).unwrap().variability() == VariabilityDescriptor::Const
+                    && *scope_variable.variability() != VariabilityDescriptor::Const {
+                        // return truc const non respectée
+                    }
+
                     if scope_variable.datatype() != self.parent_descriptor.upgrade().unwrap().parameters().get(&self.name).unwrap().datatype() {
                         return Err(LogicError::unmatching_datatype())
                     }
@@ -57,6 +62,10 @@ impl Parameter {
                 }
             },
             Value::Context((context, name)) => {
+
+                if *self.parent_descriptor.upgrade().unwrap().parameters().get(&self.name).unwrap().variability() == VariabilityDescriptor::Const {
+                    // return truc const non respectée
+                }
 
                 if let Some(context_descriptor) = Contexts::get(context) {
 

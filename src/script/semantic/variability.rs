@@ -1,8 +1,6 @@
 
 //! Module for Variability semantic analysis.
 
-use crate::script::error::ScriptError;
-use crate::script::text::Type as TextType;
 use crate::logic::descriptor::{VariabilityDescriptor};
 
 /// Enum for variability identification.
