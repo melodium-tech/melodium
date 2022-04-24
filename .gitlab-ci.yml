@@ -60,8 +60,8 @@ melodium_tests:
 pages:
   stage: deploy
   before_script:
-    - mkdir bin && curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.15/mdbook-v0.4.15-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=bin
   script:
+    - mkdir bin && curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.15/mdbook-v0.4.15-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=bin
     - cargo doc --no-deps
     - mv target/doc public
     - utils/doc_generation.sh /tmp/doc
