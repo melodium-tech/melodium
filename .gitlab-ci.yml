@@ -1,10 +1,8 @@
 # Modified from original GitLab/Rust template
 
 stages:
-  - build
-  - test
-  - benchmark_rust
-  - benchmark_melodium
+  - rust
+  - melodium
   - deploy
 
 # Optional: Pick zero or more services to be used on all builds.
@@ -30,7 +28,7 @@ before_script:
 
 # Use cargo to build the project
 rust_build:
-  stage: build
+  stage: rust
   script:
     - rustc --version && cargo --version  # Print version info for debugging
     - cargo build --verbose
@@ -40,12 +38,12 @@ rust_build:
     expire_in: 1 day
 
 rust_unit_tests:
- stage: test
+ stage: rust
  script:
    - cargo test --tests --verbose
 
 rust_doc_tests:
- stage: test
+ stage: rust
  script:
    - cargo test --doc --verbose
 #
@@ -55,10 +53,7 @@ rust_doc_tests:
 #    - cargo bench --benches --verbose
 
 melodium_tests:
-  stage: test
-  before_script:
-    - apt-get update
-    - apt-get install -y xxd libasound2
+  stage: melodium
   script:
     - melodium-tests/run.sh
 
