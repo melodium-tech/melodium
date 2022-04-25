@@ -1,9 +1,13 @@
 
-use core/fs/direct::FileWriter
-use core/fs/direct::WriteFile
+use std/fs/mono::WriteFile
 use core/generation::ScalarU8Generator
 use core/generation::GenerateScalarU8
-use core/conversion::U8ToByte
+use core/conversion/scalar::U8ToByte
+
+/*
+    This example create a 'null_file' of 1GiB all
+    filled with zeros.
+*/
 
 sequence TouchFile()
 {
@@ -13,21 +17,20 @@ sequence TouchFile()
     GenerateNullData.data -> WriteNullFile.data
 }
 
-sequence GenerateNullData(length: u64)
+sequence GenerateNullData(const length: u64)
     model Generator: ScalarU8Generator(length=length)
     output data: Stream<byte>
 {
     Generate: GenerateScalarU8[generator=Generator]()
     Convert: U8ToByte()
     
-    Generate.data -> Convert.data,data -> Self.data
+    Generate.data -> Convert.value,data -> Self.data
 }
 
-sequence WriteNullFile(filename: string)
-    model File: FileWriter(path=filename)
+sequence WriteNullFile(const filename: string)
     input data: Stream<byte>
 {
-    Write: WriteFile[writer=File]()
+    Write: WriteFile(path=filename)
 
     Self.data -> Write.data
 }

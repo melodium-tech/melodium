@@ -20,20 +20,16 @@ The current project is the continuation of that work, rewritten from ground in R
 
 ## Example
 
-The following code makes a copy of the file `./input` to `./output`. More examples are available under [examples](examples/).
+The following code makes a copy of the file `./input.txt` to `./output.txt`. More examples are available under [examples](examples/).
 
 ```
-use core/fs/direct::FileReader
-use core/fs/direct::FileWriter
-use core/fs/direct::ReadFile
-use core/fs/direct::WriteFile
+use std/fs/mono:ReadFile
+use std/fs/mono::WriteFile
 
 sequence Main()
-    model FileReader: FileReader(path="./input")
-    model FileWriter: FileWriter(path="./output")
 {
-    Reader: ReadFile[reader=FileReader]()
-    Writer: WriteFile[writer=FileWriter]()
+    Reader: ReadFile(path="./input.txt")
+    Writer: WriteFile(path="./output.txt")
     
     Reader.data -> Writer.data
 }

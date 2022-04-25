@@ -1,17 +1,11 @@
 
-use core/fs/direct::FileReader
-use core/fs/direct::FileWriter
-use core/fs/direct::ReadFile
-use core/fs/direct::WriteFile
+use std/fs/mono:ReadFile
+use std/fs/mono::WriteFile
 
 sequence Main()
-    model FileReader: FileReader(path="/tmp/input")
-    model FileWriter: FileWriter(path="/tmp/output")
 {
-    Reader: ReadFile[reader=FileReader]()
-    Writer: WriteFile[writer=FileWriter]()
+    Reader: ReadFile(path="/tmp/input")
+    Writer: WriteFile(path="/tmp/output")
     
     Reader.data -> Writer.data
 }
-
-
