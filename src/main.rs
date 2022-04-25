@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::process::*;
 
 extern crate clap;
-use clap::{Arg, App, crate_version};
+use clap::{Arg, Command, crate_version};
 use colored::*;
 
 use melodium::executive::world::World;
@@ -15,37 +15,37 @@ use melodium::script::path::Path;
 
 fn main() {
 
-    let matches = App::new("Mélodium")
+    let matches = Command::new("Mélodium")
         .version(crate_version!())
         .author("Quentin Vignaud")
         .about("Mélodium script engine")
-        .arg(Arg::with_name("stdlib")
+        .arg(Arg::new("stdlib")
             .long("stdlib")
             .value_name("PATH")
             .help("Sets standard library location")
             .takes_value(true))
-        .arg(Arg::with_name("main")
-            .short("m")
+        .arg(Arg::new("main")
+            .short('m')
             .long("main")
             .value_name("SEQUENCE")
             .help("Sets the main entry point (default to 'Main')")
             .takes_value(true))
-        .arg(Arg::with_name("parseonly")
-            .short("p")
+        .arg(Arg::new("parseonly")
+            .short('p')
             .long("parseonly")
             .help("Parse, and make semantic analysis only"))
-        .arg(Arg::with_name("nolaunch")
-            .short("L")
+        .arg(Arg::new("nolaunch")
+            .short('L')
             .long("nolaunch")
             .help("Parse, make semantic analysis, design world and check it, but don't make it live"))
-        .arg(Arg::with_name("doc-list")
+        .arg(Arg::new("doc-list")
             .long("doc-list")
             .help("Print list of elements available, implies --parseonly"))
-        .arg(Arg::with_name("doc")
+        .arg(Arg::new("doc")
             .long("doc")
             .help("Print documentation of specified element, implies --parseonly")
             .takes_value(true))
-        .arg(Arg::with_name("script")
+        .arg(Arg::new("script")
             .value_name("SCRIPT")
             .help("Script to run")
             .required(true)
