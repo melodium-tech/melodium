@@ -9,7 +9,7 @@ pub struct FileWriterModel {
 
     helper: ModelHelper,
 
-    write_channel: (Sender<u8>, Receiver<u8>),
+    write_channel: RecvTransmitter<u8>,
 
     auto_reference: Weak<Self>,
 }
@@ -36,14 +36,14 @@ impl FileWriterModel {
         Arc::new_cyclic(|me| Self {
             helper: ModelHelper::new(Self::descriptor(), world),
 
-            write_channel: bounded(1048576),
+            write_channel: RecvTransmitter::new(),
 
             auto_reference: me.clone(),
         })
     }
 
-    pub fn writer(&self) -> &Sender<u8> {
-        &self.write_channel.0
+    pub fn writer(&self) -> &RecvTransmitter<u8> {
+        &self.write_channel
     }
 
     fn initialize(&self) {
@@ -67,15 +67,15 @@ impl FileWriterModel {
 
         let open_result = open_options.open(&os_path).await;
 
-        if let Ok(file) = open_result {
+        if let Ok(mut file) = open_result {
 
-            let receiver = &self.write_channel.1;
+            let receiver = &self.write_channel;
 
-            let mut writer = BufWriter::with_capacity(1048576, file);
+            //let mut writer = BufWriter::with_capacity(1048576, file);
 
             // We don't handle the recv_error case as it means everything is empty and closed
-            while let Ok(data) = receiver.recv().await {
-                if let Err(write_err) = writer.write(&[data]).await {
+            while let Ok(data) = receiver.receive_multiple().await {
+                if let Err(write_err) = file.write_all(&data).await {
 
                     // Todo handle error
                     panic!("Writing error: {}", write_err)
@@ -83,7 +83,7 @@ impl FileWriterModel {
 
             }
 
-            if let Err(write_err) = writer.flush().await {
+            if let Err(write_err) = file.flush().await {
 
                 // Todo handle error
                 panic!("Writing (flush) error: {}", write_err)

@@ -16,16 +16,15 @@ treatment!(file_writer_treatment,
         let writer = Arc::clone(&host.get_model("writer")).downcast_arc::<crate::core::fs::direct::file_writer::FileWriterModel>().unwrap();
 
         let input = host.get_input("data");
-        let writer_sender = writer.writer().clone();
+        let writer_sender = SendTransmitter::new();
+        writer_sender.add_transmitter(writer.writer());
     
-        'main: while let Ok(bytes) = input.recv_byte().await {
+        while let Ok(bytes) = input.recv_byte().await {
 
-            for byte in bytes {
-                ok_or_break!('main, writer_sender.send(byte).await);
-            }
+            ok_or_break!(writer_sender.send_multiple(bytes).await);
         }
 
-        writer_sender.close();
+        writer_sender.close().await;
     
         ResultStatus::Ok
     }
