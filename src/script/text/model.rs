@@ -13,6 +13,7 @@ use super::parameter::Parameter;
 /// It owns a name, parameters, and a type (model type, not [data type](../type/struct.Type.html)).
 #[derive(Clone, Debug)]
 pub struct Model {
+    pub doc: Option<PositionnedString>,
     pub name: PositionnedString,
     pub parameters: Vec<Parameter>,
     pub r#type: PositionnedString,
@@ -49,7 +50,7 @@ impl Model {
     /// assert_eq!(model.r#type.string, "SparseAutoencoder");
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
+    pub fn build(mut iter: &mut std::slice::Iter<Word>, doc: Option<PositionnedString>) -> Result<Self, ScriptError> {
 
         let name = expect_word_kind(Kind::Name, "Model name expected.", &mut iter)?;
 
@@ -85,6 +86,7 @@ impl Model {
         }
 
         Ok(Self {
+            doc,
             name,
             parameters,
             r#type,

@@ -13,7 +13,7 @@ use crate::script::error::ScriptError;
 /// Word, smallest unit of parsed text.
 /// 
 /// This structure embeds informations about a word, that can be anything like a name `MyFashionName`, value `12.345`, or any symbol like parenthesis, bracket, comma, etc.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Word {
     /// Literal text of the word.
     pub text: String,
@@ -27,7 +27,7 @@ pub struct Word {
 /// 
 /// # Note
 /// All positions (`absolute_position`, `line_position`) are expected to be bytes indexes, not chars.
-#[derive(Default, Debug, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct Position {
     /// Absolute position of the word inside the text script, as byte index.
     pub absolute_position: usize,
@@ -37,7 +37,7 @@ pub struct Position {
     pub line_position: usize,
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Hash, PartialEq, Eq)]
 pub struct PositionnedString {
     pub string: String,
     pub position: Position,
@@ -48,7 +48,7 @@ pub struct PositionnedString {
 /// "Kind" designates what the word fundamentaly is, meaning a `Name` is some text that designates name of something (including keyword), `Opening*` and `Closing*` are obvious, as well as `Equal`, `Colon`, `Comma`, etc.
 /// 
 /// Some "special" kinds of words, like `Comment`, `Annotations`, or `RightArrow` are there because they designates very specific patterns of text that can be easily and cheaply identified, and considered as single elements for all other parsing steps.
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum Kind {
     /// Comment, anything like `//…` or `/* … */`.
     Comment,
