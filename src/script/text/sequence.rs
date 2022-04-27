@@ -59,7 +59,7 @@ impl Sequence {
     /// let sequence_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
     /// assert_eq!(sequence_keyword.string, "sequence");
     /// 
-    /// let sequence = Sequence::build(&mut iter)?;
+    /// let sequence = Sequence::build(&mut iter, None)?;
     /// 
     /// assert_eq!(sequence.name.string, "PrepareAudioFiles");
     /// assert_eq!(sequence.parameters.len(), 5);

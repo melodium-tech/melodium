@@ -43,7 +43,7 @@ impl Model {
     /// let model_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
     /// assert_eq!(model_keyword.string, "model");
     /// 
-    /// let model = Model::build(&mut iter)?;
+    /// let model = Model::build(&mut iter, None)?;
     /// 
     /// assert_eq!(model.name.string, "MachineLearningModel");
     /// assert_eq!(model.parameters.len(), 2);
