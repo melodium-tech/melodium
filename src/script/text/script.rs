@@ -90,7 +90,7 @@ impl Script {
             if word.kind == Some(Kind::Comment) {
                 if word.text.starts_with("///") {
                     last_doc = Some(PositionnedString {
-                        string: word.text.chars().skip(3).collect(),
+                        string: word.text.strip_prefix("///").unwrap().to_string(),
                         position: Position {
                             absolute_position: word.position.absolute_position + 3,
                             line_number: word.position.line_number,
@@ -99,9 +99,8 @@ impl Script {
                     });
                 }
                 else if word.text.starts_with("/**") {
-                    let block = word.text[3..word.text.len()-2].to_string();
                     last_doc = Some(PositionnedString {
-                        string: block,
+                        string: word.text.strip_prefix("/**").unwrap().strip_suffix("*/").unwrap().to_string(),
                         position: Position {
                             absolute_position: word.position.absolute_position + 3,
                             line_number: word.position.line_number,
