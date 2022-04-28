@@ -779,6 +779,7 @@ dependencies = [
  "downcast-rs",
  "encoding_rs",
  "futures",
+ "glob",
  "hound",
  "itertools",
  "lazy_static",
