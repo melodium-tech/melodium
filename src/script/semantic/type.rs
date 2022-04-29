@@ -1,6 +1,7 @@
 
 //! Module for Type identification and structure semantic analysis.
 
+use std::fmt;
 use crate::script::error::ScriptError;
 use crate::script::text::Type as TextType;
 use crate::logic::descriptor::{DataTypeDescriptor, DataTypeStructureDescriptor, DataTypeTypeDescriptor, FlowDescriptor};
@@ -14,6 +15,17 @@ pub enum TypeFlow {
     Stream,
 }
 
+impl fmt::Display for TypeFlow {
+    
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
+        write!(f, "{}", match self {
+            TypeFlow::Block => "Block",
+            TypeFlow::Stream => "Stream",
+        })
+    }
+}
+
 /// Enum for type structure identification.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum TypeStructure {
@@ -21,6 +33,17 @@ pub enum TypeStructure {
     Scalar,
     /// Data is a continuous one-dimension vector.
     Vector,
+}
+
+impl fmt::Display for TypeStructure {
+    
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
+        write!(f, "{}", match self {
+            TypeStructure::Scalar => "Scal",
+            TypeStructure::Vector => "Vec",
+        })
+    }
 }
 
 /// Enum for type identification.
@@ -90,6 +113,31 @@ impl TypeName {
 			Self::Char => DataTypeTypeDescriptor::Char,
 			Self::String => DataTypeTypeDescriptor::String,
         }
+    }
+}
+
+impl fmt::Display for TypeName {
+    
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
+        write!(f, "{}", match self {
+            TypeName::I8 => "i8",
+            TypeName::I16 => "i16",
+            TypeName::I32 => "i32",
+            TypeName::I64 => "i64",
+            TypeName::I128 => "i128",
+            TypeName::U8 => "u8",
+            TypeName::U16 => "u16",
+            TypeName::U32 => "u32",
+            TypeName::U64 => "u64",
+            TypeName::U128 => "u128",
+            TypeName::F32 => "f32",
+            TypeName::F64 => "f64",
+            TypeName::Bool => "bool",
+            TypeName::Byte => "byte",
+            TypeName::Char => "char",
+            TypeName::String => "string",
+        })
     }
 }
 

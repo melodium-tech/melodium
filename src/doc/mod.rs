@@ -5,4 +5,5 @@
 
 
 pub mod instance;
+pub mod markdown;
 

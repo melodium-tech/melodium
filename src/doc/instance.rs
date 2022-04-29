@@ -1,10 +1,12 @@
 
+use std::io::Write;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use glob::glob;
 use crate::script::file::File;
 use crate::script::path::{Path, PathRoot};
 use crate::script::error::ScriptError;
+use super::markdown;
 
 pub struct Instance {
     pub root: PathRoot,
@@ -82,10 +84,23 @@ impl Instance {
 
     pub fn output_doc(&self) -> std::io::Result<()> {
 
+        std::fs::create_dir_all(&self.output_path)?;
+
+        std::fs::write(self.output_path.join("book.toml"), Self::default_mdbook_config())?;
+
         for script in &self.script_files {
 
             let output_path = self.get_output_path(&script.path);
+            std::fs::create_dir_all(output_path.parent().unwrap())?;
             let mut file = std::fs::File::create(output_path)?;
+
+            for (_, model) in &script.semantic.as_ref().unwrap().script.read().unwrap().models {
+                file.write_all(markdown::model(&model.read().unwrap()).as_bytes())?;
+            }
+
+            for (_, sequence) in &script.semantic.as_ref().unwrap().script.read().unwrap().sequences {
+                file.write_all(markdown::sequence(&sequence.read().unwrap()).as_bytes())?;
+            }
         }
 
         Ok(())
@@ -93,22 +108,25 @@ impl Instance {
 
     fn get_output_path(&self, path: &Path) -> PathBuf {
 
-        let mut os_path = self.output_path.clone();
+        let mut os_path = self.output_path.join("src");
 
         for step in path.path() {
             os_path = os_path.join(step);
         }
 
-        os_path.join(".md")
+        os_path.set_extension("md");
+
+        os_path
     }
 
-    fn model_doc() -> String {
-
-        "".to_string()
-    }
-
-    fn sequence_doc() -> String {
-
-        "".to_string()
+    fn default_mdbook_config() -> &'static str {
+        r#"
+        [book]
+        authors = ["The Author"]
+        language = "en"
+        multilingual = false
+        src = "src"
+        title = "Documentation"
+        "#
     }
 }
