@@ -1,8 +1,11 @@
 
 use std::io::Write;
-use std::collections::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::collections::{HashMap, hash_map::Entry};
 use std::path::PathBuf;
 use glob::glob;
+use itertools::Itertools;
 use crate::script::file::File;
 use crate::script::path::{Path, PathRoot};
 use crate::script::error::ScriptError;
@@ -103,7 +106,73 @@ impl Instance {
             }
         }
 
+        std::fs::write(self.output_path.join("src/SUMMARY.md"), self.generate_summary())?;
+
         Ok(())
+    }
+
+    fn generate_summary(&self) -> String {
+
+        struct Node {
+            files: RefCell<Vec<String>>,
+            subs: RefCell<HashMap<String, Rc<Node>>>
+        }
+        let hierarchy = Rc::new(Node { files: RefCell::new(Vec::new()), subs: RefCell::new(HashMap::new()) });
+
+        for file in &self.script_files {
+
+            let mut parent_node = Rc::clone(&hierarchy);
+            let mut level = 0;
+            let mut last_entry = file.path.path().get(level).unwrap();
+            while let Some(next_entry) = file.path.path().get(level + 1) {
+
+                // We know last_entry is not its name, so
+                // we want to get the sub named 'last_entry'
+                let next_parent;
+                match parent_node.subs.borrow_mut().entry(last_entry.clone()) {
+                    Entry::Occupied(entry) => next_parent = Rc::clone(entry.get()),
+                    Entry::Vacant(entry) => next_parent = Rc::clone(entry.insert(Rc::new(Node { files: RefCell::new(Vec::new()), subs: RefCell::new(HashMap::new()) }))),
+                }
+
+                parent_node = next_parent;
+                last_entry = next_entry;
+                level += 1;
+            }
+
+            // last_entry is the file name
+            parent_node.files.borrow_mut().push(last_entry.clone());
+        }
+
+        fn make_node(level: usize, node: Rc<Node>, path: String) -> String {
+            let mut string = String::new();
+
+            // Todo merge files and subs
+            node.files.borrow_mut().sort();
+            for file in node.files.borrow().iter() {
+                (0..level).for_each(|_| string.push_str("  "));
+                string.push_str("- ");
+
+                string.push_str(&format!("[{}]({}{}.md)\n", file, path, file));
+            }
+
+            for key in node.subs.borrow().keys().sorted() {
+                if !node.files.borrow().contains(key) {
+                    (0..level).for_each(|_| string.push_str("  "));
+                    string.push_str("- ");
+                    string.push_str(&format!("[{}]()\n", key));
+                }
+                let next_path = format!("{}{}/", path, key);
+
+                string.push_str(&make_node(level + 1, Rc::clone(&node.subs.borrow()[key]), next_path));
+            }
+
+            string
+        }
+
+        let mut output = String::from("# Summary\n\n");
+        output.push_str(&make_node(0, hierarchy, "".to_string()));
+
+        output
     }
 
     fn get_output_path(&self, path: &Path) -> PathBuf {
@@ -127,6 +196,9 @@ impl Instance {
         multilingual = false
         src = "src"
         title = "Documentation"
+
+        [output.html]
+        no-section-label = true
         "#
     }
 }
