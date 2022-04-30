@@ -1,4 +1,5 @@
 
+use std::sync::{Arc, RwLock};
 use crate::script::semantic::{
     model::Model,
     declared_model::DeclaredModel,
@@ -25,7 +26,9 @@ pub fn model(model: &Model) -> String {
 
 pub fn sequence(sequence: &Sequence) -> String {
 
-    let models = if !sequence.declared_models.is_empty() {
+    let exposed_models: Vec<Arc<RwLock<DeclaredModel>>> =
+        sequence.declared_models.iter().filter(|dm| dm.read().unwrap().text.is_some()).map(|dm| Arc::clone(dm)).collect();
+    let models = if !exposed_models.is_empty() {
         let mut string = String::new();
 
         for model in &sequence.declared_models {
@@ -78,7 +81,7 @@ pub fn sequence(sequence: &Sequence) -> String {
             string.push_str(&format!("- {}: {}\n", &output.name, io_type(&output.r#type)));
         }
 
-        format!("#### Inputs\n{}", string)
+        format!("#### Outputs\n{}", string)
     }
     else { String::default() };
 
@@ -102,17 +105,17 @@ pub fn io_type(t: &Type) -> String {
 
     let stru = match t.structure {
         TypeStructure::Scalar => t.name.to_string(),
-        TypeStructure::Vector => format!("{}<{}>", t.structure, t.name),
+        TypeStructure::Vector => format!("{}\\<{}>", t.structure, t.name),
     };
 
-    format!("{}<{}>", t.flow, stru)
+    format!("{}\\<{}>", t.flow, stru)
 }
 
 pub fn param_type(t: &Type) -> String {
 
     match t.structure {
         TypeStructure::Scalar => t.name.to_string(),
-        TypeStructure::Vector => format!("{}<{}>", t.structure, t.name),
+        TypeStructure::Vector => format!("{}\\<{}>", t.structure, t.name),
     }
 }
 

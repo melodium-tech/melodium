@@ -199,6 +199,10 @@ impl Instance {
 
         [output.html]
         no-section-label = true
+
+        [output.html.fold]
+        enable = false
+        level = 0 
         "#
     }
 }
