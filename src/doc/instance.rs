@@ -130,10 +130,9 @@ impl Instance {
     fn generate_summary(&self) -> String {
 
         struct Node {
-            files: RefCell<HashMap<String, Rc<File>>>,
-            subs: RefCell<HashMap<String, Rc<Node>>>
+            files: RefCell<HashMap<String, (Option<Rc<File>>, Rc<Node>)>>
         }
-        let hierarchy = Rc::new(Node { files: RefCell::new(HashMap::new()), subs: RefCell::new(HashMap::new()) });
+        let hierarchy = Rc::new(Node { files: RefCell::new(HashMap::new())});
 
         for file in &self.script_files {
 
@@ -145,9 +144,9 @@ impl Instance {
                 // We know last_entry is not its name, so
                 // we want to get the sub named 'last_entry'
                 let next_parent;
-                match parent_node.subs.borrow_mut().entry(last_entry.clone()) {
-                    Entry::Occupied(entry) => next_parent = Rc::clone(entry.get()),
-                    Entry::Vacant(entry) => next_parent = Rc::clone(entry.insert(Rc::new(Node { files: RefCell::new(HashMap::new()), subs: RefCell::new(HashMap::new()) }))),
+                match parent_node.files.borrow_mut().entry(last_entry.clone()) {
+                    Entry::Occupied(entry) => next_parent = Rc::clone(&entry.get().1),
+                    Entry::Vacant(entry) => next_parent = Rc::clone(&entry.insert((None, Rc::new(Node { files: RefCell::new(HashMap::new()), /*subs: RefCell::new(HashMap::new()) */ }))).1),
                 }
 
                 parent_node = next_parent;
@@ -156,48 +155,54 @@ impl Instance {
             }
 
             // last_entry is the file name
-            parent_node.files.borrow_mut().insert(last_entry.clone(), Rc::clone(file));
+            match parent_node.files.borrow_mut().entry(last_entry.clone()) {
+                Entry::Occupied(mut entry) => entry.get_mut().0 = Some(Rc::clone(file)),
+                Entry::Vacant(entry) => { entry.insert((Some(Rc::clone(file)), Rc::new(Node { files: RefCell::new(HashMap::new())}))); },
+            };
         }
 
         fn make_node(level: usize, node: Rc<Node>, path: String) -> String {
             let mut string = String::new();
 
             // Todo merge files and subs
-            //node.files.borrow_mut().sort();
             for file_name in node.files.borrow().keys().sorted() {
-                let file = &node.files.borrow()[file_name];
-                (0..level).for_each(|_| string.push_str("  "));
-                string.push_str("- ");
+                let file = &node.files.borrow()[file_name].0;
 
-                string.push_str(&format!("[{}]({}{}/README.md)\n", file_name, path, file_name));
-
-                for (_, model) in &file.semantic.as_ref().unwrap().script.read().unwrap().models {
-
-                    let model = model.read().unwrap();
-    
-                    (0..=level).for_each(|_| string.push_str("  "));
-                    string.push_str(&format!("- [{}]({}{}/{}.md)\n", model.name, path, file_name, model.name));
-                }
-
-                for (_, sequence) in &file.semantic.as_ref().unwrap().script.read().unwrap().sequences {
-
-                    let sequence = sequence.read().unwrap();
-    
-                    (0..=level).for_each(|_| string.push_str("  "));
-                    string.push_str(&format!("- [{}]({}{}/{}.md)\n", sequence.name, path, file_name, sequence.name));
-                }
-            }
-
-            for key in node.subs.borrow().keys().sorted() {
-                if !node.files.borrow().contains_key(key) {
+                if file.is_some() {
                     (0..level).for_each(|_| string.push_str("  "));
                     string.push_str("- ");
-                    string.push_str(&format!("[{}]()\n", key));
-                }
-                let next_path = format!("{}{}/", path, key);
 
-                string.push_str(&make_node(level + 1, Rc::clone(&node.subs.borrow()[key]), next_path));
+                    string.push_str(&format!("[{}]({}{}/README.md)\n", file_name, path, file_name));
+                }
+                else {
+                    (0..level).for_each(|_| string.push_str("  "));
+                    string.push_str("- ");
+                    string.push_str(&format!("[{}]()\n", file_name));
+                }
+
+                let next_path = format!("{}{}/", path, file_name);
+    
+                string.push_str(&make_node(level + 1, Rc::clone(&node.files.borrow()[file_name].1), next_path));
+                
+                if let Some(file) = file {
+                    for (_, model) in &file.semantic.as_ref().unwrap().script.read().unwrap().models {
+
+                        let model = model.read().unwrap();
+        
+                        (0..=level).for_each(|_| string.push_str("  "));
+                        string.push_str(&format!("- [{}]({}{}/{}.md)\n", model.name, path, file_name, model.name));
+                    }
+    
+                    for (_, sequence) in &file.semantic.as_ref().unwrap().script.read().unwrap().sequences {
+    
+                        let sequence = sequence.read().unwrap();
+        
+                        (0..=level).for_each(|_| string.push_str("  "));
+                        string.push_str(&format!("- [{}]({}{}/{}.md)\n", sequence.name, path, file_name, sequence.name));
+                    }
+                }              
             }
+
 
             string
         }
