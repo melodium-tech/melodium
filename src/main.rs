@@ -81,7 +81,7 @@ fn main() {
 
     if let Some(path) = matches.value_of("doc") {
 
-        let root_kind = if path == std_path {
+        let root_kind = if file_path == std_path {
             PathRoot::Std
         }
         else {
