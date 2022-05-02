@@ -98,7 +98,7 @@ impl Instance {
             let mut file = std::fs::File::create(output_path.join("README.md"))?;
 
             let mut content = String::new();
-
+            
             content.push_str("## Models\n");
             for (_, model) in &script.semantic.as_ref().unwrap().script.read().unwrap().models {
 
@@ -106,7 +106,7 @@ impl Instance {
 
                 content.push_str(&format!("- [{}]({}.md)\n", model.name, model.name));
 
-                std::fs::write(output_path.join(format!("{}.md", model.name)), markdown::model(&model).as_bytes())?;
+                std::fs::write(output_path.join(format!("{}.md", model.name)), markdown::model(&model, &script.path).as_bytes())?;
             }
 
             content.push_str("## Sequences\n");
@@ -116,7 +116,7 @@ impl Instance {
 
                 content.push_str(&format!("- [{}]({}.md)\n", sequence.name, sequence.name));
 
-                std::fs::write(output_path.join(format!("{}.md", sequence.name)), markdown::sequence(&sequence).as_bytes())?;
+                std::fs::write(output_path.join(format!("{}.md", sequence.name)), markdown::sequence(&sequence, &script.path).as_bytes())?;
             }
 
             file.write_all(content.as_bytes())?;
@@ -164,7 +164,6 @@ impl Instance {
         fn make_node(level: usize, node: Rc<Node>, path: String) -> String {
             let mut string = String::new();
 
-            // Todo merge files and subs
             for file_name in node.files.borrow().keys().sorted() {
                 let file = &node.files.borrow()[file_name].0;
 

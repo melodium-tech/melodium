@@ -43,9 +43,9 @@ impl Identifier {
     }
 }
 
-impl ToString for Identifier {
-    
-    fn to_string(&self) -> String {
+use std::fmt;
+impl fmt::Display for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 
         let mut string = match self.root {
             Root::Core => "core",
@@ -59,7 +59,7 @@ impl ToString for Identifier {
 
         string = string + "::" + &self.name;
 
-        string
+        write!(f, "{}", string)
     }
 }
 
