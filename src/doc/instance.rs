@@ -98,23 +98,31 @@ impl Instance {
             let mut file = std::fs::File::create(output_path.join("README.md"))?;
 
             let mut content = String::new();
-            
-            content.push_str("## Models\n");
-            for (_, model) in &script.semantic.as_ref().unwrap().script.read().unwrap().models {
+
+            content.push_str(&format!("# Module {}\n\n`{}/{}`\n\n---\n\n", script.path.path().get(script.path.path().len()-1).unwrap(), script.path.root(), script.path.path().join("/")));
+
+            let models = &script.semantic.as_ref().unwrap().script.read().unwrap().models;
+            if !models.is_empty() {
+                content.push_str("## Models\n\n");
+            }
+            for (_, model) in models {
 
                 let model = model.read().unwrap();
 
-                content.push_str(&format!("- [{}]({}.md)\n", model.name, model.name));
+                content.push_str(&format!("⬢ [{}]({}.md)  \n", model.name, model.name));
 
                 std::fs::write(output_path.join(format!("{}.md", model.name)), markdown::model(&model, &script.path).as_bytes())?;
             }
 
-            content.push_str("## Sequences\n");
-            for (_, sequence) in &script.semantic.as_ref().unwrap().script.read().unwrap().sequences {
+            let sequences = &script.semantic.as_ref().unwrap().script.read().unwrap().sequences;
+            if !sequences.is_empty() {
+                content.push_str("## Sequences\n\n");
+            }
+            for (_, sequence) in sequences {
 
                 let sequence = sequence.read().unwrap();
 
-                content.push_str(&format!("- [{}]({}.md)\n", sequence.name, sequence.name));
+                content.push_str(&format!("⤇ [{}]({}.md)  \n", sequence.name, sequence.name));
 
                 std::fs::write(output_path.join(format!("{}.md", sequence.name)), markdown::sequence(&sequence, &script.path).as_bytes())?;
             }
@@ -189,7 +197,7 @@ impl Instance {
                         let model = model.read().unwrap();
         
                         (0..=level).for_each(|_| string.push_str("  "));
-                        string.push_str(&format!("- [{}]({}{}/{}.md)\n", model.name, path, file_name, model.name));
+                        string.push_str(&format!("- [⬢ {}]({}{}/{}.md)\n", model.name, path, file_name, model.name));
                     }
     
                     for (_, sequence) in &file.semantic.as_ref().unwrap().script.read().unwrap().sequences {
@@ -197,7 +205,7 @@ impl Instance {
                         let sequence = sequence.read().unwrap();
         
                         (0..=level).for_each(|_| string.push_str("  "));
-                        string.push_str(&format!("- [{}]({}{}/{}.md)\n", sequence.name, path, file_name, sequence.name));
+                        string.push_str(&format!("- [⤇ {}]({}{}/{}.md)\n", sequence.name, path, file_name, sequence.name));
                     }
                 }              
             }

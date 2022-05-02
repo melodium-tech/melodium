@@ -33,7 +33,7 @@ pub fn sequence(sequence: &Sequence, path: &Path) -> String {
         let mut string = String::new();
 
         for model in &sequence.declared_models {
-            string.push_str(&format!("⊔ `{}`  \n", &declared_model(&model.read().unwrap())));
+            string.push_str(&format!("⬡ `{}`  \n", &declared_model(&model.read().unwrap())));
         }
 
         format!("#### Configuration\n\n{}", string)
