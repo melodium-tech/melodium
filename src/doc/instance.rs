@@ -16,7 +16,7 @@ pub struct Instance {
     pub entry_path: PathBuf,
     pub output_path: PathBuf,
     /// Files used in the instance.
-    pub script_files: Vec<File>,
+    pub script_files: Vec<Rc<File>>,
 }
 
 impl Instance {
@@ -69,7 +69,7 @@ impl Instance {
                         continue;
                     }
 
-                    self.script_files.push(file);
+                    self.script_files.push(Rc::new(file));
                 },
                 Err(e) => {
                     io_errors.push(e.into_error());
@@ -94,16 +94,32 @@ impl Instance {
         for script in &self.script_files {
 
             let output_path = self.get_output_path(&script.path);
-            std::fs::create_dir_all(output_path.parent().unwrap())?;
-            let mut file = std::fs::File::create(output_path)?;
+            std::fs::create_dir_all(output_path.clone())?;
+            let mut file = std::fs::File::create(output_path.join("README.md"))?;
 
+            let mut content = String::new();
+
+            content.push_str("## Models\n");
             for (_, model) in &script.semantic.as_ref().unwrap().script.read().unwrap().models {
-                file.write_all(markdown::model(&model.read().unwrap()).as_bytes())?;
+
+                let model = model.read().unwrap();
+
+                content.push_str(&format!("- [{}]({}.md)\n", model.name, model.name));
+
+                std::fs::write(output_path.join(format!("{}.md", model.name)), markdown::model(&model).as_bytes())?;
             }
 
+            content.push_str("## Sequences\n");
             for (_, sequence) in &script.semantic.as_ref().unwrap().script.read().unwrap().sequences {
-                file.write_all(markdown::sequence(&sequence.read().unwrap()).as_bytes())?;
+
+                let sequence = sequence.read().unwrap();
+
+                content.push_str(&format!("- [{}]({}.md)\n", sequence.name, sequence.name));
+
+                std::fs::write(output_path.join(format!("{}.md", sequence.name)), markdown::sequence(&sequence).as_bytes())?;
             }
+
+            file.write_all(content.as_bytes())?;
         }
 
         std::fs::write(self.output_path.join("src/SUMMARY.md"), self.generate_summary())?;
@@ -114,10 +130,10 @@ impl Instance {
     fn generate_summary(&self) -> String {
 
         struct Node {
-            files: RefCell<Vec<String>>,
+            files: RefCell<HashMap<String, Rc<File>>>,
             subs: RefCell<HashMap<String, Rc<Node>>>
         }
-        let hierarchy = Rc::new(Node { files: RefCell::new(Vec::new()), subs: RefCell::new(HashMap::new()) });
+        let hierarchy = Rc::new(Node { files: RefCell::new(HashMap::new()), subs: RefCell::new(HashMap::new()) });
 
         for file in &self.script_files {
 
@@ -131,7 +147,7 @@ impl Instance {
                 let next_parent;
                 match parent_node.subs.borrow_mut().entry(last_entry.clone()) {
                     Entry::Occupied(entry) => next_parent = Rc::clone(entry.get()),
-                    Entry::Vacant(entry) => next_parent = Rc::clone(entry.insert(Rc::new(Node { files: RefCell::new(Vec::new()), subs: RefCell::new(HashMap::new()) }))),
+                    Entry::Vacant(entry) => next_parent = Rc::clone(entry.insert(Rc::new(Node { files: RefCell::new(HashMap::new()), subs: RefCell::new(HashMap::new()) }))),
                 }
 
                 parent_node = next_parent;
@@ -140,23 +156,40 @@ impl Instance {
             }
 
             // last_entry is the file name
-            parent_node.files.borrow_mut().push(last_entry.clone());
+            parent_node.files.borrow_mut().insert(last_entry.clone(), Rc::clone(file));
         }
 
         fn make_node(level: usize, node: Rc<Node>, path: String) -> String {
             let mut string = String::new();
 
             // Todo merge files and subs
-            node.files.borrow_mut().sort();
-            for file in node.files.borrow().iter() {
+            //node.files.borrow_mut().sort();
+            for file_name in node.files.borrow().keys().sorted() {
+                let file = &node.files.borrow()[file_name];
                 (0..level).for_each(|_| string.push_str("  "));
                 string.push_str("- ");
 
-                string.push_str(&format!("[{}]({}{}.md)\n", file, path, file));
+                string.push_str(&format!("[{}]({}{}/README.md)\n", file_name, path, file_name));
+
+                for (_, model) in &file.semantic.as_ref().unwrap().script.read().unwrap().models {
+
+                    let model = model.read().unwrap();
+    
+                    (0..=level).for_each(|_| string.push_str("  "));
+                    string.push_str(&format!("- [{}]({}{}/{}.md)\n", model.name, path, file_name, model.name));
+                }
+
+                for (_, sequence) in &file.semantic.as_ref().unwrap().script.read().unwrap().sequences {
+
+                    let sequence = sequence.read().unwrap();
+    
+                    (0..=level).for_each(|_| string.push_str("  "));
+                    string.push_str(&format!("- [{}]({}{}/{}.md)\n", sequence.name, path, file_name, sequence.name));
+                }
             }
 
             for key in node.subs.borrow().keys().sorted() {
-                if !node.files.borrow().contains(key) {
+                if !node.files.borrow().contains_key(key) {
                     (0..level).for_each(|_| string.push_str("  "));
                     string.push_str("- ");
                     string.push_str(&format!("[{}]()\n", key));
@@ -183,8 +216,6 @@ impl Instance {
             os_path = os_path.join(step);
         }
 
-        os_path.set_extension("md");
-
         os_path
     }
 
@@ -201,7 +232,7 @@ impl Instance {
         no-section-label = true
 
         [output.html.fold]
-        enable = false
+        enable = true
         level = 0 
         "#
     }
