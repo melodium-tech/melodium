@@ -99,15 +99,15 @@ impl Instance {
 
             let mut content = String::new();
 
-            content.push_str(&format!("# Module {}\n\n`{}/{}`\n\n---\n\n", script.path.path().get(script.path.path().len()-1).unwrap(), script.path.root(), script.path.path().join("/")));
+            content.push_str(&format!("# Area {}\n\n`{}/{}`\n\n---\n\n", script.path.path().get(script.path.path().len()-1).unwrap(), script.path.root(), script.path.path().join("/")));
 
             let models = &script.semantic.as_ref().unwrap().script.read().unwrap().models;
             if !models.is_empty() {
                 content.push_str("## Models\n\n");
             }
-            for (_, model) in models {
+            for key in models.keys().sorted() {
 
-                let model = model.read().unwrap();
+                let model = models.get(key).unwrap().read().unwrap();
 
                 content.push_str(&format!("⬢ [{}]({}.md)  \n", model.name, model.name));
 
@@ -118,9 +118,9 @@ impl Instance {
             if !sequences.is_empty() {
                 content.push_str("## Sequences\n\n");
             }
-            for (_, sequence) in sequences {
+            for key in sequences.keys().sorted() {
 
-                let sequence = sequence.read().unwrap();
+                let sequence = sequences.get(key).unwrap().read().unwrap();
 
                 content.push_str(&format!("⤇ [{}]({}.md)  \n", sequence.name, sequence.name));
 
@@ -192,17 +192,18 @@ impl Instance {
                 string.push_str(&make_node(level + 1, Rc::clone(&node.files.borrow()[file_name].1), next_path));
                 
                 if let Some(file) = file {
-                    for (_, model) in &file.semantic.as_ref().unwrap().script.read().unwrap().models {
+                    let text_script = file.semantic.as_ref().unwrap().script.read().unwrap();
+                    for key in text_script.models.keys().sorted() {
 
-                        let model = model.read().unwrap();
+                        let model = text_script.models.get(key).unwrap().read().unwrap();
         
                         (0..=level).for_each(|_| string.push_str("  "));
                         string.push_str(&format!("- [⬢ {}]({}{}/{}.md)\n", model.name, path, file_name, model.name));
                     }
     
-                    for (_, sequence) in &file.semantic.as_ref().unwrap().script.read().unwrap().sequences {
+                    for key in text_script.sequences.keys().sorted() {
     
-                        let sequence = sequence.read().unwrap();
+                        let sequence = text_script.sequences.get(key).unwrap().read().unwrap();
         
                         (0..=level).for_each(|_| string.push_str("  "));
                         string.push_str(&format!("- [⤇ {}]({}{}/{}.md)\n", sequence.name, path, file_name, sequence.name));
@@ -231,14 +232,18 @@ impl Instance {
         os_path
     }
 
-    fn default_mdbook_config() -> &'static str {
-        r#"
+    fn default_mdbook_config() -> String {
+
+        let title  = std::env::var("MELODIUM_DOC_TITLE").unwrap_or("Documentation".to_string());
+        let author = std::env::var("MELODIUM_DOC_AUTHOR").unwrap_or("The Author".to_string());
+
+        format!(r#"
         [book]
-        authors = ["The Author"]
+        authors = ["{}"]
         language = "en"
         multilingual = false
         src = "src"
-        title = "Documentation"
+        title = "{}"
 
         [output.html]
         no-section-label = true
@@ -246,6 +251,9 @@ impl Instance {
         [output.html.fold]
         enable = true
         level = 0 
-        "#
+
+        [output.html.print]
+        enable = false
+        "#, author, title)
     }
 }
