@@ -1,0 +1,274 @@
+
+use core/conversion/scalar::U8ToByte as CoreU8ToByte
+
+/**
+Convert stream of `u8` into `byte`.
+
+`u8` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence U8ToByte()
+  input  value: Stream<u8>
+  output data:  Stream<byte>
+{
+    CoreU8ToByte()
+
+    Self.value -> CoreU8ToByte.value,data -> Self.data
+}
+
+
+
+use core/conversion/scalar::U16ToByte as CoreU16ToByte
+
+/**
+Convert stream of `u16` into `byte`.
+
+`u16` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence U16ToByte()
+  input  value: Stream<u16>
+  output data:  Stream<byte>
+{
+    CoreU16ToByte()
+
+    Self.value -> CoreU16ToByte.value,data -> Self.data
+}
+
+
+
+use core/conversion/scalar::U32ToByte as CoreU32ToByte
+
+/**
+Convert stream of `u32` into `byte`.
+
+`u32` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence U32ToByte()
+  input  value: Stream<u32>
+  output data:  Stream<byte>
+{
+    CoreU32ToByte()
+
+    Self.value -> CoreU32ToByte.value,data -> Self.data
+}
+
+
+
+use core/conversion/scalar::U64ToByte as CoreU64ToByte
+
+/**
+Convert stream of `u64` into `byte`.
+
+`u64` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence U64ToByte()
+  input  value: Stream<u64>
+  output data:  Stream<byte>
+{
+    CoreU64ToByte()
+
+    Self.value -> CoreU64ToByte.value,data -> Self.data
+}
+
+
+
+use core/conversion/scalar::U128ToByte as CoreU128ToByte
+
+/**
+Convert stream of `u128` into `byte`.
+
+`u128` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence U128ToByte()
+  input  value: Stream<u128>
+  output data:  Stream<byte>
+{
+    CoreU128ToByte()
+
+    Self.value -> CoreU128ToByte.value,data -> Self.data
+}
+
+
+
+use core/conversion/scalar::I8ToByte as CoreI8ToByte
+
+/**
+Convert stream of `i8` into `byte`.
+
+`i8` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence I8ToByte()
+  input  value: Stream<i8>
+  output data:  Stream<byte>
+{
+    CoreI8ToByte()
+
+    Self.value -> CoreI8ToByte.value,data -> Self.data
+}
+
+
+
+use core/conversion/scalar::I16ToByte as CoreI16ToByte
+
+/**
+Convert stream of `i16` into `byte`.
+
+`i16` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence I16ToByte()
+  input  value: Stream<i16>
+  output data:  Stream<byte>
+{
+    CoreI16ToByte()
+
+    Self.value -> CoreI16ToByte.value,data -> Self.data
+}
+
+
+
+use core/conversion/scalar::I32ToByte as CoreI32ToByte
+
+/**
+Convert stream of `i32` into `byte`.
+
+`i32` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence I32ToByte()
+  input  value: Stream<i32>
+  output data:  Stream<byte>
+{
+    CoreI32ToByte()
+
+    Self.value -> CoreI32ToByte.value,data -> Self.data
+}
+
+
+
+use core/conversion/scalar::I64ToByte as CoreI64ToByte
+
+/**
+Convert stream of `i64` into `byte`.
+
+`i64` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence I64ToByte()
+  input  value: Stream<i64>
+  output data:  Stream<byte>
+{
+    CoreI64ToByte()
+
+    Self.value -> CoreI64ToByte.value,data -> Self.data
+}
+
+
+
+use core/conversion/scalar::I128ToByte as CoreI128ToByte
+
+/**
+Convert stream of `i128` into `byte`.
+
+`i128` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence I128ToByte()
+  input  value: Stream<i128>
+  output data:  Stream<byte>
+{
+    CoreI128ToByte()
+
+    Self.value -> CoreI128ToByte.value,data -> Self.data
+}
+
+
+
+use core/conversion/scalar::F32ToByte as CoreF32ToByte
+
+/**
+Convert stream of `f32` into `byte`.
+
+`f32` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence F32ToByte()
+  input  value: Stream<f32>
+  output data:  Stream<byte>
+{
+    CoreF32ToByte()
+
+    Self.value -> CoreF32ToByte.value,data -> Self.data
+}
+
+
+
+use core/conversion/scalar::F64ToByte as CoreF64ToByte
+
+/**
+Convert stream of `f64` into `byte`.
+
+`f64` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence F64ToByte()
+  input  value: Stream<f64>
+  output data:  Stream<byte>
+{
+    CoreF64ToByte()
+
+    Self.value -> CoreF64ToByte.value,data -> Self.data
+}
+
+
+
+use core/conversion/scalar::BoolToByte as CoreBoolToByte
+
+/**
+Convert stream of `bool` into `byte`.
+
+`bool` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+If the value is `true` the byte is set to 1, if `false` to 0.
+*/
+sequence BoolToByte()
+  input  value: Stream<bool>
+  output data:  Stream<byte>
+{
+    CoreBoolToByte()
+
+    Self.value -> CoreBoolToByte.value,data -> Self.data
+}
+
+
+
+use core/conversion/scalar::CharToByte as CoreCharToByte
+
+/**
+Convert stream of `char` into `byte`.
+
+`char` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+Each char is turned into 4-bytes describing [Unicode scalar value](https://www.unicode.org/glossary/#unicode_scalar_value).
+*/
+sequence CharToByte()
+  input  value: Stream<char>
+  output data:  Stream<byte>
+{
+    CoreCharToByte()
+
+    Self.value -> CoreCharToByte.value,data -> Self.data
+}
+
+
+
+use core/conversion/scalar::StringToByte as CoreStringToByte
+
+/**
+Convert stream of `string` into `byte`.
+
+Every `string` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+
+The output is the byte representation of the string encoded in [UTF-8](https://www.unicode.org/glossary/#unicode_encoding_form).
+*/
+sequence StringToByte()
+  input  value: Stream<string>
+  output data:  Stream<byte>
+{
+    CoreStringToByte()
+
+    Self.value -> CoreStringToByte.value,data -> Self.data
+}
+
+

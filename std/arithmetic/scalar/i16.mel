@@ -1,0 +1,32 @@
+
+use core/arithmetic/scalar::AddI16 as CoreStaticAddI16
+
+/**
+Add a static value to `i16`.
+
+Every number passed through the stream will have `value` added.
+
+```
+use std/arithmetic/scalar/i16::StaticAddI16
+
+sequence Foo()
+  input  in:  Stream<i16>
+  output out: Stream<i16>
+{
+    StaticAddI16(value=5)
+
+    // in is increased by 5 and send to out
+    Self.in -> StaticAddI16.value,value -> Self.out
+}
+```
+*/
+sequence StaticAddI16(var value: i16 = 0)
+  input  value: Stream<i16>
+  output value: Stream<i16>
+{
+    CoreStaticAddI16(value=value)
+
+    Self.value -> CoreStaticAddI16.value,value -> Self.value
+}
+
+

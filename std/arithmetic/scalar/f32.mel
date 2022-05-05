@@ -1,0 +1,32 @@
+
+use core/arithmetic/scalar::AddF32 as CoreStaticAddF32
+
+/**
+Add a static value to `f32`.
+
+Every number passed through the stream will have `value` added.
+
+```
+use std/arithmetic/scalar/f32::StaticAddF32
+
+sequence Foo()
+  input  in:  Stream<f32>
+  output out: Stream<f32>
+{
+    StaticAddF32(value=5)
+
+    // in is increased by 5 and send to out
+    Self.in -> StaticAddF32.value,value -> Self.out
+}
+```
+*/
+sequence StaticAddF32(var value: f32 = 0)
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreStaticAddF32(value=value)
+
+    Self.value -> CoreStaticAddF32.value,value -> Self.value
+}
+
+

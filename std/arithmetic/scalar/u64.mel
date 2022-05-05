@@ -1,0 +1,32 @@
+
+use core/arithmetic/scalar::AddU64 as CoreStaticAddU64
+
+/**
+Add a static value to `u64`.
+
+Every number passed through the stream will have `value` added.
+
+```
+use std/arithmetic/scalar/u64::StaticAddU64
+
+sequence Foo()
+  input  in:  Stream<u64>
+  output out: Stream<u64>
+{
+    StaticAddU64(value=5)
+
+    // in is increased by 5 and send to out
+    Self.in -> StaticAddU64.value,value -> Self.out
+}
+```
+*/
+sequence StaticAddU64(var value: u64 = 0)
+  input  value: Stream<u64>
+  output value: Stream<u64>
+{
+    CoreStaticAddU64(value=value)
+
+    Self.value -> CoreStaticAddU64.value,value -> Self.value
+}
+
+

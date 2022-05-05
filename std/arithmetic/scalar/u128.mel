@@ -1,0 +1,32 @@
+
+use core/arithmetic/scalar::AddU128 as CoreStaticAddU128
+
+/**
+Add a static value to `u128`.
+
+Every number passed through the stream will have `value` added.
+
+```
+use std/arithmetic/scalar/u128::StaticAddU128
+
+sequence Foo()
+  input  in:  Stream<u128>
+  output out: Stream<u128>
+{
+    StaticAddU128(value=5)
+
+    // in is increased by 5 and send to out
+    Self.in -> StaticAddU128.value,value -> Self.out
+}
+```
+*/
+sequence StaticAddU128(var value: u128 = 0)
+  input  value: Stream<u128>
+  output value: Stream<u128>
+{
+    CoreStaticAddU128(value=value)
+
+    Self.value -> CoreStaticAddU128.value,value -> Self.value
+}
+
+

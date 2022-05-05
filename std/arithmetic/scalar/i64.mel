@@ -1,0 +1,32 @@
+
+use core/arithmetic/scalar::AddI64 as CoreStaticAddI64
+
+/**
+Add a static value to `i64`.
+
+Every number passed through the stream will have `value` added.
+
+```
+use std/arithmetic/scalar/i64::StaticAddI64
+
+sequence Foo()
+  input  in:  Stream<i64>
+  output out: Stream<i64>
+{
+    StaticAddI64(value=5)
+
+    // in is increased by 5 and send to out
+    Self.in -> StaticAddI64.value,value -> Self.out
+}
+```
+*/
+sequence StaticAddI64(var value: i64 = 0)
+  input  value: Stream<i64>
+  output value: Stream<i64>
+{
+    CoreStaticAddI64(value=value)
+
+    Self.value -> CoreStaticAddI64.value,value -> Self.value
+}
+
+

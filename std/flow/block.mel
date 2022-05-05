@@ -1,0 +1,336 @@
+
+use core/flow::StreamU8ToBlockVecU8
+
+/**
+Transform stream of `u8` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamU8()
+  input  stream: Stream<u8>
+  output block:  Block<Vec<u8>>
+{
+    StreamU8ToBlockVecU8()
+
+    Self.stream -> StreamU8ToBlockVecU8.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamU16ToBlockVecU16
+
+/**
+Transform stream of `u16` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamU16()
+  input  stream: Stream<u16>
+  output block:  Block<Vec<u16>>
+{
+    StreamU16ToBlockVecU16()
+
+    Self.stream -> StreamU16ToBlockVecU16.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamU32ToBlockVecU32
+
+/**
+Transform stream of `u32` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamU32()
+  input  stream: Stream<u32>
+  output block:  Block<Vec<u32>>
+{
+    StreamU32ToBlockVecU32()
+
+    Self.stream -> StreamU32ToBlockVecU32.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamU64ToBlockVecU64
+
+/**
+Transform stream of `u64` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamU64()
+  input  stream: Stream<u64>
+  output block:  Block<Vec<u64>>
+{
+    StreamU64ToBlockVecU64()
+
+    Self.stream -> StreamU64ToBlockVecU64.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamU128ToBlockVecU128
+
+/**
+Transform stream of `u128` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamU128()
+  input  stream: Stream<u128>
+  output block:  Block<Vec<u128>>
+{
+    StreamU128ToBlockVecU128()
+
+    Self.stream -> StreamU128ToBlockVecU128.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamI8ToBlockVecI8
+
+/**
+Transform stream of `i8` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamI8()
+  input  stream: Stream<i8>
+  output block:  Block<Vec<i8>>
+{
+    StreamI8ToBlockVecI8()
+
+    Self.stream -> StreamI8ToBlockVecI8.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamI16ToBlockVecI16
+
+/**
+Transform stream of `i16` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamI16()
+  input  stream: Stream<i16>
+  output block:  Block<Vec<i16>>
+{
+    StreamI16ToBlockVecI16()
+
+    Self.stream -> StreamI16ToBlockVecI16.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamI32ToBlockVecI32
+
+/**
+Transform stream of `i32` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamI32()
+  input  stream: Stream<i32>
+  output block:  Block<Vec<i32>>
+{
+    StreamI32ToBlockVecI32()
+
+    Self.stream -> StreamI32ToBlockVecI32.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamI64ToBlockVecI64
+
+/**
+Transform stream of `i64` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamI64()
+  input  stream: Stream<i64>
+  output block:  Block<Vec<i64>>
+{
+    StreamI64ToBlockVecI64()
+
+    Self.stream -> StreamI64ToBlockVecI64.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamI128ToBlockVecI128
+
+/**
+Transform stream of `i128` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamI128()
+  input  stream: Stream<i128>
+  output block:  Block<Vec<i128>>
+{
+    StreamI128ToBlockVecI128()
+
+    Self.stream -> StreamI128ToBlockVecI128.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamF32ToBlockVecF32
+
+/**
+Transform stream of `f32` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamF32()
+  input  stream: Stream<f32>
+  output block:  Block<Vec<f32>>
+{
+    StreamF32ToBlockVecF32()
+
+    Self.stream -> StreamF32ToBlockVecF32.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamF64ToBlockVecF64
+
+/**
+Transform stream of `f64` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamF64()
+  input  stream: Stream<f64>
+  output block:  Block<Vec<f64>>
+{
+    StreamF64ToBlockVecF64()
+
+    Self.stream -> StreamF64ToBlockVecF64.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamBoolToBlockVecBool
+
+/**
+Transform stream of `bool` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamBool()
+  input  stream: Stream<bool>
+  output block:  Block<Vec<bool>>
+{
+    StreamBoolToBlockVecBool()
+
+    Self.stream -> StreamBoolToBlockVecBool.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamByteToBlockVecByte
+
+/**
+Transform stream of `byte` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamByte()
+  input  stream: Stream<byte>
+  output block:  Block<Vec<byte>>
+{
+    StreamByteToBlockVecByte()
+
+    Self.stream -> StreamByteToBlockVecByte.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamCharToBlockVecChar
+
+/**
+Transform stream of `char` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamChar()
+  input  stream: Stream<char>
+  output block:  Block<Vec<char>>
+{
+    StreamCharToBlockVecChar()
+
+    Self.stream -> StreamCharToBlockVecChar.data,data -> Self.block
+}
+
+
+
+use core/flow::StreamStringToBlockVecString
+
+/**
+Transform stream of `string` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStreamString()
+  input  stream: Stream<string>
+  output block:  Block<Vec<string>>
+{
+    StreamStringToBlockVecString()
+
+    Self.stream -> StreamStringToBlockVecString.data,data -> Self.block
+}
+
+

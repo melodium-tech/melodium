@@ -130,6 +130,10 @@ impl Instance {
             file.write_all(content.as_bytes())?;
         }
 
+        if self.entry_path.join("README.md").exists() {
+            std::fs::copy(self.entry_path.join("README.md"), self.output_path.join("src/README.md"))?;
+        }
+
         std::fs::write(self.output_path.join("src/SUMMARY.md"), self.generate_summary())?;
 
         Ok(())
@@ -215,7 +219,7 @@ impl Instance {
             string
         }
 
-        let mut output = String::from("# Summary\n\n");
+        let mut output = format!("# Summary\n\n[{}](README.md)\n", Self::get_title());
         output.push_str(&make_node(0, hierarchy, "".to_string()));
 
         output
@@ -232,10 +236,18 @@ impl Instance {
         os_path
     }
 
+    fn get_title() -> String {
+        std::env::var("MELODIUM_DOC_TITLE").unwrap_or("Documentation".to_string())
+    }
+
+    fn get_author() -> String {
+        std::env::var("MELODIUM_DOC_AUTHOR").unwrap_or("The Author".to_string())
+    }
+
     fn default_mdbook_config() -> String {
 
-        let title  = std::env::var("MELODIUM_DOC_TITLE").unwrap_or("Documentation".to_string());
-        let author = std::env::var("MELODIUM_DOC_AUTHOR").unwrap_or("The Author".to_string());
+        let title  = Self::get_title();
+        let author = Self::get_author();
 
         format!(r#"
         [book]
