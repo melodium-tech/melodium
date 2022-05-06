@@ -1,1 +1,86 @@
-Mélodium
+Arabic
+&#1593;&#1606;&#1583;&#1605;&#1575; &#1610;&#1585;&#1610;&#1583;&#1575;&#1604;&#1593;&#1575;&#1604;&#1605; &#1571;&#1606; &#1610;&#1578;&#1603;&#1604;&#1617;&#1605;, &#1601;&#1607;&#1608; &#1610;&#1578;&#1581;&#1583;&#1617;&#1579; &#1576;&#1604;&#1594;&#1577; &#1610;&#1608;&#1606;&#1610;&#1603;&#1608;&#1583;.
+ 
+Catalan
+Quan el món vol conversar, parla Unicode
+ 
+Chinese (Simplified)
+&#24403;&#19990;&#30028;&#38656;&#35201;&#27807;&#36890;&#26102;&#65292;&#35831;&#29992;Unicode&#65281;
+ 
+Chinese (Traditional)
+&#30070;&#19990;&#30028;&#38656;&#35201;&#28317;&#36890;&#26178;&#65292;&#35531;&#29992;&#32113;&#19968;&#30908;&#65288;Unicode&#65289;
+ 
+Danish
+Når verden vil tale, taler den Unicode
+ 
+Dutch
+Als de wereld wil praten, spreekt hij Unicode
+ 
+English
+When the world wants to talk, it speaks Unicode
+ 
+Esperanto
+Kiam la mondo volas paroli, &#285;i parolas Unicode
+ 
+Finnish
+Kun maailma haluaa puhua, se puhuu Unicodea
+ 
+French
+Quand le monde veut communiquer, il parle en Unicode
+ 
+Georgian
+&#4320;&#4317;&#4307;&#4308;&#4321;&#4304;&#4330; &#4315;&#4321;&#4317;&#4324;&#4314;&#4312;&#4317;&#4321; &#4323;&#4320;&#4311;&#4312;&#4320;&#4311;&#4317;&#4305;&#4304; &#4321;&#4323;&#4320;&#4321;, &#4312;&#4306;&#4312; Unicode-&#4312;&#4321; &#4308;&#4316;&#4304;&#4310;&#4308; &#4314;&#4304;&#4318;&#4304;&#4320;&#4304;&#4313;&#4317;&#4305;&#4321;
+ 
+German
+Wenn die Welt miteinander spricht, spricht sie Unicode
+ 
+Hebrew
+&#1499;&#1488;&#1513;&#1512; &#1492;&#1506;&#1493;&#1500;&#1501;&#1512;&#1493;&#1510;&#1492; &#1500;&#1491;&#1489;&#1512;, &#1492;&#1493;&#1488; &#1502;&#1491;&#1489;&#1512; &#1489;&#1470;Unicode
+ 
+Hungarian
+Ha a világ beszélni akar, azt Unicode-ul mondja
+ 
+Irish Gaelic
+Nuair a bhualann fonn cainte an domhan, is as Unicode a labhrann sé
+ 
+Italian
+Quando il mondo vuole comunicare, parla Unicode
+ 
+Japanese
+&#19990;&#30028;&#30340;&#12395;&#35441;&#12377;&#12394;&#12425;&#12289;Unicode &#12391;&#12377;&#12290;
+ 
+Korean
+&#49464;&#44228;&#47484; &#54693;&#54620; &#45824;&#54868;, &#50976;&#45768;&#53076;&#46300;&#47196; &#54616;&#49901;&#49884;&#50724;
+ 
+Norwegian (Bokmål)
+Når verden vil snakke, snakker den Unicode
+ 
+Norwegian (Nynorsk)
+Når verda ønskjer å snakke, talar ho Unicode
+ 
+Occitan
+Quan lo mond vòl conversar, parla en Unicode
+ 
+Portuguese (Brazil)
+Quando o mundo quer falar, fala Unicode
+ 
+Portuguese (Portugal)
+Quando o mundo quer falar, fala Unicode
+ 
+Romanian
+Când lumea vrea s&#259; comunice, vorbe&#351;te Unicode
+ 
+Russian
+&#1050;&#1086;&#1075;&#1076;&#1072; &#1084;&#1080;&#1088; &#1078;&#1077;&#1083;&#1072;&#1077;&#1090; &#1086;&#1073;&#1097;&#1072;&#1090;&#1100;&#1089;&#1103;, &#1086;&#1085; &#1086;&#1073;&#1097;&#1072;&#1077;&#1090;&#1089;&#1103; &#1085;&#1072; Unicode
+ 
+Slovenian
+Ko se želi svet pogovarjati, govori Unicode
+ 
+Spanish
+Cuando el mundo quiere conversar, habla Unicode
+ 
+Swedish
+När världen vill tala, så talar den Unicode
+ 
+Yiddish
+&#1488;&#1463;&#1494; &#1491;&#1497; &#1520;&#1506;&#1500;&#1496; &#1520;&#1497;&#1500; &#1512;&#1506;&#1491;&#1503;, &#1512;&#1506;&#1491;&#1496; &#1494;&#1497; &#1488;&#1493;&#1504;&#1497;&#1511;&#1488;&#1464;&#1491;

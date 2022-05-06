@@ -2,6 +2,16 @@
 use core/text::DecodeBytes
 use core/text::EncodeBytes
 
+/**
+Decodes a stream of bytes into string.
+
+The incoming stream of bytes is decoded using the specified encoding.
+If some characters cannot be decoded for some reason (i.e. invalid according to encoding),
+it is replaced by the Unicode Replacement Character (`�`).
+
+The supported encodings and possible values for `encoding` are defined in
+the [Encoding Standard](https://encoding.spec.whatwg.org/#names-and-labels).
+*/
 sequence Decode(var encoding: string = "utf-8")
     input data: Stream<byte>
     output text: Stream<string>
@@ -11,6 +21,15 @@ sequence Decode(var encoding: string = "utf-8")
     Self.data -> DecodeBytes.data,value -> Self.text
 }
 
+/**
+Encodes a streamed string into bytes.
+
+The incoming string is encoded and outputted into raw bytes. If some characters cannot
+be encoded into the specified `encoding`, it is turned into coded XML character (`"&#65533;"`).
+
+The supported encodings and possible values for `encoding` are defined in
+the [Encoding Standard](https://encoding.spec.whatwg.org/#names-and-labels).
+*/
 sequence Encode(var encoding: string = "utf-8")
     input text: Stream<string>
     output data: Stream<byte>

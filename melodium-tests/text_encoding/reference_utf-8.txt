@@ -1,1 +1,86 @@
-Mélodium
+Arabic
+عندما يريدالعالم أن يتكلّم, فهو يتحدّث بلغة يونيكود.
+ 
+Catalan
+Quan el món vol conversar, parla Unicode
+ 
+Chinese (Simplified)
+当世界需要沟通时，请用Unicode！
+ 
+Chinese (Traditional)
+當世界需要溝通時，請用統一碼（Unicode）
+ 
+Danish
+Når verden vil tale, taler den Unicode
+ 
+Dutch
+Als de wereld wil praten, spreekt hij Unicode
+ 
+English
+When the world wants to talk, it speaks Unicode
+ 
+Esperanto
+Kiam la mondo volas paroli, ĝi parolas Unicode
+ 
+Finnish
+Kun maailma haluaa puhua, se puhuu Unicodea
+ 
+French
+Quand le monde veut communiquer, il parle en Unicode
+ 
+Georgian
+როდესაც მსოფლიოს ურთირთობა სურს, იგი Unicode-ის ენაზე ლაპარაკობს
+ 
+German
+Wenn die Welt miteinander spricht, spricht sie Unicode
+ 
+Hebrew
+כאשר העולםרוצה לדבר, הוא מדבר ב־Unicode
+ 
+Hungarian
+Ha a világ beszélni akar, azt Unicode-ul mondja
+ 
+Irish Gaelic
+Nuair a bhualann fonn cainte an domhan, is as Unicode a labhrann sé
+ 
+Italian
+Quando il mondo vuole comunicare, parla Unicode
+ 
+Japanese
+世界的に話すなら、Unicode です。
+ 
+Korean
+세계를 향한 대화, 유니코드로 하십시오
+ 
+Norwegian (Bokmål)
+Når verden vil snakke, snakker den Unicode
+ 
+Norwegian (Nynorsk)
+Når verda ønskjer å snakke, talar ho Unicode
+ 
+Occitan
+Quan lo mond vòl conversar, parla en Unicode
+ 
+Portuguese (Brazil)
+Quando o mundo quer falar, fala Unicode
+ 
+Portuguese (Portugal)
+Quando o mundo quer falar, fala Unicode
+ 
+Romanian
+Când lumea vrea să comunice, vorbeşte Unicode
+ 
+Russian
+Когда мир желает общаться, он общается на Unicode
+ 
+Slovenian
+Ko se želi svet pogovarjati, govori Unicode
+ 
+Spanish
+Cuando el mundo quiere conversar, habla Unicode
+ 
+Swedish
+När världen vill tala, så talar den Unicode
+ 
+Yiddish
+אַז די װעלט װיל רעדן, רעדט זי אוניקאָד

@@ -18,6 +18,8 @@ function check_diff() {
     fi
 }
 
+rm -f output_*
+
 "$MELODIUM" reencoding.mel
 
 check_diff utf-8 output_utf-8.txt reference_utf-8.txt

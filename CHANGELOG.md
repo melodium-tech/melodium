@@ -8,6 +8,7 @@
 ### Features
 - Extending standard library
 - Proposing documentation generator #5
+- Providing text encoding and decoding #12
 
 ## [v0.2.0] (2022-04-25)
 ### Bug fixes

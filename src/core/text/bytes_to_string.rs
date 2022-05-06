@@ -73,16 +73,30 @@ treatment!(string_to_byte,
             if let Ok(strings) = input.recv_string().await {
                 for string in strings {
 
+                    // We use 7 times required space because of HTML replacement in case of unmappable chars.
+                    let expected_size = 7 * encoder.max_buffer_length_from_utf8_if_no_unmappables(string.len()).unwrap_or(usize::MAX);
+
                     let mut result = Vec::new();
+                    result.reserve(expected_size);
+
                     let _ = encoder.encode_from_utf8_to_vec(&string, &mut result, false);
+
+                    result.shrink_to_fit();
                     ok_or_break!('main, output.send_multiple_byte(result).await);
                 }
             }
             else {
                 // Here we finish the encoding as required by encoding_rs
+                let expected_size = 7 * encoder.max_buffer_length_from_utf8_if_no_unmappables(0).unwrap_or(usize::MAX);
+
                 let mut result = Vec::new();
+                result.reserve(expected_size);
+
                 let _ = encoder.encode_from_utf8_to_vec(&String::new(), &mut result, true);
+
+                result.shrink_to_fit();
                 ok_or_break!(output.send_multiple_byte(result).await);
+                
                 break;
             }
         }

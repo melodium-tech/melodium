@@ -261,6 +261,7 @@ Convert stream of `string` into `byte`.
 Every `string` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
 
 The output is the byte representation of the string encoded in [UTF-8](https://www.unicode.org/glossary/#unicode_encoding_form).
+This conversion does not provide any encoding utilities, see (text/encoding) if you need some.
 */
 sequence StringToByte()
   input  value: Stream<string>
