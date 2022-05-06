@@ -4,8 +4,8 @@ use core/audio/encoding/wave::DecodeWave
 use core/audio/encoding/wave::MonoWave
 use core/audio/encoding/wave::StereoWave
 use core/audio/encoding/wave::EncodeWave
-use std/flow::BlockStreamByte
-use std/flow::StreamBlockByte
+use std/flow/block::BlockStreamByte
+use std/flow/stream::StreamBlockByte
 
 sequence Decode()
     model decoder:      WaveDecoder()
