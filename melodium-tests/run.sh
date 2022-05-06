@@ -42,6 +42,7 @@ echo Running Mélodium tests…
 
 # Add tests there
 run_test text_decoding
+run_test text_encoding
 run_test audio
 run_test generation_conversion_bytes
 

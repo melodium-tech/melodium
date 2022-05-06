@@ -60,6 +60,8 @@ treatment!(string_to_byte,
         output!("data",Scalar,Byte,Stream)
     ],
     host {
+
+        println!("Preparing encode");
         let input = host.get_input("value");
         let output = host.get_output("data");
 
@@ -67,6 +69,8 @@ treatment!(string_to_byte,
             host.get_parameter("encoding").string().as_bytes()
         ).unwrap_or(encoding_rs::UTF_8);
         let mut encoder = encoding.new_encoder();
+
+        println!("Trying encode");
 
         'main: loop {
 

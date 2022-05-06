@@ -1,6 +1,6 @@
 
 use core/text::DecodeBytes
-use core/conversion/scalar::StringToByte
+use core/text::EncodeBytes
 
 sequence Decode(var encoding: string = "utf-8")
     input data: Stream<byte>
@@ -11,11 +11,13 @@ sequence Decode(var encoding: string = "utf-8")
     Self.data -> DecodeBytes.data,value -> Self.text
 }
 
-sequence EncodeAsUtf8()
+sequence Encode(var encoding: string = "utf-8")
     input text: Stream<string>
     output data: Stream<byte>
 {
-    StringToByte()
+    EncodeBytes(encoding=encoding)
 
-    Self.text -> StringToByte.value,data -> Self.data
+    Self.text -> EncodeBytes.value,data -> Self.data
 }
+
+

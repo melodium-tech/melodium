@@ -1,17 +1,17 @@
 
 use std/fs/mono::ReadFile
 use std/fs/mono::WriteFile
-use std/text::Decode
-use std/text::EncodeAsUtf8
+use std/text/encoding::Decode
+use std/text/encoding::Encode
 
 sequence Reencoding(input_encoding: string, const input: string, const output: string)
 {
     ReadFile(path=input)
     Decode(encoding=input_encoding)
-    EncodeAsUtf8()
+    Encode()
     WriteFile(path=output)
     
-    ReadFile.data -> Decode.data,text -> EncodeAsUtf8.text,data -> WriteFile.data
+    ReadFile.data -> Decode.data,text -> Encode.text,data -> WriteFile.data
 }
 
 sequence Main()

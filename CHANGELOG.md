@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Features
+- Extending standard library
+- Proposing documentation generator #5
+
 ## [v0.2.0] (2022-04-25)
 ### Bug fixes
 - Cleaning all warnings present in code
