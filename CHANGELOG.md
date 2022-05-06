@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Bug fixes
+- Avoiding panic on absent parameter having default value
+
 ### Features
 - Extending standard library
 - Proposing documentation generator #5
