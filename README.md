@@ -8,7 +8,7 @@ Mélodium is a tool and language for manipulation of large amount of data, using
 
 For more exhaustive explanations, please refer to [the Mélodium Language book](https://melodium.gitlab.io/book/).
 
-Mélodium is _under development_ and continously being defined and improved. The development documentation is available at <https://melodium.gitlab.io/melodium/melodium/>, and the core reference at <https://melodium.gitlab.io/melodium/reference/>.
+Mélodium is _under development_ and continously being defined and improved. The development documentation is available at <https://melodium.gitlab.io/melodium/melodium/>, and the standard reference at <https://melodium.gitlab.io/melodium/reference/>.
 
 ## Origin
 
