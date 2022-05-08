@@ -1,6 +1,6 @@
 
 use std::env;
-use std::path::Path as StdPath;
+use std::path::{Path as StdPath, PathBuf};
 use std::sync::Arc;
 use std::process::*;
 
@@ -11,7 +11,8 @@ use colored::*;
 use melodium::executive::world::World;
 use melodium::logic::descriptor::SequenceTreatmentDescriptor;
 use melodium::script::instance::Instance;
-use melodium::script::path::Path;
+use melodium::script::path::{Path, PathRoot};
+use melodium::doc::instance::Instance as DocInstance;
 
 fn main() {
 
@@ -38,9 +39,6 @@ fn main() {
             .short('L')
             .long("nolaunch")
             .help("Parse, make semantic analysis, design world and check it, but don't make it live"))
-        .arg(Arg::new("doc-list")
-            .long("doc-list")
-            .help("Print list of elements available, implies --parseonly"))
         .arg(Arg::new("doc")
             .long("doc")
             .help("Print documentation of specified element, implies --parseonly")
@@ -81,6 +79,29 @@ fn main() {
         exit(1);
     }
 
+    if let Some(path) = matches.value_of("doc") {
+
+        let root_kind = if file_path == std_path {
+            PathRoot::Std
+        }
+        else {
+            PathRoot::Main
+        };
+        
+        let mut instance = DocInstance::new(root_kind, PathBuf::from(file_path), PathBuf::from(path));
+
+        if let Err((io, scr)) = instance.parse_files() {
+            eprintln!("{:?}", io);
+            eprintln!("{:?}", scr);
+        }
+
+        if let Err(io) = instance.output_doc() {
+            eprintln!("{:?}", io);
+        }
+
+        exit(0);
+    }
+
     let parse_only = matches.is_present("parseonly");
     let no_launch = matches.is_present("nolaunch");
 
@@ -97,39 +118,6 @@ fn main() {
 
     for (path, error) in instance.errors() {
         eprintln!("{}: in file \"{}\" {}", "error".bold().red(), path.as_os_str().to_string_lossy(), error);
-    }
-
-    if matches.is_present("doc-list") {
-        if let Some(collection) = &instance.logic_collection {
-            for id in collection.models.identifiers() {
-                println!("(Model) {}", id.to_string());
-            }
-
-            for id in collection.treatments.identifiers() {
-                println!("(Treatment) {}", id.to_string());
-            }
-        }
-        exit(0);
-    }
-
-    if let Some(element) = matches.value_of("doc") {
-        if let Some(collection) = &instance.logic_collection {
-            let path_and_name: Vec<String> = element.split("::").map(|i| i.to_string()).collect();
-            let path: Vec<String> = path_and_name.get(0).unwrap().split("/").map(|i| i.to_string()).collect();
-
-            let identifier = Path::new(path).to_identifier(path_and_name.get(1).unwrap()).unwrap();
-
-            if let Some(model) = collection.models.get(&identifier) {
-                println!("{}", model);
-            }
-            else if let Some(treatment) = collection.treatments.get(&identifier) {
-                println!("{}", treatment);
-            }
-            else {
-                println!("No element for '{}'", element);
-            }
-        }
-        exit(0);
     }
 
     if instance.errors().len() > 0 {

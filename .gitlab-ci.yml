@@ -59,12 +59,15 @@ melodium_tests:
 
 pages:
   stage: deploy
-  before_script:
+  variables:
+    MELODIUM_DOC_TITLE: 'Mélodium Standard Reference'
+    MELODIUM_DOC_AUTHOR: 'Quentin VIGNAUD'
   script:
     - mkdir bin && curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.15/mdbook-v0.4.15-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=bin
     - cargo doc --no-deps
     - mv target/doc public
     - utils/doc_generation.sh /tmp/doc
+    - target/debug/melodium --stdlib ${PWD}/std/ --doc /tmp/doc ${PWD}/std/
     - bin/mdbook build /tmp/doc
     - mv /tmp/doc/book public/reference
   artifacts:

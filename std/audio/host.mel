@@ -1,0 +1,63 @@
+
+use core/audio::AudioInput as CoreAudioInput
+use core/audio::AudioOutput as CoreAudioOutput
+use core/audio::ReceiveAudio as CoreReceiveAudio
+use core/audio::SendAudio as CoreSendAudio
+
+/**
+
+Represents host audio system input.
+
+It uses the default input device available.
+*/
+model AudioInput() : CoreAudioInput
+{
+}
+
+/**
+
+Receive audio from host system.
+
+Outputs a stream containing audio signal.
+This stream contains `f32` values with amplitude being -1 and 1, and continuous 0 being silence.
+
+*/
+sequence ReceiveAudio[input: AudioInput]()
+  output signal: Stream<f32>
+{
+    CoreReceiveAudio[input=input]()
+
+    CoreReceiveAudio.signal -> Self.signal
+}
+
+/**
+
+Represents host audio system output.
+
+It uses the default output device available.
+When `early_end` is set to `true`, the output is closed as soon as processing is done, _without taking care all sound has been played_, when to `false`, the output waits for all sound streams to be send to the system before exiting.
+This parameter should be turned to `false` especially when playing audio files that are fast to read and process, while they may contain long audio duration.
+*/
+model AudioOutput(early_end: bool = true) : CoreAudioOutput
+{
+    early_end = early_end
+}
+
+/**
+
+Send audio to host system.
+
+Take a stream containing audio signal and send it to the host audio system.
+
+⚠️ The signal must contain values between -1 and 1 (continuous 0 being silence).
+Other values will be handled by the host system in undefined way.
+*/
+sequence SendAudio[output: AudioOutput]()
+  input signal: Stream<f32>
+{
+    CoreSendAudio[output=output]()
+
+    Self.signal -> CoreSendAudio.signal
+}
+
+

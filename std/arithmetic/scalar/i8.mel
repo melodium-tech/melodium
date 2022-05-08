@@ -1,0 +1,32 @@
+
+use core/arithmetic/scalar::AddI8 as CoreStaticAddI8
+
+/**
+Add a static value to `i8`.
+
+Every number passed through the stream will have `value` added.
+
+```
+use std/arithmetic/scalar/i8::StaticAddI8
+
+sequence Foo()
+  input  in:  Stream<i8>
+  output out: Stream<i8>
+{
+    StaticAddI8(value=5)
+
+    // in is increased by 5 and send to out
+    Self.in -> StaticAddI8.value,value -> Self.out
+}
+```
+*/
+sequence StaticAddI8(var value: i8 = 0)
+  input  value: Stream<i8>
+  output value: Stream<i8>
+{
+    CoreStaticAddI8(value=value)
+
+    Self.value -> CoreStaticAddI8.value,value -> Self.value
+}
+
+

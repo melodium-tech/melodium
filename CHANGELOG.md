@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Bug fixes
+- Avoiding panic on absent parameter having default value
+
+### Features
+- Extending standard library
+- Proposing documentation generator #5
+- Providing text encoding and decoding #12
+
 ## [v0.2.0] (2022-04-25)
 ### Bug fixes
 - Cleaning all warnings present in code

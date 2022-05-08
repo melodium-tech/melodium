@@ -1,0 +1,212 @@
+
+use core/cast/scalar::U8ToI64 as CoreU8ToI64
+
+/**
+Convert stream of `u8` into `i64`.
+
+This conversion is lossless, `u8` values can always fit into `i64` ones.
+*/
+sequence U8ToI64()
+  input  value: Stream<u8>
+  output value: Stream<i64>
+{
+    CoreU8ToI64()
+
+    Self.value -> CoreU8ToI64.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::U16ToI64 as CoreU16ToI64
+
+/**
+Convert stream of `u16` into `i64`.
+
+This conversion is lossless, `u16` values can always fit into `i64` ones.
+*/
+sequence U16ToI64()
+  input  value: Stream<u16>
+  output value: Stream<i64>
+{
+    CoreU16ToI64()
+
+    Self.value -> CoreU16ToI64.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::U32ToI64 as CoreU32ToI64
+
+/**
+Convert stream of `u32` into `i64`.
+
+This conversion is lossless, `u32` values can always fit into `i64` ones.
+*/
+sequence U32ToI64()
+  input  value: Stream<u32>
+  output value: Stream<i64>
+{
+    CoreU32ToI64()
+
+    Self.value -> CoreU32ToI64.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::I8ToI64 as CoreI8ToI64
+
+/**
+Convert stream of `i8` into `i64`.
+
+This conversion is lossless, `i8` values can always fit into `i64` ones.
+*/
+sequence I8ToI64()
+  input  value: Stream<i8>
+  output value: Stream<i64>
+{
+    CoreI8ToI64()
+
+    Self.value -> CoreI8ToI64.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::I16ToI64 as CoreI16ToI64
+
+/**
+Convert stream of `i16` into `i64`.
+
+This conversion is lossless, `i16` values can always fit into `i64` ones.
+*/
+sequence I16ToI64()
+  input  value: Stream<i16>
+  output value: Stream<i64>
+{
+    CoreI16ToI64()
+
+    Self.value -> CoreI16ToI64.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::I32ToI64 as CoreI32ToI64
+
+/**
+Convert stream of `i32` into `i64`.
+
+This conversion is lossless, `i32` values can always fit into `i64` ones.
+*/
+sequence I32ToI64()
+  input  value: Stream<i32>
+  output value: Stream<i64>
+{
+    CoreI32ToI64()
+
+    Self.value -> CoreI32ToI64.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::CastScalarU64ToI64 as CoreCastScalarU64ToI64 
+
+/**
+Convert stream of `u64` into `i64`.
+
+As this conversion might be lossy (every possible `u64` value cannot fit into `i64`),
+`truncate` allows value to be truncated to fit into a `i64`, and `or_default` set the
+value that is assigned when a `u64` is out of range for `i64` and truncation not allowed.
+*/
+sequence U64ToI64(var truncate: bool = true, var or_default: i64 = 0)
+  input  value: Stream<u64>
+  output value: Stream<i64>
+{
+    CoreCastScalarU64ToI64()
+
+    Self.value -> CoreCastScalarU64ToI64.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::CastScalarU128ToI64 as CoreCastScalarU128ToI64 
+
+/**
+Convert stream of `u128` into `i64`.
+
+As this conversion might be lossy (every possible `u128` value cannot fit into `i64`),
+`truncate` allows value to be truncated to fit into a `i64`, and `or_default` set the
+value that is assigned when a `u128` is out of range for `i64` and truncation not allowed.
+*/
+sequence U128ToI64(var truncate: bool = true, var or_default: i64 = 0)
+  input  value: Stream<u128>
+  output value: Stream<i64>
+{
+    CoreCastScalarU128ToI64()
+
+    Self.value -> CoreCastScalarU128ToI64.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::CastScalarI128ToI64 as CoreCastScalarI128ToI64 
+
+/**
+Convert stream of `i128` into `i64`.
+
+As this conversion might be lossy (every possible `i128` value cannot fit into `i64`),
+`truncate` allows value to be truncated to fit into a `i64`, and `or_default` set the
+value that is assigned when a `i128` is out of range for `i64` and truncation not allowed.
+*/
+sequence I128ToI64(var truncate: bool = true, var or_default: i64 = 0)
+  input  value: Stream<i128>
+  output value: Stream<i64>
+{
+    CoreCastScalarI128ToI64()
+
+    Self.value -> CoreCastScalarI128ToI64.value,value -> Self.value
+}
+
+
+
+use core/conversion/scalar::ScalarF32ToI64 as CoreScalarF32ToI64 
+
+/**
+Convert stream of `f32` into `i64`.
+
+Every `f32` is truncated to fit into the `i64`, and in case floating-point value does
+not describe a real number:
+- `pos_infinity` is used when `f32` is a positive infinity,
+- `neg_infinity` is used when `f32` is a negative infinity,
+- `nan` is used when `f32` is not a number.
+*/
+sequence F32ToI64(var pos_infinity: i64 = 9223372036854775807, var neg_infinity: i64 = -9223372036854775808, var nan: i64 = 0)
+  input  value: Stream<f32>
+  output value: Stream<i64>
+{
+    CoreScalarF32ToI64(pos_infinity=pos_infinity, neg_infinity=neg_infinity, nan=nan)
+
+    Self.value -> CoreScalarF32ToI64.value,value -> Self.value
+}
+
+
+
+use core/conversion/scalar::ScalarF64ToI64 as CoreScalarF64ToI64 
+
+/**
+Convert stream of `f64` into `i64`.
+
+Every `f64` is truncated to fit into the `i64`, and in case floating-point value does
+not describe a real number:
+- `pos_infinity` is used when `f64` is a positive infinity,
+- `neg_infinity` is used when `f64` is a negative infinity,
+- `nan` is used when `f64` is not a number.
+*/
+sequence F64ToI64(var pos_infinity: i64 = 9223372036854775807, var neg_infinity: i64 = -9223372036854775808, var nan: i64 = 0)
+  input  value: Stream<f64>
+  output value: Stream<i64>
+{
+    CoreScalarF64ToI64(pos_infinity=pos_infinity, neg_infinity=neg_infinity, nan=nan)
+
+    Self.value -> CoreScalarF64ToI64.value,value -> Self.value
+}
+
+

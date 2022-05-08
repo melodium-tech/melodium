@@ -16,6 +16,7 @@ use super::connection::Connection;
 /// It owns the name, and the attributes of the sequence, as well as its internal treatments and connections. There is no logical dependency between them at this point.
 #[derive(Clone, Debug)]
 pub struct Sequence {
+    pub doc: Option<PositionnedString>,
     pub name: PositionnedString,
     pub configuration: Vec<Parameter>,
     pub parameters: Vec<Parameter>,
@@ -58,7 +59,7 @@ impl Sequence {
     /// let sequence_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
     /// assert_eq!(sequence_keyword.string, "sequence");
     /// 
-    /// let sequence = Sequence::build(&mut iter)?;
+    /// let sequence = Sequence::build(&mut iter, None)?;
     /// 
     /// assert_eq!(sequence.name.string, "PrepareAudioFiles");
     /// assert_eq!(sequence.parameters.len(), 5);
@@ -70,7 +71,7 @@ impl Sequence {
     /// assert_eq!(sequence.connections.len(), 2);
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
+    pub fn build(mut iter: &mut std::slice::Iter<Word>, doc: Option<PositionnedString>) -> Result<Self, ScriptError> {
 
         let name = expect_word_kind(Kind::Name, "Sequence name expected.", &mut iter)?;
 
@@ -260,6 +261,7 @@ impl Sequence {
         }
 
         Ok(Self {
+            doc,
             name,
             configuration,
             parameters,

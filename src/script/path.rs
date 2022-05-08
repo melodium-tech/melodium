@@ -1,6 +1,7 @@
 
 //! Provides script paths management.
 
+use std::fmt;
 use crate::logic::descriptor::identifier::{Identifier, Root};
 
 /// Container-helper structure for paths in scripts.
@@ -24,6 +25,21 @@ pub enum PathRoot {
     Main,
     Local,
     Other,
+}
+
+impl fmt::Display for PathRoot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
+        let string = match self {
+            PathRoot::Core => "core",
+            PathRoot::Std => "std",
+            PathRoot::Main => "main",
+            PathRoot::Local => "local",
+            PathRoot::Other => "other",
+        };
+
+        write!(f, "{}", string)
+    }
 }
 
 impl Path {

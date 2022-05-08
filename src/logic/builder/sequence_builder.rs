@@ -76,6 +76,7 @@ impl Builder for SequenceBuilder {
 
         // Make a BuildSample with matching informations
         let mut build_sample = BuildSample::new(&host_treatment, &host_build, &label, environment);
+        //let environment = &mut build_sample.genesis_environment;
 
         let mut builds_writer = self.builds.write().unwrap();
         let idx = builds_writer.len() as BuildId;
@@ -83,10 +84,9 @@ impl Builder for SequenceBuilder {
         let rc_designer = self.designer.read().unwrap();
 
         // Assigning missing default values
-        let mut missing_default = HashMap::new();
         for (name, parameter) in rc_designer.descriptor().parameters().iter().filter(|(_, p)| p.default().is_some()) {
             if !environment.variables().contains_key(name) {
-                missing_default.insert(name, parameter.default().as_ref().unwrap().clone());
+                build_sample.genesis_environment.add_variable(name, parameter.default().as_ref().unwrap().clone());
             }
         }
 
@@ -101,14 +101,7 @@ impl Builder for SequenceBuilder {
 
                 let data = match borrowed_param.value().as_ref().unwrap() {
                     Value::Raw(data) => data,
-                    Value::Variable(name) => {
-                        if let Some(data) = environment.get_variable(&name) {
-                            data
-                        }
-                        else {
-                            missing_default.get(name).unwrap()
-                        }
-                    },
+                    Value::Variable(name) => build_sample.genesis_environment.get_variable(&name).unwrap(),
                     // Not possible in model instanciation to use context, should have been catched by designer, aborting
                     _ => panic!("Impossible data recoverage")
                 };
@@ -175,14 +168,7 @@ impl Builder for SequenceBuilder {
 
                 let data = match borrowed_param.value().as_ref().unwrap() {
                     Value::Raw(data) => data,
-                    Value::Variable(name) => {
-                        if let Some(data) = environment.get_variable(&name) {
-                            data
-                        }
-                        else {
-                            missing_default.get(name).unwrap()
-                        }
-                    },
+                    Value::Variable(name) => build_sample.genesis_environment.get_variable(&name).unwrap(),
                     // We should have a value there, should have been catched by designer, aborting
                     _ => panic!("Impossible data recoverage")
                 };

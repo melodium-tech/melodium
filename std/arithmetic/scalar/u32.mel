@@ -1,0 +1,32 @@
+
+use core/arithmetic/scalar::AddU32 as CoreStaticAddU32
+
+/**
+Add a static value to `u32`.
+
+Every number passed through the stream will have `value` added.
+
+```
+use std/arithmetic/scalar/u32::StaticAddU32
+
+sequence Foo()
+  input  in:  Stream<u32>
+  output out: Stream<u32>
+{
+    StaticAddU32(value=5)
+
+    // in is increased by 5 and send to out
+    Self.in -> StaticAddU32.value,value -> Self.out
+}
+```
+*/
+sequence StaticAddU32(var value: u32 = 0)
+  input  value: Stream<u32>
+  output value: Stream<u32>
+{
+    CoreStaticAddU32(value=value)
+
+    Self.value -> CoreStaticAddU32.value,value -> Self.value
+}
+
+

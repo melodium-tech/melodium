@@ -1,6 +1,7 @@
 
 //! Module for Variability semantic analysis.
 
+use std::fmt;
 use crate::logic::descriptor::{VariabilityDescriptor};
 
 /// Enum for variability identification.
@@ -27,5 +28,14 @@ impl Variability {
             Self::Const => VariabilityDescriptor::Const,
 			Self::Var => VariabilityDescriptor::Var,
         }
+    }
+}
+
+impl fmt::Display for Variability {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            Variability::Const  => "const",
+            Variability::Var    => "var",
+        })
     }
 }

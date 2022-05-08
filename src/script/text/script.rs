@@ -1,10 +1,12 @@
 
 //! Module dedicated to [Script](struct.Script.html) parsing.
 
+use std::collections::HashMap;
+
 use crate::script::error::ScriptError;
 
 use super::PositionnedString;
-use super::word::{expect_word, get_words, Kind};
+use super::word::{expect_word, get_words, Kind, Position};
 use super::r#use::Use;
 use super::annotation::Annotation;
 use super::model::Model;
@@ -80,6 +82,42 @@ impl Script {
 
         let mut words = words.unwrap();
 
+        // Documentation purpose: associating every documentation item
+        // with the nearest next word that is not a comment.
+        let mut documented_items = HashMap::new();
+        let mut last_doc = None;
+        for word in words.iter() {
+            if word.kind == Some(Kind::Comment) {
+                if word.text.starts_with("///") {
+                    last_doc = Some(PositionnedString {
+                        string: word.text.strip_prefix("///").unwrap().to_string(),
+                        position: Position {
+                            absolute_position: word.position.absolute_position + 3,
+                            line_number: word.position.line_number,
+                            line_position: word.position.line_position + 3,
+                        }
+                    });
+                }
+                else if word.text.starts_with("/**") {
+                    last_doc = Some(PositionnedString {
+                        string: word.text.strip_prefix("/**").unwrap().strip_suffix("*/").unwrap().to_string(),
+                        position: Position {
+                            absolute_position: word.position.absolute_position + 3,
+                            line_number: word.position.line_number,
+                            line_position: word.position.line_position + 3,
+                        }
+                    });
+                }
+            }
+            else if word.kind == Some(Kind::Annotation) {
+                continue;
+            }
+            else if let Some(doc) = last_doc {
+                documented_items.insert(word.clone(), doc);
+                last_doc = None;
+            }
+        }
+
         // Removing all comments.
         words.retain(|w| w.kind != Some(Kind::Comment));
         let words = words;
@@ -98,10 +136,10 @@ impl Script {
                         uses.push(Use::build(&mut iter)?);
                     }
                     else if word.text == "model" {
-                        models.push(Model::build(&mut iter)?);
+                        models.push(Model::build(&mut iter, documented_items.remove(&word))?);
                     }
                     else if word.text == "sequence" {
-                        sequences.push(Sequence::build(&mut iter)?);
+                        sequences.push(Sequence::build(&mut iter, documented_items.remove(&word))?);
                     }
                     else {
                         return Err(ScriptError::word("Unkown declaration.".to_string(), word.text, word.position));

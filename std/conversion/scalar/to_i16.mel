@@ -1,0 +1,220 @@
+
+use core/cast/scalar::U8ToI16 as CoreU8ToI16
+
+/**
+Convert stream of `u8` into `i16`.
+
+This conversion is lossless, `u8` values can always fit into `i16` ones.
+*/
+sequence U8ToI16()
+  input  value: Stream<u8>
+  output value: Stream<i16>
+{
+    CoreU8ToI16()
+
+    Self.value -> CoreU8ToI16.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::I8ToI16 as CoreI8ToI16
+
+/**
+Convert stream of `i8` into `i16`.
+
+This conversion is lossless, `i8` values can always fit into `i16` ones.
+*/
+sequence I8ToI16()
+  input  value: Stream<i8>
+  output value: Stream<i16>
+{
+    CoreI8ToI16()
+
+    Self.value -> CoreI8ToI16.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::CastScalarU16ToI16 as CoreCastScalarU16ToI16 
+
+/**
+Convert stream of `u16` into `i16`.
+
+As this conversion might be lossy (every possible `u16` value cannot fit into `i16`),
+`truncate` allows value to be truncated to fit into a `i16`, and `or_default` set the
+value that is assigned when a `u16` is out of range for `i16` and truncation not allowed.
+*/
+sequence U16ToI16(var truncate: bool = true, var or_default: i16 = 0)
+  input  value: Stream<u16>
+  output value: Stream<i16>
+{
+    CoreCastScalarU16ToI16()
+
+    Self.value -> CoreCastScalarU16ToI16.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::CastScalarU32ToI16 as CoreCastScalarU32ToI16 
+
+/**
+Convert stream of `u32` into `i16`.
+
+As this conversion might be lossy (every possible `u32` value cannot fit into `i16`),
+`truncate` allows value to be truncated to fit into a `i16`, and `or_default` set the
+value that is assigned when a `u32` is out of range for `i16` and truncation not allowed.
+*/
+sequence U32ToI16(var truncate: bool = true, var or_default: i16 = 0)
+  input  value: Stream<u32>
+  output value: Stream<i16>
+{
+    CoreCastScalarU32ToI16()
+
+    Self.value -> CoreCastScalarU32ToI16.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::CastScalarU64ToI16 as CoreCastScalarU64ToI16 
+
+/**
+Convert stream of `u64` into `i16`.
+
+As this conversion might be lossy (every possible `u64` value cannot fit into `i16`),
+`truncate` allows value to be truncated to fit into a `i16`, and `or_default` set the
+value that is assigned when a `u64` is out of range for `i16` and truncation not allowed.
+*/
+sequence U64ToI16(var truncate: bool = true, var or_default: i16 = 0)
+  input  value: Stream<u64>
+  output value: Stream<i16>
+{
+    CoreCastScalarU64ToI16()
+
+    Self.value -> CoreCastScalarU64ToI16.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::CastScalarU128ToI16 as CoreCastScalarU128ToI16 
+
+/**
+Convert stream of `u128` into `i16`.
+
+As this conversion might be lossy (every possible `u128` value cannot fit into `i16`),
+`truncate` allows value to be truncated to fit into a `i16`, and `or_default` set the
+value that is assigned when a `u128` is out of range for `i16` and truncation not allowed.
+*/
+sequence U128ToI16(var truncate: bool = true, var or_default: i16 = 0)
+  input  value: Stream<u128>
+  output value: Stream<i16>
+{
+    CoreCastScalarU128ToI16()
+
+    Self.value -> CoreCastScalarU128ToI16.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::CastScalarI32ToI16 as CoreCastScalarI32ToI16 
+
+/**
+Convert stream of `i32` into `i16`.
+
+As this conversion might be lossy (every possible `i32` value cannot fit into `i16`),
+`truncate` allows value to be truncated to fit into a `i16`, and `or_default` set the
+value that is assigned when a `i32` is out of range for `i16` and truncation not allowed.
+*/
+sequence I32ToI16(var truncate: bool = true, var or_default: i16 = 0)
+  input  value: Stream<i32>
+  output value: Stream<i16>
+{
+    CoreCastScalarI32ToI16()
+
+    Self.value -> CoreCastScalarI32ToI16.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::CastScalarI64ToI16 as CoreCastScalarI64ToI16 
+
+/**
+Convert stream of `i64` into `i16`.
+
+As this conversion might be lossy (every possible `i64` value cannot fit into `i16`),
+`truncate` allows value to be truncated to fit into a `i16`, and `or_default` set the
+value that is assigned when a `i64` is out of range for `i16` and truncation not allowed.
+*/
+sequence I64ToI16(var truncate: bool = true, var or_default: i16 = 0)
+  input  value: Stream<i64>
+  output value: Stream<i16>
+{
+    CoreCastScalarI64ToI16()
+
+    Self.value -> CoreCastScalarI64ToI16.value,value -> Self.value
+}
+
+
+
+use core/cast/scalar::CastScalarI128ToI16 as CoreCastScalarI128ToI16 
+
+/**
+Convert stream of `i128` into `i16`.
+
+As this conversion might be lossy (every possible `i128` value cannot fit into `i16`),
+`truncate` allows value to be truncated to fit into a `i16`, and `or_default` set the
+value that is assigned when a `i128` is out of range for `i16` and truncation not allowed.
+*/
+sequence I128ToI16(var truncate: bool = true, var or_default: i16 = 0)
+  input  value: Stream<i128>
+  output value: Stream<i16>
+{
+    CoreCastScalarI128ToI16()
+
+    Self.value -> CoreCastScalarI128ToI16.value,value -> Self.value
+}
+
+
+
+use core/conversion/scalar::ScalarF32ToI16 as CoreScalarF32ToI16 
+
+/**
+Convert stream of `f32` into `i16`.
+
+Every `f32` is truncated to fit into the `i16`, and in case floating-point value does
+not describe a real number:
+- `pos_infinity` is used when `f32` is a positive infinity,
+- `neg_infinity` is used when `f32` is a negative infinity,
+- `nan` is used when `f32` is not a number.
+*/
+sequence F32ToI16(var pos_infinity: i16 = 32767, var neg_infinity: i16 = -32768, var nan: i16 = 0)
+  input  value: Stream<f32>
+  output value: Stream<i16>
+{
+    CoreScalarF32ToI16(pos_infinity=pos_infinity, neg_infinity=neg_infinity, nan=nan)
+
+    Self.value -> CoreScalarF32ToI16.value,value -> Self.value
+}
+
+
+
+use core/conversion/scalar::ScalarF64ToI16 as CoreScalarF64ToI16 
+
+/**
+Convert stream of `f64` into `i16`.
+
+Every `f64` is truncated to fit into the `i16`, and in case floating-point value does
+not describe a real number:
+- `pos_infinity` is used when `f64` is a positive infinity,
+- `neg_infinity` is used when `f64` is a negative infinity,
+- `nan` is used when `f64` is not a number.
+*/
+sequence F64ToI16(var pos_infinity: i16 = 32767, var neg_infinity: i16 = -32768, var nan: i16 = 0)
+  input  value: Stream<f64>
+  output value: Stream<i16>
+{
+    CoreScalarF64ToI16(pos_infinity=pos_infinity, neg_infinity=neg_infinity, nan=nan)
+
+    Self.value -> CoreScalarF64ToI16.value,value -> Self.value
+}
+
+
