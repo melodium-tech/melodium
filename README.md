@@ -37,16 +37,42 @@ sequence Main()
 
 ## Compilation
 
+### Linux prerequisites
+
+On Linux systems, ALSA development files are required, provided through `libasound2-dev` on Debian-like systems and `alsa-lib-devel` on Fedora-like ones.
+
+### Compile from source
+
 Mélodium is fully written in Rust, and just need usual `cargo build` and `cargo test`.
 ```shell
 git clone https://gitlab.com/melodium/melodium.git
 cd melodium
 cargo build
 ```
+### Install from crates.io
 
 Mélodium can also be directly installed from [crates.io](https://crates.io/crates/melodium).
 ```shell
 cargo install melodium
+```
+
+## Usage
+
+Mélodium can be called through the `melodium` command.
+- if compiled from source, look at the `target/` directory;
+- if installed through crates.io, it should already be in your `PATH`.
+
+Mélodium also need to know where its [standard library](https://melodium.gitlab.io/melodium/reference/) is located. It can either be set up with the `MELODIUM_STDLIB` environment variable, or by passing explicily the option `--stdlib <PATH>` to the command line.
+If compiled from source, standard library can be found in the `std/` folder. If installed through crates.io, it should be found within `~/.cargo/registry/src/<cargo git reference>/melodium-<version>/std`.
+
+To launch a script:
+```shell
+melodium <SCRIPT>
+```
+
+Or if your script has an entry sequence that is not called `Main`:
+```shell
+melodium -m <EntrySequenceName> <SCRIPT>
 ```
 
 ## Licence

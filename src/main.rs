@@ -41,7 +41,7 @@ fn main() {
             .help("Parse, make semantic analysis, design world and check it, but don't make it live"))
         .arg(Arg::new("doc")
             .long("doc")
-            .help("Print documentation of specified element, implies --parseonly")
+            .help("Generates documentation in the given output folder")
             .takes_value(true))
         .arg(Arg::new("script")
             .value_name("SCRIPT")

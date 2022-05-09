@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [v0.2.1] (2022-05-09)
 
 ### Bug fixes
 - Avoiding panic on absent parameter having default value
@@ -11,6 +11,7 @@
 - Providing text encoding and decoding #12
 
 ## [v0.2.0] (2022-04-25)
+
 ### Bug fixes
 - Cleaning all warnings present in code
 
