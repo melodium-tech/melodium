@@ -1,0 +1,19 @@
+
+use std/fs/mono::WriteFile
+use std/generation/scalar::GenerateI32
+use std/conversion/scalar/to_string::I32ToString
+use std/text/encoding::Encode
+
+sequence Main()
+{
+    Generate: GenerateScalarI32[generator=Generator]()
+    Convert: I32ToByte()
+    Write: WriteFile[writer=File]()
+
+    GenerateI32(length=1, value=|add(40, 2))
+    I32ToString()
+    Encode()
+    WriteFile(path="output.txt")
+    
+    GenerateI32.data -> I32ToString.value,value -> Encode.text.data -> WriteFile.data
+}

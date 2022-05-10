@@ -13,6 +13,7 @@ pub mod common;
 
 pub mod annotation;
 pub mod connection;
+pub mod function;
 pub mod instanciation;
 pub mod model;
 pub mod parameter;
@@ -25,6 +26,7 @@ pub mod value;
 pub use script::Script;
 pub use annotation::Annotation;
 pub use connection::Connection;
+pub use function::Function;
 pub use instanciation::Instanciation;
 pub use model::Model;
 pub use parameter::Parameter;

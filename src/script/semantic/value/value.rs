@@ -15,6 +15,7 @@ use crate::logic::designer::ValueDesigner;
 use super::ValueContent;
 use super::super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::super::common::Reference;
+use super::super::function_call::FunctionCall;
 
 /// Structure managing and describing Value semantic analysis.
 /// 
@@ -41,20 +42,21 @@ impl Value {
 
         Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self{
             host: Arc::downgrade(&host),
-            content: Self::parse(&text)?,
+            content: Self::parse(host, &text)?,
             text,
         })))
     }
 
-    fn parse(text: &TextValue) -> Result<ValueContent, ScriptError> {
+    fn parse(host: Arc<RwLock<dyn DeclarativeElement>>, text: &TextValue) -> Result<ValueContent, ScriptError> {
 
         let content = match text {
             TextValue::Boolean(b) => Self::parse_boolean(b)?,
             TextValue::Number(n) => Self::parse_number(n)?,
             TextValue::String(s) => Self::parse_string(s)?,
-            TextValue::Array(_, a) => Self::parse_vector(&a)?,
+            TextValue::Array(_, a) => Self::parse_vector(host, &a)?,
             TextValue::Name(n) => ValueContent::Name(Reference::new(n.string.to_string())),
             TextValue::ContextReference((r, e)) => ValueContent::ContextReference((Reference::new(r.string.to_string()), e.string.to_string())),
+            TextValue::Function(f) => ValueContent::Function(FunctionCall::new(host, f.clone())?),
         };
 
         Ok(content)
@@ -106,17 +108,17 @@ impl Value {
         Ok(ValueContent::String(string))
     }
 
-    fn parse_vector(v: &Vec<TextValue>) -> Result<ValueContent, ScriptError> {
+    fn parse_vector(host: Arc<RwLock<dyn DeclarativeElement>>, v: &Vec<TextValue>) -> Result<ValueContent, ScriptError> {
 
         let mut values = Vec::new();
         for val in v {
-            values.push(Self::parse(val)?);
+            values.push(Self::parse(Arc::clone(&host), val)?);
         }
 
         Ok(ValueContent::Array(values))
     }
 
-    fn make_reference_valuecontent(&self, value: &ValueContent) -> Result<ValueContent, ScriptError> {
+    fn make_reference_valuecontent(&self, value: &ValueContent, path: &Path) -> Result<ValueContent, ScriptError> {
 
         let rc_host = self.host.upgrade().unwrap();
         let borrowed_host = rc_host.read().unwrap();
@@ -178,11 +180,18 @@ impl Value {
                     return Err(ScriptError::semantic("Unkown context '".to_string() + &r.name + "' in sequence requirements.", position));
                 }
             },
+            ValueContent::Function(f) => {
+
+                // We may need to enable it in further developments.
+                //f.write().unwrap().make_references(path)?;
+
+                content = ValueContent::Function(f.clone());
+            },
             ValueContent::Array(a) => {
 
                 let mut array = Vec::new();
                 for v in a {
-                    array.push(self.make_reference_valuecontent(v)?);
+                    array.push(self.make_reference_valuecontent(v, path)?);
                 }
 
                 content = ValueContent::Array(array);
@@ -213,6 +222,9 @@ impl Value {
             ValueContent::ContextReference((context, name)) => {
                 Ok(ValueDesigner::Context((context.name.clone(), name.clone())))
             },
+            ValueContent::Function(func) => {
+                Ok(ValueDesigner::Function(func.clone()))
+            },
             _ => {
                 Ok(ValueDesigner::Raw(self.make_executive_value(datatype)?))
             },
@@ -222,12 +234,23 @@ impl Value {
 }
 
 impl Node for Value {
-    fn make_references(&mut self, _: &Path) -> Result<(), ScriptError> {
+    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
 
-        let content = self.make_reference_valuecontent(&self.content)?;
+        let content = self.make_reference_valuecontent(&self.content, path)?;
 
         self.content = content;
 
         Ok(())
+    }
+
+    fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
+
+        let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();
+
+        if let ValueContent::Function(f) = &self.content {
+            children.extend(f.read().unwrap().children());
+        }
+
+        children
     }
 }

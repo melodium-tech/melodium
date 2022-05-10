@@ -41,6 +41,7 @@ function run_test() {
 echo Running Mélodium tests…
 
 # Add tests there
+run_test functions
 run_test text_decoding
 run_test text_encoding
 run_test audio

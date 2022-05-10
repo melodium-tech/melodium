@@ -12,6 +12,7 @@ pub mod connection;
 pub mod declarative_element;
 pub mod declared_parameter;
 pub mod declared_model;
+pub mod function_call;
 pub mod input;
 pub mod instancied_model;
 pub mod model;

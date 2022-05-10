@@ -3,7 +3,7 @@
 
 use crate::script::error::ScriptError;
 
-use super::{PositionnedString, Position};
+use super::{PositionnedString, Position, Function};
 use super::word::{expect_word, expect_word_kind, Kind, Word};
 
 /// Enum describing a textual value.
@@ -25,6 +25,8 @@ pub enum Value {
     /// First element being the context itself, second element the inner refered component.
     /// `@Foo[bar]`: (`@Foo`, `bar`)
     ContextReference((PositionnedString, PositionnedString)),
+    /// Function, representing a function call.
+    Function(Function),
 }
 
 impl Value {
@@ -44,6 +46,7 @@ impl Value {
     /// [1, 3, 5, 7]
     /// hereIsName
     /// @HereIsReference[toSomething]
+    /// |hereIsFunction()
     /// "##;
     /// 
     /// let words = get_words(text).unwrap();
@@ -66,6 +69,9 @@ impl Value {
     /// 
     /// let value = Value::build_from_first_item(&mut iter)?;
     /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::ContextReference((PositionnedString::default(), PositionnedString::default()))));
+    /// 
+    /// let value = Value::build_from_first_item(&mut iter)?;
+    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Function(Function::default())));
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn build_from_first_item(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
@@ -108,6 +114,13 @@ impl Value {
                 inner_reference
             )))
         }
+        // Value is a function call.
+        else if value.kind == Some(Kind::Function) {
+
+            let function = Function::build_from_parameters(PositionnedString { string: value.text, position: value.position}, &mut iter)?;
+
+            Ok(Self::Function(function))
+        }
         // Value is a single element.
         else {
             match value.kind {
@@ -135,6 +148,7 @@ impl Value {
             Value::Array(ps, _) => ps.position,
             Value::Name(ps) => ps.position,
             Value::ContextReference((ps, _)) => ps.position,
+            Value::Function(func) => func.name.position,
         }
     }
 }

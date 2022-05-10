@@ -1,4 +1,5 @@
 
+use std::sync::{Arc, RwLock};
 use std::convert::TryFrom;
 use crate::executive::value::Value as ExecutiveValue;
 use crate::logic::descriptor::datatype::{DataType, Structure, Type};
@@ -6,6 +7,7 @@ use crate::logic::descriptor::datatype::{DataType, Structure, Type};
 use super::super::common::Reference;
 use super::super::declared_parameter::DeclaredParameter;
 use super::super::requirement::Requirement;
+use super::super::function_call::FunctionCall;
 
 /// Enum holding value or reference designating the value.
 #[derive(Debug)]
@@ -20,7 +22,9 @@ pub enum ValueContent {
     /// Named value, referring to a parameter of the hosting sequence.
     Name(Reference<DeclaredParameter>),
     /// Context reference, referring to a requirement of the hosting sequence, and an inner element.
-    ContextReference((Reference<Requirement>, String))
+    ContextReference((Reference<Requirement>, String)),
+    /// Function, refering to a function call.
+    Function(Arc<RwLock<FunctionCall>>),
 }
 
 impl ValueContent {

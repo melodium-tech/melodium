@@ -86,6 +86,8 @@ pub enum Kind {
     Name,
     /// Same thing than `Name`, but having `@` in the first place.
     Context,
+    /// Same thing than `Name`, but having `|` in the first place.
+    Function,
     /// Anything matching a number, starting with `+`, `-`, or any digit, and having an arbitrary number of digits, with at most one point `.` inside.
     Number,
     /// Any string starting and ending with `"` (with a preservation of `\"` and `\\`).
@@ -320,6 +322,13 @@ pub fn get_words(script: & str) -> Result<Vec<Word>, Vec<Word>> {
         } {
             kind = Some(Kind::Context);
         }
+        // Check if word is Function
+        else if {
+            kind_check = manage_function(remaining_script);
+            kind_check.is_that_kind
+        } {
+            kind = Some(Kind::Function);
+        }
         // Check if word is Number
         else if {
             kind_check = manage_number(remaining_script);
@@ -468,6 +477,21 @@ fn manage_name(text: &str) -> KindCheck {
 fn manage_context(text: &str) -> KindCheck {
     lazy_static! {
         static ref REGEX_CONTEXT: Regex = Regex::new(r"^@[\p{Alphabetic}\p{M}\p{Pc}\p{Join_Control}]\w*").unwrap();
+    }
+    let mat = REGEX_CONTEXT.find(text);
+    if mat.is_some() {
+        KindCheck {
+            is_that_kind: true,
+            end_at: mat.unwrap().end(),
+            is_well_formed: true,
+        }
+    }
+    else { KindCheck::default() }
+}
+
+fn manage_function(text: &str) -> KindCheck {
+    lazy_static! {
+        static ref REGEX_CONTEXT: Regex = Regex::new(r"^|[\p{Alphabetic}\p{M}\p{Pc}\p{Join_Control}]\w*").unwrap();
     }
     let mat = REGEX_CONTEXT.find(text);
     if mat.is_some() {
