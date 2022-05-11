@@ -8,6 +8,7 @@ use super::super::descriptor::ModelDescriptor;
 use super::super::descriptor::DesignableDescriptor;
 use super::super::descriptor::ParameterizedDescriptor;
 use super::super::descriptor::ParameterDescriptor;
+use super::scope::Scope;
 use super::parameter::Parameter;
 use super::value::Value;
 
@@ -45,7 +46,7 @@ impl Model {
     pub fn add_parameter(&mut self, name: &str) -> Result<Arc<RwLock<Parameter>>, LogicError> {
         
         if self.descriptor.core_model().parameters().contains_key(name) {
-            let parameter = Parameter::new( &(Arc::clone(&self.descriptor) as Arc<dyn ParameterizedDescriptor>), 
+            let parameter = Parameter::new( &(self.auto_reference.upgrade().unwrap() as Arc<RwLock<dyn Scope>>),
                                             &(Arc::clone(&self.descriptor.core_model()) as Arc<dyn ParameterizedDescriptor>),
                                             name
                                         );
@@ -107,5 +108,16 @@ impl Model {
         self.descriptor.register_builder(Box::new(ConfiguredModelBuilder::new(&self.auto_reference.upgrade().unwrap())));
 
         Ok(())
+    }
+}
+
+impl Scope for Model {
+
+    fn descriptor(&self) -> Arc<dyn ParameterizedDescriptor> {
+        Arc::clone(&self.descriptor) as Arc<dyn ParameterizedDescriptor>
+    }
+
+    fn collections(&self) -> Arc<CollectionPool> {
+        Arc::clone(&self.collections)
     }
 }

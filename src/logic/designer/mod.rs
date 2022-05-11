@@ -7,6 +7,7 @@ pub mod connection;
 pub mod model;
 pub mod model_instanciation;
 pub mod parameter;
+pub mod scope;
 pub mod sequence;
 pub mod treatment;
 pub mod value;

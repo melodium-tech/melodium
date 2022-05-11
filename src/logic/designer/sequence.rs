@@ -8,10 +8,12 @@ use super::super::descriptor::IdentifierDescriptor;
 use super::super::descriptor::SequenceTreatmentDescriptor;
 use super::super::descriptor::DesignableDescriptor;
 use super::super::descriptor::TreatmentDescriptor;
+use super::super::descriptor::ParameterizedDescriptor;
 
 use super::model_instanciation::ModelInstanciation;
 use super::connection::{Connection, IO};
 use super::treatment::Treatment;
+use super::scope::Scope;
 
 use super::super::builder::sequence_builder::SequenceBuilder;
 
@@ -279,6 +281,17 @@ impl Sequence {
         self.descriptor.register_builder(Box::new(SequenceBuilder::new(&self.auto_reference.upgrade().unwrap())));
 
         Ok(())
+    }
+}
+
+impl Scope for Sequence {
+
+    fn descriptor(&self) -> Arc<dyn ParameterizedDescriptor> {
+        Arc::clone(&self.descriptor) as Arc<dyn ParameterizedDescriptor>
+    }
+
+    fn collections(&self) -> Arc<CollectionPool> {
+        Arc::clone(&self.collections)
     }
 }
 

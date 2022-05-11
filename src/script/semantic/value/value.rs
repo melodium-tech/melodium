@@ -223,7 +223,8 @@ impl Value {
                 Ok(ValueDesigner::Context((context.name.clone(), name.clone())))
             },
             ValueContent::Function(func) => {
-                Ok(ValueDesigner::Function(func.clone()))
+                let borrowed_func = func.read().unwrap();
+                Ok(ValueDesigner::Function(borrowed_func.name.clone(), vec![]))
             },
             _ => {
                 Ok(ValueDesigner::Raw(self.make_executive_value(datatype)?))

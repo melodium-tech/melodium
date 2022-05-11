@@ -1,21 +1,22 @@
 
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Weak, RwLock};
 use super::super::error::LogicError;
 use super::super::descriptor::{ParameterizedDescriptor, VariabilityDescriptor};
+use super::scope::Scope;
 use super::value::Value;
 use super::super::contexts::Contexts;
 
 #[derive(Debug)]
 pub struct Parameter {
 
-    scope: Weak<dyn ParameterizedDescriptor>,
+    scope: Weak<RwLock<dyn Scope>>,
     parent_descriptor: Weak<dyn ParameterizedDescriptor>,
     name: String,
     value: Option<Value>,
 }
 
 impl Parameter {
-    pub fn new(scope: &Arc<dyn ParameterizedDescriptor>, parent_descriptor: &Arc<dyn ParameterizedDescriptor>, name: &str) -> Self {
+    pub fn new(scope: &Arc<RwLock<dyn Scope>>, parent_descriptor: &Arc<dyn ParameterizedDescriptor>, name: &str) -> Self {
         Self {
             scope: Arc::downgrade(scope),
             parent_descriptor: Arc::downgrade(parent_descriptor),
@@ -24,7 +25,7 @@ impl Parameter {
         }
     }
 
-    pub fn scope(&self) -> &Weak<dyn ParameterizedDescriptor> {
+    pub fn scope(&self) -> &Weak<RwLock<dyn Scope>> {
         &self.scope
     }
 
@@ -46,7 +47,7 @@ impl Parameter {
             },
             Value::Variable(name) => {
 
-                if let Some(scope_variable) = self.scope.upgrade().unwrap().parameters().get(name) {
+                if let Some(scope_variable) = self.scope.upgrade().unwrap().read().unwrap().descriptor().parameters().get(name) {
 
                     if *self.parent_descriptor.upgrade().unwrap().parameters().get(&self.name).unwrap().variability() == VariabilityDescriptor::Const
                     && *scope_variable.variability() != VariabilityDescriptor::Const {

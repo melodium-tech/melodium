@@ -8,6 +8,7 @@ use super::parameter::Parameter;
 use super::super::descriptor::ParameterizedDescriptor;
 use super::super::descriptor::ParameterDescriptor;
 use super::super::descriptor::VariabilityDescriptor;
+use super::scope::Scope;
 use super::value::Value;
 
 #[derive(Debug)]
@@ -40,7 +41,7 @@ impl ModelInstanciation {
     pub fn add_parameter(&mut self, name: &str) -> Result<Arc<RwLock<Parameter>>, LogicError> {
 
         if self.descriptor.parameters().contains_key(name) {
-            let parameter = Parameter::new( &(Arc::clone(self.sequence.upgrade().unwrap().read().unwrap().descriptor()) as Arc<dyn ParameterizedDescriptor>), 
+            let parameter = Parameter::new( &(self.sequence.upgrade().unwrap() as Arc<RwLock<dyn Scope>>), 
                                             &self.descriptor.as_parameterized(),
                                             name
                                         );
