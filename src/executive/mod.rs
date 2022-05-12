@@ -8,6 +8,7 @@ pub mod environment;
 pub mod model;
 pub mod context;
 pub mod flow;
+pub mod function;
 pub mod future;
 pub mod result_status;
 pub mod transmitter;

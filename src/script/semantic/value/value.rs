@@ -11,6 +11,7 @@ use crate::script::text::value::Value as TextValue;
 use crate::executive::value::Value as ExecutiveValue;
 use crate::logic::descriptor::datatype::DataType;
 use crate::logic::designer::ValueDesigner;
+use crate::logic::designer::ParameterDesigner;
 
 use super::ValueContent;
 use super::super::declarative_element::{DeclarativeElement, DeclarativeElementType};
@@ -182,8 +183,7 @@ impl Value {
             },
             ValueContent::Function(f) => {
 
-                // We may need to enable it in further developments.
-                //f.write().unwrap().make_references(path)?;
+                f.write().unwrap().make_references(path)?;
 
                 content = ValueContent::Function(f.clone());
             },
@@ -213,7 +213,7 @@ impl Value {
         }
     }
 
-    pub fn make_designed_value(&self, datatype: &DataType) -> Result<ValueDesigner, ScriptError> {
+    pub fn make_designed_value(&self, designer: &ParameterDesigner, datatype: &DataType) -> Result<ValueDesigner, ScriptError> {
 
         match &self.content {
             ValueContent::Name(decl_param) => {
@@ -224,7 +224,35 @@ impl Value {
             },
             ValueContent::Function(func) => {
                 let borrowed_func = func.read().unwrap();
-                Ok(ValueDesigner::Function(borrowed_func.name.clone(), vec![]))
+
+                if let Some(func_descriptor) = designer.scope().upgrade().unwrap()
+                                                            .read().unwrap()
+                                                            .collections().functions.get(
+                                                                &borrowed_func.type_identifier.as_ref().unwrap()
+                ) {
+
+                    let mut params = Vec::new();
+                    for i in 0..func_descriptor.parameters().len() {
+
+                        let desc_param = &func_descriptor.parameters()[i];
+
+                        if let Some(rc_param) = borrowed_func.parameters.get(i) {
+                            let borrowed_param = rc_param.read().unwrap();
+
+                            let param = borrowed_param.make_designed_value(designer, desc_param.datatype())?;
+
+                            params.push(param);
+                        }
+                        else {
+                            return Err(ScriptError::semantic(format!("Missing parameter on function {}.", borrowed_func.name), self.text.get_position()))
+                        }
+                    }
+
+                    Ok(ValueDesigner::Function(Arc::clone(func_descriptor), params))
+                }
+                else {
+                    Err(ScriptError::semantic(format!("No known function '{}'.", borrowed_func.name), self.text.get_position()))
+                }
             },
             _ => {
                 Ok(ValueDesigner::Raw(self.make_executive_value(datatype)?))

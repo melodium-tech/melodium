@@ -8,7 +8,6 @@ use super::super::descriptor::model::Model;
 use super::sequence::Sequence;
 use super::parameter::Parameter;
 use super::connection::{IO, Connection};
-use super::super::descriptor::ParameterizedDescriptor;
 use super::super::descriptor::ParameterDescriptor;
 use super::scope::Scope;
 use super::value::Value;

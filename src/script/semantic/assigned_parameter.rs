@@ -97,7 +97,7 @@ impl AssignedParameter {
         let mut designer = designer.write().unwrap();
         let descriptor = designer.parent_descriptor().upgrade().unwrap().parameters().get(&self.name).unwrap().clone();
 
-        let value = self.value.read().unwrap().make_designed_value(descriptor.datatype())?;
+        let value = self.value.read().unwrap().make_designed_value(&designer, descriptor.datatype())?;
 
         wrap_logic_error!(
             designer.set_value(value),

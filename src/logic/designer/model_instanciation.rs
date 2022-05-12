@@ -5,7 +5,6 @@ use super::super::error::LogicError;
 use super::super::descriptor::ModelDescriptor;
 use super::sequence::Sequence;
 use super::parameter::Parameter;
-use super::super::descriptor::ParameterizedDescriptor;
 use super::super::descriptor::ParameterDescriptor;
 use super::super::descriptor::VariabilityDescriptor;
 use super::scope::Scope;
