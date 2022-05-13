@@ -10,6 +10,7 @@ use super::super::descriptor::TreatmentDescriptor;
 use super::super::descriptor::IdentifiedDescriptor;
 use super::super::super::executive::environment::{GenesisEnvironment, ContextualEnvironment};
 use super::super::super::executive::model::Model;
+use super::super::super::executive::value::Value as ExecutiveValue;
 use super::super::designer::value::Value;
 
 #[derive(Debug)]
@@ -61,11 +62,35 @@ impl BuildSample {
 }
 
 impl SequenceBuilder {
+
     pub fn new(designer: &Arc<RwLock<SequenceDesigner>>) -> Self {
         Self {
             designer: Arc::clone(designer),
             builds: RwLock::new(Vec::new()),
             building_inputs: RwLock::new(HashMap::new())
+        }
+    }
+
+    fn get_value(value: &Value, genesis_environment: &GenesisEnvironment, contextual_environment: &ContextualEnvironment) -> ExecutiveValue {
+        match value {
+            Value::Raw(data) => data.clone(),
+            Value::Variable(name) => {
+                if let Some(data) = contextual_environment.get_variable(&name) {
+                    data.clone()
+                }
+                else {
+                    genesis_environment.get_variable(&name).unwrap().clone()
+                }
+            },
+            Value::Context((context, name)) => {
+                contextual_environment.get_context(context).unwrap().get_value(name).unwrap().clone()
+            },
+            Value::Function(descriptor, params) => {
+
+                let executive_values = params.iter().map(|v| Self::get_value(v, genesis_environment, contextual_environment)).collect();
+
+                descriptor.function()(executive_values)
+            }
         }
     }
 }
@@ -342,21 +367,7 @@ impl Builder for SequenceBuilder {
 
                 let borrowed_param = parameter.read().unwrap();
 
-                let data = match borrowed_param.value().as_ref().unwrap() {
-                    Value::Raw(data) => data,
-                    Value::Variable(name) => {
-                        // TODO change once distinction between const & var is fully implemented
-                        if let Some(data) = environment.get_variable(&name) {
-                            data
-                        }
-                        else {
-                            build_sample.genesis_environment.get_variable(&name).unwrap()
-                        }
-                    },
-                    Value::Context((context, name)) => {
-                        environment.get_context(context).unwrap().get_value(name).unwrap()
-                    }
-                };
+                let data = Self::get_value(borrowed_param.value().as_ref().unwrap(), &build_sample.genesis_environment, environment);
 
                 remastered_environment.add_variable(borrowed_param.name(), data.clone());
             }
@@ -476,21 +487,7 @@ impl Builder for SequenceBuilder {
 
                     let borrowed_param = parameter.read().unwrap();
 
-                    let data = match borrowed_param.value().as_ref().unwrap() {
-                        Value::Raw(data) => data,
-                        Value::Variable(name) => {
-                            // TODO change once distinction between const & var is fully implemented
-                            if let Some(data) = environment.get_variable(&name) {
-                                data
-                            }
-                            else {
-                                build_sample.genesis_environment.get_variable(&name).unwrap()
-                            }
-                        },
-                        Value::Context((context, name)) => {
-                            environment.get_context(context).unwrap().get_value(name).unwrap()
-                        }
-                    };
+                    let data = Self::get_value(borrowed_param.value().as_ref().unwrap(), &build_sample.genesis_environment, environment);
 
                     remastered_environment.add_variable(borrowed_param.name(), data.clone());
                 }

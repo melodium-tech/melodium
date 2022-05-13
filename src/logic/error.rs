@@ -82,6 +82,10 @@ pub enum LogicErrorKind {
     ConstRequiredContextProvided,
     /// A model instanciation can only have const assignations
     ModelInstanciationConstOnly,
+    /// A function returns var when const is expected, due to a var parameter
+    ConstRequiredFunctionReturnsVar,
+    /// A function doesn't get the right number of parameters
+    UnmatchingNumberOfParameters,
 }
 
 impl ToString for LogicErrorKind {
@@ -124,6 +128,8 @@ impl ToString for LogicErrorKind {
             Self::ConstRequiredVarProvided => "Constant value required but variable is provided",
             Self::ConstRequiredContextProvided => "Constant value required but context is provided",
             Self::ModelInstanciationConstOnly => "Model instanciations can only get constants",
+            Self::ConstRequiredFunctionReturnsVar => "Constant value required but function returns variable because of variable parameter",
+            Self::UnmatchingNumberOfParameters => "Number of parameters given doesn't match",
             //_ => "Unimplemented logic error type",
         }.to_string()
     }
@@ -387,6 +393,20 @@ impl LogicError {
     pub fn model_instanciation_const_only() -> Self {
         Self {
             kind: LogicErrorKind::ModelInstanciationConstOnly
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::ConstRequiredFunctionReturnsVar`] kind.
+    pub fn const_required_function_returns_var() -> Self {
+        Self {
+            kind: LogicErrorKind::ConstRequiredFunctionReturnsVar
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::UnmatchingNumberOfParameters`] kind.
+    pub fn unmatching_number_of_parameters() -> Self {
+        Self {
+            kind: LogicErrorKind::UnmatchingNumberOfParameters
         }
     }
 }

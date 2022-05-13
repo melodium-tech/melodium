@@ -91,7 +91,7 @@ impl Parameter {
 
                 if *self.parent_descriptor.upgrade().unwrap().parameters().get(&self.name).unwrap().variability() == VariabilityDescriptor::Const
                     && variability != VariabilityDescriptor::Const {
-                    return Err(LogicError::const_required_var_provided())
+                    return Err(LogicError::const_required_function_returns_var())
                 }
             }
         }
@@ -106,7 +106,7 @@ impl Parameter {
         let mut variability = VariabilityDescriptor::Const;
 
         if descriptor.parameters().len() != parameters.len() {
-            // TODO fail here
+            return Err(LogicError::unmatching_number_of_parameters())
         }
 
         for i in 0..descriptor.parameters().len() {

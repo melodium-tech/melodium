@@ -17,7 +17,7 @@ use crate::executive::value::Value;
 pub struct CoreFunction {
     identifier: Identifier,
     parameters: Vec<Parameter>,
-    return_type: Datatype,
+    return_type: DataType,
     function: fn(Vec<Value>) -> Value,
     auto_reference: Weak<Self>,
 }
@@ -32,15 +32,16 @@ impl CoreFunction {
             auto_reference: me.clone(),
         })
     }
-
-    pub fn function(&self) -> fn(Vec<Value>) -> Value {
-        self.function
-    }
 }
 
 impl Function for CoreFunction {
+
     fn return_type(&self) -> &DataType {
         &self.return_type
+    }
+
+    fn function(&self) -> fn(Vec<Value>) -> Value {
+        self.function
     }
 }
 
