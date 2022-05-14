@@ -71,6 +71,21 @@ impl SequenceBuilder {
         }
     }
 
+    fn get_const_value(value: &Value, genesis_environment: &GenesisEnvironment) -> ExecutiveValue {
+        match value {
+            Value::Raw(data) => data.clone(),
+            Value::Variable(name) => genesis_environment.get_variable(&name).unwrap().clone(),
+            Value::Function(descriptor, params) => {
+
+                let executive_values = params.iter().map(|v| Self::get_const_value(v, genesis_environment)).collect();
+
+                descriptor.function()(executive_values)
+            }
+            // Not possible in constant situation to use context, should have been catched by designer, aborting
+            _ => panic!("Impossible data recoverage")
+        }
+    }
+
     fn get_value(value: &Value, genesis_environment: &GenesisEnvironment, contextual_environment: &ContextualEnvironment) -> ExecutiveValue {
         match value {
             Value::Raw(data) => data.clone(),
@@ -124,12 +139,7 @@ impl Builder for SequenceBuilder {
 
                 let borrowed_param = parameter.read().unwrap();
 
-                let data = match borrowed_param.value().as_ref().unwrap() {
-                    Value::Raw(data) => data,
-                    Value::Variable(name) => build_sample.genesis_environment.get_variable(&name).unwrap(),
-                    // Not possible in model instanciation to use context, should have been catched by designer, aborting
-                    _ => panic!("Impossible data recoverage")
-                };
+                let data = Self::get_const_value(borrowed_param.value().as_ref().unwrap(), &build_sample.genesis_environment);
 
                 remastered_environment.add_variable(borrowed_param.name(), data.clone());
             }
@@ -191,12 +201,7 @@ impl Builder for SequenceBuilder {
 
                 let borrowed_param = parameter.read().unwrap();
 
-                let data = match borrowed_param.value().as_ref().unwrap() {
-                    Value::Raw(data) => data,
-                    Value::Variable(name) => build_sample.genesis_environment.get_variable(&name).unwrap(),
-                    // We should have a value there, should have been catched by designer, aborting
-                    _ => panic!("Impossible data recoverage")
-                };
+                let data = Self::get_const_value(borrowed_param.value().as_ref().unwrap(), &build_sample.genesis_environment);
 
                 remastered_environment.add_variable(borrowed_param.name(), data.clone());
             }

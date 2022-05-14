@@ -134,7 +134,7 @@ impl Parameter {
     /// # use melodium::script::error::ScriptError;
     /// # use melodium::script::text::word::*;
     /// # use melodium::script::text::value::Value;
-    /// let words = get_words("myParameter = 0.248").unwrap();
+    /// let words = get_words("myParameter = |my_function(0.248)").unwrap();
     /// let mut iter = words.iter();
     /// 
     /// // Taking 'myParameter' in name.

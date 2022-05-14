@@ -4,7 +4,7 @@ set -e
 FAILURES=0
 declare -i FAILURES
 
-rm -f output_*
+rm -f output*
 
 "$MELODIUM" functions.mel
 

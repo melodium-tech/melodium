@@ -491,7 +491,7 @@ fn manage_context(text: &str) -> KindCheck {
 
 fn manage_function(text: &str) -> KindCheck {
     lazy_static! {
-        static ref REGEX_CONTEXT: Regex = Regex::new(r"^|[\p{Alphabetic}\p{M}\p{Pc}\p{Join_Control}]\w*").unwrap();
+        static ref REGEX_CONTEXT: Regex = Regex::new(r"^\|[\p{Alphabetic}\p{M}\p{Pc}\p{Join_Control}]\w*").unwrap();
     }
     let mat = REGEX_CONTEXT.find(text);
     if mat.is_some() {

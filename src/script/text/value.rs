@@ -38,6 +38,7 @@ impl Value {
     /// # use melodium::script::error::ScriptError;
     /// # use melodium::script::text::word::*;
     /// # use melodium::script::text::value::Value;
+    /// # use melodium::script::text::function::Function;
     /// # use std::mem;
     /// let text = r##"
     /// true
@@ -47,6 +48,7 @@ impl Value {
     /// hereIsName
     /// @HereIsReference[toSomething]
     /// |hereIsFunction()
+    /// |hereIsFunctionWithParameters(45, 46, 47, "Foo", "Bar", true)
     /// "##;
     /// 
     /// let words = get_words(text).unwrap();
@@ -69,6 +71,9 @@ impl Value {
     /// 
     /// let value = Value::build_from_first_item(&mut iter)?;
     /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::ContextReference((PositionnedString::default(), PositionnedString::default()))));
+    /// 
+    /// let value = Value::build_from_first_item(&mut iter)?;
+    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Function(Function::default())));
     /// 
     /// let value = Value::build_from_first_item(&mut iter)?;
     /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Function(Function::default())));

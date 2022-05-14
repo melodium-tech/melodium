@@ -224,7 +224,7 @@ impl Sequence {
                     break;
                 }
                 else {
-                    return Err(ScriptError::word("Element name expected.".to_string(), word.text, word.position));
+                    return Err(ScriptError::word("Element name expected 1.".to_string(), word.text, word.position));
                 }
             }
 

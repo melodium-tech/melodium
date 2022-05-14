@@ -53,7 +53,6 @@ impl Use {
             }
             else if delimiter.kind == Some(Kind::Colon) {
                 expect_word_kind(Kind::Colon, "Double colon expected.", &mut iter)?;
-                //element = expect_word_kind(Kind::Name, "Element name expected.", &mut iter)?;
 
                 let designation = expect_word("Element name expected.", &mut iter)?;
                 let expected_kind;

@@ -7,14 +7,11 @@ use std/text/encoding::Encode
 
 sequence Main()
 {
-    Generate: GenerateScalarI32[generator=Generator]()
-    Convert: I32ToByte()
-    Write: WriteFile[writer=File]()
 
     GenerateI32(length=1, value=|add_i32(40, 2))
     I32ToString()
     Encode()
     WriteFile(path="output.txt")
     
-    GenerateI32.data -> I32ToString.value,value -> Encode.text.data -> WriteFile.data
+    GenerateI32.data -> I32ToString.value,value -> Encode.text,data -> WriteFile.data
 }
