@@ -1,16 +1,12 @@
 
 use std::fmt::*;
-use std::collections::HashMap;
 use std::sync::{Arc, Weak};
-use std::iter::FromIterator;
 use super::identified::Identified;
 use super::identifier::Identifier;
 use super::function::Function;
 use super::ordered_parameterized::OrderedParameterized;
 use super::parameter::Parameter;
-use super::treatment::Treatment;
 use super::datatype::DataType;
-use super::super::builder::CoreTreatmentBuilder;
 use crate::executive::value::Value;
 
 #[derive(Debug)]

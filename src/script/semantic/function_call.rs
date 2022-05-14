@@ -4,7 +4,7 @@
 use super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
-use crate::script::error::{ScriptError, wrap_logic_error};
+use crate::script::error::ScriptError;
 use crate::script::path::Path;
 use crate::script::text::Function as TextFunction;
 use crate::logic::descriptor::identifier::Identifier;
@@ -58,7 +58,7 @@ impl FunctionCall {
 }
 
 impl Node for FunctionCall {
-    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
+    fn make_references(&mut self, _path: &Path) -> Result<(), ScriptError> {
 
         if let RefersTo::Unkown(reference) = &self.r#type {
 

@@ -3,8 +3,8 @@
 
 use crate::script::error::ScriptError;
 
-use super::{PositionnedString, Position, Value};
-use super::word::{expect_word, expect_word_kind, Kind, Word};
+use super::{PositionnedString, Value};
+use super::word::{expect_word, Kind, Word};
 
 /// Structure describing a textual requirement.
 /// 
