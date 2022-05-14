@@ -7,6 +7,8 @@ pub fn core_collection() -> &'static CollectionPool {
         static ref SINGLETON: CollectionPool = {
             let mut c = CollectionPool::new();
 
+            super::func::register(&mut c);
+
             super::generation::scalar_generator::register(&mut c);
 
             super::cast::lossless_scalar::register(&mut c);
