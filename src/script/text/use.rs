@@ -53,7 +53,21 @@ impl Use {
             }
             else if delimiter.kind == Some(Kind::Colon) {
                 expect_word_kind(Kind::Colon, "Double colon expected.", &mut iter)?;
-                element = expect_word_kind(Kind::Name, "Element name expected.", &mut iter)?;
+                //element = expect_word_kind(Kind::Name, "Element name expected.", &mut iter)?;
+
+                let designation = expect_word("Element name expected.", &mut iter)?;
+                let expected_kind;
+                if designation.kind == Some(Kind::Name) {
+                    expected_kind = Kind::Name;
+                    element = PositionnedString { string: designation.text, position: designation.position };
+                }
+                else if designation.kind == Some(Kind::Function) {
+                    expected_kind = Kind::Function;
+                    element = PositionnedString { string: designation.text, position: designation.position };
+                }
+                else {
+                    return Err(ScriptError::word("Element name expected.".to_string(), designation.text, designation.position));
+                }
 
                 // We check if we are in "use as" case, _cloning_ the iterator in case next word is not about us.
                 let possible_as = expect_word_kind(Kind::Name, "", &mut iter.clone());
@@ -61,7 +75,7 @@ impl Use {
                     // We discard "as".
                     iter.next();
 
-                    use_as = Some(expect_word_kind(Kind::Name, "Alias name expected.", &mut iter)?);
+                    use_as = Some(expect_word_kind(expected_kind, "Alias name expected.", &mut iter)?);
                 }
                 else {
                     use_as = None;
