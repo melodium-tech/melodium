@@ -25,7 +25,7 @@ pub fn core_collection() -> &'static CollectionPool {
             super::flow::block_to_stream::register(&mut c);
             super::flow::stream_to_block::register(&mut c);
 
-            super::arithmetic::add_scalar::register(&mut c);
+            super::arithmetic::implementation::register(&mut c);
 
             super::text::bytes_to_string::register(&mut c);
 
