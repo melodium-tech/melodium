@@ -472,6 +472,54 @@ macro_rules! impl_sqrt_function {
     };
 }
 
+macro_rules! impl_CbrtScalar {
+    ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+        treatment!(cbrt,
+            core_identifier!("arithmetic","scalar";&format!("Cbrt{}", $mel_name)),
+            models![],
+            treatment_sources![],
+            parameters![],
+            inputs![
+                input!("value",Scalar,$mel_type,Stream)
+            ],
+            outputs![
+                output!("value",Scalar,$mel_type,Stream)
+            ],
+            host {
+                let input = host.get_input("value");
+                let output = host.get_output("value");
+            
+                while let Ok(values) = input.$recv_func().await {
+
+                    ok_or_break!(output.$send_func(values.iter().map(|v| v.cbrt()).collect()).await);
+                }
+            
+                ResultStatus::Ok
+            }
+        );
+    }
+}
+
+macro_rules! impl_cbrt_function {
+    ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
+        fn cbrt_function() -> Arc<CoreFunctionDescriptor> {
+
+            fn cbrt(params: Vec<Value>) -> Value {
+                Value::$mel_type(params[0].clone().$mel_value_type().cbrt())
+            }
+        
+            CoreFunctionDescriptor::new(
+                core_identifier!("func";&format!("|cbrt_{}", $mel_name_low)),
+                parameters![
+                    parameter!("value", Scalar, $mel_type, None)
+                ],
+                datatype!(Scalar, $mel_type),
+                cbrt
+            )
+        }
+    };
+}
+
 macro_rules! impl_CommonArithm {
     ($mod:ident, $mel_name:expr, $mel_name_low:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         pub mod $mod {
@@ -553,6 +601,9 @@ macro_rules! impl_FloatingArithm {
             impl_SqrtScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
             impl_sqrt_function!($mel_name_low, $mel_type, $mel_value_type);
 
+            impl_CbrtScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
+            impl_cbrt_function!($mel_name_low, $mel_type, $mel_value_type);
+
             pub fn register(mut c: &mut crate::logic::collection_pool::CollectionPool) {
 
                 static_pow::register(&mut c);
@@ -560,6 +611,9 @@ macro_rules! impl_FloatingArithm {
 
                 sqrt::register(&mut c);
                 c.functions.insert(&(sqrt_function() as Arc<dyn FunctionDescriptor>));
+
+                cbrt::register(&mut c);
+                c.functions.insert(&(cbrt_function() as Arc<dyn FunctionDescriptor>));
             }
         }
     };
@@ -635,8 +689,8 @@ mod signed {
     impl_SignedArithm!(i32,   "I32",  "i32",  I32,    i32,    i32,    recv_i32,   send_multiple_i32   );
     impl_SignedArithm!(i64,   "I64",  "i64",  I64,    i64,    i64,    recv_i64,   send_multiple_i64   );
     impl_SignedArithm!(i128,  "I128", "i128", I128,   i128,   i128,   recv_i128,  send_multiple_i128  );
-    impl_FloatingArithm!(f32, "F32",  "f32",  F32,    f32,    f32,    recv_f32,   send_multiple_f32   );
-    impl_FloatingArithm!(f64, "F64",  "f64",  F64,    f64,    f64,    recv_f64,   send_multiple_f64   );
+    impl_SignedArithm!(f32,   "F32",  "f32",  F32,    f32,    f32,    recv_f32,   send_multiple_f32   );
+    impl_SignedArithm!(f64,   "F64",  "f64",  F64,    f64,    f64,    recv_f64,   send_multiple_f64   );
 
     pub fn register(mut c: &mut CollectionPool) {
 
