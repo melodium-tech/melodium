@@ -34,6 +34,36 @@ macro_rules! impl_StaticAddScalar {
     }
 }
 
+macro_rules! impl_AddScalar {
+    ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+        treatment!(add,
+            core_identifier!("arithmetic","scalar";&format!("Add{}", $mel_name)),
+            models![],
+            treatment_sources![],
+            parameters![],
+            inputs![
+                input!("a",Scalar,$mel_type,Stream),
+                input!("b",Scalar,$mel_type,Stream)
+            ],
+            outputs![
+                output!("sum",Scalar,$mel_type,Stream)
+            ],
+            host {
+                let input_a = host.get_input("a");
+                let input_b = host.get_input("b");
+                let sum = host.get_output("sum");
+            
+                while let (Ok(a), Ok(b)) = futures::join!(input_a.$recv_func(), input_b.$recv_func()) {
+
+                    ok_or_break!(sum.$send_func(a + b).await);
+                }
+            
+                ResultStatus::Ok
+            }
+        );
+    }
+}
+
 macro_rules! impl_add_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
         fn add_function() -> Arc<CoreFunctionDescriptor> {
@@ -79,6 +109,36 @@ macro_rules! impl_StaticSubScalar {
                 while let Ok(values) = input.$recv_func().await {
 
                     ok_or_break!(output.$send_func(values.iter().map(|v| v - sub).collect()).await);
+                }
+            
+                ResultStatus::Ok
+            }
+        );
+    }
+}
+
+macro_rules! impl_SubScalar {
+    ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+        treatment!(sub,
+            core_identifier!("arithmetic","scalar";&format!("Sub{}", $mel_name)),
+            models![],
+            treatment_sources![],
+            parameters![],
+            inputs![
+                input!("a",Scalar,$mel_type,Stream),
+                input!("b",Scalar,$mel_type,Stream)
+            ],
+            outputs![
+                output!("difference",Scalar,$mel_type,Stream)
+            ],
+            host {
+                let input_a = host.get_input("a");
+                let input_b = host.get_input("b");
+                let difference = host.get_output("difference");
+            
+                while let (Ok(a), Ok(b)) = futures::join!(input_a.$recv_func(), input_b.$recv_func()) {
+
+                    ok_or_break!(difference.$send_func(a - b).await);
                 }
             
                 ResultStatus::Ok
@@ -140,6 +200,36 @@ macro_rules! impl_StaticMultScalar {
     }
 }
 
+macro_rules! impl_MultScalar {
+    ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+        treatment!(mult,
+            core_identifier!("arithmetic","scalar";&format!("Mult{}", $mel_name)),
+            models![],
+            treatment_sources![],
+            parameters![],
+            inputs![
+                input!("a",Scalar,$mel_type,Stream),
+                input!("b",Scalar,$mel_type,Stream)
+            ],
+            outputs![
+                output!("product",Scalar,$mel_type,Stream)
+            ],
+            host {
+                let input_a = host.get_input("a");
+                let input_b = host.get_input("b");
+                let product = host.get_output("product");
+            
+                while let (Ok(a), Ok(b)) = futures::join!(input_a.$recv_func(), input_b.$recv_func()) {
+
+                    ok_or_break!(product.$send_func(a * b).await);
+                }
+            
+                ResultStatus::Ok
+            }
+        );
+    }
+}
+
 macro_rules! impl_mult_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
         fn mult_function() -> Arc<CoreFunctionDescriptor> {
@@ -193,6 +283,36 @@ macro_rules! impl_StaticDivScalar {
     }
 }
 
+macro_rules! impl_DivScalar {
+    ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+        treatment!(div,
+            core_identifier!("arithmetic","scalar";&format!("Div{}", $mel_name)),
+            models![],
+            treatment_sources![],
+            parameters![],
+            inputs![
+                input!("a",Scalar,$mel_type,Stream),
+                input!("b",Scalar,$mel_type,Stream)
+            ],
+            outputs![
+                output!("quotient",Scalar,$mel_type,Stream)
+            ],
+            host {
+                let input_a = host.get_input("a");
+                let input_b = host.get_input("b");
+                let quotient = host.get_output("quotient");
+            
+                while let (Ok(a), Ok(b)) = futures::join!(input_a.$recv_func(), input_b.$recv_func()) {
+
+                    ok_or_break!(quotient.$send_func(a / b).await);
+                }
+            
+                ResultStatus::Ok
+            }
+        );
+    }
+}
+
 macro_rules! impl_div_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
         fn div_function() -> Arc<CoreFunctionDescriptor> {
@@ -238,6 +358,36 @@ macro_rules! impl_StaticRemScalar {
                 while let Ok(values) = input.$recv_func().await {
 
                     ok_or_break!(output.$send_func(values.iter().map(|v| v % divisor).collect()).await);
+                }
+            
+                ResultStatus::Ok
+            }
+        );
+    }
+}
+
+macro_rules! impl_RemScalar {
+    ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+        treatment!(rem,
+            core_identifier!("arithmetic","scalar";&format!("Rem{}", $mel_name)),
+            models![],
+            treatment_sources![],
+            parameters![],
+            inputs![
+                input!("a",Scalar,$mel_type,Stream),
+                input!("b",Scalar,$mel_type,Stream)
+            ],
+            outputs![
+                output!("remainder",Scalar,$mel_type,Stream)
+            ],
+            host {
+                let input_a = host.get_input("a");
+                let input_b = host.get_input("b");
+                let remainder = host.get_output("remainder");
+            
+                while let (Ok(a), Ok(b)) = futures::join!(input_a.$recv_func(), input_b.$recv_func()) {
+
+                    ok_or_break!(remainder.$send_func(a % b).await);
                 }
             
                 ResultStatus::Ok
@@ -521,9 +671,10 @@ macro_rules! impl_cbrt_function {
 }
 
 macro_rules! impl_CommonArithm {
-    ($mod:ident, $mel_name:expr, $mel_name_low:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+    ($mod:ident, $mel_name:expr, $mel_name_low:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $recv_one_func:ident, $send_func:ident, $send_one_func:ident) => {
         pub mod $mod {
             impl_StaticAddScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
+            impl_AddScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_one_func, $send_one_func);
             impl_add_function!($mel_name_low, $mel_type, $mel_value_type);
 
             impl_StaticSubScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
@@ -541,6 +692,7 @@ macro_rules! impl_CommonArithm {
             pub fn register(mut c: &mut crate::logic::collection_pool::CollectionPool) {
 
                 static_add::register(&mut c);
+                add::register(&mut c);
                 c.functions.insert(&(add_function() as Arc<dyn FunctionDescriptor>));
 
                 static_sub::register(&mut c);
@@ -622,18 +774,18 @@ macro_rules! impl_FloatingArithm {
 mod common {
     use crate::core::prelude::*;
 
-    impl_CommonArithm!(u8,    "U8",   "u8",   U8,     u8,     u8,     recv_u8,    send_multiple_u8    );
-    impl_CommonArithm!(u16,   "U16",  "u16",  U16,    u16,    u16,    recv_u16,   send_multiple_u16   );
-    impl_CommonArithm!(u32,   "U32",  "u32",  U32,    u32,    u32,    recv_u32,   send_multiple_u32   );
-    impl_CommonArithm!(u64,   "U64",  "u64",  U64,    u64,    u64,    recv_u64,   send_multiple_u64   );
-    impl_CommonArithm!(u128,  "U128", "u128", U128,   u128,   u128,   recv_u128,  send_multiple_u128  );
-    impl_CommonArithm!(i8,    "I8",   "i8",   I8,     i8,     i8,     recv_i8,    send_multiple_i8    );
-    impl_CommonArithm!(i16,   "I16",  "i16",  I16,    i16,    i16,    recv_i16,   send_multiple_i16   );
-    impl_CommonArithm!(i32,   "I32",  "i32",  I32,    i32,    i32,    recv_i32,   send_multiple_i32   );
-    impl_CommonArithm!(i64,   "I64",  "i64",  I64,    i64,    i64,    recv_i64,   send_multiple_i64   );
-    impl_CommonArithm!(i128,  "I128", "i128", I128,   i128,   i128,   recv_i128,  send_multiple_i128  );
-    impl_CommonArithm!(f32,   "F32",  "f32",  F32,    f32,    f32,    recv_f32,   send_multiple_f32   );
-    impl_CommonArithm!(f64,   "F64",  "f64",  F64,    f64,    f64,    recv_f64,   send_multiple_f64   );
+    impl_CommonArithm!(u8,    "U8",   "u8",   U8,     u8,     u8,     recv_u8,    recv_one_u8,   send_multiple_u8,   send_u8    );
+    impl_CommonArithm!(u16,   "U16",  "u16",  U16,    u16,    u16,    recv_u16,   recv_one_u16,  send_multiple_u16,  send_u16   );
+    impl_CommonArithm!(u32,   "U32",  "u32",  U32,    u32,    u32,    recv_u32,   recv_one_u32,  send_multiple_u32,  send_u32   );
+    impl_CommonArithm!(u64,   "U64",  "u64",  U64,    u64,    u64,    recv_u64,   recv_one_u64,  send_multiple_u64,  send_u64   );
+    impl_CommonArithm!(u128,  "U128", "u128", U128,   u128,   u128,   recv_u128,  recv_one_u128, send_multiple_u128, send_u128  );
+    impl_CommonArithm!(i8,    "I8",   "i8",   I8,     i8,     i8,     recv_i8,    recv_one_i8,   send_multiple_i8,   send_i8    );
+    impl_CommonArithm!(i16,   "I16",  "i16",  I16,    i16,    i16,    recv_i16,   recv_one_i16,  send_multiple_i16,  send_i16   );
+    impl_CommonArithm!(i32,   "I32",  "i32",  I32,    i32,    i32,    recv_i32,   recv_one_i32,  send_multiple_i32,  send_i32   );
+    impl_CommonArithm!(i64,   "I64",  "i64",  I64,    i64,    i64,    recv_i64,   recv_one_i64,  send_multiple_i64,  send_i64   );
+    impl_CommonArithm!(i128,  "I128", "i128", I128,   i128,   i128,   recv_i128,  recv_one_i128, send_multiple_i128, send_i128  );
+    impl_CommonArithm!(f32,   "F32",  "f32",  F32,    f32,    f32,    recv_f32,   recv_one_f32,  send_multiple_f32,  send_f32   );
+    impl_CommonArithm!(f64,   "F64",  "f64",  F64,    f64,    f64,    recv_f64,   recv_one_f64,  send_multiple_f64,  send_f64   );
 
     pub fn register(mut c: &mut CollectionPool) {
 

@@ -386,5 +386,258 @@ impl Input {
         }
     }
 
+    pub async fn recv_one_u8(&self) -> RecvResult<u8> {
+        match self {
+            Input::U8(t) => t.receive_one().await,
+            _ => panic!("u8 receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_u16(&self) -> RecvResult<u16> {
+        match self {
+            Input::U16(t) => t.receive_one().await,
+            _ => panic!("u16 receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_u32(&self) -> RecvResult<u32> {
+        match self {
+            Input::U32(t) => t.receive_one().await,
+            _ => panic!("u32 receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_u64(&self) -> RecvResult<u64> {
+        match self {
+            Input::U64(t) => t.receive_one().await,
+            _ => panic!("u64 receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_u128(&self) -> RecvResult<u128> {
+        match self {
+            Input::U128(t) => t.receive_one().await,
+            _ => panic!("u128 receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_i8(&self) -> RecvResult<i8> {
+        match self {
+            Input::I8(t) => t.receive_one().await,
+            _ => panic!("i8 receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_i16(&self) -> RecvResult<i16> {
+        match self {
+            Input::I16(t) => t.receive_one().await,
+            _ => panic!("i16 receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_i32(&self) -> RecvResult<i32> {
+        match self {
+            Input::I32(t) => t.receive_one().await,
+            _ => panic!("i32 receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_i64(&self) -> RecvResult<i64> {
+        match self {
+            Input::I64(t) => t.receive_one().await,
+            _ => panic!("i64 receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_i128(&self) -> RecvResult<i128> {
+        match self {
+            Input::I128(t) => t.receive_one().await,
+            _ => panic!("i128 receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_f32(&self) -> RecvResult<f32> {
+        match self {
+            Input::F32(t) => t.receive_one().await,
+            _ => panic!("f32 receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_f64(&self) -> RecvResult<f64> {
+        match self {
+            Input::F64(t) => t.receive_one().await,
+            _ => panic!("f64 receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_bool(&self) -> RecvResult<bool> {
+        match self {
+            Input::Bool(t) => t.receive_one().await,
+            _ => panic!("bool receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_byte(&self) -> RecvResult<u8> {
+        match self {
+            Input::Byte(t) => t.receive_one().await,
+            _ => panic!("byte receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_char(&self) -> RecvResult<char> {
+        match self {
+            Input::Char(t) => t.receive_one().await,
+            _ => panic!("char receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_string(&self) -> RecvResult<String> {
+        match self {
+            Input::String(t) => t.receive_one().await,
+            _ => panic!("string receive transmitter expected"),
+        }
+    }
+
+    pub async fn recv_one_vec_u8(&self) -> RecvResult<Vec<u8>> {
+        match self {
+            Input::VecU8(t) => t.receive_one().await,
+            _ => panic!("Vec<u8> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_u16(&self) -> RecvResult<Vec<u16>> {
+        match self {
+            Input::VecU16(t) => t.receive_one().await,
+            _ => panic!("Vec<u16> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_u32(&self) -> RecvResult<Vec<u32>> {
+        match self {
+            Input::VecU32(t) => t.receive_one().await,
+            _ => panic!("Vec<u32> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_u64(&self) -> RecvResult<Vec<u64>> {
+        match self {
+            Input::VecU64(t) => t.receive_one().await,
+            _ => panic!("Vec<u64> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_u128(&self) -> RecvResult<Vec<u128>> {
+        match self {
+            Input::VecU128(t) => t.receive_one().await,
+            _ => panic!("Vec<u128> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_i8(&self) -> RecvResult<Vec<i8>> {
+        match self {
+            Input::VecI8(t) => t.receive_one().await,
+            _ => panic!("Vec<i8> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_i16(&self) -> RecvResult<Vec<i16>> {
+        match self {
+            Input::VecI16(t) => t.receive_one().await,
+            _ => panic!("Vec<i16> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_i32(&self) -> RecvResult<Vec<i32>> {
+        match self {
+            Input::VecI32(t) => t.receive_one().await,
+            _ => panic!("Vec<i32> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_i64(&self) -> RecvResult<Vec<i64>> {
+        match self {
+            Input::VecI64(t) => t.receive_one().await,
+            _ => panic!("Vec<i64> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_i128(&self) -> RecvResult<Vec<i128>> {
+        match self {
+            Input::VecI128(t) => t.receive_one().await,
+            _ => panic!("Vec<i128> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_f32(&self) -> RecvResult<Vec<f32>> {
+        match self {
+            Input::VecF32(t) => t.receive_one().await,
+            _ => panic!("Vec<f32> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_f64(&self) -> RecvResult<Vec<f64>> {
+        match self {
+            Input::VecF64(t) => t.receive_one().await,
+            _ => panic!("Vec<f64> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_bool(&self) -> RecvResult<Vec<bool>> {
+        match self {
+            Input::VecBool(t) => t.receive_one().await,
+            _ => panic!("Vec<bool> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_byte(&self) -> RecvResult<Vec<u8>> {
+        match self {
+            Input::VecByte(t) => t.receive_one().await,
+            _ => panic!("Vec<byte> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_char(&self) -> RecvResult<Vec<char>> {
+        match self {
+            Input::VecChar(t) => t.receive_one().await,
+            _ => panic!("Vec<char> receive transmitter expected"),
+        }
+    }
+    
+
+    pub async fn recv_one_vec_string(&self) -> RecvResult<Vec<String>> {
+        match self {
+            Input::VecString(t) => t.receive_one().await,
+            _ => panic!("Vec<string> receive transmitter expected"),
+        }
+    }
 
 }

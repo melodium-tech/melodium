@@ -1,5 +1,7 @@
 
 use std::sync::Mutex;
+use std::collections::VecDeque;
+use async_std::sync::Mutex as AsyncMutex;
 pub use async_std::channel::Sender;
 pub use async_std::channel::Receiver;
 pub use async_std::channel::{bounded, unbounded};
@@ -172,6 +174,7 @@ trait SenderGetter<T> {
 pub struct RecvTransmitter<T> {
     receiver: Receiver<Vec<T>>,
     sender: Sender<Vec<T>>,
+    buffer: AsyncMutex<Option<VecDeque<T>>>,
 }
 
 impl<T: Clone> RecvTransmitter<T> {
@@ -182,14 +185,45 @@ impl<T: Clone> RecvTransmitter<T> {
         Self {
             sender,
             receiver,
+            buffer: AsyncMutex::new(None),
+        }
+    }
+
+    pub async fn receive_one(&self) -> RecvResult<T> {
+
+        match self.receive().await {
+            Ok(_) => {
+                Ok(self.buffer.lock().await.as_mut().unwrap().pop_front().unwrap())
+            },
+            Err(e) => Err(e),
         }
     }
 
     pub async fn receive_multiple(&self) -> RecvResult<Vec<T>> {
         
-        match self.receiver.recv().await {
-            Ok(v) => Ok(v),
-            Err(_) => Err(TransmissionError::EverythingClosed),
+        match self.receive().await {
+            Ok(_) => {
+                let vec = Vec::from(self.buffer.lock().await.take().unwrap());
+                Ok(vec)
+            },
+            Err(e) => Err(e),
+        }
+    }
+
+    async fn receive(&self) -> RecvResult<()> {
+
+        let mut buffer = self.buffer.lock().await;
+        if buffer.is_none() || buffer.as_ref().unwrap().is_empty() {
+            match self.receiver.recv().await {
+                Ok(v) => {
+                    *buffer = Some(VecDeque::from(v));
+                    Ok(())
+                },
+                Err(_) => Err(TransmissionError::EverythingClosed),
+            }
+        }
+        else {
+            Ok(())
         }
     }
 
