@@ -450,6 +450,36 @@ macro_rules! impl_StaticPowScalar {
     }
 }
 
+macro_rules! impl_PowScalar {
+    ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+        treatment!(pow,
+            core_identifier!("arithmetic","scalar";&format!("Pow{}", $mel_name)),
+            models![],
+            treatment_sources![],
+            parameters![],
+            inputs![
+                input!("base",Scalar,$mel_type,Stream),
+                input!("exponent",Scalar,$mel_type,Stream)
+            ],
+            outputs![
+                output!("power",Scalar,$mel_type,Stream)
+            ],
+            host {
+                let input_base = host.get_input("base");
+                let input_exponent = host.get_input("exponent");
+                let power = host.get_output("power");
+            
+                while let (Ok(a), Ok(b)) = futures::join!(input_base.$recv_func(), input_exponent.$recv_func()) {
+
+                    ok_or_break!(power.$send_func(a.pow(b as u32)).await);
+                }
+            
+                ResultStatus::Ok
+            }
+        );
+    }
+}
+
 macro_rules! impl_pow_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
         fn pow_function() -> Arc<CoreFunctionDescriptor> {
@@ -496,6 +526,36 @@ macro_rules! impl_StaticPowfScalar {
                 while let Ok(values) = input.$recv_func().await {
 
                     ok_or_break!(output.$send_func(values.iter().map(|v| v.powf(exponent)).collect()).await);
+                }
+            
+                ResultStatus::Ok
+            }
+        );
+    }
+}
+
+macro_rules! impl_PowfScalar {
+    ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+        treatment!(pow,
+            core_identifier!("arithmetic","scalar";&format!("Pow{}", $mel_name)),
+            models![],
+            treatment_sources![],
+            parameters![],
+            inputs![
+                input!("base",Scalar,$mel_type,Stream),
+                input!("exponent",Scalar,$mel_type,Stream)
+            ],
+            outputs![
+                output!("power",Scalar,$mel_type,Stream)
+            ],
+            host {
+                let input_base = host.get_input("base");
+                let input_exponent = host.get_input("exponent");
+                let power = host.get_output("power");
+            
+                while let (Ok(a), Ok(b)) = futures::join!(input_base.$recv_func(), input_exponent.$recv_func()) {
+
+                    ok_or_break!(power.$send_func(a.powf(b)).await);
                 }
             
                 ResultStatus::Ok
@@ -670,6 +730,137 @@ macro_rules! impl_cbrt_function {
     };
 }
 
+macro_rules! impl_LnScalar {
+    ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+        treatment!(ln,
+            core_identifier!("arithmetic","scalar";&format!("Ln{}", $mel_name)),
+            models![],
+            treatment_sources![],
+            parameters![],
+            inputs![
+                input!("value",Scalar,$mel_type,Stream)
+            ],
+            outputs![
+                output!("value",Scalar,$mel_type,Stream)
+            ],
+            host {
+                let input = host.get_input("value");
+                let output = host.get_output("value");
+            
+                while let Ok(values) = input.$recv_func().await {
+
+                    ok_or_break!(output.$send_func(values.iter().map(|v| v.ln()).collect()).await);
+                }
+            
+                ResultStatus::Ok
+            }
+        );
+    }
+}
+
+macro_rules! impl_ln_function {
+    ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
+        fn ln_function() -> Arc<CoreFunctionDescriptor> {
+
+            fn ln(params: Vec<Value>) -> Value {
+                Value::$mel_type(params[0].clone().$mel_value_type().ln())
+            }
+        
+            CoreFunctionDescriptor::new(
+                core_identifier!("func";&format!("|ln_{}", $mel_name_low)),
+                parameters![
+                    parameter!("value", Scalar, $mel_type, None)
+                ],
+                datatype!(Scalar, $mel_type),
+                ln
+            )
+        }
+    };
+}
+
+macro_rules! impl_StaticLogScalar {
+    ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+        treatment!(static_log,
+            core_identifier!("arithmetic","scalar";&format!("StaticLog{}", $mel_name)),
+            models![],
+            treatment_sources![],
+            parameters![
+                parameter!("base",Var,Scalar,$mel_type,Some(Value::$mel_type(<$rust_type>::default())))
+            ],
+            inputs![
+                input!("value",Scalar,$mel_type,Stream)
+            ],
+            outputs![
+                output!("value",Scalar,$mel_type,Stream)
+            ],
+            host {
+                let input = host.get_input("value");
+                let output = host.get_output("value");
+
+                let base = host.get_parameter("base").$mel_value_type();
+            
+                while let Ok(values) = input.$recv_func().await {
+
+                    ok_or_break!(output.$send_func(values.iter().map(|v| v.log(base)).collect()).await);
+                }
+            
+                ResultStatus::Ok
+            }
+        );
+    }
+}
+
+macro_rules! impl_LogScalar {
+    ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+        treatment!(log,
+            core_identifier!("arithmetic","scalar";&format!("Log{}", $mel_name)),
+            models![],
+            treatment_sources![],
+            parameters![],
+            inputs![
+                input!("value",Scalar,$mel_type,Stream),
+                input!("base",Scalar,$mel_type,Stream)
+            ],
+            outputs![
+                output!("log",Scalar,$mel_type,Stream)
+            ],
+            host {
+                let input_base = host.get_input("base");
+                let input_value = host.get_input("value");
+                let log = host.get_output("log");
+            
+                while let (Ok(a), Ok(b)) = futures::join!(input_base.$recv_func(), input_value.$recv_func()) {
+
+                    ok_or_break!(log.$send_func(b.log(a)).await);
+                }
+            
+                ResultStatus::Ok
+            }
+        );
+    }
+}
+
+macro_rules! impl_log_function {
+    ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
+        fn log_function() -> Arc<CoreFunctionDescriptor> {
+
+            fn log(params: Vec<Value>) -> Value {
+                Value::$mel_type(params[0].clone().$mel_value_type().log(params[1].clone().$mel_value_type()))
+            }
+        
+            CoreFunctionDescriptor::new(
+                core_identifier!("func";&format!("|log_{}", $mel_name_low)),
+                parameters![
+                    parameter!("value", Scalar, $mel_type, None),
+                    parameter!("base", Scalar, $mel_type, None)
+                ],
+                datatype!(Scalar, $mel_type),
+                log
+            )
+        }
+    };
+}
+
 macro_rules! impl_CommonArithm {
     ($mod:ident, $mel_name:expr, $mel_name_low:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $recv_one_func:ident, $send_func:ident, $send_one_func:ident) => {
         pub mod $mod {
@@ -678,15 +869,19 @@ macro_rules! impl_CommonArithm {
             impl_add_function!($mel_name_low, $mel_type, $mel_value_type);
 
             impl_StaticSubScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
+            impl_SubScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_one_func, $send_one_func);
             impl_sub_function!($mel_name_low, $mel_type, $mel_value_type);
 
             impl_StaticMultScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
+            impl_MultScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_one_func, $send_one_func);
             impl_mult_function!($mel_name_low, $mel_type, $mel_value_type);
 
             impl_StaticDivScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
+            impl_DivScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_one_func, $send_one_func);
             impl_div_function!($mel_name_low, $mel_type, $mel_value_type);
 
             impl_StaticRemScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
+            impl_RemScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_one_func, $send_one_func);
             impl_rem_function!($mel_name_low, $mel_type, $mel_value_type);
 
             pub fn register(mut c: &mut crate::logic::collection_pool::CollectionPool) {
@@ -696,15 +891,19 @@ macro_rules! impl_CommonArithm {
                 c.functions.insert(&(add_function() as Arc<dyn FunctionDescriptor>));
 
                 static_sub::register(&mut c);
+                sub::register(&mut c);
                 c.functions.insert(&(sub_function() as Arc<dyn FunctionDescriptor>));
 
                 static_mult::register(&mut c);
+                mult::register(&mut c);
                 c.functions.insert(&(mult_function() as Arc<dyn FunctionDescriptor>));
 
                 static_div::register(&mut c);
+                div::register(&mut c);
                 c.functions.insert(&(div_function() as Arc<dyn FunctionDescriptor>));
 
                 static_rem::register(&mut c);
+                rem::register(&mut c);
                 c.functions.insert(&(rem_function() as Arc<dyn FunctionDescriptor>));
             }
         }
@@ -712,15 +911,17 @@ macro_rules! impl_CommonArithm {
 }
 
 macro_rules! impl_IntegerArithm {
-    ($mod:ident, $mel_name:expr, $mel_name_low:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+    ($mod:ident, $mel_name:expr, $mel_name_low:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $recv_one_func:ident, $send_func:ident, $send_one_func:ident) => {
         pub mod $mod {
 
             impl_StaticPowScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
+            impl_PowScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_one_func, $send_one_func);
             impl_pow_function!($mel_name_low, $mel_type, $mel_value_type);
     
             pub fn register(mut c: &mut crate::logic::collection_pool::CollectionPool) {
     
                 static_pow::register(&mut c);
+                pow::register(&mut c);
                 c.functions.insert(&(pow_function() as Arc<dyn FunctionDescriptor>));
             }
         }
@@ -728,7 +929,7 @@ macro_rules! impl_IntegerArithm {
 }
 
 macro_rules! impl_SignedArithm {
-    ($mod:ident, $mel_name:expr, $mel_name_low:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+    ($mod:ident, $mel_name:expr, $mel_name_low:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $recv_one_func:ident, $send_func:ident, $send_one_func:ident) => {
         pub mod $mod {
 
             impl_AbsScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
@@ -744,10 +945,11 @@ macro_rules! impl_SignedArithm {
 }
 
 macro_rules! impl_FloatingArithm {
-    ($mod:ident, $mel_name:expr, $mel_name_low:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
+    ($mod:ident, $mel_name:expr, $mel_name_low:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $recv_one_func:ident, $send_func:ident, $send_one_func:ident) => {
         pub mod $mod {
 
             impl_StaticPowfScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
+            impl_PowfScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_one_func, $send_one_func);
             impl_powf_function!($mel_name_low, $mel_type, $mel_value_type);
 
             impl_SqrtScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
@@ -756,9 +958,17 @@ macro_rules! impl_FloatingArithm {
             impl_CbrtScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
             impl_cbrt_function!($mel_name_low, $mel_type, $mel_value_type);
 
+            impl_LnScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
+            impl_ln_function!($mel_name_low, $mel_type, $mel_value_type);
+
+            impl_StaticLogScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_func, $send_func);
+            impl_LogScalar!($mel_name, $mel_type, $rust_type, $mel_value_type, $recv_one_func, $send_one_func);
+            impl_log_function!($mel_name_low, $mel_type, $mel_value_type);
+
             pub fn register(mut c: &mut crate::logic::collection_pool::CollectionPool) {
 
                 static_pow::register(&mut c);
+                pow::register(&mut c);
                 c.functions.insert(&(pow_function() as Arc<dyn FunctionDescriptor>));
 
                 sqrt::register(&mut c);
@@ -766,6 +976,13 @@ macro_rules! impl_FloatingArithm {
 
                 cbrt::register(&mut c);
                 c.functions.insert(&(cbrt_function() as Arc<dyn FunctionDescriptor>));
+
+                ln::register(&mut c);
+                c.functions.insert(&(ln_function() as Arc<dyn FunctionDescriptor>));
+
+                static_log::register(&mut c);
+                log::register(&mut c);
+                c.functions.insert(&(log_function() as Arc<dyn FunctionDescriptor>));
             }
         }
     };
@@ -807,16 +1024,16 @@ mod common {
 mod integer {
     use crate::core::prelude::*;
 
-    impl_IntegerArithm!(u8,    "U8",   "u8",   U8,     u8,     u8,     recv_u8,    send_multiple_u8    );
-    impl_IntegerArithm!(u16,   "U16",  "u16",  U16,    u16,    u16,    recv_u16,   send_multiple_u16   );
-    impl_IntegerArithm!(u32,   "U32",  "u32",  U32,    u32,    u32,    recv_u32,   send_multiple_u32   );
-    impl_IntegerArithm!(u64,   "U64",  "u64",  U64,    u64,    u64,    recv_u64,   send_multiple_u64   );
-    impl_IntegerArithm!(u128,  "U128", "u128", U128,   u128,   u128,   recv_u128,  send_multiple_u128  );
-    impl_IntegerArithm!(i8,    "I8",   "i8",   I8,     i8,     i8,     recv_i8,    send_multiple_i8    );
-    impl_IntegerArithm!(i16,   "I16",  "i16",  I16,    i16,    i16,    recv_i16,   send_multiple_i16   );
-    impl_IntegerArithm!(i32,   "I32",  "i32",  I32,    i32,    i32,    recv_i32,   send_multiple_i32   );
-    impl_IntegerArithm!(i64,   "I64",  "i64",  I64,    i64,    i64,    recv_i64,   send_multiple_i64   );
-    impl_IntegerArithm!(i128,  "I128", "i128", I128,   i128,   i128,   recv_i128,  send_multiple_i128  );
+    impl_IntegerArithm!(u8,    "U8",   "u8",   U8,     u8,     u8,     recv_u8,    recv_one_u8,   send_multiple_u8,   send_u8    );
+    impl_IntegerArithm!(u16,   "U16",  "u16",  U16,    u16,    u16,    recv_u16,   recv_one_u16,  send_multiple_u16,  send_u16   );
+    impl_IntegerArithm!(u32,   "U32",  "u32",  U32,    u32,    u32,    recv_u32,   recv_one_u32,  send_multiple_u32,  send_u32   );
+    impl_IntegerArithm!(u64,   "U64",  "u64",  U64,    u64,    u64,    recv_u64,   recv_one_u64,  send_multiple_u64,  send_u64   );
+    impl_IntegerArithm!(u128,  "U128", "u128", U128,   u128,   u128,   recv_u128,  recv_one_u128, send_multiple_u128, send_u128  );
+    impl_IntegerArithm!(i8,    "I8",   "i8",   I8,     i8,     i8,     recv_i8,    recv_one_i8,   send_multiple_i8,   send_i8    );
+    impl_IntegerArithm!(i16,   "I16",  "i16",  I16,    i16,    i16,    recv_i16,   recv_one_i16,  send_multiple_i16,  send_i16   );
+    impl_IntegerArithm!(i32,   "I32",  "i32",  I32,    i32,    i32,    recv_i32,   recv_one_i32,  send_multiple_i32,  send_i32   );
+    impl_IntegerArithm!(i64,   "I64",  "i64",  I64,    i64,    i64,    recv_i64,   recv_one_i64,  send_multiple_i64,  send_i64   );
+    impl_IntegerArithm!(i128,  "I128", "i128", I128,   i128,   i128,   recv_i128,  recv_one_i128, send_multiple_i128, send_i128  );
 
     pub fn register(mut c: &mut CollectionPool) {
 
@@ -836,13 +1053,13 @@ mod integer {
 mod signed {
     use crate::core::prelude::*;
 
-    impl_SignedArithm!(i8,    "I8",   "i8",   I8,     i8,     i8,     recv_i8,    send_multiple_i8    );
-    impl_SignedArithm!(i16,   "I16",  "i16",  I16,    i16,    i16,    recv_i16,   send_multiple_i16   );
-    impl_SignedArithm!(i32,   "I32",  "i32",  I32,    i32,    i32,    recv_i32,   send_multiple_i32   );
-    impl_SignedArithm!(i64,   "I64",  "i64",  I64,    i64,    i64,    recv_i64,   send_multiple_i64   );
-    impl_SignedArithm!(i128,  "I128", "i128", I128,   i128,   i128,   recv_i128,  send_multiple_i128  );
-    impl_SignedArithm!(f32,   "F32",  "f32",  F32,    f32,    f32,    recv_f32,   send_multiple_f32   );
-    impl_SignedArithm!(f64,   "F64",  "f64",  F64,    f64,    f64,    recv_f64,   send_multiple_f64   );
+    impl_SignedArithm!(i8,    "I8",   "i8",   I8,     i8,     i8,     recv_i8,    recv_one_i8,   send_multiple_i8,   send_i8    );
+    impl_SignedArithm!(i16,   "I16",  "i16",  I16,    i16,    i16,    recv_i16,   recv_one_i16,  send_multiple_i16,  send_i16   );
+    impl_SignedArithm!(i32,   "I32",  "i32",  I32,    i32,    i32,    recv_i32,   recv_one_i32,  send_multiple_i32,  send_i32   );
+    impl_SignedArithm!(i64,   "I64",  "i64",  I64,    i64,    i64,    recv_i64,   recv_one_i64,  send_multiple_i64,  send_i64   );
+    impl_SignedArithm!(i128,  "I128", "i128", I128,   i128,   i128,   recv_i128,  recv_one_i128, send_multiple_i128, send_i128  );
+    impl_SignedArithm!(f32,   "F32",  "f32",  F32,    f32,    f32,    recv_f32,   recv_one_f32,  send_multiple_f32,  send_f32   );
+    impl_SignedArithm!(f64,   "F64",  "f64",  F64,    f64,    f64,    recv_f64,   recv_one_f64,  send_multiple_f64,  send_f64   );
 
     pub fn register(mut c: &mut CollectionPool) {
 
@@ -859,8 +1076,8 @@ mod signed {
 mod floating {
     use crate::core::prelude::*;
 
-    impl_FloatingArithm!(f32,   "F32",  "f32",  F32,    f32,    f32,    recv_f32,   send_multiple_f32   );
-    impl_FloatingArithm!(f64,   "F64",  "f64",  F64,    f64,    f64,    recv_f64,   send_multiple_f64   );
+    impl_FloatingArithm!(f32,   "F32",  "f32",  F32,    f32,    f32,    recv_f32,   recv_one_f32,  send_multiple_f32,  send_f32   );
+    impl_FloatingArithm!(f64,   "F64",  "f64",  F64,    f64,    f64,    recv_f64,   recv_one_f64,  send_multiple_f64,  send_f64   );
 
     pub fn register(mut c: &mut CollectionPool) {
 
