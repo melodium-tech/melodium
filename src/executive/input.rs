@@ -6,6 +6,8 @@ use super::super::logic::descriptor::datatype::{Type, Structure};
 
 #[derive(Debug, Clone)]
 pub enum Input {
+    Void(Arc<RecvTransmitter<()>>),
+
     I8(Arc<RecvTransmitter<i8>>),
     I16(Arc<RecvTransmitter<i16>>),
     I32(Arc<RecvTransmitter<i32>>),
@@ -25,6 +27,8 @@ pub enum Input {
     Byte(Arc<RecvTransmitter<u8>>),
     Char(Arc<RecvTransmitter<char>>),
     String(Arc<RecvTransmitter<String>>),
+
+    VecVoid(Arc<RecvTransmitter<Vec<()>>>),
 
     VecI8(Arc<RecvTransmitter<Vec<i8>>>),
     VecI16(Arc<RecvTransmitter<Vec<i16>>>),
@@ -54,6 +58,7 @@ impl Input {
         match descriptor.datatype().structure() {
             Structure::Scalar => {
                 match descriptor.datatype().r#type() {
+                    Type::Void => Input::Void(Arc::new(RecvTransmitter::new())),
                     Type::U8 => Input::U8(Arc::new(RecvTransmitter::new())),
                     Type::U16 => Input::U16(Arc::new(RecvTransmitter::new())),
                     Type::U32 => Input::U32(Arc::new(RecvTransmitter::new())),
@@ -74,6 +79,7 @@ impl Input {
             },
             Structure::Vector => {
                 match descriptor.datatype().r#type() {
+                    Type::Void => Input::VecVoid(Arc::new(RecvTransmitter::new())),
                     Type::U8 => Input::VecU8(Arc::new(RecvTransmitter::new())),
                     Type::U16 => Input::VecU16(Arc::new(RecvTransmitter::new())),
                     Type::U32 => Input::VecU32(Arc::new(RecvTransmitter::new())),
@@ -97,6 +103,7 @@ impl Input {
 
     pub fn close(&self) {
         match self {
+            Input::Void(t) => t.close(),
             Input::U8(t) => t.close(),
             Input::U16(t) => t.close(),
             Input::U32(t) => t.close(),
@@ -113,6 +120,7 @@ impl Input {
             Input::Byte(t) => t.close(),
             Input::Char(t) => t.close(),
             Input::String(t) => t.close(),
+            Input::VecVoid(t) => t.close(),
             Input::VecU8(t) => t.close(),
             Input::VecU16(t) => t.close(),
             Input::VecU32(t) => t.close(),
@@ -131,6 +139,14 @@ impl Input {
             Input::VecString(t) => t.close(),
         }
     }
+
+    pub async fn recv_void(&self) -> RecvResult<Vec<()>> {
+        match self {
+            Input::Void(t) => t.receive_multiple().await,
+            _ => panic!("void receive transmitter expected"),
+        }
+    }
+
 
     pub async fn recv_u8(&self) -> RecvResult<Vec<u8>> {
         match self {
@@ -258,6 +274,15 @@ impl Input {
             _ => panic!("string receive transmitter expected"),
         }
     }
+
+
+    pub async fn recv_vec_void(&self) -> RecvResult<Vec<Vec<()>>> {
+        match self {
+            Input::VecVoid(t) => t.receive_multiple().await,
+            _ => panic!("Vec<void> receive transmitter expected"),
+        }
+    }
+
 
     pub async fn recv_vec_u8(&self) -> RecvResult<Vec<Vec<u8>>> {
         match self {

@@ -41,6 +41,8 @@ impl DataType {
             Structure::Scalar => {
 
                 match &self.r#type {
+                    Type::Void =>
+                        match value { Value::Void(_) => true, _ => false },
                     Type::I8 =>
                         match value { Value::I8(_) => true, _ => false },
                     Type::I16 =>
@@ -79,6 +81,8 @@ impl DataType {
             Structure::Vector => {
 
                 match &self.r#type {
+                    Type::Void =>
+                        match value { Value::VecVoid(_) => true, _ => false },
                     Type::I8 =>
                         match value { Value::VecI8(_) => true, _ => false },
                     Type::I16 =>
@@ -125,6 +129,8 @@ pub enum Structure {
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Type {
+    Void,
+
     I8,
     I16,
     I32,
@@ -151,6 +157,7 @@ impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
 
         write!(f, "{}", match self {
+            Type::Void => "void",
             Type::I8 => "i8",
             Type::I16 => "i16",
             Type::I32 => "i32",

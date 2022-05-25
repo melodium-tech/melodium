@@ -4,6 +4,8 @@ use std::fmt::*;
 #[derive(Clone, PartialEq, Debug)]
 pub enum Value {
 
+    Void(()),
+
     I8(i8),
     I16(i16),
     I32(i32),
@@ -23,6 +25,8 @@ pub enum Value {
     Byte(u8),
     Char(char),
     String(String),
+
+    VecVoid(Vec<()>),
 
     VecI8(Vec<i8>),
     VecI16(Vec<i16>),
@@ -47,6 +51,13 @@ pub enum Value {
 }
 
 impl Value {
+
+    pub fn void(self) -> () {
+        match self {
+            Value::Void(v) => v,
+            _ => panic!("void value expected"),
+        }
+    }
 
     pub fn u8(self) -> u8 {
         match self {
@@ -175,6 +186,12 @@ impl Value {
         }
     }
 
+    pub fn vec_void(self) -> Vec<()> {
+        match self {
+            Value::VecVoid(v) => v,
+            _ => panic!("Vec<void> value expected"),
+        }
+    }
 
     pub fn vec_u8(self) -> Vec<u8> {
         match self {
@@ -308,9 +325,8 @@ impl Display for Value {
     
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
 
-        //write!(f, "*To implement*")
-
         match self {
+            Value::Void(_) => write!(f, "()"),
             Value::I8(v) => write!(f, "{}", v),
             Value::I16(v) => write!(f, "{}", v),
             Value::I32(v) => write!(f, "{}", v),
@@ -327,6 +343,11 @@ impl Display for Value {
             Value::Byte(v) => write!(f, "{}", v),
             Value::Char(v) => write!(f, "'{}'", v),
             Value::String(v) => write!(f, "\"{}\"", v),
+
+            Value::VecVoid(v) => {
+                let list: Vec<String> = v.iter().map(|_| format!("()")).collect();
+                write!(f, "[{}]", list.join(", "))
+            },
 
             Value::VecI8(v) => {
                 let list: Vec<String> = v.iter().map(|v| format!("{}", v)).collect();

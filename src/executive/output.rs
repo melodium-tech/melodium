@@ -7,6 +7,8 @@ use super::super::logic::descriptor::datatype::{Type, Structure};
 
 #[derive(Debug, Clone)]
 pub enum Output {
+    Void(Arc<SendTransmitter<()>>),
+
     I8(Arc<SendTransmitter<i8>>),
     I16(Arc<SendTransmitter<i16>>),
     I32(Arc<SendTransmitter<i32>>),
@@ -26,6 +28,8 @@ pub enum Output {
     Byte(Arc<SendTransmitter<u8>>),
     Char(Arc<SendTransmitter<char>>),
     String(Arc<SendTransmitter<String>>),
+
+    VecVoid(Arc<SendTransmitter<Vec<()>>>),
 
     VecI8(Arc<SendTransmitter<Vec<i8>>>),
     VecI16(Arc<SendTransmitter<Vec<i16>>>),
@@ -54,6 +58,7 @@ impl Output {
         match descriptor.datatype().structure() {
             Structure::Scalar => {
                 match descriptor.datatype().r#type() {
+                    Type::Void => Output::Void(Arc::new(SendTransmitter::new())),
                     Type::U8 => Output::U8(Arc::new(SendTransmitter::new())),
                     Type::U16 => Output::U16(Arc::new(SendTransmitter::new())),
                     Type::U32 => Output::U32(Arc::new(SendTransmitter::new())),
@@ -74,6 +79,7 @@ impl Output {
             },
             Structure::Vector => {
                 match descriptor.datatype().r#type() {
+                    Type::Void => Output::VecVoid(Arc::new(SendTransmitter::new())),
                     Type::U8 => Output::VecU8(Arc::new(SendTransmitter::new())),
                     Type::U16 => Output::VecU16(Arc::new(SendTransmitter::new())),
                     Type::U32 => Output::VecU32(Arc::new(SendTransmitter::new())),
@@ -97,6 +103,12 @@ impl Output {
 
     pub fn add_input(&self, input: &Input) {
         match self {
+            Output::Void(st) => {
+                match input {
+                    Input::Void(it) => st.add_transmitter(it),
+                    _ => panic!("void send transmitter expected"),
+                }
+            },
             Output::U8(st) => {
                 match input {
                     Input::U8(it) => st.add_transmitter(it),
@@ -191,6 +203,12 @@ impl Output {
                 match input {
                     Input::String(it) => st.add_transmitter(it),
                     _ => panic!("string send transmitter expected"),
+                }
+            },
+            Output::VecVoid(st) => {
+                match input {
+                    Input::VecVoid(it) => st.add_transmitter(it),
+                    _ => panic!("Vec<void> send transmitter expected"),
                 }
             },
             Output::VecU8(st) => {
@@ -294,6 +312,7 @@ impl Output {
 
     pub async fn close(&self) {
         match self {
+            Output::Void(t) => t.close().await,
             Output::U8(t) => t.close().await,
             Output::U16(t) => t.close().await,
             Output::U32(t) => t.close().await,
@@ -310,6 +329,7 @@ impl Output {
             Output::Byte(t) => t.close().await,
             Output::Char(t) => t.close().await,
             Output::String(t) => t.close().await,
+            Output::VecVoid(t) => t.close().await,
             Output::VecU8(t) => t.close().await,
             Output::VecU16(t) => t.close().await,
             Output::VecU32(t) => t.close().await,
@@ -326,6 +346,20 @@ impl Output {
             Output::VecByte(t) => t.close().await,
             Output::VecChar(t) => t.close().await,
             Output::VecString(t) => t.close().await,
+        }
+    }
+
+    pub async fn send_void(&self, data: ()) -> SendResult {
+        match self {
+            Output::Void(t) => t.send(data).await,
+            _ => panic!("void send transmitter expected"),
+        }
+    }
+
+    pub async fn send_multiple_void(&self, data: Vec<()>) -> SendResult {
+        match self {
+            Output::Void(t) => t.send_multiple(data).await,
+            _ => panic!("void send transmitter expected"),
         }
     }
 
@@ -565,6 +599,21 @@ impl Output {
         match self {
             Output::String(t) => t.send_multiple(data).await,
             _ => panic!("string send transmitter expected"),
+        }
+    }
+
+
+    pub async fn send_vec_void(&self, data: Vec<()>) -> SendResult {
+        match self {
+            Output::VecVoid(t) => t.send(data).await,
+            _ => panic!("Vec<void> send transmitter expected"),
+        }
+    }
+
+    pub async fn send_multiple_vec_void(&self, data: Vec<Vec<()>>) -> SendResult {
+        match self {
+            Output::VecVoid(t) => t.send_multiple(data).await,
+            _ => panic!("Vec<void> send transmitter expected"),
         }
     }
 
@@ -813,6 +862,11 @@ impl Output {
 impl From<Input> for Output {
     fn from(input: Input) -> Self {
         match input {
+            Input::Void(_) => {
+                let o = Output::Void(Arc::new(SendTransmitter::new()));
+                o.add_input(&input);
+                o
+            },
             Input::U8(_) => {
                 let o = Output::U8(Arc::new(SendTransmitter::new()));
                 o.add_input(&input);
@@ -890,6 +944,11 @@ impl From<Input> for Output {
             },
             Input::String(_) => {
                 let o = Output::String(Arc::new(SendTransmitter::new()));
+                o.add_input(&input);
+                o
+            },
+            Input::VecVoid(_) => {
+                let o = Output::VecVoid(Arc::new(SendTransmitter::new()));
                 o.add_input(&input);
                 o
             },
