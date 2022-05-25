@@ -35,6 +35,27 @@ impl ValueContent {
             Structure::Scalar => {
                 match datatype.r#type() {
 
+                    Type::Void =>
+                        match &self {
+                            ValueContent::Unsigned(u) => {
+                                if u8::try_from(*u) == Ok(0) {
+                                    Ok(ExecutiveValue::Void(()))
+                                }
+                                else {
+                                    Err("Invalid value for void.".to_string())
+                                }
+                            },
+                            ValueContent::Integer(i) => {
+                                if u8::try_from(*i) == Ok(0) {
+                                    Ok(ExecutiveValue::Void(()))
+                                }
+                                else {
+                                    Err("Invalid value for void.".to_string())
+                                }
+                            },
+                            _ => Err("void value expected.".to_string())
+                        },
+
                     Type::U8 =>
                         match &self {
                             ValueContent::Unsigned(u) => {
@@ -347,6 +368,7 @@ impl ValueContent {
             },
             Structure::Vector => {
                 match datatype.r#type() {
+                    Type::Void   => Ok(ExecutiveValue::VecVoid(self.to_vector_void()?)),
                     Type::U8     => Ok(ExecutiveValue::VecU8(self.to_vector_u8()?)),
                     Type::U16    => Ok(ExecutiveValue::VecU16(self.to_vector_u16()?)),
                     Type::U32    => Ok(ExecutiveValue::VecU32(self.to_vector_u32()?)),
@@ -365,6 +387,25 @@ impl ValueContent {
                     Type::String => Ok(ExecutiveValue::VecString(self.to_vector_string()?)),
                 }
             },
+        }
+    }
+
+    pub fn to_vector_void(&self) -> Result<Vec<()>, String> {
+
+        let datatype = DataType::new(Structure::Scalar, Type::Void);
+
+        match self {
+            ValueContent::Array(vec) => {
+                let mut arr: Vec<()> = Vec::with_capacity(vec.len());
+                for val in vec {
+                    match val.make_executive_value(&datatype)? {
+                        ExecutiveValue::Void(u) => arr.push(u),
+                        _ => panic!("Impossible semantic error case"),
+                    }
+                }
+                Ok(arr)
+            },
+            _ => Err("Array of void values expected.".to_string())
         }
     }
 

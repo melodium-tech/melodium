@@ -49,6 +49,8 @@ impl fmt::Display for TypeStructure {
 /// Enum for type identification.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum TypeName {
+    Void,
+
     I8,
     I16,
     I32,
@@ -74,6 +76,7 @@ impl TypeName {
 
     fn from_string(name: &str) -> Option<Self> {
         match name {
+            "void" => Some(Self::Void),
             "i8" => Some(Self::I8),
 			"i16" => Some(Self::I16),
 			"i32" => Some(Self::I32),
@@ -96,6 +99,7 @@ impl TypeName {
 
     fn to_descriptor(&self) -> DataTypeTypeDescriptor {
         match self {
+            Self::Void => DataTypeTypeDescriptor::Void,
             Self::I8 => DataTypeTypeDescriptor::I8,
 			Self::I16 => DataTypeTypeDescriptor::I16,
 			Self::I32 => DataTypeTypeDescriptor::I32,
@@ -121,6 +125,7 @@ impl fmt::Display for TypeName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 
         write!(f, "{}", match self {
+            TypeName::Void => "void",
             TypeName::I8 => "i8",
             TypeName::I16 => "i16",
             TypeName::I32 => "i32",
