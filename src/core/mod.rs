@@ -11,6 +11,7 @@ pub mod arithmetic;
 pub mod audio;
 pub mod cast;
 pub mod conversion;
+pub mod engine;
 pub mod generation;
 pub mod flow;
 pub mod func;

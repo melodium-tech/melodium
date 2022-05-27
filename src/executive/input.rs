@@ -411,6 +411,15 @@ impl Input {
         }
     }
 
+
+    pub async fn recv_one_void(&self) -> RecvResult<()> {
+        match self {
+            Input::Void(t) => t.receive_one().await,
+            _ => panic!("void receive transmitter expected"),
+        }
+    }
+
+
     pub async fn recv_one_u8(&self) -> RecvResult<u8> {
         match self {
             Input::U8(t) => t.receive_one().await,
@@ -537,6 +546,14 @@ impl Input {
             _ => panic!("string receive transmitter expected"),
         }
     }
+
+    pub async fn recv_one_vec_void(&self) -> RecvResult<Vec<()>> {
+        match self {
+            Input::VecVoid(t) => t.receive_one().await,
+            _ => panic!("Vec<void> receive transmitter expected"),
+        }
+    }
+
 
     pub async fn recv_one_vec_u8(&self) -> RecvResult<Vec<u8>> {
         match self {
