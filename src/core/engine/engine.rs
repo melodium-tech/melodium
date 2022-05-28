@@ -53,7 +53,7 @@ impl EngineModel {
             self.helper.world().create_track(model_id, "ready", HashMap::new(), None, Some(|i| self.ready(i))),
             self.helper.world().create_track(model_id, "read", HashMap::new(), None, Some(|i| self.read(i))),
             self.write()
-        )
+        );
     }
 
     pub fn writer(&self) -> &RecvTransmitter<String> {
