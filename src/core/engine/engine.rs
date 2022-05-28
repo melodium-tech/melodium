@@ -6,6 +6,8 @@ pub struct EngineModel {
 
     helper: ModelHelper,
 
+    write_channel: RecvTransmitter<String>,
+
     auto_reference: Weak<Self>,
 }
 
@@ -18,7 +20,8 @@ impl EngineModel {
             core_identifier!("engine";"Engine"),
             vec![],
             model_sources![
-                ("ready"; )
+                ("ready"; ),
+                ("read"; )
             ]
         )
     }
@@ -27,6 +30,8 @@ impl EngineModel {
 
         Arc::new_cyclic(|me| EngineModel {
             helper: ModelHelper::new(EngineModel::descriptor(), world),
+
+            write_channel: RecvTransmitter::new(),
 
             auto_reference: me.clone(),
         })
@@ -44,7 +49,15 @@ impl EngineModel {
 
         let model_id = self.helper.id().unwrap();
 
-        self.helper.world().create_track(model_id, "ready", HashMap::new(), None, Some(|i| self.ready(i))).await;
+        futures::join!(
+            self.helper.world().create_track(model_id, "ready", HashMap::new(), None, Some(|i| self.ready(i))),
+            self.helper.world().create_track(model_id, "read", HashMap::new(), None, Some(|i| self.read(i))),
+            self.write()
+        )
+    }
+
+    pub fn writer(&self) -> &RecvTransmitter<String> {
+        &self.write_channel
     }
 
     fn ready(&self, inputs: HashMap<String, Output>) -> Vec<TrackFuture> {
@@ -53,7 +66,7 @@ impl EngineModel {
 
             let ready_output = inputs.get("_ready").unwrap();
 
-            let _ = ready_output.send_void(());
+            let _ = ready_output.send_void(()).await;
 
             ready_output.close().await;
 
@@ -61,6 +74,42 @@ impl EngineModel {
         })) as TrackFuture;
 
         vec![future]
+    }
+
+    fn read(&self, inputs: HashMap<String, Output>) -> Vec<TrackFuture> {
+
+        let future = Box::new(Box::pin(async move {
+
+            let line_output = inputs.get("_line").unwrap();
+
+            let stdin = async_std::io::stdin();
+            let mut line = String::new();
+
+            while let Ok(_) = stdin.read_line(&mut line).await {
+
+                ok_or_break!(line_output.send_string(line).await);
+
+                line = String::new();
+            }
+
+            line_output.close().await;
+
+            ResultStatus::Ok
+        })) as TrackFuture;
+
+        vec![future]
+    }
+
+    async fn write(&self) {
+
+        let receiver = &self.write_channel;
+
+        while let Ok(text) = receiver.receive_multiple().await {
+
+            for part in text {
+                print!("{}", part);
+            }
+        }
     }
 }
 

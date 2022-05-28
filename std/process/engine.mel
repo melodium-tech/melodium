@@ -10,7 +10,7 @@ This sequence is useful to start processing from the beginning of the program.
 */
 sequence ProcessReady()
     model engine: Engine()
-    output trigger: Stream<void>
+    output trigger: Block<void>
 {
     EngineReady[engine=engine]()
 
