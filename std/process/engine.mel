@@ -1,0 +1,20 @@
+
+use core/engine::Engine
+use core/engine::EngineReady
+
+/**
+Trigger when Mélodium is ready to work.
+
+`trigger` is send as soon as process is ready to work.
+This sequence is useful to start processing from the beginning of the program.
+*/
+sequence ProcessReady()
+    model engine: Engine()
+    output trigger: Stream<void>
+{
+    EngineReady[engine=engine]()
+
+    EngineReady.ready -> Self.trigger
+}
+
+

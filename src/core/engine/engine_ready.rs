@@ -11,18 +11,18 @@ treatment!(engine_ready_treatment,
     ],
     parameters![],
     inputs![
-        input!("_ready",Scalar,Void,Stream)
+        input!("_ready",Scalar,Void,Block)
     ],
     outputs![
-        output!("ready",Scalar,Void,Stream)
+        output!("ready",Scalar,Void,Block)
     ],
     host {
         let input = host.get_input("_ready");
         let output = host.get_output("ready");
     
-        while let Ok(_) = input.recv_one_void().await {
+        if let Ok(_) = input.recv_one_void().await {
 
-            ok_or_break!(output.send_void(()).await);
+            let _ = output.send_void(()).await;
         }
     
         ResultStatus::Ok
