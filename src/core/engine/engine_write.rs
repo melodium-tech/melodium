@@ -22,7 +22,12 @@ treatment!(engine_write_treatment,
     
         while let Ok(text) = input.recv_string().await {
 
-            ok_or_break!(writer_sender.send_multiple(text).await);
+            // TODO enable this once engine have end trigger
+            //ok_or_break!(writer_sender.send_multiple(text).await);
+            // and delete this
+            for t in text {
+                print!("{}", t);
+            }
         }
 
         writer_sender.close().await;

@@ -52,7 +52,8 @@ impl EngineModel {
         futures::join!(
             self.helper.world().create_track(model_id, "ready", HashMap::new(), None, Some(|i| self.ready(i))),
             self.helper.world().create_track(model_id, "read", HashMap::new(), None, Some(|i| self.read(i))),
-            self.write()
+            // TODO enable this once engine have end trigger
+            //self.write()
         );
     }
 
@@ -64,13 +65,15 @@ impl EngineModel {
 
         let future = Box::new(Box::pin(async move {
 
-            let ready_output = inputs.get("_ready").unwrap();
+            if let Some(ready_output) = inputs.get("_ready") {
 
-            let _ = ready_output.send_void(()).await;
+                let _ = ready_output.send_void(()).await;
 
-            ready_output.close().await;
+                ready_output.close().await;
+            }
 
             ResultStatus::Ok
+
         })) as TrackFuture;
 
         vec![future]
@@ -80,19 +83,25 @@ impl EngineModel {
 
         let future = Box::new(Box::pin(async move {
 
-            let line_output = inputs.get("_line").unwrap();
+            if let Some(line_output) = inputs.get("_line") {
 
-            let stdin = async_std::io::stdin();
-            let mut line = String::new();
+                let stdin = async_std::io::stdin();
+                let mut line = String::new();
 
-            while let Ok(_) = stdin.read_line(&mut line).await {
+                while let Ok(n) = stdin.read_line(&mut line).await {
 
-                ok_or_break!(line_output.send_string(line).await);
+                    ok_or_break!(line_output.send_string(line).await);
 
-                line = String::new();
+                    line = String::new();
+
+                    // Meaning EOF is reached
+                    if n == 0 {
+                        break;
+                    }
+                }
+
+                line_output.close().await;
             }
-
-            line_output.close().await;
 
             ResultStatus::Ok
         })) as TrackFuture;
@@ -100,6 +109,8 @@ impl EngineModel {
         vec![future]
     }
 
+    // TODO enable this once engine have end trigger
+    #[allow(dead_code)]
     async fn write(&self) {
 
         let receiver = &self.write_channel;

@@ -14,8 +14,8 @@ Præsent suscipit risus ligula, ac dictum lacus mattis at."
 
 echo "$text" | "$MELODIUM" pipe.mel > "output.log"
 
-test $(cat output.txt) == "$text"
-test $(cat output.log) == "$text"
+test "$(cat output.txt)" == "$text"
+test "$(cat output.log)" == "$text"
 
 exit $FAILURES
 
