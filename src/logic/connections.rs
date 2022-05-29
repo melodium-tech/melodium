@@ -18,6 +18,12 @@ impl Connections {
 
         // Basic connection, without data transmission.
         connections.insert(ConnectionDescriptor::new(None, None));
+
+		// Connections transmitting scalar void.
+		connections.insert_oi(DataStructure::Scalar, DataType::Void, DataStructure::Scalar, DataType::Void);
+		connections.insert_oi(DataStructure::Scalar, DataType::Void, DataStructure::Vector, DataType::Void);
+		// Connections transmitting vectors of void.
+		connections.insert_oi(DataStructure::Vector, DataType::Void, DataStructure::Vector, DataType::Void);
         
         // Connections transmitting scalar I8.
 		connections.insert_oi(DataStructure::Scalar, DataType::I8, DataStructure::Scalar, DataType::I8);
