@@ -42,6 +42,7 @@ echo Running Mélodium tests…
 
 # Add tests there
 run_test functions
+run_test engine_io
 run_test text_decoding
 run_test text_encoding
 run_test audio

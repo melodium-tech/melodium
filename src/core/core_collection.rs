@@ -9,6 +9,8 @@ pub fn core_collection() -> &'static CollectionPool {
 
             super::func::register(&mut c);
 
+            super::engine::register(&mut c);
+
             super::generation::scalar_generator::register(&mut c);
 
             super::cast::lossless_scalar::register(&mut c);

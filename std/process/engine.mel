@@ -1,8 +1,8 @@
 
 use core/engine::Engine
-use core/engine::EngineReady
-use core/engine::EngineRead
-use core/engine::EngineWrite
+use core/engine::Ready
+use core/engine::Read
+use core/engine::Write
 
 /**
 Trigger when Mélodium is ready to work.
@@ -14,9 +14,9 @@ sequence ProcessReady()
     model engine: Engine()
     output trigger: Block<void>
 {
-    EngineReady[engine=engine]()
+    Ready[engine=engine]()
 
-    EngineReady.ready -> Self.trigger
+    Ready.ready -> Self.trigger
 }
 
 /**
@@ -28,9 +28,9 @@ sequence StandardInput()
     model engine: Engine()
     output line: Stream<string>
 {
-    EngineRead[engine=engine]()
+    Read[engine=engine]()
 
-    EngineRead.line -> Self.line
+    Read.line -> Self.line
 }
 
 /**
@@ -42,9 +42,9 @@ sequence StandardOutput()
     model engine: Engine()
     input text: Stream<string>
 {
-    EngineWrite[engine=engine]()
+    Write[engine=engine]()
 
-    Self.text -> EngineWrite.text
+    Self.text -> Write.text
 }
 
 

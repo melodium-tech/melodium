@@ -1,0 +1,27 @@
+
+use std/process/engine::StandardInput
+use std/process/engine::StandardOutput
+use std/fs/mono::WriteFile
+use std/text/encoding::Encode
+
+sequence Write(const file: string)
+    input text: Stream<string>
+{
+
+    Encode()
+    WriteFile(path=file)
+    
+    Self.text -> Encode.text,data -> WriteFile.data
+}
+
+sequence Main()
+{
+    StandardInput()
+    StandardOutput()
+    Write(file="output.txt")
+
+    StandardInput.line -> StandardOutput.text
+    StandardInput.line ----------> Write.text
+}
+
+
