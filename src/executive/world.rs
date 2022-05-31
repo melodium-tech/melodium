@@ -126,6 +126,10 @@ impl World {
     pub fn add_model(&self, model: Arc<dyn Model>) -> ModelId {
         let mut models = self.models.write().unwrap();
 
+        if let Some(position) = models.iter().position(|m| Arc::ptr_eq(m, &model)) {
+            return position as u64;
+        }
+
         let mut sources = HashMap::new();
         for (name, _) in model.descriptor().sources() {
             sources.insert(name.to_owned(), Vec::new());
@@ -167,7 +171,7 @@ impl World {
 
         match result.unwrap() {
             StaticBuildResult::Build(b) => *self.main_build_id.write().unwrap() = b,
-            _ => panic!("Cannot make a genesis with anything else than a treatment")
+            _ => panic!("Cannot make a genesis with something else than a treatment")
         };
 
         
