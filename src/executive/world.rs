@@ -321,6 +321,11 @@ impl World {
         block_on(join(continuum, self.run_tracks()));
     }
 
+    /*
+        TODO
+        Probably prepare a distinction between "closing", that ends the program and let all stored tracks to finish (even create new ones?),
+        and termination, that jut allows already running tracks to finish and ends models.
+    */
     pub fn end(&self) {
         self.closing.store(true, Ordering::Relaxed);
     }

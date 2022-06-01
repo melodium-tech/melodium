@@ -1,14 +1,23 @@
 
+use std::fmt;
 use std::sync::Mutex;
+use async_std::sync::Mutex as AsyncMutex;
+use signal_hook::consts::signal::*;
+use signal_hook_async_std::{Signals, Handle};
 use crate::core::prelude::*;
 
-#[derive(Debug)]
 pub struct EngineModel {
 
     helper: ModelHelper,
 
     read_channel: SendTransmitter<String>,
     write_channel: RecvTransmitter<String>,
+
+    signals: Arc<AsyncMutex<Signals>>,
+    signals_handle: Arc<Handle>,
+
+    sighup_channel: SendTransmitter<()>,
+    sigterm_channel: SendTransmitter<()>,
 
     auto_reference: Weak<Self>,
 }
@@ -23,7 +32,9 @@ impl EngineModel {
             vec![],
             model_sources![
                 ("ready"; ),
-                ("read"; )
+                ("read"; ),
+                ("sighup"; ),
+                ("sigterm"; )
             ]
         )
     }
@@ -40,11 +51,21 @@ impl EngineModel {
             Arc::clone(&rc_engine) as Arc<dyn crate::executive::model::Model>
         }
         else {
+
+            let signals = Signals::new(&[SIGHUP, SIGTERM, SIGINT, SIGQUIT]).unwrap();
+            let handle = signals.handle();
+
             *optionnal_engine = Some(Arc::new_cyclic(|me| EngineModel {
                 helper: ModelHelper::new(EngineModel::descriptor(), world),
     
                 read_channel: SendTransmitter::new(),
                 write_channel: RecvTransmitter::new(),
+
+                signals: Arc::new(AsyncMutex::new(signals)),
+                signals_handle: Arc::new(handle),
+
+                sighup_channel: SendTransmitter::new(),
+                sigterm_channel: SendTransmitter::new(),
     
                 auto_reference: me.clone(),
             }));
@@ -68,6 +89,9 @@ impl EngineModel {
         futures::join!(
             self.helper.world().create_track(model_id, "ready", HashMap::new(), None, Some(|i| self.ready(i))),
             self.helper.world().create_track(model_id, "read", HashMap::new(), None, Some(|i| self.read(i))),
+            self.helper.world().create_track(model_id, "sighup", HashMap::new(), None, Some(|i| self.sighup(i))),
+            self.helper.world().create_track(model_id, "sigterm", HashMap::new(), None, Some(|i| self.sigterm(i))),
+            self.signals(),
             self.stdin(),
             // TODO enable this once engine have end trigger
             //self.write()
@@ -119,6 +143,52 @@ impl EngineModel {
         vec![future]
     }
 
+    fn sighup(&self, inputs: HashMap<String, Output>) -> Vec<TrackFuture> {
+
+        let sighup = RecvTransmitter::new();
+        self.sighup_channel.add_transmitter(&sighup);
+
+        let future = Box::new(Box::pin(async move {
+
+            if let Some(sighup_output) = inputs.get("_sighup") {
+
+                while let Ok(_) = sighup.receive_one().await {
+
+                    ok_or_break!(sighup_output.send_void(()).await);
+                }
+
+                sighup_output.close().await;
+            }
+
+            ResultStatus::Ok
+        })) as TrackFuture;
+
+        vec![future]
+    }
+
+    fn sigterm(&self, inputs: HashMap<String, Output>) -> Vec<TrackFuture> {
+
+        let sigterm = RecvTransmitter::new();
+        self.sigterm_channel.add_transmitter(&sigterm);
+
+        let future = Box::new(Box::pin(async move {
+
+            if let Some(sigterm_output) = inputs.get("_sigterm") {
+
+                while let Ok(_) = sigterm.receive_one().await {
+
+                    ok_or_break!(sigterm_output.send_void(()).await);
+                }
+
+                sigterm_output.close().await;
+            }
+
+            ResultStatus::Ok
+        })) as TrackFuture;
+
+        vec![future]
+    }
+
     async fn stdin(&self) {
 
         let stdin = async_std::io::stdin();
@@ -139,6 +209,23 @@ impl EngineModel {
         self.read_channel.close().await;
     }
 
+    async fn signals(&self) {
+        while let Some(signal) = self.signals.lock().await.next().await {
+            match signal {
+                SIGHUP => {
+                    let _ = self.sighup_channel.send(()).await;
+                },
+                SIGTERM | SIGINT | SIGQUIT => {
+                    let _ = self.sigterm_channel.send(()).await;
+                },
+                _ => unreachable!(),
+            }
+        }
+
+        self.sighup_channel.close().await;
+        self.sigterm_channel.close().await;
+    }
+
     // TODO enable this once engine have end trigger
     #[allow(dead_code)]
     async fn write(&self) {
@@ -151,6 +238,19 @@ impl EngineModel {
                 print!("{}", part);
             }
         }
+    }
+
+    pub fn end(&self) {
+        self.signals_handle.close();
+        self.write_channel.close();
+    }
+}
+
+impl fmt::Debug for EngineModel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EngineModel")
+         .field("helper", &self.helper)
+         .finish()
     }
 }
 
