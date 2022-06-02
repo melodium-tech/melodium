@@ -327,6 +327,10 @@ impl World {
         and termination, that jut allows already running tracks to finish and ends models.
     */
     pub fn end(&self) {
+
+        if !self.closing.load(Ordering::Relaxed) {
+            self.models.read().unwrap().iter().for_each(|m| m.shutdown());
+        }
         self.closing.store(true, Ordering::Relaxed);
     }
 

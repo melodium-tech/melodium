@@ -52,7 +52,7 @@ pub enum Transmitter {
 
 }
 
-const BUFFER_LIMIT: usize = 2usize.pow(20);
+const BUFFER_LIMIT: usize = 1;//2usize.pow(20);
 
 pub type SendResult = Result<(), TransmissionError>;
 pub type RecvResult<T> = Result<T, TransmissionError>;
@@ -180,7 +180,7 @@ pub struct RecvTransmitter<T> {
 impl<T: Clone> RecvTransmitter<T> {
 
     pub fn new() -> Self {
-        let (sender, receiver) = unbounded();
+        let (sender, receiver) = bounded(1);
 
         Self {
             sender,

@@ -241,6 +241,11 @@ impl EngineModel {
     }
 
     pub fn end(&self) {
+        
+        self.helper.world().end();
+    }
+
+    pub fn close(&self) {
         self.signals_handle.close();
         self.write_channel.close();
     }
@@ -254,4 +259,4 @@ impl fmt::Debug for EngineModel {
     }
 }
 
-model_trait!(EngineModel, initialize);
+model_trait!(EngineModel, initialize, close);
