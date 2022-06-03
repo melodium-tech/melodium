@@ -10,6 +10,8 @@ sequence U8ToVoid()
   input value: Stream<u8>
   output iter: Stream<void>
 {
+    CoreU8ToVoid()
+
     Self.value -> CoreU8ToVoid.value,iter -> Self.iter
 }
 
@@ -26,6 +28,8 @@ sequence U16ToVoid()
   input value: Stream<u16>
   output iter: Stream<void>
 {
+    CoreU16ToVoid()
+
     Self.value -> CoreU16ToVoid.value,iter -> Self.iter
 }
 
@@ -42,6 +46,8 @@ sequence U32ToVoid()
   input value: Stream<u32>
   output iter: Stream<void>
 {
+    CoreU32ToVoid()
+
     Self.value -> CoreU32ToVoid.value,iter -> Self.iter
 }
 
@@ -58,6 +64,8 @@ sequence U64ToVoid()
   input value: Stream<u64>
   output iter: Stream<void>
 {
+    CoreU64ToVoid()
+
     Self.value -> CoreU64ToVoid.value,iter -> Self.iter
 }
 
@@ -74,6 +82,8 @@ sequence U128ToVoid()
   input value: Stream<u128>
   output iter: Stream<void>
 {
+    CoreU128ToVoid()
+
     Self.value -> CoreU128ToVoid.value,iter -> Self.iter
 }
 
@@ -90,6 +100,8 @@ sequence I8ToVoid()
   input value: Stream<i8>
   output iter: Stream<void>
 {
+    CoreI8ToVoid()
+
     Self.value -> CoreI8ToVoid.value,iter -> Self.iter
 }
 
@@ -106,6 +118,8 @@ sequence I16ToVoid()
   input value: Stream<i16>
   output iter: Stream<void>
 {
+    CoreI16ToVoid()
+
     Self.value -> CoreI16ToVoid.value,iter -> Self.iter
 }
 
@@ -122,6 +136,8 @@ sequence I32ToVoid()
   input value: Stream<i32>
   output iter: Stream<void>
 {
+    CoreI32ToVoid()
+
     Self.value -> CoreI32ToVoid.value,iter -> Self.iter
 }
 
@@ -138,6 +154,8 @@ sequence I64ToVoid()
   input value: Stream<i64>
   output iter: Stream<void>
 {
+    CoreI64ToVoid()
+
     Self.value -> CoreI64ToVoid.value,iter -> Self.iter
 }
 
@@ -154,6 +172,8 @@ sequence I128ToVoid()
   input value: Stream<i128>
   output iter: Stream<void>
 {
+    CoreI128ToVoid()
+
     Self.value -> CoreI128ToVoid.value,iter -> Self.iter
 }
 
@@ -170,6 +190,8 @@ sequence F32ToVoid()
   input value: Stream<f32>
   output iter: Stream<void>
 {
+    CoreF32ToVoid()
+
     Self.value -> CoreF32ToVoid.value,iter -> Self.iter
 }
 
@@ -186,6 +208,8 @@ sequence F64ToVoid()
   input value: Stream<f64>
   output iter: Stream<void>
 {
+    CoreF64ToVoid()
+
     Self.value -> CoreF64ToVoid.value,iter -> Self.iter
 }
 
@@ -202,6 +226,8 @@ sequence BoolToVoid()
   input value: Stream<bool>
   output iter: Stream<void>
 {
+    CoreBoolToVoid()
+
     Self.value -> CoreBoolToVoid.value,iter -> Self.iter
 }
 
@@ -218,6 +244,8 @@ sequence ByteToVoid()
   input value: Stream<byte>
   output iter: Stream<void>
 {
+    CoreByteToVoid()
+
     Self.value -> CoreByteToVoid.value,iter -> Self.iter
 }
 
@@ -234,6 +262,8 @@ sequence CharToVoid()
   input value: Stream<char>
   output iter: Stream<void>
 {
+    CoreCharToVoid()
+
     Self.value -> CoreCharToVoid.value,iter -> Self.iter
 }
 
@@ -250,6 +280,8 @@ sequence StringToVoid()
   input value: Stream<string>
   output iter: Stream<void>
 {
+    CoreStringToVoid()
+
     Self.value -> CoreStringToVoid.value,iter -> Self.iter
 }
 
