@@ -1,0 +1,407 @@
+
+use core/flow::Trigger
+
+/**
+Trigger on `void` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence VoidTrigger()
+  input  value:  Stream<void>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    Trigger()
+
+    Self.value -----> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+use std/conversion/scalar/to_void::U8ToVoid
+
+/**
+Trigger on `u8` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence U8Trigger()
+  input  value:  Stream<u8>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    U8ToVoid()
+    Trigger()
+
+    Self.value -> U8ToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::U16ToVoid
+
+/**
+Trigger on `u16` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence U16Trigger()
+  input  value:  Stream<u16>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    U16ToVoid()
+    Trigger()
+
+    Self.value -> U16ToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::U32ToVoid
+
+/**
+Trigger on `u32` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence U32Trigger()
+  input  value:  Stream<u32>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    U32ToVoid()
+    Trigger()
+
+    Self.value -> U32ToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::U64ToVoid
+
+/**
+Trigger on `u64` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence U64Trigger()
+  input  value:  Stream<u64>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    U64ToVoid()
+    Trigger()
+
+    Self.value -> U64ToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::U128ToVoid
+
+/**
+Trigger on `u128` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence U128Trigger()
+  input  value:  Stream<u128>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    U128ToVoid()
+    Trigger()
+
+    Self.value -> U128ToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::I8ToVoid
+
+/**
+Trigger on `i8` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence I8Trigger()
+  input  value:  Stream<i8>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    I8ToVoid()
+    Trigger()
+
+    Self.value -> I8ToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::I16ToVoid
+
+/**
+Trigger on `i16` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence I16Trigger()
+  input  value:  Stream<i16>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    I16ToVoid()
+    Trigger()
+
+    Self.value -> I16ToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::I32ToVoid
+
+/**
+Trigger on `i32` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence I32Trigger()
+  input  value:  Stream<i32>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    I32ToVoid()
+    Trigger()
+
+    Self.value -> I32ToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::I64ToVoid
+
+/**
+Trigger on `i64` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence I64Trigger()
+  input  value:  Stream<i64>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    I64ToVoid()
+    Trigger()
+
+    Self.value -> I64ToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::I128ToVoid
+
+/**
+Trigger on `i128` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence I128Trigger()
+  input  value:  Stream<i128>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    I128ToVoid()
+    Trigger()
+
+    Self.value -> I128ToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::F32ToVoid
+
+/**
+Trigger on `f32` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence F32Trigger()
+  input  value:  Stream<f32>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    F32ToVoid()
+    Trigger()
+
+    Self.value -> F32ToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::F64ToVoid
+
+/**
+Trigger on `f64` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence F64Trigger()
+  input  value:  Stream<f64>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    F64ToVoid()
+    Trigger()
+
+    Self.value -> F64ToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::BoolToVoid
+
+/**
+Trigger on `bool` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence BoolTrigger()
+  input  value:  Stream<bool>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    BoolToVoid()
+    Trigger()
+
+    Self.value -> BoolToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::ByteToVoid
+
+/**
+Trigger on `byte` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence ByteTrigger()
+  input  value:  Stream<byte>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    ByteToVoid()
+    Trigger()
+
+    Self.value -> ByteToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::CharToVoid
+
+/**
+Trigger on `char` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence CharTrigger()
+  input  value:  Stream<char>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    CharToVoid()
+    Trigger()
+
+    Self.value -> CharToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
+use std/conversion/scalar/to_void::StringToVoid
+
+/**
+Trigger on `string` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence StringTrigger()
+  input  value:  Stream<string>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    StringToVoid()
+    Trigger()
+
+    Self.value -> StringToVoid.value,iter -> Trigger.iter
+    Trigger.start --> Self.start
+    Trigger.finish -> Self.finish
+}
+
+
+
