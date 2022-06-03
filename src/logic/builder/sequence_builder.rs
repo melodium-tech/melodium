@@ -396,10 +396,11 @@ impl Builder for SequenceBuilder {
             let input_name = borrowed_connection.input_name().as_ref().unwrap();
 
             let treatment_build_result = treatment_build_results.get(&treatment_name).unwrap();
-            let transmitters = treatment_build_result.feeding_inputs.get(input_name).unwrap().clone();
 
-            result.feeding_inputs.entry(borrowed_connection.output_name().as_ref().unwrap().to_string())
-                .or_default().extend(transmitters);
+            if let Some(transmitters) = treatment_build_result.feeding_inputs.get(input_name) {
+                result.feeding_inputs.entry(borrowed_connection.output_name().as_ref().unwrap().to_string())
+                .or_default().extend(transmitters.clone());
+            }
         }
 
         // Taking all the futures returned by the root treatments
@@ -423,10 +424,10 @@ impl Builder for SequenceBuilder {
 
                 let input_name = borrowed_connection.input_name().as_ref().unwrap();
 
-                let transmitters = host_build.feeding_inputs.get(input_name).unwrap().clone();
-
-                result.feeding_inputs.entry(borrowed_connection.output_name().as_ref().unwrap().to_string())
-                    .or_default().extend(transmitters);
+                if let Some(transmitters) = host_build.feeding_inputs.get(input_name) {
+                    result.feeding_inputs.entry(borrowed_connection.output_name().as_ref().unwrap().to_string())
+                    .or_default().extend(transmitters.clone());
+                }
             }
 
             result.prepared_futures.extend(host_build.prepared_futures);
@@ -515,10 +516,11 @@ impl Builder for SequenceBuilder {
                     let input_name = borrowed_connection.input_name().as_ref().unwrap();
 
                     let treatment_build_result = next_treatments_build_results.get(&treatment_name).unwrap();
-                    let transmitters = treatment_build_result.feeding_inputs.get(input_name).unwrap().clone();
 
-                    result.feeding_inputs.entry(borrowed_connection.output_name().as_ref().unwrap().to_string())
-                        .or_default().extend(transmitters);
+                    if let Some(transmitters) = treatment_build_result.feeding_inputs.get(input_name) {
+                        result.feeding_inputs.entry(borrowed_connection.output_name().as_ref().unwrap().to_string())
+                        .or_default().extend(transmitters.clone());
+                    }
                 }
             }
 
@@ -544,10 +546,10 @@ impl Builder for SequenceBuilder {
 
                 let input_name = borrowed_connection.input_name().as_ref().unwrap();
 
-                let transmitters = host_build.feeding_inputs.get(input_name).unwrap().clone();
-
-                result.feeding_inputs.entry(borrowed_connection.output_name().as_ref().unwrap().to_string())
-                    .or_default().extend(transmitters);
+                if let Some(transmitters) = host_build.feeding_inputs.get(input_name) {
+                    result.feeding_inputs.entry(borrowed_connection.output_name().as_ref().unwrap().to_string())
+                    .or_default().extend(transmitters.clone());
+                }
             }
 
             result.prepared_futures.extend(host_build.prepared_futures);

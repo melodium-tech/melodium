@@ -44,6 +44,7 @@ impl_ScalarToVoid!(f64_to_void, "F64ToVoid", F64, recv_f64);
 impl_ScalarToVoid!(bool_to_void, "BoolToVoid", Bool, recv_bool);
 impl_ScalarToVoid!(byte_to_void, "ByteToVoid", Byte, recv_byte);
 impl_ScalarToVoid!(char_to_void, "CharToVoid", Char, recv_char);
+impl_ScalarToVoid!(string_to_void, "StringToVoid", String, recv_string);
 
 pub fn register(mut c: &mut CollectionPool) {
 
@@ -62,4 +63,5 @@ pub fn register(mut c: &mut CollectionPool) {
     bool_to_void::register(&mut c);
     byte_to_void::register(&mut c);
     char_to_void::register(&mut c);
+    string_to_void::register(&mut c);
 }

@@ -52,7 +52,7 @@ pub enum Transmitter {
 
 }
 
-const BUFFER_LIMIT: usize = 1;//2usize.pow(20);
+const BUFFER_LIMIT: usize = 2usize.pow(20);
 
 pub type SendResult = Result<(), TransmissionError>;
 pub type RecvResult<T> = Result<T, TransmissionError>;
