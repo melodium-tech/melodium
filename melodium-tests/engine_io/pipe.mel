@@ -1,8 +1,10 @@
 
 use std/process/engine::StandardInput
 use std/process/engine::StandardOutput
+use std/process/engine::End
 use std/fs/mono::WriteFile
 use std/text/encoding::Encode
+use std/flow/trigger::StringTrigger
 
 sequence Write(const file: string)
     input text: Stream<string>
@@ -20,8 +22,14 @@ sequence Main()
     StandardOutput()
     Write(file="output.txt")
 
+    StringTrigger()
+    End()
+
     StandardInput.line -> StandardOutput.text
     StandardInput.line ----------> Write.text
+
+    StandardInput.line ---> StringTrigger.value
+    StringTrigger.finish -> End.end
 }
 
 

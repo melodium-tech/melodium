@@ -3,6 +3,9 @@ use core/engine::Engine
 use core/engine::Ready
 use core/engine::Read
 use core/engine::Write
+use core/engine::Sighup
+use core/engine::Sigterm
+use core/engine::End
 
 /**
 Trigger when Mélodium is ready to work.
@@ -45,6 +48,56 @@ sequence StandardOutput()
     Write[engine=engine]()
 
     Self.text -> Write.text
+}
+
+/**
+Trigger when SIGHUP is received.
+
+`trigger` is send when SIGHUP signal is received by main process.
+
+ℹ️ SIGHUP is a system signal telling process is not connected to a terminal anymore.
+*/
+sequence ProcessSighup()
+    model  engine:  Engine()
+    output trigger: Block<void>
+{
+    Sighup[engine=engine]()
+
+    Sighup.sighup -> Self.trigger
+}
+
+/**
+Trigger when SIGTERM is received.
+
+`trigger` is send when SIGTERM signal is received by main process.
+
+ℹ️ SIGTERM is a system signal asking the process to terminate gracefully, it can be used to do last actions (saving data, closing connections) before ending the program.
+
+⚠️ If ProcessSigterm() is used but not connected to ProcessEnd(), users won't be able to terminate program through usual way.
+*/
+sequence ProcessSigterm()
+    model  engine:  Engine()
+    output trigger: Block<void>
+{
+    Sigterm[engine=engine]()
+
+    Sigterm.sigterm -> Self.trigger
+}
+
+/**
+Ends up the program.
+
+Tells Mélodium to finish everything then exit.
+
+ℹ️ Usually connected with ProcessSigterm().
+*/
+sequence ProcessEnd()
+    model engine: Engine()
+    input end:    Block<void>
+{
+    End[engine=engine]()
+
+    Self.end -> End.end
 }
 
 
