@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### Bug fixes
+
+- Unused outputs are valid
+
+### Features
+
+- Supporting functions calls #11
+- Adding arithmetic function #15
+- Adding arithmetic treatments #15
+- Stdin and Stdout are now reachable #18
+- Process signals can be handled #19
+- `void` datatype added #25
+- Universal conversion to `void` #28
+- Stream triggers for all types #28
+
+### Changed
+
+- Treatments got internal buffers for processing inputs #23
+
 ## [v0.2.1] (2022-05-09)
 
 ### Bug fixes
