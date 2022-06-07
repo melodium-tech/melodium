@@ -5,6 +5,7 @@
 ### Bug fixes
 
 - Unused outputs are valid
+- Fixing Windows compilation (signals removed)
 
 ### Features
 
