@@ -1,7 +1,13 @@
 
 use crate::core::prelude::*;
 
+#[cfg(not(target_family = "windows"))]
 pub mod engine;
+#[cfg(target_family = "windows")]
+pub mod engine_windows;
+#[cfg(target_family = "windows")]
+pub use engine_windows as engine;
+
 pub mod engine_end;
 pub mod engine_ready;
 pub mod engine_read;
