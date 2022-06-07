@@ -11,6 +11,8 @@ pub fn core_collection() -> &'static CollectionPool {
 
             super::engine::register(&mut c);
 
+            super::filling::register(&mut c);
+
             super::generation::scalar_generator::register(&mut c);
 
             super::cast::lossless_scalar::register(&mut c);
