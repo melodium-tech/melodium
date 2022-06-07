@@ -17,6 +17,7 @@
 - `void` datatype added #25
 - Universal conversion to `void` #28
 - Stream triggers for all types #28
+- Static filling for all types from `void` #29
 
 ### Changed
 
