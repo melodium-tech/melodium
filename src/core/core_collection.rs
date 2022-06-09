@@ -29,6 +29,7 @@ pub fn core_collection() -> &'static CollectionPool {
             super::conversion::vector_float_to_integer::register(&mut c);
 
             super::flow::trigger::trigger::register(&mut c);
+            super::flow::organizer::register(&mut c);
             super::flow::block_to_stream::register(&mut c);
             super::flow::stream_to_block::register(&mut c);
 
