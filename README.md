@@ -10,20 +10,12 @@ For more exhaustive explanations, please refer to [the Mélodium Language book](
 
 Mélodium is _under development_ and continously being defined and improved. The development documentation is available at <https://melodium.gitlab.io/melodium/melodium/>, and the standard reference at <https://melodium.gitlab.io/melodium/reference/>.
 
-## Origin
-
-Mélodium were first developed during research in signal analysis and musical information retrieval, in need of a tool to manage large amount of records and easily write experimentations, without being concerned of underlying technical operations. It has been presented in [this thesis](https://www.researchgate.net/publication/344327676_Detection_et_classification_des_notes_d'une_piste_audio_musicale) (in French).
-
-The first implementation was in C++ and ran well on high performance computers, such as those of Compute Canada. That tool appeared to be really useful, and the concepts used within its configuration language to deserve more attention. This first experimental design is still available at <https://gitlab.com/qvignaud/Melodium>.
-
-The current project is the continuation of that work, rewritten from ground in Rust, and redesigned with a general approach of massively multithreaded data flows in mind.
-
 ## Example
 
 The following code makes a copy of the file `./input.txt` to `./output.txt`. More examples are available under [examples](examples/).
 
 ```
-use std/fs/mono:ReadFile
+use std/fs/mono::ReadFile
 use std/fs/mono::WriteFile
 
 sequence Main()
@@ -56,6 +48,10 @@ Mélodium can also be directly installed from [crates.io](https://crates.io/crat
 cargo install melodium
 ```
 
+### Cross-compilation
+
+A more detailed explanation on how to cross-compile Mélodium is written in [dedicated file](CROSS-COMPILATION.md).
+
 ## Usage
 
 Mélodium can be called through the `melodium` command.
@@ -74,6 +70,19 @@ Or if your script has an entry sequence that is not called `Main`:
 ```shell
 melodium -m <EntrySequenceName> <SCRIPT>
 ```
+
+## Development
+
+Development channels and related Mélodium stuff are available on [Discord](https://discord.gg/GQmckruKNx).
+
+## Origin
+
+Mélodium were first developed during research in signal analysis and musical information retrieval, in need of a tool to manage large amount of records and easily write experimentations, without being concerned of underlying technical operations. It has been presented in [this thesis](https://www.researchgate.net/publication/344327676_Detection_et_classification_des_notes_d'une_piste_audio_musicale) (in French).
+
+The first implementation was in C++ and ran well on high performance computers, such as those of Compute Canada. That tool appeared to be really useful, and the concepts used within its configuration language to deserve more attention. This first experimental design is still available at <https://gitlab.com/qvignaud/Melodium>.
+
+The current project is the continuation of that work, rewritten from ground in Rust, and redesigned with a general approach of massively multithreaded data flows in mind.
+
 
 ## Licence
 
