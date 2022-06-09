@@ -1,0 +1,352 @@
+
+use core/organize::OrganizeU8 as CoreOrganizeU8
+
+/**
+Organize stream of `u8` into stream of `Vec<u8>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeU8()
+  input   value: Stream<u8>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<u8>>
+{
+    Organize: CoreOrganizeU8()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeU16 as CoreOrganizeU16
+
+/**
+Organize stream of `u16` into stream of `Vec<u16>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeU16()
+  input   value: Stream<u16>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<u16>>
+{
+    Organize: CoreOrganizeU16()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeU32 as CoreOrganizeU32
+
+/**
+Organize stream of `u32` into stream of `Vec<u32>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeU32()
+  input   value: Stream<u32>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<u32>>
+{
+    Organize: CoreOrganizeU32()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeU64 as CoreOrganizeU64
+
+/**
+Organize stream of `u64` into stream of `Vec<u64>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeU64()
+  input   value: Stream<u64>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<u64>>
+{
+    Organize: CoreOrganizeU64()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeU128 as CoreOrganizeU128
+
+/**
+Organize stream of `u128` into stream of `Vec<u128>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeU128()
+  input   value: Stream<u128>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<u128>>
+{
+    Organize: CoreOrganizeU128()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeI8 as CoreOrganizeI8
+
+/**
+Organize stream of `i8` into stream of `Vec<i8>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeI8()
+  input   value: Stream<i8>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<i8>>
+{
+    Organize: CoreOrganizeI8()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeI16 as CoreOrganizeI16
+
+/**
+Organize stream of `i16` into stream of `Vec<i16>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeI16()
+  input   value: Stream<i16>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<i16>>
+{
+    Organize: CoreOrganizeI16()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeI32 as CoreOrganizeI32
+
+/**
+Organize stream of `i32` into stream of `Vec<i32>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeI32()
+  input   value: Stream<i32>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<i32>>
+{
+    Organize: CoreOrganizeI32()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeI64 as CoreOrganizeI64
+
+/**
+Organize stream of `i64` into stream of `Vec<i64>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeI64()
+  input   value: Stream<i64>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<i64>>
+{
+    Organize: CoreOrganizeI64()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeI128 as CoreOrganizeI128
+
+/**
+Organize stream of `i128` into stream of `Vec<i128>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeI128()
+  input   value: Stream<i128>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<i128>>
+{
+    Organize: CoreOrganizeI128()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeF32 as CoreOrganizeF32
+
+/**
+Organize stream of `f32` into stream of `Vec<f32>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeF32()
+  input   value: Stream<f32>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<f32>>
+{
+    Organize: CoreOrganizeF32()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeF64 as CoreOrganizeF64
+
+/**
+Organize stream of `f64` into stream of `Vec<f64>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeF64()
+  input   value: Stream<f64>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<f64>>
+{
+    Organize: CoreOrganizeF64()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeBool as CoreOrganizeBool
+
+/**
+Organize stream of `bool` into stream of `Vec<bool>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeBool()
+  input   value: Stream<bool>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<bool>>
+{
+    Organize: CoreOrganizeBool()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeByte as CoreOrganizeByte
+
+/**
+Organize stream of `byte` into stream of `Vec<byte>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeByte()
+  input   value: Stream<byte>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<byte>>
+{
+    Organize: CoreOrganizeByte()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeChar as CoreOrganizeChar
+
+/**
+Organize stream of `char` into stream of `Vec<char>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeChar()
+  input   value: Stream<char>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<char>>
+{
+    Organize: CoreOrganizeChar()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
+
+use core/organize::OrganizeString as CoreOrganizeString
+
+/**
+Organize stream of `string` into stream of `Vec<string>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+*/
+sequence OrganizeString()
+  input   value: Stream<string>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<string>>
+{
+    Organize: CoreOrganizeString()
+
+    Self.value ---> Organize.value,values -> Self.values
+    Self.pattern -> Organize.pattern
+}
+
+
