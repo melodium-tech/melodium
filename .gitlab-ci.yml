@@ -47,15 +47,16 @@ rust_doc_tests:
  script:
    - cargo test --doc --verbose
 
-rust_build_i686-unknown-linux-gnu:
-  stage: rust
-  before_script:
-    - apt-get update
-    - apt-get install -y gcc-multilib pkg-config-i686-linux-gnu libasound2-dev:i386
-    - rustup target add i686-unknown-linux-gnu
-  script:
-    - rustc --version && cargo --version  # Print version info for debugging
-    - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --verbose --target i686-unknown-linux-gnu
+# Suspended because not working on Gitlab CI
+#rust_build_i686-unknown-linux-gnu:
+#  stage: rust
+#  before_script:
+#    - apt-get update
+#    - apt-get install -y gcc-multilib pkg-config-i686-linux-gnu libasound2-dev:i386
+#    - rustup target add i686-unknown-linux-gnu
+#  script:
+#    - rustc --version && cargo --version  # Print version info for debugging
+#    - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --verbose --target i686-unknown-linux-gnu
 
 rust_build_x86_64-pc-windows-gnu:
   stage: rust
