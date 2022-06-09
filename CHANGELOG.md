@@ -19,6 +19,7 @@
 - Stream triggers for all types #28
 - Static filling for all types from `void` #29
 - Universal vector conversion to `void` #31
+- Linearizers and organizers available for all types #30
 
 ### Changed
 
