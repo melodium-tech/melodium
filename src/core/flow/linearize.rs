@@ -43,6 +43,7 @@ impl_Linearize!(linearize_i64, "LinearizeI64", I64, recv_vec_i64, send_multiple_
 impl_Linearize!(linearize_i128, "LinearizeI128", I128, recv_vec_i128, send_multiple_i128);
 impl_Linearize!(linearize_f32, "LinearizeF32", F32, recv_vec_f32, send_multiple_f32);
 impl_Linearize!(linearize_f64, "LinearizeF64", F64, recv_vec_f64, send_multiple_f64);
+impl_Linearize!(linearize_void, "LinearizeVoid", Void, recv_vec_void, send_multiple_void);
 impl_Linearize!(linearize_bool, "LinearizeBool", Bool, recv_vec_bool, send_multiple_bool);
 impl_Linearize!(linearize_byte, "LinearizeByte", Byte, recv_vec_byte, send_multiple_byte);
 impl_Linearize!(linearize_char, "LinearizeChar", Char, recv_vec_char, send_multiple_char);
@@ -62,6 +63,7 @@ pub fn register(mut c: &mut CollectionPool) {
     linearize_i128::register(&mut c);
     linearize_f32::register(&mut c);
     linearize_f64::register(&mut c);
+    linearize_void::register(&mut c);
     linearize_bool::register(&mut c);
     linearize_byte::register(&mut c);
     linearize_char::register(&mut c);

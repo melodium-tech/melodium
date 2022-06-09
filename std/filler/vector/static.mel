@@ -1,0 +1,338 @@
+
+use std/filling/scalar/static::StaticFillU8 as ScalarStaticFillU8
+use std/flow/organize::OrganizeU8
+
+/**
+Fill an input `void` stream with scalar values.
+
+*/
+sequence StaticFillU8(var value: u8 = 0)
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<u8>>
+{
+    LinearizeVoid()
+    ScalarStaticFillU8(value=value)
+    OrganizeU8()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillU8.pattern,value -> OrganizeU8.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeU8.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillU16 as ScalarStaticFillU16
+use std/flow/organize::OrganizeU16
+
+/**
+Fill an input `void` stream with scalar values.
+
+*/
+sequence StaticFillU16(var value: u16 = 0)
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<u16>>
+{
+    LinearizeVoid()
+    ScalarStaticFillU16(value=value)
+    OrganizeU16()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillU16.pattern,value -> OrganizeU16.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeU16.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillU32 as ScalarStaticFillU32
+use std/flow/organize::OrganizeU32
+
+/**
+Fill an input `void` stream with scalar values.
+
+*/
+sequence StaticFillU32(var value: u32 = 0)
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<u32>>
+{
+    LinearizeVoid()
+    ScalarStaticFillU32(value=value)
+    OrganizeU32()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillU32.pattern,value -> OrganizeU32.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeU32.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillU64 as ScalarStaticFillU64
+use std/flow/organize::OrganizeU64
+
+/**
+Fill an input `void` stream with scalar values.
+
+*/
+sequence StaticFillU64(var value: u64 = 0)
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<u64>>
+{
+    LinearizeVoid()
+    ScalarStaticFillU64(value=value)
+    OrganizeU64()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillU64.pattern,value -> OrganizeU64.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeU64.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillU128 as ScalarStaticFillU128
+use std/flow/organize::OrganizeU128
+
+/**
+Fill an input `void` stream with scalar values.
+
+*/
+sequence StaticFillU128(var value: u128 = 0)
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<u128>>
+{
+    LinearizeVoid()
+    ScalarStaticFillU128(value=value)
+    OrganizeU128()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillU128.pattern,value -> OrganizeU128.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeU128.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillI8 as ScalarStaticFillI8
+use std/flow/organize::OrganizeI8
+
+/**
+Fill an input `void` stream with scalar values.
+
+*/
+sequence StaticFillI8(var value: i8 = 0)
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<i8>>
+{
+    LinearizeVoid()
+    ScalarStaticFillI8(value=value)
+    OrganizeI8()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillI8.pattern,value -> OrganizeI8.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeI8.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillI16 as ScalarStaticFillI16
+use std/flow/organize::OrganizeI16
+
+/**
+Fill an input `void` stream with scalar values.
+
+*/
+sequence StaticFillI16(var value: i16 = 0)
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<i16>>
+{
+    LinearizeVoid()
+    ScalarStaticFillI16(value=value)
+    OrganizeI16()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillI16.pattern,value -> OrganizeI16.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeI16.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillI32 as ScalarStaticFillI32
+use std/flow/organize::OrganizeI32
+
+/**
+Fill an input `void` stream with scalar values.
+
+*/
+sequence StaticFillI32(var value: i32 = 0)
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<i32>>
+{
+    LinearizeVoid()
+    ScalarStaticFillI32(value=value)
+    OrganizeI32()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillI32.pattern,value -> OrganizeI32.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeI32.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillI64 as ScalarStaticFillI64
+use std/flow/organize::OrganizeI64
+
+/**
+Fill an input `void` stream with scalar values.
+
+*/
+sequence StaticFillI64(var value: i64 = 0)
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<i64>>
+{
+    LinearizeVoid()
+    ScalarStaticFillI64(value=value)
+    OrganizeI64()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillI64.pattern,value -> OrganizeI64.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeI64.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillI128 as ScalarStaticFillI128
+use std/flow/organize::OrganizeI128
+
+/**
+Fill an input `void` stream with scalar values.
+
+*/
+sequence StaticFillI128(var value: i128 = 0)
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<i128>>
+{
+    LinearizeVoid()
+    ScalarStaticFillI128(value=value)
+    OrganizeI128()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillI128.pattern,value -> OrganizeI128.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeI128.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillF32 as ScalarStaticFillF32
+use std/flow/organize::OrganizeF32
+
+/**
+Fill an input `void` stream with scalar values.
+
+*/
+sequence StaticFillF32(var value: f32 = 0)
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<f32>>
+{
+    LinearizeVoid()
+    ScalarStaticFillF32(value=value)
+    OrganizeF32()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillF32.pattern,value -> OrganizeF32.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeF32.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillF64 as ScalarStaticFillF64
+use std/flow/organize::OrganizeF64
+
+/**
+Fill an input `void` stream with scalar values.
+
+*/
+sequence StaticFillF64(var value: f64 = 0)
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<f64>>
+{
+    LinearizeVoid()
+    ScalarStaticFillF64(value=value)
+    OrganizeF64()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillF64.pattern,value -> OrganizeF64.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeF64.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillBool as ScalarStaticFillBool
+use std/flow/organize::OrganizeBool
+
+/**
+Fill an input `void` stream with scalar values.
+
+*/
+sequence StaticFillBool(var value: bool = false)
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<bool>>
+{
+    LinearizeVoid()
+    ScalarStaticFillBool(value=value)
+    OrganizeBool()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillBool.pattern,value -> OrganizeBool.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeBool.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillByte as ScalarStaticFillByte
+use std/flow/organize::OrganizeByte
+
+/**
+Fill an input `void` stream with scalar values.
+
+⌛ Value parameter is awaiting for byte to be representable, now set to `0x00`.
+*/
+sequence StaticFillByte()
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<byte>>
+{
+    LinearizeVoid()
+    ScalarStaticFillByte(value=value)
+    OrganizeByte()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillByte.pattern,value -> OrganizeByte.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeByte.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillChar as ScalarStaticFillChar
+use std/flow/organize::OrganizeChar
+
+/**
+Fill an input `void` stream with scalar values.
+
+⌛ Value parameter is awaiting for char to be representable, now set to `NUL`.
+*/
+sequence StaticFillChar()
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<char>>
+{
+    LinearizeVoid()
+    ScalarStaticFillChar(value=value)
+    OrganizeChar()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillChar.pattern,value -> OrganizeChar.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeChar.pattern
+    
+}
+
+
+use std/filling/scalar/static::StaticFillString as ScalarStaticFillString
+use std/flow/organize::OrganizeString
+
+/**
+Fill an input `void` stream with scalar values.
+
+*/
+sequence StaticFillString(var value: string = "")
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<string>>
+{
+    LinearizeVoid()
+    ScalarStaticFillString(value=value)
+    OrganizeString()
+
+    Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillString.pattern,value -> OrganizeString.value,values -> Self.value
+    Self.pattern ----------------------------------------------------------------------> OrganizeString.pattern
+    
+}
+

@@ -11,10 +11,10 @@ macro_rules! impl_BlockScalarFilling {
                 parameter!("value",Var,Scalar,$mel_type,Some(Value::$mel_type(<$rust_type>::default())))
             ],
             inputs![
-                input!("trigger",Scalar,Void,Stream)
+                input!("trigger",Scalar,Void,Block)
             ],
             outputs![
-                output!("value",Scalar,$mel_type,Stream)
+                output!("value",Scalar,$mel_type,Block)
             ],
             host {
                 let trigger = host.get_input("trigger");

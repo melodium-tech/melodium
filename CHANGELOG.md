@@ -17,9 +17,10 @@
 - `void` datatype added #25
 - Universal scalar conversion to `void` #28
 - Stream triggers for all types #28
-- Static filling for all types from `void` #29
+- Static filling for all scalar types from `void` #29
 - Universal vector conversion to `void` #31
 - Linearizers and organizers available for all types #30
+- Static filling for all vector types from `void` pattern #29
 
 ### Changed
 
