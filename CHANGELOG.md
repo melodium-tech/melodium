@@ -15,9 +15,10 @@
 - Stdin and Stdout are now reachable #18
 - Process signals can be handled #19
 - `void` datatype added #25
-- Universal conversion to `void` #28
+- Universal scalar conversion to `void` #28
 - Stream triggers for all types #28
 - Static filling for all types from `void` #29
+- Universal vector conversion to `void` #31
 
 ### Changed
 
