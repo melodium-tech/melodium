@@ -6,9 +6,9 @@ Mélodium is a dataflow-oriented language, focusing on treatments applied on dat
 
 Mélodium is a tool and language for manipulation of large amount of data, using the definition of treatments that applies on data through connections, with a track approach that makes any script higly scalable and implicitly parallelizable.
 
-For more exhaustive explanations, please refer to [the Mélodium Language book](https://melodium.gitlab.io/book/).
+For more exhaustive explanations, please refer to [the Mélodium Language book](https://doc.melodium.tech/book/).
 
-Mélodium is _under development_ and continously being defined and improved. The development documentation is available at <https://melodium.gitlab.io/melodium/melodium/>, and the standard reference at <https://melodium.gitlab.io/melodium/reference/>.
+Mélodium is _under development_ and continously being defined and improved. Released documentation is available on [docs.rs](https://docs.rs/melodium/latest/melodium/) and standard reference on [melodium.tech](https://doc.melodium.tech/latest/). Development documentation is available at <https://melodium.gitlab.io/melodium/melodium/>, and the standard reference at <https://melodium.gitlab.io/melodium/reference/>.
 
 ## Example
 
@@ -58,7 +58,7 @@ Mélodium can be called through the `melodium` command.
 - if compiled from source, look at the `target/` directory;
 - if installed through crates.io, it should already be in your `PATH`.
 
-Mélodium also need to know where its [standard library](https://melodium.gitlab.io/melodium/reference/) is located. It can either be set up with the `MELODIUM_STDLIB` environment variable, or by passing explicily the option `--stdlib <PATH>` to the command line.
+Mélodium also need to know where its [standard library](https://doc.melodium.tech/latest/) is located. It can either be set up with the `MELODIUM_STDLIB` environment variable, or by passing explicily the option `--stdlib <PATH>` to the command line.
 If compiled from source, standard library can be found in the `std/` folder. If installed through crates.io, it should be found within `~/.cargo/registry/src/<cargo git reference>/melodium-<version>/std`.
 
 To launch a script:
