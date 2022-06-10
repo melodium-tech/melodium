@@ -17,8 +17,7 @@ For i686-unknown-linux-gnu we need other GCC libs, pkg-config, and Alsa i386 dev
 ```sh
 rustup target add i686-unknown-linux-gnu
 PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --release --target i686-unknown-linux-gnu
-cd target/i686-unknown-linux-gnu/release
-strip melodium
+strip target/i686-unknown-linux-gnu/release/melodium
 ```
 
 ## x86_64-unknown-linux-gnu
@@ -28,8 +27,7 @@ Install the prerequisites `apt install -y libasound2-dev`.
 
 ```sh
 cargo build --release --target x86_64-unknown-linux-gnu
-target/x86_64-unknown-linux-gnu/release
-strip melodium
+strip target/x86_64-unknown-linux-gnu/release/melodium
 ```
 
 ## aarch64-unknown-linux-gnu
@@ -42,8 +40,7 @@ For aarch64-unknown-linux-gnu we need other GCC libs and pkg-config for aarch64 
 ```sh
 rustup target add aarch64-unknown-linux-gnu
 PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config cargo build --release --target aarch64-unknown-linux-gnu
-cd target/aarch64-unknown-linux-gnu/release
-strip melodium
+strip target/aarch64-unknown-linux-gnu/release/melodium
 ```
 
 ## i686-pc-windows-gnu
@@ -55,8 +52,7 @@ A.k.a. Windows 32 bits, compiling for i686-pc-windows-gnu requires MinGW to be i
 ```sh
 rustup target add i686-pc-windows-gnu
 cargo build --release --target i686-pc-windows-gnu
-cd target/i686-pc-windows-gnu/release
-strip melodium.exe
+strip target/i686-pc-windows-gnu/release/melodium.exe
 ```
 
 ## x86_64-pc-windows-gnu
@@ -66,8 +62,7 @@ A.k.a. Windows 64 bits, compiling for x86_64-pc-windows-gnu requires MinGW to be
 ```sh
 rustup target add x86_64-pc-windows-gnu
 cargo build --release --target x86_64-pc-windows-gnu
-cd target/x86_64-pc-windows-gnu/release
-strip melodium.exe
+strip target/x86_64-pc-windows-gnu/release/melodium.exe
 ```
 
 ## x86_64-apple-darwin
