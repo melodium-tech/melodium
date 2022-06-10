@@ -1,10 +1,10 @@
 
-use core/arithmetic/scalar::AddF64 as CoreStaticAddF64
+use core/arithmetic/scalar::StaticAddF64 as CoreStaticAddF64
 
 /**
 Add a static value to `f64`.
 
-Every number passed through the stream will have `value` added.
+Every number passed through the stream get `value` added.
 
 ```
 use std/arithmetic/scalar/f64::StaticAddF64
@@ -28,5 +28,313 @@ sequence StaticAddF64(var value: f64 = 0)
 
     Self.value -> CoreStaticAddF64.value,value -> Self.value
 }
+
+
+use core/arithmetic/scalar::AddF64 as CoreAddF64
+
+/**
+Add values from two streams of `f64`.
+
+Values passed through a & b are added and send in sum.
+
+*/
+sequence AddF64()
+  input  a:   Stream<f64>
+  input  b:   Stream<f64>
+  output sum: Stream<f64>
+{
+    CoreAddF64()
+
+    Self.a -> CoreAddF64.a
+    Self.b -> CoreAddF64.b
+    
+    CoreAddF64.sum -> Self.sum
+}
+
+
+use core/arithmetic/scalar::StaticSubF64 as CoreStaticSubF64
+
+/**
+Substract a static value to `f64`.
+
+Every number passed through the stream get `value` substracted.
+
+*/
+sequence StaticSubF64(var sub: f64 = 0)
+  input  value: Stream<f64>
+  output value: Stream<f64>
+{
+    CoreStaticSubF64(sub=sub)
+
+    Self.value -> CoreStaticSubF64.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::SubF64 as CoreSubF64
+
+/**
+Substract values from two streams of `f64`.
+
+Every `a` number passed through the stream get `b` substracted.
+
+*/
+sequence SubF64()
+  input  a:          Stream<f64>
+  input  b:          Stream<f64>
+  output difference: Stream<f64>
+{
+    CoreSubF64()
+
+    Self.a -> CoreSubF64.a
+    Self.b -> CoreSubF64.b
+    
+    CoreSubF64.difference -> Self.difference
+}
+
+
+use core/arithmetic/scalar::StaticMultF64 as CoreStaticMultF64
+
+/**
+Multiply `f64` by static value.
+
+Every number passed through the stream is multiplied by `value`.
+
+*/
+sequence StaticMultF64(var factor: f64 = 0)
+  input  value: Stream<f64>
+  output value: Stream<f64>
+{
+    CoreStaticMultF64(factor=factor)
+
+    Self.value -> CoreStaticMultF64.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::MultF64 as CoreMultF64
+
+/**
+Multiply values from two streams of `f64`.
+
+Every `a` number passed through the stream is multiplied by `b`.
+
+*/
+sequence MultF64()
+  input  a:       Stream<f64>
+  input  b:       Stream<f64>
+  output product: Stream<f64>
+{
+    CoreMultF64()
+
+    Self.a -> CoreMultF64.a
+    Self.b -> CoreMultF64.b
+    
+    CoreMultF64.product -> Self.product
+}
+
+
+use core/arithmetic/scalar::StaticDivF64 as CoreStaticDivF64
+
+/**
+Divide a stream of `f64` by a static value.
+
+Every number passed through the stream is divided by `value`.
+
+*/
+sequence StaticDivF64(var divisor: f64 = 0)
+  input  value: Stream<f64>
+  output value: Stream<f64>
+{
+    CoreStaticDivF64(divisor=divisor)
+
+    Self.value -> CoreStaticDivF64.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::DivF64 as CoreDivF64
+
+/**
+Divide values from two streams of `f64`.
+
+Every `a` number passed through the stream is divided by `b`.
+
+*/
+sequence DivF64()
+  input  a:        Stream<f64>
+  input  b:        Stream<f64>
+  output quotient: Stream<f64>
+{
+    CoreDivF64()
+
+    Self.a -> CoreDivF64.a
+    Self.b -> CoreDivF64.b
+    
+    CoreDivF64.quotient -> Self.quotient
+}
+
+
+use core/arithmetic/scalar::StaticRemF64 as CoreStaticRemF64
+
+/**
+Give the remainder of a stream of `f64` divided by a static value.
+
+Every number passed through the stream is divided by `value` and the remainder is outputted.
+
+*/
+sequence StaticRemF64(var divisor: f64 = 0)
+  input  value: Stream<f64>
+  output value: Stream<f64>
+{
+    CoreStaticRemF64(divisor=divisor)
+
+    Self.value -> CoreStaticRemF64.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::RemF64 as CoreRemF64
+
+/**
+Give the remainder of the division from two streams of `f64`.
+
+Every `a` number passed through the stream is divided by `b` and the remainder is outputted.
+
+*/
+sequence RemF64()
+  input  a:         Stream<f64>
+  input  b:         Stream<f64>
+  output remainder: Stream<f64>
+{
+    CoreRemF64()
+
+    Self.a -> CoreRemF64.a
+    Self.b -> CoreRemF64.b
+    
+    CoreRemF64.remainder -> Self.remainder
+}
+
+
+
+
+use core/arithmetic/scalar::StaticPowF64 as CoreStaticPowF64
+
+/**
+Elevates `f64` to the power of a static value.
+
+Every number passed through the stream get elevated to the power of `exponent`.
+*/
+sequence StaticPowF64(var exponent: f64 = 0)
+  input  value: Stream<f64>
+  output value: Stream<f64>
+{
+    CoreStaticPowF64(exponent=exponent)
+
+    Self.value -> CoreStaticPowF64.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::PowF64 as CorePowF64
+
+/**
+Elevates values from a stream of `f64` to the power of another one.
+
+Values passed through `base` are elevated to the power of `exponent`.
+
+*/
+sequence PowF64()
+  input  base:     Stream<f64>
+  input  exponent: Stream<f64>
+  output power:    Stream<f64>
+{
+    CorePowF64()
+
+    Self.base -----> CorePowF64.base
+    Self.exponent -> CorePowF64.exponent
+    
+    CorePowF64.power -> Self.power
+}
+
+
+
+use core/arithmetic/scalar::SqrtF64 as CoreSqrtF64
+
+/**
+Computes the square roots from a stream of `f64`.
+
+*/
+sequence SqrtF64()
+  input  value: Stream<f64>
+  output value: Stream<f64>
+{
+    CoreSqrtF64()
+
+    Self.value -> CoreSqrtF64.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::CbrtF64 as CoreCbrtF64
+
+/**
+Computes the cube roots from a stream of `f64`.
+
+*/
+sequence CbrtF64()
+  input  value: Stream<f64>
+  output value: Stream<f64>
+{
+    CoreCbrtF64()
+
+    Self.value -> CoreCbrtF64.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::LnF64 as CoreLnF64
+
+/**
+Computes the natural logarithms of a stream of `f64`.
+
+*/
+sequence LnF64()
+  input  value: Stream<f64>
+  output value: Stream<f64>
+{
+    CoreLnF64()
+
+    Self.value -> CoreLnF64.value,value -> Self.value
+}
+
+use core/arithmetic/scalar::StaticLogF64 as CoreStaticLogF64
+
+/**
+Computes the logarithms from a stream of `f64` with respect to a static base.
+
+*/
+sequence StaticLogF64(var base: f64 = 10)
+  input  value: Stream<f64>
+  output value: Stream<f64>
+{
+    CoreStaticLogF64(base=base)
+
+    Self.value -> CoreStaticLogF64.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::LogF64 as CoreLogF64
+
+/**
+Computes logarithms from a stream of `f64` with the base of another one.
+
+*/
+sequence LogF64()
+  input  value: Stream<f64>
+  input  base:  Stream<f64>
+  output log:   Stream<f64>
+{
+    CoreLogF64()
+
+    Self.base --> CoreLogF64.base
+    Self.value -> CoreLogF64.value
+    
+    CoreLogF64.log -> Self.log
+}
+
 
 

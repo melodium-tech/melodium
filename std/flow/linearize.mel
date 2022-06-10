@@ -2,7 +2,7 @@
 use core/linearize::LinearizeU8 as CoreLinearizeU8
 
 /**
-Linearize stream of Vec<`u8`> into stream of `Scalar<u8>`.
+Linearize stream of `Vec<u8>` into stream of `Scalar<u8>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -21,7 +21,7 @@ sequence LinearizeU8()
 use core/linearize::LinearizeU16 as CoreLinearizeU16
 
 /**
-Linearize stream of Vec<`u16`> into stream of `Scalar<u16>`.
+Linearize stream of `Vec<u16>` into stream of `Scalar<u16>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -40,7 +40,7 @@ sequence LinearizeU16()
 use core/linearize::LinearizeU32 as CoreLinearizeU32
 
 /**
-Linearize stream of Vec<`u32`> into stream of `Scalar<u32>`.
+Linearize stream of `Vec<u32>` into stream of `Scalar<u32>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -59,7 +59,7 @@ sequence LinearizeU32()
 use core/linearize::LinearizeU64 as CoreLinearizeU64
 
 /**
-Linearize stream of Vec<`u64`> into stream of `Scalar<u64>`.
+Linearize stream of `Vec<u64>` into stream of `Scalar<u64>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -78,7 +78,7 @@ sequence LinearizeU64()
 use core/linearize::LinearizeU128 as CoreLinearizeU128
 
 /**
-Linearize stream of Vec<`u128`> into stream of `Scalar<u128>`.
+Linearize stream of `Vec<u128>` into stream of `Scalar<u128>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -97,7 +97,7 @@ sequence LinearizeU128()
 use core/linearize::LinearizeI8 as CoreLinearizeI8
 
 /**
-Linearize stream of Vec<`i8`> into stream of `Scalar<i8>`.
+Linearize stream of `Vec<i8>` into stream of `Scalar<i8>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -116,7 +116,7 @@ sequence LinearizeI8()
 use core/linearize::LinearizeI16 as CoreLinearizeI16
 
 /**
-Linearize stream of Vec<`i16`> into stream of `Scalar<i16>`.
+Linearize stream of `Vec<i16>` into stream of `Scalar<i16>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -135,7 +135,7 @@ sequence LinearizeI16()
 use core/linearize::LinearizeI32 as CoreLinearizeI32
 
 /**
-Linearize stream of Vec<`i32`> into stream of `Scalar<i32>`.
+Linearize stream of `Vec<i32>` into stream of `Scalar<i32>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -154,7 +154,7 @@ sequence LinearizeI32()
 use core/linearize::LinearizeI64 as CoreLinearizeI64
 
 /**
-Linearize stream of Vec<`i64`> into stream of `Scalar<i64>`.
+Linearize stream of `Vec<i64>` into stream of `Scalar<i64>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -173,7 +173,7 @@ sequence LinearizeI64()
 use core/linearize::LinearizeI128 as CoreLinearizeI128
 
 /**
-Linearize stream of Vec<`i128`> into stream of `Scalar<i128>`.
+Linearize stream of `Vec<i128>` into stream of `Scalar<i128>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -192,7 +192,7 @@ sequence LinearizeI128()
 use core/linearize::LinearizeF32 as CoreLinearizeF32
 
 /**
-Linearize stream of Vec<`f32`> into stream of `Scalar<f32>`.
+Linearize stream of `Vec<f32>` into stream of `Scalar<f32>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -211,7 +211,7 @@ sequence LinearizeF32()
 use core/linearize::LinearizeF64 as CoreLinearizeF64
 
 /**
-Linearize stream of Vec<`f64`> into stream of `Scalar<f64>`.
+Linearize stream of `Vec<f64>` into stream of `Scalar<f64>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -230,7 +230,7 @@ sequence LinearizeF64()
 use core/linearize::LinearizeBool as CoreLinearizeBool
 
 /**
-Linearize stream of Vec<`bool`> into stream of `Scalar<bool>`.
+Linearize stream of `Vec<bool>` into stream of `Scalar<bool>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -249,7 +249,7 @@ sequence LinearizeBool()
 use core/linearize::LinearizeByte as CoreLinearizeByte
 
 /**
-Linearize stream of Vec<`byte`> into stream of `Scalar<byte>`.
+Linearize stream of `Vec<byte>` into stream of `Scalar<byte>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -268,7 +268,7 @@ sequence LinearizeByte()
 use core/linearize::LinearizeChar as CoreLinearizeChar
 
 /**
-Linearize stream of Vec<`char`> into stream of `Scalar<char>`.
+Linearize stream of `Vec<char>` into stream of `Scalar<char>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -287,7 +287,7 @@ sequence LinearizeChar()
 use core/linearize::LinearizeString as CoreLinearizeString
 
 /**
-Linearize stream of Vec<`string`> into stream of `Scalar<string>`.
+Linearize stream of `Vec<string>` into stream of `Scalar<string>`.
 
 All the input vectors are turned into continuous stream of scalar values, in the same order.
 `[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
@@ -297,6 +297,25 @@ sequence LinearizeString()
   output value: Stream<string>
 {
     Linearize: CoreLinearizeString()
+
+    Self.vector -> Linearize.vector,value -> Self.value
+}
+
+
+
+use core/linearize::LinearizeVoid as CoreLinearizeVoid
+
+/**
+Linearize stream of `Vec<void>` into stream of `Scalar<void>`.
+
+All the input vectors are turned into continuous stream of scalar values, in the same order.
+`[a, b, c], [d, e], [f, g, h, i]` → `a, b, c, d, e, f, g, h, i`
+*/
+sequence LinearizeVoid()
+  input vector: Stream<Vec<void>>
+  output value: Stream<void>
+{
+    Linearize: CoreLinearizeVoid()
 
     Self.vector -> Linearize.vector,value -> Self.value
 }

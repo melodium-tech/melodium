@@ -1,10 +1,10 @@
 
-use core/arithmetic/scalar::AddI16 as CoreStaticAddI16
+use core/arithmetic/scalar::StaticAddI16 as CoreStaticAddI16
 
 /**
 Add a static value to `i16`.
 
-Every number passed through the stream will have `value` added.
+Every number passed through the stream get `value` added.
 
 ```
 use std/arithmetic/scalar/i16::StaticAddI16
@@ -27,6 +27,246 @@ sequence StaticAddI16(var value: i16 = 0)
     CoreStaticAddI16(value=value)
 
     Self.value -> CoreStaticAddI16.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::AddI16 as CoreAddI16
+
+/**
+Add values from two streams of `i16`.
+
+Values passed through a & b are added and send in sum.
+
+*/
+sequence AddI16()
+  input  a:   Stream<i16>
+  input  b:   Stream<i16>
+  output sum: Stream<i16>
+{
+    CoreAddI16()
+
+    Self.a -> CoreAddI16.a
+    Self.b -> CoreAddI16.b
+    
+    CoreAddI16.sum -> Self.sum
+}
+
+
+use core/arithmetic/scalar::StaticSubI16 as CoreStaticSubI16
+
+/**
+Substract a static value to `i16`.
+
+Every number passed through the stream get `value` substracted.
+
+*/
+sequence StaticSubI16(var sub: i16 = 0)
+  input  value: Stream<i16>
+  output value: Stream<i16>
+{
+    CoreStaticSubI16(sub=sub)
+
+    Self.value -> CoreStaticSubI16.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::SubI16 as CoreSubI16
+
+/**
+Substract values from two streams of `i16`.
+
+Every `a` number passed through the stream get `b` substracted.
+
+*/
+sequence SubI16()
+  input  a:          Stream<i16>
+  input  b:          Stream<i16>
+  output difference: Stream<i16>
+{
+    CoreSubI16()
+
+    Self.a -> CoreSubI16.a
+    Self.b -> CoreSubI16.b
+    
+    CoreSubI16.difference -> Self.difference
+}
+
+
+use core/arithmetic/scalar::StaticMultI16 as CoreStaticMultI16
+
+/**
+Multiply `i16` by static value.
+
+Every number passed through the stream is multiplied by `value`.
+
+*/
+sequence StaticMultI16(var factor: i16 = 0)
+  input  value: Stream<i16>
+  output value: Stream<i16>
+{
+    CoreStaticMultI16(factor=factor)
+
+    Self.value -> CoreStaticMultI16.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::MultI16 as CoreMultI16
+
+/**
+Multiply values from two streams of `i16`.
+
+Every `a` number passed through the stream is multiplied by `b`.
+
+*/
+sequence MultI16()
+  input  a:       Stream<i16>
+  input  b:       Stream<i16>
+  output product: Stream<i16>
+{
+    CoreMultI16()
+
+    Self.a -> CoreMultI16.a
+    Self.b -> CoreMultI16.b
+    
+    CoreMultI16.product -> Self.product
+}
+
+
+use core/arithmetic/scalar::StaticDivI16 as CoreStaticDivI16
+
+/**
+Divide a stream of `i16` by a static value.
+
+Every number passed through the stream is divided by `value`.
+
+*/
+sequence StaticDivI16(var divisor: i16 = 0)
+  input  value: Stream<i16>
+  output value: Stream<i16>
+{
+    CoreStaticDivI16(divisor=divisor)
+
+    Self.value -> CoreStaticDivI16.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::DivI16 as CoreDivI16
+
+/**
+Divide values from two streams of `i16`.
+
+Every `a` number passed through the stream is divided by `b`.
+
+*/
+sequence DivI16()
+  input  a:        Stream<i16>
+  input  b:        Stream<i16>
+  output quotient: Stream<i16>
+{
+    CoreDivI16()
+
+    Self.a -> CoreDivI16.a
+    Self.b -> CoreDivI16.b
+    
+    CoreDivI16.quotient -> Self.quotient
+}
+
+
+use core/arithmetic/scalar::StaticRemI16 as CoreStaticRemI16
+
+/**
+Give the remainder of a stream of `i16` divided by a static value.
+
+Every number passed through the stream is divided by `value` and the remainder is outputted.
+
+*/
+sequence StaticRemI16(var divisor: i16 = 0)
+  input  value: Stream<i16>
+  output value: Stream<i16>
+{
+    CoreStaticRemI16(divisor=divisor)
+
+    Self.value -> CoreStaticRemI16.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::RemI16 as CoreRemI16
+
+/**
+Give the remainder of the division from two streams of `i16`.
+
+Every `a` number passed through the stream is divided by `b` and the remainder is outputted.
+
+*/
+sequence RemI16()
+  input  a:         Stream<i16>
+  input  b:         Stream<i16>
+  output remainder: Stream<i16>
+{
+    CoreRemI16()
+
+    Self.a -> CoreRemI16.a
+    Self.b -> CoreRemI16.b
+    
+    CoreRemI16.remainder -> Self.remainder
+}
+
+
+
+
+use core/arithmetic/scalar::StaticPowI16 as CoreStaticPowI16
+
+/**
+Elevates `i16` to the power of a static value.
+
+Every number passed through the stream get elevated to the power of `exponent`.
+*/
+sequence StaticPowI16(var exponent: i16 = 0)
+  input  value: Stream<i16>
+  output value: Stream<i16>
+{
+    CoreStaticPowI16(exponent=exponent)
+
+    Self.value -> CoreStaticPowI16.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::PowI16 as CorePowI16
+
+/**
+Elevates values from a stream of `i16` to the power of another one.
+
+Values passed through `base` are elevated to the power of `exponent`.
+
+*/
+sequence PowI16()
+  input  base:     Stream<i16>
+  input  exponent: Stream<i16>
+  output power:    Stream<i16>
+{
+    CorePowI16()
+
+    Self.base -----> CorePowI16.base
+    Self.exponent -> CorePowI16.exponent
+    
+    CorePowI16.power -> Self.power
+}
+
+
+
+use core/arithmetic/scalar::AbsI16 as CoreAbsI16
+
+/**
+Get the absolute values from a stream of `i16`.
+
+*/
+sequence AbsI16()
+  input  value: Stream<i16>
+  output value: Stream<i16>
+{
+    CoreAbsI16()
+
+    Self.value -> CoreAbsI16.value,value -> Self.value
 }
 
 

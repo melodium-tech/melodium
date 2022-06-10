@@ -1,10 +1,10 @@
 
-use core/arithmetic/scalar::AddU8 as CoreStaticAddU8
+use core/arithmetic/scalar::StaticAddU8 as CoreStaticAddU8
 
 /**
 Add a static value to `u8`.
 
-Every number passed through the stream will have `value` added.
+Every number passed through the stream get `value` added.
 
 ```
 use std/arithmetic/scalar/u8::StaticAddU8
@@ -27,6 +27,229 @@ sequence StaticAddU8(var value: u8 = 0)
     CoreStaticAddU8(value=value)
 
     Self.value -> CoreStaticAddU8.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::AddU8 as CoreAddU8
+
+/**
+Add values from two streams of `u8`.
+
+Values passed through a & b are added and send in sum.
+
+*/
+sequence AddU8()
+  input  a:   Stream<u8>
+  input  b:   Stream<u8>
+  output sum: Stream<u8>
+{
+    CoreAddU8()
+
+    Self.a -> CoreAddU8.a
+    Self.b -> CoreAddU8.b
+    
+    CoreAddU8.sum -> Self.sum
+}
+
+
+use core/arithmetic/scalar::StaticSubU8 as CoreStaticSubU8
+
+/**
+Substract a static value to `u8`.
+
+Every number passed through the stream get `value` substracted.
+
+*/
+sequence StaticSubU8(var sub: u8 = 0)
+  input  value: Stream<u8>
+  output value: Stream<u8>
+{
+    CoreStaticSubU8(sub=sub)
+
+    Self.value -> CoreStaticSubU8.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::SubU8 as CoreSubU8
+
+/**
+Substract values from two streams of `u8`.
+
+Every `a` number passed through the stream get `b` substracted.
+
+*/
+sequence SubU8()
+  input  a:          Stream<u8>
+  input  b:          Stream<u8>
+  output difference: Stream<u8>
+{
+    CoreSubU8()
+
+    Self.a -> CoreSubU8.a
+    Self.b -> CoreSubU8.b
+    
+    CoreSubU8.difference -> Self.difference
+}
+
+
+use core/arithmetic/scalar::StaticMultU8 as CoreStaticMultU8
+
+/**
+Multiply `u8` by static value.
+
+Every number passed through the stream is multiplied by `value`.
+
+*/
+sequence StaticMultU8(var factor: u8 = 0)
+  input  value: Stream<u8>
+  output value: Stream<u8>
+{
+    CoreStaticMultU8(factor=factor)
+
+    Self.value -> CoreStaticMultU8.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::MultU8 as CoreMultU8
+
+/**
+Multiply values from two streams of `u8`.
+
+Every `a` number passed through the stream is multiplied by `b`.
+
+*/
+sequence MultU8()
+  input  a:       Stream<u8>
+  input  b:       Stream<u8>
+  output product: Stream<u8>
+{
+    CoreMultU8()
+
+    Self.a -> CoreMultU8.a
+    Self.b -> CoreMultU8.b
+    
+    CoreMultU8.product -> Self.product
+}
+
+
+use core/arithmetic/scalar::StaticDivU8 as CoreStaticDivU8
+
+/**
+Divide a stream of `u8` by a static value.
+
+Every number passed through the stream is divided by `value`.
+
+*/
+sequence StaticDivU8(var divisor: u8 = 0)
+  input  value: Stream<u8>
+  output value: Stream<u8>
+{
+    CoreStaticDivU8(divisor=divisor)
+
+    Self.value -> CoreStaticDivU8.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::DivU8 as CoreDivU8
+
+/**
+Divide values from two streams of `u8`.
+
+Every `a` number passed through the stream is divided by `b`.
+
+*/
+sequence DivU8()
+  input  a:        Stream<u8>
+  input  b:        Stream<u8>
+  output quotient: Stream<u8>
+{
+    CoreDivU8()
+
+    Self.a -> CoreDivU8.a
+    Self.b -> CoreDivU8.b
+    
+    CoreDivU8.quotient -> Self.quotient
+}
+
+
+use core/arithmetic/scalar::StaticRemU8 as CoreStaticRemU8
+
+/**
+Give the remainder of a stream of `u8` divided by a static value.
+
+Every number passed through the stream is divided by `value` and the remainder is outputted.
+
+*/
+sequence StaticRemU8(var divisor: u8 = 0)
+  input  value: Stream<u8>
+  output value: Stream<u8>
+{
+    CoreStaticRemU8(divisor=divisor)
+
+    Self.value -> CoreStaticRemU8.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::RemU8 as CoreRemU8
+
+/**
+Give the remainder of the division from two streams of `u8`.
+
+Every `a` number passed through the stream is divided by `b` and the remainder is outputted.
+
+*/
+sequence RemU8()
+  input  a:         Stream<u8>
+  input  b:         Stream<u8>
+  output remainder: Stream<u8>
+{
+    CoreRemU8()
+
+    Self.a -> CoreRemU8.a
+    Self.b -> CoreRemU8.b
+    
+    CoreRemU8.remainder -> Self.remainder
+}
+
+
+
+
+use core/arithmetic/scalar::StaticPowU8 as CoreStaticPowU8
+
+/**
+Elevates `u8` to the power of a static value.
+
+Every number passed through the stream get elevated to the power of `exponent`.
+*/
+sequence StaticPowU8(var exponent: u8 = 0)
+  input  value: Stream<u8>
+  output value: Stream<u8>
+{
+    CoreStaticPowU8(exponent=exponent)
+
+    Self.value -> CoreStaticPowU8.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::PowU8 as CorePowU8
+
+/**
+Elevates values from a stream of `u8` to the power of another one.
+
+Values passed through `base` are elevated to the power of `exponent`.
+
+*/
+sequence PowU8()
+  input  base:     Stream<u8>
+  input  exponent: Stream<u8>
+  output power:    Stream<u8>
+{
+    CorePowU8()
+
+    Self.base -----> CorePowU8.base
+    Self.exponent -> CorePowU8.exponent
+    
+    CorePowU8.power -> Self.power
 }
 
 

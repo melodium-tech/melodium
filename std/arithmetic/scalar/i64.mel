@@ -1,10 +1,10 @@
 
-use core/arithmetic/scalar::AddI64 as CoreStaticAddI64
+use core/arithmetic/scalar::StaticAddI64 as CoreStaticAddI64
 
 /**
 Add a static value to `i64`.
 
-Every number passed through the stream will have `value` added.
+Every number passed through the stream get `value` added.
 
 ```
 use std/arithmetic/scalar/i64::StaticAddI64
@@ -27,6 +27,246 @@ sequence StaticAddI64(var value: i64 = 0)
     CoreStaticAddI64(value=value)
 
     Self.value -> CoreStaticAddI64.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::AddI64 as CoreAddI64
+
+/**
+Add values from two streams of `i64`.
+
+Values passed through a & b are added and send in sum.
+
+*/
+sequence AddI64()
+  input  a:   Stream<i64>
+  input  b:   Stream<i64>
+  output sum: Stream<i64>
+{
+    CoreAddI64()
+
+    Self.a -> CoreAddI64.a
+    Self.b -> CoreAddI64.b
+    
+    CoreAddI64.sum -> Self.sum
+}
+
+
+use core/arithmetic/scalar::StaticSubI64 as CoreStaticSubI64
+
+/**
+Substract a static value to `i64`.
+
+Every number passed through the stream get `value` substracted.
+
+*/
+sequence StaticSubI64(var sub: i64 = 0)
+  input  value: Stream<i64>
+  output value: Stream<i64>
+{
+    CoreStaticSubI64(sub=sub)
+
+    Self.value -> CoreStaticSubI64.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::SubI64 as CoreSubI64
+
+/**
+Substract values from two streams of `i64`.
+
+Every `a` number passed through the stream get `b` substracted.
+
+*/
+sequence SubI64()
+  input  a:          Stream<i64>
+  input  b:          Stream<i64>
+  output difference: Stream<i64>
+{
+    CoreSubI64()
+
+    Self.a -> CoreSubI64.a
+    Self.b -> CoreSubI64.b
+    
+    CoreSubI64.difference -> Self.difference
+}
+
+
+use core/arithmetic/scalar::StaticMultI64 as CoreStaticMultI64
+
+/**
+Multiply `i64` by static value.
+
+Every number passed through the stream is multiplied by `value`.
+
+*/
+sequence StaticMultI64(var factor: i64 = 0)
+  input  value: Stream<i64>
+  output value: Stream<i64>
+{
+    CoreStaticMultI64(factor=factor)
+
+    Self.value -> CoreStaticMultI64.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::MultI64 as CoreMultI64
+
+/**
+Multiply values from two streams of `i64`.
+
+Every `a` number passed through the stream is multiplied by `b`.
+
+*/
+sequence MultI64()
+  input  a:       Stream<i64>
+  input  b:       Stream<i64>
+  output product: Stream<i64>
+{
+    CoreMultI64()
+
+    Self.a -> CoreMultI64.a
+    Self.b -> CoreMultI64.b
+    
+    CoreMultI64.product -> Self.product
+}
+
+
+use core/arithmetic/scalar::StaticDivI64 as CoreStaticDivI64
+
+/**
+Divide a stream of `i64` by a static value.
+
+Every number passed through the stream is divided by `value`.
+
+*/
+sequence StaticDivI64(var divisor: i64 = 0)
+  input  value: Stream<i64>
+  output value: Stream<i64>
+{
+    CoreStaticDivI64(divisor=divisor)
+
+    Self.value -> CoreStaticDivI64.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::DivI64 as CoreDivI64
+
+/**
+Divide values from two streams of `i64`.
+
+Every `a` number passed through the stream is divided by `b`.
+
+*/
+sequence DivI64()
+  input  a:        Stream<i64>
+  input  b:        Stream<i64>
+  output quotient: Stream<i64>
+{
+    CoreDivI64()
+
+    Self.a -> CoreDivI64.a
+    Self.b -> CoreDivI64.b
+    
+    CoreDivI64.quotient -> Self.quotient
+}
+
+
+use core/arithmetic/scalar::StaticRemI64 as CoreStaticRemI64
+
+/**
+Give the remainder of a stream of `i64` divided by a static value.
+
+Every number passed through the stream is divided by `value` and the remainder is outputted.
+
+*/
+sequence StaticRemI64(var divisor: i64 = 0)
+  input  value: Stream<i64>
+  output value: Stream<i64>
+{
+    CoreStaticRemI64(divisor=divisor)
+
+    Self.value -> CoreStaticRemI64.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::RemI64 as CoreRemI64
+
+/**
+Give the remainder of the division from two streams of `i64`.
+
+Every `a` number passed through the stream is divided by `b` and the remainder is outputted.
+
+*/
+sequence RemI64()
+  input  a:         Stream<i64>
+  input  b:         Stream<i64>
+  output remainder: Stream<i64>
+{
+    CoreRemI64()
+
+    Self.a -> CoreRemI64.a
+    Self.b -> CoreRemI64.b
+    
+    CoreRemI64.remainder -> Self.remainder
+}
+
+
+
+
+use core/arithmetic/scalar::StaticPowI64 as CoreStaticPowI64
+
+/**
+Elevates `i64` to the power of a static value.
+
+Every number passed through the stream get elevated to the power of `exponent`.
+*/
+sequence StaticPowI64(var exponent: i64 = 0)
+  input  value: Stream<i64>
+  output value: Stream<i64>
+{
+    CoreStaticPowI64(exponent=exponent)
+
+    Self.value -> CoreStaticPowI64.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::PowI64 as CorePowI64
+
+/**
+Elevates values from a stream of `i64` to the power of another one.
+
+Values passed through `base` are elevated to the power of `exponent`.
+
+*/
+sequence PowI64()
+  input  base:     Stream<i64>
+  input  exponent: Stream<i64>
+  output power:    Stream<i64>
+{
+    CorePowI64()
+
+    Self.base -----> CorePowI64.base
+    Self.exponent -> CorePowI64.exponent
+    
+    CorePowI64.power -> Self.power
+}
+
+
+
+use core/arithmetic/scalar::AbsI64 as CoreAbsI64
+
+/**
+Get the absolute values from a stream of `i64`.
+
+*/
+sequence AbsI64()
+  input  value: Stream<i64>
+  output value: Stream<i64>
+{
+    CoreAbsI64()
+
+    Self.value -> CoreAbsI64.value,value -> Self.value
 }
 
 

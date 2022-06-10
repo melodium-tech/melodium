@@ -446,7 +446,7 @@ sequence StaticBlockFillChar()
   input trigger: Block<void>
   output value:  Block<char>
 {
-    StaticBlock: CoreStaticBlockChar(value=value)
+    StaticBlock: CoreStaticBlockChar()
 
     Self.trigger -> StaticBlock.trigger,value -> Self.value
 }
@@ -462,7 +462,7 @@ sequence StaticFillChar()
   input pattern: Stream<void>
   output value:  Stream<char>
 {
-    StaticFiller: CoreStaticChar(value=value)
+    StaticFiller: CoreStaticChar()
 
     Self.pattern -> StaticFiller.pattern,value -> Self.value
 }

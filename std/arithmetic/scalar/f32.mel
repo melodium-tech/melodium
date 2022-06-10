@@ -1,10 +1,10 @@
 
-use core/arithmetic/scalar::AddF32 as CoreStaticAddF32
+use core/arithmetic/scalar::StaticAddF32 as CoreStaticAddF32
 
 /**
 Add a static value to `f32`.
 
-Every number passed through the stream will have `value` added.
+Every number passed through the stream get `value` added.
 
 ```
 use std/arithmetic/scalar/f32::StaticAddF32
@@ -28,5 +28,313 @@ sequence StaticAddF32(var value: f32 = 0)
 
     Self.value -> CoreStaticAddF32.value,value -> Self.value
 }
+
+
+use core/arithmetic/scalar::AddF32 as CoreAddF32
+
+/**
+Add values from two streams of `f32`.
+
+Values passed through a & b are added and send in sum.
+
+*/
+sequence AddF32()
+  input  a:   Stream<f32>
+  input  b:   Stream<f32>
+  output sum: Stream<f32>
+{
+    CoreAddF32()
+
+    Self.a -> CoreAddF32.a
+    Self.b -> CoreAddF32.b
+    
+    CoreAddF32.sum -> Self.sum
+}
+
+
+use core/arithmetic/scalar::StaticSubF32 as CoreStaticSubF32
+
+/**
+Substract a static value to `f32`.
+
+Every number passed through the stream get `value` substracted.
+
+*/
+sequence StaticSubF32(var sub: f32 = 0)
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreStaticSubF32(sub=sub)
+
+    Self.value -> CoreStaticSubF32.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::SubF32 as CoreSubF32
+
+/**
+Substract values from two streams of `f32`.
+
+Every `a` number passed through the stream get `b` substracted.
+
+*/
+sequence SubF32()
+  input  a:          Stream<f32>
+  input  b:          Stream<f32>
+  output difference: Stream<f32>
+{
+    CoreSubF32()
+
+    Self.a -> CoreSubF32.a
+    Self.b -> CoreSubF32.b
+    
+    CoreSubF32.difference -> Self.difference
+}
+
+
+use core/arithmetic/scalar::StaticMultF32 as CoreStaticMultF32
+
+/**
+Multiply `f32` by static value.
+
+Every number passed through the stream is multiplied by `value`.
+
+*/
+sequence StaticMultF32(var factor: f32 = 0)
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreStaticMultF32(factor=factor)
+
+    Self.value -> CoreStaticMultF32.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::MultF32 as CoreMultF32
+
+/**
+Multiply values from two streams of `f32`.
+
+Every `a` number passed through the stream is multiplied by `b`.
+
+*/
+sequence MultF32()
+  input  a:       Stream<f32>
+  input  b:       Stream<f32>
+  output product: Stream<f32>
+{
+    CoreMultF32()
+
+    Self.a -> CoreMultF32.a
+    Self.b -> CoreMultF32.b
+    
+    CoreMultF32.product -> Self.product
+}
+
+
+use core/arithmetic/scalar::StaticDivF32 as CoreStaticDivF32
+
+/**
+Divide a stream of `f32` by a static value.
+
+Every number passed through the stream is divided by `value`.
+
+*/
+sequence StaticDivF32(var divisor: f32 = 0)
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreStaticDivF32(divisor=divisor)
+
+    Self.value -> CoreStaticDivF32.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::DivF32 as CoreDivF32
+
+/**
+Divide values from two streams of `f32`.
+
+Every `a` number passed through the stream is divided by `b`.
+
+*/
+sequence DivF32()
+  input  a:        Stream<f32>
+  input  b:        Stream<f32>
+  output quotient: Stream<f32>
+{
+    CoreDivF32()
+
+    Self.a -> CoreDivF32.a
+    Self.b -> CoreDivF32.b
+    
+    CoreDivF32.quotient -> Self.quotient
+}
+
+
+use core/arithmetic/scalar::StaticRemF32 as CoreStaticRemF32
+
+/**
+Give the remainder of a stream of `f32` divided by a static value.
+
+Every number passed through the stream is divided by `value` and the remainder is outputted.
+
+*/
+sequence StaticRemF32(var divisor: f32 = 0)
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreStaticRemF32(divisor=divisor)
+
+    Self.value -> CoreStaticRemF32.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::RemF32 as CoreRemF32
+
+/**
+Give the remainder of the division from two streams of `f32`.
+
+Every `a` number passed through the stream is divided by `b` and the remainder is outputted.
+
+*/
+sequence RemF32()
+  input  a:         Stream<f32>
+  input  b:         Stream<f32>
+  output remainder: Stream<f32>
+{
+    CoreRemF32()
+
+    Self.a -> CoreRemF32.a
+    Self.b -> CoreRemF32.b
+    
+    CoreRemF32.remainder -> Self.remainder
+}
+
+
+
+
+use core/arithmetic/scalar::StaticPowF32 as CoreStaticPowF32
+
+/**
+Elevates `f32` to the power of a static value.
+
+Every number passed through the stream get elevated to the power of `exponent`.
+*/
+sequence StaticPowF32(var exponent: f32 = 0)
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreStaticPowF32(exponent=exponent)
+
+    Self.value -> CoreStaticPowF32.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::PowF32 as CorePowF32
+
+/**
+Elevates values from a stream of `f32` to the power of another one.
+
+Values passed through `base` are elevated to the power of `exponent`.
+
+*/
+sequence PowF32()
+  input  base:     Stream<f32>
+  input  exponent: Stream<f32>
+  output power:    Stream<f32>
+{
+    CorePowF32()
+
+    Self.base -----> CorePowF32.base
+    Self.exponent -> CorePowF32.exponent
+    
+    CorePowF32.power -> Self.power
+}
+
+
+
+use core/arithmetic/scalar::SqrtF32 as CoreSqrtF32
+
+/**
+Computes the square roots from a stream of `f32`.
+
+*/
+sequence SqrtF32()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreSqrtF32()
+
+    Self.value -> CoreSqrtF32.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::CbrtF32 as CoreCbrtF32
+
+/**
+Computes the cube roots from a stream of `f32`.
+
+*/
+sequence CbrtF32()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreCbrtF32()
+
+    Self.value -> CoreCbrtF32.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::LnF32 as CoreLnF32
+
+/**
+Computes the natural logarithms of a stream of `f32`.
+
+*/
+sequence LnF32()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreLnF32()
+
+    Self.value -> CoreLnF32.value,value -> Self.value
+}
+
+use core/arithmetic/scalar::StaticLogF32 as CoreStaticLogF32
+
+/**
+Computes the logarithms from a stream of `f32` with respect to a static base.
+
+*/
+sequence StaticLogF32(var base: f32 = 10)
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreStaticLogF32(base=base)
+
+    Self.value -> CoreStaticLogF32.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::LogF32 as CoreLogF32
+
+/**
+Computes logarithms from a stream of `f32` with the base of another one.
+
+*/
+sequence LogF32()
+  input  value: Stream<f32>
+  input  base:  Stream<f32>
+  output log:   Stream<f32>
+{
+    CoreLogF32()
+
+    Self.base --> CoreLogF32.base
+    Self.value -> CoreLogF32.value
+    
+    CoreLogF32.log -> Self.log
+}
+
 
 

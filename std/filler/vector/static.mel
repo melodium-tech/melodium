@@ -1,4 +1,6 @@
 
+use std/flow/linearize::LinearizeVoid
+
 use std/filling/scalar/static::StaticFillU8 as ScalarStaticFillU8
 use std/flow/organize::OrganizeU8
 
@@ -285,7 +287,7 @@ sequence StaticFillByte()
   output value:  Stream<Vec<byte>>
 {
     LinearizeVoid()
-    ScalarStaticFillByte(value=value)
+    ScalarStaticFillByte()
     OrganizeByte()
 
     Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillByte.pattern,value -> OrganizeByte.value,values -> Self.value
@@ -307,7 +309,7 @@ sequence StaticFillChar()
   output value:  Stream<Vec<char>>
 {
     LinearizeVoid()
-    ScalarStaticFillChar(value=value)
+    ScalarStaticFillChar()
     OrganizeChar()
 
     Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillChar.pattern,value -> OrganizeChar.value,values -> Self.value

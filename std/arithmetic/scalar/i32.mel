@@ -1,10 +1,10 @@
 
-use core/arithmetic/scalar::AddI32 as CoreStaticAddI32
+use core/arithmetic/scalar::StaticAddI32 as CoreStaticAddI32
 
 /**
 Add a static value to `i32`.
 
-Every number passed through the stream will have `value` added.
+Every number passed through the stream get `value` added.
 
 ```
 use std/arithmetic/scalar/i32::StaticAddI32
@@ -27,6 +27,246 @@ sequence StaticAddI32(var value: i32 = 0)
     CoreStaticAddI32(value=value)
 
     Self.value -> CoreStaticAddI32.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::AddI32 as CoreAddI32
+
+/**
+Add values from two streams of `i32`.
+
+Values passed through a & b are added and send in sum.
+
+*/
+sequence AddI32()
+  input  a:   Stream<i32>
+  input  b:   Stream<i32>
+  output sum: Stream<i32>
+{
+    CoreAddI32()
+
+    Self.a -> CoreAddI32.a
+    Self.b -> CoreAddI32.b
+    
+    CoreAddI32.sum -> Self.sum
+}
+
+
+use core/arithmetic/scalar::StaticSubI32 as CoreStaticSubI32
+
+/**
+Substract a static value to `i32`.
+
+Every number passed through the stream get `value` substracted.
+
+*/
+sequence StaticSubI32(var sub: i32 = 0)
+  input  value: Stream<i32>
+  output value: Stream<i32>
+{
+    CoreStaticSubI32(sub=sub)
+
+    Self.value -> CoreStaticSubI32.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::SubI32 as CoreSubI32
+
+/**
+Substract values from two streams of `i32`.
+
+Every `a` number passed through the stream get `b` substracted.
+
+*/
+sequence SubI32()
+  input  a:          Stream<i32>
+  input  b:          Stream<i32>
+  output difference: Stream<i32>
+{
+    CoreSubI32()
+
+    Self.a -> CoreSubI32.a
+    Self.b -> CoreSubI32.b
+    
+    CoreSubI32.difference -> Self.difference
+}
+
+
+use core/arithmetic/scalar::StaticMultI32 as CoreStaticMultI32
+
+/**
+Multiply `i32` by static value.
+
+Every number passed through the stream is multiplied by `value`.
+
+*/
+sequence StaticMultI32(var factor: i32 = 0)
+  input  value: Stream<i32>
+  output value: Stream<i32>
+{
+    CoreStaticMultI32(factor=factor)
+
+    Self.value -> CoreStaticMultI32.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::MultI32 as CoreMultI32
+
+/**
+Multiply values from two streams of `i32`.
+
+Every `a` number passed through the stream is multiplied by `b`.
+
+*/
+sequence MultI32()
+  input  a:       Stream<i32>
+  input  b:       Stream<i32>
+  output product: Stream<i32>
+{
+    CoreMultI32()
+
+    Self.a -> CoreMultI32.a
+    Self.b -> CoreMultI32.b
+    
+    CoreMultI32.product -> Self.product
+}
+
+
+use core/arithmetic/scalar::StaticDivI32 as CoreStaticDivI32
+
+/**
+Divide a stream of `i32` by a static value.
+
+Every number passed through the stream is divided by `value`.
+
+*/
+sequence StaticDivI32(var divisor: i32 = 0)
+  input  value: Stream<i32>
+  output value: Stream<i32>
+{
+    CoreStaticDivI32(divisor=divisor)
+
+    Self.value -> CoreStaticDivI32.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::DivI32 as CoreDivI32
+
+/**
+Divide values from two streams of `i32`.
+
+Every `a` number passed through the stream is divided by `b`.
+
+*/
+sequence DivI32()
+  input  a:        Stream<i32>
+  input  b:        Stream<i32>
+  output quotient: Stream<i32>
+{
+    CoreDivI32()
+
+    Self.a -> CoreDivI32.a
+    Self.b -> CoreDivI32.b
+    
+    CoreDivI32.quotient -> Self.quotient
+}
+
+
+use core/arithmetic/scalar::StaticRemI32 as CoreStaticRemI32
+
+/**
+Give the remainder of a stream of `i32` divided by a static value.
+
+Every number passed through the stream is divided by `value` and the remainder is outputted.
+
+*/
+sequence StaticRemI32(var divisor: i32 = 0)
+  input  value: Stream<i32>
+  output value: Stream<i32>
+{
+    CoreStaticRemI32(divisor=divisor)
+
+    Self.value -> CoreStaticRemI32.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::RemI32 as CoreRemI32
+
+/**
+Give the remainder of the division from two streams of `i32`.
+
+Every `a` number passed through the stream is divided by `b` and the remainder is outputted.
+
+*/
+sequence RemI32()
+  input  a:         Stream<i32>
+  input  b:         Stream<i32>
+  output remainder: Stream<i32>
+{
+    CoreRemI32()
+
+    Self.a -> CoreRemI32.a
+    Self.b -> CoreRemI32.b
+    
+    CoreRemI32.remainder -> Self.remainder
+}
+
+
+
+
+use core/arithmetic/scalar::StaticPowI32 as CoreStaticPowI32
+
+/**
+Elevates `i32` to the power of a static value.
+
+Every number passed through the stream get elevated to the power of `exponent`.
+*/
+sequence StaticPowI32(var exponent: i32 = 0)
+  input  value: Stream<i32>
+  output value: Stream<i32>
+{
+    CoreStaticPowI32(exponent=exponent)
+
+    Self.value -> CoreStaticPowI32.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar::PowI32 as CorePowI32
+
+/**
+Elevates values from a stream of `i32` to the power of another one.
+
+Values passed through `base` are elevated to the power of `exponent`.
+
+*/
+sequence PowI32()
+  input  base:     Stream<i32>
+  input  exponent: Stream<i32>
+  output power:    Stream<i32>
+{
+    CorePowI32()
+
+    Self.base -----> CorePowI32.base
+    Self.exponent -> CorePowI32.exponent
+    
+    CorePowI32.power -> Self.power
+}
+
+
+
+use core/arithmetic/scalar::AbsI32 as CoreAbsI32
+
+/**
+Get the absolute values from a stream of `i32`.
+
+*/
+sequence AbsI32()
+  input  value: Stream<i32>
+  output value: Stream<i32>
+{
+    CoreAbsI32()
+
+    Self.value -> CoreAbsI32.value,value -> Self.value
 }
 
 
