@@ -392,14 +392,14 @@ Send `finish` when stream is finally over.
 */
 sequence StringTrigger()
   input  value:  Stream<string>
-  output truc:  Block<void>
+  output start:  Block<void>
   output finish: Block<void>
 {
     StringToVoid()
     Trigger()
 
     Self.value -> StringToVoid.value,iter -> Trigger.iter
-    Trigger.start --> Self.truc
+    Trigger.start --> Self.start
     Trigger.finish -> Self.finish
 }
 

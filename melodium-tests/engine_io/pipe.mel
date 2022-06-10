@@ -29,7 +29,7 @@ sequence Main()
     StandardInput.line ----------> Write.text
 
     StandardInput.line ---> StringTrigger.value
-    StringTrigger.truc -> ProcessEnd.end
+    StringTrigger.finish -> ProcessEnd.end
 }
 
 
