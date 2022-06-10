@@ -27,6 +27,10 @@ sequence Main()
 }
 ```
 
+## Download
+
+Mélodium releases can be downloaded for some platforms from the [Mélodium Repository](https://repo.melodium.tech/).
+
 ## Compilation
 
 ### Linux prerequisites
