@@ -54,6 +54,8 @@ impl Value {
             TextValue::Boolean(b) => Self::parse_boolean(b)?,
             TextValue::Number(n) => Self::parse_number(n)?,
             TextValue::String(s) => Self::parse_string(s)?,
+            TextValue::Character(c) => Self::parse_character(c)?,
+            TextValue::Byte(b) => Self::parse_byte(b)?,
             TextValue::Array(_, a) => Self::parse_vector(host, &a)?,
             TextValue::Name(n) => ValueContent::Name(Reference::new(n.string.to_string())),
             TextValue::ContextReference((r, e)) => ValueContent::ContextReference((Reference::new(r.string.to_string()), e.string.to_string())),
@@ -109,6 +111,36 @@ impl Value {
         Ok(ValueContent::String(string))
     }
 
+    fn parse_character(c: & PositionnedString) -> Result<ValueContent, ScriptError> {
+
+        if let Some(character) = c.string.strip_prefix('\'') {
+            if let Some(character) = character.strip_suffix('\'') {
+                Ok(ValueContent::Character(character.chars().next().unwrap()))
+            }
+            else {
+                Err(ScriptError::semantic("Character not ending with ''', this is an internal bug.".to_string(), c.position))
+            }
+        }
+        else {
+            Err(ScriptError::semantic("Character not starting with ''', this is an internal bug.".to_string(), c.position))
+        }        
+    }
+
+    fn parse_byte(b: & PositionnedString) -> Result<ValueContent, ScriptError> {
+
+        if let Some(byte) = b.string.strip_prefix("0x") {
+            if let Ok(byte) = hex::decode(byte) {
+                Ok(ValueContent::Byte(byte[0]))
+            }
+            else {
+                Err(ScriptError::semantic("Byte notation not valid as hexadecimal, this is an internal bug.".to_string(), b.position))
+            }
+        }
+        else {
+            Err(ScriptError::semantic("Byte notation not starting with '0x', this is an internal bug.".to_string(), b.position))
+        }        
+    }
+
     fn parse_vector(host: Arc<RwLock<dyn DeclarativeElement>>, v: &Vec<TextValue>) -> Result<ValueContent, ScriptError> {
 
         let mut values = Vec::new();
@@ -140,6 +172,12 @@ impl Value {
             },
             ValueContent::String(s) => {
                 content = ValueContent::String(s.clone());
+            },
+            ValueContent::Character(c) => {
+                content = ValueContent::Character(*c);
+            },
+            ValueContent::Byte(b) => {
+                content = ValueContent::Byte(*b);
             },
             ValueContent::Name(n) => {
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Bug fixes
+
+### Features
+
+- Supporting `0xFF` syntax for bytes #21
+- Supporting `'§'` syntax for chars #21
+
+### Changed
+
 ## [v0.3.0] (2022-06-10)
 
 ### Bug fixes

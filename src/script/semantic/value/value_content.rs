@@ -17,6 +17,8 @@ pub enum ValueContent {
     Integer(i128),
     Real(f64),
     String(String),
+    Character(char),
+    Byte(u8),
     /// Array, allowing recursive values (in case of vectors).
     Array(Vec<ValueContent>),
     /// Named value, referring to a parameter of the hosting sequence.
@@ -308,6 +310,9 @@ impl ValueContent {
                     
                     Type::Byte =>
                         match &self {
+                            ValueContent::Byte(b) => {
+                                Ok(ExecutiveValue::Byte(*b))
+                            },
                             ValueContent::Unsigned(u) => {
                                 if let Ok(u) = u8::try_from(*u) {
                                     Ok(ExecutiveValue::Byte(u))
@@ -329,6 +334,9 @@ impl ValueContent {
                     
                     Type::Char =>
                         match &self {
+                            ValueContent::Character(c) => {
+                                Ok(ExecutiveValue::Char(*c))
+                            },
                             ValueContent::Unsigned(u) => {
                                 if let Ok(u) = u32::try_from(*u) {
                                     if let Some(c) = char::from_u32(u) {

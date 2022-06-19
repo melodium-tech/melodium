@@ -407,13 +407,12 @@ use core/filling/scalar::StaticBlockByte as CoreStaticBlockByte
 /**
 Fill a triggering `void` block with a scalar value.
 
-⌛ Value parameter is awaiting for byte to be representable, now set to `0x00`.
 */
-sequence StaticBlockFillByte()
+sequence StaticBlockFillByte(var value: byte = 0x00)
   input trigger: Block<void>
   output value:  Block<byte>
 {
-    StaticBlock: CoreStaticBlockByte()
+    StaticBlock: CoreStaticBlockByte(value=value)
 
     Self.trigger -> StaticBlock.trigger,value -> Self.value
 }
@@ -423,13 +422,12 @@ use core/filling/scalar::StaticByte as CoreStaticByte
 /**
 Fill an input `void` stream with scalar values.
 
-⌛ Value parameter is awaiting for byte to be representable, now set to `0x00`.
 */
-sequence StaticFillByte()
+sequence StaticFillByte(var value: byte = 0x00)
   input pattern: Stream<void>
   output value:  Stream<byte>
 {
-    StaticFiller: CoreStaticByte()
+    StaticFiller: CoreStaticByte(value=value)
 
     Self.pattern -> StaticFiller.pattern,value -> Self.value
 }
@@ -440,13 +438,12 @@ use core/filling/scalar::StaticBlockChar as CoreStaticBlockChar
 /**
 Fill a triggering `void` block with a scalar value.
 
-⌛ Value parameter is awaiting for char to be representable, now set to `NUL`.
 */
-sequence StaticBlockFillChar()
+sequence StaticBlockFillChar(var value: char = '∅')
   input trigger: Block<void>
   output value:  Block<char>
 {
-    StaticBlock: CoreStaticBlockChar()
+    StaticBlock: CoreStaticBlockChar(value=value)
 
     Self.trigger -> StaticBlock.trigger,value -> Self.value
 }
@@ -456,13 +453,12 @@ use core/filling/scalar::StaticChar as CoreStaticChar
 /**
 Fill an input `void` stream with scalar values.
 
-⌛ Value parameter is awaiting for char to be representable, now set to `NUL`.
 */
-sequence StaticFillChar()
+sequence StaticFillChar(var value: char = '∅')
   input pattern: Stream<void>
   output value:  Stream<char>
 {
-    StaticFiller: CoreStaticChar()
+    StaticFiller: CoreStaticChar(value=value)
 
     Self.pattern -> StaticFiller.pattern,value -> Self.value
 }

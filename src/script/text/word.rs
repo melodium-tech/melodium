@@ -92,6 +92,10 @@ pub enum Kind {
     Number,
     /// Any string starting and ending with `"` (with a preservation of `\"` and `\\`).
     String,
+    /// A character enclosed by `'`
+    Character,
+    /// A byte composed of `0xFF`, `FF` being any hexadecimal value from range `[0-9A-F]`.
+    Byte,
 }
 
 /// Convenience structure for internal treatments.
@@ -343,6 +347,20 @@ pub fn get_words(script: & str) -> Result<Vec<Word>, Vec<Word>> {
         } {
             kind = Some(Kind::String);
         }
+        // Check if word is Char
+        else if {
+            kind_check = manage_char(remaining_script);
+            kind_check.is_that_kind
+        } {
+            kind = Some(Kind::String);
+        }
+        // Check if word is Byte
+        else if {
+            kind_check = manage_byte(remaining_script);
+            kind_check.is_that_kind
+        } {
+            kind = Some(Kind::String);
+        }
         // The word is unkown
         else {
             kind_check = KindCheck {
@@ -525,6 +543,54 @@ fn manage_string(text: &str) -> KindCheck {
     }
     if text.starts_with('"') {
         let mat = REGEX_STRING.find(text);
+        if mat.is_some() {
+            KindCheck {
+                is_that_kind: true,
+                end_at: mat.unwrap().end(),
+                is_well_formed: true,
+            }
+        }
+        else {
+            KindCheck{
+                is_that_kind: true,
+                end_at: text.len(),
+                is_well_formed: false,
+            }
+        }
+    }
+    else { KindCheck::default() }
+}
+
+fn manage_char(text: &str) -> KindCheck {
+    lazy_static! {
+        static ref REGEX_CHAR: Regex = Regex::new(r##"^'(?:.)'"##).unwrap();
+    }
+    if text.starts_with('\'') {
+        let mat = REGEX_CHAR.find(text);
+        if mat.is_some() {
+            KindCheck {
+                is_that_kind: true,
+                end_at: mat.unwrap().end(),
+                is_well_formed: true,
+            }
+        }
+        else {
+            KindCheck{
+                is_that_kind: true,
+                end_at: text.len(),
+                is_well_formed: false,
+            }
+        }
+    }
+    else { KindCheck::default() }
+}
+
+fn manage_byte(text: &str) -> KindCheck {
+    lazy_static! {
+        static ref REGEX_BYTE: Regex = Regex::new(r##"^(?:0x[0-9A-F]{2})"##).unwrap();
+    }
+    if text.starts_with("0x") {
+        let mat = REGEX_BYTE.find(text);
         if mat.is_some() {
             KindCheck {
                 is_that_kind: true,

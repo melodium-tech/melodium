@@ -17,6 +17,10 @@ pub enum Value {
     Number(PositionnedString),
     /// String, see [Kind::String](../word/enum.Kind.html#variant.String).
     String(PositionnedString),
+    /// Char, see [Kind::Char](../word/enum.Kind.html#variant.Char).
+    Character(PositionnedString),
+    /// Byte, see [Kind::Byte](../word/enum.Kind.html#variant.Byte).
+    Byte(PositionnedString),
     /// Array, representing an arbitrary long vector of values, each of which may be of its own variant kind.
     Array(PositionnedString, Vec<Value>),
     /// Name, see [Kind::Name](../word/enum.Kind.html#variant.Name).
@@ -131,6 +135,8 @@ impl Value {
             match value.kind {
                 Some(Kind::Number) => Ok(Self::Number(PositionnedString { string: value.text, position: value.position})),
                 Some(Kind::String) => Ok(Self::String(PositionnedString { string: value.text, position: value.position})),
+                Some(Kind::Character) => Ok(Self::Character(PositionnedString { string: value.text, position: value.position})),
+                Some(Kind::Byte) => Ok(Self::Byte(PositionnedString { string: value.text, position: value.position})),
                 Some(Kind::Name) => {
                     if value.text == "true" || value.text == "false" {
                         Ok(Self::Boolean(PositionnedString { string: value.text, position: value.position}))
@@ -150,6 +156,8 @@ impl Value {
             Value::Boolean(ps) => ps.position,
             Value::Number(ps) => ps.position,
             Value::String(ps) => ps.position,
+            Value::Character(ps) => ps.position,
+            Value::Byte(ps) => ps.position,
             Value::Array(ps, _) => ps.position,
             Value::Name(ps) => ps.position,
             Value::ContextReference((ps, _)) => ps.position,

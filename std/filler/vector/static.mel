@@ -280,14 +280,13 @@ use std/flow/organize::OrganizeByte
 /**
 Fill an input `void` stream with scalar values.
 
-⌛ Value parameter is awaiting for byte to be representable, now set to `0x00`.
 */
-sequence StaticFillByte()
+sequence StaticFillByte(var value: byte = 0x00)
   input pattern: Stream<Vec<void>>
   output value:  Stream<Vec<byte>>
 {
     LinearizeVoid()
-    ScalarStaticFillByte()
+    ScalarStaticFillByte(value=value)
     OrganizeByte()
 
     Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillByte.pattern,value -> OrganizeByte.value,values -> Self.value
@@ -302,14 +301,13 @@ use std/flow/organize::OrganizeChar
 /**
 Fill an input `void` stream with scalar values.
 
-⌛ Value parameter is awaiting for char to be representable, now set to `NUL`.
 */
-sequence StaticFillChar()
+sequence StaticFillChar(var value: char = '∅')
   input pattern: Stream<Vec<void>>
   output value:  Stream<Vec<char>>
 {
     LinearizeVoid()
-    ScalarStaticFillChar()
+    ScalarStaticFillChar(value=value)
     OrganizeChar()
 
     Self.pattern -> LinearizeVoid.vector,value -> ScalarStaticFillChar.pattern,value -> OrganizeChar.value,values -> Self.value
