@@ -340,7 +340,7 @@ impl Display for Value {
             Value::F32(v) => write!(f, "{}", v),
             Value::F64(v) => write!(f, "{}", v),
             Value::Bool(v) => write!(f, "{}", v),
-            Value::Byte(v) => write!(f, "{}", v),
+            Value::Byte(v) => write!(f, "0x{}", hex::encode([*v])),
             Value::Char(v) => write!(f, "'{}'", v),
             Value::String(v) => write!(f, "\"{}\"", v),
 

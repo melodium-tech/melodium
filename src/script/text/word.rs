@@ -333,6 +333,13 @@ pub fn get_words(script: & str) -> Result<Vec<Word>, Vec<Word>> {
         } {
             kind = Some(Kind::Function);
         }
+        // Check if word is Byte
+        else if {
+            kind_check = manage_byte(remaining_script);
+            kind_check.is_that_kind
+        } {
+            kind = Some(Kind::Byte);
+        }
         // Check if word is Number
         else if {
             kind_check = manage_number(remaining_script);
@@ -352,14 +359,7 @@ pub fn get_words(script: & str) -> Result<Vec<Word>, Vec<Word>> {
             kind_check = manage_char(remaining_script);
             kind_check.is_that_kind
         } {
-            kind = Some(Kind::String);
-        }
-        // Check if word is Byte
-        else if {
-            kind_check = manage_byte(remaining_script);
-            kind_check.is_that_kind
-        } {
-            kind = Some(Kind::String);
+            kind = Some(Kind::Character);
         }
         // The word is unkown
         else {
