@@ -14,6 +14,7 @@ pub mod conversion;
 pub mod engine;
 pub mod filling;
 pub mod generation;
+pub mod logic;
 pub mod flow;
 pub mod func;
 pub mod fs;
