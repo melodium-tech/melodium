@@ -1,0 +1,48 @@
+use core/conversion/scalar::BoolToVoid
+
+/**
+Turns `bool` stream into `void` one.
+
+Send one `iter` per input `value` received.
+*/
+sequence ToVoid()
+  input value: Stream<bool>
+  output iter: Stream<void>
+{
+    BoolToVoid()
+
+    Self.value -> BoolToVoid.value,iter -> Self.iter
+}
+
+use core/conversion/scalar::BoolToByte
+
+/**
+Convert stream of `bool` into `byte`.
+
+`bool` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence ToByte()
+  input  value: Stream<bool>
+  output data:  Stream<byte>
+{
+    BoolToByte()
+
+    Self.value -> BoolToByte.value,data -> Self.data
+}
+
+use core/conversion/scalar::BoolToString
+
+/**
+Convert stream of `bool` into `string`.
+
+`bool` gets converted into `string`, and the resulting strings are send through stream in continuity.
+*/
+sequence ToString()
+  input  value: Stream<bool>
+  output value: Stream<string>
+{
+    BoolToString()
+
+    Self.value -> BoolToString.value,value -> Self.value
+}
+

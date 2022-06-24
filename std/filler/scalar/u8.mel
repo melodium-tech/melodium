@@ -1,0 +1,49 @@
+use core/filling/scalar::StaticBlockU8
+
+/**
+Fill a triggering `void` block with a scalar static `u8` value.
+
+```mermaid
+graph LR
+    T("StaticBlockFill (value=🟧)")
+    B["〈🟦〉"] -->|trigger| T
+    
+    T -->|value| O["〈🟧〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticBlockFill(var value: u8 = 0)
+  input trigger: Block<void>
+  output value:  Block<u8>
+{
+    StaticBlockU8(value=value)
+
+    Self.trigger -> StaticBlockU8.trigger,value -> Self.value
+}
+
+use core/filling/scalar::StaticU8
+
+/**
+Fill an input `void` stream with scalar static `u8` values.
+
+```mermaid
+graph LR
+    T("StaticFill (value=🟧)")
+    B["… 🟦 🟦 🟦 …"] -->|pattern| T
+    
+    T -->|value| O["… 🟧 🟧 🟧 …"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticFill(var value: u8 = 0)
+  input pattern: Stream<void>
+  output value:  Stream<u8>
+{
+    StaticU8(value=value)
+
+    Self.pattern -> StaticU8.pattern,value -> Self.value
+}

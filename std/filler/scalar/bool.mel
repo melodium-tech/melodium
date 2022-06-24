@@ -1,0 +1,49 @@
+use core/filling/scalar::StaticBlockBool
+
+/**
+Fill a triggering `void` block with a scalar static `bool` value.
+
+```mermaid
+graph LR
+    T("StaticBlockFill (value=🟧)")
+    B["〈🟦〉"] -->|trigger| T
+    
+    T -->|value| O["〈🟧〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticBlockFill(var value: bool = false)
+  input trigger: Block<void>
+  output value:  Block<bool>
+{
+    StaticBlockBool(value=value)
+
+    Self.trigger -> StaticBlockBool.trigger,value -> Self.value
+}
+
+use core/filling/scalar::StaticBool
+
+/**
+Fill an input `void` stream with scalar static `bool` values.
+
+```mermaid
+graph LR
+    T("StaticFill (value=🟧)")
+    B["… 🟦 🟦 🟦 …"] -->|pattern| T
+    
+    T -->|value| O["… 🟧 🟧 🟧 …"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticFill(var value: bool = false)
+  input pattern: Stream<void>
+  output value:  Stream<bool>
+{
+    StaticBool(value=value)
+
+    Self.pattern -> StaticBool.pattern,value -> Self.value
+}

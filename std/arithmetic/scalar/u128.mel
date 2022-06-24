@@ -1,36 +1,20 @@
-
-use core/arithmetic/scalar::StaticAddU128 as CoreStaticAddU128
+use core/arithmetic/scalar::StaticAddU128
 
 /**
 Add a static value to `u128`.
 
 Every number passed through the stream get `value` added.
-
-```
-use std/arithmetic/scalar/u128::StaticAddU128
-
-sequence Foo()
-  input  in:  Stream<u128>
-  output out: Stream<u128>
-{
-    StaticAddU128(value=5)
-
-    // in is increased by 5 and send to out
-    Self.in -> StaticAddU128.value,value -> Self.out
-}
-```
 */
-sequence StaticAddU128(var value: u128 = 0)
+sequence StaticAdd(var value: u128 = 0)
   input  value: Stream<u128>
   output value: Stream<u128>
 {
-    CoreStaticAddU128(value=value)
+    StaticAddU128(value=value)
 
-    Self.value -> CoreStaticAddU128.value,value -> Self.value
+    Self.value -> StaticAddU128.value,value -> Self.value
 }
 
-
-use core/arithmetic/scalar::AddU128 as CoreAddU128
+use core/arithmetic/scalar::AddU128
 
 /**
 Add values from two streams of `u128`.
@@ -38,21 +22,20 @@ Add values from two streams of `u128`.
 Values passed through a & b are added and send in sum.
 
 */
-sequence AddU128()
+sequence Add()
   input  a:   Stream<u128>
   input  b:   Stream<u128>
   output sum: Stream<u128>
 {
-    CoreAddU128()
+    AddU128()
 
-    Self.a -> CoreAddU128.a
-    Self.b -> CoreAddU128.b
+    Self.a -> AddU128.a
+    Self.b -> AddU128.b
     
-    CoreAddU128.sum -> Self.sum
+    AddU128.sum -> Self.sum
 }
 
-
-use core/arithmetic/scalar::StaticSubU128 as CoreStaticSubU128
+use core/arithmetic/scalar::StaticSubU128 
 
 /**
 Substract a static value to `u128`.
@@ -60,17 +43,17 @@ Substract a static value to `u128`.
 Every number passed through the stream get `value` substracted.
 
 */
-sequence StaticSubU128(var sub: u128 = 0)
+sequence StaticSub(var sub: u128 = 0)
   input  value: Stream<u128>
   output value: Stream<u128>
 {
-    CoreStaticSubU128(sub=sub)
+    StaticSubU128(sub=sub)
 
-    Self.value -> CoreStaticSubU128.value,value -> Self.value
+    Self.value -> StaticSubU128.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::SubU128 as CoreSubU128
+use core/arithmetic/scalar::SubU128 
 
 /**
 Substract values from two streams of `u128`.
@@ -78,21 +61,21 @@ Substract values from two streams of `u128`.
 Every `a` number passed through the stream get `b` substracted.
 
 */
-sequence SubU128()
+sequence Sub()
   input  a:          Stream<u128>
   input  b:          Stream<u128>
   output difference: Stream<u128>
 {
-    CoreSubU128()
+    SubU128()
 
-    Self.a -> CoreSubU128.a
-    Self.b -> CoreSubU128.b
+    Self.a -> SubU128.a
+    Self.b -> SubU128.b
     
-    CoreSubU128.difference -> Self.difference
+    SubU128.difference -> Self.difference
 }
 
 
-use core/arithmetic/scalar::StaticMultU128 as CoreStaticMultU128
+use core/arithmetic/scalar::StaticMultU128 
 
 /**
 Multiply `u128` by static value.
@@ -100,17 +83,17 @@ Multiply `u128` by static value.
 Every number passed through the stream is multiplied by `value`.
 
 */
-sequence StaticMultU128(var factor: u128 = 0)
+sequence StaticMult(var factor: u128 = 0)
   input  value: Stream<u128>
   output value: Stream<u128>
 {
-    CoreStaticMultU128(factor=factor)
+    StaticMultU128(factor=factor)
 
-    Self.value -> CoreStaticMultU128.value,value -> Self.value
+    Self.value -> StaticMultU128.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::MultU128 as CoreMultU128
+use core/arithmetic/scalar::MultU128 
 
 /**
 Multiply values from two streams of `u128`.
@@ -118,21 +101,21 @@ Multiply values from two streams of `u128`.
 Every `a` number passed through the stream is multiplied by `b`.
 
 */
-sequence MultU128()
+sequence Mult()
   input  a:       Stream<u128>
   input  b:       Stream<u128>
   output product: Stream<u128>
 {
-    CoreMultU128()
+    MultU128()
 
-    Self.a -> CoreMultU128.a
-    Self.b -> CoreMultU128.b
+    Self.a -> MultU128.a
+    Self.b -> MultU128.b
     
-    CoreMultU128.product -> Self.product
+    MultU128.product -> Self.product
 }
 
 
-use core/arithmetic/scalar::StaticDivU128 as CoreStaticDivU128
+use core/arithmetic/scalar::StaticDivU128 
 
 /**
 Divide a stream of `u128` by a static value.
@@ -140,17 +123,17 @@ Divide a stream of `u128` by a static value.
 Every number passed through the stream is divided by `value`.
 
 */
-sequence StaticDivU128(var divisor: u128 = 0)
+sequence StaticDiv(var divisor: u128 = 0)
   input  value: Stream<u128>
   output value: Stream<u128>
 {
-    CoreStaticDivU128(divisor=divisor)
+    StaticDivU128(divisor=divisor)
 
-    Self.value -> CoreStaticDivU128.value,value -> Self.value
+    Self.value -> StaticDivU128.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::DivU128 as CoreDivU128
+use core/arithmetic/scalar::DivU128 
 
 /**
 Divide values from two streams of `u128`.
@@ -158,21 +141,21 @@ Divide values from two streams of `u128`.
 Every `a` number passed through the stream is divided by `b`.
 
 */
-sequence DivU128()
+sequence Div()
   input  a:        Stream<u128>
   input  b:        Stream<u128>
   output quotient: Stream<u128>
 {
-    CoreDivU128()
+    DivU128()
 
-    Self.a -> CoreDivU128.a
-    Self.b -> CoreDivU128.b
+    Self.a -> DivU128.a
+    Self.b -> DivU128.b
     
-    CoreDivU128.quotient -> Self.quotient
+    DivU128.quotient -> Self.quotient
 }
 
 
-use core/arithmetic/scalar::StaticRemU128 as CoreStaticRemU128
+use core/arithmetic/scalar::StaticRemU128 
 
 /**
 Give the remainder of a stream of `u128` divided by a static value.
@@ -180,17 +163,17 @@ Give the remainder of a stream of `u128` divided by a static value.
 Every number passed through the stream is divided by `value` and the remainder is outputted.
 
 */
-sequence StaticRemU128(var divisor: u128 = 0)
+sequence StaticRem(var divisor: u128 = 0)
   input  value: Stream<u128>
   output value: Stream<u128>
 {
-    CoreStaticRemU128(divisor=divisor)
+    StaticRemU128(divisor=divisor)
 
-    Self.value -> CoreStaticRemU128.value,value -> Self.value
+    Self.value -> StaticRemU128.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::RemU128 as CoreRemU128
+use core/arithmetic/scalar::RemU128 
 
 /**
 Give the remainder of the division from two streams of `u128`.
@@ -198,40 +181,40 @@ Give the remainder of the division from two streams of `u128`.
 Every `a` number passed through the stream is divided by `b` and the remainder is outputted.
 
 */
-sequence RemU128()
+sequence Rem()
   input  a:         Stream<u128>
   input  b:         Stream<u128>
   output remainder: Stream<u128>
 {
-    CoreRemU128()
+    RemU128()
 
-    Self.a -> CoreRemU128.a
-    Self.b -> CoreRemU128.b
+    Self.a -> RemU128.a
+    Self.b -> RemU128.b
     
-    CoreRemU128.remainder -> Self.remainder
+    RemU128.remainder -> Self.remainder
 }
 
 
 
 
-use core/arithmetic/scalar::StaticPowU128 as CoreStaticPowU128
+use core/arithmetic/scalar::StaticPowU128 
 
 /**
 Elevates `u128` to the power of a static value.
 
 Every number passed through the stream get elevated to the power of `exponent`.
 */
-sequence StaticPowU128(var exponent: u128 = 0)
+sequence StaticPow(var exponent: u128 = 0)
   input  value: Stream<u128>
   output value: Stream<u128>
 {
-    CoreStaticPowU128(exponent=exponent)
+    StaticPowU128(exponent=exponent)
 
-    Self.value -> CoreStaticPowU128.value,value -> Self.value
+    Self.value -> StaticPowU128.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::PowU128 as CorePowU128
+use core/arithmetic/scalar::PowU128 
 
 /**
 Elevates values from a stream of `u128` to the power of another one.
@@ -239,17 +222,15 @@ Elevates values from a stream of `u128` to the power of another one.
 Values passed through `base` are elevated to the power of `exponent`.
 
 */
-sequence PowU128()
+sequence Pow()
   input  base:     Stream<u128>
   input  exponent: Stream<u128>
   output power:    Stream<u128>
 {
-    CorePowU128()
+    PowU128()
 
-    Self.base -----> CorePowU128.base
-    Self.exponent -> CorePowU128.exponent
+    Self.base -----> PowU128.base
+    Self.exponent -> PowU128.exponent
     
-    CorePowU128.power -> Self.power
+    PowU128.power -> Self.power
 }
-
-

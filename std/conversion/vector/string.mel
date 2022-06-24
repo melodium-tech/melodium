@@ -1,0 +1,40 @@
+use std/flow/string::Linearize
+use std/flow/string::Organize
+
+use core/conversion/vector::StringToVoid
+
+/**
+Convert stream of `Vec<string>` into `Vec<void>` one.
+
+This conversion is useful to extract pattern from a stream of vectors and work on it.
+
+*/
+sequence ToVoid()
+  input  vector:  Stream<Vec<string>>
+  output pattern: Stream<Vec<void>>
+{
+    StringToVoid()
+
+    Self.vector -> StringToVoid.vector,pattern -> Self.pattern
+}
+
+use std/conversion/scalar/string::ToByte as ScalToByte
+
+/**
+Convert stream of `Vec<string>` into `Vec<byte>` one.
+
+`Vec<string>` gets converted into `Vec<byte>`, and the resulting vectors are send through stream in continuity.
+*/
+sequence ToByte()
+  input  value: Stream<Vec<string>>
+  output data:  Stream<Vec<byte>>
+{
+    ToVoid()
+    Linearize()
+    ScalToByte()
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToByte.value,data -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern ---------------------------> Organize.pattern
+}
+

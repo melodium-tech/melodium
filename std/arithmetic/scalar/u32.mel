@@ -1,36 +1,20 @@
-
-use core/arithmetic/scalar::StaticAddU32 as CoreStaticAddU32
+use core/arithmetic/scalar::StaticAddU32
 
 /**
 Add a static value to `u32`.
 
 Every number passed through the stream get `value` added.
-
-```
-use std/arithmetic/scalar/u32::StaticAddU32
-
-sequence Foo()
-  input  in:  Stream<u32>
-  output out: Stream<u32>
-{
-    StaticAddU32(value=5)
-
-    // in is increased by 5 and send to out
-    Self.in -> StaticAddU32.value,value -> Self.out
-}
-```
 */
-sequence StaticAddU32(var value: u32 = 0)
+sequence StaticAdd(var value: u32 = 0)
   input  value: Stream<u32>
   output value: Stream<u32>
 {
-    CoreStaticAddU32(value=value)
+    StaticAddU32(value=value)
 
-    Self.value -> CoreStaticAddU32.value,value -> Self.value
+    Self.value -> StaticAddU32.value,value -> Self.value
 }
 
-
-use core/arithmetic/scalar::AddU32 as CoreAddU32
+use core/arithmetic/scalar::AddU32
 
 /**
 Add values from two streams of `u32`.
@@ -38,21 +22,20 @@ Add values from two streams of `u32`.
 Values passed through a & b are added and send in sum.
 
 */
-sequence AddU32()
+sequence Add()
   input  a:   Stream<u32>
   input  b:   Stream<u32>
   output sum: Stream<u32>
 {
-    CoreAddU32()
+    AddU32()
 
-    Self.a -> CoreAddU32.a
-    Self.b -> CoreAddU32.b
+    Self.a -> AddU32.a
+    Self.b -> AddU32.b
     
-    CoreAddU32.sum -> Self.sum
+    AddU32.sum -> Self.sum
 }
 
-
-use core/arithmetic/scalar::StaticSubU32 as CoreStaticSubU32
+use core/arithmetic/scalar::StaticSubU32 
 
 /**
 Substract a static value to `u32`.
@@ -60,17 +43,17 @@ Substract a static value to `u32`.
 Every number passed through the stream get `value` substracted.
 
 */
-sequence StaticSubU32(var sub: u32 = 0)
+sequence StaticSub(var sub: u32 = 0)
   input  value: Stream<u32>
   output value: Stream<u32>
 {
-    CoreStaticSubU32(sub=sub)
+    StaticSubU32(sub=sub)
 
-    Self.value -> CoreStaticSubU32.value,value -> Self.value
+    Self.value -> StaticSubU32.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::SubU32 as CoreSubU32
+use core/arithmetic/scalar::SubU32 
 
 /**
 Substract values from two streams of `u32`.
@@ -78,21 +61,21 @@ Substract values from two streams of `u32`.
 Every `a` number passed through the stream get `b` substracted.
 
 */
-sequence SubU32()
+sequence Sub()
   input  a:          Stream<u32>
   input  b:          Stream<u32>
   output difference: Stream<u32>
 {
-    CoreSubU32()
+    SubU32()
 
-    Self.a -> CoreSubU32.a
-    Self.b -> CoreSubU32.b
+    Self.a -> SubU32.a
+    Self.b -> SubU32.b
     
-    CoreSubU32.difference -> Self.difference
+    SubU32.difference -> Self.difference
 }
 
 
-use core/arithmetic/scalar::StaticMultU32 as CoreStaticMultU32
+use core/arithmetic/scalar::StaticMultU32 
 
 /**
 Multiply `u32` by static value.
@@ -100,17 +83,17 @@ Multiply `u32` by static value.
 Every number passed through the stream is multiplied by `value`.
 
 */
-sequence StaticMultU32(var factor: u32 = 0)
+sequence StaticMult(var factor: u32 = 0)
   input  value: Stream<u32>
   output value: Stream<u32>
 {
-    CoreStaticMultU32(factor=factor)
+    StaticMultU32(factor=factor)
 
-    Self.value -> CoreStaticMultU32.value,value -> Self.value
+    Self.value -> StaticMultU32.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::MultU32 as CoreMultU32
+use core/arithmetic/scalar::MultU32 
 
 /**
 Multiply values from two streams of `u32`.
@@ -118,21 +101,21 @@ Multiply values from two streams of `u32`.
 Every `a` number passed through the stream is multiplied by `b`.
 
 */
-sequence MultU32()
+sequence Mult()
   input  a:       Stream<u32>
   input  b:       Stream<u32>
   output product: Stream<u32>
 {
-    CoreMultU32()
+    MultU32()
 
-    Self.a -> CoreMultU32.a
-    Self.b -> CoreMultU32.b
+    Self.a -> MultU32.a
+    Self.b -> MultU32.b
     
-    CoreMultU32.product -> Self.product
+    MultU32.product -> Self.product
 }
 
 
-use core/arithmetic/scalar::StaticDivU32 as CoreStaticDivU32
+use core/arithmetic/scalar::StaticDivU32 
 
 /**
 Divide a stream of `u32` by a static value.
@@ -140,17 +123,17 @@ Divide a stream of `u32` by a static value.
 Every number passed through the stream is divided by `value`.
 
 */
-sequence StaticDivU32(var divisor: u32 = 0)
+sequence StaticDiv(var divisor: u32 = 0)
   input  value: Stream<u32>
   output value: Stream<u32>
 {
-    CoreStaticDivU32(divisor=divisor)
+    StaticDivU32(divisor=divisor)
 
-    Self.value -> CoreStaticDivU32.value,value -> Self.value
+    Self.value -> StaticDivU32.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::DivU32 as CoreDivU32
+use core/arithmetic/scalar::DivU32 
 
 /**
 Divide values from two streams of `u32`.
@@ -158,21 +141,21 @@ Divide values from two streams of `u32`.
 Every `a` number passed through the stream is divided by `b`.
 
 */
-sequence DivU32()
+sequence Div()
   input  a:        Stream<u32>
   input  b:        Stream<u32>
   output quotient: Stream<u32>
 {
-    CoreDivU32()
+    DivU32()
 
-    Self.a -> CoreDivU32.a
-    Self.b -> CoreDivU32.b
+    Self.a -> DivU32.a
+    Self.b -> DivU32.b
     
-    CoreDivU32.quotient -> Self.quotient
+    DivU32.quotient -> Self.quotient
 }
 
 
-use core/arithmetic/scalar::StaticRemU32 as CoreStaticRemU32
+use core/arithmetic/scalar::StaticRemU32 
 
 /**
 Give the remainder of a stream of `u32` divided by a static value.
@@ -180,17 +163,17 @@ Give the remainder of a stream of `u32` divided by a static value.
 Every number passed through the stream is divided by `value` and the remainder is outputted.
 
 */
-sequence StaticRemU32(var divisor: u32 = 0)
+sequence StaticRem(var divisor: u32 = 0)
   input  value: Stream<u32>
   output value: Stream<u32>
 {
-    CoreStaticRemU32(divisor=divisor)
+    StaticRemU32(divisor=divisor)
 
-    Self.value -> CoreStaticRemU32.value,value -> Self.value
+    Self.value -> StaticRemU32.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::RemU32 as CoreRemU32
+use core/arithmetic/scalar::RemU32 
 
 /**
 Give the remainder of the division from two streams of `u32`.
@@ -198,40 +181,40 @@ Give the remainder of the division from two streams of `u32`.
 Every `a` number passed through the stream is divided by `b` and the remainder is outputted.
 
 */
-sequence RemU32()
+sequence Rem()
   input  a:         Stream<u32>
   input  b:         Stream<u32>
   output remainder: Stream<u32>
 {
-    CoreRemU32()
+    RemU32()
 
-    Self.a -> CoreRemU32.a
-    Self.b -> CoreRemU32.b
+    Self.a -> RemU32.a
+    Self.b -> RemU32.b
     
-    CoreRemU32.remainder -> Self.remainder
+    RemU32.remainder -> Self.remainder
 }
 
 
 
 
-use core/arithmetic/scalar::StaticPowU32 as CoreStaticPowU32
+use core/arithmetic/scalar::StaticPowU32 
 
 /**
 Elevates `u32` to the power of a static value.
 
 Every number passed through the stream get elevated to the power of `exponent`.
 */
-sequence StaticPowU32(var exponent: u32 = 0)
+sequence StaticPow(var exponent: u32 = 0)
   input  value: Stream<u32>
   output value: Stream<u32>
 {
-    CoreStaticPowU32(exponent=exponent)
+    StaticPowU32(exponent=exponent)
 
-    Self.value -> CoreStaticPowU32.value,value -> Self.value
+    Self.value -> StaticPowU32.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::PowU32 as CorePowU32
+use core/arithmetic/scalar::PowU32 
 
 /**
 Elevates values from a stream of `u32` to the power of another one.
@@ -239,17 +222,15 @@ Elevates values from a stream of `u32` to the power of another one.
 Values passed through `base` are elevated to the power of `exponent`.
 
 */
-sequence PowU32()
+sequence Pow()
   input  base:     Stream<u32>
   input  exponent: Stream<u32>
   output power:    Stream<u32>
 {
-    CorePowU32()
+    PowU32()
 
-    Self.base -----> CorePowU32.base
-    Self.exponent -> CorePowU32.exponent
+    Self.base -----> PowU32.base
+    Self.exponent -> PowU32.exponent
     
-    CorePowU32.power -> Self.power
+    PowU32.power -> Self.power
 }
-
-

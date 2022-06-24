@@ -1,0 +1,49 @@
+use core/filling/scalar::StaticBlockChar
+
+/**
+Fill a triggering `void` block with a scalar static `char` value.
+
+```mermaid
+graph LR
+    T("StaticBlockFill (value=🟧)")
+    B["〈🟦〉"] -->|trigger| T
+    
+    T -->|value| O["〈🟧〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticBlockFill(var value: char = '∅')
+  input trigger: Block<void>
+  output value:  Block<char>
+{
+    StaticBlockChar(value=value)
+
+    Self.trigger -> StaticBlockChar.trigger,value -> Self.value
+}
+
+use core/filling/scalar::StaticChar
+
+/**
+Fill an input `void` stream with scalar static `char` values.
+
+```mermaid
+graph LR
+    T("StaticFill (value=🟧)")
+    B["… 🟦 🟦 🟦 …"] -->|pattern| T
+    
+    T -->|value| O["… 🟧 🟧 🟧 …"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticFill(var value: char = '∅')
+  input pattern: Stream<void>
+  output value:  Stream<char>
+{
+    StaticChar(value=value)
+
+    Self.pattern -> StaticChar.pattern,value -> Self.value
+}

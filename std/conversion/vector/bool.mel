@@ -1,0 +1,60 @@
+use std/flow/bool::Linearize
+use std/flow/bool::Organize
+
+use core/conversion/vector::BoolToVoid
+
+/**
+Convert stream of `Vec<bool>` into `Vec<void>` one.
+
+This conversion is useful to extract pattern from a stream of vectors and work on it.
+
+*/
+sequence ToVoid()
+  input  vector:  Stream<Vec<bool>>
+  output pattern: Stream<Vec<void>>
+{
+    BoolToVoid()
+
+    Self.vector -> BoolToVoid.vector,pattern -> Self.pattern
+}
+
+use std/conversion/scalar/bool::ToByte as ScalToByte
+
+/**
+Convert stream of `Vec<bool>` into `Vec<byte>` one.
+
+`Vec<bool>` gets converted into `Vec<byte>`, and the resulting vectors are send through stream in continuity.
+*/
+sequence ToByte()
+  input  value: Stream<Vec<bool>>
+  output data:  Stream<Vec<byte>>
+{
+    ToVoid()
+    Linearize()
+    ScalToByte()
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToByte.value,data -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern ---------------------------> Organize.pattern
+}
+
+use std/conversion/scalar/bool::ToString as ScalToString
+
+/**
+Convert stream of `Vec<bool>` into `Vec<string>` one.
+
+`Vec<bool>` gets converted into `Vec<string>`, and the resulting vectors are send through stream in continuity.
+*/
+sequence ToString()
+  input  value: Stream<Vec<bool>>
+  output value: Stream<Vec<string>>
+{
+    ToVoid()
+    Linearize()
+    ScalToString()
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToString.value,value -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern ------------------------------> Organize.pattern
+}
+

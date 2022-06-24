@@ -1,0 +1,193 @@
+use core/linearize::LinearizeU64
+
+/**
+Linearize stream of `Vec<u64>` into stream of `Scalar<u64>`.
+
+All the input vectors are turned into continuous stream of scalar values, in the same order.
+```mermaid
+graph LR
+    T(Linearize)
+    B["［🟦 🟦］［🟦］［🟦 🟦 🟦］"] -->|vector| T
+    
+    T -->|value| O["🟦 🟦 🟦 🟦 🟦 🟦"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence Linearize()
+  input vector: Stream<Vec<u64>>
+  output value: Stream<u64>
+{
+    LinearizeU64()
+
+    Self.vector -> LinearizeU64.vector,value -> Self.value
+}
+
+
+use core/flow::StreamU64ToBlockVecU64
+
+/**
+Transform stream of `u64` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+```mermaid
+graph LR
+    T(BlockStream)
+    B["🟦 🟦 🟦 🟦 🟦 🟦"] -->|stream| T
+    
+    T -->|block| O["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStream()
+  input  stream: Stream<u64>
+  output block:  Block<Vec<u64>>
+{
+    StreamU64ToBlockVecU64()
+
+    Self.stream -> StreamU64ToBlockVecU64.data,data -> Self.block
+}
+
+
+use core/flow::BlockVecU64ToStreamU64
+
+/**
+Stream a vector of `u64`.
+
+All values received in block vector are streamed ordered in output.
+
+```mermaid
+graph LR
+    T(StreamBlock)
+    B["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"] -->|block| T
+    
+    T -->|stream| O["🟦 🟦 🟦 🟦 🟦 🟦"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StreamBlock()
+  input  block:  Block<Vec<u64>>
+  output stream: Stream<u64>
+{
+    BlockVecU64ToStreamU64()
+
+    Self.block -> BlockVecU64ToStreamU64.data,data -> Self.stream
+}
+
+use core/organize::OrganizeU64
+
+/**
+Organize stream of `u64` into stream of `Vec<u64>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+```mermaid
+graph LR
+    T(Organize)
+    A["… 🟨 🟨 🟨 🟨 🟨 🟨"] -->|value| T
+    B["[🟦 🟦] [🟦] [🟦 🟦 🟦]"] -->|pattern| T
+    
+    T -->|values| O["[🟨 🟨] [🟨] [🟨 🟨 🟨]"]
+
+    style A fill:#ffff,stroke:#ffff
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+
+*/
+sequence Organize()
+  input   value: Stream<u64>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<u64>>
+{
+    OrganizeU64()
+
+    Self.value ---> OrganizeU64.value,values -> Self.values
+    Self.pattern -> OrganizeU64.pattern
+}
+
+
+use std/flow/void::Trigger as VoidTrigger
+use std/conversion/scalar/u64::ToVoid
+
+/**
+Trigger on `u64` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+
+```mermaid
+graph LR
+    T(Trigger)
+    B["🔴 … 🟦 🟦 🟦 🟦 🟦 🟦 … 🟢"] -->|value| T
+    
+    T -->|start| S["〈🟩〉"]
+    T -->|finish| F["〈🟥〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style S fill:#ffff,stroke:#ffff
+    style F fill:#ffff,stroke:#ffff
+```
+
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence Trigger()
+  input  value:  Stream<u64>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    ToVoid()
+    VoidTrigger()
+
+    Self.value -> ToVoid.value,iter -> VoidTrigger.iter
+    VoidTrigger.start --> Self.start
+    VoidTrigger.finish -> Self.finish
+}
+
+
+use std/flow/void::VecTrigger as VoidVecTrigger
+use std/conversion/vector/u64::ToVoid as ToVecVoid
+
+/**
+Trigger on `Vec<u64>` stream start and finish.
+
+Send `start` when a first vector is send through the stream.
+Send `finish` when stream is finally over.
+
+```mermaid
+graph LR
+    T(VecTrigger)
+    B["🔴 …［🟦 🟦 🟦］［🟦 🟦 🟦］［🟦 🟦 🟦］［🟦 🟦 🟦］ … 🟢"] -->|value| T
+    
+    T -->|start| S["〈🟩〉"]
+    T -->|finish| F["〈🟥〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style S fill:#ffff,stroke:#ffff
+    style F fill:#ffff,stroke:#ffff
+```
+
+ℹ️ If the stream never receive any vector before being closed, only `finish` will be emitted.
+*/
+sequence VecTrigger()
+  input  value:  Stream<Vec<u64>>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    ToVecVoid()
+    VoidVecTrigger()
+
+    Self.value -> ToVecVoid.value,iter -> VoidVecTrigger.iter
+    VoidVecTrigger.start --> Self.start
+    VoidVecTrigger.finish -> Self.finish
+}

@@ -1,0 +1,326 @@
+use std/flow/u64::Linearize
+use std/flow/u64::Organize
+
+use core/conversion/vector::U64ToVoid
+
+/**
+Convert stream of `Vec<u64>` into `Vec<void>` one.
+
+This conversion is useful to extract pattern from a stream of vectors and work on it.
+
+*/
+sequence ToVoid()
+  input  vector:  Stream<Vec<u64>>
+  output pattern: Stream<Vec<void>>
+{
+    U64ToVoid()
+
+    Self.vector -> U64ToVoid.vector,pattern -> Self.pattern
+}
+
+use std/conversion/scalar/u64::ToByte as ScalToByte
+
+/**
+Convert stream of `Vec<u64>` into `Vec<byte>` one.
+
+`Vec<u64>` gets converted into `Vec<byte>`, and the resulting vectors are send through stream in continuity.
+*/
+sequence ToByte()
+  input  value: Stream<Vec<u64>>
+  output data:  Stream<Vec<byte>>
+{
+    ToVoid()
+    Linearize()
+    ScalToByte()
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToByte.value,data -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern ---------------------------> Organize.pattern
+}
+
+use std/conversion/scalar/u64::ToString as ScalToString
+
+/**
+Convert stream of `Vec<u64>` into `Vec<string>` one.
+
+`Vec<u64>` gets converted into `Vec<string>`, and the resulting vectors are send through stream in continuity.
+*/
+sequence ToString()
+  input  value: Stream<Vec<u64>>
+  output value: Stream<Vec<string>>
+{
+    ToVoid()
+    Linearize()
+    ScalToString()
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToString.value,value -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern ------------------------------> Organize.pattern
+}
+
+use std/conversion/scalar/u64::ToU128 as ScalToU128
+
+/**
+Convert stream of `Vec<u64>` into `Vec<u128>` one.
+
+`Vec<u64>` gets converted into `Vec<u128>`, and the resulting vectors are send through stream in continuity.
+This conversion is lossless, `u64` values can all fit into `u128`.
+*/
+sequence ToU128()
+  input  value: Stream<Vec<u64>>
+  output value: Stream<Vec<u128>>
+{
+    ToVoid()
+    Linearize()
+    ScalToU128()
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToU128.value,value -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+}
+
+use std/conversion/scalar/u64::ToI128 as ScalToI128
+
+/**
+Convert stream of `Vec<u64>` into `Vec<i128>` one.
+
+`Vec<u64>` gets converted into `Vec<i128>`, and the resulting vectors are send through stream in continuity.
+This conversion is lossless, `u64` values can all fit into `i128`.
+*/
+sequence ToI128()
+  input  value: Stream<Vec<u64>>
+  output value: Stream<Vec<i128>>
+{
+    ToVoid()
+    Linearize()
+    ScalToI128()
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToI128.value,value -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+}
+
+use std/conversion/scalar/u64::ToF32 as ScalToF32
+
+/**
+Convert stream of `Vec<u64>` into `Vec<f32>` one.
+
+`Vec<u64>` gets converted into `Vec<f32>`, and the resulting vectors are send through stream in continuity.
+This conversion is lossless, `u64` values can all fit into `f32`.
+*/
+sequence ToF32()
+  input  value: Stream<Vec<u64>>
+  output value: Stream<Vec<f32>>
+{
+    ToVoid()
+    Linearize()
+    ScalToF32()
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToF32.value,value -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+}
+
+use std/conversion/scalar/u64::ToF64 as ScalToF64
+
+/**
+Convert stream of `Vec<u64>` into `Vec<f64>` one.
+
+`Vec<u64>` gets converted into `Vec<f64>`, and the resulting vectors are send through stream in continuity.
+This conversion is lossless, `u64` values can all fit into `f64`.
+*/
+sequence ToF64()
+  input  value: Stream<Vec<u64>>
+  output value: Stream<Vec<f64>>
+{
+    ToVoid()
+    Linearize()
+    ScalToF64()
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToF64.value,value -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+}
+
+use std/conversion/scalar/u64::ToU8 as ScalToU8
+
+/**
+Convert stream of `Vec<u64>` into `Vec<u8>` one.
+
+`Vec<u64>` gets converted into `Vec<u8>`, and the resulting vectors are send through stream in continuity.
+
+As this conversion might be lossy (every possible `u64` value cannot fit into `u8`),
+`truncate` allows value to be truncated to fit into a `u8`, and `or_default` set the
+value that is assigned when a `u64` is out of range for `u8` and truncation not allowed.
+
+Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+*/
+sequence ToU8(var truncate: bool = true, var or_default: u8 = 0)
+  input  value: Stream<Vec<u64>>
+  output value: Stream<Vec<u8>>
+{
+    ToVoid()
+    Linearize()
+    ScalToU8(truncate=truncate, or_default=or_default)
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToU8.value,value -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+}
+
+use std/conversion/scalar/u64::ToU16 as ScalToU16
+
+/**
+Convert stream of `Vec<u64>` into `Vec<u16>` one.
+
+`Vec<u64>` gets converted into `Vec<u16>`, and the resulting vectors are send through stream in continuity.
+
+As this conversion might be lossy (every possible `u64` value cannot fit into `u16`),
+`truncate` allows value to be truncated to fit into a `u16`, and `or_default` set the
+value that is assigned when a `u64` is out of range for `u16` and truncation not allowed.
+
+Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+*/
+sequence ToU16(var truncate: bool = true, var or_default: u16 = 0)
+  input  value: Stream<Vec<u64>>
+  output value: Stream<Vec<u16>>
+{
+    ToVoid()
+    Linearize()
+    ScalToU16(truncate=truncate, or_default=or_default)
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToU16.value,value -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+}
+
+use std/conversion/scalar/u64::ToU32 as ScalToU32
+
+/**
+Convert stream of `Vec<u64>` into `Vec<u32>` one.
+
+`Vec<u64>` gets converted into `Vec<u32>`, and the resulting vectors are send through stream in continuity.
+
+As this conversion might be lossy (every possible `u64` value cannot fit into `u32`),
+`truncate` allows value to be truncated to fit into a `u32`, and `or_default` set the
+value that is assigned when a `u64` is out of range for `u32` and truncation not allowed.
+
+Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+*/
+sequence ToU32(var truncate: bool = true, var or_default: u32 = 0)
+  input  value: Stream<Vec<u64>>
+  output value: Stream<Vec<u32>>
+{
+    ToVoid()
+    Linearize()
+    ScalToU32(truncate=truncate, or_default=or_default)
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToU32.value,value -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+}
+
+use std/conversion/scalar/u64::ToI8 as ScalToI8
+
+/**
+Convert stream of `Vec<u64>` into `Vec<i8>` one.
+
+`Vec<u64>` gets converted into `Vec<i8>`, and the resulting vectors are send through stream in continuity.
+
+As this conversion might be lossy (every possible `u64` value cannot fit into `i8`),
+`truncate` allows value to be truncated to fit into a `i8`, and `or_default` set the
+value that is assigned when a `u64` is out of range for `i8` and truncation not allowed.
+
+Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+*/
+sequence ToI8(var truncate: bool = true, var or_default: i8 = 0)
+  input  value: Stream<Vec<u64>>
+  output value: Stream<Vec<i8>>
+{
+    ToVoid()
+    Linearize()
+    ScalToI8(truncate=truncate, or_default=or_default)
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToI8.value,value -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+}
+
+use std/conversion/scalar/u64::ToI16 as ScalToI16
+
+/**
+Convert stream of `Vec<u64>` into `Vec<i16>` one.
+
+`Vec<u64>` gets converted into `Vec<i16>`, and the resulting vectors are send through stream in continuity.
+
+As this conversion might be lossy (every possible `u64` value cannot fit into `i16`),
+`truncate` allows value to be truncated to fit into a `i16`, and `or_default` set the
+value that is assigned when a `u64` is out of range for `i16` and truncation not allowed.
+
+Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+*/
+sequence ToI16(var truncate: bool = true, var or_default: i16 = 0)
+  input  value: Stream<Vec<u64>>
+  output value: Stream<Vec<i16>>
+{
+    ToVoid()
+    Linearize()
+    ScalToI16(truncate=truncate, or_default=or_default)
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToI16.value,value -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+}
+
+use std/conversion/scalar/u64::ToI32 as ScalToI32
+
+/**
+Convert stream of `Vec<u64>` into `Vec<i32>` one.
+
+`Vec<u64>` gets converted into `Vec<i32>`, and the resulting vectors are send through stream in continuity.
+
+As this conversion might be lossy (every possible `u64` value cannot fit into `i32`),
+`truncate` allows value to be truncated to fit into a `i32`, and `or_default` set the
+value that is assigned when a `u64` is out of range for `i32` and truncation not allowed.
+
+Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+*/
+sequence ToI32(var truncate: bool = true, var or_default: i32 = 0)
+  input  value: Stream<Vec<u64>>
+  output value: Stream<Vec<i32>>
+{
+    ToVoid()
+    Linearize()
+    ScalToI32(truncate=truncate, or_default=or_default)
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToI32.value,value -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+}
+
+use std/conversion/scalar/u64::ToI64 as ScalToI64
+
+/**
+Convert stream of `Vec<u64>` into `Vec<i64>` one.
+
+`Vec<u64>` gets converted into `Vec<i64>`, and the resulting vectors are send through stream in continuity.
+
+As this conversion might be lossy (every possible `u64` value cannot fit into `i64`),
+`truncate` allows value to be truncated to fit into a `i64`, and `or_default` set the
+value that is assigned when a `u64` is out of range for `i64` and truncation not allowed.
+
+Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+*/
+sequence ToI64(var truncate: bool = true, var or_default: i64 = 0)
+  input  value: Stream<Vec<u64>>
+  output value: Stream<Vec<i64>>
+{
+    ToVoid()
+    Linearize()
+    ScalToI64(truncate=truncate, or_default=or_default)
+    Organize()
+
+    Self.value -> Linearize.vector,value -> ScalToI64.value,value -> Organize.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+}
+

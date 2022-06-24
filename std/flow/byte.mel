@@ -1,0 +1,193 @@
+use core/linearize::LinearizeByte
+
+/**
+Linearize stream of `Vec<byte>` into stream of `Scalar<byte>`.
+
+All the input vectors are turned into continuous stream of scalar values, in the same order.
+```mermaid
+graph LR
+    T(Linearize)
+    B["［🟦 🟦］［🟦］［🟦 🟦 🟦］"] -->|vector| T
+    
+    T -->|value| O["🟦 🟦 🟦 🟦 🟦 🟦"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence Linearize()
+  input vector: Stream<Vec<byte>>
+  output value: Stream<byte>
+{
+    LinearizeByte()
+
+    Self.vector -> LinearizeByte.vector,value -> Self.value
+}
+
+
+use core/flow::StreamByteToBlockVecByte
+
+/**
+Transform stream of `byte` into a single vector block.
+
+All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
+
+```mermaid
+graph LR
+    T(BlockStream)
+    B["🟦 🟦 🟦 🟦 🟦 🟦"] -->|stream| T
+    
+    T -->|block| O["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+
+⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
+
+*/
+sequence BlockStream()
+  input  stream: Stream<byte>
+  output block:  Block<Vec<byte>>
+{
+    StreamByteToBlockVecByte()
+
+    Self.stream -> StreamByteToBlockVecByte.data,data -> Self.block
+}
+
+
+use core/flow::BlockVecByteToStreamByte
+
+/**
+Stream a vector of `byte`.
+
+All values received in block vector are streamed ordered in output.
+
+```mermaid
+graph LR
+    T(StreamBlock)
+    B["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"] -->|block| T
+    
+    T -->|stream| O["🟦 🟦 🟦 🟦 🟦 🟦"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StreamBlock()
+  input  block:  Block<Vec<byte>>
+  output stream: Stream<byte>
+{
+    BlockVecByteToStreamByte()
+
+    Self.block -> BlockVecByteToStreamByte.data,data -> Self.stream
+}
+
+use core/organize::OrganizeByte
+
+/**
+Organize stream of `byte` into stream of `Vec<byte>`.
+
+ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+If there are not enough values to fit the pattern, uncomplete vector is trashed.
+
+```mermaid
+graph LR
+    T(Organize)
+    A["… 🟨 🟨 🟨 🟨 🟨 🟨"] -->|value| T
+    B["[🟦 🟦] [🟦] [🟦 🟦 🟦]"] -->|pattern| T
+    
+    T -->|values| O["[🟨 🟨] [🟨] [🟨 🟨 🟨]"]
+
+    style A fill:#ffff,stroke:#ffff
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+
+*/
+sequence Organize()
+  input   value: Stream<byte>
+  input pattern: Stream<Vec<void>>
+  output values: Stream<Vec<byte>>
+{
+    OrganizeByte()
+
+    Self.value ---> OrganizeByte.value,values -> Self.values
+    Self.pattern -> OrganizeByte.pattern
+}
+
+
+use std/flow/void::Trigger as VoidTrigger
+use std/conversion/scalar/byte::ToVoid
+
+/**
+Trigger on `byte` stream start and finish.
+
+Send `start` when a first value is send through the stream.
+Send `finish` when stream is finally over.
+
+```mermaid
+graph LR
+    T(Trigger)
+    B["🔴 … 🟦 🟦 🟦 🟦 🟦 🟦 … 🟢"] -->|value| T
+    
+    T -->|start| S["〈🟩〉"]
+    T -->|finish| F["〈🟥〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style S fill:#ffff,stroke:#ffff
+    style F fill:#ffff,stroke:#ffff
+```
+
+ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
+*/
+sequence Trigger()
+  input  value:  Stream<byte>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    ToVoid()
+    VoidTrigger()
+
+    Self.value -> ToVoid.value,iter -> VoidTrigger.iter
+    VoidTrigger.start --> Self.start
+    VoidTrigger.finish -> Self.finish
+}
+
+
+use std/flow/void::VecTrigger as VoidVecTrigger
+use std/conversion/vector/byte::ToVoid as ToVecVoid
+
+/**
+Trigger on `Vec<byte>` stream start and finish.
+
+Send `start` when a first vector is send through the stream.
+Send `finish` when stream is finally over.
+
+```mermaid
+graph LR
+    T(VecTrigger)
+    B["🔴 …［🟦 🟦 🟦］［🟦 🟦 🟦］［🟦 🟦 🟦］［🟦 🟦 🟦］ … 🟢"] -->|value| T
+    
+    T -->|start| S["〈🟩〉"]
+    T -->|finish| F["〈🟥〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style S fill:#ffff,stroke:#ffff
+    style F fill:#ffff,stroke:#ffff
+```
+
+ℹ️ If the stream never receive any vector before being closed, only `finish` will be emitted.
+*/
+sequence VecTrigger()
+  input  value:  Stream<Vec<byte>>
+  output start:  Block<void>
+  output finish: Block<void>
+{
+    ToVecVoid()
+    VoidVecTrigger()
+
+    Self.value -> ToVecVoid.value,iter -> VoidVecTrigger.iter
+    VoidVecTrigger.start --> Self.start
+    VoidVecTrigger.finish -> Self.finish
+}

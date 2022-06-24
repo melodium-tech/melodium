@@ -1,0 +1,49 @@
+use core/filling/scalar::StaticBlockU128
+
+/**
+Fill a triggering `void` block with a scalar static `u128` value.
+
+```mermaid
+graph LR
+    T("StaticBlockFill (value=🟧)")
+    B["〈🟦〉"] -->|trigger| T
+    
+    T -->|value| O["〈🟧〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticBlockFill(var value: u128 = 0)
+  input trigger: Block<void>
+  output value:  Block<u128>
+{
+    StaticBlockU128(value=value)
+
+    Self.trigger -> StaticBlockU128.trigger,value -> Self.value
+}
+
+use core/filling/scalar::StaticU128
+
+/**
+Fill an input `void` stream with scalar static `u128` values.
+
+```mermaid
+graph LR
+    T("StaticFill (value=🟧)")
+    B["… 🟦 🟦 🟦 …"] -->|pattern| T
+    
+    T -->|value| O["… 🟧 🟧 🟧 …"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticFill(var value: u128 = 0)
+  input pattern: Stream<void>
+  output value:  Stream<u128>
+{
+    StaticU128(value=value)
+
+    Self.pattern -> StaticU128.pattern,value -> Self.value
+}

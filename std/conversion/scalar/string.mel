@@ -1,0 +1,32 @@
+use core/conversion/scalar::StringToVoid
+
+/**
+Turns `string` stream into `void` one.
+
+Send one `iter` per input `value` received.
+*/
+sequence ToVoid()
+  input value: Stream<string>
+  output iter: Stream<void>
+{
+    StringToVoid()
+
+    Self.value -> StringToVoid.value,iter -> Self.iter
+}
+
+use core/conversion/scalar::StringToByte
+
+/**
+Convert stream of `string` into `byte`.
+
+`string` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence ToByte()
+  input  value: Stream<string>
+  output data:  Stream<byte>
+{
+    StringToByte()
+
+    Self.value -> StringToByte.value,data -> Self.data
+}
+

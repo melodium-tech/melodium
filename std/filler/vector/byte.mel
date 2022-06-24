@@ -1,0 +1,31 @@
+
+use std/flow/void::Linearize
+use std/flow/byte::Organize
+use std/filler/scalar/byte::StaticFill as ScalarStaticFill
+
+/**
+Fill an input `Vec<void>` stream with scalar static `byte` values.
+
+```mermaid
+graph LR
+    T("StaticFill (value=🟧)")
+    B["…［🟦 🟦 🟦］［🟦 🟦］［🟦 🟦 🟦］…"] -->|pattern| T
+    
+    T -->|value| O["…［🟧 🟧 🟧］［🟧 🟧］［🟧 🟧 🟧］…"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticFill(var value: byte = 0x00)
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<byte>>
+{
+    Linearize()
+    ScalarStaticFill(value=value)
+    Organize()
+
+    Self.pattern -> Linearize.vector,value -> ScalarStaticFill.pattern,value -> Organize.value,values -> Self.value
+    Self.pattern -------------------------------------------------------------> Organize.pattern
+    
+}

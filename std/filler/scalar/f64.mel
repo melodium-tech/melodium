@@ -1,0 +1,49 @@
+use core/filling/scalar::StaticBlockF64
+
+/**
+Fill a triggering `void` block with a scalar static `f64` value.
+
+```mermaid
+graph LR
+    T("StaticBlockFill (value=🟧)")
+    B["〈🟦〉"] -->|trigger| T
+    
+    T -->|value| O["〈🟧〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticBlockFill(var value: f64 = 0)
+  input trigger: Block<void>
+  output value:  Block<f64>
+{
+    StaticBlockF64(value=value)
+
+    Self.trigger -> StaticBlockF64.trigger,value -> Self.value
+}
+
+use core/filling/scalar::StaticF64
+
+/**
+Fill an input `void` stream with scalar static `f64` values.
+
+```mermaid
+graph LR
+    T("StaticFill (value=🟧)")
+    B["… 🟦 🟦 🟦 …"] -->|pattern| T
+    
+    T -->|value| O["… 🟧 🟧 🟧 …"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticFill(var value: f64 = 0)
+  input pattern: Stream<void>
+  output value:  Stream<f64>
+{
+    StaticF64(value=value)
+
+    Self.pattern -> StaticF64.pattern,value -> Self.value
+}

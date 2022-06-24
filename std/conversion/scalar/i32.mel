@@ -1,0 +1,263 @@
+use core/conversion/scalar::I32ToVoid
+
+/**
+Turns `i32` stream into `void` one.
+
+Send one `iter` per input `value` received.
+*/
+sequence ToVoid()
+  input value: Stream<i32>
+  output iter: Stream<void>
+{
+    I32ToVoid()
+
+    Self.value -> I32ToVoid.value,iter -> Self.iter
+}
+
+use core/conversion/scalar::I32ToByte
+
+/**
+Convert stream of `i32` into `byte`.
+
+`i32` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence ToByte()
+  input  value: Stream<i32>
+  output data:  Stream<byte>
+{
+    I32ToByte()
+
+    Self.value -> I32ToByte.value,data -> Self.data
+}
+
+use core/conversion/scalar::I32ToString
+
+/**
+Convert stream of `i32` into `string`.
+
+`i32` gets converted into `string`, and the resulting strings are send through stream in continuity.
+*/
+sequence ToString()
+  input  value: Stream<i32>
+  output value: Stream<string>
+{
+    I32ToString()
+
+    Self.value -> I32ToString.value,value -> Self.value
+}
+
+use core/cast/scalar::I32ToI64
+
+/**
+Convert stream of `i32` into `i64`.
+
+This conversion is lossless, `i32` values can all fit into `i64`.
+*/
+sequence ToI64()
+  input  value: Stream<i32>
+  output value: Stream<i64>
+{
+    I32ToI64()
+
+    Self.value -> I32ToI64.value,value -> Self.value
+}
+
+
+use core/cast/scalar::I32ToI128
+
+/**
+Convert stream of `i32` into `i128`.
+
+This conversion is lossless, `i32` values can all fit into `i128`.
+*/
+sequence ToI128()
+  input  value: Stream<i32>
+  output value: Stream<i128>
+{
+    I32ToI128()
+
+    Self.value -> I32ToI128.value,value -> Self.value
+}
+
+
+use core/cast/scalar::I32ToF32
+
+/**
+Convert stream of `i32` into `f32`.
+
+This conversion is lossless, `i32` values can all fit into `f32`.
+*/
+sequence ToF32()
+  input  value: Stream<i32>
+  output value: Stream<f32>
+{
+    I32ToF32()
+
+    Self.value -> I32ToF32.value,value -> Self.value
+}
+
+
+use core/cast/scalar::I32ToF64
+
+/**
+Convert stream of `i32` into `f64`.
+
+This conversion is lossless, `i32` values can all fit into `f64`.
+*/
+sequence ToF64()
+  input  value: Stream<i32>
+  output value: Stream<f64>
+{
+    I32ToF64()
+
+    Self.value -> I32ToF64.value,value -> Self.value
+}
+
+
+use core/cast/scalar::CastScalarI32ToU8
+
+/**
+Convert stream of `i32` into `u8`.
+
+As this conversion might be lossy (every possible `i32` value cannot fit into `u8`),
+`truncate` allows value to be truncated to fit into a `u8`, and `or_default` set the
+value that is assigned when a `i32` is out of range for `u8` and truncation not allowed.
+
+Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+*/
+sequence ToU8(var truncate: bool = true, var or_default: u8 = 0)
+  input  value: Stream<i32>
+  output value: Stream<u8>
+{
+    CastScalarI32ToU8()
+
+    Self.value -> CastScalarI32ToU8.value,value -> Self.value
+}
+
+
+use core/cast/scalar::CastScalarI32ToU16
+
+/**
+Convert stream of `i32` into `u16`.
+
+As this conversion might be lossy (every possible `i32` value cannot fit into `u16`),
+`truncate` allows value to be truncated to fit into a `u16`, and `or_default` set the
+value that is assigned when a `i32` is out of range for `u16` and truncation not allowed.
+
+Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+*/
+sequence ToU16(var truncate: bool = true, var or_default: u16 = 0)
+  input  value: Stream<i32>
+  output value: Stream<u16>
+{
+    CastScalarI32ToU16()
+
+    Self.value -> CastScalarI32ToU16.value,value -> Self.value
+}
+
+
+use core/cast/scalar::CastScalarI32ToU32
+
+/**
+Convert stream of `i32` into `u32`.
+
+As this conversion might be lossy (every possible `i32` value cannot fit into `u32`),
+`truncate` allows value to be truncated to fit into a `u32`, and `or_default` set the
+value that is assigned when a `i32` is out of range for `u32` and truncation not allowed.
+
+Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+*/
+sequence ToU32(var truncate: bool = true, var or_default: u32 = 0)
+  input  value: Stream<i32>
+  output value: Stream<u32>
+{
+    CastScalarI32ToU32()
+
+    Self.value -> CastScalarI32ToU32.value,value -> Self.value
+}
+
+
+use core/cast/scalar::CastScalarI32ToU64
+
+/**
+Convert stream of `i32` into `u64`.
+
+As this conversion might be lossy (every possible `i32` value cannot fit into `u64`),
+`truncate` allows value to be truncated to fit into a `u64`, and `or_default` set the
+value that is assigned when a `i32` is out of range for `u64` and truncation not allowed.
+
+Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+*/
+sequence ToU64(var truncate: bool = true, var or_default: u64 = 0)
+  input  value: Stream<i32>
+  output value: Stream<u64>
+{
+    CastScalarI32ToU64()
+
+    Self.value -> CastScalarI32ToU64.value,value -> Self.value
+}
+
+
+use core/cast/scalar::CastScalarI32ToU128
+
+/**
+Convert stream of `i32` into `u128`.
+
+As this conversion might be lossy (every possible `i32` value cannot fit into `u128`),
+`truncate` allows value to be truncated to fit into a `u128`, and `or_default` set the
+value that is assigned when a `i32` is out of range for `u128` and truncation not allowed.
+
+Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+*/
+sequence ToU128(var truncate: bool = true, var or_default: u128 = 0)
+  input  value: Stream<i32>
+  output value: Stream<u128>
+{
+    CastScalarI32ToU128()
+
+    Self.value -> CastScalarI32ToU128.value,value -> Self.value
+}
+
+
+use core/cast/scalar::CastScalarI32ToI8
+
+/**
+Convert stream of `i32` into `i8`.
+
+As this conversion might be lossy (every possible `i32` value cannot fit into `i8`),
+`truncate` allows value to be truncated to fit into a `i8`, and `or_default` set the
+value that is assigned when a `i32` is out of range for `i8` and truncation not allowed.
+
+Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+*/
+sequence ToI8(var truncate: bool = true, var or_default: i8 = 0)
+  input  value: Stream<i32>
+  output value: Stream<i8>
+{
+    CastScalarI32ToI8()
+
+    Self.value -> CastScalarI32ToI8.value,value -> Self.value
+}
+
+
+use core/cast/scalar::CastScalarI32ToI16
+
+/**
+Convert stream of `i32` into `i16`.
+
+As this conversion might be lossy (every possible `i32` value cannot fit into `i16`),
+`truncate` allows value to be truncated to fit into a `i16`, and `or_default` set the
+value that is assigned when a `i32` is out of range for `i16` and truncation not allowed.
+
+Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+*/
+sequence ToI16(var truncate: bool = true, var or_default: i16 = 0)
+  input  value: Stream<i32>
+  output value: Stream<i16>
+{
+    CastScalarI32ToI16()
+
+    Self.value -> CastScalarI32ToI16.value,value -> Self.value
+}
+
+

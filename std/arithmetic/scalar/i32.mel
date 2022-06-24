@@ -1,36 +1,20 @@
-
-use core/arithmetic/scalar::StaticAddI32 as CoreStaticAddI32
+use core/arithmetic/scalar::StaticAddI32
 
 /**
 Add a static value to `i32`.
 
 Every number passed through the stream get `value` added.
-
-```
-use std/arithmetic/scalar/i32::StaticAddI32
-
-sequence Foo()
-  input  in:  Stream<i32>
-  output out: Stream<i32>
-{
-    StaticAddI32(value=5)
-
-    // in is increased by 5 and send to out
-    Self.in -> StaticAddI32.value,value -> Self.out
-}
-```
 */
-sequence StaticAddI32(var value: i32 = 0)
+sequence StaticAdd(var value: i32 = 0)
   input  value: Stream<i32>
   output value: Stream<i32>
 {
-    CoreStaticAddI32(value=value)
+    StaticAddI32(value=value)
 
-    Self.value -> CoreStaticAddI32.value,value -> Self.value
+    Self.value -> StaticAddI32.value,value -> Self.value
 }
 
-
-use core/arithmetic/scalar::AddI32 as CoreAddI32
+use core/arithmetic/scalar::AddI32
 
 /**
 Add values from two streams of `i32`.
@@ -38,21 +22,20 @@ Add values from two streams of `i32`.
 Values passed through a & b are added and send in sum.
 
 */
-sequence AddI32()
+sequence Add()
   input  a:   Stream<i32>
   input  b:   Stream<i32>
   output sum: Stream<i32>
 {
-    CoreAddI32()
+    AddI32()
 
-    Self.a -> CoreAddI32.a
-    Self.b -> CoreAddI32.b
+    Self.a -> AddI32.a
+    Self.b -> AddI32.b
     
-    CoreAddI32.sum -> Self.sum
+    AddI32.sum -> Self.sum
 }
 
-
-use core/arithmetic/scalar::StaticSubI32 as CoreStaticSubI32
+use core/arithmetic/scalar::StaticSubI32 
 
 /**
 Substract a static value to `i32`.
@@ -60,17 +43,17 @@ Substract a static value to `i32`.
 Every number passed through the stream get `value` substracted.
 
 */
-sequence StaticSubI32(var sub: i32 = 0)
+sequence StaticSub(var sub: i32 = 0)
   input  value: Stream<i32>
   output value: Stream<i32>
 {
-    CoreStaticSubI32(sub=sub)
+    StaticSubI32(sub=sub)
 
-    Self.value -> CoreStaticSubI32.value,value -> Self.value
+    Self.value -> StaticSubI32.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::SubI32 as CoreSubI32
+use core/arithmetic/scalar::SubI32 
 
 /**
 Substract values from two streams of `i32`.
@@ -78,21 +61,21 @@ Substract values from two streams of `i32`.
 Every `a` number passed through the stream get `b` substracted.
 
 */
-sequence SubI32()
+sequence Sub()
   input  a:          Stream<i32>
   input  b:          Stream<i32>
   output difference: Stream<i32>
 {
-    CoreSubI32()
+    SubI32()
 
-    Self.a -> CoreSubI32.a
-    Self.b -> CoreSubI32.b
+    Self.a -> SubI32.a
+    Self.b -> SubI32.b
     
-    CoreSubI32.difference -> Self.difference
+    SubI32.difference -> Self.difference
 }
 
 
-use core/arithmetic/scalar::StaticMultI32 as CoreStaticMultI32
+use core/arithmetic/scalar::StaticMultI32 
 
 /**
 Multiply `i32` by static value.
@@ -100,17 +83,17 @@ Multiply `i32` by static value.
 Every number passed through the stream is multiplied by `value`.
 
 */
-sequence StaticMultI32(var factor: i32 = 0)
+sequence StaticMult(var factor: i32 = 0)
   input  value: Stream<i32>
   output value: Stream<i32>
 {
-    CoreStaticMultI32(factor=factor)
+    StaticMultI32(factor=factor)
 
-    Self.value -> CoreStaticMultI32.value,value -> Self.value
+    Self.value -> StaticMultI32.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::MultI32 as CoreMultI32
+use core/arithmetic/scalar::MultI32 
 
 /**
 Multiply values from two streams of `i32`.
@@ -118,21 +101,21 @@ Multiply values from two streams of `i32`.
 Every `a` number passed through the stream is multiplied by `b`.
 
 */
-sequence MultI32()
+sequence Mult()
   input  a:       Stream<i32>
   input  b:       Stream<i32>
   output product: Stream<i32>
 {
-    CoreMultI32()
+    MultI32()
 
-    Self.a -> CoreMultI32.a
-    Self.b -> CoreMultI32.b
+    Self.a -> MultI32.a
+    Self.b -> MultI32.b
     
-    CoreMultI32.product -> Self.product
+    MultI32.product -> Self.product
 }
 
 
-use core/arithmetic/scalar::StaticDivI32 as CoreStaticDivI32
+use core/arithmetic/scalar::StaticDivI32 
 
 /**
 Divide a stream of `i32` by a static value.
@@ -140,17 +123,17 @@ Divide a stream of `i32` by a static value.
 Every number passed through the stream is divided by `value`.
 
 */
-sequence StaticDivI32(var divisor: i32 = 0)
+sequence StaticDiv(var divisor: i32 = 0)
   input  value: Stream<i32>
   output value: Stream<i32>
 {
-    CoreStaticDivI32(divisor=divisor)
+    StaticDivI32(divisor=divisor)
 
-    Self.value -> CoreStaticDivI32.value,value -> Self.value
+    Self.value -> StaticDivI32.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::DivI32 as CoreDivI32
+use core/arithmetic/scalar::DivI32 
 
 /**
 Divide values from two streams of `i32`.
@@ -158,21 +141,21 @@ Divide values from two streams of `i32`.
 Every `a` number passed through the stream is divided by `b`.
 
 */
-sequence DivI32()
+sequence Div()
   input  a:        Stream<i32>
   input  b:        Stream<i32>
   output quotient: Stream<i32>
 {
-    CoreDivI32()
+    DivI32()
 
-    Self.a -> CoreDivI32.a
-    Self.b -> CoreDivI32.b
+    Self.a -> DivI32.a
+    Self.b -> DivI32.b
     
-    CoreDivI32.quotient -> Self.quotient
+    DivI32.quotient -> Self.quotient
 }
 
 
-use core/arithmetic/scalar::StaticRemI32 as CoreStaticRemI32
+use core/arithmetic/scalar::StaticRemI32 
 
 /**
 Give the remainder of a stream of `i32` divided by a static value.
@@ -180,17 +163,17 @@ Give the remainder of a stream of `i32` divided by a static value.
 Every number passed through the stream is divided by `value` and the remainder is outputted.
 
 */
-sequence StaticRemI32(var divisor: i32 = 0)
+sequence StaticRem(var divisor: i32 = 0)
   input  value: Stream<i32>
   output value: Stream<i32>
 {
-    CoreStaticRemI32(divisor=divisor)
+    StaticRemI32(divisor=divisor)
 
-    Self.value -> CoreStaticRemI32.value,value -> Self.value
+    Self.value -> StaticRemI32.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::RemI32 as CoreRemI32
+use core/arithmetic/scalar::RemI32 
 
 /**
 Give the remainder of the division from two streams of `i32`.
@@ -198,40 +181,40 @@ Give the remainder of the division from two streams of `i32`.
 Every `a` number passed through the stream is divided by `b` and the remainder is outputted.
 
 */
-sequence RemI32()
+sequence Rem()
   input  a:         Stream<i32>
   input  b:         Stream<i32>
   output remainder: Stream<i32>
 {
-    CoreRemI32()
+    RemI32()
 
-    Self.a -> CoreRemI32.a
-    Self.b -> CoreRemI32.b
+    Self.a -> RemI32.a
+    Self.b -> RemI32.b
     
-    CoreRemI32.remainder -> Self.remainder
+    RemI32.remainder -> Self.remainder
 }
 
 
 
 
-use core/arithmetic/scalar::StaticPowI32 as CoreStaticPowI32
+use core/arithmetic/scalar::StaticPowI32 
 
 /**
 Elevates `i32` to the power of a static value.
 
 Every number passed through the stream get elevated to the power of `exponent`.
 */
-sequence StaticPowI32(var exponent: i32 = 0)
+sequence StaticPow(var exponent: i32 = 0)
   input  value: Stream<i32>
   output value: Stream<i32>
 {
-    CoreStaticPowI32(exponent=exponent)
+    StaticPowI32(exponent=exponent)
 
-    Self.value -> CoreStaticPowI32.value,value -> Self.value
+    Self.value -> StaticPowI32.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::PowI32 as CorePowI32
+use core/arithmetic/scalar::PowI32 
 
 /**
 Elevates values from a stream of `i32` to the power of another one.
@@ -239,34 +222,30 @@ Elevates values from a stream of `i32` to the power of another one.
 Values passed through `base` are elevated to the power of `exponent`.
 
 */
-sequence PowI32()
+sequence Pow()
   input  base:     Stream<i32>
   input  exponent: Stream<i32>
   output power:    Stream<i32>
 {
-    CorePowI32()
+    PowI32()
 
-    Self.base -----> CorePowI32.base
-    Self.exponent -> CorePowI32.exponent
+    Self.base -----> PowI32.base
+    Self.exponent -> PowI32.exponent
     
-    CorePowI32.power -> Self.power
+    PowI32.power -> Self.power
 }
 
-
-
-use core/arithmetic/scalar::AbsI32 as CoreAbsI32
+use core/arithmetic/scalar::AbsI32
 
 /**
 Get the absolute values from a stream of `i32`.
 
 */
-sequence AbsI32()
+sequence Abs()
   input  value: Stream<i32>
   output value: Stream<i32>
 {
-    CoreAbsI32()
+    AbsI32()
 
-    Self.value -> CoreAbsI32.value,value -> Self.value
+    Self.value -> AbsI32.value,value -> Self.value
 }
-
-

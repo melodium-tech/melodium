@@ -1,36 +1,20 @@
-
-use core/arithmetic/scalar::StaticAddI8 as CoreStaticAddI8
+use core/arithmetic/scalar::StaticAddI8
 
 /**
 Add a static value to `i8`.
 
 Every number passed through the stream get `value` added.
-
-```
-use std/arithmetic/scalar/i8::StaticAddI8
-
-sequence Foo()
-  input  in:  Stream<i8>
-  output out: Stream<i8>
-{
-    StaticAddI8(value=5)
-
-    // in is increased by 5 and send to out
-    Self.in -> StaticAddI8.value,value -> Self.out
-}
-```
 */
-sequence StaticAddI8(var value: i8 = 0)
+sequence StaticAdd(var value: i8 = 0)
   input  value: Stream<i8>
   output value: Stream<i8>
 {
-    CoreStaticAddI8(value=value)
+    StaticAddI8(value=value)
 
-    Self.value -> CoreStaticAddI8.value,value -> Self.value
+    Self.value -> StaticAddI8.value,value -> Self.value
 }
 
-
-use core/arithmetic/scalar::AddI8 as CoreAddI8
+use core/arithmetic/scalar::AddI8
 
 /**
 Add values from two streams of `i8`.
@@ -38,21 +22,20 @@ Add values from two streams of `i8`.
 Values passed through a & b are added and send in sum.
 
 */
-sequence AddI8()
+sequence Add()
   input  a:   Stream<i8>
   input  b:   Stream<i8>
   output sum: Stream<i8>
 {
-    CoreAddI8()
+    AddI8()
 
-    Self.a -> CoreAddI8.a
-    Self.b -> CoreAddI8.b
+    Self.a -> AddI8.a
+    Self.b -> AddI8.b
     
-    CoreAddI8.sum -> Self.sum
+    AddI8.sum -> Self.sum
 }
 
-
-use core/arithmetic/scalar::StaticSubI8 as CoreStaticSubI8
+use core/arithmetic/scalar::StaticSubI8 
 
 /**
 Substract a static value to `i8`.
@@ -60,17 +43,17 @@ Substract a static value to `i8`.
 Every number passed through the stream get `value` substracted.
 
 */
-sequence StaticSubI8(var sub: i8 = 0)
+sequence StaticSub(var sub: i8 = 0)
   input  value: Stream<i8>
   output value: Stream<i8>
 {
-    CoreStaticSubI8(sub=sub)
+    StaticSubI8(sub=sub)
 
-    Self.value -> CoreStaticSubI8.value,value -> Self.value
+    Self.value -> StaticSubI8.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::SubI8 as CoreSubI8
+use core/arithmetic/scalar::SubI8 
 
 /**
 Substract values from two streams of `i8`.
@@ -78,21 +61,21 @@ Substract values from two streams of `i8`.
 Every `a` number passed through the stream get `b` substracted.
 
 */
-sequence SubI8()
+sequence Sub()
   input  a:          Stream<i8>
   input  b:          Stream<i8>
   output difference: Stream<i8>
 {
-    CoreSubI8()
+    SubI8()
 
-    Self.a -> CoreSubI8.a
-    Self.b -> CoreSubI8.b
+    Self.a -> SubI8.a
+    Self.b -> SubI8.b
     
-    CoreSubI8.difference -> Self.difference
+    SubI8.difference -> Self.difference
 }
 
 
-use core/arithmetic/scalar::StaticMultI8 as CoreStaticMultI8
+use core/arithmetic/scalar::StaticMultI8 
 
 /**
 Multiply `i8` by static value.
@@ -100,17 +83,17 @@ Multiply `i8` by static value.
 Every number passed through the stream is multiplied by `value`.
 
 */
-sequence StaticMultI8(var factor: i8 = 0)
+sequence StaticMult(var factor: i8 = 0)
   input  value: Stream<i8>
   output value: Stream<i8>
 {
-    CoreStaticMultI8(factor=factor)
+    StaticMultI8(factor=factor)
 
-    Self.value -> CoreStaticMultI8.value,value -> Self.value
+    Self.value -> StaticMultI8.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::MultI8 as CoreMultI8
+use core/arithmetic/scalar::MultI8 
 
 /**
 Multiply values from two streams of `i8`.
@@ -118,21 +101,21 @@ Multiply values from two streams of `i8`.
 Every `a` number passed through the stream is multiplied by `b`.
 
 */
-sequence MultI8()
+sequence Mult()
   input  a:       Stream<i8>
   input  b:       Stream<i8>
   output product: Stream<i8>
 {
-    CoreMultI8()
+    MultI8()
 
-    Self.a -> CoreMultI8.a
-    Self.b -> CoreMultI8.b
+    Self.a -> MultI8.a
+    Self.b -> MultI8.b
     
-    CoreMultI8.product -> Self.product
+    MultI8.product -> Self.product
 }
 
 
-use core/arithmetic/scalar::StaticDivI8 as CoreStaticDivI8
+use core/arithmetic/scalar::StaticDivI8 
 
 /**
 Divide a stream of `i8` by a static value.
@@ -140,17 +123,17 @@ Divide a stream of `i8` by a static value.
 Every number passed through the stream is divided by `value`.
 
 */
-sequence StaticDivI8(var divisor: i8 = 0)
+sequence StaticDiv(var divisor: i8 = 0)
   input  value: Stream<i8>
   output value: Stream<i8>
 {
-    CoreStaticDivI8(divisor=divisor)
+    StaticDivI8(divisor=divisor)
 
-    Self.value -> CoreStaticDivI8.value,value -> Self.value
+    Self.value -> StaticDivI8.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::DivI8 as CoreDivI8
+use core/arithmetic/scalar::DivI8 
 
 /**
 Divide values from two streams of `i8`.
@@ -158,21 +141,21 @@ Divide values from two streams of `i8`.
 Every `a` number passed through the stream is divided by `b`.
 
 */
-sequence DivI8()
+sequence Div()
   input  a:        Stream<i8>
   input  b:        Stream<i8>
   output quotient: Stream<i8>
 {
-    CoreDivI8()
+    DivI8()
 
-    Self.a -> CoreDivI8.a
-    Self.b -> CoreDivI8.b
+    Self.a -> DivI8.a
+    Self.b -> DivI8.b
     
-    CoreDivI8.quotient -> Self.quotient
+    DivI8.quotient -> Self.quotient
 }
 
 
-use core/arithmetic/scalar::StaticRemI8 as CoreStaticRemI8
+use core/arithmetic/scalar::StaticRemI8 
 
 /**
 Give the remainder of a stream of `i8` divided by a static value.
@@ -180,17 +163,17 @@ Give the remainder of a stream of `i8` divided by a static value.
 Every number passed through the stream is divided by `value` and the remainder is outputted.
 
 */
-sequence StaticRemI8(var divisor: i8 = 0)
+sequence StaticRem(var divisor: i8 = 0)
   input  value: Stream<i8>
   output value: Stream<i8>
 {
-    CoreStaticRemI8(divisor=divisor)
+    StaticRemI8(divisor=divisor)
 
-    Self.value -> CoreStaticRemI8.value,value -> Self.value
+    Self.value -> StaticRemI8.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::RemI8 as CoreRemI8
+use core/arithmetic/scalar::RemI8 
 
 /**
 Give the remainder of the division from two streams of `i8`.
@@ -198,40 +181,40 @@ Give the remainder of the division from two streams of `i8`.
 Every `a` number passed through the stream is divided by `b` and the remainder is outputted.
 
 */
-sequence RemI8()
+sequence Rem()
   input  a:         Stream<i8>
   input  b:         Stream<i8>
   output remainder: Stream<i8>
 {
-    CoreRemI8()
+    RemI8()
 
-    Self.a -> CoreRemI8.a
-    Self.b -> CoreRemI8.b
+    Self.a -> RemI8.a
+    Self.b -> RemI8.b
     
-    CoreRemI8.remainder -> Self.remainder
+    RemI8.remainder -> Self.remainder
 }
 
 
 
 
-use core/arithmetic/scalar::StaticPowI8 as CoreStaticPowI8
+use core/arithmetic/scalar::StaticPowI8 
 
 /**
 Elevates `i8` to the power of a static value.
 
 Every number passed through the stream get elevated to the power of `exponent`.
 */
-sequence StaticPowI8(var exponent: i8 = 0)
+sequence StaticPow(var exponent: i8 = 0)
   input  value: Stream<i8>
   output value: Stream<i8>
 {
-    CoreStaticPowI8(exponent=exponent)
+    StaticPowI8(exponent=exponent)
 
-    Self.value -> CoreStaticPowI8.value,value -> Self.value
+    Self.value -> StaticPowI8.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::PowI8 as CorePowI8
+use core/arithmetic/scalar::PowI8 
 
 /**
 Elevates values from a stream of `i8` to the power of another one.
@@ -239,34 +222,30 @@ Elevates values from a stream of `i8` to the power of another one.
 Values passed through `base` are elevated to the power of `exponent`.
 
 */
-sequence PowI8()
+sequence Pow()
   input  base:     Stream<i8>
   input  exponent: Stream<i8>
   output power:    Stream<i8>
 {
-    CorePowI8()
+    PowI8()
 
-    Self.base -----> CorePowI8.base
-    Self.exponent -> CorePowI8.exponent
+    Self.base -----> PowI8.base
+    Self.exponent -> PowI8.exponent
     
-    CorePowI8.power -> Self.power
+    PowI8.power -> Self.power
 }
 
-
-
-use core/arithmetic/scalar::AbsI8 as CoreAbsI8
+use core/arithmetic/scalar::AbsI8
 
 /**
 Get the absolute values from a stream of `i8`.
 
 */
-sequence AbsI8()
+sequence Abs()
   input  value: Stream<i8>
   output value: Stream<i8>
 {
-    CoreAbsI8()
+    AbsI8()
 
-    Self.value -> CoreAbsI8.value,value -> Self.value
+    Self.value -> AbsI8.value,value -> Self.value
 }
-
-

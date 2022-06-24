@@ -1,0 +1,258 @@
+use core/conversion/scalar::F32ToVoid
+
+/**
+Turns `f32` stream into `void` one.
+
+Send one `iter` per input `value` received.
+*/
+sequence ToVoid()
+  input value: Stream<f32>
+  output iter: Stream<void>
+{
+    F32ToVoid()
+
+    Self.value -> F32ToVoid.value,iter -> Self.iter
+}
+
+use core/conversion/scalar::F32ToByte
+
+/**
+Convert stream of `f32` into `byte`.
+
+`f32` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+*/
+sequence ToByte()
+  input  value: Stream<f32>
+  output data:  Stream<byte>
+{
+    F32ToByte()
+
+    Self.value -> F32ToByte.value,data -> Self.data
+}
+
+use core/conversion/scalar::F32ToString
+
+/**
+Convert stream of `f32` into `string`.
+
+`f32` gets converted into `string`, and the resulting strings are send through stream in continuity.
+*/
+sequence ToString()
+  input  value: Stream<f32>
+  output value: Stream<string>
+{
+    F32ToString()
+
+    Self.value -> F32ToString.value,value -> Self.value
+}
+
+use core/conversion/scalar::ScalarF32ToU8
+
+/**
+Convert stream of `f32` into `u8`.
+
+Every `f32` is truncated to fit into the `u8`, and in case floating-point value does
+not describe a real number:
+- `pos_infinity` is used when `f32` is a positive infinity,
+- `neg_infinity` is used when `f32` is a negative infinity,
+- `nan` is used when `f32` is not a number.
+*/
+sequence ToU8(var pos_infinity: u8 = 255, var neg_infinity: u8 = 0, var nan: u8 = 0)
+  input  value: Stream<f32>
+  output value: Stream<u8>
+{
+    ScalarF32ToU8(pos_infinity=pos_infinity, neg_infinity=neg_infinity, nan=nan)
+
+    Self.value -> ScalarF32ToU8.value,value -> Self.value
+}
+
+
+use core/conversion/scalar::ScalarF32ToU16
+
+/**
+Convert stream of `f32` into `u16`.
+
+Every `f32` is truncated to fit into the `u16`, and in case floating-point value does
+not describe a real number:
+- `pos_infinity` is used when `f32` is a positive infinity,
+- `neg_infinity` is used when `f32` is a negative infinity,
+- `nan` is used when `f32` is not a number.
+*/
+sequence ToU16(var pos_infinity: u16 = 65535, var neg_infinity: u16 = 0, var nan: u16 = 0)
+  input  value: Stream<f32>
+  output value: Stream<u16>
+{
+    ScalarF32ToU16(pos_infinity=pos_infinity, neg_infinity=neg_infinity, nan=nan)
+
+    Self.value -> ScalarF32ToU16.value,value -> Self.value
+}
+
+
+use core/conversion/scalar::ScalarF32ToU32
+
+/**
+Convert stream of `f32` into `u32`.
+
+Every `f32` is truncated to fit into the `u32`, and in case floating-point value does
+not describe a real number:
+- `pos_infinity` is used when `f32` is a positive infinity,
+- `neg_infinity` is used when `f32` is a negative infinity,
+- `nan` is used when `f32` is not a number.
+*/
+sequence ToU32(var pos_infinity: u32 = 4294967295, var neg_infinity: u32 = 0, var nan: u32 = 0)
+  input  value: Stream<f32>
+  output value: Stream<u32>
+{
+    ScalarF32ToU32(pos_infinity=pos_infinity, neg_infinity=neg_infinity, nan=nan)
+
+    Self.value -> ScalarF32ToU32.value,value -> Self.value
+}
+
+
+use core/conversion/scalar::ScalarF32ToU64
+
+/**
+Convert stream of `f32` into `u64`.
+
+Every `f32` is truncated to fit into the `u64`, and in case floating-point value does
+not describe a real number:
+- `pos_infinity` is used when `f32` is a positive infinity,
+- `neg_infinity` is used when `f32` is a negative infinity,
+- `nan` is used when `f32` is not a number.
+*/
+sequence ToU64(var pos_infinity: u64 = 18446744073709551615, var neg_infinity: u64 = 0, var nan: u64 = 0)
+  input  value: Stream<f32>
+  output value: Stream<u64>
+{
+    ScalarF32ToU64(pos_infinity=pos_infinity, neg_infinity=neg_infinity, nan=nan)
+
+    Self.value -> ScalarF32ToU64.value,value -> Self.value
+}
+
+
+use core/conversion/scalar::ScalarF32ToU128
+
+/**
+Convert stream of `f32` into `u128`.
+
+Every `f32` is truncated to fit into the `u128`, and in case floating-point value does
+not describe a real number:
+- `pos_infinity` is used when `f32` is a positive infinity,
+- `neg_infinity` is used when `f32` is a negative infinity,
+- `nan` is used when `f32` is not a number.
+*/
+sequence ToU128(var pos_infinity: u128 = 340282366920938463463374607431768211455, var neg_infinity: u128 = 0, var nan: u128 = 0)
+  input  value: Stream<f32>
+  output value: Stream<u128>
+{
+    ScalarF32ToU128(pos_infinity=pos_infinity, neg_infinity=neg_infinity, nan=nan)
+
+    Self.value -> ScalarF32ToU128.value,value -> Self.value
+}
+
+
+use core/conversion/scalar::ScalarF32ToI8
+
+/**
+Convert stream of `f32` into `i8`.
+
+Every `f32` is truncated to fit into the `i8`, and in case floating-point value does
+not describe a real number:
+- `pos_infinity` is used when `f32` is a positive infinity,
+- `neg_infinity` is used when `f32` is a negative infinity,
+- `nan` is used when `f32` is not a number.
+*/
+sequence ToI8(var pos_infinity: i8 = 127, var neg_infinity: i8 = -128, var nan: i8 = 0)
+  input  value: Stream<f32>
+  output value: Stream<i8>
+{
+    ScalarF32ToI8(pos_infinity=pos_infinity, neg_infinity=neg_infinity, nan=nan)
+
+    Self.value -> ScalarF32ToI8.value,value -> Self.value
+}
+
+
+use core/conversion/scalar::ScalarF32ToI16
+
+/**
+Convert stream of `f32` into `i16`.
+
+Every `f32` is truncated to fit into the `i16`, and in case floating-point value does
+not describe a real number:
+- `pos_infinity` is used when `f32` is a positive infinity,
+- `neg_infinity` is used when `f32` is a negative infinity,
+- `nan` is used when `f32` is not a number.
+*/
+sequence ToI16(var pos_infinity: i16 = 32767, var neg_infinity: i16 = -32768, var nan: i16 = 0)
+  input  value: Stream<f32>
+  output value: Stream<i16>
+{
+    ScalarF32ToI16(pos_infinity=pos_infinity, neg_infinity=neg_infinity, nan=nan)
+
+    Self.value -> ScalarF32ToI16.value,value -> Self.value
+}
+
+
+use core/conversion/scalar::ScalarF32ToI32
+
+/**
+Convert stream of `f32` into `i32`.
+
+Every `f32` is truncated to fit into the `i32`, and in case floating-point value does
+not describe a real number:
+- `pos_infinity` is used when `f32` is a positive infinity,
+- `neg_infinity` is used when `f32` is a negative infinity,
+- `nan` is used when `f32` is not a number.
+*/
+sequence ToI32(var pos_infinity: i32 = 2147483647, var neg_infinity: i32 = -2147483648, var nan: i32 = 0)
+  input  value: Stream<f32>
+  output value: Stream<i32>
+{
+    ScalarF32ToI32(pos_infinity=pos_infinity, neg_infinity=neg_infinity, nan=nan)
+
+    Self.value -> ScalarF32ToI32.value,value -> Self.value
+}
+
+
+use core/conversion/scalar::ScalarF32ToI64
+
+/**
+Convert stream of `f32` into `i64`.
+
+Every `f32` is truncated to fit into the `i64`, and in case floating-point value does
+not describe a real number:
+- `pos_infinity` is used when `f32` is a positive infinity,
+- `neg_infinity` is used when `f32` is a negative infinity,
+- `nan` is used when `f32` is not a number.
+*/
+sequence ToI64(var pos_infinity: i64 = 9223372036854775807, var neg_infinity: i64 = -9223372036854775808, var nan: i64 = 0)
+  input  value: Stream<f32>
+  output value: Stream<i64>
+{
+    ScalarF32ToI64(pos_infinity=pos_infinity, neg_infinity=neg_infinity, nan=nan)
+
+    Self.value -> ScalarF32ToI64.value,value -> Self.value
+}
+
+
+use core/conversion/scalar::ScalarF32ToI128
+
+/**
+Convert stream of `f32` into `i128`.
+
+Every `f32` is truncated to fit into the `i128`, and in case floating-point value does
+not describe a real number:
+- `pos_infinity` is used when `f32` is a positive infinity,
+- `neg_infinity` is used when `f32` is a negative infinity,
+- `nan` is used when `f32` is not a number.
+*/
+sequence ToI128(var pos_infinity: i128 = 170141183460469231731687303715884105727, var neg_infinity: i128 = -170141183460469231731687303715884105728, var nan: i128 = 0)
+  input  value: Stream<f32>
+  output value: Stream<i128>
+{
+    ScalarF32ToI128(pos_infinity=pos_infinity, neg_infinity=neg_infinity, nan=nan)
+
+    Self.value -> ScalarF32ToI128.value,value -> Self.value
+}
+
+

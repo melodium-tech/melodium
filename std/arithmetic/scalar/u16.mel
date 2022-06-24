@@ -1,36 +1,20 @@
-
-use core/arithmetic/scalar::StaticAddU16 as CoreStaticAddU16
+use core/arithmetic/scalar::StaticAddU16
 
 /**
 Add a static value to `u16`.
 
 Every number passed through the stream get `value` added.
-
-```
-use std/arithmetic/scalar/u16::StaticAddU16
-
-sequence Foo()
-  input  in:  Stream<u16>
-  output out: Stream<u16>
-{
-    StaticAddU16(value=5)
-
-    // in is increased by 5 and send to out
-    Self.in -> StaticAddU16.value,value -> Self.out
-}
-```
 */
-sequence StaticAddU16(var value: u16 = 0)
+sequence StaticAdd(var value: u16 = 0)
   input  value: Stream<u16>
   output value: Stream<u16>
 {
-    CoreStaticAddU16(value=value)
+    StaticAddU16(value=value)
 
-    Self.value -> CoreStaticAddU16.value,value -> Self.value
+    Self.value -> StaticAddU16.value,value -> Self.value
 }
 
-
-use core/arithmetic/scalar::AddU16 as CoreAddU16
+use core/arithmetic/scalar::AddU16
 
 /**
 Add values from two streams of `u16`.
@@ -38,21 +22,20 @@ Add values from two streams of `u16`.
 Values passed through a & b are added and send in sum.
 
 */
-sequence AddU16()
+sequence Add()
   input  a:   Stream<u16>
   input  b:   Stream<u16>
   output sum: Stream<u16>
 {
-    CoreAddU16()
+    AddU16()
 
-    Self.a -> CoreAddU16.a
-    Self.b -> CoreAddU16.b
+    Self.a -> AddU16.a
+    Self.b -> AddU16.b
     
-    CoreAddU16.sum -> Self.sum
+    AddU16.sum -> Self.sum
 }
 
-
-use core/arithmetic/scalar::StaticSubU16 as CoreStaticSubU16
+use core/arithmetic/scalar::StaticSubU16 
 
 /**
 Substract a static value to `u16`.
@@ -60,17 +43,17 @@ Substract a static value to `u16`.
 Every number passed through the stream get `value` substracted.
 
 */
-sequence StaticSubU16(var sub: u16 = 0)
+sequence StaticSub(var sub: u16 = 0)
   input  value: Stream<u16>
   output value: Stream<u16>
 {
-    CoreStaticSubU16(sub=sub)
+    StaticSubU16(sub=sub)
 
-    Self.value -> CoreStaticSubU16.value,value -> Self.value
+    Self.value -> StaticSubU16.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::SubU16 as CoreSubU16
+use core/arithmetic/scalar::SubU16 
 
 /**
 Substract values from two streams of `u16`.
@@ -78,21 +61,21 @@ Substract values from two streams of `u16`.
 Every `a` number passed through the stream get `b` substracted.
 
 */
-sequence SubU16()
+sequence Sub()
   input  a:          Stream<u16>
   input  b:          Stream<u16>
   output difference: Stream<u16>
 {
-    CoreSubU16()
+    SubU16()
 
-    Self.a -> CoreSubU16.a
-    Self.b -> CoreSubU16.b
+    Self.a -> SubU16.a
+    Self.b -> SubU16.b
     
-    CoreSubU16.difference -> Self.difference
+    SubU16.difference -> Self.difference
 }
 
 
-use core/arithmetic/scalar::StaticMultU16 as CoreStaticMultU16
+use core/arithmetic/scalar::StaticMultU16 
 
 /**
 Multiply `u16` by static value.
@@ -100,17 +83,17 @@ Multiply `u16` by static value.
 Every number passed through the stream is multiplied by `value`.
 
 */
-sequence StaticMultU16(var factor: u16 = 0)
+sequence StaticMult(var factor: u16 = 0)
   input  value: Stream<u16>
   output value: Stream<u16>
 {
-    CoreStaticMultU16(factor=factor)
+    StaticMultU16(factor=factor)
 
-    Self.value -> CoreStaticMultU16.value,value -> Self.value
+    Self.value -> StaticMultU16.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::MultU16 as CoreMultU16
+use core/arithmetic/scalar::MultU16 
 
 /**
 Multiply values from two streams of `u16`.
@@ -118,21 +101,21 @@ Multiply values from two streams of `u16`.
 Every `a` number passed through the stream is multiplied by `b`.
 
 */
-sequence MultU16()
+sequence Mult()
   input  a:       Stream<u16>
   input  b:       Stream<u16>
   output product: Stream<u16>
 {
-    CoreMultU16()
+    MultU16()
 
-    Self.a -> CoreMultU16.a
-    Self.b -> CoreMultU16.b
+    Self.a -> MultU16.a
+    Self.b -> MultU16.b
     
-    CoreMultU16.product -> Self.product
+    MultU16.product -> Self.product
 }
 
 
-use core/arithmetic/scalar::StaticDivU16 as CoreStaticDivU16
+use core/arithmetic/scalar::StaticDivU16 
 
 /**
 Divide a stream of `u16` by a static value.
@@ -140,17 +123,17 @@ Divide a stream of `u16` by a static value.
 Every number passed through the stream is divided by `value`.
 
 */
-sequence StaticDivU16(var divisor: u16 = 0)
+sequence StaticDiv(var divisor: u16 = 0)
   input  value: Stream<u16>
   output value: Stream<u16>
 {
-    CoreStaticDivU16(divisor=divisor)
+    StaticDivU16(divisor=divisor)
 
-    Self.value -> CoreStaticDivU16.value,value -> Self.value
+    Self.value -> StaticDivU16.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::DivU16 as CoreDivU16
+use core/arithmetic/scalar::DivU16 
 
 /**
 Divide values from two streams of `u16`.
@@ -158,21 +141,21 @@ Divide values from two streams of `u16`.
 Every `a` number passed through the stream is divided by `b`.
 
 */
-sequence DivU16()
+sequence Div()
   input  a:        Stream<u16>
   input  b:        Stream<u16>
   output quotient: Stream<u16>
 {
-    CoreDivU16()
+    DivU16()
 
-    Self.a -> CoreDivU16.a
-    Self.b -> CoreDivU16.b
+    Self.a -> DivU16.a
+    Self.b -> DivU16.b
     
-    CoreDivU16.quotient -> Self.quotient
+    DivU16.quotient -> Self.quotient
 }
 
 
-use core/arithmetic/scalar::StaticRemU16 as CoreStaticRemU16
+use core/arithmetic/scalar::StaticRemU16 
 
 /**
 Give the remainder of a stream of `u16` divided by a static value.
@@ -180,17 +163,17 @@ Give the remainder of a stream of `u16` divided by a static value.
 Every number passed through the stream is divided by `value` and the remainder is outputted.
 
 */
-sequence StaticRemU16(var divisor: u16 = 0)
+sequence StaticRem(var divisor: u16 = 0)
   input  value: Stream<u16>
   output value: Stream<u16>
 {
-    CoreStaticRemU16(divisor=divisor)
+    StaticRemU16(divisor=divisor)
 
-    Self.value -> CoreStaticRemU16.value,value -> Self.value
+    Self.value -> StaticRemU16.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::RemU16 as CoreRemU16
+use core/arithmetic/scalar::RemU16 
 
 /**
 Give the remainder of the division from two streams of `u16`.
@@ -198,40 +181,40 @@ Give the remainder of the division from two streams of `u16`.
 Every `a` number passed through the stream is divided by `b` and the remainder is outputted.
 
 */
-sequence RemU16()
+sequence Rem()
   input  a:         Stream<u16>
   input  b:         Stream<u16>
   output remainder: Stream<u16>
 {
-    CoreRemU16()
+    RemU16()
 
-    Self.a -> CoreRemU16.a
-    Self.b -> CoreRemU16.b
+    Self.a -> RemU16.a
+    Self.b -> RemU16.b
     
-    CoreRemU16.remainder -> Self.remainder
+    RemU16.remainder -> Self.remainder
 }
 
 
 
 
-use core/arithmetic/scalar::StaticPowU16 as CoreStaticPowU16
+use core/arithmetic/scalar::StaticPowU16 
 
 /**
 Elevates `u16` to the power of a static value.
 
 Every number passed through the stream get elevated to the power of `exponent`.
 */
-sequence StaticPowU16(var exponent: u16 = 0)
+sequence StaticPow(var exponent: u16 = 0)
   input  value: Stream<u16>
   output value: Stream<u16>
 {
-    CoreStaticPowU16(exponent=exponent)
+    StaticPowU16(exponent=exponent)
 
-    Self.value -> CoreStaticPowU16.value,value -> Self.value
+    Self.value -> StaticPowU16.value,value -> Self.value
 }
 
 
-use core/arithmetic/scalar::PowU16 as CorePowU16
+use core/arithmetic/scalar::PowU16 
 
 /**
 Elevates values from a stream of `u16` to the power of another one.
@@ -239,17 +222,15 @@ Elevates values from a stream of `u16` to the power of another one.
 Values passed through `base` are elevated to the power of `exponent`.
 
 */
-sequence PowU16()
+sequence Pow()
   input  base:     Stream<u16>
   input  exponent: Stream<u16>
   output power:    Stream<u16>
 {
-    CorePowU16()
+    PowU16()
 
-    Self.base -----> CorePowU16.base
-    Self.exponent -> CorePowU16.exponent
+    Self.base -----> PowU16.base
+    Self.exponent -> PowU16.exponent
     
-    CorePowU16.power -> Self.power
+    PowU16.power -> Self.power
 }
-
-
