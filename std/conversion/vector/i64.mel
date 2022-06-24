@@ -1,5 +1,4 @@
 use std/flow/i64::Linearize
-use std/flow/i64::Organize
 
 use core/conversion/vector::I64ToVoid
 
@@ -19,6 +18,7 @@ sequence ToVoid()
 }
 
 use std/conversion/scalar/i64::ToByte as ScalToByte
+use std/flow/byte::Organize as OrganizeByte
 
 /**
 Convert stream of `Vec<i64>` into `Vec<byte>` one.
@@ -32,13 +32,14 @@ sequence ToByte()
     ToVoid()
     Linearize()
     ScalToByte()
-    Organize()
+    OrganizeByte()
 
-    Self.value -> Linearize.vector,value -> ScalToByte.value,data -> Organize.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern ---------------------------> Organize.pattern
+    Self.value -> Linearize.vector,value -> ScalToByte.value,data -> OrganizeByte.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern ---------------------------> OrganizeByte.pattern
 }
 
 use std/conversion/scalar/i64::ToString as ScalToString
+use std/flow/string::Organize as OrganizeString
 
 /**
 Convert stream of `Vec<i64>` into `Vec<string>` one.
@@ -52,13 +53,14 @@ sequence ToString()
     ToVoid()
     Linearize()
     ScalToString()
-    Organize()
+    OrganizeString()
 
-    Self.value -> Linearize.vector,value -> ScalToString.value,value -> Organize.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern ------------------------------> Organize.pattern
+    Self.value -> Linearize.vector,value -> ScalToString.value,value -> OrganizeString.value,values -> Self.value
+    Self.value -> ToVoid.vector,pattern ------------------------------> OrganizeString.pattern
 }
 
 use std/conversion/scalar/i64::ToI128 as ScalToI128
+use std/flow/i128::Organize as OrganizeI128
 
 /**
 Convert stream of `Vec<i64>` into `Vec<i128>` one.
@@ -73,13 +75,14 @@ sequence ToI128()
     ToVoid()
     Linearize()
     ScalToI128()
-    Organize()
+    OrganizeI128()
 
-    Self.value -> Linearize.vector,value -> ScalToI128.value,value -> Organize.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+    Self.value -> Linearize.vector,value -> ScalToI128.value,value -> OrganizeI128.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> OrganizeI128.pattern
 }
 
 use std/conversion/scalar/i64::ToF32 as ScalToF32
+use std/flow/f32::Organize as OrganizeF32
 
 /**
 Convert stream of `Vec<i64>` into `Vec<f32>` one.
@@ -94,13 +97,14 @@ sequence ToF32()
     ToVoid()
     Linearize()
     ScalToF32()
-    Organize()
+    OrganizeF32()
 
-    Self.value -> Linearize.vector,value -> ScalToF32.value,value -> Organize.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+    Self.value -> Linearize.vector,value -> ScalToF32.value,value -> OrganizeF32.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> OrganizeF32.pattern
 }
 
 use std/conversion/scalar/i64::ToF64 as ScalToF64
+use std/flow/f64::Organize as OrganizeF64
 
 /**
 Convert stream of `Vec<i64>` into `Vec<f64>` one.
@@ -115,13 +119,14 @@ sequence ToF64()
     ToVoid()
     Linearize()
     ScalToF64()
-    Organize()
+    OrganizeF64()
 
-    Self.value -> Linearize.vector,value -> ScalToF64.value,value -> Organize.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+    Self.value -> Linearize.vector,value -> ScalToF64.value,value -> OrganizeF64.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> OrganizeF64.pattern
 }
 
 use std/conversion/scalar/i64::ToU8 as ScalToU8
+use std/flow/u8::Organize as OrganizeU8
 
 /**
 Convert stream of `Vec<i64>` into `Vec<u8>` one.
@@ -141,13 +146,14 @@ sequence ToU8(var truncate: bool = true, var or_default: u8 = 0)
     ToVoid()
     Linearize()
     ScalToU8(truncate=truncate, or_default=or_default)
-    Organize()
+    OrganizeU8()
 
-    Self.value -> Linearize.vector,value -> ScalToU8.value,value -> Organize.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+    Self.value -> Linearize.vector,value -> ScalToU8.value,value -> OrganizeU8.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> OrganizeU8.pattern
 }
 
 use std/conversion/scalar/i64::ToU16 as ScalToU16
+use std/flow/u16::Organize as OrganizeU16
 
 /**
 Convert stream of `Vec<i64>` into `Vec<u16>` one.
@@ -167,13 +173,14 @@ sequence ToU16(var truncate: bool = true, var or_default: u16 = 0)
     ToVoid()
     Linearize()
     ScalToU16(truncate=truncate, or_default=or_default)
-    Organize()
+    OrganizeU16()
 
-    Self.value -> Linearize.vector,value -> ScalToU16.value,value -> Organize.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+    Self.value -> Linearize.vector,value -> ScalToU16.value,value -> OrganizeU16.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> OrganizeU16.pattern
 }
 
 use std/conversion/scalar/i64::ToU32 as ScalToU32
+use std/flow/u32::Organize as OrganizeU32
 
 /**
 Convert stream of `Vec<i64>` into `Vec<u32>` one.
@@ -193,13 +200,14 @@ sequence ToU32(var truncate: bool = true, var or_default: u32 = 0)
     ToVoid()
     Linearize()
     ScalToU32(truncate=truncate, or_default=or_default)
-    Organize()
+    OrganizeU32()
 
-    Self.value -> Linearize.vector,value -> ScalToU32.value,value -> Organize.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+    Self.value -> Linearize.vector,value -> ScalToU32.value,value -> OrganizeU32.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> OrganizeU32.pattern
 }
 
 use std/conversion/scalar/i64::ToU64 as ScalToU64
+use std/flow/u64::Organize as OrganizeU64
 
 /**
 Convert stream of `Vec<i64>` into `Vec<u64>` one.
@@ -219,13 +227,14 @@ sequence ToU64(var truncate: bool = true, var or_default: u64 = 0)
     ToVoid()
     Linearize()
     ScalToU64(truncate=truncate, or_default=or_default)
-    Organize()
+    OrganizeU64()
 
-    Self.value -> Linearize.vector,value -> ScalToU64.value,value -> Organize.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+    Self.value -> Linearize.vector,value -> ScalToU64.value,value -> OrganizeU64.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> OrganizeU64.pattern
 }
 
 use std/conversion/scalar/i64::ToU128 as ScalToU128
+use std/flow/u128::Organize as OrganizeU128
 
 /**
 Convert stream of `Vec<i64>` into `Vec<u128>` one.
@@ -245,13 +254,14 @@ sequence ToU128(var truncate: bool = true, var or_default: u128 = 0)
     ToVoid()
     Linearize()
     ScalToU128(truncate=truncate, or_default=or_default)
-    Organize()
+    OrganizeU128()
 
-    Self.value -> Linearize.vector,value -> ScalToU128.value,value -> Organize.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+    Self.value -> Linearize.vector,value -> ScalToU128.value,value -> OrganizeU128.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> OrganizeU128.pattern
 }
 
 use std/conversion/scalar/i64::ToI8 as ScalToI8
+use std/flow/i8::Organize as OrganizeI8
 
 /**
 Convert stream of `Vec<i64>` into `Vec<i8>` one.
@@ -271,13 +281,14 @@ sequence ToI8(var truncate: bool = true, var or_default: i8 = 0)
     ToVoid()
     Linearize()
     ScalToI8(truncate=truncate, or_default=or_default)
-    Organize()
+    OrganizeI8()
 
-    Self.value -> Linearize.vector,value -> ScalToI8.value,value -> Organize.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+    Self.value -> Linearize.vector,value -> ScalToI8.value,value -> OrganizeI8.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> OrganizeI8.pattern
 }
 
 use std/conversion/scalar/i64::ToI16 as ScalToI16
+use std/flow/i16::Organize as OrganizeI16
 
 /**
 Convert stream of `Vec<i64>` into `Vec<i16>` one.
@@ -297,13 +308,14 @@ sequence ToI16(var truncate: bool = true, var or_default: i16 = 0)
     ToVoid()
     Linearize()
     ScalToI16(truncate=truncate, or_default=or_default)
-    Organize()
+    OrganizeI16()
 
-    Self.value -> Linearize.vector,value -> ScalToI16.value,value -> Organize.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+    Self.value -> Linearize.vector,value -> ScalToI16.value,value -> OrganizeI16.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> OrganizeI16.pattern
 }
 
 use std/conversion/scalar/i64::ToI32 as ScalToI32
+use std/flow/i32::Organize as OrganizeI32
 
 /**
 Convert stream of `Vec<i64>` into `Vec<i32>` one.
@@ -323,9 +335,9 @@ sequence ToI32(var truncate: bool = true, var or_default: i32 = 0)
     ToVoid()
     Linearize()
     ScalToI32(truncate=truncate, or_default=or_default)
-    Organize()
+    OrganizeI32()
 
-    Self.value -> Linearize.vector,value -> ScalToI32.value,value -> Organize.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern -----------------------------> Organize.pattern
+    Self.value -> Linearize.vector,value -> ScalToI32.value,value -> OrganizeI32.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> OrganizeI32.pattern
 }
 

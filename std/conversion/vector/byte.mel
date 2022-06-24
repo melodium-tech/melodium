@@ -1,5 +1,4 @@
 use std/flow/byte::Linearize
-use std/flow/byte::Organize
 
 use core/conversion/vector::ByteToVoid
 
@@ -19,6 +18,7 @@ sequence ToVoid()
 }
 
 use std/conversion/scalar/byte::ToString as ScalToString
+use std/flow/string::Organize as OrganizeString
 
 /**
 Convert stream of `Vec<byte>` into `Vec<string>` one.
@@ -32,9 +32,9 @@ sequence ToString()
     ToVoid()
     Linearize()
     ScalToString()
-    Organize()
+    OrganizeString()
 
-    Self.value -> Linearize.vector,value -> ScalToString.value,value -> Organize.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern ------------------------------> Organize.pattern
+    Self.value -> Linearize.vector,value -> ScalToString.value,value -> OrganizeString.value,values -> Self.value
+    Self.value -> ToVoid.vector,pattern ------------------------------> OrganizeString.pattern
 }
 

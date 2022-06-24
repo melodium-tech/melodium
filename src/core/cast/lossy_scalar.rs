@@ -12,10 +12,10 @@ macro_rules! impl_CastScalar {
                 parameter!("or_default", Var, Scalar, $output_mel_type, Some(Value::$output_mel_type(<$output_rust_type>::default())))
             ],
             inputs![
-                input!("value",Vector,$input_mel_type,Stream)
+                input!("value",Scalar,$input_mel_type,Stream)
             ],
             outputs![
-                output!("value",Vector,$output_mel_type,Stream)
+                output!("value",Scalar,$output_mel_type,Stream)
             ],
             host {
                 let input = host.get_input("value");

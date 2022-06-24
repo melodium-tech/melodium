@@ -129,7 +129,7 @@ sequence ToU8(var truncate: bool = true, var or_default: u8 = 0)
   input  value: Stream<i32>
   output value: Stream<u8>
 {
-    CastScalarI32ToU8()
+    CastScalarI32ToU8(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI32ToU8.value,value -> Self.value
 }
@@ -150,7 +150,7 @@ sequence ToU16(var truncate: bool = true, var or_default: u16 = 0)
   input  value: Stream<i32>
   output value: Stream<u16>
 {
-    CastScalarI32ToU16()
+    CastScalarI32ToU16(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI32ToU16.value,value -> Self.value
 }
@@ -171,7 +171,7 @@ sequence ToU32(var truncate: bool = true, var or_default: u32 = 0)
   input  value: Stream<i32>
   output value: Stream<u32>
 {
-    CastScalarI32ToU32()
+    CastScalarI32ToU32(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI32ToU32.value,value -> Self.value
 }
@@ -192,7 +192,7 @@ sequence ToU64(var truncate: bool = true, var or_default: u64 = 0)
   input  value: Stream<i32>
   output value: Stream<u64>
 {
-    CastScalarI32ToU64()
+    CastScalarI32ToU64(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI32ToU64.value,value -> Self.value
 }
@@ -213,7 +213,7 @@ sequence ToU128(var truncate: bool = true, var or_default: u128 = 0)
   input  value: Stream<i32>
   output value: Stream<u128>
 {
-    CastScalarI32ToU128()
+    CastScalarI32ToU128(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI32ToU128.value,value -> Self.value
 }
@@ -234,7 +234,7 @@ sequence ToI8(var truncate: bool = true, var or_default: i8 = 0)
   input  value: Stream<i32>
   output value: Stream<i8>
 {
-    CastScalarI32ToI8()
+    CastScalarI32ToI8(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI32ToI8.value,value -> Self.value
 }
@@ -255,7 +255,7 @@ sequence ToI16(var truncate: bool = true, var or_default: i16 = 0)
   input  value: Stream<i32>
   output value: Stream<i16>
 {
-    CastScalarI32ToI16()
+    CastScalarI32ToI16(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI32ToI16.value,value -> Self.value
 }

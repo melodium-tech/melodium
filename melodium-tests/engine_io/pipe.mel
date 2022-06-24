@@ -4,7 +4,7 @@ use std/process/engine::StandardOutput
 use std/process/engine::ProcessEnd
 use std/fs/mono::WriteFile
 use std/text/encoding::Encode
-use std/flow/trigger::StringTrigger
+use std/flow/string::Trigger
 
 sequence Write(const file: string)
     input text: Stream<string>
@@ -22,14 +22,14 @@ sequence Main()
     StandardOutput()
     Write(file="output.txt")
 
-    StringTrigger()
+    Trigger()
     ProcessEnd()
 
     StandardInput.line -> StandardOutput.text
     StandardInput.line ----------> Write.text
 
-    StandardInput.line ---> StringTrigger.value
-    StringTrigger.finish -> ProcessEnd.end
+    StandardInput.line ---> Trigger.value
+    Trigger.finish -------> ProcessEnd.end
 }
 
 

@@ -197,7 +197,7 @@ sequence ToU8(var truncate: bool = true, var or_default: u8 = 0)
   input  value: Stream<u16>
   output value: Stream<u8>
 {
-    CastScalarU16ToU8()
+    CastScalarU16ToU8(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarU16ToU8.value,value -> Self.value
 }
@@ -218,7 +218,7 @@ sequence ToI8(var truncate: bool = true, var or_default: i8 = 0)
   input  value: Stream<u16>
   output value: Stream<i8>
 {
-    CastScalarU16ToI8()
+    CastScalarU16ToI8(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarU16ToI8.value,value -> Self.value
 }
@@ -239,7 +239,7 @@ sequence ToI16(var truncate: bool = true, var or_default: i16 = 0)
   input  value: Stream<u16>
   output value: Stream<i16>
 {
-    CastScalarU16ToI16()
+    CastScalarU16ToI16(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarU16ToI16.value,value -> Self.value
 }

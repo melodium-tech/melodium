@@ -107,13 +107,13 @@ graph LR
 ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted.
 */
 sequence Trigger()
-  input  value:  Stream<void>
+  input  iter:  Stream<void>
   output start:  Block<void>
   output finish: Block<void>
 {
     CoreTrigger()
 
-    Self.value -----> CoreTrigger.iter
+    Self.iter -----> CoreTrigger.iter
     CoreTrigger.start --> Self.start
     CoreTrigger.finish -> Self.finish
 }
@@ -140,14 +140,14 @@ graph LR
 ℹ️ If the stream never receive any vector before being closed, only `finish` will be emitted.
 */
 sequence VecTrigger()
-  input  value:  Stream<Vec<void>>
+  input  iter:   Stream<Vec<void>>
   output start:  Block<void>
   output finish: Block<void>
 {
     Linearize()
     Trigger()
 
-    Self.value -> Linearize.vector,value -> Trigger.iter
+    Self.iter --> Linearize.vector,value -> Trigger.iter
     Trigger.start ------------------------> Self.start
     Trigger.finish -----------------------> Self.finish
 }

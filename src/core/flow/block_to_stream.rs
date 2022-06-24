@@ -28,6 +28,7 @@ macro_rules! impl_BlockToStream {
     }
 }
 
+impl_BlockToStream!(block_vec_void_to_stream, "BlockVecVoidToStreamVoid", Void, recv_vec_void, send_multiple_void);
 impl_BlockToStream!(block_vec_u8_to_stream, "BlockVecU8ToStreamU8", U8, recv_vec_u8, send_multiple_u8);
 impl_BlockToStream!(block_vec_u16_to_stream, "BlockVecU16ToStreamU16", U16, recv_vec_u16, send_multiple_u16);
 impl_BlockToStream!(block_vec_u32_to_stream, "BlockVecU32ToStreamU32", U32, recv_vec_u32, send_multiple_u32);
@@ -47,6 +48,7 @@ impl_BlockToStream!(block_vec_string_to_stream, "BlockVecStringToStreamString", 
 
 pub fn register(mut c: &mut CollectionPool) {
 
+    block_vec_void_to_stream::register(&mut c);
     block_vec_u8_to_stream::register(&mut c);
     block_vec_u16_to_stream::register(&mut c);
     block_vec_u32_to_stream::register(&mut c);

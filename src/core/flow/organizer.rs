@@ -13,7 +13,7 @@ macro_rules! impl_Organize {
                 input!("pattern",Vector,Void,Stream)
             ],
             outputs![
-                output!("values",Vector,Void,Stream)
+                output!("values",Vector,$mel_type,Stream)
             ],
             host {
                 let input = host.get_input("value");

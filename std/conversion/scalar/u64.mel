@@ -129,7 +129,7 @@ sequence ToU8(var truncate: bool = true, var or_default: u8 = 0)
   input  value: Stream<u64>
   output value: Stream<u8>
 {
-    CastScalarU64ToU8()
+    CastScalarU64ToU8(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarU64ToU8.value,value -> Self.value
 }
@@ -150,7 +150,7 @@ sequence ToU16(var truncate: bool = true, var or_default: u16 = 0)
   input  value: Stream<u64>
   output value: Stream<u16>
 {
-    CastScalarU64ToU16()
+    CastScalarU64ToU16(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarU64ToU16.value,value -> Self.value
 }
@@ -171,7 +171,7 @@ sequence ToU32(var truncate: bool = true, var or_default: u32 = 0)
   input  value: Stream<u64>
   output value: Stream<u32>
 {
-    CastScalarU64ToU32()
+    CastScalarU64ToU32(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarU64ToU32.value,value -> Self.value
 }
@@ -192,7 +192,7 @@ sequence ToI8(var truncate: bool = true, var or_default: i8 = 0)
   input  value: Stream<u64>
   output value: Stream<i8>
 {
-    CastScalarU64ToI8()
+    CastScalarU64ToI8(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarU64ToI8.value,value -> Self.value
 }
@@ -213,7 +213,7 @@ sequence ToI16(var truncate: bool = true, var or_default: i16 = 0)
   input  value: Stream<u64>
   output value: Stream<i16>
 {
-    CastScalarU64ToI16()
+    CastScalarU64ToI16(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarU64ToI16.value,value -> Self.value
 }
@@ -234,7 +234,7 @@ sequence ToI32(var truncate: bool = true, var or_default: i32 = 0)
   input  value: Stream<u64>
   output value: Stream<i32>
 {
-    CastScalarU64ToI32()
+    CastScalarU64ToI32(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarU64ToI32.value,value -> Self.value
 }
@@ -255,7 +255,7 @@ sequence ToI64(var truncate: bool = true, var or_default: i64 = 0)
   input  value: Stream<u64>
   output value: Stream<i64>
 {
-    CastScalarU64ToI64()
+    CastScalarU64ToI64(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarU64ToI64.value,value -> Self.value
 }

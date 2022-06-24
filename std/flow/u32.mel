@@ -187,7 +187,7 @@ sequence VecTrigger()
     ToVecVoid()
     VoidVecTrigger()
 
-    Self.value -> ToVecVoid.value,iter -> VoidVecTrigger.iter
+    Self.value -> ToVecVoid.vector,pattern -> VoidVecTrigger.iter
     VoidVecTrigger.start --> Self.start
     VoidVecTrigger.finish -> Self.finish
 }

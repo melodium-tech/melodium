@@ -231,7 +231,7 @@ sequence ToI8(var truncate: bool = true, var or_default: i8 = 0)
   input  value: Stream<u8>
   output value: Stream<i8>
 {
-    CastScalarU8ToI8()
+    CastScalarU8ToI8(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarU8ToI8.value,value -> Self.value
 }

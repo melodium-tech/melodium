@@ -112,7 +112,7 @@ sequence ToU8(var truncate: bool = true, var or_default: u8 = 0)
   input  value: Stream<i64>
   output value: Stream<u8>
 {
-    CastScalarI64ToU8()
+    CastScalarI64ToU8(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI64ToU8.value,value -> Self.value
 }
@@ -133,7 +133,7 @@ sequence ToU16(var truncate: bool = true, var or_default: u16 = 0)
   input  value: Stream<i64>
   output value: Stream<u16>
 {
-    CastScalarI64ToU16()
+    CastScalarI64ToU16(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI64ToU16.value,value -> Self.value
 }
@@ -154,7 +154,7 @@ sequence ToU32(var truncate: bool = true, var or_default: u32 = 0)
   input  value: Stream<i64>
   output value: Stream<u32>
 {
-    CastScalarI64ToU32()
+    CastScalarI64ToU32(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI64ToU32.value,value -> Self.value
 }
@@ -175,7 +175,7 @@ sequence ToU64(var truncate: bool = true, var or_default: u64 = 0)
   input  value: Stream<i64>
   output value: Stream<u64>
 {
-    CastScalarI64ToU64()
+    CastScalarI64ToU64(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI64ToU64.value,value -> Self.value
 }
@@ -196,7 +196,7 @@ sequence ToU128(var truncate: bool = true, var or_default: u128 = 0)
   input  value: Stream<i64>
   output value: Stream<u128>
 {
-    CastScalarI64ToU128()
+    CastScalarI64ToU128(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI64ToU128.value,value -> Self.value
 }
@@ -217,7 +217,7 @@ sequence ToI8(var truncate: bool = true, var or_default: i8 = 0)
   input  value: Stream<i64>
   output value: Stream<i8>
 {
-    CastScalarI64ToI8()
+    CastScalarI64ToI8(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI64ToI8.value,value -> Self.value
 }
@@ -238,7 +238,7 @@ sequence ToI16(var truncate: bool = true, var or_default: i16 = 0)
   input  value: Stream<i64>
   output value: Stream<i16>
 {
-    CastScalarI64ToI16()
+    CastScalarI64ToI16(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI64ToI16.value,value -> Self.value
 }
@@ -259,7 +259,7 @@ sequence ToI32(var truncate: bool = true, var or_default: i32 = 0)
   input  value: Stream<i64>
   output value: Stream<i32>
 {
-    CastScalarI64ToI32()
+    CastScalarI64ToI32(truncate=truncate, or_default=or_default)
 
     Self.value -> CastScalarI64ToI32.value,value -> Self.value
 }
