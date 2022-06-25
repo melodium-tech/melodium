@@ -4,6 +4,8 @@
 
 ### Bug fixes
 
+- Implemented core components missing in core collection
+
 ### Features
 
 - Supporting `0xFF` syntax for bytes #21
@@ -11,6 +13,9 @@
 - Implementing binary operations for `bool` and `byte` #32
 
 ### Changed
+
+- Standard library reorganized
+- Doc generation allowing Mermaid.js graphs
 
 ## [v0.3.0] (2022-06-10)
 
