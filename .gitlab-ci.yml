@@ -92,7 +92,6 @@ pages:
     - mv target/doc public
     - target/debug/melodium --stdlib ${PWD}/std/ --doc /tmp/doc ${PWD}/std/
     - bin/mdbook-mermaid install /tmp/doc
-    - echo $PATH
     - bin/mdbook build /tmp/doc
     - mv /tmp/doc/book public/reference
   artifacts:
