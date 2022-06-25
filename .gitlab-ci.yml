@@ -83,6 +83,7 @@ pages:
   variables:
     MELODIUM_DOC_TITLE: 'Mélodium Standard Reference'
     MELODIUM_DOC_AUTHOR: 'Quentin VIGNAUD'
+    PATH: '${PWD}/bin:$PATH'
   script:
     - mkdir bin
     - curl -sSL https://repo.melodium.tech/tooling/mdbook/mdbook-v0.4.18-x86_64-unkown-linux-gnu.tar.bz2 | tar -xj --directory=bin
@@ -91,6 +92,8 @@ pages:
     - mv target/doc public
     - target/debug/melodium --stdlib ${PWD}/std/ --doc /tmp/doc ${PWD}/std/
     - bin/mdbook-mermaid install /tmp/doc
+    - echo $PATH
+    - echo $PWD
     - bin/mdbook build /tmp/doc
     - mv /tmp/doc/book public/reference
   artifacts:
