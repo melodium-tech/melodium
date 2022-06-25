@@ -59,7 +59,49 @@ sequence ToString()
     Self.value -> ToVoid.vector,pattern ------------------------------> OrganizeString.pattern
 }
 
-use std/conversion/scalar/f32::ToU8 as ScalToU8
+use core/conversion/scalar::ScalarF32ToF64
+
+/**
+Convert stream of `f32` into `f64`.
+
+Every `f32` is fitted into the closest `f64`.
+Positive and negative infinity are conserved, as well as not-a-number state.
+If overflowing, infinity of the same sign is used.
+*/
+sequence ToF64()
+  input  value: Stream<f32>
+  output value: Stream<f64>
+{
+    ScalarF32ToF64()
+
+    Self.value -> ScalarF32ToF64.value,value -> Self.value
+}
+
+
+use std/conversion/scalar/f32::ToF64 as ScalToF64
+use std/flow/f64::Organize as OrganizeF64
+
+/**
+Convert stream of `Vec<f32>` into `Vec<f64>` one.
+
+`Vec<f32>` gets converted into `Vec<f64>`, and the resulting vectors are send through stream in continuity.
+
+Every `f32` is fitted into the closest `f64`.
+Positive and negative infinity are conserved, as well as not-a-number state.
+If overflowing, infinity of the same sign is used.
+*/
+sequence ToF64()
+  input  value: Stream<Vec<f32>>
+  output value: Stream<Vec<f64>>
+{
+    ToVoid()
+    Linearize()
+    ScalToF64()
+    OrganizeF64()
+
+    Self.value -> Linearize.vector,value -> ScalToF64.value,value -> OrganizeF64.value,values -> Self.data
+    Self.value -> ToVoid.vector,pattern -----------------------------> OrganizeF64.pattern
+}use std/conversion/scalar/f32::ToU8 as ScalToU8
 use std/flow/u8::Organize as OrganizeU8
 
 /**

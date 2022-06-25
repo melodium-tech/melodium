@@ -46,6 +46,25 @@ sequence ToString()
     Self.value -> F32ToString.value,value -> Self.value
 }
 
+use core/conversion/scalar::ScalarF32ToF64
+
+/**
+Convert stream of `f32` into `f64`.
+
+Every `f32` is fitted into the closest `f64`.
+Positive and negative infinity are conserved, as well as not-a-number state.
+If overflowing, infinity of the same sign is used.
+*/
+sequence ToF64()
+  input  value: Stream<f32>
+  output value: Stream<f64>
+{
+    ScalarF32ToF64()
+
+    Self.value -> ScalarF32ToF64.value,value -> Self.value
+}
+
+
 use core/conversion/scalar::ScalarF32ToU8
 
 /**

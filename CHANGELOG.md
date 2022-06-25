@@ -11,6 +11,7 @@
 - Supporting `0xFF` syntax for bytes #21
 - Supporting `'§'` syntax for chars #21
 - Implementing binary operations for `bool` and `byte` #32
+- Conversion between `f32` and `f64` types #33
 
 ### Changed
 

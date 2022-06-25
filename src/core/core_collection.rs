@@ -29,6 +29,7 @@ pub fn core_collection() -> &'static CollectionPool {
             super::conversion::vector_to_string::register(&mut c);
             super::conversion::scalar_float_to_integer::register(&mut c);
             super::conversion::vector_float_to_integer::register(&mut c);
+            super::conversion::scalar_float::register(&mut c);
 
             super::flow::trigger::trigger::register(&mut c);
             super::flow::linearize::register(&mut c);
