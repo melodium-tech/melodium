@@ -84,10 +84,13 @@ pages:
     MELODIUM_DOC_TITLE: 'Mélodium Standard Reference'
     MELODIUM_DOC_AUTHOR: 'Quentin VIGNAUD'
   script:
-    - mkdir bin && curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.15/mdbook-v0.4.15-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=bin
+    - mkdir bin
+    - curl -sSL https://repo.melodium.tech/tooling/mdbook/mdbook-v0.4.18-x86_64-unkown-linux-gnu.tar.bz2 | tar -xj --directory=bin
+    - curl -sSL https://repo.melodium.tech/tooling/mdbook-mermaid/mdbook-mermaid-v0.11.0-x86_64-unkown-linux-gnu.tar.bz2 | tar -xj --directory=bin
     - cargo doc --no-deps
     - mv target/doc public
     - target/debug/melodium --stdlib ${PWD}/std/ --doc /tmp/doc ${PWD}/std/
+    - bin/mdbook-mermaid install /tmp/doc
     - bin/mdbook build /tmp/doc
     - mv /tmp/doc/book public/reference
   artifacts:
