@@ -20,5 +20,6 @@ pub mod func;
 pub mod fs;
 pub mod net;
 pub mod text;
+pub mod trigonometry;
 
 pub mod prelude;
