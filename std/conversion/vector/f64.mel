@@ -59,25 +59,6 @@ sequence ToString()
     Self.value -> ToVoid.vector,pattern ------------------------------> OrganizeString.pattern
 }
 
-use core/conversion/scalar::ScalarF64ToF32
-
-/**
-Convert stream of `f64` into `f32`.
-
-Every `f64` is fitted into the closest `f32`.
-Positive and negative infinity are conserved, as well as not-a-number state.
-If overflowing, infinity of the same sign is used.
-*/
-sequence ToF32()
-  input  value: Stream<f64>
-  output value: Stream<f32>
-{
-    ScalarF64ToF32()
-
-    Self.value -> ScalarF64ToF32.value,value -> Self.value
-}
-
-
 use std/conversion/scalar/f64::ToF32 as ScalToF32
 use std/flow/f32::Organize as OrganizeF32
 

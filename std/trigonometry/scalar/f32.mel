@@ -1,0 +1,196 @@
+use core/arithmetic/scalar/f32::Sin as CoreSin
+
+/**
+Computes sine (in radians) of a stream of `f32`.
+
+*/
+sequence Sin()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreSin()
+
+    Self.value -> CoreSin.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar/f32::Cos as CoreCos
+
+/**
+Computes cosine (in radians) of a stream of `f32`.
+
+*/
+sequence Cos()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreCos()
+
+    Self.value -> CoreCos.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar/f32::Tan as CoreTan
+
+/**
+Computes tangent (in radians) of a stream of `f32`.
+
+*/
+sequence Tan()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreTan()
+
+    Self.value -> CoreTan.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar/f32::Asin as CoreAsin
+
+/**
+Computes arcsine (in radians) of a stream of `f32`.
+
+Gives values in the range [0, pi] or not-a-number if outside range [-1, 1].
+
+*/
+sequence Asin()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreAsin()
+
+    Self.value -> CoreAsin.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar/f32::Acos as CoreAcos
+
+/**
+Computes arccosine (in radians) of a stream of `f32`.
+
+Gives values in the range [0, pi] or not-a-number if outside range [-1, 1].
+
+*/
+sequence Acos()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreAcos()
+
+    Self.value -> CoreAcos.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar/f32::Atan as CoreAtan
+
+/**
+Computes arctangent (in radians) of a stream of `f32`.
+
+Gives values in the range [-pi/2, pi/2].
+
+*/
+sequence Atan()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreAtan()
+
+    Self.value -> CoreAtan.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar/f32::Sinh as CoreSinh
+
+/**
+Computes hyberbolic sine of a stream of `f32`.
+
+*/
+sequence Sinh()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreSinh()
+
+    Self.value -> CoreSinh.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar/f32::Cosh as CoreCosh
+
+/**
+Computes hyberbolic cosine of a stream of `f32`.
+
+*/
+sequence Cosh()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreCosh()
+
+    Self.value -> CoreCosh.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar/f32::Tanh as CoreTanh
+
+/**
+Computes hyberbolic tangent of a stream of `f32`.
+
+*/
+sequence Tanh()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreTanh()
+
+    Self.value -> CoreTanh.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar/f32::Asinh as CoreAsinh
+
+/**
+Computes inverse hyperbolic sine of a stream of `f32`.
+
+*/
+sequence Asinh()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreAsinh()
+
+    Self.value -> CoreAsinh.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar/f32::Acosh as CoreAcosh
+
+/**
+Computes inverse hyperbolic cosine of a stream of `f32`.
+
+*/
+sequence Acosh()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreAcosh()
+
+    Self.value -> CoreAcosh.value,value -> Self.value
+}
+
+
+use core/arithmetic/scalar/f32::Atanh as CoreAtanh
+
+/**
+Computes inverse hyperbolic tangent of a stream of `f32`.
+
+*/
+sequence Atanh()
+  input  value: Stream<f32>
+  output value: Stream<f32>
+{
+    CoreAtanh()
+
+    Self.value -> CoreAtanh.value,value -> Self.value
+}
