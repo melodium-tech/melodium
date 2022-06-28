@@ -10,6 +10,7 @@ pub mod core_collection;
 pub mod arithmetic;
 pub mod audio;
 pub mod cast;
+pub mod comparison;
 pub mod conversion;
 pub mod engine;
 pub mod filling;

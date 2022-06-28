@@ -40,6 +40,8 @@ pub fn core_collection() -> &'static CollectionPool {
             super::arithmetic::implementation::register(&mut c);
             super::trigonometry::register(&mut c);
 
+            super::comparison::numbers::register(&mut c);
+
             super::text::bytes_to_string::register(&mut c);
 
             super::fs::register(&mut c);

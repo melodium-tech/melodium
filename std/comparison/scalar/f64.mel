@@ -1,0 +1,33 @@
+use core/comparison/scalar/f64::GreaterThan as CoreGreaterThan
+
+/**
+Tells whether `a` is strictly greater than `b`.
+*/
+sequence GreaterThan()
+  input a: Stream<f64>
+  input b: Stream<f64>
+  output is: Stream<bool>
+{
+    CoreGreaterThan()
+
+    Self.a -> CoreGreaterThan.a
+    Self.b -> CoreGreaterThan.b,is -> Self.is
+}
+
+
+use core/comparison/scalar/f64::LowerThan as CoreLowerThan
+
+/**
+Tells whether `a` is strictly lower than `b`.
+*/
+sequence LowerThan()
+  input a: Stream<f64>
+  input b: Stream<f64>
+  output is: Stream<bool>
+{
+    CoreLowerThan()
+
+    Self.a -> CoreLowerThan.a
+    Self.b -> CoreLowerThan.b,is -> Self.is
+}
+

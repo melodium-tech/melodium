@@ -1,0 +1,100 @@
+use core/comparison/scalar/u64::GreaterEqual as CoreGreaterEqual
+
+/**
+Tells whether `a` is greater or equal to `b`.
+*/
+sequence GreaterEqual()
+  input a: Stream<u64>
+  input b: Stream<u64>
+  output is: Stream<bool>
+{
+    CoreGreaterEqual()
+
+    Self.a -> CoreGreaterEqual.a
+    Self.b -> CoreGreaterEqual.b,is -> Self.is
+}
+
+
+use core/comparison/scalar/u64::LowerEqual as CoreLowerEqual
+
+/**
+Tells whether `a` is lower or equal to `b`.
+*/
+sequence LowerEqual()
+  input a: Stream<u64>
+  input b: Stream<u64>
+  output is: Stream<bool>
+{
+    CoreLowerEqual()
+
+    Self.a -> CoreLowerEqual.a
+    Self.b -> CoreLowerEqual.b,is -> Self.is
+}
+
+
+use core/comparison/scalar/u64::Equal as CoreEqual
+
+/**
+Tells whether `a` is equal to `b`.
+*/
+sequence Equal()
+  input a: Stream<u64>
+  input b: Stream<u64>
+  output is: Stream<bool>
+{
+    CoreEqual()
+
+    Self.a -> CoreEqual.a
+    Self.b -> CoreEqual.b,is -> Self.is
+}
+
+
+use core/comparison/scalar/u64::NotEqual as CoreNotEqual
+
+/**
+Tells whether `a` is not equal to `b`.
+*/
+sequence NotEqual()
+  input a: Stream<u64>
+  input b: Stream<u64>
+  output is: Stream<bool>
+{
+    CoreNotEqual()
+
+    Self.a -> CoreNotEqual.a
+    Self.b -> CoreNotEqual.b,is -> Self.is
+}
+
+use core/comparison/scalar/u64::GreaterThan as CoreGreaterThan
+
+/**
+Tells whether `a` is strictly greater than `b`.
+*/
+sequence GreaterThan()
+  input a: Stream<u64>
+  input b: Stream<u64>
+  output is: Stream<bool>
+{
+    CoreGreaterThan()
+
+    Self.a -> CoreGreaterThan.a
+    Self.b -> CoreGreaterThan.b,is -> Self.is
+}
+
+
+use core/comparison/scalar/u64::LowerThan as CoreLowerThan
+
+/**
+Tells whether `a` is strictly lower than `b`.
+*/
+sequence LowerThan()
+  input a: Stream<u64>
+  input b: Stream<u64>
+  output is: Stream<bool>
+{
+    CoreLowerThan()
+
+    Self.a -> CoreLowerThan.a
+    Self.b -> CoreLowerThan.b,is -> Self.is
+}
+
