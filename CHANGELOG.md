@@ -12,6 +12,7 @@
 - Supporting `'§'` syntax for chars #21
 - Implementing binary operations for `bool` and `byte` #32
 - Conversion between `f32` and `f64` types #33
+- Trigonometric operations for `f32` and `f64` #34
 
 ### Changed
 
