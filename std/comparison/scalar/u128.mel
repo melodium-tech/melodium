@@ -98,3 +98,37 @@ sequence LowerThan()
     Self.b -> CoreLowerThan.b,is -> Self.is
 }
 
+
+use core/comparison/scalar/u128::Max as CoreMax
+
+/**
+Compares and gives the maximum of two values.
+*/
+sequence Max()
+  input a: Stream<u128>
+  input b: Stream<u128>
+  output value: Stream<u128>
+{
+    CoreMax()
+
+    Self.a -> CoreMax.a
+    Self.b -> CoreMax.b,is -> Self.is
+}
+
+
+use core/comparison/scalar/u128::Min as CoreMin
+
+/**
+Compares and gives the minimum of two values.
+*/
+sequence Min()
+  input a: Stream<u128>
+  input b: Stream<u128>
+  output value: Stream<u128>
+{
+    CoreMin()
+
+    Self.a -> CoreMin.a
+    Self.b -> CoreMin.b,is -> Self.is
+}
+
