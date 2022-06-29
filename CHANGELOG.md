@@ -20,6 +20,8 @@
 
 - Standard library reorganized
 - Doc generation allowing Mermaid.js graphs
+- `BlockStream` renamed `BlockAllStream` to match behavior #37
+- `StreamBlock` able to stream any data type #37
 
 ## [v0.3.0] (2022-06-10)
 

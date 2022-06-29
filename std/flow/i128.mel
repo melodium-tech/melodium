@@ -28,13 +28,13 @@ sequence Linearize()
 use core/flow::StreamI128ToBlockVecI128
 
 /**
-Transform stream of `i128` into a single vector block.
+Transform whole stream of `i128` into a single vector block.
 
 All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
 
 ```mermaid
 graph LR
-    T(BlockStream)
+    T(BlockAllStream)
     B["🟦 🟦 🟦 🟦 🟦 🟦"] -->|stream| T
     
     T -->|block| O["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"]
@@ -46,7 +46,7 @@ graph LR
 ⚠️ As the stream values are continuously inserted in vector and so kept in memory, user should be _really careful_ when using this treatment to not saturate memory.
 
 */
-sequence BlockStream()
+sequence BlockAllStream()
   input  stream: Stream<i128>
   output block:  Block<Vec<i128>>
 {
