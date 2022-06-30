@@ -16,6 +16,7 @@
 - Comparison operators for all numeric types #36
 - Adding min/max selectors for all numeric types #35
 - `StreamBlock` & `StreamVecBlock` able to stream any data type #37
+- `StaticVecFill` & `StaticVecBlockFill` available #37
 
 ### Changed
 
