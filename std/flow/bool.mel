@@ -56,31 +56,59 @@ sequence BlockAllStream()
 }
 
 
-use core/flow::BlockVecBoolToStreamBool
+use core/flow::BlockBoolToStream
 
 /**
-Stream a vector of `bool`.
+Stream a block of `bool`.
 
-All values received in block vector are streamed ordered in output.
+The received block is sent as streamed value, then the stream is closed.
 
 ```mermaid
 graph LR
     T(StreamBlock)
-    B["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"] -->|block| T
+    B["〈🟦〉"] -->|block| T
     
-    T -->|stream| O["🟦 🟦 🟦 🟦 🟦 🟦"]
+    T -->|stream| O["🟦"]
 
     style B fill:#ffff,stroke:#ffff
     style O fill:#ffff,stroke:#ffff
 ```
 */
 sequence StreamBlock()
-  input  block:  Block<Vec<bool>>
+  input  block:  Block<bool>
   output stream: Stream<bool>
 {
-    BlockVecBoolToStreamBool()
+    BlockBoolToStream()
 
-    Self.block -> BlockVecBoolToStreamBool.data,data -> Self.stream
+    Self.block -> BlockBoolToStream.data,data -> Self.stream
+}
+
+
+use core/flow::BlockVecBoolToStream
+
+/**
+Stream a vector of `bool`.
+
+The received block is sent as streamed vector, then the stream is closed.
+
+```mermaid
+graph LR
+    T(StreamVecBlock)
+    B["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"] -->|block| T
+    
+    T -->|stream| O["［🟦 🟦 🟦 🟦 🟦 🟦］"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StreamVecBlock()
+  input  block:  Block<Vec<bool>>
+  output stream: Stream<Vec<bool>>
+{
+    BlockVecBoolToStream()
+
+    Self.block -> BlockVecBoolToStream.data,data -> Self.stream
 }
 
 use core/organize::OrganizeBool

@@ -56,31 +56,59 @@ sequence BlockAllStream()
 }
 
 
-use core/flow::BlockVecU16ToStreamU16
+use core/flow::BlockU16ToStream
 
 /**
-Stream a vector of `u16`.
+Stream a block of `u16`.
 
-All values received in block vector are streamed ordered in output.
+The received block is sent as streamed value, then the stream is closed.
 
 ```mermaid
 graph LR
     T(StreamBlock)
-    B["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"] -->|block| T
+    B["〈🟦〉"] -->|block| T
     
-    T -->|stream| O["🟦 🟦 🟦 🟦 🟦 🟦"]
+    T -->|stream| O["🟦"]
 
     style B fill:#ffff,stroke:#ffff
     style O fill:#ffff,stroke:#ffff
 ```
 */
 sequence StreamBlock()
-  input  block:  Block<Vec<u16>>
+  input  block:  Block<u16>
   output stream: Stream<u16>
 {
-    BlockVecU16ToStreamU16()
+    BlockU16ToStream()
 
-    Self.block -> BlockVecU16ToStreamU16.data,data -> Self.stream
+    Self.block -> BlockU16ToStream.data,data -> Self.stream
+}
+
+
+use core/flow::BlockVecU16ToStream
+
+/**
+Stream a vector of `u16`.
+
+The received block is sent as streamed vector, then the stream is closed.
+
+```mermaid
+graph LR
+    T(StreamVecBlock)
+    B["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"] -->|block| T
+    
+    T -->|stream| O["［🟦 🟦 🟦 🟦 🟦 🟦］"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StreamVecBlock()
+  input  block:  Block<Vec<u16>>
+  output stream: Stream<Vec<u16>>
+{
+    BlockVecU16ToStream()
+
+    Self.block -> BlockVecU16ToStream.data,data -> Self.stream
 }
 
 use core/organize::OrganizeU16

@@ -56,31 +56,59 @@ sequence BlockAllStream()
 }
 
 
-use core/flow::BlockVecVoidToStreamVoid
+use core/flow::BlockVoidToStream
 
 /**
-Stream a vector of `void`.
+Stream a block of `void`.
 
-All values received in block vector are streamed ordered in output.
+The received block is sent as streamed value, then the stream is closed.
 
 ```mermaid
 graph LR
     T(StreamBlock)
-    B["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"] -->|block| T
+    B["〈🟦〉"] -->|block| T
     
-    T -->|stream| O["🟦 🟦 🟦 🟦 🟦 🟦"]
+    T -->|stream| O["🟦"]
 
     style B fill:#ffff,stroke:#ffff
     style O fill:#ffff,stroke:#ffff
 ```
 */
 sequence StreamBlock()
-  input  block:  Block<Vec<void>>
+  input  block:  Block<void>
   output stream: Stream<void>
 {
-    BlockVecVoidToStreamVoid()
+    BlockVoidToStream()
 
-    Self.block -> BlockVecVoidToStreamVoid.data,data -> Self.stream
+    Self.block -> BlockVoidToStream.data,data -> Self.stream
+}
+
+
+use core/flow::BlockVecVoidToStream
+
+/**
+Stream a vector of `void`.
+
+The received block is sent as streamed vector, then the stream is closed.
+
+```mermaid
+graph LR
+    T(StreamVecBlock)
+    B["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"] -->|block| T
+    
+    T -->|stream| O["［🟦 🟦 🟦 🟦 🟦 🟦］"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StreamVecBlock()
+  input  block:  Block<Vec<void>>
+  output stream: Stream<Vec<void>>
+{
+    BlockVecVoidToStream()
+
+    Self.block -> BlockVecVoidToStream.data,data -> Self.stream
 }
 
 use core/flow::Trigger as CoreTrigger

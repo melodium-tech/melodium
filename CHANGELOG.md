@@ -15,13 +15,14 @@
 - Trigonometric operations for `f32` and `f64` #34
 - Comparison operators for all numeric types #36
 - Adding min/max selectors for all numeric types #35
+- `StreamBlock` & `StreamVecBlock` able to stream any data type #37
 
 ### Changed
 
 - Standard library reorganized
 - Doc generation allowing Mermaid.js graphs
 - `BlockStream` renamed `BlockAllStream` to match behavior #37
-- `StreamBlock` able to stream any data type #37
+- `StreamBlock` behavior rectified for scalar values #37
 
 ## [v0.3.0] (2022-06-10)
 

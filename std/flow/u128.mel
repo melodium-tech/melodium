@@ -56,31 +56,59 @@ sequence BlockAllStream()
 }
 
 
-use core/flow::BlockVecU128ToStreamU128
+use core/flow::BlockU128ToStream
 
 /**
-Stream a vector of `u128`.
+Stream a block of `u128`.
 
-All values received in block vector are streamed ordered in output.
+The received block is sent as streamed value, then the stream is closed.
 
 ```mermaid
 graph LR
     T(StreamBlock)
-    B["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"] -->|block| T
+    B["〈🟦〉"] -->|block| T
     
-    T -->|stream| O["🟦 🟦 🟦 🟦 🟦 🟦"]
+    T -->|stream| O["🟦"]
 
     style B fill:#ffff,stroke:#ffff
     style O fill:#ffff,stroke:#ffff
 ```
 */
 sequence StreamBlock()
-  input  block:  Block<Vec<u128>>
+  input  block:  Block<u128>
   output stream: Stream<u128>
 {
-    BlockVecU128ToStreamU128()
+    BlockU128ToStream()
 
-    Self.block -> BlockVecU128ToStreamU128.data,data -> Self.stream
+    Self.block -> BlockU128ToStream.data,data -> Self.stream
+}
+
+
+use core/flow::BlockVecU128ToStream
+
+/**
+Stream a vector of `u128`.
+
+The received block is sent as streamed vector, then the stream is closed.
+
+```mermaid
+graph LR
+    T(StreamVecBlock)
+    B["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"] -->|block| T
+    
+    T -->|stream| O["［🟦 🟦 🟦 🟦 🟦 🟦］"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StreamVecBlock()
+  input  block:  Block<Vec<u128>>
+  output stream: Stream<Vec<u128>>
+{
+    BlockVecU128ToStream()
+
+    Self.block -> BlockVecU128ToStream.data,data -> Self.stream
 }
 
 use core/organize::OrganizeU128

@@ -56,31 +56,59 @@ sequence BlockAllStream()
 }
 
 
-use core/flow::BlockVecI64ToStreamI64
+use core/flow::BlockI64ToStream
 
 /**
-Stream a vector of `i64`.
+Stream a block of `i64`.
 
-All values received in block vector are streamed ordered in output.
+The received block is sent as streamed value, then the stream is closed.
 
 ```mermaid
 graph LR
     T(StreamBlock)
-    B["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"] -->|block| T
+    B["〈🟦〉"] -->|block| T
     
-    T -->|stream| O["🟦 🟦 🟦 🟦 🟦 🟦"]
+    T -->|stream| O["🟦"]
 
     style B fill:#ffff,stroke:#ffff
     style O fill:#ffff,stroke:#ffff
 ```
 */
 sequence StreamBlock()
-  input  block:  Block<Vec<i64>>
+  input  block:  Block<i64>
   output stream: Stream<i64>
 {
-    BlockVecI64ToStreamI64()
+    BlockI64ToStream()
 
-    Self.block -> BlockVecI64ToStreamI64.data,data -> Self.stream
+    Self.block -> BlockI64ToStream.data,data -> Self.stream
+}
+
+
+use core/flow::BlockVecI64ToStream
+
+/**
+Stream a vector of `i64`.
+
+The received block is sent as streamed vector, then the stream is closed.
+
+```mermaid
+graph LR
+    T(StreamVecBlock)
+    B["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"] -->|block| T
+    
+    T -->|stream| O["［🟦 🟦 🟦 🟦 🟦 🟦］"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StreamVecBlock()
+  input  block:  Block<Vec<i64>>
+  output stream: Stream<Vec<i64>>
+{
+    BlockVecI64ToStream()
+
+    Self.block -> BlockVecI64ToStream.data,data -> Self.stream
 }
 
 use core/organize::OrganizeI64

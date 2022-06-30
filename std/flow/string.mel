@@ -56,31 +56,59 @@ sequence BlockAllStream()
 }
 
 
-use core/flow::BlockVecStringToStreamString
+use core/flow::BlockStringToStream
 
 /**
-Stream a vector of `string`.
+Stream a block of `string`.
 
-All values received in block vector are streamed ordered in output.
+The received block is sent as streamed value, then the stream is closed.
 
 ```mermaid
 graph LR
     T(StreamBlock)
-    B["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"] -->|block| T
+    B["〈🟦〉"] -->|block| T
     
-    T -->|stream| O["🟦 🟦 🟦 🟦 🟦 🟦"]
+    T -->|stream| O["🟦"]
 
     style B fill:#ffff,stroke:#ffff
     style O fill:#ffff,stroke:#ffff
 ```
 */
 sequence StreamBlock()
-  input  block:  Block<Vec<string>>
+  input  block:  Block<string>
   output stream: Stream<string>
 {
-    BlockVecStringToStreamString()
+    BlockStringToStream()
 
-    Self.block -> BlockVecStringToStreamString.data,data -> Self.stream
+    Self.block -> BlockStringToStream.data,data -> Self.stream
+}
+
+
+use core/flow::BlockVecStringToStream
+
+/**
+Stream a vector of `string`.
+
+The received block is sent as streamed vector, then the stream is closed.
+
+```mermaid
+graph LR
+    T(StreamVecBlock)
+    B["〈［🟦 🟦 🟦 🟦 🟦 🟦］〉"] -->|block| T
+    
+    T -->|stream| O["［🟦 🟦 🟦 🟦 🟦 🟦］"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StreamVecBlock()
+  input  block:  Block<Vec<string>>
+  output stream: Stream<Vec<string>>
+{
+    BlockVecStringToStream()
+
+    Self.block -> BlockVecStringToStream.data,data -> Self.stream
 }
 
 use core/organize::OrganizeString
