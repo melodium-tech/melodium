@@ -23,6 +23,32 @@ sequence StaticBlockFill(var value: bool = false)
     Self.trigger -> StaticBlockBool.trigger,value -> Self.value
 }
 
+use core/filling/scalar::StaticVecBlockBool
+
+/**
+Fill a triggering `void` block with vector static `bool` value.
+
+```mermaid
+graph LR
+    T("StaticVecBlockFill (value=［🟧 🟧 🟧］)")
+    B["〈🟦〉"] -->|trigger| T
+    
+    T -->|value| O["〈［🟧 🟧 🟧］〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticVecBlockFill(var value: Vec<bool>)
+  input trigger: Block<void>
+  output value:  Block<Vec<bool>>
+{
+    StaticVecBlockBool(value=value)
+
+    Self.trigger -> StaticVecBlockBool.trigger,value -> Self.value
+}
+
+
 use core/filling/scalar::StaticBool
 
 /**
@@ -47,3 +73,59 @@ sequence StaticFill(var value: bool = false)
 
     Self.pattern -> StaticBool.pattern,value -> Self.value
 }
+
+
+use core/filling/scalar::StaticVecBool
+
+/**
+Fill an input `void` stream with vector static `bool` values.
+
+```mermaid
+graph LR
+    T("StaticVecFill (value=［🟧 🟧 🟧］)")
+    B["… 🟦 🟦 🟦 …"] -->|pattern| T
+    
+    T -->|value| O["… ［🟧 🟧 🟧］［🟧 🟧 🟧］［🟧 🟧 🟧］ …"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticVecFill(var value: Vec<bool>)
+  input pattern: Stream<void>
+  output value:  Stream<Vec<bool>>
+{
+    StaticVecBool(value=value)
+
+    Self.pattern -> StaticVecBool.pattern,value -> Self.value
+}
+
+
+use std/flow/void::StreamBlock
+
+/**
+Emit a value as stream when trigger is received.
+
+The value is sent through the stream and the stream is closed immediately afterwards.
+
+```mermaid
+graph LR
+    T("Emit(value=🟧)")
+    B["〈🟦〉"] -->|trigger| T
+    
+    T -->|value| O["🟧"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence Emit(var value: bool = false)
+  input trigger: Block<void>
+  output value:  Stream<bool>
+{
+    StreamBlock()
+    StaticFill(value=value)
+
+    Self.trigger -> StreamBlock.block,stream -> StaticFill.pattern,value -> Self.value
+}
+

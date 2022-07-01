@@ -23,6 +23,32 @@ sequence StaticBlockFill(var value: u64 = 0)
     Self.trigger -> StaticBlockU64.trigger,value -> Self.value
 }
 
+use core/filling/scalar::StaticVecBlockU64
+
+/**
+Fill a triggering `void` block with vector static `u64` value.
+
+```mermaid
+graph LR
+    T("StaticVecBlockFill (value=［🟧 🟧 🟧］)")
+    B["〈🟦〉"] -->|trigger| T
+    
+    T -->|value| O["〈［🟧 🟧 🟧］〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticVecBlockFill(var value: Vec<u64>)
+  input trigger: Block<void>
+  output value:  Block<Vec<u64>>
+{
+    StaticVecBlockU64(value=value)
+
+    Self.trigger -> StaticVecBlockU64.trigger,value -> Self.value
+}
+
+
 use core/filling/scalar::StaticU64
 
 /**
@@ -47,3 +73,59 @@ sequence StaticFill(var value: u64 = 0)
 
     Self.pattern -> StaticU64.pattern,value -> Self.value
 }
+
+
+use core/filling/scalar::StaticVecU64
+
+/**
+Fill an input `void` stream with vector static `u64` values.
+
+```mermaid
+graph LR
+    T("StaticVecFill (value=［🟧 🟧 🟧］)")
+    B["… 🟦 🟦 🟦 …"] -->|pattern| T
+    
+    T -->|value| O["… ［🟧 🟧 🟧］［🟧 🟧 🟧］［🟧 🟧 🟧］ …"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticVecFill(var value: Vec<u64>)
+  input pattern: Stream<void>
+  output value:  Stream<Vec<u64>>
+{
+    StaticVecU64(value=value)
+
+    Self.pattern -> StaticVecU64.pattern,value -> Self.value
+}
+
+
+use std/flow/void::StreamBlock
+
+/**
+Emit a value as stream when trigger is received.
+
+The value is sent through the stream and the stream is closed immediately afterwards.
+
+```mermaid
+graph LR
+    T("Emit(value=🟧)")
+    B["〈🟦〉"] -->|trigger| T
+    
+    T -->|value| O["🟧"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence Emit(var value: u64 = 0)
+  input trigger: Block<void>
+  output value:  Stream<u64>
+{
+    StreamBlock()
+    StaticFill(value=value)
+
+    Self.trigger -> StreamBlock.block,stream -> StaticFill.pattern,value -> Self.value
+}
+
