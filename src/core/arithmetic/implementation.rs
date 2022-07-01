@@ -73,7 +73,7 @@ macro_rules! impl_add_function {
             }
         
             CoreFunctionDescriptor::new(
-                core_identifier!("func";&format!("|add_{}", $mel_name_low)),
+                core_identifier!("arithmetic","scalar",$mel_name_low;"|add"),
                 parameters![
                     parameter!("a", Scalar, $mel_type, None),
                     parameter!("b", Scalar, $mel_type, None)
@@ -156,7 +156,7 @@ macro_rules! impl_sub_function {
             }
         
             CoreFunctionDescriptor::new(
-                core_identifier!("func";&format!("|sub_{}", $mel_name_low)),
+                core_identifier!("arithmetic","scalar",$mel_name_low;"|sub"),
                 parameters![
                     parameter!("a", Scalar, $mel_type, None),
                     parameter!("b", Scalar, $mel_type, None)
@@ -239,7 +239,7 @@ macro_rules! impl_mult_function {
             }
         
             CoreFunctionDescriptor::new(
-                core_identifier!("func";&format!("|mult_{}", $mel_name_low)),
+                core_identifier!("arithmetic","scalar",$mel_name_low;"|mult"),
                 parameters![
                     parameter!("a", Scalar, $mel_type, None),
                     parameter!("b", Scalar, $mel_type, None)
@@ -322,7 +322,7 @@ macro_rules! impl_div_function {
             }
         
             CoreFunctionDescriptor::new(
-                core_identifier!("func";&format!("|div_{}", $mel_name_low)),
+                core_identifier!("arithmetic","scalar",$mel_name_low;"|div"),
                 parameters![
                     parameter!("dividend", Scalar, $mel_type, None),
                     parameter!("divisor", Scalar, $mel_type, None)
@@ -405,7 +405,7 @@ macro_rules! impl_rem_function {
             }
         
             CoreFunctionDescriptor::new(
-                core_identifier!("func";&format!("|rem_{}", $mel_name_low)),
+                core_identifier!("arithmetic","scalar",$mel_name_low;"|rem"),
                 parameters![
                     parameter!("dividend", Scalar, $mel_type, None),
                     parameter!("divisor", Scalar, $mel_type, None)
@@ -489,7 +489,7 @@ macro_rules! impl_pow_function {
             }
         
             CoreFunctionDescriptor::new(
-                core_identifier!("func";&format!("|pow_{}", $mel_name_low)),
+                core_identifier!("arithmetic","scalar",$mel_name_low;"|pow"),
                 parameters![
                     parameter!("base", Scalar, $mel_type, None),
                     parameter!("exponent", Scalar, $mel_type, None)
@@ -573,7 +573,7 @@ macro_rules! impl_powf_function {
             }
         
             CoreFunctionDescriptor::new(
-                core_identifier!("func";&format!("|pow_{}", $mel_name_low)),
+                core_identifier!("arithmetic","scalar",$mel_name_low;"|pow"),
                 parameters![
                     parameter!("base", Scalar, $mel_type, None),
                     parameter!("exponent", Scalar, $mel_type, None)
@@ -623,7 +623,7 @@ macro_rules! impl_abs_function {
             }
         
             CoreFunctionDescriptor::new(
-                core_identifier!("func";&format!("|abs_{}", $mel_name_low)),
+                core_identifier!("arithmetic","scalar",$mel_name_low;"|abs"),
                 parameters![
                     parameter!("value", Scalar, $mel_type, None)
                 ],
@@ -671,7 +671,7 @@ macro_rules! impl_sqrt_function {
             }
         
             CoreFunctionDescriptor::new(
-                core_identifier!("func";&format!("|sqrt_{}", $mel_name_low)),
+                core_identifier!("arithmetic","scalar",$mel_name_low;"|sqrt"),
                 parameters![
                     parameter!("value", Scalar, $mel_type, None)
                 ],
@@ -719,7 +719,7 @@ macro_rules! impl_cbrt_function {
             }
         
             CoreFunctionDescriptor::new(
-                core_identifier!("func";&format!("|cbrt_{}", $mel_name_low)),
+                core_identifier!("arithmetic","scalar",$mel_name_low;"|cbrt"),
                 parameters![
                     parameter!("value", Scalar, $mel_type, None)
                 ],
@@ -767,7 +767,7 @@ macro_rules! impl_ln_function {
             }
         
             CoreFunctionDescriptor::new(
-                core_identifier!("func";&format!("|ln_{}", $mel_name_low)),
+                core_identifier!("arithmetic","scalar",$mel_name_low;"|ln"),
                 parameters![
                     parameter!("value", Scalar, $mel_type, None)
                 ],
@@ -849,7 +849,7 @@ macro_rules! impl_log_function {
             }
         
             CoreFunctionDescriptor::new(
-                core_identifier!("func";&format!("|log_{}", $mel_name_low)),
+                core_identifier!("arithmetic","scalar",$mel_name_low;"|log"),
                 parameters![
                     parameter!("value", Scalar, $mel_type, None),
                     parameter!("base", Scalar, $mel_type, None)
