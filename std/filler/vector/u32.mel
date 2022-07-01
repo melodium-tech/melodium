@@ -1,3 +1,32 @@
+use std/flow/void::StreamBlock
+use std/filler/scalar/u32::StaticVecFill
+
+/**
+Emit a value as stream when trigger is received.
+
+The vector is sent through the stream and the stream is closed immediately afterwards.
+
+```mermaid
+graph LR
+    T("Emit(value=［🟧 🟧 🟧］)")
+    B["〈🟦〉"] -->|trigger| T
+    
+    T -->|value| O["［🟧 🟧 🟧］"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence Emit(var value: Vec<u32> = [0])
+  input trigger: Block<void>
+  output value:  Stream<Vec<u32>>
+{
+    StreamBlock()
+    StaticVecFill(value=value)
+
+    Self.trigger -> StreamBlock.block,stream -> StaticVecFill.pattern,value -> Self.value
+}
+
 
 use std/flow/void::Linearize
 use std/flow/u32::Organize
@@ -28,35 +57,5 @@ sequence StaticFill(var value: u32 = 0)
     Self.pattern -> Linearize.vector,value -> ScalarStaticFill.pattern,value -> Organize.value,values -> Self.value
     Self.pattern -------------------------------------------------------------> Organize.pattern
     
-}
-
-
-use std/flow/void::StreamBlock
-use std/filler/scalar/u32::StaticVecFill
-
-/**
-Emit a value as stream when trigger is received.
-
-The vector is sent through the stream and the stream is closed immediately afterwards.
-
-```mermaid
-graph LR
-    T("Emit(value=［🟧 🟧 🟧］)")
-    B["〈🟦〉"] -->|trigger| T
-    
-    T -->|value| O["［🟧 🟧 🟧］"]
-
-    style B fill:#ffff,stroke:#ffff
-    style O fill:#ffff,stroke:#ffff
-```
-*/
-sequence Emit(var value: Vec<u32> = [0])
-  input trigger: Block<void>
-  output value:  Stream<Vec<u32>>
-{
-    StreamBlock()
-    StaticVecFill(value=value)
-
-    Self.trigger -> StreamBlock.block,stream -> StaticVecFill.pattern,value -> Self.value
 }
 

@@ -1,0 +1,25 @@
+
+use std/generation/scalar/void::Generate as GenerateVoid
+use std/generation/scalar/void::GenerateInfinite as GenerateInfiniteVoid
+use std/filler/scalar/bool::StaticVecFill
+
+sequence Generate(var tracks: u64 = 1, var value: Vec<bool>, var length: u128)
+  input  trigger: Block<void>
+  output value:   Stream<Vec<bool>>
+{
+    GenerateVoid()
+    StaticVecFill(value=value)
+
+    Self.trigger -> GenerateVoid.trigger,iter -> StaticVecFill.pattern,value -> Self.value
+}
+
+sequence GenerateInfinite(var tracks: u64 = 1, var value: Vec<bool>)
+  input  trigger: Block<void>
+  output value:   Stream<Vec<bool>>
+{
+    GenerateInfiniteVoid()
+    StaticVecFill(value=value)
+
+    Self.trigger -> GenerateInfiniteVoid.trigger,iter -> StaticVecFill.pattern,value -> Self.value
+}
+

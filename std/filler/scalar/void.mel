@@ -1,0 +1,51 @@
+use core/filling/scalar::StaticVecBlockVoid
+
+/**
+Fill a triggering `void` block with vector static `void` value.
+
+```mermaid
+graph LR
+    T("StaticVecBlockFill (value=［🟧 🟧 🟧］)")
+    B["〈🟦〉"] -->|trigger| T
+    
+    T -->|value| O["〈［🟧 🟧 🟧］〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticVecBlockFill(var value: Vec<void>)
+  input trigger: Block<void>
+  output value:  Block<Vec<void>>
+{
+    StaticVecBlockVoid(value=value)
+
+    Self.trigger -> StaticVecBlockVoid.trigger,value -> Self.value
+}
+
+
+use core/filling/scalar::StaticVecVoid
+
+/**
+Fill an input `void` stream with vector static `void` values.
+
+```mermaid
+graph LR
+    T("StaticVecFill (value=［🟧 🟧 🟧］)")
+    B["… 🟦 🟦 🟦 …"] -->|pattern| T
+    
+    T -->|value| O["… ［🟧 🟧 🟧］［🟧 🟧 🟧］［🟧 🟧 🟧］ …"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticVecFill(var value: Vec<void>)
+  input pattern: Stream<void>
+  output value:  Stream<Vec<void>>
+{
+    StaticVecVoid(value=value)
+
+    Self.pattern -> StaticVecVoid.pattern,value -> Self.value
+}
+

@@ -1,0 +1,41 @@
+
+use core/generation/scalar/void::TrackGenerator as CoreTrackGenerator
+use core/generation/scalar/void::Generate as CoreGenerate
+use core/generation/scalar/void::GenerateInfinite as CoreGenerateInfinite
+use core/generation/scalar/void::Generated as CoreGenerated
+use std/filler/scalar/u64::Emit as EmitU64
+use std/filler/scalar/u128::Emit as EmitU128
+
+sequence Generate(var tracks: u64 = 1, var length: u128)
+  model  generator: CoreTrackGenerator()
+  input  trigger:   Block<void>
+  output iter:      Stream<void>
+{
+    CoreGenerate[generator=generator]()
+    EmitTrack: EmitU64(value=tracks)
+    EmitLength: EmitU128(value=length)
+    CoreGenerated[generator=generator]()
+
+    Self.trigger --> EmitTrack.trigger
+    Self.trigger -> EmitLength.trigger
+
+    EmitTrack.value --> CoreGenerate.tracks
+    EmitLength.value -> CoreGenerate.length
+
+    CoreGenerated.iter -> Self.iter
+}
+
+
+sequence GenerateInfinite(var tracks: u64 = 1)
+  model  generator: CoreTrackGenerator()
+  input  trigger:   Block<void>
+  output iter:      Stream<void>
+{
+    CoreGenerateInfinite[generator=generator]()
+    EmitTrack: EmitU64(value=tracks)
+    CoreGenerated[generator=generator]()
+
+    Self.trigger -> EmitTrack.trigger,value -> CoreGenerateInfinite.tracks
+    CoreGenerated.iter -> Self.iter
+}
+

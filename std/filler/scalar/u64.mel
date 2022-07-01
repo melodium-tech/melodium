@@ -1,28 +1,3 @@
-use core/filling/scalar::StaticBlockU64
-
-/**
-Fill a triggering `void` block with a scalar static `u64` value.
-
-```mermaid
-graph LR
-    T("StaticBlockFill (value=🟧)")
-    B["〈🟦〉"] -->|trigger| T
-    
-    T -->|value| O["〈🟧〉"]
-
-    style B fill:#ffff,stroke:#ffff
-    style O fill:#ffff,stroke:#ffff
-```
-*/
-sequence StaticBlockFill(var value: u64 = 0)
-  input trigger: Block<void>
-  output value:  Block<u64>
-{
-    StaticBlockU64(value=value)
-
-    Self.trigger -> StaticBlockU64.trigger,value -> Self.value
-}
-
 use core/filling/scalar::StaticVecBlockU64
 
 /**
@@ -49,32 +24,6 @@ sequence StaticVecBlockFill(var value: Vec<u64>)
 }
 
 
-use core/filling/scalar::StaticU64
-
-/**
-Fill an input `void` stream with scalar static `u64` values.
-
-```mermaid
-graph LR
-    T("StaticFill (value=🟧)")
-    B["… 🟦 🟦 🟦 …"] -->|pattern| T
-    
-    T -->|value| O["… 🟧 🟧 🟧 …"]
-
-    style B fill:#ffff,stroke:#ffff
-    style O fill:#ffff,stroke:#ffff
-```
-*/
-sequence StaticFill(var value: u64 = 0)
-  input pattern: Stream<void>
-  output value:  Stream<u64>
-{
-    StaticU64(value=value)
-
-    Self.pattern -> StaticU64.pattern,value -> Self.value
-}
-
-
 use core/filling/scalar::StaticVecU64
 
 /**
@@ -98,6 +47,57 @@ sequence StaticVecFill(var value: Vec<u64>)
     StaticVecU64(value=value)
 
     Self.pattern -> StaticVecU64.pattern,value -> Self.value
+}
+
+use core/filling/scalar::StaticBlockU64
+
+/**
+Fill a triggering `void` block with a scalar static `u64` value.
+
+```mermaid
+graph LR
+    T("StaticBlockFill (value=🟧)")
+    B["〈🟦〉"] -->|trigger| T
+    
+    T -->|value| O["〈🟧〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticBlockFill(var value: u64 = 0)
+  input trigger: Block<void>
+  output value:  Block<u64>
+{
+    StaticBlockU64(value=value)
+
+    Self.trigger -> StaticBlockU64.trigger,value -> Self.value
+}
+
+
+use core/filling/scalar::StaticU64
+
+/**
+Fill an input `void` stream with scalar static `u64` values.
+
+```mermaid
+graph LR
+    T("StaticFill (value=🟧)")
+    B["… 🟦 🟦 🟦 …"] -->|pattern| T
+    
+    T -->|value| O["… 🟧 🟧 🟧 …"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticFill(var value: u64 = 0)
+  input pattern: Stream<void>
+  output value:  Stream<u64>
+{
+    StaticU64(value=value)
+
+    Self.pattern -> StaticU64.pattern,value -> Self.value
 }
 
 

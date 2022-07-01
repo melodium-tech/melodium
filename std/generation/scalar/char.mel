@@ -1,0 +1,25 @@
+
+use std/generation/scalar/void::Generate as GenerateVoid
+use std/generation/scalar/void::GenerateInfinite as GenerateInfiniteVoid
+use std/filler/scalar/char::StaticFill
+
+sequence Generate(var tracks: u64 = 1, var value: char = '∅', var length: u128)
+  input  trigger: Block<void>
+  output value:   Stream<char>
+{
+    GenerateVoid()
+    StaticFill(value=value)
+
+    Self.trigger -> GenerateVoid.trigger,iter -> StaticFill.pattern,value -> Self.value
+}
+
+sequence GenerateInfinite(var tracks: u64 = 1, var value: char = '∅')
+  input  trigger: Block<void>
+  output value:   Stream<char>
+{
+    GenerateInfiniteVoid()
+    StaticFill(value=value)
+
+    Self.trigger -> GenerateInfiniteVoid.trigger,iter -> StaticFill.pattern,value -> Self.value
+}
+

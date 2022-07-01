@@ -1,28 +1,3 @@
-use core/filling/scalar::StaticBlockF32
-
-/**
-Fill a triggering `void` block with a scalar static `f32` value.
-
-```mermaid
-graph LR
-    T("StaticBlockFill (value=🟧)")
-    B["〈🟦〉"] -->|trigger| T
-    
-    T -->|value| O["〈🟧〉"]
-
-    style B fill:#ffff,stroke:#ffff
-    style O fill:#ffff,stroke:#ffff
-```
-*/
-sequence StaticBlockFill(var value: f32 = 0)
-  input trigger: Block<void>
-  output value:  Block<f32>
-{
-    StaticBlockF32(value=value)
-
-    Self.trigger -> StaticBlockF32.trigger,value -> Self.value
-}
-
 use core/filling/scalar::StaticVecBlockF32
 
 /**
@@ -49,32 +24,6 @@ sequence StaticVecBlockFill(var value: Vec<f32>)
 }
 
 
-use core/filling/scalar::StaticF32
-
-/**
-Fill an input `void` stream with scalar static `f32` values.
-
-```mermaid
-graph LR
-    T("StaticFill (value=🟧)")
-    B["… 🟦 🟦 🟦 …"] -->|pattern| T
-    
-    T -->|value| O["… 🟧 🟧 🟧 …"]
-
-    style B fill:#ffff,stroke:#ffff
-    style O fill:#ffff,stroke:#ffff
-```
-*/
-sequence StaticFill(var value: f32 = 0)
-  input pattern: Stream<void>
-  output value:  Stream<f32>
-{
-    StaticF32(value=value)
-
-    Self.pattern -> StaticF32.pattern,value -> Self.value
-}
-
-
 use core/filling/scalar::StaticVecF32
 
 /**
@@ -98,6 +47,57 @@ sequence StaticVecFill(var value: Vec<f32>)
     StaticVecF32(value=value)
 
     Self.pattern -> StaticVecF32.pattern,value -> Self.value
+}
+
+use core/filling/scalar::StaticBlockF32
+
+/**
+Fill a triggering `void` block with a scalar static `f32` value.
+
+```mermaid
+graph LR
+    T("StaticBlockFill (value=🟧)")
+    B["〈🟦〉"] -->|trigger| T
+    
+    T -->|value| O["〈🟧〉"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticBlockFill(var value: f32 = 0)
+  input trigger: Block<void>
+  output value:  Block<f32>
+{
+    StaticBlockF32(value=value)
+
+    Self.trigger -> StaticBlockF32.trigger,value -> Self.value
+}
+
+
+use core/filling/scalar::StaticF32
+
+/**
+Fill an input `void` stream with scalar static `f32` values.
+
+```mermaid
+graph LR
+    T("StaticFill (value=🟧)")
+    B["… 🟦 🟦 🟦 …"] -->|pattern| T
+    
+    T -->|value| O["… 🟧 🟧 🟧 …"]
+
+    style B fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence StaticFill(var value: f32 = 0)
+  input pattern: Stream<void>
+  output value:  Stream<f32>
+{
+    StaticF32(value=value)
+
+    Self.pattern -> StaticF32.pattern,value -> Self.value
 }
 
 
