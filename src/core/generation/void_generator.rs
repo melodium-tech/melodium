@@ -96,9 +96,14 @@ impl ModelGenerator {
 
         vec![future]
     }
+
+    pub fn shutdown(&self) {
+        self.generation_receiver.close();
+        println!("Generator closed.");
+    }
 }
 
-model_trait!(ModelGenerator, initialize);
+model_trait!(ModelGenerator, initialize, shutdown);
 
 treatment!(treatment_generate,
     core_identifier!("generation","scalar","void";"Generate"),
@@ -111,7 +116,7 @@ treatment!(treatment_generate,
     ],
     outputs![],
     host {
-        let generator = Arc::clone(&host.get_model("writer")).downcast_arc::<crate::core::generation::void_generator::ModelGenerator>().unwrap();
+        let generator = Arc::clone(&host.get_model("generator")).downcast_arc::<crate::core::generation::void_generator::ModelGenerator>().unwrap();
         let input_tracks = host.get_input("tracks");
         let input_length = host.get_input("length");
     
@@ -134,7 +139,7 @@ treatment!(treatment_generate_infinite,
     ],
     outputs![],
     host {
-        let generator = Arc::clone(&host.get_model("writer")).downcast_arc::<crate::core::generation::void_generator::ModelGenerator>().unwrap();
+        let generator = Arc::clone(&host.get_model("generator")).downcast_arc::<crate::core::generation::void_generator::ModelGenerator>().unwrap();
         let input_tracks = host.get_input("tracks");
     
         while let Ok(tracks) = input_tracks.recv_one_u64().await {
