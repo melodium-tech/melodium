@@ -1,18 +1,18 @@
 
 use core/arithmetic/scalar/i32::|add
 use std/fs/mono::WriteFile
-use core/generation::ScalarI32Generator
-use core/generation::GenerateScalarI32
+use std/process/engine::ProcessReady
+use std/generation/scalar/i32::Generate
 use std/conversion/scalar/i32::ToString
 use std/text/encoding::Encode
 
 sequence Main()
-  model Generator: ScalarI32Generator(length=1, value=|add(40, 2))
 {
-    Generate: GenerateScalarI32[generator=Generator]()
+    ProcessReady()
+    Generate(length=1, value=|add(40, 2))
     ToString()
     Encode()
     WriteFile(path="output.txt")
     
-    Generate.data -> ToString.value,value -> Encode.text,data -> WriteFile.data
+    ProcessReady.trigger -> Generate.trigger,value -> ToString.value,value -> Encode.text,data -> WriteFile.data
 }

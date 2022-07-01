@@ -7,7 +7,7 @@ sequence Generate(var tracks: u64 = 1, var value: byte = 0x00, var length: u128)
   input  trigger: Block<void>
   output value:   Stream<byte>
 {
-    GenerateVoid()
+    GenerateVoid(tracks=tracks, length=length)
     StaticFill(value=value)
 
     Self.trigger -> GenerateVoid.trigger,iter -> StaticFill.pattern,value -> Self.value
@@ -17,7 +17,7 @@ sequence GenerateInfinite(var tracks: u64 = 1, var value: byte = 0x00)
   input  trigger: Block<void>
   output value:   Stream<byte>
 {
-    GenerateInfiniteVoid()
+    GenerateInfiniteVoid(tracks=tracks)
     StaticFill(value=value)
 
     Self.trigger -> GenerateInfiniteVoid.trigger,iter -> StaticFill.pattern,value -> Self.value

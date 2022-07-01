@@ -7,7 +7,7 @@ sequence Generate(var tracks: u64 = 1, var value: Vec<i64>, var length: u128)
   input  trigger: Block<void>
   output value:   Stream<Vec<i64>>
 {
-    GenerateVoid()
+    GenerateVoid(tracks=tracks, length=length)
     StaticVecFill(value=value)
 
     Self.trigger -> GenerateVoid.trigger,iter -> StaticVecFill.pattern,value -> Self.value
@@ -17,7 +17,7 @@ sequence GenerateInfinite(var tracks: u64 = 1, var value: Vec<i64>)
   input  trigger: Block<void>
   output value:   Stream<Vec<i64>>
 {
-    GenerateInfiniteVoid()
+    GenerateInfiniteVoid(tracks=tracks)
     StaticVecFill(value=value)
 
     Self.trigger -> GenerateInfiniteVoid.trigger,iter -> StaticVecFill.pattern,value -> Self.value
