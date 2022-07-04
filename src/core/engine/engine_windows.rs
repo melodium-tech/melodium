@@ -53,6 +53,7 @@ impl EngineModel {
             *optionnal_engine = Some(Arc::new_cyclic(|me| EngineModel {
                 helper: ModelHelper::new(EngineModel::descriptor(), world),
     
+                read_abort: Mutex::new(None),
                 read_channel: SendTransmitter::new(),
                 write_channel: RecvTransmitter::new(),
 
