@@ -1,19 +1,22 @@
 
-use core/fs/direct::FileWriter
-use core/fs/direct::WriteFile
-use core/generation::ScalarBoolGenerator
-use core/generation::GenerateScalarBool
-use core/conversion/scalar::BoolToByte
+use std/fs/mono::WriteFile
+use std/generation/scalar/bool::Generate
+use std/conversion/scalar/bool::ToByte
+use std/process/engine::ProcessReady
+use std/process/engine::ProcessEnd
+use std/flow/byte::Trigger
 
 sequence Main()
-  model Generator: ScalarBoolGenerator(length=1024, value=true)
-  model File: FileWriter(path="generated_bool.mel_generation")
 {
-    Generate: GenerateScalarBool[generator=Generator]()
-    Convert: BoolToByte()
-    Write: WriteFile[writer=File]()
+    ProcessReady()
+    ProcessEnd()
+    Trigger()
+    Generate(length=1024, value=true)
+    ToByte()
+    WriteFile(path="generated_bool.mel_generation")
     
-    Generate.data -> Convert.value,data -> Write.data
+    ProcessReady.trigger -> Generate.trigger,value -> ToByte.value,data -> WriteFile.data
+    ToByte.data -> Trigger.value,finish -> ProcessEnd.end
 }
 
 

@@ -1,19 +1,22 @@
 
-use core/fs/direct::FileWriter
-use core/fs/direct::WriteFile
-use core/generation::ScalarI8Generator
-use core/generation::GenerateScalarI8
-use core/conversion/scalar::I8ToByte
+use std/fs/mono::WriteFile
+use std/generation/scalar/i8::Generate
+use std/conversion/scalar/i8::ToByte
+use std/process/engine::ProcessReady
+use std/process/engine::ProcessEnd
+use std/flow/byte::Trigger
 
 sequence Main()
-  model Generator: ScalarI8Generator(length=1024, value=-42)
-  model File: FileWriter(path="generated_i8.mel_generation")
 {
-    Generate: GenerateScalarI8[generator=Generator]()
-    Convert: I8ToByte()
-    Write: WriteFile[writer=File]()
+    ProcessReady()
+    ProcessEnd()
+    Trigger()
+    Generate(length=1024, value=-42)
+    ToByte()
+    WriteFile(path="generated_i8.mel_generation")
     
-    Generate.data -> Convert.value,data -> Write.data
+    ProcessReady.trigger -> Generate.trigger,value -> ToByte.value,data -> WriteFile.data
+    ToByte.data -> Trigger.value,finish -> ProcessEnd.end
 }
 
 

@@ -1,19 +1,22 @@
 
-use core/fs/direct::FileWriter
-use core/fs/direct::WriteFile
-use core/generation::ScalarU64Generator
-use core/generation::GenerateScalarU64
-use core/conversion/scalar::U64ToByte
+use std/fs/mono::WriteFile
+use std/generation/scalar/u64::Generate
+use std/conversion/scalar/u64::ToByte
+use std/process/engine::ProcessReady
+use std/process/engine::ProcessEnd
+use std/flow/byte::Trigger
 
 sequence Main()
-  model Generator: ScalarU64Generator(length=1024, value=42)
-  model File: FileWriter(path="generated_u64.mel_generation")
 {
-    Generate: GenerateScalarU64[generator=Generator]()
-    Convert: U64ToByte()
-    Write: WriteFile[writer=File]()
+    ProcessReady()
+    ProcessEnd()
+    Trigger()
+    Generate(length=1024, value=42)
+    ToByte()
+    WriteFile(path="generated_u64.mel_generation")
     
-    Generate.data -> Convert.value,data -> Write.data
+    ProcessReady.trigger -> Generate.trigger,value -> ToByte.value,data -> WriteFile.data
+    ToByte.data -> Trigger.value,finish -> ProcessEnd.end
 }
 
 

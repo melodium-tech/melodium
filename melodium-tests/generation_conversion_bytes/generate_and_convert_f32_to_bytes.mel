@@ -1,19 +1,22 @@
 
-use core/fs/direct::FileWriter
-use core/fs/direct::WriteFile
-use core/generation::ScalarF32Generator
-use core/generation::GenerateScalarF32
-use core/conversion/scalar::F32ToByte
+use std/fs/mono::WriteFile
+use std/generation/scalar/f32::Generate
+use std/conversion/scalar/f32::ToByte
+use std/process/engine::ProcessReady
+use std/process/engine::ProcessEnd
+use std/flow/byte::Trigger
 
 sequence Main()
-  model Generator: ScalarF32Generator(length=1024, value=-1234.56789)
-  model File: FileWriter(path="generated_f32.mel_generation")
 {
-    Generate: GenerateScalarF32[generator=Generator]()
-    Convert: F32ToByte()
-    Write: WriteFile[writer=File]()
+    ProcessReady()
+    ProcessEnd()
+    Trigger()
+    Generate(length=1024, value=-1234.56789)
+    ToByte()
+    WriteFile(path="generated_f32.mel_generation")
     
-    Generate.data -> Convert.value,data -> Write.data
+    ProcessReady.trigger -> Generate.trigger,value -> ToByte.value,data -> WriteFile.data
+    ToByte.data -> Trigger.value,finish -> ProcessEnd.end
 }
 
 

@@ -1,19 +1,22 @@
 
-use core/fs/direct::FileWriter
-use core/fs/direct::WriteFile
-use core/generation::ScalarStringGenerator
-use core/generation::GenerateScalarString
-use core/conversion/scalar::StringToByte
+use std/fs/mono::WriteFile
+use std/generation/scalar/string::Generate
+use std/conversion/scalar/string::ToByte
+use std/process/engine::ProcessReady
+use std/process/engine::ProcessEnd
+use std/flow/byte::Trigger
 
 sequence Main()
-  model Generator: ScalarStringGenerator(length=1024, value="Mélodium")
-  model File: FileWriter(path="generated_string.mel_generation")
 {
-    Generate: GenerateScalarString[generator=Generator]()
-    Convert: StringToByte()
-    Write: WriteFile[writer=File]()
+    ProcessReady()
+    ProcessEnd()
+    Trigger()
+    Generate(length=1024, value="Mélodium")
+    ToByte()
+    WriteFile(path="generated_string.mel_generation")
     
-    Generate.data -> Convert.value,data -> Write.data
+    ProcessReady.trigger -> Generate.trigger,value -> ToByte.value,data -> WriteFile.data
+    ToByte.data -> Trigger.value,finish -> ProcessEnd.end
 }
 
 

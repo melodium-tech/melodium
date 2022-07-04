@@ -99,7 +99,6 @@ impl ModelGenerator {
 
     pub fn shutdown(&self) {
         self.generation_receiver.close();
-        println!("Generator closed.");
     }
 }
 

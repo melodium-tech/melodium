@@ -18,6 +18,7 @@
 - Adding min/max selectors for all numeric types #35
 - `StreamBlock` & `StreamVecBlock` able to stream any data type #37
 - `StaticVecFill` & `StaticVecBlockFill` available #37
+- `Emit`ters available for all types
 
 ### Changed
 
@@ -25,6 +26,8 @@
 - Doc generation allowing Mermaid.js graphs
 - `BlockStream` renamed `BlockAllStream` to match behavior #37
 - `StreamBlock` behavior rectified for scalar values #37
+- Data generation made through new standard library sequences #37
+- Unused core elements removed #37
 - When sigterm is not handled by script it asks for engine end
 
 ## [v0.3.0] (2022-06-10)
