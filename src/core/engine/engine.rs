@@ -1,7 +1,11 @@
 
 use std::fmt;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use async_std::sync::Mutex as AsyncMutex;
+use async_std::task::block_on;
+use futures::future::abortable;
+use futures::stream::AbortHandle;
 use signal_hook::consts::signal::*;
 use signal_hook_async_std::{Signals, Handle};
 use crate::core::prelude::*;
@@ -10,11 +14,13 @@ pub struct EngineModel {
 
     helper: ModelHelper,
 
+    read_abort: Mutex<Option<AbortHandle>>,
     read_channel: SendTransmitter<String>,
     write_channel: RecvTransmitter<String>,
 
     signals: Arc<AsyncMutex<Signals>>,
     signals_handle: Arc<Handle>,
+    sigterm_handled: AtomicBool,
 
     sighup_channel: SendTransmitter<()>,
     sigterm_channel: SendTransmitter<()>,
@@ -58,11 +64,13 @@ impl EngineModel {
             *optionnal_engine = Some(Arc::new_cyclic(|me| EngineModel {
                 helper: ModelHelper::new(EngineModel::descriptor(), world),
     
+                read_abort: Mutex::new(None),
                 read_channel: SendTransmitter::new(),
                 write_channel: RecvTransmitter::new(),
 
                 signals: Arc::new(AsyncMutex::new(signals)),
                 signals_handle: Arc::new(handle),
+                sigterm_handled: AtomicBool::new(false),
 
                 sighup_channel: SendTransmitter::new(),
                 sigterm_channel: SendTransmitter::new(),
@@ -86,15 +94,18 @@ impl EngineModel {
 
         let model_id = self.helper.id().unwrap();
 
-        futures::join!(
+        let (stdin, abort_stdin) = abortable(self.stdin());
+
+        *self.read_abort.lock().unwrap() = Some(abort_stdin);
+
+        let _ = futures::join!(
             self.helper.world().create_track(model_id, "ready", HashMap::new(), None, Some(|i| self.ready(i))),
             self.helper.world().create_track(model_id, "read", HashMap::new(), None, Some(|i| self.read(i))),
             self.helper.world().create_track(model_id, "sighup", HashMap::new(), None, Some(|i| self.sighup(i))),
             self.helper.world().create_track(model_id, "sigterm", HashMap::new(), None, Some(|i| self.sigterm(i))),
             self.signals(),
-            self.stdin(),
-            // TODO enable this once engine have end trigger
-            //self.write()
+            stdin,
+            self.write()
         );
     }
 
@@ -171,6 +182,8 @@ impl EngineModel {
         let sigterm = RecvTransmitter::new();
         self.sigterm_channel.add_transmitter(&sigterm);
 
+        self.sigterm_handled.store(true, Ordering::Relaxed);
+
         let future = Box::new(Box::pin(async move {
 
             if let Some(sigterm_output) = inputs.get("_sigterm") {
@@ -196,14 +209,14 @@ impl EngineModel {
 
         while let Ok(n) = stdin.read_line(&mut line).await {
 
-            ok_or_break!(self.read_channel.send(line).await);
-
-            line = String::new();
-
             // Meaning EOF is reached
             if n == 0 {
                 break;
             }
+
+            ok_or_break!(self.read_channel.send(line).await);
+
+            line = String::new();
         }
 
         self.read_channel.close().await;
@@ -216,7 +229,12 @@ impl EngineModel {
                     let _ = self.sighup_channel.send(()).await;
                 },
                 SIGTERM | SIGINT | SIGQUIT => {
-                    let _ = self.sigterm_channel.send(()).await;
+                    if self.sigterm_handled.load(Ordering::Relaxed) {
+                        let _ = self.sigterm_channel.send(()).await;
+                    }
+                    else {
+                        self.end();
+                    }
                 },
                 _ => unreachable!(),
             }
@@ -226,8 +244,6 @@ impl EngineModel {
         self.sigterm_channel.close().await;
     }
 
-    // TODO enable this once engine have end trigger
-    #[allow(dead_code)]
     async fn write(&self) {
 
         let receiver = &self.write_channel;
@@ -247,7 +263,12 @@ impl EngineModel {
 
     pub fn close(&self) {
         self.signals_handle.close();
+        block_on(self.read_channel.close());
         self.write_channel.close();
+
+        if let Some(abort_handle) = &*self.read_abort.lock().unwrap() {
+            abort_handle.abort();
+        }
     }
 }
 

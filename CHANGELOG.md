@@ -5,6 +5,7 @@
 ### Bug fixes
 
 - Implemented core components missing in core collection
+- Engine ignore whether stdin is closed or not to end
 
 ### Features
 
@@ -24,6 +25,7 @@
 - Doc generation allowing Mermaid.js graphs
 - `BlockStream` renamed `BlockAllStream` to match behavior #37
 - `StreamBlock` behavior rectified for scalar values #37
+- When sigterm is not handled by script it asks for engine end
 
 ## [v0.3.0] (2022-06-10)
 

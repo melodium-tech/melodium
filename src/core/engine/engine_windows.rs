@@ -1,12 +1,16 @@
 
 use std::fmt;
 use std::sync::Mutex;
+use async_std::task::block_on;
+use futures::future::abortable;
+use futures::stream::AbortHandle;
 use crate::core::prelude::*;
 
 pub struct EngineModel {
 
     helper: ModelHelper,
 
+    read_abort: Mutex<Option<AbortHandle>>,
     read_channel: SendTransmitter<String>,
     write_channel: RecvTransmitter<String>,
 
@@ -74,15 +78,18 @@ impl EngineModel {
 
         let model_id = self.helper.id().unwrap();
 
-        futures::join!(
+        let (stdin, abort_stdin) = abortable(self.stdin());
+
+        *self.read_abort.lock().unwrap() = Some(abort_stdin);
+
+        let _ = futures::join!(
             self.helper.world().create_track(model_id, "ready", HashMap::new(), None, Some(|i| self.ready(i))),
             self.helper.world().create_track(model_id, "read", HashMap::new(), None, Some(|i| self.read(i))),
             self.helper.world().create_track(model_id, "sighup", HashMap::new(), None, Some(|i| self.sighup(i))),
             self.helper.world().create_track(model_id, "sigterm", HashMap::new(), None, Some(|i| self.sigterm(i))),
             self.signals(),
-            self.stdin(),
-            // TODO enable this once engine have end trigger
-            //self.write()
+            stdin,
+            self.write()
         );
     }
 
@@ -184,14 +191,14 @@ impl EngineModel {
 
         while let Ok(n) = stdin.read_line(&mut line).await {
 
-            ok_or_break!(self.read_channel.send(line).await);
-
-            line = String::new();
-
             // Meaning EOF is reached
             if n == 0 {
                 break;
             }
+
+            ok_or_break!(self.read_channel.send(line).await);
+
+            line = String::new();
         }
 
         self.read_channel.close().await;
@@ -204,8 +211,6 @@ impl EngineModel {
         self.sigterm_channel.close().await;
     }
 
-    // TODO enable this once engine have end trigger
-    #[allow(dead_code)]
     async fn write(&self) {
 
         let receiver = &self.write_channel;
@@ -224,7 +229,12 @@ impl EngineModel {
     }
 
     pub fn close(&self) {
+        block_on(self.read_channel.close());
         self.write_channel.close();
+
+        if let Some(abort_handle) = &*self.read_abort.lock().unwrap() {
+            abort_handle.abort();
+        }
     }
 }
 
