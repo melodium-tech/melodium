@@ -4,7 +4,7 @@ set -e
 FAILURES=0
 declare -i FAILURES
 
-rm -f output*
+rm -f output.txt output.log
 
 text="
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam convallis dolor eget eros vestibulum, tristique porta nunc lacinia.
@@ -14,8 +14,8 @@ Præsent suscipit risus ligula, ac dictum lacus mattis at."
 
 echo "$text" | "$MELODIUM" pipe.mel > "output.log"
 
-test "$(cat output.txt)" == "$text"
-test "$(cat output.log)" == "$text"
+if ! [ "$(cat output.txt)" == "$text" ]; then FAILURES+=1; fi
+if ! [ "$(cat output.log)" == "$text" ]; then FAILURES+=1; fi
 
 exit $FAILURES
 

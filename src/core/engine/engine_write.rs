@@ -14,19 +14,22 @@ treatment!(engine_write_treatment,
     outputs![],
     host {
 
-        let writer = Arc::clone(&host.get_model("engine")).downcast_arc::<crate::core::engine::engine::EngineModel>().unwrap();
+        // We do keep the writer model because might be good in further improvement to signal when stdout is closed.
+        let _writer = Arc::clone(&host.get_model("engine")).downcast_arc::<crate::core::engine::engine::EngineModel>().unwrap();
 
         let input = host.get_input("text");
-        let writer_sender = SendTransmitter::new();
-        writer_sender.add_transmitter(writer.writer());
     
-        while let Ok(text) = input.recv_string().await {
+        'main: while let Ok(text) = input.recv_string().await {
 
-            ok_or_break!(writer_sender.send_multiple(text).await);
+            let mut stdout = async_std::io::stdout();
+
+            for part in text {
+                ok_or_break!('main, stdout.write_all(part.as_bytes()).await);
+            }
+
+            ok_or_break!(stdout.flush().await);
         }
 
-        writer_sender.close().await;
-    
         ResultStatus::Ok
     }
 );
