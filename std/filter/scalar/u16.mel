@@ -1,0 +1,34 @@
+use core/filter/scalar/u16::Filter as CoreFilter
+
+/**
+Filter an input `u16` stream according to `bool` stream.
+
+ℹ️ If both streams are not the same size nothing is sent through accepted nor rejected.
+
+```mermaid
+graph LR
+    T("Filter()")
+    V["… 🟦 🟧 🟪 🟫 🟨 …"] -->|pattern| T
+    D["… 🟩 🟥 🟥 🟩 🟥 …"] -->|decision|T
+    
+    T -->|accepted| A["… 🟦 🟫 …"]
+    T -->|rejected| R["… 🟧 🟪 🟨 …"]
+
+    style V fill:#ffff,stroke:#ffff
+    style D fill:#ffff,stroke:#ffff
+    style A fill:#ffff,stroke:#ffff
+    style R fill:#ffff,stroke:#ffff
+```
+*/
+sequence Filter()
+  input  value:    Stream<u16>
+  input  decision: Stream<bool>
+  output accepted: Stream<u16>
+  output rejected: Stream<u16>
+{
+    CoreFilter()
+
+    Self.value ----> CoreFilter.value,accepted ----> Self.accepted
+    Self.decision -> CoreFilter.decision,rejected -> Self.rejected
+}
+
