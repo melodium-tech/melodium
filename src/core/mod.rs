@@ -14,6 +14,7 @@ pub mod comparison;
 pub mod conversion;
 pub mod engine;
 pub mod filling;
+pub mod filter;
 pub mod generation;
 pub mod logic;
 pub mod flow;
