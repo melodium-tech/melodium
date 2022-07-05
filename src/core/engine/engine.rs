@@ -16,7 +16,6 @@ pub struct EngineModel {
 
     read_abort: Mutex<Option<AbortHandle>>,
     read_channel: SendTransmitter<String>,
-    write_channel: RecvTransmitter<String>,
 
     signals: Arc<AsyncMutex<Signals>>,
     signals_handle: Arc<Handle>,
@@ -66,7 +65,6 @@ impl EngineModel {
     
                 read_abort: Mutex::new(None),
                 read_channel: SendTransmitter::new(),
-                write_channel: RecvTransmitter::new(),
 
                 signals: Arc::new(AsyncMutex::new(signals)),
                 signals_handle: Arc::new(handle),
@@ -104,13 +102,8 @@ impl EngineModel {
             self.helper.world().create_track(model_id, "sighup", HashMap::new(), None, Some(|i| self.sighup(i))),
             self.helper.world().create_track(model_id, "sigterm", HashMap::new(), None, Some(|i| self.sigterm(i))),
             self.signals(),
-            stdin,
-            self.write()
+            stdin
         );
-    }
-
-    pub fn writer(&self) -> &RecvTransmitter<String> {
-        &self.write_channel
     }
 
     fn ready(&self, inputs: HashMap<String, Output>) -> Vec<TrackFuture> {
@@ -244,18 +237,6 @@ impl EngineModel {
         self.sigterm_channel.close().await;
     }
 
-    async fn write(&self) {
-
-        let receiver = &self.write_channel;
-
-        while let Ok(text) = receiver.receive_multiple().await {
-
-            for part in text {
-                print!("{}", part);
-            }
-        }
-    }
-
     pub fn end(&self) {
         
         self.helper.world().end();
@@ -264,7 +245,6 @@ impl EngineModel {
     pub fn close(&self) {
         self.signals_handle.close();
         block_on(self.read_channel.close());
-        self.write_channel.close();
 
         if let Some(abort_handle) = &*self.read_abort.lock().unwrap() {
             abort_handle.abort();
