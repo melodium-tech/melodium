@@ -11,6 +11,8 @@ pub fn core_collection() -> &'static CollectionPool {
 
             super::filling::register(&mut c);
 
+            super::filter::register(&mut c);
+
             super::logic::register(&mut c);
 
             super::generation::void_generator::register(&mut c);

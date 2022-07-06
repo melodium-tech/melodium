@@ -19,6 +19,7 @@
 - `StreamBlock` & `StreamVecBlock` able to stream any data type #37
 - `StaticVecFill` & `StaticVecBlockFill` available #37
 - `Emit`ters available for all types
+- Adding filters for all types #40
 
 ### Changed
 
