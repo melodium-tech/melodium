@@ -59,3 +59,32 @@ sequence StaticFill(var value: char = '∅')
     
 }
 
+use core/filling/vector::FillVecChar as CoreFill
+
+/**
+Fill an input stream of `void` vectors with matching values from `char` stream.
+
+```mermaid
+graph LR
+    T("Fill()")
+    V["… 🟥 🟧 🟨 …"] -->|value| T
+    P["…［🟦 🟦 🟦］［🟦 🟦］［🟦 🟦 🟦］…"] -->|pattern| T
+    
+    T -->|value| O["…［🟥 🟥 🟥］［🟧 🟧］［🟨 🟨 🟨］…"]
+
+    style V fill:#ffff,stroke:#ffff
+    style P fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+```
+*/
+sequence Fill()
+  input value:   Stream<char>
+  input pattern: Stream<Vec<void>>
+  output value:  Stream<Vec<char>>
+{
+    CoreFill()
+
+    Self.value ---> CoreFill.value
+    Self.pattern -> CoreFill.pattern,value -> Self.value
+}
+

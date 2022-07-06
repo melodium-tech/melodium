@@ -8,7 +8,7 @@ Filter an input `f64` stream according to `bool` stream.
 ```mermaid
 graph LR
     T("Filter()")
-    V["… 🟦 🟧 🟪 🟫 🟨 …"] -->|pattern| T
+    V["… 🟦 🟧 🟪 🟫 🟨 …"] -->|value| T
     D["… 🟩 🟥 🟥 🟩 🟥 …"] -->|decision|T
     
     T -->|accepted| A["… 🟦 🟫 …"]
