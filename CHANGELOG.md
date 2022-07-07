@@ -20,6 +20,7 @@
 - `StaticVecFill` & `StaticVecBlockFill` available #37
 - `Emit`ters available for all types
 - Adding filters for all types #40
+- Adding counters, sizers, and fitters for all types #41
 
 ### Changed
 
