@@ -28,6 +28,7 @@ pub fn core_collection() -> &'static CollectionPool {
             super::conversion::scalar_float::register(&mut c);
 
             super::flow::trigger::trigger::register(&mut c);
+            super::flow::count::register(&mut c);
             super::flow::linearize::register(&mut c);
             super::flow::organizer::register(&mut c);
             super::flow::block_to_stream::register(&mut c);
