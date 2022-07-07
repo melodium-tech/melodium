@@ -7,13 +7,13 @@ treatment!(size,
     treatment_sources![],
     parameters![],
     inputs![
-        input!("value",Vector,Void,Stream)
+        input!("pattern",Vector,Void,Stream)
     ],
     outputs![
         output!("size",Scalar,U64,Stream)
     ],
     host {
-        let input = host.get_input("value");
+        let input = host.get_input("pattern");
         let output = host.get_output("size");
 
         while let Ok(vectors) = input.recv_vec_void().await {
