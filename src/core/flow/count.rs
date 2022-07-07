@@ -16,7 +16,7 @@ treatment!(count_scalar,
         let input = host.get_input("iter");
         let output = host.get_output("count");
 
-        let mut count = 0u128;
+        let mut count = 1u128;
 
         while let Ok(iter) = input.recv_void().await {
 
@@ -49,7 +49,7 @@ treatment!(count_vector,
         let input = host.get_input("iter");
         let output = host.get_output("count");
 
-        let mut count = 0u128;
+        let mut count = 1u128;
 
         while let Ok(iter) = input.recv_vec_void().await {
 

@@ -179,3 +179,115 @@ sequence VecTrigger()
     Trigger.start ------------------------> Self.start
     Trigger.finish -----------------------> Self.finish
 }
+
+use core/flow/scalar/void::Count as CoreCount
+
+/**
+Gives count of elements passing through input stream.
+
+This count increment one for each elements within the `iter` stream, starting at 1.
+
+```mermaid
+graph LR
+    T("Count()")
+    V["🟦 🟦 🟦…"] -->|iter| T
+    
+    T -->|count| P["1️⃣ 2️⃣ 3️⃣ …"]
+
+    style V fill:#ffff,stroke:#ffff
+    style P fill:#ffff,stroke:#ffff
+```
+*/
+sequence Count()
+  input  iter:  Stream<void>
+  output count: Stream<u128>
+{
+    CoreCount()
+
+    Self.iter -> CoreCount.iter,count -> Self.count
+}
+
+use core/flow/vector/void::Count as CoreVecCount
+
+/**
+Gives count of elements passing through input stream.
+
+This count increment one for each elements within the `iter` stream, starting at 1.
+
+ℹ️ This does not count the number of elements present in each vector, see the `Size` sequence instead.
+
+```mermaid
+graph LR
+    T("VecCount()")
+    V["［🟦 🟦］［🟦］［🟦 🟦 🟦］…"] -->|iter| T
+    
+    T -->|count| P["1️⃣ 2️⃣ 3️⃣ …"]
+
+    style V fill:#ffff,stroke:#ffff
+    style P fill:#ffff,stroke:#ffff
+```
+*/
+sequence VecCount()
+  input  iter:  Stream<Vec<void>>
+  output count: Stream<u128>
+{
+    CoreVecCount()
+
+    Self.iter -> CoreVecCount.iter,count -> Self.count
+}
+
+use core/flow/vector/void::Size as CoreSize
+
+/**
+Gives number of elements present in each vector passing through input stream.
+
+For each vector one `size` value is sent, giving the number of elements contained within matching vector.
+
+```mermaid
+graph LR
+    T("Size()")
+    V["…［🟦 🟦］［🟦］［🟦 🟦 🟦］…"] -->|pattern| T
+    
+    T -->|size| P["… 2️⃣ 1️⃣ 3️⃣ …"]
+
+    style V fill:#ffff,stroke:#ffff
+    style P fill:#ffff,stroke:#ffff
+```
+*/
+sequence Size()
+  input  pattern: Stream<Vec<void>>
+  output size:    Stream<u64>
+{
+    CoreSize()
+
+    Self.pattern -> CoreSize.pattern,size -> Self.size
+}
+
+
+use core/flow/vector/void::Fit as CoreFit
+
+/**
+Creates stream of vectors based on requested sizes.
+
+For each `size` received, a vector with the same number of values is sent through `pattern`.
+
+```mermaid
+graph LR
+    T("Fit()")
+    V["… 2️⃣ 1️⃣ 3️⃣ …"] -->|size| T
+    
+    T -->|pattern| P["…［🟦 🟦］［🟦］［🟦 🟦 🟦］…"]
+
+    style V fill:#ffff,stroke:#ffff
+    style P fill:#ffff,stroke:#ffff
+```
+*/
+sequence Fit()
+  input  size:    Stream<u64>
+  output pattern: Stream<Vec<void>>
+{
+    CoreFit()
+
+    Self.size -> CoreFit.size,pattern -> Self.pattern
+}
+

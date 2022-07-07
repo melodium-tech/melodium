@@ -219,3 +219,126 @@ sequence VecTrigger()
     VoidVecTrigger.start --> Self.start
     VoidVecTrigger.finish -> Self.finish
 }
+
+
+use std/flow/void::Count as VoidCount
+
+/**
+Gives count of elements passing through input stream.
+
+This count increment one for each elements within the `value` stream, starting at 1.
+
+```mermaid
+graph LR
+    T("Count()")
+    V["🟦 🟦 🟦 …"] -->|value| T
+    
+    T -->|count| P["1️⃣ 2️⃣ 3️⃣ …"]
+
+    style V fill:#ffff,stroke:#ffff
+    style P fill:#ffff,stroke:#ffff
+```
+*/
+sequence Count()
+  input  value: Stream<u32>
+  output count: Stream<u128>
+{
+    ToVoid()
+    VoidCount()
+
+    Self.iter ->  ToVoid.value,iter -> VoidCount.iter,count -> Self.count
+}
+
+
+use std/flow/void::VecCount as VoidVecCount
+
+/**
+Gives count of elements passing through input stream.
+
+This count increment one for each elements within the `value` stream, starting at 1.
+
+ℹ️ This does not count the number of elements present in each vector, see the `Size` sequence instead.
+
+```mermaid
+graph LR
+    T("VecCount()")
+    V["［🟦 🟦］［🟦］［🟦 🟦 🟦］…"] -->|value| T
+    
+    T -->|count| P["1️⃣ 2️⃣ 3️⃣ …"]
+
+    style V fill:#ffff,stroke:#ffff
+    style P fill:#ffff,stroke:#ffff
+```
+*/
+sequence VecCount()
+  input  value: Stream<Vec<u32>>
+  output count: Stream<u128>
+{
+    ToVecVoid()
+    VoidVecCount()
+
+    Self.value -> ToVecVoid.vector,pattern -> VoidVecCount.iter,count -> Self.count
+}
+
+
+use std/flow/void::Size as VoidSize
+
+/**
+Gives number of elements present in each vector passing through input stream.
+
+For each vector one `size` value is sent, giving the number of elements contained within matching vector.
+
+```mermaid
+graph LR
+    T("Size()")
+    V["…［🟦 🟦］［🟦］［🟦 🟦 🟦］…"] -->|value| T
+    
+    T -->|size| P["… 2️⃣ 1️⃣ 3️⃣ …"]
+
+    style V fill:#ffff,stroke:#ffff
+    style P fill:#ffff,stroke:#ffff
+```
+*/
+sequence Size()
+  input  value: Stream<Vec<u32>>
+  output size:  Stream<u64>
+{
+    ToVecVoid()
+    VoidSize()
+
+    Self.value -> ToVecVoid.vector,pattern -> VoidSize.pattern,size -> Self.size
+}
+
+
+use std/flow/void::Fit as VoidFit
+
+/**
+Creates stream of vectors based on requested sizes.
+
+For each `size` received, a vector with the same number of values is sent through `pattern`.
+
+```mermaid
+graph LR
+    T("Fit()")
+    V["… 🟦 🟦 🟦 🟦 🟦 🟦 …"] -->|value| T
+    S["… 2️⃣ 1️⃣ 3️⃣ …"] -->|size| T
+    
+    T -->|value| P["…［🟦 🟦］［🟦］［🟦 🟦 🟦］…"]
+
+    style V fill:#ffff,stroke:#ffff
+    style S fill:#ffff,stroke:#ffff
+    style P fill:#ffff,stroke:#ffff
+```
+*/
+sequence Fit()
+  input  value: Stream<u32>
+  input  size:  Stream<u64>
+  output value: Stream<Vec<u32>>
+{
+    VoidFit()
+    Organize()
+
+    Self.size -> VoidFit.size,pattern -> Organize.pattern
+    Self.value ------------------------> Organize.value,values -> Self.value
+}
+
