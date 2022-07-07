@@ -246,7 +246,7 @@ sequence Count()
     ToVoid()
     VoidCount()
 
-    Self.iter ->  ToVoid.value,iter -> VoidCount.iter,count -> Self.count
+    Self.value ->  ToVoid.value,iter -> VoidCount.iter,count -> Self.count
 }
 
 
