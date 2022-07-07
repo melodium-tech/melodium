@@ -2,7 +2,7 @@
 use crate::core::prelude::*;
 
 treatment!(count_scalar,
-    core_identifier!("flow","void","scalar";"Count"),
+    core_identifier!("flow","scalar","void";"Count"),
     models![],
     treatment_sources![],
     parameters![],
@@ -35,7 +35,7 @@ treatment!(count_scalar,
 );
 
 treatment!(count_vector,
-    core_identifier!("flow","void","vector";"Count"),
+    core_identifier!("flow","vector","void";"Count"),
     models![],
     treatment_sources![],
     parameters![],

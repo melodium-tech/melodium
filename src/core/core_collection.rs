@@ -33,6 +33,7 @@ pub fn core_collection() -> &'static CollectionPool {
             super::flow::organizer::register(&mut c);
             super::flow::block_to_stream::register(&mut c);
             super::flow::stream_to_block::register(&mut c);
+            super::flow::size::register(&mut c);
 
             super::arithmetic::implementation::register(&mut c);
             super::trigonometry::register(&mut c);
