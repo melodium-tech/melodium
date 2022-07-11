@@ -4,6 +4,7 @@ use std/generation/scalar/u64::Generate
 use std/conversion/scalar/u64::ToByte
 use std/process/engine::ProcessReady
 use std/process/engine::ProcessEnd
+use std/flow/byte::Linearize
 use std/flow/byte::Trigger
 
 sequence Main()
@@ -13,10 +14,11 @@ sequence Main()
     Trigger()
     Generate(length=1024, value=42)
     ToByte()
+    Linearize()
     WriteFile(path="generated_u64.mel_generation")
     
-    ProcessReady.trigger -> Generate.trigger,value -> ToByte.value,data -> WriteFile.data
-    ToByte.data -> Trigger.value,finish -> ProcessEnd.end
+    ProcessReady.trigger -> Generate.trigger,value -> ToByte.value,data -> Linearize.vector,value -> WriteFile.data
+    Linearize.value -> Trigger.value,finish -> ProcessEnd.end
 }
 
 

@@ -10,7 +10,7 @@ treatment!(string_to_byte,
         input!("value",Scalar,String,Stream)
     ],
     outputs![
-        output!("data",Scalar,Byte,Stream)
+        output!("data",Vector,Byte,Stream)
     ],
     host {
         let input = host.get_input("value");

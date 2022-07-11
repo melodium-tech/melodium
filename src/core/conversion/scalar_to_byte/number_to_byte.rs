@@ -12,7 +12,7 @@ macro_rules! impl_ScalarToByte {
                 input!("value",Scalar,$mel_type,Stream)
             ],
             outputs![
-                output!("data",Scalar,Byte,Stream)
+                output!("data",Vector,Byte,Stream)
             ],
             host {
                 let input = host.get_input("value");
