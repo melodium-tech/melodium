@@ -17,13 +17,13 @@ sequence ToVoid()
 use core/conversion/scalar::U64ToByte
 
 /**
-Convert stream of `u64` into `byte`.
+Convert stream of `u64` into `Vec<byte>`.
 
-`u64` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+`u64` gets converted into `Vec<byte>`, each vector contains the bytes of the former salar `u64` it represents.
 */
 sequence ToByte()
   input  value: Stream<u64>
-  output data:  Stream<byte>
+  output data:  Stream<Vec<byte>>
 {
     U64ToByte()
 

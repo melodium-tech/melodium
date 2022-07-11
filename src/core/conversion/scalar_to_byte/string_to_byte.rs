@@ -19,7 +19,7 @@ treatment!(string_to_byte,
         'main: while let Ok(strings) = input.recv_string().await {
     
             for string in strings {
-                ok_or_break!('main, output.send_multiple_byte(string.as_bytes().to_vec()).await);
+                ok_or_break!('main, output.send_vec_byte(string.as_bytes().to_vec()).await);
             }
         }
     

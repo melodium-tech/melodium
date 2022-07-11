@@ -17,13 +17,13 @@ sequence ToVoid()
 use core/conversion/scalar::F64ToByte
 
 /**
-Convert stream of `f64` into `byte`.
+Convert stream of `f64` into `Vec<byte>`.
 
-`f64` gets converted into `byte`, and the resulting bytes are send through stream in continuity.
+`f64` gets converted into `Vec<byte>`, each vector contains the bytes of the former salar `f64` it represents.
 */
 sequence ToByte()
   input  value: Stream<f64>
-  output data:  Stream<byte>
+  output data:  Stream<Vec<byte>>
 {
     F64ToByte()
 

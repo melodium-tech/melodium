@@ -10,7 +10,7 @@ treatment!(char_to_byte,
         input!("value",Scalar,Char,Stream)
     ],
     outputs![
-        output!("data",Scalar,Byte,Stream)
+        output!("data",Vector,Byte,Stream)
     ],
     host {
         let input = host.get_input("value");
@@ -19,7 +19,7 @@ treatment!(char_to_byte,
         'main: while let Ok(chars) = input.recv_char().await {
     
             for ch in chars {
-                ok_or_break!('main, output.send_multiple_byte(ch.to_string().as_bytes().to_vec()).await);
+                ok_or_break!('main, output.send_vec_byte(ch.to_string().as_bytes().to_vec()).await);
             }
         }
     

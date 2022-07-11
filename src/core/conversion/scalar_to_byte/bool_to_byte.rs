@@ -10,7 +10,7 @@ treatment!(bool_to_byte,
         input!("value",Scalar,Bool,Stream)
     ],
     outputs![
-        output!("data",Scalar,Byte,Stream)
+        output!("data",Vector,Byte,Stream)
     ],
     host {
         let input = host.get_input("value");
@@ -18,12 +18,12 @@ treatment!(bool_to_byte,
     
         'main: while let Ok(bools) = input.recv_bool().await {
 
-            ok_or_break!('main, output.send_multiple_byte(bools.iter().map(
+            ok_or_break!('main, output.send_multiple_vec_byte(bools.iter().map(
                 |b|
-                match b {
+                vec![match b {
                     true => 1,
                     false => 0,
-                }
+                }]
             ).collect()).await);
         }
     
