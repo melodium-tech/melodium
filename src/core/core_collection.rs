@@ -23,6 +23,7 @@ pub fn core_collection() -> &'static CollectionPool {
             super::conversion::scalar_to_void::register(&mut c);
             super::conversion::vector_to_void::register(&mut c);
             super::conversion::scalar_to_byte::register(&mut c);
+            super::conversion::scalar_from_byte::register(&mut c);
             super::conversion::scalar_to_string::register(&mut c);
             super::conversion::scalar_float_to_integer::register(&mut c);
             super::conversion::scalar_float::register(&mut c);

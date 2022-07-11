@@ -31,6 +31,7 @@
 - Data generation made through new standard library sequences #37
 - Unused core elements removed #37
 - When sigterm is not handled by script it asks for engine end
+- Conversion to `byte` now gives vectors #42
 
 ## [v0.3.0] (2022-06-10)
 
