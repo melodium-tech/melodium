@@ -17,24 +17,3 @@ sequence ToVoid()
     Self.vector -> StringToVoid.vector,pattern -> Self.pattern
 }
 
-use std/conversion/scalar/string::ToByte as ScalToByte
-use std/flow/byte::Organize as OrganizeByte
-
-/**
-Convert stream of `Vec<string>` into `Vec<byte>` one.
-
-`Vec<string>` gets converted into `Vec<byte>`, and the resulting vectors are send through stream in continuity.
-*/
-sequence ToByte()
-  input  value: Stream<Vec<string>>
-  output data:  Stream<Vec<byte>>
-{
-    ToVoid()
-    Linearize()
-    ScalToByte()
-    OrganizeByte()
-
-    Self.value -> Linearize.vector,value -> ScalToByte.value,data -> OrganizeByte.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern ---------------------------> OrganizeByte.pattern
-}
-

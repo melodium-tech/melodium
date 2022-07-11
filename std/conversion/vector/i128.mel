@@ -17,27 +17,6 @@ sequence ToVoid()
     Self.vector -> I128ToVoid.vector,pattern -> Self.pattern
 }
 
-use std/conversion/scalar/i128::ToByte as ScalToByte
-use std/flow/byte::Organize as OrganizeByte
-
-/**
-Convert stream of `Vec<i128>` into `Vec<byte>` one.
-
-`Vec<i128>` gets converted into `Vec<byte>`, and the resulting vectors are send through stream in continuity.
-*/
-sequence ToByte()
-  input  value: Stream<Vec<i128>>
-  output data:  Stream<Vec<byte>>
-{
-    ToVoid()
-    Linearize()
-    ScalToByte()
-    OrganizeByte()
-
-    Self.value -> Linearize.vector,value -> ScalToByte.value,data -> OrganizeByte.value,values -> Self.data
-    Self.value -> ToVoid.vector,pattern ---------------------------> OrganizeByte.pattern
-}
-
 use std/conversion/scalar/i128::ToString as ScalToString
 use std/flow/string::Organize as OrganizeString
 
