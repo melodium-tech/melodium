@@ -19,7 +19,7 @@ use core/conversion/scalar::CharToByte
 /**
 Convert stream of `char` into `Vec<byte>`.
 
-`char` gets converted into `Vec<byte>`, each vector contains the bytes of the former salar `char` it represents.
+`char` gets converted into `Vec<byte>`, each vector contains the bytes of the former scalar `char` it represents.
 */
 sequence ToByte()
   input  value: Stream<char>
@@ -28,6 +28,25 @@ sequence ToByte()
     CharToByte()
 
     Self.value -> CharToByte.value,data -> Self.data
+}
+
+use core/conversion/scalar::CharFromByte
+
+/**
+Convert stream of `Vec<byte>` into `char`.
+
+Each received `byte` vector try to be converted into `char`, and if valid is sent as `value`. If the incoming vector 
+is not valid for representing a `char` (i.e. not right size or invalid coding) it is refused and sent through `reject`.
+*/
+sequence FromByte()
+  input  data:   Stream<Vec<byte>>
+  output value:  Stream<char>
+  output reject: Stream<Vec<byte>>
+{
+    CharFromByte()
+
+    Self.data -> CharFromByte.data,value -> Self.value
+                 CharFromByte.reject -----> Self.reject
 }
 
 use core/conversion/scalar::CharToString

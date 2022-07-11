@@ -19,7 +19,7 @@ use core/conversion/scalar::U128ToByte
 /**
 Convert stream of `u128` into `Vec<byte>`.
 
-`u128` gets converted into `Vec<byte>`, each vector contains the bytes of the former salar `u128` it represents.
+`u128` gets converted into `Vec<byte>`, each vector contains the bytes of the former scalar `u128` it represents.
 */
 sequence ToByte()
   input  value: Stream<u128>
@@ -28,6 +28,25 @@ sequence ToByte()
     U128ToByte()
 
     Self.value -> U128ToByte.value,data -> Self.data
+}
+
+use core/conversion/scalar::U128FromByte
+
+/**
+Convert stream of `Vec<byte>` into `u128`.
+
+Each received `byte` vector try to be converted into `u128`, and if valid is sent as `value`. If the incoming vector 
+is not valid for representing a `u128` (i.e. not right size or invalid coding) it is refused and sent through `reject`.
+*/
+sequence FromByte()
+  input  data:   Stream<Vec<byte>>
+  output value:  Stream<u128>
+  output reject: Stream<Vec<byte>>
+{
+    U128FromByte()
+
+    Self.data -> U128FromByte.data,value -> Self.value
+                 U128FromByte.reject -----> Self.reject
 }
 
 use core/conversion/scalar::U128ToString

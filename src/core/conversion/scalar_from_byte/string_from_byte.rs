@@ -10,7 +10,7 @@ treatment!(string_from_byte,
         input!("data",Vector,Byte,Stream)
     ],
     outputs![
-        output!("value",Scalar,Char,Stream),
+        output!("value",Scalar,String,Stream),
         output!("reject",Vector,Byte,Stream)
     ],
     host {

@@ -19,7 +19,7 @@ use core/conversion/scalar::I32ToByte
 /**
 Convert stream of `i32` into `Vec<byte>`.
 
-`i32` gets converted into `Vec<byte>`, each vector contains the bytes of the former salar `i32` it represents.
+`i32` gets converted into `Vec<byte>`, each vector contains the bytes of the former scalar `i32` it represents.
 */
 sequence ToByte()
   input  value: Stream<i32>
@@ -28,6 +28,25 @@ sequence ToByte()
     I32ToByte()
 
     Self.value -> I32ToByte.value,data -> Self.data
+}
+
+use core/conversion/scalar::I32FromByte
+
+/**
+Convert stream of `Vec<byte>` into `i32`.
+
+Each received `byte` vector try to be converted into `i32`, and if valid is sent as `value`. If the incoming vector 
+is not valid for representing a `i32` (i.e. not right size or invalid coding) it is refused and sent through `reject`.
+*/
+sequence FromByte()
+  input  data:   Stream<Vec<byte>>
+  output value:  Stream<i32>
+  output reject: Stream<Vec<byte>>
+{
+    I32FromByte()
+
+    Self.data -> I32FromByte.data,value -> Self.value
+                 I32FromByte.reject -----> Self.reject
 }
 
 use core/conversion/scalar::I32ToString

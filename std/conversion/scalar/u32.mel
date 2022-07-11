@@ -19,7 +19,7 @@ use core/conversion/scalar::U32ToByte
 /**
 Convert stream of `u32` into `Vec<byte>`.
 
-`u32` gets converted into `Vec<byte>`, each vector contains the bytes of the former salar `u32` it represents.
+`u32` gets converted into `Vec<byte>`, each vector contains the bytes of the former scalar `u32` it represents.
 */
 sequence ToByte()
   input  value: Stream<u32>
@@ -28,6 +28,25 @@ sequence ToByte()
     U32ToByte()
 
     Self.value -> U32ToByte.value,data -> Self.data
+}
+
+use core/conversion/scalar::U32FromByte
+
+/**
+Convert stream of `Vec<byte>` into `u32`.
+
+Each received `byte` vector try to be converted into `u32`, and if valid is sent as `value`. If the incoming vector 
+is not valid for representing a `u32` (i.e. not right size or invalid coding) it is refused and sent through `reject`.
+*/
+sequence FromByte()
+  input  data:   Stream<Vec<byte>>
+  output value:  Stream<u32>
+  output reject: Stream<Vec<byte>>
+{
+    U32FromByte()
+
+    Self.data -> U32FromByte.data,value -> Self.value
+                 U32FromByte.reject -----> Self.reject
 }
 
 use core/conversion/scalar::U32ToString
