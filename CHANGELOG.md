@@ -22,6 +22,7 @@
 - Adding filters for all types #40
 - Adding counters, sizers, and fitters for all types #41
 - Adding conversion from `byte` to any data kind #43
+- Adding merge of streams of same types & structures #44
 
 ### Changed
 

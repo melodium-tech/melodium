@@ -111,6 +111,96 @@ sequence StreamVecBlock()
     Self.block -> BlockVecI32ToStream.data,data -> Self.stream
 }
 
+
+use core/merge/scalar/i32::Merge as CoreMerge
+
+/**
+Merge two streams of `i32`.
+
+The two streams are merged using the `order` stream:
+- when `true`, value from `a` is used;
+- when `false`, value from `b` is used.
+
+ℹ️ No value from either `a` or `b` are discarded, they are used when `order` give turn.
+
+⚠️ When `order` ends merge terminates without treating the remaining values from `a` and `b`.
+When `order` give turn to `a` or `b` while the concerned stream is ended, the merge terminates.
+Merge continues as long as `order` and concerned stream does, while the other can be ended.
+
+```mermaid
+graph LR
+    T("Merge()")
+    A["… 🟦 🟫 …"] -->|a| T
+    B["… 🟧 🟪 🟨 …"] -->|b| T
+    O["… 🟩 🟥 🟥 🟩 🟥 …"] -->|order|T
+    
+
+    T -->|value| V["… 🟦 🟧 🟪 🟫 🟨 …"]
+
+    style V fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+    style A fill:#ffff,stroke:#ffff
+    style B fill:#ffff,stroke:#ffff
+```
+*/
+sequence Merge()
+  input  a:     Stream<i32>
+  input  b:     Stream<i32>
+  input  order: Stream<bool>
+  output value: Stream<i32>
+{
+    CoreMerge()
+
+    Self.a -> CoreMerge.a
+    Self.b -> CoreMerge.b
+    Self.order -> CoreMerge.order,value -> Self.value
+}
+
+
+use core/merge/vector/i32::Merge as CoreVecMerge
+
+/**
+Merge two streams of `Vec<i32>`.
+
+The two streams are merged using the `order` stream:
+- when `true`, value from `a` is used;
+- when `false`, value from `b` is used.
+
+ℹ️ No value from either `a` or `b` are discarded, they are used when `order` give turn.
+
+⚠️ When `order` ends merge terminates without treating the remaining values from `a` and `b`.
+When `order` give turn to `a` or `b` while the concerned stream is ended, the merge terminates.
+Merge continues as long as `order` and concerned stream does, while the other can be ended.
+
+```mermaid
+graph LR
+    T("VecMerge()")
+    A["… ［🟦 🟦］［🟫 🟫］…"] -->|a| T
+    B["… ［🟧 🟧 🟧］［🟪］［🟨 🟨］…"] -->|b| T
+    O["… 🟩 🟥 🟥 🟩 🟥 …"] -->|order|T
+    
+
+    T -->|value| V["…［🟦 🟦］［🟧 🟧 🟧］［🟪］［🟫 🟫］［🟨 🟨］…"]
+
+    style V fill:#ffff,stroke:#ffff
+    style O fill:#ffff,stroke:#ffff
+    style A fill:#ffff,stroke:#ffff
+    style B fill:#ffff,stroke:#ffff
+```
+*/
+sequence VecMerge()
+  input  a:     Stream<Vec<i32>>
+  input  b:     Stream<Vec<i32>>
+  input  order: Stream<bool>
+  output value: Stream<Vec<i32>>
+{
+    CoreVecMerge()
+
+    Self.a -> CoreVecMerge.a
+    Self.b -> CoreVecMerge.b
+    Self.order -> CoreVecMerge.order,value -> Self.value
+}
+
 use core/organize::OrganizeI32
 
 /**

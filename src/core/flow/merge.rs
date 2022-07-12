@@ -11,7 +11,7 @@ macro_rules! impl_MergeScalar {
             inputs![
                 input!("a",Scalar,$mel_type_up,Stream),
                 input!("b",Scalar,$mel_type_up,Stream),
-                input!("select",Scalar,Bool,Stream)
+                input!("order",Scalar,Bool,Stream)
             ],
             outputs![
                 output!("value",Scalar,$mel_type_up,Stream)
@@ -63,7 +63,7 @@ macro_rules! impl_MergeVector {
             inputs![
                 input!("a",Vector,$mel_type_up,Stream),
                 input!("b",Vector,$mel_type_up,Stream),
-                input!("select",Scalar,Bool,Stream)
+                input!("order",Scalar,Bool,Stream)
             ],
             outputs![
                 output!("value",Vector,$mel_type_up,Stream)
