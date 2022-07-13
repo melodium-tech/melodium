@@ -4,8 +4,10 @@ pub mod direct;
 
 pub mod files;
 pub mod read_files;
-pub mod files_read;
+pub mod files_reader;
 pub mod write_files;
+
+pub mod read;
 
 use crate::core::prelude::*;
 
