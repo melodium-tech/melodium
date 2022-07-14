@@ -4,7 +4,6 @@ pub mod direct;
 
 pub mod files;
 pub mod read_files;
-pub mod files_reader;
 pub mod write_files;
 
 pub mod read;
