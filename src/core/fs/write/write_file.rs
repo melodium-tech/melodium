@@ -4,7 +4,7 @@ use crate::core::prelude::*;
 treatment!(write_file_treatment,
     core_identifier!("fs","write";"WriteFile"),
     models![
-        ("writer", crate::core::fs::write::files_writer::FileWriterModel::descriptor())
+        ("writer", crate::core::fs::write::files_writer::FilesWriterModel::descriptor())
     ],
     treatment_sources![],
     parameters![],
@@ -20,7 +20,7 @@ treatment!(write_file_treatment,
     ],
     host {
 
-        let writer = Arc::clone(&host.get_model("writer")).downcast_arc::<crate::core::fs::write::files_writer::FileWriterModel>().unwrap();
+        let writer = Arc::clone(&host.get_model("writer")).downcast_arc::<crate::core::fs::write::files_writer::FilesWriterModel>().unwrap();
 
         let i_path = host.get_input("path");
         let i_data = host.get_input("data");

@@ -4,10 +4,10 @@ use crate::core::prelude::*;
 treatment!(reading_treatment,
     core_identifier!("fs","read";"Reading"),
     models![
-        ("reader", crate::core::fs::read::files_reader::FileReaderModel::descriptor())
+        ("reader", crate::core::fs::read::files_reader::FilesReaderModel::descriptor())
     ],
     treatment_sources![
-        (crate::core::fs::direct::file_reader::FileReaderModel::descriptor(), "read")
+        (crate::core::fs::read::files_reader::FilesReaderModel::descriptor(), "read")
     ],
     parameters![],
     inputs![

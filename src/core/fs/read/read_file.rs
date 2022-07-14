@@ -4,7 +4,7 @@ use crate::core::prelude::*;
 treatment!(read_file_treatment,
     core_identifier!("fs","read";"ReadFile"),
     models![
-        ("reader", crate::core::fs::read::files_reader::FileReaderModel::descriptor())
+        ("reader", crate::core::fs::read::files_reader::FilesReaderModel::descriptor())
     ],
     treatment_sources![],
     parameters![],
@@ -14,7 +14,7 @@ treatment!(read_file_treatment,
     outputs![],
     host {
 
-        let reader = Arc::clone(&host.get_model("reader")).downcast_arc::<crate::core::fs::read::files_reader::FileReaderModel>().unwrap();
+        let reader = Arc::clone(&host.get_model("reader")).downcast_arc::<crate::core::fs::read::files_reader::FilesReaderModel>().unwrap();
 
         let path_input = host.get_input("path");
 

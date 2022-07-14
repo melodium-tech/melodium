@@ -4,7 +4,7 @@ use async_std::path::PathBuf;
 use async_std::fs::File;
 
 #[derive(Debug)]
-pub struct FileReaderModel {
+pub struct FilesReaderModel {
 
     helper: ModelHelper,
 
@@ -12,12 +12,12 @@ pub struct FileReaderModel {
     auto_reference: Weak<Self>,
 }
 
-impl FileReaderModel {
+impl FilesReaderModel {
 
     pub fn descriptor() -> Arc<CoreModelDescriptor> {
         
         model_desc!(
-            FileReaderModel,
+            FilesReaderModel,
             core_identifier!("fs","read";"FileReader"),
             parameters![],
             model_sources![
@@ -159,4 +159,4 @@ impl FileReaderModel {
     }
 }
 
-model_trait!(FileReaderModel);
+model_trait!(FilesReaderModel);

@@ -14,4 +14,7 @@ use crate::core::prelude::*;
 pub fn register(mut c: &mut CollectionPool) {
 
     direct::register(&mut c);
+
+    read::register(&mut c);
+    write::register(&mut c);
 }

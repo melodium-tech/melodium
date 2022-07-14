@@ -4,10 +4,10 @@ use crate::core::prelude::*;
 treatment!(unaccessible_treatment,
     core_identifier!("fs","read";"Unaccessible"),
     models![
-        ("reader", crate::core::fs::read::files_reader::FileReaderModel::descriptor())
+        ("reader", crate::core::fs::read::files_reader::FilesReaderModel::descriptor())
     ],
     treatment_sources![
-        (crate::core::fs::direct::file_reader::FileReaderModel::descriptor(), "unaccessible")
+        (crate::core::fs::read::files_reader::FilesReaderModel::descriptor(), "unaccessible")
     ],
     parameters![],
     inputs![

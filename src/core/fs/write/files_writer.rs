@@ -3,7 +3,7 @@
 use crate::core::prelude::*;
 
 #[derive(Debug)]
-pub struct FileWriterModel {
+pub struct FilesWriterModel {
 
     helper: ModelHelper,
 
@@ -11,12 +11,12 @@ pub struct FileWriterModel {
     auto_reference: Weak<Self>,
 }
 
-impl FileWriterModel {
+impl FilesWriterModel {
 
     pub fn descriptor() -> Arc<CoreModelDescriptor> {
         
         model_desc!(
-            FileWriterModel,
+            FilesWriterModel,
             core_identifier!("fs","write";"FileWriter"),
             parameters![
                 parameter!("append", Scalar, Bool, Some(Value::Bool(false))),
@@ -49,4 +49,4 @@ impl FileWriterModel {
     }
 }
 
-model_trait!(FileWriterModel);
+model_trait!(FilesWriterModel);
