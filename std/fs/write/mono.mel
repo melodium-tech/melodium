@@ -1,0 +1,46 @@
+
+use core/fs/write::FilesWriter
+use core/fs/write::WriteFile
+
+sequence Write(const append: bool = false, const create: bool = true, const new: bool = false)
+  model FilesWriter(append=append, create=create, new=new)
+  input path: Block<string>
+  input data: Stream<byte>
+  output amount: Stream<u64>
+  output success: Block<void>
+  output failure: Block<void>
+  output message: Stream<string>
+{
+    Write: WriteFile[writer=FilesWriter]()
+
+    Self.path -> Write.path
+    Self.data -> Write.data
+
+    Write.amount -> Self.amount
+    Write.success -> Self.success
+    Write.failure -> Self.failure
+    Write.message -> Self.message
+}
+
+use std/flow/byte::Trigger
+use std/filler/scalar/string::Emit
+
+sequence WritePath(const append: bool = false, const create: bool = true, const new: bool = false, var path: string)
+  input data: Stream<byte>
+  output amount: Stream<u64>
+  output success: Block<void>
+  output failure: Block<void>
+  output message: Stream<string>
+{
+    Write(append=append, create=create, new=new)
+    Trigger()
+    Emit(value=path)
+
+    Self.data -> Trigger.value,start -> Emit.trigger,value -> Write.path
+    Self.data -> Write.data
+
+    Write.amount -> Self.amount
+    Write.success -> Self.success
+    Write.failure -> Self.failure
+    Write.message -> Self.message
+}

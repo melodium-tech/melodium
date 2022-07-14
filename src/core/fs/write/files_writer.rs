@@ -17,7 +17,7 @@ impl FilesWriterModel {
         
         model_desc!(
             FilesWriterModel,
-            core_identifier!("fs","write";"FileWriter"),
+            core_identifier!("fs","write";"FilesWriter"),
             parameters![
                 parameter!("append", Scalar, Bool, Some(Value::Bool(false))),
                 parameter!("create", Scalar, Bool, Some(Value::Bool(true))),

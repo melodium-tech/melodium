@@ -32,6 +32,8 @@ treatment!(write_file_treatment,
 
         if let Ok(path) = i_path.recv_one_string().await {
 
+            print!("Tying to write file {path}…");
+
             let os_path = async_std::path::PathBuf::from(path);
 
             let mut open_options = async_std::fs::OpenOptions::new();
@@ -45,6 +47,8 @@ treatment!(write_file_treatment,
 
             match open_result {
                 Ok(mut file) => {
+
+                    print!(" file open…");
     
                     let mut error = false;
                     // We don't handle the error case as it means everything is empty and closed
@@ -71,6 +75,8 @@ treatment!(write_file_treatment,
                     if !error {
                         let _ = o_success.send_void(());
                     }
+
+                    println!(" written.");
                     
                 },
                 Err(err) => {

@@ -1,0 +1,32 @@
+
+use core/fs/read::DirectReading as CoreDirectReading
+
+sequence Read()
+  input path: Block<string>
+  output data: Stream<byte>
+  output failure: Block<void>
+  output message: Stream<string>
+{
+    Read: CoreDirectReading()
+
+    Self.path -> Read.path,data -> Self.data
+                 Read.failure ---> Self.failure
+                 Read.message ---> Self.message
+}
+
+use std/filler/scalar/string::Emit
+
+sequence ReadPath(var path: string)
+  input trigger: Block<void>
+  output data: Stream<byte>
+  output failure: Block<void>
+  output message: Stream<string>
+{
+    Read()
+    Emit(value=path)
+
+    Self.trigger -> Emit.trigger,value -> Read.path
+    Read.data ----> Self.data
+    Read.failure -> Self.failure
+    Read.message -> Self.message
+}

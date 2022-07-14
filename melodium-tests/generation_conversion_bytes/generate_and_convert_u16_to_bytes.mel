@@ -1,5 +1,5 @@
 
-use std/fs/mono::WriteFile
+use std/fs/write/mono::WritePath
 use std/generation/scalar/u16::Generate
 use std/conversion/scalar/u16::ToByte
 use std/process/engine::ProcessReady
@@ -15,9 +15,9 @@ sequence Main()
     Generate(length=1024, value=42)
     ToByte()
     Linearize()
-    WriteFile(path="generated_u16.mel_generation")
+    WritePath(path="generated_u16.mel_generation")
     
-    ProcessReady.trigger -> Generate.trigger,value -> ToByte.value,data -> Linearize.vector,value -> WriteFile.data
+    ProcessReady.trigger -> Generate.trigger,value -> ToByte.value,data -> Linearize.vector,value -> WritePath.data
     Linearize.value -> Trigger.value,finish -> ProcessEnd.end
 }
 

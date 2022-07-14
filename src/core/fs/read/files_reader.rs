@@ -18,7 +18,7 @@ impl FilesReaderModel {
         
         model_desc!(
             FilesReaderModel,
-            core_identifier!("fs","read";"FileReader"),
+            core_identifier!("fs","read";"FilesReader"),
             parameters![],
             model_sources![
                 ("read"; "File"),

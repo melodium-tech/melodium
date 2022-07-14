@@ -1,0 +1,23 @@
+
+use core/fs/read::FilesReader
+use core/fs/read::ReadFile
+use core/fs/read::Reading
+use core/fs/read::Unaccessible
+
+sequence Read()
+  model FilesReader()
+  input path: Stream<string>
+  output data: Stream<byte>
+  output failure: Block<void>
+  output message: Stream<string>
+{
+    ReadFile[reader=FilesReader]()
+    Reading[reader=FilesReader]()
+    Unaccessible[reader=FilesReader]()
+
+    Self.path -> ReadFile.path
+
+    Reading.data -> Self.data
+    Reading.failure -> Self.failure
+    Reading.message -> Self.message
+}

@@ -2,7 +2,7 @@
 use std/process/engine::StandardInput
 use std/process/engine::StandardOutput
 use std/process/engine::ProcessEnd
-use std/fs/mono::WriteFile
+use std/fs/write/mono::WritePath
 use std/text/encoding::Encode
 use std/flow/string::Trigger
 
@@ -11,9 +11,9 @@ sequence Write(const file: string)
 {
 
     Encode()
-    WriteFile(path=file)
+    WritePath(path=file)
     
-    Self.text -> Encode.text,data -> WriteFile.data
+    Self.text -> Encode.text,data -> WritePath.data
 }
 
 sequence Main()
