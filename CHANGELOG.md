@@ -23,7 +23,7 @@
 - Adding counters, sizers, and fitters for all types #41
 - Adding conversion from `byte` to any data kind #43
 - Adding merge of streams of same types & structures #44
-- Generic files reader #27
+- Generic files reader & writer #27
 
 ### Changed
 

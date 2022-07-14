@@ -7,6 +7,7 @@ pub mod read_files;
 pub mod write_files;
 
 pub mod read;
+pub mod write;
 
 use crate::core::prelude::*;
 

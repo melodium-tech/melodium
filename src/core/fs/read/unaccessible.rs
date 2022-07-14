@@ -1,7 +1,7 @@
 
 use crate::core::prelude::*;
 
-treatment!(file_reader_treatment,
+treatment!(unaccessible_treatment,
     core_identifier!("fs","read";"Unaccessible"),
     models![
         ("reader", crate::core::fs::read::files_reader::FileReaderModel::descriptor())
@@ -25,7 +25,7 @@ treatment!(file_reader_treatment,
         let i_message = host.get_input("_message");
         let o_message = host.get_output("message");
 
-        if let (Ok(failure), Ok(messages)) = futures::join!(i_failure.recv_one_void(), i_message.recv_string()) {
+        if let (Ok(_), Ok(messages)) = futures::join!(i_failure.recv_one_void(), i_message.recv_string()) {
 
             let _ = o_failure.send_void(()).await;
             let _ = o_message.send_multiple_string(messages).await;

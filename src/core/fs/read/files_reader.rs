@@ -8,6 +8,7 @@ pub struct FileReaderModel {
 
     helper: ModelHelper,
 
+    #[allow(dead_code)]
     auto_reference: Weak<Self>,
 }
 

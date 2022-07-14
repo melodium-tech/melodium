@@ -1,7 +1,7 @@
 
 use crate::core::prelude::*;
 
-treatment!(file_reader_treatment,
+treatment!(read_file_treatment,
     core_identifier!("fs","read";"ReadFile"),
     models![
         ("reader", crate::core::fs::read::files_reader::FileReaderModel::descriptor())
