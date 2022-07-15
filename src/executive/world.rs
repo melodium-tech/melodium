@@ -86,6 +86,7 @@ pub struct World {
     tracks_sender: Sender<ExecutionTrack>,
     tracks_receiver: Receiver<ExecutionTrack>,
 
+    continous_ended: AtomicBool,
     closing: AtomicBool,
 }
 
@@ -119,6 +120,7 @@ impl World {
             tracks_info: Mutex::new(HashMap::new()),
             tracks_sender: sender,
             tracks_receiver: receiver,
+            continous_ended: AtomicBool::new(false),
             closing: AtomicBool::new(false),
         })
     }
@@ -263,6 +265,8 @@ impl World {
 
             contexts.iter().for_each(|(name, context)| contextual_environment.add_context(name, context.clone()));
 
+            eprintln!("{} entries for '{}'", entries.len(), source);
+
             for entry in entries {
 
                 let build_result = entry.descriptor.builder().dynamic_build(entry.id, &contextual_environment).unwrap();
@@ -314,8 +318,7 @@ impl World {
 
             model_futures.await;
 
-            self.tracks_sender.close();
-            self.end();
+            self.continous_ended.store(true, Ordering::Relaxed);
         };
 
         block_on(join(continuum, self.run_tracks()));
@@ -365,6 +368,8 @@ impl World {
             }
             else if futures.is_empty() {
 
+                self.check_closing();
+
                 if let Ok(track) = self.tracks_receiver.recv().await {
 
                     futures.push(track_future(track));
@@ -382,6 +387,14 @@ impl World {
                     },
                 }
             }
+        }
+    }
+
+    fn check_closing(&self) {
+
+        if self.continous_ended.load(Ordering::Relaxed) && self.tracks_receiver.len() == 0 {
+            self.tracks_sender.close();
+            self.end();
         }
     }
 }

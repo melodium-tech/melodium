@@ -25,7 +25,7 @@ function test_generation() {
     
     "$MELODIUM" "$MEL_SCRIPT"
     # Enable this line to generate values and ignore already present files
-    bash_generation "$CHECK_VALUE" "$OUTPUT_BASE_FILE.bash_generation"
+    #bash_generation "$CHECK_VALUE" "$OUTPUT_BASE_FILE.bash_generation"
 
     
     if diff "$OUTPUT_BASE_FILE.bash_generation" "$OUTPUT_BASE_FILE.mel_generation" >> /dev/null

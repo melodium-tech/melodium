@@ -80,6 +80,8 @@ impl Builder for CoreTreatmentBuilder {
 
     fn dynamic_build(&self, build: BuildId, environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
 
+        eprint!("Building {}", self.descriptor.upgrade().unwrap().identifier());
+
         // Look for existing build
         {
             let borrowed_building_inputs = self.building_inputs.read().unwrap();
@@ -88,6 +90,8 @@ impl Builder for CoreTreatmentBuilder {
 
                 let mut dynamic_result = DynamicBuildResult::new();
                 dynamic_result.feeding_inputs.extend(existing_building_inputs.clone());
+
+                eprintln!(" already existing.");
 
                 return Some(dynamic_result);
             }
@@ -130,6 +134,8 @@ impl Builder for CoreTreatmentBuilder {
         result.prepared_futures.extend(host_build.prepared_futures);
 
         self.building_inputs.write().unwrap().insert((build, environment.track_id()), result.feeding_inputs.clone());
+
+        eprintln!(" done.");
 
         Some(result)
     }

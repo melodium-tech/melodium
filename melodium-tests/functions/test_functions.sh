@@ -8,6 +8,6 @@ rm -f output*
 
 "$MELODIUM" functions.mel
 
-test $(cat output.txt) == "42"
+test "$(cat output.txt)" == "42"
 
 exit $FAILURES
