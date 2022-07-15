@@ -1,16 +1,10 @@
 
 use crate::core::prelude::*;
-use async_std::channel::*;
 
 #[derive(Debug)]
 struct ModelGenerator {
 
     helper: ModelHelper,
-
-    generation_sender: Sender<(u64, Option<u128>)>,
-    generation_receiver: Receiver<(u64, Option<u128>)>,
-
-    auto_reference: Weak<Self>,
 }
 
 impl ModelGenerator {
@@ -29,47 +23,33 @@ impl ModelGenerator {
 
     pub fn new(world: Arc<World>) -> Arc<dyn Model> {
 
-        let (generation_sender, generation_receiver) = unbounded();
-
-        Arc::new_cyclic(|me| Self {
+        Arc::new_cyclic(|_me| Self {
             helper: ModelHelper::new(Self::descriptor(), world),
-
-            generation_sender,
-            generation_receiver,
-
-            auto_reference: me.clone(),
         })
     }
 
-    fn initialize(&self) {
-
-        let auto_self = self.auto_reference.upgrade().unwrap();
-        let future_generate = Box::pin(async move { auto_self.generate().await });
-
-        self.helper.world().add_continuous_task(Box::new(future_generate));
-    }
-
     pub async fn generate_finite(&self, tracks: u64, length: u128) {
-        let _ = self.generation_sender.send((tracks, Some(length))).await;
-    }
-
-    pub async fn generate_infinite(&self, tracks: u64) {
-        let _ = self.generation_sender.send((tracks, None)).await;
-    }
-
-    pub async fn generate(&self) {
 
         let model_id = self.helper.id().unwrap();
 
-        while let Ok((tracks, length)) = self.generation_receiver.recv().await {
+        let generation = |inputs| {
+            Self::track_generation(Some(length), inputs)
+        };
 
-            let generation = |inputs| {
-                Self::track_generation(length, inputs)
-            };
+        for _ in 0..tracks {
+            self.helper.world().create_track(model_id, "generated", HashMap::new(), None, Some(&generation)).await;
+        }
+    }
 
-            for _ in 0..tracks {
-                self.helper.world().create_track(model_id, "generated", HashMap::new(), None, Some(&generation)).await;
-            }
+    pub async fn generate_infinite(&self, tracks: u64) {
+        let model_id = self.helper.id().unwrap();
+
+        let generation = |inputs| {
+            Self::track_generation(None, inputs)
+        };
+
+        for _ in 0..tracks {
+            self.helper.world().create_track(model_id, "generated", HashMap::new(), None, Some(&generation)).await;
         }
     }
 
@@ -96,13 +76,9 @@ impl ModelGenerator {
 
         vec![future]
     }
-
-    pub fn shutdown(&self) {
-        self.generation_receiver.close();
-    }
 }
 
-model_trait!(ModelGenerator, initialize, shutdown);
+model_trait!(ModelGenerator);
 
 treatment!(treatment_generate,
     core_identifier!("generation","scalar","void";"Generate"),

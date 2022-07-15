@@ -1,11 +1,9 @@
 
 use crate::core::prelude::*;
 
-treatment!(engine_write_treatment,
+treatment!(stdout_write_treatment,
     core_identifier!("engine";"Write"),
-    models![
-        ("engine", crate::core::engine::engine::EngineModel::descriptor())
-    ],
+    models![],
     treatment_sources![],
     parameters![],
     inputs![
@@ -13,9 +11,6 @@ treatment!(engine_write_treatment,
     ],
     outputs![],
     host {
-
-        // We do keep the writer model because might be good in further improvement to signal when stdout is closed.
-        let _writer = Arc::clone(&host.get_model("engine")).downcast_arc::<crate::core::engine::engine::EngineModel>().unwrap();
 
         let input = host.get_input("text");
     

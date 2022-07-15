@@ -2,23 +2,19 @@
 use std/fs/write/mono::WritePath
 use std/generation/scalar/i16::Generate
 use std/conversion/scalar/i16::ToByte
-use std/process/engine::ProcessReady
-use std/process/engine::ProcessEnd
+use std/process/engine::Ready
 use std/flow/byte::Linearize
 use std/flow/byte::Trigger
 
 sequence Main()
 {
-    ProcessReady()
-    ProcessEnd()
-    Trigger()
+    Ready()
     Generate(length=1024, value=-42)
     ToByte()
     Linearize()
     WritePath(path="generated_i16.mel_generation")
     
-    ProcessReady.trigger -> Generate.trigger,value -> ToByte.value,data -> Linearize.vector,value -> WritePath.data
-    Linearize.value -> Trigger.value,finish -> ProcessEnd.end
+    Ready.ready -> Generate.trigger,value -> ToByte.value,data -> Linearize.vector,value -> WritePath.data
 }
 
 

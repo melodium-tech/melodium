@@ -1,9 +1,7 @@
 
 use core/arithmetic/scalar/i32::|add
 use std/fs/write/mono::WritePath
-use std/process/engine::ProcessReady
-use std/process/engine::ProcessSigterm
-use std/process/engine::ProcessEnd
+use std/process/engine::Ready
 use std/flow/byte::Trigger
 use std/generation/scalar/i32::Generate
 use std/conversion/scalar/i32::ToString
@@ -11,15 +9,13 @@ use std/text/encoding::Encode
 
 sequence Main()
 {
-    ProcessReady()
-    ProcessEnd()
+    Ready()
     Trigger()
     Generate(length=1, value=|add(40, 2))
     ToString()
     Encode()
     WritePath(path="output.txt")
     
-    ProcessReady.trigger -> Generate.trigger,value -> ToString.value,value -> Encode.text,data -> WritePath.data
-    Encode.data -> Trigger.value,finish -> ProcessEnd.end
+    Ready.ready -> Generate.trigger,value -> ToString.value,value -> Encode.text,data -> WritePath.data
 
 }

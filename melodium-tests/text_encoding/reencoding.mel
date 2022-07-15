@@ -1,4 +1,5 @@
 
+use std/process/engine::Ready
 use std/fs/read/mono::ReadPath
 use std/fs/write/mono::WritePath
 use std/text/encoding::Decode
@@ -6,12 +7,13 @@ use std/text/encoding::Encode
 
 sequence Reencoding(const input: string, const output_encoding: string, const output: string)
 {
+    Ready()
     ReadPath(path=input)
     Decode()
     Encode(encoding=output_encoding)
     WritePath(path=output)
     
-    ReadPath.data -> Decode.data,text -> Encode.text,data -> WritePath.data
+    Ready.ready -> ReadPath.trigger,data -> Decode.data,text -> Encode.text,data -> WritePath.data
 }
 
 sequence Main()

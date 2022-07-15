@@ -1,13 +1,11 @@
 
-use std/process/engine::StandardInput
-use std/process/engine::StandardOutput
-use std/process/engine::ProcessEnd
+use std/process/engine::Read
+use std/process/engine::Write
 use std/fs/write/mono::WritePath
 use std/text/encoding::Encode
-use std/flow/string::Trigger
 
-sequence Write(const file: string)
-    input text: Stream<string>
+sequence WriteFile(const file: string)
+  input text: Stream<string>
 {
 
     Encode()
@@ -18,18 +16,12 @@ sequence Write(const file: string)
 
 sequence Main()
 {
-    StandardInput()
-    StandardOutput()
-    Write(file="output.txt")
+    Read()
+    Write()
+    WriteFile(file="output.txt")
 
-    Trigger()
-    ProcessEnd()
-
-    StandardInput.line -> StandardOutput.text
-    StandardInput.line ----------> Write.text
-
-    StandardInput.line ---> Trigger.value
-    Trigger.finish -------> ProcessEnd.end
+    Read.line -> Write.text
+    Read.line -> WriteFile.text
 }
 
 

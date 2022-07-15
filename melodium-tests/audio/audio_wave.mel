@@ -3,18 +3,18 @@ use std/fs/read/mono::ReadPath
 use std/fs/write/mono::WritePath
 use std/audio/encoding/wave::Decode
 use std/audio/encoding/wave::Encode
-use std/process/engine::ProcessReady
+use std/process/engine::Ready
 
 sequence Main()
 {
-    ProcessReady()
+    Ready()
     RWi16: ReencodeWave(input="./input_i16.wav", output="./reencoded_i16.wav")
     RWi24: ReencodeWave(input="./input_i24.wav", output="./reencoded_i24.wav")
     RWf32: ReencodeWave(input="./input_f32.wav", output="./reencoded_f32.wav")
 
-    ProcessReady.trigger -> RWi16.start
-    ProcessReady.trigger -> RWi24.start
-    ProcessReady.trigger -> RWf32.start
+    Ready.ready -> RWi16.start
+    Ready.ready -> RWi24.start
+    Ready.ready -> RWf32.start
 }
 
 sequence ReencodeWave(const input: string, const output: string)

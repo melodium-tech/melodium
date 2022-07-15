@@ -1,13 +1,13 @@
 
 use crate::core::prelude::*;
 
-treatment!(engine_read_treatment,
+treatment!(stdin_read_treatment,
     core_identifier!("engine";"Read"),
     models![
-        ("engine", crate::core::engine::engine::EngineModel::descriptor())
+        ("stdin", crate::core::engine::stdin::StdinModel::descriptor())
     ],
     treatment_sources![
-        (crate::core::engine::engine::EngineModel::descriptor(), "read")
+        (crate::core::engine::stdin::StdinModel::descriptor(), "read")
     ],
     parameters![],
     inputs![

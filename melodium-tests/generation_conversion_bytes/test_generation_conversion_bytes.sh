@@ -25,7 +25,7 @@ function test_generation() {
     
     "$MELODIUM" "$MEL_SCRIPT"
     # Enable this line to generate values and ignore already present files
-    #bash_generation "$CHECK_VALUE" "$OUTPUT_BASE_FILE.bash_generation"
+    bash_generation "$CHECK_VALUE" "$OUTPUT_BASE_FILE.bash_generation"
 
     
     if diff "$OUTPUT_BASE_FILE.bash_generation" "$OUTPUT_BASE_FILE.mel_generation" >> /dev/null
@@ -36,6 +36,8 @@ function test_generation() {
         FAILURES+=1
     fi
 }
+
+rm -f *.mel_generation *.bash_generation
 
 test_generation "generate_and_convert_u8_to_bytes" "generate_and_convert_u8_to_bytes.mel" "2A" "generated_u8"
 test_generation "generate_and_convert_u16_to_bytes" "generate_and_convert_u16_to_bytes.mel" "00 2A" "generated_u16"
