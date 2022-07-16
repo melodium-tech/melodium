@@ -5,7 +5,8 @@
 ### Bug fixes
 
 - Implemented core components missing in core collection
-- Engine ignore whether stdin is closed or not to end
+- Engine behavior with stdio fixed #45
+- Builds step stop erasing some futures
 
 ### Features
 

@@ -304,6 +304,19 @@ impl Builder for SequenceBuilder {
             }
         }
 
+        // We remove multiple identical entries from treatments build ids
+        // This is important to avoid multiple further calls to the same 
+        // treatment during one build, sometimes erasing build w/ and w/o
+        // executive future.
+        build_sample.root_treatments_build_ids.sort_unstable();
+        build_sample.root_treatments_build_ids.dedup();
+        build_sample.last_treatments_build_ids.sort_unstable();
+        build_sample.last_treatments_build_ids.dedup();
+        for v in build_sample.next_treatments_build_ids.values_mut() {
+            v.sort_unstable();
+            v.dedup();
+        }
+
         builds_writer.push(build_sample);
 
         Ok(StaticBuildResult::Build(idx))

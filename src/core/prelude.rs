@@ -85,10 +85,7 @@ macro_rules! treatment {
             
             async fn execute($host: &TreatmentHost) -> ResultStatus {
             
-                eprintln!("Starting {}", $identifier);
-                let truc = $treatment;
-                eprintln!("Finishing {}", $identifier);
-                truc
+                $treatment
             }
             
             fn prepare(host: Arc<TreatmentHost>) -> Vec<TrackFuture> {

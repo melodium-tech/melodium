@@ -265,8 +265,6 @@ impl World {
 
             contexts.iter().for_each(|(name, context)| contextual_environment.add_context(name, context.clone()));
 
-            eprintln!("{} entries for '{}'", entries.len(), source);
-
             for entry in entries {
 
                 let build_result = entry.descriptor.builder().dynamic_build(entry.id, &contextual_environment).unwrap();
