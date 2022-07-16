@@ -37,7 +37,7 @@ function test_generation() {
     fi
 }
 
-rm -f *.mel_generation *.bash_generation
+rm -f *.mel_generation
 
 test_generation "generate_and_convert_u8_to_bytes" "generate_and_convert_u8_to_bytes.mel" "2A" "generated_u8"
 test_generation "generate_and_convert_u16_to_bytes" "generate_and_convert_u16_to_bytes.mel" "00 2A" "generated_u16"
