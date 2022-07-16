@@ -17,8 +17,13 @@ exclude = [
     "utils/*"
 ]
 
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "melodium"
+
+[[bin]]
+name = "melodium"
 
 [dependencies]
 async-std = "1.11.0"

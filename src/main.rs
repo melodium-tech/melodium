@@ -1,18 +1,11 @@
 
 use std::env;
-use std::path::{Path as StdPath, PathBuf};
-use std::sync::Arc;
 use std::process::*;
 
 extern crate clap;
 use clap::{Arg, Command, crate_version};
-use colored::*;
 
-use melodium::executive::world::World;
-use melodium::logic::descriptor::SequenceTreatmentDescriptor;
-use melodium::script::instance::Instance;
-use melodium::script::path::{Path, PathRoot};
-use melodium::doc::instance::Instance as DocInstance;
+use melodium::*;
 
 fn main() {
 
@@ -81,23 +74,7 @@ fn main() {
 
     if let Some(path) = matches.value_of("doc") {
 
-        let root_kind = if file_path == std_path {
-            PathRoot::Std
-        }
-        else {
-            PathRoot::Main
-        };
-        
-        let mut instance = DocInstance::new(root_kind, PathBuf::from(file_path), PathBuf::from(path));
-
-        if let Err((io, scr)) = instance.parse_files() {
-            eprintln!("{:?}", io);
-            eprintln!("{:?}", scr);
-        }
-
-        if let Err(io) = instance.output_doc() {
-            eprintln!("{:?}", io);
-        }
+        make_documentation(&std_path, &file_path, &path.to_string());
 
         exit(0);
     }
@@ -112,46 +89,31 @@ fn main() {
 
     // Effective run
 
-    let mut instance = Instance::new(file_path.clone(), std_path.clone());
-
-    instance.build();
-
-    for (path, error) in instance.errors() {
-        eprintln!("{}: in file \"{}\" {}", "error".bold().red(), path.as_os_str().to_string_lossy(), error);
+    if !parse_only && !no_launch {
+        match execute(&std_path, &file_path, &main_entry) {
+            Ok(_) => exit(0),
+            Err(_) => exit(1),
+        }
     }
-
-    if instance.errors().len() > 0 {
-        exit(10);
+    else if parse_only {
+        let instance = build(&std_path, &file_path);
+        print_instance_errors(&instance);
     }
+    else if no_launch {
+        let (instance, possible_world) = genesis(&std_path, &file_path, &main_entry);
 
-    if parse_only {
-        exit(0);
-    }
+        print_instance_errors(&instance);
 
-    let collection = Arc::clone(instance.collection().as_ref().unwrap());
+        if let Some((world, ready)) = possible_world {
+            print_world_errors(&world);
 
-    let main = Arc::clone(&collection.treatments.get(
-        &Path::new(
-            vec!["main".to_string(), StdPath::new(&file_path).file_stem().unwrap().to_str().unwrap().to_string()]
-        ).to_identifier(&main_entry).unwrap()
-    ).unwrap()).downcast_arc::<SequenceTreatmentDescriptor>().unwrap();
-
-    let world = World::new();
-    let ready = world.genesis(&*main);
-
-    if ready {
-        if !no_launch {
-            world.live();
+            if !ready {
+                exit(1);
+            }
         }
         else {
-            exit(0);
+            exit(1);
         }
-    }
-    else {
-        for error in world.errors().read().unwrap().iter() {
-            eprintln!("Logic error: {:?}", error);
-        }
-        exit(11);
     }
 }
 
