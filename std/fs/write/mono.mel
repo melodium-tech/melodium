@@ -2,9 +2,6 @@
 use core/fs/write::FilesWriter
 use core/fs/write::WriteFile
 
-use std/process/engine::Write as Stdout
-use std/flow/string::StreamBlock
-
 sequence Write(const append: bool = false, const create: bool = true, const new: bool = false)
   model FilesWriter(append=append, create=create, new=new)
   input path: Block<string>
