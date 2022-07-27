@@ -75,6 +75,7 @@ extern crate lazy_static;
 pub mod core;
 pub mod doc;
 pub mod executive;
+pub mod graph;
 pub mod logic;
 pub mod script;
 
@@ -213,6 +214,33 @@ pub fn make_documentation(stdlib: &String, main: &String, output: &String) {
 
     if let Err(io) = instance.output_doc() {
         print_io_error(&io);
+    }
+}
+
+pub fn make_svg(stdlib: &String, main: &String, output: &String, entries: &Vec<String>) {
+
+    let instance = build(stdlib, main);
+    let collection = Arc::clone(instance.collection().as_ref().unwrap());
+
+    for entry in entries {
+        let split = entry.split("::").collect::<Vec<_>>();
+        let path = Path::new(split[0].split("/").map(|s| s.to_string()).collect());
+        let name = split[1].to_string();
+        let identifier = path.to_identifier(&name).unwrap();
+
+        if let Some(descriptor) = collection.treatments.get(&identifier) {
+
+            if let Some(designer) = descriptor.designer() {
+
+                let svg = graph::draw::draw(designer);
+
+                let mut path = PathBuf::from(output);
+                path.set_file_name(name);
+                path.set_extension("svg");
+
+                let _ = std::fs::write(path, svg);
+            }
+        }
     }
 }
 

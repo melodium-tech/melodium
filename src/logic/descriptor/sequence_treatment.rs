@@ -7,6 +7,7 @@ use super::identifier::Identifier;
 use super::parameterized::Parameterized;
 use super::designable::Designable;
 use super::buildable::Buildable;
+use super::super::designer::SequenceDesigner;
 use super::super::builder::Builder;
 use super::input::Input;
 use super::output::Output;
@@ -24,6 +25,7 @@ pub struct SequenceTreatment {
     outputs: HashMap<String, Output>,
     requirements: HashMap<String, Requirement>,
     source_from: HashMap<Arc<CoreModel>, Vec<String>>,
+    designer: RwLock<Option<Arc<RwLock<SequenceDesigner>>>>,
     builder: RwLock<Option<Arc<Box<dyn Builder>>>>,
     auto_reference: Weak<Self>,
 }
@@ -38,6 +40,7 @@ impl SequenceTreatment {
             outputs: HashMap::new(),
             requirements: HashMap::new(),
             source_from: HashMap::new(),
+            designer: RwLock::new(None),
             builder: RwLock::new(None),
             auto_reference: Weak::default(),
         }
@@ -72,6 +75,7 @@ impl SequenceTreatment {
             outputs: self.outputs,
             requirements: self.requirements,
             source_from: self.source_from,
+            designer: self.designer,
             builder: self.builder,
             auto_reference: me.clone(),
         })
@@ -116,6 +120,10 @@ impl Treatment for SequenceTreatment {
     fn source_from(&self) -> &HashMap<Arc<CoreModel>, Vec<String>> {
         // Always empty
         &self.source_from
+    }
+
+    fn designer(&self) -> Option<Arc<RwLock<SequenceDesigner>>> {
+        Some(Arc::clone(self.designer.read().unwrap().as_ref().unwrap()))
     }
 
     fn as_buildable(&self) -> Arc<dyn Buildable> {

@@ -1,7 +1,7 @@
 
 use std::fmt::*;
 use std::collections::HashMap;
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Weak, RwLock};
 use std::iter::FromIterator;
 use super::identified::Identified;
 use super::identifier::Identifier;
@@ -15,6 +15,7 @@ use super::requirement::Requirement;
 use super::treatment::Treatment;
 use super::super::builder::Builder;
 use super::super::builder::CoreTreatmentBuilder;
+use crate::logic::designer::SequenceDesigner;
 use crate::executive::world::{World, TrackId};
 use crate::executive::treatment::Treatment as ExecutiveTreatment;
 
@@ -120,6 +121,10 @@ impl Treatment for CoreTreatment {
 
     fn source_from(&self) -> &HashMap<Arc<CoreModel>, Vec<String>> {
         &self.source_from
+    }
+
+    fn designer(&self) -> Option<Arc<RwLock<SequenceDesigner>>> {
+        None
     }
 
     fn as_buildable(&self) -> Arc<dyn Buildable> {

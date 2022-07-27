@@ -36,6 +36,10 @@ fn main() {
             .long("doc")
             .help("Generates documentation in the given output folder")
             .takes_value(true))
+        .arg(Arg::new("draw")
+            .long("draw")
+            .help("Generates drawing of sequence in given output folder, in SVG format")
+            .takes_value(true))
         .arg(Arg::new("script")
             .value_name("SCRIPT")
             .help("Script to run")
@@ -75,6 +79,17 @@ fn main() {
     if let Some(path) = matches.value_of("doc") {
 
         make_documentation(&std_path, &file_path, &path.to_string());
+
+        exit(0);
+    }
+
+    if let Some(draw) = matches.value_of("draw") {
+
+        let split: Vec<String> = draw.split(",").map(|s| s.to_string()).collect();
+        let output = &split[0];
+        let ids = Vec::from(&split[1..]);
+
+        make_svg(&std_path, &file_path, output, &ids);
 
         exit(0);
     }
