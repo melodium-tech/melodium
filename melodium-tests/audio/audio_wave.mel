@@ -1,6 +1,6 @@
 
-use std/fs/read/mono::ReadPath
-use std/fs/write/mono::WritePath
+use std/fs/mono/read::ReadPath
+use std/fs/mono/write::WritePath
 use std/audio/encoding/wave::Decode
 use std/audio/encoding/wave::Encode
 use std/process/engine::Ready

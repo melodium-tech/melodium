@@ -1,7 +1,7 @@
 
 use std/process/engine::Read
 use std/process/engine::Write
-use std/fs/write/mono::WritePath
+use std/fs/mono/write::WritePath
 use std/text/encoding::Encode
 
 sequence WriteFile(const file: string)

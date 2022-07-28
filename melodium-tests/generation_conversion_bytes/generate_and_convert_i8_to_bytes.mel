@@ -1,5 +1,5 @@
 
-use std/fs/write/mono::WritePath
+use std/fs/mono/write::WritePath
 use std/generation/scalar/i8::Generate
 use std/conversion/scalar/i8::ToByte
 use std/process/engine::Ready
