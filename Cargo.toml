@@ -31,7 +31,7 @@ futures = "0.3.21"
 downcast-rs = "1.2.0"
 lazy_static = "1.4.0"
 itertools = "0.10.3"
-linkme = "0.2.10"
+linkme = "0.3.2"
 regex = "1.5.5"
 clap = { version = "3.1.12", features = ["cargo"] }
 colored = "2.0.0"
