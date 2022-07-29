@@ -1,6 +1,13 @@
 
 use core/fs/read::DirectReading as CoreDirectReading
 
+/**
+Read one file.
+
+The content of the file given through `path` is streamed through `data`.
+
+If any reading failure happens, `failure` is emitted and `message` contains text of the related error.
+*/
 sequence Read()
   input path: Block<string>
   output data: Stream<byte>
@@ -16,6 +23,13 @@ sequence Read()
 
 use std/filler/scalar/string::Emit
 
+/**
+Read one file.
+
+The content of the file at the `path` location is streamed through `data` when `trigger` is enabled.
+
+If any reading failure happens, `failure` is emitted and `message` contains text of the related error.
+*/
 sequence ReadPath(var path: string)
   input trigger: Block<void>
   output data: Stream<byte>

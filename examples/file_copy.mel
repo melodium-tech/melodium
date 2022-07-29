@@ -1,11 +1,13 @@
 
-use std/fs/mono:ReadFile
-use std/fs/mono::WriteFile
+use std/fs/mono/read:ReadPath
+use std/fs/mono/write::WritePath
+use std/process/engine::Ready
 
 sequence Main()
 {
-    Reader: ReadFile(path="/tmp/input")
-    Writer: WriteFile(path="/tmp/output")
+    Ready()
+    ReadPath(path="input.txt")
+    WritePath(path="output.txt")
     
-    Reader.data -> Writer.data
+    Ready.ready -> ReadPath.trigger,data -> WritePath.data
 }

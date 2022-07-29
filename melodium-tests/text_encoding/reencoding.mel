@@ -1,7 +1,7 @@
 
 use std/process/engine::Ready
-use std/fs/read/mono::ReadPath
-use std/fs/write/mono::WritePath
+use std/fs/mono/read::ReadPath
+use std/fs/mono/write::WritePath
 use std/text/encoding::Decode
 use std/text/encoding::Encode
 

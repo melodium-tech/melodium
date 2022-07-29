@@ -15,15 +15,17 @@ Mélodium is _under development_ and continously being defined and improved. Rel
 The following code makes a copy of the file `./input.txt` to `./output.txt`. More examples are available under [examples](examples/).
 
 ```
-use std/fs/mono::ReadFile
-use std/fs/mono::WriteFile
+use std/fs/mono/read:ReadPath
+use std/fs/mono/write::WritePath
+use std/process/engine::Ready
 
 sequence Main()
 {
-    Reader: ReadFile(path="./input.txt")
-    Writer: WriteFile(path="./output.txt")
+    Ready()
+    ReadPath(path="input.txt")
+    WritePath(path="output.txt")
     
-    Reader.data -> Writer.data
+    Ready.ready -> ReadPath.trigger,data -> WritePath.data
 }
 ```
 
