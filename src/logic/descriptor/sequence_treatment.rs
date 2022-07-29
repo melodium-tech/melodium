@@ -80,6 +80,11 @@ impl SequenceTreatment {
             auto_reference: me.clone(),
         })
     }
+
+    pub fn set_designer(&self, designer: Arc<RwLock<SequenceDesigner>>) {
+
+        *self.designer.write().unwrap() = Some(designer);
+    }
 }
 
 impl Identified for SequenceTreatment {

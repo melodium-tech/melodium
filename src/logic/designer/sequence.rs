@@ -31,14 +31,19 @@ pub struct Sequence {
 
 impl Sequence {
     pub fn new(collections: &Arc<CollectionPool>, descriptor: &Arc<SequenceTreatmentDescriptor>) -> Arc<RwLock<Self>> {
-        Arc::<RwLock<Self>>::new_cyclic(|me| RwLock::new(Self {
+
+        let this = Arc::<RwLock<Self>>::new_cyclic(|me| RwLock::new(Self {
             collections: Arc::clone(collections),
             descriptor: Arc::clone(descriptor),
             model_instanciations: HashMap::new(),
             treatments: HashMap::new(),
             connections: Vec::new(),
             auto_reference: me.clone(),
-        }))
+        }));
+
+        descriptor.set_designer(Arc::clone(&this));
+
+        this
     }
 
     pub fn collections(&self) -> &Arc<CollectionPool> {

@@ -234,11 +234,9 @@ pub fn make_svg(stdlib: &String, main: &String, output: &String, entries: &Vec<S
 
                 let svg = graph::draw::draw(designer);
 
-                let mut path = PathBuf::from(output);
-                path.set_file_name(name);
-                path.set_extension("svg");
+                let path = PathBuf::from(format!("{output}/{name}.svg"));
 
-                let _ = std::fs::write(path, svg);
+                std::fs::write(path, svg).unwrap();
             }
         }
     }
