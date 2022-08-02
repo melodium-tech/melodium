@@ -1,0 +1,15 @@
+
+.treatment {
+    fill: lightgray;
+    fill-opacity: 50%;
+}
+
+.treatment-name {
+    font: 20px sans-serif;
+    fill: black;
+}
+
+.treatment-type {
+    font: italic 12px sans-serif;
+    fill: black;
+}
