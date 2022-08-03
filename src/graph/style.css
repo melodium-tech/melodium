@@ -13,3 +13,11 @@
     font: italic 12px sans-serif;
     fill: black;
 }
+
+.input {
+    fill: white;
+    stroke: black;
+}
+.input-name {
+    font: 10px sans-serif;
+}
