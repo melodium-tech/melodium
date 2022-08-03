@@ -14,10 +14,24 @@
     fill: black;
 }
 
-.input {
+.io {
     fill: white;
     stroke: black;
+    stroke-width: 2px;
 }
-.input-name {
+
+.io-name {
     font: 10px sans-serif;
+}
+
+.param {
+    font: 10px sans-serif;
+}
+
+.param-name {
+    font-style: italic;
+}
+
+.param-value {
+    font-family: monospace;
 }
