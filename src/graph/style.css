@@ -1,7 +1,13 @@
 
-.treatment {
+.treatment-bg {
     fill: lightgray;
     fill-opacity: 50%;
+    transition: all .1s;
+}
+
+.treatment:hover .treatment-bg {
+    fill-opacity: 100%;
+    filter: drop-shadow(0 0 5px lightgray);
 }
 
 .treatment-name {
@@ -22,6 +28,38 @@
 
 .io-name {
     font: 10px sans-serif;
+}
+
+.input {
+    font: 10px sans-serif;
+}
+
+.input:hover {
+    z-index: 1000;
+}
+
+.input-bg {
+    fill: lightgray;
+    transition: all .1s;
+}
+
+.input:not(:hover) .input-bg, .input:not(:hover) .input-type {
+    visibility: hidden;
+}
+
+.input:hover .input-type {
+    visibility: visible;
+}
+
+.input:hover .input-bg {
+    visibility: visible;
+    filter: drop-shadow(0 0 5px lightgray);
+}
+
+.input-sym {
+    fill: white;
+    stroke: black;
+    stroke-width: 2px;
 }
 
 .param {

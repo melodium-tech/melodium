@@ -2,9 +2,10 @@
 use std::sync::{Arc, RwLock};
 use std::collections::HashMap;
 use itertools::Itertools;
+use html_escape::encode_text;
 
 use crate::logic::designer::*;
-use crate::logic::descriptor::treatment::Treatment;
+use crate::logic::descriptor::*;
 
 pub fn draw(sequence: Arc<RwLock<SequenceDesigner>>) -> String {
 
@@ -72,15 +73,17 @@ fn treatment(treatment: &Arc<RwLock<TreatmentDesigner>>, x: u64, y: u64, width: 
 
     let mut result = String::new();
 
-    result.push_str(&format!(r#"<g id="{}" transform="translate({} {})">"#, treatment.name(), x, y));
+    result.push_str(&format!(r#"<g id="{}" class="treatment" transform="translate({} {})">"#, treatment.name(), x, y));
 
-    result.push_str(&format!(r#"<rect class="treatment" width="{}" height="{}" rx="10" />"#, width, height));
+    result.push_str(&format!(r#"<rect class="treatment-bg" width="{}" height="{}" rx="10" />"#, width, height));
     result.push_str(&format!(r#"<text class="treatment-name" text-anchor="middle" x="{}" y="20">{}</text><text class="treatment-type" text-anchor="middle" x="{}" y="35">{}</text>"#, width / 2, treatment.name(), width / 2, descriptor.identifier().name()));
 
     let mut y = 55;
     for name in descriptor.inputs().keys().sorted() {
-        result.push_str(&format!(r#"<circle class="io input" cx="0" cy="{}" r="5"/>"#, y));
-        result.push_str(&format!(r#"<text class="io-name input-name" text-anchor="start" x="10" y="{}">{}</text>"#, y+5, name));
+        let desc_input = descriptor.inputs().get(name).unwrap();
+        /*result.push_str(&format!(r#"<circle class="io input" cx="0" cy="{}" r="5"/>"#, y));
+        result.push_str(&format!(r#"<text class="io-name input-name" text-anchor="start" x="10" y="{}">{}</text>"#, y+5, name));*/
+        result.push_str(&input(desc_input, 0, y));
         y += 20;
     }
 
@@ -102,4 +105,20 @@ fn treatment(treatment: &Arc<RwLock<TreatmentDesigner>>, x: u64, y: u64, width: 
     result.push_str("</g>");
 
     (result, height)
+}
+
+fn input(input: &InputDescriptor, x: u64, y: u64) -> String {
+
+    let mut result = String::new();
+
+    result.push_str(&format!(r#"<g class="input" transform="translate({} {})">"#, x, y));
+
+    result.push_str(&format!(r#"<rect class="input-bg" width="210" height="20" x="-10" y="-10" rx="2" />"#));
+    result.push_str(&format!(r#"<circle class="input-sym" cx="0" cy="0" r="5" />"#));
+    result.push_str(&format!(r#"<text class="input-name" text-anchor="start" x="10" y="5">{}</text>"#, input.name()));
+    result.push_str(&format!(r#"<text class="input-type" text-anchor="start" x="{}em" y="5">: {}</text>"#, input.name().chars().count(), encode_text(&input.datatype().to_string())));
+
+    result.push_str("</g>");
+
+    result
 }
