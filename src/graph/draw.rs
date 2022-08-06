@@ -89,16 +89,20 @@ fn treatment(treatment: &Arc<RwLock<TreatmentDesigner>>, x: u64, y: u64, width: 
 
     let mut y = 55;
     for name in descriptor.outputs().keys().sorted() {
-        result.push_str(&format!(r#"<circle class="io output" cx="{}" cy="{}" r="5"/>"#, width, y));
-        result.push_str(&format!(r#"<text class="io-name output-name" text-anchor="end" x="{}" y="{}">{}</text>"#, width-10, y+5, name));
+        let desc_output = descriptor.outputs().get(name).unwrap();
+        /*result.push_str(&format!(r#"<circle class="io output" cx="{}" cy="{}" r="5"/>"#, width, y));
+        result.push_str(&format!(r#"<text class="io-name output-name" text-anchor="end" x="{}" y="{}">{}</text>"#, width-10, y+5, name));*/
+        result.push_str(&output(desc_output, width, y));
         y += 20;
     }
 
     let mut y = 55;
     for name in treatment.parameters().keys().sorted() {
-        let _param = treatment.parameters().get(name).unwrap().read().unwrap();
+        let param = treatment.parameters().get(name).unwrap().read().unwrap();
 
-        result.push_str(&format!(r#"<text class="param" text-anchor="middle" x="{}" y="{}"><tspan class="param-name">{}</tspan> = <tspan class="param-value">&quot;truc&quot;</tspan></text>"#, width/2, y+5, name));
+        result.push_str(&parameter(&param, width/2, y+5));
+
+        //result.push_str(&format!(r#"<text class="param" text-anchor="middle" x="{}" y="{}"><tspan class="param-name">{}</tspan> = <tspan class="param-value">&quot;truc&quot;</tspan></text>"#, width/2, y+5, name));
         y += 20;
     }
 
@@ -113,12 +117,87 @@ fn input(input: &InputDescriptor, x: u64, y: u64) -> String {
 
     result.push_str(&format!(r#"<g class="input" transform="translate({} {})">"#, x, y));
 
-    result.push_str(&format!(r#"<rect class="input-bg" width="210" height="20" x="-10" y="-10" rx="2" />"#));
     result.push_str(&format!(r#"<circle class="input-sym" cx="0" cy="0" r="5" />"#));
     result.push_str(&format!(r#"<text class="input-name" text-anchor="start" x="10" y="5">{}</text>"#, input.name()));
-    result.push_str(&format!(r#"<text class="input-type" text-anchor="start" x="{}em" y="5">: {}</text>"#, input.name().chars().count(), encode_text(&input.datatype().to_string())));
-
+    
     result.push_str("</g>");
 
     result
+}
+
+fn output(output: &OutputDescriptor, x: u64, y: u64) -> String {
+
+    let mut result = String::new();
+
+    result.push_str(&format!(r#"<g class="output" transform="translate({} {})">"#, x, y));
+
+    result.push_str(&format!(r#"<circle class="output-sym" cx="0" cy="0" r="5" />"#));
+    result.push_str(&format!(r#"<text class="output-name" text-anchor="end" x="-10" y="5">{}</text>"#, output.name()));
+    
+    result.push_str("</g>");
+
+    result
+}
+
+fn parameter(param: &ParameterDesigner, x: u64, y: u64) -> String {
+
+    let mut result = String::new();
+
+    result.push_str(&format!(r#"<g class="param" transform="translate({} {})">"#, x, y));
+
+    result.push_str(&format!(r#"<text class="param-text" text-anchor="middle" x="0" y="5"><tspan class="param-name">{}</tspan> = <tspan class="param-value">{}</tspan></text>"#, param.name(), value(&param.value().as_ref().unwrap(), 12).0));
+    
+    result.push_str("</g>");
+
+    result
+}
+
+fn value(val: &ValueDesigner, max_chars: usize) -> (String, String) {
+
+    let mut svg = String::new();
+    let mut raw = String::new();
+
+    match val {
+        ValueDesigner::Raw(v) => {
+            let all = v.to_string();
+            raw.push_str(&all);
+
+            let part = 
+                if all.chars().count() <= max_chars { all }
+                else { format!("{}…", all.chars().take(max_chars-1).collect::<String>()) };
+            svg.push_str(&format!(r#"<tspan class="value value-value">{}</tspan>"#, encode_text(&part)));
+            
+        }
+        ValueDesigner::Variable(v) => {
+            let all = v.to_string();
+            raw.push_str(&all);
+
+            let part = 
+                if all.chars().count() <= max_chars { all }
+                else { format!("{}…", all.chars().take(max_chars-1).collect::<String>()) };
+            svg.push_str(&format!(r#"<tspan class="value value-variable">{}</tspan>"#, encode_text(&part)));
+        }
+        ValueDesigner::Context((n, v)) => {
+            let all = format!("{}[{}]", n, v);
+            raw.push_str(&all);
+
+            let part = 
+                if all.chars().count() <= max_chars { all }
+                else { format!("{}…", all.chars().take(max_chars-1).collect::<String>()) };
+            svg.push_str(&format!(r#"<tspan class="value value-context">{}</tspan>"#, encode_text(&part)));
+        }
+        ValueDesigner::Function(f, v) => {
+
+            let all_values = v.iter().map(|v| value(v, usize::MAX).1).collect::<Vec<_>>().join(", ");
+            let all = format!("{}({})", f.identifier().name(), all_values);
+            raw.push_str(&all);
+
+            let part = 
+                if all.chars().count() <= max_chars { all }
+                else { format!("{}…", all.chars().take(max_chars-1).collect::<String>()) };
+            svg.push_str(&format!(r#"<tspan class="value value-function">{}</tspan>"#, encode_text(&part)));
+        }
+    }
+
+    (svg, raw)
 }

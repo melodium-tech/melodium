@@ -30,40 +30,19 @@
     font: 10px sans-serif;
 }
 
-.input {
+.input, .output, .param {
     font: 10px sans-serif;
-}
-
-.input:hover {
-    z-index: 1000;
-}
-
-.input-bg {
-    fill: lightgray;
     transition: all .1s;
 }
 
-.input:not(:hover) .input-bg, .input:not(:hover) .input-type {
-    visibility: hidden;
+.input:hover, .output:hover, .param:hover {
+    filter: drop-shadow(0 0 5px blue);
 }
 
-.input:hover .input-type {
-    visibility: visible;
-}
-
-.input:hover .input-bg {
-    visibility: visible;
-    filter: drop-shadow(0 0 5px lightgray);
-}
-
-.input-sym {
+.input-sym, .output-sym {
     fill: white;
     stroke: black;
     stroke-width: 2px;
-}
-
-.param {
-    font: 10px sans-serif;
 }
 
 .param-name {
