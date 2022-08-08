@@ -1,6 +1,7 @@
 
 use crate::logic::descriptor::*;
 
+#[derive(Debug)]
 pub struct Output {
     pub svg: String,
     pub x: u64,

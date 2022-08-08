@@ -9,6 +9,7 @@ use crate::graph::input::Input;
 use crate::graph::output::Output;
 use crate::graph::value::value;
 
+#[derive(Debug)]
 pub struct Treatment {
     pub svg: String,
     pub x: u64,
