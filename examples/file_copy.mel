@@ -1,5 +1,5 @@
 
-use std/fs/mono/read:ReadPath
+use std/fs/mono/read::ReadPath
 use std/fs/mono/write::WritePath
 use std/process/engine::Ready
 

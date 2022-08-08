@@ -15,7 +15,7 @@ Mélodium is _under development_ and continously being defined and improved. Rel
 The following code makes a copy of the file `./input.txt` to `./output.txt`. More examples are available under [examples](examples/).
 
 ```
-use std/fs/mono/read:ReadPath
+use std/fs/mono/read::ReadPath
 use std/fs/mono/write::WritePath
 use std/process/engine::Ready
 
