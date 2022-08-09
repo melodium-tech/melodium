@@ -71,16 +71,15 @@ pub fn draw(sequence: Arc<RwLock<SequenceDesigner>>) -> String {
 
         let conn_desc = conn.read().unwrap();
 
-        let (start_x, start_y) = match conn_desc.input_treatment().as_ref().unwrap() {
+        let (start_x, start_y) = match conn_desc.output_treatment().as_ref().unwrap() {
             ConnectionIODesigner::Sequence() => {
-                let input = self_inputs.get(conn_desc.input_name().as_ref().unwrap()).unwrap();
+                let input = self_inputs.get(conn_desc.output_name().as_ref().unwrap()).unwrap();
                 (input.x, input.y)
             },
             ConnectionIODesigner::Treatment(t) => {
                 let treatment = treatments.get(
                     t.upgrade().unwrap().read().unwrap().name()
                 ).unwrap();
-                println!("{treatment:?}");
                 let output = treatment.outputs.get(
                     conn_desc.output_name().as_ref().unwrap()
                 ).unwrap();
@@ -88,16 +87,15 @@ pub fn draw(sequence: Arc<RwLock<SequenceDesigner>>) -> String {
             },
         };
 
-        let (end_x, end_y) = match conn_desc.output_treatment().as_ref().unwrap() {
+        let (end_x, end_y) = match conn_desc.input_treatment().as_ref().unwrap() {
             ConnectionIODesigner::Sequence() => {
-                let output = self_outputs.get(conn_desc.output_name().as_ref().unwrap()).unwrap();
+                let output = self_outputs.get(conn_desc.input_name().as_ref().unwrap()).unwrap();
                 (output.x, output.y)
             },
             ConnectionIODesigner::Treatment(t) => {
                 let treatment = treatments.get(
                     t.upgrade().unwrap().read().unwrap().name()
                 ).unwrap();
-                println!("{treatment:?}");
                 let input = treatment.inputs.get(
                     conn_desc.input_name().as_ref().unwrap()
                 ).unwrap();
