@@ -30,7 +30,7 @@
     font: 10px sans-serif;
 }
 
-.input, .output, .param {
+.input, .output, .param, .connection {
     font: 10px sans-serif;
     transition: all .1s;
 }
@@ -55,5 +55,10 @@
 
 .connection {
     stroke: gray;
+    stroke-width: 5px;
     fill: transparent;
+}
+
+.connection:hover {
+    stroke-width: 10px;
 }
