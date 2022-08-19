@@ -52,22 +52,22 @@ rust_build_i686-unknown-linux-gnu:
  before_script:
    - dpkg --add-architecture i386
    - apt-get update
-   - apt-get install -y gcc-multilib pkg-config-i686-linux-gnu libasound2-dev:i386
+   - apt-get install -y gcc-multilib libasound2-dev:i386
    - rustup target add i686-unknown-linux-gnu
  script:
    - rustc --version && cargo --version  # Print version info for debugging
-   - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --verbose --target i686-unknown-linux-gnu
+   - cargo build --verbose --target i686-unknown-linux-gnu
 
 rust_build_aarch64-unknown-linux-gnu:
  stage: rust
  before_script:
    - dpkg --add-architecture arm64
    - apt-get update
-   - apt-get install -y gcc-multilib pkg-config-aarch64-linux-gnu libasound2-dev:arm64
+   - apt-get install -y gcc-multilib libasound2-dev:arm64
    - rustup target add aarch64-unknown-linux-gnu
  script:
    - rustc --version && cargo --version  # Print version info for debugging
-   - PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config cargo build --verbose --target aarch64-unknown-linux-gnu
+   - cargo build --verbose --target aarch64-unknown-linux-gnu
 
 rust_build_x86_64-pc-windows-gnu:
   stage: rust
