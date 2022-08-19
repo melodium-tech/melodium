@@ -33,7 +33,7 @@ cargo build --release --target x86_64-unknown-linux-gnu
 > Not working at this point, will be studied later as ARM64 is not a main goal at this point of the project.
 > Direct compilation _on_ ARM64 machine works.
 
-For aarch64-unknown-linux-gnu we need other GCC libs and pkg-config for aarch64 to be installed, `apt install -y gcc-multilib pkg-config-aarch64-linux-gnu`.
+For aarch64-unknown-linux-gnu we need other GCC libs and pkg-config for aarch64 to be installed, `apt install -y gcc-multilib pkg-config-aarch64-linux-gnu libasound2-dev:arm64`.
 
 ```sh
 rustup target add aarch64-unknown-linux-gnu
