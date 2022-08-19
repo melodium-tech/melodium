@@ -56,7 +56,7 @@ rust_build_i686-unknown-linux-gnu:
    - rustup target add i686-unknown-linux-gnu
  script:
    - rustc --version && cargo --version  # Print version info for debugging
-   - cargo build --verbose --target i686-unknown-linux-gnu
+   - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --verbose --target i686-unknown-linux-gnu
 
 rust_build_aarch64-unknown-linux-gnu:
  stage: rust
@@ -67,7 +67,7 @@ rust_build_aarch64-unknown-linux-gnu:
    - rustup target add aarch64-unknown-linux-gnu
  script:
    - rustc --version && cargo --version  # Print version info for debugging
-   - cargo build --verbose --target aarch64-unknown-linux-gnu
+   - PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config cargo build --verbose --target aarch64-unknown-linux-gnu
 
 rust_build_x86_64-pc-windows-gnu:
   stage: rust
