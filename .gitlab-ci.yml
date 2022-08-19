@@ -63,11 +63,11 @@ rust_build_aarch64-unknown-linux-gnu:
  before_script:
    - dpkg --add-architecture arm64
    - apt-get update
-   - apt-get install -y gcc-multilib libasound2-dev:arm64
+   - apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross libc-dev:arm64 libasound2-dev:arm64
    - rustup target add aarch64-unknown-linux-gnu
  script:
    - rustc --version && cargo --version  # Print version info for debugging
-   - PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config cargo build --verbose --target aarch64-unknown-linux-gnu
+   - PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld cargo build --verbose --target aarch64-unknown-linux-gnu
 
 rust_build_x86_64-pc-windows-gnu:
   stage: rust
