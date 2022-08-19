@@ -1,9 +1,7 @@
 
-use itertools::Itertools;
 use html_escape::encode_text;
 
 use crate::logic::designer::*;
-use crate::logic::descriptor::*;
 
 pub fn value(val: &ValueDesigner, max_chars: usize) -> (String, String) {
 

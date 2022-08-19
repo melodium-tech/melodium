@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use itertools::Itertools;
 
 use crate::logic::designer::*;
-use crate::logic::descriptor::*;
 use crate::graph::input::Input;
 use crate::graph::output::Output;
 use crate::graph::value::value;

@@ -1,11 +1,4 @@
 
-use std::sync::{Arc, RwLock};
-use std::collections::HashMap;
-use itertools::Itertools;
-
-use crate::logic::designer::*;
-use crate::logic::descriptor::*;
-
 pub struct Connection {
 
     pub svg: String,
@@ -23,12 +16,22 @@ impl Connection {
         let mut svg = String::new();
         let mut path = String::new();
 
-        //svg.push_str(&format!(r#"<path class="connection" d="M {} {} L {} {}" />"#, start_x, start_y, end_x, end_y));
-
-        if start_y != end_y {
-
+        let diff = start_y.abs_diff(end_y);
+        if diff == 0 {
+            path.push_str(&format!("M {} {} H {}", start_x, start_y, end_x));
+        }
+        else if diff < 25 {
             let x_change = end_x - 25;
-            //let y_change = end_y - 25;
+
+            path.push_str(&format!("M {} {} H {} C {} {}, {} {}, {} {}",
+                start_x, start_y, x_change - 25,
+                x_change, start_y,
+                x_change, end_y,
+                end_x, end_y
+            ));
+        }
+        else {
+            let x_change = end_x - 25;
 
             let direction: i64 = if start_y > end_y { -25 } else { 25 };
 
@@ -40,9 +43,6 @@ impl Connection {
                 x_change, end_y,
                 end_x, end_y
             ));
-        }
-        else {
-            path.push_str(&format!("M {} {} H {}", start_x, start_y, end_x));
         }
         
         svg.push_str(&format!(r#"<path class="connection" d="{}" />"#, path));
