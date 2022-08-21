@@ -17,7 +17,7 @@ use super::treatment::Treatment;
 /// An assignative element is a block or component which assign value to parameters.
 /// An assignative element also always represent a subsitute for the declarative element
 /// it belongs to.
-pub trait AssignativeElement : Node + Debug {
+pub trait AssignativeElement : Node + Debug + Send + Sync {
 
     /// Returns a reference on the structure.
     fn assignative_element(&self) -> AssignativeElementType;

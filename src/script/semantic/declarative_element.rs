@@ -12,7 +12,7 @@ use super::sequence::Sequence;
 /// Trait for elements that are declarative blocks.
 /// 
 /// A declarative element is a block which owns declared parameters.
-pub trait DeclarativeElement : Node + Debug {
+pub trait DeclarativeElement : Node + Debug + Send + Sync {
 
     /// Returns a reference on the structure.
     fn declarative_element(&self) -> DeclarativeElementType;
