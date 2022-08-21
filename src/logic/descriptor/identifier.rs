@@ -47,11 +47,7 @@ use std::fmt;
 impl fmt::Display for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 
-        let mut string = match self.root {
-            Root::Core => "core",
-            Root::Std => "std",
-            Root::Main => "main",
-        }.to_string();
+        let mut string = self.root.to_string();
 
         for step in &self.path {
             string = string + "/" + &step;
@@ -68,4 +64,15 @@ pub enum Root {
     Core,
     Std,
     Main
+}
+
+impl fmt::Display for Root {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        
+        write!(f, "{}", match self {
+            Root::Core => "core",
+            Root::Main => "main",
+            Root::Std  => "std",
+        })
+    }
 }

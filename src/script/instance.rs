@@ -114,7 +114,7 @@ impl Instance {
                     let absolute_path;
                     match entry.canonicalize() {
                         Ok(ap) => absolute_path = ap,
-                        Err(e) => {
+                        Err(_e) => {
                             continue;
                         },
                     };
@@ -126,7 +126,7 @@ impl Instance {
 
                     self.manage_file(path, absolute_path);
                 }
-                Err(e) => {
+                Err(_e) => {
                     continue;
                 }
             }
