@@ -138,7 +138,7 @@ pub fn build(stdlib: &String, main: &String) -> Instance {
 
     let mut instance = Instance::new(main.clone(), stdlib.clone());
 
-    instance.build();
+    instance.build_by_main();
 
     instance
 }

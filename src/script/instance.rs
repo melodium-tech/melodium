@@ -46,10 +46,12 @@ impl Instance {
         }
     }
 
-    /// Build the instance.
+    /// Build the instance by main script.
     /// 
+    /// The instance build and parse from the main file and all the `use`s.
+    /// It can be used to create an instance aimed to be executed, only the required files are parsed.
     /// After building instance, check if it is valid and what errors occured.
-    pub fn build(&mut self) {
+    pub fn build_by_main(&mut self) {
 
         // We create the "main" path.
         let mut main = Vec::new();
@@ -57,6 +59,81 @@ impl Instance {
         main.push(self.main_path.file_stem().unwrap().to_str().unwrap().to_string());
 
         self.manage_file(Path::new(main), self.main_path.clone());
+
+        self.build();
+    }
+
+    /// Build the instance from the whole stdlib.
+    /// 
+    /// The instance build and parse all files found in the stdlib. It ignores the main path.
+    /// After building instance, check if it is valid and what errors occured.
+    pub fn build_all_std(&mut self) {
+
+        self.build_all_prefix("std", self.standard_path.clone());
+
+        self.build();
+    }
+
+    /// Build the instance from the whole main.
+    /// 
+    /// The instance build and parse all files found in the main path.
+    /// After building instance, check if it is valid and what errors occured.
+    pub fn build_all_main(&mut self) {
+
+        self.build_all_prefix("main", self.main_path.clone());
+
+        self.build();
+    }
+
+    /// Build the instance from the whole stdlib and main.
+    /// 
+    /// The instance build and parse all files found in the stdlib and main path.
+    /// After building instance, check if it is valid and what errors occured.
+    pub fn build_all(&mut self) {
+
+        self.build_all_prefix("std", self.standard_path.clone());
+        self.build_all_prefix("main", self.main_path.clone());
+
+        self.build();
+    }
+
+    pub fn collection(&self) -> &Option<Arc<CollectionPool>> {
+        &self.logic_collection
+    }
+
+    pub fn errors(&self) -> &HashMap<PathBuf, ScriptError> {
+        &self.errors
+    }
+
+    fn build_all_prefix(&mut self, prefix: &str, path: PathBuf) {
+
+        for entry in glob::glob(&format!("{}/**/*.mel", path.to_str().unwrap())).unwrap() {
+            match entry {
+                Ok(entry) => {
+
+                    let absolute_path;
+                    match entry.canonicalize() {
+                        Ok(ap) => absolute_path = ap,
+                        Err(e) => {
+                            continue;
+                        },
+                    };
+
+                    let relative_path = absolute_path.strip_prefix(&path).unwrap();
+                    let mut path_steps: Vec<&str> = relative_path.to_str().unwrap().strip_suffix(".mel").unwrap().split('/').collect();
+                    path_steps.insert(0, prefix);
+                    let path = Path::new(path_steps.iter().map(|s| s.to_string()).collect());
+
+                    self.manage_file(path, absolute_path);
+                }
+                Err(e) => {
+                    continue;
+                }
+            }
+        }
+    }
+
+    fn build(&mut self) {
 
         while self.manage_inclusions() {
             if !self.errors.is_empty() {
@@ -67,14 +144,6 @@ impl Instance {
         self.make_descriptors();
 
         self.make_designs();
-    }
-
-    pub fn collection(&self) -> &Option<Arc<CollectionPool>> {
-        &self.logic_collection
-    }
-
-    pub fn errors(&self) -> &HashMap<PathBuf, ScriptError> {
-        &self.errors
     }
 
     /// Manage inclusions of files in the instance.
