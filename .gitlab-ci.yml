@@ -50,11 +50,13 @@ rust_build_x86_64-unknown-linux-gnu:
 
 rust_unit_tests:
   stage: rust
+  extends: .x86_64-unknown-linux-gnu
   script:
     - cargo test --tests --verbose
 
 rust_doc_tests:
   stage: rust
+  extends: .x86_64-unknown-linux-gnu
   script:
     - cargo test --doc --verbose
 
@@ -107,11 +109,11 @@ rust_build_x86_64-pc-windows-gnu:
     - rustc --version && cargo --version 
     - cargo build --verbose --target x86_64-pc-windows-gnu
     - cargo build --release --target x86_64-pc-windows-gnu
-    - cp target/x86_64-pc-windows-gnu/release/melodium .
+    - cp target/x86_64-pc-windows-gnu/release/melodium.exe .
   artifacts:
     name: "x86_64-pc-windows-gnu"
     paths:
-      - melodium
+      - melodium.exe
       - std/
     expire_in: 1 day
 #
@@ -145,7 +147,7 @@ melodium_reference:
   artifacts:
     name: "reference"
     paths:
-      - doc/
+      - doc/book
     expire_in: 1 day
 
 pages:
