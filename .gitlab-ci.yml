@@ -21,54 +21,81 @@ stages:
 
 image: rust:latest
 
-# Installing ALSA dependency
-before_script:
+.x86_64-unknown-linux-gnu:
+  before_script:
     - apt-get update
     - apt-get install -y libasound2-dev
+  cache:
+    key: $CI_COMMIT_SHA
+    paths:
+    - target/debug/melodium
+    policy: pull
 
-# Use cargo to build the project
 rust_build_x86_64-unknown-linux-gnu:
   stage: rust
   script:
-    - rustc --version && cargo --version  # Print version info for debugging
+    - rustc --version && cargo --version 
     - cargo build --verbose
+    - cargo build --release --target x86_64-unknown-linux-gnu
+    - cp target/x86_64-unknown-linux-gnu/release/melodium .
+  extends: .x86_64-unknown-linux-gnu
+  cache:
+    policy: pull-push
   artifacts:
+    name: "x86_64-unknown-linux-gnu"
     paths:
-    - target/debug/melodium
+      - melodium
+      - std/
     expire_in: 1 day
 
 rust_unit_tests:
- stage: rust
- script:
-   - cargo test --tests --verbose
+  stage: rust
+  script:
+    - cargo test --tests --verbose
 
 rust_doc_tests:
- stage: rust
- script:
-   - cargo test --doc --verbose
+  stage: rust
+  script:
+    - cargo test --doc --verbose
 
 rust_build_i686-unknown-linux-gnu:
- stage: rust
- before_script:
+  stage: rust
+  before_script:
    - dpkg --add-architecture i386
    - apt-get update
    - apt-get install -y gcc-multilib libasound2-dev:i386
    - rustup target add i686-unknown-linux-gnu
- script:
-   - rustc --version && cargo --version  # Print version info for debugging
+  script:
+   - rustc --version && cargo --version
    - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --verbose --target i686-unknown-linux-gnu
+   - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --release --target i686-unknown-linux-gnu
+   - cp target/i686-unknown-linux-gnu/release/melodium .
+  artifacts:
+    name: "i686-unknown-linux-gnu"
+    paths:
+      - melodium
+      - std/
+    expire_in: 1 day
 
 rust_build_aarch64-unknown-linux-gnu:
- stage: rust
- before_script:
+  stage: rust
+  before_script:
    - dpkg --add-architecture arm64
    - apt-get update
    - apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross libc-dev:arm64 libasound2-dev:arm64
    - ln -s /usr/aarch64-linux-gnu/lib/libgcc_s.so.1 /usr/aarch64-linux-gnu/lib/libgcc_s.so
    - rustup target add aarch64-unknown-linux-gnu
- script:
-   - rustc --version && cargo --version  # Print version info for debugging
+  script:
+   - rustc --version && cargo --version 
    - PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld cargo build --verbose --target aarch64-unknown-linux-gnu
+   - PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld cargo build --release --target aarch64-unknown-linux-gnu
+   - cp target/aarch64-unknown-linux-gnu/release/melodium .
+  artifacts:
+    name: "aarch64-unknown-linux-gnu"
+    paths:
+      - melodium
+      - std/
+    expire_in: 1 day
 
 rust_build_x86_64-pc-windows-gnu:
   stage: rust
@@ -77,8 +104,16 @@ rust_build_x86_64-pc-windows-gnu:
     - apt-get install -y mingw-w64
     - rustup target add x86_64-pc-windows-gnu
   script:
-    - rustc --version && cargo --version  # Print version info for debugging
+    - rustc --version && cargo --version 
     - cargo build --verbose --target x86_64-pc-windows-gnu
+    - cargo build --release --target x86_64-pc-windows-gnu
+    - cp target/x86_64-pc-windows-gnu/release/melodium .
+  artifacts:
+    name: "x86_64-pc-windows-gnu"
+    paths:
+      - melodium
+      - std/
+    expire_in: 1 day
 #
 #rust_benchmark:
 #  stage: benchmark_rust
@@ -87,14 +122,38 @@ rust_build_x86_64-pc-windows-gnu:
 
 melodium_tests:
   stage: melodium
+  extends: .x86_64-unknown-linux-gnu
+  needs: ["rust_build_x86_64-unknown-linux-gnu"]
   script:
     - melodium-tests/run.sh
+
+melodium_reference:
+  stage: melodium
+  variables:
+    MELODIUM_DOC_TITLE: 'Mélodium Standard Reference'
+    MELODIUM_DOC_AUTHOR: 'Quentin VIGNAUD'
+  extends: .x86_64-unknown-linux-gnu
+  needs: ["rust_build_x86_64-unknown-linux-gnu"]
+  script:
+    - mkdir bin
+    - export PATH=$PWD/bin:$PATH
+    - curl -sSL https://repo.melodium.tech/tooling/mdbook/mdbook-v0.4.18-x86_64-unkown-linux-gnu.tar.bz2 | tar -xj --directory=bin
+    - curl -sSL https://repo.melodium.tech/tooling/mdbook-mermaid/mdbook-mermaid-v0.11.0-x86_64-unkown-linux-gnu.tar.bz2 | tar -xj --directory=bin
+    - target/debug/melodium --stdlib ${PWD}/std/ --doc doc/ ${PWD}/std/
+    - bin/mdbook-mermaid install doc/
+    - bin/mdbook build doc/
+  artifacts:
+    name: "reference"
+    paths:
+      - doc/
+    expire_in: 1 day
 
 pages:
   stage: deploy
   variables:
     MELODIUM_DOC_TITLE: 'Mélodium Standard Reference'
     MELODIUM_DOC_AUTHOR: 'Quentin VIGNAUD'
+  extends: .x86_64-unknown-linux-gnu
   script:
     - mkdir bin
     - export PATH=$PWD/bin:$PATH

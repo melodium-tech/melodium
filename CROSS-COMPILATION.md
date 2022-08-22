@@ -14,8 +14,15 @@ Here is explained how to cross compile Mélodium from a x86_64-unknown-linux-gnu
 
 For i686-unknown-linux-gnu we need other GCC libs, pkg-config, and Alsa i386 dev to be installed, `apt install -y gcc-multilib pkg-config-i686-linux-gnu libasound2-dev:i386`.
 
+Preparation:
 ```sh
+dpkg --add-architecture i386
+apt-get update
+apt install -y gcc-multilib pkg-config-i686-linux-gnu libasound2-dev:i386
 rustup target add i686-unknown-linux-gnu
+```
+Compilation:
+```sh
 PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --release --target i686-unknown-linux-gnu
 ```
 
@@ -30,14 +37,18 @@ cargo build --release --target x86_64-unknown-linux-gnu
 
 ## aarch64-unknown-linux-gnu
 
-> Not working at this point, will be studied later as ARM64 is not a main goal at this point of the project.
-> Direct compilation _on_ ARM64 machine works.
-
 For aarch64-unknown-linux-gnu we need other GCC libs and pkg-config for aarch64 to be installed, `apt install -y gcc-multilib pkg-config-aarch64-linux-gnu libasound2-dev:arm64`.
 
+Preparation:
 ```sh
+dpkg --add-architecture arm64
+apt-get update
+apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross libc-dev:arm64 libasound2-dev:arm64
 rustup target add aarch64-unknown-linux-gnu
-PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config cargo build --release --target aarch64-unknown-linux-gnu
+```
+Compilation:
+```sh
+PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld cargo build --verbose --target aarch64-unknown-linux-gnu
 ```
 
 ## i686-pc-windows-gnu
@@ -46,8 +57,12 @@ PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config cargo build --release --target 
 
 A.k.a. Windows 32 bits, compiling for i686-pc-windows-gnu requires MinGW to be installed, `apt install -y mingw-w64`.
 
+Preparation:
 ```sh
 rustup target add i686-pc-windows-gnu
+```
+Compilation:
+```sh
 cargo build --release --target i686-pc-windows-gnu
 ```
 
