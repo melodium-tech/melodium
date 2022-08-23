@@ -37,7 +37,7 @@ image: rust:latest
     - windows
     - windows-1809
   before_script:
-    - choco install rust
+    - choco install rust --yes
 
 rust_build_x86_64-unknown-linux-gnu:
   stage: rust
