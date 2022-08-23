@@ -31,6 +31,14 @@ image: rust:latest
     - target/debug/melodium
     policy: pull
 
+.pc-windows-gnu:
+  tags:
+    - shared-windows
+    - windows
+    - windows-1809
+  before_script:
+    - choco install rust
+
 rust_build_x86_64-unknown-linux-gnu:
   stage: rust
   script:
@@ -116,6 +124,21 @@ rust_build_x86_64-pc-windows-gnu:
       - melodium.exe
       - std/
     expire_in: 1 day
+
+rust_build_i686-pc-windows-gnu:
+  stage: rust
+  extends: .pc-windows-gnu
+  script:
+    - rustc --version && cargo --version
+    - cargo build --release --target i686-pc-windows-gnu
+    - cp target/i686-pc-windows-gnu/release/melodium.exe .
+  artifacts:
+    name: "i686-pc-windows-gnu"
+    paths:
+      - melodium.exe
+      - std/
+    expire_in: 1 day
+
 #
 #rust_benchmark:
 #  stage: benchmark_rust
