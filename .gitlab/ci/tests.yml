@@ -32,4 +32,4 @@ test:melodium:general:
     - apt-get update
     - apt-get install -y libasound2
   script:
-    - PATH="$PWD/target/x86_64-unknown-linux-gnu/debug:$PATH" melodium-tests/run.sh
+    - PATH="${PWD}/target/x86_64-unknown-linux-gnu/debug:${PATH}" melodium-tests/run.sh
