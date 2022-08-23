@@ -33,6 +33,9 @@ doc:melodium:doc:
   stage: doc
   extends: .debian-host
   needs: []
+  before_script:
+    - apt-get update
+    - apt-get install -y libasound2-dev
   script:
     - cargo doc --no-deps
     - mv target/doc doc

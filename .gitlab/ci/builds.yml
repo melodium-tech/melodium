@@ -5,6 +5,21 @@ include:
 
 build:debug:x86_64-unknown-linux-gnu:
   stage: build
+  extends: 
+    - .debian-host
+    - .debug-cache
+  before_script:
+    - apt-get update
+    - apt-get install -y libasound2-dev
+  script:
+    - rustc --version && cargo --version 
+    - cargo build --verbose
+    - cargo build --target x86_64-unknown-linux-gnu
+  cache:
+    policy: pull-push
+
+build:release:x86_64-unknown-linux-gnu:
+  stage: build
   extends: .debian-host
   before_script:
     - apt-get update
@@ -12,10 +27,13 @@ build:debug:x86_64-unknown-linux-gnu:
   script:
     - rustc --version && cargo --version 
     - cargo build --verbose
-    - cargo build --debug --target x86_64-unknown-linux-gnu
+    - cargo build --release --target x86_64-unknown-linux-gnu
     - cp target/x86_64-unknown-linux-gnu/release/melodium .
-  cache:
-    policy: pull-push
+  artifacts:
+    name: "x86_64-unknown-linux-gnu"
+    paths:
+      - target/x86_64-unknown-linux-gnu/release/melodium
+    expire_in: 1 hour
 
 build:release:i686-unknown-linux-gnu:
   stage: build
@@ -68,6 +86,22 @@ build:release:x86_64-pc-windows-gnu:
       - target/x86_64-pc-windows-gnu/release/melodium.exe
     expire_in: 1 hour
 
+build:release:x86_64-pc-windows-msvc:
+  stage: build
+  extends: .windows-host
+  before_script:
+    - choco install rust-ms --yes
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo build --release --target x86_64-pc-windows-msvc
+    - cp target/x86_64-pc-windows-msvc/release/melodium.exe .
+  artifacts:
+    name: "x86_64-pc-windows-msvc"
+    paths:
+      - target/x86_64-pc-windows-msvc/release/melodium.exe
+    expire_in: 1 hour
+
 build:release:i686-pc-windows-gnu:
   stage: build
   extends: .windows-host
@@ -82,4 +116,20 @@ build:release:i686-pc-windows-gnu:
     name: "i686-pc-windows-gnu"
     paths:
       - target/i686-pc-windows-gnu/release/melodium.exe
+    expire_in: 1 hour
+
+build:release:i686-pc-windows-msvc:
+  stage: build
+  extends: .windows-host
+  before_script:
+    - choco install rust-ms --yes --x86
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo build --release --target i686-pc-windows-msvc
+    - cp target/i686-pc-windows-msvc/release/melodium.exe .
+  artifacts:
+    name: "i686-pc-windows-msvc"
+    paths:
+      - target/i686-pc-windows-msvc/release/melodium.exe
     expire_in: 1 hour
