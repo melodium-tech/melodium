@@ -53,7 +53,7 @@ build:release:aarch64-unknown-linux-gnu:
     expire_in: 1 hour
 
 build:release:x86_64-pc-windows-gnu:
-  stage: rust
+  stage: build
   extends: .debian-host
   before_script:
     - apt-get update
@@ -69,7 +69,7 @@ build:release:x86_64-pc-windows-gnu:
     expire_in: 1 hour
 
 build:release:i686-pc-windows-gnu:
-  stage: rust
+  stage: build
   extends: .windows-host
   before_script:
     - choco install mingw rust --yes --x86
