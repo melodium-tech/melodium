@@ -127,7 +127,7 @@ rust_build_i686-pc-windows-gnu:
   stage: rust
   extends: .pc-windows
   before_script:
-    - choco install rust --yes --x86
+    - choco install mingw rust --yes --x86
   script:
     - rustc --version
     - cargo --version
