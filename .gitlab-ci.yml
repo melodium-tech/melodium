@@ -31,13 +31,13 @@ image: rust:latest
     - target/debug/melodium
     policy: pull
 
-.pc-windows-gnu:
+.pc-windows-msvc:
   tags:
     - shared-windows
     - windows
     - windows-1809
   before_script:
-    - choco install rust --yes
+    - choco install rustup.install --yes
 
 rust_build_x86_64-unknown-linux-gnu:
   stage: rust
@@ -125,17 +125,17 @@ rust_build_x86_64-pc-windows-gnu:
       - std/
     expire_in: 1 day
 
-rust_build_i686-pc-windows-gnu:
+rust_build_i686-pc-windows-msvc:
   stage: rust
-  extends: .pc-windows-gnu
+  extends: .pc-windows-msvc
   script:
     - rustc --version
     - cargo --version
-    - rustup target add i686-pc-windows-gnu
-    - cargo build --release --target i686-pc-windows-gnu
-    - cp target/i686-pc-windows-gnu/release/melodium.exe .
+    - rustup toolchain install stable-i686-pc-windows-msvc
+    - cargo build --release --target i686-pc-windows-msvc
+    - cp target/i686-pc-windows-msvc/release/melodium.exe .
   artifacts:
-    name: "i686-pc-windows-gnu"
+    name: "i686-pc-windows-msvc"
     paths:
       - melodium.exe
       - std/
