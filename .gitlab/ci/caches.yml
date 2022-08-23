@@ -1,0 +1,7 @@
+
+.debug-cache:
+  cache:
+    key: $CI_COMMIT_SHA
+    paths:
+    - target/debug/*/melodium*
+    policy: pull

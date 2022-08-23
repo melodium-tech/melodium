@@ -1,0 +1,35 @@
+
+include:
+  - local: /.gitlab/ci/builds.yml
+
+test:rust:unit_tests:
+  stage: test
+  extends: .debian-host
+  needs: []
+  before_script:
+    - apt-get update
+    - apt-get install -y libasound2-dev
+  script:
+    - cargo test --tests --verbose
+
+test:rust:doc_tests:
+  stage: test
+  extends: .debian-host
+  needs: []
+  before_script:
+    - apt-get update
+    - apt-get install -y libasound2-dev
+  script:
+    - cargo test --doc --verbose
+
+test:melodium:general:
+  stage: test
+  extends: 
+    - .debian-host
+    - .debug-cache
+  before_script:
+    - apt-get update
+    - apt-get install -y libasound2
+  needs: [ build:debug:x86_64-unknown-linux-gnu ]
+  script:
+    - melodium-tests/run.sh
