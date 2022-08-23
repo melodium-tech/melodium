@@ -129,7 +129,9 @@ rust_build_i686-pc-windows-gnu:
   stage: rust
   extends: .pc-windows-gnu
   script:
-    - rustc --version && cargo --version
+    - rustc --version
+    - cargo --version
+    - rustup target add i686-pc-windows-gnu
     - cargo build --release --target i686-pc-windows-gnu
     - cp target/i686-pc-windows-gnu/release/melodium.exe .
   artifacts:
