@@ -5,3 +5,16 @@
     paths:
     - target/x86_64-unknown-linux-gnu/debug/melodium
     policy: pull
+
+.release-cache:
+  cache:
+    key: $CI_COMMIT_SHA
+    paths:
+    - target/x86_64-unknown-linux-gnu/release/melodium
+    - target/i686-unknown-linux-gnu/release/melodium
+    - target/aarch64-unknown-linux-gnu/release/melodium
+    - target/x86_64-pc-windows-gnu/release/melodium.exe
+    - target/x86_64-pc-windows-msvc/release/melodium.exe
+    - target/i686-pc-windows-gnu/release/melodium.exe
+    - target/i686-pc-windows-msvc/release/melodium.exe
+    policy: push

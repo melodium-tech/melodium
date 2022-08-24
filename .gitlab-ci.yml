@@ -3,9 +3,10 @@ include:
   - local: /.gitlab/ci/builds.yml
   - local: /.gitlab/ci/tests.yml
   - local: /.gitlab/ci/docs.yml
+  - local: /.gitlab/ci/packages.yml
 
 stages:
   - build
   - test
   - doc
-
+  - package
