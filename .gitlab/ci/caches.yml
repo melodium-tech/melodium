@@ -3,5 +3,5 @@
   cache:
     key: $CI_COMMIT_SHA
     paths:
-    - target/debug/*/melodium*
+    - target/x86_64-unknown-linux-gnu/debug/melodium
     policy: pull
