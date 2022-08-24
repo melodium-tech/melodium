@@ -8,6 +8,8 @@ build:debug:x86_64-unknown-linux-gnu:
   extends: 
     - .debian-host
     - .debug-cache
+  cache:
+    policy: push
   before_script:
     - apt-get update
     - apt-get install -y libasound2-dev
@@ -16,8 +18,10 @@ build:debug:x86_64-unknown-linux-gnu:
     - cargo build --verbose
     - cargo build --target x86_64-unknown-linux-gnu
     - ls target/x86_64-unknown-linux-gnu/debug
-  cache:
-    policy: push
+  artifacts:
+    paths:
+      - target/x86_64-unknown-linux-gnu/debug/melodium
+    expire_in: 1 hour
 
 build:release:x86_64-unknown-linux-gnu:
   stage: build
@@ -32,6 +36,10 @@ build:release:x86_64-unknown-linux-gnu:
     - cargo build --verbose
     - cargo build --release --target x86_64-unknown-linux-gnu
     - ls target/x86_64-unknown-linux-gnu/release
+  artifacts:
+    paths:
+      - target/x86_64-unknown-linux-gnu/release/melodium
+    expire_in: 1 hour
 
 build:release:i686-unknown-linux-gnu:
   stage: build
@@ -47,6 +55,10 @@ build:release:i686-unknown-linux-gnu:
    - rustc --version && cargo --version
    - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --release --target i686-unknown-linux-gnu
    - ls target/i686-unknown-linux-gnu/release
+  artifacts:
+    paths:
+      - target/i686-unknown-linux-gnu/release/melodium
+    expire_in: 1 hour
 
 build:release:aarch64-unknown-linux-gnu:
   stage: build
@@ -63,6 +75,10 @@ build:release:aarch64-unknown-linux-gnu:
    - rustc --version && cargo --version 
    - PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld cargo build --release --target aarch64-unknown-linux-gnu
    - ls target/aarch64-unknown-linux-gnu/release
+  artifacts:
+    paths:
+      - target/aarch64-unknown-linux-gnu/release/melodium
+    expire_in: 1 hour
 
 build:release:x86_64-pc-windows-gnu:
   stage: build
@@ -77,6 +93,10 @@ build:release:x86_64-pc-windows-gnu:
     - rustc --version && cargo --version 
     - cargo build --release --target x86_64-pc-windows-gnu
     - ls target/x86_64-pc-windows-gnu/release
+  artifacts:
+    paths:
+      - target/x86_64-pc-windows-gnu/release/melodium.exe
+    expire_in: 1 hour
 
 build:release:x86_64-pc-windows-msvc:
   stage: build
@@ -90,6 +110,10 @@ build:release:x86_64-pc-windows-msvc:
     - cargo --version
     - cargo build --release --target x86_64-pc-windows-msvc
     - ls target/x86_64-pc-windows-msvc/release
+  artifacts:
+    paths:
+      - target/x86_64-pc-windows-msvc/release/melodium.exe
+    expire_in: 1 hour
 
 build:release:i686-pc-windows-gnu:
   stage: build
@@ -103,6 +127,10 @@ build:release:i686-pc-windows-gnu:
     - cargo --version
     - cargo build --release --target i686-pc-windows-gnu
     - ls target/i686-pc-windows-gnu/release
+  artifacts:
+    paths:
+      - target/i686-pc-windows-gnu/release/melodium.exe
+    expire_in: 1 hour
 
 build:release:i686-pc-windows-msvc:
   stage: build
@@ -116,3 +144,7 @@ build:release:i686-pc-windows-msvc:
     - cargo --version
     - cargo build --release --target i686-pc-windows-msvc
     - ls target/i686-pc-windows-msvc/release
+  artifacts:
+    paths:
+      - target/i686-pc-windows-msvc/release/melodium.exe
+    expire_in: 1 hour

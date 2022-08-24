@@ -7,7 +7,7 @@ package:zips:
   extends: 
     - .debian-host
     - .release-cache
-  needs: 
+  dependencies: 
     - build:release:x86_64-unknown-linux-gnu
     - build:release:i686-unknown-linux-gnu
     - build:release:aarch64-unknown-linux-gnu
@@ -24,8 +24,6 @@ package:zips:
     - .gitlab/ci/package.sh -t i686-pc-windows-gnu -v $CI_COMMIT_SHORT_SHA -e melodium.exe -z zip
     - .gitlab/ci/package.sh -t i686-pc-windows-msvc -v $CI_COMMIT_SHORT_SHA -e melodium.exe -z zip
     - sha256sum *.tar.gz *.zip > SHA256SUMS
-  cache:
-    policy: pull
   artifacts:
     name: "packages-release-zips-$CI_COMMIT_SHORT_SHA"
     paths:
