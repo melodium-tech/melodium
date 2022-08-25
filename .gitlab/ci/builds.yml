@@ -9,14 +9,13 @@ build:debug:x86_64-unknown-linux-gnu:
     - .debian-host
     - .cargo-cache
   cache:
-    policy: push
+    policy: pull-push
   before_script:
     - apt-get update
     - apt-get install -y libasound2-dev
   script:
     - rustc --version && cargo --version 
-    - cargo build --verbose
-    - cargo build --target x86_64-unknown-linux-gnu
+    - cargo build --locked --target x86_64-unknown-linux-gnu
     - ls target/x86_64-unknown-linux-gnu/debug
   artifacts:
     paths:
@@ -33,8 +32,7 @@ build:release:x86_64-unknown-linux-gnu:
     - apt-get install -y libasound2-dev
   script:
     - rustc --version && cargo --version 
-    - cargo build --verbose
-    - cargo build --release --target x86_64-unknown-linux-gnu
+    - cargo build --locked --release --target x86_64-unknown-linux-gnu
     - ls target/x86_64-unknown-linux-gnu/release
   artifacts:
     paths:
@@ -53,7 +51,7 @@ build:release:i686-unknown-linux-gnu:
    - rustup target add i686-unknown-linux-gnu
   script:
    - rustc --version && cargo --version
-   - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --release --target i686-unknown-linux-gnu
+   - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --locked --release --target i686-unknown-linux-gnu
    - ls target/i686-unknown-linux-gnu/release
   artifacts:
     paths:
@@ -73,7 +71,7 @@ build:release:aarch64-unknown-linux-gnu:
    - rustup target add aarch64-unknown-linux-gnu
   script:
    - rustc --version && cargo --version 
-   - PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld cargo build --release --target aarch64-unknown-linux-gnu
+   - PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld cargo build --locked --release --target aarch64-unknown-linux-gnu
    - ls target/aarch64-unknown-linux-gnu/release
   artifacts:
     paths:
@@ -91,7 +89,7 @@ build:release:x86_64-pc-windows-gnu:
     - rustup target add x86_64-pc-windows-gnu
   script:
     - rustc --version && cargo --version 
-    - cargo build --release --target x86_64-pc-windows-gnu
+    - cargo build --locked --release --target x86_64-pc-windows-gnu
     - ls target/x86_64-pc-windows-gnu/release
   artifacts:
     paths:
@@ -108,7 +106,7 @@ build:release:x86_64-pc-windows-msvc:
   script:
     - rustc --version
     - cargo --version
-    - cargo build --release --target x86_64-pc-windows-msvc
+    - cargo build --locked --release --target x86_64-pc-windows-msvc
     - ls target/x86_64-pc-windows-msvc/release
   artifacts:
     paths:
@@ -125,7 +123,7 @@ build:release:i686-pc-windows-gnu:
   script:
     - rustc --version
     - cargo --version
-    - cargo build --release --target i686-pc-windows-gnu
+    - cargo build --locked --release --target i686-pc-windows-gnu
     - ls target/i686-pc-windows-gnu/release
   artifacts:
     paths:
@@ -142,7 +140,7 @@ build:release:i686-pc-windows-msvc:
   script:
     - rustc --version
     - cargo --version
-    - cargo build --release --target i686-pc-windows-msvc
+    - cargo build --locked --release --target i686-pc-windows-msvc
     - ls target/i686-pc-windows-msvc/release
   artifacts:
     paths:

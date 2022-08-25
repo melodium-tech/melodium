@@ -29,8 +29,10 @@ test:melodium:general:
   extends: 
     - .debian-host
     - .cargo-cache
-  needs: []
-  dependencies: [ build:debug:x86_64-unknown-linux-gnu ]
+  needs:
+    - build:debug:x86_64-unknown-linux-gnu
+  dependencies: 
+    - build:debug:x86_64-unknown-linux-gnu
   before_script:
     - apt-get update
     - apt-get install -y libasound2
