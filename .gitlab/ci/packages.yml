@@ -6,7 +6,6 @@ package:zips:
   stage: package
   extends: 
     - .debian-host
-    - .release-cache
   needs: []
   dependencies: 
     - build:release:x86_64-unknown-linux-gnu

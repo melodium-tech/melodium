@@ -28,7 +28,7 @@ test:melodium:general:
   stage: test
   extends: 
     - .debian-host
-    - .debug-cache
+    - .cargo-cache
   needs: []
   dependencies: [ build:debug:x86_64-unknown-linux-gnu ]
   before_script:

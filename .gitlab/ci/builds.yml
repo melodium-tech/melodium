@@ -7,7 +7,7 @@ build:debug:x86_64-unknown-linux-gnu:
   stage: build
   extends: 
     - .debian-host
-    - .debug-cache
+    - .cargo-cache
   cache:
     policy: push
   before_script:
@@ -27,7 +27,7 @@ build:release:x86_64-unknown-linux-gnu:
   stage: build
   extends:
     - .debian-host
-    - .release-cache
+    - .cargo-cache
   before_script:
     - apt-get update
     - apt-get install -y libasound2-dev
@@ -45,7 +45,7 @@ build:release:i686-unknown-linux-gnu:
   stage: build
   extends:
     - .debian-host
-    - .release-cache
+    - .cargo-cache
   before_script:
    - dpkg --add-architecture i386
    - apt-get update
@@ -64,7 +64,7 @@ build:release:aarch64-unknown-linux-gnu:
   stage: build
   extends:
     - .debian-host
-    - .release-cache
+    - .cargo-cache
   before_script:
    - dpkg --add-architecture arm64
    - apt-get update
@@ -84,7 +84,7 @@ build:release:x86_64-pc-windows-gnu:
   stage: build
   extends:
     - .debian-host
-    - .release-cache
+    - .cargo-cache
   before_script:
     - apt-get update
     - apt-get install -y mingw-w64
@@ -102,7 +102,7 @@ build:release:x86_64-pc-windows-msvc:
   stage: build
   extends:
     - .windows-host
-    - .release-cache
+    - .cargo-cache
   before_script:
     - choco install rust-ms --yes
   script:
@@ -119,7 +119,7 @@ build:release:i686-pc-windows-gnu:
   stage: build
   extends:
     - .windows-host
-    - .release-cache
+    - .cargo-cache
   before_script:
     - choco install mingw rust --yes --x86
   script:
@@ -136,7 +136,7 @@ build:release:i686-pc-windows-msvc:
   stage: build
   extends:
     - .windows-host
-    - .release-cache
+    - .cargo-cache
   before_script:
     - choco install rust-ms --yes --x86
   script:
