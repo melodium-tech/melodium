@@ -15,6 +15,9 @@ package:zips:
     - build:release:x86_64-pc-windows-msvc
     - build:release:i686-pc-windows-gnu
     - build:release:i686-pc-windows-msvc
+  before_script:
+    - apt-get update
+    - apt-get install -y zip
   script:
     - .gitlab/ci/package.sh -t x86_64-unknown-linux-gnu -v $CI_COMMIT_SHORT_SHA -e melodium -z tgz
     - .gitlab/ci/package.sh -t i686-unknown-linux-gnu -v $CI_COMMIT_SHORT_SHA -e melodium -z tgz
