@@ -4,7 +4,9 @@ include:
 
 test:rust:unit_tests:
   stage: test
-  extends: .debian-host
+  extends:
+    - .debian-host
+    - .cargo-cache
   needs: []
   dependencies: []
   before_script:
@@ -15,7 +17,9 @@ test:rust:unit_tests:
 
 test:rust:doc_tests:
   stage: test
-  extends: .debian-host
+  extends:
+    - .debian-host
+    - .cargo-cache
   needs: []
   dependencies: []
   before_script:
