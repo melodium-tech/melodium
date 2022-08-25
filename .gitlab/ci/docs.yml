@@ -10,7 +10,8 @@ doc:melodium:reference:
   extends: 
     - .debian-host
     - .debug-cache
-  needs: [ build:debug:x86_64-unknown-linux-gnu ]
+  needs: []
+  dependencies: [ build:debug:x86_64-unknown-linux-gnu ]
   before_script:
     - apt-get update
     - apt-get install -y libasound2
