@@ -13,7 +13,7 @@ test:rust:unit_tests:
     - apt-get update
     - apt-get install -y libasound2-dev
   script:
-    - cargo test --tests --verbose
+    - cargo test --tests --locked --verbose
 
 test:rust:doc_tests:
   stage: test
@@ -26,7 +26,7 @@ test:rust:doc_tests:
     - apt-get update
     - apt-get install -y libasound2-dev
   script:
-    - cargo test --doc --verbose
+    - cargo test --doc --locked --verbose
 
 test:melodium:general:
   stage: test

@@ -26,23 +26,25 @@ package:zips:
     - apt-get update
     - apt-get install -y zip
   script:
-    - .gitlab/ci/package.sh -t x86_64-unknown-linux-gnu -v $CI_COMMIT_SHORT_SHA -e melodium -z tgz
-    - .gitlab/ci/package.sh -t i686-unknown-linux-gnu -v $CI_COMMIT_SHORT_SHA -e melodium -z tgz
-    - .gitlab/ci/package.sh -t aarch64-unknown-linux-gnu -v $CI_COMMIT_SHORT_SHA -e melodium -z tgz
-    - .gitlab/ci/package.sh -t x86_64-pc-windows-gnu -v $CI_COMMIT_SHORT_SHA -e melodium.exe -z zip
-    - .gitlab/ci/package.sh -t x86_64-pc-windows-msvc -v $CI_COMMIT_SHORT_SHA -e melodium.exe -z zip
-    - .gitlab/ci/package.sh -t i686-pc-windows-gnu -v $CI_COMMIT_SHORT_SHA -e melodium.exe -z zip
-    - .gitlab/ci/package.sh -t i686-pc-windows-msvc -v $CI_COMMIT_SHORT_SHA -e melodium.exe -z zip
+    - export VERSION=${CI_COMMIT_TAG}
+    - export VERSION=${VERSION:-$CI_COMMIT_SHORT_SHA}
+    - .gitlab/ci/package.sh -t x86_64-unknown-linux-gnu -v $VERSION -e melodium -z tgz
+    - .gitlab/ci/package.sh -t i686-unknown-linux-gnu -v $VERSION -e melodium -z tgz
+    - .gitlab/ci/package.sh -t aarch64-unknown-linux-gnu -v $VERSION -e melodium -z tgz
+    - .gitlab/ci/package.sh -t x86_64-pc-windows-gnu -v $VERSION -e melodium.exe -z zip
+    - .gitlab/ci/package.sh -t x86_64-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
+    - .gitlab/ci/package.sh -t i686-pc-windows-gnu -v $VERSION -e melodium.exe -z zip
+    - .gitlab/ci/package.sh -t i686-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
     - sha256sum *.tar.gz *.zip > SHA256SUMS
   artifacts:
     name: "packages-release-zips-$CI_COMMIT_SHORT_SHA"
     paths:
       - SHA256SUMS
-      - melodium-${CI_COMMIT_SHORT_SHA}_x86_64-unknown-linux-gnu.tar.gz
-      - melodium-${CI_COMMIT_SHORT_SHA}_i686-unknown-linux-gnu.tar.gz
-      - melodium-${CI_COMMIT_SHORT_SHA}_aarch64-unknown-linux-gnu.tar.gz
-      - melodium-${CI_COMMIT_SHORT_SHA}_x86_64-pc-windows-gnu.zip
-      - melodium-${CI_COMMIT_SHORT_SHA}_x86_64-pc-windows-msvc.zip
-      - melodium-${CI_COMMIT_SHORT_SHA}_i686-pc-windows-gnu.zip
-      - melodium-${CI_COMMIT_SHORT_SHA}_i686-pc-windows-msvc.zip
+      - melodium-*_x86_64-unknown-linux-gnu.tar.gz
+      - melodium-*_i686-unknown-linux-gnu.tar.gz
+      - melodium-*_aarch64-unknown-linux-gnu.tar.gz
+      - melodium-*_x86_64-pc-windows-gnu.zip
+      - melodium-*_x86_64-pc-windows-msvc.zip
+      - melodium-*_i686-pc-windows-gnu.zip
+      - melodium-*_i686-pc-windows-msvc.zip
     expire_in: 1 day
