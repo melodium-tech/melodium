@@ -4,9 +4,11 @@ include:
   - local: /.gitlab/ci/tests.yml
   - local: /.gitlab/ci/docs.yml
   - local: /.gitlab/ci/packages.yml
+  - local: /.gitlab/ci/releases.yml
 
 stages:
   - build
   - test
   - doc
   - package
+  - release

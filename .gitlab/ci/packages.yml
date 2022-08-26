@@ -28,6 +28,7 @@ package:zips:
   script:
     - export VERSION=${CI_COMMIT_TAG}
     - export VERSION=${VERSION:-$CI_COMMIT_SHORT_SHA}
+    - export VERSION=$(echo $VERSION | sed 's/^v//')
     - .gitlab/ci/package.sh -t x86_64-unknown-linux-gnu -v $VERSION -e melodium -z tgz
     - .gitlab/ci/package.sh -t i686-unknown-linux-gnu -v $VERSION -e melodium -z tgz
     - .gitlab/ci/package.sh -t aarch64-unknown-linux-gnu -v $VERSION -e melodium -z tgz
@@ -36,6 +37,7 @@ package:zips:
     - .gitlab/ci/package.sh -t i686-pc-windows-gnu -v $VERSION -e melodium.exe -z zip
     - .gitlab/ci/package.sh -t i686-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
     - sha256sum *.tar.gz *.zip > SHA256SUMS
+    - echo "VERSION=$VERSION" >> variables.env
   artifacts:
     name: "packages-release-zips-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -48,3 +50,5 @@ package:zips:
       - melodium-*_i686-pc-windows-gnu.zip
       - melodium-*_i686-pc-windows-msvc.zip
     expire_in: 1 day
+    reports:
+      dotenv: variables.env
