@@ -15,37 +15,37 @@ release:gitlab:
     description: 'CHANGELOG.md'
     assets:
       links:
-        - name: Reference
-          url: "https://doc.melodium.tech/$VERSION/"
-          link_type: other
-        - name: Repository
-          url: "https://repo.melodium.tech/zips/$VERSION/"
-          link_type: other
-        - name: docs.rs
-          url: "https://docs.rs/melodium/$VERSION/melodium/"
-          link_type: other
-        - name: crates.io
-          url: "https://crates.io/crates/melodium/$VERSION"
-          link_type: other
-        - name: Linux 64 bits (x86_64)
-          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-unknown-linux-gnu.tar.gz"
+        - name: Windows 32 bits (i686, MSVC compiler)
+          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-msvc.zip"
           link_type: package
-        - name: Linux 32 bits (i686)
-          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-unknown-linux-gnu.tar.gz"
+        - name: Windows 32 bits (i686, GNU compiler)
+          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-gnu.zip"
+          link_type: package
+        - name: Windows 64 bits (x86_64, MSVC compiler)
+          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-pc-windows-msvc.zip"
+          link_type: package
+        - name: Windows 64 bits (x86_64, GNU compiler)
+          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-pc-windows-gnu.zip"
           link_type: package
         - name: Linux ARM 64 bits (arm64)
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_aarch64-unknown-linux-gnu.tar.gz"
           link_type: package
-        - name: Windows 64 bits (x86_64, GNU flavor)
-          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-pc-windows-gnu.zip"
+        - name: Linux 32 bits (i686)
+          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-unknown-linux-gnu.tar.gz"
           link_type: package
-        - name: Windows 64 bits (x86_64, MSVC flavor)
-          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-pc-windows-msvc.zip"
+        - name: Linux 64 bits (x86_64)
+          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-unknown-linux-gnu.tar.gz"
           link_type: package
-        - name: Windows 32 bits (i686, GNU flavor)
-          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-gnu.zip"
-          link_type: package
-        - name: Windows 32 bits (i686, MSVC flavor)
-          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-msvc.zip"
-          link_type: package
+        - name: crates.io
+          url: "https://crates.io/crates/melodium/$VERSION"
+          link_type: other
+        - name: docs.rs
+          url: "https://docs.rs/melodium/$VERSION/melodium/"
+          link_type: other
+        - name: Repository
+          url: "https://repo.melodium.tech/zips/$VERSION/"
+          link_type: other
+        - name: Reference
+          url: "https://doc.melodium.tech/$VERSION/"
+          link_type: other
 
