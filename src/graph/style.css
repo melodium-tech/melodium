@@ -36,7 +36,7 @@
 }
 
 .input:hover, .output:hover, .param:hover {
-    filter: drop-shadow(0 0 5px blue);
+    filter: drop-shadow(0 0 5px black);
 }
 
 .input-sym, .output-sym {

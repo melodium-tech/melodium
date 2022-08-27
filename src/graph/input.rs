@@ -17,7 +17,7 @@ impl Input {
         svg.push_str(&format!(r#"<g class="input" transform="translate({} {})">"#, x, y));
     
         svg.push_str(&format!(r#"<circle class="input-sym" cx="0" cy="0" r="5" />"#));
-        svg.push_str(&format!(r#"<text class="input-name" text-anchor="start" x="10" y="5">{}</text>"#, input.name()));
+        svg.push_str(&format!(r#"<text class="input-name" text-anchor="start" x="10" y="2.5">{}</text>"#, input.name()));
         
         svg.push_str("</g>");
     
@@ -31,7 +31,7 @@ impl Input {
         svg.push_str(&format!(r#"<g class="input" transform="translate({} {})">"#, x, y));
     
         svg.push_str(&format!(r#"<circle class="io self-input" cx="0" cy="0" r="5"/>"#));
-        svg.push_str(&format!(r#"<text class="io-name self-input-name" text-anchor="end" x="-10" y="0">{}</text>"#, input.name()));
+        svg.push_str(&format!(r#"<text class="io-name self-input-name" text-anchor="end" x="-10" y="2.5">{}</text>"#, input.name()));
         
         svg.push_str("</g>");
     
