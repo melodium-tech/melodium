@@ -71,39 +71,51 @@ pub fn draw(sequence: Arc<RwLock<SequenceDesigner>>) -> String {
 
         let conn_desc = conn.read().unwrap();
 
+        let id_from;
         let (start_x, start_y) = match conn_desc.output_treatment().as_ref().unwrap() {
             ConnectionIODesigner::Sequence() => {
-                let input = self_inputs.get(conn_desc.output_name().as_ref().unwrap()).unwrap();
+                let input_name = conn_desc.output_name().as_ref().unwrap();
+                let input = self_inputs.get(input_name).unwrap();
+                id_from = format!("Self:input:{}", input_name);
                 (input.x, input.y)
             },
             ConnectionIODesigner::Treatment(t) => {
+                let treatment_name = t.upgrade().unwrap().read().unwrap().name().to_string();
                 let treatment = treatments.get(
-                    t.upgrade().unwrap().read().unwrap().name()
+                    &treatment_name
                 ).unwrap();
+                let output_name = conn_desc.output_name().as_ref().unwrap();
                 let output = treatment.outputs.get(
-                    conn_desc.output_name().as_ref().unwrap()
+                    output_name
                 ).unwrap();
+                id_from = format!("{}:output:{}", treatment_name, output_name);
                 (treatment.x + output.x, treatment.y + output.y)
             },
         };
 
+        let id_to;
         let (end_x, end_y) = match conn_desc.input_treatment().as_ref().unwrap() {
             ConnectionIODesigner::Sequence() => {
-                let output = self_outputs.get(conn_desc.input_name().as_ref().unwrap()).unwrap();
+                let output_name = conn_desc.input_name().as_ref().unwrap();
+                let output = self_outputs.get(output_name).unwrap();
+                id_to = format!("Self:output:{}", output_name);
                 (output.x, output.y)
             },
             ConnectionIODesigner::Treatment(t) => {
+                let treatment_name = t.upgrade().unwrap().read().unwrap().name().to_string();
                 let treatment = treatments.get(
-                    t.upgrade().unwrap().read().unwrap().name()
+                    &treatment_name
                 ).unwrap();
+                let input_name = conn_desc.input_name().as_ref().unwrap();
                 let input = treatment.inputs.get(
-                    conn_desc.input_name().as_ref().unwrap()
+                    input_name
                 ).unwrap();
+                id_to = format!("{}:input:{}", treatment_name, input_name);
                 (treatment.x + input.x, treatment.y + input.y)
             },
         };
 
-        let connection = Connection::new(start_x, start_y, end_x, end_y);
+        let connection = Connection::new(start_x, start_y, end_x, end_y, &id_from, &id_to);
         connections.push(connection);
     }
 

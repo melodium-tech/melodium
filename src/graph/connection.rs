@@ -11,7 +11,7 @@ pub struct Connection {
 
 impl Connection {
 
-    pub fn new(start_x: u64, start_y: u64, end_x: u64, end_y: u64) -> Self {
+    pub fn new(start_x: u64, start_y: u64, end_x: u64, end_y: u64, id_from: &str, id_to: &str) -> Self {
 
         let mut svg = String::new();
         let mut path = String::new();
@@ -45,7 +45,7 @@ impl Connection {
             ));
         }
         
-        svg.push_str(&format!(r#"<path class="connection" d="{}" />"#, path));
+        svg.push_str(&format!(r#"<path id="connection:from:{}:to:{}" class="connection" d="{}" />"#, id_from, id_to, path));
 
         Self { svg, start_x, start_y, end_x, end_y }
     }

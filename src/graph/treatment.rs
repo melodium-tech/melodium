@@ -46,7 +46,7 @@ impl Treatment {
         for name in descriptor.inputs().keys().sorted() {
             let desc_input = descriptor.inputs().get(name).unwrap();
 
-            let input = Input::new(desc_input, 0, i_y);
+            let input = Input::new(desc_input, &treatment.name(), 0, i_y);
             svg.push_str(&input.svg);
 
             inputs.insert(name.clone(), input);
@@ -58,7 +58,7 @@ impl Treatment {
         for name in descriptor.outputs().keys().sorted() {
             let desc_output = descriptor.outputs().get(name).unwrap();
 
-            let output = Output::new(desc_output, width, o_y);
+            let output = Output::new(desc_output, &treatment.name(), width, o_y);
             svg.push_str(&output.svg);
 
             outputs.insert(name.clone(), output);
@@ -69,7 +69,7 @@ impl Treatment {
         for name in treatment.parameters().keys().sorted() {
             let param = treatment.parameters().get(name).unwrap().read().unwrap();
     
-            svg.push_str(&Self::parameter(&param, width/2, p_y+5));
+            svg.push_str(&Self::parameter(&param, &treatment.name(), width/2, p_y+5));
     
             p_y += 20;
         }
@@ -79,11 +79,11 @@ impl Treatment {
         Self { svg, x, y, width, height, inputs, outputs }
     }
 
-    fn parameter(param: &ParameterDesigner, x: u64, y: u64) -> String {
+    fn parameter(param: &ParameterDesigner, treatment_name: &str, x: u64, y: u64) -> String {
 
         let mut result = String::new();
     
-        result.push_str(&format!(r#"<g class="param" transform="translate({} {})">"#, x, y));
+        result.push_str(&format!(r#"<g id="{}:param:{}" class="param" transform="translate({} {})">"#, treatment_name, param.name(), x, y));
     
         result.push_str(&format!(r#"<text class="param-text" text-anchor="middle" x="0" y="5"><tspan class="param-name">{}</tspan> = <tspan class="param-value">{}</tspan></text>"#, param.name(), value(&param.value().as_ref().unwrap(), 12).0));
         
