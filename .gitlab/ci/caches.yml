@@ -1,0 +1,10 @@
+
+.cargo-cache:
+  variables:
+    CARGO_HOME: .cargo/
+  cache:
+    key: cargo-cache
+    paths:
+    - .cargo/
+    policy: pull
+

@@ -1,0 +1,148 @@
+
+include:
+  - local: /.gitlab/ci/hosts.yml
+  - local: /.gitlab/ci/caches.yml
+
+build:debug:x86_64-unknown-linux-gnu:
+  stage: build
+  extends: 
+    - .debian-host
+    - .cargo-cache
+  cache:
+    policy: pull-push
+  before_script:
+    - apt-get update
+    - apt-get install -y libasound2-dev
+  script:
+    - rustc --version && cargo --version 
+    - cargo build --locked --target x86_64-unknown-linux-gnu
+    - ls target/x86_64-unknown-linux-gnu/debug
+  artifacts:
+    paths:
+      - target/x86_64-unknown-linux-gnu/debug/melodium
+    expire_in: 1 hour
+
+build:release:x86_64-unknown-linux-gnu:
+  stage: build
+  extends:
+    - .debian-host
+    - .cargo-cache
+  before_script:
+    - apt-get update
+    - apt-get install -y libasound2-dev
+  script:
+    - rustc --version && cargo --version 
+    - cargo build --locked --release --target x86_64-unknown-linux-gnu
+    - ls target/x86_64-unknown-linux-gnu/release
+  artifacts:
+    paths:
+      - target/x86_64-unknown-linux-gnu/release/melodium
+    expire_in: 1 hour
+
+build:release:i686-unknown-linux-gnu:
+  stage: build
+  extends:
+    - .debian-host
+    - .cargo-cache
+  before_script:
+   - dpkg --add-architecture i386
+   - apt-get update
+   - apt-get install -y gcc-multilib libasound2-dev:i386
+   - rustup target add i686-unknown-linux-gnu
+  script:
+   - rustc --version && cargo --version
+   - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --locked --release --target i686-unknown-linux-gnu
+   - ls target/i686-unknown-linux-gnu/release
+  artifacts:
+    paths:
+      - target/i686-unknown-linux-gnu/release/melodium
+    expire_in: 1 hour
+
+build:release:aarch64-unknown-linux-gnu:
+  stage: build
+  extends:
+    - .debian-host
+    - .cargo-cache
+  before_script:
+   - dpkg --add-architecture arm64
+   - apt-get update
+   - apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross libc-dev:arm64 libasound2-dev:arm64
+   - ln -s /usr/aarch64-linux-gnu/lib/libgcc_s.so.1 /usr/aarch64-linux-gnu/lib/libgcc_s.so
+   - rustup target add aarch64-unknown-linux-gnu
+  script:
+   - rustc --version && cargo --version 
+   - PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld cargo build --locked --release --target aarch64-unknown-linux-gnu
+   - ls target/aarch64-unknown-linux-gnu/release
+  artifacts:
+    paths:
+      - target/aarch64-unknown-linux-gnu/release/melodium
+    expire_in: 1 hour
+
+build:release:x86_64-pc-windows-gnu:
+  stage: build
+  extends:
+    - .debian-host
+    - .cargo-cache
+  before_script:
+    - apt-get update
+    - apt-get install -y mingw-w64
+    - rustup target add x86_64-pc-windows-gnu
+  script:
+    - rustc --version && cargo --version 
+    - cargo build --locked --release --target x86_64-pc-windows-gnu
+    - ls target/x86_64-pc-windows-gnu/release
+  artifacts:
+    paths:
+      - target/x86_64-pc-windows-gnu/release/melodium.exe
+    expire_in: 1 hour
+
+build:release:x86_64-pc-windows-msvc:
+  stage: build
+  extends:
+    - .windows-host
+    - .cargo-cache
+  before_script:
+    - choco install rust-ms --yes
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo build --locked --release --target x86_64-pc-windows-msvc
+    - ls target/x86_64-pc-windows-msvc/release
+  artifacts:
+    paths:
+      - target/x86_64-pc-windows-msvc/release/melodium.exe
+    expire_in: 1 hour
+
+build:release:i686-pc-windows-gnu:
+  stage: build
+  extends:
+    - .windows-host
+    - .cargo-cache
+  before_script:
+    - choco install mingw rust --yes --x86
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo build --locked --release --target i686-pc-windows-gnu
+    - ls target/i686-pc-windows-gnu/release
+  artifacts:
+    paths:
+      - target/i686-pc-windows-gnu/release/melodium.exe
+    expire_in: 1 hour
+
+build:release:i686-pc-windows-msvc:
+  stage: build
+  extends:
+    - .windows-host
+    - .cargo-cache
+  before_script:
+    - choco install rust-ms --yes --x86
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo build --locked --release --target i686-pc-windows-msvc
+    - ls target/i686-pc-windows-msvc/release
+  artifacts:
+    paths:
+      - target/i686-pc-windows-msvc/release/melodium.exe
+    expire_in: 1 hour

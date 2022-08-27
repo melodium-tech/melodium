@@ -1,0 +1,52 @@
+
+include:
+  - local: /.gitlab/ci/builds.yml
+
+doc:melodium:reference:
+  stage: doc
+  variables:
+    MELODIUM_DOC_TITLE: 'Mélodium Standard Reference'
+    MELODIUM_DOC_AUTHOR: 'Quentin VIGNAUD'
+  extends: 
+    - .debian-host
+    - .cargo-cache
+  needs:
+    - build:debug:x86_64-unknown-linux-gnu
+  dependencies:
+    - build:debug:x86_64-unknown-linux-gnu
+  before_script:
+    - apt-get update
+    - apt-get install -y libasound2
+    - mkdir bin
+    - export PATH=$PWD/bin:$PATH
+    - curl -sSL https://repo.melodium.tech/tooling/mdbook/mdbook-v0.4.18-x86_64-unkown-linux-gnu.tar.bz2 | tar -xj --directory=bin
+    - curl -sSL https://repo.melodium.tech/tooling/mdbook-mermaid/mdbook-mermaid-v0.11.0-x86_64-unkown-linux-gnu.tar.bz2 | tar -xj --directory=bin
+  script:
+    - target/x86_64-unknown-linux-gnu/debug/melodium --stdlib ${PWD}/std/ --doc doc/ ${PWD}/std/
+    - bin/mdbook-mermaid install doc/
+    - bin/mdbook build doc/
+    - mv doc/book reference
+  artifacts:
+    name: "reference"
+    paths:
+      - reference
+    expire_in: 1 day
+
+doc:melodium:doc:
+  stage: doc
+  extends: .debian-host
+  needs: []
+  dependencies: []
+  before_script:
+    - apt-get update
+    - apt-get install -y libasound2-dev
+  script:
+    - cargo doc --no-deps
+    - mv target/doc doc
+  artifacts:
+    name: "doc"
+    paths:
+      - doc
+    expire_in: 1 day
+    
+

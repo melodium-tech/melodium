@@ -1,101 +1,14 @@
-# Modified from original GitLab/Rust template
+
+include:
+  - local: /.gitlab/ci/builds.yml
+  - local: /.gitlab/ci/tests.yml
+  - local: /.gitlab/ci/docs.yml
+  - local: /.gitlab/ci/packages.yml
+  - local: /.gitlab/ci/releases.yml
 
 stages:
-  - rust
-  - melodium
-  - deploy
-
-# Optional: Pick zero or more services to be used on all builds.
-# Only needed when using a docker container to run your tests in.
-# Check out: http://docs.gitlab.com/ce/ci/docker/using_docker_images.html#what-is-a-service
-# services:
-#   - mysql:latest
-#   - redis:latest
-#   - postgres:latest
-
-# Optional: Install a C compiler, cmake and git into the container.
-# You will often need this when you (or any of your dependencies) depends on C code.
-# before_script:
-#   - apt-get update -yqq
-#   - apt-get install -yqq --no-install-recommends build-essential
-
-image: rust:latest
-
-# Installing ALSA dependency
-before_script:
-    - apt-get update
-    - apt-get install -y libasound2-dev
-
-# Use cargo to build the project
-rust_build_x86_64-unknown-linux-gnu:
-  stage: rust
-  script:
-    - rustc --version && cargo --version  # Print version info for debugging
-    - cargo build --verbose
-  artifacts:
-    paths:
-    - target/debug/melodium
-    expire_in: 1 day
-
-rust_unit_tests:
- stage: rust
- script:
-   - cargo test --tests --verbose
-
-rust_doc_tests:
- stage: rust
- script:
-   - cargo test --doc --verbose
-
-# Suspended because not working on Gitlab CI
-#rust_build_i686-unknown-linux-gnu:
-#  stage: rust
-#  before_script:
-#    - apt-get update
-#    - apt-get install -y gcc-multilib pkg-config-i686-linux-gnu libasound2-dev:i386
-#    - rustup target add i686-unknown-linux-gnu
-#  script:
-#    - rustc --version && cargo --version  # Print version info for debugging
-#    - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --verbose --target i686-unknown-linux-gnu
-
-rust_build_x86_64-pc-windows-gnu:
-  stage: rust
-  before_script:
-    - apt-get update
-    - apt-get install -y mingw-w64
-    - rustup target add x86_64-pc-windows-gnu
-  script:
-    - rustc --version && cargo --version  # Print version info for debugging
-    - cargo build --verbose --target x86_64-pc-windows-gnu
-#
-#rust_benchmark:
-#  stage: benchmark_rust
-#  script:
-#    - cargo bench --benches --verbose
-
-melodium_tests:
-  stage: melodium
-  script:
-    - melodium-tests/run.sh
-
-pages:
-  stage: deploy
-  variables:
-    MELODIUM_DOC_TITLE: 'Mélodium Standard Reference'
-    MELODIUM_DOC_AUTHOR: 'Quentin VIGNAUD'
-  script:
-    - mkdir bin
-    - export PATH=$PWD/bin:$PATH
-    - curl -sSL https://repo.melodium.tech/tooling/mdbook/mdbook-v0.4.18-x86_64-unkown-linux-gnu.tar.bz2 | tar -xj --directory=bin
-    - curl -sSL https://repo.melodium.tech/tooling/mdbook-mermaid/mdbook-mermaid-v0.11.0-x86_64-unkown-linux-gnu.tar.bz2 | tar -xj --directory=bin
-    - cargo doc --no-deps
-    - mv target/doc public
-    - target/debug/melodium --stdlib ${PWD}/std/ --doc /tmp/doc ${PWD}/std/
-    - bin/mdbook-mermaid install /tmp/doc
-    - bin/mdbook build /tmp/doc
-    - mv /tmp/doc/book public/reference
-  artifacts:
-    paths:
-      - public
-  only:
-    - master
+  - build
+  - test
+  - doc
+  - package
+  - release
