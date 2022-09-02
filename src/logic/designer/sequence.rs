@@ -67,6 +67,16 @@ impl Sequence {
         }
     }
 
+    pub fn remove_model_instanciation(&mut self, name: &str) -> Result<bool, LogicError> {
+
+        if let Some(_) = self.model_instanciations.remove(name) {
+            Ok(true)
+        }
+        else {
+            Ok(false)
+        }
+    }
+
     pub fn add_treatment(&mut self, identifier: &IdentifierDescriptor, name: &str) -> Result<Arc<RwLock<Treatment>>, LogicError> {
         
         if let Some(treatment_descriptor) = self.collections.treatments.get(identifier) {
@@ -78,6 +88,16 @@ impl Sequence {
             Err(LogicError::unexisting_treatment())
         }
 
+    }
+
+    pub fn remove_treatment(&mut self, name: &str) -> Result<bool, LogicError> {
+
+        if let Some(_) = self.treatments.remove(name) {
+            Ok(true)
+        }
+        else {
+            Ok(false)
+        }
     }
 
     pub fn add_connection(&mut self, output_treatment: &str, output_name: &str, input_treatment: &str, input_name: &str) -> Result<Arc<RwLock<Connection>>, LogicError> {
@@ -126,6 +146,31 @@ impl Sequence {
         else {
             return Err(LogicError::unexisting_connexion_type())
         }
+    }
+
+    pub fn remove_connection(&mut self, output_treatment: &str, output_name: &str, input_treatment: &str, input_name: &str) -> Result<bool, LogicError> {
+
+        let mut found = false;
+        self.connections.retain(|c| {
+            let connection = c.read().unwrap();
+            if connection.output_name().as_ref().unwrap() == output_name
+            && connection.input_name().as_ref().unwrap() == input_name
+            && match connection.output_treatment().as_ref().unwrap() {
+                IO::Treatment(t) => t.upgrade().unwrap().read().unwrap().name() == output_treatment,
+                _ => false
+            }
+            && match connection.input_treatment().as_ref().unwrap() {
+                IO::Treatment(t) => t.upgrade().unwrap().read().unwrap().name() == input_treatment,
+                _ => false
+            } {
+                found = true;
+                false
+            } else {
+                true
+            }
+        });
+
+        Ok(found)
     }
 
     pub fn add_void_connection(&mut self, output_treatment: &str, input_treatment: &str) -> Result<Arc<RwLock<Connection>>, LogicError> {
@@ -192,6 +237,31 @@ impl Sequence {
         }
     }
 
+    pub fn remove_input_connection(&mut self, self_input_name: &str, input_treatment: &str, input_name: &str) -> Result<bool, LogicError> {
+
+        let mut found = false;
+        self.connections.retain(|c| {
+            let connection = c.read().unwrap();
+            if connection.output_name().as_ref().unwrap() == self_input_name
+            && connection.input_name().as_ref().unwrap() == input_name
+            && match connection.output_treatment().as_ref().unwrap() {
+                IO::Sequence() => true,
+                _ => false
+            }
+            && match connection.input_treatment().as_ref().unwrap() {
+                IO::Treatment(t) => t.upgrade().unwrap().read().unwrap().name() == input_treatment,
+                _ => false
+            } {
+                found = true;
+                false
+            } else {
+                true
+            }
+        });
+
+        Ok(found)
+    }
+
     pub fn add_output_connection(&mut self, self_output_name: &str, output_treatment: &str, output_name: &str) -> Result<Arc<RwLock<Connection>>, LogicError> {
         
         let datatype_output_self;
@@ -230,6 +300,31 @@ impl Sequence {
         else {
             return Err(LogicError::unexisting_connexion_type())
         }
+    }
+
+    pub fn remove_output_connection(&mut self, self_output_name: &str, output_treatment: &str, output_name: &str) -> Result<bool, LogicError> {
+
+        let mut found = false;
+        self.connections.retain(|c| {
+            let connection = c.read().unwrap();
+            if connection.output_name().as_ref().unwrap() == output_name
+            && connection.input_name().as_ref().unwrap() == self_output_name
+            && match connection.output_treatment().as_ref().unwrap() {
+                IO::Treatment(t) => t.upgrade().unwrap().read().unwrap().name() == output_treatment,
+                _ => false
+            }
+            && match connection.input_treatment().as_ref().unwrap() {
+                IO::Sequence() => true,
+                _ => false
+            } {
+                found = true;
+                false
+            } else {
+                true
+            }
+        });
+
+        Ok(found)
     }
 
     pub fn model_instanciations(&self) -> &HashMap<String, Arc<RwLock<ModelInstanciation>>> {
