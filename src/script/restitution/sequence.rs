@@ -1,6 +1,6 @@
 
 use std::sync::{Arc, RwLock};
-use crate::logic::designer::{SequenceDesigner, ConnectionDesigner, ConnectionIODesigner, ModelInstanciationDesigner, ParameterDesigner, TreatmentDesigner, ValueDesigner};
+use crate::logic::designer::{SequenceDesigner, ConnectionDesigner, ConnectionIODesigner, ModelInstanciationDesigner, TreatmentDesigner, ValueDesigner};
 use crate::logic::descriptor::*;
 
 use super::script::Uses;
@@ -78,7 +78,7 @@ impl Sequence {
         result.push_str(&descriptor.parameters()
             .iter()
             .map(
-                |(_, param)| Self::parameter_declaration(param)
+                |(_, param)| super::declared_parameter::declared_parameter(param)
             )
             .collect::<Vec<_>>()
             .join(", "));
@@ -117,27 +117,6 @@ impl Sequence {
         result
     }
 
-    fn parameter_declaration(param: &ParameterDescriptor) -> String {
-
-        let mut result = String::new();
-
-        result.push_str(match param.variability() {
-            VariabilityDescriptor::Const => "const ",
-            VariabilityDescriptor::Var => "var ",
-        });
-
-        result.push_str(param.name());
-
-        result.push_str(": ");
-        result.push_str(&param.datatype().to_string());
-
-        if let Some(default) = param.default() {
-            result.push_str(&format!(" = {}", default));
-        }
-
-        result
-    }
-
     fn input(input: &InputDescriptor) -> String {
 
         let result = input.datatype().to_string();
@@ -169,7 +148,7 @@ impl Sequence {
         result.push_str(&mi.parameters()
             .iter()
             .map(
-                |(_, param)| Self::parameter_instanciation(uses, &param.read().unwrap())
+                |(_, param)| super::assigned_parameter::assigned_parameter(uses, &param.read().unwrap())
             )
             .collect::<Vec<_>>()
             .join(", ")
@@ -178,11 +157,6 @@ impl Sequence {
         result.push_str(")");
 
         result
-    }
-
-    fn parameter_instanciation(uses: &Uses, param: &ParameterDesigner) -> String {
-
-        format!("{} = {}", param.name(), Self::value(uses, param.value().as_ref().unwrap()))
     }
 
     fn treatment(uses: &Uses, treatment: &TreatmentDesigner) -> String {
@@ -195,7 +169,7 @@ impl Sequence {
             treatment.parameters()
             .iter()
             .map(
-                |(_, param)| Self::parameter_instanciation(uses, &param.read().unwrap())
+                |(_, param)| super::assigned_parameter::assigned_parameter(uses, &param.read().unwrap())
             )
             .collect::<Vec<_>>()
             .join(", ")
@@ -222,21 +196,5 @@ impl Sequence {
             connection.input_name().as_ref().unwrap()
         )
     }
-
-    fn value(uses: &Uses, value: &ValueDesigner) -> String {
-
-        match value {
-            ValueDesigner::Raw(v) => v.to_string(),
-            ValueDesigner::Variable(name) => name.clone(),
-            ValueDesigner::Context((context, name)) => format!("{}[{}]", context, name),
-            ValueDesigner::Function(descriptor, values) => {
-                format!("{}({})",
-                    uses.get(descriptor.identifier()),
-                    values.iter().map(|v| Self::value(uses, v)).collect::<Vec<_>>().join(", ")
-                )
-            }
-        }
-    }
-
 }
 

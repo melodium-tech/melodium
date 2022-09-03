@@ -2,6 +2,7 @@
 use std::collections::HashMap;
 use convert_case::*;
 use itertools::Itertools;
+use super::model::Model;
 use super::sequence::Sequence;
 use crate::logic::descriptor::IdentifierDescriptor;
 
@@ -23,15 +24,23 @@ impl Uses {
 }
 
 pub struct Script {
+    path: String,
+    models: Vec<Model>,
     sequences: Vec<Sequence>,
 }
 
 impl Script {
 
-    pub fn new() -> Self {
+    pub fn new(path: String) -> Self {
         Self {
-            sequences: Vec::new()
+            path,
+            models: Vec::new(),
+            sequences: Vec::new(),
         }
+    }
+
+    pub fn add_model(&mut self, model: Model) {
+        self.models.push(model);
     }
 
     pub fn add_sequence(&mut self, sequence: Sequence) {
@@ -42,6 +51,7 @@ impl Script {
 
         let mut uses = Vec::new();
 
+        self.models.iter().for_each(|m| uses.extend(m.uses()));
         self.sequences.iter().for_each(|s| uses.extend(s.uses()));
 
         let mut uses: HashMap<IdentifierDescriptor, String> = uses.iter().unique().map(|i| (i.clone(), i.name().to_string())).collect();
@@ -62,6 +72,11 @@ impl Script {
 
         for (id, name) in &uses {
 
+            // Avoid uses of elements within the script
+            if id.path().join("/") == self.path {
+                continue;
+            }
+
             result.push_str(&id.to_string());
 
             if id.name() != name {
@@ -73,12 +88,18 @@ impl Script {
 
         let uses = Uses::new(uses);
 
+        for model in &self.models {
+
+            result.push_str(&model.generate(&uses));
+            result.push('\n');
+        }
+
         for sequence in &self.sequences {
 
             result.push_str(&sequence.generate(&uses));
             result.push('\n');
         }
 
-        "".to_string()
+        result
     }
 }
