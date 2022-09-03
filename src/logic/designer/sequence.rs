@@ -173,17 +173,25 @@ impl Sequence {
         Ok(found)
     }
 
-    pub fn add_void_connection(&mut self, output_treatment: &str, input_treatment: &str) -> Result<Arc<RwLock<Connection>>, LogicError> {
+    pub fn add_self_connection(&mut self, self_input_name: &str, self_output_name: &str) -> Result<Arc<RwLock<Connection>>, LogicError> {
 
-        if self.treatments.get(output_treatment).is_none() {
-            return Err(LogicError::undeclared_treatment())
+        let datatype_input_self;
+        if let Some(pos_input) = self.descriptor.inputs().get(self_input_name) {
+            datatype_input_self = pos_input.datatype().clone();
+        }
+        else {
+            return Err(LogicError::connection_self_input_not_found())
         }
 
-        if self.treatments.get(input_treatment).is_none() {
-            return Err(LogicError::undeclared_treatment())
+        let datatype_output_self;
+        if let Some(pos_output) = self.descriptor.outputs().get(self_output_name) {
+            datatype_output_self = pos_output.datatype().clone();
+        }
+        else {
+            return Err(LogicError::connection_self_output_not_found())
         }
 
-        if let Some(arc_connection_descriptor) = Connections::get(None, None) {
+        if let Some(arc_connection_descriptor) = Connections::get(Some(datatype_input_self), Some(datatype_output_self)) {
 
             let connection = Connection::new(&self.auto_reference.upgrade().unwrap(), arc_connection_descriptor);
 

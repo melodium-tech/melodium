@@ -27,7 +27,6 @@ pub struct Connection {
     pub end_point_self: bool,
     pub end_point: Reference<Treatment>,
 
-    pub data_transmission: bool,
     pub name_data_out: Option<String>,
     pub name_data_in: Option<String>,
 }
@@ -69,7 +68,6 @@ impl Connection {
             start_point: Reference::new(text.name_start_point.string.clone()),
             end_point_self: false,
             end_point: Reference::new(text.name_end_point.string.clone()),
-            data_transmission: text.name_data_out.is_some(),
             name_data_out,
             name_data_in,
             text,
@@ -79,60 +77,55 @@ impl Connection {
 
     pub fn get_designer(&self, designer: &mut SequenceDesigner) -> Result<Arc<RwLock<ConnectionDesigner>>, ScriptError> {
 
-        // Data connection
-        if self.data_transmission {
+        // something to something
+        if !self.start_point_self && !self.end_point_self {
 
-            // something to something
-            if !self.start_point_self && !self.end_point_self {
-
-                Ok(wrap_logic_error!(
-                    designer.add_connection(
-                        &self.start_point.name,
-                        self.name_data_out.as_ref().unwrap(),
-                        &self.end_point.name,
-                        self.name_data_in.as_ref().unwrap(),
-                        ),
-                    self.text.name_start_point.position)
-                )
-            }
-
-            // Self to something
-            else if self.start_point_self {
-
-                Ok(wrap_logic_error!(
-                    designer.add_input_connection(
-                        self.name_data_out.as_ref().unwrap(),
-                        &self.end_point.name,
-                        self.name_data_in.as_ref().unwrap(),
+            Ok(wrap_logic_error!(
+                designer.add_connection(
+                    &self.start_point.name,
+                    self.name_data_out.as_ref().unwrap(),
+                    &self.end_point.name,
+                    self.name_data_in.as_ref().unwrap(),
                     ),
-                    self.text.name_start_point.position)
-                )
-            }
-
-            // Something to Self
-            else if self.end_point_self {
-
-                Ok(wrap_logic_error!(
-                    designer.add_output_connection(
-                        self.name_data_in.as_ref().unwrap(),
-                        &self.start_point.name,
-                        self.name_data_out.as_ref().unwrap(),
-                    ),
-                    self.text.name_start_point.position)
-                )
-            }
-
-            else {
-                panic!("Impossible data connection case")
-            }
+                self.text.name_start_point.position)
+            )
         }
 
-        // Void connection
+        // Self to something
+        else if self.start_point_self && !self.end_point_self {
+
+            Ok(wrap_logic_error!(
+                designer.add_input_connection(
+                    self.name_data_out.as_ref().unwrap(),
+                    &self.end_point.name,
+                    self.name_data_in.as_ref().unwrap(),
+                ),
+                self.text.name_start_point.position)
+            )
+        }
+
+        // Something to Self
+        else if !self.start_point_self && self.end_point_self {
+
+            Ok(wrap_logic_error!(
+                designer.add_output_connection(
+                    self.name_data_in.as_ref().unwrap(),
+                    &self.start_point.name,
+                    self.name_data_out.as_ref().unwrap(),
+                ),
+                self.text.name_start_point.position)
+            )
+        }
+
+        // Self to Self
         else {
-            Ok(designer.add_void_connection(
-                &self.start_point.name,
-                &self.end_point.name,
-            ).unwrap())
+            Ok(wrap_logic_error!(
+                    designer.add_self_connection(
+                    self.name_data_out.as_ref().unwrap(),
+                    self.name_data_in.as_ref().unwrap(),
+                ),
+                self.text.name_start_point.position)
+            )
         }
 
     }
@@ -141,63 +134,59 @@ impl Connection {
 
         let mut designer = designer.write().unwrap();
 
-        // Data connection
-        if self.data_transmission {
-
-            // something to something
-            if !self.start_point_self && !self.end_point_self {
-
-                wrap_logic_error!(
-                    designer.set_output(sequence_designer.read().unwrap().treatments().get(&self.start_point.name).unwrap(), &self.name_data_out),
-                    self.text.name_start_point.position
-                );
-
-                wrap_logic_error!(
-                    designer.set_input(sequence_designer.read().unwrap().treatments().get(&self.end_point.name).unwrap(), &self.name_data_in),
-                    self.text.name_end_point.position
-                );
-            }
-
-            // Self to something
-            else if self.start_point_self {
-
-                wrap_logic_error!(
-                    designer.set_self_output(&self.name_data_out),
-                    self.text.name_data_out.as_ref().unwrap().position
-                );
-
-                wrap_logic_error!(
-                    designer.set_input(sequence_designer.read().unwrap().treatments().get(&self.end_point.name).unwrap(), &self.name_data_in),
-                    self.text.name_end_point.position
-                );
-            }
-
-            // Something to Self
-            else if self.end_point_self {
-
-                wrap_logic_error!(
-                    designer.set_output(sequence_designer.read().unwrap().treatments().get(&self.start_point.name).unwrap(), &self.name_data_out),
-                    self.text.name_start_point.position
-                );
-
-                wrap_logic_error!(
-                    designer.set_self_input(&self.name_data_in),
-                    self.text.name_data_in.as_ref().unwrap().position
-                );
-            }
-        }
-
-        // Void connection
-        else {
+        // something to something
+        if !self.start_point_self && !self.end_point_self {
 
             wrap_logic_error!(
-                designer.set_output(sequence_designer.read().unwrap().treatments().get(&self.start_point.name).unwrap(), &None),
+                designer.set_output(sequence_designer.read().unwrap().treatments().get(&self.start_point.name).unwrap(), &self.name_data_out),
                 self.text.name_start_point.position
             );
 
             wrap_logic_error!(
-                designer.set_input(sequence_designer.read().unwrap().treatments().get(&self.end_point.name).unwrap(), &None),
+                designer.set_input(sequence_designer.read().unwrap().treatments().get(&self.end_point.name).unwrap(), &self.name_data_in),
                 self.text.name_end_point.position
+            );
+        }
+
+        // Self to something
+        else if self.start_point_self && !self.end_point_self {
+
+            wrap_logic_error!(
+                designer.set_self_output(&self.name_data_out),
+                self.text.name_data_out.as_ref().unwrap().position
+            );
+
+            wrap_logic_error!(
+                designer.set_input(sequence_designer.read().unwrap().treatments().get(&self.end_point.name).unwrap(), &self.name_data_in),
+                self.text.name_end_point.position
+            );
+        }
+
+        // Something to Self
+        else if !self.start_point_self && self.end_point_self {
+
+            wrap_logic_error!(
+                designer.set_output(sequence_designer.read().unwrap().treatments().get(&self.start_point.name).unwrap(), &self.name_data_out),
+                self.text.name_start_point.position
+            );
+
+            wrap_logic_error!(
+                designer.set_self_input(&self.name_data_in),
+                self.text.name_data_in.as_ref().unwrap().position
+            );
+        }
+
+        // Self to Self
+        else {
+
+            wrap_logic_error!(
+                designer.set_self_output(&self.name_data_in),
+                self.text.name_data_in.as_ref().unwrap().position
+            );
+
+            wrap_logic_error!(
+                designer.set_self_input(&self.name_data_out),
+                self.text.name_data_out.as_ref().unwrap().position
             );
         }
 
@@ -235,11 +224,6 @@ impl Node for Connection {
         }
         else {
             return Err(ScriptError::semantic("Treatment '".to_string() + &self.end_point.name + "' is unknown.", self.text.name_end_point.position));
-        }
-
-        // In case 'Self' is used but no data are transmitted.
-        if (self.start_point_self || self.end_point_self) && !self.data_transmission {
-            return Err(ScriptError::semantic("Connection with 'Self' require data to be transmitted.".to_string(), self.text.name_start_point.position));
         }
 
         Ok(())
