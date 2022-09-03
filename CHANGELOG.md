@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+
+- Graph generation as SVG
+- Internal designer allowing elements removal
+
+### Changed
+
+- Cleaning up obsolete 'empty' connections code
+
 ## [v0.4.0] (2022-07-28)
 
 ### Bug fixes
