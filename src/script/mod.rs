@@ -7,5 +7,6 @@ pub mod error;
 pub mod file;
 pub mod instance;
 pub mod path;
-pub mod text;
+pub mod restitution;
 pub mod semantic;
+pub mod text;
