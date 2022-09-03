@@ -205,6 +205,31 @@ impl Sequence {
         }
     }
 
+    pub fn remove_self_connection(&mut self, self_input_name: &str, self_output_name: &str) -> Result<bool, LogicError> {
+
+        let mut found = false;
+        self.connections.retain(|c| {
+            let connection = c.read().unwrap();
+            if connection.output_name().as_ref().unwrap() == self_input_name
+            && connection.input_name().as_ref().unwrap() == self_output_name
+            && match connection.output_treatment().as_ref().unwrap() {
+                IO::Sequence() => true,
+                _ => false
+            }
+            && match connection.input_treatment().as_ref().unwrap() {
+                IO::Sequence() => true,
+                _ => false
+            } {
+                found = true;
+                false
+            } else {
+                true
+            }
+        });
+
+        Ok(found)
+    }
+
     pub fn add_input_connection(&mut self, self_input_name: &str, input_treatment: &str, input_name: &str) -> Result<Arc<RwLock<Connection>>, LogicError> {
         
         let datatype_input_self;
