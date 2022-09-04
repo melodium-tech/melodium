@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use super::location::{Base, Location};
 use super::file::File;
 use super::path::{Path, PathRoot};
 use super::error::ScriptError;
@@ -14,16 +15,16 @@ use crate::core::core_collection::core_collection;
 /// 
 /// Handle the whole instance of a Mélodium script, the files involved, and the logic associated with.
 pub struct Instance {
-    /// Path of the main script file.
-    pub main_path: PathBuf,
-    /// Path of the standard library.
-    pub standard_path: PathBuf,
+    /// Location of the main script file.
+    pub main: Location,
+    /// Location of the standard library.
+    pub standard: Location,
     /// Files used in the instance.
     /// 
     /// This include the main file, and may be empty for many reasons (instance not built, or errors, etc.)
     pub files: Vec<File>,
     /// Errors present in the instance.
-    pub errors: HashMap<PathBuf, ScriptError>,
+    pub errors: HashMap<Location, ScriptError>,
 
     pub logic_collection: Option<Arc<CollectionPool>>,
 }
@@ -33,13 +34,13 @@ impl Instance {
     /// 
     /// This does not build anything, nor check paths, just create an empty instance.
     /// 
-    /// * `main_path`: path to the main script file.
-    /// * `standard_path`: path to the standard library root.
-    pub fn new<P: Into<PathBuf>>(main_path: P, standard_path: P) -> Self {
+    /// * `main`: location to the main script file.
+    /// * `standard`: location to the standard library root.
+    pub fn new(main: Location, standard: Location) -> Self {
 
         Self {
-            main_path: main_path.into(),
-            standard_path: standard_path.into(),
+            main,
+            standard,
             files: Vec::new(),
             errors: HashMap::new(),
             logic_collection: None,
@@ -56,9 +57,9 @@ impl Instance {
         // We create the "main" path.
         let mut main = Vec::new();
         main.push("main".to_string());
-        main.push(self.main_path.file_stem().unwrap().to_str().unwrap().to_string());
+        main.push(self.main.path.file_stem().unwrap().to_str().unwrap().to_string());
 
-        self.manage_file(Path::new(main), self.main_path.clone());
+        self.manage_file(self.main.clone(), Path::new(main));
 
         self.build();
     }
@@ -69,7 +70,7 @@ impl Instance {
     /// After building instance, check if it is valid and what errors occured.
     pub fn build_all_std(&mut self) {
 
-        self.build_all_prefix("std", self.standard_path.clone());
+        self.build_all_prefix("std", self.standard.clone());
 
         self.build();
     }
@@ -80,7 +81,7 @@ impl Instance {
     /// After building instance, check if it is valid and what errors occured.
     pub fn build_all_main(&mut self) {
 
-        self.build_all_prefix("main", self.main_path.clone());
+        self.build_all_prefix("main", self.main.clone());
 
         self.build();
     }
@@ -91,8 +92,8 @@ impl Instance {
     /// After building instance, check if it is valid and what errors occured.
     pub fn build_all(&mut self) {
 
-        self.build_all_prefix("std", self.standard_path.clone());
-        self.build_all_prefix("main", self.main_path.clone());
+        self.build_all_prefix("std", self.standard.clone());
+        self.build_all_prefix("main", self.main.clone());
 
         self.build();
     }
@@ -101,12 +102,13 @@ impl Instance {
         &self.logic_collection
     }
 
-    pub fn errors(&self) -> &HashMap<PathBuf, ScriptError> {
+    pub fn errors(&self) -> &HashMap<Location, ScriptError> {
         &self.errors
     }
 
-    fn build_all_prefix(&mut self, prefix: &str, path: PathBuf) {
+    fn build_all_prefix(&mut self, prefix: &str, location: Location) {
 
+        // TODO: define in Location a function to get all the *.mel files
         for entry in glob::glob(&format!("{}/**/*.mel", path.to_str().unwrap())).unwrap() {
             match entry {
                 Ok(entry) => {
@@ -190,27 +192,27 @@ impl Instance {
     /// 
     /// * `path`: canonical path of the file inside the Mélodium instance (see [File::path](super::file::File::path)).
     /// * `absolute_path`: absolute system path to the file in filesystem (see [File::absolute_path](super::file::File::absolute_path)).
-    fn manage_file(&mut self, path: Path, absolute_path: PathBuf) {
+    fn manage_file(&mut self, location: Location, path: Path) {
 
         // We check if the file is in the instance.
-        let file_request = self.find_file(&absolute_path);
+        let file_request = self.find_file(&location);
 
         // If it is not, then we include it.
         if file_request.is_none() {
 
-            let mut file = File::new(path, absolute_path.clone());
+            let mut file = File::new(location, path);
 
             let reading_result = file.read();
 
             if reading_result.is_err() {
-                self.errors.insert(absolute_path.clone(), ScriptError::file(reading_result.unwrap_err().to_string()));
+                self.errors.insert(location.clone(), ScriptError::file(reading_result.unwrap_err().to_string()));
                 return;
             }
 
             let parsing_result = file.parse();
 
             if parsing_result.is_err() {
-                self.errors.insert(absolute_path.clone(), parsing_result.unwrap_err());
+                self.errors.insert(location.clone(), parsing_result.unwrap_err());
                 return;
             }
 

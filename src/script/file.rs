@@ -1,10 +1,9 @@
 
 //! Provides script files management.
 
-use std::fs;
 use std::io;
 use std::io::Read;
-use std::path::PathBuf;
+use super::location::Location;
 use super::path::Path;
 use crate::script::error::ScriptError;
 use crate::script::text::Script as TextScript;
@@ -14,10 +13,8 @@ use crate::script::semantic::common::Tree;
 /// 
 /// Handle a system path and Mélodium path, generate and holds script textual and semantic content.
 pub struct File {
-    /// Absolute system path.
-    /// 
-    /// This path should be absolute in order to not have duplicates parsing and semantic processing of the same content.
-    pub absolute_path: PathBuf,
+    /// File location
+    pub location: Location,
     /// Canonical path inside Mélodium.
     /// 
     /// May start either by `std`/[PathRoot::Std](super::path::PathRoot::Std) or `main`/[PathRoot::Main](super::path::PathRoot::Main), but not `local`/[PathRoot::Local](super::path::PathRoot::Local), as it is then a relative path, that have to be translated into a canonical one.
@@ -50,9 +47,9 @@ impl File {
     /// assert!(file.text.is_none());
     /// assert!(file.semantic.is_none());
     /// ```
-    pub fn new<P: Into<PathBuf>>(path: Path, absolute_path: P) -> Self {
+    pub fn new(location: Location, path: Path) -> Self {
         Self {
-            absolute_path: absolute_path.into(),
+            location,
             path,
             text: None,
             semantic: None,
@@ -85,10 +82,7 @@ impl File {
     /// ```
     pub fn read(&mut self) -> io::Result<()> {
 
-        let mut file = fs::File::open(&self.absolute_path)?;
-
-        let mut text = String::new();
-        file.read_to_string(&mut text)?;
+        let text = self.location.read_to_string()?;
 
         self.text = Some(text);
 
