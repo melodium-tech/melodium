@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use glob::glob;
 use itertools::Itertools;
 use crate::script::file::File;
+use crate::script::location::{Base, Location};
 use crate::script::path::{Path, PathRoot};
 use crate::script::error::ScriptError;
 use super::markdown;
@@ -57,7 +58,7 @@ impl Instance {
                     let path = Path::new(path_steps.iter().map(|s| s.to_string()).collect());
 
 
-                    let mut file = File::new(path, absolute_path);
+                    let mut file = File::new(Location::new(Base::FileSystem(self.entry_path.clone()), relative_path.to_path_buf()), path);
 
                     if let Err(e) = file.read() {
                         io_errors.push(e);
@@ -65,7 +66,7 @@ impl Instance {
                     }
 
                     if let Err(e) = file.parse() {
-                        script_errors.insert(file.absolute_path, e);
+                        script_errors.insert(file.location.path, e);
                         continue;
                     }
 

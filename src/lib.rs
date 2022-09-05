@@ -124,6 +124,7 @@ use std::sync::Arc;
 use crate::executive::world::World;
 use crate::logic::descriptor::SequenceTreatmentDescriptor;
 use crate::script::instance::Instance;
+use crate::script::location::{Base, Location};
 use crate::script::path::{Path, PathRoot};
 use crate::doc::instance::Instance as DocInstance;
 use crate::script::error::ScriptError;
@@ -175,7 +176,11 @@ pub fn execute(stdlib: &String, main: &String, entry: &String) -> Result<(), ()>
  */
 pub fn build(stdlib: &String, main: &String) -> Instance {
 
-    let mut instance = Instance::new(main.clone(), stdlib.clone());
+    let main = PathBuf::from(main);
+    let main_dir = PathBuf::from(main.parent().unwrap());
+    let main_file = PathBuf::from(main.file_name().unwrap());
+
+    let mut instance = Instance::new(Location::new(Base::FileSystem(main_dir), main_file), Base::FileSystem(stdlib.into()));
 
     instance.build_by_main();
 
@@ -247,7 +252,7 @@ pub fn make_documentation(stdlib: &String, main: &String, output: &String) {
             print_io_error(&err);
         }
         for (path, err) in scr {
-            print_script_error(&path, &err);
+            print_script_error(&Location::new(Base::FileSystem(PathBuf::from("")), path), &err);
         }
     }
 
@@ -285,8 +290,8 @@ pub fn make_svg(stdlib: &String, main: &String, output: &String, entries: &Vec<S
  * Prints errors present in an instance
  */
 pub fn print_instance_errors(instance: &Instance) {
-    for (path, error) in instance.errors() {
-        print_script_error(path, error);
+    for (location, error) in instance.errors() {
+        print_script_error(location, error);
     }
 }
 
@@ -299,8 +304,8 @@ pub fn print_world_errors(world: &Arc<World>) {
     }
 }
 
-fn print_script_error(path: &PathBuf, error: &ScriptError) {
-    eprintln!("{}: in file \"{}\" {}", "error".bold().red(), path.as_os_str().to_string_lossy(), error);
+fn print_script_error(location: &Location, error: &ScriptError) {
+    eprintln!("{}: in file \"{}\" {}", "error".bold().red(), location.path.as_os_str().to_string_lossy(), error);
 }
 
 fn print_logic_error(error: &LogicError) {

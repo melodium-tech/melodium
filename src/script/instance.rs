@@ -17,8 +17,8 @@ use crate::core::core_collection::core_collection;
 pub struct Instance {
     /// Location of the main script file.
     pub main: Location,
-    /// Location of the standard library.
-    pub standard: Location,
+    /// Base for the standard library.
+    pub standard: Base,
     /// Files used in the instance.
     /// 
     /// This include the main file, and may be empty for many reasons (instance not built, or errors, etc.)
@@ -35,8 +35,8 @@ impl Instance {
     /// This does not build anything, nor check paths, just create an empty instance.
     /// 
     /// * `main`: location to the main script file.
-    /// * `standard`: location to the standard library root.
-    pub fn new(main: Location, standard: Location) -> Self {
+    /// * `standard`: base for the standard library root.
+    pub fn new(main: Location, standard: Base) -> Self {
 
         Self {
             main,
@@ -70,7 +70,7 @@ impl Instance {
     /// After building instance, check if it is valid and what errors occured.
     pub fn build_all_std(&mut self) {
 
-        self.build_all_prefix("std", self.standard.clone());
+        self.build_all_prefix("std", &self.standard.clone());
 
         self.build();
     }
@@ -81,7 +81,7 @@ impl Instance {
     /// After building instance, check if it is valid and what errors occured.
     pub fn build_all_main(&mut self) {
 
-        self.build_all_prefix("main", self.main.clone());
+        self.build_all_prefix("main", &self.main.base.clone());
 
         self.build();
     }
@@ -92,8 +92,8 @@ impl Instance {
     /// After building instance, check if it is valid and what errors occured.
     pub fn build_all(&mut self) {
 
-        self.build_all_prefix("std", self.standard.clone());
-        self.build_all_prefix("main", self.main.clone());
+        self.build_all_prefix("std", &self.standard.clone());
+        self.build_all_prefix("main", &self.main.base.clone());
 
         self.build();
     }
@@ -106,32 +106,15 @@ impl Instance {
         &self.errors
     }
 
-    fn build_all_prefix(&mut self, prefix: &str, location: Location) {
+    fn build_all_prefix(&mut self, prefix: &str, base: &Base) {
 
-        // TODO: define in Location a function to get all the *.mel files
-        for entry in glob::glob(&format!("{}/**/*.mel", path.to_str().unwrap())).unwrap() {
-            match entry {
-                Ok(entry) => {
+        for location in Location::get_all_mel_files(base) {
 
-                    let absolute_path;
-                    match entry.canonicalize() {
-                        Ok(ap) => absolute_path = ap,
-                        Err(_e) => {
-                            continue;
-                        },
-                    };
+            let mut path_steps: Vec<&str> = location.path.to_str().unwrap().strip_suffix(".mel").unwrap().split('/').collect();
+            path_steps.insert(0, prefix);
+            let path = Path::new(path_steps.iter().map(|s| s.to_string()).collect());
 
-                    let relative_path = absolute_path.strip_prefix(&path).unwrap();
-                    let mut path_steps: Vec<&str> = relative_path.to_str().unwrap().strip_suffix(".mel").unwrap().split('/').collect();
-                    path_steps.insert(0, prefix);
-                    let path = Path::new(path_steps.iter().map(|s| s.to_string()).collect());
-
-                    self.manage_file(path, absolute_path);
-                }
-                Err(_e) => {
-                    continue;
-                }
-            }
+            self.manage_file(location, path);
         }
     }
 
@@ -165,21 +148,21 @@ impl Instance {
 
                 let usage = usage.read().unwrap();
 
-                let canonical = self.get_canonical_path(&file.absolute_path, &usage.path);
+                let canonical = self.get_canonical_path(&file.location, &usage.path);
 
                 if let Some(canonical) = canonical {
-                    let (canonical_path, canonical_pathbuf) = canonical;
+                    let (location, path) = canonical;
 
-                    let file_request = self.find_file(&canonical_pathbuf);
+                    let file_request = self.find_file(&location);
                     if file_request.is_none() {
-                        inclusions.push((canonical_path, canonical_pathbuf));
+                        inclusions.push((location, path));
                     }
                 }
             }
         }
 
-        for (canonical_path, canonical_pathbuf) in &inclusions {
-            self.manage_file(canonical_path.clone(), canonical_pathbuf.clone());
+        for (location, path) in &inclusions {
+            self.manage_file(location.clone(), path.clone());
         }
 
         !inclusions.is_empty()
@@ -200,7 +183,7 @@ impl Instance {
         // If it is not, then we include it.
         if file_request.is_none() {
 
-            let mut file = File::new(location, path);
+            let mut file = File::new(location.clone(), path);
 
             let reading_result = file.read();
 
@@ -222,52 +205,52 @@ impl Instance {
     }
 
     /// Tells if a file exists in the instance, and give reference to it.
-    fn find_file(&self, path: &PathBuf) -> Option<&File> {
+    fn find_file(&self, location: &Location) -> Option<&File> {
         self.files.iter().find(|file| {
-            &file.absolute_path == path
+            &file.location == location
         })
     }
 
-    /// Get the canonical path based on includer and possibly relative path.
+    /// Get the location and path of a file based on includer path  and location.
     /// 
-    /// Returns a tuple of (canonical path, absolute system path), or none if nothing could be determined.
-    fn get_canonical_path(&self, includer_path: &PathBuf, path: &Path) -> Option<(Path, PathBuf)> {
+    /// Returns a tuple of (location and canonical path), or none if nothing could be determined.
+    fn get_canonical_path(&self, includer_location: &Location, path: &Path) -> Option<(Location, Path)> {
 
         if path.is_valid() {
             if path.root() == PathRoot::Core {
                 None
             }
             else if path.root() == PathRoot::Std {
-                let mut canonical_path = self.standard_path.clone();
+                let mut location = Location::new(self.standard.clone(), PathBuf::new());
 
                 //path.path().iter().map(|name| canonical_path.push(name));
                 // Skipping "std" step, and pushing each intermediate name.
                 for name in path.path().iter() {
-                    canonical_path.push(name);
+                    location.path.push(name);
                 }
 
-                canonical_path.set_extension("mel");
+                location.path.set_extension("mel");
 
-                Some((path.clone(), canonical_path))
+                Some((location, path.clone()))
             }
             else if path.root() == PathRoot::Main {
-                let mut canonical_path = self.main_path.clone();
+                let mut location = Location::new(self.main.base.clone(), PathBuf::new());
 
                 // Removing filename.
-                canonical_path.pop();
+                //canonical_path.pop();
                 // Skipping "main" step, and pushing each intermediate name.
                 for name in path.path().iter().skip(1) {
-                    canonical_path.push(name);
+                    location.path.push(name);
                 }
 
-                canonical_path.set_extension("mel");
+                location.path.set_extension("mel");
 
-                Some((path.clone(), canonical_path))
+                Some((location, path.clone()))
             }
             else if path.root() == PathRoot::Local {
                 let mut path_from_main = Vec::new();
                 path_from_main.push("main".to_string());
-                let mut canonical_path = includer_path.clone();
+                let mut canonical_path = includer_location.path.clone();
 
                 // Removing filename.
                 canonical_path.pop();
@@ -280,7 +263,7 @@ impl Instance {
                 let path_from_main_obj = Path::new(path_from_main);
                 canonical_path.set_extension("mel");
 
-                Some((path_from_main_obj, canonical_path))
+                Some((Location::new(includer_location.base.clone(), canonical_path), path_from_main_obj))
             }
             else {
                 None
@@ -305,7 +288,7 @@ impl Instance {
                 let borrowed_model = rc_model.read().unwrap();
 
                 if let Err(e) = borrowed_model.make_descriptor(&mut logic_collection) {
-                    self.errors.insert(file.absolute_path.clone(), e);
+                    self.errors.insert(file.location.clone(), e);
                 }
             }
         }
@@ -319,7 +302,7 @@ impl Instance {
                 let borrowed_sequence = rc_sequence.read().unwrap();
 
                 if let Err(e) = borrowed_sequence.make_descriptor(&mut logic_collection) {
-                    self.errors.insert(file.absolute_path.clone(), e);
+                    self.errors.insert(file.location.clone(), e);
                 }
             }
         }
@@ -339,7 +322,7 @@ impl Instance {
                 let borrowed_model = rc_model.read().unwrap();
 
                 if let Err(e) = borrowed_model.make_design(self.logic_collection.as_ref().unwrap()) {
-                    self.errors.insert(file.absolute_path.clone(), e);
+                    self.errors.insert(file.location.clone(), e);
                 }
             }
 
@@ -348,7 +331,7 @@ impl Instance {
                 let borrowed_sequence = rc_sequence.read().unwrap();
 
                 if let Err(e) = borrowed_sequence.make_design(&self.logic_collection.as_ref().unwrap()) {
-                    self.errors.insert(file.absolute_path.clone(), e);
+                    self.errors.insert(file.location.clone(), e);
                 }
             }
         }
