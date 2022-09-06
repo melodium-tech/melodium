@@ -34,15 +34,15 @@ impl File {
     /// This does not open nor even test if file exists, see `read()` and `parse()` methods.
     /// ```
     /// # use melodium::script::file::File;
+    /// # use melodium::script::location::{Base, Location};
     /// # use melodium::script::path::Path;
     /// # use std::path::PathBuf;
     /// // main/simple_build
     /// let path = Path::new(vec!["main".to_string(), "simple_build".to_string()]);
     /// 
     /// let relative_path = "melodium-tests/semantic/simple_build.mel";
-    /// let absolute_path = PathBuf::from(relative_path).canonicalize().unwrap();
     /// 
-    /// let file = File::new(path, absolute_path);
+    /// let file = File::new(Location::new(Base::FileSystem(PathBuf::new()), PathBuf::from(relative_path)), path);
     /// 
     /// assert!(file.text.is_none());
     /// assert!(file.semantic.is_none());
@@ -63,6 +63,7 @@ impl File {
     /// 
     /// ```
     /// # use melodium::script::file::File;
+    /// # use melodium::script::location::{Base, Location};
     /// # use melodium::script::path::Path;
     /// # use std::path::PathBuf;
     /// # use std::io::Error;
@@ -70,9 +71,8 @@ impl File {
     /// let path = Path::new(vec!["main".to_string(), "simple_build".to_string()]);
     /// 
     /// let relative_path = "melodium-tests/semantic/simple_build.mel";
-    /// let absolute_path = PathBuf::from(relative_path).canonicalize().unwrap();
     /// 
-    /// let mut file = File::new(path, absolute_path);
+    /// let mut file = File::new(Location::new(Base::FileSystem(PathBuf::new()), PathBuf::from(relative_path)), path);
     /// 
     /// file.read()?;
     /// 
@@ -95,6 +95,7 @@ impl File {
     /// 
     /// ```
     /// # use melodium::script::file::File;
+    /// # use melodium::script::location::{Base, Location};
     /// # use melodium::script::path::Path;
     /// # use std::path::PathBuf;
     /// # use melodium::script::error::ScriptError;
@@ -102,9 +103,8 @@ impl File {
     /// let path = Path::new(vec!["main".to_string(), "simple_build".to_string()]);
     /// 
     /// let relative_path = "melodium-tests/semantic/simple_build.mel";
-    /// let absolute_path = PathBuf::from(relative_path).canonicalize().unwrap();
     /// 
-    /// let mut file = File::new(path, absolute_path);
+    /// let mut file = File::new(Location::new(Base::FileSystem(PathBuf::new()), PathBuf::from(relative_path)), path);
     /// 
     /// file.read();
     /// file.parse()?;
