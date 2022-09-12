@@ -115,6 +115,7 @@ pub mod core;
 pub mod doc;
 pub mod executive;
 pub mod graph;
+pub mod jeu;
 pub mod logic;
 pub mod script;
 
