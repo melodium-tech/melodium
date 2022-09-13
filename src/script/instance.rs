@@ -4,7 +4,8 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use super::location::{Base, Location};
+use super::base::Base;
+use super::location::Location;
 use super::file::File;
 use super::path::{Path, PathRoot};
 use super::error::ScriptError;
@@ -108,7 +109,7 @@ impl Instance {
 
     fn build_all_prefix(&mut self, prefix: &str, base: &Base) {
 
-        for location in Location::get_all_mel_files(base) {
+        for location in base.get_all_mel_files().unwrap() {
 
             let mut path_steps: Vec<&str> = location.path.to_str().unwrap().strip_suffix(".mel").unwrap().split('/').collect();
             path_steps.insert(0, prefix);

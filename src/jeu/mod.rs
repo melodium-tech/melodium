@@ -1,3 +1,6 @@
 
-pub mod files;
+pub mod builder;
 pub mod jeu;
+
+pub use builder::Builder;
+pub use jeu::Jeu;

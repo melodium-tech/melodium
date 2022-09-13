@@ -2,7 +2,6 @@
 //! Provides script files management.
 
 use std::io;
-use std::io::Read;
 use super::location::Location;
 use super::path::Path;
 use crate::script::error::ScriptError;

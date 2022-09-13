@@ -1,51 +1,63 @@
 
-use std::io::{Read, Result, Seek, SeekFrom};
+use std::io::{Read, Result};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use brotli::Decompressor;
 use tar::Archive;
 
-pub struct Jeu<R: AsMut<dyn Read> + Read + Seek + Sized> {
+#[derive(PartialEq, Eq, Debug)]
+pub struct Jeu {
 
-    archive: Archive<Decompressor<R>>,
+    files: HashMap<PathBuf, Vec<u8>>,
 }
 
-impl<R: AsMut<dyn Read> + Read + Seek + Sized> Jeu<R> {
+impl Jeu {
 
-    pub fn new(mut reader: R) -> Result<Self> {
+    pub fn new<R: Read>(mut reader: R) -> Result<Self> {
 
-        let mut ignore_bytes = 0;
         let mut encountered_lf = 0;
 
-        for byte in reader.as_mut().bytes() {
-            match byte {
-                Ok(byte) => {
-                    ignore_bytes += 1;
-                    if byte == 0x0A {
-            
-                        encountered_lf += 1;
+        let mut byte: u8 = 0;
+        while encountered_lf < 2 {
 
-                        if encountered_lf == 2 {
-                            break;
-                        }
-                    }
-                }
-                Err(e) => {
-                    return Err(e)
-                }
+            reader.read_exact(std::slice::from_mut(&mut byte))?;
+            if byte == 0x0A {
+                encountered_lf += 1;
             }
         }
 
-        reader.seek(SeekFrom::Start(ignore_bytes))?;
+        let mut archive = Archive::new(Decompressor::new(reader, 4096));
 
-        let archive = Archive::new(Decompressor::new(reader, 4096));
+        let mut files = HashMap::new();
+
+        for entry in archive.entries()? {
+            match entry {
+                Ok(mut entry) => {
+
+                    let path = entry.path()?.to_path_buf();
+                    if path.ends_with(".mel") {
+
+                        let mut data = Vec::new();
+                        entry.read_to_end(&mut data)?;
+
+                        files.insert(path, data);
+                    }
+                }
+                Err(e) => return Err(e)
+            }
+        }
 
         Ok(Self {
-            archive,
+            files,
         })
     }
 
-    pub fn get_all_entries(&self) {
-        
+    pub fn entries(&self) -> Vec<&Path> {
+        self.files.keys().map(|k| k.as_path()).collect()
     }
 
+    pub fn get<P: AsRef<Path>>(&self, path: P) -> Option<&Vec<u8>> {
+        self.files.get(&path.as_ref().to_path_buf())
+    }
 
 }
