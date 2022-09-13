@@ -21,20 +21,6 @@ impl Location {
     }
 
     pub fn read_to_string(&self) -> std::io::Result<String> {
-        match &self.base {
-            Base::FileSystem(p) => {
-
-                let mut complete_path = p.clone();
-                complete_path.push(self.path.clone());
-
-                std::fs::read_to_string(complete_path.canonicalize()?)
-            },
-            Base::Jeu(p) => {
-                todo!()
-            },
-            Base::Internal(id) => {
-                todo!()
-            }
-        }
+        self.base.read_to_string(&self.path)
     }
 }
