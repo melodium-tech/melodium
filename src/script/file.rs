@@ -33,7 +33,8 @@ impl File {
     /// This does not open nor even test if file exists, see `read()` and `parse()` methods.
     /// ```
     /// # use melodium::script::file::File;
-    /// # use melodium::script::location::{Base, Location};
+    /// # use melodium::script::base::Base;
+    /// # use melodium::script::location::Location;
     /// # use melodium::script::path::Path;
     /// # use std::path::PathBuf;
     /// // main/simple_build
@@ -62,7 +63,8 @@ impl File {
     /// 
     /// ```
     /// # use melodium::script::file::File;
-    /// # use melodium::script::location::{Base, Location};
+    /// # use melodium::script::base::Base;
+    /// # use melodium::script::location::Location;
     /// # use melodium::script::path::Path;
     /// # use std::path::PathBuf;
     /// # use std::io::Error;
@@ -94,7 +96,8 @@ impl File {
     /// 
     /// ```
     /// # use melodium::script::file::File;
-    /// # use melodium::script::location::{Base, Location};
+    /// # use melodium::script::base::Base;
+    /// # use melodium::script::location::Location;
     /// # use melodium::script::path::Path;
     /// # use std::path::PathBuf;
     /// # use melodium::script::error::ScriptError;
