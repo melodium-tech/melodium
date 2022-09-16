@@ -78,6 +78,30 @@ build:release:aarch64-unknown-linux-gnu:
       - target/aarch64-unknown-linux-gnu/release/melodium
     expire_in: 1 hour
 
+build:release:x86_64-apple-darwin:
+  stage: build
+  extends:
+    - .debian-host
+    - .cargo-cache
+  before_script:
+   - dpkg --add-architecture arm64
+   - apt-get update
+   - apt-get install -y clang gcc g++ zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
+   - rustup target add x86_64-apple-darwin
+   - git clone https://github.com/tpoechtrager/osxcross
+   - cd osxcross
+   - wget -nc https://s3.dockerproject.org/darwin/v2/MacOSX10.10.sdk.tar.xz
+   - mv MacOSX10.10.sdk.tar.xz tarballs/
+   - UNATTENDED=yes OSX_VERSION_MIN=10.7 ./build.sh
+  script:
+   - rustc --version && cargo --version 
+   - PATH=$(pwd)/osxcross/target/bin:$PATH CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=x86_64-apple-darwin15-clang CARGO_TARGET_X86_64_APPLE_DARWIN_AR=x86_64-apple-darwin15-ar cargo build --locked --release --target x86_64-apple-darwin
+   - ls target/x86_64-apple-darwin/release
+  artifacts:
+    paths:
+      - target/x86_64-apple-darwin/release/melodium
+    expire_in: 1 hour
+
 build:release:x86_64-pc-windows-gnu:
   stage: build
   extends:
