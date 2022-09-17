@@ -1,4 +1,6 @@
 
+use path_slash::PathBufExt as _;
+
 fn main() {
 
     let mut std_content = String::from("{");
@@ -15,7 +17,7 @@ fn main() {
                     },
                 };
 
-                std_content.push_str(&format!(r#"content.insert("{}", include_str!("{}"));"#, relative_path.to_str().unwrap(), absolute_path.to_str().unwrap()));
+                std_content.push_str(&format!(r#"content.insert("{}", include_str!("{}"));"#, relative_path.to_slash().unwrap(), absolute_path.to_slash().unwrap()));
             }
             Err(e) => {
                 panic!("{}", e)
