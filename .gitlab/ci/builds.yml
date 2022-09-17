@@ -93,11 +93,14 @@ build:release:x86_64-apple-darwin:
    - wget -nc https://s3.dockerproject.org/darwin/v2/MacOSX10.11.sdk.tar.xz
    - mv MacOSX10.11.sdk.tar.xz tarballs/
    - UNATTENDED=yes OSX_VERSION_MIN=10.7 ./build.sh
+   - echo '[target.x86_64-apple-darwin]' >> ~/.cargo/config.toml
+   - echo 'linker = "x86_64-apple-darwin15-clang"' >> ~/.cargo/config.toml
+   - echo 'ar = "x86_64-apple-darwin15-ar"' >> ~/.cargo/config.toml
    - cd ..
   script:
    - pwd
    - rustc --version && cargo --version 
-   - PATH=/root/osxcross/target/bin:$PATH CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=x86_64-apple-darwin15-clang CARGO_TARGET_X86_64_APPLE_DARWIN_AR=x86_64-apple-darwin15-ar cargo build --locked --release --target x86_64-apple-darwin
+   - PATH=/root/osxcross/target/bin:$PATH cargo build --locked --release --target x86_64-apple-darwin
    - ls target/x86_64-apple-darwin/release
   artifacts:
     paths:
