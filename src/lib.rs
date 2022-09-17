@@ -317,3 +317,13 @@ fn print_logic_error(error: &LogicError) {
 fn print_io_error(error: &std::io::Error) {
     eprintln!("{}: {:?}", "error".bold().red(), error);
 }
+
+lazy_static! {
+    static ref STDLIB: std::collections::HashMap<&'static str, &'static str> = {
+        let mut content = std::collections::HashMap::new();
+
+        include!(concat!(env!("OUT_DIR"), "/stdlib.rs"));
+
+        content
+    };
+}
