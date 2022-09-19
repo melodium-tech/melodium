@@ -64,8 +64,10 @@ Mélodium can be called through the `melodium` command.
 - if compiled from source, look at the `target/` directory;
 - if installed through crates.io, it should already be in your `PATH`.
 
-Mélodium also need to know where its [standard library](https://doc.melodium.tech/latest/) is located. It can either be set up with the `MELODIUM_STDLIB` environment variable, or by passing explicily the option `--stdlib <PATH>` to the command line.
-If compiled from source, standard library can be found in the `std/` folder. If installed through crates.io, it should be found within `~/.cargo/registry/src/<cargo git reference>/melodium-<version>/std`.
+Mélodium comes with its [standard library](https://doc.melodium.tech/latest/).
+If needed, the default standard library can be overrided using the `MELODIUM_STDLIB` environment variable, or by passing explicily the option `--stdlib <PATH>` to the command line.
+
+If compiled from source, standard library can be found in the `std/` folder. If installed through [crates.io](https://crates.io/crates/melodium), it should be found within `~/.cargo/registry/src/<cargo git reference>/melodium-<version>/std`.
 
 To launch a script:
 ```shell

@@ -4,6 +4,8 @@
 
 ### Features
 
+- Embedding standard library
+- Managing `jeu` file format
 - Graph generation as SVG
 - Internal designer allowing elements removal
 - Scripts restitution from designers
