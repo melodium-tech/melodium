@@ -47,17 +47,16 @@ fn main() {
             .index(1))
         .get_matches();
     
-    let std_path;
+    let std_path =
     if let Some(path) = matches.value_of("stdlib") {
-        std_path = path.to_owned();
+        Some(path.to_owned())
     }
     else if let Ok(path) = env::var("MELODIUM_STDLIB") {
-        std_path = path;
+        Some(path)
     }
     else {
-        eprintln!("No standard library path specified.");
-        exit(1);
-    }
+        None
+    };
 
     let main_entry;
     if let Some(main) = matches.value_of("main") {
@@ -78,6 +77,13 @@ fn main() {
 
     if let Some(path) = matches.value_of("doc") {
 
+        let std_path = if let Some(std_path) = std_path {
+            std_path
+        } else {
+            eprintln!("No stdlib path specified.");
+            exit(1);
+        };
+
         make_documentation(&std_path, &file_path, &path.to_string());
 
         exit(0);
@@ -89,7 +95,7 @@ fn main() {
         let output = &split[0];
         let ids = Vec::from(&split[1..]);
 
-        make_svg(&std_path, &file_path, output, &ids);
+        make_svg(std_path.as_ref(), &file_path, output, &ids);
 
         exit(0);
     }
@@ -105,17 +111,17 @@ fn main() {
     // Effective run
 
     if !parse_only && !no_launch {
-        match execute(&std_path, &file_path, &main_entry) {
+        match execute(std_path.as_ref(), &file_path, &main_entry) {
             Ok(_) => exit(0),
             Err(_) => exit(1),
         }
     }
     else if parse_only {
-        let instance = build(&std_path, &file_path);
+        let instance = build(std_path.as_ref(), &file_path);
         print_instance_errors(&instance);
     }
     else if no_launch {
-        let (instance, possible_world) = genesis(&std_path, &file_path, &main_entry);
+        let (instance, possible_world) = genesis(std_path.as_ref(), &file_path, &main_entry);
 
         print_instance_errors(&instance);
 

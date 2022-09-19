@@ -11,7 +11,6 @@ fi
 
 export PATH="$TEST_DIR/../target/debug:$PATH"
 export MELODIUM="$MELODIUM"
-export MELODIUM_STDLIB="$TEST_DIR/../std"
 export RUST_BACKTRACE=1
 
 GLOBAL_RESULT=0

@@ -144,7 +144,7 @@ use crate::logic::error::LogicError;
  * 
  * The common default is to set `entry` to `"Main"`.
  */
-pub fn execute(stdlib: &String, main: &String, entry: &String) -> Result<(), ()> {
+pub fn execute(stdlib: Option<&String>, main: &String, entry: &String) -> Result<(), ()> {
 
     let (instance, possible_world) = genesis(stdlib, main, entry);
 
@@ -176,13 +176,19 @@ pub fn execute(stdlib: &String, main: &String, entry: &String) -> Result<(), ()>
  * - `stdlib`: path to the standard library;
  * - `main`: path to the main script file.
  */
-pub fn build(stdlib: &String, main: &String) -> Instance {
+pub fn build(stdlib: Option<&String>, main: &String) -> Instance {
 
     let main = PathBuf::from(main);
     let main_dir = PathBuf::from(main.parent().unwrap());
     let main_file = PathBuf::from(main.file_name().unwrap());
 
-    let mut instance = Instance::new(Location::new(Base::FileSystem(main_dir), main_file), Base::FileSystem(stdlib.into()));
+    let mut instance = Instance::new(Location::new(Base::FileSystem(main_dir), main_file),
+        if let Some(stdlib) = stdlib {
+            Base::FileSystem(stdlib.into())
+        } else {
+            STDLIB.clone()
+        }
+    );
 
     instance.build_by_main();
 
@@ -200,7 +206,7 @@ pub fn build(stdlib: &String, main: &String) -> Instance {
  * - `main`: path to the main script file;
  * - `entry`: entrypoint to use within the main script file.
  */
-pub fn genesis(stdlib: &String, main: &String, entry: &String) -> (Instance, Option<(Arc<World>, bool)>) {
+pub fn genesis(stdlib: Option<&String>, main: &String, entry: &String) -> (Instance, Option<(Arc<World>, bool)>) {
 
     let instance = build(stdlib, main);
 
@@ -263,7 +269,7 @@ pub fn make_documentation(stdlib: &String, main: &String, output: &String) {
     }
 }
 
-pub fn make_svg(stdlib: &String, main: &String, output: &String, entries: &Vec<String>) {
+pub fn make_svg(stdlib: Option<&String>, main: &String, output: &String, entries: &Vec<String>) {
 
     let instance = build(stdlib, main);
     let collection = Arc::clone(instance.collection().as_ref().unwrap());
@@ -319,11 +325,12 @@ fn print_io_error(error: &std::io::Error) {
 }
 
 lazy_static! {
-    static ref STDLIB: std::collections::HashMap<&'static str, &'static str> = {
-        let mut content = std::collections::HashMap::new();
+    static ref STDLIB_CONTENT: std::collections::BTreeMap<&'static str, &'static str> = {
+        let mut content = std::collections::BTreeMap::new();
 
         include!(concat!(env!("OUT_DIR"), "/stdlib.rs"));
 
         content
     };
+    static ref STDLIB: Base = Base::Internal(&STDLIB_CONTENT);
 }

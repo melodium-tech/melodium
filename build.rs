@@ -17,7 +17,7 @@ fn main() {
                     },
                 };
 
-                std_content.push_str(&format!(r#"content.insert("{}", include_str!("{}"));"#, relative_path.to_slash().unwrap(), absolute_path.to_slash().unwrap().trim_start_matches(r"\\?\")));
+                std_content.push_str(&format!(r#"content.insert("{}", include_str!("{}"));"#, relative_path.to_slash().unwrap().trim_start_matches("std/"), absolute_path.to_slash().unwrap().trim_start_matches(r"\\?\")));
             }
             Err(e) => {
                 panic!("{}", e)

@@ -1,6 +1,6 @@
 
 use std::path::{Path, PathBuf};
-use std::collections::{HashMap, hash_map::Entry};
+use std::collections::{BTreeMap, HashMap, hash_map::Entry};
 use std::sync::{Arc, Mutex};
 use std::io::{Result, Error, ErrorKind};
 use std::fs::File;
@@ -15,7 +15,7 @@ lazy_static! {
 pub enum Base {
     FileSystem(PathBuf),
     Jeu(PathBuf),
-    Internal(usize),
+    Internal(&'static BTreeMap<&'static str, &'static str>),
 }
 
 impl Base {
@@ -52,8 +52,8 @@ impl Base {
                     |p| locations.push(Location::new(self.clone(), p.to_path_buf()))
                 );
             },
-            Base::Internal(_id) => {
-                todo!()
+            Base::Internal(tree) => {
+                tree.keys().for_each(|p| locations.push(Location::new(self.clone(), PathBuf::from(p))));
             }
         }
         
@@ -82,8 +82,13 @@ impl Base {
                     Err(Error::new(ErrorKind::NotFound, "Script not found"))
                 }
             },
-            Base::Internal(_id) => {
-                todo!()
+            Base::Internal(tree) => {
+                if let Some(content) = tree.get(path.to_str().unwrap()) {
+                    Ok(content.to_string())
+                }
+                else {
+                    Err(Error::new(ErrorKind::NotFound, "Script not found"))
+                }
             }
         }
     }
