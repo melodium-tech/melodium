@@ -8,3 +8,10 @@
     - .cargo/
     policy: pull
 
+.osxcross-cache:
+  cache:
+    key: osxcross-cache
+    paths:
+    - osxcross/
+    policy: pull-push
+
