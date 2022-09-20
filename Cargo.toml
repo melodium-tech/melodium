@@ -13,8 +13,7 @@ keywords = ["dataflow","parallelization","scalability","async","signal"]
 categories = ["compilers", "science", "concurrency", "asynchronous"]
 exclude = [
     "melodium-tests/*",
-    "examples/*",
-    "utils/*"
+    "examples/*"
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

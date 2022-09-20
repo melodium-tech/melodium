@@ -37,7 +37,7 @@ DIR="$TMP_DIR/$DIR_NAME"
 
 mkdir "$DIR"
 
-cp --recursive README.md LICENSE CHANGELOG.md std/ "$DIR"
+cp --recursive README.md LICENSE CHANGELOG.md "$DIR"
 cp "target/$TARGET/release/$EXECUTABLE" "$DIR"
 
 case "$ZIP_FORMAT" in
