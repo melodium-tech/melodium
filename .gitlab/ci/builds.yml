@@ -116,7 +116,9 @@ build:release:i686-apple-darwin:
   before_script:
    - apt-get update
    - apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
-   - rustup target add i686-apple-darwin
+   - rustup default nightly
+   - cargo install xargo
+   - rustup component add rust-src
    - |
      if [ ! -d osxcross ]
      then
@@ -129,7 +131,7 @@ build:release:i686-apple-darwin:
      fi
   script:
    - rustc --version && cargo --version 
-   - PATH=/builds/melodium/melodium/osxcross/target/bin:$PATH CARGO_TARGET_I686_APPLE_DARWIN_LINKER=i386-apple-darwin15-clang CARGO_TARGET_I686_APPLE_DARWIN_AR=i386-apple-darwin15-ar cargo build --locked --release --target i686-apple-darwin
+   - PATH=/builds/melodium/melodium/osxcross/target/bin:$PATH CARGO_TARGET_I686_APPLE_DARWIN_LINKER=i386-apple-darwin15-clang CARGO_TARGET_I686_APPLE_DARWIN_AR=i386-apple-darwin15-ar xargo build --locked --release --target i686-apple-darwin
    - ls target/i686-apple-darwin/release
   artifacts:
     paths:
