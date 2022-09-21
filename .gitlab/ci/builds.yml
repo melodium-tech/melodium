@@ -219,6 +219,7 @@ build:release:aarch64-pc-windows-msvc:
     - refreshenv
     - rustup target add aarch64-pc-windows-msvc
   script:
+    - vcvarsall.bat
     - rustc --version
     - cargo --version
     - cargo build --locked --release --target aarch64-pc-windows-msvc
