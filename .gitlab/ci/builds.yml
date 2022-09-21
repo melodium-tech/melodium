@@ -138,6 +138,35 @@ build:release:i686-apple-darwin:
       - target/i686-apple-darwin/release/melodium
     expire_in: 1 hour
 
+build:release:aarch64-apple-darwin:
+  stage: build
+  extends:
+    - .debian-host
+    - .cargo-cache
+    - .osxcross-cache
+  before_script:
+   - apt-get update
+   - apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
+   - rustup target add aarch64-apple-darwin
+   - |
+     if [ ! -d osxcross ]
+     then
+       git clone https://github.com/tpoechtrager/osxcross
+       cd osxcross
+       wget -nc https://storage.googleapis.com/ory.sh/build-assets/MacOSX11.3.sdk.tar.xz
+       mv MacOSX11.3.sdk.tar.xz tarballs/
+       UNATTENDED=yes OSX_VERSION_MIN=11.3 ./build.sh
+       cd ..
+     fi
+  script:
+   - rustc --version && cargo --version 
+   - PATH=$(pwd)/.cargo/bin:$(pwd)/osxcross/target/bin:$PATH CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=aarch64-apple-darwin20.4-clang CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=aarch64-apple-darwin20.4-ar cargo build --locked --release --target aarch64-apple-darwin
+   - ls target/aarch64-apple-darwin/release
+  artifacts:
+    paths:
+      - target/aarch64-apple-darwin/release/melodium
+    expire_in: 1 hour
+
 build:release:x86_64-pc-windows-gnu:
   stage: build
   extends:
