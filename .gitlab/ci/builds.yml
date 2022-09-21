@@ -215,7 +215,7 @@ build:release:aarch64-pc-windows-msvc:
   before_script:
     - Invoke-WebRequest -UseBasicParsing -Uri https://win.rustup.rs/x86_64 -OutFile rustup-init.exe
     - .\rustup-init.exe -v -y
-    - rustup toolchain install stable-msvc
+    - refreshenv
     - rustup target add aarch64-pc-windows-msvc
   script:
     - rustc --version
