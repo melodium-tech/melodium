@@ -131,7 +131,7 @@ build:release:i686-apple-darwin:
      fi
   script:
    - rustc --version && cargo --version 
-   - PATH=/builds/melodium/melodium/osxcross/target/bin:$PATH CARGO_TARGET_I686_APPLE_DARWIN_LINKER=i386-apple-darwin15-clang CARGO_TARGET_I686_APPLE_DARWIN_AR=i386-apple-darwin15-ar xargo build --locked --release --target i686-apple-darwin
+   - PATH=$(pwd)/.cargo/bin:$(pwd)/osxcross/target/bin:$PATH CARGO_TARGET_I686_APPLE_DARWIN_LINKER=i386-apple-darwin15-clang CARGO_TARGET_I686_APPLE_DARWIN_AR=i386-apple-darwin15-ar xargo build --locked --release --target i686-apple-darwin
    - ls target/i686-apple-darwin/release
   artifacts:
     paths:
