@@ -206,3 +206,20 @@ build:release:i686-pc-windows-msvc:
     paths:
       - target/i686-pc-windows-msvc/release/melodium.exe
     expire_in: 1 hour
+
+build:release:aarch64-pc-windows-msvc:
+  stage: build
+  extends:
+    - .windows-host
+    - .cargo-cache
+  before_script:
+    - choco install rust-ms --yes
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo build --locked --release --target aarch64-pc-windows-msvc
+    - ls target/aarch64-pc-windows-msvc/release
+  artifacts:
+    paths:
+      - target/aarch64-pc-windows-msvc/release/melodium.exe
+    expire_in: 1 hour

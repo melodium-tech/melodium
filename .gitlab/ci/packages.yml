@@ -16,6 +16,7 @@ package:zips:
     - build:release:x86_64-pc-windows-msvc
     - build:release:i686-pc-windows-gnu
     - build:release:i686-pc-windows-msvc
+    - build:release:aarch64-pc-windows-msvc
   dependencies: 
     - build:release:x86_64-unknown-linux-gnu
     - build:release:i686-unknown-linux-gnu
@@ -26,6 +27,7 @@ package:zips:
     - build:release:x86_64-pc-windows-msvc
     - build:release:i686-pc-windows-gnu
     - build:release:i686-pc-windows-msvc
+    - build:release:aarch64-pc-windows-msvc
   before_script:
     - apt-get update
     - apt-get install -y zip
@@ -42,6 +44,7 @@ package:zips:
     - .gitlab/ci/package.sh -t x86_64-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
     - .gitlab/ci/package.sh -t i686-pc-windows-gnu -v $VERSION -e melodium.exe -z zip
     - .gitlab/ci/package.sh -t i686-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
+    - .gitlab/ci/package.sh -t aarch64-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
     - sha256sum *.tar.gz *.zip > SHA256SUMS
     - echo "VERSION=$VERSION" >> variables.env
   artifacts:
@@ -57,6 +60,7 @@ package:zips:
       - melodium-*_x86_64-pc-windows-msvc.zip
       - melodium-*_i686-pc-windows-gnu.zip
       - melodium-*_i686-pc-windows-msvc.zip
+      - melodium-*_aarch64-pc-windows-msvc.zip
     expire_in: 1 day
     reports:
       dotenv: variables.env
