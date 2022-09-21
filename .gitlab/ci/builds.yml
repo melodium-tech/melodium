@@ -142,8 +142,8 @@ build:release:aarch64-apple-darwin:
   stage: build
   extends:
     - .debian-host
-    - .cargo-cache
-    - .osxcross-cache
+    # - .cargo-cache
+    # - .osxcross-cache
   before_script:
    - apt-get update
    - apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
