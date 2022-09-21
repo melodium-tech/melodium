@@ -213,7 +213,7 @@ build:release:aarch64-pc-windows-msvc:
     - .windows-host
     - .cargo-cache
   before_script:
-    - wget https://win.rustup.rs/x86_64
+    - wget -UseBasicParsing https://win.rustup.rs/x86_64
     - rustup-init.exe -v -y
     - rustup toolchain install stable-msvc
     - rustup target add aarch64-pc-windows-msvc
