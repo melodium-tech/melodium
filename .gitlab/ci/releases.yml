@@ -15,9 +15,9 @@ release:gitlab:
     description: 'CHANGELOG.md'
     assets:
       links:
-        - name: Windows ARM 64 bits (arm64, MSVC compiler)
-          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_aarch64-pc-windows-msvc.zip"
-          link_type: package
+        # - name: Windows ARM 64 bits (arm64, MSVC compiler)
+        #   url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_aarch64-pc-windows-msvc.zip"
+        #   link_type: package
         - name: Windows 32 bits (i686, MSVC compiler)
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-msvc.zip"
           link_type: package
