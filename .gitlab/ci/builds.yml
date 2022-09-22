@@ -233,24 +233,25 @@ build:release:i686-pc-windows-msvc:
       - target/i686-pc-windows-msvc/release/melodium.exe
     expire_in: 1 hour
 
-# build:release:aarch64-pc-windows-msvc:
-#   stage: build
-#   extends:
-#     - .windows-host
-#     - .cargo-cache
-#   before_script:
-#     - Invoke-WebRequest -UseBasicParsing -Uri https://win.rustup.rs/x86_64 -OutFile rustup-init.exe
-#     - .\rustup-init.exe -v -y
-#     - $env:Path = 'C:\GitLab-Runner\builds\melodium\melodium\.cargo\bin;' + $env:Path
-#     - refreshenv
-#     - rustup target add aarch64-pc-windows-msvc
-#   script:
-#     - vcvarsall.bat
-#     - rustc --version
-#     - cargo --version
-#     - cargo build --locked --release --target aarch64-pc-windows-msvc
-#     - ls target/aarch64-pc-windows-msvc/release
-#   artifacts:
-#     paths:
-#       - target/aarch64-pc-windows-msvc/release/melodium.exe
-#     expire_in: 1 hour
+build:release:aarch64-pc-windows-msvc:
+  stage: build
+  extends:
+    - .windows-host
+    - .cargo-cache
+  before_script:
+    - Invoke-WebRequest -UseBasicParsing -Uri https://win.rustup.rs/x86_64 -OutFile rustup-init.exe
+    - .\rustup-init.exe -v -y
+    - $env:Path = 'C:\GitLab-Runner\builds\melodium\melodium\.cargo\bin;' + $env:Path
+    - refreshenv
+    - rustup target add aarch64-pc-windows-msvc
+  script:
+    - vcvarsall.bat
+    - Get-ChildItem -Path C:\ -Filter vcvarsall.bat -Recurse -ErrorAction SilentlyContinue -Force
+    # - rustc --version
+    # - cargo --version
+    # - cargo build --locked --release --target aarch64-pc-windows-msvc
+    # - ls target/aarch64-pc-windows-msvc/release
+  artifacts:
+    paths:
+      - target/aarch64-pc-windows-msvc/release/melodium.exe
+    expire_in: 1 hour
