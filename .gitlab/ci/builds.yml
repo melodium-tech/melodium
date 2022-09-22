@@ -245,12 +245,11 @@ build:release:aarch64-pc-windows-msvc:
     - refreshenv
     - rustup target add aarch64-pc-windows-msvc
   script:
-    #- vcvarsall.bat
-    - Get-ChildItem -Path C:\ -Filter vcvarsall.bat -Recurse -ErrorAction SilentlyContinue -Force
-    # - rustc --version
-    # - cargo --version
-    # - cargo build --locked --release --target aarch64-pc-windows-msvc
-    # - ls target/aarch64-pc-windows-msvc/release
+    - C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat
+    - rustc --version
+    - cargo --version
+    - cargo build --locked --release --target aarch64-pc-windows-msvc
+    - ls target/aarch64-pc-windows-msvc/release
   artifacts:
     paths:
       - target/aarch64-pc-windows-msvc/release/melodium.exe
