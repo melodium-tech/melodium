@@ -246,10 +246,11 @@ build:release:aarch64-pc-windows-msvc:
     - rustup target add aarch64-pc-windows-msvc
   script:
     - >
-      & "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" amd64_arm64
-    - rustc --version
-    - cargo --version
-    - cargo build --locked --release --target aarch64-pc-windows-msvc
+      & cmd.exe /C '\
+      "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" amd64_arm64 && \
+      rustc --version && \
+      cargo --version && \
+      cargo build --locked --release --target aarch64-pc-windows-msvc'
     - ls target/aarch64-pc-windows-msvc/release
   artifacts:
     paths:
