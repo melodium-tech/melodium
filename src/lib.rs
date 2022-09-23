@@ -269,6 +269,12 @@ pub fn make_documentation(stdlib: &String, main: &String, output: &String) {
     }
 }
 
+/**
+ * Makes SVG describing sequences
+ * 
+ * Creates a SVG file in `output` directory, with as name `<sequence_name>.svg`.
+ * Entries should be in `path/to::Sequence` format.
+ */
 pub fn make_svg(stdlib: Option<&String>, main: &String, output: &String, entries: &Vec<String>) {
 
     let instance = build(stdlib, main);

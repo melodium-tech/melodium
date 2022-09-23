@@ -10,6 +10,48 @@ For more exhaustive explanations, please refer to [the Mélodium Language book](
 
 Mélodium is _under development_ and continously being defined and improved. Released documentation is available on [docs.rs](https://docs.rs/melodium/latest/melodium/) and standard reference on [melodium.tech](https://doc.melodium.tech/latest/). Development documentation is available at <https://melodium.gitlab.io/melodium/melodium/>, and the standard reference at <https://melodium.gitlab.io/melodium/reference/>.
 
+## Download & installation
+
+Mélodium releases can be downloaded for multiple platforms from the [Mélodium Repository](https://repo.melodium.tech/).
+
+## Command-line usage
+
+Launch a Mélodium file:
+```shell
+melodium <FILE>
+melodium run <FILE>
+```
+
+Launch a Mélodium file with a different main entry than `Main`:
+```shell
+melodium run --main OtherEntry <FILE>
+```
+
+Check a Mélodium file:
+```shell
+melodium check <FILE>
+```
+
+Compile and package a script project into a `jeu` file:
+```shell
+melodium package <SCRIPT> <FILE>
+```
+
+Draw sequences as SVG:
+```shell
+melodium draw <FILE> [ENTRY …] <OUTPUT>
+```
+
+Generate documentation:
+```shell
+melodium doc <FILE> <OUTPUT>
+```
+
+Format script files:
+```shell
+melodium fmt <FILE> <OUTPUT>
+```
+
 ## Example
 
 The following code makes a copy of the file `./input.txt` to `./output.txt`. More examples are available under [examples](examples/).
@@ -28,10 +70,6 @@ sequence Main()
     Ready.ready -> ReadPath.trigger,data -> WritePath.data
 }
 ```
-
-## Download
-
-Mélodium releases can be downloaded for some platforms from the [Mélodium Repository](https://repo.melodium.tech/).
 
 ## Compilation
 
@@ -58,26 +96,12 @@ cargo install melodium
 
 A more detailed explanation on how to cross-compile Mélodium is written in [dedicated file](CROSS-COMPILATION.md).
 
-## Usage
-
-Mélodium can be called through the `melodium` command.
-- if compiled from source, look at the `target/` directory;
-- if installed through crates.io, it should already be in your `PATH`.
+## Standard library
 
 Mélodium comes with its [standard library](https://doc.melodium.tech/latest/).
 If needed, the default standard library can be overrided using the `MELODIUM_STDLIB` environment variable, or by passing explicily the option `--stdlib <PATH>` to the command line.
 
 If compiled from source, standard library can be found in the `std/` folder. If installed through [crates.io](https://crates.io/crates/melodium), it should be found within `~/.cargo/registry/src/<cargo git reference>/melodium-<version>/std`.
-
-To launch a script:
-```shell
-melodium <SCRIPT>
-```
-
-Or if your script has an entry sequence that is not called `Main`:
-```shell
-melodium -m <EntrySequenceName> <SCRIPT>
-```
 
 ## Development
 
