@@ -1,9 +1,8 @@
 
-use std::env;
 use std::process::*;
 
 extern crate clap;
-use clap::{Arg, Command, crate_version};
+use colored::*;
 use clap::{Parser, Subcommand};
 
 use melodium::*;
@@ -62,6 +61,8 @@ struct Package {
 struct Draw {
     #[clap(short, long)]
     output: String,
+    #[clap(long)]
+    stdlib: Option<String>,
     #[clap(value_parser)]
     file: String,
     #[clap(value_parser)]
@@ -72,9 +73,9 @@ struct Draw {
 #[clap(about, long_about = None)]
 struct Doc {
     #[clap(long)]
-    stdlib: Option<String>,
+    stdlib: String,
     #[clap(value_parser)]
-    file: String,
+    input: String,
     #[clap(value_parser)]
     output: String,
 }
@@ -142,6 +143,33 @@ fn main() {
         .get_matches();*/
     
     let cli = Cli::parse();
+
+    if let Some(file) = cli.file {
+
+        let args = Run {
+            main: None,
+            stdlib: None,
+            file,
+            file_args: cli.file_args,
+        };
+
+        run(args);
+    }
+    else if let Some(command) = cli.command {
+        match command {
+            Commands::Run(args) => run(args),
+            Commands::Check(args) => check(args),
+            Commands::Package(args) => package(args),
+            Commands::Doc(args) => doc(args),
+            Commands::Draw(args) => draw(args),
+            Commands::Fmt(args) => fmt(args),
+        }
+    }
+    else {
+        eprintln!("{}: missing arguments", "error".bold().red());
+        eprintln!("{}: run `melodium --help` get commands", "info".bold().blue());
+        exit(1);
+    }
     
     /* 
     let std_path =
@@ -236,4 +264,41 @@ fn main() {
     */
 }
 
+fn run(args: Run) {
+    match execute(args.stdlib.as_ref(), &args.file, &args.main.unwrap_or(String::from("Main"))) {
+        Ok(_) => exit(0),
+        Err(_) => exit(1),
+    }
+}
 
+fn check(args: Check) {
+
+    let instance = build(args.stdlib.as_ref(), &args.file);
+
+    if !instance.errors().is_empty() {
+        eprintln!("{}: program is valid", "success".bold().green());
+        exit(0);
+    }
+    else {
+        print_instance_errors(&instance);
+        exit(1);
+    }
+}
+
+fn package(args: Package) {
+
+}
+
+fn doc(args: Doc) {
+
+    make_documentation(&args.stdlib, &args.input, &args.output);
+}
+
+fn draw(args: Draw) {
+
+    make_svg(args.stdlib.as_ref(), &args.file, &args.output, &args.entry);
+}
+
+fn fmt(args: Fmt) {
+
+}
