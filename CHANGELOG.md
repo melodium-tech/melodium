@@ -12,6 +12,7 @@
 
 ### Changed
 
+- New CLI
 - Cleaning up obsolete 'empty' connections code
 
 ## [v0.4.0] (2022-07-28)

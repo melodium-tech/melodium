@@ -4,11 +4,105 @@ use std::process::*;
 
 extern crate clap;
 use clap::{Arg, Command, crate_version};
+use clap::{Parser, Subcommand};
 
 use melodium::*;
 
+#[derive(Parser)]
+#[clap(author, version, about)]
+struct Cli {
+
+    #[clap(value_parser)]
+    file: Option<String>,
+
+    #[clap(value_parser, value_name = "ARGUMENTS")]
+    file_args: Vec<String>,
+
+    #[clap(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(clap::Args)]
+#[clap(about, long_about = None)]
+struct Run {
+    #[clap(short, long)]
+    main: Option<String>,
+    #[clap(long)]
+    stdlib: Option<String>,
+    #[clap(value_parser)]
+    file: String,
+    #[clap(value_parser, value_name = "ARGUMENTS")]
+    file_args: Vec<String>,
+}
+
+#[derive(clap::Args)]
+#[clap(about, long_about = None)]
+struct Check {
+    #[clap(short, long)]
+    main: Option<String>,
+    #[clap(long)]
+    stdlib: Option<String>,
+    #[clap(value_parser)]
+    file: String,
+    #[clap(value_parser, value_name = "ARGUMENTS")]
+    file_args: Vec<String>,
+}
+
+#[derive(clap::Args)]
+#[clap(about, long_about = None)]
+struct Package {
+    #[clap(value_parser)]
+    script: String,
+    #[clap(value_parser)]
+    file: String,
+}
+
+#[derive(clap::Args)]
+#[clap(about, long_about = None)]
+struct Draw {
+    #[clap(short, long)]
+    output: String,
+    #[clap(value_parser)]
+    file: String,
+    #[clap(value_parser)]
+    entry: Vec<String>,
+}
+
+#[derive(clap::Args)]
+#[clap(about, long_about = None)]
+struct Doc {
+    #[clap(long)]
+    stdlib: Option<String>,
+    #[clap(value_parser)]
+    file: String,
+    #[clap(value_parser)]
+    output: String,
+}
+
+#[derive(clap::Args)]
+#[clap(about, long_about = None)]
+struct Fmt {
+    #[clap(long)]
+    stdlib: Option<String>,
+    #[clap(value_parser)]
+    file: String,
+    #[clap(value_parser)]
+    output: String,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    Run(Run),
+    Check(Check),
+    Package(Package),
+    Draw(Draw),
+    Doc(Doc),
+    Fmt(Fmt),
+}
+
 fn main() {
 
+    /* 
     let matches = Command::new("Mélodium")
         .version(crate_version!())
         .author("Quentin Vignaud")
@@ -45,8 +139,11 @@ fn main() {
             .help("Script to run")
             .required(true)
             .index(1))
-        .get_matches();
+        .get_matches();*/
     
+    let cli = Cli::parse();
+    
+    /* 
     let std_path =
     if let Some(path) = matches.value_of("stdlib") {
         Some(path.to_owned())
@@ -136,6 +233,7 @@ fn main() {
             exit(1);
         }
     }
+    */
 }
 
 
