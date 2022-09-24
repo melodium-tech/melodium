@@ -78,6 +78,92 @@ build:release:aarch64-unknown-linux-gnu:
       - target/aarch64-unknown-linux-gnu/release/melodium
     expire_in: 1 hour
 
+build:release:x86_64-apple-darwin:
+  stage: build
+  extends:
+    - .debian-host
+    - .osxcross-macos10.7-cache
+  before_script:
+   - apt-get update
+   - apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
+   - rustup target add x86_64-apple-darwin
+   - |
+     if [ ! -d osxcross ]
+     then
+       git clone https://github.com/tpoechtrager/osxcross
+       cd osxcross
+       wget -nc https://s3.dockerproject.org/darwin/v2/MacOSX10.11.sdk.tar.xz
+       mv MacOSX10.11.sdk.tar.xz tarballs/
+       UNATTENDED=yes OSX_VERSION_MIN=10.7 ./build.sh
+       cd ..
+     fi
+  script:
+   - rustc --version && cargo --version 
+   - PATH=/builds/melodium/melodium/osxcross/target/bin:$PATH CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=x86_64-apple-darwin15-clang CARGO_TARGET_X86_64_APPLE_DARWIN_AR=x86_64-apple-darwin15-ar cargo build --locked --release --target x86_64-apple-darwin
+   - ls target/x86_64-apple-darwin/release
+  artifacts:
+    paths:
+      - target/x86_64-apple-darwin/release/melodium
+    expire_in: 1 hour
+
+build:release:i686-apple-darwin:
+  stage: build
+  extends:
+    - .debian-host
+    - .osxcross-macos10.7-cache
+  before_script:
+   - apt-get update
+   - apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
+   - rustup default nightly
+   - cargo install xargo
+   - rustup component add rust-src
+   - |
+     if [ ! -d osxcross ]
+     then
+       git clone https://github.com/tpoechtrager/osxcross
+       cd osxcross
+       wget -nc https://s3.dockerproject.org/darwin/v2/MacOSX10.11.sdk.tar.xz
+       mv MacOSX10.11.sdk.tar.xz tarballs/
+       UNATTENDED=yes OSX_VERSION_MIN=10.7 ./build.sh
+       cd ..
+     fi
+  script:
+   - rustc --version && cargo --version 
+   - PATH=$(pwd)/.cargo/bin:$(pwd)/osxcross/target/bin:$PATH CARGO_TARGET_I686_APPLE_DARWIN_LINKER=i386-apple-darwin15-clang CARGO_TARGET_I686_APPLE_DARWIN_AR=i386-apple-darwin15-ar xargo build --locked --release --target i686-apple-darwin
+   - ls target/i686-apple-darwin/release
+  artifacts:
+    paths:
+      - target/i686-apple-darwin/release/melodium
+    expire_in: 1 hour
+
+build:release:aarch64-apple-darwin:
+  stage: build
+  extends:
+    - .debian-host
+    - .osxcross-macos11.3-cache
+  before_script:
+   - apt-get update
+   - apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
+   - rustup target add aarch64-apple-darwin
+   - |
+     if [ ! -d osxcross ]
+     then
+       git clone https://github.com/tpoechtrager/osxcross
+       cd osxcross
+       wget -nc https://storage.googleapis.com/ory.sh/build-assets/MacOSX11.3.sdk.tar.xz
+       mv MacOSX11.3.sdk.tar.xz tarballs/
+       UNATTENDED=yes OSX_VERSION_MIN=11.3 ./build.sh
+       cd ..
+     fi
+  script:
+   - rustc --version && cargo --version 
+   - PATH=$(pwd)/.cargo/bin:$(pwd)/osxcross/target/bin:$PATH CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=aarch64-apple-darwin20.4-clang CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=aarch64-apple-darwin20.4-ar cargo build --locked --release --target aarch64-apple-darwin
+   - ls target/aarch64-apple-darwin/release
+  artifacts:
+    paths:
+      - target/aarch64-apple-darwin/release/melodium
+    expire_in: 1 hour
+
 build:release:x86_64-pc-windows-gnu:
   stage: build
   extends:
@@ -145,4 +231,32 @@ build:release:i686-pc-windows-msvc:
   artifacts:
     paths:
       - target/i686-pc-windows-msvc/release/melodium.exe
+    expire_in: 1 hour
+
+build:release:aarch64-pc-windows-msvc:
+  stage: build
+  extends:
+    - .windows-host
+    - .cargo-cache
+  before_script:
+    - Invoke-WebRequest -UseBasicParsing -Uri https://win.rustup.rs/x86_64 -OutFile rustup-init.exe
+    - .\rustup-init.exe -v -y
+    - $env:Path = 'C:\GitLab-Runner\builds\melodium\melodium\.cargo\bin;' + $env:Path
+    - refreshenv
+    - rustup target add aarch64-pc-windows-msvc
+    - Get-ChildItem -Path C:\ -Filter msvcrt.lib -Recurse -ErrorAction SilentlyContinue -Force
+  script:
+    - >
+      & cmd.exe /C '
+      set &&
+      "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" amd64_arm64 &&
+      set &&
+      rustc --version &&
+      cargo --version &&
+      cargo build --locked --release --target aarch64-pc-windows-msvc
+      '
+    - ls target/aarch64-pc-windows-msvc/release
+  artifacts:
+    paths:
+      - target/aarch64-pc-windows-msvc/release/melodium.exe
     expire_in: 1 hour

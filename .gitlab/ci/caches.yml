@@ -8,3 +8,22 @@
     - .cargo/
     policy: pull
 
+.osxcross-macos10.7-cache:
+  variables:
+    CARGO_HOME: .cargo/
+  cache:
+    key: osxcross-macos10.7-cache
+    paths:
+    - osxcross/
+    - .cargo/
+    policy: pull-push
+
+.osxcross-macos11.3-cache:
+  variables:
+    CARGO_HOME: .cargo/
+  cache:
+    key: osxcross-macos11.3-cache
+    paths:
+    - osxcross/
+    - .cargo/
+    policy: pull-push

@@ -1,0 +1,8 @@
+
+[dependencies.std]
+features = ["panic-unwind"]
+
+[dependencies.alloc]
+[dependencies.panic_abort]
+[dependencies.panic_unwind]
+
