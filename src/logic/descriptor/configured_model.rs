@@ -2,6 +2,7 @@
 use std::fmt::*;
 use std::sync::{Arc, Weak, RwLock};
 use std::collections::HashMap;
+use crate::logic::designer::ModelDesigner;
 use super::identified::Identified;
 use super::identifier::Identifier;
 use super::parameterized::Parameterized;
@@ -18,6 +19,7 @@ pub struct ConfiguredModel {
     identifier: Identifier,
     core_model: Arc<CoreModel>,
     parameters: HashMap<String, Parameter>,
+    designer: RwLock<Option<Arc<RwLock<ModelDesigner>>>>,
     builder: RwLock<Option<Arc<Box<dyn Builder>>>>,
     auto_reference: Weak<Self>,
 }
@@ -28,6 +30,7 @@ impl ConfiguredModel {
             identifier,
             core_model: Arc::clone(core_model),
             parameters: HashMap::new(),
+            designer: RwLock::new(None),
             builder: RwLock::new(None),
             auto_reference: Weak::default(),
         }
@@ -42,9 +45,15 @@ impl ConfiguredModel {
             identifier: self.identifier,
             core_model: self.core_model,
             parameters: self.parameters,
+            designer: self.designer,
             builder: self.builder,
             auto_reference: me.clone()
         })
+    }
+
+    pub fn set_designer(&self, designer: Arc<RwLock<ModelDesigner>>) {
+
+        *self.designer.write().unwrap() = Some(designer);
     }
 }
 
@@ -91,6 +100,10 @@ impl Model for ConfiguredModel {
 
     fn sources(&self) -> &HashMap<String, Vec<Arc<Context>>> {
         self.core_model.sources()
+    }
+
+    fn designer(&self) -> Option<Arc<RwLock<ModelDesigner>>> {
+        Some(Arc::clone(self.designer.read().unwrap().as_ref().unwrap()))
     }
 }
 

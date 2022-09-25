@@ -120,17 +120,19 @@ pub mod logic;
 pub mod script;
 
 use colored::*;
+use std::collections::HashMap;
 use std::path::{Path as StdPath, PathBuf};
 use std::sync::Arc;
-use crate::executive::world::World;
-use crate::logic::descriptor::SequenceTreatmentDescriptor;
-use crate::script::instance::Instance;
-use crate::script::base::Base;
-use crate::script::location::Location;
-use crate::script::path::{Path, PathRoot};
-use crate::doc::instance::Instance as DocInstance;
-use crate::script::error::ScriptError;
-use crate::logic::error::LogicError;
+use executive::world::World;
+use logic::descriptor::SequenceTreatmentDescriptor;
+use logic::descriptor::identifier::Root;
+use script::instance::Instance;
+use script::base::Base;
+use script::location::Location;
+use script::path::{Path, PathRoot};
+use doc::instance::Instance as DocInstance;
+use script::error::ScriptError;
+use logic::error::LogicError;
 
 /**
  * Launches a Mélodium execution
@@ -267,6 +269,54 @@ pub fn make_documentation(stdlib: &String, main: &String, output: &String) {
     if let Err(io) = instance.output_doc() {
         print_io_error(&io);
     }
+}
+
+pub fn make_package(stdlib: Option<&String>, main: &String, output: &String) {
+
+    let instance = build(stdlib, main);
+
+    if !instance.errors().is_empty() {
+        print_instance_errors(&instance);
+        return;
+    }
+
+    let mut tree = script::restitution::tree::Tree::new();
+
+    for ref identifier in instance.collection().as_ref().unwrap().models.identifiers() {
+        if identifier.root() == &Root::Main {
+            if let Some(ref model_designer) = instance.collection().as_ref().unwrap().models.get(identifier).unwrap().designer() {
+                tree.add_model(model_designer);
+            }
+        }
+    }
+
+    for ref identifier in instance.collection().as_ref().unwrap().treatments.identifiers() {
+        if identifier.root() == &Root::Main {
+            if let Some(ref sequence_designer) = instance.collection().as_ref().unwrap().treatments.get(identifier).unwrap().designer() {
+                tree.add_sequence(sequence_designer);
+            }
+        }
+    }
+
+    fn write_file(content: HashMap<String, String>, output: &String) -> std::io::Result<()> {
+        let file = std::fs::File::create(PathBuf::from(output))?;
+        let mut builder = jeu::Builder::new(file)?;
+
+        for (path, text) in content {
+            builder.append(PathBuf::from(path), text.as_bytes())?;
+        }
+
+        builder.finish()?;
+
+        Ok(())
+    }
+
+    let internal_content = tree.generate();
+
+    if let Err(e) = write_file(internal_content, output) {
+        print_io_error(&e);
+    }
+
 }
 
 /**

@@ -1,6 +1,6 @@
 
 use std::fmt::*;
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, RwLock, Weak};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::hash::{Hash, Hasher};
@@ -13,6 +13,7 @@ use super::parameter::Parameter;
 use super::context::Context;
 use super::super::builder::Builder;
 use crate::logic::builder::CoreModelBuilder;
+use crate::logic::designer::ModelDesigner;
 use crate::executive::model::Model as ExecutiveModel;
 use crate::executive::world::World;
 
@@ -104,6 +105,10 @@ impl Model for CoreModel {
 
     fn sources(&self) -> &HashMap<String, Vec<Arc<Context>>> {
         &self.sources
+    }
+
+    fn designer(&self) -> Option<Arc<RwLock<ModelDesigner>>> {
+        None
     }
 }
 

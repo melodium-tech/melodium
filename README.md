@@ -47,11 +47,6 @@ Generate documentation:
 melodium doc <FILE> <OUTPUT>
 ```
 
-Format script files:
-```shell
-melodium fmt <FILE> <OUTPUT>
-```
-
 ## Example
 
 The following code makes a copy of the file `./input.txt` to `./output.txt`. More examples are available under [examples](examples/).

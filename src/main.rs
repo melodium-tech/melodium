@@ -50,6 +50,8 @@ struct Check {
 #[derive(clap::Args)]
 #[clap(about, long_about = None)]
 struct Package {
+    #[clap(long)]
+    stdlib: Option<String>,
     #[clap(value_parser)]
     script: String,
     #[clap(value_parser)]
@@ -80,17 +82,6 @@ struct Doc {
     output: String,
 }
 
-#[derive(clap::Args)]
-#[clap(about, long_about = None)]
-struct Fmt {
-    #[clap(long)]
-    stdlib: Option<String>,
-    #[clap(value_parser)]
-    file: String,
-    #[clap(value_parser)]
-    output: String,
-}
-
 #[derive(Subcommand)]
 enum Commands {
     Run(Run),
@@ -98,7 +89,6 @@ enum Commands {
     Package(Package),
     Draw(Draw),
     Doc(Doc),
-    Fmt(Fmt),
 }
 
 fn main() {
@@ -162,7 +152,6 @@ fn main() {
             Commands::Package(args) => package(args),
             Commands::Doc(args) => doc(args),
             Commands::Draw(args) => draw(args),
-            Commands::Fmt(args) => fmt(args),
         }
     }
     else {
@@ -287,6 +276,7 @@ fn check(args: Check) {
 
 fn package(args: Package) {
 
+    make_package(args.stdlib.as_ref(), &args.script, &args.file);
 }
 
 fn doc(args: Doc) {
@@ -297,8 +287,4 @@ fn doc(args: Doc) {
 fn draw(args: Draw) {
 
     make_svg(args.stdlib.as_ref(), &args.file, &args.output, &args.entry);
-}
-
-fn fmt(args: Fmt) {
-
 }
