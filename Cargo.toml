@@ -27,7 +27,7 @@ name = "melodium"
 [dependencies]
 async-std = "1.11.0"
 brotli = "3.3.4"
-clap = { version = "3.1.12", features = ["cargo"] }
+clap = { version = "3.2.22", features = ["cargo", "derive"] }
 colored = "2.0.0"
 convert_case = "0.5.0"
 cpal = "0.13.5"
