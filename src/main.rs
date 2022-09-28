@@ -22,7 +22,7 @@ struct Cli {
 }
 
 #[derive(clap::Args)]
-#[clap(about, long_about = None)]
+#[clap(about = "Run given program, with optionnal arguments")]
 struct Run {
     #[clap(short, long)]
     main: Option<String>,
@@ -35,7 +35,7 @@ struct Run {
 }
 
 #[derive(clap::Args)]
-#[clap(about, long_about = None)]
+#[clap(about = "Check program logical integrity")]
 struct Check {
     #[clap(short, long)]
     main: Option<String>,
@@ -48,7 +48,7 @@ struct Check {
 }
 
 #[derive(clap::Args)]
-#[clap(about, long_about = None)]
+#[clap(about = "Package script into `jeu` file")]
 struct Package {
     #[clap(long)]
     stdlib: Option<String>,
@@ -59,7 +59,7 @@ struct Package {
 }
 
 #[derive(clap::Args)]
-#[clap(about, long_about = None)]
+#[clap(about = "Render sequences as SVG")]
 struct Draw {
     #[clap(short, long)]
     output: String,
@@ -72,7 +72,7 @@ struct Draw {
 }
 
 #[derive(clap::Args)]
-#[clap(about, long_about = None)]
+#[clap(about = "Make documentation of program")]
 struct Doc {
     #[clap(long)]
     stdlib: String,
