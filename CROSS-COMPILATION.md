@@ -1,6 +1,13 @@
 
 # Cross compilation
 
+>
+> ℹ️ This file does not reflect the current cross-compilation ability state of the project,
+> notably claiming not working cross-compilation steps, _while they actually works_.
+>
+> Please take a look at [builds.yml](.gitlab/ci/builds.yml) to know how the different targets are build.
+>
+
 Mélodium can be compiled for a large range of platforms.
 Here is explained how to cross compile Mélodium from a x86_64-unknown-linux-gnu arch (Ubuntu-like) distribution to:
 - i686-unknown-linux-gnu
