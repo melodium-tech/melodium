@@ -1,5 +1,6 @@
 
 include:
+  - local: /.gitlab/ci/configs.yml
   - local: /.gitlab/ci/hosts.yml
   - local: /.gitlab/ci/caches.yml
 
@@ -25,6 +26,7 @@ build:debug:x86_64-unknown-linux-gnu:
 build:release:x86_64-unknown-linux-gnu:
   stage: build
   extends:
+    - .build-release
     - .debian-host
     - .cargo-cache
   before_script:
@@ -42,6 +44,7 @@ build:release:x86_64-unknown-linux-gnu:
 build:release:i686-unknown-linux-gnu:
   stage: build
   extends:
+    - .build-release
     - .debian-host
     - .cargo-cache
   before_script:
@@ -61,6 +64,7 @@ build:release:i686-unknown-linux-gnu:
 build:release:aarch64-unknown-linux-gnu:
   stage: build
   extends:
+    - .build-release
     - .debian-host
     - .cargo-cache
   before_script:
@@ -81,6 +85,7 @@ build:release:aarch64-unknown-linux-gnu:
 build:release:x86_64-apple-darwin:
   stage: build
   extends:
+    - .build-release
     - .debian-host
     - .osxcross-macos10.7-cache
   before_script:
@@ -109,6 +114,7 @@ build:release:x86_64-apple-darwin:
 build:release:i686-apple-darwin:
   stage: build
   extends:
+    - .build-release
     - .debian-host
     - .osxcross-macos10.7-cache
   before_script:
@@ -139,6 +145,7 @@ build:release:i686-apple-darwin:
 build:release:aarch64-apple-darwin:
   stage: build
   extends:
+    - .build-release
     - .debian-host
     - .osxcross-macos11.3-cache
   before_script:
@@ -167,6 +174,7 @@ build:release:aarch64-apple-darwin:
 build:release:x86_64-pc-windows-gnu:
   stage: build
   extends:
+    - .build-release
     - .debian-host
     - .cargo-cache
   before_script:
@@ -185,6 +193,7 @@ build:release:x86_64-pc-windows-gnu:
 build:release:x86_64-pc-windows-msvc:
   stage: build
   extends:
+    - .build-release
     - .windows-host
     - .cargo-cache
   before_script:
@@ -202,6 +211,7 @@ build:release:x86_64-pc-windows-msvc:
 build:release:i686-pc-windows-gnu:
   stage: build
   extends:
+    - .build-release
     - .windows-host
     - .cargo-cache
   before_script:
@@ -219,6 +229,7 @@ build:release:i686-pc-windows-gnu:
 build:release:i686-pc-windows-msvc:
   stage: build
   extends:
+    - .build-release
     - .windows-host
     - .cargo-cache
   before_script:
@@ -236,6 +247,7 @@ build:release:i686-pc-windows-msvc:
 # build:release:aarch64-pc-windows-msvc:
 #   stage: build
 #   extends:
+#     - .build-release
 #     - .windows-host
 #     - .cargo-cache
 #   before_script:
