@@ -4,6 +4,8 @@ include:
 
 doc:melodium:reference:
   stage: doc
+  rules:
+    - when: manual
   variables:
     MELODIUM_DOC_TITLE: 'Mélodium Standard Reference'
     MELODIUM_DOC_AUTHOR: 'Quentin VIGNAUD'
@@ -34,6 +36,8 @@ doc:melodium:reference:
 
 doc:melodium:doc:
   stage: doc
+  rules:
+    - when: manual
   extends: .debian-host
   needs: []
   dependencies: []
