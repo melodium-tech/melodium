@@ -412,3 +412,21 @@ lazy_static! {
     };
     pub static ref STDLIB: Base = Base::Internal(&STDLIB_CONTENT);
 }
+
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_std_loading() {
+        
+        let mut instance = Instance::new(
+            Location::new(
+                Base::FileSystem(PathBuf::new()), 
+                PathBuf::new()),
+            STDLIB.clone());
+        instance.build_all_std();
+    }
+}
