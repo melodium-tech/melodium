@@ -410,5 +410,5 @@ lazy_static! {
 
         content
     };
-    static ref STDLIB: Base = Base::Internal(&STDLIB_CONTENT);
+    pub static ref STDLIB: Base = Base::Internal(&STDLIB_CONTENT);
 }

@@ -84,13 +84,13 @@ use core/arithmetic/scalar::StaticAddF64
 /**
 Add a static value to `f64`.
 
-Every number passed through the stream get `value` added.
+Every number passed through the stream get `add` added.
 */
-sequence StaticAdd(var value: f64 = 0)
+sequence StaticAdd(var add: f64 = 0)
   input  value: Stream<f64>
   output value: Stream<f64>
 {
-    StaticAddF64(value=value)
+    StaticAddF64(add=add)
 
     Self.value -> StaticAddF64.value,value -> Self.value
 }
@@ -121,7 +121,7 @@ use core/arithmetic/scalar::StaticSubF64
 /**
 Substract a static value to `f64`.
 
-Every number passed through the stream get `value` substracted.
+Every number passed through the stream get `sub` substracted.
 
 */
 sequence StaticSub(var sub: f64 = 0)
@@ -161,7 +161,7 @@ use core/arithmetic/scalar::StaticMultF64
 /**
 Multiply `f64` by static value.
 
-Every number passed through the stream is multiplied by `value`.
+Every number passed through the stream is multiplied by `factor`.
 
 */
 sequence StaticMult(var factor: f64 = 0)
@@ -201,7 +201,7 @@ use core/arithmetic/scalar::StaticDivF64
 /**
 Divide a stream of `f64` by a static value.
 
-Every number passed through the stream is divided by `value`.
+Every number passed through the stream is divided by `divisor`.
 
 */
 sequence StaticDiv(var divisor: f64 = 0)
@@ -241,7 +241,7 @@ use core/arithmetic/scalar::StaticRemF64
 /**
 Give the remainder of a stream of `f64` divided by a static value.
 
-Every number passed through the stream is divided by `value` and the remainder is outputted.
+Every number passed through the stream is divided by `divisor` and the remainder is outputted.
 
 */
 sequence StaticRem(var divisor: f64 = 0)

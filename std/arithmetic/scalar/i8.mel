@@ -3,13 +3,13 @@ use core/arithmetic/scalar::StaticAddI8
 /**
 Add a static value to `i8`.
 
-Every number passed through the stream get `value` added.
+Every number passed through the stream get `add` added.
 */
-sequence StaticAdd(var value: i8 = 0)
+sequence StaticAdd(var add: i8 = 0)
   input  value: Stream<i8>
   output value: Stream<i8>
 {
-    StaticAddI8(value=value)
+    StaticAddI8(add=add)
 
     Self.value -> StaticAddI8.value,value -> Self.value
 }
@@ -40,7 +40,7 @@ use core/arithmetic/scalar::StaticSubI8
 /**
 Substract a static value to `i8`.
 
-Every number passed through the stream get `value` substracted.
+Every number passed through the stream get `sub` substracted.
 
 */
 sequence StaticSub(var sub: i8 = 0)
@@ -80,7 +80,7 @@ use core/arithmetic/scalar::StaticMultI8
 /**
 Multiply `i8` by static value.
 
-Every number passed through the stream is multiplied by `value`.
+Every number passed through the stream is multiplied by `factor`.
 
 */
 sequence StaticMult(var factor: i8 = 0)
@@ -120,7 +120,7 @@ use core/arithmetic/scalar::StaticDivI8
 /**
 Divide a stream of `i8` by a static value.
 
-Every number passed through the stream is divided by `value`.
+Every number passed through the stream is divided by `divisor`.
 
 */
 sequence StaticDiv(var divisor: i8 = 0)
@@ -160,7 +160,7 @@ use core/arithmetic/scalar::StaticRemI8
 /**
 Give the remainder of a stream of `i8` divided by a static value.
 
-Every number passed through the stream is divided by `value` and the remainder is outputted.
+Every number passed through the stream is divided by `divisor` and the remainder is outputted.
 
 */
 sequence StaticRem(var divisor: i8 = 0)

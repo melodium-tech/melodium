@@ -164,21 +164,20 @@ impl Model {
         let descriptor = collections.models.get(self.identifier.as_ref().unwrap()).unwrap().clone();
 
         let rc_designer = ModelDesigner::new(collections, &descriptor.downcast_arc::<ConfiguredModel>().unwrap());
-        let mut designer = rc_designer.write().unwrap();
 
         for rc_assignation in &self.assignations {
 
             let borrowed_assignation = rc_assignation.read().unwrap();
 
             let assignation_designer = wrap_logic_error!(
-                designer.add_parameter(&borrowed_assignation.name),
+                rc_designer.write().unwrap().add_parameter(&borrowed_assignation.name),
                 borrowed_assignation.text.name.position
             );
 
             borrowed_assignation.make_design(&assignation_designer)?;
         }
         
-        wrap_logic_error!(designer.register(), self.text.name.position);
+        wrap_logic_error!(rc_designer.write().unwrap().register(), self.text.name.position);
 
         Ok(())
     }

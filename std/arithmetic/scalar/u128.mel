@@ -3,13 +3,13 @@ use core/arithmetic/scalar::StaticAddU128
 /**
 Add a static value to `u128`.
 
-Every number passed through the stream get `value` added.
+Every number passed through the stream get `add` added.
 */
-sequence StaticAdd(var value: u128 = 0)
+sequence StaticAdd(var add: u128 = 0)
   input  value: Stream<u128>
   output value: Stream<u128>
 {
-    StaticAddU128(value=value)
+    StaticAddU128(add=add)
 
     Self.value -> StaticAddU128.value,value -> Self.value
 }
@@ -40,7 +40,7 @@ use core/arithmetic/scalar::StaticSubU128
 /**
 Substract a static value to `u128`.
 
-Every number passed through the stream get `value` substracted.
+Every number passed through the stream get `sub` substracted.
 
 */
 sequence StaticSub(var sub: u128 = 0)
@@ -80,7 +80,7 @@ use core/arithmetic/scalar::StaticMultU128
 /**
 Multiply `u128` by static value.
 
-Every number passed through the stream is multiplied by `value`.
+Every number passed through the stream is multiplied by `factor`.
 
 */
 sequence StaticMult(var factor: u128 = 0)
@@ -120,7 +120,7 @@ use core/arithmetic/scalar::StaticDivU128
 /**
 Divide a stream of `u128` by a static value.
 
-Every number passed through the stream is divided by `value`.
+Every number passed through the stream is divided by `divisor`.
 
 */
 sequence StaticDiv(var divisor: u128 = 0)
@@ -160,7 +160,7 @@ use core/arithmetic/scalar::StaticRemU128
 /**
 Give the remainder of a stream of `u128` divided by a static value.
 
-Every number passed through the stream is divided by `value` and the remainder is outputted.
+Every number passed through the stream is divided by `divisor` and the remainder is outputted.
 
 */
 sequence StaticRem(var divisor: u128 = 0)
