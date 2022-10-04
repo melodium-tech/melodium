@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Bug fixes
+
+- Models parameters assignation
+- Standard library visibility for external crates
+- Standard library arithmetic area fixes
+
+### Changed
+
+- Standard library documentation
+
 ## [v0.5.0] (2022-09-28)
 
 ### Features
