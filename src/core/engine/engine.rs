@@ -66,7 +66,7 @@ impl EngineModel {
 
         let future = Box::new(Box::pin(async move {
 
-            if let Some(ready_output) = inputs.get("_ready") {
+            if let Some(ready_output) = inputs.get("ready") {
 
                 let _ = ready_output.send_void(()).await;
 
@@ -96,3 +96,16 @@ impl fmt::Debug for EngineModel {
 }
 
 model_trait!(EngineModel, initialize);
+
+source!(engine_ready_source,
+    core_identifier!("engine";"Ready"),
+    models![
+        ("engine", crate::core::engine::engine::EngineModel::descriptor())
+    ],
+    treatment_sources![
+        (crate::core::engine::engine::EngineModel::descriptor(), "ready")
+    ],
+    outputs![
+        output!("ready",Scalar,Void,Block)
+    ]
+);

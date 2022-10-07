@@ -24,6 +24,7 @@ pub(crate) use crate::logic::descriptor::core_model::{model_sources};
 pub use std::sync::{Arc, Weak, RwLock};
 pub use downcast_rs::DowncastSync;
 pub use async_std::prelude::*;
+pub use crate::logic::descriptor::CoreSourceDescriptor;
 pub use crate::logic::descriptor::CoreTreatmentDescriptor;
 pub use crate::logic::collection_pool::CollectionPool;
 
@@ -113,6 +114,36 @@ macro_rules! treatment {
     };
 }
 pub(crate) use treatment;
+
+macro_rules! source {
+    ($mod:ident,$identifier:expr,$models:expr,$sources:expr,$outputs:expr) => {
+        pub mod $mod {
+
+            use crate::core::prelude::*;
+        
+            pub fn desc() -> Arc<CoreSourceDescriptor> {
+        
+                lazy_static! {
+                    static ref DESCRIPTOR: Arc<CoreSourceDescriptor> = 
+                    CoreSourceDescriptor::new(
+                            $identifier,
+                            $models,
+                            $sources,
+                            $outputs,
+                        );
+                }
+            
+                Arc::clone(&DESCRIPTOR)
+            }
+
+            pub fn register(c: &mut CollectionPool) {
+
+                c.treatments.insert(&(desc() as Arc<dyn TreatmentDescriptor>));
+            }
+        }
+    };
+}
+pub(crate) use source;
 
 macro_rules! model_desc {
     ($rust_identifier:ident,$identifier:expr,$parameters:expr,$sources:expr) => {
