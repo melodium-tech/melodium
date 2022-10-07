@@ -56,7 +56,7 @@ impl ModelGenerator {
     fn track_generation(length: Option<u128>, inputs: HashMap<String, Output>) -> Vec<TrackFuture>  {
         let future = Box::new(Box::pin(async move {
 
-            let iter_output = inputs.get("_iter").unwrap();
+            let iter_output = inputs.get("iter").unwrap();
 
             if let Some(length) = length {
                 for _ in 0..length {
@@ -126,35 +126,20 @@ treatment!(treatment_generate_infinite,
     }
 );
 
-treatment!(treatment_generated,
+source!(source_generated,
     core_identifier!("generation","scalar","void";"Generated"),
     models![("generator".to_string(), super::ModelGenerator::descriptor())],
     treatment_sources![
         (super::ModelGenerator::descriptor(), "generated")
     ],
-    parameters![],
-    inputs![
-        input!("_iter",Scalar,Void,Stream)
-    ],
     outputs![
         output!("iter",Scalar,Void,Stream)
-    ],
-    host {
-        let input = host.get_input("_iter");
-        let output = host.get_output("iter");
-    
-        while let Ok(data) = input.recv_void().await {
-    
-            ok_or_break!(output.send_multiple_void(data).await);
-        }
-    
-        ResultStatus::Ok
-    }
+    ]
 );
 
 pub fn register(mut c: &mut CollectionPool) {
     c.models.insert(&(ModelGenerator::descriptor() as Arc<dyn ModelDescriptor>));
     treatment_generate::register(&mut c);
     treatment_generate_infinite::register(&mut c);
-    treatment_generated::register(&mut c);
+    source_generated::register(&mut c);
 }

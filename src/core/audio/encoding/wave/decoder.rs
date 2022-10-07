@@ -66,10 +66,10 @@ impl WaveDecoderModel {
 
             let spec = reader.spec();
 
-            let mono_output = inputs.get("_mono");
+            let mono_output = inputs.get("mono");
 
-            let stereo_l_output = inputs.get("_stereo_l");
-            let stereo_r_output = inputs.get("_stereo_r");
+            let stereo_l_output = inputs.get("left");
+            let stereo_r_output = inputs.get("right");
 
             fn i8sample(sample: i8) -> f32 {
                 // Please keep linear conversion explicit
@@ -265,7 +265,7 @@ impl WaveDecoderModel {
 
 model_trait!(WaveDecoderModel);
 
-treatment!(mono_decode,
+source!(mono_decode,
     core_identifier!("audio","encoding","wave";"MonoWave"),
     models![
         ("decoder", crate::core::audio::encoding::wave::decoder::WaveDecoderModel::descriptor())
@@ -273,28 +273,12 @@ treatment!(mono_decode,
     treatment_sources![
         (crate::core::audio::encoding::wave::decoder::WaveDecoderModel::descriptor(), "mono")
     ],
-    parameters![],
-    inputs![
-        input!("_mono",Scalar,F32,Stream)
-    ],
     outputs![
         output!("mono",Scalar,F32,Stream)
-    ],
-    host {
-
-        let input = host.get_input("_mono");
-        let output = host.get_output("mono");
-    
-        while let Ok(signal) = input.recv_f32().await {
-
-            ok_or_break!(output.send_multiple_f32(signal).await);
-        }
-    
-        ResultStatus::Ok
-    }
+    ]
 );
 
-treatment!(stereo_decode,
+source!(stereo_decode,
     core_identifier!("audio","encoding","wave";"StereoWave"),
     models![
         ("decoder", crate::core::audio::encoding::wave::decoder::WaveDecoderModel::descriptor())
@@ -302,39 +286,10 @@ treatment!(stereo_decode,
     treatment_sources![
         (crate::core::audio::encoding::wave::decoder::WaveDecoderModel::descriptor(), "stereo")
     ],
-    parameters![],
-    inputs![
-        input!("_stereo_l",Scalar,F32,Stream),
-        input!("_stereo_r",Scalar,F32,Stream)
-    ],
     outputs![
         output!("left",Scalar,F32,Stream),
         output!("right",Scalar,F32,Stream)
-    ],
-    host {
-
-        let input_stereo_l = host.get_input("_stereo_l");
-        let input_stereo_r = host.get_input("_stereo_r");
-        let output_stereo_l = host.get_output("left");
-        let output_stereo_r = host.get_output("right");
-
-        loop {
-            if let Ok(signal) = input_stereo_l.recv_f32().await {
-                ok_or_break!(output_stereo_l.send_multiple_f32(signal).await);
-            }
-            else {
-                break;
-            }
-            if let Ok(signal) = input_stereo_r.recv_f32().await {
-                ok_or_break!(output_stereo_r.send_multiple_f32(signal).await);
-            }
-            else {
-                break;
-            }
-        }
-    
-        ResultStatus::Ok
-    }
+    ]
 );
 
 pub fn register(mut c: &mut CollectionPool) {

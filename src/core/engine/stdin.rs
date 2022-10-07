@@ -139,3 +139,16 @@ impl fmt::Debug for StdinModel {
 }
 
 model_trait!(StdinModel, initialize, close);
+
+source!(stdin_read_source,
+    core_identifier!("engine";"Read"),
+    models![
+        ("stdin", crate::core::engine::stdin::StdinModel::descriptor())
+    ],
+    treatment_sources![
+        (crate::core::engine::stdin::StdinModel::descriptor(), "read")
+    ],
+    outputs![
+        output!("line",Scalar,String,Stream)
+    ]
+);

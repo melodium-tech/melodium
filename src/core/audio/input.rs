@@ -108,7 +108,7 @@ impl AudioInputModel {
             
             let future = Box::new(Box::pin(async move {
 
-                let data_output = inputs.get("_signal").unwrap();
+                let data_output = inputs.get("signal").unwrap();
     
                 while let Some(possible_f32) = recv.next().await {
     
@@ -136,7 +136,7 @@ impl AudioInputModel {
 
 model_trait!(AudioInputModel, spawn_thread, close_wait);
 
-treatment!(receive_audio_treatment,
+source!(receive_audio_source,
     core_identifier!("audio";"ReceiveAudio"),
     models![
         ("input", crate::core::audio::input::AudioInputModel::descriptor())
@@ -144,22 +144,7 @@ treatment!(receive_audio_treatment,
     treatment_sources![
         (crate::core::audio::input::AudioInputModel::descriptor(), "receive")
     ],
-    parameters![],
-    inputs![
-        input!("_signal",Scalar,F32,Stream)
-    ],
     outputs![
         output!("signal",Scalar,F32,Stream)
-    ],
-    host {
-        let input = host.get_input("_signal");
-        let output = host.get_output("signal");
-    
-        while let Ok(signal) = input.recv_f32().await {
-
-            ok_or_break!(output.send_multiple_f32(signal).await);
-        }
-    
-        ResultStatus::Ok
-    }
+    ]
 );

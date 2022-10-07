@@ -90,7 +90,7 @@ impl TcpListenerModel {
 
     fn stream_read(&self, mut stream: TcpStream, inputs: HashMap<String, Output>) -> Vec<TrackFuture> {
 
-        let data_output = inputs.get("_data").unwrap().clone();
+        let data_output = inputs.get("data").unwrap().clone();
 
         let future = Box::new(Box::pin(async move {
 
@@ -115,3 +115,16 @@ impl TcpListenerModel {
 }
 
 model_trait!(TcpListenerModel, initialize);
+
+source!(read_tcp_connection,
+    core_identifier!("net";"ReadTcpConnection"),
+    models![
+        ("listener", super::super::tcp_listener::TcpListenerModel::descriptor())
+    ],
+    treatment_sources![
+        (super::super::tcp_listener::TcpListenerModel::descriptor(), "connection")
+    ],
+    outputs![
+        output!("data", Scalar, Byte, Stream)
+    ]
+);

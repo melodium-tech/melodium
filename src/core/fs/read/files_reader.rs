@@ -111,9 +111,9 @@ impl FilesReaderModel {
 
         let future = Box::new(Box::pin(async move {
 
-            let data_output = inputs.get("_data").unwrap();
-            let failure_output = inputs.get("_failure").unwrap();
-            let message_output = inputs.get("_message").unwrap();
+            let data_output = inputs.get("data").unwrap();
+            let failure_output = inputs.get("failure").unwrap();
+            let message_output = inputs.get("message").unwrap();
 
             let mut buf = vec![0; 1048576];
             loop {
@@ -145,8 +145,8 @@ impl FilesReaderModel {
 
         let future = Box::new(Box::pin(async move {
 
-            let failure_output = inputs.get("_failure").unwrap();
-            let message_output = inputs.get("_message").unwrap();
+            let failure_output = inputs.get("failure").unwrap();
+            let message_output = inputs.get("message").unwrap();
 
             let _ = futures::join!(failure_output.send_void(()),message_output.send_string(format!("{:?}", err.kind())));
 
@@ -160,3 +160,32 @@ impl FilesReaderModel {
 }
 
 model_trait!(FilesReaderModel);
+
+source!(reading_source,
+    core_identifier!("fs","read";"Reading"),
+    models![
+        ("reader", crate::core::fs::read::files_reader::FilesReaderModel::descriptor())
+    ],
+    treatment_sources![
+        (crate::core::fs::read::files_reader::FilesReaderModel::descriptor(), "read")
+    ],
+    outputs![
+        output!("data",Scalar,Byte,Stream),
+        output!("failure",Scalar,Void,Block),
+        output!("message",Scalar,String,Stream)
+    ]
+);
+
+source!(unaccessible_source,
+    core_identifier!("fs","read";"Unaccessible"),
+    models![
+        ("reader", crate::core::fs::read::files_reader::FilesReaderModel::descriptor())
+    ],
+    treatment_sources![
+        (crate::core::fs::read::files_reader::FilesReaderModel::descriptor(), "unaccessible")
+    ],
+    outputs![
+        output!("failure",Scalar,Void,Block),
+        output!("message",Scalar,String,Stream)
+    ]
+);
