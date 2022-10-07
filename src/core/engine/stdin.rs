@@ -85,7 +85,7 @@ impl StdinModel {
 
         let future = Box::new(Box::pin(async move {
 
-            if let Some(line_output) = inputs.get("_line") {
+            if let Some(line_output) = inputs.get("line") {
 
                 while let Ok(lines) = stdin.receive_multiple().await {
 
