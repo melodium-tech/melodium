@@ -66,7 +66,7 @@ macro_rules! impl_AddScalar {
 
 macro_rules! impl_add_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
-        fn add_function() -> Arc<CoreFunctionDescriptor> {
+        fn add_function() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn add(params: Vec<Value>) -> Value {
                 Value::$mel_type(params[0].clone().$mel_value_type() + params[1].clone().$mel_value_type())
@@ -149,7 +149,7 @@ macro_rules! impl_SubScalar {
 
 macro_rules! impl_sub_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
-        fn sub_function() -> Arc<CoreFunctionDescriptor> {
+        fn sub_function() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn sub(params: Vec<Value>) -> Value {
                 Value::$mel_type(params[0].clone().$mel_value_type() - params[1].clone().$mel_value_type())
@@ -232,7 +232,7 @@ macro_rules! impl_MultScalar {
 
 macro_rules! impl_mult_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
-        fn mult_function() -> Arc<CoreFunctionDescriptor> {
+        fn mult_function() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn mult(params: Vec<Value>) -> Value {
                 Value::$mel_type(params[0].clone().$mel_value_type() * params[1].clone().$mel_value_type())
@@ -315,7 +315,7 @@ macro_rules! impl_DivScalar {
 
 macro_rules! impl_div_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
-        fn div_function() -> Arc<CoreFunctionDescriptor> {
+        fn div_function() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn div(params: Vec<Value>) -> Value {
                 Value::$mel_type(params[0].clone().$mel_value_type() / params[1].clone().$mel_value_type())
@@ -398,7 +398,7 @@ macro_rules! impl_RemScalar {
 
 macro_rules! impl_rem_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
-        fn rem_function() -> Arc<CoreFunctionDescriptor> {
+        fn rem_function() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn rem(params: Vec<Value>) -> Value {
                 Value::$mel_type(params[0].clone().$mel_value_type() % params[1].clone().$mel_value_type())
@@ -482,7 +482,7 @@ macro_rules! impl_PowScalar {
 
 macro_rules! impl_pow_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
-        fn pow_function() -> Arc<CoreFunctionDescriptor> {
+        fn pow_function() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn pow(params: Vec<Value>) -> Value {
                 Value::$mel_type(params[0].clone().$mel_value_type().pow(params[1].clone().$mel_value_type() as u32))
@@ -566,7 +566,7 @@ macro_rules! impl_PowfScalar {
 
 macro_rules! impl_powf_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
-        fn pow_function() -> Arc<CoreFunctionDescriptor> {
+        fn pow_function() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn pow(params: Vec<Value>) -> Value {
                 Value::$mel_type(params[0].clone().$mel_value_type().powf(params[1].clone().$mel_value_type()))
@@ -616,7 +616,7 @@ macro_rules! impl_AbsScalar {
 
 macro_rules! impl_abs_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
-        fn abs_function() -> Arc<CoreFunctionDescriptor> {
+        fn abs_function() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn abs(params: Vec<Value>) -> Value {
                 Value::$mel_type(params[0].clone().$mel_value_type().abs())
@@ -664,7 +664,7 @@ macro_rules! impl_SqrtScalar {
 
 macro_rules! impl_sqrt_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
-        fn sqrt_function() -> Arc<CoreFunctionDescriptor> {
+        fn sqrt_function() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn sqrt(params: Vec<Value>) -> Value {
                 Value::$mel_type(params[0].clone().$mel_value_type().sqrt())
@@ -712,7 +712,7 @@ macro_rules! impl_CbrtScalar {
 
 macro_rules! impl_cbrt_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
-        fn cbrt_function() -> Arc<CoreFunctionDescriptor> {
+        fn cbrt_function() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn cbrt(params: Vec<Value>) -> Value {
                 Value::$mel_type(params[0].clone().$mel_value_type().cbrt())
@@ -760,7 +760,7 @@ macro_rules! impl_LnScalar {
 
 macro_rules! impl_ln_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
-        fn ln_function() -> Arc<CoreFunctionDescriptor> {
+        fn ln_function() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn ln(params: Vec<Value>) -> Value {
                 Value::$mel_type(params[0].clone().$mel_value_type().ln())
@@ -842,7 +842,7 @@ macro_rules! impl_LogScalar {
 
 macro_rules! impl_log_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_value_type:ident) => {
-        fn log_function() -> Arc<CoreFunctionDescriptor> {
+        fn log_function() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn log(params: Vec<Value>) -> Value {
                 Value::$mel_type(params[0].clone().$mel_value_type().log(params[1].clone().$mel_value_type()))
@@ -888,23 +888,23 @@ macro_rules! impl_CommonArithm {
 
                 static_add::register(&mut c);
                 add::register(&mut c);
-                c.functions.insert(&(add_function() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(add_function() as std::sync::Arc<dyn FunctionDescriptor>));
 
                 static_sub::register(&mut c);
                 sub::register(&mut c);
-                c.functions.insert(&(sub_function() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(sub_function() as std::sync::Arc<dyn FunctionDescriptor>));
 
                 static_mult::register(&mut c);
                 mult::register(&mut c);
-                c.functions.insert(&(mult_function() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(mult_function() as std::sync::Arc<dyn FunctionDescriptor>));
 
                 static_div::register(&mut c);
                 div::register(&mut c);
-                c.functions.insert(&(div_function() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(div_function() as std::sync::Arc<dyn FunctionDescriptor>));
 
                 static_rem::register(&mut c);
                 rem::register(&mut c);
-                c.functions.insert(&(rem_function() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(rem_function() as std::sync::Arc<dyn FunctionDescriptor>));
             }
         }
     };
@@ -922,7 +922,7 @@ macro_rules! impl_IntegerArithm {
     
                 static_pow::register(&mut c);
                 pow::register(&mut c);
-                c.functions.insert(&(pow_function() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(pow_function() as std::sync::Arc<dyn FunctionDescriptor>));
             }
         }
     };
@@ -938,7 +938,7 @@ macro_rules! impl_SignedArithm {
             pub fn register(mut c: &mut crate::logic::collection_pool::CollectionPool) {
     
                 absolute::register(&mut c);
-                c.functions.insert(&(abs_function() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(abs_function() as std::sync::Arc<dyn FunctionDescriptor>));
             }
         }
     };
@@ -969,20 +969,20 @@ macro_rules! impl_FloatingArithm {
 
                 static_pow::register(&mut c);
                 pow::register(&mut c);
-                c.functions.insert(&(pow_function() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(pow_function() as std::sync::Arc<dyn FunctionDescriptor>));
 
                 sqrt::register(&mut c);
-                c.functions.insert(&(sqrt_function() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(sqrt_function() as std::sync::Arc<dyn FunctionDescriptor>));
 
                 cbrt::register(&mut c);
-                c.functions.insert(&(cbrt_function() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(cbrt_function() as std::sync::Arc<dyn FunctionDescriptor>));
 
                 ln::register(&mut c);
-                c.functions.insert(&(ln_function() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(ln_function() as std::sync::Arc<dyn FunctionDescriptor>));
 
                 static_log::register(&mut c);
                 log::register(&mut c);
-                c.functions.insert(&(log_function() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(log_function() as std::sync::Arc<dyn FunctionDescriptor>));
             }
         }
     };

@@ -26,7 +26,7 @@ macro_rules! model_sources {
         $(map.insert(
             $source.to_string(),
             vec![
-                $(Arc::clone(Contexts::get($context).unwrap()),)*
+                $(std::sync::Arc::clone(Contexts::get($context).unwrap()),)*
             ]
         );)*
         map

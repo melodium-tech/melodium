@@ -1,6 +1,6 @@
 
 use std::thread::*;
-use std::sync::{Arc, Barrier};
+use std::sync::{Arc, Weak, RwLock, Barrier};
 use crate::core::prelude::*;
 use async_std::channel::*;
 use async_std::task::sleep;
@@ -147,7 +147,7 @@ treatment!(send_audio_treatment,
     outputs![],
     host {
         let input = host.get_input("signal");
-        let audio_model = Arc::clone(&host.get_model("output")).downcast_arc::<crate::core::audio::output::AudioOutputModel>().unwrap();
+        let audio_model = std::sync::Arc::clone(&host.get_model("output")).downcast_arc::<crate::core::audio::output::AudioOutputModel>().unwrap();
     
         'main: while let Ok(signal) = input.recv_f32().await {
 

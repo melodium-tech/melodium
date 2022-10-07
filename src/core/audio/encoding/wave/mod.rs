@@ -28,7 +28,7 @@ treatment!(decode,
         use crate::core::audio::encoding::wave::decoder::WaveDecoderModel;
 
         let input = host.get_input("data");
-        let decoder = Arc::clone(&host.get_model("decoder")).downcast_arc::<WaveDecoderModel>().unwrap();
+        let decoder = std::sync::Arc::clone(&host.get_model("decoder")).downcast_arc::<WaveDecoderModel>().unwrap();
     
         if let Ok(data) = input.recv_vec_byte().await {
 

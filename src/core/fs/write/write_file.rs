@@ -20,7 +20,7 @@ treatment!(write_file_treatment,
     ],
     host {
 
-        let writer = Arc::clone(&host.get_model("writer")).downcast_arc::<crate::core::fs::write::files_writer::FilesWriterModel>().unwrap();
+        let writer = std::sync::Arc::clone(&host.get_model("writer")).downcast_arc::<crate::core::fs::write::files_writer::FilesWriterModel>().unwrap();
 
         let i_path = host.get_input("path");
         let i_data = host.get_input("data");

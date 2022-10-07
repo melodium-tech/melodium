@@ -34,7 +34,7 @@ macro_rules! impl_Comparison {
 
 macro_rules! impl_comp_function {
     ($mel_name:expr, $mel_type_name:expr, $mel_type:ident, $mel_value_type:ident, $comp_func:ident) => {
-        fn $comp_func() -> Arc<CoreFunctionDescriptor> {
+        fn $comp_func() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn func(params: Vec<Value>) -> Value {
                 Value::Bool(params[0].clone().$mel_value_type().$comp_func(&params[1].clone().$mel_value_type()))
@@ -86,7 +86,7 @@ macro_rules! impl_Ordering {
 
 macro_rules! impl_ord_function {
     ($mel_name:expr, $mel_type_name:expr, $mel_type:ident, $mel_value_type:ident, $comp_func:ident) => {
-        fn $comp_func() -> Arc<CoreFunctionDescriptor> {
+        fn $comp_func() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn func(params: Vec<Value>) -> Value {
                 Value::$mel_type(params[0].clone().$mel_value_type().$comp_func(params[1].clone().$mel_value_type()))
@@ -130,21 +130,21 @@ macro_rules! integer {
             pub fn register(mut c: &mut CollectionPool) {
 
                 gt::register(&mut c);
-                c.functions.insert(&(gt() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(gt() as std::sync::Arc<dyn FunctionDescriptor>));
                 ge::register(&mut c);
-                c.functions.insert(&(ge() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(ge() as std::sync::Arc<dyn FunctionDescriptor>));
                 lt::register(&mut c);
-                c.functions.insert(&(lt() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(lt() as std::sync::Arc<dyn FunctionDescriptor>));
                 le::register(&mut c);
-                c.functions.insert(&(le() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(le() as std::sync::Arc<dyn FunctionDescriptor>));
                 eq::register(&mut c);
-                c.functions.insert(&(eq() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(eq() as std::sync::Arc<dyn FunctionDescriptor>));
                 ne::register(&mut c);
-                c.functions.insert(&(ne() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(ne() as std::sync::Arc<dyn FunctionDescriptor>));
                 max::register(&mut c);
-                c.functions.insert(&(max() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(max() as std::sync::Arc<dyn FunctionDescriptor>));
                 min::register(&mut c);
-                c.functions.insert(&(min() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(min() as std::sync::Arc<dyn FunctionDescriptor>));
             }
         }
     };
@@ -167,13 +167,13 @@ macro_rules! floating {
             pub fn register(mut c: &mut CollectionPool) {
 
                 gt::register(&mut c);
-                c.functions.insert(&(gt() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(gt() as std::sync::Arc<dyn FunctionDescriptor>));
                 lt::register(&mut c);
-                c.functions.insert(&(lt() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(lt() as std::sync::Arc<dyn FunctionDescriptor>));
                 max::register(&mut c);
-                c.functions.insert(&(max() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(max() as std::sync::Arc<dyn FunctionDescriptor>));
                 min::register(&mut c);
-                c.functions.insert(&(min() as Arc<dyn FunctionDescriptor>));
+                c.functions.insert(&(min() as std::sync::Arc<dyn FunctionDescriptor>));
             }
         }
     };

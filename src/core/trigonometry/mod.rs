@@ -30,7 +30,7 @@ macro_rules! impl_Trigo {
 
 macro_rules! impl_trigo_function {
     ($mel_name_low:expr, $mel_type:ident, $mel_type_name:expr, $mel_value_type:ident, $func:ident) => {
-        fn $func() -> Arc<CoreFunctionDescriptor> {
+        fn $func() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn func(params: Vec<Value>) -> Value {
                 Value::$mel_type(params[0].clone().$mel_value_type().$func())
@@ -50,6 +50,7 @@ macro_rules! impl_trigo_function {
 
 mod f32 {
 
+    use std::sync::Arc;
     use crate::core::prelude::*;
 
     impl_Trigo!("Sin", F32, "f32", sin, recv_f32, send_multiple_f32);
@@ -109,6 +110,7 @@ mod f32 {
 
 mod f64 {
 
+    use std::sync::Arc;
     use crate::core::prelude::*;
 
     impl_Trigo!("Sin", F64, "f64", sin, recv_f64, send_multiple_f64);

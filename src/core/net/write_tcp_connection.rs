@@ -22,7 +22,7 @@ treatment!(write_tcp_connection,
     host {
         use super::*;
 
-        let listener = Arc::clone(&host.get_model("listener")).downcast_arc::<TcpListenerModel>().unwrap();
+        let listener = std::sync::Arc::clone(&host.get_model("listener")).downcast_arc::<TcpListenerModel>().unwrap();
         let ip = host.get_parameter("ip").string();
         let port = host.get_parameter("port").u16();
 

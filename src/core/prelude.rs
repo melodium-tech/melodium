@@ -1,7 +1,6 @@
 
 pub use crate::executive::result_status::ResultStatus;
 pub use crate::executive::future::TrackFuture;
-pub use std::collections::HashMap;
 pub use crate::executive::model::{Model, ModelId, ModelHelper};
 pub use crate::executive::value::Value;
 pub use crate::executive::transmitter::*;
@@ -21,7 +20,6 @@ pub(crate) use crate::logic::descriptor::output::output;
 pub(crate) use crate::logic::descriptor::parameter::parameter;
 pub(crate) use crate::logic::descriptor::core_treatment::{models, treatment_sources};
 pub(crate) use crate::logic::descriptor::core_model::{model_sources};
-pub use std::sync::{Arc, Weak, RwLock};
 pub use downcast_rs::DowncastSync;
 pub use async_std::prelude::*;
 pub use crate::logic::descriptor::CoreSourceDescriptor;
@@ -61,10 +59,10 @@ macro_rules! treatment {
 
             use crate::core::prelude::*;
         
-            pub fn desc() -> Arc<CoreTreatmentDescriptor> {
+            pub fn desc() -> std::sync::Arc<CoreTreatmentDescriptor> {
         
                 lazy_static! {
-                    static ref DESCRIPTOR: Arc<CoreTreatmentDescriptor> = 
+                    static ref DESCRIPTOR: std::sync::Arc<CoreTreatmentDescriptor> = 
                         CoreTreatmentDescriptor::new(
                             $identifier,
                             $models,
@@ -76,12 +74,12 @@ macro_rules! treatment {
                         );
                 }
             
-                Arc::clone(&DESCRIPTOR)
+                std::sync::Arc::clone(&DESCRIPTOR)
             }
 
             pub fn register(c: &mut CollectionPool) {
 
-                c.treatments.insert(&(desc() as Arc<dyn TreatmentDescriptor>));
+                c.treatments.insert(&(desc() as std::sync::Arc<dyn TreatmentDescriptor>));
             }
             
             async fn execute($host: &TreatmentHost) -> ResultStatus {
@@ -89,7 +87,7 @@ macro_rules! treatment {
                 $treatment
             }
             
-            fn prepare(host: Arc<TreatmentHost>) -> Vec<TrackFuture> {
+            fn prepare(host: std::sync::Arc<TreatmentHost>) -> Vec<TrackFuture> {
                 
                 let future = Box::new(Box::pin(
                     async move {
@@ -104,7 +102,7 @@ macro_rules! treatment {
                 vec![future]
             }
             
-            fn treatment(_: Arc<World>, track_id: TrackId) -> Arc<dyn Treatment> {
+            fn treatment(_: std::sync::Arc<World>, track_id: TrackId) -> std::sync::Arc<dyn Treatment> {
             
                 let treatment = TreatmentHost::new(desc(), track_id, prepare);
             
@@ -121,10 +119,10 @@ macro_rules! source {
 
             use crate::core::prelude::*;
         
-            pub fn desc() -> Arc<CoreSourceDescriptor> {
+            pub fn desc() -> std::sync::Arc<CoreSourceDescriptor> {
         
                 lazy_static! {
-                    static ref DESCRIPTOR: Arc<CoreSourceDescriptor> = 
+                    static ref DESCRIPTOR: std::sync::Arc<CoreSourceDescriptor> = 
                     CoreSourceDescriptor::new(
                             $identifier,
                             $models,
@@ -133,12 +131,12 @@ macro_rules! source {
                         );
                 }
             
-                Arc::clone(&DESCRIPTOR)
+                std::sync::Arc::clone(&DESCRIPTOR)
             }
 
             pub fn register(c: &mut CollectionPool) {
 
-                c.treatments.insert(&(desc() as Arc<dyn TreatmentDescriptor>));
+                c.treatments.insert(&(desc() as std::sync::Arc<dyn TreatmentDescriptor>));
             }
         }
     };
@@ -149,7 +147,7 @@ macro_rules! model_desc {
     ($rust_identifier:ident,$identifier:expr,$parameters:expr,$sources:expr) => {
         {
             lazy_static! {
-                static ref DESCRIPTOR: Arc<CoreModelDescriptor> =
+                static ref DESCRIPTOR: std::sync::Arc<CoreModelDescriptor> =
                     CoreModelDescriptor::new(
                         $identifier,
                         $parameters,
@@ -158,7 +156,7 @@ macro_rules! model_desc {
                     );
             }
             
-            Arc::clone(&DESCRIPTOR)
+            std::sync::Arc::clone(&DESCRIPTOR)
         }
     };
 }
@@ -168,7 +166,7 @@ macro_rules! model_trait {
     ($identifier:ident,$initialize:ident,$shutdown:ident) => {
         impl Model for $identifier {
     
-            fn descriptor(&self) -> Arc<CoreModelDescriptor> {
+            fn descriptor(&self) -> std::sync::Arc<CoreModelDescriptor> {
                 Self::descriptor()
             }
         
@@ -196,7 +194,7 @@ macro_rules! model_trait {
     ($identifier:ident,$initialize:ident) => {
         impl Model for $identifier {
     
-            fn descriptor(&self) -> Arc<CoreModelDescriptor> {
+            fn descriptor(&self) -> std::sync::Arc<CoreModelDescriptor> {
                 Self::descriptor()
             }
         
@@ -223,7 +221,7 @@ macro_rules! model_trait {
     ($identifier:ident) => {
         impl Model for $identifier {
     
-            fn descriptor(&self) -> Arc<CoreModelDescriptor> {
+            fn descriptor(&self) -> std::sync::Arc<CoreModelDescriptor> {
                 Self::descriptor()
             }
         

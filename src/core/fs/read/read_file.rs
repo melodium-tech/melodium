@@ -14,7 +14,7 @@ treatment!(read_file_treatment,
     outputs![],
     host {
 
-        let reader = Arc::clone(&host.get_model("reader")).downcast_arc::<crate::core::fs::read::files_reader::FilesReaderModel>().unwrap();
+        let reader = std::sync::Arc::clone(&host.get_model("reader")).downcast_arc::<crate::core::fs::read::files_reader::FilesReaderModel>().unwrap();
 
         let path_input = host.get_input("path");
 

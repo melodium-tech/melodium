@@ -1,5 +1,7 @@
 
 use crate::core::prelude::*;
+use std::sync::Arc;
+use std::collections::HashMap;
 use hound::*;
 use itertools::Itertools;
 use futures::future::join_all;

@@ -1,6 +1,7 @@
 
 use std::fmt;
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc, Weak};
+use std::collections::HashMap;
 use async_std::task::block_on;
 use futures::future::abortable;
 use futures::stream::AbortHandle;

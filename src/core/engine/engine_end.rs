@@ -14,7 +14,7 @@ treatment!(engine_end_treatment,
     outputs![],
     host {
 
-        let engine = Arc::clone(&host.get_model("engine")).downcast_arc::<crate::core::engine::engine::EngineModel>().unwrap();
+        let engine = std::sync::Arc::clone(&host.get_model("engine")).downcast_arc::<crate::core::engine::engine::EngineModel>().unwrap();
 
         let input = host.get_input("end");
     

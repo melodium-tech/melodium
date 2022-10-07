@@ -6,7 +6,7 @@ pub mod read_file;
 
 pub fn register(mut c: &mut CollectionPool) {
 
-    c.models.insert(&(files_reader::FilesReaderModel::descriptor() as Arc<dyn ModelDescriptor>));
+    c.models.insert(&(files_reader::FilesReaderModel::descriptor() as std::sync::Arc<dyn ModelDescriptor>));
     files_reader::reading_source::register(&mut c);
     files_reader::unaccessible_source::register(&mut c);
 

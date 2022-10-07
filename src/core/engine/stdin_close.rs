@@ -14,7 +14,7 @@ treatment!(stdin_close_treatment,
     outputs![],
     host {
 
-        let stdin = Arc::clone(&host.get_model("stdin")).downcast_arc::<crate::core::engine::stdin::StdinModel>().unwrap();
+        let stdin = std::sync::Arc::clone(&host.get_model("stdin")).downcast_arc::<crate::core::engine::stdin::StdinModel>().unwrap();
 
         let input = host.get_input("close");
 

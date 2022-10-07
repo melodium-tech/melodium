@@ -1,4 +1,6 @@
 
+use std::sync::Arc;
+use std::collections::HashMap;
 use crate::core::prelude::*;
 
 #[derive(Debug)]
@@ -91,7 +93,7 @@ treatment!(treatment_generate,
     ],
     outputs![],
     host {
-        let generator = Arc::clone(&host.get_model("generator")).downcast_arc::<crate::core::generation::void_generator::ModelGenerator>().unwrap();
+        let generator = std::sync::Arc::clone(&host.get_model("generator")).downcast_arc::<crate::core::generation::void_generator::ModelGenerator>().unwrap();
         let input_tracks = host.get_input("tracks");
         let input_length = host.get_input("length");
     
@@ -114,7 +116,7 @@ treatment!(treatment_generate_infinite,
     ],
     outputs![],
     host {
-        let generator = Arc::clone(&host.get_model("generator")).downcast_arc::<crate::core::generation::void_generator::ModelGenerator>().unwrap();
+        let generator = std::sync::Arc::clone(&host.get_model("generator")).downcast_arc::<crate::core::generation::void_generator::ModelGenerator>().unwrap();
         let input_tracks = host.get_input("tracks");
     
         while let Ok(tracks) = input_tracks.recv_one_u64().await {
