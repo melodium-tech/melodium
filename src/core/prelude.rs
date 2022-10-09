@@ -1,7 +1,7 @@
 
 pub use crate::executive::result_status::ResultStatus;
 pub use crate::executive::future::TrackFuture;
-pub use crate::executive::model::{Model, ModelId, ModelHelper};
+pub use crate::executive::model::{Model, ModelId, ModelHelper, ModelHost, HostedModel};
 pub use crate::executive::value::Value;
 pub use crate::executive::transmitter::*;
 pub use crate::executive::treatment::*;
@@ -142,6 +142,39 @@ macro_rules! source {
     };
 }
 pub(crate) use source;
+
+macro_rules! model {
+    ($rust_identifier:ident,$identifier:expr,$parameters:expr,$sources:expr) => {
+        pub mod model_host {
+
+            use crate::core::prelude::*;
+
+            fn new(world: std::sync::Arc<World>) -> std::sync::Arc<dyn Model> {
+                ModelHost::new(descriptor(), world, super::$rust_identifier::new)
+            }
+
+            pub fn descriptor() -> std::sync::Arc<CoreModelDescriptor> {
+                lazy_static! {
+                    static ref DESCRIPTOR: std::sync::Arc<CoreModelDescriptor> =
+                        CoreModelDescriptor::new(
+                            $identifier,
+                            $parameters,
+                            $sources,
+                            new
+                        );
+                }
+                
+                std::sync::Arc::clone(&DESCRIPTOR)
+            }
+
+            pub fn register(c: &mut CollectionPool) {
+
+                c.models.insert(&(descriptor() as std::sync::Arc<dyn ModelDescriptor>));
+            }
+        }
+    };
+}
+pub(crate) use model;
 
 macro_rules! model_desc {
     ($rust_identifier:ident,$identifier:expr,$parameters:expr,$sources:expr) => {

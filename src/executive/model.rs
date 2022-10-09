@@ -98,7 +98,7 @@ pub struct ModelHost {
     world: Arc<World>,
     id: Mutex<Option<ModelId>>,
     parameters: Mutex<HashMap<String, Value>>,
-    inner: Arc<dyn HostedModel>,
+    hosted: Arc<dyn HostedModel>,
     auto_reference: Weak<Self>,
 }
 
@@ -111,13 +111,17 @@ impl ModelHost {
             world,
             id: Mutex::new(None),
             parameters: Mutex::new(HashMap::new()),
-            inner: new_model(me.clone()),
+            hosted: new_model(me.clone()),
             auto_reference: me.clone(),
         })
     }
 
     pub fn world(&self) -> &Arc<World> {
         &self.world
+    }
+
+    pub fn hosted(&self) -> &Arc<dyn HostedModel> {
+        &self.hosted
     }
 
     pub fn get_parameter(&self, param: &str) -> Value {
@@ -131,7 +135,6 @@ impl ModelHost {
         }
     }
 }
-
 
 impl Model for ModelHost {
 
@@ -165,11 +168,10 @@ impl Model for ModelHost {
     }
 
     fn initialize(&self) {
-        self.inner.initialize()
+        self.hosted.initialize()
     }
 
     fn shutdown(&self) {
-        self.inner.shutdown()
+        self.hosted.shutdown()
     }
 }
-

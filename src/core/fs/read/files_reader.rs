@@ -8,39 +8,23 @@ use async_std::fs::File;
 #[derive(Debug)]
 pub struct FilesReaderModel {
 
-    helper: ModelHelper,
-
-    #[allow(dead_code)]
-    auto_reference: Weak<Self>,
+    host: Weak<ModelHost>,
 }
 
 impl FilesReaderModel {
 
-    pub fn descriptor() -> Arc<CoreModelDescriptor> {
-        
-        model_desc!(
-            FilesReaderModel,
-            core_identifier!("fs","read";"FilesReader"),
-            parameters![],
-            model_sources![
-                ("read"; "File"),
-                ("unaccessible"; "File")
-            ]
-        )
-    }
+    pub fn new(host: Weak<ModelHost>) -> Arc<dyn HostedModel> {
 
-    pub fn new(world: Arc<World>) -> Arc<dyn Model> {
-
-        Arc::new_cyclic(|me| Self {
-            helper: ModelHelper::new(Self::descriptor(), world),
-
-            auto_reference: me.clone(),
+        Arc::new(Self {
+            host
         })
     }
 
     pub async fn read(&self, path: &String) {
 
-        let model_id = self.helper.id().unwrap();
+        let host = self.host.upgrade().unwrap();
+
+        let model_id = host.id().unwrap();
 
         let os_path = PathBuf::from(path);
         let open_result = File::open(&os_path).await;
@@ -97,14 +81,14 @@ impl FilesReaderModel {
                 let reader = |inputs| {
                     self.read_file(file, inputs)
                 };
-                self.helper.world().create_track(model_id, "read", contextes, None, Some(reader)).await;
+                host.world().create_track(model_id, "read", contextes, None, Some(reader)).await;
             },
             Err(err) => {
 
                 let failer = |inputs| {
                     self.fail_file(err, inputs)
                 };
-                self.helper.world().create_track(model_id, "unaccessible", contextes, None, Some(failer)).await;
+                host.world().create_track(model_id, "unaccessible", contextes, None, Some(failer)).await;
             },
         }
     }
@@ -161,15 +145,29 @@ impl FilesReaderModel {
     }
 }
 
-model_trait!(FilesReaderModel);
+impl HostedModel for FilesReaderModel {
+
+    fn initialize(&self) {}
+    fn shutdown(&self) {}
+}
+
+model!(
+    FilesReaderModel,
+    core_identifier!("fs","read";"FilesReader"),
+    parameters![],
+    model_sources![
+        ("read"; "File"),
+        ("unaccessible"; "File")
+    ]
+);
 
 source!(reading_source,
     core_identifier!("fs","read";"Reading"),
     models![
-        ("reader", crate::core::fs::read::files_reader::FilesReaderModel::descriptor())
+        ("reader", crate::core::fs::read::files_reader::model_host::descriptor())
     ],
     treatment_sources![
-        (crate::core::fs::read::files_reader::FilesReaderModel::descriptor(), "read")
+        (crate::core::fs::read::files_reader::model_host::descriptor(), "read")
     ],
     outputs![
         output!("data",Scalar,Byte,Stream),
@@ -181,13 +179,42 @@ source!(reading_source,
 source!(unaccessible_source,
     core_identifier!("fs","read";"Unaccessible"),
     models![
-        ("reader", crate::core::fs::read::files_reader::FilesReaderModel::descriptor())
+        ("reader", crate::core::fs::read::files_reader::model_host::descriptor())
     ],
     treatment_sources![
-        (crate::core::fs::read::files_reader::FilesReaderModel::descriptor(), "unaccessible")
+        (crate::core::fs::read::files_reader::model_host::descriptor(), "unaccessible")
     ],
     outputs![
         output!("failure",Scalar,Void,Block),
         output!("message",Scalar,String,Stream)
     ]
 );
+
+treatment!(read_file_treatment,
+    core_identifier!("fs","read";"ReadFile"),
+    models![
+        ("reader", crate::core::fs::read::files_reader::model_host::descriptor())
+    ],
+    treatment_sources![],
+    parameters![],
+    inputs![
+        input!("path",Scalar,String,Stream)
+    ],
+    outputs![],
+    host {
+
+        let reader = host.get_hosted_model("reader").downcast_arc::<crate::core::fs::read::files_reader::FilesReaderModel>().unwrap();
+
+        let path_input = host.get_input("path");
+
+        while let Ok(paths) = path_input.recv_string().await {
+
+            for path in paths {
+                reader.read(&path).await;
+            }
+        }
+    
+        ResultStatus::Ok
+    }
+);
+

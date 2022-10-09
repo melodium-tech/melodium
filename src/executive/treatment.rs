@@ -6,7 +6,7 @@ use std::sync::{Arc, Weak, Mutex};
 use super::future::TrackFuture;
 use super::world::TrackId;
 use super::value::Value;
-use super::model::Model;
+use super::model::{Model, ModelHost, HostedModel};
 use super::input::Input;
 use super::output::Output;
 
@@ -83,6 +83,10 @@ impl TreatmentHost {
 
     pub fn get_model(&self, model: &str) -> Arc<dyn Model> {
         Arc::clone(self.models.lock().unwrap().get(model).unwrap())
+    }
+
+    pub fn get_hosted_model(&self, model: &str) -> Arc<dyn HostedModel> {
+        Arc::clone(Arc::clone(self.models.lock().unwrap().get(model).unwrap()).downcast_arc::<ModelHost>().unwrap().hosted())
     }
 
     pub fn get_parameter(&self, param: &str) -> Value {
