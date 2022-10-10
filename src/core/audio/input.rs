@@ -11,50 +11,67 @@ use cpal::SampleRate;
 #[derive(Debug)]
 pub struct AudioInputModel {
 
-    helper: ModelHelper,
+    host: Weak<ModelHost>,
 
     stream_thread: RwLock<Option<JoinHandle<()>>>,
     stream_end_barrier: Arc<Barrier>,
 
     stream_send: Sender<Vec<f32>>,
     stream_recv: Receiver<Vec<f32>>,
-
-    auto_reference: Weak<Self>,
 }
 
 impl AudioInputModel {
 
-    pub fn descriptor() -> Arc<CoreModelDescriptor> {
-        
-        model_desc!(
-            AudioInputModel,
-            core_identifier!("audio";"AudioInput"),
-            vec![],
-            model_sources![
-                ("receive"; )
-            ]
-        )
-    }
-
-    pub fn new(world: Arc<World>) -> Arc<dyn Model> {
+    pub fn new(host: Weak<ModelHost>) -> Arc<dyn HostedModel> {
 
         let (send, recv) = unbounded();
 
-        Arc::new_cyclic(|me| Self {
-            helper: ModelHelper::new(Self::descriptor(), world),
-
+        Arc::new(Self {
+            host,
             stream_thread: RwLock::new(None),
             stream_end_barrier: Arc::new(Barrier::new(2)),
-
             stream_send: send,
             stream_recv: recv,
-
-            auto_reference: me.clone(),
         })
     }
 
-    fn spawn_thread(&self) {
+    async fn receive(&self) {
 
+        let host = self.host.upgrade().unwrap();
+
+        let model_id = host.id().unwrap();
+
+        sleep(std::time::Duration::from_secs(1)).await;
+
+        let /*mut*/ contextes = HashMap::new();
+
+        let mut recv = self.stream_recv.clone();
+        let receiver = move |inputs: HashMap<String, Output>| {
+            
+            let future = Box::new(Box::pin(async move {
+
+                let data_output = inputs.get("signal").unwrap();
+    
+                while let Some(possible_f32) = recv.next().await {
+    
+                    ok_or_break!(data_output.send_multiple_f32(possible_f32).await);
+                }
+    
+                data_output.close().await;
+    
+                ResultStatus::Ok
+            })) as TrackFuture;
+    
+            vec![future]
+        };
+
+        host.world().create_track(model_id, "receive", contextes, None, Some(receiver)).await;
+    }
+}
+
+impl HostedModel for AudioInputModel {
+
+    fn initialize(&self) {
         let sender = self.stream_send.clone();
         let barrier = Arc::clone(&self.stream_end_barrier);
         let stream_thread = spawn(move || {
@@ -90,60 +107,36 @@ impl AudioInputModel {
         
         *self.stream_thread.write().unwrap() = Some(stream_thread);
 
-        let auto_self = self.auto_reference.upgrade().unwrap();
+        let host = self.host.upgrade().unwrap();
+
+        let auto_self = Arc::clone(host.hosted()).downcast_arc::<AudioInputModel>().unwrap();
         let future = Box::pin(async move { auto_self.receive().await });
 
-        self.helper.world().add_continuous_task(Box::new(future));
+        host.world().add_continuous_task(Box::new(future));
     }
 
-    async fn receive(&self) {
-
-        let model_id = self.helper.id().unwrap();
-
-        sleep(std::time::Duration::from_secs(1)).await;
-
-        let /*mut*/ contextes = HashMap::new();
-
-        let mut recv = self.stream_recv.clone();
-        let receiver = move |inputs: HashMap<String, Output>| {
-            
-            let future = Box::new(Box::pin(async move {
-
-                let data_output = inputs.get("signal").unwrap();
-    
-                while let Some(possible_f32) = recv.next().await {
-    
-                    ok_or_break!(data_output.send_multiple_f32(possible_f32).await);
-                }
-    
-                data_output.close().await;
-    
-                ResultStatus::Ok
-            })) as TrackFuture;
-    
-            vec![future]
-        };
-
-        self.helper.world().create_track(model_id, "receive", contextes, None, Some(receiver)).await;
-    }
-
-    fn close_wait(&self) {
-
+    fn shutdown(&self) {
         self.stream_recv.close();
         self.stream_end_barrier.wait();
-        //self.stream_thread.into_inner().unwrap().unwrap().join();
     }
 }
 
-model_trait!(AudioInputModel, spawn_thread, close_wait);
+model!(
+    AudioInputModel,
+    core_identifier!("audio";"AudioInput"),
+    parameters![],
+    model_sources![
+        ("receive"; )
+    ]
+);
 
 source!(receive_audio_source,
     core_identifier!("audio";"ReceiveAudio"),
     models![
-        ("input", crate::core::audio::input::AudioInputModel::descriptor())
+        ("input", crate::core::audio::input::model_host::descriptor())
     ],
     treatment_sources![
-        (crate::core::audio::input::AudioInputModel::descriptor(), "receive")
+        (crate::core::audio::input::model_host::descriptor(), "receive")
     ],
     outputs![
         output!("signal",Scalar,F32,Stream)

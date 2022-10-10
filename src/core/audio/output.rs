@@ -10,7 +10,7 @@ use cpal::SampleRate;
 #[derive(Debug)]
 pub struct AudioOutputModel {
 
-    helper: ModelHelper,
+    host: Weak<ModelHost>,
 
     stream_thread: RwLock<Option<JoinHandle<()>>>,
     stream_end_barrier: Arc<Barrier>,
@@ -19,47 +19,43 @@ pub struct AudioOutputModel {
     stream_recv: Receiver<f32>,
 
     early_end: RwLock<bool>,
-
-    auto_reference: Weak<Self>,
 }
 
 impl AudioOutputModel {
 
-    pub fn descriptor() -> Arc<CoreModelDescriptor> {
-
-        model_desc!(
-            AudioOutputModel,
-            core_identifier!("audio";"AudioOutput"),
-            vec![
-                parameter!("early_end", Scalar, Bool, Some(Value::Bool(true))),
-            ],
-            model_sources![
-                ("send"; )
-            ]
-        )
-    }
-
-    pub fn new(world: Arc<World>) -> Arc<dyn Model> {
+    pub fn new(host: Weak<ModelHost>) -> Arc<dyn HostedModel> {
 
         let (send, recv) = unbounded();
 
-        Arc::new_cyclic(|me| Self {
-            helper: ModelHelper::new(Self::descriptor(), world),
-
+        Arc::new(Self {
+            host,
             stream_thread: RwLock::new(None),
             stream_end_barrier: Arc::new(Barrier::new(2)),
-
             stream_send: send,
             stream_recv: recv,
-
             early_end: RwLock::new(true),
-
-            auto_reference: me.clone(),
         })
     }
 
-    fn spawn_thread(&self) {
+    async fn wait_for_init(&self) {
 
+        // Let time for the output thread to init with system audio service
+        sleep(std::time::Duration::from_secs(1)).await;
+
+        let early_end = *self.early_end.read().unwrap();
+
+        if !early_end {
+            while !self.stream_recv.is_empty() {
+                sleep(std::time::Duration::from_millis(100)).await;
+            }
+        }
+    }
+}
+
+
+impl HostedModel for AudioOutputModel {
+
+    fn initialize(&self) {
         let receiver = self.stream_recv.clone();
         let barrier = Arc::clone(&self.stream_end_barrier);
         let stream_thread = spawn(move || {
@@ -102,43 +98,38 @@ impl AudioOutputModel {
         
         *self.stream_thread.write().unwrap() = Some(stream_thread);
 
-        let auto_self = self.auto_reference.upgrade().unwrap();
+        let host = self.host.upgrade().unwrap();
+
+        let auto_self = Arc::clone(host.hosted()).downcast_arc::<AudioOutputModel>().unwrap();
         let future = Box::pin(async move { auto_self.wait_for_init().await });
 
-        self.helper.world().add_continuous_task(Box::new(future));
+        host.world().add_continuous_task(Box::new(future));
     }
 
-    async fn wait_for_init(&self) {
-
-        // Let time for the output thread to init with system audio service
-        sleep(std::time::Duration::from_secs(1)).await;
-
-        let early_end = *self.early_end.read().unwrap();
-
-        if !early_end {
-            while !self.stream_recv.is_empty() {
-                sleep(std::time::Duration::from_millis(100)).await;
-            }
-        }
-    }
-
-    fn close_wait(&self) {
-
+    fn shutdown(&self) {
         self.stream_recv.close();
         self.stream_end_barrier.wait();
-        //self.stream_thread.into_inner().unwrap().unwrap().join();
     }
 }
 
-model_trait!(AudioOutputModel, spawn_thread, close_wait);
+model!(
+    AudioOutputModel,
+    core_identifier!("audio";"AudioOutput"),
+    parameters![
+        parameter!("early_end", Scalar, Bool, Some(Value::Bool(true)))
+    ],
+    model_sources![
+        ("send"; )
+    ]
+);
 
 treatment!(send_audio_treatment,
     core_identifier!("audio";"SendAudio"),
     models![
-        ("output", crate::core::audio::output::AudioOutputModel::descriptor())
+        ("output", crate::core::audio::output::model_host::descriptor())
     ],
     treatment_sources![
-        (crate::core::audio::output::AudioOutputModel::descriptor(), "send")
+        (crate::core::audio::output::model_host::descriptor(), "send")
     ],
     parameters![],
     inputs![
@@ -147,7 +138,7 @@ treatment!(send_audio_treatment,
     outputs![],
     host {
         let input = host.get_input("signal");
-        let audio_model = std::sync::Arc::clone(&host.get_model("output")).downcast_arc::<crate::core::audio::output::AudioOutputModel>().unwrap();
+        let audio_model = host.get_hosted_model("output").downcast_arc::<crate::core::audio::output::AudioOutputModel>().unwrap();
     
         'main: while let Ok(signal) = input.recv_f32().await {
 

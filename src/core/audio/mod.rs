@@ -9,10 +9,10 @@ pub fn register(mut c: &mut CollectionPool) {
 
     encoding::register(&mut c);
 
-    c.models.insert(&(input::AudioInputModel::descriptor() as std::sync::Arc<dyn ModelDescriptor>));
+    input::model_host::register(&mut c);
     input::receive_audio_source::register(&mut c);
 
-    c.models.insert(&(output::AudioOutputModel::descriptor() as std::sync::Arc<dyn ModelDescriptor>));
+    output::model_host::register(&mut c);
     output::send_audio_treatment::register(&mut c);
 }
 

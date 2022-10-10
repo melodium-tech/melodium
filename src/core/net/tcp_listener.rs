@@ -3,11 +3,12 @@ use std::sync::{Arc, Weak, RwLock};
 use std::collections::HashMap;
 use super::super::prelude::*;
 use async_std::net::*;
+use async_std::io::BufWriter;
 
 #[derive(Debug)]
 pub struct TcpListenerModel {
 
-    helper: ModelHelper,
+    host: Weak<ModelHost>,
 
     available_streams: RwLock<HashMap<(String, u16), TcpStream>>,
 
@@ -16,24 +17,10 @@ pub struct TcpListenerModel {
 
 impl TcpListenerModel {
 
-    pub fn descriptor() -> Arc<CoreModelDescriptor> {
-
-        model_desc!(
-            TcpListenerModel,
-            core_identifier!("net";"TcpListener"),
-            vec![
-                parameter!("socket_address", Scalar, String, None),
-            ],
-            model_sources![
-                ("connection"; "TcpConnection")
-            ]
-        )
-    }
-
-    pub fn new(world: Arc<World>) -> Arc<dyn Model> {
+    pub fn new(host: Weak<ModelHost>) -> Arc<dyn HostedModel> {
 
         Arc::new_cyclic(|me| Self {
-            helper: ModelHelper::new(Self::descriptor(), world),
+            host,
 
             available_streams: RwLock::new(HashMap::new()),
 
@@ -45,17 +32,11 @@ impl TcpListenerModel {
         &self.available_streams
     }
 
-    fn initialize(&self) {
-
-        let auto_self = self.auto_reference.upgrade().unwrap();
-        let continuous_future = Box::pin(async move { auto_self.listen().await });
-
-        self.helper.world().add_continuous_task(Box::new(continuous_future));
-    }
-
     async fn listen(&self) {
 
-        let socket_address: SocketAddr = self.helper.get_parameter("socket_address").string().parse().unwrap();
+        let host = self.host.upgrade().unwrap();
+
+        let socket_address: SocketAddr = host.get_parameter("socket_address").string().parse().unwrap();
 
         // Todo manage io error
         if let Ok(listener) = TcpListener::bind(socket_address).await {
@@ -82,8 +63,8 @@ impl TcpListenerModel {
                 let mut contextes = HashMap::new();
                 contextes.insert("TcpConnection".to_string(), tcp_connection_context);
 
-                let model_id = self.helper.id().unwrap();
-                self.helper.world().create_track(model_id, "connection", contextes, None, Some(data_reading)).await;
+                let model_id = host.id().unwrap();
+                host.world().create_track(model_id, "connection", contextes, None, Some(data_reading)).await;
             }
         }
 
@@ -116,17 +97,84 @@ impl TcpListenerModel {
     }
 }
 
-model_trait!(TcpListenerModel, initialize);
+impl HostedModel for TcpListenerModel {
+
+    fn initialize(&self) {
+        let auto_self = self.auto_reference.upgrade().unwrap();
+        let continuous_future = Box::pin(async move { auto_self.listen().await });
+
+        self.host.upgrade().unwrap().world().add_continuous_task(Box::new(continuous_future));
+    }
+
+    fn shutdown(&self) {}
+}
+
+model!(
+    TcpListenerModel,
+    core_identifier!("net";"TcpListener"),
+    parameters![
+        parameter!("socket_address", Scalar, String, None)
+    ],
+    model_sources![
+        ("connection"; "TcpConnection")
+    ]
+);
 
 source!(read_tcp_connection,
     core_identifier!("net";"ReadTcpConnection"),
     models![
-        ("listener", super::super::tcp_listener::TcpListenerModel::descriptor())
+        ("listener", super::super::tcp_listener::model_host::descriptor())
     ],
     treatment_sources![
-        (super::super::tcp_listener::TcpListenerModel::descriptor(), "connection")
+        (super::super::tcp_listener::model_host::descriptor(), "connection")
     ],
     outputs![
         output!("data", Scalar, Byte, Stream)
     ]
+);
+
+treatment!(write_tcp_connection,
+    core_identifier!("net";"WriteTcpConnection"),
+    models![
+        ("listener", super::super::tcp_listener::model_host::descriptor())
+    ],
+    treatment_sources![
+        (super::super::tcp_listener::model_host::descriptor(), "connection")
+    ],
+    parameters![
+        parameter!("ip", Var, Scalar, String, None),
+        parameter!("port", Var, Scalar, U16, None)
+    ],
+    inputs![
+        input!("data", Scalar, Byte, Stream)
+    ],
+    outputs![],
+    host {
+        use super::*;
+
+        let listener = host.get_hosted_model("listener").downcast_arc::<TcpListenerModel>().unwrap();
+        let ip = host.get_parameter("ip").string();
+        let port = host.get_parameter("port").u16();
+
+        let input = host.get_input("data");
+
+        let stream = listener.available_streams().read().unwrap().get(&(ip.to_string(), port)).unwrap().clone();
+        let mut writer = BufWriter::with_capacity(1024, stream);
+    
+        while let Ok(bytes) = input.recv_byte().await {
+
+            if let Err(write_err) = writer.write(&bytes).await {
+                // Todo handle error
+                panic!("Writing error: {}", write_err)
+            }
+        }
+
+        if let Err(write_err) = writer.flush().await {
+
+            // Todo handle error
+            panic!("Writing (flush) error: {}", write_err)
+        }
+    
+        ResultStatus::Ok
+    }
 );

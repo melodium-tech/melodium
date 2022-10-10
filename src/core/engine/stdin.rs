@@ -9,7 +9,9 @@ use crate::core::prelude::*;
 
 pub struct StdinModel {
 
-    helper: ModelHelper,
+    id: Mutex<Option<ModelId>>,
+
+    world: Arc<World>,
 
     read_abort: Mutex<Option<AbortHandle>>,
     read_channel: SendTransmitter<String>,
@@ -24,7 +26,7 @@ impl StdinModel {
         model_desc!(
             StdinModel,
             core_identifier!("engine";"Stdin"),
-            vec![],
+            parameters![],
             model_sources![
                 ("read"; )
             ]
@@ -45,11 +47,10 @@ impl StdinModel {
         else {
 
             *optionnal_stdin = Some(Arc::new_cyclic(|me| StdinModel {
-                helper: ModelHelper::new(StdinModel::descriptor(), world),
-    
+                id: Mutex::new(None),
+                world,
                 read_abort: Mutex::new(None),
                 read_channel: SendTransmitter::new(),
-    
                 auto_reference: me.clone(),
             }));
 
@@ -57,24 +58,16 @@ impl StdinModel {
         }
     }
 
-    fn initialize(&self) {
-
-        let auto_self = self.auto_reference.upgrade().unwrap();
-        let future = Box::pin(async move { auto_self.run().await });
-
-        self.helper.world().add_continuous_task(Box::new(future));
-    }
-
     async fn run(&self) {
 
-        let model_id = self.helper.id().unwrap();
+        let model_id = self.id.lock().unwrap().unwrap();
 
         let (stdin, abort_stdin) = abortable(self.stdin());
 
         *self.read_abort.lock().unwrap() = Some(abort_stdin);
 
         let _ = futures::join!(
-            self.helper.world().create_track(model_id, "read", HashMap::new(), None, Some(|i| self.read(i))),
+            self.world.create_track(model_id, "read", HashMap::new(), None, Some(|i| self.read(i))),
             stdin
         );
     }
@@ -134,12 +127,39 @@ impl StdinModel {
 impl fmt::Debug for StdinModel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("StdinModel")
-         .field("helper", &self.helper)
+         .field("id", &self.id)
          .finish()
     }
 }
 
-model_trait!(StdinModel, initialize, close);
+impl Model for StdinModel {
+    
+    fn descriptor(&self) -> std::sync::Arc<CoreModelDescriptor> {
+        Self::descriptor()
+    }
+
+    fn id(&self) -> Option<ModelId> {
+        *self.id.lock().unwrap()
+    }
+
+    fn set_id(&self, id: ModelId) {
+        *self.id.lock().unwrap() = Some(id);
+    }
+
+    fn set_parameter(&self, _param: &str, _value: &Value) {}
+
+    fn initialize(&self) {
+
+        let auto_self = self.auto_reference.upgrade().unwrap();
+        let future = Box::pin(async move { auto_self.run().await });
+
+        self.world.add_continuous_task(Box::new(future));
+    }
+
+    fn shutdown(&self) {
+        self.close()
+    }
+}
 
 source!(stdin_read_source,
     core_identifier!("engine";"Read"),
@@ -152,4 +172,29 @@ source!(stdin_read_source,
     outputs![
         output!("line",Scalar,String,Stream)
     ]
+);
+
+treatment!(stdin_close_treatment,
+    core_identifier!("engine";"Close"),
+    models![
+        ("stdin", crate::core::engine::stdin::StdinModel::descriptor())
+    ],
+    treatment_sources![],
+    parameters![],
+    inputs![
+        input!("close",Scalar,Void,Block)
+    ],
+    outputs![],
+    host {
+
+        let stdin = std::sync::Arc::clone(&host.get_model("stdin")).downcast_arc::<crate::core::engine::stdin::StdinModel>().unwrap();
+
+        let input = host.get_input("close");
+
+        if let Ok(_) = input.recv_void().await {
+            stdin.close();
+        }
+    
+        ResultStatus::Ok
+    }
 );

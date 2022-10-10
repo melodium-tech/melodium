@@ -1,6 +1,6 @@
 
 use crate::core::prelude::*;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::collections::HashMap;
 use hound::*;
 use itertools::Itertools;
@@ -9,31 +9,21 @@ use futures::future::join_all;
 #[derive(Debug)]
 pub struct WaveDecoderModel {
 
-    helper: ModelHelper,
+    host: Weak<ModelHost>,
 }
 
 impl WaveDecoderModel {
 
-    pub fn descriptor() -> Arc<CoreModelDescriptor> {
-        model_desc!(
-            WaveDecoderModel,
-            core_identifier!("audio","encoding","wave";"WaveDecoder"),
-            vec![],
-            model_sources![
-                ("mono";    "Signal"),
-                ("stereo";  "Signal")
-            ]
-        )
-    }
-
-    pub fn new(world: Arc<World>) -> Arc<dyn Model> {
+    pub fn new(host: Weak<ModelHost>) -> Arc<dyn HostedModel> {
 
         Arc::new(Self {
-            helper: ModelHelper::new(Self::descriptor(), world),
+            host
         })
     }
 
     pub async fn decode(&self, block: Vec<u8>) {
+
+        let host = self.host.upgrade().unwrap();
 
         let reader = WavReader::new(block.as_slice()).unwrap();
 
@@ -50,13 +40,13 @@ impl WaveDecoderModel {
             Self::decode_block(block, spec.channels, inputs)
         };
 
-        let model_id = self.helper.id().unwrap();
+        let model_id = host.id().unwrap();
 
         if spec.channels == 1 {
-            self.helper.world().create_track(model_id, "mono", contextes, None, Some(data_decoding)).await;
+            host.world().create_track(model_id, "mono", contextes, None, Some(data_decoding)).await;
         }
         else if spec.channels == 2 {
-            self.helper.world().create_track(model_id, "stereo", contextes, None, Some(data_decoding)).await;
+            host.world().create_track(model_id, "stereo", contextes, None, Some(data_decoding)).await;
         }
     }
 
@@ -265,15 +255,29 @@ impl WaveDecoderModel {
     }
 }
 
-model_trait!(WaveDecoderModel);
+impl HostedModel for WaveDecoderModel {
+
+    fn initialize(&self) {}
+    fn shutdown(&self) {}
+}
+
+model!(
+    WaveDecoderModel,
+    core_identifier!("audio","encoding","wave";"WaveDecoder"),
+    parameters![],
+    model_sources![
+        ("mono";    "Signal"),
+        ("stereo";  "Signal")
+    ]
+);
 
 source!(mono_decode,
     core_identifier!("audio","encoding","wave";"MonoWave"),
     models![
-        ("decoder", crate::core::audio::encoding::wave::decoder::WaveDecoderModel::descriptor())
+        ("decoder", crate::core::audio::encoding::wave::decoder::model_host::descriptor())
     ],
     treatment_sources![
-        (crate::core::audio::encoding::wave::decoder::WaveDecoderModel::descriptor(), "mono")
+        (crate::core::audio::encoding::wave::decoder::model_host::descriptor(), "mono")
     ],
     outputs![
         output!("mono",Scalar,F32,Stream)
@@ -283,10 +287,10 @@ source!(mono_decode,
 source!(stereo_decode,
     core_identifier!("audio","encoding","wave";"StereoWave"),
     models![
-        ("decoder", crate::core::audio::encoding::wave::decoder::WaveDecoderModel::descriptor())
+        ("decoder", crate::core::audio::encoding::wave::decoder::model_host::descriptor())
     ],
     treatment_sources![
-        (crate::core::audio::encoding::wave::decoder::WaveDecoderModel::descriptor(), "stereo")
+        (crate::core::audio::encoding::wave::decoder::model_host::descriptor(), "stereo")
     ],
     outputs![
         output!("left",Scalar,F32,Stream),
@@ -296,7 +300,7 @@ source!(stereo_decode,
 
 pub fn register(mut c: &mut CollectionPool) {
 
-    c.models.insert(&(WaveDecoderModel::descriptor() as Arc<dyn ModelDescriptor>));
+    model_host::register(&mut c);
     mono_decode::register(&mut c);
     stereo_decode::register(&mut c);
 }

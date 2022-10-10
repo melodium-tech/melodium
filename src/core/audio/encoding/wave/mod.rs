@@ -13,7 +13,7 @@ pub fn register(mut c: &mut CollectionPool) {
 treatment!(decode,
     core_identifier!("audio","encoding","wave";"DecodeWave"),
     models![
-        ("decoder", crate::core::audio::encoding::wave::decoder::WaveDecoderModel::descriptor())
+        ("decoder", crate::core::audio::encoding::wave::decoder::model_host::descriptor())
     ],
     treatment_sources![],
     parameters![],
@@ -28,7 +28,7 @@ treatment!(decode,
         use crate::core::audio::encoding::wave::decoder::WaveDecoderModel;
 
         let input = host.get_input("data");
-        let decoder = std::sync::Arc::clone(&host.get_model("decoder")).downcast_arc::<WaveDecoderModel>().unwrap();
+        let decoder = host.get_hosted_model("decoder").downcast_arc::<WaveDecoderModel>().unwrap();
     
         if let Ok(data) = input.recv_vec_byte().await {
 
