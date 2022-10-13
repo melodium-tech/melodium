@@ -548,6 +548,9 @@ macro_rules! impl_StaticPowfScalar {
         use crate::core::prelude::*;
         treatment!(static_pow,
             core_identifier!("arithmetic","scalar";&format!("StaticPow{}", $mel_name)),
+            format!(r"Elevates `{}` to the power of a static value.
+
+            Every number passed through the stream get elevated to the power of `exponent`.", stringify!($mel_value_type)),
             models![],
             treatment_sources![],
             parameters![
@@ -580,6 +583,9 @@ macro_rules! impl_PowfScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(pow,
             core_identifier!("arithmetic","scalar";&format!("Pow{}", $mel_name)),
+            format!(r"Elevates values from a stream of `{}` to the power of another one.
+
+            Values passed through `base` are elevated to the power of `exponent`.", stringify!($mel_value_type)),
             models![],
             treatment_sources![],
             parameters![],
@@ -616,6 +622,7 @@ macro_rules! impl_powf_function {
         
             CoreFunctionDescriptor::new(
                 core_identifier!("arithmetic","scalar",$mel_name_low;"|pow"),
+                "Elevates `base` from `exponent`".to_string(),
                 parameters![
                     parameter!("base", Scalar, $mel_type, None),
                     parameter!("exponent", Scalar, $mel_type, None)
@@ -632,6 +639,7 @@ macro_rules! impl_AbsScalar {
         use crate::core::prelude::*;
         treatment!(absolute,
             core_identifier!("arithmetic","scalar";&format!("Abs{}", $mel_name)),
+            format!(r"Get the absolute values from a stream of `{}`.", stringify!($mel_value_type)),
             models![],
             treatment_sources![],
             parameters![],
@@ -666,6 +674,7 @@ macro_rules! impl_abs_function {
         
             CoreFunctionDescriptor::new(
                 core_identifier!("arithmetic","scalar",$mel_name_low;"|abs"),
+                "Get the absolute value".to_string(),
                 parameters![
                     parameter!("value", Scalar, $mel_type, None)
                 ],
@@ -680,6 +689,7 @@ macro_rules! impl_SqrtScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(sqrt,
             core_identifier!("arithmetic","scalar";&format!("Sqrt{}", $mel_name)),
+            format!(r"Computes the square roots from a stream of `{}`.", stringify!($mel_value_type)),
             models![],
             treatment_sources![],
             parameters![],
@@ -714,6 +724,7 @@ macro_rules! impl_sqrt_function {
         
             CoreFunctionDescriptor::new(
                 core_identifier!("arithmetic","scalar",$mel_name_low;"|sqrt"),
+                "Computes square root of value".to_string(),
                 parameters![
                     parameter!("value", Scalar, $mel_type, None)
                 ],
@@ -728,6 +739,7 @@ macro_rules! impl_CbrtScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(cbrt,
             core_identifier!("arithmetic","scalar";&format!("Cbrt{}", $mel_name)),
+            format!(r"Computes the cube roots from a stream of `{}`.", stringify!($mel_value_type)),
             models![],
             treatment_sources![],
             parameters![],
@@ -762,6 +774,7 @@ macro_rules! impl_cbrt_function {
         
             CoreFunctionDescriptor::new(
                 core_identifier!("arithmetic","scalar",$mel_name_low;"|cbrt"),
+                "Computes cube root of value".to_string(),
                 parameters![
                     parameter!("value", Scalar, $mel_type, None)
                 ],
@@ -776,6 +789,7 @@ macro_rules! impl_LnScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(ln,
             core_identifier!("arithmetic","scalar";&format!("Ln{}", $mel_name)),
+            format!(r"Computes the natural logarithms of a stream of `{}`.", stringify!($mel_value_type)),
             models![],
             treatment_sources![],
             parameters![],
@@ -810,6 +824,7 @@ macro_rules! impl_ln_function {
         
             CoreFunctionDescriptor::new(
                 core_identifier!("arithmetic","scalar",$mel_name_low;"|ln"),
+                "Computes natural logarithm of value".to_string(),
                 parameters![
                     parameter!("value", Scalar, $mel_type, None)
                 ],
@@ -824,6 +839,7 @@ macro_rules! impl_StaticLogScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(static_log,
             core_identifier!("arithmetic","scalar";&format!("StaticLog{}", $mel_name)),
+            format!(r"Computes the logarithms from a stream of `{}` with respect to a static base.", stringify!($mel_value_type)),
             models![],
             treatment_sources![],
             parameters![
@@ -856,6 +872,7 @@ macro_rules! impl_LogScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(log,
             core_identifier!("arithmetic","scalar";&format!("Log{}", $mel_name)),
+            format!(r"Computes logarithms from a stream of `{}` with the base of another one.", stringify!($mel_value_type)),
             models![],
             treatment_sources![],
             parameters![],
@@ -892,6 +909,7 @@ macro_rules! impl_log_function {
         
             CoreFunctionDescriptor::new(
                 core_identifier!("arithmetic","scalar",$mel_name_low;"|log"),
+                "Computes logarithm of value  with the base".to_string(),
                 parameters![
                     parameter!("value", Scalar, $mel_type, None),
                     parameter!("base", Scalar, $mel_type, None)
