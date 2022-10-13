@@ -3,6 +3,7 @@ use std::fmt::*;
 use std::sync::{Arc, Weak};
 use super::identified::Identified;
 use super::identifier::Identifier;
+use super::documented::Documented;
 use super::function::Function;
 use super::ordered_parameterized::OrderedParameterized;
 use super::parameter::Parameter;
@@ -12,6 +13,8 @@ use crate::executive::value::Value;
 #[derive(Debug)]
 pub struct CoreFunction {
     identifier: Identifier,
+    #[cfg(feature = "doc")]
+    documentation: String,
     parameters: Vec<Parameter>,
     return_type: DataType,
     function: fn(Vec<Value>) -> Value,
@@ -19,9 +22,18 @@ pub struct CoreFunction {
 }
 
 impl CoreFunction {
-    pub fn new(identifier: Identifier, parameters: Vec<Parameter>, return_type: DataType, function: fn(Vec<Value>) -> Value) -> Arc<Self> {
+    pub fn new(
+        identifier: Identifier,
+        #[cfg(feature = "doc")]
+        documentation: String,
+        parameters: Vec<Parameter>,
+        return_type: DataType,
+        function: fn(Vec<Value>) -> Value
+    ) -> Arc<Self> {
         Arc::new_cyclic(|me| Self {
             identifier,
+            #[cfg(feature = "doc")]
+            documentation,
             parameters,
             return_type,
             function,
@@ -47,6 +59,13 @@ impl Identified for CoreFunction {
     }
 }
 
+impl Documented for CoreFunction {
+    #[cfg(feature = "doc")]
+    fn documentation(&self) -> &str {
+        &self.documentation
+    }
+}
+
 impl OrderedParameterized for CoreFunction {
 
     fn parameters(&self) -> &Vec<Parameter> {
@@ -55,6 +74,24 @@ impl OrderedParameterized for CoreFunction {
 
     fn as_ordered_parameterized(&self) -> Arc<dyn OrderedParameterized> {
         self.auto_reference.upgrade().unwrap()
+    }
+}
+
+impl Display for CoreFunction {
+    
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        writeln!(f, "Function `{}`", self.identifier.to_string())?;
+
+        if !self.parameters.is_empty() {
+            writeln!(f, "\nParameters:")?;
+
+            for parameter in &self.parameters {
+                writeln!(f, "- {}", parameter)?;
+            }
+        }
+
+        Ok(())
+        
     }
 }
 

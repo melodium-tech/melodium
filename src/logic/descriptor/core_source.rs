@@ -5,6 +5,7 @@ use std::sync::{Arc, Weak, RwLock};
 use std::iter::FromIterator;
 use super::identified::Identified;
 use super::identifier::Identifier;
+use super::documented::Documented;
 use super::parameterized::Parameterized;
 use super::buildable::Buildable;
 use super::input::Input;
@@ -20,6 +21,8 @@ use crate::logic::designer::SequenceDesigner;
 #[derive(Debug)]
 pub struct CoreSource {
     identifier: Identifier,
+    #[cfg(feature = "doc")]
+    documentation: String,
     models: HashMap<String, Arc<CoreModel>>,
     outputs: HashMap<String, Output>,
     source_from: HashMap<Arc<CoreModel>, Vec<String>>,
@@ -28,9 +31,18 @@ pub struct CoreSource {
 }
 
 impl CoreSource {
-    pub fn new(identifier: Identifier, models: Vec<(String, Arc<CoreModel>)>, source_from: HashMap<Arc<CoreModel>, Vec<String>>, outputs: Vec<Output>) -> Arc<Self> {
+    pub fn new(
+        identifier: Identifier,
+        #[cfg(feature = "doc")]
+        documentation: String,
+        models: Vec<(String, Arc<CoreModel>)>,
+        source_from: HashMap<Arc<CoreModel>, Vec<String>>,
+        outputs: Vec<Output>
+    ) -> Arc<Self> {
         Arc::new_cyclic(|me| Self {
             identifier,
+            #[cfg(feature = "doc")]
+            documentation,
             models: HashMap::from_iter(models.iter().map(|m| (m.0.to_string(), Arc::clone(&m.1)))),
             outputs: HashMap::from_iter(outputs.iter().map(|o| (o.name().to_string(), o.clone()))),
             source_from,
@@ -43,6 +55,13 @@ impl CoreSource {
 impl Identified for CoreSource {
     fn identifier(&self) -> &Identifier {
         &self.identifier
+    }
+}
+
+impl Documented for CoreSource {
+    #[cfg(feature = "doc")]
+    fn documentation(&self) -> &str {
+        &self.documentation
     }
 }
 

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock};
 use super::identified::Identified;
 use super::identifier::Identifier;
+use super::documented::Documented;
 use super::parameterized::Parameterized;
 use super::designable::Designable;
 use super::buildable::Buildable;
@@ -19,6 +20,8 @@ use super::treatment::Treatment;
 #[derive(Debug)]
 pub struct SequenceTreatment {
     identifier: Identifier,
+    #[cfg(feature = "doc")]
+    documentation: String,
     models: HashMap<String, Arc<CoreModel>>,
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
@@ -34,6 +37,8 @@ impl SequenceTreatment {
     pub fn new(identifier: Identifier) -> Self {
         Self {
             identifier,
+            #[cfg(feature = "doc")]
+            documentation: String::new(),
             models: HashMap::new(),
             parameters: HashMap::new(),
             inputs: HashMap::new(),
@@ -44,6 +49,11 @@ impl SequenceTreatment {
             builder: RwLock::new(None),
             auto_reference: Weak::default(),
         }
+    }
+
+    #[cfg(feature = "doc")]
+    pub fn set_documentation(&mut self, documentation: &str) {
+        self.documentation = String::from(documentation);
     }
 
     pub fn add_model(&mut self, name: &str, model: &Arc<CoreModel>) {
@@ -69,6 +79,8 @@ impl SequenceTreatment {
     pub fn commit(self) -> Arc<Self> {
         Arc::new_cyclic(|me| Self {
             identifier: self.identifier,
+            #[cfg(feature = "doc")]
+            documentation: self.documentation,
             models: self.models,
             parameters: self.parameters,
             inputs: self.inputs,
@@ -90,6 +102,13 @@ impl SequenceTreatment {
 impl Identified for SequenceTreatment {
     fn identifier(&self) -> &Identifier {
         &self.identifier
+    }
+}
+
+impl Documented for SequenceTreatment {
+    #[cfg(feature = "doc")]
+    fn documentation(&self) -> &str {
+        &self.documentation
     }
 }
 

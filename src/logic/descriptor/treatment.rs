@@ -5,6 +5,7 @@ use std::sync::{Arc, RwLock};
 use downcast_rs::{DowncastSync, impl_downcast};
 use crate::logic::designer::SequenceDesigner;
 use super::identified::Identified;
+use super::documented::Documented;
 use super::parameterized::Parameterized;
 use super::buildable::Buildable;
 use super::input::Input;
@@ -12,7 +13,7 @@ use super::output::Output;
 use super::core_model::CoreModel;
 use super::requirement::Requirement;
 
-pub trait Treatment: Identified + Parameterized + Buildable + DowncastSync + Display + Debug + Send + Sync {
+pub trait Treatment: Identified + Documented + Parameterized + Buildable + DowncastSync + Display + Debug + Send + Sync {
     fn inputs(&self) -> &HashMap<String, Input>;
     fn outputs(&self) -> &HashMap<String, Output>;
     fn models(&self) -> &HashMap<String, Arc<CoreModel>>;

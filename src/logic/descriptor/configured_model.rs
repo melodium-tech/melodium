@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use crate::logic::designer::ModelDesigner;
 use super::identified::Identified;
 use super::identifier::Identifier;
+use super::documented::Documented;
 use super::parameterized::Parameterized;
 use super::designable::Designable;
 use super::buildable::Buildable;
@@ -17,6 +18,8 @@ use super::super::builder::Builder;
 #[derive(Debug)]
 pub struct ConfiguredModel {
     identifier: Identifier,
+    #[cfg(feature = "doc")]
+    documentation: String,
     core_model: Arc<CoreModel>,
     parameters: HashMap<String, Parameter>,
     designer: RwLock<Option<Arc<RwLock<ModelDesigner>>>>,
@@ -25,15 +28,25 @@ pub struct ConfiguredModel {
 }
 
 impl ConfiguredModel {
-    pub fn new(identifier: Identifier, core_model: &Arc<CoreModel>) -> Self {
+    pub fn new(
+        identifier: Identifier,
+        core_model: &Arc<CoreModel>
+    ) -> Self {
         Self {
             identifier,
+            #[cfg(feature = "doc")]
+            documentation: String::new(),
             core_model: Arc::clone(core_model),
             parameters: HashMap::new(),
             designer: RwLock::new(None),
             builder: RwLock::new(None),
             auto_reference: Weak::default(),
         }
+    }
+
+    #[cfg(feature = "doc")]
+    pub fn set_documentation(&mut self, documentation: &str) {
+        self.documentation = String::from(documentation);
     }
 
     pub fn add_parameter(&mut self, parameter: Parameter) {
@@ -43,6 +56,8 @@ impl ConfiguredModel {
     pub fn commit(self) -> Arc<Self> {
         Arc::new_cyclic(|me| Self {
             identifier: self.identifier,
+            #[cfg(feature = "doc")]
+            documentation: self.documentation,
             core_model: self.core_model,
             parameters: self.parameters,
             designer: self.designer,
@@ -60,6 +75,13 @@ impl ConfiguredModel {
 impl Identified for ConfiguredModel {
     fn identifier(&self) -> &Identifier {
         &self.identifier
+    }
+}
+
+impl Documented for ConfiguredModel {
+    #[cfg(feature = "doc")]
+    fn documentation(&self) -> &str {
+        &self.documentation
     }
 }
 

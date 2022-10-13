@@ -54,7 +54,7 @@ macro_rules! outputs {
 pub(crate) use outputs;
 
 macro_rules! treatment {
-    ($mod:ident,$identifier:expr,$models:expr,$sources:expr,$parameters:expr,$inputs:expr,$outputs:expr,$host:ident $treatment:expr) => {
+    ($mod:ident,$identifier:expr,$documentation:expr,$models:expr,$sources:expr,$parameters:expr,$inputs:expr,$outputs:expr,$host:ident $treatment:expr) => {
         pub mod $mod {
 
             use crate::core::prelude::*;
@@ -65,6 +65,8 @@ macro_rules! treatment {
                     static ref DESCRIPTOR: std::sync::Arc<CoreTreatmentDescriptor> = 
                         CoreTreatmentDescriptor::new(
                             $identifier,
+                            #[cfg(feature = "doc")]
+                            $documentation,
                             $models,
                             $sources,
                             $parameters,
@@ -114,7 +116,7 @@ macro_rules! treatment {
 pub(crate) use treatment;
 
 macro_rules! source {
-    ($mod:ident,$identifier:expr,$models:expr,$sources:expr,$outputs:expr) => {
+    ($mod:ident,$identifier:expr,$documentation:expr,$models:expr,$sources:expr,$outputs:expr) => {
         pub mod $mod {
 
             use crate::core::prelude::*;
@@ -125,6 +127,8 @@ macro_rules! source {
                     static ref DESCRIPTOR: std::sync::Arc<CoreSourceDescriptor> = 
                     CoreSourceDescriptor::new(
                             $identifier,
+                            #[cfg(feature = "doc")]
+                            $documentation,
                             $models,
                             $sources,
                             $outputs,
@@ -144,7 +148,7 @@ macro_rules! source {
 pub(crate) use source;
 
 macro_rules! model {
-    ($rust_identifier:ident,$identifier:expr,$parameters:expr,$sources:expr) => {
+    ($rust_identifier:ident,$identifier:expr,$documentation:expr,$parameters:expr,$sources:expr) => {
         pub mod model_host {
 
             use crate::core::prelude::*;
@@ -158,6 +162,8 @@ macro_rules! model {
                     static ref DESCRIPTOR: std::sync::Arc<CoreModelDescriptor> =
                         CoreModelDescriptor::new(
                             $identifier,
+                            #[cfg(feature = "doc")]
+                            $documentation,
                             $parameters,
                             $sources,
                             new
@@ -177,12 +183,14 @@ macro_rules! model {
 pub(crate) use model;
 
 macro_rules! model_desc {
-    ($rust_identifier:ident,$identifier:expr,$parameters:expr,$sources:expr) => {
+    ($rust_identifier:ident,$identifier:expr,$docuemntation:expr,$parameters:expr,$sources:expr) => {
         {
             lazy_static! {
                 static ref DESCRIPTOR: std::sync::Arc<CoreModelDescriptor> =
                     CoreModelDescriptor::new(
                         $identifier,
+                        #[cfg(feature = "doc")]
+                        $documentation,
                         $parameters,
                         $sources,
                         $rust_identifier::new

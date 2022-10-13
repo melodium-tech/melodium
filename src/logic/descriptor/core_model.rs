@@ -6,6 +6,7 @@ use std::iter::FromIterator;
 use std::hash::{Hash, Hasher};
 use super::identified::Identified;
 use super::identifier::Identifier;
+use super::documented::Documented;
 use super::parameterized::Parameterized;
 use super::buildable::Buildable;
 use super::model::Model;
@@ -37,6 +38,8 @@ pub(crate) use model_sources;
 #[derive(Debug)]
 pub struct CoreModel {
     identifier: Identifier,
+    #[cfg(feature = "doc")]
+    documentation: String,
     parameters: HashMap<String, Parameter>,
     sources: HashMap<String, Vec<Arc<Context>>>,
     builder: Arc<Box<dyn Builder>>,
@@ -44,9 +47,18 @@ pub struct CoreModel {
 }
 
 impl CoreModel {
-    pub fn new(identifier: Identifier, parameters: Vec<Parameter>, sources: HashMap<String, Vec<Arc<Context>>>, new_model: fn(Arc<World>) -> Arc<dyn ExecutiveModel>) -> Arc<Self> {
+    pub fn new(
+        identifier: Identifier,
+        #[cfg(feature = "doc")]
+        documentation: String,
+        parameters: Vec<Parameter>,
+        sources: HashMap<String, Vec<Arc<Context>>>,
+        new_model: fn(Arc<World>) -> Arc<dyn ExecutiveModel>
+    ) -> Arc<Self> {
         Arc::new_cyclic(|me| Self {
             identifier,
+            #[cfg(feature = "doc")]
+            documentation,
             parameters: HashMap::from_iter(parameters.iter().map(|p| (p.name().to_string(), p.clone()))),
             sources,
             builder: Arc::new(Box::new(CoreModelBuilder::new(new_model))),
@@ -72,6 +84,13 @@ impl Eq for CoreModel {}
 impl Identified for CoreModel {
     fn identifier(&self) -> &Identifier {
         &self.identifier
+    }
+}
+
+impl Documented for CoreModel {
+    #[cfg(feature = "doc")]
+    fn documentation(&self) -> &str {
+        &self.documentation
     }
 }
 

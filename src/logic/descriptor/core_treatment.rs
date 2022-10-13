@@ -5,6 +5,7 @@ use std::sync::{Arc, Weak, RwLock};
 use std::iter::FromIterator;
 use super::identified::Identified;
 use super::identifier::Identifier;
+use super::documented::Documented;
 use super::parameterized::Parameterized;
 use super::buildable::Buildable;
 use super::input::Input;
@@ -48,6 +49,8 @@ pub(crate) use treatment_sources;
 #[derive(Debug)]
 pub struct CoreTreatment {
     identifier: Identifier,
+    #[cfg(feature = "doc")]
+    documentation: String,
     models: HashMap<String, Arc<CoreModel>>,
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
@@ -58,9 +61,21 @@ pub struct CoreTreatment {
 }
 
 impl CoreTreatment {
-    pub fn new(identifier: Identifier, models: Vec<(String, Arc<CoreModel>)>, source_from: HashMap<Arc<CoreModel>, Vec<String>>, parameters: Vec<Parameter>, inputs: Vec<Input>, outputs: Vec<Output>, new_treatment: fn(Arc<World>, TrackId) -> Arc<dyn ExecutiveTreatment>) -> Arc<Self> {
+    pub fn new(
+        identifier: Identifier,
+        #[cfg(feature = "doc")]
+        documentation: String,
+        models: Vec<(String, Arc<CoreModel>)>,
+        source_from: HashMap<Arc<CoreModel>, Vec<String>>,
+        parameters: Vec<Parameter>,
+        inputs: Vec<Input>,
+        outputs: Vec<Output>,
+        new_treatment: fn(Arc<World>, TrackId) -> Arc<dyn ExecutiveTreatment>,
+    ) -> Arc<Self> {
         Arc::new_cyclic(|me| Self {
             identifier,
+            #[cfg(feature = "doc")]
+            documentation,
             models: HashMap::from_iter(models.iter().map(|m| (m.0.to_string(), Arc::clone(&m.1)))),
             parameters: HashMap::from_iter(parameters.iter().map(|p| (p.name().to_string(), p.clone()))),
             inputs: HashMap::from_iter(inputs.iter().map(|i| (i.name().to_string(), i.clone()))),
@@ -75,6 +90,13 @@ impl CoreTreatment {
 impl Identified for CoreTreatment {
     fn identifier(&self) -> &Identifier {
         &self.identifier
+    }
+}
+
+impl Documented for CoreTreatment {
+    #[cfg(feature = "doc")]
+    fn documentation(&self) -> &str {
+        &self.documentation
     }
 }
 
