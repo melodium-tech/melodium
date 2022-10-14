@@ -264,6 +264,7 @@ impl HostedModel for WaveDecoderModel {
 model!(
     WaveDecoderModel,
     core_identifier!("audio","encoding","wave";"WaveDecoder"),
+    "".to_string(),
     parameters![],
     model_sources![
         ("mono";    "Signal"),
@@ -273,6 +274,7 @@ model!(
 
 source!(mono_decode,
     core_identifier!("audio","encoding","wave";"MonoWave"),
+    "".to_string(),
     models![
         ("decoder", crate::core::audio::encoding::wave::decoder::model_host::descriptor())
     ],
@@ -286,6 +288,7 @@ source!(mono_decode,
 
 source!(stereo_decode,
     core_identifier!("audio","encoding","wave";"StereoWave"),
+    "".to_string(),
     models![
         ("decoder", crate::core::audio::encoding::wave::decoder::model_host::descriptor())
     ],

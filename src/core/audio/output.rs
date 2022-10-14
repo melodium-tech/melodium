@@ -115,6 +115,11 @@ impl HostedModel for AudioOutputModel {
 model!(
     AudioOutputModel,
     core_identifier!("audio";"AudioOutput"),
+    r"Represents host audio system output.
+
+    It uses the default output device available.
+    When `early_end` is set to `true`, the output is closed as soon as processing is done, _without taking care all sound has been played_, when to `false`, the output waits for all sound streams to be send to the system before exiting.
+    This parameter should be turned to `false` especially when playing audio files that are fast to read and process, while they may contain long audio duration.".to_string(),
     parameters![
         parameter!("early_end", Scalar, Bool, Some(Value::Bool(true)))
     ],
@@ -125,6 +130,12 @@ model!(
 
 treatment!(send_audio_treatment,
     core_identifier!("audio";"SendAudio"),
+    r"Send audio to host system.
+
+    Take a stream containing audio signal and send it to the host audio system.
+    
+    ⚠️ The signal must contain values between -1 and 1 (continuous 0 being silence).
+    Other values will be handled by the host system in undefined way.".to_string(),
     models![
         ("output", crate::core::audio::output::model_host::descriptor())
     ],

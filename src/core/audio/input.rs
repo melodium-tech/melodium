@@ -124,6 +124,9 @@ impl HostedModel for AudioInputModel {
 model!(
     AudioInputModel,
     core_identifier!("audio";"AudioInput"),
+    r"Represents host audio system input.
+
+    It uses the default input device available.".to_string(),
     parameters![],
     model_sources![
         ("receive"; )
@@ -132,6 +135,10 @@ model!(
 
 source!(receive_audio_source,
     core_identifier!("audio";"ReceiveAudio"),
+    r"Receive audio from host system.
+
+    Outputs a stream containing audio signal.
+    This stream contains `f32` values with amplitude being -1 and 1, and continuous 0 being silence.".to_string(),
     models![
         ("input", crate::core::audio::input::model_host::descriptor())
     ],

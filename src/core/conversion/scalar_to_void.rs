@@ -2,9 +2,12 @@
 use crate::core::prelude::*;
 
 macro_rules! impl_ScalarToVoid {
-    ($mod:ident, $mel_name:expr, $mel_type:ident, $recv_func:ident) => {
+    ($mod:ident, $mel_name:expr, $type:ident, $mel_type:ident, $recv_func:ident) => {
         treatment!($mod,
             core_identifier!("conversion","scalar";$mel_name),
+            format!(r"Turns `{type}` stream into `void` one.
+
+            Send one `iter` per input `value` received.", type = stringify!($type)),
             models![],
             treatment_sources![],
             parameters![],
@@ -29,22 +32,22 @@ macro_rules! impl_ScalarToVoid {
     }
 }
 
-impl_ScalarToVoid!(u8_to_void, "U8ToVoid", U8, recv_u8);
-impl_ScalarToVoid!(u16_to_void, "U16ToVoid", U16, recv_u16);
-impl_ScalarToVoid!(u32_to_void, "U32ToVoid", U32, recv_u32);
-impl_ScalarToVoid!(u64_to_void, "U64ToVoid", U64, recv_u64);
-impl_ScalarToVoid!(u128_to_void, "U128ToVoid", U128, recv_u128);
-impl_ScalarToVoid!(i8_to_void, "I8ToVoid", I8, recv_i8);
-impl_ScalarToVoid!(i16_to_void, "I16ToVoid", I16, recv_i16);
-impl_ScalarToVoid!(i32_to_void, "I32ToVoid", I32, recv_i32);
-impl_ScalarToVoid!(i64_to_void, "I64ToVoid", I64, recv_i64);
-impl_ScalarToVoid!(i128_to_void, "I128ToVoid", I128, recv_i128);
-impl_ScalarToVoid!(f32_to_void, "F32ToVoid", F32, recv_f32);
-impl_ScalarToVoid!(f64_to_void, "F64ToVoid", F64, recv_f64);
-impl_ScalarToVoid!(bool_to_void, "BoolToVoid", Bool, recv_bool);
-impl_ScalarToVoid!(byte_to_void, "ByteToVoid", Byte, recv_byte);
-impl_ScalarToVoid!(char_to_void, "CharToVoid", Char, recv_char);
-impl_ScalarToVoid!(string_to_void, "StringToVoid", String, recv_string);
+impl_ScalarToVoid!(u8_to_void, "U8ToVoid", u8, U8, recv_u8);
+impl_ScalarToVoid!(u16_to_void, "U16ToVoid", u16, U16, recv_u16);
+impl_ScalarToVoid!(u32_to_void, "U32ToVoid", u32, U32, recv_u32);
+impl_ScalarToVoid!(u64_to_void, "U64ToVoid", u64, U64, recv_u64);
+impl_ScalarToVoid!(u128_to_void, "U128ToVoid", u128, U128, recv_u128);
+impl_ScalarToVoid!(i8_to_void, "I8ToVoid", i8, I8, recv_i8);
+impl_ScalarToVoid!(i16_to_void, "I16ToVoid", i16, I16, recv_i16);
+impl_ScalarToVoid!(i32_to_void, "I32ToVoid", i32, I32, recv_i32);
+impl_ScalarToVoid!(i64_to_void, "I64ToVoid", i64, I64, recv_i64);
+impl_ScalarToVoid!(i128_to_void, "I128ToVoid", i128, I128, recv_i128);
+impl_ScalarToVoid!(f32_to_void, "F32ToVoid", f32, F32, recv_f32);
+impl_ScalarToVoid!(f64_to_void, "F64ToVoid", f64, F64, recv_f64);
+impl_ScalarToVoid!(bool_to_void, "BoolToVoid", bool, Bool, recv_bool);
+impl_ScalarToVoid!(byte_to_void, "ByteToVoid", byte, Byte, recv_byte);
+impl_ScalarToVoid!(char_to_void, "CharToVoid", char, Char, recv_char);
+impl_ScalarToVoid!(string_to_void, "StringToVoid", string, String, recv_string);
 
 pub fn register(mut c: &mut CollectionPool) {
 

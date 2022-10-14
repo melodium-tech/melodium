@@ -3,6 +3,10 @@ use crate::core::prelude::*;
 
 treatment!(bool_from_byte,
     core_identifier!("conversion","scalar";"BoolFromByte"),
+    r"Convert stream of `Vec<byte>` into `bool`.
+
+    Each received `byte` vector try to be converted into `bool`, and if valid is sent as `value`. If the incoming vector 
+    is not valid for representing a `bool` (i.e. not having size of 1) it is refused and sent through `reject`.".to_string(),
     models![],
     treatment_sources![],
     parameters![],

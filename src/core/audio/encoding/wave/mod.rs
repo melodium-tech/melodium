@@ -12,6 +12,7 @@ pub fn register(mut c: &mut CollectionPool) {
 
 treatment!(decode,
     core_identifier!("audio","encoding","wave";"DecodeWave"),
+    "".to_string(),
     models![
         ("decoder", crate::core::audio::encoding::wave::decoder::model_host::descriptor())
     ],
@@ -45,6 +46,7 @@ treatment!(decode,
 
 treatment!(encode,
     core_identifier!("audio","encoding","wave";"EncodeWave"),
+    "".to_string(),
     models![],
     treatment_sources![],
     parameters![],

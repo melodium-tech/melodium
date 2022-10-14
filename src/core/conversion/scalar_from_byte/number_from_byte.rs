@@ -5,6 +5,10 @@ macro_rules! impl_NumberFromByte {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $rust_type:ident, $size:expr, $v:ident $decl:expr, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("conversion","scalar";$mel_name),
+            format!(r"Convert stream of `Vec<byte>` into `{type}`.
+
+            Each received `byte` vector try to be converted into `{type}`, and if valid is sent as `value`. If the incoming vector 
+            is not valid for representing a `{type}` (i.e. not right size or invalid coding) it is refused and sent through `reject`.", type = stringify!($rust_type)),
             models![],
             treatment_sources![],
             parameters![],

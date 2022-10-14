@@ -3,6 +3,10 @@ use crate::core::prelude::*;
 
 treatment!(string_from_byte,
     core_identifier!("conversion","scalar";"StringFromByte"),
+    r"Convert stream of `Vec<byte>` into `string`.
+
+    Each received `byte` vector try to be converted into `string`, and if valid is sent as `value`. If the incoming vector 
+    is not valid for representing a `string` (i.e. not being UTF-8 data) it is refused and sent through `reject`.".to_string(),
     models![],
     treatment_sources![],
     parameters![],

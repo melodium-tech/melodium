@@ -2,9 +2,12 @@
 use crate::core::prelude::*;
 
 macro_rules! impl_ScalarToByte {
-    ($mod:ident, $mel_name:expr, $mel_type:ident, $recv_func:ident) => {
+    ($mod:ident, $mel_name:expr, $rust_type:ident, $mel_type:ident, $recv_func:ident) => {
         treatment!($mod,
             core_identifier!("conversion","scalar";$mel_name),
+            format!(r"Convert stream of `{type}` into `Vec<byte>`.
+
+            `{type}` gets converted into `Vec<byte>`, each vector contains the bytes of the former scalar `{type}` it represents.", type = stringify!($rust_type)),
             models![],
             treatment_sources![],
             parameters![],
@@ -31,18 +34,18 @@ macro_rules! impl_ScalarToByte {
     }
 }
 
-impl_ScalarToByte!(u8_to_byte, "U8ToByte", U8, recv_u8);
-impl_ScalarToByte!(u16_to_byte, "U16ToByte", U16, recv_u16);
-impl_ScalarToByte!(u32_to_byte, "U32ToByte", U32, recv_u32);
-impl_ScalarToByte!(u64_to_byte, "U64ToByte", U64, recv_u64);
-impl_ScalarToByte!(u128_to_byte, "U128ToByte", U128, recv_u128);
-impl_ScalarToByte!(i8_to_byte, "I8ToByte", I8, recv_i8);
-impl_ScalarToByte!(i16_to_byte, "I16ToByte", I16, recv_i16);
-impl_ScalarToByte!(i32_to_byte, "I32ToByte", I32, recv_i32);
-impl_ScalarToByte!(i64_to_byte, "I64ToByte", I64, recv_i64);
-impl_ScalarToByte!(i128_to_byte, "I128ToByte", I128, recv_i128);
-impl_ScalarToByte!(f32_to_byte, "F32ToByte", F32, recv_f32);
-impl_ScalarToByte!(f64_to_byte, "F64ToByte", F64, recv_f64);
+impl_ScalarToByte!(u8_to_byte, "U8ToByte", u8, U8, recv_u8);
+impl_ScalarToByte!(u16_to_byte, "U16ToByte", u16, U16, recv_u16);
+impl_ScalarToByte!(u32_to_byte, "U32ToByte", u32, U32, recv_u32);
+impl_ScalarToByte!(u64_to_byte, "U64ToByte", u64, U64, recv_u64);
+impl_ScalarToByte!(u128_to_byte, "U128ToByte", u128, U128, recv_u128);
+impl_ScalarToByte!(i8_to_byte, "I8ToByte", i8, I8, recv_i8);
+impl_ScalarToByte!(i16_to_byte, "I16ToByte", i16, I16, recv_i16);
+impl_ScalarToByte!(i32_to_byte, "I32ToByte", i32, I32, recv_i32);
+impl_ScalarToByte!(i64_to_byte, "I64ToByte", i64, I64, recv_i64);
+impl_ScalarToByte!(i128_to_byte, "I128ToByte", i128, I128, recv_i128);
+impl_ScalarToByte!(f32_to_byte, "F32ToByte", f32, F32, recv_f32);
+impl_ScalarToByte!(f64_to_byte, "F64ToByte", f64, F64, recv_f64);
 
 pub fn register(mut c: &mut CollectionPool) {
 
@@ -73,7 +76,7 @@ TYPES="u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 f32 f64"
 for TYPE in $TYPES
 do
     UPPER_CASE_TYPE=${TYPE^}
-    echo "impl_ScalarToByte!(${TYPE}_to_byte, \"${UPPER_CASE_TYPE}ToByte\", $UPPER_CASE_TYPE, recv_$TYPE);"
+    echo "impl_ScalarToByte!(${TYPE}_to_byte, \"${UPPER_CASE_TYPE}ToByte\", $TYPE, $UPPER_CASE_TYPE, recv_$TYPE);"
     #echo "${TYPE}_to_byte::register(&mut c);"
 
 done

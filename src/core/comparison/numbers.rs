@@ -2,10 +2,11 @@
 use crate::core::prelude::*;
 
 macro_rules! impl_Comparison {
-    ($mel_name:expr, $mel_type_name:expr, $mel_type:ident, $comp_func:ident, $recv_func:ident, $send_func:ident) => {
+    ($mel_name:expr, $doc:expr, $mel_type_name:expr, $mel_type:ident, $comp_func:ident, $recv_func:ident, $send_func:ident) => {
         
         treatment!($comp_func,
             core_identifier!("logic","scalar",$mel_type_name;$mel_name),
+            $doc,
             models![],
             treatment_sources![],
             parameters![],
@@ -33,7 +34,7 @@ macro_rules! impl_Comparison {
 }
 
 macro_rules! impl_comp_function {
-    ($mel_name:expr, $mel_type_name:expr, $mel_type:ident, $mel_value_type:ident, $comp_func:ident) => {
+    ($mel_name:expr, $doc:expr, $mel_type_name:expr, $mel_type:ident, $mel_value_type:ident, $comp_func:ident) => {
         fn $comp_func() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn func(params: Vec<Value>) -> Value {
@@ -42,6 +43,7 @@ macro_rules! impl_comp_function {
         
             CoreFunctionDescriptor::new(
                 core_identifier!("logic","scalar",$mel_type_name;&format!("|{}", $mel_name)),
+                $doc,
                 parameters![
                     parameter!("a", Scalar, $mel_type, None),
                     parameter!("b", Scalar, $mel_type, None)
@@ -54,10 +56,11 @@ macro_rules! impl_comp_function {
 }
 
 macro_rules! impl_Ordering {
-    ($mel_name:expr, $mel_type_name:expr, $mel_type:ident, $comp_func:ident, $recv_func:ident, $send_func:ident) => {
+    ($mel_name:expr, $doc:expr, $mel_type_name:expr, $mel_type:ident, $comp_func:ident, $recv_func:ident, $send_func:ident) => {
         
         treatment!($comp_func,
             core_identifier!("logic","scalar",$mel_type_name;$mel_name),
+            $doc,
             models![],
             treatment_sources![],
             parameters![],
@@ -85,7 +88,7 @@ macro_rules! impl_Ordering {
 }
 
 macro_rules! impl_ord_function {
-    ($mel_name:expr, $mel_type_name:expr, $mel_type:ident, $mel_value_type:ident, $comp_func:ident) => {
+    ($mel_name:expr, $doc:expr, $mel_type_name:expr, $mel_type:ident, $mel_value_type:ident, $comp_func:ident) => {
         fn $comp_func() -> std::sync::Arc<CoreFunctionDescriptor> {
 
             fn func(params: Vec<Value>) -> Value {
@@ -94,6 +97,7 @@ macro_rules! impl_ord_function {
         
             CoreFunctionDescriptor::new(
                 core_identifier!("logic","scalar",$mel_type_name;&format!("|{}", $mel_name)),
+                $doc,
                 parameters![
                     parameter!("a", Scalar, $mel_type, None),
                     parameter!("b", Scalar, $mel_type, None)
@@ -110,22 +114,22 @@ macro_rules! integer {
         mod $mel_value_type {
             use crate::core::prelude::*;
 
-            impl_Comparison!("GreaterThan", $mel_type_name, $mel_type, gt, $recv_func, send_bool);
-            impl_comp_function!("gt", $mel_type_name, $mel_type, $mel_value_type, gt);
-            impl_Comparison!("GreaterEqual", $mel_type_name, $mel_type, ge, $recv_func, send_bool);
-            impl_comp_function!("ge", $mel_type_name, $mel_type, $mel_value_type, ge);
-            impl_Comparison!("LowerThan", $mel_type_name, $mel_type, lt, $recv_func, send_bool);
-            impl_comp_function!("lt", $mel_type_name, $mel_type, $mel_value_type, lt);
-            impl_Comparison!("LowerEqual", $mel_type_name, $mel_type, le, $recv_func, send_bool);
-            impl_comp_function!("le", $mel_type_name, $mel_type, $mel_value_type, le);
-            impl_Comparison!("Equal", $mel_type_name, $mel_type, eq, $recv_func, send_bool);
-            impl_comp_function!("eq", $mel_type_name, $mel_type, $mel_value_type, eq);
-            impl_Comparison!("NotEqual", $mel_type_name, $mel_type, ne, $recv_func, send_bool);
-            impl_comp_function!("ne", $mel_type_name, $mel_type, $mel_value_type, ne);
-            impl_Ordering!("Max", $mel_type_name, $mel_type, max, $recv_func, $send_func);
-            impl_ord_function!("max", $mel_type_name, $mel_type, $mel_value_type, max);
-            impl_Ordering!("Min", $mel_type_name, $mel_type, min, $recv_func, $send_func);
-            impl_ord_function!("min", $mel_type_name, $mel_type, $mel_value_type, min);
+            impl_Comparison!("GreaterThan", "Tells whether `a` is strictly greater than `b`.".to_string(), $mel_type_name, $mel_type, gt, $recv_func, send_bool);
+            impl_comp_function!("gt", "Tells whether `a` is strictly greater than `b`.".to_string(), $mel_type_name, $mel_type, $mel_value_type, gt);
+            impl_Comparison!("GreaterEqual", "Tells whether `a` is greater or equal to `b`.".to_string(), $mel_type_name, $mel_type, ge, $recv_func, send_bool);
+            impl_comp_function!("ge", "Tells whether `a` is greater or equal to `b`.".to_string(), $mel_type_name, $mel_type, $mel_value_type, ge);
+            impl_Comparison!("LowerThan", "Tells whether `a` is strictly lower than `b`.".to_string(), $mel_type_name, $mel_type, lt, $recv_func, send_bool);
+            impl_comp_function!("lt", "Tells whether `a` is strictly lower than `b`.".to_string(), $mel_type_name, $mel_type, $mel_value_type, lt);
+            impl_Comparison!("LowerEqual", "Tells whether `a` is lower or equal to `b`.".to_string(), $mel_type_name, $mel_type, le, $recv_func, send_bool);
+            impl_comp_function!("le", "Tells whether `a` is lower or equal to `b`.".to_string(), $mel_type_name, $mel_type, $mel_value_type, le);
+            impl_Comparison!("Equal", "Tells whether `a` is equal to `b`.".to_string(), $mel_type_name, $mel_type, eq, $recv_func, send_bool);
+            impl_comp_function!("eq", "Tells whether `a` is equal to `b`.".to_string(), $mel_type_name, $mel_type, $mel_value_type, eq);
+            impl_Comparison!("NotEqual", "Tells whether `a` is not equal to `b`.".to_string(), $mel_type_name, $mel_type, ne, $recv_func, send_bool);
+            impl_comp_function!("ne", "Tells whether `a` is not equal to `b`.".to_string(), $mel_type_name, $mel_type, $mel_value_type, ne);
+            impl_Ordering!("Max", "Compares and gives the maximum of two values.".to_string(), $mel_type_name, $mel_type, max, $recv_func, $send_func);
+            impl_ord_function!("max", "Compares and gives the maximum of two values.".to_string(), $mel_type_name, $mel_type, $mel_value_type, max);
+            impl_Ordering!("Min", "Compares and gives the minimum of two values.".to_string(), $mel_type_name, $mel_type, min, $recv_func, $send_func);
+            impl_ord_function!("min", "Compares and gives the minimum of two values.".to_string(), $mel_type_name, $mel_type, $mel_value_type, min);
 
             pub fn register(mut c: &mut CollectionPool) {
 
@@ -155,14 +159,14 @@ macro_rules! floating {
         mod $mel_value_type {
             use crate::core::prelude::*;
 
-            impl_Comparison!("GreaterThan", $mel_type_name, $mel_type, gt, $recv_func, send_bool);
-            impl_comp_function!("gt", $mel_type_name, $mel_type, $mel_value_type, gt);
-            impl_Comparison!("LowerThan", $mel_type_name, $mel_type, lt, $recv_func, send_bool);
-            impl_comp_function!("lt", $mel_type_name, $mel_type, $mel_value_type, lt);
-            impl_Ordering!("Max", $mel_type_name, $mel_type, max, $recv_func, $send_func);
-            impl_ord_function!("max", $mel_type_name, $mel_type, $mel_value_type, max);
-            impl_Ordering!("Min", $mel_type_name, $mel_type, min, $recv_func, $send_func);
-            impl_ord_function!("min", $mel_type_name, $mel_type, $mel_value_type, min);
+            impl_Comparison!("GreaterThan", "Tells whether `a` is strictly greater than `b`.".to_string(), $mel_type_name, $mel_type, gt, $recv_func, send_bool);
+            impl_comp_function!("gt", "Tells whether `a` is strictly greater than `b`.".to_string(), $mel_type_name, $mel_type, $mel_value_type, gt);
+            impl_Comparison!("LowerThan", "Tells whether `a` is strictly lower than `b`.".to_string(), $mel_type_name, $mel_type, lt, $recv_func, send_bool);
+            impl_comp_function!("lt", "Tells whether `a` is strictly lower than `b`.".to_string(), $mel_type_name, $mel_type, $mel_value_type, lt);
+            impl_Ordering!("Max", "Compares and gives the maximum of two values.".to_string(), $mel_type_name, $mel_type, max, $recv_func, $send_func);
+            impl_ord_function!("max", "Compares and gives the maximum of two values.".to_string(), $mel_type_name, $mel_type, $mel_value_type, max);
+            impl_Ordering!("Min", "Compares and gives the minimum of two values.".to_string(), $mel_type_name, $mel_type, min, $recv_func, $send_func);
+            impl_ord_function!("min", "Compares and gives the minimum of two values.".to_string(), $mel_type_name, $mel_type, $mel_value_type, min);
 
             pub fn register(mut c: &mut CollectionPool) {
 
