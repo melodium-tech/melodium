@@ -3,6 +3,20 @@ use crate::core::prelude::*;
 
 treatment!(count_scalar,
     core_identifier!("flow","scalar","void";"Count"),
+    r#"Gives count of elements passing through input stream.
+
+    This count increment one for each elements within the `iter` stream, starting at 1.
+    
+    ```mermaid
+    graph LR
+        T("Count()")
+        V["🟦 🟦 🟦…"] -->|iter| T
+        
+        T -->|count| P["1️⃣ 2️⃣ 3️⃣ …"]
+    
+        style V fill:#ffff,stroke:#ffff
+        style P fill:#ffff,stroke:#ffff
+    ```"#.to_string(),
     models![],
     treatment_sources![],
     parameters![],
@@ -36,6 +50,22 @@ treatment!(count_scalar,
 
 treatment!(count_vector,
     core_identifier!("flow","vector","void";"Count"),
+    r#"Gives count of elements passing through input stream.
+
+    This count increment one for each elements within the `iter` stream, starting at 1.
+    
+    ℹ️ This does not count the number of elements present in each vector, see the `Size` sequence instead.
+    
+    ```mermaid
+    graph LR
+        T("VecCount()")
+        V["［🟦 🟦］［🟦］［🟦 🟦 🟦］…"] -->|iter| T
+        
+        T -->|count| P["1️⃣ 2️⃣ 3️⃣ …"]
+    
+        style V fill:#ffff,stroke:#ffff
+        style P fill:#ffff,stroke:#ffff
+    ```"#.to_string(),
     models![],
     treatment_sources![],
     parameters![],

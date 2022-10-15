@@ -39,6 +39,7 @@ impl HostedModel for FilesWriterModel {
 model!(
     FilesWriterModel,
     core_identifier!("fs","write";"FilesWriter"),
+    "File writer model".to_string(),
     parameters![
         parameter!("append", Scalar, Bool, Some(Value::Bool(false))),
         parameter!("create", Scalar, Bool, Some(Value::Bool(true))),
@@ -50,6 +51,17 @@ model!(
 
 treatment!(write_file_treatment,
     core_identifier!("fs","write";"WriteFile"),
+    r#"Write one file.
+
+    The bytes received through `data` are written in the file located at `path`.
+    The writing behavior is set up by the parameters:
+    - `append`: bytes are added to the file instead of replacing the existing file;
+    - `create`: if the file does not exists, it is created;
+    - `new`: the file is _required_ to being new, if a file already exists at that path then the writing fails.
+    
+    The amount of written bytes is sent through `amount`. There is no guarantee about its increment, as an undefined number of bytes may be written at once.
+    
+    `success` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `message` contains the related text."#.to_string(),
     models![
         ("writer", crate::core::fs::write::files_writer::model_host::descriptor())
     ],

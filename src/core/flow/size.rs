@@ -3,6 +3,20 @@ use crate::core::prelude::*;
 
 treatment!(size,
     core_identifier!("flow","vector","void";"Size"),
+    r#"Gives number of elements present in each vector passing through input stream.
+
+    For each vector one `size` value is sent, giving the number of elements contained within matching vector.
+    
+    ```mermaid
+    graph LR
+        T("Size()")
+        V["…［🟦 🟦］［🟦］［🟦 🟦 🟦］…"] -->|value| T
+        
+        T -->|size| P["… 2️⃣ 1️⃣ 3️⃣ …"]
+    
+        style V fill:#ffff,stroke:#ffff
+        style P fill:#ffff,stroke:#ffff
+    ```"#.to_string(),
     models![],
     treatment_sources![],
     parameters![],

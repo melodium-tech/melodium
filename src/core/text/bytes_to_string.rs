@@ -3,6 +3,14 @@ use crate::core::prelude::*;
 
 treatment!(byte_to_string,
     core_identifier!("text";"DecodeBytes"),
+    r#"Decodes a stream of bytes into string.
+
+    The incoming stream of bytes is decoded using the specified encoding.
+    If some characters cannot be decoded for some reason (i.e. invalid according to encoding),
+    it is replaced by the Unicode Replacement Character (`�`).
+    
+    The supported encodings and possible values for `encoding` are defined in
+    the [Encoding Standard](https://encoding.spec.whatwg.org/#names-and-labels)."#.to_string(),
     models![],
     treatment_sources![],
     parameters![
@@ -48,6 +56,13 @@ treatment!(byte_to_string,
 
 treatment!(string_to_byte,
     core_identifier!("text";"EncodeBytes"),
+    r#"Encodes a streamed string into bytes.
+
+    The incoming string is encoded and outputted into raw bytes. If some characters cannot
+    be encoded into the specified `encoding`, it is turned into coded XML character (`"&#65533;"`).
+    
+    The supported encodings and possible values for `encoding` are defined in
+    the [Encoding Standard](https://encoding.spec.whatwg.org/#names-and-labels)."#.to_string(),
     models![],
     treatment_sources![],
     parameters![

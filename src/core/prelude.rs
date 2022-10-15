@@ -183,7 +183,7 @@ macro_rules! model {
 pub(crate) use model;
 
 macro_rules! model_desc {
-    ($rust_identifier:ident,$identifier:expr,$docuemntation:expr,$parameters:expr,$sources:expr) => {
+    ($rust_identifier:ident,$identifier:expr,$documentation:expr,$parameters:expr,$sources:expr) => {
         {
             lazy_static! {
                 static ref DESCRIPTOR: std::sync::Arc<CoreModelDescriptor> =

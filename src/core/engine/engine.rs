@@ -19,6 +19,9 @@ impl EngineModel {
         model_desc!(
             EngineModel,
             core_identifier!("engine";"Engine"),
+            r#"Engine model
+            
+            Represents execution engine."#.to_string(),
             parameters![],
             model_sources![
                 ("ready"; )
@@ -118,6 +121,10 @@ impl fmt::Debug for EngineModel {
 
 source!(engine_ready_source,
     core_identifier!("engine";"Ready"),
+    r#"Trigger when Mélodium is ready to work.
+
+    `trigger` is send as soon as process is ready to work.
+    This sequence is useful to start processing from the beginning of the program."#.to_string(),
     models![
         ("engine", crate::core::engine::engine::EngineModel::descriptor())
     ],
@@ -131,6 +138,9 @@ source!(engine_ready_source,
 
 treatment!(engine_end_treatment,
     core_identifier!("engine";"End"),
+    r#"Ends up the program.
+
+    Tells Mélodium to finish everything then exit."#.to_string(),
     models![
         ("engine", crate::core::engine::engine::EngineModel::descriptor())
     ],

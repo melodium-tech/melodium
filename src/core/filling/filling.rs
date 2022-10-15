@@ -5,6 +5,20 @@ macro_rules! impl_Filling {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("filling","vector";$mel_name),
+            format!(r#"Fill an input stream of `void` vectors with matching values from `{type}` stream.
+
+            ```mermaid
+            graph LR
+                T("Fill()")
+                V["… 🟥 🟧 🟨 …"] -->|value| T
+                P["…［🟦 🟦 🟦］［🟦 🟦］［🟦 🟦 🟦］…"] -->|pattern| T
+                
+                T -->|value| O["…［🟥 🟥 🟥］［🟧 🟧］［🟨 🟨 🟨］…"]
+            
+                style V fill:#ffff,stroke:#ffff
+                style P fill:#ffff,stroke:#ffff
+                style O fill:#ffff,stroke:#ffff
+            ```"#, type = stringify!($mel_type)),
             models![],
             treatment_sources![],
             parameters![],

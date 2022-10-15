@@ -3,6 +3,20 @@ use crate::core::prelude::*;
 
 treatment!(fit,
     core_identifier!("flow","vector","void";"Fit"),
+    r#"Creates stream of vectors based on requested sizes.
+
+    For each `size` received, a vector with the same number of values is sent through `pattern`.
+    
+    ```mermaid
+    graph LR
+        T("Fit()")
+        V["… 2️⃣ 1️⃣ 3️⃣ …"] -->|size| T
+        
+        T -->|pattern| P["…［🟦 🟦］［🟦］［🟦 🟦 🟦］…"]
+    
+        style V fill:#ffff,stroke:#ffff
+        style P fill:#ffff,stroke:#ffff
+    ```"#.to_string(),
     models![],
     treatment_sources![],
     parameters![],

@@ -4,6 +4,7 @@ use crate::core::prelude::*;
 
 treatment!(and,
     core_identifier!("logic","bool";"And"),
+    r#"Makes "and" ⋀ binary operation on `bool`."#.to_string(),
     models![],
     treatment_sources![],
     parameters![],
@@ -30,6 +31,7 @@ treatment!(and,
 
 treatment!(or,
     core_identifier!("logic","bool";"Or"),
+    r#"Makes "or" ⋁ binary operation on `bool`."#.to_string(),
     models![],
     treatment_sources![],
     parameters![],
@@ -56,6 +58,7 @@ treatment!(or,
 
 treatment!(xor,
     core_identifier!("logic","bool";"Xor"),
+    r#"Makes "xor" ⊕ binary operation on `bool`."#.to_string(),
     models![],
     treatment_sources![],
     parameters![],
@@ -82,6 +85,7 @@ treatment!(xor,
 
 treatment!(not,
     core_identifier!("logic","bool";"Not"),
+    r#"Makes "not" ¬ binary operation on `bool`."#.to_string(),
     models![],
     treatment_sources![],
     parameters![],
@@ -112,6 +116,7 @@ fn and_function() -> Arc<CoreFunctionDescriptor> {
 
     CoreFunctionDescriptor::new(
         core_identifier!("logic","bool";"|and"),
+        r#"_And_ ⋀ binary operation"#.to_string(),
         parameters![
             parameter!("a", Scalar, Bool, None),
             parameter!("b", Scalar, Bool, None)
@@ -129,6 +134,7 @@ fn or_function() -> Arc<CoreFunctionDescriptor> {
 
     CoreFunctionDescriptor::new(
         core_identifier!("logic","bool";"|or"),
+        r#"_Or_ ⋁ binary operation"#.to_string(),
         parameters![
             parameter!("a", Scalar, Bool, None),
             parameter!("b", Scalar, Bool, None)
@@ -146,6 +152,7 @@ fn xor_function() -> Arc<CoreFunctionDescriptor> {
 
     CoreFunctionDescriptor::new(
         core_identifier!("logic","bool";"|xor"),
+        r#"_Xor_ ⊕ binary operation"#.to_string(),
         parameters![
             parameter!("a", Scalar, Bool, None),
             parameter!("b", Scalar, Bool, None)
@@ -163,6 +170,7 @@ fn not_function() -> Arc<CoreFunctionDescriptor> {
 
     CoreFunctionDescriptor::new(
         core_identifier!("logic","bool";"|not"),
+        r#"_Not_ ¬ binary operation"#.to_string(),
         parameters![
             parameter!("v", Scalar, Bool, None)
         ],

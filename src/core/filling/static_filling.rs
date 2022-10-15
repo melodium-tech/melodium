@@ -5,6 +5,18 @@ macro_rules! impl_ScalarFilling {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $mel_value_type:ident, $rust_type:ident, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("filling","scalar";$mel_name),
+            format!(r#"Fill an input `void` stream with scalar static `{type}` values.
+
+            ```mermaid
+            graph LR
+                T("StaticFill (value=🟧)")
+                B["… 🟦 🟦 🟦 …"] -->|pattern| T
+                
+                T -->|value| O["… 🟧 🟧 🟧 …"]
+            
+                style B fill:#ffff,stroke:#ffff
+                style O fill:#ffff,stroke:#ffff
+            ```"#, type = stringify!($mel_type)),
             models![],
             treatment_sources![],
             parameters![
@@ -40,6 +52,18 @@ macro_rules! impl_ScalarVecFilling {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $mel_value_type:ident, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("filling","scalar";$mel_name),
+            format!(r#"Fill an input `void` stream with vector static `{type}` values.
+
+            ```mermaid
+            graph LR
+                T("StaticVecFill (value=［🟧 🟧 🟧］)")
+                B["… 🟦 🟦 🟦 …"] -->|pattern| T
+                
+                T -->|value| O["… ［🟧 🟧 🟧］［🟧 🟧 🟧］［🟧 🟧 🟧］ …"]
+            
+                style B fill:#ffff,stroke:#ffff
+                style O fill:#ffff,stroke:#ffff
+            ```"#, type = stringify!($mel_type)),
             models![],
             treatment_sources![],
             parameters![

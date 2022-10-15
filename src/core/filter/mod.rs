@@ -5,6 +5,24 @@ macro_rules! impl_FilterScalar {
     ($mod_name:ident, $mel_type_name:expr, $mel_type_up:ident, $recv_func:ident, $send_func:ident) => {
         treatment!($mod_name,
             core_identifier!("filter","scalar",$mel_type_name;"Filter"),
+            format!(r#"Filter an input `{}` stream according to `bool` stream.
+
+            ℹ️ If both streams are not the same size nothing is sent through accepted nor rejected.
+            
+            ```mermaid
+            graph LR
+                T("Filter()")
+                V["… 🟦 🟧 🟪 🟫 🟨 …"] -->|value| T
+                D["… 🟩 🟥 🟥 🟩 🟥 …"] -->|decision|T
+                
+                T -->|accepted| A["… 🟦 🟫 …"]
+                T -->|rejected| R["… 🟧 🟪 🟨 …"]
+            
+                style V fill:#ffff,stroke:#ffff
+                style D fill:#ffff,stroke:#ffff
+                style A fill:#ffff,stroke:#ffff
+                style R fill:#ffff,stroke:#ffff
+            ```"#, $mel_type_name),
             models![],
             treatment_sources![],
             parameters![],
@@ -60,6 +78,24 @@ macro_rules! impl_FilterVector {
     ($mod_name:ident, $mel_type_name:expr, $mel_type_up:ident, $recv_func:ident, $send_func:ident) => {
         treatment!($mod_name,
             core_identifier!("filter","vector",$mel_type_name;"Filter"),
+            format!(r#"Filter an input `Vec<{}>` stream according to `bool` stream.
+
+            ℹ️ If both streams are not the same size nothing is sent through accepted nor rejected.
+            
+            ```mermaid
+            graph LR
+                T("Filter()")
+                V["…［🟦 🟦］［🟧］［🟪 🟪 🟪］［🟫 🟫］［🟨］…"] -->|value| T
+                D["… 🟩 🟥 🟥 🟩 🟥 …"] -->|decision|T
+                
+                T -->|accepted| A["… ［🟦 🟦］［🟫 🟫］…"]
+                T -->|rejected| R["… ［🟧］［🟪 🟪 🟪］［🟨］…"]
+            
+                style V fill:#ffff,stroke:#ffff
+                style D fill:#ffff,stroke:#ffff
+                style A fill:#ffff,stroke:#ffff
+                style R fill:#ffff,stroke:#ffff
+            ```"#, $mel_type_name),
             models![],
             treatment_sources![],
             parameters![],

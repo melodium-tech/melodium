@@ -5,6 +5,18 @@ macro_rules! impl_BlockScalarFilling {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $mel_value_type:ident, $rust_type:ident, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("filling","scalar";$mel_name),
+            format!(r#"Fill a triggering `void` block with a scalar static `{type}` value.
+
+            ```mermaid
+            graph LR
+                T("StaticBlockFill (value=🟧)")
+                B["〈🟦〉"] -->|trigger| T
+                
+                T -->|value| O["〈🟧〉"]
+            
+                style B fill:#ffff,stroke:#ffff
+                style O fill:#ffff,stroke:#ffff
+            ```"#, type = stringify!($mel_type)),
             models![],
             treatment_sources![],
             parameters![
@@ -37,6 +49,18 @@ macro_rules! impl_BlockScalarVecFilling {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $mel_value_type:ident, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("filling","scalar";$mel_name),
+            format!(r#"Fill a triggering `void` block with vector static `{type}` value.
+
+            ```mermaid
+            graph LR
+                T("StaticVecBlockFill (value=［🟧 🟧 🟧］)")
+                B["〈🟦〉"] -->|trigger| T
+                
+                T -->|value| O["〈［🟧 🟧 🟧］〉"]
+            
+                style B fill:#ffff,stroke:#ffff
+                style O fill:#ffff,stroke:#ffff
+            ```"#, type = stringify!($mel_type)),
             models![],
             treatment_sources![],
             parameters![

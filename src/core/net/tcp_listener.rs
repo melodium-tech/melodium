@@ -112,6 +112,7 @@ impl HostedModel for TcpListenerModel {
 model!(
     TcpListenerModel,
     core_identifier!("net";"TcpListener"),
+    r#"TCP connection model"#.to_string(),
     parameters![
         parameter!("socket_address", Scalar, String, None)
     ],
@@ -122,6 +123,7 @@ model!(
 
 source!(read_tcp_connection,
     core_identifier!("net";"ReadTcpConnection"),
+    r#"Read data coming from TCP connection"#.to_string(),
     models![
         ("listener", super::super::tcp_listener::model_host::descriptor())
     ],
@@ -135,6 +137,7 @@ source!(read_tcp_connection,
 
 treatment!(write_tcp_connection,
     core_identifier!("net";"WriteTcpConnection"),
+    r#"Write data into TCP connection"#.to_string(),
     models![
         ("listener", super::super::tcp_listener::model_host::descriptor())
     ],

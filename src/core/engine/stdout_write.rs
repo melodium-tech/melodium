@@ -3,6 +3,9 @@ use crate::core::prelude::*;
 
 treatment!(stdout_write_treatment,
     core_identifier!("engine";"Write"),
+    r#"Write process standard output.
+
+    Send the received text to stdout."#.to_string(),
     models![],
     treatment_sources![],
     parameters![],
