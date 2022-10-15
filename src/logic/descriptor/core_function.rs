@@ -24,12 +24,13 @@ pub struct CoreFunction {
 impl CoreFunction {
     pub fn new(
         identifier: Identifier,
-        #[cfg(feature = "doc")]
         documentation: String,
         parameters: Vec<Parameter>,
         return_type: DataType,
         function: fn(Vec<Value>) -> Value
     ) -> Arc<Self> {
+        #[cfg(not(feature = "doc"))]
+        let _ = documentation;
         Arc::new_cyclic(|me| Self {
             identifier,
             #[cfg(feature = "doc")]
@@ -60,9 +61,11 @@ impl Identified for CoreFunction {
 }
 
 impl Documented for CoreFunction {
-    #[cfg(feature = "doc")]
     fn documentation(&self) -> &str {
-        &self.documentation
+        #[cfg(feature = "doc")]
+        {&self.documentation}
+        #[cfg(not(feature = "doc"))]
+        {&""}
     }
 }
 

@@ -44,9 +44,11 @@ impl ConfiguredModel {
         }
     }
 
-    #[cfg(feature = "doc")]
     pub fn set_documentation(&mut self, documentation: &str) {
-        self.documentation = String::from(documentation);
+        #[cfg(feature = "doc")]
+        {self.documentation = String::from(documentation);}
+        #[cfg(not(feature = "doc"))]
+        let _ = documentation;
     }
 
     pub fn add_parameter(&mut self, parameter: Parameter) {
@@ -79,9 +81,11 @@ impl Identified for ConfiguredModel {
 }
 
 impl Documented for ConfiguredModel {
-    #[cfg(feature = "doc")]
     fn documentation(&self) -> &str {
-        &self.documentation
+        #[cfg(feature = "doc")]
+        {&self.documentation}
+        #[cfg(not(feature = "doc"))]
+        {&""}
     }
 }
 

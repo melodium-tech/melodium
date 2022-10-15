@@ -51,9 +51,11 @@ impl SequenceTreatment {
         }
     }
 
-    #[cfg(feature = "doc")]
     pub fn set_documentation(&mut self, documentation: &str) {
-        self.documentation = String::from(documentation);
+        #[cfg(feature = "doc")]
+        {self.documentation = String::from(documentation);}
+        #[cfg(not(feature = "doc"))]
+        let _ = documentation;
     }
 
     pub fn add_model(&mut self, name: &str, model: &Arc<CoreModel>) {
@@ -106,9 +108,11 @@ impl Identified for SequenceTreatment {
 }
 
 impl Documented for SequenceTreatment {
-    #[cfg(feature = "doc")]
     fn documentation(&self) -> &str {
-        &self.documentation
+        #[cfg(feature = "doc")]
+        {&self.documentation}
+        #[cfg(not(feature = "doc"))]
+        {&""}
     }
 }
 

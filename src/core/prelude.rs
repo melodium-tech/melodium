@@ -65,7 +65,6 @@ macro_rules! treatment {
                     static ref DESCRIPTOR: std::sync::Arc<CoreTreatmentDescriptor> = 
                         CoreTreatmentDescriptor::new(
                             $identifier,
-                            #[cfg(feature = "doc")]
                             $documentation,
                             $models,
                             $sources,
@@ -127,7 +126,6 @@ macro_rules! source {
                     static ref DESCRIPTOR: std::sync::Arc<CoreSourceDescriptor> = 
                     CoreSourceDescriptor::new(
                             $identifier,
-                            #[cfg(feature = "doc")]
                             $documentation,
                             $models,
                             $sources,
@@ -162,7 +160,6 @@ macro_rules! model {
                     static ref DESCRIPTOR: std::sync::Arc<CoreModelDescriptor> =
                         CoreModelDescriptor::new(
                             $identifier,
-                            #[cfg(feature = "doc")]
                             $documentation,
                             $parameters,
                             $sources,
@@ -189,7 +186,6 @@ macro_rules! model_desc {
                 static ref DESCRIPTOR: std::sync::Arc<CoreModelDescriptor> =
                     CoreModelDescriptor::new(
                         $identifier,
-                        #[cfg(feature = "doc")]
                         $documentation,
                         $parameters,
                         $sources,

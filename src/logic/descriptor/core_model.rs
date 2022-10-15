@@ -49,12 +49,13 @@ pub struct CoreModel {
 impl CoreModel {
     pub fn new(
         identifier: Identifier,
-        #[cfg(feature = "doc")]
         documentation: String,
         parameters: Vec<Parameter>,
         sources: HashMap<String, Vec<Arc<Context>>>,
         new_model: fn(Arc<World>) -> Arc<dyn ExecutiveModel>
     ) -> Arc<Self> {
+        #[cfg(not(feature = "doc"))]
+        let _ = documentation;
         Arc::new_cyclic(|me| Self {
             identifier,
             #[cfg(feature = "doc")]
@@ -88,9 +89,11 @@ impl Identified for CoreModel {
 }
 
 impl Documented for CoreModel {
-    #[cfg(feature = "doc")]
     fn documentation(&self) -> &str {
-        &self.documentation
+        #[cfg(feature = "doc")]
+        {&self.documentation}
+        #[cfg(not(feature = "doc"))]
+        {&""}
     }
 }
 

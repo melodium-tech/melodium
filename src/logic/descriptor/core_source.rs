@@ -33,12 +33,13 @@ pub struct CoreSource {
 impl CoreSource {
     pub fn new(
         identifier: Identifier,
-        #[cfg(feature = "doc")]
         documentation: String,
         models: Vec<(String, Arc<CoreModel>)>,
         source_from: HashMap<Arc<CoreModel>, Vec<String>>,
         outputs: Vec<Output>
     ) -> Arc<Self> {
+        #[cfg(not(feature = "doc"))]
+        let _ = documentation;
         Arc::new_cyclic(|me| Self {
             identifier,
             #[cfg(feature = "doc")]
@@ -59,9 +60,11 @@ impl Identified for CoreSource {
 }
 
 impl Documented for CoreSource {
-    #[cfg(feature = "doc")]
     fn documentation(&self) -> &str {
-        &self.documentation
+        #[cfg(feature = "doc")]
+        {&self.documentation}
+        #[cfg(not(feature = "doc"))]
+        {&""}
     }
 }
 

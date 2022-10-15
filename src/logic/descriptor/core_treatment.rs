@@ -63,7 +63,6 @@ pub struct CoreTreatment {
 impl CoreTreatment {
     pub fn new(
         identifier: Identifier,
-        #[cfg(feature = "doc")]
         documentation: String,
         models: Vec<(String, Arc<CoreModel>)>,
         source_from: HashMap<Arc<CoreModel>, Vec<String>>,
@@ -72,6 +71,8 @@ impl CoreTreatment {
         outputs: Vec<Output>,
         new_treatment: fn(Arc<World>, TrackId) -> Arc<dyn ExecutiveTreatment>,
     ) -> Arc<Self> {
+        #[cfg(not(feature = "doc"))]
+        let _ = documentation;
         Arc::new_cyclic(|me| Self {
             identifier,
             #[cfg(feature = "doc")]
@@ -94,9 +95,11 @@ impl Identified for CoreTreatment {
 }
 
 impl Documented for CoreTreatment {
-    #[cfg(feature = "doc")]
     fn documentation(&self) -> &str {
-        &self.documentation
+        #[cfg(feature = "doc")]
+        {&self.documentation}
+        #[cfg(not(feature = "doc"))]
+        {&""}
     }
 }
 
