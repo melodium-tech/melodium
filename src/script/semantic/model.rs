@@ -142,6 +142,10 @@ impl Model {
 
             let mut descriptor = ConfiguredModel::new(self.identifier.as_ref().unwrap().clone(), &core_descriptor.core_model());
 
+            if let Some(documentation) = &self.text.doc {
+                descriptor.set_documentation(&documentation.string);
+            }
+
             for rc_parameter in &self.parameters {
 
                 let borrowed_parameter = rc_parameter.read().unwrap();

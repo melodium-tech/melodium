@@ -360,6 +360,10 @@ impl Sequence {
 
         let mut descriptor = SequenceTreatmentDescriptor::new(self.identifier.as_ref().unwrap().clone());
 
+        if let Some(documentation) = &self.text.doc {
+            descriptor.set_documentation(&documentation.string);
+        }
+
         // We manage declaration of each model given to the sequence
         for rc_model in &self.declared_models {
 

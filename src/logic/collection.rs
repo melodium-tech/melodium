@@ -30,6 +30,12 @@ impl<T: IdentifiedDescriptor + Send + Sync + ?Sized> Collection<T> {
     pub fn get(&self, id: &IdentifierDescriptor) -> Option<&Arc<T>> {
         self.descriptors.get(id)
     }
+
+    pub fn get_tree_path(&self, steps: Vec<String>) -> Vec<IdentifierDescriptor> {
+        self.descriptors.keys().filter(|id| {
+            id.to_string().starts_with(&steps.join("/"))
+        }).map(|id| id.clone()).collect()
+    }
 }
 
 impl<T: IdentifiedDescriptor + Send + Sync + ?Sized> Clone for Collection<T> {
