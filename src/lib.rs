@@ -440,9 +440,7 @@ mod tests {
             STDLIB.clone());
         instance.build_all_std();
 
-        let doc = doc::documentation::Documentation::new(vec!["core".to_string(), "std".to_string()], Arc::clone(instance.collection().as_ref().unwrap()), PathBuf::new());
-        let sum = doc.summary();
-
-        std::fs::write("/tmp/summary.md", sum);
+        let doc = doc::documentation::Documentation::new(vec!["core".to_string(), "std".to_string()], Arc::clone(instance.collection().as_ref().unwrap()), PathBuf::from("/tmp/doc"));
+        doc.make().unwrap();
     }
 }
