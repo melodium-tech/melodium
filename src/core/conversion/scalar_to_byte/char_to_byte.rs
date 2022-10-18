@@ -3,9 +3,9 @@ use crate::core::prelude::*;
 
 treatment!(char_to_byte,
     core_identifier!("conversion","scalar";"CharToByte"),
-    r"Convert stream of `char` into `Vec<byte>`.
+    indoc!(r"Convert stream of `char` into `Vec<byte>`.
 
-    Each `char` gets converted into `Vec<byte>`, each vector contains the four bytes of the former scalar `char` it represents.".to_string(),
+    Each `char` gets converted into `Vec<byte>`, each vector contains the four bytes of the former scalar `char` it represents.").to_string(),
     models![],
     treatment_sources![],
     parameters![],

@@ -5,7 +5,7 @@ macro_rules! impl_CastScalar {
     ($mod:ident, $mel_name:expr, $input_mel_type:ident, $recv_func:ident, $input_mel_value_type:ident, $output_mel_value_type:ident, $output_mel_type:ident, $output_rust_type:ty, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("cast","scalar";$mel_name),
-            format!(r"Convert stream of `{in}` into `{out}`.
+            formatdoc!(r"Convert stream of `{in}` into `{out}`.
 
             As this conversion might be lossy (every possible `{in}` value cannot fit into `{out}`),
             `truncate` allows value to be truncated to fit into a `{out}`, and `or_default` set the

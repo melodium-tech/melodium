@@ -5,7 +5,7 @@ macro_rules! impl_ScalarToVoid {
     ($mod:ident, $mel_name:expr, $type:ident, $mel_type:ident, $recv_func:ident) => {
         treatment!($mod,
             core_identifier!("conversion","scalar";$mel_name),
-            format!(r"Turns `{type}` stream into `void` one.
+            formatdoc!(r"Turns `{type}` stream into `void` one.
 
             Send one `iter` per input `value` received.", type = stringify!($type)),
             models![],

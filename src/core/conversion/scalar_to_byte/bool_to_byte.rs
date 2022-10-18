@@ -3,9 +3,9 @@ use crate::core::prelude::*;
 
 treatment!(bool_to_byte,
     core_identifier!("conversion","scalar";"BoolToByte"),
-    r"Convert stream of `bool` into `Vec<byte>`.
+    indoc!(r"Convert stream of `bool` into `Vec<byte>`.
 
-    Each `bool` gets converted into `Vec<byte>`, each vector contains the one byte of the former scalar `bool` it represents.".to_string(),
+    Each `bool` gets converted into `Vec<byte>`, each vector contains the one byte of the former scalar `bool` it represents.").to_string(),
     models![],
     treatment_sources![],
     parameters![],

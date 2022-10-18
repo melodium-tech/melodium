@@ -1,8 +1,9 @@
 
 use std::sync::Arc;
 use std::path::PathBuf;
-use itertools::Itertools;
 use clap::crate_version;
+use indoc::formatdoc;
+use itertools::Itertools;
 use crate::logic::collection_pool::CollectionPool;
 use crate::logic::descriptor::identifier::Identifier;
 use crate::logic::descriptor::*;
@@ -327,7 +328,7 @@ impl Documentation {
         let title  = Self::get_title();
         let author = Self::get_author();
 
-        format!(r#"
+        formatdoc!(r#"
         [book]
         authors = ["{}"]
         language = "en"

@@ -5,7 +5,7 @@ macro_rules! impl_ScalarToString {
     ($mod:ident, $mel_name:expr, $type:ident, $mel_type:ident, $recv_func:ident) => {
         treatment!($mod,
             core_identifier!("conversion","scalar";$mel_name),
-            format!(r"Convert stream of `{type}` into `string`.
+            formatdoc!(r"Convert stream of `{type}` into `string`.
 
             `{type}` gets converted into `string`, and the resulting strings are send through stream in continuity.", type = stringify!($type)),
             models![],

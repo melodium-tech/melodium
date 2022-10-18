@@ -3,10 +3,10 @@ use crate::core::prelude::*;
 
 treatment!(char_from_byte,
     core_identifier!("conversion","scalar";"CharFromByte"),
-    r"Convert stream of `Vec<byte>` into `char`.
+    indoc!(r"Convert stream of `Vec<byte>` into `char`.
 
     Each received `byte` vector try to be converted into `char`, and if valid is sent as `value`. If the incoming vector 
-    is not valid for representing a `char` (i.e. not containing a valid [Unicode scalar value](https://www.unicode.org/glossary/#unicode_scalar_value)) it is refused and sent through `reject`.".to_string(),
+    is not valid for representing a `char` (i.e. not containing a valid [Unicode scalar value](https://www.unicode.org/glossary/#unicode_scalar_value)) it is refused and sent through `reject`.").to_string(),
     models![],
     treatment_sources![],
     parameters![],

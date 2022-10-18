@@ -5,7 +5,7 @@ macro_rules! impl_ScalarToByte {
     ($mod:ident, $mel_name:expr, $rust_type:ident, $mel_type:ident, $recv_func:ident) => {
         treatment!($mod,
             core_identifier!("conversion","scalar";$mel_name),
-            format!(r"Convert stream of `{type}` into `Vec<byte>`.
+            formatdoc!(r"Convert stream of `{type}` into `Vec<byte>`.
 
             `{type}` gets converted into `Vec<byte>`, each vector contains the bytes of the former scalar `{type}` it represents.", type = stringify!($rust_type)),
             models![],

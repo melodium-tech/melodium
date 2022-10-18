@@ -5,7 +5,7 @@ macro_rules! impl_CastScalar {
     ($mod:ident, $mel_name:expr, $input_mel_type:ident, $recv_func:ident, $output_mel_type:ident, $input_rust_type:ty, $output_rust_type:ty, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("cast","scalar";$mel_name),
-            format!(r"Convert stream of `{}` into `{}`.
+            formatdoc!(r"Convert stream of `{}` into `{}`.
 
             This conversion is lossless, `{}` values can all fit into `{}`.",
                 stringify!($input_rust_type), stringify!($output_rust_type),
