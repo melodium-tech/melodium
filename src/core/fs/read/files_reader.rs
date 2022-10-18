@@ -164,12 +164,12 @@ model!(
 
 source!(reading_source,
     core_identifier!("fs","read";"Reading"),
-    r#"Process file reading
+    indoc!(r#"Process file reading
     
     The contents of the files given through `path` are streamed through `data`.
     A new track is created for each received path.
 
-    If any reading failure happens, `failure` is emitted and `message` contains text of the related error."#.to_string(),
+    If any reading failure happens, `failure` is emitted and `message` contains text of the related error."#).to_string(),
     models![
         ("reader", crate::core::fs::read::files_reader::model_host::descriptor())
     ],
@@ -185,9 +185,9 @@ source!(reading_source,
 
 source!(unaccessible_source,
     core_identifier!("fs","read";"Unaccessible"),
-    r#"Process unaccessible file
+    indoc!(r#"Process unaccessible file
     
-    `failure` is emitted and `message` contains text of the related error."#.to_string(),
+    `failure` is emitted and `message` contains text of the related error."#).to_string(),
     models![
         ("reader", crate::core::fs::read::files_reader::model_host::descriptor())
     ],
@@ -202,9 +202,9 @@ source!(unaccessible_source,
 
 treatment!(read_file_treatment,
     core_identifier!("fs","read";"ReadFile"),
-    r#"Trigger reading of files
+    indoc!(r#"Trigger reading of files
     
-    Each `path` given is processed for reading."#.to_string(),
+    Each `path` given is processed for reading."#).to_string(),
     models![
         ("reader", crate::core::fs::read::files_reader::model_host::descriptor())
     ],

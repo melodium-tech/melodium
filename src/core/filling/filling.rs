@@ -5,7 +5,7 @@ macro_rules! impl_Filling {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("filling","vector";$mel_name),
-            format!(r#"Fill an input stream of `void` vectors with matching values from `{type}` stream.
+            formatdoc!(r#"Fill an input stream of `void` vectors with matching values from `{type}` stream.
 
             ```mermaid
             graph LR

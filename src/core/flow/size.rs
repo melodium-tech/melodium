@@ -3,7 +3,7 @@ use crate::core::prelude::*;
 
 treatment!(size,
     core_identifier!("flow","vector","void";"Size"),
-    r#"Gives number of elements present in each vector passing through input stream.
+    indoc!(r#"Gives number of elements present in each vector passing through input stream.
 
     For each vector one `size` value is sent, giving the number of elements contained within matching vector.
     
@@ -16,7 +16,7 @@ treatment!(size,
     
         style V fill:#ffff,stroke:#ffff
         style P fill:#ffff,stroke:#ffff
-    ```"#.to_string(),
+    ```"#).to_string(),
     models![],
     treatment_sources![],
     parameters![],

@@ -5,7 +5,7 @@ macro_rules! impl_ScalarFilling {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $mel_value_type:ident, $rust_type:ident, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("filling","scalar";$mel_name),
-            format!(r#"Fill an input `void` stream with scalar static `{type}` values.
+            formatdoc!(r#"Fill an input `void` stream with scalar static `{type}` values.
 
             ```mermaid
             graph LR
@@ -52,7 +52,7 @@ macro_rules! impl_ScalarVecFilling {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $mel_value_type:ident, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("filling","scalar";$mel_name),
-            format!(r#"Fill an input `void` stream with vector static `{type}` values.
+            formatdoc!(r#"Fill an input `void` stream with vector static `{type}` values.
 
             ```mermaid
             graph LR

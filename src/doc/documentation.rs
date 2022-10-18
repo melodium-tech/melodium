@@ -254,7 +254,7 @@ impl Documentation {
 
             (0..local_path.len()).for_each(|_| url.push_str("../"));
             url.push_str(&to_path.join("/"));
-            url.push_str(&format!("{}.md", to.name()));
+            url.push_str(&format!("/{}.md", to.name()));
         } else {
 
             url.push_str(&format!("https://doc.melodium.tech/{}/{}/{}.html",

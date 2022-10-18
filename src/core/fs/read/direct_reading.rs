@@ -3,11 +3,11 @@ use crate::core::prelude::*;
 
 treatment!(direct_reading_treatment,
     core_identifier!("fs","read";"DirectReading"),
-    r#"Read one file.
+    indoc!(r#"Read one file.
 
     The content of the file given through `path` is streamed through `data`.
     
-    If any reading failure happens, `failure` is emitted and `message` contains text of the related error."#.to_string(),
+    If any reading failure happens, `failure` is emitted and `message` contains text of the related error."#).to_string(),
     models![],
     treatment_sources![],
     parameters![],

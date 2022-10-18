@@ -3,7 +3,7 @@ use crate::core::prelude::*;
 
 treatment!(trigger,
     core_identifier!("flow";"Trigger"),
-    r#"Trigger on `void` stream start and finish.
+    indoc!(r#"Trigger on `void` stream start and finish.
 
     Send `start` when a first value is send through the stream.
     Send `finish` when stream is finally over.
@@ -21,7 +21,7 @@ treatment!(trigger,
         style F fill:#ffff,stroke:#ffff
     ```
     
-    ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted."#.to_string(),
+    ℹ️ If the stream never receive any data before being closed, only `finish` will be emitted."#).to_string(),
     models![],
     treatment_sources![],
     parameters![],

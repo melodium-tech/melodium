@@ -5,7 +5,7 @@ macro_rules! impl_BlockToStream {
     ($mod:ident, $mel_name:expr, $mel_struct:ident, $mel_type:ident, $type:expr, $recv_func:ident, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("flow";$mel_name),
-            format!(r#"Stream a block of `{}`.
+            formatdoc!(r#"Stream a block of `{}`.
 
             The received block is sent as streamed value, then the stream is closed.
             

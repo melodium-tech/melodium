@@ -91,9 +91,9 @@ model!(
 
 treatment!(treatment_generate,
     core_identifier!("generation","scalar","void";"Generate"),
-    r#"Trigger generation of tracks
+    indoc!(r#"Trigger generation of tracks
     
-    Makes `generator` generating number of `tracks` with given `length`."#.to_string(),
+    Makes `generator` generating number of `tracks` with given `length`."#).to_string(),
     models![("generator".to_string(), super::model_host::descriptor())],
     treatment_sources![],
     parameters![],
@@ -118,9 +118,9 @@ treatment!(treatment_generate,
 
 treatment!(treatment_generate_infinite,
     core_identifier!("generation","scalar","void";"GenerateInfinite"),
-    r#"Trigger generation of tracks
+    indoc!(r#"Trigger generation of tracks
     
-    Makes `generator` generating number of `tracks` with infinite length."#.to_string(),
+    Makes `generator` generating number of `tracks` with infinite length."#).to_string(),
     models![("generator".to_string(), super::model_host::descriptor())],
     treatment_sources![],
     parameters![],
@@ -143,7 +143,7 @@ treatment!(treatment_generate_infinite,
 
 source!(source_generated,
     core_identifier!("generation","scalar","void";"Generated"),
-    r#"Generated track"#.to_string(),
+    indoc!(r#"Generated track"#).to_string(),
     models![("generator".to_string(), super::model_host::descriptor())],
     treatment_sources![
         (super::model_host::descriptor(), "generated")

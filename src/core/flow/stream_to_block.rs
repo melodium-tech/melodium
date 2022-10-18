@@ -5,7 +5,7 @@ macro_rules! impl_StreamToBlock {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("flow";$mel_name),
-            format!(r#"Transform whole stream of `{type}` into a single vector block.
+            formatdoc!(r#"Transform whole stream of `{type}` into a single vector block.
 
             All the streamed values are added to a single vector, and once stream is over the vector is transmitted.
             

@@ -5,7 +5,7 @@ macro_rules! impl_Organize {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("organize";$mel_name),
-            format!(r#"Organize stream of `{type}` into stream of `Vec<{type}>`.
+            formatdoc!(r#"Organize stream of `{type}` into stream of `Vec<{type}>`.
 
             ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
             If there are not enough values to fit the pattern, uncomplete vector is trashed.

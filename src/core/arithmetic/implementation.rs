@@ -6,7 +6,7 @@ macro_rules! impl_StaticAddScalar {
         use crate::core::prelude::*;
         treatment!(static_add,
             core_identifier!("arithmetic","scalar";&format!("StaticAdd{}", $mel_name)),
-            format!(r"Add a static value to `{}`.
+            formatdoc!(r"Add a static value to `{}`.
 
             Every number passed through the stream get `add` added.", stringify!($mel_value_type)),
             models![],
@@ -41,7 +41,7 @@ macro_rules! impl_AddScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(add,
             core_identifier!("arithmetic","scalar";&format!("Add{}", $mel_name)),
-            format!(r"Add values from two streams of `{}`.
+            formatdoc!(r"Add values from two streams of `{}`.
 
             Values passed through a & b are added and send in sum.", stringify!($mel_value_type)),
             models![],
@@ -96,7 +96,7 @@ macro_rules! impl_StaticSubScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(static_sub,
             core_identifier!("arithmetic","scalar";&format!("StaticSub{}", $mel_name)),
-            format!(r"Substract a static value to `{}`.
+            formatdoc!(r"Substract a static value to `{}`.
 
             Every number passed through the stream get `sub` substracted.", stringify!($mel_value_type)),
             models![],
@@ -131,7 +131,7 @@ macro_rules! impl_SubScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(sub,
             core_identifier!("arithmetic","scalar";&format!("Sub{}", $mel_name)),
-            format!(r"Substract values from two streams of `{}`.
+            formatdoc!(r"Substract values from two streams of `{}`.
 
             Every `a` number passed through the stream get `b` substracted.", stringify!($mel_value_type)),
             models![],
@@ -186,7 +186,7 @@ macro_rules! impl_StaticMultScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(static_mult,
             core_identifier!("arithmetic","scalar";&format!("StaticMult{}", $mel_name)),
-            format!(r"Multiply `{}` by static value.
+            formatdoc!(r"Multiply `{}` by static value.
 
             Every number passed through the stream is multiplied by `factor`.", stringify!($mel_value_type)),
             models![],
@@ -221,7 +221,7 @@ macro_rules! impl_MultScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(mult,
             core_identifier!("arithmetic","scalar";&format!("Mult{}", $mel_name)),
-            format!(r"Multiply values from two streams of `{}`.
+            formatdoc!(r"Multiply values from two streams of `{}`.
 
             Every `a` number passed through the stream is multiplied by `b`.", stringify!($mel_value_type)),
             models![],
@@ -276,7 +276,7 @@ macro_rules! impl_StaticDivScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(static_div,
             core_identifier!("arithmetic","scalar";&format!("StaticDiv{}", $mel_name)),
-            format!(r"Divide a stream of `{}` by a static value.
+            formatdoc!(r"Divide a stream of `{}` by a static value.
 
             Every number passed through the stream is divided by `divisor`.", stringify!($mel_value_type)),
             models![],
@@ -311,7 +311,7 @@ macro_rules! impl_DivScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(div,
             core_identifier!("arithmetic","scalar";&format!("Div{}", $mel_name)),
-            format!(r"Divide values from two streams of `{}`.
+            formatdoc!(r"Divide values from two streams of `{}`.
 
             Every `a` number passed through the stream is divided by `b`.", stringify!($mel_value_type)),
             models![],
@@ -366,7 +366,7 @@ macro_rules! impl_StaticRemScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(static_rem,
             core_identifier!("arithmetic","scalar";&format!("StaticRem{}", $mel_name)),
-            format!(r"Give the remainder of a stream of `{}` divided by a static value.
+            formatdoc!(r"Give the remainder of a stream of `{}` divided by a static value.
 
             Every number passed through the stream is divided by `divisor` and the remainder is outputted.", stringify!($mel_value_type)),
             models![],
@@ -401,7 +401,7 @@ macro_rules! impl_RemScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(rem,
             core_identifier!("arithmetic","scalar";&format!("Rem{}", $mel_name)),
-            format!(r"Give the remainder of the division from two streams of `{}`.
+            formatdoc!(r"Give the remainder of the division from two streams of `{}`.
 
             Every `a` number passed through the stream is divided by `b` and the remainder is outputted.", stringify!($mel_value_type)),
             models![],
@@ -457,7 +457,7 @@ macro_rules! impl_StaticPowScalar {
         use crate::core::prelude::*;
         treatment!(static_pow,
             core_identifier!("arithmetic","scalar";&format!("StaticPow{}", $mel_name)),
-            format!(r"Elevates `{}` to the power of a static value.
+            formatdoc!(r"Elevates `{}` to the power of a static value.
 
             Every number passed through the stream get elevated to the power of `exponent`.", stringify!($mel_value_type)),
             models![],
@@ -492,7 +492,7 @@ macro_rules! impl_PowScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(pow,
             core_identifier!("arithmetic","scalar";&format!("Pow{}", $mel_name)),
-            format!(r"Elevates values from a stream of `{}` to the power of another one.
+            formatdoc!(r"Elevates values from a stream of `{}` to the power of another one.
 
             Values passed through `base` are elevated to the power of `exponent`.", stringify!($mel_value_type)),
             models![],
@@ -548,7 +548,7 @@ macro_rules! impl_StaticPowfScalar {
         use crate::core::prelude::*;
         treatment!(static_pow,
             core_identifier!("arithmetic","scalar";&format!("StaticPow{}", $mel_name)),
-            format!(r"Elevates `{}` to the power of a static value.
+            formatdoc!(r"Elevates `{}` to the power of a static value.
 
             Every number passed through the stream get elevated to the power of `exponent`.", stringify!($mel_value_type)),
             models![],
@@ -583,7 +583,7 @@ macro_rules! impl_PowfScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(pow,
             core_identifier!("arithmetic","scalar";&format!("Pow{}", $mel_name)),
-            format!(r"Elevates values from a stream of `{}` to the power of another one.
+            formatdoc!(r"Elevates values from a stream of `{}` to the power of another one.
 
             Values passed through `base` are elevated to the power of `exponent`.", stringify!($mel_value_type)),
             models![],
@@ -639,7 +639,7 @@ macro_rules! impl_AbsScalar {
         use crate::core::prelude::*;
         treatment!(absolute,
             core_identifier!("arithmetic","scalar";&format!("Abs{}", $mel_name)),
-            format!(r"Get the absolute values from a stream of `{}`.", stringify!($mel_value_type)),
+            formatdoc!(r"Get the absolute values from a stream of `{}`.", stringify!($mel_value_type)),
             models![],
             treatment_sources![],
             parameters![],
@@ -689,7 +689,7 @@ macro_rules! impl_SqrtScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(sqrt,
             core_identifier!("arithmetic","scalar";&format!("Sqrt{}", $mel_name)),
-            format!(r"Computes the square roots from a stream of `{}`.", stringify!($mel_value_type)),
+            formatdoc!(r"Computes the square roots from a stream of `{}`.", stringify!($mel_value_type)),
             models![],
             treatment_sources![],
             parameters![],
@@ -739,7 +739,7 @@ macro_rules! impl_CbrtScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(cbrt,
             core_identifier!("arithmetic","scalar";&format!("Cbrt{}", $mel_name)),
-            format!(r"Computes the cube roots from a stream of `{}`.", stringify!($mel_value_type)),
+            formatdoc!(r"Computes the cube roots from a stream of `{}`.", stringify!($mel_value_type)),
             models![],
             treatment_sources![],
             parameters![],
@@ -789,7 +789,7 @@ macro_rules! impl_LnScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(ln,
             core_identifier!("arithmetic","scalar";&format!("Ln{}", $mel_name)),
-            format!(r"Computes the natural logarithms of a stream of `{}`.", stringify!($mel_value_type)),
+            formatdoc!(r"Computes the natural logarithms of a stream of `{}`.", stringify!($mel_value_type)),
             models![],
             treatment_sources![],
             parameters![],
@@ -839,7 +839,7 @@ macro_rules! impl_StaticLogScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(static_log,
             core_identifier!("arithmetic","scalar";&format!("StaticLog{}", $mel_name)),
-            format!(r"Computes the logarithms from a stream of `{}` with respect to a static base.", stringify!($mel_value_type)),
+            formatdoc!(r"Computes the logarithms from a stream of `{}` with respect to a static base.", stringify!($mel_value_type)),
             models![],
             treatment_sources![],
             parameters![
@@ -872,7 +872,7 @@ macro_rules! impl_LogScalar {
     ($mel_name:expr, $mel_type:ident, $rust_type:ty, $mel_value_type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!(log,
             core_identifier!("arithmetic","scalar";&format!("Log{}", $mel_name)),
-            format!(r"Computes logarithms from a stream of `{}` with the base of another one.", stringify!($mel_value_type)),
+            formatdoc!(r"Computes logarithms from a stream of `{}` with the base of another one.", stringify!($mel_value_type)),
             models![],
             treatment_sources![],
             parameters![],

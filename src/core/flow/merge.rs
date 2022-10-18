@@ -5,7 +5,7 @@ macro_rules! impl_MergeScalar {
     ($mod_name:ident, $mel_type_name:expr, $mel_type_up:ident, $type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!($mod_name,
             core_identifier!("merge","scalar",$mel_type_name;"Merge"),
-            format!(r#"Merge two streams of `{type}`.
+            formatdoc!(r#"Merge two streams of `{type}`.
 
             The two streams are merged using the `order` stream:
             - when `true`, value from `a` is used;
@@ -84,7 +84,7 @@ macro_rules! impl_MergeVector {
     ($mod_name:ident, $mel_type_name:expr, $mel_type_up:ident, $type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!($mod_name,
             core_identifier!("merge","vector",$mel_type_name;"Merge"),
-            format!(r#"Merge two streams of `Vec<{type}>`.
+            formatdoc!(r#"Merge two streams of `Vec<{type}>`.
 
             The two streams are merged using the `order` stream:
             - when `true`, value from `a` is used;

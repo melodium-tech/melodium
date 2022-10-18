@@ -5,7 +5,7 @@ macro_rules! impl_BlockScalarFilling {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $mel_value_type:ident, $rust_type:ident, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("filling","scalar";$mel_name),
-            format!(r#"Fill a triggering `void` block with a scalar static `{type}` value.
+            formatdoc!(r#"Fill a triggering `void` block with a scalar static `{type}` value.
 
             ```mermaid
             graph LR
@@ -49,7 +49,7 @@ macro_rules! impl_BlockScalarVecFilling {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $mel_value_type:ident, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("filling","scalar";$mel_name),
-            format!(r#"Fill a triggering `void` block with vector static `{type}` value.
+            formatdoc!(r#"Fill a triggering `void` block with vector static `{type}` value.
 
             ```mermaid
             graph LR

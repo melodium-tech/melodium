@@ -6,6 +6,7 @@ use std::collections::{HashMap, hash_map::Entry};
 use std::path::PathBuf;
 use glob::glob;
 use itertools::Itertools;
+use indoc::formatdoc;
 use crate::script::file::File;
 use crate::script::base::Base;
 use crate::script::location::Location;
@@ -251,7 +252,7 @@ impl Instance {
         let title  = Self::get_title();
         let author = Self::get_author();
 
-        format!(r#"
+        formatdoc!(r#"
         [book]
         authors = ["{}"]
         language = "en"

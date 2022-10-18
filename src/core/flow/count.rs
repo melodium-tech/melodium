@@ -3,7 +3,7 @@ use crate::core::prelude::*;
 
 treatment!(count_scalar,
     core_identifier!("flow","scalar","void";"Count"),
-    r#"Gives count of elements passing through input stream.
+    indoc!(r#"Gives count of elements passing through input stream.
 
     This count increment one for each elements within the `iter` stream, starting at 1.
     
@@ -16,7 +16,7 @@ treatment!(count_scalar,
     
         style V fill:#ffff,stroke:#ffff
         style P fill:#ffff,stroke:#ffff
-    ```"#.to_string(),
+    ```"#).to_string(),
     models![],
     treatment_sources![],
     parameters![],
@@ -50,7 +50,7 @@ treatment!(count_scalar,
 
 treatment!(count_vector,
     core_identifier!("flow","vector","void";"Count"),
-    r#"Gives count of elements passing through input stream.
+    indoc!(r#"Gives count of elements passing through input stream.
 
     This count increment one for each elements within the `iter` stream, starting at 1.
     
@@ -65,7 +65,7 @@ treatment!(count_vector,
     
         style V fill:#ffff,stroke:#ffff
         style P fill:#ffff,stroke:#ffff
-    ```"#.to_string(),
+    ```"#).to_string(),
     models![],
     treatment_sources![],
     parameters![],

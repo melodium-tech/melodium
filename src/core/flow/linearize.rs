@@ -5,7 +5,7 @@ macro_rules! impl_Linearize {
     ($mod:ident, $mel_name:expr, $mel_type:ident, $type:ident, $recv_func:ident, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("linearize";$mel_name),
-            format!(r#"Linearize stream of `Vec<{type}>` into stream of `Scalar<{type}>`.
+            formatdoc!(r#"Linearize stream of `Vec<{type}>` into stream of `Scalar<{type}>`.
 
             All the input vectors are turned into continuous stream of scalar values, in the same order.
             ```mermaid

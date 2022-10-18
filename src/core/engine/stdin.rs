@@ -164,13 +164,13 @@ impl Model for StdinModel {
 
 source!(stdin_read_source,
     core_identifier!("engine";"Read"),
-    r#"Read process standard input.
+    indoc!(r#"Read process standard input.
 
     Stream the lines received as input on stdin.
     
     ⚠️ When using `Read()` user may have to call `Close()` at some point,
     because unless program is explicitly ended or standard input stream closed
-    by connected process, listening on stream will continue indefinitely."#.to_string(),
+    by connected process, listening on stream will continue indefinitely."#).to_string(),
     models![
         ("stdin", crate::core::engine::stdin::StdinModel::descriptor())
     ],
@@ -184,9 +184,9 @@ source!(stdin_read_source,
 
 treatment!(stdin_close_treatment,
     core_identifier!("engine";"Close"),
-    r#"Closes the process standard input.
+    indoc!(r#"Closes the process standard input.
 
-    ℹ️ This does not end program execution, see `End()` sequence for that."#.to_string(),
+    ℹ️ This does not end program execution, see `End()` sequence for that."#).to_string(),
     models![
         ("stdin", crate::core::engine::stdin::StdinModel::descriptor())
     ],

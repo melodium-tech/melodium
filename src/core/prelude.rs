@@ -22,6 +22,8 @@ pub(crate) use crate::logic::descriptor::core_treatment::{models, treatment_sour
 pub(crate) use crate::logic::descriptor::core_model::{model_sources};
 pub use downcast_rs::DowncastSync;
 pub use async_std::prelude::*;
+pub use indoc::indoc;
+pub use indoc::formatdoc;
 pub use crate::logic::descriptor::CoreSourceDescriptor;
 pub use crate::logic::descriptor::CoreTreatmentDescriptor;
 pub use crate::logic::collection_pool::CollectionPool;

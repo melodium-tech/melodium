@@ -51,7 +51,7 @@ model!(
 
 treatment!(write_file_treatment,
     core_identifier!("fs","write";"WriteFile"),
-    r#"Write one file.
+    indoc!(r#"Write one file.
 
     The bytes received through `data` are written in the file located at `path`.
     The writing behavior is set up by the parameters:
@@ -61,7 +61,7 @@ treatment!(write_file_treatment,
     
     The amount of written bytes is sent through `amount`. There is no guarantee about its increment, as an undefined number of bytes may be written at once.
     
-    `success` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `message` contains the related text."#.to_string(),
+    `success` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `message` contains the related text."#).to_string(),
     models![
         ("writer", crate::core::fs::write::files_writer::model_host::descriptor())
     ],

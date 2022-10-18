@@ -5,7 +5,7 @@ use crate::core::prelude::*;
 
 treatment!(and,
     core_identifier!("logic","byte";"And"),
-    r#"Makes "and" ⋀ binary operation on `byte`."#.to_string(),
+    indoc!(r#"Makes "and" ⋀ binary operation on `byte`."#).to_string(),
     models![],
     treatment_sources![],
     parameters![],
@@ -32,7 +32,7 @@ treatment!(and,
 
 treatment!(or,
     core_identifier!("logic","byte";"Or"),
-    r#"Makes "or" ⋁ binary operation on `byte`."#.to_string(),
+    indoc!(r#"Makes "or" ⋁ binary operation on `byte`."#).to_string(),
     models![],
     treatment_sources![],
     parameters![],
@@ -59,7 +59,7 @@ treatment!(or,
 
 treatment!(xor,
     core_identifier!("logic","byte";"Xor"),
-    r#"Makes "xor" ⊕ binary operation on `byte`."#.to_string(),
+    indoc!(r#"Makes "xor" ⊕ binary operation on `byte`."#).to_string(),
     models![],
     treatment_sources![],
     parameters![],
@@ -86,7 +86,7 @@ treatment!(xor,
 
 treatment!(not,
     core_identifier!("logic","byte";"Not"),
-    r#"Makes "not" ¬ binary operation on `byte`."#.to_string(),
+    indoc!(r#"Makes "not" ¬ binary operation on `byte`."#).to_string(),
     models![],
     treatment_sources![],
     parameters![],
@@ -117,7 +117,7 @@ fn and_function() -> Arc<CoreFunctionDescriptor> {
 
     CoreFunctionDescriptor::new(
         core_identifier!("logic","byte";"|and"),
-        r#"_And_ ⋀ binary operation"#.to_string(),
+        indoc!(r#"_And_ ⋀ binary operation"#).to_string(),
         parameters![
             parameter!("a", Scalar, Byte, None),
             parameter!("b", Scalar, Byte, None)
@@ -135,7 +135,7 @@ fn or_function() -> Arc<CoreFunctionDescriptor> {
 
     CoreFunctionDescriptor::new(
         core_identifier!("logic","byte";"|or"),
-        r#"_Or_ ⋁ binary operation"#.to_string(),
+        indoc!(r#"_Or_ ⋁ binary operation"#).to_string(),
         parameters![
             parameter!("a", Scalar, Byte, None),
             parameter!("b", Scalar, Byte, None)
@@ -153,7 +153,7 @@ fn xor_function() -> Arc<CoreFunctionDescriptor> {
 
     CoreFunctionDescriptor::new(
         core_identifier!("logic","byte";"|xor"),
-        r#"_Xor_ ⊕ binary operation"#.to_string(),
+        indoc!(r#"_Xor_ ⊕ binary operation"#).to_string(),
         parameters![
             parameter!("a", Scalar, Byte, None),
             parameter!("b", Scalar, Byte, None)
@@ -171,7 +171,7 @@ fn not_function() -> Arc<CoreFunctionDescriptor> {
 
     CoreFunctionDescriptor::new(
         core_identifier!("logic","byte";"|not"),
-        r#"_Not_ ¬ binary operation"#.to_string(),
+        indoc!(r#"_Not_ ¬ binary operation"#).to_string(),
         parameters![
             parameter!("v", Scalar, Byte, None)
         ],
