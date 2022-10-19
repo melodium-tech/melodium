@@ -5,7 +5,7 @@ macro_rules! impl_VectorToVoid {
     ($mod:ident, $mel_name:expr, $type:ident, $mel_type:ident, $recv_func:ident) => {
         treatment!($mod,
             core_identifier!("conversion","vector";$mel_name),
-            format!(r"Convert stream of `Vec<{type}>` into `Vec<void>` one.
+            formatdoc!(r"Convert stream of `Vec<{type}>` into `Vec<void>` one.
 
             This conversion is useful to extract pattern from a stream of vectors and work on it.", type = stringify!($type)),
             models![],

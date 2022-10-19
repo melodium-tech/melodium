@@ -5,7 +5,7 @@ macro_rules! impl_ScalarFloat {
     ($mod:ident, $mel_name:expr, $input_mel_type:ident, $recv_func:ident, $input_rust_type:ty, $output_mel_type:ident, $output_rust_type:ty, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("conversion","scalar";$mel_name),
-            format!(r"Convert stream of `{in}` into `{out}`.
+            formatdoc!(r"Convert stream of `{in}` into `{out}`.
 
             Every `{in}` is fitted into the closest `{out}`.
             Positive and negative infinity are conserved, as well as not-a-number state.

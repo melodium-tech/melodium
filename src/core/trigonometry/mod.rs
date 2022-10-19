@@ -58,15 +58,15 @@ mod f32 {
     impl_Trigo!("Sin", "Computes sine (in radians) of a stream of `f32`.", F32, "f32", sin, recv_f32, send_multiple_f32);
     impl_Trigo!("Cos", "Computes cosine (in radians) of a stream of `f32`.", F32, "f32", cos, recv_f32, send_multiple_f32);
     impl_Trigo!("Tan", "Computes tangent (in radians) of a stream of `f32`.", F32, "f32", tan, recv_f32, send_multiple_f32);
-    impl_Trigo!("Asin", r"Computes arcsine (in radians) of a stream of `f32`.
+    impl_Trigo!("Asin", indoc!(r"Computes arcsine (in radians) of a stream of `f32`.
 
-    Gives values in the range [0, pi] or not-a-number if outside range [-1, 1].", F32, "f32", asin, recv_f32, send_multiple_f32);
-    impl_Trigo!("Acos", r"Computes arccosine (in radians) of a stream of `f32`.
+    Gives values in the range [0, pi] or not-a-number if outside range [-1, 1]."), F32, "f32", asin, recv_f32, send_multiple_f32);
+    impl_Trigo!("Acos", indoc!(r"Computes arccosine (in radians) of a stream of `f32`.
 
-    Gives values in the range [0, pi] or not-a-number if outside range [-1, 1].", F32, "f32", acos, recv_f32, send_multiple_f32);
-    impl_Trigo!("Atan", r"Computes arctangent (in radians) of a stream of `f32`.
+    Gives values in the range [0, pi] or not-a-number if outside range [-1, 1]."), F32, "f32", acos, recv_f32, send_multiple_f32);
+    impl_Trigo!("Atan", indoc!(r"Computes arctangent (in radians) of a stream of `f32`.
 
-    Gives values in the range [-pi/2, pi/2].", F32, "f32", atan, recv_f32, send_multiple_f32);
+    Gives values in the range [-pi/2, pi/2]."), F32, "f32", atan, recv_f32, send_multiple_f32);
     impl_Trigo!("Sinh", "Computes hyberbolic sine of a stream of `f32`.",F32, "f32", sinh, recv_f32, send_multiple_f32);
     impl_Trigo!("Cosh", "Computes hyberbolic cosine of a stream of `f32`.", F32, "f32", cosh, recv_f32, send_multiple_f32);
     impl_Trigo!("Tanh", "Computes hyberbolic tangent of a stream of `f32`.", F32, "f32", tanh, recv_f32, send_multiple_f32);
@@ -124,15 +124,15 @@ mod f64 {
     impl_Trigo!("Sin", "Computes sine (in radians) of a stream of `f64`.", F64, "f64", sin, recv_f64, send_multiple_f64);
     impl_Trigo!("Cos", "Computes cosine (in radians) of a stream of `f64`.", F64, "f64", cos, recv_f64, send_multiple_f64);
     impl_Trigo!("Tan", "Computes tangent (in radians) of a stream of `f64`.", F64, "f64", tan, recv_f64, send_multiple_f64);
-    impl_Trigo!("Asin", r"Computes arcsine (in radians) of a stream of `f64`.
+    impl_Trigo!("Asin", indoc!(r"Computes arcsine (in radians) of a stream of `f64`.
 
-    Gives values in the range [0, pi] or not-a-number if outside range [-1, 1].", F64, "f64", asin, recv_f64, send_multiple_f64);
-    impl_Trigo!("Acos", r"Computes arccosine (in radians) of a stream of `f64`.
+    Gives values in the range [0, pi] or not-a-number if outside range [-1, 1]."), F64, "f64", asin, recv_f64, send_multiple_f64);
+    impl_Trigo!("Acos", indoc!(r"Computes arccosine (in radians) of a stream of `f64`.
 
-    Gives values in the range [0, pi] or not-a-number if outside range [-1, 1].", F64, "f64", acos, recv_f64, send_multiple_f64);
-    impl_Trigo!("Atan", r"Computes arctangent (in radians) of a stream of `f64`.
+    Gives values in the range [0, pi] or not-a-number if outside range [-1, 1]."), F64, "f64", acos, recv_f64, send_multiple_f64);
+    impl_Trigo!("Atan", indoc!(r"Computes arctangent (in radians) of a stream of `f64`.
 
-    Gives values in the range [-pi/2, pi/2].", F64, "f64", atan, recv_f64, send_multiple_f64);
+    Gives values in the range [-pi/2, pi/2]."), F64, "f64", atan, recv_f64, send_multiple_f64);
     impl_Trigo!("Sinh", "Computes hyberbolic sine of a stream of `f64`.",F64, "f64", sinh, recv_f64, send_multiple_f64);
     impl_Trigo!("Cosh", "Computes hyberbolic cosine of a stream of `f64`.", F64, "f64", cosh, recv_f64, send_multiple_f64);
     impl_Trigo!("Tanh", "Computes hyberbolic tangent of a stream of `f64`.", F64, "f64", tanh, recv_f64, send_multiple_f64);

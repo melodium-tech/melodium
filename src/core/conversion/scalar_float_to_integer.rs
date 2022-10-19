@@ -5,7 +5,7 @@ macro_rules! impl_ScalarFloatToInteger {
     ($mod:ident, $mel_name:expr, $input_mel_type:ident, $recv_func:ident, $input_mel_value_type:ident, $output_mel_value_type:ident, $output_mel_type:ident, $output_rust_type:ty, $send_func:ident) => {
         treatment!($mod,
             core_identifier!("conversion","scalar";$mel_name),
-            format!(r"Convert stream of `{in}` into `{out}`.
+            formatdoc!(r"Convert stream of `{in}` into `{out}`.
 
             Every `{in} is truncated to fit into the `{out}`, and in case floating-point value does
             not describe a real number:
