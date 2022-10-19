@@ -183,7 +183,7 @@ impl Documentation {
         for id in self.collection.functions.get_tree_path(&path).iter().sorted() {
             
             if Self::true_path(id) == path {
-                functions.push_str(&format!("[ {func}]({func}.md)\n",
+                functions.push_str(&format!("[ {func}]({func}.md)  \n",
                     func = id.name(),
                 ));
             }
@@ -199,7 +199,7 @@ impl Documentation {
         for id in self.collection.models.get_tree_path(&path).iter().sorted() {
             
             if Self::true_path(id) == path {
-                models.push_str(&format!("[⬢ {model}]({model}.md)\n",
+                models.push_str(&format!("⬢ [{model}]({model}.md)  \n",
                     model = id.name(),
                 ));
             }
@@ -215,7 +215,7 @@ impl Documentation {
         for id in self.collection.treatments.get_tree_path(&path).iter().sorted() {
             
             if Self::true_path(id) == path {
-                treatments.push_str(&format!("[⤇ {treatment}]({treatment}.md)\n",
+                treatments.push_str(&format!("⤇ [{treatment}]({treatment}.md)  \n",
                     treatment = id.name(),
                 ));
             }
@@ -231,7 +231,7 @@ impl Documentation {
         let sub_areas: Vec<String>  = sub_areas.iter().unique().map(|s| s.clone()).collect();
         for area in sub_areas {
             
-            subs.push_str(&format!("[{area}]({area}/README.md)\n"));
+            subs.push_str(&format!("[{area}]({area}/README.md)  \n"));
         }
         if !subs.is_empty() {
             subs = format!("## Subareas\n\n{}", subs);
@@ -268,7 +268,31 @@ impl Documentation {
     }
 
     fn function(&self, descriptor: &Arc<dyn FunctionDescriptor>) -> String {
-        String::new()
+        
+        let parameters = if !descriptor.parameters().is_empty() {
+            let mut string = String::new();
+
+            for param in descriptor.parameters().iter() {
+                string.push_str(&format!("↳ `{}`\n", Self::parameter(&param)));
+            }
+
+            format!("#### Parameters\n\n{}", string)
+        }
+        else { String::default() };
+
+        let call = format!("{name}({params})",
+            name = descriptor.identifier().name(),
+            params = descriptor.parameters().iter().map(|p| p.name()).collect::<Vec<&str>>().join(", ")
+        );
+
+        format!("# Function {name}\n\n`{id}`\n\n---\n\n{call}\n\n#### Return\n\n↴ `{return}`\n\n{parameters}\n\n---\n\n{doc}",
+            name = descriptor.identifier().name(),
+            id = descriptor.identifier().to_string(),
+            call = call,
+            return = descriptor.return_type(),
+            parameters = parameters,
+            doc = descriptor.documentation(),
+        )
     }
 
     fn model(&self, descriptor: &Arc<dyn ModelDescriptor>) -> String {
