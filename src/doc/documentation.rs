@@ -274,7 +274,7 @@ impl Documentation {
             let mut string = String::new();
 
             for param in descriptor.parameters().iter() {
-                string.push_str(&format!("↳ `{}`\n", Self::parameter(&param)));
+                string.push_str(&format!("↳ `{}: {}`  \n", param.name(), param.datatype()));
             }
 
             format!("#### Parameters\n\n{}", string)
@@ -286,7 +286,7 @@ impl Documentation {
             params = descriptor.parameters().iter().map(|p| p.name()).collect::<Vec<&str>>().join(", ")
         );
 
-        format!("# Function {name}\n\n`{id}`\n\n---\n\n{call}\n\n#### Return\n\n↴ `{return}`\n\n{parameters}\n\n---\n\n{doc}",
+        format!("# Function {name}\n\n`{id}`\n\n---\n\n#### Usage\n```\n{call}\n```\n\n{parameters}\n\n#### Return\n\n↴ `{return}`\n\n---\n\n{doc}",
             name = descriptor.identifier().name(),
             id = descriptor.identifier().to_string(),
             call = call,
@@ -326,7 +326,28 @@ impl Documentation {
     }
 
     fn treatment(&self, descriptor: &Arc<dyn TreatmentDescriptor>) -> String {
-        String::new()
+
+        let models = if !descriptor.models().is_empty() {
+            let mut string = String::new();
+
+            for (_, model) in descriptor.models() {
+                string.push_str(&format!("⬡ `{}`  \n", Self::declared_model(&model.read().unwrap())));
+            }
+
+            format!("#### Configuration\n\n{}", string)
+        }
+        else { String::default() };
+        
+        let parameters = if !descriptor.parameters().is_empty() {
+            let mut string = String::new();
+
+            for (_, param) in descriptor.parameters().iter() {
+                string.push_str(&format!("↳ `{}`\n", Self::parameter(&param)));
+            }
+
+            format!("#### Parameters\n\n{}", string)
+        }
+        else { String::default() };
     }
 
     fn parameter(parameter: &ParameterDescriptor) -> String {
