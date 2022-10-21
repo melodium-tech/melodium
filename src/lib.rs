@@ -151,8 +151,7 @@ use logic::descriptor::identifier::Root;
 use script::instance::Instance;
 use script::base::Base;
 use script::location::Location;
-use script::path::{Path, PathRoot};
-use doc::instance::Instance as DocInstance;
+use script::path::Path;
 use script::error::ScriptError;
 use logic::error::LogicError;
 
@@ -265,31 +264,27 @@ pub fn genesis(stdlib: Option<&String>, main: &String, entry: &String) -> (Insta
  * 
  * - `stdlib`: path to the standard library;
  * - `main`: path to the main script file;
+ * - `roots`: list of roots for which generate documentation;
  * - `output`: output path where to store the prepared documentation.
  */
-pub fn make_documentation(stdlib: &String, main: &String, output: &String) {
+pub fn make_documentation(stdlib: Option<&String>, main: Option<&String>, roots: Vec<String>, output: &String) {
 
-    let root_kind = if main == stdlib {
-        PathRoot::Std
-    }
-    else {
-        PathRoot::Main
-    };
-    
-    let mut instance = DocInstance::new(root_kind, PathBuf::from(main), PathBuf::from(output));
+     let main = main.map(|m| PathBuf::from(m)).unwrap_or_default();
+    let main_dir = PathBuf::from(main.parent().unwrap());
+    let main_file = PathBuf::from(main.file_name().unwrap());
 
-    if let Err((io, scr)) = instance.parse_files() {
-
-        for err in io {
-            print_io_error(&err);
+    let mut instance = Instance::new(Location::new(Base::FileSystem(main_dir), main_file),
+        if let Some(stdlib) = stdlib {
+            Base::FileSystem(stdlib.into())
+        } else {
+            STDLIB.clone()
         }
-        for (path, err) in scr {
-            print_script_error(&Location::new(Base::FileSystem(PathBuf::from("")), path), &err);
-        }
-    }
+    );
+    instance.build_all_std();
 
-    if let Err(io) = instance.output_doc() {
-        print_io_error(&io);
+    let doc = doc::documentation::Documentation::new(roots, Arc::clone(instance.collection().as_ref().unwrap()), PathBuf::from("/tmp/doc"));
+    if let Err(e) = doc.make() {
+        print_io_error(&e);
     }
 }
 

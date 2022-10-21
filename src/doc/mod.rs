@@ -4,6 +4,4 @@
 //! 
 
 pub mod documentation;
-pub mod instance;
-pub mod markdown;
 
