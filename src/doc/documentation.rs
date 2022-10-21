@@ -330,8 +330,13 @@ impl Documentation {
         let models = if !descriptor.models().is_empty() {
             let mut string = String::new();
 
-            for (_, model) in descriptor.models() {
-                string.push_str(&format!("⬡ `{}`  \n", Self::declared_model(&model.read().unwrap())));
+            for (name, model) in descriptor.models() {
+                /*string.push_str(&format!("⬡ `{name}: `{location}  \n",
+                    location = self.get_location(descriptor.identifier(), model.identifier())
+                ));*/
+                string.push_str(&format!("⬡ `{name}: {type}`  \n",
+                    type = model.identifier()
+                ));
             }
 
             format!("#### Configuration\n\n{}", string)
@@ -348,6 +353,45 @@ impl Documentation {
             format!("#### Parameters\n\n{}", string)
         }
         else { String::default() };
+
+        let requirements = if !descriptor.requirements().is_empty() {
+            let mut string = String::new();
+    
+            for (_, req) in descriptor.requirements() {
+                string.push_str(&format!("○ `{}`  \n", req.name()));
+            }
+    
+            format!("#### Require\n\n{}", string)
+        }
+        else { String::default() };
+
+        let inputs = if !descriptor.inputs().is_empty() {
+            let mut string = String::new();
+    
+            for (_, input) in descriptor.inputs() {
+                string.push_str(&format!("⇥ `{}: {}`  \n", input.name(), Self::input(input)));
+            }
+    
+            format!("#### Inputs\n\n{}", string)
+        }
+        else { String::default() };
+
+        let outputs = if !descriptor.outputs().is_empty() {
+            let mut string = String::new();
+    
+            for (_, output) in descriptor.outputs() {
+                string.push_str(&format!("↦ `{}: {}`  \n", output.name(), Self::output(output)));
+            }
+    
+            format!("#### Outputs\n\n{}", string)
+        }
+        else { String::default() };
+
+        format!("# Sequence {name}\n\n`{id}`\n\n---\n\n{models}{parameters}{requirements}{inputs}{outputs}\n\n---\n\n{doc}",
+            name = descriptor.identifier().name(),
+            id = descriptor.identifier().to_string(),
+            doc = descriptor.documentation(),
+        )
     }
 
     fn parameter(parameter: &ParameterDescriptor) -> String {
@@ -358,6 +402,26 @@ impl Documentation {
             type = parameter.datatype(),
             val = parameter.default().as_ref().map(|v| format!(" = {v}")).unwrap_or_default(),
         )
+    }
+
+    fn input(input: &InputDescriptor) -> String {
+
+        let flow = match input.flow() {
+            FlowDescriptor::Block => "Block",
+            FlowDescriptor::Stream => "Stream",
+        };
+    
+        format!("{}<{}>", flow, input.datatype())
+    }
+
+    fn output(output: &OutputDescriptor) -> String {
+
+        let flow = match output.flow() {
+            FlowDescriptor::Block => "Block",
+            FlowDescriptor::Stream => "Stream",
+        };
+    
+        format!("{}<{}>", flow, output.datatype())
     }
 
     fn get_title() -> String {
