@@ -269,9 +269,9 @@ pub fn genesis(stdlib: Option<&String>, main: &String, entry: &String) -> (Insta
  */
 pub fn make_documentation(stdlib: Option<&String>, main: Option<&String>, roots: Vec<String>, output: &String) {
 
-     let main = main.map(|m| PathBuf::from(m)).unwrap_or_default();
-    let main_dir = PathBuf::from(main.parent().unwrap());
-    let main_file = PathBuf::from(main.file_name().unwrap());
+    let main = main.map(|m| PathBuf::from(m)).unwrap_or_default();
+    let main_dir = main.parent().map(|p| PathBuf::from(p)).unwrap_or_default();
+    let main_file = main.file_name().map(|p| PathBuf::from(p)).unwrap_or_default();
 
     let mut instance = Instance::new(Location::new(Base::FileSystem(main_dir), main_file),
         if let Some(stdlib) = stdlib {
@@ -282,7 +282,7 @@ pub fn make_documentation(stdlib: Option<&String>, main: Option<&String>, roots:
     );
     instance.build_all_std();
 
-    let doc = doc::documentation::Documentation::new(roots, Arc::clone(instance.collection().as_ref().unwrap()), PathBuf::from("/tmp/doc"));
+    let doc = doc::documentation::Documentation::new(roots, Arc::clone(instance.collection().as_ref().unwrap()), PathBuf::from(output));
     if let Err(e) = doc.make() {
         print_io_error(&e);
     }

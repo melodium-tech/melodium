@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+
+- Embedded documentation in descriptors
+- Core elements embedded documentation #24
+- Core functions documentation #22
+
+### Changed
+
+- Documentation generation using engine
+
 ## [v0.5.1] (2022-10-04)
 
 ### Bug fixes

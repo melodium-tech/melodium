@@ -75,9 +75,11 @@ struct Draw {
 #[clap(about = "Make documentation of program")]
 struct Doc {
     #[clap(long)]
-    stdlib: String,
-    #[clap(value_parser)]
-    input: String,
+    stdlib: Option<String>,
+    #[clap(short, long)]
+    main: Option<String>,
+    #[clap(short, long)]
+    root: Vec<String>,
     #[clap(value_parser)]
     output: String,
 }
@@ -150,7 +152,7 @@ fn package(args: Package) {
 
 fn doc(args: Doc) {
 
-    make_documentation(&args.stdlib, &args.input, &args.output);
+    make_documentation(args.stdlib.as_ref(), args.main.as_ref(), args.root, &args.output);
 }
 
 fn draw(args: Draw) {

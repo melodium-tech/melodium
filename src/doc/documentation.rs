@@ -165,13 +165,23 @@ impl Documentation {
 
     fn areas(&self) -> Vec<Vec<String>> {
 
+        // Known to be extremely naïve implementation
+
         let mut areas = Vec::new();
 
         self.collection.functions.identifiers().iter().for_each(|id| areas.push(Self::true_path(id)));
         self.collection.models.identifiers().iter().for_each(|id| areas.push(Self::true_path(id)));
         self.collection.treatments.identifiers().iter().for_each(|id| areas.push(Self::true_path(id)));
 
-        areas.iter().unique().map(|v| v.clone()).collect()
+        areas.iter().flat_map(|area| {
+            let mut steps = Vec::new();
+            let mut parents = Vec::new();
+            for i in 0..area.len() {
+                steps.push(area.get(i).unwrap().clone());
+                parents.push(steps.clone());
+            }
+            parents
+        }).unique().collect()
     }
 
     fn area(&self, path: Vec<String>) -> String {
