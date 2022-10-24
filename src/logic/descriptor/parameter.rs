@@ -63,12 +63,11 @@ impl Display for Parameter {
 
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
 
-        if let Some(default) = &self.default {
-            write!(f, "{} _{}_: `{}` (default `{}`)", self.variability, self.name, self.datatype, default)
-        }
-        else {
-            write!(f, "{} _{}_: `{}`", self.variability, self.name, self.datatype)
-        }
-        
+        write!(f, "{} {}: {}{}",
+            self.variability,
+            self.name,
+            self.datatype,
+            self.default.as_ref().map(|d| format!(" = {}", d)).unwrap_or_default()
+        )
     }
 }

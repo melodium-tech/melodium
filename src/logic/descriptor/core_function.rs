@@ -83,15 +83,10 @@ impl OrderedParameterized for CoreFunction {
 impl Display for CoreFunction {
     
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        writeln!(f, "Function `{}`", self.identifier.to_string())?;
-
-        if !self.parameters.is_empty() {
-            writeln!(f, "\nParameters:")?;
-
-            for parameter in &self.parameters {
-                writeln!(f, "- {}", parameter)?;
-            }
-        }
+        write!(f, "function {}({})",
+            self.identifier.to_string(),
+            self.parameters().iter().map(|p| p.to_string()).collect::<Vec<_>>().join(", "),
+        )?;
 
         Ok(())
         

@@ -137,15 +137,10 @@ impl Model for CoreModel {
 impl Display for CoreModel {
     
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        writeln!(f, "Model `{}`", self.identifier.to_string())?;
-
-        if !self.parameters.is_empty() {
-            writeln!(f, "\nParameters:")?;
-
-            for parameter in &self.parameters {
-                writeln!(f, "- {}", parameter.1)?;
-            }
-        }
+        write!(f, "model {}({})",
+            self.identifier.to_string(),
+            self.parameters().iter().map(|(_, p)| p.to_string()).collect::<Vec<_>>().join(", "),
+        )?;
 
         Ok(())
         

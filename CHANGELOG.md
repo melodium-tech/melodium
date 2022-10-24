@@ -7,6 +7,7 @@
 - Embedded documentation in descriptors
 - Core elements embedded documentation #24
 - Core functions documentation #22
+- Descriptors printables idiomatically #46
 
 ### Changed
 

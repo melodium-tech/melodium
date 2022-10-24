@@ -242,7 +242,7 @@ impl Documentation {
         let sub_areas: Vec<String>  = sub_areas.iter().unique().map(|s| s.clone()).collect();
         for area in sub_areas {
             
-            subs.push_str(&format!("[{area}]({area}/README.md)  \n"));
+            subs.push_str(&format!("[{area}]({area}/index.md)  \n"));
         }
         if !subs.is_empty() {
             subs = format!("## Subareas\n\n{}", subs);

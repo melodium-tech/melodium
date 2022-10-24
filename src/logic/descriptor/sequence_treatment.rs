@@ -177,48 +177,16 @@ impl Display for SequenceTreatment {
 
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
 
-        writeln!(f, "Sequence `{}`", self.identifier.to_string())?;
+        write!(f, "sequence {}", self.identifier.to_string())?;
 
         if !self.models.is_empty() {
-            writeln!(f, "\nModels:")?;
-
-            for model in &self.models {
-                writeln!(f, "- {}: `{}`", model.0, model.1.identifier().to_string())?;
-            }
+            write!(f, "[{}]",
+                self.models.iter().map(|(n, m)| format!("{}: {}", n, m.identifier().to_string())).collect::<Vec<_>>().join(", "),
+            )?;
         }
 
-        if !self.parameters.is_empty() {
-            writeln!(f, "\nParameters:")?;
-
-            for parameter in &self.parameters {
-                writeln!(f, "- {}", parameter.1)?;
-            }
-        }
-
-        if !self.inputs.is_empty() {
-            writeln!(f, "\nInputs:")?;
-
-            for input in &self.inputs {
-                writeln!(f, "- {}", input.1)?;
-            }
-        }
-
-        if !self.outputs.is_empty() {
-            writeln!(f, "\nOutputs:")?;
-
-            for output in &self.outputs {
-                writeln!(f, "- {}", output.1)?;
-            }
-        }
-
-        if !self.requirements.is_empty() {
-            writeln!(f, "\nRequire:")?;
-
-            for require in &self.requirements {
-                writeln!(f, "- {}", require.1.name())?;
-            }
-        }
-
+        write!(f, "({})", self.parameters().iter().map(|(_, p)| p.to_string()).collect::<Vec<_>>().join(", "))?;
+        
         Ok(())
         
     }

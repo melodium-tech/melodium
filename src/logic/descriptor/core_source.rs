@@ -136,24 +136,16 @@ impl Display for CoreSource {
 
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
 
-        writeln!(f, "Treatment source `{}`", self.identifier.to_string())?;
+        write!(f, "treatment {}", self.identifier.to_string())?;
 
         if !self.models.is_empty() {
-            writeln!(f, "\nModels:")?;
-
-            for model in &self.models {
-                writeln!(f, "- _{}_: `{}`", model.0, model.1.identifier().to_string())?;
-            }
+            write!(f, "[{}]",
+                self.models.iter().map(|(n, m)| format!("{}: {}", n, m.identifier().to_string())).collect::<Vec<_>>().join(", "),
+            )?;
         }
 
-        if !self.outputs.is_empty() {
-            writeln!(f, "\nOutputs:")?;
-
-            for output in &self.outputs {
-                writeln!(f, "- {}", output.1)?;
-            }
-        }
-
+        write!(f, "()")?;
+        
         Ok(())
         
     }

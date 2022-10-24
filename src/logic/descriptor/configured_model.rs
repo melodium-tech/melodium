@@ -136,18 +136,11 @@ impl Model for ConfiguredModel {
 impl Display for ConfiguredModel {
     
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        writeln!(f, "Model `{}`", self.identifier.to_string())?;
-        writeln!(f, "> `{}`", self.identifier.to_string())?;
-
-        if !self.parameters.is_empty() {
-            writeln!(f, "Parameters:")?;
-
-            for parameter in &self.parameters {
-                writeln!(f, "- {}", parameter.1)?;
-            }
-        }
+        write!(f, "model {}({})",
+            self.identifier.to_string(),
+            self.parameters().iter().map(|(_, p)| p.to_string()).collect::<Vec<_>>().join(", "),
+        )?;
 
         Ok(())
-        
     }
 }

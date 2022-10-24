@@ -49,10 +49,10 @@ impl Display for Input {
 
         match self.flow {
             Flow::Block => {
-                write!(f, "_{}_: `Block<{}>`", self.name, self.datatype)
+                write!(f, "{}: Block<{}>", self.name, self.datatype)
             },
             Flow::Stream => {
-                write!(f, "_{}_: `Stream<{}>`", self.name, self.datatype)
+                write!(f, "{}: Stream<{}>", self.name, self.datatype)
             }
         }
         
