@@ -12,6 +12,7 @@
 ### Changed
 
 - Documentation generation using engine
+- Roots management updated
 
 ## [v0.5.1] (2022-10-04)
 

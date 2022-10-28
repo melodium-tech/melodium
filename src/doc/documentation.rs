@@ -23,12 +23,6 @@ impl Documentation {
         }
     }
 
-    fn true_path(id: &Identifier) -> Vec<String> {
-        let mut path = vec![id.root().to_string()];
-        path.extend(id.path().clone());
-        path
-    }
-
     pub fn make(&self) -> std::io::Result<()> {
 
         let path = self.output_path.join("src");
@@ -84,13 +78,10 @@ impl Documentation {
         let level = path.len() - 1;
         let mut sub_areas = Vec::new();
 
-        // The '-1' in sub_areas.push(id.path().get(path.len()-1).unwrap().clone()) could be removed once root is included in path
-        // also true_path could be removed
-
         let mut functions = String::new();
         for id in self.collection.functions.get_tree_path(&path).iter().sorted() {
             
-            if Self::true_path(id) == path {
+            if id.path() == &path {
                 (0..=level).for_each(|_| functions.push_str("  "));
                 functions.push_str(&format!("- [ {func}]({path}/{func}.md)\n",
                     func = id.name(),
@@ -98,14 +89,14 @@ impl Documentation {
                 ));
             }
             else {
-                sub_areas.push(id.path().get(path.len()-1).unwrap().clone())
+                sub_areas.push(id.path().get(path.len()).unwrap().clone())
             }
         }
 
         let mut models = String::new();
         for id in self.collection.models.get_tree_path(&path).iter().sorted() {
             
-            if Self::true_path(id) == path {
+            if id.path() == &path {
                 (0..=level).for_each(|_| models.push_str("  "));
                 models.push_str(&format!("- [⬢ {model}]({path}/{model}.md)\n",
                     model = id.name(),
@@ -113,14 +104,14 @@ impl Documentation {
                 ));
             }
             else {
-                sub_areas.push(id.path().get(path.len()-1).unwrap().clone())
+                sub_areas.push(id.path().get(path.len()).unwrap().clone())
             }
         }
 
         let mut treatments = String::new();
         for id in self.collection.treatments.get_tree_path(&path).iter().sorted() {
             
-            if Self::true_path(id) == path {
+            if id.path() == &path {
                 (0..=level).for_each(|_| treatments.push_str("  "));
                 treatments.push_str(&format!("- [⤇ {treatment}]({path}/{treatment}.md)\n",
                     treatment = id.name(),
@@ -128,7 +119,7 @@ impl Documentation {
                 ));
             }
             else {
-                sub_areas.push(id.path().get(path.len()-1).unwrap().clone())
+                sub_areas.push(id.path().get(path.len()).unwrap().clone())
             }
         }
 
@@ -154,7 +145,7 @@ impl Documentation {
     fn write_element(&self, id: &Identifier, contents: String) -> std::io::Result<()> {
 
         let mut path = self.output_path.join("src");
-        path.push(Self::true_path(id).join("/"));
+        path.push(id.path().join("/"));
 
         std::fs::create_dir_all(&path)?;
 
@@ -169,9 +160,9 @@ impl Documentation {
 
         let mut areas = Vec::new();
 
-        self.collection.functions.identifiers().iter().for_each(|id| areas.push(Self::true_path(id)));
-        self.collection.models.identifiers().iter().for_each(|id| areas.push(Self::true_path(id)));
-        self.collection.treatments.identifiers().iter().for_each(|id| areas.push(Self::true_path(id)));
+        self.collection.functions.identifiers().iter().for_each(|id| areas.push(id.path().clone()));
+        self.collection.models.identifiers().iter().for_each(|id| areas.push(id.path().clone()));
+        self.collection.treatments.identifiers().iter().for_each(|id| areas.push(id.path().clone()));
 
         areas.iter().flat_map(|area| {
             let mut steps = Vec::new();
@@ -187,13 +178,11 @@ impl Documentation {
     fn area(&self, path: Vec<String>) -> String {
         let mut sub_areas = Vec::new();
 
-        // The '-1' in sub_areas.push(id.path().get(path.len()-1).unwrap().clone()) could be removed once root is included in path
-        // also true_path could be removed
 
         let mut functions = String::new();
         for id in self.collection.functions.get_tree_path(&path).iter().sorted() {
             
-            if Self::true_path(id) == path {
+            if id.path() == &path {
                 functions.push_str(&format!("[ {func}]({func}.md)  \n",
                     func = id.name(),
                 ));
@@ -209,7 +198,7 @@ impl Documentation {
         let mut models = String::new();
         for id in self.collection.models.get_tree_path(&path).iter().sorted() {
             
-            if Self::true_path(id) == path {
+            if id.path() == &path {
                 models.push_str(&format!("⬢ [{model}]({model}.md)  \n",
                     model = id.name(),
                 ));
@@ -225,7 +214,7 @@ impl Documentation {
         let mut treatments = String::new();
         for id in self.collection.treatments.get_tree_path(&path).iter().sorted() {
             
-            if Self::true_path(id) == path {
+            if id.path() == &path {
                 treatments.push_str(&format!("⤇ [{treatment}]({treatment}.md)  \n",
                     treatment = id.name(),
                 ));
@@ -256,8 +245,8 @@ impl Documentation {
 
     fn get_location(&self, local: &Identifier, to: &Identifier) -> String {
 
-        let local_path = Self::true_path(local);
-        let to_path = Self::true_path(to);
+        let local_path = local.path();
+        let to_path = to.path();
 
         let mut url = String::new();
 
