@@ -1,8 +1,7 @@
 
 //! Provides script paths management.
 
-use std::fmt;
-use crate::logic::descriptor::identifier::{Identifier, Root};
+use crate::logic::descriptor::identifier::Identifier;
 
 /// Container-helper structure for paths in scripts.
 /// 
@@ -11,35 +10,6 @@ use crate::logic::descriptor::identifier::{Identifier, Root};
 pub struct Path {
     /// Vector of string containing literally the path steps.
     path: Vec<String>,
-    root: PathRoot,
-}
-
-/// Convenience enum for handling and identifying path root types.
-/// 
-/// All values are self-describing regarding Mélodium rules, except `Other`, which actually indicates any invalid roots.
-/// In most (all?) cases, having `Other` should end in error.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum PathRoot {
-    Core,
-    Std,
-    Main,
-    Local,
-    Other,
-}
-
-impl fmt::Display for PathRoot {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-
-        let string = match self {
-            PathRoot::Core => "core",
-            PathRoot::Std => "std",
-            PathRoot::Main => "main",
-            PathRoot::Local => "local",
-            PathRoot::Other => "other",
-        };
-
-        write!(f, "{}", string)
-    }
 }
 
 impl Path {
@@ -68,23 +38,8 @@ impl Path {
     /// ```
     pub fn new(path: Vec<String>) -> Self {
 
-        let first = path.first();
-        let root = if let Some(val) = first {
-            match val.as_str() {
-                "core" => PathRoot::Core,
-                "std" => PathRoot::Std,
-                "main" => PathRoot::Main,
-                "local" => PathRoot::Local,
-                _ => PathRoot::Other
-            }
-        }
-        else {
-            PathRoot::Other
-        };
-
         Self {
-            root,
-            path: path.iter().skip(1).map(|s| s.clone()).collect()
+            path
         }
     }
 
@@ -93,15 +48,20 @@ impl Path {
         &self.path
     }
 
-    pub fn root(&self) -> PathRoot {
-        self.root
+    pub fn root(&self) -> String {
+        self.path.first().map(|s| s.clone()).unwrap_or_default()
     }
 
     /// Tells if the path is valid.
     /// 
-    /// It is a shorthand for `path.root() != PathRoot::Other`.
+    /// Currently check if at least a root is set up and no empty elements are present
     pub fn is_valid(&self) -> bool {
-        self.root != PathRoot::Other
+        if self.path.len() > 0 {
+            !self.path.iter().any(|s| s.is_empty())
+        }
+        else {
+            false
+        }
     }
 
     /// Turn the path into an identifier.
@@ -109,17 +69,11 @@ impl Path {
     /// * `element_name`: name of the element supposed to be identified under that path.
     /// 
     /// # Warning
-    /// A path can only be turned into identifier if its root is `core`/[PathRoot::Core](super::path::PathRoot::Core), `std`/[PathRoot::Std](super::path::PathRoot::Std) or `main`/[PathRoot::Main](super::path::PathRoot::Main) (local paths are not absolute so not usable to make idenfier).
-    /// The `core` conversion to identifier is available only for convenience, as nothing in scripted can become part of the core.
+    /// A path can only be turned into identifier if its root exists and is different from `local` (local paths are not absolute so not usable to make idenfier).
     pub fn to_identifier(&self, element_name: &str) -> Option<Identifier> {
 
-        if let Some(root) = match self.root {
-            PathRoot::Core => Some(Root::Core),
-            PathRoot::Std => Some(Root::Std),
-            PathRoot::Main => Some(Root::Main),
-            _ => None
-        } {
-            Some(Identifier::new(root, self.path.clone(), element_name))
+        if self.is_valid() {
+            Some(Identifier::new(self.path.clone(), element_name))
         }
         else {
             None

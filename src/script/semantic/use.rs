@@ -6,8 +6,8 @@ use super::common::Node;
 use std::sync::{Arc, Weak, RwLock};
 use crate::script::error::ScriptError;
 use crate::script::text::Use as TextUse;
-use crate::script::path::{Path, PathRoot};
-use crate::logic::descriptor::identifier::{Identifier, Root};
+use crate::script::path::Path;
+use crate::logic::descriptor::identifier::Identifier;
 
 use super::script::Script;
 
@@ -97,33 +97,26 @@ impl Use {
 impl Node for Use {
     fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
 
-        if self.path.root() == PathRoot::Other {
-            Err(ScriptError::semantic("Root '".to_string() + self.path.path().first().unwrap_or(&"".to_string()) + "' is not valid.", self.text.element.position))
+        if self.path.root() != "core"
+            && self.path.root() != "std"
+            && self.path.root() != "main"
+            && self.path.root() != "local" {
+            Err(ScriptError::semantic(format!("Root '{}' is not valid.", self.path.root()), self.text.element.position))
         }
         else {
-            if let Some(root) = match self.path.root() {
-                PathRoot::Core => Some(Root::Core),
-                PathRoot::Std => Some(Root::Std),
-                PathRoot::Main => Some(Root::Main),
-                _ => None
-            } { // "Non-local" case
+            if self.path.root() == "local" { // "Local" case
 
-                self.identifier = Some(Identifier::new(root, self.path.path().clone(), &self.element));
+                let mut steps = path.path().clone();
+                self.path.path().iter().skip(1).for_each(|s| steps.push(s.clone()));
+
+                self.identifier = Some(Identifier::new(steps, &self.element));
 
                 Ok(())
             }
-            else { // "Local" case
-                
-                let mut steps = path.path().clone();
-                steps.append(&mut self.path.path().clone());
-
-                let root = match path.root() {
-                    PathRoot::Std => Some(Root::Std),
-                    PathRoot::Main => Some(Root::Main),
-                    _ => None
-                };
-
-                self.identifier = Some(Identifier::new(root.unwrap(), steps, &self.element));
+            else { 
+                // "Non-local" case
+            
+                self.identifier = Some(Identifier::new(self.path.path().clone(), &self.element));
 
                 Ok(())
             }

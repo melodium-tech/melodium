@@ -147,7 +147,6 @@ use std::path::{Path as StdPath, PathBuf};
 use std::sync::Arc;
 use executive::world::World;
 use logic::descriptor::SequenceTreatmentDescriptor;
-use logic::descriptor::identifier::Root;
 use script::instance::Instance;
 use script::base::Base;
 use script::location::Location;
@@ -300,7 +299,7 @@ pub fn make_package(stdlib: Option<&String>, main: &String, output: &String) {
     let mut tree = script::restitution::tree::Tree::new();
 
     for ref identifier in instance.collection().as_ref().unwrap().models.identifiers() {
-        if identifier.root() == &Root::Main {
+        if identifier.root() == "main" {
             if let Some(ref model_designer) = instance.collection().as_ref().unwrap().models.get(identifier).unwrap().designer() {
                 tree.add_model(model_designer);
             }
@@ -308,7 +307,7 @@ pub fn make_package(stdlib: Option<&String>, main: &String, output: &String) {
     }
 
     for ref identifier in instance.collection().as_ref().unwrap().treatments.identifiers() {
-        if identifier.root() == &Root::Main {
+        if identifier.root() == "main" {
             if let Some(ref sequence_designer) = instance.collection().as_ref().unwrap().treatments.get(identifier).unwrap().designer() {
                 tree.add_sequence(sequence_designer);
             }

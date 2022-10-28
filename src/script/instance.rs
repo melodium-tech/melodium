@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::base::Base;
 use super::location::Location;
 use super::file::File;
-use super::path::{Path, PathRoot};
+use super::path::Path;
 use super::error::ScriptError;
 use crate::logic::collection_pool::CollectionPool;
 use crate::core::core_collection::core_collection;
@@ -218,15 +218,15 @@ impl Instance {
     fn get_canonical_path(&self, includer_location: &Location, path: &Path) -> Option<(Location, Path)> {
 
         if path.is_valid() {
-            if path.root() == PathRoot::Core {
+            if path.root() == "core" {
                 None
             }
-            else if path.root() == PathRoot::Std {
+            else if path.root() == "std" {
                 let mut location = Location::new(self.standard.clone(), PathBuf::new());
 
                 //path.path().iter().map(|name| canonical_path.push(name));
                 // Skipping "std" step, and pushing each intermediate name.
-                for name in path.path().iter() {
+                for name in path.path().iter().skip(1) {
                     location.path.push(name);
                 }
 
@@ -234,7 +234,7 @@ impl Instance {
 
                 Some((location, path.clone()))
             }
-            else if path.root() == PathRoot::Main {
+            else if path.root() == "main" {
                 let mut location = Location::new(self.main.base.clone(), PathBuf::new());
 
                 // Removing filename.
@@ -248,7 +248,7 @@ impl Instance {
 
                 Some((location, path.clone()))
             }
-            else if path.root() == PathRoot::Local {
+            else if path.root() == "local" {
                 let mut path_from_main = Vec::new();
                 path_from_main.push("main".to_string());
                 let mut canonical_path = includer_location.path.clone();
