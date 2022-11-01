@@ -16,25 +16,15 @@ impl Path {
     /// Instanciates a new path.
     /// 
     /// ```
-    /// # use melodium::script::path::{Path, PathRoot};
+    /// # use melodium::script::path::Path;
     /// // use main/foo/bar::UselessElement
     /// let raw_valid_path = vec![  "main".to_string(),
     ///                             "foo".to_string(),
     ///                             "bar".to_string()];
     /// 
     /// let valid_path = Path::new(raw_valid_path);
-    /// assert_eq!(valid_path.root(), PathRoot::Main);
+    /// assert_eq!(valid_path.root(), "main");
     /// assert!(valid_path.is_valid());
-    /// 
-    /// // use oops/i/made/typo::UnreachableElement
-    /// let raw_invalid_path = vec!["oops".to_string(),
-    ///                             "i".to_string(),
-    ///                             "made".to_string(),
-    ///                             "typo".to_string()];
-    /// 
-    /// let invalid_path = Path::new(raw_invalid_path);
-    /// assert_eq!(invalid_path.root(), PathRoot::Other);
-    /// assert!(!invalid_path.is_valid());
     /// ```
     pub fn new(path: Vec<String>) -> Self {
 
