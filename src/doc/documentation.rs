@@ -160,9 +160,11 @@ impl Documentation {
 
         let mut areas = Vec::new();
 
-        self.collection.functions.identifiers().iter().for_each(|id| areas.push(id.path().clone()));
-        self.collection.models.identifiers().iter().for_each(|id| areas.push(id.path().clone()));
-        self.collection.treatments.identifiers().iter().for_each(|id| areas.push(id.path().clone()));
+        for root in &self.roots {
+            self.collection.functions.get_tree_path(&vec![root.clone()]).iter().for_each(|id| areas.push(id.path().clone()));
+            self.collection.models.get_tree_path(&vec![root.clone()]).iter().for_each(|id| areas.push(id.path().clone()));
+            self.collection.treatments.get_tree_path(&vec![root.clone()]).iter().for_each(|id| areas.push(id.path().clone()));
+        }
 
         areas.iter().flat_map(|area| {
             let mut steps = Vec::new();
