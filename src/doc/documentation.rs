@@ -196,7 +196,7 @@ impl Documentation {
                 ));
             }
             else {
-                sub_areas.push(id.path().get(path.len()-1).unwrap().clone())
+                sub_areas.push(id.path().get(path.len()).unwrap().clone())
             }
         }
         if !functions.is_empty() {
@@ -212,7 +212,7 @@ impl Documentation {
                 ));
             }
             else {
-                sub_areas.push(id.path().get(path.len()-1).unwrap().clone())
+                sub_areas.push(id.path().get(path.len()).unwrap().clone())
             }
         }
         if !models.is_empty() {
@@ -228,7 +228,7 @@ impl Documentation {
                 ));
             }
             else {
-                sub_areas.push(id.path().get(path.len()-1).unwrap().clone())
+                sub_areas.push(id.path().get(path.len()).unwrap().clone())
             }
         }
         if !treatments.is_empty() {
@@ -236,7 +236,7 @@ impl Documentation {
         }
 
         let mut subs = String::new();
-        let sub_areas: Vec<String>  = sub_areas.iter().unique().map(|s| s.clone()).collect();
+        let sub_areas: Vec<String> = sub_areas.iter().unique().map(|s| s.clone()).collect();
         for area in sub_areas {
             
             subs.push_str(&format!("[{area}]({area}/index.md)  \n"));

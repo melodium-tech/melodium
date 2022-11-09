@@ -5,6 +5,7 @@
 ### Bugs fixes
 
 - Documentation CLI ignores root option #49
+- Documentation subareas wrongly listed #53
 
 ## [v0.5.2] (2022-11-01)
 
