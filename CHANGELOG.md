@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Bugs fixes
+
+- Documentation CLI ignores root option #49
+
 ## [v0.5.2] (2022-11-01)
 
 ### Features

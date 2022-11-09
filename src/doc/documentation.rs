@@ -46,16 +46,21 @@ impl Documentation {
         std::fs::write(path.join("SUMMARY.md"), self.summary())?;
         std::fs::write(self.output_path.join("book.toml"), Self::default_mdbook_config())?;
 
-        for id in self.collection.functions.identifiers() {
-            self.write_element(&id, self.function(self.collection.functions.get(&id).unwrap()))?;
-        }
+        for root in &self.roots {
+            
+            let path = vec![root.clone()];
 
-        for id in self.collection.models.identifiers() {
-            self.write_element(&id, self.model(self.collection.models.get(&id).unwrap()))?;
-        }
-
-        for id in self.collection.treatments.identifiers() {
-            self.write_element(&id, self.treatment(self.collection.treatments.get(&id).unwrap()))?;
+            for id in self.collection.functions.get_tree_path(&path) {
+                self.write_element(&id, self.function(self.collection.functions.get(&id).unwrap()))?;
+            }
+    
+            for id in self.collection.models.get_tree_path(&path) {
+                self.write_element(&id, self.model(self.collection.models.get(&id).unwrap()))?;
+            }
+    
+            for id in self.collection.treatments.get_tree_path(&path) {
+                self.write_element(&id, self.treatment(self.collection.treatments.get(&id).unwrap()))?;
+            }
         }
 
         Ok(())
@@ -161,9 +166,10 @@ impl Documentation {
         let mut areas = Vec::new();
 
         for root in &self.roots {
-            self.collection.functions.get_tree_path(&vec![root.clone()]).iter().for_each(|id| areas.push(id.path().clone()));
-            self.collection.models.get_tree_path(&vec![root.clone()]).iter().for_each(|id| areas.push(id.path().clone()));
-            self.collection.treatments.get_tree_path(&vec![root.clone()]).iter().for_each(|id| areas.push(id.path().clone()));
+            let path = vec![root.clone()];
+            self.collection.functions.get_tree_path(&path).iter().for_each(|id| areas.push(id.path().clone()));
+            self.collection.models.get_tree_path(&path).iter().for_each(|id| areas.push(id.path().clone()));
+            self.collection.treatments.get_tree_path(&path).iter().for_each(|id| areas.push(id.path().clone()));
         }
 
         areas.iter().flat_map(|area| {
