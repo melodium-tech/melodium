@@ -6,7 +6,7 @@ use std::sync::Arc;
 use super::descriptor::{ConnectionDescriptor, DataTypeDescriptor, DataTypeStructureDescriptor as DataStructure, DataTypeTypeDescriptor as DataType};
 
 pub struct Connections {
-    connections: HashMap<(Option<DataTypeDescriptor>, Option<DataTypeDescriptor>), Arc<ConnectionDescriptor>>
+    connections: HashMap<(DataTypeDescriptor, DataTypeDescriptor), Arc<ConnectionDescriptor>>
 }
 
 impl Connections {
@@ -16,10 +16,7 @@ impl Connections {
             connections: HashMap::new()
         };
 
-        // Basic connection, without data transmission.
-        connections.insert(ConnectionDescriptor::new(None, None));
-
-		// Connections transmitting scalar void.
+        // Connections transmitting scalar void.
 		connections.insert_oi(DataStructure::Scalar, DataType::Void, DataStructure::Scalar, DataType::Void);
 		connections.insert_oi(DataStructure::Scalar, DataType::Void, DataStructure::Vector, DataType::Void);
 		// Connections transmitting vectors of void.
@@ -153,11 +150,11 @@ impl Connections {
     }
 
     fn insert_oi(&mut self, output_structure: DataStructure, output_type: DataType, input_structure: DataStructure, input_type: DataType) {
-        self.insert(ConnectionDescriptor::new(Some(DataTypeDescriptor::new(output_structure, output_type)), Some(DataTypeDescriptor::new(input_structure, input_type))));
+        self.insert(ConnectionDescriptor::new(DataTypeDescriptor::new(output_structure, output_type), DataTypeDescriptor::new(input_structure, input_type)));
     }
 
-    pub fn get(output_type: Option<DataTypeDescriptor>, input_type: Option<DataTypeDescriptor>) -> Option<&'static Arc<ConnectionDescriptor>> {
+    pub fn get(output_type: &DataTypeDescriptor, input_type: &DataTypeDescriptor) -> Option<&'static Arc<ConnectionDescriptor>> {
 
-        Self::singleton().connections.get(&(output_type, input_type))
+        Self::singleton().connections.get(&(*output_type, *input_type))
     }
 }

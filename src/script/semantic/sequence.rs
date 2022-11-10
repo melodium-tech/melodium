@@ -467,15 +467,17 @@ impl Sequence {
             treatment.make_design(&treatment_designer)?;
         }
 
+        println!("Before connections design…");
+
         // Connections
         for rc_connection in &self.connections {
 
             let connection = rc_connection.read().unwrap();
 
-            let connection_designer = connection.get_designer(&mut rc_designer.write().unwrap())?;
-
-            connection.make_design(&connection_designer, &rc_designer)?;
+            connection.make_design(&mut rc_designer.write().unwrap())?;
         }
+
+        println!("Connections design made!");
 
         wrap_logic_error!(
             rc_designer.read().unwrap().register(),
