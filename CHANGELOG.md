@@ -7,6 +7,8 @@
 - Documentation CLI ignores root option #49
 - Documentation subareas wrongly listed #53
 - Drawing tells errors #48
+- Disabling non-connecting connection #26
+- Self-to-Self connections are refused #50
 
 ## [v0.5.2] (2022-11-01)
 
