@@ -351,13 +351,30 @@ pub fn make_package(stdlib: Option<&String>, main: &String, output: &String) {
 pub fn make_svg(stdlib: Option<&String>, main: &String, output: &String, entries: &Vec<String>) {
 
     let instance = build(stdlib, main);
+    if !instance.errors().is_empty() {
+        print_instance_errors(&instance);
+        return;
+    }
+
     let collection = Arc::clone(instance.collection().as_ref().unwrap());
 
     for entry in entries {
         let split = entry.split("::").collect::<Vec<_>>();
+
+        if split.len() != 2 {
+            eprintln!("{}: '{}' is not a valid identifier", "error".bold().red(), entry);
+            continue;
+        }
+
         let path = Path::new(split[0].split("/").map(|s| s.to_string()).collect());
         let name = split[1].to_string();
-        let identifier = path.to_identifier(&name).unwrap();
+
+        let identifier = if let Some(id) = path.to_identifier(&name) {
+            id
+        } else {
+            eprintln!("{}: '{}' is not a valid identifier", "error".bold().red(), entry);
+            continue;
+        };
 
         if let Some(descriptor) = collection.treatments.get(&identifier) {
 
@@ -367,8 +384,18 @@ pub fn make_svg(stdlib: Option<&String>, main: &String, output: &String, entries
 
                 let path = PathBuf::from(format!("{output}/{name}.svg"));
 
-                std::fs::write(path, svg).unwrap();
+                if let Err(e) = std::fs::write(path, svg) {
+                    print_io_error(&e)
+                }
             }
+            else {
+                eprintln!("{}: '{}' cannot be drawn", "error".bold().red(), identifier);
+                continue;
+            }
+        }
+        else {
+            eprintln!("{}: no treatment found for '{}'", "error".bold().red(), identifier);
+            continue;
         }
     }
 }
