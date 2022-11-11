@@ -1,10 +1,8 @@
 
 use std::sync::{Arc, Weak, RwLock};
 use super::super::error::LogicError;
-use super::super::descriptor::ConnectionDescriptor;
-use super::super::descriptor::TreatmentDescriptor;
+use super::super::descriptor::{ConnectionDescriptor, InputDescriptor, OutputDescriptor};
 use super::treatment::Treatment;
-use super::sequence::Sequence;
 
 #[derive(Debug)]
 pub enum IO {
@@ -32,8 +30,6 @@ impl PartialEq for IO {
 #[derive(Debug)]
 pub struct Connection {
 
-    sequence: Weak<RwLock<Sequence>>,
-
     descriptor: Arc<ConnectionDescriptor>,
 
     output_treatment: Option<IO>,
@@ -45,9 +41,8 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn new(sequence: &Arc<RwLock<Sequence>>, descriptor: &Arc<ConnectionDescriptor>) -> Self {
+    pub fn new(descriptor: &Arc<ConnectionDescriptor>) -> Self {
         Self {
-            sequence: Arc::downgrade(sequence),
             descriptor: Arc::clone(descriptor),
             output_treatment: None,
             output_name: None,
@@ -65,50 +60,37 @@ impl Connection {
      * 
      * Connections works as _treatment output_ -> _treatment input_
      */
-    pub fn set_output(&mut self, treatment: &Arc<RwLock<Treatment>>, output: &str) -> Result<(), LogicError> {
+    pub fn set_output(&mut self, treatment: &Arc<RwLock<Treatment>>, output: &OutputDescriptor) -> Result<(), LogicError> {
 
-        if let Some(output_descriptor) = treatment.read().unwrap().descriptor().outputs().get(output) {
+        if output.datatype() == self.descriptor.output_type() {
 
-            if output_descriptor.datatype() == self.descriptor.output_type() {
+            self.output_treatment = Some(IO::Treatment(Arc::downgrade(treatment)));
+            self.output_name = Some(output.name().to_string());
 
-                self.output_treatment = Some(IO::Treatment(Arc::downgrade(treatment)));
-                self.output_name = Some(output.to_string());
-
-                Ok(())
-            }
-            else {
-                Err(LogicError::connection_output_unmatching_datatype())
-            }
+            Ok(())
         }
         else {
-            Err(LogicError::connection_output_not_found())
+            Err(LogicError::connection_output_unmatching_datatype())
         }
     }
 
     /**
      * Assign a self input as connection starting point (connection output).
      * 
-     * `input_name` is here the name as seen from `Self`, that will be used as output for the connection
+     * `input` is seen from `Self`, that will be used as output for the connection
      * (connections works as _treatment output_ -> _treatment input_).
      */
-    pub fn set_self_output(&mut self, input_name: &str) -> Result<(), LogicError> {
+    pub fn set_self_output(&mut self, input: &InputDescriptor) -> Result<(), LogicError> {
         
-        if let Some(input_descriptor) = self.sequence.upgrade().unwrap().read().unwrap()
-                                                .descriptor().inputs().get(input_name) {
+        if input.datatype() == self.descriptor.output_type() {
 
-            if input_descriptor.datatype() == self.descriptor.output_type() {
+            self.output_treatment = Some(IO::Sequence());
+            self.output_name = Some(input.name().to_string());
 
-                self.output_treatment = Some(IO::Sequence());
-                self.output_name = Some(input_name.to_string());
-
-                Ok(())
-            }
-            else {
-                Err(LogicError::connection_output_unmatching_datatype())
-            }
+            Ok(())
         }
         else {
-            Err(LogicError::connection_output_not_found())
+            Err(LogicError::connection_output_unmatching_datatype())
         }
     }
 
@@ -117,50 +99,37 @@ impl Connection {
      * 
      * Connections works as _treatment output_ -> _treatment input_
      */
-    pub fn set_input(&mut self, treatment: &Arc<RwLock<Treatment>>, input: &str) -> Result<(), LogicError> {
+    pub fn set_input(&mut self, treatment: &Arc<RwLock<Treatment>>, input: &InputDescriptor) -> Result<(), LogicError> {
 
-        if let Some(input_descriptor) = treatment.read().unwrap().descriptor().inputs().get(input) {
+        if input.datatype() == self.descriptor.input_type() {
 
-            if input_descriptor.datatype() == self.descriptor.input_type() {
+            self.input_treatment = Some(IO::Treatment(Arc::downgrade(treatment)));
+            self.input_name = Some(input.name().to_string());
 
-                self.input_treatment = Some(IO::Treatment(Arc::downgrade(treatment)));
-                self.input_name = Some(input.to_string());
-
-                Ok(())
-            }
-            else {
-                Err(LogicError::connection_input_unmatching_datatype())
-            }
+            Ok(())
         }
         else {
-            Err(LogicError::connection_input_not_found())
+            Err(LogicError::connection_input_unmatching_datatype())
         }
     }
 
     /**
      * Assign a self ouput as connection ending point (connection input).
      * 
-     * `output_name` is here the name as seen from `Self`, that will be used as input for the connection
+     * `output` is seen from `Self`, that will be used as input for the connection
      * (connections works as _treatment output_ -> _treatment input_).
      */
-    pub fn set_self_input(&mut self, output_name: &str) -> Result<(), LogicError> {
+    pub fn set_self_input(&mut self, output: &OutputDescriptor) -> Result<(), LogicError> {
 
-        if let Some(output_descriptor) = self.sequence.upgrade().unwrap().read().unwrap()
-                                                    .descriptor().outputs().get(output_name) {
+        if output.datatype() == self.descriptor.input_type() {
 
-            if output_descriptor.datatype() == self.descriptor.input_type() {
+            self.input_treatment = Some(IO::Sequence());
+            self.input_name = Some(output.name().to_string());
 
-                self.input_treatment = Some(IO::Sequence());
-                self.input_name = Some(output_name.to_string());
-
-                Ok(())
-            }
-            else {
-                Err(LogicError::connection_input_unmatching_datatype())
-            }
+            Ok(())
         }
         else {
-            Err(LogicError::connection_input_not_found())
+            Err(LogicError::connection_input_unmatching_datatype())
         }
     }
 

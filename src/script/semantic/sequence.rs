@@ -467,8 +467,6 @@ impl Sequence {
             treatment.make_design(&treatment_designer)?;
         }
 
-        println!("Before connections design…");
-
         // Connections
         for rc_connection in &self.connections {
 
@@ -476,8 +474,6 @@ impl Sequence {
 
             connection.make_design(&mut rc_designer.write().unwrap())?;
         }
-
-        println!("Connections design made!");
 
         wrap_logic_error!(
             rc_designer.read().unwrap().register(),
