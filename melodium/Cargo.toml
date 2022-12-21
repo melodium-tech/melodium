@@ -1,0 +1,50 @@
+[package]
+name = "melodium"
+version = "0.5.3"
+authors = ["Quentin VIGNAUD <qvignaud@gmail.com>"]
+rust-version = "1.60"
+edition = "2018"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "Dataflow-oriented language & tool, focusing on treatments applied on data, allowing high scalability and massive parallelization safely."
+keywords = ["dataflow","parallelization","scalability","async","signal"]
+categories = ["compilers", "science", "concurrency", "asynchronous"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "melodium"
+
+[[bin]]
+name = "melodium"
+
+[features]
+default = ["doc"]
+doc = []
+
+[dependencies]
+async-std = "1.12.0"
+brotli = "3.3.4"
+clap = { version = "4.0.9", features = ["cargo", "derive"] }
+colored = "2.0.0"
+convert_case = "0.6.0"
+cpal = "0.14.0"
+downcast-rs = "1.2.0"
+encoding_rs = "0.8.31"
+futures = "0.3.24"
+glob = "0.3.0"
+hex = "0.4.3"
+hound = "3.5.0"
+html-escape = "0.2.11"
+indoc = "1.0"
+itertools = "0.10.5"
+lazy_static = "1.4.0"
+linkme = "0.3.3"
+tar = "0.4.38"
+regex = "1.6.0"
+
+[build-dependencies]
+glob = "0.3.0"
+path-slash = "0.2.1"
