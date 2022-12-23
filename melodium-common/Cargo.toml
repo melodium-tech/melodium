@@ -1,0 +1,21 @@
+[package]
+name = "melodium-common"
+version = "0.5.3"
+authors = ["Quentin VIGNAUD <qvignaud@gmail.com>"]
+rust-version = "1.60"
+edition = "2018"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "Dataflow-oriented language & tool, focusing on treatments applied on data, allowing high scalability and massive parallelization safely."
+keywords = ["dataflow","parallelization","scalability","async","signal"]
+categories = ["compilers", "science", "concurrency", "asynchronous"]
+
+[lib]
+name = "melodium_common"
+
+[dependencies]
+async-trait = "0.1.60"
+downcast-rs = "1.2.0"
+hex = "0.4"

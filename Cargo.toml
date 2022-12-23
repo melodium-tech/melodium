@@ -1,2 +1,6 @@
 [workspace]
-members = ["melodium"]
+members = [
+    "melodium",
+    "melodium-common",
+    "melodium-impl",
+    ]
