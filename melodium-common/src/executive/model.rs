@@ -5,7 +5,7 @@ use downcast_rs::{DowncastSync, impl_downcast};
 use crate::descriptor::Model as ModelDescriptor;
 use crate::executive::Value;
 
-pub type ModelId = u64;
+pub type ModelId = usize;
 
 pub trait Model : Debug + DowncastSync + Send + Sync {
 

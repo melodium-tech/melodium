@@ -19,3 +19,7 @@ name = "melodium_common"
 async-trait = "0.1.60"
 downcast-rs = "1.2.0"
 hex = "0.4"
+
+[features]
+default = ["doc"]
+doc = []
