@@ -19,6 +19,65 @@ pub struct Treatment {
     auto_reference: Weak<Self>,
 }
 
+impl Treatment {
+    pub fn new(identifier: Identifier) -> Self {
+        Self {
+            identifier,
+            #[cfg(feature = "doc")]
+            documentation: String::new(),
+            models: HashMap::new(),
+            parameters: HashMap::new(),
+            inputs: HashMap::new(),
+            outputs: HashMap::new(),
+            contexts: HashMap::new(),
+            designer: Mutex::new(None),
+            auto_reference: Weak::default(),
+        }
+    }
+
+    pub fn set_documentation(&mut self, documentation: &str) {
+        #[cfg(feature = "doc")]
+        {self.documentation = String::from(documentation);}
+        #[cfg(not(feature = "doc"))]
+        let _ = documentation;
+    }
+
+    pub fn add_model(&mut self, name: &str, model: &Arc<dyn Model>) {
+        self.models.insert(name.to_string(), Arc::clone(model));
+    }
+
+    pub fn add_parameter(&mut self, parameter: Parameter) {
+        self.parameters.insert(parameter.name().to_string(), parameter);
+    }
+
+    pub fn add_input(&mut self, input: Input) {
+        self.inputs.insert(input.name().to_string(), input);
+    }
+
+    pub fn add_output(&mut self, output: Output) {
+        self.outputs.insert(output.name().to_string(), output);
+    }
+
+    pub fn add_context(&mut self, context: &Arc<Context>) {
+        self.contexts.insert(context.name().to_string(), context.clone());
+    }
+
+    pub fn commit(self) -> Arc<Self> {
+        Arc::new_cyclic(|me| Self {
+            identifier: self.identifier,
+            #[cfg(feature = "doc")]
+            documentation: self.documentation,
+            models: self.models,
+            parameters: self.parameters,
+            inputs: self.inputs,
+            outputs: self.outputs,
+            contexts: self.contexts,
+            designer: self.designer,
+            auto_reference: me.clone(),
+        })
+    }
+}
+
 impl Identified for Treatment {
     fn identifier(&self) -> &Identifier {
         &self.identifier
