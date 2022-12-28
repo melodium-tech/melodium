@@ -1,6 +1,5 @@
-
-use async_trait::async_trait;
 use crate::executive::RecvResult;
+use async_trait::async_trait;
 
 #[async_trait]
 pub trait Input {

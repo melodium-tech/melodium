@@ -1,6 +1,5 @@
-
-use core::fmt::{Display, Formatter, Result};
 use super::{DataType, Flow};
+use core::fmt::{Display, Formatter, Result};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Output {
@@ -32,17 +31,14 @@ impl Output {
 }
 
 impl Display for Output {
-
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-
         match self.flow {
             Flow::Block => {
                 write!(f, "{}: Block<{}>", self.name, self.datatype)
-            },
+            }
             Flow::Stream => {
                 write!(f, "{}: Stream<{}>", self.name, self.datatype)
             }
         }
-        
     }
 }

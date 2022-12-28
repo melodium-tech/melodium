@@ -1,11 +1,23 @@
-
+use super::{
+    Buildable, Context, Documented, Identified, Input, Model, Output, Parameterized,
+    TreatmentBuildMode,
+};
 use core::fmt::{Debug, Display};
+use downcast_rs::{impl_downcast, DowncastSync};
 use std::collections::HashMap;
 use std::sync::Arc;
-use downcast_rs::{DowncastSync, impl_downcast};
-use super::{Buildable, Context, Documented, Identified, Input, Model, Output, Parameterized, TreatmentBuildMode};
 
-pub trait Treatment: Identified + Documented + Parameterized + Buildable<TreatmentBuildMode> + DowncastSync + Display + Debug + Send + Sync {
+pub trait Treatment:
+    Identified
+    + Documented
+    + Parameterized
+    + Buildable<TreatmentBuildMode>
+    + DowncastSync
+    + Display
+    + Debug
+    + Send
+    + Sync
+{
     fn inputs(&self) -> &HashMap<String, Input>;
     fn outputs(&self) -> &HashMap<String, Output>;
     fn models(&self) -> &HashMap<String, Arc<dyn Model>>;

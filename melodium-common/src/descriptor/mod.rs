@@ -1,4 +1,3 @@
-
 pub mod buildable;
 pub mod collection;
 pub mod context;
@@ -23,8 +22,8 @@ pub use context::Context;
 pub use data_type::{DataType, Structure, Type};
 pub use designer::Designer;
 pub use documented::Documented;
-pub use function::Function;
 pub use flow::Flow;
+pub use function::Function;
 pub use identified::Identified;
 pub use identifier::Identifier;
 pub use input::Input;

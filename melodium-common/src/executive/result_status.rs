@@ -1,7 +1,6 @@
-
 #[derive(Debug, Clone)]
 pub enum ResultStatus {
-    Ok
+    Ok,
 }
 
 impl Default for ResultStatus {
@@ -9,4 +8,3 @@ impl Default for ResultStatus {
         Self::Ok
     }
 }
-

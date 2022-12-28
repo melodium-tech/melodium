@@ -1,11 +1,9 @@
-
-use std::sync::Arc;
-use std::collections::HashMap;
 use crate::descriptor::Treatment as TreatmentDescriptor;
 use crate::executive::{Input, Model, TrackFuture, Value};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 pub trait Treatment {
-
     fn descriptor(&self) -> Arc<dyn TreatmentDescriptor>;
 
     fn set_parameter(&self, param: &str, value: &Value);

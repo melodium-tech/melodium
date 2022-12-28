@@ -1,11 +1,10 @@
-
-use core::fmt::Debug;
-use std::sync::{Arc, RwLock};
-use downcast_rs::{DowncastSync, impl_downcast};
-use crate::executive::{Model, Treatment, World};
 use super::Designer;
+use crate::executive::{Model, Treatment, World};
+use core::fmt::Debug;
+use downcast_rs::{impl_downcast, DowncastSync};
+use std::sync::{Arc, RwLock};
 
-pub trait Buildable<T> : Debug + DowncastSync + Send + Sync {
+pub trait Buildable<T>: Debug + DowncastSync + Send + Sync {
     fn build_mode(&self) -> &T;
 }
 impl_downcast!(sync Buildable<T>);

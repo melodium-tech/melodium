@@ -1,4 +1,3 @@
-
 pub mod context;
 pub mod function;
 pub mod future;
@@ -19,7 +18,7 @@ pub use input::Input;
 pub use model::{Model, ModelId};
 pub use output::Output;
 pub use result_status::ResultStatus;
-pub use transmission::{TransmissionError, RecvResult, SendResult};
+pub use transmission::{RecvResult, SendResult, TransmissionError};
 pub use treatment::Treatment;
 pub use value::Value;
 pub use world::{TrackId, World};

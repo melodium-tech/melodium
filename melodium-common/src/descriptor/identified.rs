@@ -1,4 +1,3 @@
-
 use super::Identifier;
 
 pub trait Identified {

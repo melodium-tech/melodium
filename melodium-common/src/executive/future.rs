@@ -1,4 +1,3 @@
-
 use super::ResultStatus;
 
 pub type ContinuousFuture = Box<dyn std::future::Future<Output = ()> + Send + Sync + Unpin>;

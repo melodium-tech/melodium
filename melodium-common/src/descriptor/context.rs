@@ -1,8 +1,7 @@
-
+use super::{DataType, Documented, Identified, Identifier};
 use core::fmt::{Display, Formatter, Result};
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use super::{DataType, Documented, Identified, Identifier};
 
 #[derive(Debug)]
 pub struct Context {
@@ -13,7 +12,11 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(identifier: Identifier, values: Vec<(&str, DataType)>, documentation: String) -> Self {
+    pub fn new(
+        identifier: Identifier,
+        values: Vec<(&str, DataType)>,
+        documentation: String,
+    ) -> Self {
         Self {
             identifier,
             values: HashMap::from_iter(values.iter().map(|v| (v.0.to_string(), v.1))),
@@ -34,9 +37,13 @@ impl Context {
 impl Documented for Context {
     fn documentation(&self) -> &str {
         #[cfg(feature = "doc")]
-        {&self.documentation}
+        {
+            &self.documentation
+        }
         #[cfg(not(feature = "doc"))]
-        {&""}
+        {
+            &""
+        }
     }
 }
 
@@ -47,9 +54,7 @@ impl Identified for Context {
 }
 
 impl Display for Context {
-
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-
         write!(f, "context {}", self.identifier.to_string())?;
 
         for (name, dt) in &self.values {
@@ -59,4 +64,3 @@ impl Display for Context {
         Ok(())
     }
 }
-

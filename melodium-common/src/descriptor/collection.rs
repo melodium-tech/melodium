@@ -1,7 +1,6 @@
-
-use std::sync::Arc;
-use std::collections::HashMap;
 use super::{Context, Function, Identified, Identifier, Model, Treatment};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 pub enum Entry {
     Context(Arc<Context>),
@@ -28,7 +27,7 @@ pub struct Collection {
 impl Collection {
     pub fn new() -> Self {
         Self {
-            elements: HashMap::new()
+            elements: HashMap::new(),
         }
     }
 
@@ -50,6 +49,9 @@ impl Collection {
 }
 
 pub enum Tree {
-    Branch { name: String, contents: HashMap<String, Tree> },
+    Branch {
+        name: String,
+        contents: HashMap<String, Tree>,
+    },
     Leaf(Entry),
 }

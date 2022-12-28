@@ -1,11 +1,20 @@
-
-use std::sync::Arc;
-use std::collections::HashMap;
+use super::{Buildable, Context, Documented, Identified, ModelBuildMode, Parameterized};
 use core::fmt::{Debug, Display};
-use downcast_rs::{DowncastSync, impl_downcast};
-use super::{Buildable, Context, Documented, Identified, Parameterized, ModelBuildMode};
+use downcast_rs::{impl_downcast, DowncastSync};
+use std::collections::HashMap;
+use std::sync::Arc;
 
-pub trait Model : Identified + Documented + Parameterized + Buildable<ModelBuildMode> + DowncastSync + Display + Debug + Send + Sync {
+pub trait Model:
+    Identified
+    + Documented
+    + Parameterized
+    + Buildable<ModelBuildMode>
+    + DowncastSync
+    + Display
+    + Debug
+    + Send
+    + Sync
+{
     fn is_core_model(&self) -> bool;
     fn base_model(&self) -> Arc<dyn Model>;
     fn sources(&self) -> &HashMap<String, Vec<Arc<Context>>>;

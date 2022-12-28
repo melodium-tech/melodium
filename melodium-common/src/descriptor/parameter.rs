@@ -1,7 +1,6 @@
-
-use core::fmt::{Display, Formatter, Result};
-use crate::executive::Value;
 use super::{DataType, Variability};
+use crate::executive::Value;
+use core::fmt::{Display, Formatter, Result};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Parameter {
@@ -12,7 +11,12 @@ pub struct Parameter {
 }
 
 impl Parameter {
-    pub fn new(name: &str, variability: Variability, datatype: DataType, default: Option<Value>) -> Self {
+    pub fn new(
+        name: &str,
+        variability: Variability,
+        datatype: DataType,
+        default: Option<Value>,
+    ) -> Self {
         Self {
             name: name.to_string(),
             variability,
@@ -39,14 +43,17 @@ impl Parameter {
 }
 
 impl Display for Parameter {
-
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-
-        write!(f, "{} {}: {}{}",
+        write!(
+            f,
+            "{} {}: {}{}",
             self.variability,
             self.name,
             self.datatype,
-            self.default.as_ref().map(|d| format!(" = {}", d)).unwrap_or_default()
+            self.default
+                .as_ref()
+                .map(|d| format!(" = {}", d))
+                .unwrap_or_default()
         )
     }
 }
