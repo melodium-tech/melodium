@@ -844,12 +844,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "melodium-core"
+version = "0.5.3"
+
+[[package]]
 name = "melodium-impl"
 version = "0.5.3"
 dependencies = [
  "hex",
  "melodium-common",
 ]
+
+[[package]]
+name = "melodium-lang"
+version = "0.5.3"
+
+[[package]]
+name = "melodium-util"
+version = "0.5.3"
 
 [[package]]
 name = "memchr"
