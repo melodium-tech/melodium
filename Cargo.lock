@@ -851,7 +851,7 @@ version = "0.5.3"
 name = "melodium-impl"
 version = "0.5.3"
 dependencies = [
- "hex",
+ "lazy_static",
  "melodium-common",
 ]
 

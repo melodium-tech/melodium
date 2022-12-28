@@ -5,7 +5,7 @@ use downcast_rs::{impl_downcast, DowncastSync};
 use std::sync::{Arc, RwLock};
 
 pub trait Buildable<T>: Debug + DowncastSync + Send + Sync {
-    fn build_mode(&self) -> &T;
+    fn build_mode(&self) -> T;
 }
 impl_downcast!(sync Buildable<T>);
 

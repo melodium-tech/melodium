@@ -21,7 +21,7 @@ pub trait Treatment:
     fn inputs(&self) -> &HashMap<String, Input>;
     fn outputs(&self) -> &HashMap<String, Output>;
     fn models(&self) -> &HashMap<String, Arc<dyn Model>>;
-    fn contexts(&self) -> &HashMap<String, Context>;
+    fn contexts(&self) -> &HashMap<String, Arc<Context>>;
     fn source_from(&self) -> &HashMap<Arc<dyn Model>, Vec<String>>;
     fn as_identified(&self) -> Arc<dyn Identified>;
     fn as_buildable(&self) -> Arc<dyn Buildable<TreatmentBuildMode>>;
