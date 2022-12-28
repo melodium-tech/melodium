@@ -31,6 +31,6 @@ pub use input::Input;
 pub use model::Model;
 pub use output::Output;
 pub use parameter::Parameter;
-pub use parameterized::Parameterized;
+pub use parameterized::{OrderedParameterized, Parameterized};
 pub use treatment::Treatment;
 pub use variability::Variability;
