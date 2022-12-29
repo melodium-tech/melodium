@@ -1,6 +1,7 @@
 
 use core::fmt::{Debug};
 use melodium_common::descriptor::Designer;
+use super::Scope;
 
 #[derive(Debug)]
 pub struct Model {}
