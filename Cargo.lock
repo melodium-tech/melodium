@@ -848,7 +848,7 @@ name = "melodium-core"
 version = "0.5.3"
 
 [[package]]
-name = "melodium-impl"
+name = "melodium-engine"
 version = "0.5.3"
 dependencies = [
  "lazy_static",

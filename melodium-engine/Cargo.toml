@@ -1,5 +1,5 @@
 [package]
-name = "melodium-impl"
+name = "melodium-engine"
 version = "0.5.3"
 authors = ["Quentin VIGNAUD <qvignaud@gmail.com>"]
 rust-version = "1.60"
@@ -13,7 +13,7 @@ keywords = ["dataflow","parallelization","scalability","async","signal"]
 categories = ["compilers", "science", "concurrency", "asynchronous"]
 
 [lib]
-name = "melodium_impl"
+name = "melodium_engine"
 
 [dependencies]
 melodium-common = { path = "../melodium-common", version = "0.5.3" }
