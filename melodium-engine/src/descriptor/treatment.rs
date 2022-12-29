@@ -1,5 +1,5 @@
 
-use core::fmt::*;
+use core::fmt::{Display, Formatter, Result};
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock, Mutex};
 use melodium_common::descriptor::{Treatment as TreatmentDescriptor, Identified, Identifier, Model, Parameter, Parameterized, Output, Input, Context, Buildable, TreatmentBuildMode, Documented};

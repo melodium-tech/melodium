@@ -16,4 +16,9 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 name = "melodium_util"
 
 [dependencies]
+melodium-common = { path = "../melodium-common", version = "0.5.3" }
+lazy_static = "1.4.0"
 
+[features]
+default = ["doc"]
+doc = []

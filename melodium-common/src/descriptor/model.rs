@@ -16,7 +16,7 @@ pub trait Model:
     + Sync
 {
     fn is_core_model(&self) -> bool;
-    fn base_model(&self) -> Arc<dyn Model>;
+    fn base_model(&self) -> Option<Arc<dyn Model>>;
     fn sources(&self) -> &HashMap<String, Vec<Arc<Context>>>;
     fn as_identified(&self) -> Arc<dyn Identified>;
     fn as_parameterized(&self) -> Arc<dyn Parameterized>;

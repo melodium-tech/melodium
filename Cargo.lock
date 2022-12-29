@@ -862,6 +862,10 @@ version = "0.5.3"
 [[package]]
 name = "melodium-util"
 version = "0.5.3"
+dependencies = [
+ "lazy_static",
+ "melodium-common",
+]
 
 [[package]]
 name = "memchr"

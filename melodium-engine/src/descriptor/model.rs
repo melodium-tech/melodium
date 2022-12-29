@@ -1,5 +1,5 @@
 
-use core::fmt::*;
+use core::fmt::{Display, Formatter, Result};
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock, Mutex};
 use melodium_common::descriptor::{Identified, Identifier, Model as ModelDescriptor, Parameter, Parameterized, Context, Buildable, ModelBuildMode, Documented};
@@ -101,8 +101,8 @@ impl ModelDescriptor for Model {
         false
     }
 
-    fn base_model(&self) -> Arc<dyn ModelDescriptor> {
-        Arc::clone(&self.base_model)
+    fn base_model(&self) -> Option<Arc<dyn ModelDescriptor>> {
+        Some(Arc::clone(&self.base_model))
     }
 
     fn sources(&self) -> &HashMap<String, Vec<Arc<Context>>> {

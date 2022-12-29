@@ -1,5 +1,4 @@
 pub mod context;
-pub mod function;
 pub mod future;
 pub mod input;
 pub mod model;
@@ -11,7 +10,6 @@ pub mod value;
 pub mod world;
 
 pub use context::Context;
-pub use function::Function;
 pub use future::ContinuousFuture;
 pub use future::TrackFuture;
 pub use input::Input;
