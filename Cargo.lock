@@ -851,6 +851,8 @@ version = "0.5.3"
 name = "melodium-engine"
 version = "0.5.3"
 dependencies = [
+ "async-std",
+ "futures",
  "lazy_static",
  "melodium-common",
 ]

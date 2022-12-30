@@ -1,8 +1,11 @@
+use crate::descriptor::Context as ContextDescriptor;
 use crate::executive::Value;
 use core::fmt::Debug;
 use downcast_rs::{impl_downcast, DowncastSync};
+use std::sync::Arc;
 
 pub trait Context: Debug + DowncastSync + Send + Sync {
-    fn get_value(&self, name: &str) -> Option<&Value>;
+    fn descriptor(&self) -> Arc<ContextDescriptor>;
+    fn get_value(&self, name: &str) -> &Value;
 }
 impl_downcast!(sync Context);
