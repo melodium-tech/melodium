@@ -7,8 +7,9 @@ use futures::stream::{FuturesUnordered, StreamExt};
 use async_std::task::block_on;
 use async_std::sync::Mutex;
 use async_std::channel::*;
+use async_trait::async_trait;
 use melodium_common::descriptor::{Buildable, TreatmentBuildMode};
-use melodium_common::executive::{ContinuousFuture, Model, ModelId, ResultStatus, TrackFuture, TrackId};
+use melodium_common::executive::{ContinuousFuture, Model, ModelId, ResultStatus, TrackFuture, TrackId, World as ExecutiveWorld, Context as ExecutiveContext};
 use crate::building::{BuildId, ContextualEnvironment, GenesisEnvironment, CheckEnvironment, StaticBuildResult};
 use crate::executive::Context;
 use crate::error::LogicError;
@@ -177,80 +178,6 @@ impl World {
         &self.errors
     }
 
-    pub fn add_continuous_task(&self, task: ContinuousFuture) {
-
-        let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
-
-        borrowed_continuous_tasks.push(task);
-    }
-
-    pub async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Context>, parent_track: Option<TrackId>, callback: Option<impl FnOnce(HashMap<String, Output>) -> Vec<TrackFuture>>) {
-
-        let track_id;
-        {
-            let mut counter = self.tracks_counter.lock().await;
-            track_id = *counter;
-            *counter = track_id + 1;
-        }
-
-        let mut track_futures: Vec<TrackFuture> = Vec::new();
-        let mut outputs: HashMap<String, Output> = HashMap::new();
-
-        {
-            let borrowed_sources = self.sources.read().unwrap();
-
-            let model_sources = borrowed_sources.get(&id).unwrap();
-
-            let entries = model_sources.get(source).unwrap();
-
-            let mut contextual_environment = ContextualEnvironment::new(
-                Weak::upgrade(&self.auto_reference).unwrap(),
-                track_id
-            );
-
-            contexts.iter().for_each(|(name, context)| contextual_environment.add_context(name, context.clone()));
-
-            for entry in entries {
-
-                let build_result = entry.descriptor.builder().dynamic_build(entry.id, &contextual_environment).unwrap();
-
-                track_futures.extend(build_result.prepared_futures);
-
-                for (input_name, mut input_transmitters) in build_result.feeding_inputs {
-
-                    match outputs.entry(input_name) {
-                        Entry::Vacant(e) => {
-                            let e = e.insert(Output::from(input_transmitters.pop().unwrap()));
-                            input_transmitters.iter().for_each(|i| e.add_input(i));
-                        },
-                        Entry::Occupied(e) => {
-                            input_transmitters.iter().for_each(|i| e.get().add_input(i));
-                        }
-                    }
-                }
-            }
-        }
-
-        let model_futures = if let Some(callback) = callback {
-            callback(outputs)
-        }
-        else { Vec::new() };
-
-        track_futures.extend(model_futures);
-
-        let ancestry = if let Some(parent) = parent_track {
-            self.tracks_info.lock().await.get(&parent).unwrap().ancestry_level + 1
-        }
-        else {
-            0
-        };
-
-        let info_track = InfoTrack::new(track_id, parent_track, ancestry);
-        let execution_track = ExecutionTrack::new(track_id, ancestry, join_all(track_futures));
-        self.tracks_info.lock().await.insert(track_id, info_track);
-        self.tracks_sender.send(execution_track).await.unwrap();
-    }
-
     pub fn live(&self) {
 
         let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
@@ -339,5 +266,82 @@ impl World {
             self.tracks_sender.close();
             self.end();
         }
+    }
+}
+
+#[async_trait]
+impl ExecutiveWorld for World {
+    fn add_continuous_task(&self,task:ContinuousFuture) {
+        
+        let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
+
+        borrowed_continuous_tasks.push(task);
+    }
+
+    async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Box<dyn ExecutiveContext>>, parent_track: Option<TrackId>, callback: Option<impl FnOnce(HashMap<String, Output>) -> Vec<TrackFuture>>) {
+
+        let track_id;
+        {
+            let mut counter = self.tracks_counter.lock().await;
+            track_id = *counter;
+            *counter = track_id + 1;
+        }
+
+        let mut track_futures: Vec<TrackFuture> = Vec::new();
+        let mut outputs: HashMap<String, Output> = HashMap::new();
+
+        {
+            let borrowed_sources = self.sources.read().unwrap();
+
+            let model_sources = borrowed_sources.get(&id).unwrap();
+
+            let entries = model_sources.get(source).unwrap();
+
+            let mut contextual_environment = ContextualEnvironment::new(
+                Weak::upgrade(&self.auto_reference).unwrap(),
+                track_id
+            );
+
+            contexts.iter().for_each(|(name, context)| contextual_environment.add_context(name, context.clone()));
+
+            for entry in entries {
+
+                let build_result = entry.descriptor.builder().dynamic_build(entry.id, &contextual_environment).unwrap();
+
+                track_futures.extend(build_result.prepared_futures);
+
+                for (input_name, mut input_transmitters) in build_result.feeding_inputs {
+
+                    match outputs.entry(input_name) {
+                        Entry::Vacant(e) => {
+                            let e = e.insert(Output::from(input_transmitters.pop().unwrap()));
+                            input_transmitters.iter().for_each(|i| e.add_input(i));
+                        },
+                        Entry::Occupied(e) => {
+                            input_transmitters.iter().for_each(|i| e.get().add_input(i));
+                        }
+                    }
+                }
+            }
+        }
+
+        let model_futures = if let Some(callback) = callback {
+            callback(outputs)
+        }
+        else { Vec::new() };
+
+        track_futures.extend(model_futures);
+
+        let ancestry = if let Some(parent) = parent_track {
+            self.tracks_info.lock().await.get(&parent).unwrap().ancestry_level + 1
+        }
+        else {
+            0
+        };
+
+        let info_track = InfoTrack::new(track_id, parent_track, ancestry);
+        let execution_track = ExecutionTrack::new(track_id, ancestry, join_all(track_futures));
+        self.tracks_info.lock().await.insert(track_id, info_track);
+        self.tracks_sender.send(execution_track).await.unwrap();
     }
 }
