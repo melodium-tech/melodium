@@ -29,7 +29,7 @@ impl BuilderTrait for Builder {
 
     fn static_build(&self, _host_treatment: Option<Arc<dyn Treatment>>, _host_build: Option<BuildId>, _label: String, environment: &GenesisEnvironment) -> Result<StaticBuildResult, LogicError> {
 
-        let model = (self.build_fn)(environment.world());
+        let model = (self.build_fn)(self.world.upgrade().unwrap());
 
         for (name, value) in environment.variables() {
             model.set_parameter(name, value);

@@ -35,6 +35,22 @@ impl Treatment {
         }
     }
 
+    pub fn designer(&self) -> Arc<RwLock<Designer>> {
+
+        let mut option_designer = self.designer.lock().expect("Mutex poisoned");
+
+        if let Some(designer_ref) = &*option_designer {
+            designer_ref.clone()
+        }
+        else {
+            let new_designer = Arc::new(RwLock::new(Designer{}));
+
+            *option_designer = Some(new_designer.clone());
+
+            new_designer
+        }
+    }
+
     pub fn set_documentation(&mut self, documentation: &str) {
         #[cfg(feature = "doc")]
         {self.documentation = String::from(documentation);}
@@ -101,18 +117,7 @@ impl Parameterized for Treatment {
 
 impl Buildable<TreatmentBuildMode> for Treatment {
     fn build_mode(&self) -> TreatmentBuildMode {
-        let mut option_designer = self.designer.lock().expect("Mutex poisoned");
-
-        if let Some(designer_ref) = &*option_designer {
-            TreatmentBuildMode::Designed(designer_ref.clone())
-        }
-        else {
-            let new_designer = Arc::new(RwLock::new(Designer{}));
-
-            *option_designer = Some(new_designer.clone());
-
-            TreatmentBuildMode::Designed(new_designer)
-        }
+        TreatmentBuildMode::Designed(self.designer())
     }
 }
 

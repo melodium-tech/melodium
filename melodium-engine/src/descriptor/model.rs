@@ -32,6 +32,22 @@ impl Model {
         }
     }
 
+    pub fn designer(&self) -> Arc<RwLock<Designer>> {
+
+        let mut option_designer = self.designer.lock().expect("Mutex poisoned");
+
+        if let Some(designer_ref) = &*option_designer {
+            designer_ref.clone()
+        }
+        else {
+            let new_designer = Arc::new(RwLock::new(Designer{}));
+
+            *option_designer = Some(new_designer.clone());
+
+            new_designer
+        }
+    }
+
     pub fn set_documentation(&mut self, documentation: &str) {
         #[cfg(feature = "doc")]
         {self.documentation = String::from(documentation);}
@@ -80,18 +96,7 @@ impl Parameterized for Model {
 
 impl Buildable<ModelBuildMode> for Model {
     fn build_mode(&self) -> ModelBuildMode {
-        let mut option_designer = self.designer.lock().expect("Mutex poisoned");
-
-        if let Some(designer_ref) = &*option_designer {
-            ModelBuildMode::Designed(designer_ref.clone())
-        }
-        else {
-            let new_designer = Arc::new(RwLock::new(Designer{}));
-
-            *option_designer = Some(new_designer.clone());
-
-            ModelBuildMode::Designed(new_designer)
-        }
+        ModelBuildMode::Designed(self.designer())
     }
 }
 
