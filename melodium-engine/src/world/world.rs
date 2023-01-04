@@ -8,9 +8,9 @@ use async_std::task::block_on;
 use async_std::sync::Mutex;
 use async_std::channel::*;
 use async_trait::async_trait;
-use melodium_common::descriptor::{Buildable, TreatmentBuildMode};
+use melodium_common::descriptor::{Buildable, TreatmentBuildMode, Identified, Identifier};
 use melodium_common::executive::{ContinuousFuture, Model, ModelId, ResultStatus, TrackFuture, TrackId, World as ExecutiveWorld, Context as ExecutiveContext};
-use crate::building::{BuildId, ContextualEnvironment, GenesisEnvironment, CheckEnvironment, StaticBuildResult};
+use crate::building::{BuildId, Builder, ContextualEnvironment, GenesisEnvironment, CheckEnvironment, StaticBuildResult};
 use crate::executive::Context;
 use crate::error::LogicError;
 use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
@@ -103,6 +103,10 @@ impl World {
             descriptor,
             id: build_id
         });
+    }
+
+    pub fn builder(&self, identifier: &Identifier) -> Arc<dyn Builder> {
+
     }
 
     pub fn genesis(&self, beginning: &dyn Buildable<TreatmentBuildMode>) -> bool {

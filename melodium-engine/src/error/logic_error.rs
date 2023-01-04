@@ -11,6 +11,7 @@ use std::string::ToString;
 pub enum LogicErrorKind {
     /// The referenced variable for value doesn't exist.
     UnexistingVariable,
+    // TODO check wether still useful
     /// The referenced context to look for getting value doesn't exist.
     UnexistingContext,
     /// The referenced context variable for value doesn't exist.

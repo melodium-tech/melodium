@@ -2,6 +2,7 @@ use super::{Context, Function, Identified, Identifier, Model, Treatment};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub enum Entry {
     Context(Arc<Context>),
     Function(Arc<dyn Function>),
@@ -20,6 +21,7 @@ impl Entry {
     }
 }
 
+#[derive(Debug)]
 pub struct Collection {
     elements: HashMap<Identifier, Entry>,
 }

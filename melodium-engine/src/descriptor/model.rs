@@ -1,9 +1,11 @@
 
-use core::fmt::{Display, Formatter, Result};
+use core::fmt::{Display, Formatter, Result as FmtResult};
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock, Mutex};
 use melodium_common::descriptor::{Identified, Identifier, Model as ModelDescriptor, Parameter, Parameterized, Context, Buildable, ModelBuildMode, Documented};
-use crate::design::model::Model as Designer;
+use crate::designer::model::Model as Designer;
+use crate::design::model::Model as Design;
+use crate::error::LogicError;
 
 #[derive(Debug)]
 pub struct Model {
@@ -13,6 +15,7 @@ pub struct Model {
     base_model: Arc<dyn ModelDescriptor>,
     parameters: HashMap<String, Parameter>,
     designer: Mutex<Option<Arc<RwLock<Designer>>>>,
+    design: Mutex<Option<Arc<Design>>>,
     auto_reference: Weak<Self>,
 }
 
@@ -28,8 +31,14 @@ impl Model {
             base_model: Arc::clone(base_model),
             parameters: HashMap::new(),
             designer: Mutex::new(None),
+            design: Mutex::new(None),
             auto_reference: Weak::default(),
         }
+    }
+
+    pub fn reset_designer(&self) {
+        let mut option_designer = self.designer.lock().expect("Mutex poisoned");
+        *option_designer = None;
     }
 
     pub fn designer(&self) -> Arc<RwLock<Designer>> {
@@ -40,12 +49,33 @@ impl Model {
             designer_ref.clone()
         }
         else {
-            let new_designer = Arc::new(RwLock::new(Designer{}));
+            let new_designer = Designer::new(&self.auto_reference.upgrade().unwrap());
 
             *option_designer = Some(new_designer.clone());
 
             new_designer
         }
+    }
+
+    pub fn commit_design(&self) -> Result<(), LogicError> {
+
+        let mut option_designer = self.designer.lock().expect("Mutex poisoned");
+        let mut option_design = self.design.lock().expect("Mutex poisoned");
+
+        if let Some(designer_ref) = &*option_designer {
+
+            let designer = designer_ref.read().unwrap();
+            *option_design = Some(Arc::new(designer.design()?));
+        }
+
+        Ok(())
+    }
+
+    pub fn design(&self) -> Option<Arc<Design>> {
+
+        let mut option_design = self.design.lock().expect("Mutex poisoned");
+
+        option_design.as_ref().map(|design| Arc::clone(design))
     }
 
     pub fn set_documentation(&mut self, documentation: &str) {
@@ -67,6 +97,7 @@ impl Model {
             base_model: self.base_model,
             parameters: self.parameters,
             designer: self.designer,
+            design: self.design,
             auto_reference: me.clone()
         })
     }
@@ -125,7 +156,7 @@ impl ModelDescriptor for Model {
 
 impl Display for Model {
     
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "model {}({})",
             self.identifier.to_string(),
             self.parameters().iter().map(|(_, p)| p.to_string()).collect::<Vec<_>>().join(", "),

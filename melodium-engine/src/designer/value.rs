@@ -1,14 +1,12 @@
 
 use std::sync::Arc;
-use melodium_common::descriptor::Function;
+use melodium_common::descriptor::{Context, Function};
 use melodium_common::executive::Value as ExecutiveValue;
 
 #[derive(Clone, Debug)]
 pub enum Value {
     Raw(ExecutiveValue),
     Variable(String),
-    Context((String, String)),
+    Context(Arc<Context>, String),
     Function(Arc<dyn Function>, Vec<Value>),
 }
-
-

@@ -1,24 +1,24 @@
 
 use crate::building::Builder as BuilderTrait;
-use melodium_common::descriptor::Treatment;
+use melodium_common::descriptor::{Treatment, Parameterized, Identified};
 use crate::error::LogicError;
 use crate::building::{BuildId, ContextualEnvironment, GenesisEnvironment, StaticBuildResult, DynamicBuildResult, CheckBuildResult, CheckEnvironment, CheckStep};
 use crate::world::World;
 use crate::design::{Model, Value};
-use std::sync::{Arc, Weak, RwLock};
+use std::sync::{Arc, Weak};
 use core::fmt::Debug;
 
 #[derive(Debug)]
 pub struct Builder {
     world: Weak<World>,
-    designer: Arc<RwLock<Model>>,
+    design: Arc<Model>,
 }
 
 impl Builder {
-    pub fn new(world: Weak<World>, designer: Arc<RwLock<Model>>) -> Self {
+    pub fn new(world: Weak<World>, design: Arc<Model>) -> Self {
         Self {
             world,
-            designer,
+            design,
         }
     }
 }
@@ -28,11 +28,10 @@ impl BuilderTrait for Builder {
     fn static_build(&self, host_treatment: Option<Arc<dyn Treatment>>, host_build: Option<BuildId>, label: String, environment: &GenesisEnvironment) -> Result<StaticBuildResult, LogicError> {
 
         let mut remastered_environment = environment.base();
-
-        let borrowed_designer = self.designer.read().unwrap();
+        let descriptor = self.design.descriptor.upgrade().unwrap();
 
         // We do assign default values (will be replaced if some other explicitly assigned)
-        for (_, declared_parameter) in borrowed_designer.descriptor().parameters() {
+        for (_, declared_parameter) in descriptor.parameters() {
 
             if let Some(data) = declared_parameter.default() {
                 remastered_environment.add_variable(declared_parameter.name(), data.clone());
@@ -40,28 +39,26 @@ impl BuilderTrait for Builder {
         }
 
         // Assigning explicit data
-        for (_, parameter) in borrowed_designer.parameters().iter() {
+        for (_, parameter) in self.design.parameters.iter() {
 
-            let borrowed_param = parameter.read().unwrap();
-
-            let data = match borrowed_param.value().as_ref().unwrap() {
-                Value::Raw(data) => data,
+            let data = match parameter.value {
+                Value::Raw(data) => &data,
                 Value::Variable(name) => {
                     if let Some(data) = environment.get_variable(&name) {
                         data
                     }
                     else {
-                        borrowed_designer.descriptor().parameters().get(name).unwrap().default().as_ref().unwrap()
+                        descriptor.parameters().get(&name).unwrap().default().as_ref().unwrap()
                     }
                 },
                 // Not possible in model to use context, should have been catcher by designed, aborting
                 _ => panic!("Impossible data recoverage")
             };
 
-            remastered_environment.add_variable(borrowed_param.name(), data.clone());
+            remastered_environment.add_variable(&parameter.name, data.clone());
         }
 
-        borrowed_designer.descriptor().core_model().builder().static_build(host_treatment, host_build, label, &remastered_environment)
+        self.world.upgrade().unwrap().builder(descriptor.identifier()).static_build(host_treatment, host_build, label, &remastered_environment)
     }
 
     fn dynamic_build(&self, _build: BuildId, _environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
