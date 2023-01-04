@@ -6,7 +6,7 @@ use melodium_common::descriptor::Designer;
 pub struct Treatment {}
 
 impl Designer for Treatment {
-    fn set_collection(&self, collection: std::sync::Arc<melodium_common::descriptor::Collection>) {
+    fn set_collection(&mut self, collection: std::sync::Arc<melodium_common::descriptor::Collection>) {
         todo!()
     }
 }
