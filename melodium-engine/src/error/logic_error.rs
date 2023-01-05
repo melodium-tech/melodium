@@ -9,6 +9,8 @@ use std::string::ToString;
 /// Kind of logic error that might happen.
 #[derive(Debug, Clone)]
 pub enum LogicErrorKind {
+    /// Designer do not have collection defined.
+    CollectionUndefined,
     /// The referenced variable for value doesn't exist.
     UnexistingVariable,
     // TODO check wether still useful
@@ -92,6 +94,7 @@ impl ToString for LogicErrorKind {
     
     fn to_string(&self) -> String {
         match self {
+            Self::CollectionUndefined => "No collection defined",
             Self::UnexistingVariable => "Referenced variable for value doesn't exist",
             Self::UnexistingContext => "Referenced context does not exist",
             Self::UnexistingContextVariable => "Referenced context value does not exist",
@@ -143,6 +146,13 @@ pub struct LogicError {
 }
 
 impl LogicError {
+
+    /// Generates a new error with [`LogicErrorKind::CollectionUndefined`] kind.
+    pub fn collection_undefined() -> Self {
+        Self {
+            kind: LogicErrorKind::CollectionUndefined
+        }
+    }
 
     /// Generates a new error with [`LogicErrorKind::UnexistingVariable`] kind.
     pub fn unexisting_variable() -> Self {

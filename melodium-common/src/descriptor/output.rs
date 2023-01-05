@@ -1,4 +1,4 @@
-use super::{DataType, Flow};
+use super::{DataType, Flow, Input};
 use core::fmt::{Display, Formatter, Result};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -27,6 +27,10 @@ impl Output {
 
     pub fn flow(&self) -> &Flow {
         &self.flow
+    }
+
+    pub fn matches(&self, input: &Input) -> bool {
+        input.matches(self)
     }
 }
 

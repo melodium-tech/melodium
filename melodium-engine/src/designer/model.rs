@@ -111,6 +111,12 @@ impl Model {
     }
 }
 
+impl Designer for Model {
+    fn set_collection(&mut self, collection: Arc<Collection>) {
+        self.collection = Some(collection);
+    }
+}
+
 impl Scope for Model {
 
     fn descriptor(&self) -> Arc<dyn Parameterized> {
@@ -119,12 +125,5 @@ impl Scope for Model {
 
     fn collection(&self) -> Option<Arc<Collection>> {
         self.collection.as_ref().map(|collection| Arc::clone(collection))
-        
-    }
-}
-
-impl Designer for Model {
-    fn set_collection(&mut self, collection: Arc<Collection>) {
-        todo!()
     }
 }
