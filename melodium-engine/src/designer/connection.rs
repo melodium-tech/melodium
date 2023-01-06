@@ -27,139 +27,72 @@ impl PartialEq for IO {
     }
 }
 
+/**
+ * Describes designed connection.
+ * 
+ * Main point of attention is about connection logic:
+ * - a connection entry point is an _output_;
+ * - a connection exit point is an _input_.
+ * But:
+ * - when a connection starts from `self`, its entry point is the `self` treatment **input**;
+ * - when a connection ends to `self`, its exit point is the `self` treatment **output**.
+ * 
+ * In functions, all is always ordered in the connection direction, starting from entry point and finishing to exit point.
+ */
 #[derive(Debug)]
 pub struct Connection {
 
-    output_treatment: Option<IO>,
-    output_name: Option<String>,
+    pub output_treatment: IO,
+    pub output_name: String,
 
-    input_treatment: Option<IO>,
-    input_name: Option<String>,
+    pub input_treatment: IO,
+    pub input_name: String,
     
 }
 
 impl Connection {
-    pub fn new() -> Self {
+
+    pub fn new_internal(
+        output_name: &str,
+    output_treatment: &Arc<RwLock<TreatmentInstanciation>>,
+    input_name: &str,
+    input_treatment: &Arc<RwLock<TreatmentInstanciation>>,
+    ) -> Self {
         Self {
-            output_treatment: None,
-            output_name: None,
-            input_treatment: None,
-            input_name: None,
+            output_name: output_name.to_string(),
+            output_treatment: IO::Treatment(Arc::downgrade(output_treatment)),
+            input_name: input_name.to_string(),
+            input_treatment: IO::Treatment(Arc::downgrade(input_treatment)),
+            
         }
     }
 
-    /**
-     * Assign connection starting point.
-     * 
-     * Connections works as _treatment output_ -> _treatment input_
-     */
-    pub fn set_output(&mut self, treatment: &Arc<RwLock<TreatmentInstanciation>>, output: &Output) -> Result<(), LogicError> {
-
-        if output.datatype() == self.descriptor.output_type() {
-
-            self.output_treatment = Some(IO::Treatment(Arc::downgrade(treatment)));
-            self.output_name = Some(output.name().to_string());
-
-            Ok(())
-        }
-        else {
-            Err(LogicError::connection_output_unmatching_datatype())
+    pub fn new_self(self_input_name: &str, self_output_name: &str) -> Self {
+        Self {
+            output_name: self_input_name.to_string(),
+            output_treatment: IO::Sequence(),
+            input_name: self_output_name.to_string(),
+            input_treatment: IO::Sequence()
         }
     }
 
-    /**
-     * Assign a self input as connection starting point (connection output).
-     * 
-     * `input` is seen from `Self`, that will be used as output for the connection
-     * (connections works as _treatment output_ -> _treatment input_).
-     */
-    pub fn set_self_output(&mut self, input: &Input) -> Result<(), LogicError> {
-        
-        if input.datatype() == self.descriptor.output_type() {
-
-            self.output_treatment = Some(IO::Sequence());
-            self.output_name = Some(input.name().to_string());
-
-            Ok(())
-        }
-        else {
-            Err(LogicError::connection_output_unmatching_datatype())
-        }
+    pub fn new_self_to_internal(self_input_name: &str,input_name: &str,
+        input_treatment: &Arc<RwLock<TreatmentInstanciation>>,) -> Self {
+            Self {
+                output_name: self_input_name.to_string(),
+                output_treatment: IO::Sequence(),
+                input_name: input_name.to_string(),
+            input_treatment: IO::Treatment(Arc::downgrade(input_treatment)),
+            }
     }
 
-    /**
-     * Assign connection ending point.
-     * 
-     * Connections works as _treatment output_ -> _treatment input_
-     */
-    pub fn set_input(&mut self, treatment: &Arc<RwLock<TreatmentInstanciation>>, input: &Input) -> Result<(), LogicError> {
-
-        if input.datatype() == self.descriptor.input_type() {
-
-            self.input_treatment = Some(IO::Treatment(Arc::downgrade(treatment)));
-            self.input_name = Some(input.name().to_string());
-
-            Ok(())
+    pub fn new_internal_to_self(output_name: &str,
+        output_treatment: &Arc<RwLock<TreatmentInstanciation>>, self_output_name: &str) -> Self {
+        Self {
+            output_name: output_name.to_string(),
+            output_treatment: IO::Treatment(Arc::downgrade(output_treatment)),
+            input_name: self_output_name.to_string(),
+            input_treatment: IO::Sequence()
         }
-        else {
-            Err(LogicError::connection_input_unmatching_datatype())
-        }
-    }
-
-    /**
-     * Assign a self ouput as connection ending point (connection input).
-     * 
-     * `output` is seen from `Self`, that will be used as input for the connection
-     * (connections works as _treatment output_ -> _treatment input_).
-     */
-    pub fn set_self_input(&mut self, output: &Output) -> Result<(), LogicError> {
-
-        if output.datatype() == self.descriptor.input_type() {
-
-            self.input_treatment = Some(IO::Sequence());
-            self.input_name = Some(output.name().to_string());
-
-            Ok(())
-        }
-        else {
-            Err(LogicError::connection_input_unmatching_datatype())
-        }
-    }
-
-    pub fn output_treatment(&self) -> &Option<IO> {
-        &self.output_treatment
-    }
-
-    pub fn output_name(&self) -> &Option<String> {
-        &self.output_name
-    }
-
-    pub fn input_treatment(&self) -> &Option<IO> {
-        &self.input_treatment
-    }
-
-    pub fn input_name(&self) -> &Option<String> {
-        &self.input_name
-    }
-
-    pub fn validate(&self) -> Result<(), LogicError> {
-
-        if self.output_treatment.is_none() {
-            return Err(LogicError::connection_output_not_set())
-        }
-
-        if self.input_treatment.is_none() {
-            return Err(LogicError::connection_input_not_set())
-        }
-
-        if self.output_name.is_none() {
-            return Err(LogicError::connection_output_required())
-        }
-
-        if self.input_name.is_none() {
-            return Err(LogicError::connection_input_required())
-        }
-
-        Ok(())
     }
 }

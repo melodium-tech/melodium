@@ -29,8 +29,12 @@ impl Output {
         &self.flow
     }
 
-    pub fn matches(&self, input: &Input) -> bool {
-        input.matches(self)
+    pub fn matches_input(&self, input: &Input) -> bool {
+        input.matches_output(self)
+    }
+
+    pub fn matches_output(&self, output: &Output) -> bool {
+        &self.datatype == output.datatype() && &self.flow == output.flow()
     }
 }
 

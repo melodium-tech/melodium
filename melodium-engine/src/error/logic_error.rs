@@ -32,28 +32,12 @@ pub enum LogicErrorKind {
     NoContext,
     /// The context referenced is not available in this scope.
     UnavailableContext,
-    /// A connection input data is required, none provided.
-    ConnectionInputRequired,
-    /// A connection input data is provided, but none is allowed.
-    ConnectionInputForbidden,
     /// The connection input data is not provided by input treatment.
     ConnectionInputNotFound,
-    /// The connection input data type provided by input treatment doesn't match the connection descriptor.
-    ConnectionInputUnmatchingDataType,
-    /// The connection input treatment is not setted up.
-    ConnectionInputNotSet,
     /// The connection input data is not provided in self inputs.
     ConnectionSelfInputNotFound,
-    /// A connection output data is required, none provided.
-    ConnectionOutputRequired,
-    /// A connection output data is provided, but none is allowed.
-    ConnectionOutputForbidden,
     /// The connection output data is not provided by output treatment.
     ConnectionOutputNotFound,
-    /// The connection output data type provided by output treatment doesn't match the connection descriptor.
-    ConnectionOutputUnmatchingDataType,
-    /// The connection output treatment is not setted up.
-    ConnectionOutputNotSet,
     /// The connection output data is not provided in self outputs.
     ConnectionSelfOutputNotFound,
     /// The treatment is not existing within current available treatments.
@@ -105,17 +89,9 @@ impl ToString for LogicErrorKind {
             Self::NoValue => "No value assigned",
             Self::NoContext => "Cannot use context value there",
             Self::UnavailableContext => "Context not available in this scope",
-            Self::ConnectionInputRequired => "Connection input data is required, none provided",
-            Self::ConnectionInputForbidden => "Connection input data is provided, but none is allowed",
             Self::ConnectionInputNotFound => "Connection input data is not provided by input treatment",
-            Self::ConnectionInputUnmatchingDataType => "Connection input data type provided by input treatment does not match the connection descriptor",
-            Self::ConnectionInputNotSet => "Connection input treatment is not setted up",
             Self::ConnectionSelfInputNotFound => "Connection input data is not provided in self inputs",
-            Self::ConnectionOutputRequired => "Connection output data is required, none provided",
-            Self::ConnectionOutputForbidden => "Connection output data is provided, but none is allowed",
             Self::ConnectionOutputNotFound => "Connection output data is not provided by output treatment",
-            Self::ConnectionOutputUnmatchingDataType => "Connection output data type provided by output treatment does not match the connection descriptor",
-            Self::ConnectionOutputNotSet => "Connection output treatment is not setted up",
             Self::ConnectionSelfOutputNotFound => "Connection output data is not provided in self outputs",
             Self::UnexistingTreatment => "Treatment does not exist",
             Self::UnexistingModel => "Model does not exist",
@@ -224,38 +200,10 @@ impl LogicError {
         }
     }
 
-    /// Generates a new error with [`LogicErrorKind::ConnectionInputRequired`] kind.
-    pub fn connection_input_required() -> Self {
-        Self {
-            kind: LogicErrorKind::ConnectionInputRequired
-        }
-    }
-
-    /// Generates a new error with [`LogicErrorKind::ConnectionInputForbidden`] kind.
-    pub fn connection_input_forbidden() -> Self {
-        Self {
-            kind: LogicErrorKind::ConnectionInputForbidden
-        }
-    }
-
     /// Generates a new error with [`LogicErrorKind::ConnectionInputNotFound`] kind.
     pub fn connection_input_not_found() -> Self {
         Self {
             kind: LogicErrorKind::ConnectionInputNotFound
-        }
-    }
-
-    /// Generates a new error with [`LogicErrorKind::ConnectionInputUnmatchingDataType`] kind.
-    pub fn connection_input_unmatching_datatype() -> Self {
-        Self {
-            kind: LogicErrorKind::ConnectionInputUnmatchingDataType
-        }
-    }
-
-    /// Generates a new error with [`LogicErrorKind::ConnectionInputNotSet`] kind.
-    pub fn connection_input_not_set() -> Self {
-        Self {
-            kind: LogicErrorKind::ConnectionInputNotSet
         }
     }
 
@@ -266,38 +214,10 @@ impl LogicError {
         }
     }
 
-    /// Generates a new error with [`LogicErrorKind::ConnectionOutputRequired`] kind.
-    pub fn connection_output_required() -> Self {
-        Self {
-            kind: LogicErrorKind::ConnectionOutputRequired
-        }
-    }
-
-    /// Generates a new error with [`LogicErrorKind::ConnectionOutputForbidden`] kind.
-    pub fn connection_output_forbidden() -> Self {
-        Self {
-            kind: LogicErrorKind::ConnectionOutputForbidden
-        }
-    }
-
     /// Generates a new error with [`LogicErrorKind::ConnectionOutputNotFound`] kind.
     pub fn connection_output_not_found() -> Self {
         Self {
             kind: LogicErrorKind::ConnectionOutputNotFound
-        }
-    }
-
-    /// Generates a new error with [`LogicErrorKind::ConnectionOutputUnmatchingDataType`] kind.
-    pub fn connection_output_unmatching_datatype() -> Self {
-        Self {
-            kind: LogicErrorKind::ConnectionOutputUnmatchingDataType
-        }
-    }
-
-    /// Generates a new error with [`LogicErrorKind::ConnectionOutputNotSet`] kind.
-    pub fn connection_output_not_set() -> Self {
-        Self {
-            kind: LogicErrorKind::ConnectionOutputNotSet
         }
     }
 

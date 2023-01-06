@@ -17,7 +17,7 @@ pub fn get_builder(world: Arc<World>, descriptor: &Arc<dyn Buildable<ModelBuildM
         ModelBuildMode::Designed(_) => {
 
             let designed_descriptor = descriptor.downcast_arc::<Model>().unwrap();
-            Arc::new(DesignedBuilder::new(Arc::downgrade(&world), designed_descriptor.designer()))
+            Arc::new(DesignedBuilder::new(Arc::downgrade(&world), designed_descriptor.design().expect("No design available")))
         }
     }
 }

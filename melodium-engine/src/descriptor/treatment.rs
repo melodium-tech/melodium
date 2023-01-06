@@ -1,9 +1,11 @@
 
-use core::fmt::{Display, Formatter, Result};
+use core::fmt::{Display, Formatter, Result as FmtResult};
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock, Mutex};
 use melodium_common::descriptor::{Treatment as TreatmentDescriptor, Identified, Identifier, Model, Parameter, Parameterized, Output, Input, Context, Buildable, TreatmentBuildMode, Documented};
-use crate::design::treatment::Treatment as Designer;
+use crate::design::Treatment as Design;
+use crate::designer::Treatment as Designer;
+use crate::error::LogicError;
 
 #[derive(Debug)]
 pub struct Treatment {
@@ -16,6 +18,7 @@ pub struct Treatment {
     outputs: HashMap<String, Output>,
     contexts: HashMap<String, Arc<Context>>,
     designer: Mutex<Option<Arc<RwLock<Designer>>>>,
+    design: Mutex<Option<Arc<Design>>>,
     auto_reference: Weak<Self>,
 }
 
@@ -31,8 +34,14 @@ impl Treatment {
             outputs: HashMap::new(),
             contexts: HashMap::new(),
             designer: Mutex::new(None),
+            design: Mutex::new(None),
             auto_reference: Weak::default(),
         }
+    }
+
+    pub fn reset_designer(&self) {
+        let mut option_designer = self.designer.lock().expect("Mutex poisoned");
+        *option_designer = None;
     }
 
     pub fn designer(&self) -> Arc<RwLock<Designer>> {
@@ -43,12 +52,33 @@ impl Treatment {
             designer_ref.clone()
         }
         else {
-            let new_designer = Arc::new(RwLock::new(Designer{}));
+            let new_designer = Designer::new(&self.auto_reference.upgrade().unwrap());
 
             *option_designer = Some(new_designer.clone());
 
             new_designer
         }
+    }
+
+    pub fn commit_design(&self) -> Result<(), LogicError> {
+
+        let mut option_designer = self.designer.lock().expect("Mutex poisoned");
+        let mut option_design = self.design.lock().expect("Mutex poisoned");
+
+        if let Some(designer_ref) = &*option_designer {
+
+            let designer = designer_ref.read().unwrap();
+            *option_design = Some(Arc::new(designer.design()?));
+        }
+
+        Ok(())
+    }
+
+    pub fn design(&self) -> Option<Arc<Design>> {
+
+        let mut option_design = self.design.lock().expect("Mutex poisoned");
+
+        option_design.as_ref().map(|design| Arc::clone(design))
     }
 
     pub fn set_documentation(&mut self, documentation: &str) {
@@ -89,6 +119,7 @@ impl Treatment {
             outputs: self.outputs,
             contexts: self.contexts,
             designer: self.designer,
+            design: self.design,
             auto_reference: me.clone(),
         })
     }
@@ -123,7 +154,7 @@ impl Buildable<TreatmentBuildMode> for Treatment {
 
 impl Display for Treatment {
 
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
 
         write!(f, "treatment {}", self.identifier.to_string())?;
 

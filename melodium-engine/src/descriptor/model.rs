@@ -3,8 +3,8 @@ use core::fmt::{Display, Formatter, Result as FmtResult};
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, RwLock, Mutex};
 use melodium_common::descriptor::{Identified, Identifier, Model as ModelDescriptor, Parameter, Parameterized, Context, Buildable, ModelBuildMode, Documented};
-use crate::designer::model::Model as Designer;
-use crate::design::model::Model as Design;
+use crate::designer::Model as Designer;
+use crate::design::Model as Design;
 use crate::error::LogicError;
 
 #[derive(Debug)]

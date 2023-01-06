@@ -169,24 +169,19 @@ impl TreatmentInstanciation {
 
         // We initialize the considered connection by taking only the ones were the current treatment
         // is set as input (end point of the connection).
-        let mut considered_connections: Vec<Arc<RwLock<Connection>>> = all_connections.iter().filter_map(
+        let mut considered_connections: Vec<&Connection> = all_connections.iter().filter_map(
             |raw_conn|
-            if let Some(treatment) = raw_conn.read().unwrap().input_treatment() {
-                match treatment {
-                    IO::Sequence() => None,
-                    IO::Treatment(t) => {
-                        // We want the input (end point) to be the current treatment, and the output (start point) to not be 'Self'-sequence.
-                        if self.auto_reference.ptr_eq(&t) && raw_conn.read().unwrap().output_treatment() != &Some(IO::Sequence()) {
-                            Some(Arc::clone(&raw_conn))
-                        }
-                        else {
-                            None
-                        }
+            match raw_conn.input_treatment {
+                IO::Sequence() => None,
+                IO::Treatment(t) => {
+                    // We want the input (end point) to be the current treatment, and the output (start point) to not be 'Self'-sequence.
+                    if self.auto_reference.ptr_eq(&t) && raw_conn.output_treatment != IO::Sequence() {
+                        Some(raw_conn)
+                    }
+                    else {
+                        None
                     }
                 }
-            }
-            else {
-                None
             }
         ).collect();
 
@@ -203,9 +198,9 @@ impl TreatmentInstanciation {
 
                 if considered_connections.iter().any(
                     |conn|
-                    conn.read().unwrap().output_treatment() == raw_conn.read().unwrap().input_treatment()
+                    conn.output_treatment == raw_conn.input_treatment
                 ) {
-                    Some(Arc::clone(&raw_conn))
+                    Some(raw_conn)
                 }
                 else {
                     None

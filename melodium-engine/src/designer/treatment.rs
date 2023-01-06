@@ -1,9 +1,9 @@
 
 use core::fmt::{Debug};
-use melodium_common::descriptor::{Identifier, Designer, Collection, Entry, Parameterized, Model as ModelTrait, Parameter as ParameterDescriptor};
+use melodium_common::descriptor::{Identifier, Designer, Collection, Entry, Parameterized, Model as ModelTrait, Parameter as ParameterDescriptor, Treatment as TreatmentTrait};
 use super::{Scope, Parameter, Value, ModelInstanciation, TreatmentInstanciation, Connection, IO};
 use crate::descriptor::Treatment as TreatmentDescriptor;
-use crate::design::{Model as ModelDesign, Parameter as ParameterDesign};
+use crate::design::{Treatment as TreatmentDesign, Connection as ConnectionDesign, IO as IODesign, Parameter as ParameterDesign, ModelInstanciation as ModelInstanciationDesign, TreatmentInstanciation as TreatmentInstanciationDesign, treatment_instanciation};
 use crate::error::LogicError;
 use std::sync::{Arc, RwLock, Weak};
 use std::collections::{HashMap};
@@ -15,7 +15,7 @@ pub struct Treatment {
 
     model_instanciations: HashMap<String, Arc<RwLock<ModelInstanciation>>>,
     treatments: HashMap<String, Arc<RwLock<TreatmentInstanciation>>>,
-    connections: Vec<Arc<RwLock<Connection>>>,
+    connections: Vec<Connection>,
 
     auto_reference: Weak<RwLock<Self>>,
 }
@@ -81,6 +81,7 @@ impl Treatment {
     pub fn remove_treatment(&mut self, name: &str) -> Result<bool, LogicError> {
 
         if let Some(_) = self.treatments.remove(name) {
+            // TODO remove every connection to it
             Ok(true)
         }
         else {
@@ -122,17 +123,9 @@ impl Treatment {
             return Err(LogicError::undeclared_treatment())
         }
 
-        if let Some(arc_connection_descriptor) = Connections::get(output.datatype(), input.datatype()) {
-
-            let mut connection = Connection::new(arc_connection_descriptor);
-
-            connection.set_input(rc_input_treatment, &input)?;
-            connection.set_output(rc_output_treatment, &output)?;
-
-            let rc_connection = Arc::new(RwLock::new(connection));
-            self.connections.push(rc_connection);
-
-            return Ok(())
+        if input.matches_output(&output) {
+            self.connections.push(Connection::new_internal(output_name, rc_output_treatment, input_name, rc_input_treatment));
+            Ok(())
         }
         else {
             return Err(LogicError::unexisting_connexion_type())
@@ -142,15 +135,14 @@ impl Treatment {
     pub fn remove_connection(&mut self, output_treatment: &str, output_name: &str, input_treatment: &str, input_name: &str) -> Result<bool, LogicError> {
 
         let mut found = false;
-        self.connections.retain(|c| {
-            let connection = c.read().unwrap();
-            if connection.output_name().as_ref().unwrap() == output_name
-            && connection.input_name().as_ref().unwrap() == input_name
-            && match connection.output_treatment().as_ref().unwrap() {
+        self.connections.retain(|connection| {
+            if connection.output_name == output_name
+            && connection.input_name == input_name
+            && match connection.output_treatment {
                 IO::Treatment(t) => t.upgrade().unwrap().read().unwrap().name() == output_treatment,
                 _ => false
             }
-            && match connection.input_treatment().as_ref().unwrap() {
+            && match connection.input_treatment {
                 IO::Treatment(t) => t.upgrade().unwrap().read().unwrap().name() == input_treatment,
                 _ => false
             } {
@@ -167,7 +159,7 @@ impl Treatment {
     pub fn add_self_connection(&mut self, self_input_name: &str, self_output_name: &str) -> Result<(), LogicError> {
 
         let input_self;
-        if let Some(pos_input) = self.descriptor.inputs().get(self_input_name) {
+        if let Some(pos_input) = self.descriptor().inputs().get(self_input_name) {
             input_self = pos_input.clone();
         }
         else {
@@ -175,24 +167,16 @@ impl Treatment {
         }
 
         let output_self;
-        if let Some(pos_output) = self.descriptor.outputs().get(self_output_name) {
+        if let Some(pos_output) = self.descriptor().outputs().get(self_output_name) {
             output_self = pos_output.clone();
         }
         else {
             return Err(LogicError::connection_self_output_not_found())
         }
 
-        if let Some(arc_connection_descriptor) = Connections::get(input_self.datatype(), output_self.datatype()) {
-
-            let mut connection = Connection::new(arc_connection_descriptor);
-
-            connection.set_self_output(&input_self)?;
-            connection.set_self_input(&output_self)?;
-
-            let rc_connection = Arc::new(RwLock::new(connection));
-            self.connections.push(rc_connection);
-
-            return Ok(())
+        if input_self.matches_output(&output_self) {
+            self.connections.push(Connection::new_self(input_self.name(), output_self.name()));
+            Ok(())
         }
         else {
             return Err(LogicError::unexisting_connexion_type())
@@ -202,15 +186,14 @@ impl Treatment {
     pub fn remove_self_connection(&mut self, self_input_name: &str, self_output_name: &str) -> Result<bool, LogicError> {
 
         let mut found = false;
-        self.connections.retain(|c| {
-            let connection = c.read().unwrap();
-            if connection.output_name().as_ref().unwrap() == self_input_name
-            && connection.input_name().as_ref().unwrap() == self_output_name
-            && match connection.output_treatment().as_ref().unwrap() {
+        self.connections.retain(|connection| {
+            if connection.output_name == self_input_name
+            && connection.input_name == self_output_name
+            && match connection.output_treatment {
                 IO::Sequence() => true,
                 _ => false
             }
-            && match connection.input_treatment().as_ref().unwrap() {
+            && match connection.input_treatment {
                 IO::Sequence() => true,
                 _ => false
             } {
@@ -227,7 +210,7 @@ impl Treatment {
     pub fn add_input_connection(&mut self, self_input_name: &str, input_treatment: &str, input_name: &str) -> Result<(), LogicError> {
 
         let input_self;
-        if let Some(pos_input) = self.descriptor.inputs().get(self_input_name) {
+        if let Some(pos_input) = self.descriptor().inputs().get(self_input_name) {
             input_self = pos_input.clone();
         }
         else {
@@ -250,17 +233,9 @@ impl Treatment {
             return Err(LogicError::undeclared_treatment())
         }
 
-        if let Some(arc_connection_descriptor) = Connections::get(input_self.datatype(), input.datatype()) {
-
-            let mut connection = Connection::new(arc_connection_descriptor);
-
-            connection.set_self_output(&input_self)?;
-            connection.set_input(rc_input_treatment, &input)?;
-
-            let rc_connection = Arc::new(RwLock::new(connection));
-            self.connections.push(rc_connection);
-
-            return Ok(())
+        if input_self.matches_input(&input) {
+            self.connections.push(Connection::new_self_to_internal(input_self.name(), input.name(), rc_input_treatment));
+            Ok(())
         }
         else {
             return Err(LogicError::unexisting_connexion_type())
@@ -270,15 +245,14 @@ impl Treatment {
     pub fn remove_input_connection(&mut self, self_input_name: &str, input_treatment: &str, input_name: &str) -> Result<bool, LogicError> {
 
         let mut found = false;
-        self.connections.retain(|c| {
-            let connection = c.read().unwrap();
-            if connection.output_name().as_ref().unwrap() == self_input_name
-            && connection.input_name().as_ref().unwrap() == input_name
-            && match connection.output_treatment().as_ref().unwrap() {
+        self.connections.retain(|connection| {
+            if connection.output_name == self_input_name
+            && connection.input_name == input_name
+            && match connection.output_treatment {
                 IO::Sequence() => true,
                 _ => false
             }
-            && match connection.input_treatment().as_ref().unwrap() {
+            && match connection.input_treatment {
                 IO::Treatment(t) => t.upgrade().unwrap().read().unwrap().name() == input_treatment,
                 _ => false
             } {
@@ -295,7 +269,7 @@ impl Treatment {
     pub fn add_output_connection(&mut self, self_output_name: &str, output_treatment: &str, output_name: &str) -> Result<(), LogicError> {
 
         let output_self;
-        if let Some(pos_output) = self.descriptor.outputs().get(self_output_name) {
+        if let Some(pos_output) = self.descriptor().outputs().get(self_output_name) {
             output_self = pos_output.clone();
         }
         else {
@@ -318,17 +292,9 @@ impl Treatment {
             return Err(LogicError::undeclared_treatment())
         }
 
-        if let Some(arc_connection_descriptor) = Connections::get(output.datatype(), output_self.datatype()) {
-
-            let mut connection = Connection::new(arc_connection_descriptor);
-
-            connection.set_output(rc_output_treatment, &output)?;
-            connection.set_self_input(&output_self)?;
-
-            let rc_connection = Arc::new(RwLock::new(connection));
-            self.connections.push(rc_connection);
-
-            return Ok(())
+        if output_self.matches_output(&output) {
+            self.connections.push(Connection::new_internal_to_self(output.name(), rc_output_treatment, output_self.name()));
+            Ok(())
         }
         else {
             return Err(LogicError::unexisting_connexion_type())
@@ -338,15 +304,14 @@ impl Treatment {
     pub fn remove_output_connection(&mut self, self_output_name: &str, output_treatment: &str, output_name: &str) -> Result<bool, LogicError> {
 
         let mut found = false;
-        self.connections.retain(|c| {
-            let connection = c.read().unwrap();
-            if connection.output_name().as_ref().unwrap() == output_name
-            && connection.input_name().as_ref().unwrap() == self_output_name
-            && match connection.output_treatment().as_ref().unwrap() {
+        self.connections.retain(|connection| {
+            if connection.output_name == output_name
+            && connection.input_name == self_output_name
+            && match connection.output_treatment {
                 IO::Treatment(t) => t.upgrade().unwrap().read().unwrap().name() == output_treatment,
                 _ => false
             }
-            && match connection.input_treatment().as_ref().unwrap() {
+            && match connection.input_treatment {
                 IO::Sequence() => true,
                 _ => false
             } {
@@ -368,7 +333,7 @@ impl Treatment {
         &self.treatments
     }
 
-    pub fn connections(&self) -> &Vec<Arc<RwLock<Connection>>> {
+    pub fn connections(&self) -> &Vec<Connection> {
         &self.connections
     }
 
@@ -378,19 +343,15 @@ impl Treatment {
         // references in connections there
 
         // Counting number of outputs connected to self outputs.
-        let mut outputs_satisfaction = self.descriptor.outputs().iter().map(
+        let mut outputs_satisfaction = self.descriptor().outputs().iter().map(
                 |(name, _output)| -> (String, usize) { (name.to_string(), 0) }
             ).collect::<HashMap<String, usize>>();
 
         for connection in &self.connections {
 
-            let borrowed_connection = connection.read().unwrap();
-
-            borrowed_connection.validate()?;
-
-            match borrowed_connection.input_treatment().as_ref().unwrap() {
+            match connection.input_treatment {
                 IO::Sequence() => {
-                    *(outputs_satisfaction.get_mut(borrowed_connection.input_name().as_ref().unwrap()).unwrap()) += 1;
+                    *(outputs_satisfaction.get_mut(&connection.input_name).unwrap()) += 1;
                 }
                 _ => {}
             }
@@ -410,13 +371,50 @@ impl Treatment {
         Ok(())
     }
 
-    pub fn register(&self) -> Result<(), LogicError> {
-
+    pub fn design(&self) -> Result<TreatmentDesign, LogicError> {
+        
         self.validate()?;
 
-        self.descriptor.register_builder(Box::new(SequenceBuilder::new(&self.auto_reference.upgrade().unwrap())));
-
-        Ok(())
+        Ok(TreatmentDesign {
+            descriptor: self.descriptor.clone(),
+            model_instanciations: self.model_instanciations.iter().map(
+                |(name, model_instanciation)| {
+                    let model_instanciation = model_instanciation.read().unwrap();
+                    (name.clone(), ModelInstanciationDesign {
+                        name: name.clone(),
+                        descriptor: Arc::downgrade(model_instanciation.descriptor()),
+                        parameters: model_instanciation.parameters().iter().map(
+                            |(name, param)|
+                                (name.clone(), ParameterDesign { name: name.clone(), value: param.read().unwrap().value().unwrap().clone() })
+                            ).collect()
+                    })
+                },
+            ).collect(),
+            treatments: self.treatments.iter().map(|(name, treatment_instanciation)| {
+                let treatment_instanciation = treatment_instanciation.read().unwrap();
+                (name.clone(), TreatmentInstanciationDesign {
+                    name: name.clone(),
+                    descriptor: Arc::downgrade(treatment_instanciation.descriptor()),
+                    models: treatment_instanciation.models().clone(),
+                    parameters: treatment_instanciation.parameters().iter().map(
+                        |(name, param)|
+                            (name.clone(), ParameterDesign { name: name.clone(), value: param.read().unwrap().value().unwrap().clone() })
+                        ).collect()
+                })
+            }).collect(),
+            connections: self.connections.iter().map(|connection| ConnectionDesign {
+                output_treatment: match connection.output_treatment {
+                    IO::Sequence() => IODesign::Sequence(),
+                    IO::Treatment(t) => IODesign::Treatment(t.upgrade().unwrap().read().unwrap().name().to_string())
+                },
+                output_name: connection.output_name.clone(),
+                input_treatment: match connection.input_treatment {
+                    IO::Sequence() => IODesign::Sequence(),
+                    IO::Treatment(t) => IODesign::Treatment(t.upgrade().unwrap().read().unwrap().name().to_string())
+                },
+                input_name: connection.input_name.clone(),
+            }).collect(),
+        })
     }
 }
 
