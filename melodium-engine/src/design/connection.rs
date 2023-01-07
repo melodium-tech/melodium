@@ -1,11 +1,11 @@
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum IO {
     Sequence(),
     Treatment(String)
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Connection {
 
     pub output_treatment: IO,

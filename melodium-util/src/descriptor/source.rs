@@ -65,7 +65,7 @@ impl Parameterized for Source {
 
 impl Buildable<TreatmentBuildMode> for Source {
     fn build_mode(&self) -> TreatmentBuildMode {
-        TreatmentBuildMode::Source
+        TreatmentBuildMode::Source(self.auto_reference.clone())
     }
 }
 

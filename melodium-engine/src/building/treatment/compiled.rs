@@ -35,7 +35,7 @@ pub struct Builder {
 
     world: Weak<World>,
 
-    build_fn: fn(Arc<dyn ExecutiveWorld>, TrackId) -> Arc<dyn Treatment>,
+    build_fn: fn() -> Arc<dyn Treatment>,
     descriptor: Weak<dyn TreatmentDescriptor>,
 
     builds: RwLock<Vec<BuildSample>>,
@@ -44,7 +44,7 @@ pub struct Builder {
 
 impl Builder {
 
-    pub fn new(world: Weak<World>, descriptor: Weak<dyn TreatmentDescriptor>, build_fn: fn(Arc<dyn ExecutiveWorld>, TrackId) -> Arc<dyn Treatment>) -> Self {
+    pub fn new(world: Weak<World>, descriptor: Weak<dyn TreatmentDescriptor>, build_fn: fn() -> Arc<dyn Treatment>) -> Self {
         Self {
             world,
             build_fn,
@@ -106,7 +106,7 @@ impl BuilderTrait for Builder {
 
         let mut result = DynamicBuildResult::new();
 
-        let treatment = (self.build_fn)(world, environment.track_id());
+        let treatment = (self.build_fn)();
 
         for (name, model) in build_sample.genesis_environment.models() {
             treatment.set_model(name, model);

@@ -73,7 +73,7 @@ impl Parameterized for Treatment {
 
 impl Buildable<TreatmentBuildMode> for Treatment {
     fn build_mode(&self) -> TreatmentBuildMode {
-        TreatmentBuildMode::Compiled(self.build_fn)
+        TreatmentBuildMode::Compiled(self.build_fn, self.auto_reference.clone())
     }
 }
 
