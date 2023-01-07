@@ -59,8 +59,8 @@ impl BuilderTrait for Builder {
 
     fn static_build(&self, host_treatment: Option<Arc<dyn TreatmentDescriptor>>, host_build: Option<BuildId>, label: String, environment: &GenesisEnvironment) -> Result<StaticBuildResult, LogicError> {
 
-        // Make a BuildSample with matching informations
         let world = self.world.upgrade().unwrap();
+        // Make a BuildSample with matching informations
         let build_sample = BuildSample::new(&host_treatment, &host_build, &label, environment);
 
         let mut builds_writer = self.builds.write().unwrap();
