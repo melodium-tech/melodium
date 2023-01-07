@@ -6,16 +6,14 @@ use crate::world::World;
 
 #[derive(Debug, Clone)]
 pub struct GenesisEnvironment {
-    world: Arc<World>,
     models: HashMap<String, Arc<dyn Model>>,
     variables: HashMap<String, Value>,
 }
 
 impl GenesisEnvironment {
 
-    pub fn new(world: Arc<World>) -> Self {
+    pub fn new() -> Self {
         Self {
-            world,
             models: HashMap::new(),
             variables: HashMap::new(),
         }
@@ -23,20 +21,9 @@ impl GenesisEnvironment {
 
     pub fn base(&self) -> Self {
         Self {
-            world: Arc::clone(&self.world),
             models: HashMap::new(),
             variables: HashMap::new(),
         }
-    }
-
-    pub fn register_model(&self, model: Arc<dyn Model>) -> ModelId  {
-
-        self.world.add_model(Arc::clone(&model))
-    }
-
-    pub fn world(&self) -> Arc<World> {
-
-        Arc::clone(&self.world)
     }
 
     pub fn add_model(&mut self, name: &str, model: Arc<dyn Model>) {

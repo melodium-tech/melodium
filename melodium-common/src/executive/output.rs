@@ -1,8 +1,9 @@
 use crate::executive::SendResult;
 use async_trait::async_trait;
+use core::fmt::Debug;
 
 #[async_trait]
-pub trait Output {
+pub trait Output : Debug + Send + Sync {
     async fn send_void(&self, data: ()) -> SendResult;
     async fn send_multiple_void(&self, data: Vec<()>) -> SendResult;
     async fn send_u8(&self, data: u8) -> SendResult;

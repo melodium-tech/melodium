@@ -29,13 +29,14 @@ impl BuilderTrait for Builder {
 
     fn static_build(&self, _host_treatment: Option<Arc<dyn Treatment>>, _host_build: Option<BuildId>, _label: String, environment: &GenesisEnvironment) -> Result<StaticBuildResult, LogicError> {
 
-        let model = (self.build_fn)(self.world.upgrade().unwrap());
+        let world = self.world.upgrade().unwrap();
+        let model = (self.build_fn)(world);
 
         for (name, value) in environment.variables() {
             model.set_parameter(name, value);
         }
 
-        let id = environment.register_model(Arc::clone(&model) as Arc<dyn Model>);
+        let id = world.add_model(Arc::clone(&model) as Arc<dyn Model>);
 
         model.set_id(id);
         

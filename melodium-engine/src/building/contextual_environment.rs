@@ -4,22 +4,21 @@ use std::sync::Arc;
 use melodium_common::executive::{Model, TrackId, Value};
 use crate::executive::Context;
 use crate::world::World;
+use crate::transmission::Input;
 
 #[derive(Debug, Clone)]
 pub struct ContextualEnvironment {
-    world: Arc<World>,
     track_id: TrackId,
     models: HashMap<String, Arc<dyn Model>>,
     variables: HashMap<String, Value>,
     contexts: HashMap<String, Context>,
-    inputs: HashMap<String, Transmitter>,
+    inputs: HashMap<String, Input>,
 }
 
 impl ContextualEnvironment {
 
-    pub fn new(world: Arc<World>, track_id: TrackId) -> Self {
+    pub fn new(track_id: TrackId) -> Self {
         Self {
-            world,
             track_id,
             models: HashMap::new(),
             variables: HashMap::new(),
@@ -30,7 +29,6 @@ impl ContextualEnvironment {
 
     pub fn base(&self) -> Self {
         Self {
-            world: Arc::clone(&self.world),
             track_id: self.track_id,
             models: HashMap::new(),
             variables: HashMap::new(),
@@ -71,11 +69,11 @@ impl ContextualEnvironment {
         self.contexts.get(name)
     }
 
-    pub fn add_input(&mut self, name: &str, input: Transmitter) {
+    pub fn add_input(&mut self, name: &str, input: Input) {
         self.inputs.insert(name.to_string(), input);
     }
 
-    pub fn get_input(&self, name: &str) -> Option<&Transmitter> {
+    pub fn get_input(&self, name: &str) -> Option<&Input> {
         self.inputs.get(name)
     }
 }

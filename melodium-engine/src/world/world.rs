@@ -12,6 +12,7 @@ use melodium_common::descriptor::{Buildable, TreatmentBuildMode, Identified, Ide
 use melodium_common::executive::{ContinuousFuture, Model, ModelId, ResultStatus, TrackFuture, TrackId, World as ExecutiveWorld, Context as ExecutiveContext};
 use crate::building::{BuildId, Builder, ContextualEnvironment, GenesisEnvironment, CheckEnvironment, StaticBuildResult};
 use crate::executive::Context;
+use crate::transmission::{Input, Output};
 use crate::error::LogicError;
 use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
 
@@ -106,6 +107,14 @@ impl World {
     }
 
     pub fn builder(&self, identifier: &Identifier) -> Arc<dyn Builder> {
+
+    }
+
+    pub fn new_input(&self) -> Input {
+
+    }
+
+    pub fn new_output(&self) -> Output {
 
     }
 

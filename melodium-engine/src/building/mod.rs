@@ -18,4 +18,5 @@ pub use treatment::{CompiledBuilder as CompiledTreatmentBuilder, SourceBuilder a
 
 // To move where appliable
 use std::collections::HashMap;
+use crate::transmission::Input;
 pub type FeedingInputs = HashMap<String, Vec<Input>>;
