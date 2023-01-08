@@ -864,6 +864,183 @@ impl ExecutiveOutput for Output {
             _ => panic!("Vec<string> send transmitter expected"),
         }
     }
-
 }
+
+impl From<Input> for Output {
+    fn from(input: Input) -> Self {
+        match input {
+            Input::Void(_) => {
+                let o = Output::Void(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::U8(_) => {
+                let o = Output::U8(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::U16(_) => {
+                let o = Output::U16(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::U32(_) => {
+                let o = Output::U32(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::U64(_) => {
+                let o = Output::U64(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::U128(_) => {
+                let o = Output::U128(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::I8(_) => {
+                let o = Output::I8(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::I16(_) => {
+                let o = Output::I16(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::I32(_) => {
+                let o = Output::I32(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::I64(_) => {
+                let o = Output::I64(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::I128(_) => {
+                let o = Output::I128(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::F32(_) => {
+                let o = Output::F32(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::F64(_) => {
+                let o = Output::F64(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::Bool(_) => {
+                let o = Output::Bool(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::Byte(_) => {
+                let o = Output::Byte(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::Char(_) => {
+                let o = Output::Char(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::String(_) => {
+                let o = Output::String(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecVoid(_) => {
+                let o = Output::VecVoid(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecU8(_) => {
+                let o = Output::VecU8(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecU16(_) => {
+                let o = Output::VecU16(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecU32(_) => {
+                let o = Output::VecU32(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecU64(_) => {
+                let o = Output::VecU64(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecU128(_) => {
+                let o = Output::VecU128(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecI8(_) => {
+                let o = Output::VecI8(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecI16(_) => {
+                let o = Output::VecI16(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecI32(_) => {
+                let o = Output::VecI32(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecI64(_) => {
+                let o = Output::VecI64(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecI128(_) => {
+                let o = Output::VecI128(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecF32(_) => {
+                let o = Output::VecF32(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecF64(_) => {
+                let o = Output::VecF64(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecBool(_) => {
+                let o = Output::VecBool(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecByte(_) => {
+                let o = Output::VecByte(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecChar(_) => {
+                let o = Output::VecChar(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+            Input::VecString(_) => {
+                let o = Output::VecString(Arc::new(SendTransmitter::new()));
+                o.add_transmission(&vec![input.clone()]);
+                o
+            },
+        }
+    }
+}
+
 

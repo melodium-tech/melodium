@@ -39,8 +39,8 @@ impl Model {
         &self.collection
     }
 
-    pub fn descriptor(&self) -> &Arc<ModelDescriptor> {
-        &self.descriptor.upgrade().unwrap()
+    pub fn descriptor(&self) -> Arc<ModelDescriptor> {
+        self.descriptor.upgrade().unwrap()
     }
 
     pub fn add_parameter(&mut self, name: &str) -> Result<Arc<RwLock<Parameter>>, LogicError> {
@@ -109,7 +109,7 @@ impl Model {
             descriptor: self.descriptor.clone(),
             parameters: self.parameters.iter().map(
                 |(name, param)|
-                    (name.clone(), ParameterDesign { name:name.clone(), value: param.read().unwrap().value().unwrap().clone() })
+                    (name.clone(), ParameterDesign { name:name.clone(), value: param.read().unwrap().value().as_ref().unwrap().clone() })
                 ).collect()
         })
     }

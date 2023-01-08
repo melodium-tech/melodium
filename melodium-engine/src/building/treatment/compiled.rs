@@ -72,7 +72,7 @@ impl BuilderTrait for Builder {
             let (_, matching_model) = environment.models().iter().find(|(_,model)| Arc::ptr_eq(&model.descriptor(), model_descriptor)).unwrap();
 
             for source in sources {
-                world.add_source(matching_model.id().unwrap(), source, self.descriptor.upgrade().unwrap().as_buildable(), idx);
+                world.add_source(matching_model.id().unwrap(), source, self.descriptor.upgrade().unwrap().as_identified(), idx);
             }
             
         }
@@ -116,7 +116,7 @@ impl BuilderTrait for Builder {
             treatment.set_parameter(name, value);
         }
 
-        let host_descriptor = build_sample.host_treatment.unwrap();
+        let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
         let host_build = world.builder(host_descriptor.identifier()).unwrap().give_next(
             build_sample.host_build_id.unwrap(),
             build_sample.label.to_string(),
@@ -125,12 +125,12 @@ impl BuilderTrait for Builder {
 
         let mut inputs = HashMap::new();
         for (name, input_descriptor) in host_descriptor.inputs() {
-            let input = world.new_input();
+            let input = world.new_input(input_descriptor);
             treatment.assign_input(name, Box::new(input.clone()));
             inputs.insert(name.clone(), input);
         }
         for (name, output_descriptor) in host_descriptor.outputs() {
-            let output = world.new_output();
+            let output = world.new_output(output_descriptor);
             if let Some(inputs) = host_build.feeding_inputs.get(name) {
                 output.add_transmission(inputs);
             }
@@ -179,7 +179,7 @@ impl BuilderTrait for Builder {
         let mut all_builds = Vec::new();
         if errors.is_empty() {
 
-            let host_descriptor = build_sample.host_treatment.unwrap();
+            let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
             let build_result = world.builder(host_descriptor.identifier()).unwrap().check_give_next(
                 build_sample.host_build_id.unwrap(),
                 build_sample.label.to_string(),

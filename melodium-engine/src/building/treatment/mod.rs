@@ -20,7 +20,7 @@ pub fn get_builder(world: Arc<World>, descriptor: &Arc<dyn Buildable<TreatmentBu
         TreatmentBuildMode::Source(desc) => Ok(Arc::new(SourceBuilder::new(Arc::downgrade(&world), desc))),
         TreatmentBuildMode::Designed() => {
 
-            let designed_descriptor = descriptor.downcast_arc::<Treatment>().unwrap();
+            let designed_descriptor = Arc::clone(descriptor).downcast_arc::<Treatment>().unwrap();
             Ok(Arc::new(DesignedBuilder::new(Arc::downgrade(&world), designed_descriptor.design()?)))
         }
     }

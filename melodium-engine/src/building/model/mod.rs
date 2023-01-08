@@ -17,7 +17,7 @@ pub fn get_builder(world: Arc<World>, descriptor: &Arc<dyn Buildable<ModelBuildM
         ModelBuildMode::Compiled(build_fn) => Ok(Arc::new(CompiledBuilder::new(Arc::downgrade(&world), build_fn))),
         ModelBuildMode::Designed() => {
 
-            let designed_descriptor = descriptor.downcast_arc::<Model>().unwrap();
+            let designed_descriptor = Arc::clone(descriptor).downcast_arc::<Model>().unwrap();
             Ok(Arc::new(DesignedBuilder::new(Arc::downgrade(&world), designed_descriptor.design()?)))
         }
     }

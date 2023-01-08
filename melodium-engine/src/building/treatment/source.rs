@@ -68,7 +68,7 @@ impl BuilderTrait for Builder {
             let (_, matching_model) = environment.models().iter().find(|(_,model)| Arc::ptr_eq(&model.descriptor(), model_descriptor)).unwrap();
 
             for source in sources {
-                world.add_source(matching_model.id().unwrap(), source, self.descriptor.upgrade().unwrap().as_buildable(), idx);
+                world.add_source(matching_model.id().unwrap(), source, self.descriptor.upgrade().unwrap().as_identified(), idx);
             }
             
         }
@@ -102,7 +102,7 @@ impl BuilderTrait for Builder {
 
         let mut result = DynamicBuildResult::new();
 
-        let host_descriptor = build_sample.host_treatment.unwrap();
+        let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
         let host_build = world.builder(host_descriptor.identifier()).unwrap().give_next(
             build_sample.host_build_id.unwrap(),
             build_sample.label.to_string(),
@@ -148,7 +148,7 @@ impl BuilderTrait for Builder {
         let mut all_builds = Vec::new();
         if errors.is_empty() {
 
-            let host_descriptor = build_sample.host_treatment.unwrap();
+            let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
             let build_result = world.builder(host_descriptor.identifier()).unwrap().check_give_next(
                 build_sample.host_build_id.unwrap(),
                 build_sample.label.to_string(),

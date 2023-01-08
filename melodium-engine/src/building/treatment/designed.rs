@@ -134,11 +134,11 @@ impl BuilderTrait for Builder {
         }
 
         // Instanciate models
-        for (instanciation_name, model_instanciation) in self.design.model_instanciations {
+        for (instanciation_name, model_instanciation) in &self.design.model_instanciations {
 
             let mut remastered_environment = environment.base();
 
-            for (name, parameter) in model_instanciation.parameters {
+            for (name, parameter) in &model_instanciation.parameters {
 
                 let data = Self::get_const_value(&parameter.value, &build_sample.genesis_environment);
 
@@ -162,7 +162,7 @@ impl BuilderTrait for Builder {
         }
 
         // Make the internal treatments being built
-        for (treatment_name, treatment) in self.design.treatments {
+        for (treatment_name, treatment) in &self.design.treatments {
 
             let mut remastered_environment = environment.base();
             let treatment_descriptor = treatment.descriptor.upgrade().unwrap();
@@ -198,7 +198,7 @@ impl BuilderTrait for Builder {
             }
 
             // Setup parameters
-            for (name, parameter) in treatment.parameters {
+            for (name, parameter) in &treatment.parameters {
 
                 let data = Self::get_const_value(&parameter.value, &build_sample.genesis_environment);
 
@@ -221,12 +221,12 @@ impl BuilderTrait for Builder {
         }
 
         // Order the internal treatments
-        for connection in self.design.connections {
+        for connection in &self.design.connections {
 
-            match connection.output_treatment {
+            match &connection.output_treatment {
                 IO::Sequence() => {
                     
-                    match connection.input_treatment {
+                    match &connection.input_treatment {
                         IO::Treatment(treatment_name) => {
 
                             build_sample.check.write().unwrap().fed_inputs.insert(
@@ -236,7 +236,7 @@ impl BuilderTrait for Builder {
 
                             build_sample.root_treatments_build_ids.push((
                                 treatment_name.to_string(),
-                                *build_sample.treatment_build_ids.get(&treatment_name).unwrap()
+                                *build_sample.treatment_build_ids.get(treatment_name).unwrap()
                             ));
                             build_sample.root_connections.push(connection.clone());
                         },
@@ -246,10 +246,10 @@ impl BuilderTrait for Builder {
                     }
                 },
                 IO::Treatment(treatment_name) => {
-                    let treatment_id = build_sample.treatment_build_ids.get(&treatment_name).unwrap();
+                    let treatment_id = build_sample.treatment_build_ids.get(treatment_name).unwrap();
                     let treatment_tuple = (treatment_name.to_string(), *treatment_id);
 
-                    match connection.input_treatment {
+                    match &connection.input_treatment {
                         IO::Treatment(next_treatment_name) => {
                             
                             let mut next_treatments_list: Vec<(String, BuildId)> = if let Some(list) = build_sample.next_treatments_build_ids.get(&treatment_tuple) {
@@ -259,7 +259,7 @@ impl BuilderTrait for Builder {
                                 Vec::new()
                             };
 
-                            next_treatments_list.push((next_treatment_name.to_string(), *build_sample.treatment_build_ids.get(&next_treatment_name).unwrap()));
+                            next_treatments_list.push((next_treatment_name.to_string(), *build_sample.treatment_build_ids.get(next_treatment_name).unwrap()));
 
                             let mut next_connections_list: Vec<Connection> = if let Some(list) = build_sample.next_connections.get(&treatment_tuple) {
                                 list.clone()
@@ -371,7 +371,7 @@ impl BuilderTrait for Builder {
             }
 
             // Setup parameters
-            for (name, parameter) in treatment.parameters {
+            for (name, parameter) in &treatment.parameters {
 
                 let data = Self::get_value(&parameter.value, &build_sample.genesis_environment, environment);
 
@@ -387,7 +387,7 @@ impl BuilderTrait for Builder {
         // Take root treatments transmitters and report them accordingly to Self-input (connection output) characteritics
         for root_connection in &build_sample.root_connections {
 
-            let treatment_name = match root_connection.input_treatment {
+            let treatment_name = match &root_connection.input_treatment {
                 IO::Treatment(t) => t.clone(),
                 _ => panic!("Root connection to (input) treatment expected")
             };
@@ -409,7 +409,7 @@ impl BuilderTrait for Builder {
         // If there are some direct connections, call the give_next host method
         if !build_sample.direct_connections.is_empty() {
 
-            let host_descriptor = build_sample.host_treatment.unwrap();
+            let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
             let host_build = world.builder(host_descriptor.identifier()).unwrap().give_next(
                 build_sample.host_build_id.unwrap(),
                 build_sample.label.to_string(),
@@ -485,7 +485,7 @@ impl BuilderTrait for Builder {
                 }
 
                 // Setup parameters
-                for (name, parameter) in next_treatment.parameters {
+                for (name, parameter) in &next_treatment.parameters {
 
                     let data = Self::get_value(&parameter.value, &build_sample.genesis_environment, environment);
 
@@ -500,7 +500,7 @@ impl BuilderTrait for Builder {
             if let Some(next_connections) = build_sample.next_connections.get(&asking_treatment_tuple) {
                 for next_connection in next_connections {
 
-                    let treatment_name = match next_connection.input_treatment {
+                    let treatment_name = match &next_connection.input_treatment {
                         IO::Treatment(t) => t.clone(),
                         _ => panic!("Connection to treatment expected")
                     };
@@ -524,7 +524,7 @@ impl BuilderTrait for Builder {
         // If the claiming treatment is connected to Self as output, call the give_next host method
         if let Some(last_connections) = build_sample.last_connections.get(&asking_treatment_tuple) {
 
-            let host_descriptor = build_sample.host_treatment.unwrap();
+            let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
             let host_build = world.builder(host_descriptor.identifier()).unwrap().give_next(
                 build_sample.host_build_id.unwrap(),
                 build_sample.label.to_string(),
@@ -594,7 +594,7 @@ impl BuilderTrait for Builder {
 
             for root_connection in &build_sample.root_connections {
 
-                let treatment_name = match root_connection.input_treatment {
+                let treatment_name = match &root_connection.input_treatment {
                     IO::Treatment(t) => t.clone(),
                     _ => panic!("Root connection to (input) treatment expected")
                 };
@@ -664,7 +664,7 @@ impl BuilderTrait for Builder {
             if let Some(next_connections) = build_sample.next_connections.get(&asking_treatment_tuple) {
                 for next_connection in next_connections {
     
-                    let treatment_name = match next_connection.input_treatment {
+                    let treatment_name = match &next_connection.input_treatment {
                         IO::Treatment(t) => t.clone(),
                         _ => panic!("Connection to treatment expected")
                     };
@@ -678,7 +678,7 @@ impl BuilderTrait for Builder {
             // If the claiming treatment is connected to Self as output, call the check_give_next host method
             if let Some(last_connections) = build_sample.last_connections.get(&asking_treatment_tuple) {
 
-                let host_descriptor = build_sample.host_treatment.unwrap();
+                let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
                 let host_check_build = world.builder(host_descriptor.identifier()).unwrap().check_give_next(
                     build_sample.host_build_id.unwrap(),
                     build_sample.label.to_string(),

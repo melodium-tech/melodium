@@ -1,5 +1,6 @@
 
 use core::fmt::Debug;
+use core::marker::Send;
 use std::collections::{HashMap, hash_map::Entry};
 use std::sync::{Arc, Weak, RwLock, atomic::{AtomicBool, Ordering}};
 use futures::future::{JoinAll, join, join_all};
@@ -8,8 +9,8 @@ use async_std::task::block_on;
 use async_std::sync::Mutex;
 use async_std::channel::*;
 use async_trait::async_trait;
-use melodium_common::descriptor::{Buildable, TreatmentBuildMode, Identified, Identifier, Collection, Entry as CollectionEntry};
-use melodium_common::executive::{ContinuousFuture, Model, ModelId, ResultStatus, TrackFuture, TrackId, World as ExecutiveWorld, Context as ExecutiveContext};
+use melodium_common::descriptor::{Buildable, TreatmentBuildMode, Identified, Identifier, Collection, Entry as CollectionEntry, Input as InputDescriptor, Output as OutputDescriptor};
+use melodium_common::executive::{ContinuousFuture, Model, ModelId, ResultStatus, TrackFuture, TrackId, World as ExecutiveWorld, Context as ExecutiveContext, Output as ExecutiveOutput};
 use crate::building::{BuildId, Builder, ContextualEnvironment, GenesisEnvironment, CheckEnvironment, StaticBuildResult, model::get_builder as get_builder_model, treatment::get_builder as get_builder_treatment};
 use crate::executive::Context;
 use crate::transmission::{Input, Output};
@@ -97,7 +98,7 @@ impl World {
         id
     }
 
-    pub fn add_source(&self, model_id: ModelId, name: &str, descriptor: Arc<dyn Buildable<TreatmentBuildMode>>, build_id: BuildId) {
+    pub fn add_source(&self, model_id: ModelId, name: &str, descriptor: Arc<dyn Identified>, build_id: BuildId) {
 
         let mut sources = self.sources.write().unwrap();
 
@@ -136,19 +137,19 @@ impl World {
         }
     }
 
-    pub fn new_input(&self) -> Input {
-
+    pub fn new_input(&self, descriptor: &InputDescriptor) -> Input {
+        Input::new(descriptor)
     }
 
-    pub fn new_output(&self) -> Output {
-
+    pub fn new_output(&self, descriptor: &OutputDescriptor) -> Output {
+        Output::new(descriptor)
     }
 
-    pub fn genesis(&self, beginning: &dyn Buildable<TreatmentBuildMode>) -> bool {
+    pub fn genesis(&self, beginning: &Identifier) -> bool {
 
-        let gen_env = GenesisEnvironment::new(Weak::upgrade(&self.auto_reference).unwrap());
+        let gen_env = GenesisEnvironment::new();
 
-        let result = beginning.builder().static_build(None, None, "main".to_string(), &gen_env);
+        let result = self.builder(beginning).unwrap().static_build(None, None, "main".to_string(), &gen_env);
         if result.is_err() {
 
             let error = result.unwrap_err();
@@ -177,7 +178,7 @@ impl World {
                 };
 
                 for entry in entries {
-                    let result = entry.descriptor.builder().check_dynamic_build(
+                    let result = self.builder(entry.descriptor.identifier()).unwrap().check_dynamic_build(
                         entry.id,
                         check_environment.clone(),
                         Vec::new()
@@ -317,7 +318,7 @@ impl ExecutiveWorld for World {
         borrowed_continuous_tasks.push(task);
     }
 
-    async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Box<dyn ExecutiveContext>>, parent_track: Option<TrackId>, callback: Option<impl FnOnce(HashMap<String, Output>) -> Vec<TrackFuture>>) {
+    async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Box<dyn ExecutiveContext>>, parent_track: Option<TrackId>, callback: Option<impl FnOnce(HashMap<String, Box<dyn ExecutiveOutput>>) -> Vec<TrackFuture> + Send>) {
 
         let track_id;
         {
@@ -336,16 +337,13 @@ impl ExecutiveWorld for World {
 
             let entries = model_sources.get(source).unwrap();
 
-            let mut contextual_environment = ContextualEnvironment::new(
-                Weak::upgrade(&self.auto_reference).unwrap(),
-                track_id
-            );
+            let mut contextual_environment = ContextualEnvironment::new(track_id);
 
-            contexts.iter().for_each(|(name, context)| contextual_environment.add_context(name, context.clone()));
+            contexts.into_iter().for_each(|(name, context)| contextual_environment.add_context(&name, context));
 
             for entry in entries {
 
-                let build_result = entry.descriptor.builder().dynamic_build(entry.id, &contextual_environment).unwrap();
+                let build_result = self.builder(entry.descriptor.identifier()).unwrap().dynamic_build(entry.id, &contextual_environment).unwrap();
 
                 track_futures.extend(build_result.prepared_futures);
 
@@ -354,10 +352,10 @@ impl ExecutiveWorld for World {
                     match outputs.entry(input_name) {
                         Entry::Vacant(e) => {
                             let e = e.insert(Output::from(input_transmitters.pop().unwrap()));
-                            input_transmitters.iter().for_each(|i| e.add_input(i));
+                            e.add_transmission(&input_transmitters);
                         },
                         Entry::Occupied(e) => {
-                            input_transmitters.iter().for_each(|i| e.get().add_input(i));
+                            e.get().add_transmission(&input_transmitters);
                         }
                     }
                 }
@@ -365,7 +363,7 @@ impl ExecutiveWorld for World {
         }
 
         let model_futures = if let Some(callback) = callback {
-            callback(outputs)
+            callback(outputs.into_iter().map(|(name, output)| (name, Box::new(output) as Box<dyn ExecutiveOutput>)).collect())
         }
         else { Vec::new() };
 

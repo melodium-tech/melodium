@@ -2,6 +2,7 @@
 use core::fmt::{Debug};
 use melodium_common::descriptor::{Collection, Parameterized, Model as ModelDescriptor, Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor, Variability};
 use super::{Treatment, Parameter, Value, Scope, Connection, IO};
+use crate::descriptor;
 use crate::design::{Model as ModelDesign, Parameter as ParameterDesign};
 use crate::error::LogicError;
 use std::sync::{Arc, RwLock, Weak};
@@ -31,8 +32,8 @@ impl TreatmentInstanciation {
         }))
     }
 
-    pub fn descriptor(&self) -> &Arc<dyn TreatmentDescriptor> {
-        &self.descriptor.upgrade().unwrap()
+    pub fn descriptor(&self) -> Arc<dyn TreatmentDescriptor> {
+        self.descriptor.upgrade().unwrap()
     }
 
     pub fn name(&self) -> &str {
@@ -110,9 +111,11 @@ impl TreatmentInstanciation {
         for (_, param) in &self.parameters {
             param.read().unwrap().validate()?;
         }
+
+        let descriptor = self.descriptor();
         
         // Check if all parameters are filled.
-        let unset_params: Vec<&ParameterDescriptor> = self.descriptor().parameters().iter().filter_map(
+        let unset_params: Vec<&ParameterDescriptor> = descriptor.parameters().iter().filter_map(
             |(core_param_name, core_param)|
             if self.parameters.contains_key(core_param_name) {
                 None
@@ -130,7 +133,7 @@ impl TreatmentInstanciation {
         }
 
         // Check if all models are filled
-        let unset_models: Vec<&String> = self.descriptor().models().iter().filter_map(
+        let unset_models: Vec<&String> = descriptor.models().iter().filter_map(
             |(model_name, _)|
             if self.models.contains_key(model_name) {
                 None
@@ -171,7 +174,7 @@ impl TreatmentInstanciation {
         // is set as input (end point of the connection).
         let mut considered_connections: Vec<&Connection> = all_connections.iter().filter_map(
             |raw_conn|
-            match raw_conn.input_treatment {
+            match &raw_conn.input_treatment {
                 IO::Sequence() => None,
                 IO::Treatment(t) => {
                     // We want the input (end point) to be the current treatment, and the output (start point) to not be 'Self'-sequence.

@@ -41,14 +41,14 @@ impl BuilderTrait for Builder {
         // Assigning explicit data
         for (_, parameter) in self.design.parameters.iter() {
 
-            let data = match parameter.value {
-                Value::Raw(data) => &data,
+            let data = match &parameter.value {
+                Value::Raw(data) => data,
                 Value::Variable(name) => {
                     if let Some(data) = environment.get_variable(&name) {
                         data
                     }
                     else {
-                        descriptor.parameters().get(&name).unwrap().default().as_ref().unwrap()
+                        descriptor.parameters().get(name).unwrap().default().as_ref().unwrap()
                     }
                 },
                 // Not possible in model to use context, should have been catcher by designed, aborting

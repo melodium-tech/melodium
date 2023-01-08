@@ -41,13 +41,13 @@ impl Treatment {
         &self.collection
     }
 
-    pub fn descriptor(&self) -> &Arc<TreatmentDescriptor> {
-        &self.descriptor.upgrade().unwrap()
+    pub fn descriptor(&self) -> Arc<TreatmentDescriptor> {
+        self.descriptor.upgrade().unwrap()
     }
 
     pub fn add_model_instanciation(&mut self, model_identifier: &Identifier, name: &str) -> Result<Arc<RwLock<ModelInstanciation>>, LogicError> {
 
-        if let Some(Entry::Model(model_descriptor)) = self.collection.ok_or_else(|| LogicError::collection_undefined())?.get(model_identifier) {
+        if let Some(Entry::Model(model_descriptor)) = self.collection.as_ref().ok_or_else(|| LogicError::collection_undefined())?.get(model_identifier) {
     
             let model = ModelInstanciation::new(&self.auto_reference.upgrade().unwrap(), model_descriptor, name);
             let rc_model = Arc::new(RwLock::new(model));
@@ -71,7 +71,7 @@ impl Treatment {
 
     pub fn add_treatment(&mut self, treatment_identifier: &Identifier, name: &str) -> Result<Arc<RwLock<TreatmentInstanciation>>, LogicError> {
         
-        if let Some(Entry::Treatment(treatment_descriptor)) = self.collection.ok_or_else(|| LogicError::collection_undefined())?.get(treatment_identifier) {
+        if let Some(Entry::Treatment(treatment_descriptor)) = self.collection.as_ref().ok_or_else(|| LogicError::collection_undefined())?.get(treatment_identifier) {
             let rc_treatment = TreatmentInstanciation::new(&self.auto_reference.upgrade().unwrap(), treatment_descriptor, name);
             self.treatments.insert(name.to_string(), Arc::clone(&rc_treatment));
             Ok(rc_treatment)
@@ -142,11 +142,11 @@ impl Treatment {
         self.connections.retain(|connection| {
             if connection.output_name == output_name
             && connection.input_name == input_name
-            && match connection.output_treatment {
+            && match &connection.output_treatment {
                 IO::Treatment(t) => t.upgrade().unwrap().read().unwrap().name() == output_treatment,
                 _ => false
             }
-            && match connection.input_treatment {
+            && match &connection.input_treatment {
                 IO::Treatment(t) => t.upgrade().unwrap().read().unwrap().name() == input_treatment,
                 _ => false
             } {
@@ -256,7 +256,7 @@ impl Treatment {
                 IO::Sequence() => true,
                 _ => false
             }
-            && match connection.input_treatment {
+            && match &connection.input_treatment {
                 IO::Treatment(t) => t.upgrade().unwrap().read().unwrap().name() == input_treatment,
                 _ => false
             } {
@@ -311,7 +311,7 @@ impl Treatment {
         self.connections.retain(|connection| {
             if connection.output_name == output_name
             && connection.input_name == self_output_name
-            && match connection.output_treatment {
+            && match &connection.output_treatment {
                 IO::Treatment(t) => t.upgrade().unwrap().read().unwrap().name() == output_treatment,
                 _ => false
             }
@@ -386,10 +386,10 @@ impl Treatment {
                     let model_instanciation = model_instanciation.read().unwrap();
                     (name.clone(), ModelInstanciationDesign {
                         name: name.clone(),
-                        descriptor: Arc::downgrade(model_instanciation.descriptor()),
+                        descriptor: Arc::downgrade(&model_instanciation.descriptor()),
                         parameters: model_instanciation.parameters().iter().map(
                             |(name, param)|
-                                (name.clone(), ParameterDesign { name: name.clone(), value: param.read().unwrap().value().unwrap().clone() })
+                                (name.clone(), ParameterDesign { name: name.clone(), value: param.read().unwrap().value().as_ref().unwrap().clone() })
                             ).collect()
                     })
                 },
@@ -398,21 +398,21 @@ impl Treatment {
                 let treatment_instanciation = treatment_instanciation.read().unwrap();
                 (name.clone(), TreatmentInstanciationDesign {
                     name: name.clone(),
-                    descriptor: Arc::downgrade(treatment_instanciation.descriptor()),
+                    descriptor: Arc::downgrade(&treatment_instanciation.descriptor()),
                     models: treatment_instanciation.models().clone(),
                     parameters: treatment_instanciation.parameters().iter().map(
                         |(name, param)|
-                            (name.clone(), ParameterDesign { name: name.clone(), value: param.read().unwrap().value().unwrap().clone() })
+                            (name.clone(), ParameterDesign { name: name.clone(), value: param.read().unwrap().value().as_ref().unwrap().clone() })
                         ).collect()
                 })
             }).collect(),
             connections: self.connections.iter().map(|connection| ConnectionDesign {
-                output_treatment: match connection.output_treatment {
+                output_treatment: match &connection.output_treatment {
                     IO::Sequence() => IODesign::Sequence(),
                     IO::Treatment(t) => IODesign::Treatment(t.upgrade().unwrap().read().unwrap().name().to_string())
                 },
                 output_name: connection.output_name.clone(),
-                input_treatment: match connection.input_treatment {
+                input_treatment: match &connection.input_treatment {
                     IO::Sequence() => IODesign::Sequence(),
                     IO::Treatment(t) => IODesign::Treatment(t.upgrade().unwrap().read().unwrap().name().to_string())
                 },

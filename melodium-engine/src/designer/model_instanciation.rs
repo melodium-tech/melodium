@@ -2,6 +2,7 @@
 use core::fmt::{Debug};
 use melodium_common::descriptor::{Collection, Parameterized, Model as ModelDescriptor, Parameter as ParameterDescriptor, Variability};
 use super::{Treatment, Parameter, Value, Scope};
+use crate::descriptor;
 use crate::design::{Model as ModelDesign, Parameter as ParameterDesign};
 use crate::error::LogicError;
 use std::sync::{Arc, RwLock, Weak};
@@ -26,8 +27,8 @@ impl ModelInstanciation {
         }
     }
 
-    pub fn descriptor(&self) -> &Arc<dyn ModelDescriptor> {
-        &self.descriptor.upgrade().unwrap()
+    pub fn descriptor(&self) -> Arc<dyn ModelDescriptor> {
+        self.descriptor.upgrade().unwrap()
     }
 
     pub fn name(&self) -> &str {
@@ -65,8 +66,10 @@ impl ModelInstanciation {
             param.read().unwrap().validate()?;
         }
 
+        let descriptor = self.descriptor();
+
         // Check if all model parameters are filled.
-        let unset_params: Vec<&ParameterDescriptor> = self.descriptor().parameters().iter().filter_map(
+        let unset_params: Vec<&ParameterDescriptor> = descriptor.parameters().iter().filter_map(
             |(core_param_name, core_param)|
             if self.parameters.contains_key(core_param_name) {
                 None

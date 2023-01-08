@@ -9,8 +9,8 @@ pub trait Treatment : Debug + Sync + Send {
     fn set_parameter(&self, param: &str, value: &Value);
     fn set_model(&self, name: &str, model: &Arc<dyn Model>);
 
-    fn assign_input(&mut self, input_name: &str, transmitter: Box<dyn Input>);
-    fn assign_output(&mut self, output_name: &str, transmitter: Box<dyn Output>);
+    fn assign_input(&self, input_name: &str, transmitter: Box<dyn Input>);
+    fn assign_output(&self, output_name: &str, transmitter: Box<dyn Output>);
 
     fn prepare(&self) -> Vec<TrackFuture>;
 }
