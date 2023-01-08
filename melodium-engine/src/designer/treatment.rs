@@ -1,6 +1,6 @@
 
 use core::fmt::{Debug};
-use melodium_common::descriptor::{Identifier, Designer, Collection, Entry, Parameterized, Model as ModelTrait, Parameter as ParameterDescriptor, Treatment as TreatmentTrait};
+use melodium_common::descriptor::{Identifier, Collection, Entry, Parameterized, Model as ModelTrait, Parameter as ParameterDescriptor, Treatment as TreatmentTrait};
 use super::{Scope, Parameter, Value, ModelInstanciation, TreatmentInstanciation, Connection, IO};
 use crate::descriptor::Treatment as TreatmentDescriptor;
 use crate::design::{Treatment as TreatmentDesign, Connection as ConnectionDesign, IO as IODesign, Parameter as ParameterDesign, ModelInstanciation as ModelInstanciationDesign, TreatmentInstanciation as TreatmentInstanciationDesign, treatment_instanciation};
@@ -31,6 +31,10 @@ impl Treatment {
             connections: Vec::new(),
             auto_reference: me.clone(),
         }))
+    }
+
+    fn set_collection(&mut self, collection: std::sync::Arc<melodium_common::descriptor::Collection>) {
+        self.collection = Some(collection);
     }
 
     pub fn collection(&self) -> &Option<Arc<Collection>> {
@@ -415,12 +419,6 @@ impl Treatment {
                 input_name: connection.input_name.clone(),
             }).collect(),
         })
-    }
-}
-
-impl Designer for Treatment {
-    fn set_collection(&mut self, collection: std::sync::Arc<melodium_common::descriptor::Collection>) {
-        self.collection = Some(collection);
     }
 }
 

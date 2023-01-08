@@ -1,6 +1,6 @@
 
 use core::fmt::{Debug};
-use melodium_common::descriptor::{Designer, Collection, Parameterized, Model as ModelDescriptor, Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor, Variability};
+use melodium_common::descriptor::{Collection, Parameterized, Model as ModelDescriptor, Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor, Variability};
 use super::{Treatment, Parameter, Value, Scope, Connection, IO};
 use crate::design::{Model as ModelDesign, Parameter as ParameterDesign};
 use crate::error::LogicError;

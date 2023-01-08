@@ -11,6 +11,10 @@ use std::string::ToString;
 pub enum LogicErrorKind {
     /// Designer do not have collection defined.
     CollectionUndefined,
+    /// Descriptor has not been commited, no designer available yet.
+    UncommitedDescriptor,
+    /// No design available.
+    UnavailableDesign,
     /// The referenced variable for value doesn't exist.
     UnexistingVariable,
     // TODO check wether still useful
@@ -79,6 +83,8 @@ impl ToString for LogicErrorKind {
     fn to_string(&self) -> String {
         match self {
             Self::CollectionUndefined => "No collection defined",
+            Self::UncommitedDescriptor => "Uncommited descriptor, no designer available",
+            Self::UnavailableDesign => "Unavailable design",
             Self::UnexistingVariable => "Referenced variable for value doesn't exist",
             Self::UnexistingContext => "Referenced context does not exist",
             Self::UnexistingContextVariable => "Referenced context value does not exist",
@@ -127,6 +133,20 @@ impl LogicError {
     pub fn collection_undefined() -> Self {
         Self {
             kind: LogicErrorKind::CollectionUndefined
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::UncommitedDescriptor`] kind.
+    pub fn uncommited_descriptor() -> Self {
+        Self {
+            kind: LogicErrorKind::UncommitedDescriptor
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::UnavailableDesign`] kind.
+    pub fn unavailable_design() -> Self {
+        Self {
+            kind: LogicErrorKind::UnavailableDesign
         }
     }
 

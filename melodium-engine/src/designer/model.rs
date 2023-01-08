@@ -1,6 +1,6 @@
 
 use core::fmt::{Debug};
-use melodium_common::descriptor::{Designer, Collection, Parameterized, Model as ModelTrait, Parameter as ParameterDescriptor};
+use melodium_common::descriptor::{Collection, Parameterized, Model as ModelTrait, Parameter as ParameterDescriptor};
 use super::{Scope, Parameter, Value};
 use crate::descriptor::Model as ModelDescriptor;
 use crate::design::{Model as ModelDesign, Parameter as ParameterDesign};
@@ -31,7 +31,11 @@ impl Model {
         }))
     }
 
-    pub fn collections(&self) -> &Option<Arc<Collection>> {
+    pub fn set_collection(&mut self, collection: Arc<Collection>) {
+        self.collection = Some(collection);
+    }
+
+    pub fn collection(&self) -> &Option<Arc<Collection>> {
         &self.collection
     }
 
@@ -108,12 +112,6 @@ impl Model {
                     (name.clone(), ParameterDesign { name:name.clone(), value: param.read().unwrap().value().unwrap().clone() })
                 ).collect()
         })
-    }
-}
-
-impl Designer for Model {
-    fn set_collection(&mut self, collection: Arc<Collection>) {
-        self.collection = Some(collection);
     }
 }
 

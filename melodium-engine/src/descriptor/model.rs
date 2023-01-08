@@ -41,19 +41,23 @@ impl Model {
         *option_designer = None;
     }
 
-    pub fn designer(&self) -> Arc<RwLock<Designer>> {
+    pub fn designer(&self) -> Result<Arc<RwLock<Designer>>, LogicError> {
+
+        if self.auto_reference.strong_count() == 0 {
+            return Err(LogicError::uncommited_descriptor())
+        }
 
         let mut option_designer = self.designer.lock().expect("Mutex poisoned");
 
         if let Some(designer_ref) = &*option_designer {
-            designer_ref.clone()
+            Ok(designer_ref.clone())
         }
         else {
             let new_designer = Designer::new(&self.auto_reference.upgrade().unwrap());
 
             *option_designer = Some(new_designer.clone());
 
-            new_designer
+            Ok(new_designer)
         }
     }
 
@@ -71,11 +75,11 @@ impl Model {
         Ok(())
     }
 
-    pub fn design(&self) -> Option<Arc<Design>> {
+    pub fn design(&self) -> Result<Arc<Design>, LogicError> {
 
         let mut option_design = self.design.lock().expect("Mutex poisoned");
 
-        option_design.as_ref().map(|design| Arc::clone(design))
+        option_design.as_ref().map(|design| Arc::clone(design)).ok_or_else(|| LogicError::unavailable_design())
     }
 
     pub fn set_documentation(&mut self, documentation: &str) {
@@ -127,7 +131,7 @@ impl Parameterized for Model {
 
 impl Buildable<ModelBuildMode> for Model {
     fn build_mode(&self) -> ModelBuildMode {
-        ModelBuildMode::Designed(self.designer())
+        ModelBuildMode::Designed()
     }
 }
 
