@@ -145,7 +145,7 @@ impl BuilderTrait for Builder {
                 remastered_environment.add_variable(&name, data);
             }
 
-            let instanciation_result = world.builder(model_instanciation.descriptor.upgrade().unwrap().identifier()).static_build(
+            let instanciation_result = world.builder(model_instanciation.descriptor.upgrade().unwrap().identifier()).unwrap().static_build(
                 Some(Arc::clone(&descriptor) as Arc<dyn TreatmentDescriptor>),
                 Some(idx),
                 instanciation_name.to_string(),
@@ -205,7 +205,7 @@ impl BuilderTrait for Builder {
                 remastered_environment.add_variable(&name, data);
             }
 
-            let build_result = world.builder(treatment_descriptor.identifier()).static_build(
+            let build_result = world.builder(treatment_descriptor.identifier())?.static_build(
                 Some(Arc::clone(&descriptor) as Arc<dyn TreatmentDescriptor>),
                 Some(idx),
                 treatment_name.to_string(),
@@ -337,7 +337,7 @@ impl BuilderTrait for Builder {
             
             let treatment = self.design.treatments.get(treatment_name).unwrap();
             let treatment_descriptor = treatment.descriptor.upgrade().unwrap();
-            let treatment_builder = world.builder(treatment_descriptor.identifier());
+            let treatment_builder = world.builder(treatment_descriptor.identifier()).unwrap();
             let mut remastered_environment = environment.base();
 
             // Make the right contextual environment
@@ -410,7 +410,7 @@ impl BuilderTrait for Builder {
         if !build_sample.direct_connections.is_empty() {
 
             let host_descriptor = build_sample.host_treatment.unwrap();
-            let host_build = world.builder(host_descriptor.identifier()).give_next(
+            let host_build = world.builder(host_descriptor.identifier()).unwrap().give_next(
                 build_sample.host_build_id.unwrap(),
                 build_sample.label.to_string(),
                 &environment.base(),
@@ -451,7 +451,7 @@ impl BuilderTrait for Builder {
 
                 let next_treatment = self.design.treatments.get(next_treatment_name).unwrap();
                 let next_treatment_descriptor = next_treatment.descriptor.upgrade().unwrap();
-                let next_treatment_builder = world.builder(next_treatment_descriptor.identifier());
+                let next_treatment_builder = world.builder(next_treatment_descriptor.identifier()).unwrap();
                 let mut remastered_environment = environment.base();
 
                 // Make the right contextual environment
@@ -525,7 +525,7 @@ impl BuilderTrait for Builder {
         if let Some(last_connections) = build_sample.last_connections.get(&asking_treatment_tuple) {
 
             let host_descriptor = build_sample.host_treatment.unwrap();
-            let host_build = world.builder(host_descriptor.identifier()).give_next(
+            let host_build = world.builder(host_descriptor.identifier()).unwrap().give_next(
                 build_sample.host_build_id.unwrap(),
                 build_sample.label.to_string(),
                 &environment.base(),
@@ -585,7 +585,7 @@ impl BuilderTrait for Builder {
                 
                 let treatment = self.design.treatments.get(treatment_name).unwrap();
                 let treatment_descriptor = treatment.descriptor.upgrade().unwrap();
-                let treatment_builder = world.builder(treatment_descriptor.identifier());
+                let treatment_builder = world.builder(treatment_descriptor.identifier()).unwrap();
                 
                 let check_result = treatment_builder.check_dynamic_build(*treatment_id, environment.clone(), current_previous_steps.clone()).unwrap();
 
@@ -653,7 +653,7 @@ impl BuilderTrait for Builder {
 
                     let next_treatment = self.design.treatments.get(next_treatment_name).unwrap();
                     let next_treatment_descriptor = next_treatment.descriptor.upgrade().unwrap();
-                    let next_treatment_builder = world.builder(next_treatment_descriptor.identifier());
+                    let next_treatment_builder = world.builder(next_treatment_descriptor.identifier()).unwrap();
 
                     let check_result = next_treatment_builder.check_dynamic_build(*next_treatment_id, environment.clone(), previous_steps.clone()).unwrap();
 
@@ -679,7 +679,7 @@ impl BuilderTrait for Builder {
             if let Some(last_connections) = build_sample.last_connections.get(&asking_treatment_tuple) {
 
                 let host_descriptor = build_sample.host_treatment.unwrap();
-                let host_check_build = world.builder(host_descriptor.identifier()).check_give_next(
+                let host_check_build = world.builder(host_descriptor.identifier()).unwrap().check_give_next(
                     build_sample.host_build_id.unwrap(),
                     build_sample.label.to_string(),
                     environment.clone(),

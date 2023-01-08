@@ -103,7 +103,7 @@ impl BuilderTrait for Builder {
         let mut result = DynamicBuildResult::new();
 
         let host_descriptor = build_sample.host_treatment.unwrap();
-        let host_build = world.builder(host_descriptor.identifier()).give_next(
+        let host_build = world.builder(host_descriptor.identifier()).unwrap().give_next(
             build_sample.host_build_id.unwrap(),
             build_sample.label.to_string(),
             &environment.base(),
@@ -149,7 +149,7 @@ impl BuilderTrait for Builder {
         if errors.is_empty() {
 
             let host_descriptor = build_sample.host_treatment.unwrap();
-            let build_result = world.builder(host_descriptor.identifier()).check_give_next(
+            let build_result = world.builder(host_descriptor.identifier()).unwrap().check_give_next(
                 build_sample.host_build_id.unwrap(),
                 build_sample.label.to_string(),
                 environment.clone(),

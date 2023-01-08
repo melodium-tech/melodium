@@ -8,9 +8,9 @@ use async_std::task::block_on;
 use async_std::sync::Mutex;
 use async_std::channel::*;
 use async_trait::async_trait;
-use melodium_common::descriptor::{Buildable, TreatmentBuildMode, Identified, Identifier};
+use melodium_common::descriptor::{Buildable, TreatmentBuildMode, Identified, Identifier, Collection, Entry as CollectionEntry};
 use melodium_common::executive::{ContinuousFuture, Model, ModelId, ResultStatus, TrackFuture, TrackId, World as ExecutiveWorld, Context as ExecutiveContext};
-use crate::building::{BuildId, Builder, ContextualEnvironment, GenesisEnvironment, CheckEnvironment, StaticBuildResult};
+use crate::building::{BuildId, Builder, ContextualEnvironment, GenesisEnvironment, CheckEnvironment, StaticBuildResult, model::get_builder as get_builder_model, treatment::get_builder as get_builder_treatment};
 use crate::executive::Context;
 use crate::transmission::{Input, Output};
 use crate::error::LogicError;
@@ -18,10 +18,13 @@ use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
 
 pub struct World {
 
+    collection: Arc<Collection>,
     auto_reference: Weak<Self>,
 
     models: RwLock<Vec<Arc<dyn Model>>>,
     sources: RwLock<HashMap<ModelId, HashMap<String, Vec<SourceEntry>>>>,
+
+    builders: RwLock<HashMap<Identifier, Arc<dyn Builder>>>,
 
     errors: RwLock<Vec<LogicError>>,
     main_build_id: RwLock<BuildId>,
@@ -52,14 +55,16 @@ impl Debug for World {
 
 impl World {
 
-    pub fn new() -> Arc<Self> {
+    pub fn new(collection: Arc<Collection>) -> Arc<Self> {
 
         let (sender, receiver) = unbounded();
 
         Arc::new_cyclic(|me| Self {
+            collection,
             auto_reference: me.clone(),
             models: RwLock::new(Vec::new()),
             sources: RwLock::new(HashMap::new()),
+            builders: RwLock::new(HashMap::new()),
             errors: RwLock::new(Vec::new()),
             main_build_id: RwLock::new(0),
             continuous_tasks: RwLock::new(Vec::new()),
@@ -106,8 +111,29 @@ impl World {
         });
     }
 
-    pub fn builder(&self, identifier: &Identifier) -> Arc<dyn Builder> {
+    pub fn builder(&self, identifier: &Identifier) -> Result<Arc<dyn Builder>, LogicError> {
 
+        if let Some(builder) = self.builders.read().unwrap().get(identifier) {
+            Ok(Arc::clone(builder))
+        }
+        else {
+            if let Some(entry) = self.collection.get(identifier) {
+                let builder = match entry {
+                    CollectionEntry::Model(model) =>
+                        get_builder_model(self.auto_reference.upgrade().unwrap(), &model.as_buildable()),
+                    CollectionEntry::Treatment(treatment) =>
+                        get_builder_treatment(self.auto_reference.upgrade().unwrap(), &treatment.as_buildable()),
+                    _ => Err(LogicError::unavailable_design()),
+                }?;
+
+                self.builders.write().unwrap().insert(identifier.clone(), Arc::clone(&builder));
+
+                Ok(builder)
+            }
+            else {
+                Err(LogicError::unavailable_design())
+            }
+        }
     }
 
     pub fn new_input(&self) -> Input {

@@ -153,6 +153,10 @@ impl ModelDescriptor for Model {
         self.auto_reference.upgrade().unwrap()
     }
 
+    fn as_buildable(&self) -> Arc<dyn Buildable<ModelBuildMode>> {
+        self.auto_reference.upgrade().unwrap()
+    }
+
     fn as_parameterized(&self) -> Arc<dyn Parameterized> {
         self.auto_reference.upgrade().unwrap()
     }

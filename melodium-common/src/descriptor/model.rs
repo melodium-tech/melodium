@@ -19,6 +19,7 @@ pub trait Model:
     fn base_model(&self) -> Option<Arc<dyn Model>>;
     fn sources(&self) -> &HashMap<String, Vec<Arc<Context>>>;
     fn as_identified(&self) -> Arc<dyn Identified>;
+    fn as_buildable(&self) -> Arc<dyn Buildable<ModelBuildMode>>;
     fn as_parameterized(&self) -> Arc<dyn Parameterized>;
 }
 impl_downcast!(sync Model);

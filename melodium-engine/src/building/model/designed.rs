@@ -58,7 +58,7 @@ impl BuilderTrait for Builder {
             remastered_environment.add_variable(&parameter.name, data.clone());
         }
 
-        self.world.upgrade().unwrap().builder(descriptor.identifier()).static_build(host_treatment, host_build, label, &remastered_environment)
+        self.world.upgrade().unwrap().builder(descriptor.identifier())?.static_build(host_treatment, host_build, label, &remastered_environment)
     }
 
     fn dynamic_build(&self, _build: BuildId, _environment: &ContextualEnvironment) -> Option<DynamicBuildResult> {
