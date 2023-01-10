@@ -60,6 +60,14 @@ impl ModelInstanciation {
         }
     }
 
+    pub fn remove_parameter(&mut self, name: &str) -> Result<bool, LogicError> {
+        if let Some(_) = self.parameters.remove(name) {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     pub fn parameters(&self) -> &HashMap<String, Arc<RwLock<Parameter>>> {
         &self.parameters
     }

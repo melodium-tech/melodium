@@ -81,6 +81,24 @@ impl Treatment {
 
     pub fn remove_model_instanciation(&mut self, name: &str) -> Result<bool, LogicError> {
         if let Some(_) = self.model_instanciations.remove(name) {
+            for (_, treatment) in &self.treatments {
+                let mut treatment = treatment.write().unwrap();
+                let to_remove = treatment
+                    .models()
+                    .iter()
+                    .filter_map(|(parametric_name, local_name)| {
+                        if local_name == name {
+                            Some(parametric_name.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                for name in to_remove {
+                    let _ = treatment.remove_model(&name);
+                }
+            }
+
             Ok(true)
         } else {
             Ok(false)

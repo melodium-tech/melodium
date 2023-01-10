@@ -5,6 +5,7 @@ use crate::building::{
     StaticBuildResult,
 };
 use crate::error::LogicError;
+use crate::executive::Context;
 use crate::transmission::{Input, Output};
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::sync::Mutex;
@@ -335,6 +336,14 @@ impl World {
 
 #[async_trait]
 impl ExecutiveWorld for World {
+    fn new_context(&self, identifier: &Identifier) -> Box<dyn ExecutiveContext> {
+        let descriptor = match self.collection.get(identifier).expect("Unknown identifier") {
+            CollectionEntry::Context(id) => Arc::clone(id),
+            _ => panic!("Identifier `{}` doesn't refer to context.", identifier),
+        };
+        Box::new(Context::new(descriptor))
+    }
+
     fn add_continuous_task(&self, task: ContinuousFuture) {
         let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
 
@@ -345,7 +354,7 @@ impl ExecutiveWorld for World {
         &self,
         id: ModelId,
         source: &str,
-        contexts: HashMap<String, Box<dyn ExecutiveContext>>,
+        contexts: Vec<Box<dyn ExecutiveContext>>,
         parent_track: Option<TrackId>,
         callback: Option<
             impl FnOnce(HashMap<String, Box<dyn ExecutiveOutput>>) -> Vec<TrackFuture> + Send,
@@ -370,9 +379,9 @@ impl ExecutiveWorld for World {
 
             let mut contextual_environment = ContextualEnvironment::new(track_id);
 
-            contexts
-                .into_iter()
-                .for_each(|(name, context)| contextual_environment.add_context(&name, context));
+            contexts.into_iter().for_each(|context| {
+                contextual_environment.add_context(context.descriptor().name(), context)
+            });
 
             for entry in entries {
                 let build_result = self

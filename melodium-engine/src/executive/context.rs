@@ -16,15 +16,15 @@ impl Context {
             values: HashMap::new(),
         }
     }
-
-    pub fn set_value(&mut self, name: &str, value: Value) {
-        self.values.insert(name.to_string(), value);
-    }
 }
 
 impl ExecutiveContext for Context {
     fn descriptor(&self) -> Arc<ContextDescriptor> {
         self.descriptor.clone()
+    }
+
+    fn set_value(&mut self, name: &str, value: Value) {
+        self.values.insert(name.to_string(), value);
     }
 
     fn get_value(&self, name: &str) -> &Value {

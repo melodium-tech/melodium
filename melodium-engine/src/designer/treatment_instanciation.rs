@@ -49,30 +49,32 @@ impl TreatmentInstanciation {
             let rc_host = self.host_treatment.upgrade().unwrap();
             let borrowed_host = rc_host.read().unwrap();
 
-            let mut base_model_descriptor = None;
-            if let Some(model_descriptor) = borrowed_host.descriptor().models().get(local_name) {
-                base_model_descriptor = Some(
-                    model_descriptor
-                        .base_model()
-                        .unwrap_or_else(|| Arc::clone(&model_descriptor)),
-                );
+            let model_descriptor = if let Some(model_descriptor) =
+                borrowed_host.descriptor().models().get(local_name)
+            {
+                Some(Arc::clone(model_descriptor))
             } else if let Some(model_instanciation) =
                 borrowed_host.model_instanciations().get(local_name)
             {
-                let model_instanciation_descriptor =
-                    model_instanciation.read().unwrap().descriptor();
-                base_model_descriptor = Some(
-                    model_instanciation_descriptor
-                        .base_model()
-                        .unwrap_or_else(|| Arc::clone(&model_instanciation_descriptor)),
-                );
-            }
+                Some(model_instanciation.read().unwrap().descriptor())
+            } else {
+                None
+            };
 
-            if let Some(model_descriptor) = base_model_descriptor {
-                if Arc::ptr_eq(
-                    &model_descriptor,
-                    self.descriptor().models().get(parametric_name).unwrap(),
-                ) {
+            if let Some(mut model_descriptor) = model_descriptor {
+                let looking_for =
+                    Arc::clone(self.descriptor().models().get(parametric_name).unwrap());
+                let is_matching = loop {
+                    if Arc::ptr_eq(&looking_for, &model_descriptor) {
+                        break true;
+                    } else if let Some(base) = model_descriptor.base_model() {
+                        model_descriptor = base;
+                    } else {
+                        break false;
+                    }
+                };
+
+                if is_matching {
                     self.models
                         .insert(parametric_name.to_string(), local_name.to_string());
 
@@ -85,6 +87,14 @@ impl TreatmentInstanciation {
             }
         } else {
             Err(LogicError::unexisting_parametric_model())
+        }
+    }
+
+    pub fn remove_model(&mut self, parametric_name: &str) -> Result<bool, LogicError> {
+        if let Some(_) = self.models.remove(parametric_name) {
+            Ok(true)
+        } else {
+            Ok(false)
         }
     }
 
@@ -108,6 +118,14 @@ impl TreatmentInstanciation {
             }
         } else {
             Err(LogicError::unexisting_parameter())
+        }
+    }
+
+    pub fn remove_parameter(&mut self, name: &str) -> Result<bool, LogicError> {
+        if let Some(_) = self.parameters.remove(name) {
+            Ok(true)
+        } else {
+            Ok(false)
         }
     }
 
