@@ -19,11 +19,9 @@ pub trait Builder : Debug + Send + Sync {
 /*
 Notes: should builder be transformed to:
 ```
-pub type BuildId = usize;
-
 pub trait Builder : Debug + Send + Sync {
     
-    fn static_build(&self, host_treatment: Option<Arc<dyn TreatmentDescriptor>>, host_build: Option<BuildId>, label: String, environment: &GenesisEnvironment) -> Option<StaticBuildResult>;
+    fn static_build(&self, host_treatment: Option<Arc<dyn TreatmentDescriptor>>, host_build: Option<BuildId>, label: String, environment: &GenesisEnvironment) -> Result<StaticBuildResult, ExecutiveError>;
 
     fn dynamic_build(&self, build: BuildId, environment: &ContextualEnvironment) -> Option<DynamicBuildResult>;
     fn give_next(&self, within_build: BuildId, for_label: String, environment: &ContextualEnvironment) -> Option<DynamicBuildResult>;

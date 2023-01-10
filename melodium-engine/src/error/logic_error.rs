@@ -17,9 +17,6 @@ pub enum LogicErrorKind {
     UnavailableDesign,
     /// The referenced variable for value doesn't exist.
     UnexistingVariable,
-    // TODO check wether still useful
-    /// The referenced context to look for getting value doesn't exist.
-    UnexistingContext,
     /// The referenced context variable for value doesn't exist.
     UnexistingContextVariable,
     /// The designated parameter doesn't exist in descriptor.
@@ -86,7 +83,6 @@ impl ToString for LogicErrorKind {
             Self::UncommitedDescriptor => "Uncommited descriptor, no designer available",
             Self::UnavailableDesign => "Unavailable design",
             Self::UnexistingVariable => "Referenced variable for value doesn't exist",
-            Self::UnexistingContext => "Referenced context does not exist",
             Self::UnexistingContextVariable => "Referenced context value does not exist",
             Self::UnexistingParameter => "Parameter does not exist",
             Self::UnmatchingDataType => "Datatype does not match",
@@ -154,13 +150,6 @@ impl LogicError {
     pub fn unexisting_variable() -> Self {
         Self {
             kind: LogicErrorKind::UnexistingVariable
-        }
-    }
-
-    /// Generates a new error with [`LogicErrorKind::UnexistingContext`] kind.
-    pub fn unexisting_context() -> Self {
-        Self {
-            kind: LogicErrorKind::UnexistingContext
         }
     }
 

@@ -33,7 +33,7 @@ impl Treatment {
         }))
     }
 
-    fn set_collection(&mut self, collection: std::sync::Arc<melodium_common::descriptor::Collection>) {
+    pub fn set_collection(&mut self, collection: std::sync::Arc<melodium_common::descriptor::Collection>) {
         self.collection = Some(collection);
     }
 
@@ -84,8 +84,20 @@ impl Treatment {
 
     pub fn remove_treatment(&mut self, name: &str) -> Result<bool, LogicError> {
 
-        if let Some(_) = self.treatments.remove(name) {
-            // TODO remove every connection to it
+        if let Some(ref treatment) = self.treatments.remove(name) {
+            self.connections.retain(|conn| {
+                !
+                if let IO::Treatment(input_treatment) = &conn.input_treatment {
+                    input_treatment.ptr_eq(&Arc::downgrade(treatment))
+                }
+                else if let IO::Treatment(output_treatment) = &conn.output_treatment {
+                    output_treatment.ptr_eq(&Arc::downgrade(treatment))
+                }
+                else {
+                    false
+                }
+            });
+
             Ok(true)
         }
         else {
