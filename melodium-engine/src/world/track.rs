@@ -1,4 +1,3 @@
-
 use futures::future::JoinAll;
 use melodium_common::executive::{ResultStatus, TrackFuture, TrackId};
 
@@ -22,7 +21,6 @@ impl InfoTrack {
     }
 }
 
-
 // We don't use ancestry_level for now, but might be useful for scheduling implementations.
 #[allow(dead_code)]
 pub struct ExecutionTrack {
@@ -45,4 +43,3 @@ pub enum TrackResult {
     AllOk(TrackId),
     NotAllOk(TrackId, Vec<ResultStatus>),
 }
-

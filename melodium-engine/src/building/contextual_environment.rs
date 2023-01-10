@@ -1,8 +1,7 @@
-
+use crate::transmission::Input;
+use melodium_common::executive::{Context, Model, TrackId, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
-use melodium_common::executive::{Context, Model, TrackId, Value};
-use crate::transmission::Input;
 
 #[derive(Debug)]
 pub struct ContextualEnvironment {
@@ -14,7 +13,6 @@ pub struct ContextualEnvironment {
 }
 
 impl ContextualEnvironment {
-
     pub fn new(track_id: TrackId) -> Self {
         Self {
             track_id,

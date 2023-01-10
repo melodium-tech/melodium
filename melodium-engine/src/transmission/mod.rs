@@ -1,5 +1,3 @@
-
-
 pub mod input;
 pub mod output;
 mod receive_transmitter;

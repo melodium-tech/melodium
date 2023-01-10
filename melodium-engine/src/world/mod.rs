@@ -1,8 +1,7 @@
-
 mod source_entry;
 mod track;
 pub mod world;
 
 use source_entry::SourceEntry;
-use track::{InfoTrack, TrackResult, ExecutionTrack};
+use track::{ExecutionTrack, InfoTrack, TrackResult};
 pub use world::World;

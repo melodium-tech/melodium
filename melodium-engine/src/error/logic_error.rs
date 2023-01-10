@@ -1,6 +1,5 @@
-
 //! Provides Mélodium logic error management.
-//! 
+//!
 //! The main type of this module is [`LogicError`], which handles most of the management, combined with kind of errors detailed with [`LogicErrorKind`].
 
 use core::fmt::{Debug, Display};
@@ -76,7 +75,6 @@ pub enum LogicErrorKind {
 }
 
 impl ToString for LogicErrorKind {
-    
     fn to_string(&self) -> String {
         match self {
             Self::CollectionUndefined => "No collection defined",
@@ -120,238 +118,236 @@ impl ToString for LogicErrorKind {
 #[derive(Debug, Clone)]
 pub struct LogicError {
     /// Kind of error.
-    pub kind: LogicErrorKind
+    pub kind: LogicErrorKind,
 }
 
 impl LogicError {
-
     /// Generates a new error with [`LogicErrorKind::CollectionUndefined`] kind.
     pub fn collection_undefined() -> Self {
         Self {
-            kind: LogicErrorKind::CollectionUndefined
+            kind: LogicErrorKind::CollectionUndefined,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UncommitedDescriptor`] kind.
     pub fn uncommited_descriptor() -> Self {
         Self {
-            kind: LogicErrorKind::UncommitedDescriptor
+            kind: LogicErrorKind::UncommitedDescriptor,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnavailableDesign`] kind.
     pub fn unavailable_design() -> Self {
         Self {
-            kind: LogicErrorKind::UnavailableDesign
+            kind: LogicErrorKind::UnavailableDesign,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnexistingVariable`] kind.
     pub fn unexisting_variable() -> Self {
         Self {
-            kind: LogicErrorKind::UnexistingVariable
+            kind: LogicErrorKind::UnexistingVariable,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnexistingContextVariable`] kind.
     pub fn unexisting_context_variable() -> Self {
         Self {
-            kind: LogicErrorKind::UnexistingContextVariable
+            kind: LogicErrorKind::UnexistingContextVariable,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnexistingParameter`] kind.
     pub fn unexisting_parameter() -> Self {
         Self {
-            kind: LogicErrorKind::UnexistingParameter
+            kind: LogicErrorKind::UnexistingParameter,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnmatchingDataType`] kind.
     pub fn unmatching_datatype() -> Self {
         Self {
-            kind: LogicErrorKind::UnmatchingDataType
+            kind: LogicErrorKind::UnmatchingDataType,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnsetParameter`] kind.
     pub fn unset_parameter() -> Self {
         Self {
-            kind: LogicErrorKind::UnsetParameter
+            kind: LogicErrorKind::UnsetParameter,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::MultipleParameterAssignation`] kind.
     pub fn multiple_parameter_assignation() -> Self {
         Self {
-            kind: LogicErrorKind::MultipleParameterAssignation
+            kind: LogicErrorKind::MultipleParameterAssignation,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::NoValue`] kind.
     pub fn no_value() -> Self {
         Self {
-            kind: LogicErrorKind::NoValue
+            kind: LogicErrorKind::NoValue,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::NoContext`] kind.
     pub fn no_context() -> Self {
         Self {
-            kind: LogicErrorKind::NoContext
+            kind: LogicErrorKind::NoContext,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnavailableContext`] kind.
     pub fn unavailable_context() -> Self {
         Self {
-            kind: LogicErrorKind::UnavailableContext
+            kind: LogicErrorKind::UnavailableContext,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::ConnectionInputNotFound`] kind.
     pub fn connection_input_not_found() -> Self {
         Self {
-            kind: LogicErrorKind::ConnectionInputNotFound
+            kind: LogicErrorKind::ConnectionInputNotFound,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::ConnectionSelfInputNotFound`] kind.
     pub fn connection_self_input_not_found() -> Self {
         Self {
-            kind: LogicErrorKind::ConnectionSelfInputNotFound
+            kind: LogicErrorKind::ConnectionSelfInputNotFound,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::ConnectionOutputNotFound`] kind.
     pub fn connection_output_not_found() -> Self {
         Self {
-            kind: LogicErrorKind::ConnectionOutputNotFound
+            kind: LogicErrorKind::ConnectionOutputNotFound,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::ConnectionSelfOutputNotFound`] kind.
     pub fn connection_self_output_not_found() -> Self {
         Self {
-            kind: LogicErrorKind::ConnectionSelfOutputNotFound
+            kind: LogicErrorKind::ConnectionSelfOutputNotFound,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnexistingTreatment`] kind.
     pub fn unexisting_treatment() -> Self {
         Self {
-            kind: LogicErrorKind::UnexistingTreatment
+            kind: LogicErrorKind::UnexistingTreatment,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnexistingModel`] kind.
     pub fn unexisting_model() -> Self {
         Self {
-            kind: LogicErrorKind::UnexistingModel
+            kind: LogicErrorKind::UnexistingModel,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UndeclaredTreatment`] kind.
     pub fn undeclared_treatment() -> Self {
         Self {
-            kind: LogicErrorKind::UndeclaredTreatment
+            kind: LogicErrorKind::UndeclaredTreatment,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnexistingConnectionType`] kind.
     pub fn unexisting_connexion_type() -> Self {
         Self {
-            kind: LogicErrorKind::UnexistingConnectionType
+            kind: LogicErrorKind::UnexistingConnectionType,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnsatisfiedOutput`] kind.
     pub fn unsatisfied_output() -> Self {
         Self {
-            kind: LogicErrorKind::UnsatisfiedOutput
+            kind: LogicErrorKind::UnsatisfiedOutput,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::OverloadedOutput`] kind.
     pub fn overloaded_output() -> Self {
         Self {
-            kind: LogicErrorKind::OverloadedOutput
+            kind: LogicErrorKind::OverloadedOutput,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnmatchingModelType`] kind.
     pub fn unmatching_model_type() -> Self {
         Self {
-            kind: LogicErrorKind::UnmatchingModelType
+            kind: LogicErrorKind::UnmatchingModelType,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnexistingParametricModel`] kind.
     pub fn unexisting_parametric_model() -> Self {
         Self {
-            kind: LogicErrorKind::UnexistingParametricModel
+            kind: LogicErrorKind::UnexistingParametricModel,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnsetModel`] kind.
     pub fn unset_model() -> Self {
         Self {
-            kind: LogicErrorKind::UnsetModel
+            kind: LogicErrorKind::UnsetModel,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::AlreadyIncludedBuildStep`] kind.
     pub fn already_included_build_step() -> Self {
         Self {
-            kind: LogicErrorKind::AlreadyIncludedBuildStep
+            kind: LogicErrorKind::AlreadyIncludedBuildStep,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnsatisfiedInput`] kind.
     pub fn unsatisfied_input() -> Self {
         Self {
-            kind: LogicErrorKind::UnsatisfiedInput
+            kind: LogicErrorKind::UnsatisfiedInput,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::ConstRequiredVarProvided`] kind.
     pub fn const_required_var_provided() -> Self {
         Self {
-            kind: LogicErrorKind::ConstRequiredVarProvided
+            kind: LogicErrorKind::ConstRequiredVarProvided,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::ConstRequiredContextProvided`] kind.
     pub fn const_required_context_provided() -> Self {
         Self {
-            kind: LogicErrorKind::ConstRequiredContextProvided
+            kind: LogicErrorKind::ConstRequiredContextProvided,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::ModelInstanciationConstOnly`] kind.
     pub fn model_instanciation_const_only() -> Self {
         Self {
-            kind: LogicErrorKind::ModelInstanciationConstOnly
+            kind: LogicErrorKind::ModelInstanciationConstOnly,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::ConstRequiredFunctionReturnsVar`] kind.
     pub fn const_required_function_returns_var() -> Self {
         Self {
-            kind: LogicErrorKind::ConstRequiredFunctionReturnsVar
+            kind: LogicErrorKind::ConstRequiredFunctionReturnsVar,
         }
     }
 
     /// Generates a new error with [`LogicErrorKind::UnmatchingNumberOfParameters`] kind.
     pub fn unmatching_number_of_parameters() -> Self {
         Self {
-            kind: LogicErrorKind::UnmatchingNumberOfParameters
+            kind: LogicErrorKind::UnmatchingNumberOfParameters,
         }
     }
 }
 
 impl Display for LogicError {
-    
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
         write!(f, "{}", self.kind.to_string())
     }

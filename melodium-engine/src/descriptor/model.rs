@@ -1,11 +1,13 @@
-
-use core::fmt::{Display, Formatter, Result as FmtResult};
-use std::collections::HashMap;
-use std::sync::{Arc, Weak, RwLock, Mutex};
-use melodium_common::descriptor::{Identified, Identifier, Model as ModelDescriptor, Parameter, Parameterized, Context, Buildable, ModelBuildMode, Documented};
-use crate::designer::Model as Designer;
 use crate::design::Model as Design;
+use crate::designer::Model as Designer;
 use crate::error::LogicError;
+use core::fmt::{Display, Formatter, Result as FmtResult};
+use melodium_common::descriptor::{
+    Buildable, Context, Documented, Identified, Identifier, Model as ModelDescriptor,
+    ModelBuildMode, Parameter, Parameterized,
+};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, RwLock, Weak};
 
 #[derive(Debug)]
 pub struct Model {
@@ -20,10 +22,7 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn new(
-        identifier: Identifier,
-        base_model: &Arc<dyn ModelDescriptor>
-    ) -> Self {
+    pub fn new(identifier: Identifier, base_model: &Arc<dyn ModelDescriptor>) -> Self {
         Self {
             identifier,
             #[cfg(feature = "doc")]
@@ -42,17 +41,15 @@ impl Model {
     }
 
     pub fn designer(&self) -> Result<Arc<RwLock<Designer>>, LogicError> {
-
         if self.auto_reference.strong_count() == 0 {
-            return Err(LogicError::uncommited_descriptor())
+            return Err(LogicError::uncommited_descriptor());
         }
 
         let mut option_designer = self.designer.lock().expect("Mutex poisoned");
 
         if let Some(designer_ref) = &*option_designer {
             Ok(designer_ref.clone())
-        }
-        else {
+        } else {
             let new_designer = Designer::new(&self.auto_reference.upgrade().unwrap());
 
             *option_designer = Some(new_designer.clone());
@@ -62,12 +59,10 @@ impl Model {
     }
 
     pub fn commit_design(&self) -> Result<(), LogicError> {
-
         let option_designer = self.designer.lock().expect("Mutex poisoned");
         let mut option_design = self.design.lock().expect("Mutex poisoned");
 
         if let Some(designer_ref) = &*option_designer {
-
             let designer = designer_ref.read().unwrap();
             *option_design = Some(Arc::new(designer.design()?));
         }
@@ -76,21 +71,26 @@ impl Model {
     }
 
     pub fn design(&self) -> Result<Arc<Design>, LogicError> {
-
         let option_design = self.design.lock().expect("Mutex poisoned");
 
-        option_design.as_ref().map(|design| Arc::clone(design)).ok_or_else(|| LogicError::unavailable_design())
+        option_design
+            .as_ref()
+            .map(|design| Arc::clone(design))
+            .ok_or_else(|| LogicError::unavailable_design())
     }
 
     pub fn set_documentation(&mut self, documentation: &str) {
         #[cfg(feature = "doc")]
-        {self.documentation = String::from(documentation);}
+        {
+            self.documentation = String::from(documentation);
+        }
         #[cfg(not(feature = "doc"))]
         let _ = documentation;
     }
 
     pub fn add_parameter(&mut self, parameter: Parameter) {
-        self.parameters.insert(parameter.name().to_string(), parameter);
+        self.parameters
+            .insert(parameter.name().to_string(), parameter);
     }
 
     pub fn commit(self) -> Arc<Self> {
@@ -102,7 +102,7 @@ impl Model {
             parameters: self.parameters,
             designer: self.designer,
             design: self.design,
-            auto_reference: me.clone()
+            auto_reference: me.clone(),
         })
     }
 }
@@ -116,14 +116,17 @@ impl Identified for Model {
 impl Documented for Model {
     fn documentation(&self) -> &str {
         #[cfg(feature = "doc")]
-        {&self.documentation}
+        {
+            &self.documentation
+        }
         #[cfg(not(feature = "doc"))]
-        {&""}
+        {
+            &""
+        }
     }
 }
 
 impl Parameterized for Model {
-
     fn parameters(&self) -> &HashMap<String, Parameter> {
         &self.parameters
     }
@@ -136,7 +139,6 @@ impl Buildable<ModelBuildMode> for Model {
 }
 
 impl ModelDescriptor for Model {
-
     fn is_core_model(&self) -> bool {
         false
     }
@@ -163,15 +165,18 @@ impl ModelDescriptor for Model {
 }
 
 impl Display for Model {
-    
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "model {}({})",
+        write!(
+            f,
+            "model {}({})",
             self.identifier.to_string(),
-            self.parameters().iter().map(|(_, p)| p.to_string()).collect::<Vec<_>>().join(", "),
+            self.parameters()
+                .iter()
+                .map(|(_, p)| p.to_string())
+                .collect::<Vec<_>>()
+                .join(", "),
         )?;
 
         Ok(())
     }
 }
-
-

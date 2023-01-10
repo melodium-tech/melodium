@@ -1,9 +1,8 @@
-
-use std::sync::Mutex;
-use async_std::channel::Sender;
-use std::sync::atomic::{AtomicBool, Ordering};
-use melodium_common::executive::{SendResult, TransmissionError};
 use super::receive_transmitter::RecvTransmitter;
+use async_std::channel::Sender;
+use melodium_common::executive::{SendResult, TransmissionError};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 
 const BUFFER_LIMIT: usize = 2usize.pow(20);
 
@@ -16,7 +15,6 @@ pub struct SendTransmitter<T> {
 }
 
 impl<T: Clone> SendTransmitter<T> {
-
     pub fn new() -> Self {
         Self {
             senders: Mutex::new(Vec::new()),
@@ -26,7 +24,6 @@ impl<T: Clone> SendTransmitter<T> {
     }
 
     pub fn add_transmitter(&self, transmitter: &RecvTransmitter<T>) {
-
         let sender = transmitter.get_sender();
         self.senders.lock().unwrap().push(sender);
 
@@ -34,65 +31,52 @@ impl<T: Clone> SendTransmitter<T> {
     }
 
     pub async fn send(&self, data: T) -> SendResult {
-
         if !self.has_receivers.load(Ordering::Relaxed) {
-            return Err(TransmissionError::NoReceiver)
-        }
-        else
-        {
+            return Err(TransmissionError::NoReceiver);
+        } else {
             let mut buffer = self.buffer.lock().unwrap();
             buffer.push(data);
         }
-        
+
         self.check_send().await
     }
 
     pub async fn send_multiple(&self, data: Vec<T>) -> SendResult {
-
         if !self.has_receivers.load(Ordering::Relaxed) {
-            return Err(TransmissionError::NoReceiver)
-        }
-        else
-        {
+            return Err(TransmissionError::NoReceiver);
+        } else {
             let mut buffer = self.buffer.lock().unwrap();
             buffer.extend(data);
         }
-        
+
         self.check_send().await
     }
 
     async fn check_send(&self) -> SendResult {
-
         let buffer_len = self.buffer.lock().unwrap().len();
 
         if buffer_len >= BUFFER_LIMIT {
-
             self.do_send().await
-        }
-        else {
+        } else {
             Ok(())
         }
     }
 
     async fn do_send(&self) -> SendResult {
-
         let buffer = self.buffer.lock().unwrap().clone();
 
         let mut statuses = Vec::new();
         let senders = self.senders.lock().unwrap().clone();
         for sender in senders.iter() {
-            statuses.push(
-                match sender.send(buffer.clone()).await {
-                    Ok(()) => true,
-                    Err(_) => false,
-                }
-            );
-        };
+            statuses.push(match sender.send(buffer.clone()).await {
+                Ok(()) => true,
+                Err(_) => false,
+            });
+        }
 
         let status = if let Some(_) = statuses.iter().find(|s| **s) {
             Ok(())
-        }
-        else {
+        } else {
             Err(TransmissionError::EverythingClosed)
         };
 
@@ -102,10 +86,11 @@ impl<T: Clone> SendTransmitter<T> {
     }
 
     pub async fn close(&self) {
-
         // In closing we don't care for send result
         let _result = self.do_send().await;
 
-        self.senders.lock().unwrap().iter().for_each(|s| { s.close(); } );
+        self.senders.lock().unwrap().iter().for_each(|s| {
+            s.close();
+        });
     }
 }

@@ -1,10 +1,9 @@
-
-use async_trait::async_trait;
-use std::sync::Arc;
 use super::receive_transmitter::RecvTransmitter;
-use melodium_common::executive::Input as ExecutiveInput;
+use async_trait::async_trait;
 use melodium_common::descriptor::{Input as InputDescriptor, Structure, Type};
+use melodium_common::executive::Input as ExecutiveInput;
 use melodium_common::executive::RecvResult;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum Input {
@@ -54,51 +53,45 @@ pub enum Input {
 }
 
 impl Input {
-
     pub fn new(descriptor: &InputDescriptor) -> Self {
-        
         match descriptor.datatype().structure() {
-            Structure::Scalar => {
-                match descriptor.datatype().r#type() {
-                    Type::Void => Input::Void(Arc::new(RecvTransmitter::new())),
-                    Type::U8 => Input::U8(Arc::new(RecvTransmitter::new())),
-                    Type::U16 => Input::U16(Arc::new(RecvTransmitter::new())),
-                    Type::U32 => Input::U32(Arc::new(RecvTransmitter::new())),
-                    Type::U64 => Input::U64(Arc::new(RecvTransmitter::new())),
-                    Type::U128 => Input::U128(Arc::new(RecvTransmitter::new())),
-                    Type::I8 => Input::I8(Arc::new(RecvTransmitter::new())),
-                    Type::I16 => Input::I16(Arc::new(RecvTransmitter::new())),
-                    Type::I32 => Input::I32(Arc::new(RecvTransmitter::new())),
-                    Type::I64 => Input::I64(Arc::new(RecvTransmitter::new())),
-                    Type::I128 => Input::I128(Arc::new(RecvTransmitter::new())),
-                    Type::F32 => Input::F32(Arc::new(RecvTransmitter::new())),
-                    Type::F64 => Input::F64(Arc::new(RecvTransmitter::new())),
-                    Type::Bool => Input::Bool(Arc::new(RecvTransmitter::new())),
-                    Type::Byte => Input::Byte(Arc::new(RecvTransmitter::new())),
-                    Type::Char => Input::Char(Arc::new(RecvTransmitter::new())),
-                    Type::String => Input::String(Arc::new(RecvTransmitter::new())),
-                }
+            Structure::Scalar => match descriptor.datatype().r#type() {
+                Type::Void => Input::Void(Arc::new(RecvTransmitter::new())),
+                Type::U8 => Input::U8(Arc::new(RecvTransmitter::new())),
+                Type::U16 => Input::U16(Arc::new(RecvTransmitter::new())),
+                Type::U32 => Input::U32(Arc::new(RecvTransmitter::new())),
+                Type::U64 => Input::U64(Arc::new(RecvTransmitter::new())),
+                Type::U128 => Input::U128(Arc::new(RecvTransmitter::new())),
+                Type::I8 => Input::I8(Arc::new(RecvTransmitter::new())),
+                Type::I16 => Input::I16(Arc::new(RecvTransmitter::new())),
+                Type::I32 => Input::I32(Arc::new(RecvTransmitter::new())),
+                Type::I64 => Input::I64(Arc::new(RecvTransmitter::new())),
+                Type::I128 => Input::I128(Arc::new(RecvTransmitter::new())),
+                Type::F32 => Input::F32(Arc::new(RecvTransmitter::new())),
+                Type::F64 => Input::F64(Arc::new(RecvTransmitter::new())),
+                Type::Bool => Input::Bool(Arc::new(RecvTransmitter::new())),
+                Type::Byte => Input::Byte(Arc::new(RecvTransmitter::new())),
+                Type::Char => Input::Char(Arc::new(RecvTransmitter::new())),
+                Type::String => Input::String(Arc::new(RecvTransmitter::new())),
             },
-            Structure::Vector => {
-                match descriptor.datatype().r#type() {
-                    Type::Void => Input::VecVoid(Arc::new(RecvTransmitter::new())),
-                    Type::U8 => Input::VecU8(Arc::new(RecvTransmitter::new())),
-                    Type::U16 => Input::VecU16(Arc::new(RecvTransmitter::new())),
-                    Type::U32 => Input::VecU32(Arc::new(RecvTransmitter::new())),
-                    Type::U64 => Input::VecU64(Arc::new(RecvTransmitter::new())),
-                    Type::U128 => Input::VecU128(Arc::new(RecvTransmitter::new())),
-                    Type::I8 => Input::VecI8(Arc::new(RecvTransmitter::new())),
-                    Type::I16 => Input::VecI16(Arc::new(RecvTransmitter::new())),
-                    Type::I32 => Input::VecI32(Arc::new(RecvTransmitter::new())),
-                    Type::I64 => Input::VecI64(Arc::new(RecvTransmitter::new())),
-                    Type::I128 => Input::VecI128(Arc::new(RecvTransmitter::new())),
-                    Type::F32 => Input::VecF32(Arc::new(RecvTransmitter::new())),
-                    Type::F64 => Input::VecF64(Arc::new(RecvTransmitter::new())),
-                    Type::Bool => Input::VecBool(Arc::new(RecvTransmitter::new())),
-                    Type::Byte => Input::VecByte(Arc::new(RecvTransmitter::new())),
-                    Type::Char => Input::VecChar(Arc::new(RecvTransmitter::new())),
-                    Type::String => Input::VecString(Arc::new(RecvTransmitter::new())),
-                }
+            Structure::Vector => match descriptor.datatype().r#type() {
+                Type::Void => Input::VecVoid(Arc::new(RecvTransmitter::new())),
+                Type::U8 => Input::VecU8(Arc::new(RecvTransmitter::new())),
+                Type::U16 => Input::VecU16(Arc::new(RecvTransmitter::new())),
+                Type::U32 => Input::VecU32(Arc::new(RecvTransmitter::new())),
+                Type::U64 => Input::VecU64(Arc::new(RecvTransmitter::new())),
+                Type::U128 => Input::VecU128(Arc::new(RecvTransmitter::new())),
+                Type::I8 => Input::VecI8(Arc::new(RecvTransmitter::new())),
+                Type::I16 => Input::VecI16(Arc::new(RecvTransmitter::new())),
+                Type::I32 => Input::VecI32(Arc::new(RecvTransmitter::new())),
+                Type::I64 => Input::VecI64(Arc::new(RecvTransmitter::new())),
+                Type::I128 => Input::VecI128(Arc::new(RecvTransmitter::new())),
+                Type::F32 => Input::VecF32(Arc::new(RecvTransmitter::new())),
+                Type::F64 => Input::VecF64(Arc::new(RecvTransmitter::new())),
+                Type::Bool => Input::VecBool(Arc::new(RecvTransmitter::new())),
+                Type::Byte => Input::VecByte(Arc::new(RecvTransmitter::new())),
+                Type::Char => Input::VecChar(Arc::new(RecvTransmitter::new())),
+                Type::String => Input::VecString(Arc::new(RecvTransmitter::new())),
             },
         }
     }
@@ -152,14 +145,12 @@ impl ExecutiveInput for Input {
         }
     }
 
-
     async fn recv_u8(&self) -> RecvResult<Vec<u8>> {
         match self {
             Input::U8(t) => t.receive_multiple().await,
             _ => panic!("u8 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_u16(&self) -> RecvResult<Vec<u16>> {
         match self {
@@ -167,7 +158,6 @@ impl ExecutiveInput for Input {
             _ => panic!("u16 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_u32(&self) -> RecvResult<Vec<u32>> {
         match self {
@@ -175,7 +165,6 @@ impl ExecutiveInput for Input {
             _ => panic!("u32 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_u64(&self) -> RecvResult<Vec<u64>> {
         match self {
@@ -183,7 +172,6 @@ impl ExecutiveInput for Input {
             _ => panic!("u64 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_u128(&self) -> RecvResult<Vec<u128>> {
         match self {
@@ -191,7 +179,6 @@ impl ExecutiveInput for Input {
             _ => panic!("u128 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_i8(&self) -> RecvResult<Vec<i8>> {
         match self {
@@ -199,7 +186,6 @@ impl ExecutiveInput for Input {
             _ => panic!("i8 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_i16(&self) -> RecvResult<Vec<i16>> {
         match self {
@@ -207,7 +193,6 @@ impl ExecutiveInput for Input {
             _ => panic!("i16 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_i32(&self) -> RecvResult<Vec<i32>> {
         match self {
@@ -215,7 +200,6 @@ impl ExecutiveInput for Input {
             _ => panic!("i32 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_i64(&self) -> RecvResult<Vec<i64>> {
         match self {
@@ -223,7 +207,6 @@ impl ExecutiveInput for Input {
             _ => panic!("i64 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_i128(&self) -> RecvResult<Vec<i128>> {
         match self {
@@ -231,7 +214,6 @@ impl ExecutiveInput for Input {
             _ => panic!("i128 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_f32(&self) -> RecvResult<Vec<f32>> {
         match self {
@@ -239,7 +221,6 @@ impl ExecutiveInput for Input {
             _ => panic!("f32 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_f64(&self) -> RecvResult<Vec<f64>> {
         match self {
@@ -247,7 +228,6 @@ impl ExecutiveInput for Input {
             _ => panic!("f64 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_bool(&self) -> RecvResult<Vec<bool>> {
         match self {
@@ -255,7 +235,6 @@ impl ExecutiveInput for Input {
             _ => panic!("bool receive transmitter expected"),
         }
     }
-    
 
     async fn recv_byte(&self) -> RecvResult<Vec<u8>> {
         match self {
@@ -263,7 +242,6 @@ impl ExecutiveInput for Input {
             _ => panic!("byte receive transmitter expected"),
         }
     }
-    
 
     async fn recv_char(&self) -> RecvResult<Vec<char>> {
         match self {
@@ -271,7 +249,6 @@ impl ExecutiveInput for Input {
             _ => panic!("char receive transmitter expected"),
         }
     }
-    
 
     async fn recv_string(&self) -> RecvResult<Vec<String>> {
         match self {
@@ -280,7 +257,6 @@ impl ExecutiveInput for Input {
         }
     }
 
-
     async fn recv_vec_void(&self) -> RecvResult<Vec<Vec<()>>> {
         match self {
             Input::VecVoid(t) => t.receive_multiple().await,
@@ -288,14 +264,12 @@ impl ExecutiveInput for Input {
         }
     }
 
-
     async fn recv_vec_u8(&self) -> RecvResult<Vec<Vec<u8>>> {
         match self {
             Input::VecU8(t) => t.receive_multiple().await,
             _ => panic!("Vec<u8> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_u16(&self) -> RecvResult<Vec<Vec<u16>>> {
         match self {
@@ -303,7 +277,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<u16> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_u32(&self) -> RecvResult<Vec<Vec<u32>>> {
         match self {
@@ -311,7 +284,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<u32> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_u64(&self) -> RecvResult<Vec<Vec<u64>>> {
         match self {
@@ -319,7 +291,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<u64> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_u128(&self) -> RecvResult<Vec<Vec<u128>>> {
         match self {
@@ -327,7 +298,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<u128> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_i8(&self) -> RecvResult<Vec<Vec<i8>>> {
         match self {
@@ -335,7 +305,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<i8> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_i16(&self) -> RecvResult<Vec<Vec<i16>>> {
         match self {
@@ -343,7 +312,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<i16> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_i32(&self) -> RecvResult<Vec<Vec<i32>>> {
         match self {
@@ -351,7 +319,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<i32> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_i64(&self) -> RecvResult<Vec<Vec<i64>>> {
         match self {
@@ -359,7 +326,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<i64> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_i128(&self) -> RecvResult<Vec<Vec<i128>>> {
         match self {
@@ -367,7 +333,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<i128> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_f32(&self) -> RecvResult<Vec<Vec<f32>>> {
         match self {
@@ -375,7 +340,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<f32> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_f64(&self) -> RecvResult<Vec<Vec<f64>>> {
         match self {
@@ -383,7 +347,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<f64> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_bool(&self) -> RecvResult<Vec<Vec<bool>>> {
         match self {
@@ -391,7 +354,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<bool> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_byte(&self) -> RecvResult<Vec<Vec<u8>>> {
         match self {
@@ -399,7 +361,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<byte> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_char(&self) -> RecvResult<Vec<Vec<char>>> {
         match self {
@@ -407,7 +368,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<char> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_vec_string(&self) -> RecvResult<Vec<Vec<String>>> {
         match self {
@@ -416,7 +376,6 @@ impl ExecutiveInput for Input {
         }
     }
 
-
     async fn recv_one_void(&self) -> RecvResult<()> {
         match self {
             Input::Void(t) => t.receive_one().await,
@@ -424,14 +383,12 @@ impl ExecutiveInput for Input {
         }
     }
 
-
     async fn recv_one_u8(&self) -> RecvResult<u8> {
         match self {
             Input::U8(t) => t.receive_one().await,
             _ => panic!("u8 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_u16(&self) -> RecvResult<u16> {
         match self {
@@ -439,7 +396,6 @@ impl ExecutiveInput for Input {
             _ => panic!("u16 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_u32(&self) -> RecvResult<u32> {
         match self {
@@ -447,7 +403,6 @@ impl ExecutiveInput for Input {
             _ => panic!("u32 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_u64(&self) -> RecvResult<u64> {
         match self {
@@ -455,7 +410,6 @@ impl ExecutiveInput for Input {
             _ => panic!("u64 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_u128(&self) -> RecvResult<u128> {
         match self {
@@ -463,7 +417,6 @@ impl ExecutiveInput for Input {
             _ => panic!("u128 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_i8(&self) -> RecvResult<i8> {
         match self {
@@ -471,7 +424,6 @@ impl ExecutiveInput for Input {
             _ => panic!("i8 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_i16(&self) -> RecvResult<i16> {
         match self {
@@ -479,7 +431,6 @@ impl ExecutiveInput for Input {
             _ => panic!("i16 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_i32(&self) -> RecvResult<i32> {
         match self {
@@ -487,7 +438,6 @@ impl ExecutiveInput for Input {
             _ => panic!("i32 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_i64(&self) -> RecvResult<i64> {
         match self {
@@ -495,7 +445,6 @@ impl ExecutiveInput for Input {
             _ => panic!("i64 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_i128(&self) -> RecvResult<i128> {
         match self {
@@ -503,7 +452,6 @@ impl ExecutiveInput for Input {
             _ => panic!("i128 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_f32(&self) -> RecvResult<f32> {
         match self {
@@ -511,7 +459,6 @@ impl ExecutiveInput for Input {
             _ => panic!("f32 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_f64(&self) -> RecvResult<f64> {
         match self {
@@ -519,7 +466,6 @@ impl ExecutiveInput for Input {
             _ => panic!("f64 receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_bool(&self) -> RecvResult<bool> {
         match self {
@@ -527,7 +473,6 @@ impl ExecutiveInput for Input {
             _ => panic!("bool receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_byte(&self) -> RecvResult<u8> {
         match self {
@@ -535,7 +480,6 @@ impl ExecutiveInput for Input {
             _ => panic!("byte receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_char(&self) -> RecvResult<char> {
         match self {
@@ -543,7 +487,6 @@ impl ExecutiveInput for Input {
             _ => panic!("char receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_string(&self) -> RecvResult<String> {
         match self {
@@ -559,14 +502,12 @@ impl ExecutiveInput for Input {
         }
     }
 
-
     async fn recv_one_vec_u8(&self) -> RecvResult<Vec<u8>> {
         match self {
             Input::VecU8(t) => t.receive_one().await,
             _ => panic!("Vec<u8> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_u16(&self) -> RecvResult<Vec<u16>> {
         match self {
@@ -574,7 +515,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<u16> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_u32(&self) -> RecvResult<Vec<u32>> {
         match self {
@@ -582,7 +522,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<u32> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_u64(&self) -> RecvResult<Vec<u64>> {
         match self {
@@ -590,7 +529,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<u64> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_u128(&self) -> RecvResult<Vec<u128>> {
         match self {
@@ -598,7 +536,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<u128> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_i8(&self) -> RecvResult<Vec<i8>> {
         match self {
@@ -606,7 +543,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<i8> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_i16(&self) -> RecvResult<Vec<i16>> {
         match self {
@@ -614,7 +550,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<i16> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_i32(&self) -> RecvResult<Vec<i32>> {
         match self {
@@ -622,7 +557,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<i32> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_i64(&self) -> RecvResult<Vec<i64>> {
         match self {
@@ -630,7 +564,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<i64> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_i128(&self) -> RecvResult<Vec<i128>> {
         match self {
@@ -638,7 +571,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<i128> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_f32(&self) -> RecvResult<Vec<f32>> {
         match self {
@@ -646,7 +578,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<f32> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_f64(&self) -> RecvResult<Vec<f64>> {
         match self {
@@ -654,7 +585,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<f64> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_bool(&self) -> RecvResult<Vec<bool>> {
         match self {
@@ -662,7 +592,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<bool> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_byte(&self) -> RecvResult<Vec<u8>> {
         match self {
@@ -670,7 +599,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<byte> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_char(&self) -> RecvResult<Vec<char>> {
         match self {
@@ -678,7 +606,6 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<char> receive transmitter expected"),
         }
     }
-    
 
     async fn recv_one_vec_string(&self) -> RecvResult<Vec<String>> {
         match self {
@@ -686,7 +613,4 @@ impl ExecutiveInput for Input {
             _ => panic!("Vec<string> receive transmitter expected"),
         }
     }
-
 }
-
-

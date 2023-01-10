@@ -1,10 +1,9 @@
-
-use core::fmt::Debug;
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use melodium_common::descriptor::Identifier;
 use crate::building::BuildId;
 use crate::error::LogicError;
+use core::fmt::Debug;
+use melodium_common::descriptor::Identifier;
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 #[derive(Clone, Debug)]
 pub struct CheckBuild {
@@ -13,7 +12,7 @@ pub struct CheckBuild {
 impl CheckBuild {
     pub fn new() -> Self {
         Self {
-            fed_inputs: HashMap::new()
+            fed_inputs: HashMap::new(),
         }
     }
 }
@@ -43,5 +42,5 @@ pub struct CheckStep {
 
 #[derive(Debug, Clone)]
 pub struct CheckEnvironment {
-    pub contextes: Vec<String>
+    pub contextes: Vec<String>,
 }

@@ -1,7 +1,6 @@
-
-use std::sync::Arc;
 use melodium_common::descriptor::{Context, Function};
 use melodium_common::executive::Value as ExecutiveValue;
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub enum Value {

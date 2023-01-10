@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use core::fmt::Debug;
 
 #[async_trait]
-pub trait Input : Debug + Send + Sync {
+pub trait Input: Debug + Send + Sync {
     fn close(&self);
     async fn recv_void(&self) -> RecvResult<Vec<()>>;
     async fn recv_u8(&self) -> RecvResult<Vec<u8>>;

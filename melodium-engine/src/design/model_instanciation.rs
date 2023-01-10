@@ -1,9 +1,8 @@
-
-use core::fmt::{Debug};
 use super::Parameter;
+use core::fmt::Debug;
 use melodium_common::descriptor::Model;
+use std::collections::HashMap;
 use std::sync::Weak;
-use std::collections::{HashMap};
 
 #[derive(Debug)]
 pub struct ModelInstanciation {

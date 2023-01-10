@@ -1,7 +1,6 @@
-
+use melodium_common::executive::{Model, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
-use melodium_common::executive::{Model, Value};
 
 #[derive(Debug, Clone)]
 pub struct GenesisEnvironment {
@@ -10,7 +9,6 @@ pub struct GenesisEnvironment {
 }
 
 impl GenesisEnvironment {
-
     pub fn new() -> Self {
         Self {
             models: HashMap::new(),

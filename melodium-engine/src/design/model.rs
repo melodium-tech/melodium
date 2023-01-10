@@ -1,10 +1,8 @@
-
-use core::fmt::{Debug};
 use super::Parameter;
 use crate::descriptor::Model as ModelDescriptor;
+use core::fmt::Debug;
+use std::collections::HashMap;
 use std::sync::Weak;
-use std::collections::{HashMap};
-
 
 #[derive(Debug)]
 pub struct Model {

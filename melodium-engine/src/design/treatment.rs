@@ -1,9 +1,8 @@
-
-use core::fmt::{Debug};
-use super::{ModelInstanciation, TreatmentInstanciation, Connection};
+use super::{Connection, ModelInstanciation, TreatmentInstanciation};
 use crate::descriptor::Treatment as TreatmentDescriptor;
+use core::fmt::Debug;
+use std::collections::HashMap;
 use std::sync::Weak;
-use std::collections::{HashMap};
 
 #[derive(Debug)]
 pub struct Treatment {

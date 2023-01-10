@@ -1,7 +1,6 @@
-
-use std::sync::Arc;
+use crate::building::BuildId;
 use melodium_common::descriptor::Identified;
-use crate::building::{BuildId};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct SourceEntry {

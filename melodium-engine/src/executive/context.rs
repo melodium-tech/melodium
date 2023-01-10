@@ -1,8 +1,7 @@
-
+use melodium_common::descriptor::Context as ContextDescriptor;
+use melodium_common::executive::{Context as ExecutiveContext, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
-use melodium_common::descriptor::Context as ContextDescriptor;
-use melodium_common::executive::{Value, Context as ExecutiveContext};
 
 #[derive(Debug, Clone)]
 pub struct Context {
@@ -11,17 +10,16 @@ pub struct Context {
 }
 
 impl Context {
-
     pub fn new(descriptor: Arc<ContextDescriptor>) -> Self {
         Self {
             descriptor,
-            values: HashMap::new()
+            values: HashMap::new(),
         }
     }
 
     pub fn set_value(&mut self, name: &str, value: Value) {
         self.values.insert(name.to_string(), value);
-    } 
+    }
 }
 
 impl ExecutiveContext for Context {

@@ -1,23 +1,34 @@
-
+use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
+use crate::building::{
+    model::get_builder as get_builder_model, treatment::get_builder as get_builder_treatment,
+    BuildId, Builder, CheckEnvironment, ContextualEnvironment, GenesisEnvironment,
+    StaticBuildResult,
+};
+use crate::error::LogicError;
+use crate::transmission::{Input, Output};
+use async_std::channel::{unbounded, Receiver, Sender};
+use async_std::sync::Mutex;
+use async_std::task::block_on;
+use async_trait::async_trait;
 use core::fmt::Debug;
 use core::marker::Send;
-use std::collections::{HashMap, hash_map::Entry};
-use std::sync::{Arc, Weak, RwLock, atomic::{AtomicBool, Ordering}};
 use futures::future::{join, join_all};
 use futures::stream::{FuturesUnordered, StreamExt};
-use async_std::task::block_on;
-use async_std::sync::Mutex;
-use async_std::channel::*;
-use async_trait::async_trait;
-use melodium_common::descriptor::{Identified, Identifier, Collection, Entry as CollectionEntry, Input as InputDescriptor, Output as OutputDescriptor};
-use melodium_common::executive::{ContinuousFuture, Model, ModelId, ResultStatus, TrackFuture, TrackId, World as ExecutiveWorld, Context as ExecutiveContext, Output as ExecutiveOutput};
-use crate::building::{BuildId, Builder, ContextualEnvironment, GenesisEnvironment, CheckEnvironment, StaticBuildResult, model::get_builder as get_builder_model, treatment::get_builder as get_builder_treatment};
-use crate::transmission::{Input, Output};
-use crate::error::LogicError;
-use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
+use melodium_common::descriptor::{
+    Collection, Entry as CollectionEntry, Identified, Identifier, Input as InputDescriptor,
+    Output as OutputDescriptor,
+};
+use melodium_common::executive::{
+    Context as ExecutiveContext, ContinuousFuture, Model, ModelId, Output as ExecutiveOutput,
+    ResultStatus, TrackFuture, TrackId, World as ExecutiveWorld,
+};
+use std::collections::{hash_map::Entry, HashMap};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, RwLock, Weak,
+};
 
 pub struct World {
-
     collection: Arc<Collection>,
     auto_reference: Weak<Self>,
 
@@ -41,22 +52,22 @@ pub struct World {
 }
 
 impl Debug for World {
-
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("World")
-         .field("models", &self.models.read().unwrap().len())
-         .field("sources", &self.sources.read().unwrap().len())
-         .field("errors", &self.errors)
-         .field("main_build_id", &self.main_build_id)
-         .field("continuous_tasks", &self.continuous_tasks.read().unwrap().len())
-         .finish()
+            .field("models", &self.models.read().unwrap().len())
+            .field("sources", &self.sources.read().unwrap().len())
+            .field("errors", &self.errors)
+            .field("main_build_id", &self.main_build_id)
+            .field(
+                "continuous_tasks",
+                &self.continuous_tasks.read().unwrap().len(),
+            )
+            .finish()
     }
 }
 
 impl World {
-
     pub fn new(collection: Arc<Collection>) -> Arc<Self> {
-
         let (sender, receiver) = unbounded();
 
         Arc::new_cyclic(|me| Self {
@@ -97,8 +108,13 @@ impl World {
         id
     }
 
-    pub fn add_source(&self, model_id: ModelId, name: &str, descriptor: Arc<dyn Identified>, build_id: BuildId) {
-
+    pub fn add_source(
+        &self,
+        model_id: ModelId,
+        name: &str,
+        descriptor: Arc<dyn Identified>,
+        build_id: BuildId,
+    ) {
         let mut sources = self.sources.write().unwrap();
 
         let model_sources = sources.get_mut(&model_id).unwrap();
@@ -107,30 +123,34 @@ impl World {
 
         sources.push(SourceEntry {
             descriptor,
-            id: build_id
+            id: build_id,
         });
     }
 
     pub fn builder(&self, identifier: &Identifier) -> Result<Arc<dyn Builder>, LogicError> {
-
         if let Some(builder) = self.builders.read().unwrap().get(identifier) {
             Ok(Arc::clone(builder))
-        }
-        else {
+        } else {
             if let Some(entry) = self.collection.get(identifier) {
                 let builder = match entry {
-                    CollectionEntry::Model(model) =>
-                        get_builder_model(self.auto_reference.upgrade().unwrap(), &model.as_buildable()),
-                    CollectionEntry::Treatment(treatment) =>
-                        get_builder_treatment(self.auto_reference.upgrade().unwrap(), &treatment.as_buildable()),
+                    CollectionEntry::Model(model) => get_builder_model(
+                        self.auto_reference.upgrade().unwrap(),
+                        &model.as_buildable(),
+                    ),
+                    CollectionEntry::Treatment(treatment) => get_builder_treatment(
+                        self.auto_reference.upgrade().unwrap(),
+                        &treatment.as_buildable(),
+                    ),
                     _ => Err(LogicError::unavailable_design()),
                 }?;
 
-                self.builders.write().unwrap().insert(identifier.clone(), Arc::clone(&builder));
+                self.builders
+                    .write()
+                    .unwrap()
+                    .insert(identifier.clone(), Arc::clone(&builder));
 
                 Ok(builder)
-            }
-            else {
+            } else {
                 Err(LogicError::unavailable_design())
             }
         }
@@ -145,12 +165,13 @@ impl World {
     }
 
     pub fn genesis(&self, beginning: &Identifier) -> bool {
-
         let gen_env = GenesisEnvironment::new();
 
-        let result = self.builder(beginning).unwrap().static_build(None, None, "main".to_string(), &gen_env);
+        let result =
+            self.builder(beginning)
+                .unwrap()
+                .static_build(None, None, "main".to_string(), &gen_env);
         if result.is_err() {
-
             let error = result.unwrap_err();
             self.errors.write().unwrap().push(error);
             return false;
@@ -158,30 +179,34 @@ impl World {
 
         match result.unwrap() {
             StaticBuildResult::Build(b) => *self.main_build_id.write().unwrap() = b,
-            _ => panic!("Cannot make a genesis with something else than a treatment")
+            _ => panic!("Cannot make a genesis with something else than a treatment"),
         };
 
-        
         // Check all the tracks/paths
         let models = self.models.read().unwrap();
         let mut builds = Vec::new();
         let mut errors = Vec::new();
         for (model_id, model_sources) in self.sources.read().unwrap().iter() {
-
             let model = models.get(*model_id as usize).unwrap();
 
             for (source, entries) in model_sources {
-
                 let check_environment = CheckEnvironment {
-                    contextes: model.descriptor().sources().get(source).unwrap().iter().map(|context| context.name().to_string()).collect()
+                    contextes: model
+                        .descriptor()
+                        .sources()
+                        .get(source)
+                        .unwrap()
+                        .iter()
+                        .map(|context| context.name().to_string())
+                        .collect(),
                 };
 
                 for entry in entries {
-                    let result = self.builder(entry.descriptor.identifier()).unwrap().check_dynamic_build(
-                        entry.id,
-                        check_environment.clone(),
-                        Vec::new()
-                    ).unwrap();
+                    let result = self
+                        .builder(entry.descriptor.identifier())
+                        .unwrap()
+                        .check_dynamic_build(entry.id, check_environment.clone(), Vec::new())
+                        .unwrap();
 
                     builds.extend(result.checked_builds);
                     errors.extend(result.errors);
@@ -191,10 +216,8 @@ impl World {
 
         // Check that all inputs are satisfied.
         for rc_check_build in builds {
-
             let borrowed_check_build = rc_check_build.read().unwrap();
             for (_input_name, input_satisfied) in &borrowed_check_build.fed_inputs {
-
                 if !input_satisfied {
                     errors.push(LogicError::unsatisfied_input());
                 }
@@ -205,10 +228,14 @@ impl World {
         borrowed_errors.extend(errors);
 
         if !borrowed_errors.is_empty() {
-            return false
+            return false;
         }
 
-        self.models.read().unwrap().iter().for_each(|m| m.initialize());
+        self.models
+            .read()
+            .unwrap()
+            .iter()
+            .for_each(|m| m.initialize());
 
         true
     }
@@ -218,13 +245,11 @@ impl World {
     }
 
     pub fn live(&self) {
-
         let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
 
         let model_futures = join_all(borrowed_continuous_tasks.iter_mut());
 
         let continuum = async move {
-
             model_futures.await;
 
             self.continous_ended.store(true, Ordering::Relaxed);
@@ -239,68 +264,68 @@ impl World {
         and termination, that jut allows already running tracks to finish and ends models.
     */
     pub fn end(&self) {
-
         if !self.closing.load(Ordering::Relaxed) {
-            self.models.read().unwrap().iter().for_each(|m| m.shutdown());
+            self.models
+                .read()
+                .unwrap()
+                .iter()
+                .for_each(|m| m.shutdown());
         }
         self.closing.store(true, Ordering::Relaxed);
     }
 
     async fn run_tracks(&self) {
-
         let mut futures = FuturesUnordered::new();
 
         async fn track_future(track: ExecutionTrack) -> TrackResult {
-
-            let non_ok: Vec<ResultStatus> = track.future.await.iter().filter_map(
-                // The `_ =>` is unreachable for now, but will ResultStatus will be complexified.
-                #[allow(unreachable_patterns)]
-                |r| match r { ResultStatus::Ok => None, _ => Some(r.clone()) }
-            ).collect();
+            let non_ok: Vec<ResultStatus> = track
+                .future
+                .await
+                .iter()
+                .filter_map(
+                    // The `_ =>` is unreachable for now, but will ResultStatus will be complexified.
+                    #[allow(unreachable_patterns)]
+                    |r| match r {
+                        ResultStatus::Ok => None,
+                        _ => Some(r.clone()),
+                    },
+                )
+                .collect();
 
             if non_ok.is_empty() {
                 TrackResult::AllOk(track.id)
-            }
-            else {
+            } else {
                 TrackResult::NotAllOk(track.id, non_ok)
             }
         }
 
         while !self.closing.load(Ordering::Relaxed) {
-
             if !self.tracks_receiver.is_empty() {
-
                 while let Ok(track) = self.tracks_receiver.try_recv() {
-
                     futures.push(track_future(track));
                 }
-            }
-            else if futures.is_empty() {
-
+            } else if futures.is_empty() {
                 self.check_closing();
 
                 if let Ok(track) = self.tracks_receiver.recv().await {
-
                     futures.push(track_future(track));
                 }
             }
 
             while let Some(result) = futures.next().await {
-
                 match result {
                     TrackResult::AllOk(id) => {
                         self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
-                    },
+                    }
                     TrackResult::NotAllOk(id, _) => {
                         self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
-                    },
+                    }
                 }
             }
         }
     }
 
     fn check_closing(&self) {
-
         if self.continous_ended.load(Ordering::Relaxed) && self.tracks_receiver.len() == 0 {
             self.tracks_sender.close();
             self.end();
@@ -310,15 +335,22 @@ impl World {
 
 #[async_trait]
 impl ExecutiveWorld for World {
-    fn add_continuous_task(&self,task:ContinuousFuture) {
-        
+    fn add_continuous_task(&self, task: ContinuousFuture) {
         let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
 
         borrowed_continuous_tasks.push(task);
     }
 
-    async fn create_track(&self, id: ModelId, source: &str, contexts: HashMap<String, Box<dyn ExecutiveContext>>, parent_track: Option<TrackId>, callback: Option<impl FnOnce(HashMap<String, Box<dyn ExecutiveOutput>>) -> Vec<TrackFuture> + Send>) {
-
+    async fn create_track(
+        &self,
+        id: ModelId,
+        source: &str,
+        contexts: HashMap<String, Box<dyn ExecutiveContext>>,
+        parent_track: Option<TrackId>,
+        callback: Option<
+            impl FnOnce(HashMap<String, Box<dyn ExecutiveOutput>>) -> Vec<TrackFuture> + Send,
+        >,
+    ) {
         let track_id;
         {
             let mut counter = self.tracks_counter.lock().await;
@@ -338,21 +370,25 @@ impl ExecutiveWorld for World {
 
             let mut contextual_environment = ContextualEnvironment::new(track_id);
 
-            contexts.into_iter().for_each(|(name, context)| contextual_environment.add_context(&name, context));
+            contexts
+                .into_iter()
+                .for_each(|(name, context)| contextual_environment.add_context(&name, context));
 
             for entry in entries {
-
-                let build_result = self.builder(entry.descriptor.identifier()).unwrap().dynamic_build(entry.id, &contextual_environment).unwrap();
+                let build_result = self
+                    .builder(entry.descriptor.identifier())
+                    .unwrap()
+                    .dynamic_build(entry.id, &contextual_environment)
+                    .unwrap();
 
                 track_futures.extend(build_result.prepared_futures);
 
                 for (input_name, mut input_transmitters) in build_result.feeding_inputs {
-
                     match outputs.entry(input_name) {
                         Entry::Vacant(e) => {
                             let e = e.insert(Output::from(input_transmitters.pop().unwrap()));
                             e.add_transmission(&input_transmitters);
-                        },
+                        }
                         Entry::Occupied(e) => {
                             e.get().add_transmission(&input_transmitters);
                         }
@@ -362,16 +398,27 @@ impl ExecutiveWorld for World {
         }
 
         let model_futures = if let Some(callback) = callback {
-            callback(outputs.into_iter().map(|(name, output)| (name, Box::new(output) as Box<dyn ExecutiveOutput>)).collect())
-        }
-        else { Vec::new() };
+            callback(
+                outputs
+                    .into_iter()
+                    .map(|(name, output)| (name, Box::new(output) as Box<dyn ExecutiveOutput>))
+                    .collect(),
+            )
+        } else {
+            Vec::new()
+        };
 
         track_futures.extend(model_futures);
 
         let ancestry = if let Some(parent) = parent_track {
-            self.tracks_info.lock().await.get(&parent).unwrap().ancestry_level + 1
-        }
-        else {
+            self.tracks_info
+                .lock()
+                .await
+                .get(&parent)
+                .unwrap()
+                .ancestry_level
+                + 1
+        } else {
             0
         };
 

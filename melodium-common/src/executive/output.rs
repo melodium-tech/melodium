@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use core::fmt::Debug;
 
 #[async_trait]
-pub trait Output : Debug + Send + Sync {
+pub trait Output: Debug + Send + Sync {
     async fn close(&self);
     async fn send_void(&self, data: ()) -> SendResult;
     async fn send_multiple_void(&self, data: Vec<()>) -> SendResult;

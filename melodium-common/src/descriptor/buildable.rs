@@ -1,5 +1,5 @@
-use crate::executive::{Model, Treatment, World};
 use crate::descriptor::Treatment as TreatmentDescriptor;
+use crate::executive::{Model, Treatment, World};
 use core::fmt::Debug;
 use downcast_rs::{impl_downcast, DowncastSync};
 use std::sync::{Arc, Weak};

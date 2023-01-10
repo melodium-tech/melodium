@@ -1,10 +1,8 @@
-
 use core::fmt::Debug;
-use std::sync::Arc;
 use melodium_common::descriptor::{Collection, Parameterized};
+use std::sync::Arc;
 
-pub trait Scope : Send + Sync + Debug {
-
+pub trait Scope: Send + Sync + Debug {
     fn descriptor(&self) -> Arc<dyn Parameterized>;
     fn collection(&self) -> Option<Arc<Collection>>;
 }
