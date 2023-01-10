@@ -1,7 +1,5 @@
 
 use std::sync::{Arc, Weak, RwLock};
-use crate::error::LogicError;
-use melodium_common::descriptor::{Input, Output};
 use super::TreatmentInstanciation;
 
 #[derive(Debug)]

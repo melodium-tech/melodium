@@ -1,9 +1,7 @@
 
 use core::fmt::{Debug};
-use melodium_common::descriptor::{Collection, Parameterized, Model as ModelDescriptor, Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor, Variability};
+use melodium_common::descriptor::{Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor};
 use super::{Treatment, Parameter, Value, Scope, Connection, IO};
-use crate::descriptor;
-use crate::design::{Model as ModelDesign, Parameter as ParameterDesign};
 use crate::error::LogicError;
 use std::sync::{Arc, RwLock, Weak};
 use std::collections::{HashMap};

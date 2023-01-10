@@ -1,6 +1,6 @@
 
 use core::fmt::{Debug};
-use super::{Parameter, ModelInstanciation, TreatmentInstanciation, Connection};
+use super::{ModelInstanciation, TreatmentInstanciation, Connection};
 use crate::descriptor::Treatment as TreatmentDescriptor;
 use std::sync::Weak;
 use std::collections::{HashMap};

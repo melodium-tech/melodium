@@ -63,7 +63,7 @@ impl Model {
 
     pub fn commit_design(&self) -> Result<(), LogicError> {
 
-        let mut option_designer = self.designer.lock().expect("Mutex poisoned");
+        let option_designer = self.designer.lock().expect("Mutex poisoned");
         let mut option_design = self.design.lock().expect("Mutex poisoned");
 
         if let Some(designer_ref) = &*option_designer {
@@ -77,7 +77,7 @@ impl Model {
 
     pub fn design(&self) -> Result<Arc<Design>, LogicError> {
 
-        let mut option_design = self.design.lock().expect("Mutex poisoned");
+        let option_design = self.design.lock().expect("Mutex poisoned");
 
         option_design.as_ref().map(|design| Arc::clone(design)).ok_or_else(|| LogicError::unavailable_design())
     }

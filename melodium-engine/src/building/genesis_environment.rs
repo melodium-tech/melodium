@@ -1,8 +1,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use melodium_common::executive::{Model, ModelId, Value};
-use crate::world::World;
+use melodium_common::executive::{Model, Value};
 
 #[derive(Debug, Clone)]
 pub struct GenesisEnvironment {

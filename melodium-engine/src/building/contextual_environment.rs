@@ -2,7 +2,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use melodium_common::executive::{Context, Model, TrackId, Value};
-use crate::world::World;
 use crate::transmission::Input;
 
 #[derive(Debug)]

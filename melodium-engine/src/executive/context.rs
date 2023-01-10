@@ -4,8 +4,6 @@ use std::sync::Arc;
 use melodium_common::descriptor::Context as ContextDescriptor;
 use melodium_common::executive::{Value, Context as ExecutiveContext};
 
-use crate::descriptor;
-
 #[derive(Debug, Clone)]
 pub struct Context {
     descriptor: Arc<ContextDescriptor>,

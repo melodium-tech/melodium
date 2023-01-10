@@ -1,9 +1,9 @@
 
 use core::fmt::{Debug};
-use melodium_common::descriptor::{Identifier, Collection, Entry, Parameterized, Model as ModelTrait, Parameter as ParameterDescriptor, Treatment as TreatmentTrait};
-use super::{Scope, Parameter, Value, ModelInstanciation, TreatmentInstanciation, Connection, IO};
+use melodium_common::descriptor::{Identifier, Collection, Entry, Parameterized, Treatment as TreatmentTrait};
+use super::{Scope, ModelInstanciation, TreatmentInstanciation, Connection, IO};
 use crate::descriptor::Treatment as TreatmentDescriptor;
-use crate::design::{Treatment as TreatmentDesign, Connection as ConnectionDesign, IO as IODesign, Parameter as ParameterDesign, ModelInstanciation as ModelInstanciationDesign, TreatmentInstanciation as TreatmentInstanciationDesign, treatment_instanciation};
+use crate::design::{Treatment as TreatmentDesign, Connection as ConnectionDesign, IO as IODesign, Parameter as ParameterDesign, ModelInstanciation as ModelInstanciationDesign, TreatmentInstanciation as TreatmentInstanciationDesign};
 use crate::error::LogicError;
 use std::sync::{Arc, RwLock, Weak};
 use std::collections::{HashMap};
