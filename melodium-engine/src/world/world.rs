@@ -4,6 +4,7 @@ use crate::building::{
     BuildId, Builder, CheckEnvironment, ContextualEnvironment, GenesisEnvironment,
     StaticBuildResult,
 };
+use crate::engine::Engine;
 use crate::error::LogicError;
 use crate::executive::Context;
 use crate::transmission::{Input, Output};
@@ -165,116 +166,6 @@ impl World {
         Output::new(descriptor)
     }
 
-    pub fn genesis(&self, beginning: &Identifier) -> bool {
-        let gen_env = GenesisEnvironment::new();
-
-        let result =
-            self.builder(beginning)
-                .unwrap()
-                .static_build(None, None, "main".to_string(), &gen_env);
-        if result.is_err() {
-            let error = result.unwrap_err();
-            self.errors.write().unwrap().push(error);
-            return false;
-        }
-
-        match result.unwrap() {
-            StaticBuildResult::Build(b) => *self.main_build_id.write().unwrap() = b,
-            _ => panic!("Cannot make a genesis with something else than a treatment"),
-        };
-
-        // Check all the tracks/paths
-        let models = self.models.read().unwrap();
-        let mut builds = Vec::new();
-        let mut errors = Vec::new();
-        for (model_id, model_sources) in self.sources.read().unwrap().iter() {
-            let model = models.get(*model_id as usize).unwrap();
-
-            for (source, entries) in model_sources {
-                let check_environment = CheckEnvironment {
-                    contextes: model
-                        .descriptor()
-                        .sources()
-                        .get(source)
-                        .unwrap()
-                        .iter()
-                        .map(|context| context.name().to_string())
-                        .collect(),
-                };
-
-                for entry in entries {
-                    let result = self
-                        .builder(entry.descriptor.identifier())
-                        .unwrap()
-                        .check_dynamic_build(entry.id, check_environment.clone(), Vec::new())
-                        .unwrap();
-
-                    builds.extend(result.checked_builds);
-                    errors.extend(result.errors);
-                }
-            }
-        }
-
-        // Check that all inputs are satisfied.
-        for rc_check_build in builds {
-            let borrowed_check_build = rc_check_build.read().unwrap();
-            for (_input_name, input_satisfied) in &borrowed_check_build.fed_inputs {
-                if !input_satisfied {
-                    errors.push(LogicError::unsatisfied_input());
-                }
-            }
-        }
-
-        let mut borrowed_errors = self.errors.write().unwrap();
-        borrowed_errors.extend(errors);
-
-        if !borrowed_errors.is_empty() {
-            return false;
-        }
-
-        self.models
-            .read()
-            .unwrap()
-            .iter()
-            .for_each(|m| m.initialize());
-
-        true
-    }
-
-    pub fn errors(&self) -> &RwLock<Vec<LogicError>> {
-        &self.errors
-    }
-
-    pub fn live(&self) {
-        let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
-
-        let model_futures = join_all(borrowed_continuous_tasks.iter_mut());
-
-        let continuum = async move {
-            model_futures.await;
-
-            self.continous_ended.store(true, Ordering::Relaxed);
-        };
-
-        block_on(join(continuum, self.run_tracks()));
-    }
-
-    /*
-        TODO
-        Probably prepare a distinction between "closing", that ends the program and let all stored tracks to finish (even create new ones?),
-        and termination, that jut allows already running tracks to finish and ends models.
-    */
-    pub fn end(&self) {
-        if !self.closing.load(Ordering::Relaxed) {
-            self.models
-                .read()
-                .unwrap()
-                .iter()
-                .for_each(|m| m.shutdown());
-        }
-        self.closing.store(true, Ordering::Relaxed);
-    }
-
     async fn run_tracks(&self) {
         let mut futures = FuturesUnordered::new();
 
@@ -331,6 +222,123 @@ impl World {
             self.tracks_sender.close();
             self.end();
         }
+    }
+}
+
+impl Engine for World {
+    fn collection(&self) -> Arc<Collection> {
+        Arc::clone(&self.collection)
+    }
+
+    fn genesis(&self, beginning: &Identifier) -> Result<(), Vec<LogicError>> {
+        let gen_env = GenesisEnvironment::new();
+
+        let result =
+            self.builder(beginning)
+                .unwrap()
+                .static_build(None, None, "main".to_string(), &gen_env);
+        if result.is_err() {
+            let error = result.unwrap_err();
+            let mut errors = self.errors.write().unwrap();
+            errors.push(error);
+            return Err(errors.clone());
+        }
+
+        match result.unwrap() {
+            StaticBuildResult::Build(b) => *self.main_build_id.write().unwrap() = b,
+            _ => panic!("Cannot make a genesis with something else than a treatment"),
+        };
+
+        // Check all the tracks/paths
+        let models = self.models.read().unwrap();
+        let mut builds = Vec::new();
+        let mut errors = Vec::new();
+        for (model_id, model_sources) in self.sources.read().unwrap().iter() {
+            let model = models.get(*model_id as usize).unwrap();
+
+            for (source, entries) in model_sources {
+                let check_environment = CheckEnvironment {
+                    contextes: model
+                        .descriptor()
+                        .sources()
+                        .get(source)
+                        .unwrap()
+                        .iter()
+                        .map(|context| context.name().to_string())
+                        .collect(),
+                };
+
+                for entry in entries {
+                    let result = self
+                        .builder(entry.descriptor.identifier())
+                        .unwrap()
+                        .check_dynamic_build(entry.id, check_environment.clone(), Vec::new())
+                        .unwrap();
+
+                    builds.extend(result.checked_builds);
+                    errors.extend(result.errors);
+                }
+            }
+        }
+
+        // Check that all inputs are satisfied.
+        for rc_check_build in builds {
+            let borrowed_check_build = rc_check_build.read().unwrap();
+            for (_input_name, input_satisfied) in &borrowed_check_build.fed_inputs {
+                if !input_satisfied {
+                    errors.push(LogicError::unsatisfied_input());
+                }
+            }
+        }
+
+        let mut borrowed_errors = self.errors.write().unwrap();
+        borrowed_errors.extend(errors);
+
+        if !borrowed_errors.is_empty() {
+            return Err(borrowed_errors.clone());
+        }
+
+        self.models
+            .read()
+            .unwrap()
+            .iter()
+            .for_each(|m| m.initialize());
+
+        Ok(())
+    }
+
+    fn errors(&self) -> Vec<LogicError> {
+        self.errors.read().unwrap().clone()
+    }
+
+    fn live(&self) {
+        let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
+
+        let model_futures = join_all(borrowed_continuous_tasks.iter_mut());
+
+        let continuum = async move {
+            model_futures.await;
+
+            self.continous_ended.store(true, Ordering::Relaxed);
+        };
+
+        block_on(join(continuum, self.run_tracks()));
+    }
+
+    /*
+        TODO
+        Probably prepare a distinction between "closing", that ends the program and let all stored tracks to finish (even create new ones?),
+        and termination, that jut allows already running tracks to finish and ends models.
+    */
+    fn end(&self) {
+        if !self.closing.load(Ordering::Relaxed) {
+            self.models
+                .read()
+                .unwrap()
+                .iter()
+                .for_each(|m| m.shutdown());
+        }
+        self.closing.store(true, Ordering::Relaxed);
     }
 }
 
