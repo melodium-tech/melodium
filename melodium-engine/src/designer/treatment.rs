@@ -462,6 +462,14 @@ impl Treatment {
     }
 
     pub fn validate(&self) -> Result<(), LogicError> {
+        for (_, model) in &self.model_instanciations {
+            model.read().unwrap().validate()?;
+        }
+
+        for (_, treatment) in &self.treatments {
+            treatment.read().unwrap().validate()?;
+        }
+
         // TODO Maybe should we check if no circular
         // references in connections there
 
