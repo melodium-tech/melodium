@@ -1,3 +1,10 @@
+
+//! Executive elements.
+//! 
+//! This module contains essentially traits and very basic concrete types.
+//! The concrete implementations are provided by engine, utilities, or core implementation from other Mélodium crates, and not aimed to be brought by user.
+//! 
+
 pub mod context;
 pub mod future;
 pub mod input;

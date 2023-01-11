@@ -8,7 +8,7 @@ license = "EUPL-1.2"
 homepage = "https://melodium.tech"
 repository = "https://gitlab.com/melodium/melodium"
 readme = "README.md"
-description = "Dataflow-oriented language & tool, focusing on treatments applied on data, allowing high scalability and massive parallelization safely."
+description = "Mélodium core engine implementation."
 keywords = ["dataflow","parallelization","scalability","async","signal"]
 categories = ["compilers", "science", "concurrency", "asynchronous"]
 
@@ -17,10 +17,10 @@ name = "melodium_engine"
 
 [dependencies]
 melodium-common = { path = "../melodium-common", version = "0.5.3" }
-async-std = "1.12.0"
-async-trait = "0.1.60"
-futures = "0.3.24"
-lazy_static = "1.4.0"
+async-std = "~1.12"
+async-trait = "~0.1.60"
+futures = "~0.3.24"
+lazy_static = "~1.4"
 
 [features]
 default = ["doc"]

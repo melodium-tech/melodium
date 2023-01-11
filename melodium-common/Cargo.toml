@@ -8,7 +8,7 @@ license = "EUPL-1.2"
 homepage = "https://melodium.tech"
 repository = "https://gitlab.com/melodium/melodium"
 readme = "README.md"
-description = "Dataflow-oriented language & tool, focusing on treatments applied on data, allowing high scalability and massive parallelization safely."
+description = "Common Mélodium elements and traits."
 keywords = ["dataflow","parallelization","scalability","async","signal"]
 categories = ["compilers", "science", "concurrency", "asynchronous"]
 
@@ -16,8 +16,8 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 name = "melodium_common"
 
 [dependencies]
-async-trait = "0.1.60"
-downcast-rs = "1.2.0"
+async-trait = "~0.1.60"
+downcast-rs = "~1.2.0"
 hex = "0.4"
 
 [features]

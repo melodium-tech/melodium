@@ -1,4 +1,3 @@
-use crate::transmission::Input;
 use melodium_common::executive::{Context, Model, TrackId, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -9,7 +8,6 @@ pub struct ContextualEnvironment {
     models: HashMap<String, Arc<dyn Model>>,
     variables: HashMap<String, Value>,
     contexts: HashMap<String, Box<dyn Context>>,
-    inputs: HashMap<String, Input>,
 }
 
 impl ContextualEnvironment {
@@ -19,7 +17,6 @@ impl ContextualEnvironment {
             models: HashMap::new(),
             variables: HashMap::new(),
             contexts: HashMap::new(),
-            inputs: HashMap::new(),
         }
     }
 
@@ -29,7 +26,6 @@ impl ContextualEnvironment {
             models: HashMap::new(),
             variables: HashMap::new(),
             contexts: HashMap::new(),
-            inputs: HashMap::new(),
         }
     }
 
@@ -63,13 +59,5 @@ impl ContextualEnvironment {
 
     pub fn get_context(&self, name: &str) -> Option<&Box<dyn Context>> {
         self.contexts.get(name)
-    }
-
-    pub fn add_input(&mut self, name: &str, input: Input) {
-        self.inputs.insert(name.to_string(), input);
-    }
-
-    pub fn get_input(&self, name: &str) -> Option<&Input> {
-        self.inputs.get(name)
     }
 }
