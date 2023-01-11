@@ -861,6 +861,12 @@ dependencies = [
 [[package]]
 name = "melodium-lang"
 version = "0.5.3"
+dependencies = [
+ "lazy_static",
+ "melodium-common",
+ "melodium-engine",
+ "regex",
+]
 
 [[package]]
 name = "melodium-util"

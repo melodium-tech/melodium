@@ -16,4 +16,8 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 name = "melodium_lang"
 
 [dependencies]
+melodium-common = { path = "../melodium-common", version = "0.5.3" }
+melodium-engine = { path = "../melodium-engine", version = "0.5.3" }
+regex = "1.6"
+lazy_static = "~1.4"
 
