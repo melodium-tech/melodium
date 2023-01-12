@@ -10,11 +10,11 @@ use super::word::{expect_word, get_words, Kind, Position};
 use super::r#use::Use;
 use super::annotation::Annotation;
 use super::model::Model;
-use super::sequence::Sequence;
+use super::treatment::Treatment;
 
 /// Structure managing and describing textual script.
 /// 
-/// It owns the whole script text, as well as parsed attributes, including [Uses](../use/struct.Use.html), [Annotations](../annotation/struct.Annotation.html), [Models](../model/struct.Model.html), and [Sequences](../sequence/struct.Sequence.html).
+/// It owns the whole script text, as well as parsed attributes, including [Uses](../use/struct.Use.html), [Annotations](../annotation/struct.Annotation.html), [Models](../model/struct.Model.html), and [Treatments](../treatment/struct.Treatment.html).
 /// There is no logical coherence involved there, only syntax analysis and parsing.
 #[derive(Clone, Debug)]
 pub struct Script {
@@ -22,7 +22,7 @@ pub struct Script {
     pub uses: Vec<Use>,
     pub annotations: Vec<Annotation>,
     pub models: Vec<Model>,
-    pub sequences: Vec<Sequence>,
+    pub treatments: Vec<Treatment>,
 }
 
 impl Script {
@@ -43,8 +43,8 @@ impl Script {
     /// let text = r##"
     /// use project/subpath/to/utils::MakeHPCP
     /// 
-    /// // Main sequence
-    /// sequence Main()
+    /// // Main treatment
+    /// treatment Main()
 	///     origin PrepareAudioFiles(path="Musique/", sampleRate=44100, frameSize=4096, hopSize=2048, windowingType="blackmanharris92")
     ///     require @File
     ///     require @Signal
@@ -58,14 +58,14 @@ impl Script {
     /// 
     /// let script = Script::build(text)?;
     /// 
-    /// assert_eq!(script.sequences.len(), 1);
+    /// assert_eq!(script.treatments.len(), 1);
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn build(text: & str) -> Result<Self, ScriptError> {
         let mut uses = Vec::new();
         let mut annotations = Vec::new();
         let mut models = Vec::new();
-        let mut sequences = Vec::new();
+        let mut treatments = Vec::new();
 
         let words = get_words(text);
         if words.is_err() {
@@ -138,8 +138,8 @@ impl Script {
                     else if word.text == "model" {
                         models.push(Model::build(&mut iter, documented_items.remove(&word))?);
                     }
-                    else if word.text == "sequence" {
-                        sequences.push(Sequence::build(&mut iter, documented_items.remove(&word))?);
+                    else if word.text == "treatment" {
+                        treatments.push(Treatment::build(&mut iter, documented_items.remove(&word))?);
                     }
                     else {
                         return Err(ScriptError::word("Unkown declaration.".to_string(), word.text, word.position));
@@ -160,7 +160,7 @@ impl Script {
             uses,
             annotations,
             models,
-            sequences,
+            treatments,
         })
     }
 }

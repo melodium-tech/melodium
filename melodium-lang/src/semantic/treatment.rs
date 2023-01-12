@@ -1,34 +1,33 @@
 
-//! Module dedicated to Sequence semantic analysis.
+//! Module dedicated to Treatment semantic analysis.
 
 use super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
-use crate::script::error::{ScriptError, wrap_logic_error};
-use crate::script::text::Sequence as TextSequence;
-use crate::script::path::Path;
-use crate::logic::collection_pool::CollectionPool;
-use crate::logic::descriptor::identifier::Identifier;
-use crate::logic::descriptor::{SequenceTreatmentDescriptor, TreatmentDescriptor};
-use crate::logic::designer::SequenceDesigner;
+use crate::error::{ScriptError, wrap_logic_error};
+use crate::text::Treatment as TextTreatment;
+use crate::path::Path;
+use melodium_common::descriptor::{Collection, Entry, Identifier, self};
+use melodium_engine::descriptor::Treatment as TreatmentDescriptor;
+use melodium_engine::designer::Treatment as TreatmentDesigner;
 
 use super::script::Script;
 use super::declared_model::{DeclaredModel, RefersTo as DeclaredModelRefersTo};
 use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::declared_parameter::DeclaredParameter;
-use super::instancied_model::InstanciedModel;
+use super::model_instanciation::InstanciedModel;
 use super::requirement::Requirement;
 use super::input::Input;
 use super::output::Output;
-use super::treatment::Treatment;
+use super::treatment_instanciation::TreatmentInstanciation;
 use super::connection::Connection;
 
-/// Structure managing and describing semantic of a sequence.
+/// Structure managing and describing semantic of a treatment.
 /// 
-/// It owns the whole [text sequence](../../text/sequence/struct.Sequence.html).
+/// It owns the whole [text treatment](TextTreatment).
 #[derive(Debug)]
-pub struct Sequence {
-    pub text: TextSequence,
+pub struct Treatment {
+    pub text: TextTreatment,
 
     pub script: Weak<RwLock<Script>>,
 
@@ -38,20 +37,20 @@ pub struct Sequence {
     pub parameters: Vec<Arc<RwLock<DeclaredParameter>>>,
     pub instancied_models: Vec<Arc<RwLock<InstanciedModel>>>,
     pub requirements: Vec<Arc<RwLock<Requirement>>>,
-    pub origin: Option<Arc<RwLock<Treatment>>>,
     pub inputs: Vec<Arc<RwLock<Input>>>,
     pub outputs: Vec<Arc<RwLock<Output>>>,
-    pub treatments: Vec<Arc<RwLock<Treatment>>>,
+    pub treatments: Vec<Arc<RwLock<TreatmentInstanciation>>>,
     pub connections: Vec<Arc<RwLock<Connection>>>,
 
     pub identifier: Option<Identifier>,
+    pub descriptor: RwLock<Option<Arc<TreatmentDescriptor>>>,
 }
 
-impl Sequence {
-    /// Create a new semantic sequence, based on textual sequence.
+impl Treatment {
+    /// Create a new semantic treatment, based on textual treatment.
     /// 
-    /// * `script`: the parent script that "owns" this sequence.
-    /// * `text`: the textual sequence.
+    /// * `script`: the parent script that "owns" this treatment.
+    /// * `text`: the textual treatment.
     /// 
     /// # Note
     /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
@@ -71,22 +70,22 @@ impl Sequence {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Sequence::new(Arc::clone(&script), text_sequence)
+    /// // Internally, Script::new call Treatment::new(Arc::clone(&script), text_treatment)
     /// 
     /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_script.find_treatment("AudioToHpcpImage").unwrap().read().unwrap();
     /// 
-    /// assert_eq!(borrowed_sequence.declared_models.len(), 1);
-    /// assert_eq!(borrowed_sequence.parameters.len(), 3);
-    /// assert_eq!(borrowed_sequence.requirements.len(), 2);
-    /// assert_eq!(borrowed_sequence.treatments.len(), 4);
-    /// assert!(borrowed_sequence.origin.is_some());
-    /// assert_eq!(borrowed_sequence.origin.as_ref().unwrap().read().unwrap().name, "AudioSignal");
+    /// assert_eq!(borrowed_treatment.declared_models.len(), 1);
+    /// assert_eq!(borrowed_treatment.parameters.len(), 3);
+    /// assert_eq!(borrowed_treatment.requirements.len(), 2);
+    /// assert_eq!(borrowed_treatment.treatments.len(), 4);
+    /// assert!(borrowed_treatment.origin.is_some());
+    /// assert_eq!(borrowed_treatment.origin.as_ref().unwrap().read().unwrap().name, "AudioSignal");
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(script: Arc<RwLock<Script>>, text: TextSequence) -> Result<Arc<RwLock<Self>>, ScriptError> {
+    pub fn new(script: Arc<RwLock<Script>>, text: TextTreatment) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
-        let sequence = Arc::<RwLock<Self>>::new(RwLock::new(Self {
+        let treatment = Arc::<RwLock<Self>>::new(RwLock::new(Self {
             text: text.clone(),
             script: Arc::downgrade(&script),
             name: text.name.string.clone(),
@@ -94,20 +93,20 @@ impl Sequence {
             parameters: Vec::new(),
             instancied_models: Vec::new(),
             requirements: Vec::new(),
-            origin: None,
             inputs: Vec::new(),
             outputs: Vec::new(),
             treatments: Vec::new(),
             connections: Vec::new(),
             identifier: None,
+            descriptor: None,
         }));
 
         {
             let borrowed_script = script.read().unwrap();
 
-            let sequence = borrowed_script.find_sequence(&text.name.string);
-            if sequence.is_some() {
-                return Err(ScriptError::semantic("Sequence '".to_string() + &text.name.string + "' is already declared.", text.name.position))
+            let treatment = borrowed_script.find_treatment(&text.name.string);
+            if treatment.is_some() {
+                return Err(ScriptError::semantic("Treatment '".to_string() + &text.name.string + "' is already declared.", text.name.position))
             }
 
             let r#use = borrowed_script.find_use(&text.name.string);
@@ -117,57 +116,57 @@ impl Sequence {
         }
 
         for c in text.configuration {
-            let declared_model = DeclaredModel::new(Arc::clone(&sequence), c)?;
-            sequence.write().unwrap().declared_models.push(declared_model);
+            let declared_model = DeclaredModel::new(Arc::clone(&treatment), c)?;
+            treatment.write().unwrap().declared_models.push(declared_model);
         }
 
         for p in text.parameters {
-            let declared_parameter = DeclaredParameter::new(Arc::clone(&sequence) as Arc<RwLock<dyn DeclarativeElement>>, p)?;
-            sequence.write().unwrap().parameters.push(declared_parameter);
+            let declared_parameter = DeclaredParameter::new(Arc::clone(&treatment) as Arc<RwLock<dyn DeclarativeElement>>, p)?;
+            treatment.write().unwrap().parameters.push(declared_parameter);
         }
 
         for m in text.models {
-            let instancied_model = InstanciedModel::new(Arc::clone(&sequence), m)?;
-            sequence.write().unwrap().instancied_models.push(Arc::clone(&instancied_model));
+            let instancied_model = InstanciedModel::new(Arc::clone(&treatment), m)?;
+            treatment.write().unwrap().instancied_models.push(Arc::clone(&instancied_model));
             let declared_model = DeclaredModel::from_instancied_model(instancied_model)?;
-            sequence.write().unwrap().declared_models.push(declared_model);
+            treatment.write().unwrap().declared_models.push(declared_model);
         }
 
         for r in text.requirements {
-            let requirement = Requirement::new(Arc::clone(&sequence), r)?;
-            sequence.write().unwrap().requirements.push(requirement);
+            let requirement = Requirement::new(Arc::clone(&treatment), r)?;
+            treatment.write().unwrap().requirements.push(requirement);
         }
 
         if text.origin.is_some() {
 
-            let origin = Treatment::new(Arc::clone(&sequence), text.origin.unwrap())?;
+            let origin = Treatment::new(Arc::clone(&treatment), text.origin.unwrap())?;
 
-            let mut borrowed_sequence = sequence.write().unwrap();
-            borrowed_sequence.origin = Some(Arc::clone(&origin));
-            borrowed_sequence.treatments.push(Arc::clone(&origin));
+            let mut borrowed_treatment = treatment.write().unwrap();
+            borrowed_treatment.origin = Some(Arc::clone(&origin));
+            borrowed_treatment.treatments.push(Arc::clone(&origin));
         }
 
         for i in text.inputs {
-            let input = Input::new(Arc::clone(&sequence), i)?;
-            sequence.write().unwrap().inputs.push(input);
+            let input = Input::new(Arc::clone(&treatment), i)?;
+            treatment.write().unwrap().inputs.push(input);
         }
 
         for o in text.outputs {
-            let output = Output::new(Arc::clone(&sequence), o)?;
-            sequence.write().unwrap().outputs.push(output);
+            let output = Output::new(Arc::clone(&treatment), o)?;
+            treatment.write().unwrap().outputs.push(output);
         }
 
         for t in text.treatments {
-            let treatment = Treatment::new(Arc::clone(&sequence), t)?;
-            sequence.write().unwrap().treatments.push(treatment);
+            let treatment_instanciation= TreatmentInstanciation::new(Arc::clone(&treatment), t)?;
+            treatment.write().unwrap().treatments.push(treatment_instanciation);
         }
 
         for c in text.connections {
-            let connection = Connection::new(Arc::clone(&sequence), c)?;
-            sequence.write().unwrap().connections.push(connection);
+            let connection = Connection::new(Arc::clone(&treatment), c)?;
+            treatment.write().unwrap().connections.push(connection);
         }
 
-        Ok(sequence)
+        Ok(treatment)
     }
 
     /// Search for a declared model.
@@ -189,10 +188,10 @@ impl Sequence {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_script.find_treatment("AudioToHpcpImage").unwrap().read().unwrap();
     /// 
-    /// let audio_manager = borrowed_sequence.find_declared_model("AudioManager");
-    /// let dont_exist = borrowed_sequence.find_declared_model("DontExist");
+    /// let audio_manager = borrowed_treatment.find_declared_model("AudioManager");
+    /// let dont_exist = borrowed_treatment.find_declared_model("DontExist");
     /// assert!(audio_manager.is_some());
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
@@ -220,10 +219,10 @@ impl Sequence {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_sequence = borrowed_script.find_sequence("Main").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_script.find_treatment("Main").unwrap().read().unwrap();
     /// 
-    /// let audio = borrowed_sequence.find_instancied_model("Audio");
-    /// let dont_exist = borrowed_sequence.find_instancied_model("DontExist");
+    /// let audio = borrowed_treatment.find_instancied_model("Audio");
+    /// let dont_exist = borrowed_treatment.find_instancied_model("DontExist");
     /// assert!(audio.is_some());
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
@@ -251,10 +250,10 @@ impl Sequence {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_script.find_treatment("AudioToHpcpImage").unwrap().read().unwrap();
     /// 
-    /// let signal = borrowed_sequence.find_requirement("@Signal");
-    /// let dont_exist = borrowed_sequence.find_requirement("@DontExist");
+    /// let signal = borrowed_treatment.find_requirement("@Signal");
+    /// let dont_exist = borrowed_treatment.find_requirement("@DontExist");
     /// assert!(signal.is_some());
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
@@ -282,10 +281,10 @@ impl Sequence {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_script.find_treatment("HPCP").unwrap().read().unwrap();
     /// 
-    /// let spectrum = borrowed_sequence.find_input("spectrum");
-    /// let dont_exist = borrowed_sequence.find_input("dontExist");
+    /// let spectrum = borrowed_treatment.find_input("spectrum");
+    /// let dont_exist = borrowed_treatment.find_input("dontExist");
     /// assert!(spectrum.is_some());
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
@@ -313,10 +312,10 @@ impl Sequence {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_script.find_treatment("HPCP").unwrap().read().unwrap();
     /// 
-    /// let hpcp = borrowed_sequence.find_output("hpcp");
-    /// let dont_exist = borrowed_sequence.find_output("dontExist");
+    /// let hpcp = borrowed_treatment.find_output("hpcp");
+    /// let dont_exist = borrowed_treatment.find_output("dontExist");
     /// assert!(hpcp.is_some());
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
@@ -344,10 +343,10 @@ impl Sequence {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_sequence = borrowed_script.find_sequence("Spectrum").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_script.find_treatment("Spectrum").unwrap().read().unwrap();
     /// 
-    /// let core_frame_cutter = borrowed_sequence.find_treatment("CoreFrameCutter");
-    /// let dont_exist = borrowed_sequence.find_treatment("DontExist");
+    /// let core_frame_cutter = borrowed_treatment.find_treatment("CoreFrameCutter");
+    /// let dont_exist = borrowed_treatment.find_treatment("DontExist");
     /// assert!(core_frame_cutter.is_some());
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())
@@ -356,15 +355,15 @@ impl Sequence {
         self.treatments.iter().find(|&t| t.read().unwrap().name == name) 
     }
 
-    pub fn make_descriptor(&self, collection: &mut CollectionPool) -> Result<(), ScriptError> {
+    pub fn make_descriptor(&self, collection: &mut Collection) -> Result<(), ScriptError> {
 
-        let mut descriptor = SequenceTreatmentDescriptor::new(self.identifier.as_ref().unwrap().clone());
+        let mut descriptor = TreatmentDescriptor::new(self.identifier.as_ref().unwrap().clone());
 
         if let Some(documentation) = &self.text.doc {
             descriptor.set_documentation(&documentation.string);
         }
 
-        // We manage declaration of each model given to the sequence
+        // We manage declaration of each model given to the treatment
         for rc_model in &self.declared_models {
 
             let borrowed_model = rc_model.read().unwrap();
@@ -395,7 +394,7 @@ impl Sequence {
             descriptor.add_model(&borrowed_model.name, &core_model_descriptor)
         }
 
-        // We proceed to declaration of all other charateristics of the sequence
+        // We proceed to declaration of all other charateristics of the treatment
 
         for rc_parameter in &self.parameters {
 
@@ -429,17 +428,25 @@ impl Sequence {
             descriptor.add_requirement(requirement_descriptor);
         }
 
-        collection.treatments.insert(&(descriptor.commit() as Arc<dyn TreatmentDescriptor>));
+        let descriptor = descriptor.commit();
+
+        collection.insert(Entry::Treatment(Arc::clone(descriptor)));
+
+        *self.descriptor.write().unwrap() = Some(descriptor);
 
         Ok(())
 
     }
 
-    pub fn make_design(&self, collections: &Arc<CollectionPool>) -> Result<(), ScriptError>  {
+    pub fn make_design(&self, collection: &Arc<Collection>) -> Result<(), ScriptError> {
 
-        let descriptor = collections.treatments.get(self.identifier.as_ref().unwrap()).unwrap().clone();
+        let descriptor = if let Some(descriptor) = self.descriptor.read().unwrap() {
+            descriptor
+        } else {
+            return Err(ScriptError::no_descriptor());
+        };
 
-        let rc_designer = SequenceDesigner::new(collections, &descriptor.downcast_arc::<SequenceTreatmentDescriptor>().unwrap());
+        let rc_designer = descriptor.designer()?;
 
         // Models instanciations
         for rc_instancied_model in &self.instancied_models {
@@ -485,7 +492,7 @@ impl Sequence {
     
 }
 
-impl Node for Sequence {
+impl Node for Treatment {
     
     fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
 
@@ -511,10 +518,10 @@ impl Node for Sequence {
     }
 }
 
-impl DeclarativeElement for Sequence {
+impl DeclarativeElement for Treatment {
 
     fn declarative_element(&self) -> DeclarativeElementType {
-        DeclarativeElementType::Sequence(&self)
+        DeclarativeElementType::Treatment(&self)
     }
 
     /// Search for a parameter.
@@ -537,10 +544,10 @@ impl DeclarativeElement for Sequence {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_sequence = borrowed_script.find_sequence("Spectrum").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_script.find_treatment("Spectrum").unwrap().read().unwrap();
     /// 
-    /// let frame_size = borrowed_sequence.find_declared_parameter("frameSize");
-    /// let dont_exist = borrowed_sequence.find_declared_parameter("dontExist");
+    /// let frame_size = borrowed_treatment.find_declared_parameter("frameSize");
+    /// let dont_exist = borrowed_treatment.find_declared_parameter("dontExist");
     /// assert!(frame_size.is_some());
     /// assert!(dont_exist.is_none());
     /// # Ok::<(), ScriptError>(())

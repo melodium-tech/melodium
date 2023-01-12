@@ -40,6 +40,8 @@ pub enum ScriptErrorKind {
     File,
     /// The error comes from logic.
     Logic(LogicError),
+    /// No descriptor associated
+    NoDescriptor,
 }
 
 impl ScriptError {
@@ -102,6 +104,19 @@ impl ScriptError {
             kind: ScriptErrorKind::Logic(logic_error),
         }
     }
+
+    pub fn no_descriptor() -> Self {
+        Self {
+            message: String::new(),
+            word: String::new(),
+            position: Position {
+                line_number: 0,
+                line_position: 0,
+                absolute_position: 0,
+            },
+            kind: ScriptErrorKind::NoDescriptor,
+        }
+    }
 }
 
 impl fmt::Display for ScriptError {
@@ -118,6 +133,7 @@ impl fmt::Display for ScriptError {
             ScriptErrorKind::Semantic => write!(f, "line {} position {} (absolute {}): {}", self.position.line_number, self.position.line_position, self.position.absolute_position, self.message),
             ScriptErrorKind::File => write!(f, "{}", self.message),
             ScriptErrorKind::Logic(le) => write!(f, "line {} position {} (absolute {}): {}", self.position.line_number, self.position.line_position, self.position.absolute_position, le),
+            ScriptErrorKind::NoDescriptor => write!(f, "no descriptor ready, this is an internal error to report to development team"),
         }
         
     }

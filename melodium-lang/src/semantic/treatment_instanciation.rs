@@ -1,5 +1,5 @@
 
-//! Module dedicated to Treatment semantic analysis.
+//! Module dedicated to treatment instanciation semantic analysis.
 
 use super::common::Node;
 
@@ -11,7 +11,7 @@ use melodium_common::descriptor::Identifier;
 use melodium_engine::designer::TreatmentInstanciation as TreatmentInstanciationDesigner;
 
 use super::r#use::Use;
-use super::sequence::Sequence;
+use super::treatment::Treatment;
 use super::common::Reference;
 use super::assignative_element::{AssignativeElement, AssignativeElementType};
 use super::assigned_model::AssignedModel;
@@ -25,7 +25,7 @@ use super::declarative_element::DeclarativeElement;
 pub struct TreatmentInstanciation {
     pub text: TextTreatment,
 
-    pub sequence: Weak<RwLock<Sequence>>,
+    pub treatment: Weak<RwLock<Treatment>>,
 
     pub name: String,
     pub r#type: RefersTo,
@@ -37,19 +37,19 @@ pub struct TreatmentInstanciation {
 
 /// Enumeration managing what treatment type refers to.
 /// 
-/// This is a convenience enum, as a treatment type may refer either on a [Use](super::r#use::Use) or a [Sequence](../sequence/struct.Sequence.html).
+/// This is a convenience enum, as a treatment type may refer either on a [Use](super::r#use::Use) or a [Treatment](Treatment).
 /// The `Unknown` variant is aimed to hold a reference-to-nothing, as long as `make_references() hasn't been called.
 #[derive(Debug)]
 pub enum RefersTo {
     Unkown(Reference<()>),
     Use(Reference<Use>),
-    Sequence(Reference<Sequence>),
+    Treatment(Reference<Treatment>),
 }
 
 impl TreatmentInstanciation {
-    /// Create a new semantic treatment, based on textual treatment.
+    /// Create a new semantic treatment instanciation, based on textual treatment instanciation.
     /// 
-    /// * `sequence`: the parent sequence that "owns" this treatment.
+    /// * `treatment`: the parent treatment that owns this treatment instanciation.
     /// * `text`: the textual treatment.
     /// 
     /// # Note
@@ -70,22 +70,22 @@ impl TreatmentInstanciation {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Sequence::new(Arc::clone(&script), text_sequence),
-    /// // which will itself call Treatment::new(Arc::clone(&sequence), text_treatment).
+    /// // Internally, Script::new call Treatment::new(Arc::clone(&script), text_treatment),
+    /// // which will itself call Treatment::new(Arc::clone(&treatment), text_treatment).
     /// 
     /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().read().unwrap();
-    /// let borrowed_treatment = borrowed_sequence.find_treatment("CoreSpectralPeaks").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_script.find_treatment("HPCP").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_treatment.find_treatment("CoreSpectralPeaks").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_treatment.name, "CoreSpectralPeaks");
     /// assert_eq!(borrowed_treatment.parameters.len(), 6);
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(sequence: Arc<RwLock<Sequence>>, text: TextTreatment) -> Result<Arc<RwLock<Self>>, ScriptError> {
+    pub fn new(treatment: Arc<RwLock<Treatment>>, text: TextTreatment) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
         let treatment = Arc::<RwLock<Self>>::new(RwLock::new(Self {
             text: text.clone(),
-            sequence: Arc::downgrade(&sequence),
+            treatment: Arc::downgrade(&treatment),
             name: text.name.string.clone(),
             r#type: RefersTo::Unkown(Reference::new(text.r#type.string)),
             models: Vec::new(),
@@ -94,9 +94,9 @@ impl TreatmentInstanciation {
         }));
 
         {
-            let borrowed_sequence = sequence.read().unwrap();
+            let borrowed_treatment = treatment.read().unwrap();
 
-            let treatment = borrowed_sequence.find_treatment(&text.name.string);
+            let treatment = borrowed_treatment.find_treatment(&text.name.string);
             if treatment.is_some() {
                 return Err(ScriptError::semantic("Treatment '".to_string() + &text.name.string + "' is already declared.", text.name.position))
             }
@@ -115,7 +115,7 @@ impl TreatmentInstanciation {
         Ok(treatment)
     }
 
-    pub fn make_design(&self, designer: &Arc<RwLock<TreatmentDesigner>>) -> Result<(), ScriptError> {
+    pub fn make_design(&self, designer: &Arc<RwLock<TreatmentInstanciationDesigner>>) -> Result<(), ScriptError> {
 
         let mut designer = designer.write().unwrap();
 
@@ -152,7 +152,7 @@ impl AssignativeElement for Treatment {
     }
 
     fn associated_declarative_element(&self) -> Arc<RwLock<dyn DeclarativeElement>> {
-        self.sequence.upgrade().unwrap() as Arc<RwLock<dyn DeclarativeElement>>
+        self.treatment.upgrade().unwrap() as Arc<RwLock<dyn DeclarativeElement>>
     }
 
     /// Search for an assigned model.
@@ -175,8 +175,8 @@ impl AssignativeElement for Treatment {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_sequence = borrowed_script.find_sequence("ReadAudioFiles").unwrap().read().unwrap();
-    /// let borrowed_treatment = borrowed_sequence.find_treatment("Decoder").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_script.find_treatment("ReadAudioFiles").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_treatment.find_treatment("Decoder").unwrap().read().unwrap();
     /// 
     /// let audio_manager = borrowed_treatment.find_assigned_model("AudioManager");
     /// let dont_exist = borrowed_treatment.find_assigned_model("DontExist");
@@ -208,8 +208,8 @@ impl AssignativeElement for Treatment {
     /// let script = Script::new(text_script)?;
     /// 
     /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_sequence = borrowed_script.find_sequence("HPCP").unwrap().read().unwrap();
-    /// let borrowed_treatment = borrowed_sequence.find_treatment("CoreSpectralPeaks").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_script.find_treatment("HPCP").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_treatment.find_treatment("CoreSpectralPeaks").unwrap().read().unwrap();
     /// 
     /// let magnitude_threshold = borrowed_treatment.find_assigned_parameter("magnitudeThreshold");
     /// let dont_exist = borrowed_treatment.find_assigned_parameter("dontExist");
@@ -237,9 +237,9 @@ impl Node for Treatment {
 
         if let RefersTo::Unkown(reference) = &self.r#type {
 
-            let rc_sequence = self.sequence.upgrade().unwrap();
-            let borrowed_sequence = rc_sequence.read().unwrap();
-            let rc_script = borrowed_sequence.script.upgrade().unwrap();
+            let rc_treatment = self.treatment.upgrade().unwrap();
+            let borrowed_treatment = rc_treatment.read().unwrap();
+            let rc_script = borrowed_treatment.script.upgrade().unwrap();
             let borrowed_script = rc_script.read().unwrap();
 
             let r#use = borrowed_script.find_use(&reference.name);
@@ -255,14 +255,14 @@ impl Node for Treatment {
                 });
             }
             else {
-                let sequence = borrowed_script.find_sequence(&reference.name);
-                if sequence.is_some() {
+                let treatment = borrowed_script.find_treatment(&reference.name);
+                if treatment.is_some() {
 
                     self.type_identifier = path.to_identifier(&reference.name);
 
-                    self.r#type = RefersTo::Sequence(Reference{
+                    self.r#type = RefersTo::Treatment(Reference{
                         name: reference.name.clone(),
-                        reference: Some(Arc::downgrade(sequence.unwrap()))
+                        reference: Some(Arc::downgrade(treatment.unwrap()))
                     });
                 }
                 else {

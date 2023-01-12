@@ -13,7 +13,7 @@ use super::common::Reference;
 use super::sequence::Sequence;
 use super::r#use::Use;
 use super::model::Model;
-use super::instancied_model::InstanciedModel;
+use super::model_instanciation::InstanciedModel;
 
 /// Structure managing and describing semantic of a declared model.
 /// 

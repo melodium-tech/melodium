@@ -1,9 +1,9 @@
 
 //! Proceed to basic text parsing and analysis of Mélodium scripts.
 //! 
-//! The main type of this module is [Script](./script/struct.Script.html), aimed to handle and build a syntax tree of a script.
-//! Other types may be useful only for extracting specific contents, and are primarily available as branches of tree built by [Script](./script/struct.Script.html).
-//! All the parsing and extraction heavily relies on the submodule [word](./word/index.html).
+//! The main type of this module is [Script](Script), aimed to handle and build a syntax tree of a script.
+//! Other types may be useful only for extracting specific contents, and are primarily available as branches of tree built by [Script](Script).
+//! All the parsing and extraction heavily relies on the submodule [word](word).
 //!
 
 pub mod script;
@@ -18,7 +18,7 @@ pub mod instanciation;
 pub mod model;
 pub mod parameter;
 pub mod requirement;
-pub mod sequence;
+pub mod treatment;
 pub mod r#type;
 pub mod r#use;
 pub mod value;
@@ -33,7 +33,7 @@ pub use parameter::Parameter;
 pub use word::Position;
 pub use word::PositionnedString;
 pub use requirement::Requirement;
-pub use sequence::Sequence;
+pub use treatment::Treatment;
 pub use r#type::Type;
 pub use r#use::Use;
 pub use value::Value;

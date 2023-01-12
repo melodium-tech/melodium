@@ -9,7 +9,7 @@ use super::assigned_model::AssignedModel;
 use super::assigned_parameter::AssignedParameter;
 use super::declarative_element::DeclarativeElement;
 use super::model::Model;
-use super::instancied_model::InstanciedModel;
+use super::model_instanciation::InstanciedModel;
 use super::treatment::Treatment;
 
 /// Trait for elements that are assignative blocks or components.

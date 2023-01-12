@@ -4,11 +4,11 @@
 use super::common::Node;
 
 use std::sync::{Arc, Weak, RwLock};
-use crate::script::error::ScriptError;
-use crate::script::text::Requirement as TextRequirement;
-use crate::logic::descriptor::requirement::Requirement as RequirementDescriptor;
+use crate::error::ScriptError;
+use crate::text::Requirement as TextRequirement;
+use melodium_common::descriptor::requirement::Requirement as RequirementDescriptor;
 
-use super::sequence::Sequence;
+use super::treatment::Treatment;
 
 /// Structure managing and describing semantic of a requirement.
 /// 
@@ -17,7 +17,7 @@ use super::sequence::Sequence;
 pub struct Requirement {
     pub text: TextRequirement,
 
-    pub sequence: Weak<RwLock<Sequence>>,
+    pub treatment: Weak<RwLock<Treatment>>,
 
     pub name: String,
 }
@@ -25,7 +25,7 @@ pub struct Requirement {
 impl Requirement {
     /// Create a new semantic requirement, based on textual requirement.
     /// 
-    /// * `sequence`: the parent sequence that "owns" this requirement.
+    /// * `treatment`: the parent treatment that "owns" this requirement.
     /// * `text`: the textual requirement.
     /// 
     /// # Note
@@ -46,29 +46,29 @@ impl Requirement {
     /// let text_script = TextScript::build(&raw_text)?;
     /// 
     /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Sequence::new(Arc::clone(&script), text_sequence),
-    /// // which will itself call Requirement::new(Arc::clone(&sequence), text_requirement).
+    /// // Internally, Script::new call Treatment::new(Arc::clone(&script), text_treatment),
+    /// // which will itself call Requirement::new(Arc::clone(&treatment), text_requirement).
     /// 
     /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_sequence = borrowed_script.find_sequence("AudioToHpcpImage").unwrap().read().unwrap();
-    /// let borrowed_requirement = borrowed_sequence.find_requirement("@Signal").unwrap().read().unwrap();
+    /// let borrowed_treatment = borrowed_script.find_treatment("AudioToHpcpImage").unwrap().read().unwrap();
+    /// let borrowed_requirement = borrowed_treatment.find_requirement("@Signal").unwrap().read().unwrap();
     /// 
     /// assert_eq!(borrowed_requirement.name, "@Signal");
     /// # Ok::<(), ScriptError>(())
     /// ```
-    pub fn new(sequence: Arc<RwLock<Sequence>>, text: TextRequirement) -> Result<Arc<RwLock<Self>>, ScriptError> {
+    pub fn new(treatment: Arc<RwLock<Treatment>>, text: TextRequirement) -> Result<Arc<RwLock<Self>>, ScriptError> {
 
         {
-            let borrowed_sequence = sequence.read().unwrap();
+            let borrowed_treatment = treatment.read().unwrap();
 
-            let requirement = borrowed_sequence.find_requirement(&text.name.string);
+            let requirement = borrowed_treatment.find_requirement(&text.name.string);
             if requirement.is_some() {
                 return Err(ScriptError::semantic("'".to_string() + &text.name.string + "' is already required.", text.name.position))
             }
         }
 
         Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self{
-            sequence: Arc::downgrade(&sequence),
+            treatment: Arc::downgrade(&treatment),
             name: text.name.string.clone(),
             text,
         })))

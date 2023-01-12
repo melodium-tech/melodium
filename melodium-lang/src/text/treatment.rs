@@ -1,5 +1,5 @@
 
-//! Module dedicated to [Sequence](struct.Sequence.html) parsing.
+//! Module dedicated to [Treatment](Treatment) parsing.
 
 use crate::ScriptError;
 
@@ -11,11 +11,11 @@ use super::requirement::Requirement;
 use super::instanciation::Instanciation;
 use super::connection::Connection;
 
-/// Structure describing a textual sequence.
+/// Structure describing a textual treatment.
 /// 
-/// It owns the name, and the attributes of the sequence, as well as its internal treatments and connections. There is no logical dependency between them at this point.
+/// It owns the name, and the attributes of the treatment, as well as its internal treatments instanciations and connections. There is no logical dependency between them at this point.
 #[derive(Clone, Debug)]
-pub struct Sequence {
+pub struct Treatment {
     pub doc: Option<PositionnedString>,
     pub name: PositionnedString,
     pub configuration: Vec<Parameter>,
@@ -29,18 +29,18 @@ pub struct Sequence {
     pub connections: Vec<Connection>,
 }
 
-impl Sequence {
-    /// Build a sequence by parsing words.
+impl Treatment {
+    /// Build a treatment by parsing words.
     /// 
-    /// * `iter`: Iterator over words list, next() being expected to be the name of the sequence.
+    /// * `iter`: Iterator over words list, next() being expected to be the name of the treatment.
     /// 
     /// ```
     /// # use melodium::script::error::ScriptError;
     /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::sequence::Sequence;
+    /// # use melodium::script::text::treatment::Treatment;
     /// 
     /// let text = r##"
-    /// sequence PrepareAudioFiles(path: Vec<String>, sampleRate: Int = 44100, frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String)
+    /// treatment PrepareAudioFiles(path: Vec<String>, sampleRate: Int = 44100, frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String)
 	///     origin AudioFiles(path=path, sampleRate=sampleRate)
 	///     output spectrum: Mat<Int>
     ///     model Audio: AudioAccess(sampleRate = 44100, channels = "mono")
@@ -56,24 +56,24 @@ impl Sequence {
     /// let words = get_words(text).unwrap();
     /// let mut iter = words.iter();
     /// 
-    /// let sequence_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
-    /// assert_eq!(sequence_keyword.string, "sequence");
+    /// let treatment_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
+    /// assert_eq!(treatment_keyword.string, "treatment");
     /// 
-    /// let sequence = Sequence::build(&mut iter, None)?;
+    /// let treatment = Treatment::build(&mut iter, None)?;
     /// 
-    /// assert_eq!(sequence.name.string, "PrepareAudioFiles");
-    /// assert_eq!(sequence.parameters.len(), 5);
-    /// assert_eq!(sequence.requirements.len(), 2);
-    /// assert!(sequence.origin.is_some());
-    /// assert_eq!(sequence.inputs.len(), 0);
-    /// assert_eq!(sequence.outputs.len(), 1);
-    /// assert_eq!(sequence.treatments.len(), 1);
-    /// assert_eq!(sequence.connections.len(), 2);
+    /// assert_eq!(treatment.name.string, "PrepareAudioFiles");
+    /// assert_eq!(treatment.parameters.len(), 5);
+    /// assert_eq!(treatment.requirements.len(), 2);
+    /// assert!(treatment.origin.is_some());
+    /// assert_eq!(treatment.inputs.len(), 0);
+    /// assert_eq!(treatment.outputs.len(), 1);
+    /// assert_eq!(treatment.treatments.len(), 1);
+    /// assert_eq!(treatment.connections.len(), 2);
     /// # Ok::<(), ScriptError>(())
     /// ```
     pub fn build(mut iter: &mut std::slice::Iter<Word>, doc: Option<PositionnedString>) -> Result<Self, ScriptError> {
 
-        let name = expect_word_kind(Kind::Name, "Sequence name expected.", &mut iter)?;
+        let name = expect_word_kind(Kind::Name, "Treatment name expected.", &mut iter)?;
 
 
         let configuration;
@@ -147,7 +147,7 @@ impl Sequence {
                 }
             }
             else {
-                return Err(ScriptError::word("Sequence attributes or content declaration expected.".to_string(), word.text, word.position));
+                return Err(ScriptError::word("Treatment attributes or content declaration expected.".to_string(), word.text, word.position));
             }
         }
 
@@ -170,7 +170,7 @@ impl Sequence {
             let element_name;
             let determinant;
 
-            // We DO want a word there, a sequence can only be terminated using '}'.
+            // We DO want a word there, a treatment can only be terminated using '}'.
             let word = expect_word("Unexpected end of script.", &mut iter)?;
 
             // In case a continuation of connection with data transmission (1) is possible,
@@ -219,7 +219,7 @@ impl Sequence {
                     // And the next word is determinant of what can follow.
                     determinant = expect_word("Unexpected end of script.", &mut iter)?;
                 }
-                // Or a closing brace, ending the sequence.
+                // Or a closing brace, ending the treatment.
                 else if word.kind == Some(Kind::ClosingBrace) {
                     break;
                 }
