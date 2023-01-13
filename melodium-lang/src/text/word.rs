@@ -1,15 +1,14 @@
-
 //! Module in charge of textual words parsing and analysis.
-//! 
+//!
 //! This module contains low-level functions doing parsing and analysis of text, as well as [word elements](struct.Word.html), the smallest unit of text that can be parsed.
 //! All functions there are unicode-aware.
 
-use std::str;
-use regex::Regex;
 use crate::ScriptError;
+use regex::Regex;
+use std::str;
 
 /// Word, smallest unit of parsed text.
-/// 
+///
 /// This structure embeds informations about a word, that can be anything like a name `MyFashionName`, value `12.345`, or any symbol like parenthesis, bracket, comma, etc.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Word {
@@ -22,7 +21,7 @@ pub struct Word {
 }
 
 /// Position of a word or element in text.
-/// 
+///
 /// # Note
 /// All positions (`absolute_position`, `line_position`) are expected to be bytes indexes, not chars.
 #[derive(Default, Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -42,9 +41,9 @@ pub struct PositionnedString {
 }
 
 /// Kind of word.
-/// 
+///
 /// "Kind" designates what the word fundamentaly is, meaning a `Name` is some text that designates name of something (including keyword), `Opening*` and `Closing*` are obvious, as well as `Equal`, `Colon`, `Comma`, etc.
-/// 
+///
 /// Some "special" kinds of words, like `Comment`, `Annotations`, or `RightArrow` are there because they designates very specific patterns of text that can be easily and cheaply identified, and considered as single elements for all other parsing steps.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum Kind {
@@ -97,7 +96,7 @@ pub enum Kind {
 }
 
 /// Convenience structure for internal treatments.
-/// 
+///
 /// Embeds different informations in fancy way, instead of a tuple.
 struct KindCheck {
     pub is_that_kind: bool,
@@ -116,26 +115,29 @@ impl Default for KindCheck {
 }
 
 /// Give next word or create error.
-/// 
+///
 /// Return the next word if any, or create a [ScriptError](../../error/struct.ScriptError.html), with `error_str` as message.
 /// This function always increment `iter` from one.
-/// 
+///
 /// ```
 /// # use melodium::script::text::word::*;
 /// # use melodium::script::error::ScriptError;
 /// let words = get_words("myNumber= 876").unwrap();
 /// let mut iter = words.iter();
-/// 
+///
 /// let name = expect_word("Word expected.", &mut iter)?;
 /// let equal = expect_word("Word expected.", &mut iter)?;
 /// let value = expect_word("Word expected.", &mut iter)?;
-/// 
+///
 /// assert_eq!(name.kind, Some(Kind::Name));
 /// assert_eq!(equal.kind, Some(Kind::Equal));
 /// assert_eq!(value.kind, Some(Kind::Number));
 /// # Ok::<(), ScriptError>(())
 /// ```
-pub fn expect_word(error_str: &'static str, iter: &mut std::slice::Iter<Word>) -> Result<Word, ScriptError> {
+pub fn expect_word(
+    error_str: &'static str,
+    iter: &mut std::slice::Iter<Word>,
+) -> Result<Word, ScriptError> {
     let word = iter.next();
     if word.is_some() {
         let word = word.unwrap();
@@ -148,54 +150,62 @@ pub fn expect_word(error_str: &'static str, iter: &mut std::slice::Iter<Word>) -
 }
 
 /// Check aext word kind and returns its text, or create error.
-/// 
+///
 /// Return next word text if any and matches `kind`, else create a [ScriptError](../../error/struct.ScriptError.html), with `error_str` as message.
 /// This function always increment `iter` from one.
-/// 
+///
 /// ```
 /// # use melodium::script::text::word::*;
 /// # use melodium::script::error::ScriptError;
 /// let words = get_words("myNumber= 876").unwrap();
 /// let mut iter = words.iter();
-/// 
+///
 /// let name = expect_word_kind(Kind::Name, "Name expected.", &mut iter)?;
 /// let equal = expect_word_kind(Kind::Equal, "Equal sign expected.", &mut iter)?;
 /// let value = expect_word_kind(Kind::Number, "Number expected.", &mut iter)?;
-/// 
+///
 /// assert_eq!(name.string, "myNumber");
 /// assert_eq!(equal.string, "=");
 /// assert_eq!(value.string, "876");
 /// # Ok::<(), ScriptError>(())
 /// ```
-pub fn expect_word_kind(kind: Kind, error_str: &'static str, iter: &mut std::slice::Iter<Word>) -> Result<PositionnedString, ScriptError> {
+pub fn expect_word_kind(
+    kind: Kind,
+    error_str: &'static str,
+    iter: &mut std::slice::Iter<Word>,
+) -> Result<PositionnedString, ScriptError> {
     let word = iter.next();
     if word.is_some() {
         let word = word.unwrap();
         if word.kind == Some(kind) {
-            Ok(PositionnedString{string: word.text.to_string(), position: word.position})
+            Ok(PositionnedString {
+                string: word.text.to_string(),
+                position: word.position,
+            })
+        } else {
+            Err(ScriptError::word(
+                error_str.to_string(),
+                word.text.to_string(),
+                word.position,
+            ))
         }
-        else {
-            Err(ScriptError::word(error_str.to_string(), word.text.to_string(), word.position))
-        }
-    }
-    else {
+    } else {
         Err(ScriptError::end_of_script(error_str.to_string()))
     }
 }
 
 /// Make primary parsing of text, and return words inside it.
-/// 
+///
 /// Returns a list of [words](./struct.Word.html) contained inside the text, as `Ok` if parsing went without error (implying every word has an associated kind), or as `Err` if something hasn't been recognized (the last word will be the erroneous one, and may be without kind).
-/// 
+///
 /// See [expect_word](./fn.expect_word.html) and [expect_word_kind](./fn.expect_word_kind.html) for example of usage.
-pub fn get_words(script: & str) -> Result<Vec<Word>, Vec<Word>> {
+pub fn get_words(script: &str) -> Result<Vec<Word>, Vec<Word>> {
     let mut words = Vec::new();
     let mut remaining_script = script.trim_start();
     let mut actual_position = script.len() - remaining_script.len();
     let mut kind_check: KindCheck;
 
     while !remaining_script.is_empty() {
-
         let kind: Option<Kind>;
 
         // Check if word is Comment.
@@ -359,7 +369,7 @@ pub fn get_words(script: & str) -> Result<Vec<Word>, Vec<Word>> {
         } {
             kind = Some(Kind::Character);
         }
-        // The word is unkown
+        // The word is unknown
         else {
             kind_check = KindCheck {
                 is_that_kind: false,
@@ -368,7 +378,7 @@ pub fn get_words(script: & str) -> Result<Vec<Word>, Vec<Word>> {
             };
             kind = None;
         }
-        
+
         let splitted_script = remaining_script.split_at(kind_check.end_at);
         let (line, pos_in_line) = get_line_pos(script, actual_position);
         let word = Word {
@@ -384,20 +394,18 @@ pub fn get_words(script: & str) -> Result<Vec<Word>, Vec<Word>> {
         words.push(word);
 
         if !kind_check.is_well_formed {
-            return Err(words)
-        }
-        else {
+            return Err(words);
+        } else {
             let after_word = splitted_script.1.trim_start();
             actual_position += remaining_script.len() - after_word.len();
             remaining_script = after_word;
         }
-
     }
 
     Ok(words)
 }
 
-fn get_line_pos(text: & str, pos: usize) -> (usize, usize) {
+fn get_line_pos(text: &str, pos: usize) -> (usize, usize) {
     let considered_text = text.split_at(pos).0;
     let newlines_indices = considered_text.match_indices('\n');
 
@@ -407,8 +415,7 @@ fn get_line_pos(text: & str, pos: usize) -> (usize, usize) {
     let line_start;
     if lines > 1 {
         line_start = newlines_indices.last().unwrap().0 + 1;
-    }
-    else {
+    } else {
         line_start = 0;
     }
 
@@ -423,18 +430,18 @@ fn manage_comment(text: &str) -> KindCheck {
         KindCheck {
             is_that_kind: true,
             end_at: end_of_comment.unwrap_or_else(|| text.len()),
-            is_well_formed: true
+            is_well_formed: true,
         }
-    }
-    else if text.starts_with("/*") {
+    } else if text.starts_with("/*") {
         let end_of_comment = text.find("*/");
         KindCheck {
             is_that_kind: true,
             end_at: end_of_comment.unwrap_or_else(|| text.len()) + 2,
-            is_well_formed: end_of_comment.is_some()
+            is_well_formed: end_of_comment.is_some(),
         }
+    } else {
+        KindCheck::default()
     }
-    else { KindCheck::default() }
 }
 
 fn manage_annotation(text: &str) -> KindCheck {
@@ -445,8 +452,9 @@ fn manage_annotation(text: &str) -> KindCheck {
             end_at: end_of_annotation.unwrap_or_else(|| text.len()),
             is_well_formed: true,
         }
+    } else {
+        KindCheck::default()
     }
-    else { KindCheck::default() }
 }
 
 fn manage_single_char(c: char, text: &str) -> KindCheck {
@@ -456,8 +464,9 @@ fn manage_single_char(c: char, text: &str) -> KindCheck {
             end_at: 1,
             is_well_formed: true,
         }
+    } else {
+        KindCheck::default()
     }
-    else { KindCheck::default() }
 }
 
 fn manage_right_arrow(text: &str) -> KindCheck {
@@ -471,13 +480,15 @@ fn manage_right_arrow(text: &str) -> KindCheck {
             end_at: mat.unwrap().end(),
             is_well_formed: true,
         }
+    } else {
+        KindCheck::default()
     }
-    else { KindCheck::default() }
 }
 
 fn manage_name(text: &str) -> KindCheck {
     lazy_static! {
-        static ref REGEX_NAME: Regex = Regex::new(r"^[\p{Alphabetic}\p{M}\p{Pc}\p{Join_Control}]\w*").unwrap();
+        static ref REGEX_NAME: Regex =
+            Regex::new(r"^[\p{Alphabetic}\p{M}\p{Pc}\p{Join_Control}]\w*").unwrap();
     }
     let mat = REGEX_NAME.find(text);
     if mat.is_some() {
@@ -486,13 +497,15 @@ fn manage_name(text: &str) -> KindCheck {
             end_at: mat.unwrap().end(),
             is_well_formed: true,
         }
+    } else {
+        KindCheck::default()
     }
-    else { KindCheck::default() }
 }
 
 fn manage_context(text: &str) -> KindCheck {
     lazy_static! {
-        static ref REGEX_CONTEXT: Regex = Regex::new(r"^@[\p{Alphabetic}\p{M}\p{Pc}\p{Join_Control}]\w*").unwrap();
+        static ref REGEX_CONTEXT: Regex =
+            Regex::new(r"^@[\p{Alphabetic}\p{M}\p{Pc}\p{Join_Control}]\w*").unwrap();
     }
     let mat = REGEX_CONTEXT.find(text);
     if mat.is_some() {
@@ -501,13 +514,15 @@ fn manage_context(text: &str) -> KindCheck {
             end_at: mat.unwrap().end(),
             is_well_formed: true,
         }
+    } else {
+        KindCheck::default()
     }
-    else { KindCheck::default() }
 }
 
 fn manage_function(text: &str) -> KindCheck {
     lazy_static! {
-        static ref REGEX_CONTEXT: Regex = Regex::new(r"^\|[\p{Alphabetic}\p{M}\p{Pc}\p{Join_Control}]\w*").unwrap();
+        static ref REGEX_CONTEXT: Regex =
+            Regex::new(r"^\|[\p{Alphabetic}\p{M}\p{Pc}\p{Join_Control}]\w*").unwrap();
     }
     let mat = REGEX_CONTEXT.find(text);
     if mat.is_some() {
@@ -516,8 +531,9 @@ fn manage_function(text: &str) -> KindCheck {
             end_at: mat.unwrap().end(),
             is_well_formed: true,
         }
+    } else {
+        KindCheck::default()
     }
-    else { KindCheck::default() }
 }
 
 fn manage_number(text: &str) -> KindCheck {
@@ -531,8 +547,9 @@ fn manage_number(text: &str) -> KindCheck {
             end_at: mat.unwrap().end(),
             is_well_formed: true,
         }
+    } else {
+        KindCheck::default()
     }
-    else { KindCheck::default() }
 }
 
 fn manage_string(text: &str) -> KindCheck {
@@ -547,16 +564,16 @@ fn manage_string(text: &str) -> KindCheck {
                 end_at: mat.unwrap().end(),
                 is_well_formed: true,
             }
-        }
-        else {
-            KindCheck{
+        } else {
+            KindCheck {
                 is_that_kind: true,
                 end_at: text.len(),
                 is_well_formed: false,
             }
         }
+    } else {
+        KindCheck::default()
     }
-    else { KindCheck::default() }
 }
 
 fn manage_char(text: &str) -> KindCheck {
@@ -571,16 +588,16 @@ fn manage_char(text: &str) -> KindCheck {
                 end_at: mat.unwrap().end(),
                 is_well_formed: true,
             }
-        }
-        else {
-            KindCheck{
+        } else {
+            KindCheck {
                 is_that_kind: true,
                 end_at: text.len(),
                 is_well_formed: false,
             }
         }
+    } else {
+        KindCheck::default()
     }
-    else { KindCheck::default() }
 }
 
 fn manage_byte(text: &str) -> KindCheck {
@@ -595,16 +612,16 @@ fn manage_byte(text: &str) -> KindCheck {
                 end_at: mat.unwrap().end(),
                 is_well_formed: true,
             }
-        }
-        else {
-            KindCheck{
+        } else {
+            KindCheck {
                 is_that_kind: true,
                 end_at: text.len(),
                 is_well_formed: false,
             }
         }
+    } else {
+        KindCheck::default()
     }
-    else { KindCheck::default() }
 }
 
 #[cfg(test)]
@@ -626,7 +643,10 @@ mod tests {
         /* A shorter comment */";
 
         let words = get_words(comments).unwrap();
-        let kinds : Vec<bool> = words.iter().map(|w| w.kind == Some(Kind::Comment)).collect();
+        let kinds: Vec<bool> = words
+            .iter()
+            .map(|w| w.kind == Some(Kind::Comment))
+            .collect();
 
         assert_eq!(vec![true, true, false, true, true, true], kinds);
     }
@@ -642,9 +662,8 @@ mod tests {
         00000000000000000000000000000";
 
         let words = get_words(numbers).unwrap();
-        let kinds : Vec<bool> = words.iter().map(|w| w.kind == Some(Kind::Number)).collect();
+        let kinds: Vec<bool> = words.iter().map(|w| w.kind == Some(Kind::Number)).collect();
 
         assert_eq!(vec![true, true, true, false, true, true, true], kinds);
     }
 }
-

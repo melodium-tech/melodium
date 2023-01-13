@@ -1,14 +1,13 @@
-
 //! Module dedicated to common semantic elements & traits.
 
-use std::sync::{Arc, Weak, RwLock};
 use super::script::Script;
-use crate::script::text::Script as TextScript;
-use crate::script::error::ScriptError;
-use crate::script::path::Path;
+use crate::error::ScriptError;
+use crate::path::Path;
+use crate::text::Script as TextScript;
+use std::sync::{Arc, RwLock, Weak};
 
 /// Semantic tree.
-/// 
+///
 /// Currently holds the root script, which itself owns all other elements.
 #[derive(Debug)]
 pub struct Tree {
@@ -17,21 +16,18 @@ pub struct Tree {
 
 impl Tree {
     pub fn new(text: TextScript) -> Result<Self, ScriptError> {
-
         Ok(Self {
-            script: Script::new(text)?
+            script: Script::new(text)?,
         })
     }
 
     pub fn make_references(&self, path: &Path) -> Result<(), ScriptError> {
-
         Self::make_references_node(Arc::clone(&self.script) as Arc<RwLock<dyn Node>>, path)?;
 
         Ok(())
     }
 
     fn make_references_node(node: Arc<RwLock<dyn Node>>, path: &Path) -> Result<(), ScriptError> {
-
         node.write().unwrap().make_references(path)?;
 
         let children = node.read().unwrap().children();
@@ -44,14 +40,14 @@ impl Tree {
 }
 
 /// Semantic node.
-/// 
+///
 /// Allows making cross-references and create semantic relationships.
 /// Any semantic element should implement this trait.
 pub trait Node {
     /// Create references to the other elements the actual node relies on.
-    /// 
+    ///
     /// This exclude parent-child references, which are made when creating the elements.
-    /// 
+    ///
     /// * `path`: path to the current element, its root can ony be `std`/[PathRoot::Std](super::super::path::PathRoot::Std) or `main`/[PathRoot::Main](super::super::path::PathRoot::Main)
     fn make_references(&mut self, _path: &Path) -> Result<(), ScriptError> {
         Ok(())
@@ -72,7 +68,6 @@ pub struct Reference<T> {
 
 impl<T> Reference<T> {
     pub fn new(name: String) -> Self {
-
         Self {
             name,
             reference: None,
