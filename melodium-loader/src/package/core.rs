@@ -1,29 +1,37 @@
 
 use crate::package::package::Package;
-use melodium_common::descriptor::{Package as CommonPackage};
+use melodium_common::descriptor::{Collection, Identifier, Loader, LoadingError, Package as CommonPackage};
 use semver::Version;
 pub struct CorePackage {
     package: Box<dyn CommonPackage>,
 }
 
-impl Package for CommonPackage {
+impl CorePackage {
+    pub fn new(package: Box<dyn CommonPackage>) -> Self {
+        Self {
+            package
+        }
+    }
+}
+
+impl Package for CorePackage {
     fn name(&self) -> &str {
-        todo!()
+        self.package.name()
     }
 
     fn version(&self) -> &Version {
+        self.package.version()
+    }
+
+    fn collection(&self, loader: &dyn Loader) -> Result<Collection, LoadingError> {
+        self.package.collection(loader)
+    }
+
+    fn all_identifiers(&self) -> Vec<Identifier> {
         todo!()
     }
 
-    fn collection(&self, loader: &dyn melodium_common::descriptor::Loader) -> Result<melodium_common::descriptor::Collection, melodium_common::descriptor::LoadingError> {
-        todo!()
-    }
-
-    fn all_identifiers(&self) -> Vec<melodium_common::descriptor::Identifier> {
-        todo!()
-    }
-
-    fn element(&self, loader: &dyn melodium_common::descriptor::Loader, identifier: &melodium_common::descriptor::Identifier) -> Result<melodium_common::descriptor::Collection, melodium_common::descriptor::LoadingError> {
+    fn element(&self, loader: &dyn Loader, identifier: &Identifier) -> Result<Collection, LoadingError> {
         todo!()
     }
 }

@@ -1,7 +1,8 @@
 
 pub mod loader;
-pub mod loading_context;
+pub mod loading_config;
 pub mod package;
 
 pub use loader::Loader;
-pub use loading_context::LoadingContext;
+pub use loading_config::LoadingConfig;
+pub use package::package::Package;

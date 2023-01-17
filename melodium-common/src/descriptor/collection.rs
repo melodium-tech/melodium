@@ -2,7 +2,7 @@ use super::{Context, Function, Identified, Identifier, Model, Treatment};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Entry {
     Context(Arc<Context>),
     Function(Arc<dyn Function>),
