@@ -37,12 +37,23 @@ impl Loader {
 
             Ok(self.collection.read().unwrap().get(identifier).unwrap().clone())
         } else {
-
+            Err(LoadingError::NoPackage)
         }
     }
 
-    fn add_collection(&self, collection: Collection) {
+    fn add_collection(&self, other_collection: Collection) {
 
+        let existing = self.collection.read().unwrap().identifiers();
+        let mut others = other_collection.identifiers();
+
+        others.retain(|id| !existing.contains(id));
+
+        if !others.is_empty() {
+            let collection = self.collection.write().unwrap();
+            for id in &others {
+                collection.insert(other_collection.get(id).unwrap().clone());
+            }
+        }
     }
 }
 
