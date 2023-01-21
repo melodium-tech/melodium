@@ -1,4 +1,5 @@
 
+mod content;
 pub mod loader;
 pub mod loading_config;
 pub mod package;

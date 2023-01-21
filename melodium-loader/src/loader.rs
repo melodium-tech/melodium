@@ -22,8 +22,9 @@ impl Loader {
         }
     }
 
-    pub fn load(&mut self, identifier: &Identifier) -> Result<Collection, LoadingError> {
-
+    pub fn load(&self, identifier: &Identifier) -> Result<Collection, LoadingError> {
+        self.get_with_load(identifier)?;
+        Ok(self.collection.read().unwrap().clone())
     }
 
     fn get_with_load(&self, identifier: &Identifier) -> Result<Entry, LoadingError> {
@@ -49,7 +50,7 @@ impl Loader {
         others.retain(|id| !existing.contains(id));
 
         if !others.is_empty() {
-            let collection = self.collection.write().unwrap();
+            let mut collection = self.collection.write().unwrap();
             for id in &others {
                 collection.insert(other_collection.get(id).unwrap().clone());
             }
@@ -59,18 +60,30 @@ impl Loader {
 
 impl LoaderTrait for Loader {
     fn load_context(&self, identifier: &Identifier) -> Result<Arc<Context>, LoadingError> {
-        
+        match self.get_with_load(identifier)? {
+            Entry::Context(context) => Ok(context),
+            _ => Err(LoadingError::ContextExpected)
+        }
     }
 
     fn load_function(&self, identifier: &Identifier) -> Result<Arc<dyn Function>, LoadingError> {
-        todo!()
+        match self.get_with_load(identifier)? {
+            Entry::Function(function) => Ok(function),
+            _ => Err(LoadingError::FunctionExpected)
+        }
     }
 
     fn load_model(&self, identifier: &Identifier) -> Result<Arc<dyn Model>, LoadingError> {
-        todo!()
+        match self.get_with_load(identifier)? {
+            Entry::Model(model) => Ok(model),
+            _ => Err(LoadingError::ModelExpected)
+        }
     }
 
     fn load_treatment(&self, identifier: &Identifier) -> Result<Arc<dyn Treatment>, LoadingError> {
-        todo!()
+        match self.get_with_load(identifier)? {
+            Entry::Treatment(treatment) => Ok(treatment),
+            _ => Err(LoadingError::TreatmentExpected)
+        }
     }
 }

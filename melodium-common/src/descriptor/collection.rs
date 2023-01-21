@@ -21,7 +21,7 @@ impl Entry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Collection {
     elements: HashMap<Identifier, Entry>,
 }
