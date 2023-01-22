@@ -1,15 +1,20 @@
 
 use crate::package::package::Package;
+use crate::content::Content;
 use melodium_common::descriptor::{Collection, Identifier, Loader, LoadingError, Package as CommonPackage};
 use semver::Version;
+use std::collections::HashMap;
+
 pub struct CorePackage {
     package: Box<dyn CommonPackage>,
+    contents: HashMap<String, Content>,
 }
 
 impl CorePackage {
     pub fn new(package: Box<dyn CommonPackage>) -> Self {
         Self {
-            package
+            package,
+            contents: HashMap::new(),
         }
     }
 }
@@ -23,7 +28,11 @@ impl Package for CorePackage {
         self.package.version()
     }
 
-    fn collection(&self, loader: &dyn Loader) -> Result<Collection, LoadingError> {
+    fn embedded_collection(&self, loader: &dyn Loader) -> Result<Collection, LoadingError> {
+        self.package.collection(loader)
+    }
+
+    fn full_collection(&self, loader: &dyn Loader) -> Result<Collection, LoadingError> {
         self.package.collection(loader)
     }
 

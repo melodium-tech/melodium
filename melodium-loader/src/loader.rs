@@ -1,7 +1,7 @@
 
 use crate::LoadingConfig;
 use crate::package::{CorePackage, Package};
-use melodium_common::descriptor::{Collection, Context, Entry, Function, Identifier, Loader as LoaderTrait, LoadingError, Model, Treatment, collection};
+use melodium_common::descriptor::{Collection, Context, Entry, Function, Identifier, Loader as LoaderTrait, LoadingError, Model, Treatment};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
