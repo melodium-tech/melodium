@@ -1,6 +1,8 @@
 
+use crate::content::ContentError;
 use melodium_common::descriptor::{Collection, Identifier, Loader, LoadingError};
 use semver::Version;
+use std::sync::Arc;
 
 pub trait Package {
     fn name(&self) -> &str;
@@ -14,7 +16,7 @@ pub trait Package {
     /**
      * Gives all elements that are contained in the package.
      * 
-     * This call trigger disk access, parsing and build of all the elements, which might be costly.
+     * This call trigger disk access and parsing of all the elements, which might be costly.
      * It should be used only when other functions in that trait don't fit for usage.
      */
     fn full_collection(&self, loader: &dyn Loader) -> Result<Collection, LoadingError>;
@@ -31,4 +33,12 @@ pub trait Package {
      * It loads and build all but only the required elements within the package, wether built-in or to-build elements.
      */
     fn element(&self, loader: &dyn Loader, identifier: &Identifier) -> Result<Collection, LoadingError>;
+    /**
+     * Make the final build of all elements that depends on this package within the given collection.
+     * 
+     * Only after a successful call to this function the elements given by the package are guaranteed to work.
+     */
+    fn make_building(&self, collection: &Arc<Collection>) -> Result<(), LoadingError>;
+
+    fn errors(&self) -> Vec<ContentError>;
 }

@@ -4,7 +4,7 @@ use crate::package::{CorePackage, Package};
 use melodium_common::descriptor::{Collection, Context, Entry, Function, Identifier, Loader as LoaderTrait, LoadingError, Model, Treatment};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 pub struct Loader {
     collection: RwLock<Collection>,
@@ -25,6 +25,10 @@ impl Loader {
     pub fn load(&self, identifier: &Identifier) -> Result<Collection, LoadingError> {
         self.get_with_load(identifier)?;
         Ok(self.collection.read().unwrap().clone())
+    }
+
+    pub fn collection(&self) -> RwLockReadGuard<Collection> {
+        self.collection.read().unwrap()
     }
 
     fn get_with_load(&self, identifier: &Identifier) -> Result<Entry, LoadingError> {

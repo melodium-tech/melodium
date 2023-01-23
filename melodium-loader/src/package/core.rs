@@ -1,20 +1,47 @@
 
 use crate::package::package::Package;
-use crate::content::Content;
+use crate::content::{Content, ContentError};
 use melodium_common::descriptor::{Collection, Identifier, Loader, LoadingError, Package as CommonPackage};
 use semver::Version;
 use std::collections::HashMap;
+use std::sync::RwLock;
 
 pub struct CorePackage {
     package: Box<dyn CommonPackage>,
-    contents: HashMap<String, Content>,
+    contents: RwLock<HashMap<String, Content>>,
+    errors: RwLock<Vec<ContentError>>,
 }
 
 impl CorePackage {
     pub fn new(package: Box<dyn CommonPackage>) -> Self {
         Self {
             package,
-            contents: HashMap::new(),
+            contents: RwLock::new(HashMap::new()),
+            errors: RwLock::new(Vec::new()),
+        }
+    }
+
+    fn new_content(&self, loader: &dyn Loader, designation: String) -> Result<(), LoadingError> {
+
+        match self.package.embedded().get(designation.as_str()) {
+            Some(data) => {
+
+                let result_content = Content::new(designation.as_str(), data);
+
+                match result_content {
+                    Ok(content) => {
+                        self.contents.write().unwrap().insert(designation, content);
+                        Ok(())
+                    },
+                    Err(error) => {
+                        self.errors.write().unwrap().push(error);
+                        Err(LoadingError::NotFound)
+                    }
+                }
+
+                
+            },
+            None => Err(LoadingError::NotFound)
         }
     }
 }

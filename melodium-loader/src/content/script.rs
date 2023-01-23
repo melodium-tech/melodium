@@ -1,12 +1,20 @@
 
 use melodium_common::descriptor::{Collection, Identifier, Loader, LoadingError};
 use melodium_lang::{Path, text::Script as TextScript, semantic::Tree as SemanticTree};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 pub use melodium_lang::ScriptError;
+
+#[derive(Clone, Copy, Debug)]
+pub enum ScriptBuildLevel {
+    None,
+    DescriptorsMade,
+    DesignMade,
+}
 
 pub struct Script {
     path: String,
     semantic: SemanticTree,
+    build_level: Mutex<ScriptBuildLevel>,
 }
 
 impl Script {
@@ -20,7 +28,16 @@ impl Script {
         Ok(Self {
             path,
             semantic,
+            build_level: Mutex::new(ScriptBuildLevel::None),
         })
+    }
+
+    pub fn build_level(&self) -> ScriptBuildLevel {
+        *self.build_level.lock().unwrap()
+    }
+
+    pub fn path(&self) -> &str {
+        &self.path
     }
 
     pub fn match_identifier(&self, identifier: &Identifier) -> bool {
@@ -80,6 +97,7 @@ impl Script {
         }
 
         if errors.is_empty() {
+            *self.build_level.lock().unwrap() = ScriptBuildLevel::DescriptorsMade;
             Ok(())
         } else {
             Err(errors)
@@ -107,6 +125,7 @@ impl Script {
         }
 
         if errors.is_empty() {
+            *self.build_level.lock().unwrap() = ScriptBuildLevel::DesignMade;
             Ok(())
         } else {
             Err(errors)
