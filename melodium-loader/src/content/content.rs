@@ -2,10 +2,11 @@
 use core::str::Utf8Error;
 use super::script::{Script, ScriptError, ScriptBuildLevel};
 use melodium_common::descriptor::{Collection, Identifier};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 
-pub enum Content {
-    Script(Script),
+pub struct Content {
+    content: ContentType,
+    descriptors_building: Mutex<()>,
 }
 
 impl Content {
@@ -16,19 +17,19 @@ impl Content {
 
         let content = Script::new(path.clone(), text).map_err(|errors| ContentError::ScriptErrors { path, errors })?;
 
-        Ok(Self::Script(content))
+        Ok(Self { content: ContentType::Script(content), descriptors_building: Mutex::new(()) })
     }
 
     pub fn match_identifier(&self, identifier: &Identifier) -> bool {
-        match self {
-            Self::Script(script) => script.match_identifier(identifier),
+        match &self.content {
+            ContentType::Script(script) => script.match_identifier(identifier),
             _ => false,
         }
     }
 
     pub fn level(&self) -> ContentLevel {
-        match self {
-            Self::Script(script) => 
+        match &self.content {
+            ContentType::Script(script) => 
                 match script.build_level() {
                     ScriptBuildLevel::None => ContentLevel::Exists,
                     ScriptBuildLevel::DescriptorsMade => ContentLevel::Described,
@@ -39,36 +40,51 @@ impl Content {
     }
 
     pub fn require(&self) -> Vec<Identifier> {
-        match self {
-            Self::Script(script) => script.need(),
+        match &self.content {
+            ContentType::Script(script) => script.need(),
             _ => Vec::new(),
         }
     }
 
     pub fn provide(&self) -> Vec<Identifier> {
-        match self {
-            Self::Script(script) => script.provide(),
+        match &self.content {
+            ContentType::Script(script) => script.provide(),
             _ => Vec::new(),
         }
     }
 
+    pub fn try_lock(&self) -> Result<MutexGuard<()>, ()> {
+        match self.descriptors_building.try_lock() {
+            Ok(guard) => Ok(guard),
+            Err(_) => Err(()),
+        }
+    }
+
     pub fn insert_descriptors(&self, collection: &mut Collection) -> Result<(), ContentError> {
-        match self {
-            Self::Script(script) => script.make_descriptors(collection).map_err(|e| ContentError::ScriptErrors { path: script.path().to_string(), errors: e })?,
+
+        match &self.content {
+            ContentType::Script(script) => script.make_descriptors(collection).map_err(|e| ContentError::ScriptErrors { path: script.path().to_string(), errors: e })?,
             _ => {},
         }
         Ok(())
     }
 
     pub fn make_design(&self, collection: &Arc<Collection>) -> Result<(), ContentError> {
-        match self {
-            Self::Script(script) => script.make_design(collection).map_err(|e| ContentError::ScriptErrors { path: script.path().to_string(), errors: e })?,
+        match &self.content {
+            ContentType::Script(script) => script.make_design(collection).map_err(|e| ContentError::ScriptErrors { path: script.path().to_string(), errors: e })?,
             _ => {},
         }
         Ok(())
     }
 }
+
+enum ContentType {
+    Script(Script),
+}
+
+#[derive(Clone)]
 pub enum ContentError {
+    CircularReference,
     Utf8Error { path: String, error: Utf8Error },
     ScriptErrors { path: String, errors: Vec<ScriptError> },
 }

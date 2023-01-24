@@ -5,6 +5,8 @@ use std::sync::Arc;
 pub enum LoadingError {
     NoPackage,
     NotFound,
+    CircularReference,
+    ContentError,
     ContextExpected,
     FunctionExpected,
     ModelExpected,

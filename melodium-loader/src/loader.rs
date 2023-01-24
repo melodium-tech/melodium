@@ -31,7 +31,7 @@ impl Loader {
         self.collection.read().unwrap()
     }
 
-    fn get_with_load(&self, identifier: &Identifier) -> Result<Entry, LoadingError> {
+    pub fn get_with_load(&self, identifier: &Identifier) -> Result<Entry, LoadingError> {
         
         if let Some(entry) = self.collection.read().unwrap().get(identifier) {
             Ok(entry.clone())
