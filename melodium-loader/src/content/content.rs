@@ -1,5 +1,6 @@
 
 use core::str::Utf8Error;
+#[cfg(feature = "script")]
 use super::script::{Script, ScriptError, ScriptBuildLevel};
 use melodium_common::descriptor::{Collection, Identifier};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -12,16 +13,23 @@ pub struct Content {
 impl Content {
     pub fn new(path: &str, content: &[u8]) -> Result<Self, ContentError> {
         // Currently only script content is supported
+        #[cfg(feature = "script")]
+        {
         let path = path.to_string();
         let text = std::str::from_utf8(content).map_err(|error| ContentError::Utf8Error { path: path.clone(), error })?;
 
         let content = Script::new(path.clone(), text).map_err(|errors| ContentError::ScriptErrors { path, errors })?;
 
         Ok(Self { content: ContentType::Script(content), descriptors_building: Mutex::new(()) })
+        }
+        #[cfg(not(feature = "script"))]
+        Err(ContentError::UnsupportedContent)
+
     }
 
     pub fn match_identifier(&self, identifier: &Identifier) -> bool {
         match &self.content {
+            #[cfg(feature = "script")]
             ContentType::Script(script) => script.match_identifier(identifier),
             _ => false,
         }
@@ -29,6 +37,7 @@ impl Content {
 
     pub fn level(&self) -> ContentLevel {
         match &self.content {
+            #[cfg(feature = "script")]
             ContentType::Script(script) => 
                 match script.build_level() {
                     ScriptBuildLevel::None => ContentLevel::Exists,
@@ -41,6 +50,7 @@ impl Content {
 
     pub fn require(&self) -> Vec<Identifier> {
         match &self.content {
+            #[cfg(feature = "script")]
             ContentType::Script(script) => script.need(),
             _ => Vec::new(),
         }
@@ -48,6 +58,7 @@ impl Content {
 
     pub fn provide(&self) -> Vec<Identifier> {
         match &self.content {
+            #[cfg(feature = "script")]
             ContentType::Script(script) => script.provide(),
             _ => Vec::new(),
         }
@@ -63,6 +74,7 @@ impl Content {
     pub fn insert_descriptors(&self, collection: &mut Collection) -> Result<(), ContentError> {
 
         match &self.content {
+            #[cfg(feature = "script")]
             ContentType::Script(script) => script.make_descriptors(collection).map_err(|e| ContentError::ScriptErrors { path: script.path().to_string(), errors: e })?,
             _ => {},
         }
@@ -71,6 +83,7 @@ impl Content {
 
     pub fn make_design(&self, collection: &Arc<Collection>) -> Result<(), ContentError> {
         match &self.content {
+            #[cfg(feature = "script")]
             ContentType::Script(script) => script.make_design(collection).map_err(|e| ContentError::ScriptErrors { path: script.path().to_string(), errors: e })?,
             _ => {},
         }
@@ -79,13 +92,16 @@ impl Content {
 }
 
 enum ContentType {
+    #[cfg(feature = "script")]
     Script(Script),
 }
 
 #[derive(Clone)]
 pub enum ContentError {
     CircularReference,
+    UnsupportedContent,
     Utf8Error { path: String, error: Utf8Error },
+    #[cfg(feature = "script")]
     ScriptErrors { path: String, errors: Vec<ScriptError> },
 }
 

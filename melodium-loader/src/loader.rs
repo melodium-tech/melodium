@@ -1,6 +1,8 @@
 
 use crate::LoadingConfig;
 use crate::package::{CorePackage, Package};
+#[cfg(feature = "filesystem")]
+use crate::package::FsPackage;
 use melodium_common::descriptor::{Collection, Context, Entry, Function, Identifier, Loader as LoaderTrait, LoadingError, Model, Treatment};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -19,6 +21,26 @@ impl Loader {
             collection: RwLock::new(Collection::new()),
             packages: RwLock::new(config.core_packages.into_iter().map(|p| (p.name().to_string(), Box::new(CorePackage::new(p)) as Box<dyn Package>)).collect()),
             search_locations: config.search_locations,
+        }
+    }
+
+    pub fn load_package(&self, name: &str) -> Result<(), LoadingError> {
+        if !self.packages.read().unwrap().contains_key(name) {
+            for location in &self.search_locations {
+                let mut path = location.clone();
+                path.push(name);
+                if path.exists() {
+                    #[cfg(feature = "filesystem")]
+                    if let Ok(package) = FsPackage::new(&path) {
+                        // TODO let require = package.requirements();
+                        self.packages.write().unwrap().insert(name.to_string(), Box::new(package));
+                        return Ok(())
+                    }
+                }
+            }
+            Err(LoadingError::NoPackage)
+        } else {
+            Ok(())
         }
     }
 
