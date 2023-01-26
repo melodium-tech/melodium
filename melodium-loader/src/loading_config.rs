@@ -1,4 +1,3 @@
-
 use melodium_common::descriptor::Package;
 use std::path::PathBuf;
 

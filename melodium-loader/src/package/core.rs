@@ -1,7 +1,6 @@
-
-use crate::Loader;
-use crate::package::package::Package;
 use crate::content::{Content, ContentError};
+use crate::package::package::Package;
+use crate::Loader;
 use melodium_common::descriptor::{Collection, Identifier, LoadingError, Package as CommonPackage};
 use semver::Version;
 use std::collections::HashMap;
@@ -9,6 +8,7 @@ use std::sync::{Arc, RwLock};
 
 pub struct CorePackage {
     package: Box<dyn CommonPackage>,
+    requirements: Vec<String>,
     embedded_collection: RwLock<Option<Collection>>,
     contents: RwLock<HashMap<String, Content>>,
     errors: RwLock<Vec<ContentError>>,
@@ -17,6 +17,11 @@ pub struct CorePackage {
 impl CorePackage {
     pub fn new(package: Box<dyn CommonPackage>) -> Self {
         Self {
+            requirements: package
+                .requirements()
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             package,
             embedded_collection: RwLock::new(None),
             contents: RwLock::new(HashMap::new()),
@@ -25,31 +30,33 @@ impl CorePackage {
     }
 
     fn insure_content(&self, designation: &str) -> Result<(), LoadingError> {
-
         match self.package.embedded().get(designation) {
-            Some(data) => if self.contents.read().unwrap().contains_key(designation) {
+            Some(data) => {
+                if self.contents.read().unwrap().contains_key(designation) {
                     Ok(())
-                }
-                else {
+                } else {
                     let result_content = Content::new(designation, data);
 
                     match result_content {
                         Ok(content) => {
-                            self.contents.write().unwrap().insert(designation.to_string(), content);
+                            self.contents
+                                .write()
+                                .unwrap()
+                                .insert(designation.to_string(), content);
                             Ok(())
-                        },
+                        }
                         Err(error) => {
                             self.errors.write().unwrap().push(error);
                             Err(LoadingError::NotFound)
                         }
                     }
-                },
-            None => Err(LoadingError::NotFound)
+                }
+            }
+            None => Err(LoadingError::NotFound),
         }
     }
 
     fn all_contents(&self) -> Result<(), LoadingError> {
-
         let mut error = None;
         for (designation, _) in self.package.embedded() {
             if let Err(e) = self.insure_content(designation) {
@@ -61,7 +68,6 @@ impl CorePackage {
     }
 
     fn insure_loading(loader: &Loader, identifiers: Vec<Identifier>) -> Result<(), LoadingError> {
-
         for identifier in identifiers {
             loader.get_with_load(&identifier)?;
         }
@@ -83,8 +89,11 @@ impl Package for CorePackage {
         self.package.version()
     }
 
-    fn embedded_collection(&self, loader: &Loader) -> Result<Collection, LoadingError> {
+    fn requirements(&self) -> &Vec<String> {
+        &self.requirements
+    }
 
+    fn embedded_collection(&self, loader: &Loader) -> Result<Collection, LoadingError> {
         if let Some(collection) = &*self.embedded_collection.read().unwrap() {
             Ok(collection.clone())
         } else {
@@ -92,11 +101,9 @@ impl Package for CorePackage {
             *self.embedded_collection.write().unwrap() = Some(collection.clone());
             Ok(collection)
         }
-        
     }
 
     fn full_collection(&self, loader: &Loader) -> Result<Collection, LoadingError> {
-
         self.all_contents()?;
 
         let mut collection = self.embedded_collection(loader)?.clone();
@@ -111,7 +118,7 @@ impl Package for CorePackage {
                 if let Some(other_needs) = all_needs.get(&need_designation) {
                     for other_need in other_needs {
                         if &Self::designation(other_need) == designation {
-                            return Err(LoadingError::CircularReference)
+                            return Err(LoadingError::CircularReference);
                         }
                     }
                 }
@@ -122,25 +129,34 @@ impl Package for CorePackage {
 
         let mut external_needs = Vec::new();
         let mut internal_needs = Vec::new();
-        for (designation_requester, designation_requested, need) in all_needs.into_iter().map(|(designation, needs)| needs.into_iter().map(|need| (designation.clone(), Self::designation(&need), need)).collect::<Vec<_>>()).flatten() {
+        for (designation_requester, designation_requested, need) in all_needs
+            .into_iter()
+            .map(|(designation, needs)| {
+                needs
+                    .into_iter()
+                    .map(|need| (designation.clone(), Self::designation(&need), need))
+                    .collect::<Vec<_>>()
+            })
+            .flatten()
+        {
             if need.root() != self.name() {
                 if !external_needs.contains(&need) {
                     external_needs.push(need);
                 }
-            }
-            else {
+            } else {
                 // Knowing we don't have circular dependency, we can apply this logic
                 let requester_included = internal_needs.contains(&designation_requester);
                 let requested_included = internal_needs.contains(&designation_requested);
                 if !requester_included && !requested_included {
                     internal_needs.push(designation_requested);
                     internal_needs.push(designation_requester);
-                }
-                else if requester_included && !requested_included {
-                    let position = internal_needs.iter().position(|d| d == &designation_requester).unwrap();
+                } else if requester_included && !requested_included {
+                    let position = internal_needs
+                        .iter()
+                        .position(|d| d == &designation_requester)
+                        .unwrap();
                     internal_needs.insert(position, designation_requested);
-                }
-                else {
+                } else {
                     internal_needs.push(designation_requester);
                 }
             }
@@ -168,19 +184,26 @@ impl Package for CorePackage {
     }
 
     fn all_identifiers(&self, loader: &Loader) -> Result<Vec<Identifier>, LoadingError> {
-
         self.all_contents()?;
 
         let mut identifiers = self.embedded_collection(loader)?.identifiers();
         identifiers.extend(
-            self.contents.read().unwrap().iter().map(|(_, content)| content.provide()).flatten()
+            self.contents
+                .read()
+                .unwrap()
+                .iter()
+                .map(|(_, content)| content.provide())
+                .flatten(),
         );
 
         Ok(identifiers)
     }
 
-    fn element(&self, loader: &Loader, identifier: &Identifier) -> Result<Collection, LoadingError> {
-
+    fn element(
+        &self,
+        loader: &Loader,
+        identifier: &Identifier,
+    ) -> Result<Collection, LoadingError> {
         if let Some(_) = self.embedded_collection(loader)?.get(identifier) {
             return Ok(self.embedded_collection(loader)?);
         }
@@ -201,18 +224,15 @@ impl Package for CorePackage {
                         Err(LoadingError::ContentError)
                     }
                 }
-            }
-            else {
+            } else {
                 Err(LoadingError::CircularReference)
             }
-        }
-        else {
+        } else {
             Err(LoadingError::NotFound)
         }
     }
 
     fn make_building(&self, collection: &Arc<Collection>) -> Result<(), LoadingError> {
-
         let contents = self.contents.read().unwrap();
         let mut content_error = false;
         for (_, content) in contents.iter() {

@@ -1,52 +1,77 @@
-
-use crate::Loader;
-use crate::package::package::Package;
 use crate::content::{Content, ContentError};
+use crate::package::package::Package;
+use crate::Loader;
+use glob::{glob_with, MatchOptions};
 use melodium_common::descriptor::{Collection, Identifier, LoadingError};
 use semver::Version;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::path::{Path, PathBuf};
 use std::fs::{metadata, read, read_to_string};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
 use toml::{Table, Value};
-use glob::{glob_with, MatchOptions};
 
 pub struct FsPackage {
     path: PathBuf,
     name: String,
     version: Version,
+    requirements: Vec<String>,
     contents: RwLock<HashMap<PathBuf, Content>>,
     errors: RwLock<Vec<ContentError>>,
 }
 
 impl FsPackage {
     pub fn new(path: &Path) -> Result<Self, LoadingError> {
-
         let location = metadata(path).map_err(|_| LoadingError::NoPackage)?;
 
         if location.is_dir() {
-
             let mut composition_path = path.to_path_buf();
             composition_path.push("Compo.toml");
 
-            let composition = read_to_string(&composition_path).map_err(|_| LoadingError::NoPackage)?;
-            let composition = composition.parse::<Table>().map_err(|_| LoadingError::NoPackage)?;
+            let composition =
+                read_to_string(&composition_path).map_err(|_| LoadingError::NoPackage)?;
+            let composition = composition
+                .parse::<Table>()
+                .map_err(|_| LoadingError::NoPackage)?;
 
-            if let (Value::String(name), Ok(version)) = (composition.get("name").ok_or(LoadingError::NoPackage)?, Version::parse(composition.get("version").ok_or(LoadingError::NoPackage)?.as_str().ok_or(LoadingError::NoPackage)?)) {
-                Ok(Self { path: path.to_path_buf(), name: name.clone(), version, contents: RwLock::new(HashMap::new()), errors: RwLock::new(Vec::new()) })
+            if let (Value::String(name), Ok(version)) = (
+                composition.get("name").ok_or(LoadingError::NoPackage)?,
+                Version::parse(
+                    composition
+                        .get("version")
+                        .ok_or(LoadingError::NoPackage)?
+                        .as_str()
+                        .ok_or(LoadingError::NoPackage)?,
+                ),
+            ) {
+                let requirements =
+                    if let Some(Value::Table(dependencies)) = composition.get("dependencies") {
+                        dependencies
+                            .iter()
+                            .map(|(name, _)| name.to_string())
+                            .collect()
+                    } else {
+                        Vec::new()
+                    };
+
+                Ok(Self {
+                    path: path.to_path_buf(),
+                    name: name.clone(),
+                    version,
+                    requirements,
+                    contents: RwLock::new(HashMap::new()),
+                    errors: RwLock::new(Vec::new()),
+                })
             } else {
                 Err(LoadingError::NoPackage)
             }
         } else {
             Err(LoadingError::NoPackage)
         }
-        
     }
 
     fn insure_content(&self, designation: &Path) -> Result<(), LoadingError> {
-
         if self.contents.read().unwrap().contains_key(designation) {
-            return Ok(())
+            return Ok(());
         }
 
         let mut full_path = self.path.clone();
@@ -57,19 +82,20 @@ impl FsPackage {
 
         match result_content {
             Ok(content) => {
-                self.contents.write().unwrap().insert(designation.to_path_buf(), content);
+                self.contents
+                    .write()
+                    .unwrap()
+                    .insert(designation.to_path_buf(), content);
                 Ok(())
-            },
+            }
             Err(error) => {
                 self.errors.write().unwrap().push(error);
                 Err(LoadingError::NotFound)
             }
         }
-
     }
 
     fn all_contents(&self) -> Result<(), LoadingError> {
-
         let pattern = format!("{}/**.mel", self.path.to_string_lossy().to_string());
 
         let options = MatchOptions {
@@ -80,8 +106,11 @@ impl FsPackage {
 
         for entry in glob_with(&pattern, options).map_err(|_| LoadingError::NotFound)? {
             match entry {
-                Ok(path) => self.insure_content(path.strip_prefix(&self.path).map_err(|_| LoadingError::NotFound)?)?,
-                Err(_) => {},
+                Ok(path) => self.insure_content(
+                    path.strip_prefix(&self.path)
+                        .map_err(|_| LoadingError::NotFound)?,
+                )?,
+                Err(_) => {}
             }
         }
 
@@ -89,7 +118,6 @@ impl FsPackage {
     }
 
     fn insure_loading(loader: &Loader, identifiers: Vec<Identifier>) -> Result<(), LoadingError> {
-
         for identifier in identifiers {
             loader.get_with_load(&identifier)?;
         }
@@ -111,12 +139,15 @@ impl Package for FsPackage {
         &self.version
     }
 
+    fn requirements(&self) -> &Vec<String> {
+        &self.requirements
+    }
+
     fn embedded_collection(&self, _loader: &Loader) -> Result<Collection, LoadingError> {
         Ok(Collection::new())
     }
 
     fn full_collection(&self, loader: &Loader) -> Result<Collection, LoadingError> {
-        
         let identifiers = self.all_identifiers(loader)?;
 
         let mut collection = Collection::new();
@@ -128,7 +159,7 @@ impl Package for FsPackage {
                         for identifier in &specific_collection.identifiers() {
                             collection.insert(specific_collection.get(identifier).unwrap().clone());
                         }
-                    },
+                    }
                     Err(_) => {
                         error = true;
                     }
@@ -136,7 +167,6 @@ impl Package for FsPackage {
             }
         }
 
-        
         if error {
             Err(LoadingError::ContentError)
         } else {
@@ -148,13 +178,20 @@ impl Package for FsPackage {
         self.all_contents()?;
 
         let mut identifiers = Vec::new();
-        self.contents.read().unwrap().iter().for_each(|(_, content)| identifiers.extend(content.provide()));
+        self.contents
+            .read()
+            .unwrap()
+            .iter()
+            .for_each(|(_, content)| identifiers.extend(content.provide()));
 
         Ok(identifiers)
     }
 
-    fn element(&self, loader: &Loader, identifier: &Identifier) -> Result<Collection, LoadingError> {
-        
+    fn element(
+        &self,
+        loader: &Loader,
+        identifier: &Identifier,
+    ) -> Result<Collection, LoadingError> {
         let designation = Self::designation(identifier);
         self.insure_content(&designation)?;
 
@@ -171,18 +208,15 @@ impl Package for FsPackage {
                         Err(LoadingError::ContentError)
                     }
                 }
-            }
-            else {
+            } else {
                 Err(LoadingError::CircularReference)
             }
-        }
-        else {
+        } else {
             Err(LoadingError::NotFound)
         }
     }
 
     fn make_building(&self, collection: &Arc<Collection>) -> Result<(), LoadingError> {
-        
         let contents = self.contents.read().unwrap();
         let mut content_error = false;
         for (_, content) in contents.iter() {

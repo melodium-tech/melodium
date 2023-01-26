@@ -1,7 +1,9 @@
+// Depending on activated features, some parts may or may not be used or reached.
+#![allow(unused, unreachable_patterns)]
 
-use core::str::Utf8Error;
 #[cfg(feature = "script")]
-use super::script::{Script, ScriptError, ScriptBuildLevel};
+use super::script::{Script, ScriptBuildLevel, ScriptError};
+use core::str::Utf8Error;
 use melodium_common::descriptor::{Collection, Identifier};
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -15,18 +17,25 @@ impl Content {
         // Currently only script content is supported
         #[cfg(feature = "script")]
         {
-        let path = path.to_string();
-        let text = std::str::from_utf8(content).map_err(|error| ContentError::Utf8Error { path: path.clone(), error })?;
+            let path = path.to_string();
+            let text = std::str::from_utf8(content).map_err(|error| ContentError::Utf8Error {
+                path: path.clone(),
+                error,
+            })?;
 
-        let content = Script::new(path.clone(), text).map_err(|errors| ContentError::ScriptErrors { path, errors })?;
+            let content = Script::new(path.clone(), text)
+                .map_err(|errors| ContentError::ScriptErrors { path, errors })?;
 
-        Ok(Self { content: ContentType::Script(content), descriptors_building: Mutex::new(()) })
+            Ok(Self {
+                content: ContentType::Script(content),
+                descriptors_building: Mutex::new(()),
+            })
         }
         #[cfg(not(feature = "script"))]
         Err(ContentError::UnsupportedContent)
-
     }
 
+    #[allow(unused)]
     pub fn match_identifier(&self, identifier: &Identifier) -> bool {
         match &self.content {
             #[cfg(feature = "script")]
@@ -38,12 +47,11 @@ impl Content {
     pub fn level(&self) -> ContentLevel {
         match &self.content {
             #[cfg(feature = "script")]
-            ContentType::Script(script) => 
-                match script.build_level() {
-                    ScriptBuildLevel::None => ContentLevel::Exists,
-                    ScriptBuildLevel::DescriptorsMade => ContentLevel::Described,
-                    ScriptBuildLevel::DesignMade => ContentLevel::Designed,
-                },
+            ContentType::Script(script) => match script.build_level() {
+                ScriptBuildLevel::None => ContentLevel::Exists,
+                ScriptBuildLevel::DescriptorsMade => ContentLevel::Described,
+                ScriptBuildLevel::DesignMade => ContentLevel::Designed,
+            },
             _ => ContentLevel::Exists,
         }
     }
@@ -72,11 +80,17 @@ impl Content {
     }
 
     pub fn insert_descriptors(&self, collection: &mut Collection) -> Result<(), ContentError> {
-
         match &self.content {
             #[cfg(feature = "script")]
-            ContentType::Script(script) => script.make_descriptors(collection).map_err(|e| ContentError::ScriptErrors { path: script.path().to_string(), errors: e })?,
-            _ => {},
+            ContentType::Script(script) => {
+                script
+                    .make_descriptors(collection)
+                    .map_err(|e| ContentError::ScriptErrors {
+                        path: script.path().to_string(),
+                        errors: e,
+                    })?
+            }
+            _ => {}
         }
         Ok(())
     }
@@ -84,8 +98,15 @@ impl Content {
     pub fn make_design(&self, collection: &Arc<Collection>) -> Result<(), ContentError> {
         match &self.content {
             #[cfg(feature = "script")]
-            ContentType::Script(script) => script.make_design(collection).map_err(|e| ContentError::ScriptErrors { path: script.path().to_string(), errors: e })?,
-            _ => {},
+            ContentType::Script(script) => {
+                script
+                    .make_design(collection)
+                    .map_err(|e| ContentError::ScriptErrors {
+                        path: script.path().to_string(),
+                        errors: e,
+                    })?
+            }
+            _ => {}
         }
         Ok(())
     }
@@ -98,11 +119,16 @@ enum ContentType {
 
 #[derive(Clone)]
 pub enum ContentError {
-    CircularReference,
     UnsupportedContent,
-    Utf8Error { path: String, error: Utf8Error },
+    Utf8Error {
+        path: String,
+        error: Utf8Error,
+    },
     #[cfg(feature = "script")]
-    ScriptErrors { path: String, errors: Vec<ScriptError> },
+    ScriptErrors {
+        path: String,
+        errors: Vec<ScriptError>,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]
