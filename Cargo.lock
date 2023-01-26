@@ -863,6 +863,10 @@ dependencies = [
 [[package]]
 name = "melodium-core"
 version = "0.5.3"
+dependencies = [
+ "lazy_static",
+ "melodium-common",
+]
 
 [[package]]
 name = "melodium-engine"
@@ -896,14 +900,6 @@ dependencies = [
  "melodium-lang",
  "semver",
  "toml 0.6.0",
-]
-
-[[package]]
-name = "melodium-util"
-version = "0.5.3"
-dependencies = [
- "lazy_static",
- "melodium-common",
 ]
 
 [[package]]

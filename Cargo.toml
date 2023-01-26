@@ -6,5 +6,4 @@ members = [
     "melodium-engine",
     "melodium-lang",
     "melodium-loader",
-    "melodium-util",
     ]
