@@ -27,7 +27,7 @@ pub struct Requirement {
 
 /// Enumeration managing what requirement type refers to.
 ///
-/// This is a convenience enum, as a requirement may only refer on a [Use](super::r#use::Use) context.
+/// This is a convenience enum, as a requirement may only refer on a [Use](Use) context.
 /// The `Unknown` variant is aimed to hold a reference-to-nothing, as long as `make_references() hasn't been called.
 #[derive(Debug)]
 pub enum RefersTo {

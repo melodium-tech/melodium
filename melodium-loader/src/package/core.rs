@@ -6,6 +6,7 @@ use semver::Version;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+#[derive(Debug)]
 pub struct CorePackage {
     package: Box<dyn CommonPackage>,
     requirements: Vec<String>,

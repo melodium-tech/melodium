@@ -13,7 +13,7 @@ use std::sync::{Arc, RwLock, Weak};
 /// Structure managing and describing semantic of a declared parameter.
 ///
 /// A _declared_ parameter is a parameter for which name and type are expected, as well as an optionnal value.
-/// It is used by [Treatments](Treatment) and [Models](Model).
+/// It is used by [Treatments](super::Treatment) and [Models](super::Model).
 ///
 /// It owns the whole [text parameter](crate::text::Parameter).
 #[derive(Debug)]

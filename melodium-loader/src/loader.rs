@@ -10,6 +10,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
+/**
+ * Manages loading of Mélodium packages.
+ */
+#[derive(Debug)]
 pub struct Loader {
     collection: RwLock<Collection>,
     packages: RwLock<HashMap<String, Box<dyn Package>>>,

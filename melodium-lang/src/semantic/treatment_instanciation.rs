@@ -34,7 +34,7 @@ pub struct TreatmentInstanciation {
 
 /// Enumeration managing what treatment type refers to.
 ///
-/// This is a convenience enum, as a treatment type may refer either on a [Use](super::r#use::Use) or a [Treatment](Treatment).
+/// This is a convenience enum, as a treatment type may refer either on a [Use](Use) or a [Treatment](Treatment).
 /// The `Unknown` variant is aimed to hold a reference-to-nothing, as long as `make_references() hasn't been called.
 #[derive(Debug)]
 pub enum RefersTo {

@@ -1,9 +1,10 @@
-
 use core::fmt::{Display, Formatter, Result};
-use std::sync::{Arc, Weak};
-use melodium_common::descriptor::{DataType, Documented, OrderedParameterized, Identified, Identifier, Function as FunctionDescriptor, Parameter};
+use melodium_common::descriptor::{
+    DataType, Documented, Function as FunctionDescriptor, Identified, Identifier,
+    OrderedParameterized, Parameter,
+};
 use melodium_common::executive::Value;
-
+use std::sync::{Arc, Weak};
 
 #[derive(Debug)]
 pub struct Function {
@@ -22,7 +23,7 @@ impl Function {
         documentation: String,
         parameters: Vec<Parameter>,
         return_type: DataType,
-        function: fn(Vec<Value>) -> Value
+        function: fn(Vec<Value>) -> Value,
     ) -> Arc<Self> {
         #[cfg(not(feature = "doc"))]
         let _ = documentation;
@@ -39,7 +40,6 @@ impl Function {
 }
 
 impl FunctionDescriptor for Function {
-
     fn return_type(&self) -> &DataType {
         &self.return_type
     }
@@ -66,28 +66,35 @@ impl Identified for Function {
 impl Documented for Function {
     fn documentation(&self) -> &str {
         #[cfg(feature = "doc")]
-        {&self.documentation}
+        {
+            &self.documentation
+        }
         #[cfg(not(feature = "doc"))]
-        {&""}
+        {
+            &""
+        }
     }
 }
 
 impl OrderedParameterized for Function {
-
     fn parameters(&self) -> &Vec<Parameter> {
         &self.parameters
     }
 }
 
 impl Display for Function {
-    
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "function {}({})",
+        write!(
+            f,
+            "function {}({})",
             self.identifier.to_string(),
-            self.parameters().iter().map(|p| p.to_string()).collect::<Vec<_>>().join(", "),
+            self.parameters()
+                .iter()
+                .map(|p| p.to_string())
+                .collect::<Vec<_>>()
+                .join(", "),
         )?;
 
         Ok(())
-        
     }
 }

@@ -10,6 +10,7 @@ pub enum ScriptBuildLevel {
     DesignMade,
 }
 
+#[derive(Debug)]
 pub struct Script {
     path: String,
     semantic: SemanticTree,

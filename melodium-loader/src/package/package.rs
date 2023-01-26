@@ -1,10 +1,11 @@
 use crate::content::ContentError;
 use crate::Loader;
+use core::fmt::Debug;
 use melodium_common::descriptor::{Collection, Identifier, LoadingError};
 use semver::Version;
 use std::sync::Arc;
 
-pub trait Package {
+pub trait Package: Debug {
     fn name(&self) -> &str;
     fn version(&self) -> &Version;
     fn requirements(&self) -> &Vec<String>;

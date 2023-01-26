@@ -1,10 +1,12 @@
-
 use core::fmt::{Display, Formatter, Result};
+use melodium_common::descriptor::{
+    Buildable, Context, Documented, Identified, Identifier, Input, Model, Output, Parameter,
+    Parameterized, Treatment as TreatmentDescriptor, TreatmentBuildMode,
+};
+use melodium_common::executive::Treatment as ExecutiveTreatment;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::{Arc, Weak};
-use melodium_common::descriptor::{Buildable, Context, Documented, Parameterized, Identified, Identifier, Model, Parameter, Input, Output, Treatment as TreatmentDescriptor, TreatmentBuildMode};
-use melodium_common::executive::Treatment as ExecutiveTreatment;
 
 #[derive(Debug)]
 pub struct Treatment {
@@ -19,7 +21,6 @@ pub struct Treatment {
     build_fn: fn() -> Arc<dyn ExecutiveTreatment>,
     auto_reference: Weak<Self>,
 }
-
 
 impl Treatment {
     pub fn new(
@@ -39,7 +40,9 @@ impl Treatment {
             #[cfg(feature = "doc")]
             documentation,
             models: HashMap::from_iter(models.iter().map(|m| (m.0.to_string(), Arc::clone(&m.1)))),
-            parameters: HashMap::from_iter(parameters.iter().map(|p| (p.name().to_string(), p.clone()))),
+            parameters: HashMap::from_iter(
+                parameters.iter().map(|p| (p.name().to_string(), p.clone())),
+            ),
             inputs: HashMap::from_iter(inputs.iter().map(|i| (i.name().to_string(), i.clone()))),
             outputs: HashMap::from_iter(outputs.iter().map(|o| (o.name().to_string(), o.clone()))),
             source_from,
@@ -48,7 +51,6 @@ impl Treatment {
         })
     }
 }
-
 
 impl Identified for Treatment {
     fn identifier(&self) -> &Identifier {
@@ -59,9 +61,13 @@ impl Identified for Treatment {
 impl Documented for Treatment {
     fn documentation(&self) -> &str {
         #[cfg(feature = "doc")]
-        {&self.documentation}
+        {
+            &self.documentation
+        }
         #[cfg(not(feature = "doc"))]
-        {&""}
+        {
+            &""
+        }
     }
 }
 
@@ -78,21 +84,32 @@ impl Buildable<TreatmentBuildMode> for Treatment {
 }
 
 impl Display for Treatment {
-
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-
         write!(f, "treatment {}", self.identifier.to_string())?;
 
         if !self.models.is_empty() {
-            write!(f, "[{}]",
-                self.models.iter().map(|(n, m)| format!("{}: {}", n, m.identifier().to_string())).collect::<Vec<_>>().join(", "),
+            write!(
+                f,
+                "[{}]",
+                self.models
+                    .iter()
+                    .map(|(n, m)| format!("{}: {}", n, m.identifier().to_string()))
+                    .collect::<Vec<_>>()
+                    .join(", "),
             )?;
         }
 
-        write!(f, "({})", self.parameters().iter().map(|(_, p)| p.to_string()).collect::<Vec<_>>().join(", "))?;
-        
+        write!(
+            f,
+            "({})",
+            self.parameters()
+                .iter()
+                .map(|(_, p)| p.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )?;
+
         Ok(())
-        
     }
 }
 
@@ -110,9 +127,9 @@ impl TreatmentDescriptor for Treatment {
     }
 
     fn contexts(&self) -> &HashMap<String, Arc<Context>> {
-        lazy_static!(
+        lazy_static! {
             static ref HASHMAP: HashMap<String, Arc<Context>> = HashMap::new();
-        );
+        };
         &HASHMAP
     }
 

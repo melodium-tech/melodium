@@ -82,7 +82,6 @@ impl Use {
                 // We check if we are in "use as" case, _cloning_ the iterator in case next word is not about us.
                 let possible_as = expect_word_kind(Kind::Name, "", &mut iter.clone());
                 if possible_as.is_ok() && possible_as.unwrap().string == "as" {
-
                     if expected_kind != Kind::Context {
                         // We discard "as".
                         iter.next();
@@ -99,7 +98,6 @@ impl Use {
                             delimiter.position,
                         ));
                     }
-                    
                 } else {
                     use_as = None;
                 }

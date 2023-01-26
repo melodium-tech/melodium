@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use toml::{Table, Value};
 
+#[derive(Debug)]
 pub struct FsPackage {
     path: PathBuf,
     name: String,

@@ -7,6 +7,7 @@ use core::str::Utf8Error;
 use melodium_common::descriptor::{Collection, Identifier};
 use std::sync::{Arc, Mutex, MutexGuard};
 
+#[derive(Debug)]
 pub struct Content {
     content: ContentType,
     descriptors_building: Mutex<()>,
@@ -112,12 +113,13 @@ impl Content {
     }
 }
 
+#[derive(Debug)]
 enum ContentType {
     #[cfg(feature = "script")]
     Script(Script),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ContentError {
     UnsupportedContent,
     Utf8Error {

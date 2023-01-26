@@ -97,8 +97,7 @@ impl Use {
 
 impl Node for Use {
     fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
-        if !self.path.is_valid()
-        {
+        if !self.path.is_valid() {
             Err(ScriptError::semantic(
                 format!("Root '{}' is not valid.", self.path.root()),
                 self.text.element.position,

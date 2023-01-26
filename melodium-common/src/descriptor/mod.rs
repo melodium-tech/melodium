@@ -1,8 +1,7 @@
-
 //! Descriptive elements.
-//! 
+//!
 //! The traits and types present here bring informations about all the components present into Mélodium environment.
-//! 
+//!
 
 pub mod buildable;
 pub mod collection;

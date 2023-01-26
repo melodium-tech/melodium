@@ -1,4 +1,3 @@
-
 use crate::descriptor::{Context, Function, Identifier, Model, Treatment};
 use std::sync::Arc;
 

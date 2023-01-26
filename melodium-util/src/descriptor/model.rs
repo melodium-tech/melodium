@@ -1,10 +1,12 @@
-
 use core::fmt::{Display, Formatter, Result};
+use melodium_common::descriptor::{
+    Buildable, Context, Documented, Identified, Identifier, Model as ModelDescriptor,
+    ModelBuildMode, Parameter, Parameterized,
+};
+use melodium_common::executive::{Model as ExecutiveModel, World};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::{Arc, Weak};
-use melodium_common::descriptor::{Buildable, Context, Documented, Parameterized, Identified, Identifier, Model as ModelDescriptor, Parameter, ModelBuildMode};
-use melodium_common::executive::{Model as ExecutiveModel, World};
 
 #[derive(Debug)]
 pub struct Model {
@@ -23,7 +25,7 @@ impl Model {
         documentation: String,
         parameters: Vec<Parameter>,
         sources: HashMap<String, Vec<Arc<Context>>>,
-        build_fn: fn(Arc<dyn World>) -> Arc<dyn ExecutiveModel>
+        build_fn: fn(Arc<dyn World>) -> Arc<dyn ExecutiveModel>,
     ) -> Arc<Self> {
         #[cfg(not(feature = "doc"))]
         let _ = documentation;
@@ -31,7 +33,9 @@ impl Model {
             identifier,
             #[cfg(feature = "doc")]
             documentation,
-            parameters: HashMap::from_iter(parameters.iter().map(|p| (p.name().to_string(), p.clone()))),
+            parameters: HashMap::from_iter(
+                parameters.iter().map(|p| (p.name().to_string(), p.clone())),
+            ),
             sources,
             build_fn,
             auto_reference: me.clone(),
@@ -48,9 +52,13 @@ impl Identified for Model {
 impl Documented for Model {
     fn documentation(&self) -> &str {
         #[cfg(feature = "doc")]
-        {&self.documentation}
+        {
+            &self.documentation
+        }
         #[cfg(not(feature = "doc"))]
-        {&""}
+        {
+            &""
+        }
     }
 }
 
@@ -67,15 +75,19 @@ impl Buildable<ModelBuildMode> for Model {
 }
 
 impl Display for Model {
-    
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "model {}({})",
+        write!(
+            f,
+            "model {}({})",
             self.identifier.to_string(),
-            self.parameters.iter().map(|(_, p)| p.to_string()).collect::<Vec<_>>().join(", "),
+            self.parameters
+                .iter()
+                .map(|(_, p)| p.to_string())
+                .collect::<Vec<_>>()
+                .join(", "),
         )?;
 
         Ok(())
-        
     }
 }
 
