@@ -1,9 +1,11 @@
 [workspace]
 members = [
+    "core-mel",
     "melodium",
     "melodium-common",
     "melodium-core",
     "melodium-engine",
     "melodium-lang",
     "melodium-loader",
+    "melodium-macro",
     ]

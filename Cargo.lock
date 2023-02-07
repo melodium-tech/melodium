@@ -385,6 +385,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5827cebf4670468b8772dd191856768aedcb1b0278a04f989f7766351917b9dc"
 
 [[package]]
+name = "core-mel"
+version = "0.5.3"
+dependencies = [
+ "melodium-common",
+ "melodium-macro",
+]
+
+[[package]]
 name = "coreaudio-rs"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -900,6 +908,14 @@ dependencies = [
  "melodium-lang",
  "semver",
  "toml 0.6.0",
+]
+
+[[package]]
+name = "melodium-macro"
+version = "0.5.3"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]
