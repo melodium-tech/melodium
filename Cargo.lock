@@ -389,6 +389,7 @@ name = "core-mel"
 version = "0.5.3"
 dependencies = [
  "melodium-common",
+ "melodium-core",
  "melodium-macro",
 ]
 
@@ -914,6 +915,8 @@ dependencies = [
 name = "melodium-macro"
 version = "0.5.3"
 dependencies = [
+ "convert_case",
+ "proc-macro2",
  "quote",
  "syn",
 ]

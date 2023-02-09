@@ -17,4 +17,5 @@ name = "core_mel"
 
 [dependencies]
 melodium-common = { path = "../melodium-common", version = "0.5.3" }
+melodium-core = { path = "../melodium-core", version = "0.5.3" }
 melodium-macro = { path = "../melodium-macro", version = "0.5.3" }
