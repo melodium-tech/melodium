@@ -388,7 +388,6 @@ checksum = "5827cebf4670468b8772dd191856768aedcb1b0278a04f989f7766351917b9dc"
 name = "core-mel"
 version = "0.5.3"
 dependencies = [
- "melodium-common",
  "melodium-core",
  "melodium-macro",
 ]
@@ -805,6 +804,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "litrs"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b487d13a3f4b465df87895a37b24e364907019afa12d943528df5b7abe0836f1"
+dependencies = [
+ "proc-macro2",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -916,6 +924,7 @@ name = "melodium-macro"
 version = "0.5.3"
 dependencies = [
  "convert_case",
+ "litrs",
  "proc-macro2",
  "quote",
  "syn",

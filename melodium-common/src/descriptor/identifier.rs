@@ -1,4 +1,7 @@
-use core::fmt::{Display, Formatter, Result};
+use core::{
+    convert::TryFrom,
+    fmt::{Display, Formatter},
+};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Identifier {
@@ -32,12 +35,36 @@ impl Identifier {
 }
 
 impl Display for Identifier {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         let mut string = self.path.join("/");
 
         string = string + "::" + &self.name;
 
         write!(f, "{}", string)
+    }
+}
+
+impl TryFrom<String> for Identifier {
+    type Error = String;
+
+    fn try_from(value: String) -> core::result::Result<Self, Self::Error> {
+        let full = value.split("::").collect::<Vec<_>>();
+        if full.len() == 2 {
+            let path = full[0];
+            let name = full[1];
+
+            let path = path.split('/').map(|s| s.to_string()).collect::<Vec<_>>();
+            if path.len() >= 1 {
+                Ok(Self {
+                    path,
+                    name: name.to_string(),
+                })
+            } else {
+                Err(value)
+            }
+        } else {
+            Err(value)
+        }
     }
 }
 
