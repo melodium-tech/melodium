@@ -1,14 +1,5 @@
 
-use melodium_macro::mel_function;
+use melodium_macro::{mel_function, mel_package};
+mod other;
 
-
-///
-/// Documentatioooon
-/// 
-#[mel_function]
-pub fn truc(hey: Vec<u8>) -> i32 {
-    let machin = "bidule";
-    let chouette = 1 + 54;
-    return chouette
-}
-
+mel_package!();

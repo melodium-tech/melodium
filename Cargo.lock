@@ -924,6 +924,8 @@ name = "melodium-macro"
 version = "0.5.3"
 dependencies = [
  "convert_case",
+ "glob",
+ "lazy_static",
  "litrs",
  "proc-macro2",
  "quote",

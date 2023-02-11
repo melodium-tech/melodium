@@ -4,7 +4,8 @@ use litrs::StringLit;
 use proc_macro::TokenStream;
 use proc_macro2::TokenTree;
 use quote::quote;
-use syn::{parse, FnArg, GenericArgument, ItemFn, Pat, PathArguments, ReturnType, Type};
+use syn::{parse, FnArg, GenericArgument, ItemFn, Pat, PathArguments, ReturnType, Type, parse_file, Item};
+use lazy_static::lazy_static;
 
 fn into_mel_type(ty: &Type) -> String {
     match ty {
@@ -120,8 +121,71 @@ fn into_mel_value_call(ty: &str) -> String {
     .to_string()
 }
 
+lazy_static! {
+    static ref ELEMENTS: std::sync::Mutex<std::collections::HashMap<String, Vec<String>>> = std::sync::Mutex::new(std::collections::HashMap::new());
+}
+
+fn register_element(element: &String) {
+    let mut elements = ELEMENTS.lock().unwrap();
+
+    match elements.entry(std::env::var("CARGO_CRATE_NAME").unwrap()) {
+        std::collections::hash_map::Entry::Occupied(mut entry) => entry.get_mut().push(element.to_string()),
+        std::collections::hash_map::Entry::Vacant(entry) => {entry.insert(vec![element.to_string()]);},
+    }
+}
+
+fn registered_elements() -> Vec<String> {
+    ELEMENTS.lock().unwrap().get(&std::env::var("CARGO_CRATE_NAME").unwrap()).map(|v| v.clone()).unwrap_or_default()
+}
+
+#[proc_macro]
+pub fn mel_package(_: TokenStream) -> TokenStream {
+
+    let mut functions = Vec::new();
+
+    let root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    for entry in glob::glob(&format!("{}/src/*.rs", std::env::var("CARGO_MANIFEST_DIR").unwrap())).unwrap() {
+        match &entry {
+            Ok(path) => {
+                if let Ok(content) = parse_file(&std::fs::read_to_string(path).unwrap()) {
+                    for item in &content.items {
+                        match item {
+                            Item::Fn(item_fn) => {
+                                let mut is_mel_function = false;
+                                item_fn.attrs.iter().for_each(|attr| if attr.path.segments.first().unwrap().ident.to_string() == "mel_function" {is_mel_function = true});
+                                
+                                if is_mel_function {
+                                    let name = item_fn.sig.ident.to_string();
+                                    let mut call = path.to_str().unwrap().strip_prefix(&root).unwrap().strip_suffix(".rs").unwrap().replace(std::path::MAIN_SEPARATOR, "::");
+                                    call.push_str(&format!("::__mel_function_{name}::descriptor()"));
+                                    functions.push(call);
+                                }
+                            },
+                            _ => {}
+                        }
+                    }
+                }
+            },
+            _ => {}
+        }
+    }
+
+    format!(r"pub fn __mel_collection() -> melodium_core::common::descriptor::Collection {{
+        let mut collection = melodium_core::common::descriptor::Collection::new();
+        {}
+        collection
+    }}", functions.iter().map(|elmt| format!("collection.insert(melodium_core::common::descriptor::Entry::Function({elmt}));")).collect::<Vec<_>>().join(",")).parse().unwrap()
+}
+
 #[proc_macro_attribute]
 pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
+
+    /* 
+    for (name, value) in std::env::vars() {
+        println!("{name}: {value}");
+    }*/
+    
+
     let function: ItemFn = parse(item).unwrap();
     //function.attrs.iter().for_each(|a| println!("{a:?}"));
     let mut documentation = Vec::new();
@@ -139,6 +203,7 @@ pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let name = function.sig.ident.to_string();
+    register_element(&name);
     let mut args = Vec::new();
     for arg in &function.sig.inputs {
         match arg {
