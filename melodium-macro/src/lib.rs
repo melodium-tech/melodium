@@ -5,7 +5,6 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenTree;
 use quote::quote;
 use syn::{parse, FnArg, GenericArgument, ItemFn, Pat, PathArguments, ReturnType, Type, parse_file, Item};
-use lazy_static::lazy_static;
 
 fn into_mel_type(ty: &Type) -> String {
     match ty {
@@ -121,30 +120,14 @@ fn into_mel_value_call(ty: &str) -> String {
     .to_string()
 }
 
-lazy_static! {
-    static ref ELEMENTS: std::sync::Mutex<std::collections::HashMap<String, Vec<String>>> = std::sync::Mutex::new(std::collections::HashMap::new());
-}
-
-fn register_element(element: &String) {
-    let mut elements = ELEMENTS.lock().unwrap();
-
-    match elements.entry(std::env::var("CARGO_CRATE_NAME").unwrap()) {
-        std::collections::hash_map::Entry::Occupied(mut entry) => entry.get_mut().push(element.to_string()),
-        std::collections::hash_map::Entry::Vacant(entry) => {entry.insert(vec![element.to_string()]);},
-    }
-}
-
-fn registered_elements() -> Vec<String> {
-    ELEMENTS.lock().unwrap().get(&std::env::var("CARGO_CRATE_NAME").unwrap()).map(|v| v.clone()).unwrap_or_default()
-}
-
 #[proc_macro]
 pub fn mel_package(_: TokenStream) -> TokenStream {
 
     let mut functions = Vec::new();
 
-    let root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    for entry in glob::glob(&format!("{}/src/*.rs", std::env::var("CARGO_MANIFEST_DIR").unwrap())).unwrap() {
+    let mut root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    root.push_str("/src");
+    for entry in glob::glob(&format!("{}/*.rs", std::env::var("CARGO_MANIFEST_DIR").unwrap())).unwrap() {
         match &entry {
             Ok(path) => {
                 if let Ok(content) = parse_file(&std::fs::read_to_string(path).unwrap()) {
@@ -203,7 +186,6 @@ pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let name = function.sig.ident.to_string();
-    register_element(&name);
     let mut args = Vec::new();
     for arg in &function.sig.inputs {
         match arg {
