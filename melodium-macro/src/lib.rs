@@ -217,8 +217,10 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
     let mut functions = Vec::new();
 
     let mut root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    eprintln!("Root {root}");
     root.push_str("/src");
     for entry in glob::glob(&format!("{}/*.rs", std::env::var("CARGO_MANIFEST_DIR").unwrap())).unwrap() {
+        eprintln!("Scanning {:?}", entry);
         match &entry {
             Ok(path) => {
                 if let Ok(content) = parse_file(&std::fs::read_to_string(path).unwrap()) {
@@ -344,14 +346,18 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
             format!(r#"melodium_core::common::descriptor::Output::new("{name}", {datatype}, melodium_core::common::descriptor::Flow::{flow})"#)
         }).collect::<Vec<_>>().join(",").parse().unwrap();
         let sources: proc_macro2::TokenStream = models.iter().filter(|(_, (_, source))| source.is_some()).map(|(name, (_, source))| {
-            format!(r#"("{name}", {})"#, source.as_ref().unwrap())
+            format!(r#"("{name}".to_string(), vec!["{}".to_string()])"#, source.as_ref().unwrap())
         }).collect::<Vec<_>>().join(",").parse().unwrap();
         let models: proc_macro2::TokenStream = models.iter().map(|(name, (ident, _))| {
-            format!(r#"("{name}", models.get(melodium_core::descriptor::module_path_to_identifier(module_path!(), "{}"))).unwrap()"#, ident.to_string())
+            format!(r#"("{name}".to_string(), std::sync::Arc::clone(models.get(melodium_core::descriptor::module_path_to_identifier(module_path!(), "{}")).unwrap()))"#, ident.to_string())
         }).collect::<Vec<_>>().join(",").parse().unwrap();
 
         description = quote! {
-            pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Treatment> {
+            fn dumb_function() -> std::sync::Arc<dyn melodium_core::common::executive::Treatment> {
+                todo!()
+            }
+
+            pub fn descriptor(models: &std::collections::HashMap<melodium_core::common::descriptor::Identifier, std::sync::Arc<dyn melodium_core::common::descriptor::Model>>) -> std::sync::Arc<melodium_core::descriptor::Treatment> {
                 melodium_core::descriptor::Treatment::new(
                     melodium_core::descriptor::module_path_to_identifier(module_path!(), #name),
                     #documentation.to_string(),
@@ -360,7 +366,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                     vec![#parameters],
                     vec![#inputs],
                     vec![#outputs],
-                    mel_treatment
+                    dumb_function
                 )
             }
         };
