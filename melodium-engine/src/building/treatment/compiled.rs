@@ -80,11 +80,11 @@ impl BuilderTrait for Builder {
         let idx = builds_writer.len() as BuildId;
 
         let rc_descriptor = self.descriptor.upgrade().unwrap();
-        for (model_descriptor, sources) in rc_descriptor.source_from() {
+        for (model_name, sources) in rc_descriptor.source_from() {
             let (_, matching_model) = environment
                 .models()
                 .iter()
-                .find(|(_, model)| Arc::ptr_eq(&model.descriptor(), model_descriptor))
+                .find(|(name, _)| name == &model_name)
                 .unwrap();
 
             for source in sources {

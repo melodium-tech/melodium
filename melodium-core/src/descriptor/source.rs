@@ -15,7 +15,7 @@ pub struct Source {
     models: HashMap<String, Arc<dyn Model>>,
     parameters: HashMap<String, Parameter>,
     outputs: HashMap<String, Output>,
-    source_from: HashMap<Arc<dyn Model>, Vec<String>>,
+    source_from: HashMap<String, Vec<String>>,
     auto_reference: Weak<Self>,
 }
 
@@ -24,7 +24,7 @@ impl Source {
         identifier: Identifier,
         documentation: String,
         models: Vec<(String, Arc<dyn Model>)>,
-        source_from: HashMap<Arc<dyn Model>, Vec<String>>,
+        source_from: Vec<(String, Vec<String>)>,
         parameters: Vec<Parameter>,
         outputs: Vec<Output>,
     ) -> Arc<Self> {
@@ -34,12 +34,12 @@ impl Source {
             identifier,
             #[cfg(feature = "doc")]
             documentation,
-            models: HashMap::from_iter(models.iter().map(|m| (m.0.to_string(), Arc::clone(&m.1)))),
+            models: HashMap::from_iter(models.into_iter().map(|(n, m)| (n.to_string(), m))),
             parameters: HashMap::from_iter(
-                parameters.iter().map(|p| (p.name().to_string(), p.clone())),
+                parameters.into_iter().map(|p| (p.name().to_string(), p)),
             ),
-            outputs: HashMap::from_iter(outputs.iter().map(|o| (o.name().to_string(), o.clone()))),
-            source_from,
+            outputs: HashMap::from_iter(outputs.into_iter().map(|o| (o.name().to_string(), o))),
+            source_from: HashMap::from_iter(source_from.into_iter()),
             auto_reference: me.clone(),
         })
     }
@@ -129,7 +129,7 @@ impl TreatmentDescriptor for Source {
         &HASHMAP
     }
 
-    fn source_from(&self) -> &HashMap<Arc<dyn Model>, Vec<String>> {
+    fn source_from(&self) -> &HashMap<String, Vec<String>> {
         &self.source_from
     }
 

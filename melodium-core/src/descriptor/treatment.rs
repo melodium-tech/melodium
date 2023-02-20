@@ -17,7 +17,7 @@ pub struct Treatment {
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
     outputs: HashMap<String, Output>,
-    source_from: HashMap<Arc<dyn Model>, Vec<String>>,
+    source_from: HashMap<String, Vec<String>>,
     build_fn: fn() -> Arc<dyn ExecutiveTreatment>,
     auto_reference: Weak<Self>,
 }
@@ -27,7 +27,7 @@ impl Treatment {
         identifier: Identifier,
         documentation: String,
         models: Vec<(String, Arc<dyn Model>)>,
-        source_from: HashMap<Arc<dyn Model>, Vec<String>>,
+        source_from: Vec<(String, Vec<String>)>,
         parameters: Vec<Parameter>,
         inputs: Vec<Input>,
         outputs: Vec<Output>,
@@ -39,13 +39,13 @@ impl Treatment {
             identifier,
             #[cfg(feature = "doc")]
             documentation,
-            models: HashMap::from_iter(models.iter().map(|m| (m.0.to_string(), Arc::clone(&m.1)))),
+            models: HashMap::from_iter(models.into_iter().map(|(n, m)| (n, m))),
             parameters: HashMap::from_iter(
-                parameters.iter().map(|p| (p.name().to_string(), p.clone())),
+                parameters.into_iter().map(|p| (p.name().to_string(), p)),
             ),
-            inputs: HashMap::from_iter(inputs.iter().map(|i| (i.name().to_string(), i.clone()))),
-            outputs: HashMap::from_iter(outputs.iter().map(|o| (o.name().to_string(), o.clone()))),
-            source_from,
+            inputs: HashMap::from_iter(inputs.into_iter().map(|i| (i.name().to_string(), i))),
+            outputs: HashMap::from_iter(outputs.into_iter().map(|o| (o.name().to_string(), o))),
+            source_from: HashMap::from_iter(source_from.into_iter()),
             build_fn,
             auto_reference: me.clone(),
         })
@@ -133,7 +133,7 @@ impl TreatmentDescriptor for Treatment {
         &HASHMAP
     }
 
-    fn source_from(&self) -> &HashMap<Arc<dyn Model>, Vec<String>> {
+    fn source_from(&self) -> &HashMap<String, Vec<String>> {
         &self.source_from
     }
 

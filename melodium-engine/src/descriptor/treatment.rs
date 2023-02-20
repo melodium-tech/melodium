@@ -211,9 +211,9 @@ impl TreatmentDescriptor for Treatment {
         &self.contexts
     }
 
-    fn source_from(&self) -> &HashMap<Arc<dyn Model>, Vec<String>> {
+    fn source_from(&self) -> &HashMap<String, Vec<String>> {
         lazy_static! {
-            static ref HASHMAP: HashMap<Arc<dyn Model>, Vec<String>> = HashMap::new();
+            static ref HASHMAP: HashMap<String, Vec<String>> = HashMap::new();
         };
         &HASHMAP
     }
