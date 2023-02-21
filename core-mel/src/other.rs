@@ -16,13 +16,17 @@ pub fn truc(hey: Vec<u8>) -> i32 {
 /// Ça fait quelquechose
 /// 
 #[mel_treatment(
-    default un -78
+    default un 72
     model ukulele Ukulele 
     input haut Stream<u64>
     input bas Stream<string>
     output droite Block<void>
-    output gauche Stream<Vec<bool>>
+    output gauche Stream<u64>
 )]
-pub fn treatment_chose(un: i64, deux: string, trois: Vec<void>) {
+pub async fn treatment_chose(un: u64, deux: string, trois: Vec<void>) {
 
+    while let Ok(num) = haut.recv_u64().await {
+        let result = num.into_iter().map(|i| i + un).collect();
+        gauche.send_multiple_u64(result).await;
+    }
 }

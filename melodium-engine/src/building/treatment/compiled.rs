@@ -134,11 +134,11 @@ impl BuilderTrait for Builder {
         let treatment = (self.build_fn)();
 
         for (name, model) in build_sample.genesis_environment.models() {
-            treatment.set_model(name, model);
+            treatment.set_model(name, Arc::clone(model));
         }
 
         for (name, value) in environment.variables() {
-            treatment.set_parameter(name, value);
+            treatment.set_parameter(name, value.clone());
         }
 
         let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
