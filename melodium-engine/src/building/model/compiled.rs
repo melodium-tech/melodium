@@ -37,7 +37,7 @@ impl BuilderTrait for Builder {
         let model = (self.build_fn)(Arc::clone(&world) as Arc<dyn ExecutiveWorld>);
 
         for (name, value) in environment.variables() {
-            model.set_parameter(name, value);
+            model.set_parameter(name, value.clone());
         }
 
         let id = world.add_model(Arc::clone(&model) as Arc<dyn Model>);

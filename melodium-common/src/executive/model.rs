@@ -12,7 +12,7 @@ pub trait Model: Debug + DowncastSync + Send + Sync {
     fn id(&self) -> Option<ModelId>;
     fn set_id(&self, id: ModelId);
 
-    fn set_parameter(&self, param: &str, value: &Value);
+    fn set_parameter(&self, param: &str, value: Value);
 
     fn initialize(&self);
     fn shutdown(&self);

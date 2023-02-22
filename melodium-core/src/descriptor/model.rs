@@ -24,7 +24,7 @@ impl Model {
         identifier: Identifier,
         documentation: String,
         parameters: Vec<Parameter>,
-        sources: HashMap<String, Vec<Arc<Context>>>,
+        sources: Vec<(String, Vec<Arc<Context>>)>,
         build_fn: fn(Arc<dyn World>) -> Arc<dyn ExecutiveModel>,
     ) -> Arc<Self> {
         #[cfg(not(feature = "doc"))]
@@ -34,9 +34,11 @@ impl Model {
             #[cfg(feature = "doc")]
             documentation,
             parameters: HashMap::from_iter(
-                parameters.iter().map(|p| (p.name().to_string(), p.clone())),
+                parameters.into_iter().map(|p| (p.name().to_string(), p)),
             ),
-            sources,
+            sources: HashMap::from_iter(
+                sources.into_iter(),
+            ),
             build_fn,
             auto_reference: me.clone(),
         })

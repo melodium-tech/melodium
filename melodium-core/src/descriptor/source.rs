@@ -13,7 +13,6 @@ pub struct Source {
     #[cfg(feature = "doc")]
     documentation: String,
     models: HashMap<String, Arc<dyn Model>>,
-    parameters: HashMap<String, Parameter>,
     outputs: HashMap<String, Output>,
     source_from: HashMap<String, Vec<String>>,
     auto_reference: Weak<Self>,
@@ -25,7 +24,6 @@ impl Source {
         documentation: String,
         models: Vec<(String, Arc<dyn Model>)>,
         source_from: Vec<(String, Vec<String>)>,
-        parameters: Vec<Parameter>,
         outputs: Vec<Output>,
     ) -> Arc<Self> {
         #[cfg(not(feature = "doc"))]
@@ -35,9 +33,6 @@ impl Source {
             #[cfg(feature = "doc")]
             documentation,
             models: HashMap::from_iter(models.into_iter().map(|(n, m)| (n.to_string(), m))),
-            parameters: HashMap::from_iter(
-                parameters.into_iter().map(|p| (p.name().to_string(), p)),
-            ),
             outputs: HashMap::from_iter(outputs.into_iter().map(|o| (o.name().to_string(), o))),
             source_from: HashMap::from_iter(source_from.into_iter()),
             auto_reference: me.clone(),
@@ -66,7 +61,10 @@ impl Documented for Source {
 
 impl Parameterized for Source {
     fn parameters(&self) -> &HashMap<String, Parameter> {
-        &self.parameters
+        lazy_static! {
+            static ref HASHMAP: HashMap<String, Parameter> = HashMap::new();
+        };
+        &HASHMAP
     }
 }
 

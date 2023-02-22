@@ -1,7 +1,8 @@
 
-use melodium_macro::{mel_function, mel_treatment};
+use melodium_macro::{mel_function, mel_treatment, mel_model};
 use melodium_core::*;
 
+/* 
 ///
 /// Documentatioooon
 /// 
@@ -28,5 +29,33 @@ pub async fn treatment_chose(un: u64, deux: string, trois: Vec<void>) {
     while let Ok(num) = haut.recv_u64().await {
         let result = num.into_iter().map(|i| i + un).collect();
         gauche.send_multiple_u64(result).await;
+    }
+}*/
+
+/// Do some stuff
+#[mel_model(
+    param bidule Vec<void> none
+    source stuff (truc muche) (gauche Stream<f32> droite Stream<Vec<f64>>)
+    initialize loading
+    shutdown ending
+)]
+#[derive(Debug)]
+pub struct MyModel {
+    address: u64,
+}
+
+impl MyModel {
+    pub fn new(model: std::sync::Weak<MyModelModel>) -> Self {
+        Self {
+            address: 0
+        }
+    }
+
+    fn loading(&self) {
+
+    }
+
+    fn ending(&self) {
+
     }
 }
