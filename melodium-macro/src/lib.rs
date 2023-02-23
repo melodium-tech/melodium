@@ -458,6 +458,12 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
                             .unwrap()
                             .replace(std::path::MAIN_SEPARATOR, "::");
 
+                        if call == "lib" {
+                            call = "crate".to_string();
+                        } else if call.ends_with("::mod") {
+                            call = call.strip_suffix("::mod").unwrap().to_string();
+                        }
+
                         if is_mel_function {
                             call.push_str(&format!("::__mel_function_{name}::descriptor()"));
                             functions.push(call);
@@ -581,7 +587,6 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let treatment: ItemFn = parse(item).unwrap();
-    //function.attrs.iter().for_each(|a| println!("{a:?}"));
     if treatment.sig.asyncness.is_none() {
         panic!("Treatments must be async");
     }
@@ -658,12 +663,14 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
             .parse()
             .unwrap();
 
+        let element_name = name.to_case(Case::Camel);
+
         description = quote! {
 
             static DESCRIPTOR: std::sync::Mutex<Option<std::sync::Arc<melodium_core::descriptor::Treatment>>> = std::sync::Mutex::new(None);
 
             pub fn identifier() -> melodium_core::common::descriptor::Identifier {
-                melodium_core::descriptor::module_path_to_identifier(module_path!(), #name)
+                melodium_core::descriptor::module_path_to_identifier(module_path!(), #element_name)
             }
 
             pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Treatment> {
@@ -1036,6 +1043,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     }
 
+    let element_name = name.to_case(Case::UpperCamel);
     let module_name: proc_macro2::TokenStream = format!("__mel_model_{name}").parse().unwrap();
     let model_name: proc_macro2::TokenStream = name.parse().unwrap();
     let adhoc_model_name: proc_macro2::TokenStream = format!("{name}Model").parse().unwrap();
@@ -1059,7 +1067,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
             static SOURCES: std::sync::Mutex<Option<Vec<std::sync::Arc<melodium_core::descriptor::Source>>>> = std::sync::Mutex::new(None);
 
             pub fn identifier() -> melodium_core::common::descriptor::Identifier {
-                melodium_core::descriptor::module_path_to_identifier(module_path!(), #name)
+                melodium_core::descriptor::module_path_to_identifier(module_path!(), #element_name)
             }
 
             pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Model> {
@@ -1262,7 +1270,7 @@ pub fn mel_context(_attr: TokenStream, item: TokenStream) -> TokenStream {
         };
     }
 
-    let string_name = name.to_string();
+    let element_name = format!("@{}", name.to_case(Case::UpperCamel));
     let name: proc_macro2::TokenStream = name.parse().unwrap();
     let module_name: proc_macro2::TokenStream = format!("__mel_context_{name}").parse().unwrap();
     let expanded = quote! {
@@ -1272,7 +1280,7 @@ pub fn mel_context(_attr: TokenStream, item: TokenStream) -> TokenStream {
             static DESCRIPTOR: std::sync::Mutex<Option<std::sync::Arc<melodium_core::descriptor::Context>>> = std::sync::Mutex::new(None);
 
             pub fn identifier() -> melodium_core::common::descriptor::Identifier {
-                melodium_core::descriptor::module_path_to_identifier(module_path!(), #string_name)
+                melodium_core::descriptor::module_path_to_identifier(module_path!(), #element_name)
             }
 
             pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Context> {
@@ -1360,6 +1368,7 @@ pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
             .join(",")
     );
 
+    let element_name = format!("|{}", name.to_case(Case::Snake));
     let module_name: proc_macro2::TokenStream = format!("__mel_function_{name}").parse().unwrap();
     let documentation = documentation.join("\n");
     let parameters: proc_macro2::TokenStream = parameters.parse().unwrap();
@@ -1376,7 +1385,7 @@ pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
             static DESCRIPTOR: std::sync::Mutex<Option<std::sync::Arc<melodium_core::descriptor::Function>>> = std::sync::Mutex::new(None);
 
             pub fn identifier() -> melodium_core::common::descriptor::Identifier {
-                melodium_core::descriptor::module_path_to_identifier(module_path!(), #name)
+                melodium_core::descriptor::module_path_to_identifier(module_path!(), #element_name)
             }
 
             pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Function> {

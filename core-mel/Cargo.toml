@@ -15,6 +15,9 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 [lib]
 name = "core_mel"
 
+[[bin]]
+name = "test"
+
 [dependencies]
 melodium-core = { path = "../melodium-core", version = "0.5.3" }
 melodium-macro = { path = "../melodium-macro", version = "0.5.3" }
