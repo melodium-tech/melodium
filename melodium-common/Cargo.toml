@@ -22,5 +22,4 @@ hex = "0.4"
 semver = "~1.0.16"
 
 [features]
-default = ["doc"]
-doc = []
+

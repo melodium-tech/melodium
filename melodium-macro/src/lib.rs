@@ -1,11 +1,14 @@
 use convert_case::{Case, Casing};
 use core::{borrow::Borrow, convert::TryFrom};
-use std::collections::HashMap;
 use litrs::StringLit;
-use proc_macro::{TokenStream};
-use proc_macro2::{TokenTree, token_stream::IntoIter as IntoIterTokenStream, Ident};
+use proc_macro::TokenStream;
+use proc_macro2::{token_stream::IntoIter as IntoIterTokenStream, Ident, TokenTree};
 use quote::{quote, ToTokens};
-use syn::{parse, FnArg, GenericArgument, ItemFn, Pat, PathArguments, ReturnType, Type, parse_file, Item, ItemStruct};
+use std::collections::HashMap;
+use syn::{
+    parse, parse_file, Fields, FnArg, GenericArgument, Item, ItemFn, ItemStruct, Pat,
+    PathArguments, ReturnType, Type,
+};
 
 fn into_mel_type(ty: &Type) -> String {
     match ty {
@@ -165,37 +168,33 @@ fn into_mel_value_call(ty: &str) -> String {
 fn config_default(ts: &mut IntoIterTokenStream) -> (String, String) {
     if let Some(TokenTree::Ident(name)) = ts.next() {
         (name.to_string(), config_value(ts))
-    }
-    else {
+    } else {
         panic!("Name identity expected")
     }
 }
 
 fn config_param(ts: &mut IntoIterTokenStream) -> (String, String, Option<String>) {
     if let Some(TokenTree::Ident(name)) = ts.next() {
-
         (name.to_string(), config_ty(ts), config_optionnal_value(ts))
-    }
-    else {
+    } else {
         panic!("Name identity expected")
     }
 }
 
-fn config_full_source(ts: &mut IntoIterTokenStream) -> (String, Vec<String>, Vec<(String, String, String)>) {
+fn config_full_source(
+    ts: &mut IntoIterTokenStream,
+) -> (String, Vec<String>, Vec<(String, String, String)>) {
     if let Some(TokenTree::Ident(name)) = ts.next() {
-
         let mut contextes = Vec::new();
         if let Some(TokenTree::Group(group)) = ts.next() {
             for tt in group.stream() {
                 if let TokenTree::Ident(c) = tt {
                     contextes.push(c.to_string())
-                }
-                else {
+                } else {
                     panic!("Context identity expected")
                 }
             }
-        }
-        else {
+        } else {
             panic!("Context list")
         }
 
@@ -205,19 +204,16 @@ fn config_full_source(ts: &mut IntoIterTokenStream) -> (String, Vec<String>, Vec
             loop {
                 if let Some(output) = config_io(&mut ts) {
                     outputs.push(output);
-                }
-                else {
+                } else {
                     break;
                 }
             }
-        }
-        else {
+        } else {
             panic!("Context list")
         }
 
         (name.to_string(), contextes, outputs)
-    }
-    else {
+    } else {
         panic!("Name identity expected")
     }
 }
@@ -226,21 +222,18 @@ fn config_value(ts: &mut IntoIterTokenStream) -> String {
     let next = ts.next();
     if let Some(TokenTree::Literal(default)) = next {
         default.to_string()
-    }
-    else if let Some(TokenTree::Punct(punct)) = next {
+    } else if let Some(TokenTree::Punct(punct)) = next {
         match punct.as_char() {
             '-' => {
                 if let Some(TokenTree::Literal(default)) = ts.next() {
                     format!("-{}", default.to_string())
-                }
-                else {
+                } else {
                     panic!("Default value expected")
                 }
-            },
-            _ => panic!("Unexpected punctuation")
+            }
+            _ => panic!("Unexpected punctuation"),
         }
-    }
-    else {
+    } else {
         panic!("Default value expected")
     }
 }
@@ -249,29 +242,24 @@ fn config_optionnal_value(ts: &mut IntoIterTokenStream) -> Option<String> {
     let next = ts.next();
     if let Some(TokenTree::Literal(default)) = next {
         Some(default.to_string())
-    }
-    else if let Some(TokenTree::Punct(punct)) = next {
+    } else if let Some(TokenTree::Punct(punct)) = next {
         match punct.as_char() {
             '-' => {
                 if let Some(TokenTree::Literal(default)) = ts.next() {
                     Some(format!("-{}", default.to_string()))
-                }
-                else {
+                } else {
                     panic!("Default value expected")
                 }
-            },
-            _ => panic!("Unexpected punctuation")
+            }
+            _ => panic!("Unexpected punctuation"),
         }
-    }
-    else if let Some(TokenTree::Ident(ident)) = next {
+    } else if let Some(TokenTree::Ident(ident)) = next {
         if ident.to_string() == "none" {
             None
-        }
-        else {
+        } else {
             panic!("Unrecognized default value")
         }
-    }
-    else {
+    } else {
         panic!("Default value expected")
     }
 }
@@ -280,12 +268,10 @@ fn config_model(ts: &mut IntoIterTokenStream) -> (String, Ident) {
     if let Some(TokenTree::Ident(name)) = ts.next() {
         if let Some(TokenTree::Ident(ty)) = ts.next() {
             (name.to_string(), ty)
-        }
-        else {
+        } else {
             panic!("Type identity expected")
         }
-    }
-    else {
+    } else {
         panic!("Name identity expected")
     }
 }
@@ -295,16 +281,13 @@ fn config_source(ts: &mut IntoIterTokenStream) -> (String, Ident, String) {
         if let Some(TokenTree::Ident(ty)) = ts.next() {
             if let Some(TokenTree::Ident(source)) = ts.next() {
                 (name.to_string(), ty, source.to_string())
-            }
-            else {
+            } else {
                 panic!("Source identity expected")
             }
-        }
-        else {
+        } else {
             panic!("Type identity expected")
         }
-    }
-    else {
+    } else {
         panic!("Name identity expected")
     }
 }
@@ -320,19 +303,16 @@ fn config_ty(ts: &mut IntoIterTokenStream) -> String {
             ts.next(); // <
             if let Some(TokenTree::Ident(mandatory_ty)) = ts.next() {
                 ty = mandatory_ty.to_string().to_case(Case::UpperCamel);
-            }
-            else {
+            } else {
                 panic!("Type identity expected")
             }
             ts.next(); // >
-        }
-        else {
+        } else {
             env = "";
             ty = ty_env.to_case(Case::UpperCamel);
         }
         mel_ty = format!("{env}{ty}");
-    }
-    else {
+    } else {
         panic!("Type identity expected")
     }
 
@@ -342,26 +322,22 @@ fn config_ty(ts: &mut IntoIterTokenStream) -> String {
 fn config_io(ts: &mut IntoIterTokenStream) -> Option<(String, String, String)> {
     if let Some(TokenTree::Ident(name)) = ts.next() {
         if let Some(TokenTree::Ident(flow)) = ts.next() {
-
             ts.next(); // <
-            
+
             let mel_ty = config_ty(ts);
 
             ts.next(); // >
             Some((name.to_string(), flow.to_string(), mel_ty))
-        }
-        else {
+        } else {
             panic!("Flow identity expected")
         }
-    }
-    else {
+    } else {
         None
     }
 }
 
 #[proc_macro]
 pub fn mel_package(_: TokenStream) -> TokenStream {
-
     let mut functions = Vec::new();
 
     let mut root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
@@ -375,34 +351,59 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
                         match item {
                             Item::Fn(item_fn) => {
                                 let mut is_mel_function = false;
-                                item_fn.attrs.iter().for_each(|attr| if attr.path.segments.first().unwrap().ident.to_string() == "mel_function" {is_mel_function = true});
-                                
+                                item_fn.attrs.iter().for_each(|attr| {
+                                    if attr.path.segments.first().unwrap().ident.to_string()
+                                        == "mel_function"
+                                    {
+                                        is_mel_function = true
+                                    }
+                                });
+
                                 if is_mel_function {
                                     let name = item_fn.sig.ident.to_string();
-                                    let mut call = path.to_str().unwrap().strip_prefix(&root).unwrap().strip_suffix(".rs").unwrap().replace(std::path::MAIN_SEPARATOR, "::");
-                                    call.push_str(&format!("::__mel_function_{name}::descriptor()"));
+                                    let mut call = path
+                                        .to_str()
+                                        .unwrap()
+                                        .strip_prefix(&root)
+                                        .unwrap()
+                                        .strip_suffix(".rs")
+                                        .unwrap()
+                                        .replace(std::path::MAIN_SEPARATOR, "::");
+                                    call.push_str(&format!(
+                                        "::__mel_function_{name}::descriptor()"
+                                    ));
                                     functions.push(call);
                                 }
-                            },
+                            }
                             _ => {}
                         }
                     }
                 }
-            },
+            }
             _ => {}
         }
     }
 
-    format!(r"pub fn __mel_collection() -> melodium_core::common::descriptor::Collection {{
+    format!(
+        r"pub fn __mel_collection() -> melodium_core::common::descriptor::Collection {{
         let mut collection = melodium_core::common::descriptor::Collection::new();
         {}
         collection
-    }}", functions.iter().map(|elmt| format!("collection.insert(melodium_core::common::descriptor::Entry::Function({elmt}));")).collect::<Vec<_>>().join(",")).parse().unwrap()
+    }}",
+        functions
+            .iter()
+            .map(|elmt| format!(
+                "collection.insert(melodium_core::common::descriptor::Entry::Function({elmt}));"
+            ))
+            .collect::<Vec<_>>()
+            .join(",")
+    )
+    .parse()
+    .unwrap()
 }
 
 #[proc_macro_attribute]
 pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
-
     let mut defaults = HashMap::new();
     let mut models = HashMap::new();
     let mut inputs = HashMap::new();
@@ -426,14 +427,16 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                     models.insert(name, (ident, Some(source)));
                 }
                 "input" => {
-                    let (name, flow, ty) = config_io(&mut iter_attr).expect("Name identity expected");
+                    let (name, flow, ty) =
+                        config_io(&mut iter_attr).expect("Name identity expected");
                     inputs.insert(name, (flow, ty));
                 }
                 "output" => {
-                    let (name, flow, ty) = config_io(&mut iter_attr).expect("Name identity expected");
+                    let (name, flow, ty) =
+                        config_io(&mut iter_attr).expect("Name identity expected");
                     outputs.insert(name, (flow, ty));
                 }
-                _ => panic!("Unrecognized configuration")
+                _ => panic!("Unrecognized configuration"),
             }
         }
     }
@@ -495,9 +498,19 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
             let datatype = into_mel_datatype(ty);
             format!(r#"melodium_core::common::descriptor::Output::new("{name}", {datatype}, melodium_core::common::descriptor::Flow::{flow})"#)
         }).collect::<Vec<_>>().join(",").parse().unwrap();
-        let sources: proc_macro2::TokenStream = models.iter().filter(|(_, (_, source))| source.is_some()).map(|(name, (_, source))| {
-            format!(r#"("{name}".to_string(), vec!["{}".to_string()])"#, source.as_ref().unwrap())
-        }).collect::<Vec<_>>().join(",").parse().unwrap();
+        let sources: proc_macro2::TokenStream = models
+            .iter()
+            .filter(|(_, (_, source))| source.is_some())
+            .map(|(name, (_, source))| {
+                format!(
+                    r#"("{name}".to_string(), vec!["{}".to_string()])"#,
+                    source.as_ref().unwrap()
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
         let models: proc_macro2::TokenStream = models.iter().map(|(name, (ident, _))| {
             format!(r#"("{name}".to_string(), std::sync::Arc::clone(models.get(&melodium_core::descriptor::module_path_to_identifier(module_path!(), "{}")).unwrap()))"#, ident.to_string())
         }).collect::<Vec<_>>().join(",").parse().unwrap();
@@ -520,13 +533,16 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let declaration;
     {
-
-        let parameters: proc_macro2::TokenStream = params.iter().map(|(name, ty)| {
-            let rust_type = into_rust_type(ty);
-            format!(
-                r#"r#{name}: std::sync::Mutex<Option<{rust_type}>>"#
-            )
-        }).collect::<Vec<_>>().join(",").parse().unwrap();
+        let parameters: proc_macro2::TokenStream = params
+            .iter()
+            .map(|(name, ty)| {
+                let rust_type = into_rust_type(ty);
+                format!(r#"r#{name}: std::sync::Mutex<Option<{rust_type}>>"#)
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
         let inputs: proc_macro2::TokenStream = inputs.iter().map(|(name, _)| {
             format!(r#"r#{name}: std::sync::Mutex<Option<Box<dyn melodium_core::common::executive::Input>>>"#)
         }).collect::<Vec<_>>().join(",").parse().unwrap();
@@ -550,21 +566,40 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let self_implementation;
     {
-        let parameters: proc_macro2::TokenStream = params.iter().map(|(name, _)| {
-            let default = defaults.get(name).map(|lit| format!("Some({lit})")).unwrap_or_else(|| String::from("None"));
-            format!(
-                r#"r#{name}: std::sync::Mutex::new({default})"#
-            )
-        }).collect::<Vec<_>>().join(",").parse().unwrap();
-        let inputs: proc_macro2::TokenStream = inputs.iter().map(|(name, _)| {
-            format!(r#"r#{name}: std::sync::Mutex::new(None)"#)
-        }).collect::<Vec<_>>().join(",").parse().unwrap();
-        let outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, _)| {
-            format!(r#"r#{name}: std::sync::Mutex::new(None)"#)
-        }).collect::<Vec<_>>().join(",").parse().unwrap();
-        let models: proc_macro2::TokenStream = models.iter().map(|(name, _)| {
-            format!(r#"r#{name}: std::sync::Mutex::new(None)"#)
-        }).collect::<Vec<_>>().join(",").parse().unwrap();
+        let parameters: proc_macro2::TokenStream = params
+            .iter()
+            .map(|(name, _)| {
+                let default = defaults
+                    .get(name)
+                    .map(|lit| format!("Some({lit})"))
+                    .unwrap_or_else(|| String::from("None"));
+                format!(r#"r#{name}: std::sync::Mutex::new({default})"#)
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
+        let inputs: proc_macro2::TokenStream = inputs
+            .iter()
+            .map(|(name, _)| format!(r#"r#{name}: std::sync::Mutex::new(None)"#))
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
+        let outputs: proc_macro2::TokenStream = outputs
+            .iter()
+            .map(|(name, _)| format!(r#"r#{name}: std::sync::Mutex::new(None)"#))
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
+        let models: proc_macro2::TokenStream = models
+            .iter()
+            .map(|(name, _)| format!(r#"r#{name}: std::sync::Mutex::new(None)"#))
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
 
         self_implementation = quote! {
             impl AdHocTreatment {
@@ -582,21 +617,41 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let trait_implementation;
     {
-        let parameters: proc_macro2::TokenStream = params.iter().map(|(name, ty)| {
-            let call = into_mel_value_call(ty);
-            format!(
-                r#""{name}" => *self.r#{name}.lock().unwrap() = Some(value.{call}())"#
-            )
-        }).collect::<Vec<_>>().join(",").parse().unwrap();
-        let inputs: proc_macro2::TokenStream = inputs.iter().map(|(name, _)| {
-            format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(transmitter)"#)
-        }).collect::<Vec<_>>().join(",").parse().unwrap();
-        let outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, _)| {
-            format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(transmitter)"#)
-        }).collect::<Vec<_>>().join(",").parse().unwrap();
-        let models: proc_macro2::TokenStream = models.iter().map(|(name, _)| {
-            format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(model)"#)
-        }).collect::<Vec<_>>().join(",").parse().unwrap();
+        let parameters: proc_macro2::TokenStream = params
+            .iter()
+            .map(|(name, ty)| {
+                let call = into_mel_value_call(ty);
+                format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(value.{call}())"#)
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
+        let inputs: proc_macro2::TokenStream = inputs
+            .iter()
+            .map(|(name, _)| {
+                format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(transmitter)"#)
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
+        let outputs: proc_macro2::TokenStream = outputs
+            .iter()
+            .map(|(name, _)| {
+                format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(transmitter)"#)
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
+        let models: proc_macro2::TokenStream = models
+            .iter()
+            .map(|(name, _)| format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(model)"#))
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
 
         trait_implementation = quote! {
             fn set_parameter(&self, param: &str, value: melodium_core::common::executive::Value) {
@@ -637,15 +692,23 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let pre_inputs: proc_macro2::TokenStream = inputs.iter().map(|(name, _)| {
             format!(r#"let {name} = std::mem::replace(&mut *self.r#{name}.lock().unwrap(), None).unwrap()"#)
         }).collect::<Vec<_>>().join(";").parse().unwrap();
-        let post_inputs: proc_macro2::TokenStream = inputs.iter().map(|(name, _)| {
-            format!(r#"{name}.close()"#)
-        }).collect::<Vec<_>>().join(";").parse().unwrap();
+        let post_inputs: proc_macro2::TokenStream = inputs
+            .iter()
+            .map(|(name, _)| format!(r#"{name}.close()"#))
+            .collect::<Vec<_>>()
+            .join(";")
+            .parse()
+            .unwrap();
         let pre_outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, _)| {
             format!(r#"let {name} = std::mem::replace(&mut *self.r#{name}.lock().unwrap(), None).unwrap()"#)
         }).collect::<Vec<_>>().join(";").parse().unwrap();
-        let post_outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, _)| {
-            format!(r#"{name}.close().await"#)
-        }).collect::<Vec<_>>().join(";").parse().unwrap();
+        let post_outputs: proc_macro2::TokenStream = outputs
+            .iter()
+            .map(|(name, _)| format!(r#"{name}.close().await"#))
+            .collect::<Vec<_>>()
+            .join(";")
+            .parse()
+            .unwrap();
         let models: proc_macro2::TokenStream = models.iter().map(|(name, _)| {
             format!(r#"let {name} = std::mem::replace(&mut *self.r#{name}.lock().unwrap(), None).unwrap()"#)
         }).collect::<Vec<_>>().join(";").parse().unwrap();
@@ -697,7 +760,6 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
-
     let mut params = HashMap::new();
     let mut sources = HashMap::new();
     let mut initialization = None;
@@ -719,20 +781,18 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 "initialize" => {
                     if let Some(TokenTree::Ident(name)) = iter_attr.next() {
                         initialization = Some(name.to_string());
-                    }
-                    else {
+                    } else {
                         panic!("Initialize function name expected")
                     }
                 }
                 "shutdown" => {
                     if let Some(TokenTree::Ident(name)) = iter_attr.next() {
                         shutdown = Some(name.to_string());
-                    }
-                    else {
+                    } else {
                         panic!("Shutdown function name expected")
                     }
                 }
-                _ => panic!("Unrecognized configuration")
+                _ => panic!("Unrecognized configuration"),
             }
         }
     }
@@ -785,7 +845,6 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
     {
         let fancy_model_name = name.to_case(Case::Snake);
         for (source_name, (_, outputs)) in sources {
-
             let outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, flow, ty)| {
                 let datatype = into_mel_datatype(ty);
                 format!(r#"melodium_core::common::descriptor::Output::new("{name}", {datatype}, melodium_core::common::descriptor::Flow::{flow})"#)
@@ -807,8 +866,16 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
     let module_name: proc_macro2::TokenStream = format!("__mel_model_{name}").parse().unwrap();
     let model_name: proc_macro2::TokenStream = name.parse().unwrap();
     let adhoc_model_name: proc_macro2::TokenStream = format!("{name}Model").parse().unwrap();
-    let initialize: proc_macro2::TokenStream = initialization.map(|s| format!("self.model.{s}()")).unwrap_or_else(|| String::from("()")).parse().unwrap();
-    let shutdown: proc_macro2::TokenStream = shutdown.map(|s| format!("self.model.{s}()")).unwrap_or_else(|| String::from("()")).parse().unwrap();
+    let initialize: proc_macro2::TokenStream = initialization
+        .map(|s| format!("self.model.{s}()"))
+        .unwrap_or_else(|| String::from("()"))
+        .parse()
+        .unwrap();
+    let shutdown: proc_macro2::TokenStream = shutdown
+        .map(|s| format!("self.model.{s}()"))
+        .unwrap_or_else(|| String::from("()"))
+        .parse()
+        .unwrap();
 
     let expanded = quote! {
         pub mod #module_name {
@@ -902,13 +969,129 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn mel_context(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let context: ItemStruct = parse(item).unwrap();
 
-    /* 
+    let mut documentation = Vec::new();
+    for attr in context.attrs.clone() {
+        if let Some(segment) = attr.path.segments.first() {
+            if segment.ident.to_string() == "doc" {
+                for tt in attr.tokens {
+                    if let TokenTree::Literal(lit) = tt {
+                        let doclit = StringLit::try_from(lit).unwrap();
+                        documentation.push(doclit.value().to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    let name = context.ident.to_string();
+    let mut fields = HashMap::new();
+    if let Fields::Named(fields_named) = &context.fields {
+        for field in &fields_named.named {
+            if let Some(field_ident) = &field.ident {
+                let ty = into_mel_type(&field.ty);
+                fields.insert(field_ident.to_string(), ty);
+            } else {
+                panic!("Field identity expected")
+            }
+        }
+    } else {
+        panic!("Named field expected")
+    }
+
+    let description;
+    {
+        let documentation = documentation.join("\n");
+        let fields: proc_macro2::TokenStream = fields
+            .iter()
+            .map(|(name, ty)| {
+                let datatype = into_mel_datatype(ty);
+                format!(r#"("{name}", {datatype})"#)
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
+
+        description = quote! {
+            melodium_core::descriptor::Context::new(
+                    melodium_core::descriptor::module_path_to_identifier(module_path!(), #name),
+                    vec![#fields],
+                    #documentation.to_string(),
+                )
+        };
+    }
+
+    let implementation;
+    {
+        let get: proc_macro2::TokenStream = fields.iter().map(|(name, ty)| {
+            format!(
+                r#""{name}" => melodium_core::common::executive::Value::{ty}(self.{name}.clone())"#
+            )
+        }).collect::<Vec<_>>().join(",").parse().unwrap();
+
+        let set: proc_macro2::TokenStream = fields
+            .iter()
+            .map(|(name, ty)| {
+                let call = into_mel_value_call(ty);
+                format!(r#""{name}" => {{self.{name} = value.{call}();}}"#)
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
+
+        implementation = quote! {
+            fn set_value(&mut self, name: &str, value: melodium_core::common::executive::Value) {
+                match name {
+                    #set,
+                    _ => {}
+                }
+            }
+
+            fn get_value(&self, name: &str) -> melodium_core::common::executive::Value {
+                match name {
+                    #get,
+                    _ => panic!("Unexisting field")
+                }
+            }
+        };
+    }
+
+    let name: proc_macro2::TokenStream = name.parse().unwrap();
+    let module_name: proc_macro2::TokenStream = format!("__mel_context_{name}").parse().unwrap();
+    let expanded = quote! {
+        pub mod #module_name {
+            use super::*;
+
+            pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Context> {
+                #description
+            }
+        }
+
+        #[derive(Debug)]
+        #context
+
+        impl melodium_core::common::executive::Context for #name {
+            fn descriptor(&self) -> std::sync::Arc<dyn melodium_core::common::descriptor::Context> {
+                #module_name::descriptor()
+            }
+
+            #implementation
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+#[proc_macro_attribute]
+pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    /*
     for (name, value) in std::env::vars() {
         println!("{name}: {value}");
     }*/
-    
 
     let function: ItemFn = parse(item).unwrap();
     //function.attrs.iter().for_each(|a| println!("{a:?}"));

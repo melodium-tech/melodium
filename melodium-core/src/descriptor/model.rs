@@ -14,7 +14,7 @@ pub struct Model {
     #[cfg(feature = "doc")]
     documentation: String,
     parameters: HashMap<String, Parameter>,
-    sources: HashMap<String, Vec<Arc<Context>>>,
+    sources: HashMap<String, Vec<Arc<dyn Context>>>,
     build_fn: fn(Arc<dyn World>) -> Arc<dyn ExecutiveModel>,
     auto_reference: Weak<Self>,
 }
@@ -24,7 +24,7 @@ impl Model {
         identifier: Identifier,
         documentation: String,
         parameters: Vec<Parameter>,
-        sources: Vec<(String, Vec<Arc<Context>>)>,
+        sources: Vec<(String, Vec<Arc<dyn Context>>)>,
         build_fn: fn(Arc<dyn World>) -> Arc<dyn ExecutiveModel>,
     ) -> Arc<Self> {
         #[cfg(not(feature = "doc"))]
@@ -36,9 +36,7 @@ impl Model {
             parameters: HashMap::from_iter(
                 parameters.into_iter().map(|p| (p.name().to_string(), p)),
             ),
-            sources: HashMap::from_iter(
-                sources.into_iter(),
-            ),
+            sources: HashMap::from_iter(sources.into_iter()),
             build_fn,
             auto_reference: me.clone(),
         })
@@ -102,7 +100,7 @@ impl ModelDescriptor for Model {
         None
     }
 
-    fn sources(&self) -> &HashMap<String, Vec<Arc<Context>>> {
+    fn sources(&self) -> &HashMap<String, Vec<Arc<dyn Context>>> {
         &self.sources
     }
 

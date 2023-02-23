@@ -1,4 +1,4 @@
-use crate::building::{Builder as BuilderTrait};
+use crate::building::Builder as BuilderTrait;
 use crate::building::{
     BuildId, CheckBuild, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
     DynamicBuildResult, FeedingInputs, GenesisEnvironment, StaticBuildResult,

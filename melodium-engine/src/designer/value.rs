@@ -6,6 +6,6 @@ use std::sync::Arc;
 pub enum Value {
     Raw(ExecutiveValue),
     Variable(String),
-    Context(Arc<Context>, String),
+    Context(Arc<dyn Context>, String),
     Function(Arc<dyn Function>, Vec<Value>),
 }

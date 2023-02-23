@@ -18,7 +18,6 @@ pub mod design;
 pub mod designer;
 pub mod engine;
 pub mod error;
-mod executive;
 mod transmission;
 mod world;
 

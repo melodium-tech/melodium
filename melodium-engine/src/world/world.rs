@@ -6,7 +6,6 @@ use crate::building::{
 };
 use crate::engine::Engine;
 use crate::error::LogicError;
-use crate::executive::Context;
 use crate::transmission::{Input, Output};
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::sync::Mutex;
@@ -344,14 +343,6 @@ impl Engine for World {
 
 #[async_trait]
 impl ExecutiveWorld for World {
-    fn new_context(&self, identifier: &Identifier) -> Box<dyn ExecutiveContext> {
-        let descriptor = match self.collection.get(identifier).expect("Unknown identifier") {
-            CollectionEntry::Context(id) => Arc::clone(id),
-            _ => panic!("Identifier `{}` doesn't refer to context.", identifier),
-        };
-        Box::new(Context::new(descriptor))
-    }
-
     fn add_continuous_task(&self, task: ContinuousFuture) {
         let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
 

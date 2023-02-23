@@ -120,9 +120,9 @@ impl TreatmentDescriptor for Source {
         &self.models
     }
 
-    fn contexts(&self) -> &HashMap<String, Arc<Context>> {
+    fn contexts(&self) -> &HashMap<String, Arc<dyn Context>> {
         lazy_static! {
-            static ref HASHMAP: HashMap<String, Arc<Context>> = HashMap::new();
+            static ref HASHMAP: HashMap<String, Arc<dyn Context>> = HashMap::new();
         };
         &HASHMAP
     }

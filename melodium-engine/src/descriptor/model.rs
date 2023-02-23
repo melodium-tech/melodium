@@ -147,7 +147,7 @@ impl ModelDescriptor for Model {
         Some(Arc::clone(&self.base_model))
     }
 
-    fn sources(&self) -> &HashMap<String, Vec<Arc<Context>>> {
+    fn sources(&self) -> &HashMap<String, Vec<Arc<dyn Context>>> {
         self.base_model.sources()
     }
 

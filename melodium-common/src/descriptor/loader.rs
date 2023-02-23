@@ -13,7 +13,7 @@ pub enum LoadingError {
 }
 
 pub trait Loader {
-    fn load_context(&self, identifier: &Identifier) -> Result<Arc<Context>, LoadingError>;
+    fn load_context(&self, identifier: &Identifier) -> Result<Arc<dyn Context>, LoadingError>;
     fn load_function(&self, identifier: &Identifier) -> Result<Arc<dyn Function>, LoadingError>;
     fn load_model(&self, identifier: &Identifier) -> Result<Arc<dyn Model>, LoadingError>;
     fn load_treatment(&self, identifier: &Identifier) -> Result<Arc<dyn Treatment>, LoadingError>;

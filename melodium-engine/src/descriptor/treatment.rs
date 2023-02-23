@@ -18,7 +18,7 @@ pub struct Treatment {
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
     outputs: HashMap<String, Output>,
-    contexts: HashMap<String, Arc<Context>>,
+    contexts: HashMap<String, Arc<dyn Context>>,
     designer: Mutex<Option<Arc<RwLock<Designer>>>>,
     design: Mutex<Option<Arc<Design>>>,
     auto_reference: Weak<Self>,
@@ -111,7 +111,7 @@ impl Treatment {
         self.outputs.insert(output.name().to_string(), output);
     }
 
-    pub fn add_context(&mut self, context: &Arc<Context>) {
+    pub fn add_context(&mut self, context: &Arc<dyn Context>) {
         self.contexts
             .insert(context.name().to_string(), context.clone());
     }
@@ -207,7 +207,7 @@ impl TreatmentDescriptor for Treatment {
         &self.models
     }
 
-    fn contexts(&self) -> &HashMap<String, Arc<Context>> {
+    fn contexts(&self) -> &HashMap<String, Arc<dyn Context>> {
         &self.contexts
     }
 

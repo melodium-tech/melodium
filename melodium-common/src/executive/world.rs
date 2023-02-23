@@ -1,16 +1,12 @@
-use crate::{
-    descriptor::Identifier,
-    executive::{Context, ContinuousFuture, ModelId, Output, TrackFuture},
-};
-use core::fmt::Debug;
+use crate::executive::{Context, ContinuousFuture, ModelId, Output, TrackFuture};
 use async_trait::async_trait;
+use core::fmt::Debug;
 use std::collections::HashMap;
 
 pub type TrackId = usize;
 
 #[async_trait]
-pub trait World : Debug + Send + Sync {
-    fn new_context(&self, identifier: &Identifier) -> Box<dyn Context>;
+pub trait World: Debug + Send + Sync {
     fn add_continuous_task(&self, task: ContinuousFuture);
     async fn create_track(
         &self,

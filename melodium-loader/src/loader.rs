@@ -109,7 +109,7 @@ impl Loader {
 }
 
 impl LoaderTrait for Loader {
-    fn load_context(&self, identifier: &Identifier) -> Result<Arc<Context>, LoadingError> {
+    fn load_context(&self, identifier: &Identifier) -> Result<Arc<dyn Context>, LoadingError> {
         match self.get_with_load(identifier)? {
             Entry::Context(context) => Ok(context),
             _ => Err(LoadingError::ContextExpected),

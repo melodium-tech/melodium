@@ -1,5 +1,5 @@
 
-use melodium_macro::{mel_function, mel_treatment, mel_model};
+use melodium_macro::{mel_function, mel_treatment, mel_model, mel_context};
 use melodium_core::*;
 
 /* 
@@ -32,6 +32,7 @@ pub async fn treatment_chose(un: u64, deux: string, trois: Vec<void>) {
     }
 }*/
 
+/* 
 /// Do some stuff
 #[mel_model(
     param bidule Vec<void> none
@@ -58,4 +59,11 @@ impl MyModel {
     fn ending(&self) {
 
     }
+}*/
+
+#[mel_context]
+pub struct Coucou {
+    message: string,
+    nombre: i128,
+    rien: void,
 }

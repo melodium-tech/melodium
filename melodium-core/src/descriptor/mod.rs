@@ -1,8 +1,10 @@
+pub mod context;
 pub mod function;
 pub mod model;
 pub mod source;
 pub mod treatment;
 
+pub use context::Context;
 pub use function::Function;
 pub use model::Model;
 pub use source::Source;
