@@ -1,7 +1,9 @@
 
 pub fn main() {
 
-    for id in core_mel::__mel_collection().identifiers() {
-        println!("{id}")
+    let collection = core_mel::__mel_collection();
+    for id in collection.identifiers() {
+        println!("{id} :");
+        println!("{:#?}", collection.get(&id).unwrap());
     }
 }

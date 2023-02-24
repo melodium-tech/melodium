@@ -1024,7 +1024,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut sources_description = proc_macro2::TokenStream::new();
     {
         let fancy_model_name = name.to_case(Case::Snake);
-        for (source_name, (_, outputs)) in sources {
+        for (source_name, (_, outputs)) in &sources {
             let outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, flow, ty)| {
                 let datatype = into_mel_datatype(ty);
                 format!(r#"melodium_core::common::descriptor::Output::new("{name}", {datatype}, melodium_core::common::descriptor::Flow::{flow})"#)
@@ -1039,6 +1039,58 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                     vec![(#fancy_model_name.to_string(), vec![#source_name.to_string()])],
                     vec![#outputs],
                 ),
+            };
+        }
+    }
+
+    let mut helper_implementation: proc_macro2::TokenStream;
+    {
+        let parameters: proc_macro2::TokenStream = params.iter().map(|(name, (ty, _))| {
+            let rust_type = into_rust_type(ty);
+            let call = into_mel_value_call(ty);
+            format!(r#"
+                pub fn get_{name}(&self) -> {rust_type} {{
+                    self.parameter("{name}").unwrap().{call}()
+                }}
+            "#
+            )
+        }).collect::<Vec<_>>().join("").parse().unwrap();
+
+        helper_implementation = parameters;
+    
+        for (source_name, (contextes, _)) in sources {
+
+            let mut param_contextes = String::new();
+            let mut assign_contextes= String::new();
+            for context in &contextes {
+                let mut path = context.split("::").map(|s| s.to_string()).collect::<Vec<_>>();
+                let name = path.pop().unwrap().split("_").last().unwrap().to_string();
+                let fancy_name = name.to_case(Case::Snake);
+                path.push(name);
+
+                param_contextes = format!("{param_contextes} {fancy_name}: {},", path.join("::"));
+                assign_contextes = format!("{assign_contextes} Box::new({fancy_name}),");
+            }
+
+            let param_contextes: proc_macro2::TokenStream = param_contextes.parse().unwrap();
+            let assign_contextes: proc_macro2::TokenStream = assign_contextes.parse().unwrap();
+            let fn_name: proc_macro2::TokenStream = format!("new_{source_name}").parse().unwrap();
+
+            helper_implementation = quote! {
+                #helper_implementation
+                pub async fn #fn_name(&self,
+                        parent_track: Option<melodium_core::common::executive::TrackId>,
+                        #param_contextes
+                        callback: Option<impl FnOnce(std::collections::HashMap<String, Box<dyn melodium_core::common::executive::Output>>) -> Vec<melodium_core::common::executive::TrackFuture> + Send>
+                    ) {
+                    self.world.create_track(
+                        self.id().unwrap(),
+                        #source_name,
+                        vec![#assign_contextes],
+                        parent_track,
+                        callback,
+                    ).await
+                }
             };
         }
     }
@@ -1142,6 +1194,8 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 pub fn set_parameter(&self, param: &str, value: melodium_core::common::executive::Value) {
                     self.params.lock().unwrap().insert(param.to_string(), value);
                 }
+
+                #helper_implementation
             }
 
             impl melodium_core::common::executive::Model for AdHocModel {
@@ -1349,10 +1403,12 @@ pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let parameters = args.iter().map(|(name, ty)| {
-    let datatype = into_mel_datatype(ty);
-    format!(
-        r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Var, {datatype}, None)"#
-    )}).collect::<Vec<_>>().join(",");
+        let name = name.to_case(Case::Snake);
+        let datatype = into_mel_datatype(ty);
+        format!(
+            r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Var, {datatype}, None)"#
+        )
+    }).collect::<Vec<_>>().join(",");
     let return_type = if let ReturnType::Type(_, rt) = &function.sig.output {
         into_mel_type(rt)
     } else {
