@@ -29,7 +29,7 @@ pub async fn treatment_chose(un: u64, deux: string, trois: Vec<void>) {
 
     while let Ok(num) = haut.recv_u64().await {
         let result = num.into_iter().map(|i| i + un).collect();
-        gauche.send_multiple_u64(result).await;
+        gauche.send_u64(result).await;
     }
 }
 

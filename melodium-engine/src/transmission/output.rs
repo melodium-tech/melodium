@@ -282,476 +282,476 @@ impl ExecutiveOutput for Output {
         }
     }
 
-    async fn send_void(&self, data: ()) -> SendResult {
+    async fn send_one_void(&self, data: ()) -> SendResult {
         match self {
             Output::Void(t) => t.send(data).await,
             _ => panic!("void send transmitter expected"),
         }
     }
 
-    async fn send_multiple_void(&self, data: Vec<()>) -> SendResult {
+    async fn send_void(&self, data: Vec<()>) -> SendResult {
         match self {
             Output::Void(t) => t.send_multiple(data).await,
             _ => panic!("void send transmitter expected"),
         }
     }
 
-    async fn send_u8(&self, data: u8) -> SendResult {
+    async fn send_one_u8(&self, data: u8) -> SendResult {
         match self {
             Output::U8(t) => t.send(data).await,
             _ => panic!("u8 send transmitter expected"),
         }
     }
 
-    async fn send_multiple_u8(&self, data: Vec<u8>) -> SendResult {
+    async fn send_u8(&self, data: Vec<u8>) -> SendResult {
         match self {
             Output::U8(t) => t.send_multiple(data).await,
             _ => panic!("u8 send transmitter expected"),
         }
     }
 
-    async fn send_u16(&self, data: u16) -> SendResult {
+    async fn send_one_u16(&self, data: u16) -> SendResult {
         match self {
             Output::U16(t) => t.send(data).await,
             _ => panic!("u16 send transmitter expected"),
         }
     }
 
-    async fn send_multiple_u16(&self, data: Vec<u16>) -> SendResult {
+    async fn send_u16(&self, data: Vec<u16>) -> SendResult {
         match self {
             Output::U16(t) => t.send_multiple(data).await,
             _ => panic!("u16 send transmitter expected"),
         }
     }
 
-    async fn send_u32(&self, data: u32) -> SendResult {
+    async fn send_one_u32(&self, data: u32) -> SendResult {
         match self {
             Output::U32(t) => t.send(data).await,
             _ => panic!("u32 send transmitter expected"),
         }
     }
 
-    async fn send_multiple_u32(&self, data: Vec<u32>) -> SendResult {
+    async fn send_u32(&self, data: Vec<u32>) -> SendResult {
         match self {
             Output::U32(t) => t.send_multiple(data).await,
             _ => panic!("u32 send transmitter expected"),
         }
     }
 
-    async fn send_u64(&self, data: u64) -> SendResult {
+    async fn send_one_u64(&self, data: u64) -> SendResult {
         match self {
             Output::U64(t) => t.send(data).await,
             _ => panic!("u64 send transmitter expected"),
         }
     }
 
-    async fn send_multiple_u64(&self, data: Vec<u64>) -> SendResult {
+    async fn send_u64(&self, data: Vec<u64>) -> SendResult {
         match self {
             Output::U64(t) => t.send_multiple(data).await,
             _ => panic!("u64 send transmitter expected"),
         }
     }
 
-    async fn send_u128(&self, data: u128) -> SendResult {
+    async fn send_one_u128(&self, data: u128) -> SendResult {
         match self {
             Output::U128(t) => t.send(data).await,
             _ => panic!("u128 send transmitter expected"),
         }
     }
 
-    async fn send_multiple_u128(&self, data: Vec<u128>) -> SendResult {
+    async fn send_u128(&self, data: Vec<u128>) -> SendResult {
         match self {
             Output::U128(t) => t.send_multiple(data).await,
             _ => panic!("u128 send transmitter expected"),
         }
     }
 
-    async fn send_i8(&self, data: i8) -> SendResult {
+    async fn send_one_i8(&self, data: i8) -> SendResult {
         match self {
             Output::I8(t) => t.send(data).await,
             _ => panic!("i8 send transmitter expected"),
         }
     }
 
-    async fn send_multiple_i8(&self, data: Vec<i8>) -> SendResult {
+    async fn send_i8(&self, data: Vec<i8>) -> SendResult {
         match self {
             Output::I8(t) => t.send_multiple(data).await,
             _ => panic!("i8 send transmitter expected"),
         }
     }
 
-    async fn send_i16(&self, data: i16) -> SendResult {
+    async fn send_one_i16(&self, data: i16) -> SendResult {
         match self {
             Output::I16(t) => t.send(data).await,
             _ => panic!("i16 send transmitter expected"),
         }
     }
 
-    async fn send_multiple_i16(&self, data: Vec<i16>) -> SendResult {
+    async fn send_i16(&self, data: Vec<i16>) -> SendResult {
         match self {
             Output::I16(t) => t.send_multiple(data).await,
             _ => panic!("i16 send transmitter expected"),
         }
     }
 
-    async fn send_i32(&self, data: i32) -> SendResult {
+    async fn send_one_i32(&self, data: i32) -> SendResult {
         match self {
             Output::I32(t) => t.send(data).await,
             _ => panic!("i32 send transmitter expected"),
         }
     }
 
-    async fn send_multiple_i32(&self, data: Vec<i32>) -> SendResult {
+    async fn send_i32(&self, data: Vec<i32>) -> SendResult {
         match self {
             Output::I32(t) => t.send_multiple(data).await,
             _ => panic!("i32 send transmitter expected"),
         }
     }
 
-    async fn send_i64(&self, data: i64) -> SendResult {
+    async fn send_one_i64(&self, data: i64) -> SendResult {
         match self {
             Output::I64(t) => t.send(data).await,
             _ => panic!("i64 send transmitter expected"),
         }
     }
 
-    async fn send_multiple_i64(&self, data: Vec<i64>) -> SendResult {
+    async fn send_i64(&self, data: Vec<i64>) -> SendResult {
         match self {
             Output::I64(t) => t.send_multiple(data).await,
             _ => panic!("i64 send transmitter expected"),
         }
     }
 
-    async fn send_i128(&self, data: i128) -> SendResult {
+    async fn send_one_i128(&self, data: i128) -> SendResult {
         match self {
             Output::I128(t) => t.send(data).await,
             _ => panic!("i128 send transmitter expected"),
         }
     }
 
-    async fn send_multiple_i128(&self, data: Vec<i128>) -> SendResult {
+    async fn send_i128(&self, data: Vec<i128>) -> SendResult {
         match self {
             Output::I128(t) => t.send_multiple(data).await,
             _ => panic!("i128 send transmitter expected"),
         }
     }
 
-    async fn send_f32(&self, data: f32) -> SendResult {
+    async fn send_one_f32(&self, data: f32) -> SendResult {
         match self {
             Output::F32(t) => t.send(data).await,
             _ => panic!("f32 send transmitter expected"),
         }
     }
 
-    async fn send_multiple_f32(&self, data: Vec<f32>) -> SendResult {
+    async fn send_f32(&self, data: Vec<f32>) -> SendResult {
         match self {
             Output::F32(t) => t.send_multiple(data).await,
             _ => panic!("f32 send transmitter expected"),
         }
     }
 
-    async fn send_f64(&self, data: f64) -> SendResult {
+    async fn send_one_f64(&self, data: f64) -> SendResult {
         match self {
             Output::F64(t) => t.send(data).await,
             _ => panic!("f64 send transmitter expected"),
         }
     }
 
-    async fn send_multiple_f64(&self, data: Vec<f64>) -> SendResult {
+    async fn send_f64(&self, data: Vec<f64>) -> SendResult {
         match self {
             Output::F64(t) => t.send_multiple(data).await,
             _ => panic!("f64 send transmitter expected"),
         }
     }
 
-    async fn send_bool(&self, data: bool) -> SendResult {
+    async fn send_one_bool(&self, data: bool) -> SendResult {
         match self {
             Output::Bool(t) => t.send(data).await,
             _ => panic!("bool send transmitter expected"),
         }
     }
 
-    async fn send_multiple_bool(&self, data: Vec<bool>) -> SendResult {
+    async fn send_bool(&self, data: Vec<bool>) -> SendResult {
         match self {
             Output::Bool(t) => t.send_multiple(data).await,
             _ => panic!("bool send transmitter expected"),
         }
     }
 
-    async fn send_byte(&self, data: u8) -> SendResult {
+    async fn send_one_byte(&self, data: u8) -> SendResult {
         match self {
             Output::Byte(t) => t.send(data).await,
             _ => panic!("byte send transmitter expected"),
         }
     }
 
-    async fn send_multiple_byte(&self, data: Vec<u8>) -> SendResult {
+    async fn send_byte(&self, data: Vec<u8>) -> SendResult {
         match self {
             Output::Byte(t) => t.send_multiple(data).await,
             _ => panic!("byte send transmitter expected"),
         }
     }
 
-    async fn send_char(&self, data: char) -> SendResult {
+    async fn send_one_char(&self, data: char) -> SendResult {
         match self {
             Output::Char(t) => t.send(data).await,
             _ => panic!("char send transmitter expected"),
         }
     }
 
-    async fn send_multiple_char(&self, data: Vec<char>) -> SendResult {
+    async fn send_char(&self, data: Vec<char>) -> SendResult {
         match self {
             Output::Char(t) => t.send_multiple(data).await,
             _ => panic!("char send transmitter expected"),
         }
     }
 
-    async fn send_string(&self, data: String) -> SendResult {
+    async fn send_one_string(&self, data: String) -> SendResult {
         match self {
             Output::String(t) => t.send(data).await,
             _ => panic!("string send transmitter expected"),
         }
     }
 
-    async fn send_multiple_string(&self, data: Vec<String>) -> SendResult {
+    async fn send_string(&self, data: Vec<String>) -> SendResult {
         match self {
             Output::String(t) => t.send_multiple(data).await,
             _ => panic!("string send transmitter expected"),
         }
     }
 
-    async fn send_vec_void(&self, data: Vec<()>) -> SendResult {
+    async fn send_one_vec_void(&self, data: Vec<()>) -> SendResult {
         match self {
             Output::VecVoid(t) => t.send(data).await,
             _ => panic!("Vec<void> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_void(&self, data: Vec<Vec<()>>) -> SendResult {
+    async fn send_vec_void(&self, data: Vec<Vec<()>>) -> SendResult {
         match self {
             Output::VecVoid(t) => t.send_multiple(data).await,
             _ => panic!("Vec<void> send transmitter expected"),
         }
     }
 
-    async fn send_vec_u8(&self, data: Vec<u8>) -> SendResult {
+    async fn send_one_vec_u8(&self, data: Vec<u8>) -> SendResult {
         match self {
             Output::VecU8(t) => t.send(data).await,
             _ => panic!("Vec<u8> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_u8(&self, data: Vec<Vec<u8>>) -> SendResult {
+    async fn send_vec_u8(&self, data: Vec<Vec<u8>>) -> SendResult {
         match self {
             Output::VecU8(t) => t.send_multiple(data).await,
             _ => panic!("Vec<u8> send transmitter expected"),
         }
     }
 
-    async fn send_vec_u16(&self, data: Vec<u16>) -> SendResult {
+    async fn send_one_vec_u16(&self, data: Vec<u16>) -> SendResult {
         match self {
             Output::VecU16(t) => t.send(data).await,
             _ => panic!("Vec<u16> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_u16(&self, data: Vec<Vec<u16>>) -> SendResult {
+    async fn send_vec_u16(&self, data: Vec<Vec<u16>>) -> SendResult {
         match self {
             Output::VecU16(t) => t.send_multiple(data).await,
             _ => panic!("Vec<u16> send transmitter expected"),
         }
     }
 
-    async fn send_vec_u32(&self, data: Vec<u32>) -> SendResult {
+    async fn send_one_vec_u32(&self, data: Vec<u32>) -> SendResult {
         match self {
             Output::VecU32(t) => t.send(data).await,
             _ => panic!("Vec<u32> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_u32(&self, data: Vec<Vec<u32>>) -> SendResult {
+    async fn send_vec_u32(&self, data: Vec<Vec<u32>>) -> SendResult {
         match self {
             Output::VecU32(t) => t.send_multiple(data).await,
             _ => panic!("Vec<u32> send transmitter expected"),
         }
     }
 
-    async fn send_vec_u64(&self, data: Vec<u64>) -> SendResult {
+    async fn send_one_vec_u64(&self, data: Vec<u64>) -> SendResult {
         match self {
             Output::VecU64(t) => t.send(data).await,
             _ => panic!("Vec<u64> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_u64(&self, data: Vec<Vec<u64>>) -> SendResult {
+    async fn send_vec_u64(&self, data: Vec<Vec<u64>>) -> SendResult {
         match self {
             Output::VecU64(t) => t.send_multiple(data).await,
             _ => panic!("Vec<u64> send transmitter expected"),
         }
     }
 
-    async fn send_vec_u128(&self, data: Vec<u128>) -> SendResult {
+    async fn send_one_vec_u128(&self, data: Vec<u128>) -> SendResult {
         match self {
             Output::VecU128(t) => t.send(data).await,
             _ => panic!("Vec<u128> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_u128(&self, data: Vec<Vec<u128>>) -> SendResult {
+    async fn send_vec_u128(&self, data: Vec<Vec<u128>>) -> SendResult {
         match self {
             Output::VecU128(t) => t.send_multiple(data).await,
             _ => panic!("Vec<u128> send transmitter expected"),
         }
     }
 
-    async fn send_vec_i8(&self, data: Vec<i8>) -> SendResult {
+    async fn send_one_vec_i8(&self, data: Vec<i8>) -> SendResult {
         match self {
             Output::VecI8(t) => t.send(data).await,
             _ => panic!("Vec<i8> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_i8(&self, data: Vec<Vec<i8>>) -> SendResult {
+    async fn send_vec_i8(&self, data: Vec<Vec<i8>>) -> SendResult {
         match self {
             Output::VecI8(t) => t.send_multiple(data).await,
             _ => panic!("Vec<i8> send transmitter expected"),
         }
     }
 
-    async fn send_vec_i16(&self, data: Vec<i16>) -> SendResult {
+    async fn send_one_vec_i16(&self, data: Vec<i16>) -> SendResult {
         match self {
             Output::VecI16(t) => t.send(data).await,
             _ => panic!("Vec<i16> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_i16(&self, data: Vec<Vec<i16>>) -> SendResult {
+    async fn send_vec_i16(&self, data: Vec<Vec<i16>>) -> SendResult {
         match self {
             Output::VecI16(t) => t.send_multiple(data).await,
             _ => panic!("Vec<i16> send transmitter expected"),
         }
     }
 
-    async fn send_vec_i32(&self, data: Vec<i32>) -> SendResult {
+    async fn send_one_vec_i32(&self, data: Vec<i32>) -> SendResult {
         match self {
             Output::VecI32(t) => t.send(data).await,
             _ => panic!("Vec<i32> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_i32(&self, data: Vec<Vec<i32>>) -> SendResult {
+    async fn send_vec_i32(&self, data: Vec<Vec<i32>>) -> SendResult {
         match self {
             Output::VecI32(t) => t.send_multiple(data).await,
             _ => panic!("Vec<i32> send transmitter expected"),
         }
     }
 
-    async fn send_vec_i64(&self, data: Vec<i64>) -> SendResult {
+    async fn send_one_vec_i64(&self, data: Vec<i64>) -> SendResult {
         match self {
             Output::VecI64(t) => t.send(data).await,
             _ => panic!("Vec<i64> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_i64(&self, data: Vec<Vec<i64>>) -> SendResult {
+    async fn send_vec_i64(&self, data: Vec<Vec<i64>>) -> SendResult {
         match self {
             Output::VecI64(t) => t.send_multiple(data).await,
             _ => panic!("Vec<i64> send transmitter expected"),
         }
     }
 
-    async fn send_vec_i128(&self, data: Vec<i128>) -> SendResult {
+    async fn send_one_vec_i128(&self, data: Vec<i128>) -> SendResult {
         match self {
             Output::VecI128(t) => t.send(data).await,
             _ => panic!("Vec<i128> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_i128(&self, data: Vec<Vec<i128>>) -> SendResult {
+    async fn send_vec_i128(&self, data: Vec<Vec<i128>>) -> SendResult {
         match self {
             Output::VecI128(t) => t.send_multiple(data).await,
             _ => panic!("Vec<i128> send transmitter expected"),
         }
     }
 
-    async fn send_vec_f32(&self, data: Vec<f32>) -> SendResult {
+    async fn send_one_vec_f32(&self, data: Vec<f32>) -> SendResult {
         match self {
             Output::VecF32(t) => t.send(data).await,
             _ => panic!("Vec<f32> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_f32(&self, data: Vec<Vec<f32>>) -> SendResult {
+    async fn send_vec_f32(&self, data: Vec<Vec<f32>>) -> SendResult {
         match self {
             Output::VecF32(t) => t.send_multiple(data).await,
             _ => panic!("Vec<f32> send transmitter expected"),
         }
     }
 
-    async fn send_vec_f64(&self, data: Vec<f64>) -> SendResult {
+    async fn send_one_vec_f64(&self, data: Vec<f64>) -> SendResult {
         match self {
             Output::VecF64(t) => t.send(data).await,
             _ => panic!("Vec<f64> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_f64(&self, data: Vec<Vec<f64>>) -> SendResult {
+    async fn send_vec_f64(&self, data: Vec<Vec<f64>>) -> SendResult {
         match self {
             Output::VecF64(t) => t.send_multiple(data).await,
             _ => panic!("Vec<f64> send transmitter expected"),
         }
     }
 
-    async fn send_vec_bool(&self, data: Vec<bool>) -> SendResult {
+    async fn send_one_vec_bool(&self, data: Vec<bool>) -> SendResult {
         match self {
             Output::VecBool(t) => t.send(data).await,
             _ => panic!("Vec<bool> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_bool(&self, data: Vec<Vec<bool>>) -> SendResult {
+    async fn send_vec_bool(&self, data: Vec<Vec<bool>>) -> SendResult {
         match self {
             Output::VecBool(t) => t.send_multiple(data).await,
             _ => panic!("Vec<bool> send transmitter expected"),
         }
     }
 
-    async fn send_vec_byte(&self, data: Vec<u8>) -> SendResult {
+    async fn send_one_vec_byte(&self, data: Vec<u8>) -> SendResult {
         match self {
             Output::VecByte(t) => t.send(data).await,
             _ => panic!("Vec<byte> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_byte(&self, data: Vec<Vec<u8>>) -> SendResult {
+    async fn send_vec_byte(&self, data: Vec<Vec<u8>>) -> SendResult {
         match self {
             Output::VecByte(t) => t.send_multiple(data).await,
             _ => panic!("Vec<byte> send transmitter expected"),
         }
     }
 
-    async fn send_vec_char(&self, data: Vec<char>) -> SendResult {
+    async fn send_one_vec_char(&self, data: Vec<char>) -> SendResult {
         match self {
             Output::VecChar(t) => t.send(data).await,
             _ => panic!("Vec<char> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_char(&self, data: Vec<Vec<char>>) -> SendResult {
+    async fn send_vec_char(&self, data: Vec<Vec<char>>) -> SendResult {
         match self {
             Output::VecChar(t) => t.send_multiple(data).await,
             _ => panic!("Vec<char> send transmitter expected"),
         }
     }
 
-    async fn send_vec_string(&self, data: Vec<String>) -> SendResult {
+    async fn send_one_vec_string(&self, data: Vec<String>) -> SendResult {
         match self {
             Output::VecString(t) => t.send(data).await,
             _ => panic!("Vec<string> send transmitter expected"),
         }
     }
 
-    async fn send_multiple_vec_string(&self, data: Vec<Vec<String>>) -> SendResult {
+    async fn send_vec_string(&self, data: Vec<Vec<String>>) -> SendResult {
         match self {
             Output::VecString(t) => t.send_multiple(data).await,
             _ => panic!("Vec<string> send transmitter expected"),
