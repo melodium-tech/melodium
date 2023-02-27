@@ -12,7 +12,6 @@ use async_std::sync::Mutex;
 use async_std::task::block_on;
 use async_trait::async_trait;
 use core::fmt::Debug;
-use core::marker::Send;
 use futures::future::{join, join_all};
 use futures::stream::{FuturesUnordered, StreamExt};
 use melodium_common::descriptor::{
@@ -356,7 +355,7 @@ impl ExecutiveWorld for World {
         contexts: Vec<Box<dyn ExecutiveContext>>,
         parent_track: Option<TrackId>,
         callback: Option<
-            impl FnOnce(HashMap<String, Box<dyn ExecutiveOutput>>) -> Vec<TrackFuture> + Send,
+            Box<dyn FnOnce(HashMap<String, Box<dyn ExecutiveOutput>>) -> Vec<TrackFuture> + Send>,
         >,
     ) {
         let track_id;

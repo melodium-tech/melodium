@@ -14,7 +14,8 @@ pub trait World: Debug + Send + Sync {
         source: &str,
         contexts: Vec<Box<dyn Context>>,
         parent_track: Option<TrackId>,
-        callback: Option<impl FnOnce(HashMap<String, Box<dyn Output>>) -> Vec<TrackFuture> + Send>,
-    ) where
-        Self: Sized;
+        callback: Option<
+            Box<dyn FnOnce(HashMap<String, Box<dyn Output>>) -> Vec<TrackFuture> + Send>,
+        >,
+    );
 }

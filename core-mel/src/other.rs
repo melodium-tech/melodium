@@ -43,12 +43,14 @@ pub async fn treatment_chose(un: u64, deux: string, trois: Vec<void>) {
 )]
 #[derive(Debug)]
 pub struct MyModel {
+    model: std::sync::Weak<MyModelModel>,
     address: u64,
 }
 
 impl MyModel {
     pub fn new(model: std::sync::Weak<MyModelModel>) -> Self {
         Self {
+            model,
             address: 0
         }
     }
@@ -59,6 +61,25 @@ impl MyModel {
 
     fn ending(&self) {
 
+    }
+
+    async fn trucs(&self) {
+        let model = self.model.upgrade().unwrap();
+        let passed_model = std::sync::Arc::clone(&model);
+
+        model.new_stuff(
+            None,
+            Coucou {
+                message: "Coucou".to_string(),
+                nombre: 24,
+                rien: (),
+            },
+            Some(Box::new(move |outputs| {
+
+                let id = passed_model.parameter("truc");
+                vec![]
+            }))
+        ).await;
     }
 }
 

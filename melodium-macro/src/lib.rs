@@ -1045,25 +1045,34 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut helper_implementation: proc_macro2::TokenStream;
     {
-        let parameters: proc_macro2::TokenStream = params.iter().map(|(name, (ty, _))| {
-            let rust_type = into_rust_type(ty);
-            let call = into_mel_value_call(ty);
-            format!(r#"
+        let parameters: proc_macro2::TokenStream = params
+            .iter()
+            .map(|(name, (ty, _))| {
+                let rust_type = into_rust_type(ty);
+                let call = into_mel_value_call(ty);
+                format!(
+                    r#"
                 pub fn get_{name}(&self) -> {rust_type} {{
                     self.parameter("{name}").unwrap().{call}()
                 }}
             "#
-            )
-        }).collect::<Vec<_>>().join("").parse().unwrap();
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("")
+            .parse()
+            .unwrap();
 
         helper_implementation = parameters;
-    
-        for (source_name, (contextes, _)) in sources {
 
+        for (source_name, (contextes, _)) in sources {
             let mut param_contextes = String::new();
-            let mut assign_contextes= String::new();
+            let mut assign_contextes = String::new();
             for context in &contextes {
-                let mut path = context.split("::").map(|s| s.to_string()).collect::<Vec<_>>();
+                let mut path = context
+                    .split("::")
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>();
                 let name = path.pop().unwrap().split("_").last().unwrap().to_string();
                 let fancy_name = name.to_case(Case::Snake);
                 path.push(name);
@@ -1081,7 +1090,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 pub async fn #fn_name(&self,
                         parent_track: Option<melodium_core::common::executive::TrackId>,
                         #param_contextes
-                        callback: Option<impl FnOnce(std::collections::HashMap<String, Box<dyn melodium_core::common::executive::Output>>) -> Vec<melodium_core::common::executive::TrackFuture> + Send>
+                        callback: Option<Box<dyn FnOnce(std::collections::HashMap<String, Box<dyn melodium_core::common::executive::Output>>) -> Vec<melodium_core::common::executive::TrackFuture> + Send>>
                     ) {
                     self.world.create_track(
                         self.id().unwrap(),
