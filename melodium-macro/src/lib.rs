@@ -935,6 +935,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut params = HashMap::new();
     let mut sources = HashMap::new();
     let mut initialization = None;
+    let mut continuous = Vec::new();
     let mut shutdown = None;
 
     let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
@@ -955,6 +956,19 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                         initialization = Some(name.to_string());
                     } else {
                         panic!("Initialize function name expected")
+                    }
+                }
+                "continuous" => {
+                    if let Some(TokenTree::Group(group)) = iter_attr.next() {
+                        for tt in group.stream() {
+                            if let TokenTree::Ident(c) = tt {
+                                continuous.push(c.to_string())
+                            } else {
+                                panic!("Function identity expected")
+                            }
+                        }
+                    } else {
+                        panic!("Continuous list expected")
                     }
                 }
                 "shutdown" => {
@@ -1113,6 +1127,8 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
         .unwrap_or_else(|| String::from("()"))
         .parse()
         .unwrap();
+    let continuous: proc_macro2::TokenStream = continuous.iter().map(|c| format!("let auto_self = self.auto_reference.upgrade().unwrap(); self.world.add_continuous_task(Box::new(Box::pin(async move {{ auto_self.inner().{c}().await }})));")).collect::<Vec<_>>().join("").parse()
+    .unwrap();
     let shutdown: proc_macro2::TokenStream = shutdown
         .map(|s| format!("self.model.{s}()"))
         .unwrap_or_else(|| String::from("()"))
@@ -1225,7 +1241,8 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
 
                 fn initialize(&self) {
-                    #initialize
+                    #initialize;
+                    #continuous
                 }
 
                 fn shutdown(&self) {

@@ -4,6 +4,8 @@ use core::fmt::Debug;
 use std::collections::HashMap;
 
 pub type TrackId = usize;
+pub type TrackCreationCallback =
+    Box<dyn FnOnce(HashMap<String, Box<dyn Output>>) -> Vec<TrackFuture> + Send>;
 
 #[async_trait]
 pub trait World: Debug + Send + Sync {
@@ -14,8 +16,6 @@ pub trait World: Debug + Send + Sync {
         source: &str,
         contexts: Vec<Box<dyn Context>>,
         parent_track: Option<TrackId>,
-        callback: Option<
-            Box<dyn FnOnce(HashMap<String, Box<dyn Output>>) -> Vec<TrackFuture> + Send>,
-        >,
+        callback: Option<TrackCreationCallback>,
     );
 }

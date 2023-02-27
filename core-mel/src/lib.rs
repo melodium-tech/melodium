@@ -1,7 +1,7 @@
 
 use melodium_macro::{mel_package, mel_function};
 use melodium_core::*;
-mod other;
+pub mod other;
 mod andere;
 
 #[mel_function()]

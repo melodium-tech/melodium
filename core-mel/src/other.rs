@@ -33,12 +33,12 @@ pub async fn treatment_chose(un: u64, deux: string, trois: Vec<void>) {
     }
 }
 
-
 /// Do some stuff
 #[mel_model(
     param bidule Vec<void> none
     source stuff (Coucou) (gauche Stream<f32> droite Stream<Vec<f64>>)
     initialize loading
+    continuous (trucs run1 run2)
     shutdown ending
 )]
 #[derive(Debug)]
@@ -63,7 +63,15 @@ impl MyModel {
 
     }
 
-    async fn trucs(&self) {
+    pub async fn run1(&self) {
+        
+    }
+
+    pub async fn run2(&self) {
+
+    }
+
+    pub async fn trucs(&self) {
         let model = self.model.upgrade().unwrap();
         let passed_model = std::sync::Arc::clone(&model);
 
@@ -74,12 +82,13 @@ impl MyModel {
                 nombre: 24,
                 rien: (),
             },
-            Some(Box::new(move |outputs| {
+            Some(Box::new( move |outputs| {
 
                 let id = passed_model.parameter("truc");
                 vec![]
             }))
         ).await;
+
     }
 }
 

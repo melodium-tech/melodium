@@ -20,7 +20,7 @@ use melodium_common::descriptor::{
 };
 use melodium_common::executive::{
     Context as ExecutiveContext, ContinuousFuture, Model, ModelId, Output as ExecutiveOutput,
-    ResultStatus, TrackFuture, TrackId, World as ExecutiveWorld,
+    ResultStatus, TrackCreationCallback, TrackFuture, TrackId, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
@@ -40,7 +40,8 @@ pub struct World {
     errors: RwLock<Vec<LogicError>>,
     main_build_id: RwLock<BuildId>,
 
-    continuous_tasks: RwLock<Vec<ContinuousFuture>>,
+    continuous_tasks_sender: Sender<ContinuousFuture>,
+    continuous_tasks_receiver: Receiver<ContinuousFuture>,
 
     tracks_counter: Mutex<TrackId>,
     tracks_info: Mutex<HashMap<TrackId, InfoTrack>>,
@@ -58,17 +59,15 @@ impl Debug for World {
             .field("sources", &self.sources.read().unwrap().len())
             .field("errors", &self.errors)
             .field("main_build_id", &self.main_build_id)
-            .field(
-                "continuous_tasks",
-                &self.continuous_tasks.read().unwrap().len(),
-            )
+            .field("continuous_tasks", &self.continuous_tasks_receiver.len())
             .finish()
     }
 }
 
 impl World {
     pub fn new(collection: Arc<Collection>) -> Arc<Self> {
-        let (sender, receiver) = unbounded();
+        let (tracks_sender, tracks_receiver) = unbounded();
+        let (continuous_tasks_sender, continuous_tasks_receiver) = unbounded();
 
         Arc::new_cyclic(|me| Self {
             collection,
@@ -78,11 +77,12 @@ impl World {
             builders: RwLock::new(HashMap::new()),
             errors: RwLock::new(Vec::new()),
             main_build_id: RwLock::new(0),
-            continuous_tasks: RwLock::new(Vec::new()),
+            continuous_tasks_sender,
+            continuous_tasks_receiver,
             tracks_counter: Mutex::new(0),
             tracks_info: Mutex::new(HashMap::new()),
-            tracks_sender: sender,
-            tracks_receiver: receiver,
+            tracks_sender,
+            tracks_receiver,
             continous_ended: AtomicBool::new(false),
             closing: AtomicBool::new(false),
         })
@@ -310,11 +310,15 @@ impl Engine for World {
     }
 
     fn live(&self) {
-        let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
-
-        let model_futures = join_all(borrowed_continuous_tasks.iter_mut());
-
         let continuum = async move {
+            let mut continuous = Vec::with_capacity(self.continuous_tasks_receiver.len());
+
+            while let Ok(c) = self.continuous_tasks_receiver.recv().await {
+                continuous.push(c);
+            }
+
+            let model_futures = join_all(continuous.iter_mut());
+
             model_futures.await;
 
             self.continous_ended.store(true, Ordering::Relaxed);
@@ -343,9 +347,9 @@ impl Engine for World {
 #[async_trait]
 impl ExecutiveWorld for World {
     fn add_continuous_task(&self, task: ContinuousFuture) {
-        let mut borrowed_continuous_tasks = self.continuous_tasks.write().unwrap();
-
-        borrowed_continuous_tasks.push(task);
+        block_on(async {
+            let _ = self.continuous_tasks_sender.send(task).await;
+        });
     }
 
     async fn create_track(
@@ -354,9 +358,7 @@ impl ExecutiveWorld for World {
         source: &str,
         contexts: Vec<Box<dyn ExecutiveContext>>,
         parent_track: Option<TrackId>,
-        callback: Option<
-            Box<dyn FnOnce(HashMap<String, Box<dyn ExecutiveOutput>>) -> Vec<TrackFuture> + Send>,
-        >,
+        callback: Option<TrackCreationCallback>,
     ) {
         let track_id;
         {
