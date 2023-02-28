@@ -397,6 +397,7 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
 
     let mut root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     root.push_str("/src/");
+    root = root.replace("/", &std::path::MAIN_SEPARATOR.to_string());
     for entry in glob::glob(&format!("{root}**/*.rs")).unwrap() {
         match &entry {
             Ok(path) => {
@@ -459,8 +460,12 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
                             .replace(std::path::MAIN_SEPARATOR, "::");
 
                         if call == "lib" {
-                            call = "crate".to_string();
-                        } else if call.ends_with("::mod") {
+                            call = "".to_string();
+                        } else {
+                            call = format!("::{call}");
+                        }
+
+                        if call.ends_with("::mod") {
                             call = call.strip_suffix("::mod").unwrap().to_string();
                         }
 
@@ -492,7 +497,7 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
         .iter()
         .map(|elmt| {
             format!(
-                "collection.insert(melodium_core::common::descriptor::Entry::Function({elmt}));"
+                "collection.insert(melodium_core::common::descriptor::Entry::Function(crate{elmt}));"
             )
         })
         .collect::<Vec<_>>()
@@ -501,7 +506,7 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
     let contexts = contexts
         .iter()
         .map(|elmt| {
-            format!("collection.insert(melodium_core::common::descriptor::Entry::Context({elmt}));")
+            format!("collection.insert(melodium_core::common::descriptor::Entry::Context(crate{elmt}));")
         })
         .collect::<Vec<_>>()
         .join("\n");
@@ -509,7 +514,9 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
     let models = models
         .iter()
         .map(|elmt| {
-            format!("collection.insert(melodium_core::common::descriptor::Entry::Model({elmt}));")
+            format!(
+                "collection.insert(melodium_core::common::descriptor::Entry::Model(crate{elmt}));"
+            )
         })
         .collect::<Vec<_>>()
         .join("\n");
@@ -517,7 +524,7 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
     let sources = sources
     .iter()
     .map(|elmt| format!(
-        "{elmt}.into_iter().for_each(|s| collection.insert(melodium_core::common::descriptor::Entry::Treatment(s)));"
+        "crate{elmt}.into_iter().for_each(|s| collection.insert(melodium_core::common::descriptor::Entry::Treatment(s)));"
     ))
     .collect::<Vec<_>>()
     .join("\n");
@@ -526,25 +533,147 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
         .iter()
         .map(|elmt| {
             format!(
-                "collection.insert(melodium_core::common::descriptor::Entry::Treatment({elmt}));"
+                "collection.insert(melodium_core::common::descriptor::Entry::Treatment(crate{elmt}));"
             )
         })
         .collect::<Vec<_>>()
         .join("\n");
 
-    format!(
-        r"pub fn __mel_collection() -> melodium_core::common::descriptor::Collection {{
-        let mut collection = melodium_core::common::descriptor::Collection::new();
-        {functions}
-        {contexts}
-        {models}
-        {sources}
-        {treatments}
-        collection
-    }}"
+    let collection: proc_macro2::TokenStream = format!(
+        r"
+            let mut collection = melodium_core::common::descriptor::Collection::new();
+            {functions}
+            {contexts}
+            {models}
+            {sources}
+            {treatments}
+            collection
+        "
     )
     .parse()
-    .unwrap()
+    .unwrap();
+
+    let cargo_toml: toml::Table = toml::from_str(
+        &std::fs::read_to_string(&format!(
+            "{}/Cargo.toml",
+            std::env::var("CARGO_MANIFEST_DIR").unwrap()
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    let name = cargo_toml
+        .get("package")
+        .and_then(|v| {
+            if let toml::Value::Table(pkg) = v {
+                Some(pkg)
+            } else {
+                None
+            }
+        })
+        .unwrap()
+        .get("name")
+        .and_then(|v| {
+            if let toml::Value::String(s) = v {
+                Some(s)
+            } else {
+                None
+            }
+        })
+        .unwrap()
+        .strip_suffix("-mel")
+        .unwrap()
+        .to_string();
+
+    let requirements: proc_macro2::TokenStream = cargo_toml
+        .get("dependencies")
+        .and_then(|v| {
+            if let toml::Value::Table(deps) = v {
+                Some(deps)
+            } else {
+                None
+            }
+        })
+        .unwrap()
+        .keys()
+        .filter_map(|k| k.strip_suffix("-mel").map(|k| format!(r#""{k}""#)))
+        .collect::<Vec<_>>()
+        .join(",")
+        .parse()
+        .unwrap();
+
+    let mut embedded = Vec::new();
+    let mut root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    root.push_str("/mel/");
+    root = root.replace("/", &std::path::MAIN_SEPARATOR.to_string());
+    for entry in glob::glob(&format!("{root}**/*.mel")).unwrap() {
+        match &entry {
+            Ok(path) => {
+                let plat_name = path.to_string_lossy().to_string();
+                let mel_name = plat_name
+                    .strip_prefix(&root)
+                    .unwrap()
+                    .replace(std::path::MAIN_SEPARATOR, "/");
+                embedded.push((plat_name, mel_name))
+            }
+            _ => {}
+        }
+    }
+
+    let embedded: proc_macro2::TokenStream = embedded
+        .into_iter()
+        .map(|(path, name)| format!(r#"embedded.insert("{name}", &include_bytes!("{path}")[..])"#))
+        .collect::<Vec<_>>()
+        .join(";")
+        .parse()
+        .unwrap();
+
+    let expanded = quote! {
+        pub mod __mel_package {
+
+            static NAME: &str = #name;
+            static VERSION: melodium_core::Lazy<melodium_core::common::descriptor::Version> = melodium_core::Lazy::new(|| melodium_core::common::descriptor::Version::parse(env!("CARGO_PKG_VERSION")).unwrap());
+            static REQUIREMENTS: Vec<&str> = vec![#requirements];
+            static EMBEDDED: melodium_core::Lazy<std::collections::HashMap<&'static str, &'static [u8]>> = melodium_core::Lazy::new(|| { let mut embedded = std::collections::HashMap::new(); #embedded; embedded });
+
+            #[derive(Debug)]
+            pub struct MelPackage {}
+
+            impl MelPackage {
+                pub fn new() -> Self {
+                    Self {}
+                }
+
+                pub fn collection(&self) -> melodium_core::common::descriptor::Collection {
+                    #collection
+                }
+            }
+
+            impl melodium_core::common::descriptor::Package for MelPackage {
+                fn name(&self) -> &str {
+                    NAME
+                }
+
+                fn version(&self) -> &melodium_core::common::descriptor::Version {
+                    &VERSION
+                }
+
+                fn requirements(&self) -> &Vec<&str> {
+                    &REQUIREMENTS
+                }
+
+                fn collection(&self, _: &dyn melodium_core::common::descriptor::Loader) -> Result<melodium_core::common::descriptor::Collection, melodium_core::common::descriptor::LoadingError> {
+                    Ok(MelPackage::collection(&self))
+                }
+
+                fn embedded(&self) -> &std::collections::HashMap<&'static str, &'static [u8]> {
+                    &EMBEDDED
+                }
+            }
+        }
+
+    };
+
+    TokenStream::from(expanded)
 }
 
 #[proc_macro_attribute]

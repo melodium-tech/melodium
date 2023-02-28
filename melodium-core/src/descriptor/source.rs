@@ -6,6 +6,7 @@ use melodium_common::descriptor::{
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::{Arc, Weak};
+use once_cell::sync::OnceCell;
 
 #[derive(Debug)]
 pub struct Source {
@@ -61,10 +62,8 @@ impl Documented for Source {
 
 impl Parameterized for Source {
     fn parameters(&self) -> &HashMap<String, Parameter> {
-        lazy_static! {
-            static ref HASHMAP: HashMap<String, Parameter> = HashMap::new();
-        };
-        &HASHMAP
+        static HASHMAP: OnceCell<HashMap<String, Parameter>> = OnceCell::new();
+        HASHMAP.get_or_init(|| HashMap::new())
     }
 }
 
@@ -106,10 +105,8 @@ impl Display for Source {
 
 impl TreatmentDescriptor for Source {
     fn inputs(&self) -> &HashMap<String, Input> {
-        lazy_static! {
-            static ref HASHMAP: HashMap<String, Input> = HashMap::new();
-        };
-        &HASHMAP
+        static HASHMAP: OnceCell<HashMap<String, Input>> = OnceCell::new();
+        HASHMAP.get_or_init(|| HashMap::new())
     }
 
     fn outputs(&self) -> &HashMap<String, Output> {
@@ -121,10 +118,8 @@ impl TreatmentDescriptor for Source {
     }
 
     fn contexts(&self) -> &HashMap<String, Arc<dyn Context>> {
-        lazy_static! {
-            static ref HASHMAP: HashMap<String, Arc<dyn Context>> = HashMap::new();
-        };
-        &HASHMAP
+        static HASHMAP: OnceCell<HashMap<String, Arc<dyn Context>>> = OnceCell::new();
+        HASHMAP.get_or_init(|| HashMap::new())
     }
 
     fn source_from(&self) -> &HashMap<String, Vec<String>> {

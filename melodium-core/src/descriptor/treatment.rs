@@ -7,6 +7,7 @@ use melodium_common::executive::Treatment as ExecutiveTreatment;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::{Arc, Weak};
+use once_cell::sync::OnceCell;
 
 #[derive(Debug)]
 pub struct Treatment {
@@ -127,10 +128,8 @@ impl TreatmentDescriptor for Treatment {
     }
 
     fn contexts(&self) -> &HashMap<String, Arc<dyn Context>> {
-        lazy_static! {
-            static ref HASHMAP: HashMap<String, Arc<dyn Context>> = HashMap::new();
-        };
-        &HASHMAP
+        static HASHMAP: OnceCell<HashMap<String, Arc<dyn Context>>> = OnceCell::new();
+        HASHMAP.get_or_init(|| HashMap::new())
     }
 
     fn source_from(&self) -> &HashMap<String, Vec<String>> {

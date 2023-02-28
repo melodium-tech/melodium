@@ -1,6 +1,5 @@
-use crate::descriptor::{Collection, Loader, LoadingError};
+use crate::descriptor::{Collection, Loader, LoadingError, Version};
 use core::fmt::Debug;
-use semver::Version;
 use std::collections::HashMap;
 
 pub trait Package: Debug {

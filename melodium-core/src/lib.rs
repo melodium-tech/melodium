@@ -1,9 +1,7 @@
 #![allow(non_camel_case_types)]
 
-#[macro_use]
-extern crate lazy_static;
-
 pub use melodium_common as common;
+pub use once_cell::sync::Lazy;
 pub mod descriptor;
 
 pub type u8 = core::primitive::u8;

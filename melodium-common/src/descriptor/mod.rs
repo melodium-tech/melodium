@@ -38,5 +38,6 @@ pub use output::Output;
 pub use package::Package;
 pub use parameter::Parameter;
 pub use parameterized::{OrderedParameterized, Parameterized};
+pub use semver::Version;
 pub use treatment::Treatment;
 pub use variability::Variability;
