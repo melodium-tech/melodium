@@ -1,5 +1,5 @@
 use convert_case::{Case, Casing};
-use core::{borrow::Borrow, convert::TryFrom};
+use core::{borrow::Borrow, convert::TryFrom, iter::FromIterator};
 use litrs::StringLit;
 use proc_macro::TokenStream;
 use proc_macro2::{token_stream::IntoIter as IntoIterTokenStream, TokenTree};
@@ -1620,6 +1620,46 @@ pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
             fn mel_function(params: Vec<melodium_core::common::executive::Value>) -> melodium_core::common::executive::Value {
                 #mel_call
             }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+#[proc_macro]
+pub fn check(item: TokenStream) -> TokenStream {
+    let item: proc_macro2::TokenStream = proc_macro2::TokenStream::from(item);
+
+    let mut iter = item.clone().into_iter();
+    if let Some(TokenTree::Punct(punct)) = iter.next() {
+        if punct.as_char() == '\'' {
+            let label = if let Some(TokenTree::Ident(label)) = iter.next() {
+                label
+            } else {
+                panic!("Label expected")
+            };
+
+            let label: proc_macro2::TokenStream =
+                format!("'{}", label.to_string()).parse().unwrap();
+
+            // Discarding ','
+            let _ = iter.next();
+
+            let expr = proc_macro2::TokenStream::from_iter(iter);
+
+            let expanded = quote! {
+                if let Err(_) = {#expr} {
+                    break #label;
+                }
+            };
+
+            return TokenStream::from(expanded);
+        }
+    }
+
+    let expanded = quote! {
+        if let Err(_) = {#item} {
+            break;
         }
     };
 

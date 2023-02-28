@@ -1,5 +1,5 @@
 
-use melodium_macro::{mel_function, mel_treatment, mel_model, mel_context};
+use melodium_macro::{mel_function, mel_treatment, mel_model, mel_context, check};
 use melodium_core::*;
 
 
@@ -27,9 +27,9 @@ pub fn truc(hey: Vec<u8>) -> i32 {
 )]
 pub async fn treatment_chose(un: u64, deux: string, trois: Vec<void>) {
 
-    while let Ok(num) = haut.recv_u64().await {
+    'lifetime: while let Ok(num) = haut.recv_u64().await {
         let result = num.into_iter().map(|i| i + un).collect();
-        gauche.send_u64(result).await;
+        check!('lifetime, gauche.send_u64(result).await);
     }
 }
 

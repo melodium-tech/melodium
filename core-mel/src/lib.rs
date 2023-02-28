@@ -2,6 +2,7 @@
 use melodium_macro::{mel_package, mel_function};
 use melodium_core::*;
 pub mod other;
+pub mod math;
 mod andere;
 
 #[mel_function()]
