@@ -834,29 +834,29 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
             .iter()
             .map(|(name, ty)| {
                 let rust_type = into_rust_type(ty);
-                format!(r#"r#{name}: std::sync::Mutex<Option<{rust_type}>>"#)
+                format!(r#"r#{name}: std::sync::Mutex<Option<{rust_type}>>,"#)
             })
             .collect::<Vec<_>>()
-            .join(",")
+            .join("")
             .parse()
             .unwrap();
         let inputs: proc_macro2::TokenStream = inputs.iter().map(|(name, _)| {
-            format!(r#"r#{name}: std::sync::Mutex<Option<Box<dyn melodium_core::common::executive::Input>>>"#)
-        }).collect::<Vec<_>>().join(",").parse().unwrap();
+            format!(r#"r#{name}: std::sync::Mutex<Option<Box<dyn melodium_core::common::executive::Input>>>,"#)
+        }).collect::<Vec<_>>().join("").parse().unwrap();
         let outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, _)| {
-            format!(r#"r#{name}: std::sync::Mutex<Option<Box<dyn melodium_core::common::executive::Output>>>"#)
-        }).collect::<Vec<_>>().join(",").parse().unwrap();
+            format!(r#"r#{name}: std::sync::Mutex<Option<Box<dyn melodium_core::common::executive::Output>>>,"#)
+        }).collect::<Vec<_>>().join("").parse().unwrap();
         let models: proc_macro2::TokenStream = models.iter().map(|(name, _)| {
-            format!(r#"r#{name}: std::sync::Mutex<Option<std::sync::Arc<dyn melodium_core::common::executive::Model>>>"#)
-        }).collect::<Vec<_>>().join(",").parse().unwrap();
+            format!(r#"r#{name}: std::sync::Mutex<Option<std::sync::Arc<dyn melodium_core::common::executive::Model>>>,"#)
+        }).collect::<Vec<_>>().join("").parse().unwrap();
 
         declaration = quote! {
             #[derive(Debug)]
             pub struct AdHocTreatment {
-                #models,
-                #inputs,
-                #outputs,
-                #parameters,
+                #models
+                #inputs
+                #outputs
+                #parameters
             }
         };
     }
@@ -870,31 +870,31 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                     .get(name)
                     .map(|lit| format!("Some({lit})"))
                     .unwrap_or_else(|| String::from("None"));
-                format!(r#"r#{name}: std::sync::Mutex::new({default})"#)
+                format!(r#"r#{name}: std::sync::Mutex::new({default}),"#)
             })
             .collect::<Vec<_>>()
-            .join(",")
+            .join("")
             .parse()
             .unwrap();
         let inputs: proc_macro2::TokenStream = inputs
             .iter()
-            .map(|(name, _)| format!(r#"r#{name}: std::sync::Mutex::new(None)"#))
+            .map(|(name, _)| format!(r#"r#{name}: std::sync::Mutex::new(None),"#))
             .collect::<Vec<_>>()
-            .join(",")
+            .join("")
             .parse()
             .unwrap();
         let outputs: proc_macro2::TokenStream = outputs
             .iter()
-            .map(|(name, _)| format!(r#"r#{name}: std::sync::Mutex::new(None)"#))
+            .map(|(name, _)| format!(r#"r#{name}: std::sync::Mutex::new(None),"#))
             .collect::<Vec<_>>()
-            .join(",")
+            .join("")
             .parse()
             .unwrap();
         let models: proc_macro2::TokenStream = models
             .iter()
-            .map(|(name, _)| format!(r#"r#{name}: std::sync::Mutex::new(None)"#))
+            .map(|(name, _)| format!(r#"r#{name}: std::sync::Mutex::new(None),"#))
             .collect::<Vec<_>>()
-            .join(",")
+            .join("")
             .parse()
             .unwrap();
 
@@ -902,10 +902,10 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
             impl AdHocTreatment {
                 pub fn new() -> std::sync::Arc<dyn melodium_core::common::executive::Treatment> {
                     std::sync::Arc::new(Self {
-                        #parameters,
-                        #inputs,
-                        #outputs,
-                        #models,
+                        #parameters
+                        #inputs
+                        #outputs
+                        #models
                     })
                 }
             }
@@ -918,35 +918,37 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
             .iter()
             .map(|(name, ty)| {
                 let call = into_mel_value_call(ty);
-                format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(value.{call}())"#)
+                format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(value.{call}()),"#)
             })
             .collect::<Vec<_>>()
-            .join(",")
+            .join("")
             .parse()
             .unwrap();
         let inputs: proc_macro2::TokenStream = inputs
             .iter()
             .map(|(name, _)| {
-                format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(transmitter)"#)
+                format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(transmitter),"#)
             })
             .collect::<Vec<_>>()
-            .join(",")
+            .join("")
             .parse()
             .unwrap();
         let outputs: proc_macro2::TokenStream = outputs
             .iter()
             .map(|(name, _)| {
-                format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(transmitter)"#)
+                format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(transmitter),"#)
             })
             .collect::<Vec<_>>()
-            .join(",")
+            .join("")
             .parse()
             .unwrap();
         let models: proc_macro2::TokenStream = models
             .iter()
-            .map(|(name, _)| format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(model)"#))
+            .map(|(name, _)| {
+                format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(model),"#)
+            })
             .collect::<Vec<_>>()
-            .join(",")
+            .join("")
             .parse()
             .unwrap();
 
@@ -957,28 +959,28 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             fn set_parameter(&self, param: &str, value: melodium_core::common::executive::Value) {
                 match param {
-                    #parameters,
+                    #parameters
                     _ => {},
                 }
             }
 
             fn set_model(&self, name: &str, model: std::sync::Arc<dyn melodium_core::common::executive::Model>) {
                 match name {
-                    #models,
+                    #models
                     _ => {},
                 }
             }
 
             fn assign_input(&self, input_name: &str, transmitter: Box<dyn melodium_core::common::executive::Input>) {
                 match input_name {
-                    #inputs,
+                    #inputs
                     _ => {},
                 }
             }
 
             fn assign_output(&self, output_name: &str, transmitter: Box<dyn melodium_core::common::executive::Output>) {
                 match output_name {
-                    #outputs,
+                    #outputs
                     _ => {},
                 }
             }

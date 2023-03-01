@@ -8,4 +8,5 @@ members = [
     "melodium-lang",
     "melodium-loader",
     "melodium-macro",
+    "ops-mel",
     ]

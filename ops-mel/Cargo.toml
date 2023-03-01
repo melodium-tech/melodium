@@ -1,0 +1,21 @@
+[package]
+name = "ops-mel"
+version = "0.6.0"
+authors = ["Quentin VIGNAUD <qvignaud@gmail.com>"]
+rust-version = "1.60"
+edition = "2018"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "Mélodium core operations library"
+keywords = ["dataflow","parallelization","scalability","async","signal"]
+categories = ["compilers", "science", "concurrency", "asynchronous"]
+
+[lib]
+name = "ops_mel"
+
+[dependencies]
+melodium-core = { path = "../melodium-core", version = "0.5.3" }
+melodium-macro = { path = "../melodium-macro", version = "0.5.3" }
+
