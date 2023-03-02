@@ -4,6 +4,7 @@ members = [
     "melodium",
     "melodium-common",
     "melodium-core",
+    "melodium-doc",
     "melodium-engine",
     "melodium-lang",
     "melodium-loader",

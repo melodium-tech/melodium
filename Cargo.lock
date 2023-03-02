@@ -886,6 +886,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "melodium-doc"
+version = "0.5.3"
+dependencies = [
+ "itertools",
+ "melodium-common",
+]
+
+[[package]]
 name = "melodium-engine"
 version = "0.5.3"
 dependencies = [
@@ -1102,6 +1110,7 @@ name = "ops-mel"
 version = "0.6.0"
 dependencies = [
  "melodium-core",
+ "melodium-doc",
  "melodium-macro",
 ]
 

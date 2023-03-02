@@ -23,7 +23,7 @@ pub mod treatment;
 pub mod variability;
 
 pub use buildable::{Buildable, ModelBuildMode, TreatmentBuildMode};
-pub use collection::{Collection, Entry};
+pub use collection::{Collection, CollectionTree, Entry};
 pub use context::Context;
 pub use data_type::{DataType, Structure, Type};
 pub use documented::Documented;
