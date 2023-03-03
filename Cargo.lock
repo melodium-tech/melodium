@@ -389,6 +389,7 @@ name = "core-mel"
 version = "0.5.3"
 dependencies = [
  "melodium-core",
+ "melodium-doc",
  "melodium-macro",
 ]
 

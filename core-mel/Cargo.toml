@@ -18,6 +18,10 @@ name = "core_mel"
 [[bin]]
 name = "test"
 
+[[bin]]
+name = "doc_test"
+
 [dependencies]
 melodium-core = { path = "../melodium-core", version = "0.5.3" }
 melodium-macro = { path = "../melodium-macro", version = "0.5.3" }
+melodium-doc = { path = "../melodium-doc", version = "0.5.3" }

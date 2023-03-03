@@ -74,10 +74,14 @@ impl Documentation {
         for entry in area.entries.iter().sorted() {
             let line = match entry {
                 Entry::Context(c) => {
-                    format!("- [ {}]({})\n", c.name(), Self::id_filepath(c.identifier()))
+                    format!(
+                        "- [⥱ {}]({})\n",
+                        c.name(),
+                        Self::id_filepath(c.identifier())
+                    )
                 }
                 Entry::Function(f) => format!(
-                    "- [ {}]({})\n",
+                    "- [𝑓 {}]({})\n",
                     f.identifier().name(),
                     Self::id_filepath(f.identifier())
                 ),
@@ -114,7 +118,8 @@ impl Documentation {
         };
 
         let mut subs = String::new();
-        for (sub_name, sub_area) in &area.areas {
+        for sub_name in area.areas.keys().sorted() {
+            let sub_area = area.areas.get(sub_name).unwrap();
             if subs.is_empty() {
                 if is_root {
                     subs.push_str("## Packages\n\n");
@@ -135,14 +140,16 @@ impl Documentation {
         let mut models = String::new();
         let mut treatments = String::new();
 
-        for entry in &area.entries {
+        let mut entries = area.entries.clone();
+        entries.sort();
+        for entry in entries {
             match entry {
                 Entry::Context(c) => {
                     if contexts.is_empty() {
                         contexts.push_str("## Contexts\n\n");
                     }
 
-                    contexts.push_str(&format!("[ {name}]({name}.md)  \n", name = c.name()));
+                    contexts.push_str(&format!("⥱ [{name}]({name}.md)  \n", name = c.name()));
                 }
                 Entry::Function(f) => {
                     if functions.is_empty() {
@@ -150,7 +157,7 @@ impl Documentation {
                     }
 
                     functions.push_str(&format!(
-                        "[ {name}]({name}.md)  \n",
+                        "𝑓 [{name}]({name}.md)  \n",
                         name = f.identifier().name()
                     ));
                 }
@@ -312,11 +319,9 @@ impl Documentation {
             let mut string = String::new();
 
             for name in treatment.models().keys().sorted() {
-                /*string.push_str(&format!("⬡ `{name}: `{location}  \n",
-                    location = self.get_location(descriptor.identifier(), model.identifier())
-                ));*/
-                string.push_str(&format!("⬡ `{name}: {type}`  \n",
-                    type = treatment.models().get(name).unwrap().identifier()
+                string.push_str(&format!("⬡ `{name}:` [`{type}`]({link})  \n",
+                    type = treatment.models().get(name).unwrap().identifier(),
+                    link = self.get_link(treatment.identifier(), treatment.models().get(name).unwrap().identifier()),
                 ));
             }
 
@@ -330,7 +335,7 @@ impl Documentation {
 
             for param_name in treatment.parameters().keys().sorted() {
                 string.push_str(&format!(
-                    "↳ `{}`\n",
+                    "↳ `{}`  \n",
                     Self::parameter(treatment.parameters().get(param_name).unwrap())
                 ));
             }
@@ -344,7 +349,10 @@ impl Documentation {
             let mut string = String::new();
 
             for name in treatment.contexts().keys().sorted() {
-                string.push_str(&format!("○ `{}`  \n", name));
+                string.push_str(&format!("⥱ `{name}:` [`{type}`]({link})  \n",
+                type = treatment.contexts().get(name).unwrap().identifier(),
+                link = self.get_link(treatment.identifier(), treatment.contexts().get(name).unwrap().identifier()),
+            ));
             }
 
             format!("#### Required contexts\n\n{}", string)
@@ -389,6 +397,14 @@ impl Documentation {
             id = treatment.identifier().to_string(),
             doc = treatment.documentation(),
         )
+    }
+
+    fn get_link(&self, current_id: &Identifier, to_id: &Identifier) -> String {
+        let mut path = String::new();
+        (0..current_id.path().len()).for_each(|_| path.push_str("../"));
+        path.push_str(&to_id.path().join("/"));
+        path.push_str(&format!("/{}.md", to_id.name()));
+        path
     }
 
     fn id_filepath(id: &Identifier) -> String {
