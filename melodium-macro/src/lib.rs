@@ -3,7 +3,7 @@ use core::{borrow::Borrow, convert::TryFrom, iter::FromIterator};
 use litrs::StringLit;
 use proc_macro::TokenStream;
 use proc_macro2::{token_stream::IntoIter as IntoIterTokenStream, TokenTree};
-use quote::{quote, ToTokens};
+use quote::quote;
 use std::collections::HashMap;
 use syn::{
     parse, parse_file, Fields, FnArg, GenericArgument, Item, ItemFn, ItemStruct, Pat,
@@ -202,7 +202,7 @@ fn config_full_source(
 
         let mut outputs = Vec::new();
         if let Some(TokenTree::Group(group)) = ts.next() {
-            let mut ts = group.into_token_stream().into_iter();
+            let mut ts = group.stream().into_iter();
             loop {
                 if let Some(output) = config_io(&mut ts) {
                     outputs.push(output);

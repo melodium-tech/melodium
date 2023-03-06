@@ -1,9 +1,8 @@
-
-use melodium_macro::{mel_package, mel_function};
 use melodium_core::*;
-pub mod other;
-pub mod ops;
+use melodium_macro::{mel_function, mel_package};
 mod andere;
+pub mod ops;
+pub mod other;
 
 #[mel_function()]
 pub fn truc(hey: void) -> i32 {

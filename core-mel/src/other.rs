@@ -1,22 +1,19 @@
-
-use melodium_macro::{mel_function, mel_treatment, mel_model, mel_context, check};
 use melodium_core::*;
-
+use melodium_macro::{check, mel_context, mel_function, mel_model, mel_treatment};
 
 ///
 /// Documentatioooon
-/// 
+///
 #[mel_function]
 pub fn truc(hey: Vec<u8>) -> i32 {
     let machin = "bidule";
     let chouette = 1 + 54;
-    return chouette
+    return chouette;
 }
 
-
-/// 
+///
 /// Ça fait quelquechose
-/// 
+///
 #[mel_treatment(
     default un 72
     model ukulele { crate::other::MyModel }
@@ -26,7 +23,6 @@ pub fn truc(hey: Vec<u8>) -> i32 {
     output gauche Stream<u64>
 )]
 pub async fn treatment_chose(un: u64, deux: string, trois: Vec<void>) {
-
     'lifetime: while let Ok(num) = haut.recv_u64().await {
         let result = num.into_iter().map(|i| i + un).collect();
         check!('lifetime, gauche.send_u64(result).await);
@@ -49,46 +45,35 @@ pub struct MyModel {
 
 impl MyModel {
     pub fn new(model: std::sync::Weak<MyModelModel>) -> Self {
-        Self {
-            model,
-            address: 0
-        }
+        Self { model, address: 0 }
     }
 
-    fn loading(&self) {
+    fn loading(&self) {}
 
-    }
+    fn ending(&self) {}
 
-    fn ending(&self) {
+    pub async fn run1(&self) {}
 
-    }
-
-    pub async fn run1(&self) {
-        
-    }
-
-    pub async fn run2(&self) {
-
-    }
+    pub async fn run2(&self) {}
 
     pub async fn trucs(&self) {
         let model = self.model.upgrade().unwrap();
         let passed_model = std::sync::Arc::clone(&model);
 
-        model.new_stuff(
-            None,
-            Coucou {
-                message: "Coucou".to_string(),
-                nombre: 24,
-                rien: (),
-            },
-            Some(Box::new( move |outputs| {
-
-                let id = passed_model.parameter("truc");
-                vec![]
-            }))
-        ).await;
-
+        model
+            .new_stuff(
+                None,
+                Coucou {
+                    message: "Coucou".to_string(),
+                    nombre: 24,
+                    rien: (),
+                },
+                Some(Box::new(move |outputs| {
+                    let id = passed_model.parameter("truc");
+                    vec![]
+                })),
+            )
+            .await;
     }
 }
 

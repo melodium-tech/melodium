@@ -1,5 +1,5 @@
-use melodium_macro::{check, mel_function, mel_treatment};
 use melodium_core::*;
+use melodium_macro::{check, mel_function, mel_treatment};
 
 /// Return whether `a` is equal to `b`
 #[mel_function]

@@ -1,5 +1,5 @@
-use melodium_macro::{check, mel_function, mel_treatment};
 use melodium_core::*;
+use melodium_macro::{check, mel_function, mel_treatment};
 
 /// Elevates `base` from `exponent`
 #[mel_function]
@@ -104,7 +104,7 @@ pub fn tanh(value: f32) -> f32 {
 }
 
 /// Elevates values from a stream of `f32` to the power of another one.
-/// 
+///
 /// Values passed through `base` are elevated to the power of `exponent`.
 #[mel_treatment(
     input base Stream<f32>
@@ -124,7 +124,10 @@ pub async fn pow() {
 )]
 pub async fn cbrt() {
     while let Ok(values) = value.recv_f32().await {
-        check!(root.send_f32(values.into_iter().map(|v| v.cbrt()).collect()).await)
+        check!(
+            root.send_f32(values.into_iter().map(|v| v.cbrt()).collect())
+                .await
+        )
     }
 }
 
@@ -135,7 +138,10 @@ pub async fn cbrt() {
 )]
 pub async fn ln() {
     while let Ok(values) = value.recv_f32().await {
-        check!(log.send_f32(values.into_iter().map(|v| v.ln()).collect()).await)
+        check!(
+            log.send_f32(values.into_iter().map(|v| v.ln()).collect())
+                .await
+        )
     }
 }
 
@@ -158,12 +164,15 @@ pub async fn log() {
 )]
 pub async fn sqrt() {
     while let Ok(values) = value.recv_f32().await {
-        check!(root.send_f32(values.into_iter().map(|v| v.sqrt()).collect()).await)
+        check!(
+            root.send_f32(values.into_iter().map(|v| v.sqrt()).collect())
+                .await
+        )
     }
 }
 
 /// Computes arccosine (in radians) of a stream of `f32`.
-/// 
+///
 /// Gives values in the range [0, pi] or not-a-number if outside range [-1, 1].
 #[mel_treatment(
     input value Stream<f32>
@@ -171,7 +180,10 @@ pub async fn sqrt() {
 )]
 pub async fn acos() {
     while let Ok(values) = value.recv_f32().await {
-        check!(acos.send_f32(values.into_iter().map(|v| v.acos()).collect()).await)
+        check!(
+            acos.send_f32(values.into_iter().map(|v| v.acos()).collect())
+                .await
+        )
     }
 }
 
@@ -182,12 +194,16 @@ pub async fn acos() {
 )]
 pub async fn acosh() {
     while let Ok(values) = value.recv_f32().await {
-        check!(acosh.send_f32(values.into_iter().map(|v| v.acosh()).collect()).await)
+        check!(
+            acosh
+                .send_f32(values.into_iter().map(|v| v.acosh()).collect())
+                .await
+        )
     }
 }
 
 /// Computes arcsine (in radians) of a stream of `f32`.
-/// 
+///
 /// Gives values in the range [0, pi] or not-a-number if outside range [-1, 1].
 #[mel_treatment(
     input value Stream<f32>
@@ -195,7 +211,10 @@ pub async fn acosh() {
 )]
 pub async fn asin() {
     while let Ok(values) = value.recv_f32().await {
-        check!(asin.send_f32(values.into_iter().map(|v| v.asin()).collect()).await)
+        check!(
+            asin.send_f32(values.into_iter().map(|v| v.asin()).collect())
+                .await
+        )
     }
 }
 
@@ -206,12 +225,16 @@ pub async fn asin() {
 )]
 pub async fn asinh() {
     while let Ok(values) = value.recv_f32().await {
-        check!(asinh.send_f32(values.into_iter().map(|v| v.asinh()).collect()).await)
+        check!(
+            asinh
+                .send_f32(values.into_iter().map(|v| v.asinh()).collect())
+                .await
+        )
     }
 }
 
 /// Computes arctangent (in radians) of a stream of `f32`.
-/// 
+///
 /// Gives values in the range [-pi/2, pi/2].
 #[mel_treatment(
     input value Stream<f32>
@@ -219,7 +242,10 @@ pub async fn asinh() {
 )]
 pub async fn atan() {
     while let Ok(values) = value.recv_f32().await {
-        check!(atan.send_f32(values.into_iter().map(|v| v.atan()).collect()).await)
+        check!(
+            atan.send_f32(values.into_iter().map(|v| v.atan()).collect())
+                .await
+        )
     }
 }
 
@@ -230,7 +256,11 @@ pub async fn atan() {
 )]
 pub async fn atanh() {
     while let Ok(values) = value.recv_f32().await {
-        check!(atanh.send_f32(values.into_iter().map(|v| v.atanh()).collect()).await)
+        check!(
+            atanh
+                .send_f32(values.into_iter().map(|v| v.atanh()).collect())
+                .await
+        )
     }
 }
 
@@ -241,7 +271,10 @@ pub async fn atanh() {
 )]
 pub async fn cos() {
     while let Ok(values) = value.recv_f32().await {
-        check!(cos.send_f32(values.into_iter().map(|v| v.cos()).collect()).await)
+        check!(
+            cos.send_f32(values.into_iter().map(|v| v.cos()).collect())
+                .await
+        )
     }
 }
 
@@ -252,7 +285,10 @@ pub async fn cos() {
 )]
 pub async fn cosh() {
     while let Ok(values) = value.recv_f32().await {
-        check!(cosh.send_f32(values.into_iter().map(|v| v.cosh()).collect()).await)
+        check!(
+            cosh.send_f32(values.into_iter().map(|v| v.cosh()).collect())
+                .await
+        )
     }
 }
 
@@ -263,7 +299,10 @@ pub async fn cosh() {
 )]
 pub async fn sin() {
     while let Ok(values) = value.recv_f32().await {
-        check!(sin.send_f32(values.into_iter().map(|v| v.sin()).collect()).await)
+        check!(
+            sin.send_f32(values.into_iter().map(|v| v.sin()).collect())
+                .await
+        )
     }
 }
 
@@ -274,7 +313,10 @@ pub async fn sin() {
 )]
 pub async fn sinh() {
     while let Ok(values) = value.recv_f32().await {
-        check!(sinh.send_f32(values.into_iter().map(|v| v.sinh()).collect()).await)
+        check!(
+            sinh.send_f32(values.into_iter().map(|v| v.sinh()).collect())
+                .await
+        )
     }
 }
 
@@ -285,7 +327,10 @@ pub async fn sinh() {
 )]
 pub async fn tan() {
     while let Ok(values) = value.recv_f32().await {
-        check!(tan.send_f32(values.into_iter().map(|v| v.tan()).collect()).await)
+        check!(
+            tan.send_f32(values.into_iter().map(|v| v.tan()).collect())
+                .await
+        )
     }
 }
 
@@ -296,7 +341,10 @@ pub async fn tan() {
 )]
 pub async fn tanh() {
     while let Ok(values) = value.recv_f32().await {
-        check!(tanh.send_f32(values.into_iter().map(|v| v.tanh()).collect()).await)
+        check!(
+            tanh.send_f32(values.into_iter().map(|v| v.tanh()).collect())
+                .await
+        )
     }
 }
 
@@ -355,7 +403,7 @@ pub fn max(a: f32, b: f32) -> f32 {
 }
 
 /// Add values from two streams of `f32`.
-/// 
+///
 /// Values passed through `a` & `b` are added and send in sum.
 #[mel_treatment(
     input a Stream<f32>
@@ -369,7 +417,7 @@ pub async fn add() {
 }
 
 /// Divide values from two streams of `f32`.
-/// 
+///
 /// Every `a` number passed through the stream is divided by `b` counterpart.
 #[mel_treatment(
     input a Stream<f32>
@@ -383,7 +431,7 @@ pub async fn div() {
 }
 
 /// Multiply values from two streams of `f32`.
-/// 
+///
 /// Every `a` number passed through the stream is multiplied by `b` counterpart.
 #[mel_treatment(
     input a Stream<f32>
@@ -397,7 +445,7 @@ pub async fn mult() {
 }
 
 /// Give the remainder of the division from two streams of `f32`.
-/// 
+///
 /// Every `a` number passed through the stream is divided by `b` and the remainder is outputted.
 #[mel_treatment(
     input a Stream<f32>
@@ -411,7 +459,7 @@ pub async fn rem() {
 }
 
 /// Substract values from two streams of `f32`.
-/// 
+///
 /// Every `a` number passed through the stream get `b` substracted.
 #[mel_treatment(
     input a Stream<f32>
@@ -485,6 +533,9 @@ pub fn abs(value: f32) -> f32 {
 )]
 pub async fn abs() {
     while let Ok(values) = value.recv_f32().await {
-        check!(abs.send_f32(values.into_iter().map(|v| v.abs()).collect()).await)
+        check!(
+            abs.send_f32(values.into_iter().map(|v| v.abs()).collect())
+                .await
+        )
     }
 }
