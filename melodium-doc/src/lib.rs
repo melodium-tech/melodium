@@ -3,6 +3,7 @@ use melodium_common::descriptor::{
     Collection, CollectionTree, Context, Entry, Flow, Function, Identifier, Input, Model, Output,
     Parameter, Treatment,
 };
+use std::collections::HashMap;
 use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -229,7 +230,7 @@ impl Documentation {
 
             for entry_name in context.values().keys().sorted() {
                 string.push_str(&format!(
-                    "↪ `{}: {}`  \n",
+                    "↪ `{}:` `{}`  \n",
                     entry_name,
                     context.values().get(entry_name).unwrap()
                 ));
@@ -253,7 +254,7 @@ impl Documentation {
             let mut string = String::new();
 
             for param in function.parameters().iter() {
-                string.push_str(&format!("↳ `{}: {}`  \n", param.name(), param.datatype()));
+                string.push_str(&format!("↳ `{}:` `{}`  \n", param.name(), param.datatype()));
             }
 
             format!("#### Parameters\n\n{}", string)
@@ -288,12 +289,75 @@ impl Documentation {
 
             for param_name in model.parameters().keys().sorted() {
                 string.push_str(&format!(
-                    "↳ `{}`  \n",
+                    "↳ {}  \n",
                     Self::parameter(model.parameters().get(param_name).unwrap())
                 ));
             }
 
             format!("#### Parameters\n\n{}", string)
+        } else {
+            String::default()
+        };
+
+        let mut sources = HashMap::new();
+        for (source_name, contexts) in model.sources() {
+            let all_ids = self
+                .collection
+                .identifiers()
+                .into_iter()
+                .filter(|id| id.root() == model.identifier().root())
+                .collect::<Vec<_>>();
+
+            for id in all_ids {
+                if let Some(entry) = self.collection.get(&id) {
+                    match entry {
+                        Entry::Treatment(treatment) => {
+                            for (model_name, model_desc) in treatment.models() {
+                                if model_desc.identifier() == model.identifier() {
+                                    if let Some(model_sources) =
+                                        treatment.source_from().get(model_name)
+                                    {
+                                        if model_sources.contains(source_name) {
+                                            sources.insert(
+                                                treatment.identifier().clone(),
+                                                (Arc::clone(treatment), contexts.clone()),
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        let sources = if !sources.is_empty() {
+            let mut string = String::new();
+
+            for id in sources.keys().sorted() {
+                let (treatment, contexts) = sources.get(id).unwrap();
+
+                let mut contexts = contexts.clone();
+                contexts.sort_by(|a, b| a.identifier().cmp(b.identifier()));
+
+                string.push_str(&format!(
+                    "⤇ `{name}:` [`{id}`]({link}) with {contexts}  \n",
+                    name = id.name(),
+                    contexts = contexts
+                        .iter()
+                        .map(|c| format!(
+                            "[`{name}`]({link})",
+                            name = c.name(),
+                            link = self.get_link(model.identifier(), c.identifier())
+                        ))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    link = self.get_link(model.identifier(), treatment.identifier()),
+                ));
+            }
+
+            format!("\n\n---\n\n#### Sources\n\n{}", string)
         } else {
             String::default()
         };
@@ -305,7 +369,7 @@ impl Documentation {
         };
 
         format!(
-            "# Model {name}\n\n`{id}`\n\n{base}---\n\n{parameters}\n\n---\n\n{doc}",
+            "# Model {name}\n\n`{id}`\n\n{base}---\n\n{parameters}{sources}\n\n---\n\n{doc}",
             name = model.identifier().name(),
             id = model.identifier().to_string(),
             base = base,
@@ -330,12 +394,43 @@ impl Documentation {
             String::default()
         };
 
+        let mut provided_contexts = HashMap::new();
+        for (model_name, sources) in treatment.source_from() {
+            for (model_source, model_contexts) in
+                treatment.models().get(model_name).unwrap().sources()
+            {
+                if sources.contains(model_source) {
+                    model_contexts.iter().for_each(|c| {
+                        provided_contexts.insert(c.name(), (Arc::clone(c), model_name));
+                    });
+                }
+            }
+        }
+        let provided = if !provided_contexts.is_empty() {
+            let mut string = String::new();
+
+            for context_name in provided_contexts.keys().sorted() {
+                let (context, model_name) = provided_contexts.get(context_name).unwrap();
+                let model = treatment.models().get(*model_name).unwrap();
+                string.push_str(&format!("⥱  `{context_name}:` [`{id}`]({link}) from `{model_name}:` [`{id_model}`]({link_model})  \n",
+                id = context.identifier(),
+                link = self.get_link(treatment.identifier(), context.identifier()),
+                id_model = model.identifier(),
+                link_model = self.get_link(treatment.identifier(), model.identifier()),
+            ));
+            }
+
+            format!("#### Provide contexts\n\n{}", string)
+        } else {
+            String::default()
+        };
+
         let parameters = if !treatment.parameters().is_empty() {
             let mut string = String::new();
 
             for param_name in treatment.parameters().keys().sorted() {
                 string.push_str(&format!(
-                    "↳ `{}`  \n",
+                    "↳ {}  \n",
                     Self::parameter(treatment.parameters().get(param_name).unwrap())
                 ));
             }
@@ -365,7 +460,7 @@ impl Documentation {
 
             for input_name in treatment.inputs().keys().sorted() {
                 string.push_str(&format!(
-                    "⇥ `{}: {}`  \n",
+                    "⇥ `{}:` `{}`  \n",
                     input_name,
                     Self::input(treatment.inputs().get(input_name).unwrap())
                 ));
@@ -381,7 +476,7 @@ impl Documentation {
 
             for output_name in treatment.outputs().keys().sorted() {
                 string.push_str(&format!(
-                    "↦ `{}: {}`  \n",
+                    "↦ `{}:` `{}`  \n",
                     output_name,
                     Self::output(treatment.outputs().get(output_name).unwrap())
                 ));
@@ -392,7 +487,7 @@ impl Documentation {
             String::default()
         };
 
-        format!("# Treatment {name}\n\n`{id}`\n\n---\n\n{models}{parameters}{requirements}{inputs}{outputs}\n\n---\n\n{doc}",
+        format!("# Treatment {name}\n\n`{id}`\n\n---\n\n{models}{provided}{parameters}{requirements}{inputs}{outputs}\n\n---\n\n{doc}",
             name = treatment.identifier().name(),
             id = treatment.identifier().to_string(),
             doc = treatment.documentation(),
@@ -412,7 +507,7 @@ impl Documentation {
     }
 
     fn parameter(parameter: &Parameter) -> String {
-        format!("{var} {name}: {type}{val}",
+        format!("`{var} {name}:` `{type}{val}`",
             var = parameter.variability(),
             name = parameter.name(),
             type = parameter.datatype(),
