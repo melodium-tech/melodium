@@ -370,6 +370,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "conv-mel"
+version = "0.6.0"
+dependencies = [
+ "melodium-core",
+ "melodium-macro",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -509,6 +517,14 @@ dependencies = [
  "libc",
  "redox_syscall",
  "windows-sys",
+]
+
+[[package]]
+name = "flow-mel"
+version = "0.6.0"
+dependencies = [
+ "melodium-core",
+ "melodium-macro",
 ]
 
 [[package]]
@@ -1111,7 +1127,6 @@ name = "ops-mel"
 version = "0.6.0"
 dependencies = [
  "melodium-core",
- "melodium-doc",
  "melodium-macro",
 ]
 

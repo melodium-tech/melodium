@@ -238,6 +238,8 @@ fn config_value(ts: &mut IntoIterTokenStream) -> String {
     let next = ts.next();
     if let Some(TokenTree::Literal(default)) = next {
         default.to_string()
+    } else if let Some(TokenTree::Ident(ident)) = next {
+        ident.to_string()
     } else if let Some(TokenTree::Punct(punct)) = next {
         match punct.as_char() {
             '-' => {

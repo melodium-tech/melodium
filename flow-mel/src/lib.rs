@@ -1,11 +1,7 @@
 //!
-//! # Mélodium core operations library
+//! # Mélodium core flow control library
 //!
-//! This library provides the basic mathematical operations as functions and treatments for the Mélodium environment, notably:
-//! - arithmetic functions;
-//! - trigonometric functions;
-//! - comparison operations;
-//! - logical operations.
+//! This library provides the basic flow control treatments for the Mélodium environment.
 //!
 //! ## For Mélodium project
 //!
@@ -32,5 +28,6 @@ pub mod u16;
 pub mod u32;
 pub mod u64;
 pub mod u8;
+pub mod void;
 
 mel_package!();

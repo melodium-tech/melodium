@@ -1,6 +1,8 @@
 [workspace]
 members = [
+    "conv-mel",
     "core-mel",
+    "flow-mel",
     "melodium",
     "melodium-common",
     "melodium-core",
