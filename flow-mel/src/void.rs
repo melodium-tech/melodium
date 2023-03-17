@@ -1,7 +1,19 @@
+use melodium_macro::{check, mel_treatment};
 use melodium_core::*;
-use melodium_macro::{check, mel_function, mel_treatment};
 
-///
+/// Gives count of elements passing through stream
+/// 
+/// This count increment one for each elements within the `iter` stream, starting at 1.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("Count()")
+///     V["🟦 🟦 🟦…"] -->|iter| T
+///     
+///     T -->|count| P["1️⃣ 2️⃣ 3️⃣ …"]
+/// 
+///     style V fill:#ffff,stroke:#ffff
+///     style P fill:#ffff,stroke:#ffff
 #[mel_treatment(
     input iter Stream<void>
     output count Stream<u128>

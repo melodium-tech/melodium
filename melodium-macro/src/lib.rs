@@ -634,7 +634,7 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
 
             static NAME: &str = #name;
             static VERSION: melodium_core::Lazy<melodium_core::common::descriptor::Version> = melodium_core::Lazy::new(|| melodium_core::common::descriptor::Version::parse(env!("CARGO_PKG_VERSION")).unwrap());
-            static REQUIREMENTS: Vec<&str> = vec![#requirements];
+            static REQUIREMENTS: melodium_core::Lazy<Vec<&str>> = melodium_core::Lazy::new(|| { vec![#requirements] });
             static EMBEDDED: melodium_core::Lazy<std::collections::HashMap<&'static str, &'static [u8]>> = melodium_core::Lazy::new(|| { let mut embedded = std::collections::HashMap::new(); #embedded; embedded });
 
             pub fn package() -> Box<dyn melodium_core::common::descriptor::Package> {

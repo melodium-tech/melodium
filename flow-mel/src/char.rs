@@ -1,15 +1,14 @@
-use melodium_core::*;
-use melodium_macro::{check, mel_function, mel_treatment};
+use melodium_macro::{check, mel_treatment};
 
 /// Gives pattern of a `char` stream.
-///
+/// 
 /// ```mermaid
 /// graph LR
 ///     T("pattern()")
 ///     A["… [🟨 🟨] [🟨] [🟨 🟨 🟨]"] -->|stream| T
 ///     
 ///     T -->|fitted| O["… [🟦 🟦] [🟦] [🟦 🟦 🟦]"]
-///
+/// 
 ///     style A fill:#ffff,stroke:#ffff
 ///     style O fill:#ffff,stroke:#ffff
 /// ```
@@ -19,19 +18,15 @@ use melodium_macro::{check, mel_function, mel_treatment};
 )]
 pub async fn pattern() {
     while let Ok(vectors) = stream.recv_vec_char().await {
-        check!(
-            pattern
-                .send_vec_void(vectors.into_iter().map(|vec| vec![(); vec.len()]).collect())
-                .await
-        )
+        check!(pattern.send_vec_void(vectors.into_iter().map(|vec| vec![(); vec.len()]).collect()).await)
     }
 }
 
 /// Fit a stream of `char` into stream of `Vec<char>`, using a pattern.
-///
+/// 
 /// ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
 /// If there are not enough values to fit the pattern, uncomplete vector is trashed.
-///
+/// 
 /// ```mermaid
 /// graph LR
 ///     T("fit()")
@@ -39,7 +34,7 @@ pub async fn pattern() {
 ///     B["[🟦 🟦] [🟦] [🟦 🟦 🟦]"] -->|pattern| T
 ///     
 ///     T -->|fitted| O["[🟨 🟨] [🟨] [🟨 🟨 🟨]"]
-///
+/// 
 ///     style A fill:#ffff,stroke:#ffff
 ///     style B fill:#ffff,stroke:#ffff
 ///     style O fill:#ffff,stroke:#ffff
@@ -56,7 +51,8 @@ pub async fn fit() {
             for _ in 0..pattern.len() {
                 if let Ok(val) = value.recv_one_char().await {
                     vector.push(val);
-                } else {
+                }
+                else {
                     // Uncomplete, we 'trash' vector
                     break 'main;
                 }
@@ -65,3 +61,4 @@ pub async fn fit() {
         }
     }
 }
+

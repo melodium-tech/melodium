@@ -1,5 +1,5 @@
-use melodium_core::*;
 use melodium_macro::{check, mel_function, mel_treatment};
+use melodium_core::*;
 
 /// Return whether `a` is equal to `b`
 #[mel_function]
@@ -104,9 +104,6 @@ pub async fn xor() {
 )]
 pub async fn not() {
     while let Ok(values) = value.recv_byte().await {
-        check!(
-            not.send_byte(values.into_iter().map(|v| !v).collect())
-                .await
-        )
+        check!(not.send_byte(values.into_iter().map(|v| !v).collect()).await)
     }
 }

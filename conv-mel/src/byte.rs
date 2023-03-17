@@ -1,5 +1,5 @@
-use melodium_core::*;
 use melodium_macro::{check, mel_function, mel_treatment};
+use melodium_core::*;
 
 /// Turns `byte` stream into `void` one.
 #[mel_treatment(
@@ -11,3 +11,4 @@ pub async fn to_void() {
         check!(iter.send_void(vec![(); values.len()]).await)
     }
 }
+
