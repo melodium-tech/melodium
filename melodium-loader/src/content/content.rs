@@ -18,14 +18,16 @@ impl Content {
         // Currently only script content is supported
         #[cfg(feature = "script")]
         {
-            let path = path.to_string();
             let text = std::str::from_utf8(content).map_err(|error| ContentError::Utf8Error {
-                path: path.clone(),
+                path: path.to_string(),
                 error,
             })?;
 
-            let content = Script::new(path.clone(), text)
-                .map_err(|errors| ContentError::ScriptErrors { path, errors })?;
+            let content =
+                Script::new(&path, text).map_err(|errors| ContentError::ScriptErrors {
+                    path: path.to_string(),
+                    errors,
+                })?;
 
             Ok(Self {
                 content: ContentType::Script(content),

@@ -71,7 +71,7 @@ impl Loader {
     }
 
     pub fn full_load(&self) -> Result<Collection, LoadingError> {
-        for (_, package) in self.packages.read().unwrap().iter() {
+        for (_name, package) in self.packages.read().unwrap().iter() {
             let additions = package.full_collection(self)?;
             self.add_collection(additions);
         }
@@ -83,8 +83,9 @@ impl Loader {
     }
 
     pub fn get_with_load(&self, identifier: &Identifier) -> Result<Entry, LoadingError> {
-        if let Some(entry) = self.collection.read().unwrap().get(identifier) {
-            Ok(entry.clone())
+        let entry = self.collection.read().unwrap().get(identifier).cloned();
+        if let Some(entry) = entry {
+            Ok(entry)
         } else if let Some(package) = self.packages.read().unwrap().get(identifier.root()) {
             let additions = package.element(self, identifier)?;
             self.add_collection(additions);

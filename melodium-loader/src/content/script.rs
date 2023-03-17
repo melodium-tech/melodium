@@ -18,16 +18,22 @@ pub struct Script {
 }
 
 impl Script {
-    pub fn new(path: String, text: &str) -> Result<Self, Vec<ScriptError>> {
+    pub fn new(path: &str, text: &str) -> Result<Self, Vec<ScriptError>> {
         let text = TextScript::build(&text).map_err(|e| vec![e])?;
         let semantic = SemanticTree::new(text).map_err(|e| vec![e])?;
 
         semantic
-            .make_references(&Path::new(path.split("/").map(|s| s.to_string()).collect()))
+            .make_references(&Path::new(
+                path.strip_suffix(".mel")
+                    .unwrap_or(path)
+                    .split("/")
+                    .map(|s| s.to_string())
+                    .collect(),
+            ))
             .map_err(|e| vec![e])?;
 
         Ok(Self {
-            path,
+            path: path.to_string(),
             semantic,
             build_level: Mutex::new(ScriptBuildLevel::None),
         })

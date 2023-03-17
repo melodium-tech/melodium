@@ -623,7 +623,9 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
 
     let embedded: proc_macro2::TokenStream = embedded
         .into_iter()
-        .map(|(path, name)| format!(r#"embedded.insert("{name}", &include_bytes!("{path}")[..])"#))
+        .map(|(path, filename)| {
+            format!(r#"embedded.insert("{name}/{filename}", &include_bytes!("{path}")[..])"#)
+        })
         .collect::<Vec<_>>()
         .join(";")
         .parse()

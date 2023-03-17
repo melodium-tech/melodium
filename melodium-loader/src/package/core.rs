@@ -142,25 +142,27 @@ impl Package for CorePackage {
             })
             .flatten()
         {
-            if need.root() != self.name() {
-                if !external_needs.contains(&need) {
-                    external_needs.push(need);
-                }
-            } else {
-                // Knowing we don't have circular dependency, we can apply this logic
-                let requester_included = internal_needs.contains(&designation_requester);
-                let requested_included = internal_needs.contains(&designation_requested);
-                if !requester_included && !requested_included {
-                    internal_needs.push(designation_requested);
-                    internal_needs.push(designation_requester);
-                } else if requester_included && !requested_included {
-                    let position = internal_needs
-                        .iter()
-                        .position(|d| d == &designation_requester)
-                        .unwrap();
-                    internal_needs.insert(position, designation_requested);
+            if collection.get(&need).is_none() {
+                if need.root() != self.name() {
+                    if !external_needs.contains(&need) {
+                        external_needs.push(need);
+                    }
                 } else {
-                    internal_needs.push(designation_requester);
+                    // Knowing we don't have circular dependency, we can apply this logic
+                    let requester_included = internal_needs.contains(&designation_requester);
+                    let requested_included = internal_needs.contains(&designation_requested);
+                    if !requester_included && !requested_included {
+                        internal_needs.push(designation_requested);
+                        internal_needs.push(designation_requester);
+                    } else if requester_included && !requested_included {
+                        let position = internal_needs
+                            .iter()
+                            .position(|d| d == &designation_requester)
+                            .unwrap();
+                        internal_needs.insert(position, designation_requested);
+                    } else {
+                        internal_needs.push(designation_requester);
+                    }
                 }
             }
         }
@@ -171,11 +173,19 @@ impl Package for CorePackage {
 
         let contents = self.contents.read().unwrap();
         let mut content_error = false;
-        for designation in internal_needs {
-            let content = contents.get(&designation).unwrap();
+        for designation in &internal_needs {
+            let content = contents.get(designation).unwrap();
             if let Err(error) = content.insert_descriptors(&mut collection) {
                 self.errors.write().unwrap().push(error);
                 content_error = true;
+            }
+        }
+        for (designation, content) in &*contents {
+            if !internal_needs.contains(designation) {
+                if let Err(error) = content.insert_descriptors(&mut collection) {
+                    self.errors.write().unwrap().push(error);
+                    content_error = true;
+                }
             }
         }
 
