@@ -59,7 +59,8 @@ impl CorePackage {
 
     fn all_contents(&self) -> Result<(), LoadingError> {
         let mut error = None;
-        for (designation, _) in self.package.embedded() {
+        let embedded = self.package.embedded();
+        for (designation, _) in embedded {
             if let Err(e) = self.insure_content(designation) {
                 error = Some(e);
             }
@@ -95,11 +96,12 @@ impl Package for CorePackage {
     }
 
     fn embedded_collection(&self, loader: &Loader) -> Result<Collection, LoadingError> {
-        if let Some(collection) = &*self.embedded_collection.read().unwrap() {
+        let mut embedded_collection = self.embedded_collection.write().unwrap();
+        if let Some(collection) = &*embedded_collection {
             Ok(collection.clone())
         } else {
             let collection = self.package.collection(loader)?;
-            *self.embedded_collection.write().unwrap() = Some(collection.clone());
+            *embedded_collection = Some(collection.clone());
             Ok(collection)
         }
     }
@@ -107,9 +109,9 @@ impl Package for CorePackage {
     fn full_collection(&self, loader: &Loader) -> Result<Collection, LoadingError> {
         self.all_contents()?;
 
-        let mut collection = self.embedded_collection(loader)?.clone();
+        let mut collection = self.embedded_collection(loader)?;
 
-        // Getting all needs of each content, while being sure not circular dependency occurs
+        // Getting all needs of each content, while being sure no circular dependency occurs
         let mut all_needs = HashMap::new();
         for (designation, content) in self.contents.read().unwrap().iter() {
             let needs = content.require();

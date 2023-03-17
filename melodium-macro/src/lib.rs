@@ -637,6 +637,10 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
             static REQUIREMENTS: Vec<&str> = vec![#requirements];
             static EMBEDDED: melodium_core::Lazy<std::collections::HashMap<&'static str, &'static [u8]>> = melodium_core::Lazy::new(|| { let mut embedded = std::collections::HashMap::new(); #embedded; embedded });
 
+            pub fn package() -> Box<dyn melodium_core::common::descriptor::Package> {
+                Box::new(MelPackage::new())
+            }
+
             #[derive(Debug)]
             pub struct MelPackage {}
 

@@ -70,6 +70,14 @@ impl Loader {
         Ok(self.collection.read().unwrap().clone())
     }
 
+    pub fn full_load(&self) -> Result<Collection, LoadingError> {
+        for (_, package) in self.packages.read().unwrap().iter() {
+            let additions = package.full_collection(self)?;
+            self.add_collection(additions);
+        }
+        Ok(self.collection.read().unwrap().clone())
+    }
+
     pub fn collection(&self) -> RwLockReadGuard<Collection> {
         self.collection.read().unwrap()
     }

@@ -1,6 +1,7 @@
 use crate::descriptor::{Context, Function, Identifier, Model, Treatment};
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub enum LoadingError {
     NoPackage,
     NotFound,
