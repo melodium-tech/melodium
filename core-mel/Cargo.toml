@@ -1,6 +1,6 @@
 [package]
 name = "core-mel"
-version = "0.5.3"
+version = "0.6.0"
 authors = ["Quentin VIGNAUD <qvignaud@gmail.com>"]
 rust-version = "1.60"
 edition = "2018"
@@ -22,6 +22,6 @@ name = "test"
 name = "doc_test"
 
 [dependencies]
-melodium-core = { path = "../melodium-core", version = "0.5.3" }
-melodium-macro = { path = "../melodium-macro", version = "0.5.3" }
-melodium-doc = { path = "../melodium-doc", version = "0.5.3" }
+melodium-core = { path = "../melodium-core", version = "0.6.0" }
+melodium-macro = { path = "../melodium-macro", version = "0.6.0" }
+melodium-doc = { path = "../melodium-doc", version = "0.6.0" }

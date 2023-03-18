@@ -1,6 +1,6 @@
 [package]
 name = "melodium-doc"
-version = "0.5.3"
+version = "0.6.0"
 authors = ["Quentin VIGNAUD <qvignaud@gmail.com>"]
 rust-version = "1.60"
 edition = "2018"
@@ -16,6 +16,6 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 name = "melodium_doc"
 
 [dependencies]
-melodium-common = { path = "../melodium-common", version = "0.5.3" }
+melodium-common = { path = "../melodium-common", version = "0.6.0" }
 itertools = "0.10.5"
 

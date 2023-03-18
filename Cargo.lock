@@ -255,7 +255,7 @@ dependencies = [
 
 [[package]]
 name = "core-mel"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "melodium-core",
  "melodium-doc",
@@ -560,7 +560,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-common"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "downcast-rs",
@@ -570,7 +570,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-core"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "melodium-common",
  "once_cell",
@@ -578,7 +578,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-doc"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "itertools",
  "melodium-common",
@@ -586,7 +586,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-engine"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "async-std",
  "async-trait",
@@ -597,7 +597,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-lang"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "hex",
  "lazy_static",
@@ -612,7 +612,7 @@ version = "0.0.0-reserved"
 
 [[package]]
 name = "melodium-loader"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "glob",
  "melodium-common",
@@ -624,7 +624,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-macro"
-version = "0.5.3"
+version = "0.6.0"
 dependencies = [
  "convert_case",
  "glob",
