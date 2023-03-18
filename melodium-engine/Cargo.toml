@@ -8,7 +8,7 @@ license = "EUPL-1.2"
 homepage = "https://melodium.tech"
 repository = "https://gitlab.com/melodium/melodium"
 readme = "README.md"
-description = "Mélodium core engine implementation."
+description = "Mélodium core engine and executor implementation"
 keywords = ["dataflow","parallelization","scalability","async","signal"]
 categories = ["compilers", "science", "concurrency", "asynchronous"]
 

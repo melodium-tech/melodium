@@ -8,7 +8,7 @@ license = "EUPL-1.2"
 homepage = "https://melodium.tech"
 repository = "https://gitlab.com/melodium/melodium"
 readme = "README.md"
-description = "Common Mélodium elements and traits."
+description = "Common Mélodium elements and traits"
 keywords = ["dataflow","parallelization","scalability","async","signal"]
 categories = ["compilers", "science", "concurrency", "asynchronous"]
 

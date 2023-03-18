@@ -8,7 +8,7 @@ license = "EUPL-1.2"
 homepage = "https://melodium.tech"
 repository = "https://gitlab.com/melodium/melodium"
 readme = "README.md"
-description = "Dataflow-oriented language & tool, focusing on treatments applied on data, allowing high scalability and massive parallelization safely."
+description = "Loading engine for Mélodium, with dependency resolution and retrieval"
 keywords = ["dataflow","parallelization","scalability","async","signal"]
 categories = ["compilers", "science", "concurrency", "asynchronous"]
 
