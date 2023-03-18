@@ -607,6 +607,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "melodium-lib"
+version = "0.0.0-reserved"
+
+[[package]]
 name = "melodium-loader"
 version = "0.5.3"
 dependencies = [

@@ -1,0 +1,15 @@
+[package]
+name = "melodium-lib"
+version = "0.0.0-reserved"
+authors = ["Quentin VIGNAUD <qvignaud@gmail.com>"]
+edition = "2018"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "Mélodium library placeholder"
+keywords = ["dataflow","parallelization","scalability","async","signal"]
+categories = ["compilers", "science", "concurrency", "asynchronous"]
+
+[lib]
+name = "melodium_lib"

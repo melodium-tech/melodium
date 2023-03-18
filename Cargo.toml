@@ -9,6 +9,7 @@ members = [
     "melodium-doc",
     "melodium-engine",
     "melodium-lang",
+    "melodium-lib",
     "melodium-loader",
     "melodium-macro",
     "ops-mel",
