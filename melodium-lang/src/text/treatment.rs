@@ -70,7 +70,7 @@ impl Treatment {
     /// ```
     pub fn build(
         mut iter: &mut std::slice::Iter<Word>,
-        doc: Option<PositionnedString>,
+        mut doc: Option<PositionnedString>,
     ) -> Result<Self, ScriptError> {
         let name = expect_word_kind(Kind::Name, "Treatment name expected.", &mut iter)?;
 
@@ -263,6 +263,10 @@ impl Treatment {
                     determinant.position,
                 ));
             }
+        }
+
+        if let Some(doc) = doc.as_mut() {
+            doc.remove_indent();
         }
 
         Ok(Self {

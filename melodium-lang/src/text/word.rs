@@ -40,6 +40,29 @@ pub struct PositionnedString {
     pub position: Position,
 }
 
+impl PositionnedString {
+    pub fn remove_indent(&mut self) {
+        let mut prefix = None;
+        for line in self.string.lines() {
+            let trimmed_line = line.trim_start();
+            if !trimmed_line.is_empty() {
+                let whitespaces = line.split_at(line.find(trimmed_line).unwrap()).0;
+                prefix = Some(whitespaces.to_string());
+                break;
+            }
+        }
+
+        if let Some(prefix) = prefix {
+            let mut less_indented_string = String::new();
+            for line in self.string.lines() {
+                less_indented_string.push_str(line.strip_prefix(&prefix).unwrap_or(line));
+                less_indented_string.push_str("\n");
+            }
+            self.string = less_indented_string;
+        }
+    }
+}
+
 /// Kind of word.
 ///
 /// "Kind" designates what the word fundamentaly is, meaning a `Name` is some text that designates name of something (including keyword), `Opening*` and `Closing*` are obvious, as well as `Equal`, `Colon`, `Comma`, etc.
