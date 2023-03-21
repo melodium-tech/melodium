@@ -27,9 +27,9 @@ melodium-engine = { path = "../melodium-engine", version = "0.6.0" }
 melodium-loader = { path = "../melodium-loader", version = "0.6.0" }
 melodium-doc = { path = "../melodium-doc", version = "0.6.0", optional = true }
 
-conv-mel = { path = "../conv-mel", version = "0.6.0", optional = true }
-flow-mel = { path = "../flow-mel", version = "0.6.0", optional = true }
-ops-mel = { path = "../ops-mel", version = "0.6.0", optional = true }
+conv-mel = { path = "../libs/conv-mel", version = "0.6.0", optional = true }
+flow-mel = { path = "../libs/flow-mel", version = "0.6.0", optional = true }
+ops-mel = { path = "../libs/ops-mel", version = "0.6.0", optional = true }
 
 [features]
 default = ["conv", "flow", "ops", "doc"]

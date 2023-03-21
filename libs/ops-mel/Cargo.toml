@@ -16,6 +16,6 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 name = "ops_mel"
 
 [dependencies]
-melodium-core = { path = "../melodium-core", version = "0.6.0" }
-melodium-macro = { path = "../melodium-macro", version = "0.6.0" }
+melodium-core = { path = "../../melodium-core", version = "0.6.0" }
+melodium-macro = { path = "../../melodium-macro", version = "0.6.0" }
 

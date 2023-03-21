@@ -1,5 +1,5 @@
 [package]
-name = "conv-mel"
+name = "flow-mel"
 version = "0.6.0"
 authors = ["Quentin VIGNAUD <qvignaud@gmail.com>"]
 rust-version = "1.60"
@@ -8,14 +8,15 @@ license = "EUPL-1.2"
 homepage = "https://melodium.tech"
 repository = "https://gitlab.com/melodium/melodium"
 readme = "README.md"
-description = "Mélodium core types conversion library"
+description = "Mélodium core flow control library"
 keywords = ["dataflow","parallelization","scalability","async","signal"]
 categories = ["compilers", "science", "concurrency", "asynchronous"]
 
 [lib]
-name = "conv_mel"
+name = "flow_mel"
 
 [dependencies]
-melodium-core = { path = "../melodium-core", version = "0.6.0" }
-melodium-macro = { path = "../melodium-macro", version = "0.6.0" }
+conv-mel = { path = "../conv-mel", version = "0.6.0" }
+melodium-core = { path = "../../melodium-core", version = "0.6.0" }
+melodium-macro = { path = "../../melodium-macro", version = "0.6.0" }
 

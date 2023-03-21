@@ -1,8 +1,9 @@
 [workspace]
 members = [
-    "conv-mel",
     "core-mel",
-    "flow-mel",
+    "libs/conv-mel",
+    "libs/flow-mel",
+    "libs/ops-mel",
     "melodium",
     "melodium-common",
     "melodium-core",
@@ -12,5 +13,4 @@ members = [
     "melodium-lib",
     "melodium-loader",
     "melodium-macro",
-    "ops-mel",
     ]
