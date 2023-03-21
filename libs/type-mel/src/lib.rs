@@ -1,7 +1,7 @@
 //!
-//! # Mélodium core conversions library
+//! # Mélodium core types utilities library
 //! 
-//! This library provides the data type conversion functions and treatments for the Mélodium environment.
+//! This library provides the data type utilities for the Mélodium environment.
 //! 
 //! ## For Mélodium project
 //! 
@@ -12,7 +12,6 @@
 use melodium_macro::mel_package;
 use melodium_core::*;
 
-pub mod bool;
 pub mod byte;
 pub mod char;
 pub mod u8;
@@ -27,6 +26,5 @@ pub mod i64;
 pub mod i128;
 pub mod f32;
 pub mod f64;
-pub mod string;
 
 mel_package!();

@@ -13,6 +13,14 @@ pub async fn to_void() {
 }
 
 
+/// Turns `bool` into `Vec<byte>`.
+/// 
+/// ℹ️ A `bool` always corresponds to one `byte`, being `0` if `false` and `1` if `true`.
+#[mel_function]
+pub fn to_byte(value: bool) -> Vec<byte> {
+    vec![match value { true => 1, false => 0 }]
+}
+
 /// Turns `bool` stream into `byte` one.
 /// 
 /// Each `bool` gets converted into `Vec<byte>`, with each vector containing the `byte` of the former scalar `bool` it represents.

@@ -13,9 +13,19 @@ pub async fn to_void() {
 }
 
 
+/// Turns `string` into `Vec<byte>`.
+/// 
+/// ℹ️ The `Vec<byte>` obtained from a `string` is the UTF-8 representation of it.
+#[mel_function]
+pub fn to_byte(value: string) -> Vec<byte> {
+    value.as_bytes().to_vec()
+}
+
 /// Turns `string` stream into `byte` one.
 /// 
 /// Each `string` gets converted into `Vec<byte>`, with each vector containing the `byte`s of the former scalar `string` it represents.
+/// 
+/// ℹ️ The `Vec<byte>` obtained from a `string` is the UTF-8 representation of it.
 #[mel_treatment(
     input value Stream<string>
     output data Stream<Vec<byte>>

@@ -13,6 +13,12 @@ pub async fn to_void() {
 }
 
 
+/// Turns `u128` into `Vec<byte>`.
+#[mel_function]
+pub fn to_byte(value: u128) -> Vec<byte> {
+    value.to_be_bytes().to_vec()
+}
+
 /// Turns `u128` stream into `byte` one.
 /// 
 /// Each `u128` gets converted into `Vec<byte>`, with each vector containing the `bytes`s of the former scalar `u128` it represents.
@@ -24,6 +30,14 @@ pub async fn to_byte() {
     while let Ok(values) = value.recv_u128().await {
         check!(data.send_vec_byte(values.into_iter().map(|val| val.to_be_bytes().to_vec()).collect()).await)
     }
+}
+
+/// Turns `u128` into `f32`.
+/// 
+/// This conversion is lossless, as any `u128` value can fit into a `f32`.
+#[mel_function]
+pub fn to_f32(value: u128) -> f32 {
+    value as f32
 }
 
 /// Turns `u128` stream into `f32` one.
@@ -40,6 +54,14 @@ pub async fn to_f32() {
     }
 }
 
+/// Turns `u128` into `f64`.
+/// 
+/// This conversion is lossless, as any `u128` value can fit into a `f64`.
+#[mel_function]
+pub fn to_f64(value: u128) -> f64 {
+    value as f64
+}
+
 /// Turns `u128` stream into `f64` one.
 /// 
 /// Each `u128` gets converted into `f64`.
@@ -51,6 +73,25 @@ pub async fn to_f32() {
 pub async fn to_f64() {
     while let Ok(values) = value.recv_u128().await {
         check!(into.send_f64(values.into_iter().map(|val| val as f64).collect()).await)
+    }
+}
+
+/// Turns `u128` into `u8`.
+/// 
+/// As this conversion might be lossy (every possible `u128` value cannot fit into `u8`),
+/// `truncate` allows value to be truncated to fit into a `u8`, and `or_default` set the
+/// value that is assigned when a `u128` is out of range for `u8` and truncation not allowed.
+/// 
+/// Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+/// 
+#[mel_function]
+pub fn to_u8(value: u128, truncate: bool, or_default: u8) -> u8 {
+    if truncate {
+        value as u8
+    }
+    else {
+        use std::convert::TryInto;
+        TryInto::<u8>::try_into(value).unwrap_or(or_default)
     }
 }
 
@@ -85,6 +126,25 @@ pub async fn to_u8(truncate: bool, or_default: u8) {
     }
 }
 
+/// Turns `u128` into `u16`.
+/// 
+/// As this conversion might be lossy (every possible `u128` value cannot fit into `u16`),
+/// `truncate` allows value to be truncated to fit into a `u16`, and `or_default` set the
+/// value that is assigned when a `u128` is out of range for `u16` and truncation not allowed.
+/// 
+/// Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+/// 
+#[mel_function]
+pub fn to_u16(value: u128, truncate: bool, or_default: u16) -> u16 {
+    if truncate {
+        value as u16
+    }
+    else {
+        use std::convert::TryInto;
+        TryInto::<u16>::try_into(value).unwrap_or(or_default)
+    }
+}
+
 /// Convert stream of `u128` into `u16`.
 /// 
 /// As this conversion might be lossy (every possible `u128` value cannot fit into `u16`),
@@ -113,6 +173,25 @@ pub async fn to_u16(truncate: bool, or_default: u16) {
                 TryInto::<u16>::try_into(val).unwrap_or(or_default)
             ).collect()).await)
         }
+    }
+}
+
+/// Turns `u128` into `u32`.
+/// 
+/// As this conversion might be lossy (every possible `u128` value cannot fit into `u32`),
+/// `truncate` allows value to be truncated to fit into a `u32`, and `or_default` set the
+/// value that is assigned when a `u128` is out of range for `u32` and truncation not allowed.
+/// 
+/// Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+/// 
+#[mel_function]
+pub fn to_u32(value: u128, truncate: bool, or_default: u32) -> u32 {
+    if truncate {
+        value as u32
+    }
+    else {
+        use std::convert::TryInto;
+        TryInto::<u32>::try_into(value).unwrap_or(or_default)
     }
 }
 
@@ -147,6 +226,25 @@ pub async fn to_u32(truncate: bool, or_default: u32) {
     }
 }
 
+/// Turns `u128` into `u64`.
+/// 
+/// As this conversion might be lossy (every possible `u128` value cannot fit into `u64`),
+/// `truncate` allows value to be truncated to fit into a `u64`, and `or_default` set the
+/// value that is assigned when a `u128` is out of range for `u64` and truncation not allowed.
+/// 
+/// Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+/// 
+#[mel_function]
+pub fn to_u64(value: u128, truncate: bool, or_default: u64) -> u64 {
+    if truncate {
+        value as u64
+    }
+    else {
+        use std::convert::TryInto;
+        TryInto::<u64>::try_into(value).unwrap_or(or_default)
+    }
+}
+
 /// Convert stream of `u128` into `u64`.
 /// 
 /// As this conversion might be lossy (every possible `u128` value cannot fit into `u64`),
@@ -175,6 +273,25 @@ pub async fn to_u64(truncate: bool, or_default: u64) {
                 TryInto::<u64>::try_into(val).unwrap_or(or_default)
             ).collect()).await)
         }
+    }
+}
+
+/// Turns `u128` into `i8`.
+/// 
+/// As this conversion might be lossy (every possible `u128` value cannot fit into `i8`),
+/// `truncate` allows value to be truncated to fit into a `i8`, and `or_default` set the
+/// value that is assigned when a `u128` is out of range for `i8` and truncation not allowed.
+/// 
+/// Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+/// 
+#[mel_function]
+pub fn to_i8(value: u128, truncate: bool, or_default: i8) -> i8 {
+    if truncate {
+        value as i8
+    }
+    else {
+        use std::convert::TryInto;
+        TryInto::<i8>::try_into(value).unwrap_or(or_default)
     }
 }
 
@@ -209,6 +326,25 @@ pub async fn to_i8(truncate: bool, or_default: i8) {
     }
 }
 
+/// Turns `u128` into `i16`.
+/// 
+/// As this conversion might be lossy (every possible `u128` value cannot fit into `i16`),
+/// `truncate` allows value to be truncated to fit into a `i16`, and `or_default` set the
+/// value that is assigned when a `u128` is out of range for `i16` and truncation not allowed.
+/// 
+/// Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+/// 
+#[mel_function]
+pub fn to_i16(value: u128, truncate: bool, or_default: i16) -> i16 {
+    if truncate {
+        value as i16
+    }
+    else {
+        use std::convert::TryInto;
+        TryInto::<i16>::try_into(value).unwrap_or(or_default)
+    }
+}
+
 /// Convert stream of `u128` into `i16`.
 /// 
 /// As this conversion might be lossy (every possible `u128` value cannot fit into `i16`),
@@ -237,6 +373,25 @@ pub async fn to_i16(truncate: bool, or_default: i16) {
                 TryInto::<i16>::try_into(val).unwrap_or(or_default)
             ).collect()).await)
         }
+    }
+}
+
+/// Turns `u128` into `i32`.
+/// 
+/// As this conversion might be lossy (every possible `u128` value cannot fit into `i32`),
+/// `truncate` allows value to be truncated to fit into a `i32`, and `or_default` set the
+/// value that is assigned when a `u128` is out of range for `i32` and truncation not allowed.
+/// 
+/// Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+/// 
+#[mel_function]
+pub fn to_i32(value: u128, truncate: bool, or_default: i32) -> i32 {
+    if truncate {
+        value as i32
+    }
+    else {
+        use std::convert::TryInto;
+        TryInto::<i32>::try_into(value).unwrap_or(or_default)
     }
 }
 
@@ -271,6 +426,25 @@ pub async fn to_i32(truncate: bool, or_default: i32) {
     }
 }
 
+/// Turns `u128` into `i64`.
+/// 
+/// As this conversion might be lossy (every possible `u128` value cannot fit into `i64`),
+/// `truncate` allows value to be truncated to fit into a `i64`, and `or_default` set the
+/// value that is assigned when a `u128` is out of range for `i64` and truncation not allowed.
+/// 
+/// Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+/// 
+#[mel_function]
+pub fn to_i64(value: u128, truncate: bool, or_default: i64) -> i64 {
+    if truncate {
+        value as i64
+    }
+    else {
+        use std::convert::TryInto;
+        TryInto::<i64>::try_into(value).unwrap_or(or_default)
+    }
+}
+
 /// Convert stream of `u128` into `i64`.
 /// 
 /// As this conversion might be lossy (every possible `u128` value cannot fit into `i64`),
@@ -299,6 +473,25 @@ pub async fn to_i64(truncate: bool, or_default: i64) {
                 TryInto::<i64>::try_into(val).unwrap_or(or_default)
             ).collect()).await)
         }
+    }
+}
+
+/// Turns `u128` into `i128`.
+/// 
+/// As this conversion might be lossy (every possible `u128` value cannot fit into `i128`),
+/// `truncate` allows value to be truncated to fit into a `i128`, and `or_default` set the
+/// value that is assigned when a `u128` is out of range for `i128` and truncation not allowed.
+/// 
+/// Truncation happens on the binary level, thus: `10010110` (150 if unsigned, -106 if [signed](https://en.wikipedia.org/wiki/Signed_number_representations)) → `0110` (6).
+/// 
+#[mel_function]
+pub fn to_i128(value: u128, truncate: bool, or_default: i128) -> i128 {
+    if truncate {
+        value as i128
+    }
+    else {
+        use std::convert::TryInto;
+        TryInto::<i128>::try_into(value).unwrap_or(or_default)
     }
 }
 

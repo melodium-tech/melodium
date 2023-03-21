@@ -20,5 +20,7 @@ fn core_packages() -> Vec<Box<dyn Package>> {
     packages.push(flow_mel::__mel_package::package());
     #[cfg(feature = "ops")]
     packages.push(ops_mel::__mel_package::package());
+    #[cfg(feature = "type")]
+    packages.push(type_mel::__mel_package::package());
     packages
 }

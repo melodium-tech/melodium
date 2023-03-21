@@ -4,6 +4,7 @@ members = [
     "libs/conv-mel",
     "libs/flow-mel",
     "libs/ops-mel",
+    "libs/type-mel",
     "melodium",
     "melodium-common",
     "melodium-core",

@@ -1,7 +1,7 @@
 
-# Mélodium core conversions library
+# Mélodium core types library
 
-This library provides the data type conversion functions and treatments for the Mélodium environment.
+This library provides the data type utilities for the Mélodium environment.
 
 ## For Mélodium project
 

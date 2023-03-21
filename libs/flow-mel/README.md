@@ -1,5 +1,5 @@
 
-# Mélodium core operations library
+# Mélodium core flow control library
 
 This library provides the basic flow control treatments for the Mélodium environment.
 

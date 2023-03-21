@@ -13,6 +13,14 @@ pub async fn to_void() {
 }
 
 
+/// Turns `char` into `Vec<byte>`.
+/// 
+/// ℹ️ The `Vec<byte>` obtained from a `char` is the UTF-8 representation of it, the vector length is always 1 ≤ len ≤ 4.
+#[mel_function]
+pub fn to_byte(value: char) -> Vec<byte> {
+    value.to_string().as_bytes().to_vec()
+}
+
 /// Turns `char` stream into `byte` one.
 /// 
 /// Each `char` gets converted into `Vec<byte>`, with each vector containing the `byte`s of the former scalar `char` it represents.

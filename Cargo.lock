@@ -556,6 +556,7 @@ dependencies = [
  "melodium-engine",
  "melodium-loader",
  "ops-mel",
+ "type-mel",
 ]
 
 [[package]]
@@ -850,6 +851,14 @@ dependencies = [
  "serde_spanned",
  "toml_datetime",
  "winnow",
+]
+
+[[package]]
+name = "type-mel"
+version = "0.6.0"
+dependencies = [
+ "melodium-core",
+ "melodium-macro",
 ]
 
 [[package]]
