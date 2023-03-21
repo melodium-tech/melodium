@@ -1589,7 +1589,7 @@ pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
             .join(",")
     );
 
-    let element_name = format!("|{}", name.to_case(Case::Snake));
+    let element_name = format!("|{}", name.from_case(Case::Snake).to_case(Case::Snake));
     let module_name: proc_macro2::TokenStream = format!("__mel_function_{name}").parse().unwrap();
     let documentation = documentation.join("\n");
     let parameters: proc_macro2::TokenStream = parameters.parse().unwrap();
