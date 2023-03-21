@@ -1,3 +1,61 @@
+
+/// Flatten a stream of `Vec<void>`.
+/// 
+/// All the input vectors are turned into continuous stream of scalar values, keeping order.
+/// ```mermaid
+/// graph LR
+///     T("flatten()")
+///     B["［🟦 🟦］［🟦］［🟦 🟦 🟦］"] -->|vector| T
+///     
+///     T -->|value| O["🟦 🟦 🟦 🟦 🟦 🟦"]
+/// 
+///     style B fill:#ffff,stroke:#ffff
+///     style O fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input vector Stream<Vec<void>>
+    output value Stream<void>
+)]
+pub async fn flatten() {
+    'main: while let Ok(vectors) = vector.recv_vec_void().await {
+        for vec in vectors {
+            check!('main, value.send_void(vec).await)
+        }
+    }
+}
+
+/// Chain two streams of `void`.
+/// 
+/// 
+/// ```mermaid
+/// graph LR
+///     T("chain()")
+///     A["🟨 🟨 🟨 🟨 🟨 🟨"] -->|first| T
+///     B["… 🟪 🟪 🟪"] -->|second| T
+///     
+///     T -->|chained| O["… 🟪 🟪 🟪 🟨 🟨 🟨 🟨 🟨 🟨"]
+/// 
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+///     style O fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input first Stream<void>
+    input second Stream<void>
+    output chained Stream<void>
+)]
+pub async fn chain() {
+
+    while let Ok(values) = first.recv_void().await {
+
+        check!(chained.send_void(values).await)
+    }
+
+    while let Ok(values) = second.recv_void().await {
+
+        check!(chained.send_void(values).await)
+    }
+}
 use melodium_macro::{check, mel_treatment};
 use melodium_core::*;
 

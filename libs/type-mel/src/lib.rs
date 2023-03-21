@@ -10,7 +10,6 @@
 //! 
 
 use melodium_macro::mel_package;
-use melodium_core::*;
 
 pub mod byte;
 pub mod char;
