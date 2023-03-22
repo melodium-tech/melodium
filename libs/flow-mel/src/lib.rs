@@ -11,6 +11,8 @@
 
 use melodium_macro::mel_package;
 
+pub mod vec;
+
 pub mod bool;
 pub mod byte;
 pub mod char;

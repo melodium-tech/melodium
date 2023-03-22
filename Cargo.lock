@@ -314,6 +314,7 @@ name = "flow-mel"
 version = "0.6.0"
 dependencies = [
  "conv-mel",
+ "futures",
  "melodium-core",
  "melodium-macro",
 ]

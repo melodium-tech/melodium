@@ -124,6 +124,16 @@ fn into_rust_type(ty: &str) -> String {
     .to_string()
 }
 
+fn into_rust_value(ty: &str, lit: &str) -> String {
+    match ty {
+        "Byte" => format!("{lit}u8"),
+        "F32" => format!("{lit}f32"),
+        "F64" => format!("{lit}f64"),
+        "String" => format!("{lit}.to_string()"),
+        _ => lit.to_string(),
+    }
+}
+
 fn into_mel_value_call(ty: &str) -> String {
     match ty {
         "U8" => "u8",
@@ -766,7 +776,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let documentation = documentation.join("\n");
         let parameters: proc_macro2::TokenStream = params.iter().map(|(name, ty)| {
             let datatype = into_mel_datatype(ty);
-            let default = defaults.get(name).map(|lit| format!("Some(melodium_core::common::executive::Value::{ty}({lit}))")).unwrap_or_else(|| String::from("None"));
+            let default = defaults.get(name).map(|lit| format!("Some(melodium_core::common::executive::Value::{ty}({val}))", val = into_rust_value(ty, lit))).unwrap_or_else(|| String::from("None"));
             format!(
                 r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Var, {datatype}, {default})"#
             )
@@ -873,10 +883,10 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
     {
         let parameters: proc_macro2::TokenStream = params
             .iter()
-            .map(|(name, _)| {
+            .map(|(name, ty)| {
                 let default = defaults
                     .get(name)
-                    .map(|lit| format!("Some({lit})"))
+                    .map(|lit| format!("Some({val})", val = into_rust_value(ty, lit)))
                     .unwrap_or_else(|| String::from("None"));
                 format!(r#"r#{name}: std::sync::Mutex::new({default}),"#)
             })
@@ -1143,7 +1153,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
         let documentation = documentation.join("\n");
         let parameters: proc_macro2::TokenStream = params.iter().map(|(name, (ty, default))| {
             let datatype = into_mel_datatype(ty);
-            let default = default.as_ref().map(|lit| format!("Some(melodium_core::common::executive::Value::{ty}({lit}))")).unwrap_or_else(|| String::from("None"));
+            let default = default.as_ref().map(|lit| format!("Some(melodium_core::common::executive::Value::{ty}({val}))", val = into_rust_value(ty, lit))).unwrap_or_else(|| String::from("None"));
             format!(
                 r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Const, {datatype}, {default})"#
             )

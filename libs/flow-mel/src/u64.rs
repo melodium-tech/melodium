@@ -1,28 +1,6 @@
 
-/// Flatten a stream of `Vec<u64>`.
-/// 
-/// All the input vectors are turned into continuous stream of scalar values, keeping order.
-/// ```mermaid
-/// graph LR
-///     T("flatten()")
-///     B["［🟦 🟦］［🟦］［🟦 🟦 🟦］"] -->|vector| T
-///     
-///     T -->|value| O["🟦 🟦 🟦 🟦 🟦 🟦"]
-/// 
-///     style B fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
-/// ```
-#[mel_treatment(
-    input vector Stream<Vec<u64>>
-    output value Stream<u64>
-)]
-pub async fn flatten() {
-    'main: while let Ok(vectors) = vector.recv_vec_u64().await {
-        for vec in vectors {
-            check!('main, value.send_u64(vec).await)
-        }
-    }
-}
+use melodium_macro::{check, mel_treatment};
+use melodium_core::*;
 
 /// Chain two streams of `u64`.
 /// 
@@ -54,69 +32,6 @@ pub async fn chain() {
     while let Ok(values) = second.recv_u64().await {
 
         check!(chained.send_u64(values).await)
-    }
-}
-use melodium_macro::{check, mel_treatment};
-
-/// Gives pattern of a `u64` stream.
-/// 
-/// ```mermaid
-/// graph LR
-///     T("pattern()")
-///     A["… [🟨 🟨] [🟨] [🟨 🟨 🟨]"] -->|stream| T
-///     
-///     T -->|pattern| O["… [🟦 🟦] [🟦] [🟦 🟦 🟦]"]
-/// 
-///     style A fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
-/// ```
-#[mel_treatment(
-    input stream Stream<Vec<u64>>
-    output pattern Stream<Vec<void>>
-)]
-pub async fn pattern() {
-    while let Ok(vectors) = stream.recv_vec_u64().await {
-        check!(pattern.send_vec_void(vectors.into_iter().map(|vec| vec![(); vec.len()]).collect()).await)
-    }
-}
-
-/// Fit a stream of `u64` into stream of `Vec<u64>`, using a pattern.
-/// 
-/// ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
-/// If there are not enough values to fit the pattern, uncomplete vector is trashed.
-/// 
-/// ```mermaid
-/// graph LR
-///     T("fit()")
-///     A["… 🟨 🟨 🟨 🟨 🟨 🟨"] -->|value| T
-///     B["[🟦 🟦] [🟦] [🟦 🟦 🟦]"] -->|pattern| T
-///     
-///     T -->|fitted| O["[🟨 🟨] [🟨] [🟨 🟨 🟨]"]
-/// 
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
-/// ```
-#[mel_treatment(
-    input value Stream<u64>
-    input pattern Stream<Vec<void>>
-    output fitted Stream<Vec<u64>>
-)]
-pub async fn fit() {
-    'main: while let Ok(patterns) = pattern.recv_vec_void().await {
-        for pattern in patterns {
-            let mut vector = Vec::with_capacity(pattern.len());
-            for _ in 0..pattern.len() {
-                if let Ok(val) = value.recv_one_u64().await {
-                    vector.push(val);
-                }
-                else {
-                    // Uncomplete, we 'trash' vector
-                    break 'main;
-                }
-            }
-            check!('main, fitted.send_one_vec_u64(vector).await)
-        }
     }
 }
 
@@ -174,5 +89,115 @@ pub async fn merge() {
         }
 
         check!(value.send_one_u64(val).await)
+    }
+}
+
+/// Fill a pattern stream with a `u64` value.
+/// 
+/// ```mermaid
+/// graph LR
+/// T("fill(value=🟧)")
+/// B["… 🟦 🟦 🟦 …"] -->|pattern| T
+/// 
+/// T -->|filled| O["… 🟧 🟧 🟧 …"]
+/// 
+/// style B fill:#ffff,stroke:#ffff
+/// style O fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    default value 0
+    input pattern Stream<void>
+    output filled Stream<u64>
+)]
+pub async fn fill(value: u64) {
+    while let Ok(pat) = pattern.recv_void().await {
+        check!(filled.send_u64(vec![value.clone(); pat.len()]).await)
+    }
+}
+
+/// Filter a `u64` stream according to `bool` stream.
+/// 
+/// ℹ️ If both streams are not the same size nothing is sent through accepted nor rejected.
+///  
+/// ```mermaid
+/// graph LR
+///     T("filter()")
+///     V["… 🟦 🟧 🟪 🟫 🟨 …"] -->|value| T
+///     D["… 🟩 🟥 🟥 🟩 🟥 …"] -->|select|T
+///     
+///     T -->|accepted| A["… 🟦 🟫 …"]
+///     T -->|rejected| R["… 🟧 🟪 🟨 …"]
+/// 
+///     style V fill:#ffff,stroke:#ffff
+///     style D fill:#ffff,stroke:#ffff
+///     style A fill:#ffff,stroke:#ffff
+///     style R fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input value Stream<u64>
+    input select Stream<bool>
+    output accepted Stream<u64>
+    output rejected Stream<u64>
+)]
+pub async fn filter() {
+
+    let mut accepted_op = true;
+    let mut rejected_op = true;
+
+    while let (Ok(value), Ok(select)) = futures::join!(value.recv_one_u64(), select.recv_one_bool()) {
+        if select {
+            if let Err(_) = accepted.send_one_u64(value).await {
+                // If we cannot send anymore on accepted, we note it,
+                // and check if rejected is still valid, else just terminate.
+                accepted_op = false;
+                if !rejected_op {
+                    break;
+                }
+            }
+        }
+        else {
+            if let Err(_) = rejected.send_one_u64(value).await {
+                // If we cannot send anymore on rejected, we note it,
+                // and check if accepted is still valid, else just terminate.
+                rejected_op = false;
+                if !accepted_op {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+/// Fit a stream of `u64` into a pattern.
+/// 
+/// ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("fit()")
+///     A["… 🟨 🟨 🟨 🟨 🟨 🟨"] -->|value| T
+///     B["🟦 🟦 🟦 🟦"] -->|pattern| T
+///     
+///     T -->|fitted| O["🟨 🟨 🟨 🟨"]
+/// 
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+///     style O fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input value Stream<u64>
+    input pattern Stream<void>
+    output fitted Stream<u64>
+)]
+pub async fn fit() {
+    'main: while let Ok(pattern) = pattern.recv_void().await {
+        for _ in pattern {
+            if let Ok(val) = value.recv_one_u64().await {
+                check!('main, fitted.send_one_u64(val).await)
+            }
+            else {
+                break 'main;
+            }
+        }
     }
 }

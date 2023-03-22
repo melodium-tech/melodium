@@ -1,28 +1,6 @@
 
-/// Flatten a stream of `Vec<bool>`.
-/// 
-/// All the input vectors are turned into continuous stream of scalar values, keeping order.
-/// ```mermaid
-/// graph LR
-///     T("flatten()")
-///     B["［🟦 🟦］［🟦］［🟦 🟦 🟦］"] -->|vector| T
-///     
-///     T -->|value| O["🟦 🟦 🟦 🟦 🟦 🟦"]
-/// 
-///     style B fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
-/// ```
-#[mel_treatment(
-    input vector Stream<Vec<bool>>
-    output value Stream<bool>
-)]
-pub async fn flatten() {
-    'main: while let Ok(vectors) = vector.recv_vec_bool().await {
-        for vec in vectors {
-            check!('main, value.send_bool(vec).await)
-        }
-    }
-}
+use melodium_macro::{check, mel_treatment};
+use melodium_core::*;
 
 /// Chain two streams of `bool`.
 /// 
@@ -54,69 +32,6 @@ pub async fn chain() {
     while let Ok(values) = second.recv_bool().await {
 
         check!(chained.send_bool(values).await)
-    }
-}
-use melodium_macro::{check, mel_treatment};
-
-/// Gives pattern of a `bool` stream.
-/// 
-/// ```mermaid
-/// graph LR
-///     T("pattern()")
-///     A["… [🟨 🟨] [🟨] [🟨 🟨 🟨]"] -->|stream| T
-///     
-///     T -->|pattern| O["… [🟦 🟦] [🟦] [🟦 🟦 🟦]"]
-/// 
-///     style A fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
-/// ```
-#[mel_treatment(
-    input stream Stream<Vec<bool>>
-    output pattern Stream<Vec<void>>
-)]
-pub async fn pattern() {
-    while let Ok(vectors) = stream.recv_vec_bool().await {
-        check!(pattern.send_vec_void(vectors.into_iter().map(|vec| vec![(); vec.len()]).collect()).await)
-    }
-}
-
-/// Fit a stream of `bool` into stream of `Vec<bool>`, using a pattern.
-/// 
-/// ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
-/// If there are not enough values to fit the pattern, uncomplete vector is trashed.
-/// 
-/// ```mermaid
-/// graph LR
-///     T("fit()")
-///     A["… 🟨 🟨 🟨 🟨 🟨 🟨"] -->|value| T
-///     B["[🟦 🟦] [🟦] [🟦 🟦 🟦]"] -->|pattern| T
-///     
-///     T -->|fitted| O["[🟨 🟨] [🟨] [🟨 🟨 🟨]"]
-/// 
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
-/// ```
-#[mel_treatment(
-    input value Stream<bool>
-    input pattern Stream<Vec<void>>
-    output fitted Stream<Vec<bool>>
-)]
-pub async fn fit() {
-    'main: while let Ok(patterns) = pattern.recv_vec_void().await {
-        for pattern in patterns {
-            let mut vector = Vec::with_capacity(pattern.len());
-            for _ in 0..pattern.len() {
-                if let Ok(val) = value.recv_one_bool().await {
-                    vector.push(val);
-                }
-                else {
-                    // Uncomplete, we 'trash' vector
-                    break 'main;
-                }
-            }
-            check!('main, fitted.send_one_vec_bool(vector).await)
-        }
     }
 }
 
@@ -174,5 +89,115 @@ pub async fn merge() {
         }
 
         check!(value.send_one_bool(val).await)
+    }
+}
+
+/// Fill a pattern stream with a `bool` value.
+/// 
+/// ```mermaid
+/// graph LR
+/// T("fill(value=🟧)")
+/// B["… 🟦 🟦 🟦 …"] -->|pattern| T
+/// 
+/// T -->|filled| O["… 🟧 🟧 🟧 …"]
+/// 
+/// style B fill:#ffff,stroke:#ffff
+/// style O fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    default value false
+    input pattern Stream<void>
+    output filled Stream<bool>
+)]
+pub async fn fill(value: bool) {
+    while let Ok(pat) = pattern.recv_void().await {
+        check!(filled.send_bool(vec![value.clone(); pat.len()]).await)
+    }
+}
+
+/// Filter a `bool` stream according to `bool` stream.
+/// 
+/// ℹ️ If both streams are not the same size nothing is sent through accepted nor rejected.
+///  
+/// ```mermaid
+/// graph LR
+///     T("filter()")
+///     V["… 🟦 🟧 🟪 🟫 🟨 …"] -->|value| T
+///     D["… 🟩 🟥 🟥 🟩 🟥 …"] -->|select|T
+///     
+///     T -->|accepted| A["… 🟦 🟫 …"]
+///     T -->|rejected| R["… 🟧 🟪 🟨 …"]
+/// 
+///     style V fill:#ffff,stroke:#ffff
+///     style D fill:#ffff,stroke:#ffff
+///     style A fill:#ffff,stroke:#ffff
+///     style R fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input value Stream<bool>
+    input select Stream<bool>
+    output accepted Stream<bool>
+    output rejected Stream<bool>
+)]
+pub async fn filter() {
+
+    let mut accepted_op = true;
+    let mut rejected_op = true;
+
+    while let (Ok(value), Ok(select)) = futures::join!(value.recv_one_bool(), select.recv_one_bool()) {
+        if select {
+            if let Err(_) = accepted.send_one_bool(value).await {
+                // If we cannot send anymore on accepted, we note it,
+                // and check if rejected is still valid, else just terminate.
+                accepted_op = false;
+                if !rejected_op {
+                    break;
+                }
+            }
+        }
+        else {
+            if let Err(_) = rejected.send_one_bool(value).await {
+                // If we cannot send anymore on rejected, we note it,
+                // and check if accepted is still valid, else just terminate.
+                rejected_op = false;
+                if !accepted_op {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+/// Fit a stream of `bool` into a pattern.
+/// 
+/// ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("fit()")
+///     A["… 🟨 🟨 🟨 🟨 🟨 🟨"] -->|value| T
+///     B["🟦 🟦 🟦 🟦"] -->|pattern| T
+///     
+///     T -->|fitted| O["🟨 🟨 🟨 🟨"]
+/// 
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+///     style O fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input value Stream<bool>
+    input pattern Stream<void>
+    output fitted Stream<bool>
+)]
+pub async fn fit() {
+    'main: while let Ok(pattern) = pattern.recv_void().await {
+        for _ in pattern {
+            if let Ok(val) = value.recv_one_bool().await {
+                check!('main, fitted.send_one_bool(val).await)
+            }
+            else {
+                break 'main;
+            }
+        }
     }
 }
