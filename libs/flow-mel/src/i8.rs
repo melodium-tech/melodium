@@ -35,6 +35,91 @@ pub async fn chain() {
     }
 }
 
+/// Trigger on `i8` stream start and end.
+/// 
+/// Emit `start` when a first value is send through the stream.
+/// Emit `end` when stream is finally over.
+/// 
+/// Emit `first` with the first value coming in the stream.
+/// Emit `last` with the last value coming in the stream.
+/// 
+/// ℹ️ `start` and `first` are always emitted together.
+/// If the stream only contains one element, `first` and `last` both contains it.
+/// If the stream never transmit any data before being ended, only `end` is emitted.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("trigger()")
+///     B["🟥 … 🟨 🟨 🟨 🟨 🟨 🟨 … 🟩"] -->|stream| T
+///     
+///     T -->|start| S["〈🟦〉"]
+///     T -->|first| F["〈🟩〉"]
+///     T -->|last| L["〈🟥〉"]
+///     T -->|end| E["〈🟦〉"]
+/// 
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+///     style F fill:#ffff,stroke:#ffff
+///     style L fill:#ffff,stroke:#ffff
+///     style E fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input stream Stream<i8>
+    output start Block<void>
+    output end Block<void>
+    output first Block<i8>
+    output last Block<i8>
+)]
+pub async fn trigger() {
+
+    let mut last_value = None;
+
+    if let Ok(values) = stream.recv_i8().await {
+        let _ = start.send_one_void(()).await;
+        if let Some(val) = values.first().cloned() {
+            let _ = first.send_one_i8(val).await;
+        }
+        last_value = values.last().cloned();
+        let _ = futures::join!(start.close(), first.close());
+    }
+
+    while let Ok(values) = stream.recv_i8().await {
+        last_value = values.last().cloned();
+    }
+
+    let _ = end.send_one_void(()).await;
+    if let Some(val) = last_value {
+        let _ = last.send_one_i8(val).await;
+    }
+
+    // We don't close `end` and `last` explicitly here,
+    // because it would be redundant with boilerplate
+    // implementation of treatments.
+}
+
+/// Stream a block `i8` value.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("stream()")
+///     B["〈🟦〉"] -->|block| T
+///         
+///     T -->|stream| S["🟦"]
+///     
+///     
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input block Block<i8>
+    output stream Stream<i8>
+)]
+pub async fn stream() {
+    if let Ok(val) = block.recv_one_i8().await {
+        let _ = stream.send_one_i8(val).await;
+    }
+}
+
 /// Merge two streams of `i8`.
 /// 
 /// The two streams are merged using the `select` stream:
@@ -199,5 +284,29 @@ pub async fn fit() {
                 break 'main;
             }
         }
+    }
+}
+
+/// Emit a block `i8` value.
+/// 
+/// When `trigger` is enabled, `value` is emitted as block.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("emit(value=🟨)")
+///     B["〈🟦〉"] -->|trigger| T
+///         
+///     T -->|emit| S["〈🟨〉"]
+///     
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input trigger Block<void>
+    output emit Block<i8>
+)]
+pub async fn emit(value: i8) {
+    if let Ok(_) = trigger.recv_one_void().await {
+        let _ = emit.send_one_i8(value).await;
     }
 }

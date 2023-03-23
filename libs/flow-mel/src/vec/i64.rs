@@ -169,6 +169,116 @@ pub async fn filter() {
     }
 }
 
+
+/// Trigger on `Vec<i64>` stream start and end.
+/// 
+/// Emit `start` when a first value is send through the stream.
+/// Emit `end` when stream is finally over.
+/// 
+/// Emit `first` with the first vector coming in the stream.
+/// Emit `last` with the last vector coming in the stream.
+/// 
+/// ℹ️ `start` and `first` are always emitted together.
+/// If the stream only contains one vector, `first` and `last` both contains it.
+/// If the stream never transmit any data before being ended, only `end` is emitted.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("trigger()")
+///     B["［🟥 🟥］ … ［🟨 🟨］ ［🟨 🟨］ ［🟨 🟨］ … ［🟩 🟩］"] -->|stream| T
+///     
+///     T -->|start| S["〈🟦〉"]
+///     T -->|first| F["〈［🟩 🟩］〉"]
+///     T -->|last| L["〈［🟥 🟥］〉"]
+///     T -->|end| E["〈🟦〉"]
+/// 
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+///     style F fill:#ffff,stroke:#ffff
+///     style L fill:#ffff,stroke:#ffff
+///     style E fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input stream Stream<Vec<i64>>
+    output start Block<void>
+    output end Block<void>
+    output first Block<Vec<i64>>
+    output last Block<Vec<i64>>
+)]
+pub async fn trigger() {
+
+    let mut last_value = None;
+
+    if let Ok(values) = stream.recv_vec_i64().await {
+        let _ = start.send_one_void(()).await;
+        if let Some(val) = values.first().cloned() {
+            let _ = first.send_one_vec_i64(val).await;
+        }
+        last_value = values.last().cloned();
+        let _ = futures::join!(start.close(), first.close());
+    }
+
+    while let Ok(values) = stream.recv_vec_i64().await {
+        last_value = values.last().cloned();
+    }
+
+    let _ = end.send_one_void(()).await;
+    if let Some(val) = last_value {
+        let _ = last.send_one_vec_i64(val).await;
+    }
+
+    // We don't close `end` and `last` explicitly here,
+    // because it would be redundant with boilerplate
+    // implementation of treatments.
+}
+
+/// Stream a block `Vec<i64>` element.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("stream()")
+///     B["〈［🟦］〉"] -->|block| T
+///         
+///     T -->|stream| S["［🟦］"]
+///     
+///     
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input block Block<Vec<i64>>
+    output stream Stream<Vec<i64>>
+)]
+pub async fn stream() {
+    if let Ok(val) = block.recv_one_vec_i64().await {
+        let _ = stream.send_one_vec_i64(val).await;
+    }
+}
+
+/// Emit a block `Vec<i64>` value.
+/// 
+/// When `trigger` is enabled, `value` is emitted as block.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("emit(value=［🟨］)")
+///     B["〈🟦〉"] -->|trigger| T
+///         
+///     T -->|emit| S["〈［🟨］〉"]
+///     
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input trigger Block<void>
+    output emit Block<Vec<i64>>
+)]
+pub async fn emit(value: Vec<i64>) {
+    if let Ok(_) = trigger.recv_one_void().await {
+        let _ = emit.send_one_vec_i64(value).await;
+    }
+}
+
 /// Gives pattern of a `Vec<i64>` stream.
 /// 
 /// ```mermaid

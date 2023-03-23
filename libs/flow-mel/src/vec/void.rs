@@ -169,6 +169,116 @@ pub async fn filter() {
     }
 }
 
+
+/// Trigger on `Vec<void>` stream start and end.
+/// 
+/// Emit `start` when a first value is send through the stream.
+/// Emit `end` when stream is finally over.
+/// 
+/// Emit `first` with the first vector coming in the stream.
+/// Emit `last` with the last vector coming in the stream.
+/// 
+/// ℹ️ `start` and `first` are always emitted together.
+/// If the stream only contains one vector, `first` and `last` both contains it.
+/// If the stream never transmit any data before being ended, only `end` is emitted.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("trigger()")
+///     B["［🟥 🟥］ … ［🟨 🟨］ ［🟨 🟨］ ［🟨 🟨］ … ［🟩 🟩］"] -->|stream| T
+///     
+///     T -->|start| S["〈🟦〉"]
+///     T -->|first| F["〈［🟩 🟩］〉"]
+///     T -->|last| L["〈［🟥 🟥］〉"]
+///     T -->|end| E["〈🟦〉"]
+/// 
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+///     style F fill:#ffff,stroke:#ffff
+///     style L fill:#ffff,stroke:#ffff
+///     style E fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input stream Stream<Vec<void>>
+    output start Block<void>
+    output end Block<void>
+    output first Block<Vec<void>>
+    output last Block<Vec<void>>
+)]
+pub async fn trigger() {
+
+    let mut last_value = None;
+
+    if let Ok(values) = stream.recv_vec_void().await {
+        let _ = start.send_one_void(()).await;
+        if let Some(val) = values.first().cloned() {
+            let _ = first.send_one_vec_void(val).await;
+        }
+        last_value = values.last().cloned();
+        let _ = futures::join!(start.close(), first.close());
+    }
+
+    while let Ok(values) = stream.recv_vec_void().await {
+        last_value = values.last().cloned();
+    }
+
+    let _ = end.send_one_void(()).await;
+    if let Some(val) = last_value {
+        let _ = last.send_one_vec_void(val).await;
+    }
+
+    // We don't close `end` and `last` explicitly here,
+    // because it would be redundant with boilerplate
+    // implementation of treatments.
+}
+
+/// Stream a block `Vec<void>` element.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("stream()")
+///     B["〈［🟦］〉"] -->|block| T
+///         
+///     T -->|stream| S["［🟦］"]
+///     
+///     
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input block Block<Vec<void>>
+    output stream Stream<Vec<void>>
+)]
+pub async fn stream() {
+    if let Ok(val) = block.recv_one_vec_void().await {
+        let _ = stream.send_one_vec_void(val).await;
+    }
+}
+
+/// Emit a block `Vec<void>` value.
+/// 
+/// When `trigger` is enabled, `value` is emitted as block.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("emit(value=［🟨］)")
+///     B["〈🟦〉"] -->|trigger| T
+///         
+///     T -->|emit| S["〈［🟨］〉"]
+///     
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input trigger Block<void>
+    output emit Block<Vec<void>>
+)]
+pub async fn emit(value: Vec<void>) {
+    if let Ok(_) = trigger.recv_one_void().await {
+        let _ = emit.send_one_vec_void(value).await;
+    }
+}
+
 /// Gives count of elements passing through stream.
 /// 
 /// This count increment one for each vector within the stream, starting at 1.
@@ -218,5 +328,96 @@ pub async fn count() {
 pub async fn size() {
     while let Ok(iter) = vector.recv_vec_void().await {
         check!(size.send_u64(iter.into_iter().map(|v| v.len() as u64).collect()).await);
+    }
+}
+
+/// Resize vectors according to given streamed size.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("resize()")
+///     V["［🟦 🟦］［🟦］［］［🟦 🟦 🟦］…"] -->|vector| T
+///     S["3️⃣ 2️⃣ 3️⃣ 2️⃣ …"] -->|size| T
+///     
+///     T -->|resized| P["［🟦 🟦 🟦］［🟦 🟦］［🟦 🟦 🟦］［🟦 🟦］…"]
+/// 
+///     style V fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+///     style P fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input vector Stream<Vec<void>>
+    input size Stream<u64>
+    output resized Stream<Vec<void>>
+)]
+pub async fn resize() {
+    while let Ok(size) = size.recv_one_u64().await {
+        if let Ok(mut vec) = vector.recv_one_vec_void().await {
+            vec.resize(size as usize, ());
+            check!(resized.send_one_vec_void(vec).await);
+        }
+        else {
+            break;
+        }
+    }
+}
+
+/// Generate a stream of empty `Vec<void>` according to a length.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("generate()")
+///     B["〈🟨〉"] -->|length| T
+///         
+///     T -->|stream| S["… ［］［］［］［］［］"]
+///     
+///     
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input length Block<u128>
+    output stream Stream<Vec<void>>
+)]
+pub async fn generate() {
+
+    if let Ok(length) = length.recv_one_u128().await {
+
+        const CHUNK: u128 = 2u128.pow(20);
+        let mut total = 0u128;
+        while total < length {
+            let chunk = u128::min(CHUNK, length - total) as usize;
+            check!(stream.send_vec_void(vec![vec![]; chunk]).await);
+            total += chunk as u128;
+        }
+    }
+}
+
+/// Generate a stream of empty `Vec<void>` indefinitely.
+/// 
+/// This generates a continuous stream of `Vec<void>`, until stream consumers closes it.
+/// 
+/// ```mermaid
+/// graph LR
+///     T("generateIndefinitely()")
+///     B["〈🟦〉"] -->|trigger| T
+///         
+///     T -->|stream| S["… ［］［］［］［］［］"]
+///     
+///     
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    input trigger Block<void>
+    output stream Stream<Vec<void>>
+)]
+pub async fn generate_indefinitely() {
+    
+    if let Ok(_) = trigger.recv_one_void().await {
+        const CHUNK: usize = 2usize.pow(20);
+        loop {
+            check!(stream.send_vec_void(vec![vec![]; CHUNK]).await);
+        }
     }
 }
