@@ -19,9 +19,11 @@ name = "melodium"
 
 [[bin]]
 name = "melodium"
+required-features = ["clap", "colored"]
 
 [dependencies]
 clap = { version = "4.0.9", features = ["cargo", "derive"], optional = true }
+colored = { version = "2.0.0", optional = true }
 melodium-common = { path = "../melodium-common", version = "0.6.0" }
 melodium-engine = { path = "../melodium-engine", version = "0.6.0" }
 melodium-loader = { path = "../melodium-loader", version = "0.6.0" }
