@@ -14,13 +14,15 @@ pub fn load() -> Result<Collection, LoadingError> {
 
 fn core_packages() -> Vec<Box<dyn Package>> {
     let mut packages = Vec::new();
-    #[cfg(feature = "conv")]
+    #[cfg(feature = "conv-mel")]
     packages.push(conv_mel::__mel_package::package());
-    #[cfg(feature = "flow")]
+    #[cfg(feature = "flow-mel")]
     packages.push(flow_mel::__mel_package::package());
-    #[cfg(feature = "ops")]
+    #[cfg(feature = "fs-mel")]
+    packages.push(fs_mel::__mel_package::package());
+    #[cfg(feature = "ops-mel")]
     packages.push(ops_mel::__mel_package::package());
-    #[cfg(feature = "type")]
+    #[cfg(feature = "type-mel")]
     packages.push(type_mel::__mel_package::package());
     packages
 }

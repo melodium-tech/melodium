@@ -48,7 +48,6 @@ enum Commands {
 }
 
 pub fn main() {
-    
 
     let cli = Cli::parse();
 
