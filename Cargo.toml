@@ -2,6 +2,7 @@
 members = [
     "core-mel",
     "libs/conv-mel",
+    "libs/engine-mel",
     "libs/flow-mel",
     "libs/fs-mel",
     "libs/ops-mel",

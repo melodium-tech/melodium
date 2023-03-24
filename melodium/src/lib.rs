@@ -16,6 +16,8 @@ fn core_packages() -> Vec<Box<dyn Package>> {
     let mut packages = Vec::new();
     #[cfg(feature = "conv-mel")]
     packages.push(conv_mel::__mel_package::package());
+    #[cfg(feature = "engine-mel")]
+    packages.push(engine_mel::__mel_package::package());
     #[cfg(feature = "flow-mel")]
     packages.push(flow_mel::__mel_package::package());
     #[cfg(feature = "fs-mel")]

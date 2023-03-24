@@ -294,7 +294,7 @@ impl Documentation {
                 ));
             }
 
-            format!("#### Parameters\n\n{}", string)
+            format!("\n\n---\n\n#### Parameters\n\n{}", string)
         } else {
             String::default()
         };
@@ -369,7 +369,7 @@ impl Documentation {
         };
 
         format!(
-            "# Model {name}\n\n`{id}`\n\n{base}---\n\n{parameters}{sources}\n\n---\n\n{doc}",
+            "# Model {name}\n\n`{id}`\n\n{base}{parameters}{sources}\n\n---\n\n{doc}",
             name = model.identifier().name(),
             id = model.identifier().to_string(),
             base = base,
