@@ -232,9 +232,10 @@ impl Engine for World {
         let gen_env = GenesisEnvironment::new();
 
         let result =
-            self.builder(beginning)
-                .unwrap()
-                .static_build(None, None, "main".to_string(), &gen_env);
+            match self.builder(beginning) {
+                Ok(builder) => builder.static_build(None, None, "main".to_string(), &gen_env),
+                Err(err) => Err(err),
+            };
         if result.is_err() {
             let error = result.unwrap_err();
             let mut errors = self.errors.write().unwrap();

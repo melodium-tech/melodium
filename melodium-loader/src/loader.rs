@@ -78,6 +78,17 @@ impl Loader {
         Ok(self.collection.read().unwrap().clone())
     }
 
+    pub fn build(&self) -> Result<Arc<Collection>, LoadingError> {
+
+        let collection = Arc::new(self.collection.read().unwrap().clone());
+
+        for (_name, package) in self.packages.read().unwrap().iter() {
+            package.make_building(&collection)?;
+        }
+
+        Ok(collection)
+    }
+
     pub fn collection(&self) -> RwLockReadGuard<Collection> {
         self.collection.read().unwrap()
     }

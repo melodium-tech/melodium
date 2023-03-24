@@ -4,7 +4,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub enum LoadingError {
     NoPackage,
-    NotFound,
+    NotFound(u32),
     CircularReference,
     ContentError,
     ContextExpected,

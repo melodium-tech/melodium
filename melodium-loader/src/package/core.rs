@@ -48,12 +48,12 @@ impl CorePackage {
                         }
                         Err(error) => {
                             self.errors.write().unwrap().push(error);
-                            Err(LoadingError::NotFound)
+                            Err(LoadingError::NotFound(0))
                         }
                     }
                 }
             }
-            None => Err(LoadingError::NotFound),
+            None => Err(LoadingError::NotFound(1)),
         }
     }
 
@@ -78,7 +78,7 @@ impl CorePackage {
     }
 
     fn designation(identifier: &Identifier) -> String {
-        identifier.path().join("/")
+        format!("{}.mel", identifier.path().join("/"))
     }
 }
 
@@ -241,7 +241,7 @@ impl Package for CorePackage {
                 Err(LoadingError::CircularReference)
             }
         } else {
-            Err(LoadingError::NotFound)
+            Err(LoadingError::NotFound(2))
         }
     }
 

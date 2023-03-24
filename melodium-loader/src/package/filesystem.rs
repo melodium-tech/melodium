@@ -77,9 +77,9 @@ impl FsPackage {
 
         let mut full_path = self.path.clone();
         full_path.push(designation);
-        let raw = read(full_path).map_err(|_| LoadingError::NotFound)?;
+        let raw = read(full_path).map_err(|_| LoadingError::NotFound(3))?;
 
-        let result_content = Content::new(&designation.as_os_str().to_string_lossy(), &raw);
+        let result_content = Content::new(&format!("{}/{}", self.name, designation.as_os_str().to_string_lossy()), &raw);
 
         match result_content {
             Ok(content) => {
@@ -91,7 +91,7 @@ impl FsPackage {
             }
             Err(error) => {
                 self.errors.write().unwrap().push(error);
-                Err(LoadingError::NotFound)
+                Err(LoadingError::NotFound(4))
             }
         }
     }
@@ -105,11 +105,11 @@ impl FsPackage {
             require_literal_leading_dot: true,
         };
 
-        for entry in glob_with(&pattern, options).map_err(|_| LoadingError::NotFound)? {
+        for entry in glob_with(&pattern, options).map_err(|_| LoadingError::NotFound(7))? {
             match entry {
                 Ok(path) => self.insure_content(
                     path.strip_prefix(&self.path)
-                        .map_err(|_| LoadingError::NotFound)?,
+                        .map_err(|_| LoadingError::NotFound(5))?,
                 )?,
                 Err(_) => {}
             }
@@ -127,7 +127,7 @@ impl FsPackage {
     }
 
     fn designation(identifier: &Identifier) -> PathBuf {
-        PathBuf::from(format!("{}.mel", identifier.path().join("/")))
+        PathBuf::from(format!("{}.mel", identifier.path().clone().into_iter().skip(1).collect::<Vec<_>>().join("/")))
     }
 }
 
@@ -213,7 +213,7 @@ impl Package for FsPackage {
                 Err(LoadingError::CircularReference)
             }
         } else {
-            Err(LoadingError::NotFound)
+            Err(LoadingError::NotFound(6))
         }
     }
 
