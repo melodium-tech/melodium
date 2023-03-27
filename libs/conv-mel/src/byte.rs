@@ -1,5 +1,4 @@
-use melodium_macro::{check, mel_function, mel_treatment};
-use melodium_core::*;
+use melodium_macro::{check, mel_treatment};
 
 /// Turns `byte` stream into `void` one.
 #[mel_treatment(

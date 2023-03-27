@@ -1,4 +1,3 @@
-
 # Mélodium
 
 Mélodium is a dataflow-oriented language, focusing on treatments applied on data, allowing high scalability and massive parallelization safely.
@@ -14,6 +13,42 @@ Mélodium is _under development_ and continously being defined and improved. Rel
 ## Download & installation
 
 Mélodium releases can be downloaded for multiple platforms from the [Mélodium Repository](https://repo.melodium.tech/).
+
+## Command-line usage
+
+Launch a Mélodium program:
+```shell
+melodium run --main <ENTRYPOINT>
+```
+
+Generate documentation:
+```shell
+melodium doc <OUTPUT>
+```
+## Compilation
+
+### Compile from source
+
+Mélodium is fully written in Rust, and just need usual `cargo build`.
+```shell
+git clone https://gitlab.com/melodium/melodium.git
+cd melodium
+cargo build --package melodium
+```
+### Install from crates.io
+
+Mélodium can also be directly installed from [crates.io](https://crates.io/crates/melodium).
+```shell
+cargo install melodium
+```
+
+### Cross-compilation
+
+A more detailed explanation on how to cross-compile Mélodium is written in [dedicated file](../CROSS-COMPILATION.md).
+
+## Standard library
+
+Mélodium comes with its [standard library](https://doc.melodium.tech/latest/).
 
 ## Development
 

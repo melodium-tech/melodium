@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.6.0]
+
+- Complete refactoring and division between multiple Rust crates within project workspace
+
 ## [v0.5.3] (2022-11-03)
 
 ### Bugs fixes
