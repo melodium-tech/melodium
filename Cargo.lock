@@ -265,15 +265,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "core-mel"
-version = "0.6.0"
-dependencies = [
- "melodium-core",
- "melodium-doc",
- "melodium-macro",
-]
-
-[[package]]
 name = "crossbeam-utils"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"

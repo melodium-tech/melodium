@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "core-mel",
     "libs/conv-mel",
     "libs/engine-mel",
     "libs/flow-mel",
