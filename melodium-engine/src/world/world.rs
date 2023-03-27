@@ -128,8 +128,12 @@ impl World {
     }
 
     pub fn builder(&self, identifier: &Identifier) -> Result<Arc<dyn Builder>, LogicError> {
-        if let Some(builder) = self.builders.read().unwrap().get(identifier) {
-            Ok(Arc::clone(builder))
+        let possible_builder;
+        { 
+            possible_builder = self.builders.read().unwrap().get(identifier).cloned();
+        }
+        if let Some(builder) = possible_builder {
+            Ok(builder)
         } else {
             if let Some(entry) = self.collection.get(identifier) {
                 let builder = match entry {
@@ -324,6 +328,8 @@ impl Engine for World {
 
             self.continous_ended.store(true, Ordering::Relaxed);
         };
+
+        self.continuous_tasks_sender.close();
 
         block_on(join(continuum, self.run_tracks()));
     }

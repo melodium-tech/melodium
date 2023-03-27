@@ -128,6 +128,7 @@ impl BuilderTrait for Builder {
         // Get build
         let borrowed_builds = self.builds.read().unwrap();
         let build_sample = borrowed_builds.get(build as usize).unwrap();
+        let descriptor = self.descriptor.upgrade().unwrap();
 
         let mut result = DynamicBuildResult::new();
 
@@ -153,12 +154,12 @@ impl BuilderTrait for Builder {
             .unwrap();
 
         let mut inputs = HashMap::new();
-        for (name, input_descriptor) in host_descriptor.inputs() {
+        for (name, input_descriptor) in descriptor.inputs() {
             let input = world.new_input(input_descriptor);
             treatment.assign_input(name, Box::new(input.clone()));
             inputs.insert(name.clone(), input);
         }
-        for (name, output_descriptor) in host_descriptor.outputs() {
+        for (name, output_descriptor) in descriptor.outputs() {
             let output = world.new_output(output_descriptor);
             if let Some(inputs) = host_build.feeding_inputs.get(name) {
                 output.add_transmission(inputs);

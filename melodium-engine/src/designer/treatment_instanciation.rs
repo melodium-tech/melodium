@@ -65,7 +65,7 @@ impl TreatmentInstanciation {
                 let looking_for =
                     Arc::clone(self.descriptor().models().get(parametric_name).unwrap());
                 let is_matching = loop {
-                    if Arc::ptr_eq(&looking_for, &model_descriptor) {
+                    if looking_for.identifier() == model_descriptor.identifier() {
                         break true;
                     } else if let Some(base) = model_descriptor.base_model() {
                         model_descriptor = base;
