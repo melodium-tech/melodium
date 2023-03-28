@@ -11,12 +11,9 @@ build:debug:x86_64-unknown-linux-gnu:
     - .cargo-cache
   cache:
     policy: pull-push
-  before_script:
-    - apt-get update
-    - apt-get install -y libasound2-dev
   script:
     - rustc --version && cargo --version 
-    - cargo build --locked --target x86_64-unknown-linux-gnu
+    - cargo build --package melodium --locked --target x86_64-unknown-linux-gnu
     - ls target/x86_64-unknown-linux-gnu/debug
   artifacts:
     paths:
@@ -29,12 +26,9 @@ build:release:x86_64-unknown-linux-gnu:
     - .build-release
     - .debian-host
     - .cargo-cache
-  before_script:
-    - apt-get update
-    - apt-get install -y libasound2-dev
   script:
     - rustc --version && cargo --version 
-    - cargo build --locked --release --target x86_64-unknown-linux-gnu
+    - cargo build --package melodium --locked --release --target x86_64-unknown-linux-gnu
     - ls target/x86_64-unknown-linux-gnu/release
   artifacts:
     paths:
@@ -50,11 +44,11 @@ build:release:i686-unknown-linux-gnu:
   before_script:
    - dpkg --add-architecture i386
    - apt-get update
-   - apt-get install -y gcc-multilib libasound2-dev:i386
+   - apt-get install -y gcc-multilib
    - rustup target add i686-unknown-linux-gnu
   script:
    - rustc --version && cargo --version
-   - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --locked --release --target i686-unknown-linux-gnu
+   - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --package melodium --locked --release --target i686-unknown-linux-gnu
    - ls target/i686-unknown-linux-gnu/release
   artifacts:
     paths:
@@ -70,12 +64,12 @@ build:release:aarch64-unknown-linux-gnu:
   before_script:
    - dpkg --add-architecture arm64
    - apt-get update
-   - apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross libc-dev:arm64 libasound2-dev:arm64
+   - apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross libc-dev:arm64
    - ln -s /usr/aarch64-linux-gnu/lib/libgcc_s.so.1 /usr/aarch64-linux-gnu/lib/libgcc_s.so
    - rustup target add aarch64-unknown-linux-gnu
   script:
    - rustc --version && cargo --version 
-   - PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld cargo build --locked --release --target aarch64-unknown-linux-gnu
+   - PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld cargo build --package melodium --locked --release --target aarch64-unknown-linux-gnu
    - ls target/aarch64-unknown-linux-gnu/release
   artifacts:
     paths:
@@ -104,7 +98,7 @@ build:release:x86_64-apple-darwin:
      fi
   script:
    - rustc --version && cargo --version 
-   - PATH=/builds/melodium/melodium/osxcross/target/bin:$PATH CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=x86_64-apple-darwin15-clang CARGO_TARGET_X86_64_APPLE_DARWIN_AR=x86_64-apple-darwin15-ar cargo build --locked --release --target x86_64-apple-darwin
+   - PATH=/builds/melodium/melodium/osxcross/target/bin:$PATH CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=x86_64-apple-darwin15-clang CARGO_TARGET_X86_64_APPLE_DARWIN_AR=x86_64-apple-darwin15-ar cargo build --package melodium --locked --release --target x86_64-apple-darwin
    - ls target/x86_64-apple-darwin/release
   artifacts:
     paths:
@@ -135,7 +129,7 @@ build:release:i686-apple-darwin:
      fi
   script:
    - rustc --version && cargo --version 
-   - PATH=$(pwd)/.cargo/bin:$(pwd)/osxcross/target/bin:$PATH CARGO_TARGET_I686_APPLE_DARWIN_LINKER=i386-apple-darwin15-clang CARGO_TARGET_I686_APPLE_DARWIN_AR=i386-apple-darwin15-ar xargo build --locked --release --target i686-apple-darwin
+   - PATH=$(pwd)/.cargo/bin:$(pwd)/osxcross/target/bin:$PATH CARGO_TARGET_I686_APPLE_DARWIN_LINKER=i386-apple-darwin15-clang CARGO_TARGET_I686_APPLE_DARWIN_AR=i386-apple-darwin15-ar xargo build --package melodium --locked --release --target i686-apple-darwin
    - ls target/i686-apple-darwin/release
   artifacts:
     paths:
@@ -164,7 +158,7 @@ build:release:aarch64-apple-darwin:
      fi
   script:
    - rustc --version && cargo --version 
-   - PATH=$(pwd)/.cargo/bin:$(pwd)/osxcross/target/bin:$PATH CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=aarch64-apple-darwin20.4-clang CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=aarch64-apple-darwin20.4-ar cargo build --locked --release --target aarch64-apple-darwin
+   - PATH=$(pwd)/.cargo/bin:$(pwd)/osxcross/target/bin:$PATH CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=aarch64-apple-darwin20.4-clang CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=aarch64-apple-darwin20.4-ar cargo build --package melodium --locked --release --target aarch64-apple-darwin
    - ls target/aarch64-apple-darwin/release
   artifacts:
     paths:
@@ -183,7 +177,7 @@ build:release:x86_64-pc-windows-gnu:
     - rustup target add x86_64-pc-windows-gnu
   script:
     - rustc --version && cargo --version 
-    - cargo build --locked --release --target x86_64-pc-windows-gnu
+    - cargo build --package melodium --locked --release --target x86_64-pc-windows-gnu
     - ls target/x86_64-pc-windows-gnu/release
   artifacts:
     paths:
@@ -201,7 +195,7 @@ build:release:x86_64-pc-windows-msvc:
   script:
     - rustc --version
     - cargo --version
-    - cargo build --locked --release --target x86_64-pc-windows-msvc
+    - cargo build --package melodium --locked --release --target x86_64-pc-windows-msvc
     - ls target/x86_64-pc-windows-msvc/release
   artifacts:
     paths:
@@ -219,7 +213,7 @@ build:release:i686-pc-windows-gnu:
   script:
     - rustc --version
     - cargo --version
-    - cargo build --locked --release --target i686-pc-windows-gnu
+    - cargo build --package melodium --locked --release --target i686-pc-windows-gnu
     - ls target/i686-pc-windows-gnu/release
   artifacts:
     paths:
@@ -237,7 +231,7 @@ build:release:i686-pc-windows-msvc:
   script:
     - rustc --version
     - cargo --version
-    - cargo build --locked --release --target i686-pc-windows-msvc
+    - cargo build --package melodium --locked --release --target i686-pc-windows-msvc
     - ls target/i686-pc-windows-msvc/release
   artifacts:
     paths:
