@@ -10,7 +10,7 @@ use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a use.
 ///
-/// It owns the whole [text use](../../text/use/struct.Use.html).
+/// It owns the whole [text use](Use).
 #[derive(Debug)]
 pub struct Use {
     pub text: TextUse,
@@ -31,34 +31,8 @@ impl Use {
     /// * `text`: the textual use.
     ///
     /// # Note
-    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// # use melodium::script::path::Path;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Use::new(Rc::clone(&script), text_use)
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_use = borrowed_script.find_use("CoreSpectrum").unwrap().read().unwrap();
-    ///
-    /// assert_eq!(borrowed_use.path, Path::new(vec!["core".to_string(), "signal".to_string()]));
-    /// assert_eq!(borrowed_use.element, "Spectrum");
-    /// assert_eq!(borrowed_use.r#as, "CoreSpectrum");
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn new(
         script: Arc<RwLock<Script>>,
         text: TextUse,

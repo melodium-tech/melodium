@@ -1,4 +1,4 @@
-//! Module dedicated to [Instanciation](struct.Instanciation.html) parsing.
+//! Module dedicated to [Instanciation] parsing.
 
 use super::common::{parse_configuration_assignations, parse_parameters_assignations};
 use super::parameter::Parameter;
@@ -9,7 +9,7 @@ use crate::ScriptError;
 /// Structure describing a textual instanciation.
 ///
 /// This match the conceptual syntax of calling a model or treatment.
-/// It owns a name, a type (treatment or model type, not [data type](../type/struct.Type.html)), and list of [parameters](../parameter/struct.Parameter.html).
+/// It owns a name, a type (treatment or model type, not [data type](super::Type)), and list of [parameters](super::Parameter).
 #[derive(Clone, Debug)]
 pub struct Instanciation {
     pub name: PositionnedString,
@@ -24,9 +24,9 @@ impl Instanciation {
     /// * `iter`: Iterator over words list, next() being expected to be the name.
     ///
     /// ```
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::instanciation::Instanciation;
+    /// # use melodium_lang::error::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::instanciation::Instanciation;
     /// let text = r##"MakeSpectrum: Spectrum[Audio=AudioConnection](frameSize = 1024, hopSize = 512, windowingType = "blackmanharris92")"##;
     ///
     /// let words = get_words(text).unwrap();
@@ -70,9 +70,9 @@ impl Instanciation {
     /// * `iter`: Iterator over words list, next() being expected to be the type name.
     ///
     /// ```
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::instanciation::Instanciation;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::instanciation::Instanciation;
     /// let text = r##"MakeSpectrum: Spectrum(frameSize = 1024, hopSize = 512, windowingType = "blackmanharris92")"##;
     ///
     /// let words = get_words(text).unwrap();
@@ -117,15 +117,15 @@ impl Instanciation {
         }
     }
 
-    /// Build an instanciation by parsing words, starting when configuration [Parameter](../parameter/struct.Parameter.html) is expected.
+    /// Build an instanciation by parsing words, starting when configuration [Parameter] is expected.
     ///
     /// * `name`: The name already parsed for the `Instanciation` (its accuracy is under responsibility of the caller).
-    /// * `iter`: Iterator over words list, next() being expected to be about [Parameter](../type/struct.Parameter.html).
+    /// * `iter`: Iterator over words list, next() being expected to be about [Parameter].
     ///
     /// ```
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::instanciation::Instanciation;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::instanciation::Instanciation;
     /// let text = r##"MakeSpectrum: Spectrum[Audio=AudioConnection](frameSize = 1024, hopSize = 512, windowingType = "blackmanharris92")"##;
     ///
     /// let words = get_words(text).unwrap();
@@ -161,15 +161,15 @@ impl Instanciation {
         Self::build_from_parameters(name, r#type, configuration, &mut iter)
     }
 
-    /// Build an instanciation by parsing words, starting when [Parameter](../parameter/struct.Parameter.html) is expected.
+    /// Build an instanciation by parsing words, starting when [Parameter] is expected.
     ///
     /// * `name`: The name already parsed for the `Instanciation` (its accuracy is under responsibility of the caller).
-    /// * `iter`: Iterator over words list, next() being expected to be about [Parameter](../type/struct.Parameter.html).
+    /// * `iter`: Iterator over words list, next() being expected to be about [Parameter].
     ///
     /// ```
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::instanciation::Instanciation;
+    /// # use melodium_lang::error::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::instanciation::Instanciation;
     /// let text = r##"MakeSpectrum: Spectrum(frameSize = 1024, hopSize = 512, windowingType = "blackmanharris92")"##;
     ///
     /// let words = get_words(text).unwrap();

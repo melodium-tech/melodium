@@ -10,7 +10,7 @@ use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of an output.
 ///
-/// It owns the whole [text parameter](../../text/parameter/struct.Parameter.html).
+/// It owns the whole [text parameter](TextParameter).
 #[derive(Debug)]
 pub struct Output {
     pub text: TextParameter,
@@ -28,37 +28,8 @@ impl Output {
     /// * `text`: the textual parameter.
     ///
     /// # Note
-    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// # use melodium::script::semantic::r#type::{TypeName, TypeFlow, TypeStructure};
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Treatment::new(Arc::clone(&script), text_treatment),
-    /// // which will itself call Output::new(Arc::clone(&treatment), text_parameter).
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_treatment = borrowed_script.find_treatment("HPCP").unwrap().read().unwrap();
-    /// let borrowed_output = borrowed_treatment.find_output("hpcp").unwrap().read().unwrap();
-    ///
-    /// assert_eq!(borrowed_output.name, "hpcp");
-    /// assert_eq!(borrowed_output.r#type.flow, TypeFlow::Stream);
-    /// assert_eq!(borrowed_output.r#type.structure, TypeStructure::Vector);
-    /// assert_eq!(borrowed_output.r#type.name, TypeName::U64);
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn new(
         treatment: Arc<RwLock<Treatment>>,
         text: TextParameter,

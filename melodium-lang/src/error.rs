@@ -1,6 +1,6 @@
 //! Provides Mélodium script error management.
 //!
-//! The main type of this module is [ScriptError](./struct.ScriptError.html), which handles most of the management, combined with kind of errors detailed with [ScriptErrorKind](./enum.ScriptErrorKind.html).
+//! The main type of this module is [ScriptError], which handles most of the management, combined with kind of errors detailed with [ScriptErrorKind].
 
 use super::text::Position;
 use melodium_engine::LogicError;
@@ -10,7 +10,7 @@ use std::fmt;
 
 /// Handles and describe a Mélodium script error.
 ///
-/// Most of the properties are deeply related with [Word](../text/word/struct.Word.html).
+/// Most of the properties are deeply related with [Word](super::text::word::Word).
 ///
 /// # Note
 /// All positions (`absolute_position`, `line_position`) are expected to be bytes indexes, not chars.
@@ -46,7 +46,7 @@ pub enum ScriptErrorKind {
 impl ScriptError {
     /// Creates a new error of Word kind.
     ///
-    /// The ScriptError created that way will be of [ScriptErrorKind::Word](./enum.ScriptErrorKind.html#variant.Word) kind.
+    /// The ScriptError created that way will be of [ScriptErrorKind::Word] kind.
     /// Each parameter matches the properties of ScriptError.
     pub fn word(message: String, word: String, position: Position) -> Self {
         Self {
@@ -59,7 +59,7 @@ impl ScriptError {
 
     /// Creates a new error of EndOfScript kind.
     ///
-    /// The ScriptError created that way will be of [ScriptErrorKind::EndOfScript](./enum.ScriptErrorKind.html#variant.EndOfScript) kind.
+    /// The ScriptError created that way will be of [ScriptErrorKind::EndOfScript] kind.
     pub fn end_of_script(message: String) -> Self {
         Self {
             message,

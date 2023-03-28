@@ -1,7 +1,7 @@
 //! Proceed to semantic analysis and management of Mélodium scripts.
 //!
-//! The main types of this more are [Tree](./common/struct.Tree.html) and [Script](./script/struct.Script.html), which are respectively the semantic tree holding structure and the entry point of semantically managed scripts.
-//! This module is dependant on the [text module](../text/index.html) for building a semantic tree, and is similarly organized.
+//! The main types of this more are [Tree] and [Script], which are respectively the semantic tree holding structure and the entry point of semantically managed scripts.
+//! This module is dependant on the [text module](super::text) for building a semantic tree, and is similarly organized.
 
 pub mod assignative_element;
 pub mod assigned_model;

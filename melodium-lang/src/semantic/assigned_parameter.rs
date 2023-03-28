@@ -11,7 +11,7 @@ use std::sync::{Arc, RwLock, Weak};
 /// Structure managing and describing semantic of an assigned parameter.
 ///
 /// A _assigned_ parameter is a parameter for which name and value are expected, but _no_ type.
-/// It is used by [Treatments](../treatment/struct.Treatment.html) and [Models](../model/struct.Model.html).
+/// It is used by [Treatments](super::Treatment) and [Models](super::Model).
 ///
 /// It owns the whole [text parameter](../../text/parameter/struct.Parameter.html).
 #[derive(Debug)]
@@ -31,36 +31,8 @@ impl AssignedParameter {
     /// * `text`: the textual parameter.
     ///
     /// # Note
-    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// # use melodium::script::semantic::assignative_element::AssignativeElement;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Treatment::new(Arc::clone(&script), text_treatment),
-    /// // which will itself call Treatment::new(Arc::clone(&treatment), text_treatment),
-    /// // which will then call AssignedParameter::new(Arc::clone(&treatment), text_parameter).
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_treatment = borrowed_script.find_treatment("HPCP").unwrap().read().unwrap();
-    /// let borrowed_treatment_instanciation = borrowed_treatment.find_treatment_instanciation("CoreSpectralPeaks").unwrap().read().unwrap();
-    /// let borrowed_parameter = borrowed_treatment_instanciation.find_assigned_parameter("magnitudeThreshold").unwrap().read().unwrap();
-    ///
-    /// assert_eq!(borrowed_parameter.name, "magnitudeThreshold");
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn new(
         parent: Arc<RwLock<dyn AssignativeElement>>,
         text: TextParameter,

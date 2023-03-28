@@ -1,4 +1,4 @@
-//! Module dedicated to [Model](struct.Model.html) parsing.
+//! Module dedicated to [Model] parsing.
 
 use super::common::parse_parameters_declarations;
 use super::parameter::Parameter;
@@ -8,7 +8,7 @@ use crate::ScriptError;
 
 /// Structure describing a textual model.
 ///
-/// It owns a name, parameters, and a type (model type, not [data type](../type/struct.Type.html)).
+/// It owns a name, parameters, and a type (model type, not [data type](super::Type)).
 #[derive(Clone, Debug)]
 pub struct Model {
     pub doc: Option<PositionnedString>,
@@ -24,9 +24,9 @@ impl Model {
     /// * `iter`: Iterator over words list, next() being expected to be the name.
     ///
     /// ```
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::model::Model;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::model::Model;
     /// let text = r##"
     /// model MachineLearningModel(layers: Int, function: String = "sigmoid"): SparseAutoencoder
     /// {

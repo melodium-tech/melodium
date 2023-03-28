@@ -1,4 +1,4 @@
-//! Module dedicated to [Value](enum.Value.html) parsing.
+//! Module dedicated to [Value] parsing.
 
 use super::word::{expect_word, expect_word_kind, Kind, Word};
 use super::{Function, Position, PositionnedString};
@@ -11,19 +11,19 @@ use crate::ScriptError;
 pub enum Value {
     /// `true` or `false`.
     Boolean(PositionnedString),
-    /// Number, see [Kind::Number](../word/enum.Kind.html#variant.Number).
+    /// Number, see [Kind::Number].
     Number(PositionnedString),
-    /// String, see [Kind::String](../word/enum.Kind.html#variant.String).
+    /// String, see [Kind::String].
     String(PositionnedString),
-    /// Char, see [Kind::Char](../word/enum.Kind.html#variant.Char).
+    /// Char, see [Kind::Char].
     Character(PositionnedString),
-    /// Byte, see [Kind::Byte](../word/enum.Kind.html#variant.Byte).
+    /// Byte, see [Kind::Byte].
     Byte(PositionnedString),
     /// Array, representing an arbitrary long vector of values, each of which may be of its own variant kind.
     Array(PositionnedString, Vec<Value>),
-    /// Name, see [Kind::Name](../word/enum.Kind.html#variant.Name).
+    /// Name, see [Kind::Name].
     Name(PositionnedString),
-    /// ContextReference, see [Kind::Context](../word/enum.Kind.html#variant.Context).
+    /// ContextReference, see [Kind::Context].
     /// First element being the context itself, second element the inner refered component.
     /// `@Foo[bar]`: (`@Foo`, `bar`)
     ContextReference((PositionnedString, PositionnedString)),
@@ -37,10 +37,10 @@ impl Value {
     /// * `iter`: Iterator over words list, next() being expected to be the declaration of value.
     ///
     /// ```
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::value::Value;
-    /// # use melodium::script::text::function::Function;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::value::Value;
+    /// # use melodium_lang::text::function::Function;
     /// # use std::mem;
     /// let text = r##"
     /// true

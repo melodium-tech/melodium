@@ -1,4 +1,4 @@
-//! Module dedicated to [Connection](struct.Connection.html) parsing.
+//! Module dedicated to [Connection] parsing.
 
 use super::word::{expect_word_kind, Kind, Word};
 use super::PositionnedString;
@@ -22,9 +22,9 @@ impl Connection {
     /// * `iter`: Iterator over words list, next() being expected to be the end point name.
     ///
     /// ```
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::connection::Connection;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::connection::Connection;
     ///
     /// let text = r##"Feeder --> Trainer"##;
     ///
@@ -61,9 +61,9 @@ impl Connection {
     /// * `iter`: Iterator over words list, next() being expected to be the data out name.
     ///
     /// ```
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::connection::Connection;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::connection::Connection;
     ///
     /// let text = r##"AudioFiles.signal -> MakeSpectrum.signal,spectrum -> Self.spectrum"##;
     ///

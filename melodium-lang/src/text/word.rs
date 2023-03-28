@@ -1,6 +1,6 @@
 //! Module in charge of textual words parsing and analysis.
 //!
-//! This module contains low-level functions doing parsing and analysis of text, as well as [word elements](struct.Word.html), the smallest unit of text that can be parsed.
+//! This module contains low-level functions doing parsing and analysis of text, as well as [word elements](Word), the smallest unit of text that can be parsed.
 //! All functions there are unicode-aware.
 
 use crate::ScriptError;
@@ -139,12 +139,12 @@ impl Default for KindCheck {
 
 /// Give next word or create error.
 ///
-/// Return the next word if any, or create a [ScriptError](../../error/struct.ScriptError.html), with `error_str` as message.
+/// Return the next word if any, or create a [ScriptError], with `error_str` as message.
 /// This function always increment `iter` from one.
 ///
 /// ```
-/// # use melodium::script::text::word::*;
-/// # use melodium::script::error::ScriptError;
+/// # use melodium_lang::text::word::*;
+/// # use melodium_lang::ScriptError;
 /// let words = get_words("myNumber= 876").unwrap();
 /// let mut iter = words.iter();
 ///
@@ -174,12 +174,12 @@ pub fn expect_word(
 
 /// Check aext word kind and returns its text, or create error.
 ///
-/// Return next word text if any and matches `kind`, else create a [ScriptError](../../error/struct.ScriptError.html), with `error_str` as message.
+/// Return next word text if any and matches `kind`, else create a [ScriptError], with `error_str` as message.
 /// This function always increment `iter` from one.
 ///
 /// ```
-/// # use melodium::script::text::word::*;
-/// # use melodium::script::error::ScriptError;
+/// # use melodium_lang::text::word::*;
+/// # use melodium_lang::ScriptError;
 /// let words = get_words("myNumber= 876").unwrap();
 /// let mut iter = words.iter();
 ///
@@ -219,9 +219,9 @@ pub fn expect_word_kind(
 
 /// Make primary parsing of text, and return words inside it.
 ///
-/// Returns a list of [words](./struct.Word.html) contained inside the text, as `Ok` if parsing went without error (implying every word has an associated kind), or as `Err` if something hasn't been recognized (the last word will be the erroneous one, and may be without kind).
+/// Returns a list of [words](Word) contained inside the text, as `Ok` if parsing went without error (implying every word has an associated kind), or as `Err` if something hasn't been recognized (the last word will be the erroneous one, and may be without kind).
 ///
-/// See [expect_word](./fn.expect_word.html) and [expect_word_kind](./fn.expect_word_kind.html) for example of usage.
+/// See [expect_word] and [expect_word_kind] for example of usage.
 pub fn get_words(script: &str) -> Result<Vec<Word>, Vec<Word>> {
     let mut words = Vec::new();
     let mut remaining_script = script.trim_start();

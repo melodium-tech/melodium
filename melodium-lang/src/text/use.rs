@@ -1,4 +1,4 @@
-//! Module dedicated to [Use](struct.Use.html) parsing.
+//! Module dedicated to [Use] parsing.
 
 use super::word::*;
 use super::PositionnedString;
@@ -20,9 +20,9 @@ impl Use {
     /// * `iter`: Iterator over words list, next() being expected to be the beginning of the path.
     ///
     /// ```
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::r#use::Use;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::r#use::Use;
     /// let words = get_words("use path/where/is::Element as MyElement").unwrap();
     /// let mut iter = words.iter();
     ///

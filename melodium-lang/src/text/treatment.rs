@@ -32,18 +32,18 @@ impl Treatment {
     /// * `iter`: Iterator over words list, next() being expected to be the name of the treatment.
     ///
     /// ```
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::treatment::Treatment;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::treatment::Treatment;
     ///
     /// let text = r##"
     /// treatment PrepareAudioFiles(path: Vec<String>, sampleRate: Int = 44100, frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String)
-    ///     origin AudioFiles(path=path, sampleRate=sampleRate)
     ///     output spectrum: Mat<Int>
     ///     model Audio: AudioAccess(sampleRate = 44100, channels = "mono")
     ///     require @File
     ///     require @Signal
     /// {
+    /// AudioFiles(path=path, sampleRate=sampleRate)
     /// MakeSpectrum(frameSize = frameSize, hopSize = hopSize, windowingType = windowingType)
     ///
     /// AudioFiles.signal -> MakeSpectrum.signal,spectrum -> Self.spectrum
@@ -61,10 +61,9 @@ impl Treatment {
     /// assert_eq!(treatment.name.string, "PrepareAudioFiles");
     /// assert_eq!(treatment.parameters.len(), 5);
     /// assert_eq!(treatment.requirements.len(), 2);
-    /// assert!(treatment.origin.is_some());
     /// assert_eq!(treatment.inputs.len(), 0);
     /// assert_eq!(treatment.outputs.len(), 1);
-    /// assert_eq!(treatment.treatments.len(), 1);
+    /// assert_eq!(treatment.treatments.len(), 2);
     /// assert_eq!(treatment.connections.len(), 2);
     /// # Ok::<(), ScriptError>(())
     /// ```

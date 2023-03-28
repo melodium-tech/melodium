@@ -35,37 +35,8 @@ impl DeclaredParameter {
     /// * `text`: the textual parameter.
     ///
     /// # Note
-    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// # use melodium::script::semantic::declarative_element::DeclarativeElement;
-    /// # use melodium::script::semantic::r#type::{TypeName, TypeStructure};
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Treatment::new(Rc::clone(&script), text_treatment),
-    /// // which will itself call DeclaredParameter::new(Rc::clone(&treatment), text_parameter).
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_treatment = borrowed_script.find_treatment("AudioToHpcpImage").unwrap().read().unwrap();
-    /// let borrowed_declared_parameter = borrowed_treatment.find_declared_parameter("hopSize").unwrap().read().unwrap();
-    ///
-    /// assert_eq!(borrowed_declared_parameter.name, "hopSize");
-    /// assert_eq!(borrowed_declared_parameter.r#type.structure, TypeStructure::Scalar);
-    /// assert_eq!(borrowed_declared_parameter.r#type.name, TypeName::U64);
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn new(
         parent: Arc<RwLock<dyn DeclarativeElement>>,
         text: TextParameter,

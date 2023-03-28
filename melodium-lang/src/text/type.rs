@@ -1,4 +1,4 @@
-//! Module dedicated to [Type](struct.Type.html) parsing.
+//! Module dedicated to [Type] parsing.
 
 use super::word::{expect_word_kind, Kind, Word};
 use super::PositionnedString;
@@ -20,9 +20,9 @@ impl Type {
     /// * `iter`: Iterator over words list, next() being expected to be either the name or structure.
     ///
     /// ```
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::r#type::Type;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::r#type::Type;
     /// let text = "Vec<Int>";
     ///
     /// let words = get_words(text).unwrap();

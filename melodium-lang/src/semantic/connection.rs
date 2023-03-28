@@ -12,7 +12,7 @@ use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a connection.
 ///
-/// It owns the whole [text connection](../../text/connection/struct.Connection.html).
+/// It owns the whole [text connection](TextConnection).
 #[derive(Debug)]
 pub struct Connection {
     pub text: TextConnection,
@@ -35,7 +35,7 @@ impl Connection {
     /// * `text`: the textual connection.
     ///
     /// # Note
-    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     pub fn new(
         treatment: Arc<RwLock<Treatment>>,
         text: TextConnection,

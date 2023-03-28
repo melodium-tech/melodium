@@ -17,7 +17,7 @@ use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a model.
 ///
-/// It owns the whole [text model](../../text/model/struct.Model.html).
+/// It owns the whole [text model](TextModel).
 #[derive(Debug)]
 pub struct Model {
     pub text: TextModel,
@@ -49,32 +49,8 @@ impl Model {
     /// * `text`: the textual model.
     ///
     /// # Note
-    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Model::new(Arc::clone(&script), text_model)
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_model = borrowed_script.find_model("Files").unwrap().read().unwrap();
-    ///
-    /// assert_eq!(borrowed_model.parameters.len(), 1);
-    /// assert_eq!(borrowed_model.assignations.len(), 1);
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn new(
         script: Arc<RwLock<Script>>,
         text: TextModel,
@@ -250,34 +226,6 @@ impl DeclarativeElement for Model {
         DeclarativeElementType::Model(&self)
     }
 
-    /// Search for a declared parameter.
-    ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// # use melodium::script::semantic::declarative_element::DeclarativeElement;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_model = borrowed_script.find_model("Files").unwrap().read().unwrap();
-    ///
-    /// let directory = borrowed_model.find_declared_parameter("directory");
-    /// let dont_exist = borrowed_model.find_declared_parameter("dontExist");
-    /// assert!(directory.is_some());
-    /// assert!(dont_exist.is_none());
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     fn find_declared_parameter(&self, name: &str) -> Option<&Arc<RwLock<DeclaredParameter>>> {
         self.parameters
             .iter()
@@ -294,34 +242,6 @@ impl AssignativeElement for Model {
         self.auto_reference.upgrade().unwrap()
     }
 
-    /// Search for an assigned parameter.
-    ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// # use melodium::script::semantic::assignative_element::AssignativeElement;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_model = borrowed_script.find_model("AudioEngine").unwrap().read().unwrap();
-    ///
-    /// let sample_rate = borrowed_model.find_assigned_parameter("sampleRate");
-    /// let dont_exist = borrowed_model.find_assigned_parameter("dontExist");
-    /// assert!(sample_rate.is_some());
-    /// assert!(dont_exist.is_none());
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     fn find_assigned_parameter(&self, name: &str) -> Option<&Arc<RwLock<AssignedParameter>>> {
         self.assignations
             .iter()

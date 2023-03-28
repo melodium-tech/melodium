@@ -1,4 +1,4 @@
-//! Module dedicated to [Script](struct.Script.html) parsing.
+//! Module dedicated to [Script] parsing.
 
 use super::annotation::Annotation;
 use super::model::Model;
@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 /// Structure managing and describing textual script.
 ///
-/// It owns the whole script text, as well as parsed attributes, including [Uses](../use/struct.Use.html), [Annotations](../annotation/struct.Annotation.html), [Models](../model/struct.Model.html), and [Treatments](../treatment/struct.Treatment.html).
+/// It owns the whole script text, as well as parsed attributes, including [Use]s, [Annotation]s, [Model]s, and [Treatment]s.
 /// There is no logical coherence involved there, only syntax analysis and parsing.
 #[derive(Clone, Debug)]
 pub struct Script {
@@ -25,7 +25,7 @@ pub struct Script {
 impl Script {
     /// Build script by parsing the whole content.
     ///
-    /// This is the main function of the whole [text module](../index.html), it process the entire textual content of script and build a syntax tree.
+    /// This is the main function of the whole [text module](super), it process the entire textual content of script and build a syntax tree.
     /// It also makes a copy of `text` and keeps it by its own.
     ///
     /// * `text`: The text of the script itself.
@@ -34,19 +34,19 @@ impl Script {
     /// It doesn't check any logic, only syntax analysis and parsing.
     ///
     /// ```
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::script::Script;
     ///
     /// let text = r##"
+    /// use project/subpath/to/utils::PrepareAudioFiles
     /// use project/subpath/to/utils::MakeHPCP
     ///
     /// // Main treatment
     /// treatment Main()
-    ///     origin PrepareAudioFiles(path="Musique/", sampleRate=44100, frameSize=4096, hopSize=2048, windowingType="blackmanharris92")
     ///     require @File
     ///     require @Signal
     /// {
-    ///
+    ///     PrepareAudioFiles(path="Musique/", sampleRate=44100, frameSize=4096, hopSize=2048, windowingType="blackmanharris92")
     ///     MakeHPCP(sampleRate=@Signal[sampleRate], minFrequency=40, maxFrequency=5000, harmonics=8, size=120)
     ///
     ///     PrepareAudioFiles.spectrum -> MakeHPCP.spectrum

@@ -9,12 +9,12 @@ use crate::ScriptError;
 ///
 /// * `iter`: Iterator over words list, next() being expected to be the first parameter, _not_ parenthesis.
 /// ```
-/// # use melodium::script::error::ScriptError;
-/// # use melodium::script::text::word::*;
-/// # use melodium::script::text::common::parse_parameters_declarations;
+/// # use melodium_lang::ScriptError;
+/// # use melodium_lang::text::word::*;
+/// # use melodium_lang::text::common::parse_parameters_declarations;
 ///
 /// let text = r##"
-/// (path: Vec<String>, const sampleRate: Int = 44100, const frameSize: Int = 4096, const hopSize: Int = 2048, var windowingType: String)
+/// (path: Vec<String>, const sampleRate: u32 = 44100, const frameSize: u32 = 4096, const hopSize: u32 = 2048, var windowingType: string)
 /// "##;
 ///
 /// let words = get_words(text).unwrap();
@@ -77,9 +77,9 @@ pub fn parse_parameters_declarations(
 ///
 /// * `iter`: Iterator over words list, next() being expected to be the the first parameter, _not_ parenthesis.
 /// ```
-/// # use melodium::script::error::ScriptError;
-/// # use melodium::script::text::word::*;
-/// # use melodium::script::text::common::parse_parameters_assignations;
+/// # use melodium_lang::ScriptError;
+/// # use melodium_lang::text::word::*;
+/// # use melodium_lang::text::common::parse_parameters_assignations;
 ///
 /// let text = r##"
 /// (path = "my/path/to/something", sampleRate = 44100, frameSize = 4096, hopSize= 2048, windowingType="square")
@@ -146,9 +146,9 @@ pub fn parse_parameters_assignations(
 ///
 /// * `iter`: Iterator over words list, next() being expected to be the first parameter, _not_ bracket.
 /// ```
-/// # use melodium::script::error::ScriptError;
-/// # use melodium::script::text::word::*;
-/// # use melodium::script::text::common::parse_configuration_declarations;
+/// # use melodium_lang::error::ScriptError;
+/// # use melodium_lang::text::word::*;
+/// # use melodium_lang::text::common::parse_configuration_declarations;
 ///
 /// let text = r##"
 /// [Files: FileManager, Audio: AudioManager]
@@ -216,9 +216,9 @@ pub fn parse_configuration_declarations(
 ///
 /// * `iter`: Iterator over words list, next() being expected to be the first parameter, _not_ bracket.
 /// ```
-/// # use melodium::script::error::ScriptError;
-/// # use melodium::script::text::word::*;
-/// # use melodium::script::text::common::parse_configuration_assignations;
+/// # use melodium_lang::ScriptError;
+/// # use melodium_lang::text::word::*;
+/// # use melodium_lang::text::common::parse_configuration_assignations;
 ///
 /// let text = r##"
 /// [Files=DataFiles, Audio=AudioConnection]

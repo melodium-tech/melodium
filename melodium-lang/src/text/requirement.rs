@@ -1,4 +1,4 @@
-//! Module dedicated to [Requirement](struct.Requirement.html) parsing.
+//! Module dedicated to [Requirement] parsing.
 
 use super::word::{expect_word_kind, Kind, Word};
 use super::PositionnedString;
@@ -15,12 +15,12 @@ pub struct Requirement {
 impl Requirement {
     /// Build requirement by parsing words.
     ///
-    /// * `iter`: Iterator over words list, next() being expected to be the context required, see [Kind::Context](../word/enum.Kind.html#variant.Context).
+    /// * `iter`: Iterator over words list, next() being expected to be the context required, see [Kind::Context].
     ///
     /// ```
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::requirement::Requirement;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::requirement::Requirement;
     /// let words = get_words("require @Signal").unwrap();
     /// let mut iter = words.iter();
     ///

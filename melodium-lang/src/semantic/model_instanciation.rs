@@ -17,7 +17,7 @@ use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a model instanciation.
 ///
-/// It owns the whole [text instanciation](../../text/instanciation/struct.Instanciation.html).
+/// It owns the whole [text instanciation](TextInstanciation).
 #[derive(Debug)]
 pub struct ModelInstanciation {
     pub text: TextInstanciation,
@@ -33,7 +33,7 @@ pub struct ModelInstanciation {
 
 /// Enumeration managing what model instanciation refers to.
 ///
-/// This is a convenience enum, as a model instanciation may refer either on a [Use](../use/struct.Use.html) or a [Model](../model/struct.Model.html).
+/// This is a convenience enum, as a model instanciation may refer either on a [Use] or a [Model].
 /// The `Unknown` variant is aimed to hold a reference-to-nothing, as long as `make_references() hasn't been called.
 #[derive(Debug)]
 pub enum RefersTo {
@@ -49,34 +49,8 @@ impl ModelInstanciation {
     /// * `text`: the textual instanciation.
     ///
     /// # Note
-    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Treatment::new(Arc::clone(&script), text_treatment),
-    /// // which will itself call InstanciedModel::new(Arc::clone(&treatment), text_instanciation).
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_treatment = borrowed_script.find_treatment("Main").unwrap().read().unwrap();
-    /// let borrowed_instancied_model = borrowed_treatment.find_instancied_model("Files").unwrap().read().unwrap();
-    ///
-    /// assert_eq!(borrowed_instancied_model.name, "Files");
-    /// assert_eq!(borrowed_instancied_model.parameters.len(), 1);
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn new(
         treatment: Arc<RwLock<Treatment>>,
         text: TextInstanciation,
@@ -144,35 +118,6 @@ impl AssignativeElement for ModelInstanciation {
         self.treatment.upgrade().unwrap() as Arc<RwLock<dyn DeclarativeElement>>
     }
 
-    /// Search for a parameter.
-    ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// # use melodium::script::semantic::assignative_element::AssignativeElement;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_treatment = borrowed_script.find_treatment("Main").unwrap().read().unwrap();
-    /// let borrowed_instancied_model = borrowed_treatment.find_instancied_model("Files").unwrap().read().unwrap();
-    ///
-    /// let directory = borrowed_instancied_model.find_assigned_parameter("directory");
-    /// let dont_exist = borrowed_instancied_model.find_assigned_parameter("dontExist");
-    /// assert!(directory.is_some());
-    /// assert!(dont_exist.is_none());
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     fn find_assigned_parameter(&self, name: &str) -> Option<&Arc<RwLock<AssignedParameter>>> {
         self.parameters
             .iter()

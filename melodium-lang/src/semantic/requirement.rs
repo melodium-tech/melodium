@@ -12,7 +12,7 @@ use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a requirement.
 ///
-/// It owns the whole [text requirement](../../text/requirement/struct.Requirement.html).
+/// It owns the whole [text requirement](TextRequirement).
 #[derive(Debug)]
 pub struct Requirement {
     pub text: TextRequirement,
@@ -27,7 +27,7 @@ pub struct Requirement {
 
 /// Enumeration managing what requirement type refers to.
 ///
-/// This is a convenience enum, as a requirement may only refer on a [Use](Use) context.
+/// This is a convenience enum, as a requirement may only refer on a [Use] context.
 /// The `Unknown` variant is aimed to hold a reference-to-nothing, as long as `make_references() hasn't been called.
 #[derive(Debug)]
 pub enum RefersTo {
@@ -42,33 +42,8 @@ impl Requirement {
     /// * `text`: the textual requirement.
     ///
     /// # Note
-    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Treatment::new(Arc::clone(&script), text_treatment),
-    /// // which will itself call Requirement::new(Arc::clone(&treatment), text_requirement).
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_treatment = borrowed_script.find_treatment("AudioToHpcpImage").unwrap().read().unwrap();
-    /// let borrowed_requirement = borrowed_treatment.find_requirement("@Signal").unwrap().read().unwrap();
-    ///
-    /// assert_eq!(borrowed_requirement.name, "@Signal");
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn new(
         treatment: Arc<RwLock<Treatment>>,
         text: TextRequirement,

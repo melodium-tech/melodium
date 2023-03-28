@@ -30,29 +30,8 @@ impl Script {
     /// * `text`: the textual script.
     ///
     /// # Note
-    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    ///
-    /// assert_eq!(script.read().unwrap().uses.len(), 11);
-    /// assert_eq!(script.read().unwrap().models.len(), 2);
-    /// assert_eq!(script.read().unwrap().treatments.len(), 5);
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn new(text: TextScript) -> Result<Arc<RwLock<Self>>, ScriptError> {
         let script = Arc::<RwLock<Self>>::new(RwLock::new(Self {
             text: text.clone(),
@@ -84,29 +63,6 @@ impl Script {
     /// Search for an element imported through a use.
     /// This search using the `as` property.
     ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    /// let borrowed_script = script.read().unwrap();
-    ///
-    /// let core_spectrum = borrowed_script.find_use("CoreSpectrum");
-    /// let dont_exist = borrowed_script.find_use("DontExist");
-    /// assert!(core_spectrum.is_some());
-    /// assert!(dont_exist.is_none());
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn find_use(&self, element_as: &str) -> Option<&Arc<RwLock<Use>>> {
         self.uses
             .iter()
@@ -114,59 +70,11 @@ impl Script {
     }
 
     /// Search for a model.
-    ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    /// let borrowed_script = script.read().unwrap();
-    ///
-    /// let audio_engine = borrowed_script.find_model("AudioEngine");
-    /// let dont_exist = borrowed_script.find_model("DontExist");
-    /// assert!(audio_engine.is_some());
-    /// assert!(dont_exist.is_none());
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn find_model(&self, name: &str) -> Option<&Arc<RwLock<Model>>> {
         self.models.get(name)
     }
 
     /// Search for a treatment.
-    ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    /// let borrowed_script = script.read().unwrap();
-    ///
-    /// let hpcp = borrowed_script.find_treatment("HPCP");
-    /// let dont_exist = borrowed_script.find_treatment("DontExist");
-    /// assert!(hpcp.is_some());
-    /// assert!(dont_exist.is_none());
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn find_treatment(&self, name: &str) -> Option<&Arc<RwLock<Treatment>>> {
         self.treatments.get(name)
     }

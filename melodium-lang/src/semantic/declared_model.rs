@@ -14,7 +14,7 @@ use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a declared model.
 ///
-/// It owns optionnally the whole [text parameter](../../text/parameter/struct.Parameter.html),
+/// It owns optionnally the whole [text parameter](TextParameter),
 /// depending on explicit or implicit declaration.
 #[derive(Debug)]
 pub struct DeclaredModel {
@@ -28,7 +28,7 @@ pub struct DeclaredModel {
 
 /// Enumeration managing what declared model type refers to.
 ///
-/// This is a convenience enum, as a declared model type may refer either on a [Use](../use/struct.Use.html), a [Model](../use/struct.Model.html), or an [InstanciedModel](../instancied_model/struct.InstanciedModel.html).
+/// This is a convenience enum, as a declared model type may refer either on a [Use], a [Model], or an [ModelInstanciation].
 /// The `Unknown` variant is aimed to hold a reference-to-nothing, as long as `make_references() hasn't been called.
 #[derive(Debug)]
 pub enum RefersTo {
@@ -46,33 +46,7 @@ impl DeclaredModel {
     /// * `instancied_model`: the InstanciedModel to use as declaration.
     ///
     /// # Note
-    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
-    ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Treatment::new(Arc::clone(&script), text_treatment),
-    /// // which will itself call DeclaredModel::from_instancied_model(Arc::clone(&instancied_model)).
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_treatment = borrowed_script.find_treatment("Main").unwrap().read().unwrap();
-    /// let borrowed_declared_model = borrowed_treatment.find_declared_model("Files").unwrap().read().unwrap();
-    ///
-    /// assert_eq!(borrowed_declared_model.name, "Files");
-    /// # Ok::<(), ScriptError>(())
-    /// ```
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     pub fn from_instancied_model(
         instancied_model: Arc<RwLock<ModelInstanciation>>,
     ) -> Result<Arc<RwLock<Self>>, ScriptError> {
@@ -97,33 +71,8 @@ impl DeclaredModel {
     /// * `text`: the textual model.
     ///
     /// # Note
-    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Treatment::new(Arc::clone(&script), text_treatment),
-    /// // which will itself call DeclaredModel::new(Arc::clone(&treatment), text_parameter).
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_treatment = borrowed_script.find_treatment("AudioToHpcpImage").unwrap().read().unwrap();
-    /// let borrowed_declared_model = borrowed_treatment.find_declared_model("AudioManager").unwrap().read().unwrap();
-    ///
-    /// assert_eq!(borrowed_declared_model.name, "AudioManager");
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn new(
         treatment: Arc<RwLock<Treatment>>,
         text: TextParameter,

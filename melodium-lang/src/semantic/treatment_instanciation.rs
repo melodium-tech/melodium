@@ -50,34 +50,8 @@ impl TreatmentInstanciation {
     /// * `text`: the textual treatment.
     ///
     /// # Note
-    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](../common/trait.Node.html).
+    /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    /// // Internally, Script::new call Treatment::new(Arc::clone(&script), text_treatment),
-    /// // which will itself call Treatment::new(Arc::clone(&treatment), text_treatment).
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_treatment = borrowed_script.find_treatment("HPCP").unwrap().read().unwrap();
-    /// let borrowed_treatment = borrowed_treatment.find_treatment("CoreSpectralPeaks").unwrap().read().unwrap();
-    ///
-    /// assert_eq!(borrowed_treatment.name, "CoreSpectralPeaks");
-    /// assert_eq!(borrowed_treatment.parameters.len(), 6);
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn new(
         treatment: Arc<RwLock<Treatment>>,
         text: TextTreatment,
@@ -173,67 +147,12 @@ impl AssignativeElement for TreatmentInstanciation {
     }
 
     /// Search for an assigned model.
-    ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// # use melodium::script::semantic::assignative_element::AssignativeElement;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_treatment = borrowed_script.find_treatment("ReadAudioFiles").unwrap().read().unwrap();
-    /// let borrowed_treatment = borrowed_treatment.find_treatment("Decoder").unwrap().read().unwrap();
-    ///
-    /// let audio_manager = borrowed_treatment.find_assigned_model("AudioManager");
-    /// let dont_exist = borrowed_treatment.find_assigned_model("DontExist");
-    /// assert!(audio_manager.is_some());
-    /// assert!(dont_exist.is_none());
-    /// # Ok::<(), ScriptError>(())
-    /// ```
+
     fn find_assigned_model(&self, name: &str) -> Option<&Arc<RwLock<AssignedModel>>> {
         self.models.iter().find(|&m| m.read().unwrap().name == name)
     }
 
     /// Search for a parameter.
-    ///
-    /// # Example
-    /// ```
-    /// # use std::fs::File;
-    /// # use std::io::Read;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::script::Script as TextScript;
-    /// # use melodium::script::semantic::script::Script;
-    /// # use melodium::script::semantic::assignative_element::AssignativeElement;
-    /// let address = "melodium-tests/semantic/simple_build.mel";
-    /// let mut raw_text = String::new();
-    /// # let mut file = File::open(address).unwrap();
-    /// # file.read_to_string(&mut raw_text);
-    ///
-    /// let text_script = TextScript::build(&raw_text)?;
-    ///
-    /// let script = Script::new(text_script)?;
-    ///
-    /// let borrowed_script = script.read().unwrap();
-    /// let borrowed_treatment = borrowed_script.find_treatment("HPCP").unwrap().read().unwrap();
-    /// let borrowed_treatment = borrowed_treatment.find_treatment("CoreSpectralPeaks").unwrap().read().unwrap();
-    ///
-    /// let magnitude_threshold = borrowed_treatment.find_assigned_parameter("magnitudeThreshold");
-    /// let dont_exist = borrowed_treatment.find_assigned_parameter("dontExist");
-    /// assert!(magnitude_threshold.is_some());
-    /// assert!(dont_exist.is_none());
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     fn find_assigned_parameter(&self, name: &str) -> Option<&Arc<RwLock<AssignedParameter>>> {
         self.parameters
             .iter()

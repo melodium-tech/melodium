@@ -16,7 +16,7 @@ use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing Value semantic analysis.
 ///
-/// It owns the whole [text value](../../text/value/enum.Value.html).
+/// It owns the whole [text value](TextValue).
 /// A reference to the declarative element it belongs to is needed for cases the value is or contains a name or reference.
 #[derive(Debug)]
 pub struct Value {

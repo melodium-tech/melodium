@@ -155,9 +155,9 @@ impl fmt::Display for TypeName {
 
 /// Structure managing and describing Type semantic analysis.
 ///
-/// It owns the whole [text type](../../text/type/struct.Type.html).
+/// It owns the whole [text type](TextType).
 ///
-/// Unlike most other elements of the semantic module, it does _not_ implement [Node trait](../common/trait.Node.html), because a type is considered as a property of its owner, not a children.
+/// Unlike most other elements of the semantic module, it does _not_ implement [Node trait](super::Node), because a type is considered as a property of its owner, not a children.
 /// Also, it is a build-in element of Mélodium language so don't have any references to manage.
 #[derive(Debug)]
 pub struct Type {
@@ -175,10 +175,10 @@ impl Type {
     ///
     /// # Example
     /// ```
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::r#type::Type as TextType;
-    /// # use melodium::script::semantic::r#type::*;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::Type as TextType;
+    /// # use melodium_lang::semantic::r#type::*;
     /// let str_block_vec_int = "Vec<u64>";
     /// let str_block_scal_string = "string";
     /// let str_stream_vec_real = "Stream<Vec<f64>>";

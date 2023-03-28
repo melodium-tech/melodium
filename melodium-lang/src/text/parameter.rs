@@ -1,4 +1,4 @@
-//! Module dedicated to [Parameter](struct.Parameter.html) parsing.
+//! Module dedicated to [Parameter] parsing.
 
 use super::r#type::Type;
 use super::value::Value;
@@ -8,7 +8,7 @@ use crate::ScriptError;
 
 /// Structure describing a textual parameter.
 ///
-/// It owns a name, and optionnal [Type](../type/struct.Type.html) and/or [Value](../value/enum.Value.html). There is no logical dependency between them at this point.
+/// It owns a name, and optionnal [Type] and/or [Value]. There is no logical dependency between them at this point.
 #[derive(Clone, Debug)]
 pub struct Parameter {
     pub name: PositionnedString,
@@ -21,13 +21,13 @@ impl Parameter {
     /// Build a parameter by parsing words, starting when name is expected.
     ///
     /// * `variability_or_name`: The variability or name already parsed for the `Parameter` (its accuracy is under responsibility of the caller).
-    /// * `iter`: Iterator over words list, next() being expected to be about [Type](../type/struct.Type.html).
+    /// * `iter`: Iterator over words list, next() being expected to be about [Type].
     ///
     /// ```
-    /// # use melodium::script::text::parameter::*;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::value::Value;
+    /// # use melodium_lang::text::parameter::*;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::value::Value;
     /// let words = get_words("const myParameter: Vec<Int> = [1, 3, 5, 7, 11]").unwrap();
     /// let mut iter = words.iter();
     ///
@@ -82,17 +82,17 @@ impl Parameter {
         }
     }
 
-    /// Build a parameter by parsing words, starting when named [Type](../type/struct.Type.html) is expected.
+    /// Build a parameter by parsing words, starting when named [Type] is expected.
     ///
     /// * `variability`: The variability already parsed for the `Parameter` (its accuracy is under responsibility of the caller).
     /// * `name`: The name already parsed for the `Parameter` (its accuracy is under responsibility of the caller).
-    /// * `iter`: Iterator over words list, next() being expected to be about [Type](../type/struct.Type.html).
+    /// * `iter`: Iterator over words list, next() being expected to be about [Type].
     ///
     /// ```
-    /// # use melodium::script::text::parameter::*;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::value::Value;
+    /// # use melodium_lang::text::parameter::*;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::value::Value;
     /// let words = get_words("myParameter: Vec<Int> = [1, 3, 5, 7, 11]").unwrap();
     /// let mut iter = words.iter();
     ///
@@ -139,16 +139,16 @@ impl Parameter {
         }
     }
 
-    /// Build a parameter by parsing words, starting when a [Value](../value/enum.Value.html) is expected.
+    /// Build a parameter by parsing words, starting when a [Value] is expected.
     ///
     /// * `name`: The name already parsed for the `Parameter` (its accuracy is under responsibility of the caller).
-    /// * `iter`: Iterator over words list, next() being expected to be about [Value](../value/enum.Value.html).
+    /// * `iter`: Iterator over words list, next() being expected to be about [Value].
     ///
     /// ```
-    /// # use melodium::script::text::parameter::*;
-    /// # use melodium::script::error::ScriptError;
-    /// # use melodium::script::text::word::*;
-    /// # use melodium::script::text::value::Value;
+    /// # use melodium_lang::text::parameter::*;
+    /// # use melodium_lang::ScriptError;
+    /// # use melodium_lang::text::word::*;
+    /// # use melodium_lang::text::value::Value;
     /// let words = get_words("myParameter = |my_function(0.248)").unwrap();
     /// let mut iter = words.iter();
     ///

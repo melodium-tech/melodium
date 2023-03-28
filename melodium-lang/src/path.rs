@@ -15,7 +15,7 @@ impl Path {
     /// Instanciates a new path.
     ///
     /// ```
-    /// # use melodium::script::path::Path;
+    /// # use melodium_lang::Path;
     /// // use main/foo/bar::UselessElement
     /// let raw_valid_path = vec![  "main".to_string(),
     ///                             "foo".to_string(),
