@@ -1,10 +1,9 @@
-
-use melodium_macro::{check, mel_treatment};
 use melodium_core::*;
+use melodium_macro::{check, mel_treatment};
 
 /// Chain two streams of `void`.
-/// 
-/// 
+///
+///
 /// ```mermaid
 /// graph LR
 ///     T("chain()")
@@ -12,7 +11,7 @@ use melodium_core::*;
 ///     B["… 🟪 🟪 🟪"] -->|second| T
 ///     
 ///     T -->|chained| O["… 🟪 🟪 🟪 🟨 🟨 🟨 🟨 🟨 🟨"]
-/// 
+///
 ///     style A fill:#ffff,stroke:#ffff
 ///     style B fill:#ffff,stroke:#ffff
 ///     style O fill:#ffff,stroke:#ffff
@@ -23,30 +22,27 @@ use melodium_core::*;
     output chained Stream<void>
 )]
 pub async fn chain() {
-
     while let Ok(values) = first.recv_void().await {
-
         check!(chained.send_void(values).await)
     }
 
     while let Ok(values) = second.recv_void().await {
-
         check!(chained.send_void(values).await)
     }
 }
 
 /// Trigger on `void` stream start and end.
-/// 
+///
 /// Emit `start` when a first value is send through the stream.
 /// Emit `end` when stream is finally over.
-/// 
+///
 /// Emit `first` with the first value coming in the stream.
 /// Emit `last` with the last value coming in the stream.
-/// 
+///
 /// ℹ️ `start` and `first` are always emitted together.
 /// If the stream only contains one element, `first` and `last` both contains it.
 /// If the stream never transmit any data before being ended, only `end` is emitted.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("trigger()")
@@ -56,7 +52,7 @@ pub async fn chain() {
 ///     T -->|first| F["〈🟩〉"]
 ///     T -->|last| L["〈🟥〉"]
 ///     T -->|end| E["〈🟦〉"]
-/// 
+///
 ///     style B fill:#ffff,stroke:#ffff
 ///     style S fill:#ffff,stroke:#ffff
 ///     style F fill:#ffff,stroke:#ffff
@@ -71,7 +67,6 @@ pub async fn chain() {
     output last Block<void>
 )]
 pub async fn trigger() {
-
     let mut last_value = None;
 
     if let Ok(values) = stream.recv_void().await {
@@ -98,7 +93,7 @@ pub async fn trigger() {
 }
 
 /// Stream a block `void` value.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("stream()")
@@ -121,16 +116,16 @@ pub async fn stream() {
 }
 
 /// Gives count of elements passing through stream.
-/// 
+///
 /// This count increment one for each element within the stream, starting at 1.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("count()")
 ///     V["🟦 🟦 🟦 …"] -->|iter| T
 ///     
 ///     T -->|count| P["1️⃣ 2️⃣ 3️⃣ …"]
-/// 
+///
 ///     style V fill:#ffff,stroke:#ffff
 ///     style P fill:#ffff,stroke:#ffff
 /// ```
@@ -148,7 +143,7 @@ pub async fn count() {
 }
 
 /// Generate a stream of `void` according to a length.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("generate()")
@@ -165,9 +160,7 @@ pub async fn count() {
     output stream Stream<void>
 )]
 pub async fn generate() {
-
     if let Ok(length) = length.recv_one_u128().await {
-
         const CHUNK: u128 = 2u128.pow(20);
         let mut total = 0u128;
         while total < length {
@@ -179,9 +172,9 @@ pub async fn generate() {
 }
 
 /// Generate a stream of `void` indefinitely.
-/// 
+///
 /// This generates a continuous stream of `void`, until stream consumers closes it.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("generateIndefinitely()")
@@ -198,7 +191,6 @@ pub async fn generate() {
     output stream Stream<void>
 )]
 pub async fn generate_indefinitely() {
-    
     if let Ok(_) = trigger.recv_one_void().await {
         const CHUNK: usize = 2usize.pow(20);
         loop {

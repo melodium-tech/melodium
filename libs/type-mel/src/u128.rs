@@ -1,9 +1,8 @@
-
-use melodium_macro::mel_function;
 use melodium_core::*;
+use melodium_macro::mel_function;
 
 /// Return the smallest value that can be represented by `u128`.
-/// 
+///
 /// The smallest value for `u128` is `0`.
 #[mel_function]
 pub fn min() -> u128 {
@@ -11,7 +10,7 @@ pub fn min() -> u128 {
 }
 
 /// Return the largest value that can be represented by `u128`.
-/// 
+///
 /// The largest value for `u128` is `340282366920938463463374607431768211455`.
 #[mel_function]
 pub fn max() -> u128 {

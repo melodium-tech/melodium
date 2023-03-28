@@ -4,10 +4,10 @@ use melodium_common::descriptor::{
     Parameterized, Treatment as TreatmentDescriptor, TreatmentBuildMode,
 };
 use melodium_common::executive::Treatment as ExecutiveTreatment;
+use once_cell::sync::OnceCell;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::{Arc, Weak};
-use once_cell::sync::OnceCell;
 
 #[derive(Debug)]
 pub struct Treatment {

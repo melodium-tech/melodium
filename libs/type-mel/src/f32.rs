@@ -1,4 +1,3 @@
-
 /// Return the positive infinity for `f32`.
 #[mel_function]
 pub fn infinity() -> f32 {
@@ -17,11 +16,11 @@ pub fn nan() -> f32 {
     f32::NAN
 }
 
-use melodium_macro::mel_function;
 use melodium_core::*;
+use melodium_macro::mel_function;
 
 /// Return the smallest value that can be represented by `f32`.
-/// 
+///
 /// The smallest value for `f32` is `-340282350000000000000000000000000000000`.
 #[mel_function]
 pub fn min() -> f32 {
@@ -29,7 +28,7 @@ pub fn min() -> f32 {
 }
 
 /// Return the largest value that can be represented by `f32`.
-/// 
+///
 /// The largest value for `f32` is `340282350000000000000000000000000000000`.
 #[mel_function]
 pub fn max() -> f32 {

@@ -129,7 +129,7 @@ impl World {
 
     pub fn builder(&self, identifier: &Identifier) -> Result<Arc<dyn Builder>, LogicError> {
         let possible_builder;
-        { 
+        {
             possible_builder = self.builders.read().unwrap().get(identifier).cloned();
         }
         if let Some(builder) = possible_builder {
@@ -235,11 +235,10 @@ impl Engine for World {
     fn genesis(&self, beginning: &Identifier) -> Result<(), Vec<LogicError>> {
         let gen_env = GenesisEnvironment::new();
 
-        let result =
-            match self.builder(beginning) {
-                Ok(builder) => builder.static_build(None, None, "main".to_string(), &gen_env),
-                Err(err) => Err(err),
-            };
+        let result = match self.builder(beginning) {
+            Ok(builder) => builder.static_build(None, None, "main".to_string(), &gen_env),
+            Err(err) => Err(err),
+        };
         if result.is_err() {
             let error = result.unwrap_err();
             let mut errors = self.errors.write().unwrap();

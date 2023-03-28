@@ -1,5 +1,5 @@
-use melodium_macro::{check, mel_function, mel_treatment};
 use melodium_core::*;
+use melodium_macro::{check, mel_function, mel_treatment};
 
 /// Return whether `a` is equal to `b`
 #[mel_function]
@@ -56,7 +56,7 @@ pub fn le(a: i64, b: i64) -> bool {
 }
 
 /// Elevates values from a stream of `i64` to the power of another one.
-/// 
+///
 /// Values passed through `base` are elevated to the power of `exponent`.
 #[mel_treatment(
     input base Stream<i64>
@@ -92,7 +92,6 @@ pub async fn greater_equal() {
         check!(is.send_one_bool(a >= b).await)
     }
 }
-
 
 /// Add `a` and `b`
 #[mel_function]
@@ -149,7 +148,7 @@ pub fn max(a: i64, b: i64) -> i64 {
 }
 
 /// Add values from two streams of `i64`.
-/// 
+///
 /// Values passed through `a` & `b` are added and send in sum.
 #[mel_treatment(
     input a Stream<i64>
@@ -163,7 +162,7 @@ pub async fn add() {
 }
 
 /// Divide values from two streams of `i64`.
-/// 
+///
 /// Every `a` number passed through the stream is divided by `b` counterpart.
 #[mel_treatment(
     input a Stream<i64>
@@ -177,7 +176,7 @@ pub async fn div() {
 }
 
 /// Multiply values from two streams of `i64`.
-/// 
+///
 /// Every `a` number passed through the stream is multiplied by `b` counterpart.
 #[mel_treatment(
     input a Stream<i64>
@@ -191,7 +190,7 @@ pub async fn mult() {
 }
 
 /// Give the remainder of the division from two streams of `i64`.
-/// 
+///
 /// Every `a` number passed through the stream is divided by `b` and the remainder is outputted.
 #[mel_treatment(
     input a Stream<i64>
@@ -205,7 +204,7 @@ pub async fn rem() {
 }
 
 /// Substract values from two streams of `i64`.
-/// 
+///
 /// Every `a` number passed through the stream get `b` substracted.
 #[mel_treatment(
     input a Stream<i64>
@@ -279,6 +278,9 @@ pub fn abs(value: i64) -> i64 {
 )]
 pub async fn abs() {
     while let Ok(values) = value.recv_i64().await {
-        check!(abs.send_i64(values.into_iter().map(|v| v.abs()).collect()).await)
+        check!(
+            abs.send_i64(values.into_iter().map(|v| v.abs()).collect())
+                .await
+        )
     }
 }

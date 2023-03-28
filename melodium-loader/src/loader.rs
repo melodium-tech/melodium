@@ -1,6 +1,6 @@
 #[cfg(feature = "filesystem")]
 use crate::package::FsPackage;
-use crate::package::{CorePackage, Package};
+use crate::package::{CorePackage, Package, RawPackage};
 use crate::LoadingConfig;
 use melodium_common::descriptor::{
     Collection, Context, Entry, Function, Identifier, Loader as LoaderTrait, LoadingError, Model,
@@ -65,6 +65,18 @@ impl Loader {
         }
     }
 
+    pub fn load_raw(&self, raw_content: &str) -> Result<String, LoadingError> {
+        let package = RawPackage::new(raw_content)?;
+        let name = package.name().to_string();
+
+        self.packages
+            .write()
+            .unwrap()
+            .insert(package.name().to_string(), Box::new(package));
+
+        Ok(name)
+    }
+
     pub fn load(&self, identifier: &Identifier) -> Result<Collection, LoadingError> {
         self.get_with_load(identifier)?;
         Ok(self.collection.read().unwrap().clone())
@@ -79,7 +91,6 @@ impl Loader {
     }
 
     pub fn build(&self) -> Result<Arc<Collection>, LoadingError> {
-
         let collection = Arc::new(self.collection.read().unwrap().clone());
 
         for (_name, package) in self.packages.read().unwrap().iter() {

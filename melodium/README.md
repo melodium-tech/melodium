@@ -18,7 +18,11 @@ Mélodium releases can be downloaded for multiple platforms from the [Mélodium 
 
 Launch a Mélodium program:
 ```shell
-melodium run --main <ENTRYPOINT>
+melodium <FILE>
+```
+or
+```shell
+melodium run --main <ENTRYPOINT> <FILE>
 ```
 
 Generate documentation:

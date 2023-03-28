@@ -3,10 +3,10 @@ use melodium_common::descriptor::{
     Buildable, Context, Documented, Identified, Identifier, Input, Model, Output, Parameter,
     Parameterized, Treatment as TreatmentDescriptor, TreatmentBuildMode,
 };
+use once_cell::sync::OnceCell;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::{Arc, Weak};
-use once_cell::sync::OnceCell;
 
 #[derive(Debug)]
 pub struct Source {

@@ -1,10 +1,9 @@
-
-use melodium_macro::{check, mel_treatment};
 use melodium_core::*;
+use melodium_macro::{check, mel_treatment};
 
 /// Chain two streams of `u64`.
-/// 
-/// 
+///
+///
 /// ```mermaid
 /// graph LR
 ///     T("chain()")
@@ -12,7 +11,7 @@ use melodium_core::*;
 ///     B["… 🟪 🟪 🟪"] -->|second| T
 ///     
 ///     T -->|chained| O["… 🟪 🟪 🟪 🟨 🟨 🟨 🟨 🟨 🟨"]
-/// 
+///
 ///     style A fill:#ffff,stroke:#ffff
 ///     style B fill:#ffff,stroke:#ffff
 ///     style O fill:#ffff,stroke:#ffff
@@ -23,30 +22,27 @@ use melodium_core::*;
     output chained Stream<u64>
 )]
 pub async fn chain() {
-
     while let Ok(values) = first.recv_u64().await {
-
         check!(chained.send_u64(values).await)
     }
 
     while let Ok(values) = second.recv_u64().await {
-
         check!(chained.send_u64(values).await)
     }
 }
 
 /// Trigger on `u64` stream start and end.
-/// 
+///
 /// Emit `start` when a first value is send through the stream.
 /// Emit `end` when stream is finally over.
-/// 
+///
 /// Emit `first` with the first value coming in the stream.
 /// Emit `last` with the last value coming in the stream.
-/// 
+///
 /// ℹ️ `start` and `first` are always emitted together.
 /// If the stream only contains one element, `first` and `last` both contains it.
 /// If the stream never transmit any data before being ended, only `end` is emitted.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("trigger()")
@@ -56,7 +52,7 @@ pub async fn chain() {
 ///     T -->|first| F["〈🟩〉"]
 ///     T -->|last| L["〈🟥〉"]
 ///     T -->|end| E["〈🟦〉"]
-/// 
+///
 ///     style B fill:#ffff,stroke:#ffff
 ///     style S fill:#ffff,stroke:#ffff
 ///     style F fill:#ffff,stroke:#ffff
@@ -71,7 +67,6 @@ pub async fn chain() {
     output last Block<u64>
 )]
 pub async fn trigger() {
-
     let mut last_value = None;
 
     if let Ok(values) = stream.recv_u64().await {
@@ -98,7 +93,7 @@ pub async fn trigger() {
 }
 
 /// Stream a block `u64` value.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("stream()")
@@ -121,17 +116,17 @@ pub async fn stream() {
 }
 
 /// Merge two streams of `u64`.
-/// 
+///
 /// The two streams are merged using the `select` stream:
 /// - when `true`, value from `a` is used;
 /// - when `false`, value from `b` is used.
-/// 
+///
 /// ℹ️ No value from either `a` or `b` are discarded, they are used when `select` give turn.
-/// 
+///
 /// ⚠️ When `select` ends merge terminates without treating the remaining values from `a` and `b`.
 /// When `select` give turn to `a` or `b` while the concerned stream is ended, the merge terminates.
 /// Merge continues as long as `select` and concerned stream does, while the other can be ended.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("merge()")
@@ -139,9 +134,9 @@ pub async fn stream() {
 ///     B["… 🟧 🟪 🟨 …"] -->|b| T
 ///     O["… 🟩 🟥 🟥 🟩 🟥 …"] -->|select|T
 ///     
-/// 
+///
 ///     T -->|value| V["… 🟦 🟧 🟪 🟫 🟨 …"]
-/// 
+///
 ///     style V fill:#ffff,stroke:#ffff
 ///     style O fill:#ffff,stroke:#ffff
 ///     style A fill:#ffff,stroke:#ffff
@@ -159,16 +154,13 @@ pub async fn merge() {
         if select {
             if let Ok(v) = a.recv_one_u64().await {
                 val = v;
-            }
-            else {
+            } else {
                 break;
             }
-        }
-        else {
+        } else {
             if let Ok(v) = b.recv_one_u64().await {
                 val = v;
-            }
-            else {
+            } else {
                 break;
             }
         }
@@ -178,14 +170,14 @@ pub async fn merge() {
 }
 
 /// Fill a pattern stream with a `u64` value.
-/// 
+///
 /// ```mermaid
 /// graph LR
 /// T("fill(value=🟧)")
 /// B["… 🟦 🟦 🟦 …"] -->|pattern| T
-/// 
+///
 /// T -->|filled| O["… 🟧 🟧 🟧 …"]
-/// 
+///
 /// style B fill:#ffff,stroke:#ffff
 /// style O fill:#ffff,stroke:#ffff
 /// ```
@@ -201,7 +193,7 @@ pub async fn fill(value: u64) {
 }
 
 /// Filter a `u64` stream according to `bool` stream.
-/// 
+///
 /// ℹ️ If both streams are not the same size nothing is sent through accepted nor rejected.
 ///  
 /// ```mermaid
@@ -212,7 +204,7 @@ pub async fn fill(value: u64) {
 ///     
 ///     T -->|accepted| A["… 🟦 🟫 …"]
 ///     T -->|rejected| R["… 🟧 🟪 🟨 …"]
-/// 
+///
 ///     style V fill:#ffff,stroke:#ffff
 ///     style D fill:#ffff,stroke:#ffff
 ///     style A fill:#ffff,stroke:#ffff
@@ -225,11 +217,11 @@ pub async fn fill(value: u64) {
     output rejected Stream<u64>
 )]
 pub async fn filter() {
-
     let mut accepted_op = true;
     let mut rejected_op = true;
 
-    while let (Ok(value), Ok(select)) = futures::join!(value.recv_one_u64(), select.recv_one_bool()) {
+    while let (Ok(value), Ok(select)) = futures::join!(value.recv_one_u64(), select.recv_one_bool())
+    {
         if select {
             if let Err(_) = accepted.send_one_u64(value).await {
                 // If we cannot send anymore on accepted, we note it,
@@ -239,8 +231,7 @@ pub async fn filter() {
                     break;
                 }
             }
-        }
-        else {
+        } else {
             if let Err(_) = rejected.send_one_u64(value).await {
                 // If we cannot send anymore on rejected, we note it,
                 // and check if accepted is still valid, else just terminate.
@@ -254,9 +245,9 @@ pub async fn filter() {
 }
 
 /// Fit a stream of `u64` into a pattern.
-/// 
+///
 /// ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("fit()")
@@ -264,7 +255,7 @@ pub async fn filter() {
 ///     B["🟦 🟦 🟦 🟦"] -->|pattern| T
 ///     
 ///     T -->|fitted| O["🟨 🟨 🟨 🟨"]
-/// 
+///
 ///     style A fill:#ffff,stroke:#ffff
 ///     style B fill:#ffff,stroke:#ffff
 ///     style O fill:#ffff,stroke:#ffff
@@ -279,8 +270,7 @@ pub async fn fit() {
         for _ in pattern {
             if let Ok(val) = value.recv_one_u64().await {
                 check!('main, fitted.send_one_u64(val).await)
-            }
-            else {
+            } else {
                 break 'main;
             }
         }
@@ -288,9 +278,9 @@ pub async fn fit() {
 }
 
 /// Emit a block `u64` value.
-/// 
+///
 /// When `trigger` is enabled, `value` is emitted as block.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("emit(value=🟨)")

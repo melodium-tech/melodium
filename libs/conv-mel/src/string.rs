@@ -1,5 +1,5 @@
-use melodium_macro::{check, mel_function, mel_treatment};
 use melodium_core::*;
+use melodium_macro::{check, mel_function, mel_treatment};
 
 /// Turns `string` stream into `void` one.
 #[mel_treatment(
@@ -12,9 +12,8 @@ pub async fn to_void() {
     }
 }
 
-
 /// Turns `string` into `Vec<byte>`.
-/// 
+///
 /// ℹ️ The `Vec<byte>` obtained from a `string` is the UTF-8 representation of it.
 #[mel_function]
 pub fn to_byte(value: string) -> Vec<byte> {
@@ -22,9 +21,9 @@ pub fn to_byte(value: string) -> Vec<byte> {
 }
 
 /// Turns `string` stream into `byte` one.
-/// 
+///
 /// Each `string` gets converted into `Vec<byte>`, with each vector containing the `byte`s of the former scalar `string` it represents.
-/// 
+///
 /// ℹ️ The `Vec<byte>` obtained from a `string` is the UTF-8 representation of it.
 #[mel_treatment(
     input value Stream<string>
@@ -32,6 +31,14 @@ pub fn to_byte(value: string) -> Vec<byte> {
 )]
 pub async fn to_byte() {
     while let Ok(values) = value.recv_string().await {
-        check!(data.send_vec_byte(values.into_iter().map(|val| val.as_bytes().to_vec()).collect()).await)
+        check!(
+            data.send_vec_byte(
+                values
+                    .into_iter()
+                    .map(|val| val.as_bytes().to_vec())
+                    .collect()
+            )
+            .await
+        )
     }
 }

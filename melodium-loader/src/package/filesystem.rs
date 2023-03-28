@@ -79,7 +79,14 @@ impl FsPackage {
         full_path.push(designation);
         let raw = read(full_path).map_err(|_| LoadingError::NotFound(3))?;
 
-        let result_content = Content::new(&format!("{}/{}", self.name, designation.as_os_str().to_string_lossy()), &raw);
+        let result_content = Content::new(
+            &format!(
+                "{}/{}",
+                self.name,
+                designation.as_os_str().to_string_lossy()
+            ),
+            &raw,
+        );
 
         match result_content {
             Ok(content) => {
@@ -127,7 +134,16 @@ impl FsPackage {
     }
 
     fn designation(identifier: &Identifier) -> PathBuf {
-        PathBuf::from(format!("{}.mel", identifier.path().clone().into_iter().skip(1).collect::<Vec<_>>().join("/")))
+        PathBuf::from(format!(
+            "{}.mel",
+            identifier
+                .path()
+                .clone()
+                .into_iter()
+                .skip(1)
+                .collect::<Vec<_>>()
+                .join("/")
+        ))
     }
 }
 

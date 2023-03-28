@@ -1,14 +1,14 @@
-use melodium_macro::{check, mel_treatment};
-use melodium_core::*;
 use async_std::fs::OpenOptions;
 use async_std::io::{ReadExt, WriteExt};
+use melodium_core::*;
+use melodium_macro::{check, mel_treatment};
 
 /// Read one file.
-/// 
+///
 /// The content of the file given through `path` is streamed through `data`.
 /// Once file is totally read, `success` is emitted.
-/// 
-/// If any reading failure happens, `failure` is emitted and `message` contains text of the related text of error(s). 
+///
+/// If any reading failure happens, `failure` is emitted and `message` contains text of the related text of error(s).
 #[mel_treatment(
     input path Block<string>
     output data Stream<byte>
@@ -18,10 +18,7 @@ use async_std::io::{ReadExt, WriteExt};
 )]
 pub async fn read() {
     if let Ok(path) = path.recv_one_string().await {
-        let file = OpenOptions::new()
-            .read(true)
-            .open(path)
-            .await;
+        let file = OpenOptions::new().read(true).open(path).await;
         match file {
             Ok(mut file) => {
                 let mut vec = vec![0; 2usize.pow(20)];
@@ -43,7 +40,6 @@ pub async fn read() {
                             break;
                         }
                     }
-                    
                 }
                 if !fail {
                     let _ = success.send_one_void(()).await;
@@ -54,22 +50,21 @@ pub async fn read() {
                 let _ = message.send_one_string(err.to_string()).await;
             }
         }
-    }
-    else {
+    } else {
         let _ = failure.send_one_void(()).await;
     }
 }
 
 /// Write one file.
-/// 
+///
 /// The bytes received through `data` are written in the file located at `path`.
 /// The writing behavior is set up by the parameters:
 /// - `append`: bytes are added to the file instead of replacing the existing file;
 /// - `create`: if the file does not exists, it is created;
 /// - `new`: the file is required to being new, if a file already exists at that path then the writing fails.
-/// 
+///
 /// The amount of written bytes is sent through `amount`. There is no guarantee about its increment, as an undefined number of bytes may be written at once.
-/// 
+///
 /// `success` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `message` contains the related text of error(s).
 #[mel_treatment(
     default append false
@@ -118,8 +113,7 @@ pub async fn write(append: bool, create: bool, new: bool) {
                 let _ = message.send_one_string(err.to_string()).await;
             }
         }
-    }
-    else {
+    } else {
         let _ = failure.send_one_void(()).await;
     }
 }

@@ -1,5 +1,5 @@
-use melodium_macro::{check, mel_function, mel_treatment};
 use melodium_core::*;
+use melodium_macro::{check, mel_function, mel_treatment};
 
 /// Turns `f64` stream into `void` one.
 #[mel_treatment(
@@ -12,9 +12,8 @@ pub async fn to_void() {
     }
 }
 
-
 /// Turns `f64` into `f32`.
-/// 
+///
 /// Positive and negative infinity are conserved, as well as not-a-number state.
 /// If overflowing, infinity of the same sign is used.
 #[mel_function]
@@ -23,7 +22,7 @@ pub fn to_f32(value: f64) -> f32 {
 }
 
 /// Convert stream of `f64` into `f32`.
-/// 
+///
 /// Every `f64` is fitted into the closest `f32`.
 /// Positive and negative infinity are conserved, as well as not-a-number state.
 /// If overflowing, infinity of the same sign is used.
@@ -33,12 +32,15 @@ pub fn to_f32(value: f64) -> f32 {
 )]
 pub async fn to_f32() {
     while let Ok(values) = value.recv_f64().await {
-        check!(into.send_f32(values.into_iter().map(|val| val as f32).collect()).await)
+        check!(
+            into.send_f32(values.into_iter().map(|val| val as f32).collect())
+                .await
+        )
     }
 }
 
 /// Turns `f64` into `u8`.
-/// 
+///
 /// `f64` is truncated to fit into `u8`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -46,14 +48,21 @@ pub async fn to_f32() {
 /// - `nan` is used when `f64` is not a number.
 #[mel_function]
 pub fn to_u8(value: f64, pos_infinity: u8, neg_infinity: u8, nan: u8) -> u8 {
-    if value.is_finite() { value as u8 }
-    else if value.is_nan() { nan }
-    else if value.is_sign_positive() { pos_infinity }
-    else /*if number.is_sign_negative()*/ { neg_infinity }
+    if value.is_finite() {
+        value as u8
+    } else if value.is_nan() {
+        nan
+    } else if value.is_sign_positive() {
+        pos_infinity
+    } else
+    /*if number.is_sign_negative()*/
+    {
+        neg_infinity
+    }
 }
 
 /// Convert stream of `f64` into `u8`.
-/// 
+///
 /// Every `f64` is truncated to fit into `u8`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -67,20 +76,31 @@ pub fn to_u8(value: f64, pos_infinity: u8, neg_infinity: u8, nan: u8) -> u8 {
     output into Stream<u8>
 )]
 pub async fn to_u8(pos_infinity: u8, neg_infinity: u8, nan: u8) {
-
     while let Ok(numbers) = value.recv_f64().await {
-            
-        check!(into.send_u8(numbers.into_iter().map(|number|
-            if number.is_finite() { number as u8 }
-            else if number.is_nan() { nan }
-            else if number.is_sign_positive() { pos_infinity }
-            else /*if number.is_sign_negative()*/ { neg_infinity }
-        ).collect()).await)
+        check!(
+            into.send_u8(
+                numbers
+                    .into_iter()
+                    .map(|number| if number.is_finite() {
+                        number as u8
+                    } else if number.is_nan() {
+                        nan
+                    } else if number.is_sign_positive() {
+                        pos_infinity
+                    } else
+                    /*if number.is_sign_negative()*/
+                    {
+                        neg_infinity
+                    })
+                    .collect()
+            )
+            .await
+        )
     }
 }
 
 /// Turns `f64` into `u16`.
-/// 
+///
 /// `f64` is truncated to fit into `u16`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -88,14 +108,21 @@ pub async fn to_u8(pos_infinity: u8, neg_infinity: u8, nan: u8) {
 /// - `nan` is used when `f64` is not a number.
 #[mel_function]
 pub fn to_u16(value: f64, pos_infinity: u16, neg_infinity: u16, nan: u16) -> u16 {
-    if value.is_finite() { value as u16 }
-    else if value.is_nan() { nan }
-    else if value.is_sign_positive() { pos_infinity }
-    else /*if number.is_sign_negative()*/ { neg_infinity }
+    if value.is_finite() {
+        value as u16
+    } else if value.is_nan() {
+        nan
+    } else if value.is_sign_positive() {
+        pos_infinity
+    } else
+    /*if number.is_sign_negative()*/
+    {
+        neg_infinity
+    }
 }
 
 /// Convert stream of `f64` into `u16`.
-/// 
+///
 /// Every `f64` is truncated to fit into `u16`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -109,20 +136,31 @@ pub fn to_u16(value: f64, pos_infinity: u16, neg_infinity: u16, nan: u16) -> u16
     output into Stream<u16>
 )]
 pub async fn to_u16(pos_infinity: u16, neg_infinity: u16, nan: u16) {
-
     while let Ok(numbers) = value.recv_f64().await {
-            
-        check!(into.send_u16(numbers.into_iter().map(|number|
-            if number.is_finite() { number as u16 }
-            else if number.is_nan() { nan }
-            else if number.is_sign_positive() { pos_infinity }
-            else /*if number.is_sign_negative()*/ { neg_infinity }
-        ).collect()).await)
+        check!(
+            into.send_u16(
+                numbers
+                    .into_iter()
+                    .map(|number| if number.is_finite() {
+                        number as u16
+                    } else if number.is_nan() {
+                        nan
+                    } else if number.is_sign_positive() {
+                        pos_infinity
+                    } else
+                    /*if number.is_sign_negative()*/
+                    {
+                        neg_infinity
+                    })
+                    .collect()
+            )
+            .await
+        )
     }
 }
 
 /// Turns `f64` into `u32`.
-/// 
+///
 /// `f64` is truncated to fit into `u32`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -130,14 +168,21 @@ pub async fn to_u16(pos_infinity: u16, neg_infinity: u16, nan: u16) {
 /// - `nan` is used when `f64` is not a number.
 #[mel_function]
 pub fn to_u32(value: f64, pos_infinity: u32, neg_infinity: u32, nan: u32) -> u32 {
-    if value.is_finite() { value as u32 }
-    else if value.is_nan() { nan }
-    else if value.is_sign_positive() { pos_infinity }
-    else /*if number.is_sign_negative()*/ { neg_infinity }
+    if value.is_finite() {
+        value as u32
+    } else if value.is_nan() {
+        nan
+    } else if value.is_sign_positive() {
+        pos_infinity
+    } else
+    /*if number.is_sign_negative()*/
+    {
+        neg_infinity
+    }
 }
 
 /// Convert stream of `f64` into `u32`.
-/// 
+///
 /// Every `f64` is truncated to fit into `u32`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -151,20 +196,31 @@ pub fn to_u32(value: f64, pos_infinity: u32, neg_infinity: u32, nan: u32) -> u32
     output into Stream<u32>
 )]
 pub async fn to_u32(pos_infinity: u32, neg_infinity: u32, nan: u32) {
-
     while let Ok(numbers) = value.recv_f64().await {
-            
-        check!(into.send_u32(numbers.into_iter().map(|number|
-            if number.is_finite() { number as u32 }
-            else if number.is_nan() { nan }
-            else if number.is_sign_positive() { pos_infinity }
-            else /*if number.is_sign_negative()*/ { neg_infinity }
-        ).collect()).await)
+        check!(
+            into.send_u32(
+                numbers
+                    .into_iter()
+                    .map(|number| if number.is_finite() {
+                        number as u32
+                    } else if number.is_nan() {
+                        nan
+                    } else if number.is_sign_positive() {
+                        pos_infinity
+                    } else
+                    /*if number.is_sign_negative()*/
+                    {
+                        neg_infinity
+                    })
+                    .collect()
+            )
+            .await
+        )
     }
 }
 
 /// Turns `f64` into `u64`.
-/// 
+///
 /// `f64` is truncated to fit into `u64`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -172,14 +228,21 @@ pub async fn to_u32(pos_infinity: u32, neg_infinity: u32, nan: u32) {
 /// - `nan` is used when `f64` is not a number.
 #[mel_function]
 pub fn to_u64(value: f64, pos_infinity: u64, neg_infinity: u64, nan: u64) -> u64 {
-    if value.is_finite() { value as u64 }
-    else if value.is_nan() { nan }
-    else if value.is_sign_positive() { pos_infinity }
-    else /*if number.is_sign_negative()*/ { neg_infinity }
+    if value.is_finite() {
+        value as u64
+    } else if value.is_nan() {
+        nan
+    } else if value.is_sign_positive() {
+        pos_infinity
+    } else
+    /*if number.is_sign_negative()*/
+    {
+        neg_infinity
+    }
 }
 
 /// Convert stream of `f64` into `u64`.
-/// 
+///
 /// Every `f64` is truncated to fit into `u64`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -193,20 +256,31 @@ pub fn to_u64(value: f64, pos_infinity: u64, neg_infinity: u64, nan: u64) -> u64
     output into Stream<u64>
 )]
 pub async fn to_u64(pos_infinity: u64, neg_infinity: u64, nan: u64) {
-
     while let Ok(numbers) = value.recv_f64().await {
-            
-        check!(into.send_u64(numbers.into_iter().map(|number|
-            if number.is_finite() { number as u64 }
-            else if number.is_nan() { nan }
-            else if number.is_sign_positive() { pos_infinity }
-            else /*if number.is_sign_negative()*/ { neg_infinity }
-        ).collect()).await)
+        check!(
+            into.send_u64(
+                numbers
+                    .into_iter()
+                    .map(|number| if number.is_finite() {
+                        number as u64
+                    } else if number.is_nan() {
+                        nan
+                    } else if number.is_sign_positive() {
+                        pos_infinity
+                    } else
+                    /*if number.is_sign_negative()*/
+                    {
+                        neg_infinity
+                    })
+                    .collect()
+            )
+            .await
+        )
     }
 }
 
 /// Turns `f64` into `u128`.
-/// 
+///
 /// `f64` is truncated to fit into `u128`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -214,14 +288,21 @@ pub async fn to_u64(pos_infinity: u64, neg_infinity: u64, nan: u64) {
 /// - `nan` is used when `f64` is not a number.
 #[mel_function]
 pub fn to_u128(value: f64, pos_infinity: u128, neg_infinity: u128, nan: u128) -> u128 {
-    if value.is_finite() { value as u128 }
-    else if value.is_nan() { nan }
-    else if value.is_sign_positive() { pos_infinity }
-    else /*if number.is_sign_negative()*/ { neg_infinity }
+    if value.is_finite() {
+        value as u128
+    } else if value.is_nan() {
+        nan
+    } else if value.is_sign_positive() {
+        pos_infinity
+    } else
+    /*if number.is_sign_negative()*/
+    {
+        neg_infinity
+    }
 }
 
 /// Convert stream of `f64` into `u128`.
-/// 
+///
 /// Every `f64` is truncated to fit into `u128`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -235,20 +316,31 @@ pub fn to_u128(value: f64, pos_infinity: u128, neg_infinity: u128, nan: u128) ->
     output into Stream<u128>
 )]
 pub async fn to_u128(pos_infinity: u128, neg_infinity: u128, nan: u128) {
-
     while let Ok(numbers) = value.recv_f64().await {
-            
-        check!(into.send_u128(numbers.into_iter().map(|number|
-            if number.is_finite() { number as u128 }
-            else if number.is_nan() { nan }
-            else if number.is_sign_positive() { pos_infinity }
-            else /*if number.is_sign_negative()*/ { neg_infinity }
-        ).collect()).await)
+        check!(
+            into.send_u128(
+                numbers
+                    .into_iter()
+                    .map(|number| if number.is_finite() {
+                        number as u128
+                    } else if number.is_nan() {
+                        nan
+                    } else if number.is_sign_positive() {
+                        pos_infinity
+                    } else
+                    /*if number.is_sign_negative()*/
+                    {
+                        neg_infinity
+                    })
+                    .collect()
+            )
+            .await
+        )
     }
 }
 
 /// Turns `f64` into `i8`.
-/// 
+///
 /// `f64` is truncated to fit into `i8`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -256,14 +348,21 @@ pub async fn to_u128(pos_infinity: u128, neg_infinity: u128, nan: u128) {
 /// - `nan` is used when `f64` is not a number.
 #[mel_function]
 pub fn to_i8(value: f64, pos_infinity: i8, neg_infinity: i8, nan: i8) -> i8 {
-    if value.is_finite() { value as i8 }
-    else if value.is_nan() { nan }
-    else if value.is_sign_positive() { pos_infinity }
-    else /*if number.is_sign_negative()*/ { neg_infinity }
+    if value.is_finite() {
+        value as i8
+    } else if value.is_nan() {
+        nan
+    } else if value.is_sign_positive() {
+        pos_infinity
+    } else
+    /*if number.is_sign_negative()*/
+    {
+        neg_infinity
+    }
 }
 
 /// Convert stream of `f64` into `i8`.
-/// 
+///
 /// Every `f64` is truncated to fit into `i8`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -277,20 +376,31 @@ pub fn to_i8(value: f64, pos_infinity: i8, neg_infinity: i8, nan: i8) -> i8 {
     output into Stream<i8>
 )]
 pub async fn to_i8(pos_infinity: i8, neg_infinity: i8, nan: i8) {
-
     while let Ok(numbers) = value.recv_f64().await {
-            
-        check!(into.send_i8(numbers.into_iter().map(|number|
-            if number.is_finite() { number as i8 }
-            else if number.is_nan() { nan }
-            else if number.is_sign_positive() { pos_infinity }
-            else /*if number.is_sign_negative()*/ { neg_infinity }
-        ).collect()).await)
+        check!(
+            into.send_i8(
+                numbers
+                    .into_iter()
+                    .map(|number| if number.is_finite() {
+                        number as i8
+                    } else if number.is_nan() {
+                        nan
+                    } else if number.is_sign_positive() {
+                        pos_infinity
+                    } else
+                    /*if number.is_sign_negative()*/
+                    {
+                        neg_infinity
+                    })
+                    .collect()
+            )
+            .await
+        )
     }
 }
 
 /// Turns `f64` into `i16`.
-/// 
+///
 /// `f64` is truncated to fit into `i16`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -298,14 +408,21 @@ pub async fn to_i8(pos_infinity: i8, neg_infinity: i8, nan: i8) {
 /// - `nan` is used when `f64` is not a number.
 #[mel_function]
 pub fn to_i16(value: f64, pos_infinity: i16, neg_infinity: i16, nan: i16) -> i16 {
-    if value.is_finite() { value as i16 }
-    else if value.is_nan() { nan }
-    else if value.is_sign_positive() { pos_infinity }
-    else /*if number.is_sign_negative()*/ { neg_infinity }
+    if value.is_finite() {
+        value as i16
+    } else if value.is_nan() {
+        nan
+    } else if value.is_sign_positive() {
+        pos_infinity
+    } else
+    /*if number.is_sign_negative()*/
+    {
+        neg_infinity
+    }
 }
 
 /// Convert stream of `f64` into `i16`.
-/// 
+///
 /// Every `f64` is truncated to fit into `i16`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -319,20 +436,31 @@ pub fn to_i16(value: f64, pos_infinity: i16, neg_infinity: i16, nan: i16) -> i16
     output into Stream<i16>
 )]
 pub async fn to_i16(pos_infinity: i16, neg_infinity: i16, nan: i16) {
-
     while let Ok(numbers) = value.recv_f64().await {
-            
-        check!(into.send_i16(numbers.into_iter().map(|number|
-            if number.is_finite() { number as i16 }
-            else if number.is_nan() { nan }
-            else if number.is_sign_positive() { pos_infinity }
-            else /*if number.is_sign_negative()*/ { neg_infinity }
-        ).collect()).await)
+        check!(
+            into.send_i16(
+                numbers
+                    .into_iter()
+                    .map(|number| if number.is_finite() {
+                        number as i16
+                    } else if number.is_nan() {
+                        nan
+                    } else if number.is_sign_positive() {
+                        pos_infinity
+                    } else
+                    /*if number.is_sign_negative()*/
+                    {
+                        neg_infinity
+                    })
+                    .collect()
+            )
+            .await
+        )
     }
 }
 
 /// Turns `f64` into `i32`.
-/// 
+///
 /// `f64` is truncated to fit into `i32`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -340,14 +468,21 @@ pub async fn to_i16(pos_infinity: i16, neg_infinity: i16, nan: i16) {
 /// - `nan` is used when `f64` is not a number.
 #[mel_function]
 pub fn to_i32(value: f64, pos_infinity: i32, neg_infinity: i32, nan: i32) -> i32 {
-    if value.is_finite() { value as i32 }
-    else if value.is_nan() { nan }
-    else if value.is_sign_positive() { pos_infinity }
-    else /*if number.is_sign_negative()*/ { neg_infinity }
+    if value.is_finite() {
+        value as i32
+    } else if value.is_nan() {
+        nan
+    } else if value.is_sign_positive() {
+        pos_infinity
+    } else
+    /*if number.is_sign_negative()*/
+    {
+        neg_infinity
+    }
 }
 
 /// Convert stream of `f64` into `i32`.
-/// 
+///
 /// Every `f64` is truncated to fit into `i32`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -361,20 +496,31 @@ pub fn to_i32(value: f64, pos_infinity: i32, neg_infinity: i32, nan: i32) -> i32
     output into Stream<i32>
 )]
 pub async fn to_i32(pos_infinity: i32, neg_infinity: i32, nan: i32) {
-
     while let Ok(numbers) = value.recv_f64().await {
-            
-        check!(into.send_i32(numbers.into_iter().map(|number|
-            if number.is_finite() { number as i32 }
-            else if number.is_nan() { nan }
-            else if number.is_sign_positive() { pos_infinity }
-            else /*if number.is_sign_negative()*/ { neg_infinity }
-        ).collect()).await)
+        check!(
+            into.send_i32(
+                numbers
+                    .into_iter()
+                    .map(|number| if number.is_finite() {
+                        number as i32
+                    } else if number.is_nan() {
+                        nan
+                    } else if number.is_sign_positive() {
+                        pos_infinity
+                    } else
+                    /*if number.is_sign_negative()*/
+                    {
+                        neg_infinity
+                    })
+                    .collect()
+            )
+            .await
+        )
     }
 }
 
 /// Turns `f64` into `i64`.
-/// 
+///
 /// `f64` is truncated to fit into `i64`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -382,14 +528,21 @@ pub async fn to_i32(pos_infinity: i32, neg_infinity: i32, nan: i32) {
 /// - `nan` is used when `f64` is not a number.
 #[mel_function]
 pub fn to_i64(value: f64, pos_infinity: i64, neg_infinity: i64, nan: i64) -> i64 {
-    if value.is_finite() { value as i64 }
-    else if value.is_nan() { nan }
-    else if value.is_sign_positive() { pos_infinity }
-    else /*if number.is_sign_negative()*/ { neg_infinity }
+    if value.is_finite() {
+        value as i64
+    } else if value.is_nan() {
+        nan
+    } else if value.is_sign_positive() {
+        pos_infinity
+    } else
+    /*if number.is_sign_negative()*/
+    {
+        neg_infinity
+    }
 }
 
 /// Convert stream of `f64` into `i64`.
-/// 
+///
 /// Every `f64` is truncated to fit into `i64`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -403,20 +556,31 @@ pub fn to_i64(value: f64, pos_infinity: i64, neg_infinity: i64, nan: i64) -> i64
     output into Stream<i64>
 )]
 pub async fn to_i64(pos_infinity: i64, neg_infinity: i64, nan: i64) {
-
     while let Ok(numbers) = value.recv_f64().await {
-            
-        check!(into.send_i64(numbers.into_iter().map(|number|
-            if number.is_finite() { number as i64 }
-            else if number.is_nan() { nan }
-            else if number.is_sign_positive() { pos_infinity }
-            else /*if number.is_sign_negative()*/ { neg_infinity }
-        ).collect()).await)
+        check!(
+            into.send_i64(
+                numbers
+                    .into_iter()
+                    .map(|number| if number.is_finite() {
+                        number as i64
+                    } else if number.is_nan() {
+                        nan
+                    } else if number.is_sign_positive() {
+                        pos_infinity
+                    } else
+                    /*if number.is_sign_negative()*/
+                    {
+                        neg_infinity
+                    })
+                    .collect()
+            )
+            .await
+        )
     }
 }
 
 /// Turns `f64` into `i128`.
-/// 
+///
 /// `f64` is truncated to fit into `i128`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -424,14 +588,21 @@ pub async fn to_i64(pos_infinity: i64, neg_infinity: i64, nan: i64) {
 /// - `nan` is used when `f64` is not a number.
 #[mel_function]
 pub fn to_i128(value: f64, pos_infinity: i128, neg_infinity: i128, nan: i128) -> i128 {
-    if value.is_finite() { value as i128 }
-    else if value.is_nan() { nan }
-    else if value.is_sign_positive() { pos_infinity }
-    else /*if number.is_sign_negative()*/ { neg_infinity }
+    if value.is_finite() {
+        value as i128
+    } else if value.is_nan() {
+        nan
+    } else if value.is_sign_positive() {
+        pos_infinity
+    } else
+    /*if number.is_sign_negative()*/
+    {
+        neg_infinity
+    }
 }
 
 /// Convert stream of `f64` into `i128`.
-/// 
+///
 /// Every `f64` is truncated to fit into `i128`, and in case floating-point value does
 /// not describe a real number:
 /// - `pos_infinity` is used when `f64` is a positive infinity,
@@ -445,15 +616,26 @@ pub fn to_i128(value: f64, pos_infinity: i128, neg_infinity: i128, nan: i128) ->
     output into Stream<i128>
 )]
 pub async fn to_i128(pos_infinity: i128, neg_infinity: i128, nan: i128) {
-
     while let Ok(numbers) = value.recv_f64().await {
-            
-        check!(into.send_i128(numbers.into_iter().map(|number|
-            if number.is_finite() { number as i128 }
-            else if number.is_nan() { nan }
-            else if number.is_sign_positive() { pos_infinity }
-            else /*if number.is_sign_negative()*/ { neg_infinity }
-        ).collect()).await)
+        check!(
+            into.send_i128(
+                numbers
+                    .into_iter()
+                    .map(|number| if number.is_finite() {
+                        number as i128
+                    } else if number.is_nan() {
+                        nan
+                    } else if number.is_sign_positive() {
+                        pos_infinity
+                    } else
+                    /*if number.is_sign_negative()*/
+                    {
+                        neg_infinity
+                    })
+                    .collect()
+            )
+            .await
+        )
     }
 }
 
@@ -464,7 +646,7 @@ pub fn to_byte(value: f64) -> Vec<byte> {
 }
 
 /// Turns `f64` stream into `byte` one.
-/// 
+///
 /// Each `f64` gets converted into `Vec<byte>`, with each vector containing the `bytes`s of the former scalar `f64` it represents.
 #[mel_treatment(
     input value Stream<f64>
@@ -472,6 +654,14 @@ pub fn to_byte(value: f64) -> Vec<byte> {
 )]
 pub async fn to_byte() {
     while let Ok(values) = value.recv_f64().await {
-        check!(data.send_vec_byte(values.into_iter().map(|val| val.to_be_bytes().to_vec()).collect()).await)
+        check!(
+            data.send_vec_byte(
+                values
+                    .into_iter()
+                    .map(|val| val.to_be_bytes().to_vec())
+                    .collect()
+            )
+            .await
+        )
     }
 }

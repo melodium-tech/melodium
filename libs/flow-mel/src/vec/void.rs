@@ -1,8 +1,8 @@
-use melodium_macro::{check, mel_treatment};
 use melodium_core::*;
+use melodium_macro::{check, mel_treatment};
 
 /// Flatten a stream of `Vec<void>`.
-/// 
+///
 /// All the input vectors are turned into continuous stream of scalar values, keeping order.
 /// ```mermaid
 /// graph LR
@@ -10,7 +10,7 @@ use melodium_core::*;
 ///     B["［🟦 🟦］［🟦］［🟦 🟦 🟦］"] -->|vector| T
 ///     
 ///     T -->|value| O["🟦 🟦 🟦 🟦 🟦 🟦"]
-/// 
+///
 ///     style B fill:#ffff,stroke:#ffff
 ///     style O fill:#ffff,stroke:#ffff
 /// ```
@@ -27,8 +27,8 @@ pub async fn flatten() {
 }
 
 /// Chain two streams of `Vec<void>`.
-/// 
-/// 
+///
+///
 /// ```mermaid
 /// graph LR
 ///     T("chain()")
@@ -36,7 +36,7 @@ pub async fn flatten() {
 ///     B["…［🟪］［🟪 🟪］"] -->|second| T
 ///     
 ///     T -->|chained| O["…［🟪］［🟪 🟪］［🟨 🟨］［🟨 🟨 🟨］［🟨］"]
-/// 
+///
 ///     style A fill:#ffff,stroke:#ffff
 ///     style B fill:#ffff,stroke:#ffff
 ///     style O fill:#ffff,stroke:#ffff
@@ -47,30 +47,27 @@ pub async fn flatten() {
     output chained Stream<Vec<void>>
 )]
 pub async fn chain() {
-
     while let Ok(vectors) = first.recv_vec_void().await {
-
         check!(chained.send_vec_void(vectors).await)
     }
 
     while let Ok(vectors) = second.recv_vec_void().await {
-
         check!(chained.send_vec_void(vectors).await)
     }
 }
 
 /// Merge two streams of `Vec<void>`.
-/// 
+///
 /// The two streams are merged using the `select` stream:
 /// - when `true`, vector from `a` is used;
 /// - when `false`, vector from `b` is used.
-/// 
+///
 /// ℹ️ No vector from either `a` or `b` are discarded, they are used when `select` give turn.
-/// 
+///
 /// ⚠️ When `select` ends merge terminates without treating the remaining vectors from `a` and `b`.
 /// When `select` give turn to `a` or `b` while the concerned stream is ended, the merge terminates.
 /// Merge continues as long as `select` and concerned stream does, while the other can be ended.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("merge()")
@@ -78,9 +75,9 @@ pub async fn chain() {
 ///     B["…［🟨 🟨］［🟨］［🟨 🟨 🟨］…"] -->|b| T
 ///     O["… 🟩 🟥 🟥 🟩 🟥 …"] -->|select|T
 ///     
-/// 
+///
 ///     T -->|value| V["…［🟪 🟪 🟪］［🟨 🟨］［🟨］［🟪 🟪］［🟨 🟨 🟨］…"]
-/// 
+///
 ///     style V fill:#ffff,stroke:#ffff
 ///     style O fill:#ffff,stroke:#ffff
 ///     style A fill:#ffff,stroke:#ffff
@@ -98,16 +95,13 @@ pub async fn merge() {
         if select {
             if let Ok(v) = a.recv_one_vec_void().await {
                 val = v;
-            }
-            else {
+            } else {
                 break;
             }
-        }
-        else {
+        } else {
             if let Ok(v) = b.recv_one_vec_void().await {
                 val = v;
-            }
-            else {
+            } else {
                 break;
             }
         }
@@ -117,7 +111,7 @@ pub async fn merge() {
 }
 
 /// Filter a `Vec<void>` stream according to `bool` stream.
-/// 
+///
 /// ℹ️ If both streams are not the same size nothing is sent through accepted nor rejected.
 ///  
 /// ```mermaid
@@ -128,7 +122,7 @@ pub async fn merge() {
 ///     
 ///     T -->|accepted| A["…［🟪 🟪 🟪］［🟪 🟪］…"]
 ///     T -->|rejected| R["…［🟨 🟨］［🟨］［🟨 🟨 🟨］…"]
-/// 
+///
 ///     style V fill:#ffff,stroke:#ffff
 ///     style D fill:#ffff,stroke:#ffff
 ///     style A fill:#ffff,stroke:#ffff
@@ -141,11 +135,12 @@ pub async fn merge() {
     output rejected Stream<Vec<void>>
 )]
 pub async fn filter() {
-
     let mut accepted_op = true;
     let mut rejected_op = true;
 
-    while let (Ok(value), Ok(select)) = futures::join!(value.recv_one_vec_void(), select.recv_one_bool()) {
+    while let (Ok(value), Ok(select)) =
+        futures::join!(value.recv_one_vec_void(), select.recv_one_bool())
+    {
         if select {
             if let Err(_) = accepted.send_one_vec_void(value).await {
                 // If we cannot send anymore on accepted, we note it,
@@ -155,8 +150,7 @@ pub async fn filter() {
                     break;
                 }
             }
-        }
-        else {
+        } else {
             if let Err(_) = rejected.send_one_vec_void(value).await {
                 // If we cannot send anymore on rejected, we note it,
                 // and check if accepted is still valid, else just terminate.
@@ -169,19 +163,18 @@ pub async fn filter() {
     }
 }
 
-
 /// Trigger on `Vec<void>` stream start and end.
-/// 
+///
 /// Emit `start` when a first value is send through the stream.
 /// Emit `end` when stream is finally over.
-/// 
+///
 /// Emit `first` with the first vector coming in the stream.
 /// Emit `last` with the last vector coming in the stream.
-/// 
+///
 /// ℹ️ `start` and `first` are always emitted together.
 /// If the stream only contains one vector, `first` and `last` both contains it.
 /// If the stream never transmit any data before being ended, only `end` is emitted.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("trigger()")
@@ -191,7 +184,7 @@ pub async fn filter() {
 ///     T -->|first| F["〈［🟩 🟩］〉"]
 ///     T -->|last| L["〈［🟥 🟥］〉"]
 ///     T -->|end| E["〈🟦〉"]
-/// 
+///
 ///     style B fill:#ffff,stroke:#ffff
 ///     style S fill:#ffff,stroke:#ffff
 ///     style F fill:#ffff,stroke:#ffff
@@ -206,7 +199,6 @@ pub async fn filter() {
     output last Block<Vec<void>>
 )]
 pub async fn trigger() {
-
     let mut last_value = None;
 
     if let Ok(values) = stream.recv_vec_void().await {
@@ -233,7 +225,7 @@ pub async fn trigger() {
 }
 
 /// Stream a block `Vec<void>` element.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("stream()")
@@ -256,9 +248,9 @@ pub async fn stream() {
 }
 
 /// Emit a block `Vec<void>` value.
-/// 
+///
 /// When `trigger` is enabled, `value` is emitted as block.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("emit(value=［🟨］)")
@@ -280,17 +272,17 @@ pub async fn emit(value: Vec<void>) {
 }
 
 /// Gives count of elements passing through stream.
-/// 
+///
 /// This count increment one for each vector within the stream, starting at 1.
 /// ℹ️ The count is independant from vector sizes.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("count()")
 ///     V["［🟦 🟦］［🟦］［🟦 🟦 🟦］…"] -->|stream| T
 ///     
 ///     T -->|count| P["1️⃣ 2️⃣ 3️⃣ …"]
-/// 
+///
 ///     style V fill:#ffff,stroke:#ffff
 ///     style P fill:#ffff,stroke:#ffff
 /// ```
@@ -308,16 +300,16 @@ pub async fn count() {
 }
 
 /// Gives size of vectors passing through stream.
-/// 
+///
 /// For each vector one `size` value is sent, giving the number of elements contained within matching vector.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("size()")
 ///     V["［🟦 🟦］［🟦］［］［🟦 🟦 🟦］…"] -->|vector| T
 ///     
 ///     T -->|size| P["2️⃣ 1️⃣ 0️⃣ 3️⃣ …"]
-/// 
+///
 ///     style V fill:#ffff,stroke:#ffff
 ///     style P fill:#ffff,stroke:#ffff
 /// ```
@@ -327,12 +319,15 @@ pub async fn count() {
 )]
 pub async fn size() {
     while let Ok(iter) = vector.recv_vec_void().await {
-        check!(size.send_u64(iter.into_iter().map(|v| v.len() as u64).collect()).await);
+        check!(
+            size.send_u64(iter.into_iter().map(|v| v.len() as u64).collect())
+                .await
+        );
     }
 }
 
 /// Resize vectors according to given streamed size.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("resize()")
@@ -340,7 +335,7 @@ pub async fn size() {
 ///     S["3️⃣ 2️⃣ 3️⃣ 2️⃣ …"] -->|size| T
 ///     
 ///     T -->|resized| P["［🟦 🟦 🟦］［🟦 🟦］［🟦 🟦 🟦］［🟦 🟦］…"]
-/// 
+///
 ///     style V fill:#ffff,stroke:#ffff
 ///     style S fill:#ffff,stroke:#ffff
 ///     style P fill:#ffff,stroke:#ffff
@@ -355,15 +350,14 @@ pub async fn resize() {
         if let Ok(mut vec) = vector.recv_one_vec_void().await {
             vec.resize(size as usize, ());
             check!(resized.send_one_vec_void(vec).await);
-        }
-        else {
+        } else {
             break;
         }
     }
 }
 
 /// Generate a stream of empty `Vec<void>` according to a length.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("generate()")
@@ -380,9 +374,7 @@ pub async fn resize() {
     output stream Stream<Vec<void>>
 )]
 pub async fn generate() {
-
     if let Ok(length) = length.recv_one_u128().await {
-
         const CHUNK: u128 = 2u128.pow(20);
         let mut total = 0u128;
         while total < length {
@@ -394,9 +386,9 @@ pub async fn generate() {
 }
 
 /// Generate a stream of empty `Vec<void>` indefinitely.
-/// 
+///
 /// This generates a continuous stream of `Vec<void>`, until stream consumers closes it.
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("generateIndefinitely()")
@@ -413,7 +405,6 @@ pub async fn generate() {
     output stream Stream<Vec<void>>
 )]
 pub async fn generate_indefinitely() {
-    
     if let Ok(_) = trigger.recv_one_void().await {
         const CHUNK: usize = 2usize.pow(20);
         loop {

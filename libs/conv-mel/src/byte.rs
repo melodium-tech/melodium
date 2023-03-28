@@ -10,4 +10,3 @@ pub async fn to_void() {
         check!(iter.send_void(vec![(); values.len()]).await)
     }
 }
-
