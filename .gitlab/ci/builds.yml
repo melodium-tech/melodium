@@ -202,23 +202,23 @@ build:release:x86_64-pc-windows-msvc:
       - target/x86_64-pc-windows-msvc/release/melodium.exe
     expire_in: 1 hour
 
-build:release:i686-pc-windows-gnu:
-  stage: build
-  extends:
-    - .build-release
-    - .windows-host
-    - .cargo-cache
-  before_script:
-    - choco install mingw rust --yes --x86
-  script:
-    - rustc --version
-    - cargo --version
-    - cargo build --package melodium --locked --release --target i686-pc-windows-gnu
-    - ls target/i686-pc-windows-gnu/release
-  artifacts:
-    paths:
-      - target/i686-pc-windows-gnu/release/melodium.exe
-    expire_in: 1 hour
+# build:release:i686-pc-windows-gnu:
+#   stage: build
+#   extends:
+#     - .build-release
+#     - .windows-host
+#     - .cargo-cache
+#   before_script:
+#     - choco install mingw rust --yes --x86
+#   script:
+#     - rustc --version
+#     - cargo --version
+#     - cargo build --package melodium --locked --release --target i686-pc-windows-gnu
+#     - ls target/i686-pc-windows-gnu/release
+#   artifacts:
+#     paths:
+#       - target/i686-pc-windows-gnu/release/melodium.exe
+#     expire_in: 1 hour
 
 build:release:i686-pc-windows-msvc:
   stage: build

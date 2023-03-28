@@ -21,9 +21,9 @@ release:gitlab:
         - name: Windows 32 bits (i686, MSVC compiler)
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-msvc.zip"
           link_type: package
-        - name: Windows 32 bits (i686, GNU compiler)
-          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-gnu.zip"
-          link_type: package
+        # - name: Windows 32 bits (i686, GNU compiler)
+        #   url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-gnu.zip"
+        #   link_type: package
         - name: Windows 64 bits (x86_64, MSVC compiler)
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-pc-windows-msvc.zip"
           link_type: package
