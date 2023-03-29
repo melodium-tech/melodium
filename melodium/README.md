@@ -25,6 +25,11 @@ or
 melodium run --main <ENTRYPOINT> <FILE>
 ```
 
+Check a Mélodium program validity:
+```shell
+melodium check --main <ENTRYPOINT> <FILE>
+```
+
 Generate documentation:
 ```shell
 melodium doc <OUTPUT>

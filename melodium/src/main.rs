@@ -2,9 +2,10 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 use core::convert::TryFrom;
 use melodium::*;
-use melodium_common::descriptor::Identifier;
+use melodium_common::descriptor::{Collection, Identifier};
 use melodium_doc::Documentation;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -33,6 +34,17 @@ struct Run {
 }
 
 #[derive(clap::Args)]
+#[clap(about = "Check given program")]
+struct Check {
+    #[clap(value_parser)]
+    file: Option<String>,
+    #[clap(short, long)]
+    path: Vec<String>,
+    #[clap(short, long)]
+    main: Option<String>,
+}
+
+#[derive(clap::Args)]
 #[clap(about = "Generates documentation")]
 struct Doc {
     #[clap(short, long)]
@@ -46,6 +58,7 @@ struct Doc {
 #[derive(Subcommand)]
 enum Commands {
     Run(Run),
+    Check(Check),
     Doc(Doc),
 }
 
@@ -64,6 +77,7 @@ pub fn main() {
     } else if let Some(command) = cli.command {
         match command {
             Commands::Run(args) => run(args),
+            Commands::Check(args) => check(args),
             Commands::Doc(args) => doc(args),
         }
     } else {
@@ -77,6 +91,35 @@ pub fn main() {
 }
 
 fn run(args: Run) {
+    if let Ok((identifier, collection)) = check_load(Check {
+        file: args.file,
+        path: args.path,
+        main: args.main,
+    }) {
+        let engine = melodium_engine::new_engine(collection);
+        if let Err(errs) = engine.genesis(&identifier) {
+            for err in errs {
+                eprintln!("{}: logic: {err:?}", "error".bold().red());
+            }
+            std::process::exit(1);
+        }
+
+        engine.live();
+        engine.end();
+    } else {
+        std::process::exit(1);
+    }
+}
+
+fn check(args: Check) {
+    if let Ok(_) = check_load(args) {
+        std::process::exit(0);
+    } else {
+        std::process::exit(1);
+    }
+}
+
+fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
     let id = if let Some(main) = args.main {
         match Identifier::try_from(main) {
             Ok(id) => Some(id),
@@ -85,7 +128,7 @@ fn run(args: Run) {
                     "{}: '{err}' is not a valid identifier",
                     "error".bold().red()
                 );
-                std::process::exit(1);
+                return Err(());
             }
         }
     } else {
@@ -146,24 +189,17 @@ fn run(args: Run) {
         },
         _ => {
             eprintln!("{}: file or identifier must be given", "error".bold().red());
-            std::process::exit(1);
+            return Err(());
         }
     }
 
     if let Some(err) = error {
         eprintln!("{}: loading: {err:?}", "error".bold().red());
-        std::process::exit(1);
-    } else if let Some((identifier, collection)) = success {
-        let engine = melodium_engine::new_engine(collection);
-        if let Err(errs) = engine.genesis(&identifier) {
-            for err in errs {
-                eprintln!("{}: logic: {err:?}", "error".bold().red());
-            }
-            std::process::exit(1);
-        }
-
-        engine.live();
-        engine.end();
+        return Err(());
+    } else if let Some(success) = success {
+        return Ok(success);
+    } else {
+        return Err(());
     }
 }
 
