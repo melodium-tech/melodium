@@ -623,7 +623,9 @@ dependencies = [
 name = "melodium-lang"
 version = "0.6.0"
 dependencies = [
+ "convert_case",
  "hex",
+ "itertools",
  "lazy_static",
  "melodium-common",
  "melodium-engine",

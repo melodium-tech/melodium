@@ -12,6 +12,8 @@ extern crate lazy_static;
 
 pub mod error;
 pub mod path;
+#[cfg(feature = "restitution")]
+pub mod restitution;
 pub mod semantic;
 pub mod text;
 

@@ -18,7 +18,12 @@ name = "melodium_lang"
 [dependencies]
 melodium-common = { path = "../melodium-common", version = "0.6.0" }
 melodium-engine = { path = "../melodium-engine", version = "0.6.0" }
+convert_case = { version = "0.6", optional = true }
 hex = "0.4"
+itertools = { version = "0.10.5", optional = true }
 lazy_static = "~1.4"
 regex = "1.6"
 
+[features]
+default = ["restitution"]
+restitution = ["convert_case", "itertools"]
