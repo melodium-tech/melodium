@@ -25,5 +25,5 @@ lazy_static = "~1.4"
 regex = "1.6"
 
 [features]
-default = ["restitution"]
+default = []
 restitution = ["convert_case", "itertools"]
