@@ -73,7 +73,7 @@ release:publish:
       artifacts: true
   before_script:
     - apt-get update
-    - apt-get install -y sftp sshpass
+    - apt-get install -y openssh-client sshpass
   script:
     - export DATETIME=$(date --utc --iso-8601=seconds)
     - |
