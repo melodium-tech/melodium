@@ -638,7 +638,7 @@ version = "0.0.0-reserved"
 
 [[package]]
 name = "melodium-loader"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "glob",
  "melodium-common",
