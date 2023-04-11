@@ -566,7 +566,7 @@ dependencies = [
 
 [[package]]
 name = "melodium"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "clap",
  "colored",
@@ -584,7 +584,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-common"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "async-trait",
  "downcast-rs",
@@ -638,7 +638,7 @@ version = "0.0.0-reserved"
 
 [[package]]
 name = "melodium-loader"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "glob",
  "melodium-common",

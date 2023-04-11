@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.6.1]
+
+- Making loading function use LoadingConfig.
+- Exposing core built-in elements.
+
 ## [v0.6.0]
 
 - Complete refactoring and division between multiple Rust crates within project workspace
