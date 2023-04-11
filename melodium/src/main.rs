@@ -4,6 +4,7 @@ use core::convert::TryFrom;
 use melodium::*;
 use melodium_common::descriptor::{Collection, Identifier};
 use melodium_doc::Documentation;
+use melodium_loader::Loader;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -96,16 +97,12 @@ fn run(args: Run) {
         path: args.path,
         main: args.main,
     }) {
-        let engine = melodium_engine::new_engine(collection);
-        if let Err(errs) = engine.genesis(&identifier) {
+        if let Err(errs) = launch(collection, &identifier) {
             for err in errs {
                 eprintln!("{}: logic: {err:?}", "error".bold().red());
             }
             std::process::exit(1);
         }
-
-        engine.live();
-        engine.end();
     } else {
         std::process::exit(1);
     }
@@ -135,17 +132,20 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
         None
     };
 
-    let mut paths = args
-        .path
-        .iter()
-        .map(|p| PathBuf::from(p))
-        .collect::<Vec<_>>();
+    let mut config = LoadingConfig {
+        core_packages: Vec::new(),
+        search_locations: args
+            .path
+            .iter()
+            .map(|p| PathBuf::from(p))
+            .collect::<Vec<_>>(),
+    };
 
     let file = if let Some(file) = args.file.map(|f| PathBuf::from(f)) {
         if file.is_file() {
             Some(file)
         } else if file.is_dir() {
-            paths.push(file);
+            config.search_locations.push(file);
             None
         } else {
             None
@@ -157,7 +157,7 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
     let success;
     let error;
     match (id, file) {
-        (Some(id), None) => match load_entry(paths, &id) {
+        (Some(id), None) => match load_entry(config, &id) {
             Ok(loaded_collection) => {
                 success = Some((id, loaded_collection));
                 error = None;
@@ -167,7 +167,7 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
                 error = Some(errs);
             }
         },
-        (None, Some(file)) => match load_file(file, paths) {
+        (None, Some(file)) => match load_file(file, config) {
             Ok((id, loaded_collection)) => {
                 success = Some((id, loaded_collection));
                 error = None;
@@ -177,7 +177,7 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
                 error = Some(errs);
             }
         },
-        (Some(id), Some(file)) => match load_file(file, paths) {
+        (Some(id), Some(file)) => match load_file(file, config) {
             Ok((_, loaded_collection)) => {
                 success = Some((id, loaded_collection));
                 error = None;
@@ -204,7 +204,10 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
 }
 
 fn doc(args: Doc) {
-    let collection = load().unwrap();
+    let loader = Loader::new(core_config());
+    loader.load_all().unwrap();
+
+    let collection = loader.collection().clone();
     let documentation = Documentation::new(PathBuf::from(args.output), collection);
     documentation.make_documentation().unwrap();
 }

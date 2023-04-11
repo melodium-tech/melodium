@@ -10,40 +10,37 @@
 //!
 
 use melodium_common::descriptor::{Collection, Identifier, LoadingError, Package};
-use melodium_loader::{Loader, LoadingConfig};
+use melodium_engine::LogicError;
+use melodium_loader::Loader;
+pub use melodium_loader::LoadingConfig;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-pub fn load() -> Result<Collection, LoadingError> {
-    let config = LoadingConfig {
-        core_packages: core_packages(),
-        search_locations: Vec::new(),
-    };
+pub fn load_all(mut config: LoadingConfig) -> Result<Arc<Collection>, LoadingError> {
+    config.extend(core_config());
 
     let loader = Loader::new(config);
-    loader.full_load()
+    loader.load_all()?;
+    loader.build()
 }
 
-pub fn load_entry(paths: Vec<PathBuf>, id: &Identifier) -> Result<Arc<Collection>, LoadingError> {
-    let config = LoadingConfig {
-        core_packages: core_packages(),
-        search_locations: paths,
-    };
+pub fn load_entry(
+    mut config: LoadingConfig,
+    identifier: &Identifier,
+) -> Result<Arc<Collection>, LoadingError> {
+    config.extend(core_config());
 
     let loader = Loader::new(config);
-    loader.load_package(id.root())?;
-    loader.load(id)?;
+    loader.load_package(identifier.root())?;
+    loader.load(identifier)?;
     loader.build()
 }
 
 pub fn load_raw(
     raw: &str,
-    paths: Vec<PathBuf>,
+    mut config: LoadingConfig,
 ) -> Result<(Identifier, Arc<Collection>), LoadingError> {
-    let config = LoadingConfig {
-        core_packages: core_packages(),
-        search_locations: paths,
-    };
+    config.extend(core_config());
 
     let loader = Loader::new(config);
     let name = loader.load_raw(raw)?;
@@ -59,13 +56,29 @@ pub fn load_raw(
 
 pub fn load_file(
     file: PathBuf,
-    paths: Vec<PathBuf>,
+    config: LoadingConfig,
 ) -> Result<(Identifier, Arc<Collection>), LoadingError> {
     let content = std::fs::read_to_string(file).map_err(|_| LoadingError::ContentError)?;
-    load_raw(&content, paths)
+    load_raw(&content, config)
 }
 
-fn core_packages() -> Vec<Box<dyn Package>> {
+pub fn launch(collection: Arc<Collection>, identifier: &Identifier) -> Result<(), Vec<LogicError>> {
+    let engine = melodium_engine::new_engine(collection);
+    engine.genesis(&identifier)?;
+
+    engine.live();
+    engine.end();
+    Ok(())
+}
+
+pub fn core_config() -> LoadingConfig {
+    LoadingConfig {
+        core_packages: core_packages(),
+        search_locations: Vec::new(),
+    }
+}
+
+pub fn core_packages() -> Vec<Box<dyn Package>> {
     let mut packages = Vec::new();
     #[cfg(feature = "conv-mel")]
     packages.push(conv_mel::__mel_package::package());

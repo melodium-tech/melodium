@@ -77,17 +77,17 @@ impl Loader {
         Ok(name)
     }
 
-    pub fn load(&self, identifier: &Identifier) -> Result<Collection, LoadingError> {
+    pub fn load(&self, identifier: &Identifier) -> Result<(), LoadingError> {
         self.get_with_load(identifier)?;
-        Ok(self.collection.read().unwrap().clone())
+        Ok(())
     }
 
-    pub fn full_load(&self) -> Result<Collection, LoadingError> {
+    pub fn load_all(&self) -> Result<(), LoadingError> {
         for (_name, package) in self.packages.read().unwrap().iter() {
             let additions = package.full_collection(self)?;
             self.add_collection(additions);
         }
-        Ok(self.collection.read().unwrap().clone())
+        Ok(())
     }
 
     pub fn build(&self) -> Result<Arc<Collection>, LoadingError> {
