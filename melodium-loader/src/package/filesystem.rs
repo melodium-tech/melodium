@@ -104,7 +104,7 @@ impl FsPackage {
     }
 
     fn all_contents(&self) -> Result<(), LoadingError> {
-        let pattern = format!("{}/**.mel", self.path.to_string_lossy().to_string());
+        let pattern = format!("{}/**/*.mel", self.path.to_string_lossy().to_string());
 
         let options = MatchOptions {
             case_sensitive: true,
