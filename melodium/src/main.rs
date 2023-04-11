@@ -118,7 +118,7 @@ fn check(args: Check) {
 
 fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
     let id = if let Some(main) = args.main {
-        match Identifier::try_from(main) {
+        match Identifier::try_from(&main) {
             Ok(id) => Some(id),
             Err(err) => {
                 eprintln!(

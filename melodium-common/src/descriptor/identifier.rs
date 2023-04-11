@@ -1,6 +1,8 @@
 use core::{
     convert::TryFrom,
     fmt::{Display, Formatter},
+    result::Result,
+    str::FromStr,
 };
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -44,10 +46,30 @@ impl Display for Identifier {
     }
 }
 
-impl TryFrom<String> for Identifier {
+impl FromStr for Identifier {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
+    }
+}
+
+impl Ord for Identifier {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.to_string().cmp(&other.to_string())
+    }
+}
+
+impl PartialOrd for Identifier {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        self.to_string().partial_cmp(&other.to_string())
+    }
+}
+
+impl TryFrom<&str> for Identifier {
     type Error = String;
 
-    fn try_from(value: String) -> core::result::Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         let full = value.split("::").collect::<Vec<_>>();
         if full.len() == 2 {
             let path = full[0];
@@ -60,22 +82,18 @@ impl TryFrom<String> for Identifier {
                     name: name.to_string(),
                 })
             } else {
-                Err(value)
+                Err(value.to_string())
             }
         } else {
-            Err(value)
+            Err(value.to_string())
         }
     }
 }
 
-impl PartialOrd for Identifier {
-    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        self.to_string().partial_cmp(&other.to_string())
-    }
-}
+impl TryFrom<&String> for Identifier {
+    type Error = String;
 
-impl Ord for Identifier {
-    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        self.to_string().cmp(&other.to_string())
+    fn try_from(value: &String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
     }
 }
