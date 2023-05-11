@@ -36,7 +36,7 @@ impl Area {
                             .clone()
                             .downcast_arc::<ModelDescriptor>()
                             .unwrap()
-                            .designer(None)
+                            .designer(collection.clone(), None)
                             .success()
                             .map(|designer| {
                                 Arc::new(
@@ -60,7 +60,7 @@ impl Area {
                             .clone()
                             .downcast_arc::<TreatmentDescriptor>()
                             .unwrap()
-                            .designer(None)
+                            .designer(collection.clone(), None)
                             .success()
                             .map(|designer| {
                                 Arc::new(

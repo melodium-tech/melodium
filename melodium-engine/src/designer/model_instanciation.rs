@@ -2,7 +2,8 @@ use super::{Parameter, Reference, Scope, Treatment, Value};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Identified, Model as ModelDescriptor, Parameter as ParameterDescriptor, Variability,
+    Collection, Entry, Identified, Model as ModelDescriptor, Parameter as ParameterDescriptor,
+    Variability,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
@@ -40,6 +41,41 @@ impl ModelInstanciation {
         &self.design_reference
     }
 
+    pub fn update_collection(&mut self, collection: &Arc<Collection>) -> LogicResult<()> {
+        if let Some(Entry::Model(new_model)) =
+            collection.get(self.descriptor.upgrade().unwrap().identifier())
+        {
+            self.descriptor = Arc::downgrade(new_model);
+
+            let mut result = LogicResult::new_success(());
+            let mut deletion_list = Vec::new();
+            for (name, param) in &self.parameters {
+                let res = param.write().unwrap().update_collection(&collection);
+                if res.is_failure() {
+                    deletion_list.push(name.clone());
+                }
+                result = result.and_degrade_failure(res);
+            }
+            deletion_list.iter().for_each(|d| {
+                self.remove_parameter(d);
+            });
+
+            result.and(self.validate())
+        } else {
+            LogicResult::new_failure(LogicError::unexisting_model(
+                206,
+                self.host_treatment
+                    .upgrade()
+                    .unwrap()
+                    .read()
+                    .unwrap()
+                    .identifier(),
+                self.descriptor.upgrade().unwrap().identifier().clone(),
+                self.design_reference.clone(),
+            ))
+        }
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -49,45 +85,45 @@ impl ModelInstanciation {
         name: &str,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<Arc<RwLock<Parameter>>> {
+        let mut result = LogicResult::new_success(());
         let rc_host = self.host_treatment.upgrade().unwrap();
         let host = rc_host.read().unwrap();
-        if self.descriptor().parameters().contains_key(name) {
-            let parameter = Parameter::new(
-                &(self.host_treatment.upgrade().unwrap() as Arc<RwLock<dyn Scope>>),
-                &self.descriptor().as_parameterized(),
-                name,
-                design_reference.clone(),
-            );
-            let rc_parameter = Arc::new(RwLock::new(parameter));
 
-            if self
-                .parameters
-                .insert(name.to_string(), Arc::clone(&rc_parameter))
-                .is_none()
-            {
-                Ok(rc_parameter).into()
-            } else {
-                Err(LogicError::multiple_parameter_assignation(
+        let parameter = Parameter::new(
+            &(self.host_treatment.upgrade().unwrap() as Arc<RwLock<dyn Scope>>),
+            &self.descriptor().as_parameterized(),
+            name,
+            design_reference.clone(),
+        );
+        let rc_parameter = Arc::new(RwLock::new(parameter));
+
+        if self
+            .parameters
+            .insert(name.to_string(), Arc::clone(&rc_parameter))
+            .is_some()
+        {
+            result = result.and_degrade_failure(LogicResult::new_failure(
+                LogicError::multiple_parameter_assignation(
                     24,
                     host.identifier().clone(),
                     self.descriptor().identifier().clone(),
                     name.to_string(),
-                    design_reference,
-                )
-                .into())
-                .into()
-            }
-        } else {
-            Err(LogicError::unexisting_parameter(
+                    design_reference.clone(),
+                ),
+            ));
+        }
+
+        if !self.descriptor().parameters().contains_key(name) {
+            result.errors_mut().push(LogicError::unexisting_parameter(
                 10,
                 host.identifier().clone(),
                 self.descriptor().identifier().clone(),
                 self.name.clone(),
                 design_reference,
-            )
-            .into())
-            .into()
+            ));
         }
+
+        result.and(Ok(rc_parameter).into())
     }
 
     pub fn remove_parameter(&mut self, name: &str) -> LogicResult<bool> {
@@ -104,14 +140,27 @@ impl ModelInstanciation {
 
     pub fn validate(&self) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
-        result = self.parameters.iter().fold(result, |result, (_, param)| {
-            result.and_degrade_failure(param.read().unwrap().validate())
-        });
 
         let rc_host = self.host_treatment.upgrade().unwrap();
         let host = rc_host.read().unwrap();
-
         let descriptor = self.descriptor();
+
+        result = self
+            .parameters
+            .iter()
+            .fold(result, |mut result, (name, param)| {
+                if !self.descriptor().parameters().contains_key(name) {
+                    result.errors_mut().push(LogicError::unexisting_parameter(
+                        193,
+                        host.identifier().clone(),
+                        descriptor.identifier().clone(),
+                        self.name.clone(),
+                        self.design_reference.clone(),
+                    ));
+                }
+
+                result.and_degrade_failure(param.read().unwrap().validate())
+            });
 
         // Check if all model parameters are filled.
         let unset_params: Vec<&ParameterDescriptor> = descriptor

@@ -75,6 +75,12 @@ impl Buildable<TreatmentBuildMode> for Source {
     fn build_mode(&self) -> TreatmentBuildMode {
         TreatmentBuildMode::Source(self.auto_reference.clone())
     }
+
+    fn make_use(&self, identifier: &Identifier) -> bool {
+        self.models
+            .iter()
+            .any(|(_, model)| model.identifier() == identifier)
+    }
 }
 
 impl Display for Source {

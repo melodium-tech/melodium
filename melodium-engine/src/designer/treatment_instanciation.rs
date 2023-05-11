@@ -2,7 +2,8 @@ use super::{Connection, Parameter, Reference, Scope, Treatment, Value, IO};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Identified, Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor,
+    Collection, Entry, Identified, Parameter as ParameterDescriptor,
+    Treatment as TreatmentDescriptor,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
@@ -48,13 +49,57 @@ impl TreatmentInstanciation {
         &self.design_reference
     }
 
+    pub fn update_collection(&mut self, collection: &Arc<Collection>) -> LogicResult<()> {
+        if let Some(Entry::Treatment(new_treatment)) =
+            collection.get(self.descriptor.upgrade().unwrap().identifier())
+        {
+            self.descriptor = Arc::downgrade(new_treatment);
+
+            let mut result = LogicResult::new_success(());
+            let mut deletion_list = Vec::new();
+            for (name, param) in &self.parameters {
+                let res = param.write().unwrap().update_collection(&collection);
+                if res.is_failure() {
+                    deletion_list.push(name.clone());
+                }
+                result = result.and_degrade_failure(res);
+            }
+            deletion_list.iter().for_each(|d| {
+                self.remove_parameter(d);
+            });
+
+            result.and(self.validate())
+        } else {
+            LogicResult::new_failure(LogicError::unexisting_treatment(
+                207,
+                self.host_treatment
+                    .upgrade()
+                    .unwrap()
+                    .read()
+                    .unwrap()
+                    .identifier(),
+                self.descriptor.upgrade().unwrap().identifier().clone(),
+                self.design_reference.clone(),
+            ))
+        }
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }
 
     pub fn add_model(&mut self, parametric_name: &str, local_name: &str) -> LogicResult<()> {
+        self.models
+            .insert(parametric_name.to_string(), local_name.to_string());
+
+        self.check_model(parametric_name, local_name)
+    }
+
+    fn check_model(&self, parametric_name: &str, local_name: &str) -> LogicResult<()> {
+        let mut result = LogicResult::new_success(());
         let rc_host = self.host_treatment.upgrade().unwrap();
         let borrowed_host = rc_host.read().unwrap();
+
         if self.descriptor().models().contains_key(parametric_name) {
             let model_descriptor = if let Some(model_descriptor) =
                 borrowed_host.descriptor().models().get(local_name)
@@ -81,13 +126,8 @@ impl TreatmentInstanciation {
                     }
                 };
 
-                if is_matching {
-                    self.models
-                        .insert(parametric_name.to_string(), local_name.to_string());
-
-                    Ok(()).into()
-                } else {
-                    Err(LogicError::unmatching_model_type(
+                if !is_matching {
+                    result.errors_mut().push(LogicError::unmatching_model_type(
                         53,
                         borrowed_host.identifier().clone(),
                         self.descriptor().identifier().clone(),
@@ -96,31 +136,29 @@ impl TreatmentInstanciation {
                         local_name.to_string(),
                         model_descriptor.unwrap().identifier().clone(),
                         self.design_reference.clone(),
-                    )
-                    .into())
-                    .into()
+                    ));
                 }
             } else {
-                Err(LogicError::undeclared_model(
+                result.errors_mut().push(LogicError::undeclared_model(
                     42,
                     borrowed_host.identifier().clone(),
                     local_name.to_string(),
                     self.design_reference.clone(),
-                )
-                .into())
-                .into()
+                ));
             }
         } else {
-            Err(LogicError::unexisting_parametric_model(
-                54,
-                borrowed_host.identifier().clone(),
-                self.descriptor().identifier().clone(),
-                parametric_name.to_string(),
-                self.design_reference.clone(),
-            )
-            .into())
-            .into()
+            result
+                .errors_mut()
+                .push(LogicError::unexisting_parametric_model(
+                    54,
+                    borrowed_host.identifier().clone(),
+                    self.descriptor().identifier().clone(),
+                    parametric_name.to_string(),
+                    self.design_reference.clone(),
+                ))
         }
+
+        result
     }
 
     pub fn remove_model(&mut self, parametric_name: &str) -> LogicResult<bool> {
@@ -137,45 +175,45 @@ impl TreatmentInstanciation {
         name: &str,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<Arc<RwLock<Parameter>>> {
+        let mut result = LogicResult::new_success(());
         let rc_host = self.host_treatment.upgrade().unwrap();
         let host = rc_host.read().unwrap();
-        if self.descriptor().parameters().contains_key(name) {
-            let parameter = Parameter::new(
-                &(self.host_treatment.upgrade().unwrap() as Arc<RwLock<dyn Scope>>),
-                &self.descriptor().as_parameterized(),
-                name,
-                design_reference.clone(),
-            );
-            let rc_parameter = Arc::new(RwLock::new(parameter));
 
-            if self
-                .parameters
-                .insert(name.to_string(), Arc::clone(&rc_parameter))
-                .is_none()
-            {
-                Ok(rc_parameter).into()
-            } else {
-                Err(LogicError::multiple_parameter_assignation(
+        let parameter = Parameter::new(
+            &(self.host_treatment.upgrade().unwrap() as Arc<RwLock<dyn Scope>>),
+            &self.descriptor().as_parameterized(),
+            name,
+            design_reference.clone(),
+        );
+        let rc_parameter = Arc::new(RwLock::new(parameter));
+
+        if self
+            .parameters
+            .insert(name.to_string(), Arc::clone(&rc_parameter))
+            .is_some()
+        {
+            result = result.and_degrade_failure(LogicResult::new_failure(
+                LogicError::multiple_parameter_assignation(
                     26,
                     host.identifier().clone(),
                     self.descriptor().identifier().clone(),
                     self.name.clone(),
                     design_reference.clone(),
-                )
-                .into())
-                .into()
-            }
-        } else {
-            Err(LogicError::unexisting_parameter(
+                ),
+            ));
+        }
+
+        if !self.descriptor().parameters().contains_key(name) {
+            result.errors_mut().push(LogicError::unexisting_parameter(
                 11,
                 host.identifier().clone(),
                 self.descriptor().identifier().clone(),
                 self.name.clone(),
                 design_reference.clone(),
-            )
-            .into())
-            .into()
+            ));
         }
+
+        result.and(Ok(rc_parameter).into())
     }
 
     pub fn remove_parameter(&mut self, name: &str) -> LogicResult<bool> {
@@ -197,15 +235,27 @@ impl TreatmentInstanciation {
 
     pub fn validate(&self) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
-
-        result = self.parameters.iter().fold(result, |result, (_, param)| {
-            result.and_degrade_failure(param.read().unwrap().validate())
-        });
-
         let rc_host = self.host_treatment.upgrade().unwrap();
         let borrowed_host = rc_host.read().unwrap();
 
         let descriptor = self.descriptor();
+
+        result = self
+            .parameters
+            .iter()
+            .fold(result, |mut result, (name, param)| {
+                if !self.descriptor().parameters().contains_key(name) {
+                    result.errors_mut().push(LogicError::unexisting_parameter(
+                        203,
+                        borrowed_host.identifier().clone(),
+                        descriptor.identifier().clone(),
+                        self.name.clone(),
+                        self.design_reference.clone(),
+                    ));
+                }
+
+                result.and_degrade_failure(param.read().unwrap().validate())
+            });
 
         // Check if all parameters are filled.
         let unset_params: Vec<&ParameterDescriptor> = descriptor
@@ -230,6 +280,10 @@ impl TreatmentInstanciation {
                 unset_param.name().to_string(),
                 self.design_reference.clone(),
             ));
+        }
+
+        for (param_name, local_name) in &self.models {
+            result = result.and_degrade_failure(self.check_model(param_name, local_name));
         }
 
         // Check if all models are filled

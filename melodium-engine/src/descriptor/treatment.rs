@@ -3,8 +3,8 @@ use crate::designer::{Reference, Treatment as Designer};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
-    Buildable, Context, Documented, Identified, Identifier, Input, Model, Output, Parameter,
-    Parameterized, Status, Treatment as TreatmentDescriptor, TreatmentBuildMode,
+    Buildable, Collection, Context, Documented, Identified, Identifier, Input, Model, Output,
+    Parameter, Parameterized, Status, Treatment as TreatmentDescriptor, TreatmentBuildMode,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock, Weak};
@@ -48,6 +48,7 @@ impl Treatment {
 
     pub fn designer(
         &self,
+        collection: Arc<Collection>,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<Arc<RwLock<Designer>>> {
         if self.auto_reference.strong_count() == 0 {
@@ -61,8 +62,11 @@ impl Treatment {
         if let Some(designer_ref) = &*option_designer {
             Status::new_success(designer_ref.clone())
         } else {
-            let new_designer =
-                Designer::new(&self.auto_reference.upgrade().unwrap(), design_reference);
+            let new_designer = Designer::new(
+                &self.auto_reference.upgrade().unwrap(),
+                collection,
+                design_reference,
+            );
 
             *option_designer = Some(new_designer.clone());
 
@@ -186,6 +190,16 @@ impl Parameterized for Treatment {
 impl Buildable<TreatmentBuildMode> for Treatment {
     fn build_mode(&self) -> TreatmentBuildMode {
         TreatmentBuildMode::Designed()
+    }
+
+    fn make_use(&self, identifier: &Identifier) -> bool {
+        self.models
+            .iter()
+            .any(|(_, model)| model.identifier() == identifier)
+            || self
+                .contexts
+                .iter()
+                .any(|(_, context)| context.identifier() == identifier)
     }
 }
 

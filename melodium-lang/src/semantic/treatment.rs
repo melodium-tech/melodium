@@ -378,16 +378,12 @@ impl Treatment {
 
         let rc_designer: Arc<RwLock<TreatmentDesigner>> = if let Some(designer) = result
             .merge_degrade_failure(ScriptResult::from(
-                descriptor.designer(Some(self.text.name.into_ref())),
+                descriptor.designer(Arc::clone(collection), Some(self.text.name.into_ref())),
             )) {
             designer
         } else {
             return result;
         };
-        rc_designer
-            .write()
-            .unwrap()
-            .set_collection(Arc::clone(collection));
 
         // Models instanciations
         for rc_instancied_model in &self.model_instanciations {
