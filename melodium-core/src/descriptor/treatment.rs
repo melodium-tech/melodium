@@ -76,6 +76,10 @@ impl Parameterized for Treatment {
     fn parameters(&self) -> &HashMap<String, Parameter> {
         &self.parameters
     }
+
+    fn as_identified(&self) -> Arc<dyn Identified> {
+        self.auto_reference.upgrade().unwrap()
+    }
 }
 
 impl Buildable<TreatmentBuildMode> for Treatment {

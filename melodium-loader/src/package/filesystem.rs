@@ -1,8 +1,8 @@
-use crate::content::{Content, ContentError};
+use crate::content::Content;
 use crate::package::package::Package;
 use crate::Loader;
 use glob::{glob_with, MatchOptions};
-use melodium_common::descriptor::{Collection, Identifier, LoadingError};
+use melodium_common::descriptor::{Collection, Identifier, LoadingError, LoadingResult};
 use semver::Version;
 use std::collections::HashMap;
 use std::fs::{metadata, read, read_to_string};
@@ -17,31 +17,73 @@ pub struct FsPackage {
     version: Version,
     requirements: Vec<String>,
     contents: RwLock<HashMap<PathBuf, Content>>,
-    errors: RwLock<Vec<ContentError>>,
 }
 
 impl FsPackage {
-    pub fn new(path: &Path) -> Result<Self, LoadingError> {
-        let location = metadata(path).map_err(|_| LoadingError::NoPackage)?;
+    pub fn new(path: &Path) -> LoadingResult<Self> {
+        let location = match metadata(path) {
+            Ok(location) => location,
+            Err(_) => {
+                return LoadingResult::new_failure(LoadingError::no_package(
+                    176,
+                    path.to_string_lossy().to_string(),
+                ))
+            }
+        };
 
         if location.is_dir() {
             let mut composition_path = path.to_path_buf();
             composition_path.push("Compo.toml");
 
-            let composition =
-                read_to_string(&composition_path).map_err(|_| LoadingError::NoPackage)?;
-            let composition = composition
-                .parse::<Table>()
-                .map_err(|_| LoadingError::NoPackage)?;
+            let composition = match read_to_string(&composition_path) {
+                Ok(location) => location,
+                Err(_) => {
+                    return LoadingResult::new_failure(LoadingError::no_package(
+                        177,
+                        path.to_string_lossy().to_string(),
+                    ))
+                }
+            };
+            let composition = match composition.parse::<Table>() {
+                Ok(table) => table,
+                Err(_) => {
+                    return LoadingResult::new_failure(LoadingError::no_package(
+                        178,
+                        path.to_string_lossy().to_string(),
+                    ))
+                }
+            };
 
             if let (Value::String(name), Ok(version)) = (
-                composition.get("name").ok_or(LoadingError::NoPackage)?,
+                match composition.get("name") {
+                    Some(val) => val,
+                    None => {
+                        return LoadingResult::new_failure(LoadingError::no_package(
+                            179,
+                            path.to_string_lossy().to_string(),
+                        ))
+                    }
+                },
                 Version::parse(
-                    composition
-                        .get("version")
-                        .ok_or(LoadingError::NoPackage)?
-                        .as_str()
-                        .ok_or(LoadingError::NoPackage)?,
+                    match match composition.get("version") {
+                        Some(val) => val,
+                        None => {
+                            return LoadingResult::new_failure(LoadingError::no_package(
+                                180,
+                                path.to_string_lossy().to_string(),
+                            ))
+                        }
+                    }
+                    .as_str()
+                    {
+                        Some(val) => val,
+                        None => {
+                            return LoadingResult::new_failure(LoadingError::no_package(
+                                181,
+                                path.to_string_lossy().to_string(),
+                            ))
+                        }
+                    },
                 ),
             ) {
                 let requirements =
@@ -54,30 +96,43 @@ impl FsPackage {
                         Vec::new()
                     };
 
-                Ok(Self {
+                return LoadingResult::new_success(Self {
                     path: path.to_path_buf(),
                     name: name.clone(),
                     version,
                     requirements,
                     contents: RwLock::new(HashMap::new()),
-                    errors: RwLock::new(Vec::new()),
-                })
+                });
             } else {
-                Err(LoadingError::NoPackage)
+                return LoadingResult::new_failure(LoadingError::no_package(
+                    182,
+                    path.to_string_lossy().to_string(),
+                ));
             }
         } else {
-            Err(LoadingError::NoPackage)
+            return LoadingResult::new_failure(LoadingError::no_package(
+                183,
+                path.to_string_lossy().to_string(),
+            ));
         }
     }
 
-    fn insure_content(&self, designation: &Path) -> Result<(), LoadingError> {
+    fn insure_content(&self, designation: &Path) -> LoadingResult<()> {
         if self.contents.read().unwrap().contains_key(designation) {
-            return Ok(());
+            return LoadingResult::new_success(());
         }
 
         let mut full_path = self.path.clone();
         full_path.push(designation);
-        let raw = read(full_path).map_err(|_| LoadingError::NotFound(3))?;
+        let raw = match read(full_path) {
+            Ok(val) => val,
+            Err(_) => {
+                return LoadingResult::new_failure(LoadingError::no_package(
+                    182,
+                    designation.to_string_lossy().to_string(),
+                ))
+            }
+        };
 
         let result_content = Content::new(
             &format!(
@@ -88,49 +143,63 @@ impl FsPackage {
             &raw,
         );
 
-        match result_content {
-            Ok(content) => {
+        result_content
+            .convert_failure_errors(|err| LoadingError::content_error(183, Arc::new(err)))
+            .and_then(|content| {
                 self.contents
                     .write()
                     .unwrap()
                     .insert(designation.to_path_buf(), content);
-                Ok(())
-            }
-            Err(error) => {
-                self.errors.write().unwrap().push(error);
-                Err(LoadingError::NotFound(4))
-            }
-        }
+                LoadingResult::new_success(())
+            })
     }
 
-    fn all_contents(&self) -> Result<(), LoadingError> {
+    fn all_contents(&self) -> LoadingResult<()> {
         let pattern = format!("{}/**/*.mel", self.path.to_string_lossy().to_string());
 
         let options = MatchOptions {
             case_sensitive: true,
             require_literal_separator: false,
             require_literal_leading_dot: true,
-        };
+        }; //.map_err(|_| LoadingError::NotFound(7))
 
-        for entry in glob_with(&pattern, options).map_err(|_| LoadingError::NotFound(7))? {
-            match entry {
-                Ok(path) => self.insure_content(
-                    path.strip_prefix(&self.path)
-                        .map_err(|_| LoadingError::NotFound(5))?,
-                )?,
-                Err(_) => {}
+        let mut result = LoadingResult::new_success(());
+        if let Some(paths) = result.merge_degrade_failure(match glob_with(&pattern, options) {
+            Ok(paths) => LoadingResult::new_success(paths),
+            Err(_) => LoadingResult::new_failure(LoadingError::no_package(
+                184,
+                self.path.to_string_lossy().to_string(),
+            )),
+        }) {
+            for entry in paths {
+                match entry {
+                    Ok(path) => {
+                        if let Ok(path) = path.strip_prefix(&self.path) {
+                            result.merge_degrade_failure(self.insure_content(path));
+                        } else {
+                            result.merge_degrade_failure::<()>(LoadingResult::new_failure(
+                                LoadingError::no_package(
+                                    185,
+                                    self.path.to_string_lossy().to_string(),
+                                ),
+                            ));
+                        }
+                    }
+                    Err(_) => {}
+                }
             }
         }
 
-        Ok(())
+        result
     }
 
-    fn insure_loading(loader: &Loader, identifiers: Vec<Identifier>) -> Result<(), LoadingError> {
+    fn insure_loading(loader: &Loader, identifiers: Vec<Identifier>) -> LoadingResult<()> {
+        let mut result = LoadingResult::new_success(());
         for identifier in identifiers {
-            loader.get_with_load(&identifier)?;
+            result.merge_degrade_failure(loader.get_with_load(&identifier));
         }
 
-        Ok(())
+        result
     }
 
     fn designation(identifier: &Identifier) -> PathBuf {
@@ -160,39 +229,37 @@ impl Package for FsPackage {
         &self.requirements
     }
 
-    fn embedded_collection(&self, _loader: &Loader) -> Result<Collection, LoadingError> {
-        Ok(Collection::new())
+    fn embedded_collection(&self, _loader: &Loader) -> LoadingResult<Collection> {
+        LoadingResult::new_success(Collection::new())
     }
 
-    fn full_collection(&self, loader: &Loader) -> Result<Collection, LoadingError> {
-        let identifiers = self.all_identifiers(loader)?;
-
+    fn full_collection(&self, loader: &Loader) -> LoadingResult<Collection> {
         let mut collection = Collection::new();
-        let mut error = false;
-        for identifier in &identifiers {
-            if collection.get(identifier).is_none() {
-                match self.element(loader, identifier) {
-                    Ok(specific_collection) => {
+        let mut result = LoadingResult::new_success(());
+        if let Some(identifiers) = result.merge_degrade_failure(self.all_identifiers(loader)) {
+            for identifier in identifiers {
+                if collection.get(&identifier).is_none() {
+                    if let Some(specific_collection) =
+                        result.merge_degrade_failure(self.element(loader, &identifier))
+                    {
                         for identifier in &specific_collection.identifiers() {
                             collection.insert(specific_collection.get(identifier).unwrap().clone());
                         }
-                    }
-                    Err(_) => {
-                        error = true;
                     }
                 }
             }
         }
 
-        if error {
-            Err(LoadingError::ContentError)
-        } else {
-            Ok(collection)
-        }
+        result.and(LoadingResult::new_success(collection))
     }
 
-    fn all_identifiers(&self, _loader: &Loader) -> Result<Vec<Identifier>, LoadingError> {
-        self.all_contents()?;
+    fn all_identifiers(&self, _loader: &Loader) -> LoadingResult<Vec<Identifier>> {
+        let mut results = LoadingResult::new_success(Vec::new());
+
+        results.merge(self.all_contents());
+        if results.is_failure() {
+            return results;
+        }
 
         let mut identifiers = Vec::new();
         self.contents
@@ -201,56 +268,56 @@ impl Package for FsPackage {
             .iter()
             .for_each(|(_, content)| identifiers.extend(content.provide()));
 
-        Ok(identifiers)
+        LoadingResult::new_success(identifiers)
     }
 
-    fn element(
-        &self,
-        loader: &Loader,
-        identifier: &Identifier,
-    ) -> Result<Collection, LoadingError> {
+    fn element(&self, loader: &Loader, identifier: &Identifier) -> LoadingResult<Collection> {
+        let mut result = LoadingResult::new_success(Collection::new());
         let designation = Self::designation(identifier);
-        self.insure_content(&designation)?;
+        if let None = result.merge_degrade_failure(self.insure_content(&designation)) {
+            return result;
+        }
 
         if let Some(content) = self.contents.read().unwrap().get(&designation) {
             if let Ok(_guard) = content.try_lock() {
                 let needs = content.require();
-                Self::insure_loading(loader, needs)?;
+                result.merge_degrade_failure(Self::insure_loading(loader, needs));
 
                 let mut collection = loader.collection().clone();
-                match content.insert_descriptors(&mut collection) {
-                    Ok(()) => Ok(collection),
-                    Err(error) => {
-                        self.errors.write().unwrap().push(error);
-                        Err(LoadingError::ContentError)
-                    }
-                }
+                result.merge_degrade_failure(
+                    content
+                        .insert_descriptors(&mut collection)
+                        .convert_failure_errors(|err| {
+                            LoadingError::content_error(172, Arc::new(err))
+                        }),
+                );
+
+                result = result.and_degrade_failure(LoadingResult::new_success(collection));
             } else {
-                Err(LoadingError::CircularReference)
+                result.merge_degrade_failure::<()>(LoadingResult::new_failure(
+                    LoadingError::circular_reference(173, identifier.clone()),
+                ));
             }
         } else {
-            Err(LoadingError::NotFound(6))
+            result.merge_degrade_failure::<()>(LoadingResult::new_failure(
+                LoadingError::not_found(174, identifier.to_string()),
+            ));
         }
+
+        result
     }
 
-    fn make_building(&self, collection: &Arc<Collection>) -> Result<(), LoadingError> {
+    fn make_building(&self, collection: &Arc<Collection>) -> LoadingResult<()> {
         let contents = self.contents.read().unwrap();
-        let mut content_error = false;
+        let mut result = LoadingResult::new_success(());
         for (_, content) in contents.iter() {
-            if let Err(error) = content.make_design(collection) {
-                self.errors.write().unwrap().push(error);
-                content_error = true;
-            }
+            result.merge_degrade_failure(
+                content
+                    .make_design(collection)
+                    .convert_failure_errors(|err| LoadingError::content_error(175, Arc::new(err))),
+            );
         }
 
-        if content_error {
-            Err(LoadingError::ContentError)
-        } else {
-            Ok(())
-        }
-    }
-
-    fn errors(&self) -> Vec<ContentError> {
-        self.errors.read().unwrap().clone()
+        result
     }
 }

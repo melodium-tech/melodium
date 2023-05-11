@@ -65,6 +65,10 @@ impl Parameterized for Source {
         static HASHMAP: OnceCell<HashMap<String, Parameter>> = OnceCell::new();
         HASHMAP.get_or_init(|| HashMap::new())
     }
+
+    fn as_identified(&self) -> Arc<dyn Identified> {
+        self.auto_reference.upgrade().unwrap()
+    }
 }
 
 impl Buildable<TreatmentBuildMode> for Source {

@@ -66,6 +66,10 @@ impl Parameterized for Model {
     fn parameters(&self) -> &HashMap<String, Parameter> {
         &self.parameters
     }
+
+    fn as_identified(&self) -> Arc<dyn Identified> {
+        self.auto_reference.upgrade().unwrap()
+    }
 }
 
 impl Buildable<ModelBuildMode> for Model {

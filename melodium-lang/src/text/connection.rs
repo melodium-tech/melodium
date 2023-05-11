@@ -1,6 +1,8 @@
 //! Module dedicated to [Connection] parsing.
 
-use super::word::{expect_word_kind, Kind, Word};
+use core::slice::Windows;
+
+use super::word::{Kind, Word};
 use super::PositionnedString;
 use crate::ScriptError;
 
@@ -21,36 +23,26 @@ impl Connection {
     /// * `name`: The name already parsed for the start point (its accuracy is under responsibility of the caller).
     /// * `iter`: Iterator over words list, next() being expected to be the end point name.
     ///
-    /// ```
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::connection::Connection;
-    ///
-    /// let text = r##"Feeder --> Trainer"##;
-    ///
-    /// let words = get_words(text).unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// let start_point_name = expect_word_kind(Kind::Name, "Name expected.", &mut iter)?;
-    /// expect_word_kind(Kind::RightArrow, "Right arrow '->' expected.", &mut iter)?;
-    ///
-    /// let connection = Connection::build_from_name_end_point(start_point_name, &mut iter)?;
-    ///
-    /// assert_eq!(connection.name_start_point.string, "Feeder");
-    /// assert_eq!(connection.name_end_point.string, "Trainer");
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn build_from_name_end_point(
         name: PositionnedString,
-        mut iter: &mut std::slice::Iter<Word>,
+        iter: &mut Windows<Word>,
     ) -> Result<Self, ScriptError> {
-        let name_end_point =
-            expect_word_kind(Kind::Name, "Connection endpoint name expected.", &mut iter)?;
+        let name_end_point = iter
+            .next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(77))
+            .and_then(|w| {
+                if w.kind != Some(Kind::Name) {
+                    Err(ScriptError::word(78, w.clone(), &[Kind::Name]))
+                } else {
+                    Ok(w.into())
+                }
+            })?;
 
         Ok(Self {
             name_start_point: name,
             name_data_out: None,
-            name_end_point: name_end_point,
+            name_end_point,
             name_data_in: None,
         })
     }
@@ -60,54 +52,67 @@ impl Connection {
     /// * `name`: The name already parsed for the data out (its accuracy is under responsibility of the caller).
     /// * `iter`: Iterator over words list, next() being expected to be the data out name.
     ///
-    /// ```
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::connection::Connection;
-    ///
-    /// let text = r##"AudioFiles.signal -> MakeSpectrum.signal,spectrum -> Self.spectrum"##;
-    ///
-    /// let words = get_words(text).unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// let first_start_point_name = expect_word_kind(Kind::Name, "Name expected.", &mut iter)?;
-    /// expect_word_kind(Kind::Dot, "Dot '.' expected.", &mut iter)?;
-    ///
-    /// let first_connection = Connection::build_from_name_data_out(first_start_point_name, &mut iter)?;
-    ///
-    /// expect_word_kind(Kind::Comma, "Comma ',' expected.", &mut iter)?;
-    ///
-    /// let second_connection = Connection::build_from_name_data_out(first_connection.name_end_point.clone(), &mut iter)?;
-    ///
-    /// assert_eq!(first_connection.name_start_point.string, "AudioFiles");
-    /// assert_eq!(first_connection.name_data_out.unwrap().string, "signal");
-    /// assert_eq!(first_connection.name_end_point.string, "MakeSpectrum");
-    /// assert_eq!(first_connection.name_data_in.unwrap().string, "signal");
-    ///
-    /// assert_eq!(second_connection.name_start_point.string, "MakeSpectrum");
-    /// assert_eq!(second_connection.name_data_out.unwrap().string, "spectrum");
-    /// assert_eq!(second_connection.name_end_point.string, "Self");
-    /// assert_eq!(second_connection.name_data_in.unwrap().string, "spectrum");
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn build_from_name_data_out(
         name: PositionnedString,
-        mut iter: &mut std::slice::Iter<Word>,
+        iter: &mut Windows<Word>,
     ) -> Result<Self, ScriptError> {
-        let name_data_out = expect_word_kind(
-            Kind::Name,
-            "Connection data output name expected.",
-            &mut iter,
-        )?;
-        expect_word_kind(Kind::RightArrow, "Connection arrow expected.", &mut iter)?;
-        let name_end_point =
-            expect_word_kind(Kind::Name, "Connection endpoint name expected.", &mut iter)?;
-        expect_word_kind(Kind::Dot, "Connection data input expected.", &mut iter)?;
-        let name_data_in = expect_word_kind(
-            Kind::Name,
-            "Connection data input name expected.",
-            &mut iter,
-        )?;
+        let name_data_out = iter
+            .next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(79))
+            .and_then(|w| {
+                if w.kind != Some(Kind::Name) {
+                    Err(ScriptError::word(80, w.clone(), &[Kind::Name]))
+                } else {
+                    Ok(w.into())
+                }
+            })?;
+
+        iter.next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(85))
+            .and_then(|w| {
+                if w.kind != Some(Kind::RightArrow) {
+                    Err(ScriptError::word(86, w.clone(), &[Kind::RightArrow]))
+                } else {
+                    Ok(())
+                }
+            })?;
+
+        let name_end_point = iter
+            .next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(81))
+            .and_then(|w| {
+                if w.kind != Some(Kind::Name) {
+                    Err(ScriptError::word(82, w.clone(), &[Kind::Name]))
+                } else {
+                    Ok(w.into())
+                }
+            })?;
+
+        iter.next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(87))
+            .and_then(|w| {
+                if w.kind != Some(Kind::Dot) {
+                    Err(ScriptError::word(88, w.clone(), &[Kind::Dot]))
+                } else {
+                    Ok(())
+                }
+            })?;
+
+        let name_data_in = iter
+            .next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(83))
+            .and_then(|w| {
+                if w.kind != Some(Kind::Name) {
+                    Err(ScriptError::word(84, w.clone(), &[Kind::Name]))
+                } else {
+                    Ok(w.into())
+                }
+            })?;
 
         Ok(Self {
             name_start_point: name,

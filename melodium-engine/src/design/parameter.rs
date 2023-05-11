@@ -1,6 +1,6 @@
 use super::Value;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Parameter {
     pub name: String,
     pub value: Value,

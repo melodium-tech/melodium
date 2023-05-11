@@ -1,7 +1,9 @@
-use crate::content::{Content, ContentError};
+use crate::content::Content;
 use crate::package::package::Package;
 use crate::Loader;
-use melodium_common::descriptor::{Collection, Identifier, LoadingError, Package as CommonPackage};
+use melodium_common::descriptor::{
+    Collection, Identifier, LoadingError, LoadingResult, Package as CommonPackage,
+};
 use semver::Version;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -12,7 +14,6 @@ pub struct CorePackage {
     requirements: Vec<String>,
     embedded_collection: RwLock<Option<Collection>>,
     contents: RwLock<HashMap<String, Content>>,
-    errors: RwLock<Vec<ContentError>>,
 }
 
 impl CorePackage {
@@ -26,55 +27,55 @@ impl CorePackage {
             package,
             embedded_collection: RwLock::new(None),
             contents: RwLock::new(HashMap::new()),
-            errors: RwLock::new(Vec::new()),
         }
     }
 
-    fn insure_content(&self, designation: &str) -> Result<(), LoadingError> {
+    fn insure_content(&self, designation: &str) -> LoadingResult<()> {
         match self.package.embedded().get(designation) {
             Some(data) => {
                 if self.contents.read().unwrap().contains_key(designation) {
-                    Ok(())
+                    LoadingResult::new_success(())
                 } else {
-                    let result_content = Content::new(designation, data);
-
-                    match result_content {
-                        Ok(content) => {
+                    Content::new(designation, data)
+                        .convert_failure_errors(|err| {
+                            LoadingError::content_error(158, Arc::new(err))
+                        })
+                        .and_then(|content| {
                             self.contents
                                 .write()
                                 .unwrap()
                                 .insert(designation.to_string(), content);
-                            Ok(())
-                        }
-                        Err(error) => {
-                            self.errors.write().unwrap().push(error);
-                            Err(LoadingError::NotFound(0))
-                        }
-                    }
+                            LoadingResult::new_success(())
+                        })
                 }
             }
-            None => Err(LoadingError::NotFound(1)),
-        }
-    }
-
-    fn all_contents(&self) -> Result<(), LoadingError> {
-        let mut error = None;
-        let embedded = self.package.embedded();
-        for (designation, _) in embedded {
-            if let Err(e) = self.insure_content(designation) {
-                error = Some(e);
+            None => {
+                LoadingResult::new_failure(LoadingError::not_found(159, designation.to_string()))
             }
         }
-
-        error.map_or(Ok(()), |e| Err(e))
     }
 
-    fn insure_loading(loader: &Loader, identifiers: Vec<Identifier>) -> Result<(), LoadingError> {
-        for identifier in identifiers {
-            loader.get_with_load(&identifier)?;
+    fn all_contents(&self) -> LoadingResult<()> {
+        let mut result = LoadingResult::new_success(());
+        let embedded = self.package.embedded();
+        for (designation, _) in embedded {
+            result = result.and_degrade_failure(self.insure_content(designation));
         }
 
-        Ok(())
+        result
+    }
+
+    fn insure_loading(loader: &Loader, identifiers: Vec<Identifier>) -> LoadingResult<()> {
+        let mut result = LoadingResult::new_success(());
+        for identifier in identifiers {
+            result = result.and_degrade_failure(
+                loader
+                    .get_with_load(&identifier)
+                    .and(LoadingResult::new_success(())),
+            );
+        }
+
+        result
     }
 
     fn designation(identifier: &Identifier) -> String {
@@ -95,33 +96,49 @@ impl Package for CorePackage {
         &self.requirements
     }
 
-    fn embedded_collection(&self, loader: &Loader) -> Result<Collection, LoadingError> {
+    fn embedded_collection(&self, loader: &Loader) -> LoadingResult<Collection> {
         let mut embedded_collection = self.embedded_collection.write().unwrap();
         if let Some(collection) = &*embedded_collection {
-            Ok(collection.clone())
+            LoadingResult::new_success(collection.clone())
         } else {
-            let collection = self.package.collection(loader)?;
-            *embedded_collection = Some(collection.clone());
-            Ok(collection)
+            let result = self.package.collection(loader);
+            if let Some(collection) = result.success() {
+                *embedded_collection = Some(collection.clone());
+            }
+            result
         }
     }
 
-    fn full_collection(&self, loader: &Loader) -> Result<Collection, LoadingError> {
-        self.all_contents()?;
+    fn full_collection(&self, loader: &Loader) -> LoadingResult<Collection> {
+        let mut results = LoadingResult::new_success(Collection::new());
 
-        let mut collection = self.embedded_collection(loader)?;
+        results.merge(self.all_contents());
+        if results.is_failure() {
+            return results;
+        }
+
+        let mut collection = if let Some(collection) =
+            results.merge_degrade_failure(self.embedded_collection(loader))
+        {
+            collection
+        } else {
+            return results;
+        };
 
         // Getting all needs of each content, while being sure no circular dependency occurs
         let mut all_needs = HashMap::new();
         for (designation, content) in self.contents.read().unwrap().iter() {
             let needs = content.require();
 
-            for need in &needs {
+            'need: for need in &needs {
                 let need_designation = Self::designation(need);
                 if let Some(other_needs) = all_needs.get(&need_designation) {
                     for other_need in other_needs {
                         if &Self::designation(other_need) == designation {
-                            return Err(LoadingError::CircularReference);
+                            results.merge_degrade_failure::<()>(LoadingResult::new_failure(
+                                LoadingError::circular_reference(160, need.clone()),
+                            ));
+                            continue 'need;
                         }
                     }
                 }
@@ -168,101 +185,112 @@ impl Package for CorePackage {
         }
 
         for identifier in external_needs {
-            collection.insert(loader.get_with_load(&identifier)?);
+            if let Some(entry) = results.merge_degrade_failure(loader.get_with_load(&identifier)) {
+                collection.insert(entry);
+            }
         }
 
         let contents = self.contents.read().unwrap();
-        let mut content_error = false;
         for designation in &internal_needs {
             let content = contents.get(designation).unwrap();
-            if let Err(error) = content.insert_descriptors(&mut collection) {
-                self.errors.write().unwrap().push(error);
-                content_error = true;
-            }
+            results.merge_degrade_failure(
+                content
+                    .insert_descriptors(&mut collection)
+                    .convert_failure_errors(|err| LoadingError::content_error(161, Arc::new(err))),
+            );
         }
         for (designation, content) in &*contents {
             if !internal_needs.contains(designation) {
-                if let Err(error) = content.insert_descriptors(&mut collection) {
-                    self.errors.write().unwrap().push(error);
-                    content_error = true;
-                }
+                results.merge_degrade_failure(
+                    content
+                        .insert_descriptors(&mut collection)
+                        .convert_failure_errors(|err| {
+                            LoadingError::content_error(162, Arc::new(err))
+                        }),
+                );
             }
         }
 
-        if content_error {
-            Err(LoadingError::ContentError)
-        } else {
-            Ok(collection)
+        results
+    }
+
+    fn all_identifiers(&self, loader: &Loader) -> LoadingResult<Vec<Identifier>> {
+        let mut results = LoadingResult::new_success(Vec::new());
+
+        results.merge(self.all_contents());
+        if results.is_failure() {
+            return results;
         }
+
+        self.embedded_collection(loader).and_then(|collection| {
+            let mut identifiers = collection.identifiers();
+            identifiers.extend(
+                self.contents
+                    .read()
+                    .unwrap()
+                    .iter()
+                    .map(|(_, content)| content.provide())
+                    .flatten(),
+            );
+            LoadingResult::new_success(identifiers)
+        })
     }
 
-    fn all_identifiers(&self, loader: &Loader) -> Result<Vec<Identifier>, LoadingError> {
-        self.all_contents()?;
+    fn element(&self, loader: &Loader, identifier: &Identifier) -> LoadingResult<Collection> {
+        let mut result = LoadingResult::new_success(Collection::new());
 
-        let mut identifiers = self.embedded_collection(loader)?.identifiers();
-        identifiers.extend(
-            self.contents
-                .read()
-                .unwrap()
-                .iter()
-                .map(|(_, content)| content.provide())
-                .flatten(),
-        );
-
-        Ok(identifiers)
-    }
-
-    fn element(
-        &self,
-        loader: &Loader,
-        identifier: &Identifier,
-    ) -> Result<Collection, LoadingError> {
-        if let Some(_) = self.embedded_collection(loader)?.get(identifier) {
-            return Ok(self.embedded_collection(loader)?);
+        if let Some(collection) = result.merge_degrade_failure(self.embedded_collection(loader)) {
+            if collection.get(identifier).is_some() {
+                return result.and_degrade_failure(LoadingResult::new_success(collection));
+            }
         }
 
         let designation = Self::designation(identifier);
-        self.insure_content(&designation)?;
+
+        if let None = result.merge_degrade_failure(self.insure_content(&designation)) {
+            return result;
+        }
 
         if let Some(content) = self.contents.read().unwrap().get(&designation) {
             if let Ok(_guard) = content.try_lock() {
                 let needs = content.require();
-                Self::insure_loading(loader, needs)?;
+                result.merge_degrade_failure(Self::insure_loading(loader, needs));
 
                 let mut collection = loader.collection().clone();
-                match content.insert_descriptors(&mut collection) {
-                    Ok(()) => Ok(collection),
-                    Err(error) => {
-                        self.errors.write().unwrap().push(error);
-                        Err(LoadingError::ContentError)
-                    }
-                }
+                result.merge_degrade_failure(
+                    content
+                        .insert_descriptors(&mut collection)
+                        .convert_failure_errors(|err| {
+                            LoadingError::content_error(163, Arc::new(err))
+                        }),
+                );
+
+                result = result.and_degrade_failure(LoadingResult::new_success(collection));
             } else {
-                Err(LoadingError::CircularReference)
+                result.merge_degrade_failure::<()>(LoadingResult::new_failure(
+                    LoadingError::circular_reference(164, identifier.clone()),
+                ));
             }
         } else {
-            Err(LoadingError::NotFound(2))
+            result.merge_degrade_failure::<()>(LoadingResult::new_failure(
+                LoadingError::not_found(165, identifier.to_string()),
+            ));
         }
+
+        result
     }
 
-    fn make_building(&self, collection: &Arc<Collection>) -> Result<(), LoadingError> {
+    fn make_building(&self, collection: &Arc<Collection>) -> LoadingResult<()> {
         let contents = self.contents.read().unwrap();
-        let mut content_error = false;
+        let mut result = LoadingResult::new_success(());
         for (_, content) in contents.iter() {
-            if let Err(error) = content.make_design(collection) {
-                self.errors.write().unwrap().push(error);
-                content_error = true;
-            }
+            result.merge_degrade_failure(
+                content
+                    .make_design(collection)
+                    .convert_failure_errors(|err| LoadingError::content_error(166, Arc::new(err))),
+            );
         }
 
-        if content_error {
-            Err(LoadingError::ContentError)
-        } else {
-            Ok(())
-        }
-    }
-
-    fn errors(&self) -> Vec<ContentError> {
-        self.errors.read().unwrap().clone()
+        result
     }
 }

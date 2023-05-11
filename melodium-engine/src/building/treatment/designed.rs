@@ -4,10 +4,12 @@ use crate::building::{
     DynamicBuildResult, FeedingInputs, GenesisEnvironment, StaticBuildResult,
 };
 use crate::design::{Connection, Treatment, Value, IO};
-use crate::error::LogicError;
+use crate::error::{LogicError, LogicResult};
 use crate::world::World;
 use core::fmt::Debug;
-use melodium_common::descriptor::{Identified, Parameterized, Treatment as TreatmentDescriptor};
+use melodium_common::descriptor::{
+    Identified, Parameterized, Status, Treatment as TreatmentDescriptor,
+};
 use melodium_common::executive::{Model, TrackId, Value as ExecutiveValue};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
@@ -41,7 +43,13 @@ impl BuildSample {
             genesis_environment: environment.clone(),
             host_treatment: host_treatment.clone(),
             host_build_id: host_build.clone(),
-            check: Arc::new(RwLock::new(CheckBuild::new())),
+            check: Arc::new(RwLock::new(CheckBuild::new(
+                host_treatment
+                    .as_ref()
+                    .map(|descriptor| descriptor.identifier())
+                    .cloned(),
+                label,
+            ))),
             label: label.to_string(),
             instancied_models: HashMap::new(),
             treatment_build_ids: HashMap::new(),
@@ -131,11 +139,10 @@ impl BuilderTrait for Builder {
         host_build: Option<BuildId>,
         label: String,
         environment: &GenesisEnvironment,
-    ) -> Result<StaticBuildResult, LogicError> {
+    ) -> LogicResult<StaticBuildResult> {
         let world = self.world.upgrade().unwrap();
         // Make a BuildSample with matching informations
         let mut build_sample = BuildSample::new(&host_treatment, &host_build, &label, environment);
-        //let environment = &mut build_sample.genesis_environment;
 
         let mut builds_writer = self.builds.write().unwrap();
         let idx = builds_writer.len() as BuildId;
@@ -174,6 +181,7 @@ impl BuilderTrait for Builder {
                         .unwrap()
                         .identifier(),
                 )
+                .success()
                 .unwrap()
                 .static_build(
                     Some(Arc::clone(&descriptor) as Arc<dyn TreatmentDescriptor>),
@@ -182,8 +190,8 @@ impl BuilderTrait for Builder {
                     &remastered_environment,
                 );
 
-            let instancied_model = match instanciation_result.unwrap() {
-                StaticBuildResult::Model(m) => m,
+            let instancied_model = match &*instanciation_result.success().unwrap() {
+                StaticBuildResult::Model(m) => Arc::clone(m),
                 _ => panic!("Model instanciation expected"),
             };
 
@@ -235,18 +243,25 @@ impl BuilderTrait for Builder {
                 remastered_environment.add_variable(&name, data);
             }
 
-            let build_result = world
-                .builder(treatment_descriptor.identifier())?
-                .static_build(
-                    Some(Arc::clone(&descriptor) as Arc<dyn TreatmentDescriptor>),
-                    Some(idx),
-                    treatment_name.to_string(),
-                    &remastered_environment,
-                );
+            let build_result =
+                world
+                    .builder(treatment_descriptor.identifier())
+                    .and_then(|builder| {
+                        builder.static_build(
+                            Some(Arc::clone(&descriptor) as Arc<dyn TreatmentDescriptor>),
+                            Some(idx),
+                            treatment_name.to_string(),
+                            &remastered_environment,
+                        )
+                    });
 
-            let id = match build_result.unwrap() {
-                StaticBuildResult::Build(id) => id,
-                _ => panic!("Build id expected"),
+            let id = if let Some(build_result) = build_result.success() {
+                match build_result {
+                    StaticBuildResult::Build(id) => *id,
+                    _ => panic!("Build id expected"),
+                }
+            } else {
+                return build_result;
             };
 
             build_sample
@@ -361,7 +376,7 @@ impl BuilderTrait for Builder {
 
         builds_writer.push(build_sample);
 
-        Ok(StaticBuildResult::Build(idx))
+        Status::new_success(StaticBuildResult::Build(idx))
     }
 
     fn dynamic_build(
@@ -396,7 +411,12 @@ impl BuilderTrait for Builder {
         for (treatment_name, treatment_id) in &build_sample.root_treatments_build_ids {
             let treatment = self.design.treatments.get(treatment_name).unwrap();
             let treatment_descriptor = treatment.descriptor.upgrade().unwrap();
-            let treatment_builder = world.builder(treatment_descriptor.identifier()).unwrap();
+            let treatment_builder = Arc::clone(
+                world
+                    .builder(treatment_descriptor.identifier())
+                    .success()
+                    .unwrap(),
+            );
             let mut remastered_environment = environment.base();
 
             // Make the right contextual environment
@@ -484,6 +504,7 @@ impl BuilderTrait for Builder {
             let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
             let host_build = world
                 .builder(host_descriptor.identifier())
+                .success()
                 .unwrap()
                 .give_next(
                     build_sample.host_build_id.unwrap(),
@@ -544,9 +565,12 @@ impl BuilderTrait for Builder {
             for (next_treatment_name, next_treatment_id) in next_treatments {
                 let next_treatment = self.design.treatments.get(next_treatment_name).unwrap();
                 let next_treatment_descriptor = next_treatment.descriptor.upgrade().unwrap();
-                let next_treatment_builder = world
-                    .builder(next_treatment_descriptor.identifier())
-                    .unwrap();
+                let next_treatment_builder = Arc::clone(
+                    world
+                        .builder(next_treatment_descriptor.identifier())
+                        .success()
+                        .unwrap(),
+                );
                 let mut remastered_environment = environment.base();
 
                 // Make the right contextual environment
@@ -638,6 +662,7 @@ impl BuilderTrait for Builder {
             let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
             let host_build = world
                 .builder(host_descriptor.identifier())
+                .success()
                 .unwrap()
                 .give_next(
                     build_sample.host_build_id.unwrap(),
@@ -675,10 +700,15 @@ impl BuilderTrait for Builder {
 
         let mut errors = Vec::new();
         // Check if environment is satisfied
-        for (name, _) in descriptor.contexts() {
+        for (name, context) in descriptor.contexts() {
             let found = environment.contextes.iter().find(|&c| c == name);
             if found.is_none() {
-                errors.push(LogicError::unavailable_context());
+                errors.push(LogicError::unavailable_context(
+                    31,
+                    descriptor.identifier().clone(),
+                    context.identifier().clone(),
+                    None,
+                ));
             }
         }
 
@@ -688,7 +718,13 @@ impl BuilderTrait for Builder {
             build_id: build,
         };
         if let Some(_existing_check_step) = previous_steps.iter().find(|&cs| cs == &check_step) {
-            errors.push(LogicError::already_included_build_step());
+            errors.push(LogicError::already_included_build_step(
+                57,
+                descriptor.identifier().clone(),
+                check_step.clone(),
+                previous_steps.clone(),
+                None,
+            ));
         }
         let mut current_previous_steps = previous_steps.clone();
         current_previous_steps.push(check_step);
@@ -705,7 +741,12 @@ impl BuilderTrait for Builder {
             for (treatment_name, treatment_id) in &build_sample.root_treatments_build_ids {
                 let treatment = self.design.treatments.get(treatment_name).unwrap();
                 let treatment_descriptor = treatment.descriptor.upgrade().unwrap();
-                let treatment_builder = world.builder(treatment_descriptor.identifier()).unwrap();
+                let treatment_builder = Arc::clone(
+                    world
+                        .builder(treatment_descriptor.identifier())
+                        .success()
+                        .unwrap(),
+                );
 
                 let check_result = treatment_builder
                     .check_dynamic_build(
@@ -790,9 +831,12 @@ impl BuilderTrait for Builder {
                 for (next_treatment_name, next_treatment_id) in next_treatments {
                     let next_treatment = self.design.treatments.get(next_treatment_name).unwrap();
                     let next_treatment_descriptor = next_treatment.descriptor.upgrade().unwrap();
-                    let next_treatment_builder = world
-                        .builder(next_treatment_descriptor.identifier())
-                        .unwrap();
+                    let next_treatment_builder = Arc::clone(
+                        world
+                            .builder(next_treatment_descriptor.identifier())
+                            .success()
+                            .unwrap(),
+                    );
 
                     let check_result = next_treatment_builder
                         .check_dynamic_build(
@@ -831,6 +875,7 @@ impl BuilderTrait for Builder {
                 let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
                 let host_check_build = world
                     .builder(host_descriptor.identifier())
+                    .success()
                     .unwrap()
                     .check_give_next(
                         build_sample.host_build_id.unwrap(),

@@ -4,7 +4,7 @@ use crate::building::{
     DynamicBuildResult, GenesisEnvironment, StaticBuildResult,
 };
 use crate::design::{Model, Value};
-use crate::error::LogicError;
+use crate::error::LogicResult;
 use crate::world::World;
 use core::fmt::Debug;
 use melodium_common::descriptor::{Identified, Parameterized, Treatment};
@@ -29,7 +29,7 @@ impl BuilderTrait for Builder {
         host_build: Option<BuildId>,
         label: String,
         environment: &GenesisEnvironment,
-    ) -> Result<StaticBuildResult, LogicError> {
+    ) -> LogicResult<StaticBuildResult> {
         let mut remastered_environment = environment.base();
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
@@ -67,8 +67,10 @@ impl BuilderTrait for Builder {
         self.world
             .upgrade()
             .unwrap()
-            .builder(descriptor.identifier())?
-            .static_build(host_treatment, host_build, label, &remastered_environment)
+            .builder(descriptor.identifier())
+            .and_then(|builder| {
+                builder.static_build(host_treatment, host_build, label, &remastered_environment)
+            })
     }
 
     fn dynamic_build(

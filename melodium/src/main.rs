@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 use core::convert::TryFrom;
 use melodium::*;
-use melodium_common::descriptor::{Collection, Identifier};
+use melodium_common::descriptor::{Collection, Identifier, LoadingResult, Status};
 use melodium_doc::Documentation;
 use melodium_loader::Loader;
 use std::path::PathBuf;
@@ -97,12 +97,14 @@ fn run(args: Run) {
         path: args.path,
         main: args.main,
     }) {
-        if let Err(errs) = launch(collection, &identifier) {
-            for err in errs {
-                eprintln!("{}: logic: {err:?}", "error".bold().red());
-            }
-            std::process::exit(1);
+        let launch = launch(collection, &identifier);
+        if let Some(failure) = launch.failure() {
+            eprintln!("{}: {failure}", "failure".bold().red());
         }
+        launch
+            .errors()
+            .iter()
+            .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
     } else {
         std::process::exit(1);
     }
@@ -154,58 +156,36 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
         None
     };
 
-    let success;
-    let error;
-    match (id, file) {
-        (Some(id), None) => match load_entry(config, &id) {
-            Ok(loaded_collection) => {
-                success = Some((id, loaded_collection));
-                error = None;
-            }
-            Err(errs) => {
-                success = None;
-                error = Some(errs);
-            }
-        },
-        (None, Some(file)) => match load_file(file, config) {
-            Ok((id, loaded_collection)) => {
-                success = Some((id, loaded_collection));
-                error = None;
-            }
-            Err(errs) => {
-                success = None;
-                error = Some(errs);
-            }
-        },
-        (Some(id), Some(file)) => match load_file(file, config) {
-            Ok((_, loaded_collection)) => {
-                success = Some((id, loaded_collection));
-                error = None;
-            }
-            Err(errs) => {
-                success = None;
-                error = Some(errs);
-            }
-        },
+    match match (id, file) {
+        (Some(id), None) => load_entry(config, &id)
+            .and_then(|collection| LoadingResult::new_success((id, collection))),
+        (None, Some(file)) => load_file(file, config),
+        (Some(id), Some(file)) => load_file(file, config)
+            .and_then(|(_, collection)| LoadingResult::new_success((id, collection))),
         _ => {
             eprintln!("{}: file or identifier must be given", "error".bold().red());
             return Err(());
         }
-    }
-
-    if let Some(err) = error {
-        eprintln!("{}: loading: {err:?}", "error".bold().red());
-        return Err(());
-    } else if let Some(success) = success {
-        return Ok(success);
-    } else {
-        return Err(());
+    } {
+        Status::Success { success, errors } => {
+            errors
+                .iter()
+                .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
+            Ok(success)
+        }
+        Status::Failure { failure, errors } => {
+            eprintln!("{}: {failure}", "failure".bold().red());
+            errors
+                .iter()
+                .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
+            Err(())
+        }
     }
 }
 
 fn doc(args: Doc) {
     let loader = Loader::new(core_config());
-    loader.load_all().unwrap();
+    loader.load_all().success().unwrap();
 
     let collection = loader.collection().clone();
     let documentation = Documentation::new(PathBuf::from(args.output), collection);

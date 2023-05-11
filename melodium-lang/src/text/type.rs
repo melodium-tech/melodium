@@ -1,6 +1,8 @@
 //! Module dedicated to [Type] parsing.
 
-use super::word::{expect_word_kind, Kind, Word};
+use core::slice::Windows;
+
+use super::word::{Kind, Word};
 use super::PositionnedString;
 use crate::ScriptError;
 
@@ -19,68 +21,113 @@ impl Type {
     ///
     /// * `iter`: Iterator over words list, next() being expected to be either the name or structure.
     ///
-    /// ```
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::r#type::Type;
-    /// let text = "Vec<Int>";
-    ///
-    /// let words = get_words(text).unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// let r#type = Type::build(&mut iter)?;
-    ///
-    /// assert_eq!(r#type.name.string, "Int");
-    /// assert_eq!(r#type.first_level_structure.unwrap().string, "Vec");
-    /// # Ok::<(), ScriptError>(())
-    /// ```
-    pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
-        let first_name_or_structure =
-            expect_word_kind(Kind::Name, "Type name expected.", &mut iter)?;
-
-        // We _clone_ the iterator (in case next word doesn't rely on Type) and doesn't make our expectation to fail if not satisfied.
-        let possible_opening_chevron =
-            expect_word_kind(Kind::OpeningChevron, "", &mut iter.clone());
-        // In that case, we are expecting a name or structure.
-        if possible_opening_chevron.is_ok() {
-            // We discard the opening chevron.
-            iter.next();
-            let second_name_or_structure =
-                expect_word_kind(Kind::Name, "Type name expected.", &mut iter)?;
-
-            // We _clone_ the iterator (in case next word doesn't rely on Type) and doesn't make our expectation to fail if not satisfied.
-            let possible_opening_chevron =
-                expect_word_kind(Kind::OpeningChevron, "", &mut iter.clone());
-            // In that case, we are really expecting a name.
-            if possible_opening_chevron.is_ok() {
-                // We discard the opening chevron.
-                iter.next();
-                let name = expect_word_kind(Kind::Name, "Type name expected.", &mut iter)?;
-
-                for _ in 0..2 {
-                    expect_word_kind(Kind::ClosingChevron, "Closing chevron expected.", &mut iter)?;
+    pub fn build(iter: &mut Windows<Word>) -> Result<(Self, Word), ScriptError> {
+        let step_type = iter.next();
+        let first_name_or_structure = step_type
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(21))
+            .and_then(|w| {
+                if w.kind != Some(Kind::Name) {
+                    Err(ScriptError::word(22, w.clone(), &[Kind::Name]))
+                } else {
+                    Ok(w.into())
                 }
+            })?;
 
-                Ok(Self {
-                    first_level_structure: Some(first_name_or_structure),
-                    second_level_structure: Some(second_name_or_structure),
-                    name,
-                })
-            } else {
-                expect_word_kind(Kind::ClosingChevron, "Closing chevron expected.", &mut iter)?;
+        match step_type.map(|s| &s[1]) {
+            Some(w) if w.kind == Some(Kind::OpeningChevron) => {
+                iter.next(); // Skipping chevron
 
-                Ok(Self {
-                    first_level_structure: Some(first_name_or_structure),
-                    second_level_structure: None,
-                    name: second_name_or_structure,
-                })
+                let sub_step = iter.next();
+
+                let second_name_or_structure = sub_step
+                    .map(|s| &s[0])
+                    .ok_or_else(|| ScriptError::end_of_script(23))
+                    .and_then(|w| {
+                        if w.kind != Some(Kind::Name) {
+                            Err(ScriptError::word(24, w.clone(), &[Kind::Name]))
+                        } else {
+                            Ok(w.into())
+                        }
+                    })?;
+
+                match sub_step.map(|s| &s[1]) {
+                    Some(w) if w.kind == Some(Kind::OpeningChevron) => {
+                        iter.next(); // Skipping chevron
+
+                        let name = iter
+                            .next()
+                            .map(|s| &s[0])
+                            .ok_or_else(|| ScriptError::end_of_script(27))
+                            .and_then(|w| {
+                                if w.kind != Some(Kind::Name) {
+                                    Err(ScriptError::word(28, w.clone(), &[Kind::Name]))
+                                } else {
+                                    Ok(w.into())
+                                }
+                            })?;
+
+                        let mut next_word = None;
+                        for _ in 0..2 {
+                            iter.next()
+                                .ok_or_else(|| ScriptError::end_of_script(29))
+                                .map(|s| (&s[0], &s[1]))
+                                .and_then(|(w, nw)| {
+                                    if w.kind != Some(Kind::ClosingChevron) {
+                                        Err(ScriptError::word(
+                                            30,
+                                            w.clone(),
+                                            &[Kind::ClosingChevron],
+                                        ))
+                                    } else {
+                                        next_word = Some(nw.clone());
+                                        Ok(())
+                                    }
+                                })?;
+                        }
+
+                        Ok((
+                            Self {
+                                first_level_structure: Some(first_name_or_structure),
+                                second_level_structure: Some(second_name_or_structure),
+                                name,
+                            },
+                            next_word.unwrap(),
+                        ))
+                    }
+                    _ => {
+                        let mut next_word = None;
+                        iter.next()
+                            .ok_or_else(|| ScriptError::end_of_script(25))
+                            .map(|s| (&s[0], &s[1]))
+                            .and_then(|(w, nw)| {
+                                if w.kind != Some(Kind::ClosingChevron) {
+                                    Err(ScriptError::word(26, w.clone(), &[Kind::ClosingChevron]))
+                                } else {
+                                    next_word = Some(nw.clone());
+                                    Ok(())
+                                }
+                            })?;
+                        Ok((
+                            Self {
+                                first_level_structure: Some(first_name_or_structure),
+                                second_level_structure: None,
+                                name: second_name_or_structure,
+                            },
+                            next_word.unwrap(),
+                        ))
+                    }
+                }
             }
-        } else {
-            Ok(Self {
-                first_level_structure: None,
-                second_level_structure: None,
-                name: first_name_or_structure,
-            })
+            Some(w) => Ok((
+                Self {
+                    first_level_structure: None,
+                    second_level_structure: None,
+                    name: first_name_or_structure,
+                },
+                w.clone(),
+            )),
+            None => return Err(ScriptError::end_of_script(61)),
         }
     }
 }
@@ -94,10 +141,11 @@ mod tests {
     #[test]
     fn test_well_catching_name_alone() {
         let text = "Int";
-        let words = get_words(text).unwrap();
-        let mut iter = words.iter();
+        let mut words = get_words(text).unwrap();
+        words.push(Word::default());
+        let mut iter = words.windows(2);
 
-        let r#type = Type::build(&mut iter).unwrap();
+        let r#type = Type::build(&mut iter).unwrap().0;
 
         assert!(r#type.first_level_structure.is_none());
         assert!(r#type.second_level_structure.is_none());
@@ -107,10 +155,11 @@ mod tests {
     #[test]
     fn test_well_catching_first_level_and_name() {
         let text = "Vec<Int>";
-        let words = get_words(text).unwrap();
-        let mut iter = words.iter();
+        let mut words = get_words(text).unwrap();
+        words.push(Word::default());
+        let mut iter = words.windows(2);
 
-        let r#type = Type::build(&mut iter).unwrap();
+        let r#type = Type::build(&mut iter).unwrap().0;
 
         assert_eq!(r#type.first_level_structure.unwrap().string, "Vec");
         assert!(r#type.second_level_structure.is_none());
@@ -120,10 +169,11 @@ mod tests {
     #[test]
     fn test_well_catching_first_and_second_level_and_name() {
         let text = "Stream<Vec<Int>>";
-        let words = get_words(text).unwrap();
-        let mut iter = words.iter();
+        let mut words = get_words(text).unwrap();
+        words.push(Word::default());
+        let mut iter = words.windows(2);
 
-        let r#type = Type::build(&mut iter).unwrap();
+        let r#type = Type::build(&mut iter).unwrap().0;
 
         assert_eq!(r#type.first_level_structure.unwrap().string, "Stream");
         assert_eq!(r#type.second_level_structure.unwrap().string, "Vec");

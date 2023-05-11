@@ -3,8 +3,8 @@
 use super::common::Node;
 use super::r#type::Type;
 use super::treatment::Treatment;
-use crate::error::ScriptError;
 use crate::text::Parameter as TextParameter;
+use crate::{error::ScriptError, ScriptResult};
 use melodium_common::descriptor::Output as OutputDescriptor;
 use std::sync::{Arc, RwLock, Weak};
 
@@ -33,49 +33,47 @@ impl Output {
     pub fn new(
         treatment: Arc<RwLock<Treatment>>,
         text: TextParameter,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
-        let r#type;
-        {
-            let borrowed_treatment = treatment.read().unwrap();
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
+        let mut result = ScriptResult::new_success(());
 
-            let input = borrowed_treatment.find_output(&text.name.string);
-            if input.is_some() {
-                return Err(ScriptError::semantic(
-                    "Output '".to_string() + &text.name.string + "' is already declared.",
-                    text.name.position,
-                ));
-            }
+        let borrowed_treatment = treatment.read().unwrap();
 
-            if text.r#type.is_none() {
-                return Err(ScriptError::semantic(
-                    "Output '".to_string() + &text.name.string + "' do not have type.",
-                    text.name.position,
-                ));
-            }
-            r#type = Type::new(text.r#type.as_ref().unwrap().clone())?;
-
-            if text.value.is_some() {
-                return Err(ScriptError::semantic(
-                    "Output '".to_string() + &text.name.string + "' cannot have default value.",
-                    text.name.position,
-                ));
-            }
+        let input = borrowed_treatment.find_output(&text.name.string);
+        if input.is_some() {
+            result = result.and_degrade_failure(ScriptResult::new_failure(
+                ScriptError::already_declared(120, text.name.clone()),
+            ));
         }
 
-        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
-            treatment: Arc::downgrade(&treatment),
-            name: text.name.string.clone(),
-            text,
-            r#type,
-        })))
+        if text.value.is_some() {
+            result = result.and_degrade_failure(ScriptResult::new_failure(
+                ScriptError::default_forbidden(122, text.name.clone()),
+            ));
+        }
+
+        if let Some(text_type) = text.r#type.clone() {
+            result
+                .and_degrade_failure(Type::new(text_type))
+                .and_then(|r#type| {
+                    ScriptResult::new_success(Arc::<RwLock<Self>>::new(RwLock::new(Self {
+                        treatment: Arc::downgrade(&treatment),
+                        name: text.name.string.clone(),
+                        text,
+                        r#type,
+                    })))
+                })
+        } else {
+            result.and_degrade_failure(ScriptResult::new_failure(ScriptError::missing_type(
+                121,
+                text.name.clone(),
+            )))
+        }
     }
 
-    pub fn make_descriptor(&self) -> Result<OutputDescriptor, ScriptError> {
-        let (datatype, flow) = self.r#type.make_descriptor()?;
-
-        let output = OutputDescriptor::new(&self.name, datatype, flow);
-
-        Ok(output)
+    pub fn make_descriptor(&self) -> ScriptResult<OutputDescriptor> {
+        self.r#type.make_descriptor().and_then(|(datatype, flow)| {
+            ScriptResult::new_success(OutputDescriptor::new(&self.name, datatype, flow))
+        })
     }
 }
 

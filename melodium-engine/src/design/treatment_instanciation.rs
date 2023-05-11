@@ -4,7 +4,7 @@ use melodium_common::descriptor::Treatment;
 use std::collections::HashMap;
 use std::sync::Weak;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TreatmentInstanciation {
     pub name: String,
     pub descriptor: Weak<dyn Treatment>,

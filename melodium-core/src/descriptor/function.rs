@@ -80,6 +80,10 @@ impl OrderedParameterized for Function {
     fn parameters(&self) -> &Vec<Parameter> {
         &self.parameters
     }
+
+    fn as_identified(&self) -> Arc<dyn Identified> {
+        self.auto_reference.upgrade().unwrap()
+    }
 }
 
 impl Display for Function {

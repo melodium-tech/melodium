@@ -2,7 +2,7 @@ use super::{
     BuildId, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
     DynamicBuildResult, GenesisEnvironment, StaticBuildResult,
 };
-use crate::error::LogicError;
+use crate::error::LogicResult;
 use core::fmt::Debug;
 use melodium_common::descriptor::Treatment;
 use std::sync::Arc;
@@ -14,7 +14,7 @@ pub trait Builder: Debug + Send + Sync {
         host_build: Option<BuildId>,
         label: String,
         environment: &GenesisEnvironment,
-    ) -> Result<StaticBuildResult, LogicError>;
+    ) -> LogicResult<StaticBuildResult>;
 
     fn dynamic_build(
         &self,

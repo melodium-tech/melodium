@@ -7,6 +7,7 @@ use super::treatment::Treatment;
 use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Requirement as TextRequirement;
+use crate::ScriptResult;
 use melodium_common::descriptor::Identifier;
 use std::sync::{Arc, RwLock, Weak};
 
@@ -47,20 +48,17 @@ impl Requirement {
     pub fn new(
         treatment: Arc<RwLock<Treatment>>,
         text: TextRequirement,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
         {
             let borrowed_treatment = treatment.read().unwrap();
 
             let requirement = borrowed_treatment.find_requirement(&text.name.string);
             if requirement.is_some() {
-                return Err(ScriptError::semantic(
-                    "'".to_string() + &text.name.string + "' is already required.",
-                    text.name.position,
-                ));
+                return ScriptResult::new_failure(ScriptError::already_declared(118, text.name));
             }
         }
 
-        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
+        ScriptResult::new_success(Arc::<RwLock<Self>>::new(RwLock::new(Self {
             treatment: Arc::downgrade(&treatment),
             name: text.name.string.clone(),
             r#type: RefersTo::Unknown(Reference::new(text.name.string.clone())),
@@ -71,7 +69,7 @@ impl Requirement {
 }
 
 impl Node for Requirement {
-    fn make_references(&mut self, _path: &Path) -> Result<(), ScriptError> {
+    fn make_references(&mut self, _path: &Path) -> ScriptResult<()> {
         if let RefersTo::Unknown(reference) = &self.r#type {
             let rc_treatment = self.treatment.upgrade().unwrap();
             let borrowed_treatment = rc_treatment.read().unwrap();
@@ -89,13 +87,13 @@ impl Node for Requirement {
                     reference: Some(Arc::downgrade(r#use)),
                 });
             } else {
-                return Err(ScriptError::semantic(
-                    "'".to_string() + &reference.name + "' is unknown.",
-                    self.text.name.position,
+                return ScriptResult::new_failure(ScriptError::unimported_element(
+                    119,
+                    self.text.name.clone(),
                 ));
             }
         }
 
-        Ok(())
+        ScriptResult::new_success(())
     }
 }

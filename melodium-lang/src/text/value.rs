@@ -1,6 +1,8 @@
 //! Module dedicated to [Value] parsing.
 
-use super::word::{expect_word, expect_word_kind, Kind, Word};
+use core::slice::Windows;
+
+use super::word::{Kind, Word};
 use super::{Function, Position, PositionnedString};
 use crate::ScriptError;
 
@@ -36,172 +38,143 @@ impl Value {
     ///
     /// * `iter`: Iterator over words list, next() being expected to be the declaration of value.
     ///
-    /// ```
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::value::Value;
-    /// # use melodium_lang::text::function::Function;
-    /// # use std::mem;
-    /// let text = r##"
-    /// true
-    /// -123
-    /// "I am a string."
-    /// [1, 3, 5, 7]
-    /// hereIsName
-    /// @HereIsReference[toSomething]
-    /// |hereIsFunction()
-    /// |hereIsFunctionWithParameters(45, 46, 47, "Foo", "Bar", true)
-    /// "##;
-    ///
-    /// let words = get_words(text).unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Boolean(PositionnedString::default())));
-    ///
-    /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Number(PositionnedString::default())));
-    ///
-    /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::String(PositionnedString::default())));
-    ///
-    /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Array(PositionnedString::default(), vec![])));
-    ///
-    /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Name(PositionnedString::default())));
-    ///
-    /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::ContextReference((PositionnedString::default(), PositionnedString::default()))));
-    ///
-    /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Function(Function::default())));
-    ///
-    /// let value = Value::build_from_first_item(&mut iter)?;
-    /// assert_eq!(mem::discriminant(&value), mem::discriminant(&Value::Function(Function::default())));
-    /// # Ok::<(), ScriptError>(())
-    /// ```
-    pub fn build_from_first_item(
-        mut iter: &mut std::slice::Iter<Word>,
-    ) -> Result<Self, ScriptError> {
-        let value = expect_word("Value expected.", &mut iter)?;
+    pub fn build_from_first_item(mut iter: &mut Windows<Word>) -> Result<Self, ScriptError> {
+        match iter.next().map(|s| &s[0]) {
+            Some(w) if w.kind == Some(Kind::OpeningBracket) => {
+                let mut sub_values = Vec::new();
 
-        // Value is an array.
-        if value.kind == Some(Kind::OpeningBracket) {
-            let mut sub_values = Vec::new();
+                loop {
+                    sub_values.push(Self::build_from_first_item(&mut iter)?);
 
-            loop {
-                sub_values.push(Self::build_from_first_item(&mut iter)?);
+                    match iter.next().map(|s| &s[0]) {
+                        Some(delimiter) if delimiter.kind == Some(Kind::ClosingBracket) => {
+                            return Ok(Self::Array(
+                                PositionnedString {
+                                    string: delimiter.text.clone(),
+                                    position: delimiter.position,
+                                },
+                                sub_values,
+                            ));
+                        }
+                        Some(delimiter) if delimiter.kind == Some(Kind::Comma) => continue,
+                        Some(w) => {
+                            return Err(ScriptError::word(
+                                3,
+                                w.clone(),
+                                &[Kind::Comma, Kind::ClosingBracket],
+                            ));
+                        }
+                        None => return Err(ScriptError::end_of_script(4)),
+                    }
 
-                let delimiter = expect_word("Unexpected end of script.", &mut iter)?;
-
-                if delimiter.kind == Some(Kind::ClosingBracket) {
-                    return Ok(Self::Array(
-                        PositionnedString {
-                            string: delimiter.text,
-                            position: delimiter.position,
-                        },
-                        sub_values,
-                    ));
-                } else if delimiter.kind != Some(Kind::Comma) {
-                    return Err(ScriptError::word(
-                        "Unexpected symbol.".to_string(),
-                        delimiter.text,
-                        delimiter.position,
-                    ));
+                    // Else delimiter_kind is equal to comma, so continue…
                 }
-                // Else delimiter_kind is equal to comma, so continue…
             }
-        }
-        // Value is a context (so a reference to something in it).
-        else if value.kind == Some(Kind::Context) {
-            let context = value;
+            Some(w) if w.kind == Some(Kind::Context) => {
+                let context = w.into();
 
-            expect_word_kind(
-                Kind::OpeningBracket,
-                "Opening bracket '[' expected.",
-                &mut iter,
-            )?;
-            let inner_reference =
-                expect_word_kind(Kind::Name, "Element name expected.", &mut iter)?;
-            expect_word_kind(
-                Kind::ClosingBracket,
-                "Closing bracket ']' expected.",
-                &mut iter,
-            )?;
+                iter.next()
+                    .map(|s| &s[0])
+                    .ok_or_else(|| ScriptError::end_of_script(5))
+                    .and_then(|w| {
+                        if w.kind != Some(Kind::OpeningBracket) {
+                            Err(ScriptError::word(6, w.clone(), &[Kind::OpeningBracket]))
+                        } else {
+                            Ok(())
+                        }
+                    })?;
 
-            Ok(Self::ContextReference((
-                PositionnedString {
-                    string: context.text,
-                    position: context.position,
-                },
-                inner_reference,
-            )))
-        }
-        // Value is a function call.
-        else if value.kind == Some(Kind::Function) {
-            let function = Function::build_from_parameters(
-                PositionnedString {
-                    string: value.text,
-                    position: value.position,
-                },
-                &mut iter,
-            )?;
+                let inner_reference = iter
+                    .next()
+                    .map(|s| &s[0])
+                    .ok_or_else(|| ScriptError::end_of_script(7))
+                    .and_then(|w| {
+                        if w.kind != Some(Kind::Name) {
+                            Err(ScriptError::word(8, w.clone(), &[Kind::Name]))
+                        } else {
+                            Ok(w.into())
+                        }
+                    })?;
 
-            Ok(Self::Function(function))
-        }
-        // Value is a single element.
-        else {
-            match value.kind {
+                iter.next()
+                    .map(|s| &s[0])
+                    .ok_or_else(|| ScriptError::end_of_script(9))
+                    .and_then(|w| {
+                        if w.kind != Some(Kind::ClosingBracket) {
+                            Err(ScriptError::word(10, w.clone(), &[Kind::ClosingBracket]))
+                        } else {
+                            Ok(())
+                        }
+                    })?;
+
+                Ok(Self::ContextReference((context, inner_reference)))
+            }
+            Some(w) if w.kind == Some(Kind::Function) => {
+                let function = Function::build_from_parameters(w.into(), &mut iter)?;
+
+                Ok(Self::Function(function))
+            }
+            Some(value) => match value.kind {
                 Some(Kind::Number) => Ok(Self::Number(PositionnedString {
-                    string: value.text,
+                    string: value.text.clone(),
                     position: value.position,
                 })),
                 Some(Kind::String) => Ok(Self::String(PositionnedString {
-                    string: value.text,
+                    string: value.text.clone(),
                     position: value.position,
                 })),
                 Some(Kind::Character) => Ok(Self::Character(PositionnedString {
-                    string: value.text,
+                    string: value.text.clone(),
                     position: value.position,
                 })),
                 Some(Kind::Byte) => Ok(Self::Byte(PositionnedString {
-                    string: value.text,
+                    string: value.text.clone(),
                     position: value.position,
                 })),
                 Some(Kind::Name) => {
                     if value.text == "true" || value.text == "false" {
                         Ok(Self::Boolean(PositionnedString {
-                            string: value.text,
+                            string: value.text.clone(),
                             position: value.position,
                         }))
                     } else {
                         Ok(Self::Name(PositionnedString {
-                            string: value.text,
+                            string: value.text.clone(),
                             position: value.position,
                         }))
                     }
                 }
                 _ => Err(ScriptError::word(
-                    "Value expected.".to_string(),
-                    value.text,
-                    value.position,
+                    2,
+                    value.clone(),
+                    &[
+                        Kind::Number,
+                        Kind::String,
+                        Kind::Character,
+                        Kind::Byte,
+                        Kind::Name,
+                    ],
                 )),
-            }
+            },
+            None => Err(ScriptError::end_of_script(1)),
+        }
+    }
+
+    pub fn get_positionned_string(&self) -> &PositionnedString {
+        match self {
+            Value::Boolean(ps) => ps,
+            Value::Number(ps) => ps,
+            Value::String(ps) => ps,
+            Value::Character(ps) => ps,
+            Value::Byte(ps) => ps,
+            Value::Array(ps, _) => ps,
+            Value::Name(ps) => ps,
+            Value::ContextReference((ps, _)) => ps,
+            Value::Function(func) => &func.name,
         }
     }
 
     pub fn get_position(&self) -> Position {
-        match self {
-            Value::Boolean(ps) => ps.position,
-            Value::Number(ps) => ps.position,
-            Value::String(ps) => ps.position,
-            Value::Character(ps) => ps.position,
-            Value::Byte(ps) => ps.position,
-            Value::Array(ps, _) => ps.position,
-            Value::Name(ps) => ps.position,
-            Value::ContextReference((ps, _)) => ps.position,
-            Value::Function(func) => func.name.position,
-        }
+        self.get_positionned_string().position.clone()
     }
 }

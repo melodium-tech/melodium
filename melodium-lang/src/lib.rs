@@ -17,5 +17,5 @@ pub mod restitution;
 pub mod semantic;
 pub mod text;
 
-pub use error::ScriptError;
+pub use error::{ScriptError, ScriptResult};
 pub use path::Path;

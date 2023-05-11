@@ -10,6 +10,7 @@ use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::word::PositionnedString;
 use crate::text::Parameter as TextParameter;
+use crate::ScriptResult;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a declared model.
@@ -49,20 +50,21 @@ impl DeclaredModel {
     /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     pub fn from_instancied_model(
         instancied_model: Arc<RwLock<ModelInstanciation>>,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
         let borrowed_instancied_model = instancied_model.read().unwrap();
 
         let treatment = borrowed_instancied_model.treatment.upgrade().unwrap();
         let name = borrowed_instancied_model.name.clone();
 
-        let declared_model = Self::make(treatment, borrowed_instancied_model.text.name.clone())?;
-
-        declared_model.write().unwrap().refers = RefersTo::InstanciedModel(Reference {
-            name: name,
-            reference: Some(Arc::downgrade(&instancied_model)),
-        });
-
-        Ok(declared_model)
+        Self::make(treatment, borrowed_instancied_model.text.name.clone()).and_then(
+            |declared_model| {
+                declared_model.write().unwrap().refers = RefersTo::InstanciedModel(Reference {
+                    name: name,
+                    reference: Some(Arc::downgrade(&instancied_model)),
+                });
+                ScriptResult::new_success(declared_model)
+            },
+        )
     }
 
     /// Create a new semantic declaration of model, based on textual parameter.
@@ -76,61 +78,58 @@ impl DeclaredModel {
     pub fn new(
         treatment: Arc<RwLock<Treatment>>,
         text: TextParameter,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
+        let mut result = ScriptResult::new_success(());
+
         let refers_string;
         if let Some(r#type) = &text.r#type {
             if r#type.first_level_structure.is_some() || r#type.second_level_structure.is_some() {
-                return Err(ScriptError::semantic(
-                    "Model '".to_string() + &text.name.string + "' cannot have type structure.",
-                    text.name.position,
+                result = result.and_degrade_failure(ScriptResult::new_failure(
+                    ScriptError::structure_forbidden(138, text.name.clone()),
                 ));
             }
 
             refers_string = r#type.name.string.clone();
         } else {
-            return Err(ScriptError::semantic(
-                "Model '".to_string() + &text.name.string + "' do not have type.",
-                text.name.position,
+            refers_string = String::new();
+            result = result.and_degrade_failure(ScriptResult::new_failure(
+                ScriptError::missing_type(139, text.name.clone()),
             ));
         }
 
         if text.value.is_some() {
-            return Err(ScriptError::semantic(
-                "Model '".to_string() + &text.name.string + "' cannot be assigned to a value.",
-                text.name.position,
+            result = result.and_degrade_failure(ScriptResult::new_failure(
+                ScriptError::default_forbidden(140, text.name.clone()),
             ));
         }
 
-        let declared_model = Self::make(treatment, text.name.clone())?;
-        {
-            let mut borrowed_declared_model = declared_model.write().unwrap();
-            borrowed_declared_model.text = Some(text);
-            borrowed_declared_model.refers = RefersTo::Unknown(Reference::new(refers_string));
-        }
-
-        Ok(declared_model)
+        result.and_then(|_| {
+            Self::make(treatment, text.name.clone()).and_then(|declared_model| {
+                let mut borrowed_declared_model = declared_model.write().unwrap();
+                borrowed_declared_model.text = Some(text);
+                borrowed_declared_model.refers = RefersTo::Unknown(Reference::new(refers_string));
+                ScriptResult::new_success(declared_model.clone())
+            })
+        })
     }
 
     fn make(
         treatment: Arc<RwLock<Treatment>>,
         name: PositionnedString,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
         let borrowed_treatment = treatment.read().unwrap();
 
         let declared_model = borrowed_treatment.find_declared_model(&name.string.clone());
         if declared_model.is_some() {
-            return Err(ScriptError::semantic(
-                "Model '".to_string() + &name.string.clone() + "' is already declared.",
-                name.position.clone(),
-            ));
+            ScriptResult::new_failure(ScriptError::already_declared(141, name))
+        } else {
+            ScriptResult::new_success(Arc::<RwLock<Self>>::new(RwLock::new(Self {
+                treatment: Arc::downgrade(&treatment),
+                name: name.string.clone(),
+                text: None,
+                refers: RefersTo::Unknown(Reference::new(name.string)),
+            })))
         }
-
-        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
-            treatment: Arc::downgrade(&treatment),
-            name: name.string.clone(),
-            text: None,
-            refers: RefersTo::Unknown(Reference::new(name.string)),
-        })))
     }
 
     pub fn comes_from_instancied(&self) -> bool {
@@ -142,7 +141,7 @@ impl DeclaredModel {
 }
 
 impl Node for DeclaredModel {
-    fn make_references(&mut self, _path: &Path) -> Result<(), ScriptError> {
+    fn make_references(&mut self, _path: &Path) -> ScriptResult<()> {
         // Reference to an instancied model already been done through Self::from_instancied_model
         // so we only look for reference to a use.
         if let RefersTo::Unknown(reference) = &self.refers {
@@ -162,20 +161,13 @@ impl Node for DeclaredModel {
                     reference: Some(Arc::downgrade(r#use)),
                 });
             } else {
-                return Err(ScriptError::semantic(
-                    "'".to_string() + &reference.name + "' is unknown.",
-                    self.text
-                        .as_ref()
-                        .unwrap()
-                        .r#type
-                        .as_ref()
-                        .unwrap()
-                        .name
-                        .position,
+                return ScriptResult::new_failure(ScriptError::unimported_element(
+                    142,
+                    self.text.as_ref().unwrap().name.clone(),
                 ));
             }
         }
 
-        Ok(())
+        ScriptResult::new_success(())
     }
 }

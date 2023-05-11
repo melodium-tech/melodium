@@ -614,6 +614,7 @@ version = "0.6.0"
 dependencies = [
  "async-std",
  "async-trait",
+ "downcast-rs",
  "futures",
  "lazy_static",
  "melodium-common",

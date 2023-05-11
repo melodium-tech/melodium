@@ -2,9 +2,9 @@
 
 use super::common::Node;
 use super::script::Script;
-use crate::path::Path;
 use crate::text::Use as TextUse;
 use crate::ScriptError;
+use crate::{path::Path, ScriptResult};
 use melodium_common::descriptor::Identifier;
 use std::sync::{Arc, RwLock, Weak};
 
@@ -33,15 +33,14 @@ impl Use {
     /// # Note
     /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    pub fn new(
-        script: Arc<RwLock<Script>>,
-        text: TextUse,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
+    pub fn new(script: Arc<RwLock<Script>>, text: TextUse) -> ScriptResult<Arc<RwLock<Self>>> {
+        let mut result = ScriptResult::new_success(());
+
         let r#as;
-        if let Some(ps) = &text.r#as {
+        if let Some(ps) = text.r#as.clone() {
             r#as = ps;
         } else {
-            r#as = &text.element;
+            r#as = text.element.clone();
         }
 
         {
@@ -49,32 +48,34 @@ impl Use {
 
             let r#use = borrowed_script.find_use(&r#as.string);
             if r#use.is_some() {
-                return Err(ScriptError::semantic(
-                    "'".to_string() + &r#as.string + "' is already used.",
-                    r#as.position,
+                result = result.and_degrade_failure(ScriptResult::new_failure(
+                    ScriptError::already_used_name(108, r#as.clone()),
                 ));
             }
         }
 
         let path = Path::new(text.path.iter().map(|i| i.string.clone()).collect());
 
-        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
-            script: Arc::downgrade(&script),
-            path,
-            element: text.element.string.clone(),
-            r#as: r#as.string.clone(),
-            text,
-            identifier: None,
-        })))
+        result.and_then(|_| {
+            ScriptResult::new_success(Arc::<RwLock<Self>>::new(RwLock::new(Self {
+                script: Arc::downgrade(&script),
+                path,
+                element: text.element.string.clone(),
+                r#as: r#as.string.clone(),
+                text,
+                identifier: None,
+            })))
+        })
     }
 }
 
 impl Node for Use {
-    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
+    fn make_references(&mut self, path: &Path) -> ScriptResult<()> {
         if !self.path.is_valid() {
-            Err(ScriptError::semantic(
-                format!("Root '{}' is not valid.", self.path.root()),
-                self.text.element.position,
+            ScriptResult::new_failure(ScriptError::invalid_root(
+                107,
+                self.text.element.clone(),
+                self.path.root(),
             ))
         } else {
             if self.path.root() == "local" {
@@ -89,13 +90,13 @@ impl Node for Use {
 
                 self.identifier = Some(Identifier::new(steps, &self.element));
 
-                Ok(())
+                ScriptResult::new_success(())
             } else {
                 // "Non-local" case
 
                 self.identifier = Some(Identifier::new(self.path.path().clone(), &self.element));
 
-                Ok(())
+                ScriptResult::new_success(())
             }
         }
     }

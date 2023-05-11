@@ -4,9 +4,10 @@ use super::common::Node;
 use super::common::Reference;
 use super::treatment::Treatment;
 use super::treatment_instanciation::TreatmentInstanciation;
-use crate::error::{wrap_logic_error, ScriptError};
+use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Connection as TextConnection;
+use crate::ScriptResult;
 use melodium_engine::designer::Treatment as TreatmentDesigner;
 use std::sync::{Arc, RwLock, Weak};
 
@@ -24,8 +25,8 @@ pub struct Connection {
     pub end_point_self: bool,
     pub end_point: Reference<TreatmentInstanciation>,
 
-    pub name_data_out: Option<String>,
-    pub name_data_in: Option<String>,
+    pub name_data_out: String,
+    pub name_data_in: String,
 }
 
 impl Connection {
@@ -39,33 +40,19 @@ impl Connection {
     pub fn new(
         treatment: Arc<RwLock<Treatment>>,
         text: TextConnection,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
-        if text.name_data_out.is_some() ^ text.name_data_in.is_some() {
-            return Err(ScriptError::semantic(
-                "Connection from '".to_string()
-                    + &text.name_start_point.string
-                    + "' to '"
-                    + &text.name_end_point.string
-                    + "' either transmit data or doesn't, data name is in excess or missing.",
-                text.name_start_point.position,
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
+        if text.name_data_out.is_none() || text.name_data_in.is_none() {
+            return ScriptResult::new_failure(ScriptError::connection_must_transmit_data(
+                143,
+                text.name_start_point.clone(),
+                text.name_end_point.clone(),
             ));
         }
 
-        let name_data_out;
-        if let Some(ndo) = text.name_data_out.clone() {
-            name_data_out = Some(ndo.string);
-        } else {
-            name_data_out = None;
-        }
+        let name_data_out = text.name_data_out.as_ref().unwrap().string.clone();
+        let name_data_in = text.name_data_in.as_ref().unwrap().string.clone();
 
-        let name_data_in;
-        if let Some(ndi) = text.name_data_in.clone() {
-            name_data_in = Some(ndi.string);
-        } else {
-            name_data_in = None;
-        }
-
-        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
+        ScriptResult::new_success(Arc::<RwLock<Self>>::new(RwLock::new(Self {
             start_point_self: false,
             start_point: Reference::new(text.name_start_point.string.clone()),
             end_point_self: false,
@@ -77,56 +64,49 @@ impl Connection {
         })))
     }
 
-    pub fn make_design(&self, designer: &mut TreatmentDesigner) -> Result<(), ScriptError> {
+    pub fn make_design(&self, designer: &mut TreatmentDesigner) -> ScriptResult<()> {
         // something to something
         if !self.start_point_self && !self.end_point_self {
-            Ok(wrap_logic_error!(
-                designer.add_connection(
-                    &self.start_point.name,
-                    self.name_data_out.as_ref().unwrap(),
-                    &self.end_point.name,
-                    self.name_data_in.as_ref().unwrap(),
-                ),
-                self.text.name_start_point.position
+            ScriptResult::from(designer.add_connection(
+                &self.start_point.name,
+                &self.name_data_out,
+                &self.end_point.name,
+                &self.name_data_in,
+                Some(self.text.name_start_point.into_ref()),
             ))
         }
         // Self to something
         else if self.start_point_self && !self.end_point_self {
-            Ok(wrap_logic_error!(
-                designer.add_input_connection(
-                    self.name_data_out.as_ref().unwrap(),
-                    &self.end_point.name,
-                    self.name_data_in.as_ref().unwrap(),
-                ),
-                self.text.name_start_point.position
+            ScriptResult::from(designer.add_input_connection(
+                &self.name_data_out,
+                &self.end_point.name,
+                &self.name_data_in,
+                Some(self.text.name_start_point.into_ref()),
             ))
         }
         // Something to Self
         else if !self.start_point_self && self.end_point_self {
-            Ok(wrap_logic_error!(
-                designer.add_output_connection(
-                    self.name_data_in.as_ref().unwrap(),
-                    &self.start_point.name,
-                    self.name_data_out.as_ref().unwrap(),
-                ),
-                self.text.name_start_point.position
+            ScriptResult::from(designer.add_output_connection(
+                &self.name_data_in,
+                &self.start_point.name,
+                &self.name_data_out,
+                Some(self.text.name_start_point.into_ref()),
             ))
         }
         // Self to Self
         else {
-            Ok(wrap_logic_error!(
-                designer.add_self_connection(
-                    self.name_data_out.as_ref().unwrap(),
-                    self.name_data_in.as_ref().unwrap(),
-                ),
-                self.text.name_start_point.position
+            ScriptResult::from(designer.add_self_connection(
+                &self.name_data_out,
+                &self.name_data_in,
+                Some(self.text.name_start_point.into_ref()),
             ))
         }
     }
 }
 
 impl Node for Connection {
-    fn make_references(&mut self, _path: &Path) -> Result<(), ScriptError> {
+    fn make_references(&mut self, _path: &Path) -> ScriptResult<()> {
+        let mut result = ScriptResult::new_success(());
         let rc_treatment = self.treatment.upgrade().unwrap();
         let treatment = rc_treatment.read().unwrap();
 
@@ -136,9 +116,8 @@ impl Node for Connection {
         } else if self.start_point.name == "Self" {
             self.start_point_self = true;
         } else {
-            return Err(ScriptError::semantic(
-                "Treatment '".to_string() + &self.start_point.name + "' is unknown.",
-                self.text.name_start_point.position,
+            result = result.and_degrade_failure(ScriptResult::new_failure(
+                ScriptError::treatment_not_found(144, self.text.name_start_point.clone()),
             ));
         }
 
@@ -148,12 +127,11 @@ impl Node for Connection {
         } else if self.end_point.name == "Self" {
             self.end_point_self = true;
         } else {
-            return Err(ScriptError::semantic(
-                "Treatment '".to_string() + &self.end_point.name + "' is unknown.",
-                self.text.name_end_point.position,
+            result = result.and_degrade_failure(ScriptResult::new_failure(
+                ScriptError::treatment_not_found(145, self.text.name_end_point.clone()),
             ));
         }
 
-        Ok(())
+        result
     }
 }

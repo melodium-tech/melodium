@@ -16,9 +16,9 @@ impl Entry {
     pub fn identifier(&self) -> Identifier {
         match self {
             Entry::Context(c) => c.identifier().clone(),
-            Entry::Function(f) => f.as_identified().identifier().clone(),
-            Entry::Model(m) => m.as_identified().identifier().clone(),
-            Entry::Treatment(t) => t.as_identified().identifier().clone(),
+            Entry::Function(f) => f.identifier().clone(),
+            Entry::Model(m) => m.identifier().clone(),
+            Entry::Treatment(t) => t.identifier().clone(),
         }
     }
 }

@@ -1,9 +1,9 @@
 //! Module dedicated to common semantic elements & traits.
 
 use super::script::Script;
-use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Script as TextScript;
+use crate::ScriptResult;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Semantic tree.
@@ -15,27 +15,25 @@ pub struct Tree {
 }
 
 impl Tree {
-    pub fn new(text: TextScript) -> Result<Self, ScriptError> {
-        Ok(Self {
-            script: Script::new(text)?,
-        })
+    pub fn new(text: TextScript) -> ScriptResult<Self> {
+        Script::new(text).and_then(|script| ScriptResult::new_success(Self { script }))
     }
 
-    pub fn make_references(&self, path: &Path) -> Result<(), ScriptError> {
-        Self::make_references_node(Arc::clone(&self.script) as Arc<RwLock<dyn Node>>, path)?;
-
-        Ok(())
+    pub fn make_references(&self, path: &Path) -> ScriptResult<()> {
+        Self::make_references_node(Arc::clone(&self.script) as Arc<RwLock<dyn Node>>, path)
     }
 
-    fn make_references_node(node: Arc<RwLock<dyn Node>>, path: &Path) -> Result<(), ScriptError> {
-        node.write().unwrap().make_references(path)?;
+    fn make_references_node(node: Arc<RwLock<dyn Node>>, path: &Path) -> ScriptResult<()> {
+        let mut result = node.write().unwrap().make_references(path);
 
-        let children = node.read().unwrap().children();
-        for child in children {
-            Self::make_references_node(child, path)?;
+        if result.is_success() {
+            let children = node.read().unwrap().children();
+            for child in children {
+                result = result.and_degrade_failure(Self::make_references_node(child, path));
+            }
         }
 
-        Ok(())
+        result
     }
 }
 
@@ -49,8 +47,8 @@ pub trait Node {
     /// This exclude parent-child references, which are made when creating the elements.
     ///
     /// * `path`: path to the current element
-    fn make_references(&mut self, _path: &Path) -> Result<(), ScriptError> {
-        Ok(())
+    fn make_references(&mut self, _path: &Path) -> ScriptResult<()> {
+        ScriptResult::new_success(())
     }
 
     /// Give a vector of all children the node have, whatever kind they can be.

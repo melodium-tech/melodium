@@ -1,7 +1,6 @@
-use crate::content::ContentError;
 use crate::Loader;
 use core::fmt::Debug;
-use melodium_common::descriptor::{Collection, Identifier, LoadingError};
+use melodium_common::descriptor::{Collection, Identifier, LoadingResult};
 use semver::Version;
 use std::sync::Arc;
 
@@ -14,34 +13,31 @@ pub trait Package: Debug {
      *
      * Those elements are basically the built-in ones, call to this function is relatively cheap.
      */
-    fn embedded_collection(&self, loader: &Loader) -> Result<Collection, LoadingError>;
+    fn embedded_collection(&self, loader: &Loader) -> LoadingResult<Collection>;
     /**
      * Gives all elements that are contained in the package.
      *
      * This call trigger disk access and parsing of all the elements, which might be costly.
      * It should be used only when other functions in that trait don't fit for usage.
      */
-    fn full_collection(&self, loader: &Loader) -> Result<Collection, LoadingError>;
+    fn full_collection(&self, loader: &Loader) -> LoadingResult<Collection>;
     /**
      * Gives identifiers of all the existing elements in the package.
      *
      * Call to this function is cheaper than to `full_collection`, but still require some work.
      */
-    fn all_identifiers(&self, loader: &Loader) -> Result<Vec<Identifier>, LoadingError>;
+    fn all_identifiers(&self, loader: &Loader) -> LoadingResult<Vec<Identifier>>;
     /**
      * Gives the identified element, and the whole other ones it depends on to work.
      *
      * This function fits for most of the usages, and is the most optimized one for getting functionnal stuff.
      * It loads and build all but only the required elements within the package, wether built-in or to-build elements.
      */
-    fn element(&self, loader: &Loader, identifier: &Identifier)
-        -> Result<Collection, LoadingError>;
+    fn element(&self, loader: &Loader, identifier: &Identifier) -> LoadingResult<Collection>;
     /**
      * Make the final build of all elements that depends on this package within the given collection.
      *
      * Only after a successful call to this function the elements given by the package are guaranteed to work.
      */
-    fn make_building(&self, collection: &Arc<Collection>) -> Result<(), LoadingError>;
-
-    fn errors(&self) -> Vec<ContentError>;
+    fn make_building(&self, collection: &Arc<Collection>) -> LoadingResult<()>;
 }

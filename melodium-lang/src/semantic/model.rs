@@ -8,11 +8,14 @@ use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::declared_parameter::DeclaredParameter;
 use super::r#use::Use;
 use super::script::Script;
-use crate::error::{wrap_logic_error, ScriptError};
+use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Model as TextModel;
+use crate::ScriptResult;
 use melodium_common::descriptor::{Collection, Entry, Identifier, Model as ModelTrait};
 use melodium_engine::descriptor::Model as ModelDescriptor;
+use melodium_engine::designer::Model as ModelDesigner;
+use melodium_engine::LogicError;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a model.
@@ -51,10 +54,7 @@ impl Model {
     /// # Note
     /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    pub fn new(
-        script: Arc<RwLock<Script>>,
-        text: TextModel,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
+    pub fn new(script: Arc<RwLock<Script>>, text: TextModel) -> ScriptResult<Arc<RwLock<Self>>> {
         let model = Arc::<RwLock<Self>>::new_cyclic(|me| {
             RwLock::new(Self {
                 text: text.clone(),
@@ -68,40 +68,49 @@ impl Model {
                 auto_reference: me.clone(),
             })
         });
+        let mut result = ScriptResult::new_success(model.clone());
 
         {
             let borrowed_script = script.read().unwrap();
 
             let model = borrowed_script.find_model(&text.name.string);
             if model.is_some() {
-                return Err(ScriptError::semantic(
-                    "'".to_string() + &text.name.string + "' is already declared.",
-                    text.name.position,
+                result = result.and_degrade_failure(ScriptResult::new_failure(
+                    ScriptError::already_used_name(122, text.name.clone()),
+                ));
+            }
+
+            let r#use = borrowed_script.find_use(&text.name.string);
+            if r#use.is_some() {
+                result = result.and_degrade_failure(ScriptResult::new_failure(
+                    ScriptError::already_used_name(123, text.name),
                 ));
             }
         }
 
         for p in text.parameters {
-            let declared_parameter = DeclaredParameter::new(
+            if let Some(declared_parameter) = result.merge_degrade_failure(DeclaredParameter::new(
                 Arc::clone(&model) as Arc<RwLock<dyn DeclarativeElement>>,
                 p,
-            )?;
-            model.write().unwrap().parameters.push(declared_parameter);
+            )) {
+                model.write().unwrap().parameters.push(declared_parameter);
+            }
         }
 
         for a in text.assignations {
-            let assigned_parameter = AssignedParameter::new(
+            if let Some(assigned_parameter) = result.merge_degrade_failure(AssignedParameter::new(
                 Arc::clone(&model) as Arc<RwLock<dyn AssignativeElement>>,
                 a,
-            )?;
-            model.write().unwrap().assignations.push(assigned_parameter);
+            )) {
+                model.write().unwrap().assignations.push(assigned_parameter);
+            }
         }
 
-        Ok(model)
+        result
     }
 
-    pub fn make_descriptor(&self, collection: &mut Collection) -> Result<(), ScriptError> {
-        let (type_identifier, position) = match &self.r#type {
+    pub fn make_descriptor(&self, collection: &mut Collection) -> ScriptResult<()> {
+        let (type_identifier, _position) = match &self.r#type {
             RefersTo::Model(m) => (
                 m.reference
                     .as_ref()
@@ -148,15 +157,16 @@ impl Model {
                     .element
                     .position,
             ),
-            _ => panic!("Descriptor cannot be made without type reference being setted up."),
+            _ => {
+                return ScriptResult::new_failure(ScriptError::reference_unset(
+                    124,
+                    format!("{:?}", &self.r#type),
+                ))
+            }
         };
 
         if let Some(Entry::Model(base_descriptor)) = collection.get(&type_identifier) {
-            /*
-            if !core_descriptor.is_core_model() {
-                // This should be removed once improvement has been made to inherit scripted model types.
-                return Err(ScriptError::semantic("Model type '".to_string() + type_identifier.name() + "' is not a core model.", position));
-            }*/
+            let mut result = ScriptResult::new_success(());
 
             let mut descriptor =
                 ModelDescriptor::new(self.identifier.as_ref().unwrap().clone(), base_descriptor);
@@ -167,35 +177,55 @@ impl Model {
 
             for rc_parameter in &self.parameters {
                 let borrowed_parameter = rc_parameter.read().unwrap();
-                let parameter_descriptor = borrowed_parameter.make_descriptor()?;
-
-                descriptor.add_parameter(parameter_descriptor);
+                if let Some(parameter_descriptor) =
+                    result.merge_degrade_failure(borrowed_parameter.make_descriptor())
+                {
+                    descriptor.add_parameter(parameter_descriptor);
+                }
             }
 
-            let descriptor = descriptor.commit();
+            if result.is_success() {
+                let descriptor = descriptor.commit();
 
-            collection.insert(Entry::Model(Arc::clone(&descriptor) as Arc<dyn ModelTrait>));
+                collection.insert(Entry::Model(Arc::clone(&descriptor) as Arc<dyn ModelTrait>));
 
-            *self.descriptor.write().unwrap() = Some(descriptor);
+                *self.descriptor.write().unwrap() = Some(descriptor);
+            }
 
-            Ok(())
+            result
         } else {
-            Err(ScriptError::semantic(
-                "Unknown model type '".to_string() + type_identifier.name() + "'.",
-                position,
-            ))
+            ScriptResult::new_failure(
+                LogicError::unexisting_model(
+                    125,
+                    self.identifier.as_ref().unwrap().clone(),
+                    type_identifier.clone(),
+                    Some(self.text.r#type.into_ref()),
+                )
+                .into(),
+            )
         }
     }
 
-    pub fn make_design(&self, collection: &Arc<Collection>) -> Result<(), ScriptError> {
+    pub fn make_design(&self, collection: &Arc<Collection>) -> ScriptResult<()> {
         let borrowed_descriptor = self.descriptor.read().unwrap();
         let descriptor = if let Some(descriptor) = &*borrowed_descriptor {
             descriptor
         } else {
-            return Err(ScriptError::no_descriptor());
+            return ScriptResult::new_failure(ScriptError::no_descriptor(
+                126,
+                self.text.name.clone(),
+            ));
         };
+        let mut result = ScriptResult::new_success(());
 
-        let rc_designer = descriptor.designer()?;
+        let rc_designer: Arc<RwLock<ModelDesigner>> = if let Some(designer) = result
+            .merge_degrade_failure(ScriptResult::from(
+                descriptor.designer(Some(self.text.name.into_ref())),
+            )) {
+            designer
+        } else {
+            return result;
+        };
         rc_designer
             .write()
             .unwrap()
@@ -204,20 +234,20 @@ impl Model {
         for rc_assignation in &self.assignations {
             let borrowed_assignation = rc_assignation.read().unwrap();
 
-            let assignation_designer = wrap_logic_error!(
-                rc_designer
-                    .write()
-                    .unwrap()
-                    .add_parameter(&borrowed_assignation.name),
-                borrowed_assignation.text.name.position
-            );
-
-            borrowed_assignation.make_design(&assignation_designer)?;
+            if let Some(assignation_designer) = result.merge_degrade_failure(ScriptResult::from(
+                rc_designer.write().unwrap().add_parameter(
+                    &borrowed_assignation.name,
+                    Some(borrowed_assignation.text.name.into_ref()),
+                ),
+            )) {
+                result = result
+                    .and_degrade_failure(borrowed_assignation.make_design(&assignation_designer));
+            }
         }
 
-        wrap_logic_error!(descriptor.commit_design(), self.text.name.position);
+        result = result.and_degrade_failure(ScriptResult::from(descriptor.commit_design()));
 
-        Ok(())
+        result
     }
 }
 
@@ -250,7 +280,7 @@ impl AssignativeElement for Model {
 }
 
 impl Node for Model {
-    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
+    fn make_references(&mut self, path: &Path) -> ScriptResult<()> {
         if let RefersTo::Unknown(r#type) = &self.r#type {
             let rc_script = self.script.upgrade().unwrap();
             let borrowed_script = rc_script.read().unwrap();
@@ -266,15 +296,15 @@ impl Node for Model {
                     reference: Some(Arc::downgrade(r#use)),
                 });
             } else {
-                return Err(ScriptError::semantic(
-                    "'".to_string() + &r#type.name + "' is unknown.",
-                    self.text.r#type.position,
+                return ScriptResult::new_failure(ScriptError::unimported_element(
+                    127,
+                    self.text.name.clone(),
                 ));
             }
 
             self.identifier = path.to_identifier(&self.name);
         }
 
-        Ok(())
+        ScriptResult::new_success(())
     }
 }

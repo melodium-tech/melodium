@@ -8,6 +8,7 @@ use super::value::Value;
 use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Function as TextFunction;
+use crate::ScriptResult;
 use melodium_common::descriptor::identifier::Identifier;
 use std::sync::{Arc, RwLock, Weak};
 
@@ -36,30 +37,34 @@ impl FunctionCall {
     pub fn new(
         scope: Arc<RwLock<dyn DeclarativeElement>>,
         text: TextFunction,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
+        let mut result = ScriptResult::new_success(());
+
         let mut parameters = Vec::new();
         for val in &text.parameters {
-            let value = Value::new(
+            if let Some(value) = result.merge_degrade_failure(Value::new(
                 Arc::clone(&scope) as Arc<RwLock<dyn DeclarativeElement>>,
                 val.clone(),
-            )?;
-
-            parameters.push(value);
+            )) {
+                parameters.push(value);
+            }
         }
 
-        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
-            name: text.name.string.clone(),
-            r#type: RefersTo::Unknown(Reference::new(text.name.string.clone())),
-            scope: Arc::downgrade(&scope),
-            text,
-            parameters,
-            type_identifier: None,
-        })))
+        result.and_then(|_| {
+            ScriptResult::new_success(Arc::<RwLock<Self>>::new(RwLock::new(Self {
+                name: text.name.string.clone(),
+                r#type: RefersTo::Unknown(Reference::new(text.name.string.clone())),
+                scope: Arc::downgrade(&scope),
+                text,
+                parameters,
+                type_identifier: None,
+            })))
+        })
     }
 }
 
 impl Node for FunctionCall {
-    fn make_references(&mut self, _path: &Path) -> Result<(), ScriptError> {
+    fn make_references(&mut self, _path: &Path) -> ScriptResult<()> {
         if let RefersTo::Unknown(reference) = &self.r#type {
             let rc_script = match self
                 .scope
@@ -84,14 +89,14 @@ impl Node for FunctionCall {
             }
             // Add here when and if functions can be scripted to found them in local script file.
             else {
-                return Err(ScriptError::semantic(
-                    format!("'{}' is unknown.", self.text.name.string),
-                    self.text.name.position,
+                return ScriptResult::new_failure(ScriptError::unimported_element(
+                    133,
+                    self.text.name.clone(),
                 ));
             }
         }
 
-        Ok(())
+        ScriptResult::new_success(())
     }
 
     fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {

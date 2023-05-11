@@ -8,9 +8,10 @@ use super::common::Reference;
 use super::declarative_element::DeclarativeElement;
 use super::r#use::Use;
 use super::treatment::Treatment;
-use crate::error::{wrap_logic_error, ScriptError};
+use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Instanciation as TextTreatment;
+use crate::ScriptResult;
 use melodium_common::descriptor::Identifier;
 use melodium_engine::designer::TreatmentInstanciation as TreatmentInstanciationDesigner;
 use std::sync::{Arc, RwLock, Weak};
@@ -55,7 +56,7 @@ impl TreatmentInstanciation {
     pub fn new(
         treatment: Arc<RwLock<Treatment>>,
         text: TextTreatment,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
         let treatment_instanciation = Arc::<RwLock<Self>>::new(RwLock::new(Self {
             text: text.clone(),
             treatment: Arc::downgrade(&treatment),
@@ -65,75 +66,79 @@ impl TreatmentInstanciation {
             parameters: Vec::new(),
             type_identifier: None,
         }));
+        let mut result = ScriptResult::new_success(Arc::clone(&treatment_instanciation));
 
         {
             let borrowed_treatment = treatment.read().unwrap();
 
             if let Some(_) = borrowed_treatment.find_treatment_instanciation(&text.name.string) {
-                return Err(ScriptError::semantic(
-                    "Treatment '".to_string() + &text.name.string + "' is already declared.",
-                    text.name.position,
+                result = result.and_degrade_failure(ScriptResult::new_failure(
+                    ScriptError::already_used_name(116, text.name),
                 ));
             }
         }
 
         for m in text.configuration {
-            let assigned_model = AssignedModel::new(
+            if let Some(assigned_model) = result.merge_degrade_failure(AssignedModel::new(
                 Arc::clone(&treatment_instanciation) as Arc<RwLock<dyn AssignativeElement>>,
                 m,
-            )?;
-            treatment_instanciation
-                .write()
-                .unwrap()
-                .models
-                .push(assigned_model);
+            )) {
+                treatment_instanciation
+                    .write()
+                    .unwrap()
+                    .models
+                    .push(assigned_model);
+            }
         }
 
         for p in text.parameters {
-            let assigned_parameter = AssignedParameter::new(
+            if let Some(assigned_parameter) = result.merge_degrade_failure(AssignedParameter::new(
                 Arc::clone(&treatment_instanciation) as Arc<RwLock<dyn AssignativeElement>>,
                 p,
-            )?;
-            treatment_instanciation
-                .write()
-                .unwrap()
-                .parameters
-                .push(assigned_parameter);
+            )) {
+                treatment_instanciation
+                    .write()
+                    .unwrap()
+                    .parameters
+                    .push(assigned_parameter);
+            }
         }
 
-        Ok(treatment_instanciation)
+        result
     }
 
     pub fn make_design(
         &self,
         designer: &Arc<RwLock<TreatmentInstanciationDesigner>>,
-    ) -> Result<(), ScriptError> {
+    ) -> ScriptResult<()> {
         let mut designer = designer.write().unwrap();
+        let mut result = ScriptResult::new_success(());
 
         for rc_model_assignation in &self.models {
             let borrowed_model_assignation = rc_model_assignation.read().unwrap();
 
-            designer
-                .add_model(
-                    &borrowed_model_assignation.name,
-                    &borrowed_model_assignation.model.name,
-                )
-                .unwrap();
+            result = result.and_degrade_failure(ScriptResult::from(designer.add_model(
+                &borrowed_model_assignation.name,
+                &borrowed_model_assignation.model.name,
+            )));
         }
 
         for rc_param_assignation in &self.parameters {
             let borrowed_param_assignation = rc_param_assignation.read().unwrap();
 
-            let param_assignation_designer = designer
-                .add_parameter(&borrowed_param_assignation.name)
-                .unwrap();
-
-            borrowed_param_assignation.make_design(&param_assignation_designer)?;
+            if let Some(param_assignation_designer) =
+                result.merge_degrade_failure(ScriptResult::from(designer.add_parameter(
+                    &borrowed_param_assignation.name,
+                    Some(borrowed_param_assignation.text.name.into_ref()),
+                )))
+            {
+                result = result.and_degrade_failure(
+                    borrowed_param_assignation.make_design(&param_assignation_designer),
+                );
+            }
         }
 
-        wrap_logic_error!(designer.validate(), self.text.name.position);
-
-        Ok(())
+        result.and_degrade_failure(ScriptResult::from(designer.validate()))
     }
 }
 
@@ -174,7 +179,7 @@ impl Node for TreatmentInstanciation {
         children
     }
 
-    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
+    fn make_references(&mut self, path: &Path) -> ScriptResult<()> {
         if let RefersTo::Unknown(reference) = &self.r#type {
             let rc_treatment = self.treatment.upgrade().unwrap();
             let borrowed_treatment = rc_treatment.read().unwrap();
@@ -201,14 +206,14 @@ impl Node for TreatmentInstanciation {
                         reference: Some(Arc::downgrade(treatment.unwrap())),
                     });
                 } else {
-                    return Err(ScriptError::semantic(
-                        "'".to_string() + &reference.name + "' is unknown.",
-                        self.text.r#type.position,
+                    return ScriptResult::new_failure(ScriptError::unimported_element(
+                        117,
+                        self.text.r#type.clone(),
                     ));
                 }
             }
         }
 
-        Ok(())
+        ScriptResult::new_success(())
     }
 }

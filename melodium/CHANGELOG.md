@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Improving user error reporting.
+- Refactoring loading process.
+
 ## [v0.6.1]
 
 - Making loading function use LoadingConfig.

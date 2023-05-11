@@ -1,5 +1,5 @@
 use melodium_common::descriptor::{Collection, Identifier};
-pub use melodium_lang::ScriptError;
+pub use melodium_lang::ScriptResult;
 use melodium_lang::{semantic::Tree as SemanticTree, text::Script as TextScript, Path};
 use std::sync::{Arc, Mutex};
 
@@ -18,25 +18,28 @@ pub struct Script {
 }
 
 impl Script {
-    pub fn new(path: &str, text: &str) -> Result<Self, Vec<ScriptError>> {
-        let text = TextScript::build(&text).map_err(|e| vec![e])?;
-        let semantic = SemanticTree::new(text).map_err(|e| vec![e])?;
-
-        semantic
-            .make_references(&Path::new(
-                path.strip_suffix(".mel")
-                    .unwrap_or(path)
-                    .split("/")
-                    .map(|s| s.to_string())
-                    .collect(),
-            ))
-            .map_err(|e| vec![e])?;
-
-        Ok(Self {
-            path: path.to_string(),
-            semantic,
-            build_level: Mutex::new(ScriptBuildLevel::None),
-        })
+    pub fn new(path: &str, text: &str) -> ScriptResult<Self> {
+        match TextScript::build(&text) {
+            Ok(text) => SemanticTree::new(text)
+                .and_then(|tree| {
+                    tree.make_references(&Path::new(
+                        path.strip_suffix(".mel")
+                            .unwrap_or(path)
+                            .split("/")
+                            .map(|s| s.to_string())
+                            .collect(),
+                    ))
+                    .and(ScriptResult::new_success(tree))
+                })
+                .and_then(|tree| {
+                    ScriptResult::new_success(Self {
+                        path: path.to_string(),
+                        semantic: tree,
+                        build_level: Mutex::new(ScriptBuildLevel::None),
+                    })
+                }),
+            Err(err) => ScriptResult::new_failure(err),
+        }
     }
 
     pub fn build_level(&self) -> ScriptBuildLevel {
@@ -78,53 +81,43 @@ impl Script {
         identifiers
     }
 
-    pub fn make_descriptors(&self, collection: &mut Collection) -> Result<(), Vec<ScriptError>> {
-        let mut errors = Vec::new();
+    pub fn make_descriptors(&self, collection: &mut Collection) -> ScriptResult<()> {
+        let mut result = ScriptResult::new_success(());
 
         for (_, model) in &self.semantic.script.read().unwrap().models {
             let model = model.read().unwrap();
-            if let Err(error) = model.make_descriptor(collection) {
-                errors.push(error);
-            }
+            result = result.and_degrade_failure(model.make_descriptor(collection));
         }
 
         for (_, treatment) in &self.semantic.script.read().unwrap().treatments {
             let treatment = treatment.read().unwrap();
-            if let Err(error) = treatment.make_descriptor(collection) {
-                errors.push(error);
-            }
+            result = result.and_degrade_failure(treatment.make_descriptor(collection));
         }
 
-        if errors.is_empty() {
+        if result.is_success() {
             *self.build_level.lock().unwrap() = ScriptBuildLevel::DescriptorsMade;
-            Ok(())
-        } else {
-            Err(errors)
         }
+
+        result
     }
 
-    pub fn make_design(&self, collection: &Arc<Collection>) -> Result<(), Vec<ScriptError>> {
-        let mut errors = Vec::new();
+    pub fn make_design(&self, collection: &Arc<Collection>) -> ScriptResult<()> {
+        let mut result = ScriptResult::new_success(());
 
         for (_, model) in &self.semantic.script.read().unwrap().models {
             let model = model.read().unwrap();
-            if let Err(error) = model.make_design(collection) {
-                errors.push(error);
-            }
+            result = result.and_degrade_failure(model.make_design(collection));
         }
 
         for (_, treatment) in &self.semantic.script.read().unwrap().treatments {
             let treatment = treatment.read().unwrap();
-            if let Err(error) = treatment.make_design(collection) {
-                errors.push(error);
-            }
+            result = result.and_degrade_failure(treatment.make_design(collection));
         }
 
-        if errors.is_empty() {
+        if result.is_success() {
             *self.build_level.lock().unwrap() = ScriptBuildLevel::DesignMade;
-            Ok(())
-        } else {
-            Err(errors)
         }
+
+        result
     }
 }

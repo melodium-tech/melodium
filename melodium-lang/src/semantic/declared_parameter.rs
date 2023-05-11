@@ -7,6 +7,7 @@ use super::value::Value;
 use super::variability::Variability;
 use crate::error::ScriptError;
 use crate::text::Parameter as TextParameter;
+use crate::ScriptResult;
 use melodium_common::descriptor::{Flow as FlowDescriptor, Parameter as ParameterDescriptor};
 use std::sync::{Arc, RwLock, Weak};
 
@@ -40,97 +41,98 @@ impl DeclaredParameter {
     pub fn new(
         parent: Arc<RwLock<dyn DeclarativeElement>>,
         text: TextParameter,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
-        let variability;
-        let r#type;
-        let value;
-        {
-            let borrowed_parent = parent.read().unwrap();
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
+        let mut result = ScriptResult::new_success(());
 
-            let parameter = borrowed_parent.find_declared_parameter(&text.name.string);
-            if parameter.is_some() {
-                return Err(ScriptError::semantic(
-                    "Parameter '".to_string() + &text.name.string + "' is already declared.",
-                    text.name.position,
-                ));
-            }
+        let borrowed_parent = parent.read().unwrap();
 
-            match borrowed_parent.declarative_element() {
-                DeclarativeElementType::Model(_) => {
-                    if let Some(text_variability) = &text.variability {
-                        variability = Variability::from_string(&text_variability.string).unwrap();
-                        if variability != Variability::Const {
-                            return Err(ScriptError::semantic(
-                                "Parameter '".to_string()
-                                    + &text.name.string
-                                    + "' cannot be variable (const required for models).",
-                                text.name.position,
-                            ));
-                        }
-                    } else {
-                        variability = Variability::Const;
-                    }
-                }
-                DeclarativeElementType::Treatment(_) => {
-                    if let Some(text_variability) = &text.variability {
-                        variability = Variability::from_string(&text_variability.string).unwrap();
-                    } else {
-                        variability = Variability::Var;
-                    }
-                }
-            }
-
-            if text.r#type.is_none() {
-                return Err(ScriptError::semantic(
-                    "Parameter '".to_string() + &text.name.string + "' do not have type.",
-                    text.name.position,
-                ));
-            }
-            r#type = Type::new(text.r#type.as_ref().unwrap().clone())?;
-
-            if text.value.is_some() {
-                value = Some(Value::new(
-                    Arc::clone(&parent),
-                    text.value.as_ref().unwrap().clone(),
-                )?);
-            } else {
-                value = None;
-            }
-        }
-
-        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
-            parent: Arc::downgrade(&parent),
-            name: text.name.string.clone(),
-            text,
-            variability,
-            r#type,
-            value,
-        })))
-    }
-
-    pub fn make_descriptor(&self) -> Result<ParameterDescriptor, ScriptError> {
-        let (datatype, flow) = self.r#type.make_descriptor()?;
-        if flow != FlowDescriptor::Block {
-            return Err(ScriptError::semantic(
-                "Parameter '".to_string() + &self.text.name.string + "' cannot have flow.",
-                self.text.name.position,
+        let parameter = borrowed_parent.find_declared_parameter(&text.name.string);
+        if parameter.is_some() {
+            result = result.and_degrade_failure(ScriptResult::new_failure(
+                ScriptError::already_declared(134, text.name.clone()),
             ));
         }
 
-        let value = if let Some(val) = &self.value {
-            Some(val.read().unwrap().make_executive_value(&datatype)?)
+        let variability;
+        match borrowed_parent.declarative_element() {
+            DeclarativeElementType::Model(_) => {
+                if let Some(text_variability) = &text.variability {
+                    let variability = Variability::from_string(&text_variability.string).unwrap();
+                    if variability != Variability::Const {
+                        result = result.and_degrade_failure(ScriptResult::new_failure(
+                            ScriptError::const_declaration_only(135, text.name.clone()),
+                        ));
+                    }
+                }
+                variability = Variability::Const;
+            }
+            DeclarativeElementType::Treatment(_) => {
+                if let Some(text_variability) = &text.variability {
+                    variability = Variability::from_string(&text_variability.string).unwrap();
+                } else {
+                    variability = Variability::Var;
+                }
+            }
+        }
+
+        let value = if let Some(value) = text.value.as_ref().cloned() {
+            result.merge_degrade_failure(Value::new(Arc::clone(&parent), value))
         } else {
             None
         };
 
-        let parameter = ParameterDescriptor::new(
-            &self.name,
-            self.variability.to_descriptor(),
-            datatype,
-            value,
-        );
+        if let Some(text_type) = text.r#type.clone() {
+            result
+                .and_degrade_failure(Type::new(text_type))
+                .and_then(|r#type| {
+                    ScriptResult::new_success(Arc::<RwLock<Self>>::new(RwLock::new(Self {
+                        parent: Arc::downgrade(&parent),
+                        name: text.name.string.clone(),
+                        text,
+                        variability,
+                        r#type,
+                        value,
+                    })))
+                })
+        } else {
+            result.and_degrade_failure(ScriptResult::new_failure(ScriptError::missing_type(
+                136,
+                text.name.clone(),
+            )))
+        }
+    }
 
-        Ok(parameter)
+    pub fn make_descriptor(&self) -> ScriptResult<ParameterDescriptor> {
+        self.r#type
+            .make_descriptor()
+            .and_then(|(datatype, flow)| {
+                if flow != FlowDescriptor::Block {
+                    ScriptResult::new_failure(ScriptError::flow_forbidden(
+                        137,
+                        self.text.name.clone(),
+                    ))
+                } else {
+                    ScriptResult::new_success((datatype, flow))
+                }
+            })
+            .and_then(|(datatype, flow)| {
+                if let Some(val) = &self.value {
+                    val.read()
+                        .unwrap()
+                        .make_executive_value(&datatype)
+                        .and_then(|val| ScriptResult::new_success((datatype, flow, Some(val))))
+                } else {
+                    ScriptResult::new_success((datatype, flow, None))
+                }
+            })
+            .and_then(|(datatype, _, value)| {
+                ScriptResult::new_success(ParameterDescriptor::new(
+                    &self.name,
+                    self.variability.to_descriptor(),
+                    datatype,
+                    value,
+                ))
+            })
     }
 }
 

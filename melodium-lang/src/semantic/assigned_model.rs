@@ -9,6 +9,7 @@ use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Parameter as TextParameter;
 use crate::text::Value as TextValue;
+use crate::ScriptResult;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of an assigned model.
@@ -36,50 +37,48 @@ impl AssignedModel {
     pub fn new(
         parent: Arc<RwLock<dyn AssignativeElement>>,
         text: TextParameter,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
-        let referred_model_name;
-        {
-            let borrowed_parent = parent.read().unwrap();
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
+        let mut result = ScriptResult::new_success(());
 
-            let assigned_model = borrowed_parent.find_assigned_model(&text.name.string);
-            if assigned_model.is_some() {
-                return Err(ScriptError::semantic(
-                    "Model '".to_string() + &text.name.string + "' is already assigned.",
-                    text.name.position,
-                ));
-            }
+        let borrowed_parent = parent.read().unwrap();
 
-            if let Some(erroneous_type) = &text.r#type {
-                return Err(ScriptError::semantic(
-                    "Model assignation cannot be typed.".to_string(),
-                    erroneous_type.name.position,
-                ));
-            }
-
-            if let Some(TextValue::Name(model_name)) = &text.value {
-                referred_model_name = model_name.string.clone();
-            } else {
-                return Err(ScriptError::semantic(
-                    "Model assignation require a name.".to_string(),
-                    text.name.position,
-                ));
-            }
+        let assigned_model = borrowed_parent.find_assigned_model(&text.name.string);
+        if assigned_model.is_some() {
+            result = result.and_degrade_failure(ScriptResult::new_failure(
+                ScriptError::already_assigned(148, text.name.clone()),
+            ));
         }
 
-        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
-            name: text.name.string.clone(),
-            text,
-            parent: Arc::downgrade(&parent),
-            model: Reference {
-                name: referred_model_name,
-                reference: None,
-            },
-        })))
+        if let Some(_erroneous_type) = &text.r#type {
+            result = result.and_degrade_failure(ScriptResult::new_failure(
+                ScriptError::type_forbidden(149, text.name.clone()),
+            ));
+        }
+
+        if let Some(TextValue::Name(model_name)) = &text.value {
+            let referred_model_name = model_name.string.clone();
+            result.and_then(|_| {
+                ScriptResult::new_success(Arc::<RwLock<Self>>::new(RwLock::new(Self {
+                    name: text.name.string.clone(),
+                    text,
+                    parent: Arc::downgrade(&parent),
+                    model: Reference {
+                        name: referred_model_name,
+                        reference: None,
+                    },
+                })))
+            })
+        } else {
+            result.and_degrade_failure(ScriptResult::new_failure(ScriptError::name_required(
+                151,
+                text.name.clone(),
+            )))
+        }
     }
 }
 
 impl Node for AssignedModel {
-    fn make_references(&mut self, _path: &Path) -> Result<(), ScriptError> {
+    fn make_references(&mut self, _path: &Path) -> ScriptResult<()> {
         if self.model.reference.is_none() {
             let rc_parent = self.parent.upgrade().unwrap();
             let borrowed_parent = rc_parent.read().unwrap();
@@ -94,13 +93,13 @@ impl Node for AssignedModel {
             if let Some(rc_refered_model) = refered_model {
                 self.model.reference = Some(Arc::downgrade(rc_refered_model));
             } else {
-                return Err(ScriptError::semantic(
-                    "Unknown name '".to_string() + &self.name + "' in declared models.",
-                    self.text.name.position,
+                return ScriptResult::new_failure(ScriptError::undeclared_model(
+                    143,
+                    self.text.name.clone(),
                 ));
             }
         }
 
-        Ok(())
+        ScriptResult::new_success(())
     }
 }

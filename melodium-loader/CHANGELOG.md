@@ -1,6 +1,11 @@
 
 # Changelog
 
+## Unreleased
+
+- Improving loadgin errors reporting.
+- Refactoring loading process.
+
 ## [v0.6.2]
 
 - Fixing search path.

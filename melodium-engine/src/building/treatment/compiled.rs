@@ -3,10 +3,10 @@ use crate::building::{
     BuildId, CheckBuild, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
     DynamicBuildResult, FeedingInputs, GenesisEnvironment, StaticBuildResult,
 };
-use crate::error::LogicError;
+use crate::error::{LogicError, LogicResult};
 use crate::world::World;
 use core::fmt::Debug;
-use melodium_common::descriptor::Treatment as TreatmentDescriptor;
+use melodium_common::descriptor::{Status, Treatment as TreatmentDescriptor};
 use melodium_common::executive::{TrackId, Treatment};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
@@ -31,7 +31,13 @@ impl BuildSample {
             genesis_environment: environment.clone(),
             host_treatment: host_treatment.clone(),
             host_build_id: host_build.clone(),
-            check: Arc::new(RwLock::new(CheckBuild::new())),
+            check: Arc::new(RwLock::new(CheckBuild::new(
+                host_treatment
+                    .as_ref()
+                    .map(|descriptor| descriptor.identifier())
+                    .cloned(),
+                label,
+            ))),
             label: label.to_string(),
         }
     }
@@ -71,7 +77,7 @@ impl BuilderTrait for Builder {
         host_build: Option<BuildId>,
         label: String,
         environment: &GenesisEnvironment,
-    ) -> Result<StaticBuildResult, LogicError> {
+    ) -> LogicResult<StaticBuildResult> {
         let world = self.world.upgrade().unwrap();
         // Make a BuildSample with matching informations
         let build_sample = BuildSample::new(&host_treatment, &host_build, &label, environment);
@@ -91,7 +97,7 @@ impl BuilderTrait for Builder {
                 world.add_source(
                     matching_model.id().unwrap(),
                     source,
-                    self.descriptor.upgrade().unwrap().as_identified(),
+                    TreatmentDescriptor::as_identified(&*self.descriptor.upgrade().unwrap()),
                     idx,
                 );
             }
@@ -99,7 +105,7 @@ impl BuilderTrait for Builder {
 
         builds_writer.push(build_sample);
 
-        Ok(StaticBuildResult::Build(idx))
+        Status::new_success(StaticBuildResult::Build(idx))
     }
 
     fn dynamic_build(
@@ -145,6 +151,7 @@ impl BuilderTrait for Builder {
         let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
         let host_build = world
             .builder(host_descriptor.identifier())
+            .success()
             .unwrap()
             .give_next(
                 build_sample.host_build_id.unwrap(),
@@ -210,7 +217,13 @@ impl BuilderTrait for Builder {
             build_id: build,
         };
         if let Some(_existing_check_step) = previous_steps.iter().find(|&cs| cs == &check_step) {
-            errors.push(LogicError::already_included_build_step());
+            errors.push(LogicError::already_included_build_step(
+                56,
+                descriptor.identifier().clone(),
+                check_step.clone(),
+                previous_steps.clone(),
+                None,
+            ));
         }
         let mut current_previous_steps = previous_steps.clone();
         current_previous_steps.push(check_step);
@@ -224,6 +237,7 @@ impl BuilderTrait for Builder {
             let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
             let build_result = world
                 .builder(host_descriptor.identifier())
+                .success()
                 .unwrap()
                 .check_give_next(
                     build_sample.host_build_id.unwrap(),
