@@ -123,22 +123,57 @@ impl Treatment {
         self.models.insert(name.to_string(), Arc::clone(model));
     }
 
+    pub fn remove_model(&mut self, name: &str) -> bool {
+        match self.models.remove(name) {
+            Some(_) => true,
+            None => false,
+        }
+    }
+
     pub fn add_parameter(&mut self, parameter: Parameter) {
         self.parameters
             .insert(parameter.name().to_string(), parameter);
+    }
+
+    pub fn remove_parameter(&mut self, name: &str) -> bool {
+        match self.parameters.remove(name) {
+            Some(_) => true,
+            None => false,
+        }
     }
 
     pub fn add_input(&mut self, input: Input) {
         self.inputs.insert(input.name().to_string(), input);
     }
 
+    pub fn remove_input(&mut self, name: &str) -> bool {
+        match self.inputs.remove(name) {
+            Some(_) => true,
+            None => false,
+        }
+    }
+
     pub fn add_output(&mut self, output: Output) {
         self.outputs.insert(output.name().to_string(), output);
+    }
+
+    pub fn remove_output(&mut self, name: &str) -> bool {
+        match self.outputs.remove(name) {
+            Some(_) => true,
+            None => false,
+        }
     }
 
     pub fn add_context(&mut self, context: &Arc<dyn Context>) {
         self.contexts
             .insert(context.name().to_string(), context.clone());
+    }
+
+    pub fn remove_context(&mut self, name: &str) -> bool {
+        match self.models.remove(name) {
+            Some(_) => true,
+            None => false,
+        }
     }
 
     pub fn commit(self) -> Arc<Self> {

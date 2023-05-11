@@ -119,6 +119,13 @@ impl Model {
             .insert(parameter.name().to_string(), parameter);
     }
 
+    pub fn remove_parameter(&mut self, name: &str) -> bool {
+        match self.parameters.remove(name) {
+            Some(_) => true,
+            None => false,
+        }
+    }
+
     pub fn commit(self) -> Arc<Self> {
         Arc::new_cyclic(|me| Self {
             identifier: self.identifier,
