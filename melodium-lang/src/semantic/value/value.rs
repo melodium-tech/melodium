@@ -283,7 +283,6 @@ impl Value {
                     .read()
                     .unwrap()
                     .collection()
-                    .unwrap()
                     .get(
                         context
                             .reference
@@ -319,7 +318,6 @@ impl Value {
                     .read()
                     .unwrap()
                     .collection()
-                    .unwrap()
                     .get(&borrowed_func.type_identifier.as_ref().unwrap())
                 {
                     let mut result = ScriptResult::new_success(());

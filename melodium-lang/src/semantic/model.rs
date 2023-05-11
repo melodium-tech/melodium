@@ -220,16 +220,12 @@ impl Model {
 
         let rc_designer: Arc<RwLock<ModelDesigner>> = if let Some(designer) = result
             .merge_degrade_failure(ScriptResult::from(
-                descriptor.designer(Some(self.text.name.into_ref())),
+                descriptor.designer(Arc::clone(collection), Some(self.text.name.into_ref())),
             )) {
             designer
         } else {
             return result;
         };
-        rc_designer
-            .write()
-            .unwrap()
-            .set_collection(Arc::clone(collection));
 
         for rc_assignation in &self.assignations {
             let borrowed_assignation = rc_assignation.read().unwrap();

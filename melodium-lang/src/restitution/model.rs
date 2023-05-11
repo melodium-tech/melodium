@@ -1,5 +1,5 @@
 use melodium_common::descriptor::{
-    Identified, Identifier, Model as ModelDescriptor, Parameterized,
+    Documented, Identified, Identifier, Model as ModelDescriptor, Parameterized,
 };
 use melodium_engine::design::Model as ModelDesign;
 use std::collections::HashMap;
@@ -24,7 +24,15 @@ impl Model {
     pub fn implementation(&self, names: &HashMap<Identifier, String>) -> String {
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
-        let mut implementation = String::new();
+        let mut implementation = format!(
+            "/**\n{}*/",
+            descriptor
+                .documentation()
+                .lines()
+                .map(|l| format!("\t{l}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
 
         implementation.push_str("model ");
         implementation.push_str(descriptor.identifier().name());

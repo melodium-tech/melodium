@@ -15,7 +15,7 @@ use std::sync::{Arc, RwLock, Weak};
 
 #[derive(Debug)]
 pub struct Treatment {
-    collection: Option<Arc<Collection>>,
+    collection: Arc<Collection>,
     descriptor: Weak<TreatmentDescriptor>,
 
     model_instanciations: HashMap<String, Arc<RwLock<ModelInstanciation>>>,
@@ -30,12 +30,13 @@ pub struct Treatment {
 impl Treatment {
     pub fn new(
         descriptor: &Arc<TreatmentDescriptor>,
+        collection: Arc<Collection>,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Arc<RwLock<Self>> {
         Arc::<RwLock<Self>>::new_cyclic(|me| {
             RwLock::new(Self {
                 descriptor: Arc::downgrade(descriptor),
-                collection: None,
+                collection,
                 model_instanciations: HashMap::new(),
                 treatments: HashMap::new(),
                 connections: Vec::new(),
@@ -45,14 +46,44 @@ impl Treatment {
         })
     }
 
-    pub fn set_collection(
-        &mut self,
-        collection: std::sync::Arc<melodium_common::descriptor::Collection>,
-    ) {
-        self.collection = Some(collection);
+    pub fn update_collection(&mut self, collection: Arc<Collection>) -> LogicResult<()> {
+        self.collection = collection;
+
+        let mut result = LogicResult::new_success(());
+        let mut deletion_list = Vec::new();
+        for (name, model_instanciation) in &self.model_instanciations {
+            let res = model_instanciation
+                .write()
+                .unwrap()
+                .update_collection(&self.collection);
+            if res.is_failure() {
+                deletion_list.push(name.clone());
+            }
+            result = result.and_degrade_failure(res);
+        }
+        deletion_list.iter().for_each(|d| {
+            self.remove_model_instanciation(d);
+        });
+
+        let mut deletion_list = Vec::new();
+        for (name, treatment) in &self.treatments {
+            let res = treatment
+                .write()
+                .unwrap()
+                .update_collection(&self.collection);
+            if res.is_failure() {
+                deletion_list.push(name.clone());
+            }
+            result = result.and_degrade_failure(res);
+        }
+        deletion_list.iter().for_each(|d| {
+            self.remove_treatment(d);
+        });
+
+        result
     }
 
-    pub fn collection(&self) -> &Option<Arc<Collection>> {
+    pub fn collection(&self) -> &Arc<Collection> {
         &self.collection
     }
 
@@ -70,30 +101,22 @@ impl Treatment {
         name: &str,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<Arc<RwLock<ModelInstanciation>>> {
-        if let Some(collection) = self.collection.as_ref() {
-            if let Some(Entry::Model(model_descriptor)) = collection.get(model_identifier) {
-                let model = ModelInstanciation::new(
-                    &self.auto_reference.upgrade().unwrap(),
-                    model_descriptor,
-                    name,
-                    design_reference.clone(),
-                );
-                let rc_model = Arc::new(RwLock::new(model));
-                self.model_instanciations
-                    .insert(name.to_string(), Arc::clone(&rc_model));
-                Ok(rc_model).into()
-            } else {
-                Err(LogicError::unexisting_model(
-                    41,
-                    self.descriptor().identifier().clone(),
-                    model_identifier.clone(),
-                    design_reference.clone(),
-                ))
-                .into()
-            }
+        if let Some(Entry::Model(model_descriptor)) = self.collection.get(model_identifier) {
+            let model = ModelInstanciation::new(
+                &self.auto_reference.upgrade().unwrap(),
+                model_descriptor,
+                name,
+                design_reference.clone(),
+            );
+            let rc_model = Arc::new(RwLock::new(model));
+            self.model_instanciations
+                .insert(name.to_string(), Arc::clone(&rc_model));
+            Ok(rc_model).into()
         } else {
-            Err(LogicError::collection_undefined(
-                0,
+            Err(LogicError::unexisting_model(
+                41,
+                self.descriptor().identifier().clone(),
+                model_identifier.clone(),
                 design_reference.clone(),
             ))
             .into()
@@ -133,31 +156,23 @@ impl Treatment {
         name: &str,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<Arc<RwLock<TreatmentInstanciation>>> {
-        if let Some(collection) = self.collection.as_ref() {
-            if let Some(Entry::Treatment(treatment_descriptor)) =
-                collection.get(treatment_identifier)
-            {
-                let rc_treatment = TreatmentInstanciation::new(
-                    &self.auto_reference.upgrade().unwrap(),
-                    treatment_descriptor,
-                    name,
-                    design_reference.clone(),
-                );
-                self.treatments
-                    .insert(name.to_string(), Arc::clone(&rc_treatment));
-                Ok(rc_treatment).into()
-            } else {
-                Err(LogicError::unexisting_treatment(
-                    40,
-                    self.descriptor().identifier().clone(),
-                    treatment_identifier.clone(),
-                    design_reference.clone(),
-                ))
-                .into()
-            }
+        if let Some(Entry::Treatment(treatment_descriptor)) =
+            self.collection.get(treatment_identifier)
+        {
+            let rc_treatment = TreatmentInstanciation::new(
+                &self.auto_reference.upgrade().unwrap(),
+                &treatment_descriptor,
+                name,
+                design_reference.clone(),
+            );
+            self.treatments
+                .insert(name.to_string(), Arc::clone(&rc_treatment));
+            Ok(rc_treatment).into()
         } else {
-            Err(LogicError::collection_undefined(
-                1,
+            Err(LogicError::unexisting_treatment(
+                40,
+                self.descriptor().identifier().clone(),
+                treatment_identifier.clone(),
                 design_reference.clone(),
             ))
             .into()
@@ -823,10 +838,8 @@ impl Scope for Treatment {
         Arc::clone(&self.descriptor()) as Arc<dyn Parameterized>
     }
 
-    fn collection(&self) -> Option<Arc<Collection>> {
-        self.collection
-            .as_ref()
-            .map(|collection| Arc::clone(collection))
+    fn collection(&self) -> Arc<Collection> {
+        Arc::clone(&self.collection)
     }
 
     fn identifier(&self) -> Identifier {

@@ -3,7 +3,7 @@ use crate::designer::{Model as Designer, Reference};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
-    Buildable, Context, Documented, Identified, Identifier, Model as ModelDescriptor,
+    Buildable, Collection, Context, Documented, Identified, Identifier, Model as ModelDescriptor,
     ModelBuildMode, Parameter, Parameterized, Status,
 };
 use std::collections::HashMap;
@@ -42,6 +42,7 @@ impl Model {
 
     pub fn designer(
         &self,
+        collection: Arc<Collection>,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<Arc<RwLock<Designer>>> {
         if self.auto_reference.strong_count() == 0 {
@@ -56,8 +57,11 @@ impl Model {
         if let Some(designer_ref) = &*option_designer {
             Status::new_success(designer_ref.clone())
         } else {
-            let new_designer =
-                Designer::new(&self.auto_reference.upgrade().unwrap(), design_reference);
+            let new_designer = Designer::new(
+                &self.auto_reference.upgrade().unwrap(),
+                collection,
+                design_reference,
+            );
 
             *option_designer = Some(new_designer.clone());
 
@@ -161,6 +165,10 @@ impl Parameterized for Model {
 impl Buildable<ModelBuildMode> for Model {
     fn build_mode(&self) -> ModelBuildMode {
         ModelBuildMode::Designed()
+    }
+
+    fn make_use(&self, identifier: &Identifier) -> bool {
+        self.base_model.identifier() == identifier
     }
 }
 

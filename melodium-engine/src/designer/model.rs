@@ -12,7 +12,7 @@ use std::sync::{Arc, RwLock, Weak};
 
 #[derive(Debug)]
 pub struct Model {
-    collection: Option<Arc<Collection>>,
+    collection: Arc<Collection>,
     descriptor: Weak<ModelDescriptor>,
 
     parameters: HashMap<String, Arc<RwLock<Parameter>>>,
@@ -25,12 +25,13 @@ pub struct Model {
 impl Model {
     pub fn new(
         descriptor: &Arc<ModelDescriptor>,
+        collection: Arc<Collection>,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Arc<RwLock<Self>> {
         Arc::<RwLock<Self>>::new_cyclic(|me| {
             RwLock::new(Self {
                 descriptor: Arc::downgrade(descriptor),
-                collection: None,
+                collection,
                 parameters: HashMap::new(),
                 design_reference,
                 auto_reference: me.clone(),
@@ -38,11 +39,26 @@ impl Model {
         })
     }
 
-    pub fn set_collection(&mut self, collection: Arc<Collection>) {
-        self.collection = Some(collection);
+    pub fn update_collection(&mut self, collection: Arc<Collection>) -> LogicResult<()> {
+        self.collection = collection;
+
+        let mut result = LogicResult::new_success(());
+        let mut deletion_list = Vec::new();
+        for (name, param) in &self.parameters {
+            let res = param.write().unwrap().update_collection(&self.collection);
+            if res.is_failure() {
+                deletion_list.push(name.clone());
+            }
+            result = result.and_degrade_failure(res);
+        }
+        deletion_list.iter().for_each(|d| {
+            self.remove_parameter(d);
+        });
+
+        result
     }
 
-    pub fn collection(&self) -> &Option<Arc<Collection>> {
+    pub fn collection(&self) -> &Arc<Collection> {
         &self.collection
     }
 
@@ -101,6 +117,14 @@ impl Model {
             .into())
             .into()
         }
+    }
+
+    pub fn remove_parameter(&mut self, name: &str) -> LogicResult<bool> {
+        Ok(match self.parameters.remove(name) {
+            Some(_) => true,
+            None => false,
+        })
+        .into()
     }
 
     pub fn parameters(&self) -> &HashMap<String, Arc<RwLock<Parameter>>> {
@@ -189,10 +213,8 @@ impl Scope for Model {
         Arc::clone(&self.descriptor()) as Arc<dyn Parameterized>
     }
 
-    fn collection(&self) -> Option<Arc<Collection>> {
-        self.collection
-            .as_ref()
-            .map(|collection| Arc::clone(collection))
+    fn collection(&self) -> Arc<Collection> {
+        Arc::clone(&self.collection)
     }
 
     fn identifier(&self) -> Identifier {

@@ -76,6 +76,14 @@ impl Buildable<ModelBuildMode> for Model {
     fn build_mode(&self) -> ModelBuildMode {
         ModelBuildMode::Compiled(self.build_fn)
     }
+
+    fn make_use(&self, identifier: &Identifier) -> bool {
+        self.sources.iter().any(|(_, contextes)| {
+            contextes
+                .iter()
+                .any(|context| context.identifier() == identifier)
+        })
+    }
 }
 
 impl Display for Model {

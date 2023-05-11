@@ -114,6 +114,11 @@ pub enum LogicErrorKind {
         scope: Identifier,
         claimed: Identifier,
     },
+    /// The function is not existing within current available functions.
+    UnexistingFunction {
+        scope: Identifier,
+        claimed: Identifier,
+    },
     /// The model is not declared here.
     UndeclaredModel { scope: Identifier, model: String },
     /// The treatment is not declared here.
@@ -242,6 +247,7 @@ impl Display for LogicErrorKind {
             LogicErrorKind::UnexistingTreatment{scope: _, claimed} => write!(f, "Treatment '{claimed}' does not exist"),
             LogicErrorKind::UnexistingModel { scope: _, claimed } => write!(f, "Model '{claimed}' does not exist"),
             LogicErrorKind::UnexistingContext { scope: _, claimed } => write!(f, "Context '{claimed}' does not exist"),
+            LogicErrorKind::UnexistingFunction{ scope: _, claimed } => write!(f, "Function '{claimed}' does not exist"),
             LogicErrorKind::UndeclaredModel { scope, model } => write!(f, "Model '{model}' is not declared in '{scope}'"),
             LogicErrorKind::UndeclaredTreatment { scope, treatment } => write!(f, "Treatment '{treatment}' is not declared in '{scope}'"),
             LogicErrorKind::UnexistingConnectionType { scope, from, output, to, input, output_type, input_type, output_flow, input_flow } => write!(f, "Connection from '{from}' to '{to}' in '{scope}' is not possible, '{output}' is {output_flow}<{output_type}> but '{input}' is {input_flow}<{input_type}>"),
@@ -620,6 +626,20 @@ impl LogicError {
             id,
             design_reference,
             kind: LogicErrorKind::UnexistingContext { scope, claimed },
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::UnexistingFunction`] kind.
+    pub fn unexisting_function(
+        id: u32,
+        scope: Identifier,
+        claimed: Identifier,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> Self {
+        Self {
+            id,
+            design_reference,
+            kind: LogicErrorKind::UnexistingFunction { scope, claimed },
         }
     }
 

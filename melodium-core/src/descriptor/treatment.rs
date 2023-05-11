@@ -86,6 +86,12 @@ impl Buildable<TreatmentBuildMode> for Treatment {
     fn build_mode(&self) -> TreatmentBuildMode {
         TreatmentBuildMode::Compiled(self.build_fn, self.auto_reference.clone())
     }
+
+    fn make_use(&self, identifier: &Identifier) -> bool {
+        self.models
+            .iter()
+            .any(|(_, model)| model.identifier() == identifier)
+    }
 }
 
 impl Display for Treatment {

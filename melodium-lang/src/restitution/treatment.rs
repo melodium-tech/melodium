@@ -1,6 +1,6 @@
 use super::value::value;
 use melodium_common::descriptor::{
-    Identified, Identifier, Parameterized, Treatment as TreatmentDescriptor,
+    Documented, Identified, Identifier, Parameterized, Treatment as TreatmentDescriptor,
 };
 use melodium_engine::design::{Connection, Treatment as TreatmentDesign, IO};
 use std::collections::HashMap;
@@ -42,7 +42,15 @@ impl Treatment {
     pub fn implementation(&self, names: &HashMap<Identifier, String>) -> String {
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
-        let mut implementation = String::new();
+        let mut implementation = format!(
+            "/**\n{}*/",
+            descriptor
+                .documentation()
+                .lines()
+                .map(|l| format!("\t{l}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
 
         implementation.push_str("treatment ");
         implementation.push_str(descriptor.identifier().name());
