@@ -5,7 +5,7 @@ use crate::building::{
     StaticBuildResult,
 };
 use crate::engine::Engine;
-use crate::error::LogicError;
+use crate::error::{LogicError, LogicErrors, LogicResult};
 use crate::transmission::{Input, Output};
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::sync::Mutex;
@@ -37,7 +37,7 @@ pub struct World {
 
     builders: RwLock<HashMap<Identifier, Arc<dyn Builder>>>,
 
-    errors: RwLock<Vec<LogicError>>,
+    errors: RwLock<LogicErrors>,
     main_build_id: RwLock<BuildId>,
 
     continuous_tasks_sender: Sender<ContinuousFuture>,
@@ -127,13 +127,13 @@ impl World {
         });
     }
 
-    pub fn builder(&self, identifier: &Identifier) -> Result<Arc<dyn Builder>, LogicError> {
+    pub fn builder(&self, identifier: &Identifier) -> LogicResult<Arc<dyn Builder>> {
         let possible_builder;
         {
             possible_builder = self.builders.read().unwrap().get(identifier).cloned();
         }
         if let Some(builder) = possible_builder {
-            Ok(builder)
+            LogicResult::new_success(builder)
         } else {
             if let Some(entry) = self.collection.get(identifier) {
                 let builder = match entry {
@@ -145,17 +145,23 @@ impl World {
                         self.auto_reference.upgrade().unwrap(),
                         &treatment.as_buildable(),
                     ),
-                    _ => Err(LogicError::unavailable_design()),
-                }?;
+                    _ => LogicResult::new_failure(
+                        LogicError::unavailable_design(19, identifier.clone(), None).into(),
+                    ),
+                };
 
-                self.builders
-                    .write()
-                    .unwrap()
-                    .insert(identifier.clone(), Arc::clone(&builder));
+                if let Some(builder) = builder.success() {
+                    self.builders
+                        .write()
+                        .unwrap()
+                        .insert(identifier.clone(), Arc::clone(builder));
+                }
 
-                Ok(builder)
+                builder
             } else {
-                Err(LogicError::unavailable_design())
+                LogicResult::new_failure(
+                    LogicError::unavailable_design(20, identifier.clone(), None).into(),
+                )
             }
         }
     }
@@ -232,29 +238,28 @@ impl Engine for World {
         Arc::clone(&self.collection)
     }
 
-    fn genesis(&self, beginning: &Identifier) -> Result<(), Vec<LogicError>> {
+    fn genesis(&self, beginning: &Identifier) -> LogicResult<()> {
         let gen_env = GenesisEnvironment::new();
 
-        let result = match self.builder(beginning) {
-            Ok(builder) => builder.static_build(None, None, "main".to_string(), &gen_env),
-            Err(err) => Err(err),
-        };
-        if result.is_err() {
-            let error = result.unwrap_err();
+        let result = self
+            .builder(beginning)
+            .and_then(|builder| builder.static_build(None, None, "main".to_string(), &gen_env));
+        if let Some(failure) = result.failure() {
             let mut errors = self.errors.write().unwrap();
-            errors.push(error);
-            return Err(errors.clone());
+            errors.append(&mut result.errors().clone());
+            errors.push(failure.clone());
+            return result.and(LogicResult::new_success(()));
         }
 
-        match result.unwrap() {
-            StaticBuildResult::Build(b) => *self.main_build_id.write().unwrap() = b,
+        match result.success().unwrap() {
+            StaticBuildResult::Build(b) => *self.main_build_id.write().unwrap() = *b,
             _ => panic!("Cannot make a genesis with something else than a treatment"),
         };
 
         // Check all the tracks/paths
+        let mut result = result.and_degrade_failure(LogicResult::new_success(()));
         let models = self.models.read().unwrap();
         let mut builds = Vec::new();
-        let mut errors = Vec::new();
         for (model_id, model_sources) in self.sources.read().unwrap().iter() {
             let model = models.get(*model_id as usize).unwrap();
 
@@ -271,14 +276,22 @@ impl Engine for World {
                 };
 
                 for entry in entries {
-                    let result = self
-                        .builder(entry.descriptor.identifier())
-                        .unwrap()
-                        .check_dynamic_build(entry.id, check_environment.clone(), Vec::new())
-                        .unwrap();
-
-                    builds.extend(result.checked_builds);
-                    errors.extend(result.errors);
+                    result = result.and_degrade_failure(
+                        self.builder(entry.descriptor.identifier())
+                            .and_then(|builder| {
+                                let check = builder
+                                    .check_dynamic_build(
+                                        entry.id,
+                                        check_environment.clone(),
+                                        Vec::new(),
+                                    )
+                                    .unwrap();
+                                builds.extend(check.checked_builds);
+                                let mut result = LogicResult::new_success(());
+                                result.errors_mut().extend(check.errors);
+                                result
+                            }),
+                    );
                 }
             }
         }
@@ -286,30 +299,41 @@ impl Engine for World {
         // Check that all inputs are satisfied.
         for rc_check_build in builds {
             let borrowed_check_build = rc_check_build.read().unwrap();
-            for (_input_name, input_satisfied) in &borrowed_check_build.fed_inputs {
+            for (input_name, input_satisfied) in &borrowed_check_build.fed_inputs {
                 if !input_satisfied {
-                    errors.push(LogicError::unsatisfied_input());
+                    result.errors_mut().push(LogicError::unsatisfied_input(
+                        59,
+                        borrowed_check_build.host_id.clone(),
+                        borrowed_check_build.label.clone(),
+                        input_name.clone(),
+                        None,
+                    ));
                 }
             }
         }
 
         let mut borrowed_errors = self.errors.write().unwrap();
-        borrowed_errors.extend(errors);
+        borrowed_errors.extend(result.errors().clone());
 
-        if !borrowed_errors.is_empty() {
-            return Err(borrowed_errors.clone());
+        if result.is_success() {
+            if result.errors().is_empty() {
+                self.models
+                    .read()
+                    .unwrap()
+                    .iter()
+                    .for_each(|m| m.initialize());
+                Ok(()).into()
+            } else {
+                result.and(LogicResult::new_failure(LogicError::erroneous_checks(
+                    69, None,
+                )))
+            }
+        } else {
+            result
         }
-
-        self.models
-            .read()
-            .unwrap()
-            .iter()
-            .for_each(|m| m.initialize());
-
-        Ok(())
     }
 
-    fn errors(&self) -> Vec<LogicError> {
+    fn errors(&self) -> LogicErrors {
         self.errors.read().unwrap().clone()
     }
 
@@ -392,6 +416,7 @@ impl ExecutiveWorld for World {
             for entry in entries {
                 let build_result = self
                     .builder(entry.descriptor.identifier())
+                    .success()
                     .unwrap()
                     .dynamic_build(entry.id, &contextual_environment)
                     .unwrap();

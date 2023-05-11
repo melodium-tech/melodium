@@ -8,9 +8,10 @@ use super::declarative_element::DeclarativeElement;
 use super::model::Model;
 use super::r#use::Use;
 use super::treatment::Treatment;
-use crate::error::{wrap_logic_error, ScriptError};
+use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Instanciation as TextInstanciation;
+use crate::ScriptResult;
 use melodium_common::descriptor::Identifier;
 use melodium_engine::designer::ModelInstanciation as ModelInstanciationDesigner;
 use std::sync::{Arc, RwLock, Weak};
@@ -54,7 +55,7 @@ impl ModelInstanciation {
     pub fn new(
         treatment: Arc<RwLock<Treatment>>,
         text: TextInstanciation,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
         let model = Arc::<RwLock<Self>>::new(RwLock::new(Self {
             text: text.clone(),
             treatment: Arc::downgrade(&treatment),
@@ -63,49 +64,53 @@ impl ModelInstanciation {
             parameters: Vec::new(),
             type_identifier: None,
         }));
+        let mut result = ScriptResult::new_success(Arc::clone(&model));
 
         {
             let borrowed_treatment = treatment.read().unwrap();
 
             if let Some(_) = borrowed_treatment.find_model_instanciation(&text.name.string) {
-                return Err(ScriptError::semantic(
-                    "Model '".to_string() + &text.name.string + "' is already instancied.",
-                    text.name.position,
+                result = result.and_degrade_failure(ScriptResult::new_failure(
+                    ScriptError::already_used_name(128, text.name),
                 ));
             }
         }
 
         for p in text.parameters {
-            let assigned_parameter = AssignedParameter::new(
+            if let Some(assigned_parameter) = result.merge_degrade_failure(AssignedParameter::new(
                 Arc::clone(&model) as Arc<RwLock<dyn AssignativeElement>>,
                 p,
-            )?;
-            model.write().unwrap().parameters.push(assigned_parameter);
+            )) {
+                model.write().unwrap().parameters.push(assigned_parameter);
+            }
         }
 
-        Ok(model)
+        result
     }
 
     pub fn make_design(
         &self,
         designer: &Arc<RwLock<ModelInstanciationDesigner>>,
-    ) -> Result<(), ScriptError> {
+    ) -> ScriptResult<()> {
         let mut designer = designer.write().unwrap();
-
+        let mut result = ScriptResult::new_success(());
         for rc_assignation in &self.parameters {
             let borrowed_assignation = rc_assignation.read().unwrap();
 
-            let assignation_designer = wrap_logic_error!(
-                designer.add_parameter(&borrowed_assignation.name),
-                borrowed_assignation.text.name.position
-            );
-
-            borrowed_assignation.make_design(&assignation_designer)?;
+            if let Some(assignation_designer) =
+                result.merge_degrade_failure(ScriptResult::from(designer.add_parameter(
+                    &borrowed_assignation.name,
+                    Some(borrowed_assignation.text.name.into_ref()),
+                )))
+            {
+                result = result
+                    .and_degrade_failure(borrowed_assignation.make_design(&assignation_designer));
+            }
         }
 
-        wrap_logic_error!(designer.validate(), self.text.name.position);
+        result = result.and_degrade_failure(ScriptResult::from(designer.validate()));
 
-        Ok(())
+        result
     }
 }
 
@@ -136,7 +141,7 @@ impl Node for ModelInstanciation {
         children
     }
 
-    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
+    fn make_references(&mut self, path: &Path) -> ScriptResult<()> {
         if let RefersTo::Unknown(reference) = &self.r#type {
             let rc_treatment = self.treatment.upgrade().unwrap();
             let borrowed_treatment = rc_treatment.read().unwrap();
@@ -163,14 +168,14 @@ impl Node for ModelInstanciation {
                         reference: Some(Arc::downgrade(model.unwrap())),
                     });
                 } else {
-                    return Err(ScriptError::semantic(
-                        "'".to_string() + &reference.name + "' is unknown.",
-                        self.text.r#type.position,
+                    return ScriptResult::new_failure(ScriptError::unimported_element(
+                        130,
+                        self.text.r#type.clone(),
                     ));
                 }
             }
         }
 
-        Ok(())
+        ScriptResult::new_success(())
     }
 }

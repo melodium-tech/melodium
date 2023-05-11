@@ -4,8 +4,8 @@ use super::common::Node;
 use super::model::Model;
 use super::r#use::Use;
 use super::treatment::Treatment;
-use crate::error::ScriptError;
 use crate::text::Script as TextScript;
+use crate::ScriptResult;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -32,32 +32,42 @@ impl Script {
     /// # Note
     /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    pub fn new(text: TextScript) -> Result<Arc<RwLock<Self>>, ScriptError> {
+    pub fn new(text: TextScript) -> ScriptResult<Arc<RwLock<Self>>> {
         let script = Arc::<RwLock<Self>>::new(RwLock::new(Self {
             text: text.clone(),
             uses: Vec::new(),
             models: HashMap::new(),
             treatments: HashMap::new(),
         }));
+        let mut result = ScriptResult::new_success(script.clone());
 
         for u in text.uses {
-            let r#use = Use::new(Arc::clone(&script), u.clone())?;
-            script.write().unwrap().uses.push(r#use);
+            if let Some(r#use) =
+                result.merge_degrade_failure(Use::new(Arc::clone(&script), u.clone()))
+            {
+                script.write().unwrap().uses.push(r#use);
+            }
         }
 
         for m in text.models {
-            let model = Model::new(Arc::clone(&script), m.clone())?;
-            let name = model.read().unwrap().name.clone();
-            script.write().unwrap().models.insert(name, model);
+            if let Some(model) =
+                result.merge_degrade_failure(Model::new(Arc::clone(&script), m.clone()))
+            {
+                let name = model.read().unwrap().name.clone();
+                script.write().unwrap().models.insert(name, model);
+            }
         }
 
         for s in text.treatments {
-            let treatment = Treatment::new(Arc::clone(&script), s.clone())?;
-            let name = treatment.read().unwrap().name.clone();
-            script.write().unwrap().treatments.insert(name, treatment);
+            if let Some(treatment) =
+                result.merge_degrade_failure(Treatment::new(Arc::clone(&script), s.clone()))
+            {
+                let name = treatment.read().unwrap().name.clone();
+                script.write().unwrap().treatments.insert(name, treatment);
+            }
         }
 
-        Ok(script)
+        result
     }
 
     /// Search for an element imported through a use.

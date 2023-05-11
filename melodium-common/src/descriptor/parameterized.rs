@@ -1,11 +1,14 @@
-use super::Parameter;
+use super::{Identified, Parameter};
 use core::fmt::Debug;
 use std::collections::HashMap;
+use std::sync::Arc;
 
-pub trait Parameterized: Debug + Send + Sync {
+pub trait Parameterized: Identified + Debug + Send + Sync {
     fn parameters(&self) -> &HashMap<String, Parameter>;
+    fn as_identified(&self) -> Arc<dyn Identified>;
 }
 
-pub trait OrderedParameterized: Debug + Send + Sync {
+pub trait OrderedParameterized: Identified + Debug + Send + Sync {
     fn parameters(&self) -> &Vec<Parameter>;
+    fn as_identified(&self) -> Arc<dyn Identified>;
 }

@@ -1,7 +1,7 @@
 //! Module for Type identification and structure semantic analysis.
 
-use crate::text::Type as TextType;
 use crate::ScriptError;
+use crate::{text::Type as TextType, ScriptResult};
 use melodium_common::descriptor::{
     DataType as DataTypeDescriptor, Flow as FlowDescriptor,
     Structure as DataTypeStructureDescriptor, Type as DataTypeTypeDescriptor,
@@ -173,56 +173,7 @@ impl Type {
     ///
     /// * `text`: the textual type.
     ///
-    /// # Example
-    /// ```
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::Type as TextType;
-    /// # use melodium_lang::semantic::r#type::*;
-    /// let str_block_vec_int = "Vec<u64>";
-    /// let str_block_scal_string = "string";
-    /// let str_stream_vec_real = "Stream<Vec<f64>>";
-    /// let str_stream_scal_bool = "Stream<bool>";
-    ///
-    /// fn get_text_type(str: & str) -> TextType {
-    ///     let words = get_words(str).unwrap();
-    ///     let mut iter = words.iter();
-    ///     TextType::build(&mut iter).unwrap()
-    /// }
-    ///
-    /// let type_block_vec_int = Type::new(get_text_type(str_block_vec_int))?;
-    /// assert_eq!(type_block_vec_int.name, TypeName::U64);
-    /// assert_eq!(type_block_vec_int.flow, TypeFlow::Block);
-    /// assert_eq!(type_block_vec_int.structure, TypeStructure::Vector);
-    ///
-    /// let type_block_scal_string = Type::new(get_text_type(str_block_scal_string))?;
-    /// assert_eq!(type_block_scal_string.name, TypeName::String);
-    /// assert_eq!(type_block_scal_string.flow, TypeFlow::Block);
-    /// assert_eq!(type_block_scal_string.structure, TypeStructure::Scalar);
-    ///
-    /// let type_stream_vec_real = Type::new(get_text_type(str_stream_vec_real))?;
-    /// assert_eq!(type_stream_vec_real.name, TypeName::F64);
-    /// assert_eq!(type_stream_vec_real.flow, TypeFlow::Stream);
-    /// assert_eq!(type_stream_vec_real.structure, TypeStructure::Vector);
-    ///
-    /// let type_stream_scal_bool = Type::new(get_text_type(str_stream_scal_bool))?;
-    /// assert_eq!(type_stream_scal_bool.name, TypeName::Bool);
-    /// assert_eq!(type_stream_scal_bool.flow, TypeFlow::Stream);
-    /// assert_eq!(type_stream_scal_bool.structure, TypeStructure::Scalar);
-    /// # Ok::<(), ScriptError>(())
-    /// ```
-    pub fn new(text: TextType) -> Result<Self, ScriptError> {
-        // Get type name.
-        let name;
-        if let Some(opt_name) = TypeName::from_string(text.name.string.as_ref()) {
-            name = opt_name;
-        } else {
-            return Err(ScriptError::semantic(
-                "'".to_string() + &text.name.string + "' is not a valid type.",
-                text.name.position,
-            ));
-        }
-
+    pub fn new(text: TextType) -> ScriptResult<Self> {
         // Keep if flow has been specified.
         let mut valid_flow = true;
         let flow_name = match text.first_level_structure.clone() {
@@ -253,22 +204,26 @@ impl Type {
             Some("Scal") => TypeStructure::Scalar,
             Some("Vec") => TypeStructure::Vector,
             _ => {
-                return Err(ScriptError::semantic(
-                    "'".to_string() + &structure_name.unwrap() + "' is not a valid structure.",
-                    raw_structure.as_ref().unwrap().position,
-                ))
+                return ScriptResult::new_failure(ScriptError::invalid_structure(
+                    110,
+                    raw_structure.as_ref().unwrap().clone(),
+                ));
             }
         };
 
-        Ok(Self {
-            text,
-            name,
-            flow,
-            structure,
-        })
+        if let Some(name) = TypeName::from_string(text.name.string.as_ref()) {
+            ScriptResult::new_success(Self {
+                text,
+                name,
+                flow,
+                structure,
+            })
+        } else {
+            ScriptResult::new_failure(ScriptError::invalid_type(109, text.name.clone()))
+        }
     }
 
-    pub fn make_descriptor(&self) -> Result<(DataTypeDescriptor, FlowDescriptor), ScriptError> {
+    pub fn make_descriptor(&self) -> ScriptResult<(DataTypeDescriptor, FlowDescriptor)> {
         let flow = match self.flow {
             TypeFlow::Block => FlowDescriptor::Block,
             TypeFlow::Stream => FlowDescriptor::Stream,
@@ -281,6 +236,6 @@ impl Type {
 
         let r#type = self.name.to_descriptor();
 
-        Ok((DataTypeDescriptor::new(structure, r#type), flow))
+        ScriptResult::new_success((DataTypeDescriptor::new(structure, r#type), flow))
     }
 }

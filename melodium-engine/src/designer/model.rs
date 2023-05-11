@@ -1,10 +1,11 @@
-use super::{Parameter, Scope, Value};
+use super::{Parameter, Reference, Scope, Value};
 use crate::descriptor::Model as ModelDescriptor;
 use crate::design::{Model as ModelDesign, Parameter as ParameterDesign};
-use crate::error::LogicError;
+use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Collection, Model as ModelTrait, Parameter as ParameterDescriptor, Parameterized,
+    Collection, Identified, Identifier, Model as ModelTrait, Parameter as ParameterDescriptor,
+    Parameterized,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
@@ -16,16 +17,22 @@ pub struct Model {
 
     parameters: HashMap<String, Arc<RwLock<Parameter>>>,
 
+    design_reference: Option<Arc<dyn Reference>>,
+
     auto_reference: Weak<RwLock<Self>>,
 }
 
 impl Model {
-    pub fn new(descriptor: &Arc<ModelDescriptor>) -> Arc<RwLock<Self>> {
+    pub fn new(
+        descriptor: &Arc<ModelDescriptor>,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> Arc<RwLock<Self>> {
         Arc::<RwLock<Self>>::new_cyclic(|me| {
             RwLock::new(Self {
                 descriptor: Arc::downgrade(descriptor),
                 collection: None,
                 parameters: HashMap::new(),
+                design_reference,
                 auto_reference: me.clone(),
             })
         })
@@ -43,22 +50,26 @@ impl Model {
         self.descriptor.upgrade().unwrap()
     }
 
-    pub fn add_parameter(&mut self, name: &str) -> Result<Arc<RwLock<Parameter>>, LogicError> {
-        if self
+    pub fn design_reference(&self) -> &Option<Arc<dyn Reference>> {
+        &self.design_reference
+    }
+
+    pub fn add_parameter(
+        &mut self,
+        name: &str,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> LogicResult<Arc<RwLock<Parameter>>> {
+        let base_model = self
             .descriptor()
             .base_model()
-            .expect("Designed model must have base model")
-            .parameters()
-            .contains_key(name)
-        {
+            .expect("Designed model must have base model");
+
+        if base_model.parameters().contains_key(name) {
             let parameter = Parameter::new(
                 &(self.auto_reference.upgrade().unwrap() as Arc<RwLock<dyn Scope>>),
-                &self
-                    .descriptor()
-                    .base_model()
-                    .expect("Designed model must have base model")
-                    .as_parameterized(),
+                &base_model.as_parameterized(),
                 name,
+                design_reference.clone(),
             );
             let rc_parameter = Arc::new(RwLock::new(parameter));
 
@@ -67,12 +78,28 @@ impl Model {
                 .insert(name.to_string(), Arc::clone(&rc_parameter))
                 .is_none()
             {
-                Ok(rc_parameter)
+                Ok(rc_parameter).into()
             } else {
-                Err(LogicError::multiple_parameter_assignation())
+                Err(LogicError::multiple_parameter_assignation(
+                    25,
+                    self.descriptor().identifier().clone(),
+                    base_model.identifier().clone(),
+                    name.to_string(),
+                    design_reference,
+                )
+                .into())
+                .into()
             }
         } else {
-            Err(LogicError::unexisting_parameter())
+            Err(LogicError::unexisting_parameter(
+                12,
+                self.descriptor().identifier().clone(),
+                base_model.identifier().clone(),
+                name.to_string(),
+                design_reference,
+            )
+            .into())
+            .into()
         }
     }
 
@@ -80,10 +107,12 @@ impl Model {
         &self.parameters
     }
 
-    pub fn validate(&self) -> Result<(), LogicError> {
-        for (_, param) in &self.parameters {
-            param.read().unwrap().validate()?;
-        }
+    pub fn validate(&self) -> LogicResult<()> {
+        let mut result = LogicResult::new_success(());
+
+        result = self.parameters.iter().fold(result, |result, (_, param)| {
+            result.and_degrade_failure(param.read().unwrap().validate())
+        });
 
         // Check if all parent parameters are filled.
         let rc_base_model = self
@@ -104,38 +133,53 @@ impl Model {
             })
             .collect();
 
-        if !unset_params.is_empty() {
-            return Err(LogicError::unset_parameter());
+        for unset_param in unset_params {
+            result.errors_mut().push(LogicError::unset_parameter(
+                21,
+                self.descriptor().identifier().clone(),
+                rc_base_model.identifier().clone(),
+                unset_param.name().to_string(),
+                self.design_reference.clone(),
+            ));
         }
 
         // Check all parameters does not refers to a context.
-        if let Some(_forbidden_context) = self.parameters.iter().find(|&(_param_name, param)| {
+        for (name, param) in self.parameters.iter().filter(|&(_param_name, param)| {
             matches!(param.read().unwrap().value(), Some(Value::Context { .. }))
         }) {
-            return Err(LogicError::no_context());
+            result.errors_mut().push(LogicError::no_context(
+                29,
+                self.descriptor().identifier().clone(),
+                rc_base_model.identifier().clone(),
+                rc_base_model.identifier().name().to_string(),
+                name.to_string(),
+                param.read().unwrap().design_reference().clone(),
+            ));
         }
 
-        Ok(())
+        result
     }
 
-    pub fn design(&self) -> Result<ModelDesign, LogicError> {
-        self.validate()?;
+    pub fn design(&self) -> LogicResult<ModelDesign> {
+        let result = self.validate();
 
-        Ok(ModelDesign {
-            descriptor: self.descriptor.clone(),
-            parameters: self
-                .parameters
-                .iter()
-                .map(|(name, param)| {
-                    (
-                        name.clone(),
-                        ParameterDesign {
-                            name: name.clone(),
-                            value: param.read().unwrap().value().as_ref().unwrap().clone(),
-                        },
-                    )
-                })
-                .collect(),
+        result.and_then(|_| {
+            LogicResult::new_success(ModelDesign {
+                descriptor: self.descriptor.clone(),
+                parameters: self
+                    .parameters
+                    .iter()
+                    .map(|(name, param)| {
+                        (
+                            name.clone(),
+                            ParameterDesign {
+                                name: name.clone(),
+                                value: param.read().unwrap().value().as_ref().unwrap().clone(),
+                            },
+                        )
+                    })
+                    .collect(),
+            })
         })
     }
 }
@@ -149,5 +193,9 @@ impl Scope for Model {
         self.collection
             .as_ref()
             .map(|collection| Arc::clone(collection))
+    }
+
+    fn identifier(&self) -> Identifier {
+        self.descriptor().identifier().clone()
     }
 }

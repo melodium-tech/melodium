@@ -4,7 +4,7 @@ use super::annotation::Annotation;
 use super::model::Model;
 use super::r#use::Use;
 use super::treatment::Treatment;
-use super::word::{expect_word, get_words, Kind, Position};
+use super::word::{get_words, Kind, Position, Word};
 use super::PositionnedString;
 use crate::ScriptError;
 use std::collections::HashMap;
@@ -33,31 +33,6 @@ impl Script {
     /// # Note
     /// It doesn't check any logic, only syntax analysis and parsing.
     ///
-    /// ```
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::script::Script;
-    ///
-    /// let text = r##"
-    /// use project/subpath/to/utils::PrepareAudioFiles
-    /// use project/subpath/to/utils::MakeHPCP
-    ///
-    /// // Main treatment
-    /// treatment Main()
-    ///     require @File
-    ///     require @Signal
-    /// {
-    ///     PrepareAudioFiles(path="Musique/", sampleRate=44100, frameSize=4096, hopSize=2048, windowingType="blackmanharris92")
-    ///     MakeHPCP(sampleRate=@Signal[sampleRate], minFrequency=40, maxFrequency=5000, harmonics=8, size=120)
-    ///
-    ///     PrepareAudioFiles.spectrum -> MakeHPCP.spectrum
-    /// }
-    /// "##;
-    ///
-    /// let script = Script::build(text)?;
-    ///
-    /// assert_eq!(script.treatments.len(), 1);
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn build(text: &str) -> Result<Self, ScriptError> {
         let mut uses = Vec::new();
         let mut annotations = Vec::new();
@@ -65,18 +40,11 @@ impl Script {
         let mut treatments = Vec::new();
 
         let words = get_words(text);
-        if words.is_err() {
-            let err_words = words.unwrap_err();
-            let err_word = err_words.last();
-            if err_word.is_some() {
-                let err_word = err_word.unwrap();
-                return Err(ScriptError::word(
-                    "Unknown word.".to_string(),
-                    err_word.text.to_string(),
-                    err_word.position,
-                ));
+        if let Err(err_words) = words {
+            if let Some(err_word) = err_words.last() {
+                return Err(ScriptError::word(19, err_word.clone(), &[]));
             } else {
-                return Err(ScriptError::end_of_script("Script is empty.".to_string()));
+                return Err(ScriptError::end_of_script(20));
             }
         }
 
@@ -123,46 +91,40 @@ impl Script {
 
         // Removing all comments.
         words.retain(|w| w.kind != Some(Kind::Comment));
+
+        // Adding a last word for eof signal
+        words.push(Word::default());
+
         let words = words;
 
-        let mut iter = words.iter();
+        let mut iter = words.windows(2);
         loop {
-            let possible_word = expect_word("Reached end of script.", &mut iter);
-            if possible_word.is_ok() {
-                let word = possible_word.unwrap();
-
-                if word.kind == Some(Kind::Annotation) {
-                    annotations.push(Annotation {
-                        text: PositionnedString {
-                            string: word.text,
-                            position: word.position,
-                        },
-                    });
-                } else if word.kind == Some(Kind::Name) {
-                    if word.text == "use" {
-                        uses.push(Use::build(&mut iter)?);
-                    } else if word.text == "model" {
-                        models.push(Model::build(&mut iter, documented_items.remove(&word))?);
-                    } else if word.text == "treatment" {
-                        treatments
-                            .push(Treatment::build(&mut iter, documented_items.remove(&word))?);
-                    } else {
-                        return Err(ScriptError::word(
-                            "Unknown declaration.".to_string(),
-                            word.text,
-                            word.position,
-                        ));
-                    }
-                } else {
-                    return Err(ScriptError::word(
-                        "Unexpected symbol.".to_string(),
-                        word.text,
-                        word.position,
-                    ));
+            match iter.next().map(|s| &s[0]) {
+                Some(w) if w.kind == Some(Kind::Annotation) => {
+                    annotations.push(Annotation { text: w.into() })
                 }
-            } else {
-                // Not an error, just reached end of script.
-                break;
+                Some(w) if w.kind == Some(Kind::Name) => match w.text.as_str() {
+                    "use" => uses.push(Use::build(&mut iter)?),
+                    "model" => models.push(Model::build(&mut iter, documented_items.remove(&w))?),
+                    "treatment" => {
+                        treatments.push(Treatment::build(&mut iter, documented_items.remove(&w))?)
+                    }
+                    _ => {
+                        return Err(ScriptError::declaration_expected(
+                            51,
+                            w.clone(),
+                            &["use", "model", "treatment"],
+                        ))
+                    }
+                },
+                Some(w) => {
+                    return Err(ScriptError::word(
+                        52,
+                        w.clone(),
+                        &[Kind::Annotation, Kind::Name],
+                    ))
+                }
+                None => break,
             }
         }
 

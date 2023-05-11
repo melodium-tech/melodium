@@ -2,9 +2,10 @@
 
 use super::common::{parse_configuration_assignations, parse_parameters_assignations};
 use super::parameter::Parameter;
-use super::word::{expect_word, expect_word_kind, Kind, Word};
+use super::word::{Kind, Word};
 use super::PositionnedString;
 use crate::ScriptError;
+use core::slice::Windows;
 
 /// Structure describing a textual instanciation.
 ///
@@ -23,44 +24,37 @@ impl Instanciation {
     ///
     /// * `iter`: Iterator over words list, next() being expected to be the name.
     ///
-    /// ```
-    /// # use melodium_lang::error::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::instanciation::Instanciation;
-    /// let text = r##"MakeSpectrum: Spectrum[Audio=AudioConnection](frameSize = 1024, hopSize = 512, windowingType = "blackmanharris92")"##;
-    ///
-    /// let words = get_words(text).unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// let instanciation = Instanciation::build(&mut iter)?;
-    ///
-    /// assert_eq!(instanciation.name.string, "MakeSpectrum");
-    /// assert_eq!(instanciation.r#type.string, "Spectrum");
-    /// assert_eq!(instanciation.configuration.len(), 1);
-    /// assert_eq!(instanciation.parameters.len(), 3);
-    /// # Ok::<(), ScriptError>(())
-    /// ```
-    pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
-        let name = expect_word_kind(Kind::Name, "Name expected.", &mut iter)?;
+    pub fn build(mut iter: &mut Windows<Word>) -> Result<Self, ScriptError> {
+        let name: PositionnedString = iter
+            .next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(62))
+            .and_then(|w| {
+                if w.kind != Some(Kind::Name) {
+                    Err(ScriptError::word(63, w.clone(), &[Kind::Name]))
+                } else {
+                    Ok(w.into())
+                }
+            })?;
 
-        let determinant = expect_word("Unexpected end of script.", &mut iter)?;
-        // If determinant is colon, we expect to have instanciation type.
-        if determinant.kind == Some(Kind::Colon) {
-            Self::build_from_type(name.clone(), &mut iter)
-        }
-        // Bracket, the configuration.
-        else if determinant.kind == Some(Kind::OpeningBracket) {
-            Self::build_from_configuration(name.clone(), name.clone(), &mut iter)
-        }
-        // Else we expect parameters.
-        else if determinant.kind == Some(Kind::OpeningParenthesis) {
-            Self::build_from_parameters(name.clone(), name.clone(), Vec::new(), &mut iter)
-        } else {
-            Err(ScriptError::word(
-                "Configuration or parameter declaration expected.".to_string(),
-                determinant.text,
-                determinant.position,
-            ))
+        match iter.next().map(|s| &s[0]) {
+            Some(w) if w.kind == Some(Kind::Colon) => {
+                Self::build_from_type(name.clone(), &mut iter)
+            }
+            Some(w) if w.kind == Some(Kind::OpeningBracket) => {
+                Self::build_from_configuration(name.clone(), name, &mut iter)
+            }
+            Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
+                Self::build_from_parameters(name.clone(), name, Vec::new(), &mut iter)
+            }
+            Some(w) => {
+                return Err(ScriptError::word(
+                    64,
+                    w.clone(),
+                    &[Kind::Colon, Kind::OpeningBracket, Kind::OpeningParenthesis],
+                ))
+            }
+            None => return Err(ScriptError::end_of_script(65)),
         }
     }
 
@@ -69,51 +63,37 @@ impl Instanciation {
     /// * `name`: The name already parsed for the `Instanciation` (its accuracy is under responsibility of the caller).
     /// * `iter`: Iterator over words list, next() being expected to be the type name.
     ///
-    /// ```
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::instanciation::Instanciation;
-    /// let text = r##"MakeSpectrum: Spectrum(frameSize = 1024, hopSize = 512, windowingType = "blackmanharris92")"##;
-    ///
-    /// let words = get_words(text).unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// let instanciation_name = expect_word_kind(Kind::Name, "Name expected.", &mut iter)?;
-    /// expect_word_kind(Kind::Colon, "Colon ':' expected.", &mut iter)?;
-    ///
-    /// let instanciation = Instanciation::build_from_type(instanciation_name, &mut iter)?;
-    ///
-    /// assert_eq!(instanciation.name.string, "MakeSpectrum");
-    /// assert_eq!(instanciation.r#type.string, "Spectrum");
-    /// assert_eq!(instanciation.configuration.len(), 0);
-    /// assert_eq!(instanciation.parameters.len(), 3);
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn build_from_type(
         name: PositionnedString,
-        mut iter: &mut std::slice::Iter<Word>,
+        mut iter: &mut Windows<Word>,
     ) -> Result<Self, ScriptError> {
-        let r#type = expect_word_kind(
-            Kind::Name,
-            "Type or instanciation name expected.",
-            &mut iter,
-        )?;
+        let r#type = iter
+            .next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(66))
+            .and_then(|w| {
+                if w.kind != Some(Kind::Name) {
+                    Err(ScriptError::word(67, w.clone(), &[Kind::Name]))
+                } else {
+                    Ok(w.into())
+                }
+            })?;
 
-        let determinant = expect_word("Unexpected end of script.", &mut iter)?;
-
-        // If determinant is bracket, the configuration.
-        if determinant.kind == Some(Kind::OpeningBracket) {
-            Self::build_from_configuration(name, r#type, &mut iter)
-        }
-        // Else we expect parameters.
-        else if determinant.kind == Some(Kind::OpeningParenthesis) {
-            Self::build_from_parameters(name, r#type, Vec::new(), &mut iter)
-        } else {
-            Err(ScriptError::word(
-                "Configuration or parameter declaration expected.".to_string(),
-                determinant.text,
-                determinant.position,
-            ))
+        match iter.next().map(|s| &s[0]) {
+            Some(w) if w.kind == Some(Kind::OpeningBracket) => {
+                Self::build_from_configuration(name.clone(), r#type, &mut iter)
+            }
+            Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
+                Self::build_from_parameters(name.clone(), r#type, Vec::new(), &mut iter)
+            }
+            Some(w) => {
+                return Err(ScriptError::word(
+                    68,
+                    w.clone(),
+                    &[Kind::OpeningBracket, Kind::OpeningParenthesis],
+                ))
+            }
+            None => return Err(ScriptError::end_of_script(69)),
         }
     }
 
@@ -122,42 +102,28 @@ impl Instanciation {
     /// * `name`: The name already parsed for the `Instanciation` (its accuracy is under responsibility of the caller).
     /// * `iter`: Iterator over words list, next() being expected to be about [Parameter].
     ///
-    /// ```
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::instanciation::Instanciation;
-    /// let text = r##"MakeSpectrum: Spectrum[Audio=AudioConnection](frameSize = 1024, hopSize = 512, windowingType = "blackmanharris92")"##;
-    ///
-    /// let words = get_words(text).unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// let instanciation_name = expect_word_kind(Kind::Name, "Name expected.", &mut iter)?;
-    /// expect_word_kind(Kind::Colon, "Colon ':' expected.", &mut iter)?;
-    ///
-    /// let instanciation_type = expect_word_kind(Kind::Name, "Type expected.", &mut iter)?;
-    /// expect_word_kind(Kind::OpeningBracket, "Configuration expected '['.", &mut iter)?;
-    ///
-    /// let instanciation = Instanciation::build_from_configuration(instanciation_name, instanciation_type, &mut iter)?;
-    ///
-    /// assert_eq!(instanciation.name.string, "MakeSpectrum");
-    /// assert_eq!(instanciation.r#type.string, "Spectrum");
-    /// assert_eq!(instanciation.configuration.len(), 1);
-    /// assert_eq!(instanciation.parameters.len(), 3);
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn build_from_configuration(
         name: PositionnedString,
         r#type: PositionnedString,
-        mut iter: &mut std::slice::Iter<Word>,
+        mut iter: &mut Windows<Word>,
     ) -> Result<Self, ScriptError> {
         let configuration = parse_configuration_assignations(&mut iter)?;
 
         // We expect parameters in any cases.
-        expect_word_kind(
-            Kind::OpeningParenthesis,
-            "Parameters expected '('.",
-            &mut iter,
-        )?;
+        iter.next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(70))
+            .and_then(|w| {
+                if w.kind != Some(Kind::OpeningParenthesis) {
+                    Err(ScriptError::word(
+                        71,
+                        w.clone(),
+                        &[Kind::OpeningParenthesis],
+                    ))
+                } else {
+                    Ok(())
+                }
+            })?;
         Self::build_from_parameters(name, r#type, configuration, &mut iter)
     }
 
@@ -166,34 +132,11 @@ impl Instanciation {
     /// * `name`: The name already parsed for the `Instanciation` (its accuracy is under responsibility of the caller).
     /// * `iter`: Iterator over words list, next() being expected to be about [Parameter].
     ///
-    /// ```
-    /// # use melodium_lang::error::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::instanciation::Instanciation;
-    /// let text = r##"MakeSpectrum: Spectrum(frameSize = 1024, hopSize = 512, windowingType = "blackmanharris92")"##;
-    ///
-    /// let words = get_words(text).unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// let instanciation_name = expect_word_kind(Kind::Name, "Name expected.", &mut iter)?;
-    /// expect_word_kind(Kind::Colon, "Colon ':' expected.", &mut iter)?;
-    ///
-    /// let instanciation_type = expect_word_kind(Kind::Name, "Type expected.", &mut iter)?;
-    /// expect_word_kind(Kind::OpeningParenthesis, "Parameters expected '('.", &mut iter)?;
-    ///
-    /// let instanciation = Instanciation::build_from_parameters(instanciation_name, instanciation_type, Vec::new(), &mut iter)?;
-    ///
-    /// assert_eq!(instanciation.name.string, "MakeSpectrum");
-    /// assert_eq!(instanciation.r#type.string, "Spectrum");
-    /// assert_eq!(instanciation.configuration.len(), 0);
-    /// assert_eq!(instanciation.parameters.len(), 3);
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn build_from_parameters(
         name: PositionnedString,
         r#type: PositionnedString,
         configuration: Vec<Parameter>,
-        mut iter: &mut std::slice::Iter<Word>,
+        mut iter: &mut Windows<Word>,
     ) -> Result<Self, ScriptError> {
         let parameters = parse_parameters_assignations(&mut iter)?;
 

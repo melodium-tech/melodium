@@ -25,7 +25,7 @@ mod transmission;
 mod world;
 
 pub use engine::Engine;
-pub use error::LogicError;
+pub use error::{LogicError, LogicErrors, LogicResult};
 use melodium_common::descriptor::Collection;
 use std::sync::Arc;
 

@@ -1,11 +1,13 @@
 //! Module dedicated to [Treatment](Treatment) parsing.
 
+use core::slice::Windows;
+
 use super::common::{parse_configuration_declarations, parse_parameters_declarations};
 use super::connection::Connection;
 use super::instanciation::Instanciation;
 use super::parameter::Parameter;
 use super::requirement::Requirement;
-use super::word::{expect_word, expect_word_kind, Kind, Word};
+use super::word::{Kind, Word};
 use super::PositionnedString;
 use crate::ScriptError;
 
@@ -31,70 +33,55 @@ impl Treatment {
     ///
     /// * `iter`: Iterator over words list, next() being expected to be the name of the treatment.
     ///
-    /// ```
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::treatment::Treatment;
-    ///
-    /// let text = r##"
-    /// treatment PrepareAudioFiles(path: Vec<String>, sampleRate: Int = 44100, frameSize: Int = 4096, hopSize: Int = 2048, windowingType: String)
-    ///     output spectrum: Mat<Int>
-    ///     model Audio: AudioAccess(sampleRate = 44100, channels = "mono")
-    ///     require @File
-    ///     require @Signal
-    /// {
-    /// AudioFiles(path=path, sampleRate=sampleRate)
-    /// MakeSpectrum(frameSize = frameSize, hopSize = hopSize, windowingType = windowingType)
-    ///
-    /// AudioFiles.signal -> MakeSpectrum.signal,spectrum -> Self.spectrum
-    /// }
-    /// "##;
-    ///
-    /// let words = get_words(text).unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// let treatment_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
-    /// assert_eq!(treatment_keyword.string, "treatment");
-    ///
-    /// let treatment = Treatment::build(&mut iter, None)?;
-    ///
-    /// assert_eq!(treatment.name.string, "PrepareAudioFiles");
-    /// assert_eq!(treatment.parameters.len(), 5);
-    /// assert_eq!(treatment.requirements.len(), 2);
-    /// assert_eq!(treatment.inputs.len(), 0);
-    /// assert_eq!(treatment.outputs.len(), 1);
-    /// assert_eq!(treatment.treatments.len(), 2);
-    /// assert_eq!(treatment.connections.len(), 2);
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn build(
-        mut iter: &mut std::slice::Iter<Word>,
+        mut iter: &mut Windows<Word>,
         mut doc: Option<PositionnedString>,
     ) -> Result<Self, ScriptError> {
-        let name = expect_word_kind(Kind::Name, "Treatment name expected.", &mut iter)?;
+        let word_name = iter
+            .next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(31))
+            .and_then(|w| {
+                if w.kind != Some(Kind::Name) {
+                    Err(ScriptError::word(32, w.clone(), &[Kind::Name]))
+                } else {
+                    Ok(w.clone())
+                }
+            })?;
+        let name: PositionnedString = (&word_name).into();
 
         let configuration;
-        let mut determinant = expect_word("Unexpected end of script.", &mut iter)?;
-        // We check if there are configuration items.
-        if determinant.kind == Some(Kind::OpeningBracket) {
-            // If so, parsing it.
-            configuration = parse_configuration_declarations(&mut iter)?;
-            // And updating determinant.
-            determinant = expect_word("Unexpected end of script.", &mut iter)?;
-        } else {
-            configuration = Vec::new();
-        }
-
         let parameters;
-        // We parse parameters, which are mandatory, even if empty.
-        if determinant.kind == Some(Kind::OpeningParenthesis) {
-            parameters = parse_parameters_declarations(&mut iter)?;
-        } else {
-            return Err(ScriptError::word(
-                "Configuration or parameter declaration expected.".to_string(),
-                determinant.text,
-                determinant.position,
-            ));
+        match iter.next().map(|s| &s[0]) {
+            Some(w) if w.kind == Some(Kind::OpeningBracket) => {
+                configuration = parse_configuration_declarations(&mut iter)?;
+
+                match iter.next().map(|s| &s[0]) {
+                    Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
+                        parameters = parse_parameters_declarations(&mut iter)?;
+                    }
+                    Some(w) => {
+                        return Err(ScriptError::word(
+                            35,
+                            w.clone(),
+                            &[Kind::OpeningParenthesis],
+                        ))
+                    }
+                    None => return Err(ScriptError::end_of_script(36)),
+                }
+            }
+            Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
+                parameters = parse_parameters_declarations(&mut iter)?;
+                configuration = Vec::new();
+            }
+            Some(w) => {
+                return Err(ScriptError::word(
+                    33,
+                    w.clone(),
+                    &[Kind::OpeningBracket, Kind::OpeningParenthesis],
+                ))
+            }
+            None => return Err(ScriptError::end_of_script(34)),
         }
 
         let mut models = Vec::new();
@@ -106,32 +93,80 @@ impl Treatment {
             We examine the presence (or abscence) of origin, inputs, outputs, and requirements declarations.
         */
         loop {
-            let word = expect_word("Unexpected end of script.", &mut iter)?;
+            match iter.next().map(|s| &s[0]) {
+                Some(w) if w.kind == Some(Kind::OpeningBrace) => break,
+                Some(w) if w.kind == Some(Kind::Name) => match w.text.as_str() {
+                    "input" => {
+                        let input_name = iter
+                            .next()
+                            .map(|s| &s[0])
+                            .ok_or_else(|| ScriptError::end_of_script(39))
+                            .and_then(|w| {
+                                if w.kind != Some(Kind::Name) {
+                                    Err(ScriptError::word(40, w.clone(), &[Kind::Name]))
+                                } else {
+                                    Ok(w.into())
+                                }
+                            })?;
 
-            if word.kind == Some(Kind::OpeningBrace) {
-                break;
-            } else if word.kind == Some(Kind::Name) {
-                if word.text == "input" {
-                    let input_name =
-                        expect_word_kind(Kind::Name, "Input name expected.", &mut iter)?;
-                    expect_word_kind(Kind::Colon, "Input type declaration expected.", &mut iter)?;
-                    inputs.push(Parameter::build_from_type(None, input_name, &mut iter)?);
-                } else if word.text == "output" {
-                    let output_name =
-                        expect_word_kind(Kind::Name, "Output name expected.", &mut iter)?;
-                    expect_word_kind(Kind::Colon, "Output type declaration expected.", &mut iter)?;
-                    outputs.push(Parameter::build_from_type(None, output_name, &mut iter)?);
-                } else if word.text == "model" {
-                    models.push(Instanciation::build(&mut iter)?);
-                } else if word.text == "require" {
-                    requirements.push(Requirement::build(&mut iter)?);
+                        iter.next()
+                            .map(|s| &s[0])
+                            .ok_or_else(|| ScriptError::end_of_script(41))
+                            .and_then(|w| {
+                                if w.kind != Some(Kind::Colon) {
+                                    Err(ScriptError::word(42, w.clone(), &[Kind::Colon]))
+                                } else {
+                                    Ok(())
+                                }
+                            })?;
+
+                        inputs.push(Parameter::build_from_type(None, input_name, &mut iter)?);
+                    }
+                    "output" => {
+                        let output_name = iter
+                            .next()
+                            .map(|s| &s[0])
+                            .ok_or_else(|| ScriptError::end_of_script(43))
+                            .and_then(|w| {
+                                if w.kind != Some(Kind::Name) {
+                                    Err(ScriptError::word(44, w.clone(), &[Kind::Name]))
+                                } else {
+                                    Ok(w.into())
+                                }
+                            })?;
+
+                        iter.next()
+                            .map(|s| &s[0])
+                            .ok_or_else(|| ScriptError::end_of_script(45))
+                            .and_then(|w| {
+                                if w.kind != Some(Kind::Colon) {
+                                    Err(ScriptError::word(46, w.clone(), &[Kind::Colon]))
+                                } else {
+                                    Ok(())
+                                }
+                            })?;
+
+                        outputs.push(Parameter::build_from_type(None, output_name, &mut iter)?);
+                    }
+                    "model" => models.push(Instanciation::build(&mut iter)?),
+                    "require" => requirements.push(Requirement::build(&mut iter)?),
+                    _ => {
+                        return Err(ScriptError::description_element_expected(
+                            47,
+                            w.clone(),
+                            word_name.clone(),
+                            &["input", "output", "model", "require"],
+                        ))
+                    }
+                },
+                Some(w) => {
+                    return Err(ScriptError::word(
+                        37,
+                        w.clone(),
+                        &[Kind::OpeningBrace, Kind::Name],
+                    ))
                 }
-            } else {
-                return Err(ScriptError::word(
-                    "Treatment attributes or content declaration expected.".to_string(),
-                    word.text,
-                    word.position,
-                ));
+                None => return Err(ScriptError::end_of_script(38)),
             }
         }
 
@@ -151,116 +186,121 @@ impl Treatment {
         loop {
             // Those are convenience variables, in case we're not continuing a connection chain,
             // reused in "else" block later.
-            let element_name;
+            let element_name: PositionnedString;
             let determinant;
 
-            // We DO want a word there, a treatment can only be terminated using '}'.
-            let word = expect_word("Unexpected end of script.", &mut iter)?;
+            match iter.next().map(|s| &s[0]) {
+                // In case a continuation of connection with data transmission (1) is possible,
+                // we check if word is a comma.
+                Some(w) if w.kind == Some(Kind::Comma) && may_be_connection_data_out => {
+                    let connection = Connection::build_from_name_data_out(
+                        last_connection_name_end_point.unwrap(),
+                        &mut iter,
+                    )?;
+                    last_connection_name_end_point = Some(connection.name_end_point.clone());
+                    connections.push(connection);
 
-            // In case a continuation of connection with data transmission (1) is possible,
-            // we check if word is a comma.
-            if may_be_connection_data_out && word.kind == Some(Kind::Comma) {
-                // So it means we expect continuing a connection with data tramsission (1).
-                let connection = Connection::build_from_name_data_out(
-                    last_connection_name_end_point.unwrap(),
-                    &mut iter,
-                )?;
-                last_connection_name_end_point = Some(connection.name_end_point.clone());
-                connections.push(connection);
+                    // Redundant assignation, as will stay as true
+                    // may_be_connection_data_out = true;
 
-                // Redundant assignation, as will stay as true
-                // may_be_connection_data_out = true;
-
-                // And nothing is to do later in that iteration.
-                continue;
-            }
-            // In case a continuation of connection that only chain treatments (2) is possible,
-            // we check if word is a right arrow '-->'.
-            else if may_be_connection_end_point && word.kind == Some(Kind::RightArrow) {
-                // So it means we expect continuing a connection that only chains treatments (2).
-                let connection = Connection::build_from_name_end_point(
-                    last_connection_name_end_point.unwrap(),
-                    &mut iter,
-                )?;
-                last_connection_name_end_point = Some(connection.name_end_point.clone());
-                connections.push(connection);
-
-                // Redundant assignation, as will stay as true
-                // may_be_connection_end_point = true;
-
-                // And nothing is to do later in that iteration.
-                continue;
-            } else {
-                // We're not continuing a connection, so resetting those ones.
-                last_connection_name_end_point = None;
-                may_be_connection_data_out = false;
-                may_be_connection_end_point = false;
-
-                // If we're not continuing a connection, word have to be the name of an element.
-                if word.kind == Some(Kind::Name) {
-                    element_name = PositionnedString {
-                        string: word.text,
-                        position: word.position,
-                    };
-
-                    // And the next word is determinant of what can follow.
-                    determinant = expect_word("Unexpected end of script.", &mut iter)?;
+                    // And nothing is to do later in that iteration.
+                    continue;
                 }
-                // Or a closing brace, ending the treatment.
-                else if word.kind == Some(Kind::ClosingBrace) {
-                    break;
-                } else {
+                // In case a continuation of connection that only chain treatments (2) is possible,
+                // we check if word is a right arrow '-->'.
+                Some(w) if w.kind == Some(Kind::RightArrow) && may_be_connection_end_point => {
+                    // So it means we expect continuing a connection that only chains treatments (2).
+                    let connection = Connection::build_from_name_end_point(
+                        last_connection_name_end_point.unwrap(),
+                        &mut iter,
+                    )?;
+                    last_connection_name_end_point = Some(connection.name_end_point.clone());
+                    connections.push(connection);
+
+                    // Redundant assignation, as will stay as true
+                    // may_be_connection_end_point = true;
+
+                    // And nothing is to do later in that iteration.
+                    continue;
+                }
+                Some(w) => {
+                    // We're not continuing a connection, so resetting those ones.
+                    last_connection_name_end_point = None;
+                    may_be_connection_data_out = false;
+                    may_be_connection_end_point = false;
+
+                    // If we're not continuing a connection, word have to be the name of an element.
+                    if w.kind == Some(Kind::Name) {
+                        element_name = w.into();
+
+                        // And the next word is determinant of what can follow.
+                        determinant = iter.next();
+                    }
+                    // Or a closing brace, ending the treatment.
+                    else if w.kind == Some(Kind::ClosingBrace) {
+                        break;
+                    } else {
+                        return Err(ScriptError::word(
+                            48,
+                            w.clone(),
+                            &[Kind::Name, Kind::ClosingBrace],
+                        ));
+                    }
+                }
+                None => return Err(ScriptError::end_of_script(49)),
+            }
+
+            match determinant.map(|s| &s[0]) {
+                // If determinant is ':', '[', or '(', we are in a treatment declaration.
+                Some(w) if w.kind == Some(Kind::Colon) => treatments.push(
+                    Instanciation::build_from_type(element_name.clone(), &mut iter)?,
+                ),
+                Some(w) if w.kind == Some(Kind::OpeningBracket) => {
+                    treatments.push(Instanciation::build_from_configuration(
+                        element_name.clone(),
+                        element_name.clone(),
+                        &mut iter,
+                    )?)
+                }
+                Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
+                    treatments.push(Instanciation::build_from_parameters(
+                        element_name.clone(),
+                        element_name.clone(),
+                        Vec::new(),
+                        &mut iter,
+                    )?)
+                }
+                // If determinant is a dot '.', we are in a connection declaration, with data transmission (1).
+                Some(w) if w.kind == Some(Kind::Dot) => {
+                    let connection = Connection::build_from_name_data_out(element_name, &mut iter)?;
+                    last_connection_name_end_point = Some(connection.name_end_point.clone());
+                    connections.push(connection);
+                    // We remind that next iteration may be a continuation of connections.
+                    may_be_connection_data_out = true;
+                }
+                // If determinant is an arrow '-->', we are in a connection declaration, without data transmission (2).
+                Some(w) if w.kind == Some(Kind::RightArrow) => {
+                    let connection =
+                        Connection::build_from_name_end_point(element_name, &mut iter)?;
+                    last_connection_name_end_point = Some(connection.name_end_point.clone());
+                    connections.push(connection);
+                    // We remind that next iteration may be a continuation of connections.
+                    may_be_connection_end_point = true;
+                }
+                Some(w) => {
                     return Err(ScriptError::word(
-                        "Element name expected 1.".to_string(),
-                        word.text,
-                        word.position,
-                    ));
+                        50,
+                        w.clone(),
+                        &[
+                            Kind::Colon,
+                            Kind::OpeningBracket,
+                            Kind::OpeningParenthesis,
+                            Kind::Dot,
+                            Kind::RightArrow,
+                        ],
+                    ))
                 }
-            }
-
-            // If determinant is ':', '[', or '(', we are in a treatment declaration.
-            if determinant.kind == Some(Kind::Colon) {
-                treatments.push(Instanciation::build_from_type(
-                    element_name.clone(),
-                    &mut iter,
-                )?);
-            } else if determinant.kind == Some(Kind::OpeningBracket) {
-                treatments.push(Instanciation::build_from_configuration(
-                    element_name.clone(),
-                    element_name.clone(),
-                    &mut iter,
-                )?);
-            } else if determinant.kind == Some(Kind::OpeningParenthesis) {
-                treatments.push(Instanciation::build_from_parameters(
-                    element_name.clone(),
-                    element_name.clone(),
-                    Vec::new(),
-                    &mut iter,
-                )?);
-            }
-            // If determinant is a dot '.', we are in a connection declaration, with data transmission (1).
-            else if determinant.kind == Some(Kind::Dot) {
-                let connection = Connection::build_from_name_data_out(element_name, &mut iter)?;
-                last_connection_name_end_point = Some(connection.name_end_point.clone());
-                connections.push(connection);
-                // We remind that next iteration may be a continuation of connections.
-                may_be_connection_data_out = true;
-            }
-            // If determinant is an arrow '-->', we are in a connection declaration, without data transmission (2).
-            else if determinant.kind == Some(Kind::RightArrow) {
-                let connection = Connection::build_from_name_end_point(element_name, &mut iter)?;
-                last_connection_name_end_point = Some(connection.name_end_point.clone());
-                connections.push(connection);
-                // We remind that next iteration may be a continuation of connections.
-                may_be_connection_end_point = true;
-            }
-            // In other cases, we're not getting what's expected.
-            else {
-                return Err(ScriptError::word(
-                    "Symbol expected.".to_string(),
-                    determinant.text,
-                    determinant.position,
-                ));
+                None => return Err(ScriptError::end_of_script(51)),
             }
         }
 

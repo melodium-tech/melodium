@@ -33,19 +33,49 @@ impl Area {
                 Entry::Model(model) => {
                     models.push(Model::new(
                         model
+                            .clone()
                             .downcast_arc::<ModelDescriptor>()
                             .unwrap()
-                            .design()
-                            .unwrap(),
+                            .designer(None)
+                            .success()
+                            .map(|designer| {
+                                Arc::new(
+                                    designer.read().unwrap().design().success().unwrap().clone(),
+                                )
+                            })
+                            .unwrap_or_else(|| {
+                                model
+                                    .downcast_arc::<ModelDescriptor>()
+                                    .unwrap()
+                                    .design()
+                                    .success()
+                                    .unwrap()
+                                    .clone()
+                            }),
                     ));
                 }
                 Entry::Treatment(treatment) => {
                     treatments.push(Treatment::new(
                         treatment
+                            .clone()
                             .downcast_arc::<TreatmentDescriptor>()
                             .unwrap()
-                            .design()
-                            .unwrap(),
+                            .designer(None)
+                            .success()
+                            .map(|designer| {
+                                Arc::new(
+                                    designer.read().unwrap().design().success().unwrap().clone(),
+                                )
+                            })
+                            .unwrap_or_else(|| {
+                                treatment
+                                    .downcast_arc::<TreatmentDescriptor>()
+                                    .unwrap()
+                                    .design()
+                                    .success()
+                                    .unwrap()
+                                    .clone()
+                            }),
                     ));
                 }
                 _ => {}

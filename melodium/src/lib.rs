@@ -9,66 +9,76 @@
 //!
 //!
 
-use melodium_common::descriptor::{Collection, Identifier, LoadingError, Package};
-use melodium_engine::LogicError;
+use melodium_common::descriptor::{Collection, Identifier, LoadingError, LoadingResult, Package};
+use melodium_engine::LogicResult;
 use melodium_loader::Loader;
 pub use melodium_loader::LoadingConfig;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-pub fn load_all(mut config: LoadingConfig) -> Result<Arc<Collection>, LoadingError> {
+pub fn load_all(mut config: LoadingConfig) -> LoadingResult<Arc<Collection>> {
     config.extend(core_config());
 
     let loader = Loader::new(config);
-    loader.load_all()?;
-    loader.build()
+    loader.load_all().and_then(|_| loader.build())
 }
 
 pub fn load_entry(
     mut config: LoadingConfig,
     identifier: &Identifier,
-) -> Result<Arc<Collection>, LoadingError> {
+) -> LoadingResult<Arc<Collection>> {
     config.extend(core_config());
 
     let loader = Loader::new(config);
-    loader.load_package(identifier.root())?;
-    loader.load(identifier)?;
-    loader.build()
+    loader
+        .load_package(identifier.root())
+        .and_then(|_| loader.load(identifier))
+        .and_then(|_| loader.build())
 }
 
 pub fn load_raw(
     raw: &str,
     mut config: LoadingConfig,
-) -> Result<(Identifier, Arc<Collection>), LoadingError> {
+) -> LoadingResult<(Identifier, Arc<Collection>)> {
     config.extend(core_config());
 
     let loader = Loader::new(config);
-    let name = loader.load_raw(raw)?;
-    let identifier = Identifier::new(vec![name], "main");
+    loader
+        .load_raw(raw)
+        .and_then(|name| {
+            let identifier = Identifier::new(vec![name], "main");
 
-    loader.load(&identifier)?;
-
-    match loader.build() {
-        Ok(collection) => Ok((identifier, collection)),
-        Err(err) => Err(err),
-    }
+            loader
+                .load(&identifier)
+                .and(LoadingResult::new_success(identifier))
+        })
+        .and_then(|identifier| {
+            loader
+                .build()
+                .and_then(|collection| LoadingResult::new_success((identifier, collection)))
+        })
 }
 
 pub fn load_file(
     file: PathBuf,
     config: LoadingConfig,
-) -> Result<(Identifier, Arc<Collection>), LoadingError> {
-    let content = std::fs::read_to_string(file).map_err(|_| LoadingError::ContentError)?;
-    load_raw(&content, config)
+) -> LoadingResult<(Identifier, Arc<Collection>)> {
+    match std::fs::read_to_string(&file) {
+        Ok(content) => load_raw(&content, config),
+        Err(_) => LoadingResult::new_failure(LoadingError::no_package(
+            193,
+            file.to_string_lossy().to_string(),
+        )),
+    }
 }
 
-pub fn launch(collection: Arc<Collection>, identifier: &Identifier) -> Result<(), Vec<LogicError>> {
+pub fn launch(collection: Arc<Collection>, identifier: &Identifier) -> LogicResult<()> {
     let engine = melodium_engine::new_engine(collection);
-    engine.genesis(&identifier)?;
-
-    engine.live();
-    engine.end();
-    Ok(())
+    engine.genesis(&identifier).and_then(|_| {
+        engine.live();
+        engine.end();
+        LogicResult::new_success(())
+    })
 }
 
 pub fn core_config() -> LoadingConfig {

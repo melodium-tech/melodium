@@ -1,6 +1,8 @@
 //! Module dedicated to [Function] parsing.
 
-use super::word::{expect_word, expect_word_kind, Kind, Word};
+use core::slice::Windows;
+
+use super::word::{Kind, Word};
 use super::{PositionnedString, Value};
 use crate::ScriptError;
 
@@ -16,42 +18,43 @@ pub struct Function {
 impl Function {
     pub fn build_from_parameters(
         name: PositionnedString,
-        mut iter: &mut std::slice::Iter<Word>,
+        mut iter: &mut Windows<Word>,
     ) -> Result<Self, ScriptError> {
         let mut parameters = Vec::new();
 
-        expect_word_kind(
-            Kind::OpeningParenthesis,
-            "Opening parenthesis '(' expected.",
-            &mut iter,
-        )?;
+        let possible_closing_parenthesis;
+        match iter.next().map(|s| (&s[0], &s[1])) {
+            Some((w, nw)) if w.kind != Some(Kind::OpeningParenthesis) => {
+                possible_closing_parenthesis = Some(nw);
+            }
+            Some((w, _)) => {
+                return Err(ScriptError::word(
+                    74,
+                    w.clone(),
+                    &[Kind::OpeningParenthesis],
+                ))
+            }
+            None => return Err(ScriptError::end_of_script(73)),
+        }
 
-        // We _clone_ the iterator (in case next word is a value).
-        let possible_closing_parenthesis = expect_word_kind(
-            Kind::ClosingParenthesis,
-            "Unexpected end of script.",
-            &mut iter.clone(),
-        );
-        if possible_closing_parenthesis.is_ok() {
-            iter.next();
-        } else {
-            loop {
+        match possible_closing_parenthesis {
+            Some(w) if w.kind == Some(Kind::ClosingParenthesis) => {}
+            _ => loop {
                 parameters.push(Value::build_from_first_item(&mut iter)?);
 
-                let delimiter = expect_word("Unexpected end of script.", &mut iter)?;
-
-                if delimiter.kind == Some(Kind::Comma) {
-                    continue;
-                } else if delimiter.kind == Some(Kind::ClosingParenthesis) {
-                    break;
-                } else {
-                    return Err(ScriptError::word(
-                        "Comma or closing parenthesis expected.".to_string(),
-                        delimiter.text,
-                        delimiter.position,
-                    ));
+                match iter.next().map(|s| &s[0]) {
+                    Some(w) if w.kind == Some(Kind::Comma) => continue,
+                    Some(w) if w.kind == Some(Kind::ClosingParenthesis) => break,
+                    Some(w) => {
+                        return Err(ScriptError::word(
+                            75,
+                            w.clone(),
+                            &[Kind::Comma, Kind::ClosingParenthesis],
+                        ))
+                    }
+                    None => return Err(ScriptError::end_of_script(76)),
                 }
-            }
+            },
         }
 
         Ok(Self { name, parameters })

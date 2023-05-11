@@ -1,8 +1,8 @@
-use super::{Connection, Parameter, Scope, Treatment, Value, IO};
-use crate::error::LogicError;
+use super::{Connection, Parameter, Reference, Scope, Treatment, Value, IO};
+use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor,
+    Identified, Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
@@ -15,6 +15,8 @@ pub struct TreatmentInstanciation {
     models: HashMap<String, String>,
     parameters: HashMap<String, Arc<RwLock<Parameter>>>,
 
+    design_reference: Option<Arc<dyn Reference>>,
+
     auto_reference: Weak<RwLock<Self>>,
 }
 
@@ -23,6 +25,7 @@ impl TreatmentInstanciation {
         host_treatment: &Arc<RwLock<Treatment>>,
         descriptor: &Arc<dyn TreatmentDescriptor>,
         name: &str,
+        design_reference: Option<Arc<dyn Reference>>,
     ) -> Arc<RwLock<Self>> {
         Arc::<RwLock<Self>>::new_cyclic(|me| {
             RwLock::new(Self {
@@ -31,6 +34,7 @@ impl TreatmentInstanciation {
                 name: name.to_string(),
                 models: HashMap::with_capacity(descriptor.models().len()),
                 parameters: HashMap::with_capacity(descriptor.parameters().len()),
+                design_reference,
                 auto_reference: me.clone(),
             })
         })
@@ -40,15 +44,18 @@ impl TreatmentInstanciation {
         self.descriptor.upgrade().unwrap()
     }
 
+    pub fn design_reference(&self) -> &Option<Arc<dyn Reference>> {
+        &self.design_reference
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }
 
-    pub fn add_model(&mut self, parametric_name: &str, local_name: &str) -> Result<(), LogicError> {
+    pub fn add_model(&mut self, parametric_name: &str, local_name: &str) -> LogicResult<()> {
+        let rc_host = self.host_treatment.upgrade().unwrap();
+        let borrowed_host = rc_host.read().unwrap();
         if self.descriptor().models().contains_key(parametric_name) {
-            let rc_host = self.host_treatment.upgrade().unwrap();
-            let borrowed_host = rc_host.read().unwrap();
-
             let model_descriptor = if let Some(model_descriptor) =
                 borrowed_host.descriptor().models().get(local_name)
             {
@@ -61,14 +68,14 @@ impl TreatmentInstanciation {
                 None
             };
 
-            if let Some(mut model_descriptor) = model_descriptor {
+            if let Some(mut parent_model_descriptor) = model_descriptor.clone() {
                 let looking_for =
                     Arc::clone(self.descriptor().models().get(parametric_name).unwrap());
                 let is_matching = loop {
-                    if looking_for.identifier() == model_descriptor.identifier() {
+                    if looking_for.identifier() == parent_model_descriptor.identifier() {
                         break true;
-                    } else if let Some(base) = model_descriptor.base_model() {
-                        model_descriptor = base;
+                    } else if let Some(base) = parent_model_descriptor.base_model() {
+                        parent_model_descriptor = base;
                     } else {
                         break false;
                     }
@@ -78,32 +85,66 @@ impl TreatmentInstanciation {
                     self.models
                         .insert(parametric_name.to_string(), local_name.to_string());
 
-                    Ok(())
+                    Ok(()).into()
                 } else {
-                    Err(LogicError::unmatching_model_type())
+                    Err(LogicError::unmatching_model_type(
+                        53,
+                        borrowed_host.identifier().clone(),
+                        self.descriptor().identifier().clone(),
+                        parametric_name.to_string(),
+                        looking_for.identifier().clone(),
+                        local_name.to_string(),
+                        model_descriptor.unwrap().identifier().clone(),
+                        self.design_reference.clone(),
+                    )
+                    .into())
+                    .into()
                 }
             } else {
-                Err(LogicError::unexisting_model())
+                Err(LogicError::undeclared_model(
+                    42,
+                    borrowed_host.identifier().clone(),
+                    local_name.to_string(),
+                    self.design_reference.clone(),
+                )
+                .into())
+                .into()
             }
         } else {
-            Err(LogicError::unexisting_parametric_model())
+            Err(LogicError::unexisting_parametric_model(
+                54,
+                borrowed_host.identifier().clone(),
+                self.descriptor().identifier().clone(),
+                parametric_name.to_string(),
+                self.design_reference.clone(),
+            )
+            .into())
+            .into()
         }
     }
 
-    pub fn remove_model(&mut self, parametric_name: &str) -> Result<bool, LogicError> {
-        if let Some(_) = self.models.remove(parametric_name) {
-            Ok(true)
+    pub fn remove_model(&mut self, parametric_name: &str) -> LogicResult<bool> {
+        Ok(if let Some(_) = self.models.remove(parametric_name) {
+            true
         } else {
-            Ok(false)
-        }
+            false
+        })
+        .into()
     }
 
-    pub fn add_parameter(&mut self, name: &str) -> Result<Arc<RwLock<Parameter>>, LogicError> {
+    pub fn add_parameter(
+        &mut self,
+        name: &str,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> LogicResult<Arc<RwLock<Parameter>>> {
+        let rc_host = self.host_treatment.upgrade().unwrap();
+        let host = rc_host.read().unwrap();
         if self.descriptor().parameters().contains_key(name) {
             let parameter = Parameter::new(
                 &(self.host_treatment.upgrade().unwrap() as Arc<RwLock<dyn Scope>>),
                 &self.descriptor().as_parameterized(),
                 name,
+                design_reference.clone(),
             );
             let rc_parameter = Arc::new(RwLock::new(parameter));
 
@@ -112,21 +153,38 @@ impl TreatmentInstanciation {
                 .insert(name.to_string(), Arc::clone(&rc_parameter))
                 .is_none()
             {
-                Ok(rc_parameter)
+                Ok(rc_parameter).into()
             } else {
-                Err(LogicError::multiple_parameter_assignation())
+                Err(LogicError::multiple_parameter_assignation(
+                    26,
+                    host.identifier().clone(),
+                    self.descriptor().identifier().clone(),
+                    self.name.clone(),
+                    design_reference.clone(),
+                )
+                .into())
+                .into()
             }
         } else {
-            Err(LogicError::unexisting_parameter())
+            Err(LogicError::unexisting_parameter(
+                11,
+                host.identifier().clone(),
+                self.descriptor().identifier().clone(),
+                self.name.clone(),
+                design_reference.clone(),
+            )
+            .into())
+            .into()
         }
     }
 
-    pub fn remove_parameter(&mut self, name: &str) -> Result<bool, LogicError> {
-        if let Some(_) = self.parameters.remove(name) {
-            Ok(true)
+    pub fn remove_parameter(&mut self, name: &str) -> LogicResult<bool> {
+        Ok(if let Some(_) = self.parameters.remove(name) {
+            true
         } else {
-            Ok(false)
-        }
+            false
+        })
+        .into()
     }
 
     pub fn models(&self) -> &HashMap<String, String> {
@@ -137,10 +195,15 @@ impl TreatmentInstanciation {
         &self.parameters
     }
 
-    pub fn validate(&self) -> Result<(), LogicError> {
-        for (_, param) in &self.parameters {
-            param.read().unwrap().validate()?;
-        }
+    pub fn validate(&self) -> LogicResult<()> {
+        let mut result = LogicResult::new_success(());
+
+        result = self.parameters.iter().fold(result, |result, (_, param)| {
+            result.and_degrade_failure(param.read().unwrap().validate())
+        });
+
+        let rc_host = self.host_treatment.upgrade().unwrap();
+        let borrowed_host = rc_host.read().unwrap();
 
         let descriptor = self.descriptor();
 
@@ -159,8 +222,14 @@ impl TreatmentInstanciation {
             })
             .collect();
 
-        if !unset_params.is_empty() {
-            return Err(LogicError::unset_parameter());
+        for unset_param in unset_params {
+            result.errors_mut().push(LogicError::unset_parameter(
+                23,
+                borrowed_host.descriptor().identifier().clone(),
+                descriptor.identifier().clone(),
+                unset_param.name().to_string(),
+                self.design_reference.clone(),
+            ));
         }
 
         // Check if all models are filled
@@ -176,27 +245,39 @@ impl TreatmentInstanciation {
             })
             .collect();
 
-        if !unset_models.is_empty() {
-            return Err(LogicError::unset_model());
+        for unset_model in unset_models {
+            result.errors_mut().push(LogicError::unset_model(
+                55,
+                borrowed_host.descriptor().identifier().clone(),
+                descriptor.identifier().clone(),
+                unset_model.clone(),
+                self.design_reference.clone(),
+            ));
         }
 
         // Check if context values refers to available context.
-        let rc_host = self.host_treatment.upgrade().unwrap();
-        let borrowed_host = rc_host.read().unwrap();
-        if let Some(_unavailable_context) = self.parameters.iter().find(|(_param_name, param)| {
-            match param.read().unwrap().value().as_ref().unwrap() {
-                Value::Context(context, _entry) => !borrowed_host
-                    .descriptor()
-                    .contexts()
-                    .values()
-                    .any(|c| Arc::ptr_eq(c, context)),
-                _ => false,
+        for (_param_name, param) in self.parameters.iter() {
+            match param.read().unwrap().value().as_ref() {
+                Some(Value::Context(context, _entry)) => {
+                    if !borrowed_host
+                        .descriptor()
+                        .contexts()
+                        .values()
+                        .any(|c| Arc::ptr_eq(c, context))
+                    {
+                        result.errors_mut().push(LogicError::unavailable_context(
+                            30,
+                            borrowed_host.descriptor().identifier().clone(),
+                            context.identifier().clone(),
+                            param.read().unwrap().design_reference().clone(),
+                        ));
+                    }
+                }
+                _ => {}
             }
-        }) {
-            return Err(LogicError::unavailable_context());
         }
 
-        Ok(())
+        result
     }
 
     pub fn level(&self) -> usize {

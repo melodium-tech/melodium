@@ -1,6 +1,8 @@
 //! Module dedicated to [Requirement] parsing.
 
-use super::word::{expect_word_kind, Kind, Word};
+use core::slice::Windows;
+
+use super::word::{Kind, Word};
 use super::PositionnedString;
 use crate::ScriptError;
 
@@ -17,23 +19,18 @@ impl Requirement {
     ///
     /// * `iter`: Iterator over words list, next() being expected to be the context required, see [Kind::Context].
     ///
-    /// ```
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::requirement::Requirement;
-    /// let words = get_words("require @Signal").unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// let require_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
-    /// assert_eq!(require_keyword.string, "require");
-    ///
-    /// let requirement = Requirement::build(&mut iter)?;
-    ///
-    /// assert_eq!(requirement.name.string, "@Signal");
-    /// # Ok::<(), ScriptError>(())
-    /// ```
-    pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
-        let name = expect_word_kind(Kind::Context, "Context name expected.", &mut iter)?;
+    pub fn build(iter: &mut Windows<Word>) -> Result<Self, ScriptError> {
+        let name = iter
+            .next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(53))
+            .and_then(|w| {
+                if w.kind != Some(Kind::Context) {
+                    Err(ScriptError::word(54, w.clone(), &[Kind::Context]))
+                } else {
+                    Ok(w.into())
+                }
+            })?;
 
         Ok(Self { name })
     }

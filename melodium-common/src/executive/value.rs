@@ -1,5 +1,7 @@
 use core::fmt::{Debug, Display, Formatter, Result};
 
+use crate::descriptor::{DataType, Structure, Type};
+
 #[derive(Clone, PartialEq, Debug)]
 pub enum Value {
     Void(()),
@@ -283,6 +285,54 @@ impl Value {
         match self {
             Value::VecString(v) => v,
             _ => panic!("Vec<string> value expected"),
+        }
+    }
+
+    pub fn datatype(&self) -> DataType {
+        match self {
+            Value::Void(_) => DataType::new(Structure::Scalar, Type::Void),
+
+            Value::I8(_) => DataType::new(Structure::Scalar, Type::I8),
+            Value::I16(_) => DataType::new(Structure::Scalar, Type::I16),
+            Value::I32(_) => DataType::new(Structure::Scalar, Type::I32),
+            Value::I64(_) => DataType::new(Structure::Scalar, Type::I64),
+            Value::I128(_) => DataType::new(Structure::Scalar, Type::I128),
+
+            Value::U8(_) => DataType::new(Structure::Scalar, Type::U8),
+            Value::U16(_) => DataType::new(Structure::Scalar, Type::U16),
+            Value::U32(_) => DataType::new(Structure::Scalar, Type::U32),
+            Value::U64(_) => DataType::new(Structure::Scalar, Type::U64),
+            Value::U128(_) => DataType::new(Structure::Scalar, Type::U128),
+
+            Value::F32(_) => DataType::new(Structure::Scalar, Type::F32),
+            Value::F64(_) => DataType::new(Structure::Scalar, Type::F64),
+
+            Value::Bool(_) => DataType::new(Structure::Scalar, Type::Bool),
+            Value::Byte(_) => DataType::new(Structure::Scalar, Type::Byte),
+            Value::Char(_) => DataType::new(Structure::Scalar, Type::Char),
+            Value::String(_) => DataType::new(Structure::Scalar, Type::String),
+
+            Value::VecVoid(_) => DataType::new(Structure::Vector, Type::Void),
+
+            Value::VecI8(_) => DataType::new(Structure::Vector, Type::I8),
+            Value::VecI16(_) => DataType::new(Structure::Vector, Type::I16),
+            Value::VecI32(_) => DataType::new(Structure::Vector, Type::I32),
+            Value::VecI64(_) => DataType::new(Structure::Vector, Type::I64),
+            Value::VecI128(_) => DataType::new(Structure::Vector, Type::I128),
+
+            Value::VecU8(_) => DataType::new(Structure::Vector, Type::U8),
+            Value::VecU16(_) => DataType::new(Structure::Vector, Type::U16),
+            Value::VecU32(_) => DataType::new(Structure::Vector, Type::U32),
+            Value::VecU64(_) => DataType::new(Structure::Vector, Type::U64),
+            Value::VecU128(_) => DataType::new(Structure::Vector, Type::U128),
+
+            Value::VecF32(_) => DataType::new(Structure::Vector, Type::F32),
+            Value::VecF64(_) => DataType::new(Structure::Vector, Type::F64),
+
+            Value::VecBool(_) => DataType::new(Structure::Vector, Type::Bool),
+            Value::VecByte(_) => DataType::new(Structure::Vector, Type::Byte),
+            Value::VecChar(_) => DataType::new(Structure::Vector, Type::Char),
+            Value::VecString(_) => DataType::new(Structure::Vector, Type::String),
         }
     }
 }

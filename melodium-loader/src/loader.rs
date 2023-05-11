@@ -3,8 +3,8 @@ use crate::package::FsPackage;
 use crate::package::{CorePackage, Package, RawPackage};
 use crate::LoadingConfig;
 use melodium_common::descriptor::{
-    Collection, Context, Entry, Function, Identifier, Loader as LoaderTrait, LoadingError, Model,
-    Treatment,
+    Collection, Context, Entry, Function, Identifier, Loader as LoaderTrait, LoadingError,
+    LoadingResult, Model, Treatment,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -40,87 +40,97 @@ impl Loader {
         }
     }
 
-    pub fn load_package(&self, name: &str) -> Result<(), LoadingError> {
+    pub fn load_package(&self, name: &str) -> LoadingResult<()> {
+        let mut result = LoadingResult::new_success(());
         if !self.packages.read().unwrap().contains_key(name) {
+            let mut found = false;
             for location in &self.search_locations {
                 let mut path = location.clone();
                 path.push(name);
                 if path.exists() {
                     #[cfg(feature = "filesystem")]
-                    if let Ok(package) = FsPackage::new(&path) {
+                    if let Some(package) = result.merge_degrade_failure(FsPackage::new(&path)) {
                         for req in package.requirements() {
-                            self.load_package(req)?;
+                            result.merge_degrade_failure(self.load_package(req));
                         }
                         self.packages
                             .write()
                             .unwrap()
                             .insert(name.to_string(), Box::new(package));
-                        return Ok(());
+                        found = true;
                     }
                 }
             }
-            Err(LoadingError::NoPackage)
-        } else {
-            Ok(())
+            if !found {
+                result = result.and_degrade_failure(LoadingResult::new_failure(
+                    LoadingError::no_package(166, name.to_string()),
+                ));
+            }
         }
+        result
     }
 
-    pub fn load_raw(&self, raw_content: &str) -> Result<String, LoadingError> {
-        let package = RawPackage::new(raw_content)?;
-        let name = package.name().to_string();
+    pub fn load_raw(&self, raw_content: &str) -> LoadingResult<String> {
+        RawPackage::new(raw_content).and_then(|package| {
+            let name = package.name().to_string();
 
-        self.packages
-            .write()
-            .unwrap()
-            .insert(package.name().to_string(), Box::new(package));
+            self.packages
+                .write()
+                .unwrap()
+                .insert(package.name().to_string(), Box::new(package));
 
-        Ok(name)
+            LoadingResult::new_success(name)
+        })
     }
 
-    pub fn load(&self, identifier: &Identifier) -> Result<(), LoadingError> {
-        self.get_with_load(identifier)?;
-        Ok(())
+    pub fn load(&self, identifier: &Identifier) -> LoadingResult<()> {
+        self.get_with_load(identifier)
+            .and_then(|_| LoadingResult::new_success(()))
     }
 
-    pub fn load_all(&self) -> Result<(), LoadingError> {
+    pub fn load_all(&self) -> LoadingResult<()> {
+        let mut result = LoadingResult::new_success(());
         for (_name, package) in self.packages.read().unwrap().iter() {
-            let additions = package.full_collection(self)?;
-            self.add_collection(additions);
+            if let Some(additions) = result.merge_degrade_failure(package.full_collection(self)) {
+                self.add_collection(additions);
+            }
         }
-        Ok(())
+        result
     }
 
-    pub fn build(&self) -> Result<Arc<Collection>, LoadingError> {
+    pub fn build(&self) -> LoadingResult<Arc<Collection>> {
+        let mut result = LoadingResult::new_success(());
         let collection = Arc::new(self.collection.read().unwrap().clone());
 
         for (_name, package) in self.packages.read().unwrap().iter() {
-            package.make_building(&collection)?;
+            result.merge_degrade_failure(package.make_building(&collection));
         }
 
-        Ok(collection)
+        result.and(LoadingResult::new_success(collection))
     }
 
     pub fn collection(&self) -> RwLockReadGuard<Collection> {
         self.collection.read().unwrap()
     }
 
-    pub fn get_with_load(&self, identifier: &Identifier) -> Result<Entry, LoadingError> {
+    pub fn get_with_load(&self, identifier: &Identifier) -> LoadingResult<Entry> {
         let entry = self.collection.read().unwrap().get(identifier).cloned();
         if let Some(entry) = entry {
-            Ok(entry)
+            LoadingResult::new_success(entry)
         } else if let Some(package) = self.packages.read().unwrap().get(identifier.root()) {
-            let additions = package.element(self, identifier)?;
-            self.add_collection(additions);
-
-            Ok(self
-                .collection
-                .read()
-                .unwrap()
-                .get(identifier)
-                .unwrap()
-                .clone())
+            package.element(self, identifier).and_then(|additions| {
+                self.add_collection(additions);
+                LoadingResult::new_success(
+                    self.collection
+                        .read()
+                        .unwrap()
+                        .get(identifier)
+                        .unwrap()
+                        .clone(),
+                )
+            })
         } else {
-            Err(LoadingError::NoPackage)
+            LoadingResult::new_failure(LoadingError::no_package(167, identifier.root().to_string()))
         }
     }
 
@@ -140,31 +150,51 @@ impl Loader {
 }
 
 impl LoaderTrait for Loader {
-    fn load_context(&self, identifier: &Identifier) -> Result<Arc<dyn Context>, LoadingError> {
-        match self.get_with_load(identifier)? {
-            Entry::Context(context) => Ok(context),
-            _ => Err(LoadingError::ContextExpected),
-        }
+    fn load_context(&self, identifier: &Identifier) -> LoadingResult<Arc<dyn Context>> {
+        self.get_with_load(identifier)
+            .and_then(|entry| match entry {
+                Entry::Context(context) => LoadingResult::new_success(context),
+                _ => LoadingResult::new_failure(LoadingError::context_expected(
+                    168,
+                    None,
+                    identifier.clone(),
+                )),
+            })
     }
 
-    fn load_function(&self, identifier: &Identifier) -> Result<Arc<dyn Function>, LoadingError> {
-        match self.get_with_load(identifier)? {
-            Entry::Function(function) => Ok(function),
-            _ => Err(LoadingError::FunctionExpected),
-        }
+    fn load_function(&self, identifier: &Identifier) -> LoadingResult<Arc<dyn Function>> {
+        self.get_with_load(identifier)
+            .and_then(|entry| match entry {
+                Entry::Function(function) => LoadingResult::new_success(function),
+                _ => LoadingResult::new_failure(LoadingError::function_expected(
+                    169,
+                    None,
+                    identifier.clone(),
+                )),
+            })
     }
 
-    fn load_model(&self, identifier: &Identifier) -> Result<Arc<dyn Model>, LoadingError> {
-        match self.get_with_load(identifier)? {
-            Entry::Model(model) => Ok(model),
-            _ => Err(LoadingError::ModelExpected),
-        }
+    fn load_model(&self, identifier: &Identifier) -> LoadingResult<Arc<dyn Model>> {
+        self.get_with_load(identifier)
+            .and_then(|entry| match entry {
+                Entry::Model(model) => LoadingResult::new_success(model),
+                _ => LoadingResult::new_failure(LoadingError::model_expected(
+                    170,
+                    None,
+                    identifier.clone(),
+                )),
+            })
     }
 
-    fn load_treatment(&self, identifier: &Identifier) -> Result<Arc<dyn Treatment>, LoadingError> {
-        match self.get_with_load(identifier)? {
-            Entry::Treatment(treatment) => Ok(treatment),
-            _ => Err(LoadingError::TreatmentExpected),
-        }
+    fn load_treatment(&self, identifier: &Identifier) -> LoadingResult<Arc<dyn Treatment>> {
+        self.get_with_load(identifier)
+            .and_then(|entry| match entry {
+                Entry::Treatment(treatment) => LoadingResult::new_success(treatment),
+                _ => LoadingResult::new_failure(LoadingError::treatment_expected(
+                    171,
+                    None,
+                    identifier.clone(),
+                )),
+            })
     }
 }

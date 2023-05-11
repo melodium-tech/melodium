@@ -3,7 +3,7 @@ use crate::building::{
     BuildId, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
     DynamicBuildResult, GenesisEnvironment, StaticBuildResult,
 };
-use crate::error::LogicError;
+use crate::error::LogicResult;
 use crate::world::World;
 use core::fmt::Debug;
 use melodium_common::descriptor::Treatment;
@@ -32,7 +32,7 @@ impl BuilderTrait for Builder {
         _host_build: Option<BuildId>,
         _label: String,
         environment: &GenesisEnvironment,
-    ) -> Result<StaticBuildResult, LogicError> {
+    ) -> LogicResult<StaticBuildResult> {
         let world = self.world.upgrade().unwrap();
         let model = (self.build_fn)(Arc::clone(&world) as Arc<dyn ExecutiveWorld>);
 
@@ -44,7 +44,7 @@ impl BuilderTrait for Builder {
 
         model.set_id(id);
 
-        Ok(StaticBuildResult::Model(model))
+        LogicResult::new_success(StaticBuildResult::Model(model))
     }
 
     fn dynamic_build(

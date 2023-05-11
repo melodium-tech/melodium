@@ -1,5 +1,7 @@
 //! Module dedicated to [Parameter] parsing.
 
+use core::slice::Windows;
+
 use super::r#type::Type;
 use super::value::Value;
 use super::word::*;
@@ -23,60 +25,40 @@ impl Parameter {
     /// * `variability_or_name`: The variability or name already parsed for the `Parameter` (its accuracy is under responsibility of the caller).
     /// * `iter`: Iterator over words list, next() being expected to be about [Type].
     ///
-    /// ```
-    /// # use melodium_lang::text::parameter::*;
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::value::Value;
-    /// let words = get_words("const myParameter: Vec<Int> = [1, 3, 5, 7, 11]").unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// // Taking 'const' in variability_or_name.
-    /// let variability_or_name = expect_word_kind(Kind::Name, "Name or variability expected.", &mut iter)?;
-    ///
-    /// let parameter = Parameter::build_from_name(variability_or_name, &mut iter)?;
-    ///
-    /// assert!(parameter.variability.is_some());
-    /// assert!(parameter.r#type.is_some());
-    /// assert_eq!(parameter.r#type.unwrap().name.string, "Int");
-    /// assert!(parameter.value.is_some());
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn build_from_name(
         variability_or_name: PositionnedString,
-        mut iter: &mut std::slice::Iter<Word>,
+        mut iter: &mut Windows<Word>,
     ) -> Result<Self, ScriptError> {
         if variability_or_name.string == "var" || variability_or_name.string == "const" {
-            let word = expect_word("Unexpected end of script.", &mut iter)?;
+            match iter.next().map(|s| &s[0]) {
+                Some(w) if w.kind == Some(Kind::Name) => {
+                    iter.next()
+                        .map(|s| &s[0])
+                        .ok_or_else(|| ScriptError::end_of_script(55))
+                        .and_then(|w| {
+                            if w.kind != Some(Kind::Colon) {
+                                Err(ScriptError::word(56, w.clone(), &[Kind::Colon]))
+                            } else {
+                                Ok(())
+                            }
+                        })?;
 
-            if word.kind == Some(Kind::Name) {
-                expect_word_kind(
-                    Kind::Colon,
-                    "Parameter type declaration expected.",
-                    &mut iter,
-                )?;
-
-                Self::build_from_type(
-                    Some(variability_or_name),
-                    PositionnedString {
-                        string: word.text,
-                        position: word.position,
-                    },
-                    &mut iter,
-                )
-            } else {
-                return Err(ScriptError::word(
-                    "Parameter name expected.".to_string(),
-                    word.text,
-                    word.position,
-                ));
+                    Self::build_from_type(Some(variability_or_name), w.into(), &mut iter)
+                }
+                Some(w) => return Err(ScriptError::word(57, w.clone(), &[Kind::Name])),
+                None => return Err(ScriptError::end_of_script(58)),
             }
         } else {
-            expect_word_kind(
-                Kind::Colon,
-                "Parameter type declaration expected.",
-                &mut iter,
-            )?;
+            iter.next()
+                .map(|s| &s[0])
+                .ok_or_else(|| ScriptError::end_of_script(59))
+                .and_then(|w| {
+                    if w.kind != Some(Kind::Colon) {
+                        Err(ScriptError::word(60, w.clone(), &[Kind::Colon]))
+                    } else {
+                        Ok(())
+                    }
+                })?;
 
             Self::build_from_type(None, variability_or_name, &mut iter)
         }
@@ -88,54 +70,33 @@ impl Parameter {
     /// * `name`: The name already parsed for the `Parameter` (its accuracy is under responsibility of the caller).
     /// * `iter`: Iterator over words list, next() being expected to be about [Type].
     ///
-    /// ```
-    /// # use melodium_lang::text::parameter::*;
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::value::Value;
-    /// let words = get_words("myParameter: Vec<Int> = [1, 3, 5, 7, 11]").unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// // Taking 'myParameter' in name.
-    /// let name = expect_word_kind(Kind::Name, "Name expected.", &mut iter)?;
-    /// // Checking and discarding ':'.
-    /// expect_word_kind(Kind::Colon, "Colon expected.", &mut iter)?;
-    ///
-    /// let parameter = Parameter::build_from_type(None, name, &mut iter)?;
-    ///
-    /// assert!(parameter.r#type.is_some());
-    /// assert_eq!(parameter.r#type.unwrap().name.string, "Int");
-    /// assert!(parameter.value.is_some());
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn build_from_type(
         variability: Option<PositionnedString>,
         name: PositionnedString,
-        mut iter: &mut std::slice::Iter<Word>,
+        mut iter: &mut Windows<Word>,
     ) -> Result<Self, ScriptError> {
-        let r#type = Type::build(&mut iter)?;
+        let (r#type, possible_equal) = Type::build(&mut iter)?;
 
-        // We _clone_ the iterator (in case next word doesn't rely on Parameter) and doesn't make our expectation to fail if not satisfied.
-        let possible_equal = expect_word_kind(Kind::Equal, "", &mut iter.clone());
-        if possible_equal.is_ok() {
-            // We discard the equal sign.
-            iter.next();
+        match possible_equal.kind {
+            Some(Kind::Equal) => {
+                // We discard the equal sign.
+                iter.next();
 
-            let value = Value::build_from_first_item(&mut iter)?;
+                let value = Value::build_from_first_item(&mut iter)?;
 
-            Ok(Self {
-                name,
-                variability,
-                r#type: Some(r#type),
-                value: Some(value),
-            })
-        } else {
-            Ok(Self {
+                Ok(Self {
+                    name,
+                    variability,
+                    r#type: Some(r#type),
+                    value: Some(value),
+                })
+            }
+            _ => Ok(Self {
                 name,
                 variability,
                 r#type: Some(r#type),
                 value: None,
-            })
+            }),
         }
     }
 
@@ -144,29 +105,11 @@ impl Parameter {
     /// * `name`: The name already parsed for the `Parameter` (its accuracy is under responsibility of the caller).
     /// * `iter`: Iterator over words list, next() being expected to be about [Value].
     ///
-    /// ```
-    /// # use melodium_lang::text::parameter::*;
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::value::Value;
-    /// let words = get_words("myParameter = |my_function(0.248)").unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// // Taking 'myParameter' in name.
-    /// let name = expect_word_kind(Kind::Name, "Name expected.", &mut iter)?;
-    /// // Checking and discarding '='.
-    /// expect_word_kind(Kind::Equal, "Equal expected.", &mut iter)?;
-    ///
-    /// let parameter = Parameter::build_from_value(name, &mut iter)?;
-    ///
-    /// assert!(parameter.value.is_some());
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn build_from_value(
         name: PositionnedString,
-        mut iter: &mut std::slice::Iter<Word>,
+        iter: &mut Windows<Word>,
     ) -> Result<Self, ScriptError> {
-        let value = Value::build_from_first_item(&mut iter)?;
+        let value = Value::build_from_first_item(iter)?;
 
         Ok(Self {
             name,

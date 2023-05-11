@@ -1,5 +1,7 @@
 //! Module dedicated to [Use] parsing.
 
+use core::slice::Windows;
+
 use super::word::*;
 use super::PositionnedString;
 use crate::ScriptError;
@@ -19,96 +21,91 @@ impl Use {
     ///
     /// * `iter`: Iterator over words list, next() being expected to be the beginning of the path.
     ///
-    /// ```
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::r#use::Use;
-    /// let words = get_words("use path/where/is::Element as MyElement").unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// let use_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
-    /// assert_eq!(use_keyword.string, "use");
-    ///
-    /// let r#use = Use::build(&mut iter)?;
-    ///
-    /// assert_eq!(r#use.path.iter().map(|p| p.string.clone()).collect::<Vec<String>>(), vec!["path", "where", "is"]);
-    /// assert_eq!(r#use.element.string, "Element");
-    /// assert_eq!(r#use.r#as.unwrap().string, "MyElement");
-    /// # Ok::<(), ScriptError>(())
-    /// ```
-    pub fn build(mut iter: &mut std::slice::Iter<Word>) -> Result<Self, ScriptError> {
+    pub fn build(iter: &mut Windows<Word>) -> Result<Self, ScriptError> {
         let mut path = Vec::new();
         let element;
         let use_as;
 
         loop {
-            let name = expect_word_kind(Kind::Name, "Path name expected.", &mut iter)?;
-            path.push(name);
+            match iter.next().map(|s| &s[0]) {
+                Some(w) if w.kind == Some(Kind::Name) => path.push(w.into()),
+                Some(w) => return Err(ScriptError::word(12, w.clone(), &[Kind::Name])),
+                None => return Err(ScriptError::end_of_script(11)),
+            }
 
-            let delimiter = expect_word("Unexpected end of script.", &mut iter)?;
-            if delimiter.kind == Some(Kind::Slash) {
-                continue;
-            } else if delimiter.kind == Some(Kind::Colon) {
-                expect_word_kind(Kind::Colon, "Double colon expected.", &mut iter)?;
+            match iter.next().map(|s| &s[0]) {
+                Some(w) if w.kind == Some(Kind::Slash) => continue,
+                Some(w) if w.kind == Some(Kind::Colon) => {
+                    iter.next()
+                        .map(|s| &s[0])
+                        .ok_or_else(|| ScriptError::end_of_script(15))
+                        .and_then(|w| {
+                            if w.kind != Some(Kind::Colon) {
+                                Err(ScriptError::word(16, w.clone(), &[Kind::Colon]))
+                            } else {
+                                Ok(())
+                            }
+                        })?;
 
-                let designation = expect_word("Element name expected.", &mut iter)?;
-                let expected_kind;
-                if designation.kind == Some(Kind::Name) {
-                    expected_kind = Kind::Name;
-                    element = PositionnedString {
-                        string: designation.text,
-                        position: designation.position,
-                    };
-                } else if designation.kind == Some(Kind::Function) {
-                    expected_kind = Kind::Function;
-                    element = PositionnedString {
-                        string: designation.text,
-                        position: designation.position,
-                    };
-                } else if designation.kind == Some(Kind::Context) {
-                    expected_kind = Kind::Context;
-                    element = PositionnedString {
-                        string: designation.text,
-                        position: designation.position,
-                    };
-                } else {
-                    return Err(ScriptError::word(
-                        "Element name expected.".to_string(),
-                        designation.text,
-                        designation.position,
-                    ));
-                }
-
-                // We check if we are in "use as" case, _cloning_ the iterator in case next word is not about us.
-                let possible_as = expect_word_kind(Kind::Name, "", &mut iter.clone());
-                if possible_as.is_ok() && possible_as.unwrap().string == "as" {
-                    if expected_kind != Kind::Context {
-                        // We discard "as".
-                        iter.next();
-
-                        use_as = Some(expect_word_kind(
-                            expected_kind,
-                            "Alias name expected.",
-                            &mut iter,
-                        )?);
-                    } else {
-                        return Err(ScriptError::word(
-                            "Contextes cannot be aliased.".to_string(),
-                            delimiter.text,
-                            delimiter.position,
-                        ));
+                    let expected_kind;
+                    let name = iter.next();
+                    match name.map(|s| &s[0]) {
+                        Some(w) if w.kind == Some(Kind::Name) => {
+                            element = w.into();
+                            expected_kind = Kind::Name;
+                        }
+                        Some(w) if w.kind == Some(Kind::Function) => {
+                            element = w.into();
+                            expected_kind = Kind::Function;
+                        }
+                        Some(w) if w.kind == Some(Kind::Context) => {
+                            element = w.into();
+                            expected_kind = Kind::Context;
+                        }
+                        Some(w) => {
+                            return Err(ScriptError::word(
+                                17,
+                                w.clone(),
+                                &[Kind::Name, Kind::Function, Kind::Context],
+                            ))
+                        }
+                        None => return Err(ScriptError::end_of_script(18)),
                     }
-                } else {
-                    use_as = None;
-                }
 
-                break;
-            } else {
-                return Err(ScriptError::word(
-                    "Slash or double-colon expected.".to_string(),
-                    delimiter.text,
-                    delimiter.position,
-                ));
+                    match name.map(|s| &s[1]) {
+                        Some(w) if w.kind == Some(Kind::Name) && w.text == "as" => {
+                            iter.next(); // Skipping "as"
+                            match iter.next().map(|s| &s[0]) {
+                                Some(w) if w.kind == Some(expected_kind) => use_as = Some(w.into()),
+                                _ => {
+                                    return Err(ScriptError::word(
+                                        20,
+                                        w.clone(),
+                                        match expected_kind {
+                                            Kind::Name => &[Kind::Name],
+                                            Kind::Context => &[Kind::Context],
+                                            Kind::Function => &[Kind::Function],
+                                            _ => &[],
+                                        },
+                                    ))
+                                }
+                            }
+                        }
+                        _ => {
+                            use_as = None;
+                        }
+                    }
+
+                    break;
+                }
+                Some(w) => {
+                    return Err(ScriptError::word(
+                        14,
+                        w.clone(),
+                        &[Kind::Slash, Kind::Colon],
+                    ))
+                }
+                None => return Err(ScriptError::end_of_script(13)),
             }
         }
 

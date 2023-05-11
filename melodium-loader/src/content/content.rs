@@ -2,9 +2,15 @@
 #![allow(unused, unreachable_patterns)]
 
 #[cfg(feature = "script")]
-use super::script::{Script, ScriptBuildLevel, ScriptError};
-use core::str::Utf8Error;
-use melodium_common::descriptor::{Collection, Identifier};
+use super::script::{Script, ScriptBuildLevel};
+use core::{
+    fmt::{Display, Formatter},
+    str::Utf8Error,
+};
+use melodium_common::descriptor::{
+    Collection, ContentError as CommonContentError, Identifier, Status,
+};
+use melodium_lang::{error::ScriptErrors, ScriptError};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 #[derive(Debug)]
@@ -14,28 +20,34 @@ pub struct Content {
 }
 
 impl Content {
-    pub fn new(path: &str, content: &[u8]) -> Result<Self, ContentError> {
+    pub fn new(path: &str, content: &[u8]) -> ContentResult<Self> {
         // Currently only script content is supported
         #[cfg(feature = "script")]
         {
-            let text = std::str::from_utf8(content).map_err(|error| ContentError::Utf8Error {
-                path: path.to_string(),
-                error,
-            })?;
-
-            let content =
-                Script::new(&path, text).map_err(|errors| ContentError::ScriptErrors {
+            let text = match std::str::from_utf8(content).map_err(|error| {
+                ContentResult::new_failure(ContentError::Utf8Error {
                     path: path.to_string(),
-                    errors,
-                })?;
+                    error,
+                })
+            }) {
+                Ok(text) => text,
+                Err(err) => return err,
+            };
 
-            Ok(Self {
-                content: ContentType::Script(content),
-                descriptors_building: Mutex::new(()),
-            })
+            Script::new(&path, text)
+                .convert_failure_errors(|error| ContentError::ScriptError {
+                    path: path.to_string(),
+                    error,
+                })
+                .and_then(|content| {
+                    ContentResult::new_success(Self {
+                        content: ContentType::Script(content),
+                        descriptors_building: Mutex::new(()),
+                    })
+                })
         }
         #[cfg(not(feature = "script"))]
-        Err(ContentError::UnsupportedContent)
+        ContentResult::new_failure(ContentError::UnsupportedContent)
     }
 
     #[allow(unused)]
@@ -82,36 +94,32 @@ impl Content {
         }
     }
 
-    pub fn insert_descriptors(&self, collection: &mut Collection) -> Result<(), ContentError> {
+    pub fn insert_descriptors(&self, collection: &mut Collection) -> ContentResult<()> {
         match &self.content {
             #[cfg(feature = "script")]
-            ContentType::Script(script) => {
-                script
-                    .make_descriptors(collection)
-                    .map_err(|e| ContentError::ScriptErrors {
-                        path: script.path().to_string(),
-                        errors: e,
-                    })?
-            }
-            _ => {}
+            ContentType::Script(script) => script
+                .make_descriptors(collection)
+                .convert_failure_errors(|error| ContentError::ScriptError {
+                    path: script.path().to_string(),
+                    error,
+                }),
+            _ => ContentResult::new_success(()),
         }
-        Ok(())
     }
 
-    pub fn make_design(&self, collection: &Arc<Collection>) -> Result<(), ContentError> {
+    pub fn make_design(&self, collection: &Arc<Collection>) -> ContentResult<()> {
         match &self.content {
             #[cfg(feature = "script")]
             ContentType::Script(script) => {
                 script
                     .make_design(collection)
-                    .map_err(|e| ContentError::ScriptErrors {
+                    .convert_failure_errors(|error| ContentError::ScriptError {
                         path: script.path().to_string(),
-                        errors: e,
-                    })?
+                        error,
+                    })
             }
-            _ => {}
+            _ => ContentResult::new_success(()),
         }
-        Ok(())
     }
 }
 
@@ -129,11 +137,30 @@ pub enum ContentError {
         error: Utf8Error,
     },
     #[cfg(feature = "script")]
-    ScriptErrors {
+    ScriptError {
         path: String,
-        errors: Vec<ScriptError>,
+        error: ScriptError,
     },
 }
+
+impl Display for ContentError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ContentError::UnsupportedContent => write!(f, "Content is not supported"),
+            ContentError::Utf8Error { path, error } => {
+                write!(f, "Encoding error '{error}' on {path}")
+            }
+            #[cfg(feature = "script")]
+            ContentError::ScriptError { path, error } => {
+                write!(f, "Script error on {path}: {error}")
+            }
+        }
+    }
+}
+
+impl CommonContentError for ContentError {}
+
+pub type ContentResult<T> = Status<T, ContentError, ContentError>;
 
 #[derive(Clone, Copy, Debug)]
 pub enum ContentLevel {

@@ -3,8 +3,9 @@
 use super::assignative_element::AssignativeElement;
 use super::common::Node;
 use super::value::Value;
-use crate::error::{wrap_logic_error, ScriptError};
+use crate::error::ScriptError;
 use crate::text::Parameter as TextParameter;
+use crate::ScriptResult;
 use melodium_engine::designer::Parameter as ParameterDesigner;
 use std::sync::{Arc, RwLock, Weak};
 
@@ -36,44 +37,49 @@ impl AssignedParameter {
     pub fn new(
         parent: Arc<RwLock<dyn AssignativeElement>>,
         text: TextParameter,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
-        let value;
-        {
-            let borrowed_parent = parent.read().unwrap();
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
+        let mut result = ScriptResult::new_success(());
 
-            let parameter = borrowed_parent.find_assigned_parameter(&text.name.string);
-            if parameter.is_some() {
-                return Err(ScriptError::semantic(
-                    "Parameter '".to_string() + &text.name.string + "' is already assigned.",
-                    text.name.position,
-                ));
-            }
+        let borrowed_parent = parent.read().unwrap();
 
-            if text.value.is_some() {
-                value = Value::new(
-                    borrowed_parent.associated_declarative_element(),
-                    text.value.as_ref().unwrap().clone(),
-                )?;
-            } else {
-                return Err(ScriptError::semantic(
-                    "Parameter '".to_string() + &text.name.string + "' is missing value.",
-                    text.name.position,
-                ));
-            }
+        let parameter = borrowed_parent.find_assigned_parameter(&text.name.string);
+        if parameter.is_some() {
+            result = result.and_degrade_failure(ScriptResult::new_failure(
+                ScriptError::already_assigned(146, text.name.clone()),
+            ));
         }
 
-        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
-            name: text.name.string.clone(),
-            text,
-            parent: Arc::downgrade(&parent),
-            value,
-        })))
+        if let Some(_erroneous_type) = &text.r#type {
+            result = result.and_degrade_failure(ScriptResult::new_failure(
+                ScriptError::type_forbidden(150, text.name.clone()),
+            ));
+        }
+
+        if let Some(text_value) = text.value.clone() {
+            result
+                .and_then(|_| {
+                    Value::new(
+                        borrowed_parent.associated_declarative_element(),
+                        text_value.clone(),
+                    )
+                })
+                .and_then(|value| {
+                    ScriptResult::new_success(Arc::<RwLock<Self>>::new(RwLock::new(Self {
+                        name: text.name.string.clone(),
+                        text,
+                        parent: Arc::downgrade(&parent),
+                        value,
+                    })))
+                })
+        } else {
+            result.and_degrade_failure(ScriptResult::new_failure(ScriptError::missing_value(
+                147,
+                text.name.clone(),
+            )))
+        }
     }
 
-    pub fn make_design(
-        &self,
-        designer: &Arc<RwLock<ParameterDesigner>>,
-    ) -> Result<(), ScriptError> {
+    pub fn make_design(&self, designer: &Arc<RwLock<ParameterDesigner>>) -> ScriptResult<()> {
         let mut designer = designer.write().unwrap();
         let descriptor = designer
             .parent_descriptor()
@@ -84,15 +90,11 @@ impl AssignedParameter {
             .unwrap()
             .clone();
 
-        let value = self
-            .value
+        self.value
             .read()
             .unwrap()
-            .make_designed_value(&designer, descriptor.datatype())?;
-
-        wrap_logic_error!(designer.set_value(value), self.text.name.position);
-
-        Ok(())
+            .make_designed_value(&designer, descriptor.datatype())
+            .and_then(|value| ScriptResult::from(designer.set_value(value)))
     }
 }
 

@@ -1,8 +1,10 @@
 //! Module dedicated to [Model] parsing.
 
+use core::slice::Windows;
+
 use super::common::parse_parameters_declarations;
 use super::parameter::Parameter;
-use super::word::{expect_word, expect_word_kind, Kind, Word};
+use super::word::{Kind, Word};
 use super::PositionnedString;
 use crate::ScriptError;
 
@@ -23,82 +25,97 @@ impl Model {
     ///
     /// * `iter`: Iterator over words list, next() being expected to be the name.
     ///
-    /// ```
-    /// # use melodium_lang::ScriptError;
-    /// # use melodium_lang::text::word::*;
-    /// # use melodium_lang::text::model::Model;
-    /// let text = r##"
-    /// model MachineLearningModel(layers: Int, function: String = "sigmoid"): SparseAutoencoder
-    /// {
-    ///     layers = layers
-    ///     function = function
-    /// }
-    /// "##;
-    ///
-    /// let words = get_words(text).unwrap();
-    /// let mut iter = words.iter();
-    ///
-    /// let model_keyword = expect_word_kind(Kind::Name, "Keyword expected.", &mut iter)?;
-    /// assert_eq!(model_keyword.string, "model");
-    ///
-    /// let model = Model::build(&mut iter, None)?;
-    ///
-    /// assert_eq!(model.name.string, "MachineLearningModel");
-    /// assert_eq!(model.parameters.len(), 2);
-    /// assert_eq!(model.r#type.string, "SparseAutoencoder");
-    /// # Ok::<(), ScriptError>(())
-    /// ```
     pub fn build(
-        mut iter: &mut std::slice::Iter<Word>,
+        mut iter: &mut Windows<Word>,
         mut doc: Option<PositionnedString>,
     ) -> Result<Self, ScriptError> {
-        let name = expect_word_kind(Kind::Name, "Model name expected.", &mut iter)?;
+        let word_name = iter
+            .next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(62))
+            .and_then(|w| {
+                if w.kind != Some(Kind::Name) {
+                    Err(ScriptError::word(63, w.clone(), &[Kind::Name]))
+                } else {
+                    Ok(w.clone())
+                }
+            })?;
+        let name: PositionnedString = (&word_name).into();
 
-        // We parse declarations.
-        expect_word_kind(
-            Kind::OpeningParenthesis,
-            "Parameters declaration expected '('.",
-            &mut iter,
-        )?;
-        let parameters = parse_parameters_declarations(&mut iter)?;
+        let parameters;
+        match iter.next().map(|s| &s[0]) {
+            Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
+                parameters = parse_parameters_declarations(&mut iter)?;
+            }
+            Some(w) => {
+                return Err(ScriptError::word(
+                    64,
+                    w.clone(),
+                    &[Kind::OpeningParenthesis],
+                ))
+            }
+            None => return Err(ScriptError::end_of_script(65)),
+        }
 
-        // The model type.
-        expect_word_kind(
-            Kind::Colon,
-            "Model type declaration expected ':'.",
-            &mut iter,
-        )?;
-        let r#type = expect_word_kind(Kind::Name, "Model type expected.", &mut iter)?;
+        iter.next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(66))
+            .and_then(|w| {
+                if w.kind != Some(Kind::Colon) {
+                    Err(ScriptError::word(67, w.clone(), &[Kind::Colon]))
+                } else {
+                    Ok(())
+                }
+            })?;
+        let r#type = iter
+            .next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(68))
+            .and_then(|w| {
+                if w.kind != Some(Kind::Name) {
+                    Err(ScriptError::word(69, w.clone(), &[Kind::Name]))
+                } else {
+                    Ok(w.into())
+                }
+            })?;
 
-        // And then the internal assignations.
-        expect_word_kind(
-            Kind::OpeningBrace,
-            "Model content declaration expected '{'.",
-            &mut iter,
-        )?;
+        iter.next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(70))
+            .and_then(|w| {
+                if w.kind != Some(Kind::OpeningBrace) {
+                    Err(ScriptError::word(71, w.clone(), &[Kind::OpeningBrace]))
+                } else {
+                    Ok(())
+                }
+            })?;
 
         let mut assignations = Vec::new();
 
         loop {
-            let word = expect_word("Unexpected end of script.", &mut iter)?;
-
-            if word.kind == Some(Kind::ClosingBrace) {
-                break;
-            } else if word.kind == Some(Kind::Name) {
-                expect_word_kind(Kind::Equal, "Component value expected.", &mut iter)?;
-                assignations.push(Parameter::build_from_value(
-                    PositionnedString {
-                        string: word.text,
-                        position: word.position,
-                    },
-                    &mut iter,
-                )?);
-            } else {
-                return Err(ScriptError::word(
-                    "Model content declaration or end '}' expected.".to_string(),
-                    word.text,
-                    word.position,
-                ));
+            match iter.next().map(|s| &s[0]) {
+                Some(w) if w.kind == Some(Kind::ClosingBrace) => break,
+                Some(w) if w.kind == Some(Kind::Name) => {
+                    iter.next()
+                        .map(|s| &s[0])
+                        .ok_or_else(|| ScriptError::end_of_script(72))
+                        .and_then(|w| {
+                            if w.kind != Some(Kind::Equal) {
+                                Err(ScriptError::word(73, w.clone(), &[Kind::Equal]))
+                            } else {
+                                Ok(())
+                            }
+                        })?;
+                    assignations.push(Parameter::build_from_value(w.into(), &mut iter)?);
+                }
+                Some(w) => {
+                    return Err(ScriptError::word(
+                        74,
+                        w.clone(),
+                        &[Kind::Name, Kind::ClosingBrace],
+                    ))
+                }
+                None => return Err(ScriptError::end_of_script(75)),
             }
         }
 

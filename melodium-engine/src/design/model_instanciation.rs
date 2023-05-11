@@ -4,7 +4,7 @@ use melodium_common::descriptor::Model;
 use std::collections::HashMap;
 use std::sync::Weak;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ModelInstanciation {
     pub name: String,
     pub descriptor: Weak<dyn Model>,

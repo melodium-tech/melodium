@@ -692,8 +692,8 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
                     &REQUIREMENTS
                 }
 
-                fn collection(&self, _: &dyn melodium_core::common::descriptor::Loader) -> Result<melodium_core::common::descriptor::Collection, melodium_core::common::descriptor::LoadingError> {
-                    Ok(MelPackage::collection(&self))
+                fn collection(&self, _: &dyn melodium_core::common::descriptor::Loader) -> melodium_core::common::descriptor::LoadingResult<melodium_core::common::descriptor::Collection> {
+                    melodium_core::common::descriptor::LoadingResult::new_success(MelPackage::collection(&self))
                 }
 
                 fn embedded(&self) -> &std::collections::HashMap<&'static str, &'static [u8]> {

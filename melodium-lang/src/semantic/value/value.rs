@@ -8,7 +8,8 @@ use super::ValueContent;
 use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::value::Value as TextValue;
-use crate::text::{Position, PositionnedString};
+use crate::text::PositionnedString;
+use crate::ScriptResult;
 use melodium_common::descriptor::{DataType, Entry};
 use melodium_common::executive::Value as ExecutiveValue;
 use melodium_engine::designer::{Parameter as ParameterDesigner, Value as ValueDesigner};
@@ -38,85 +39,78 @@ impl Value {
     pub fn new(
         host: Arc<RwLock<dyn DeclarativeElement>>,
         text: TextValue,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
-        Ok(Arc::<RwLock<Self>>::new(RwLock::new(Self {
-            host: Arc::downgrade(&host),
-            content: Self::parse(host, &text)?,
-            text,
-        })))
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
+        Self::parse(host.clone(), &text).and_then(|value_content| {
+            ScriptResult::new_success(Arc::<RwLock<Self>>::new(RwLock::new(Self {
+                host: Arc::downgrade(&host),
+                content: value_content,
+                text,
+            })))
+        })
     }
 
     fn parse(
         host: Arc<RwLock<dyn DeclarativeElement>>,
         text: &TextValue,
-    ) -> Result<ValueContent, ScriptError> {
-        let content = match text {
-            TextValue::Boolean(b) => Self::parse_boolean(b)?,
-            TextValue::Number(n) => Self::parse_number(n)?,
-            TextValue::String(s) => Self::parse_string(s)?,
-            TextValue::Character(c) => Self::parse_character(c)?,
-            TextValue::Byte(b) => Self::parse_byte(b)?,
-            TextValue::Array(_, a) => Self::parse_vector(host, &a)?,
-            TextValue::Name(n) => ValueContent::Name(Reference::new(n.string.to_string())),
-            TextValue::ContextReference((r, e)) => ValueContent::ContextReference((
-                Reference::new(r.string.to_string()),
-                e.string.to_string(),
-            )),
-            TextValue::Function(f) => ValueContent::Function(FunctionCall::new(host, f.clone())?),
-        };
-
-        Ok(content)
+    ) -> ScriptResult<ValueContent> {
+        match text {
+            TextValue::Boolean(b) => Self::parse_boolean(b),
+            TextValue::Number(n) => Self::parse_number(n),
+            TextValue::String(s) => Self::parse_string(s),
+            TextValue::Character(c) => Self::parse_character(c),
+            TextValue::Byte(b) => Self::parse_byte(b),
+            TextValue::Array(_, a) => Self::parse_vector(host, &a),
+            TextValue::Name(n) => {
+                ScriptResult::new_success(ValueContent::Name(Reference::new(n.string.to_string())))
+            }
+            TextValue::ContextReference((r, e)) => {
+                ScriptResult::new_success(ValueContent::ContextReference((
+                    Reference::new(r.string.to_string()),
+                    e.string.to_string(),
+                )))
+            }
+            TextValue::Function(f) => FunctionCall::new(host, f.clone())
+                .and_then(|func| ScriptResult::new_success(ValueContent::Function(func))),
+        }
     }
 
-    fn parse_boolean(b: &PositionnedString) -> Result<ValueContent, ScriptError> {
-        Ok(ValueContent::Boolean(if b.string == "true" {
-            true
+    fn parse_boolean(b: &PositionnedString) -> ScriptResult<ValueContent> {
+        if b.string == "true" {
+            ScriptResult::new_success(ValueContent::Boolean(true))
         } else if b.string == "false" {
-            false
+            ScriptResult::new_success(ValueContent::Boolean(false))
         } else {
-            return Err(ScriptError::semantic(
-                "'".to_string() + &b.string + "' is not a valid boolean.",
-                b.position,
-            ));
-        }))
+            ScriptResult::new_failure(ScriptError::invalid_boolean(144, b.clone()))
+        }
     }
 
-    fn parse_number(n: &PositionnedString) -> Result<ValueContent, ScriptError> {
+    fn parse_number(n: &PositionnedString) -> ScriptResult<ValueContent> {
         let unsigned = n.string.parse::<u128>();
         if unsigned.is_ok() {
-            return Ok(ValueContent::Unsigned(unsigned.unwrap()));
+            return ScriptResult::new_success(ValueContent::Unsigned(unsigned.unwrap()));
         }
 
         let integer = n.string.parse::<i128>();
         if integer.is_ok() {
-            return Ok(ValueContent::Integer(integer.unwrap()));
+            return ScriptResult::new_success(ValueContent::Integer(integer.unwrap()));
         }
 
         let real = n.string.parse::<f64>();
         if real.is_ok() {
-            return Ok(ValueContent::Real(real.unwrap()));
+            return ScriptResult::new_success(ValueContent::Real(real.unwrap()));
         }
 
-        Err(ScriptError::semantic(
-            "'".to_string() + &n.string + "' is not a valid number.",
-            n.position,
-        ))
+        ScriptResult::new_failure(ScriptError::invalid_number(145, n.clone()))
     }
 
-    fn parse_string(s: &PositionnedString) -> Result<ValueContent, ScriptError> {
+    fn parse_string(s: &PositionnedString) -> ScriptResult<ValueContent> {
         let string = s.string.strip_prefix('"');
         if string.is_none() {
-            return Err(ScriptError::semantic(
-                "String not starting with '\"', this is an internal bug.".to_string(),
-                s.position,
-            ));
+            return ScriptResult::new_failure(ScriptError::invalid_string(146, s.clone()));
         }
         let string = string.unwrap().strip_suffix('"');
         if string.is_none() {
-            return Err(ScriptError::semantic(
-                "String not ending with '\"', this is an internal bug.".to_string(),
-                s.position,
-            ));
+            return ScriptResult::new_failure(ScriptError::invalid_string(147, s.clone()));
         }
 
         let string = string
@@ -124,62 +118,55 @@ impl Value {
             .replace(r#"\""#, r#"""#)
             .replace(r#"\\"#, r#"\"#);
 
-        Ok(ValueContent::String(string))
+        ScriptResult::new_success(ValueContent::String(string))
     }
 
-    fn parse_character(c: &PositionnedString) -> Result<ValueContent, ScriptError> {
+    fn parse_character(c: &PositionnedString) -> ScriptResult<ValueContent> {
         if let Some(character) = c.string.strip_prefix('\'') {
             if let Some(character) = character.strip_suffix('\'') {
-                Ok(ValueContent::Character(character.chars().next().unwrap()))
-            } else {
-                Err(ScriptError::semantic(
-                    "Character not ending with ''', this is an internal bug.".to_string(),
-                    c.position,
+                ScriptResult::new_success(ValueContent::Character(
+                    character.chars().next().unwrap(),
                 ))
+            } else {
+                ScriptResult::new_failure(ScriptError::invalid_character(148, c.clone()))
             }
         } else {
-            Err(ScriptError::semantic(
-                "Character not starting with ''', this is an internal bug.".to_string(),
-                c.position,
-            ))
+            ScriptResult::new_failure(ScriptError::invalid_character(149, c.clone()))
         }
     }
 
-    fn parse_byte(b: &PositionnedString) -> Result<ValueContent, ScriptError> {
+    fn parse_byte(b: &PositionnedString) -> ScriptResult<ValueContent> {
         if let Some(byte) = b.string.strip_prefix("0x") {
             if let Ok(byte) = hex::decode(byte) {
-                Ok(ValueContent::Byte(byte[0]))
+                ScriptResult::new_success(ValueContent::Byte(byte[0]))
             } else {
-                Err(ScriptError::semantic(
-                    "Byte notation not valid as hexadecimal, this is an internal bug.".to_string(),
-                    b.position,
-                ))
+                ScriptResult::new_failure(ScriptError::invalid_character(150, b.clone()))
             }
         } else {
-            Err(ScriptError::semantic(
-                "Byte notation not starting with '0x', this is an internal bug.".to_string(),
-                b.position,
-            ))
+            ScriptResult::new_failure(ScriptError::invalid_character(151, b.clone()))
         }
     }
 
     fn parse_vector(
         host: Arc<RwLock<dyn DeclarativeElement>>,
         v: &Vec<TextValue>,
-    ) -> Result<ValueContent, ScriptError> {
+    ) -> ScriptResult<ValueContent> {
+        let mut result = ScriptResult::new_success(());
         let mut values = Vec::new();
         for val in v {
-            values.push(Self::parse(Arc::clone(&host), val)?);
+            if let Some(val) = result.merge_degrade_failure(Self::parse(Arc::clone(&host), val)) {
+                values.push(val);
+            }
         }
 
-        Ok(ValueContent::Array(values))
+        result.and_then(|_| ScriptResult::new_success(ValueContent::Array(values)))
     }
 
     fn make_reference_valuecontent(
         &self,
         value: &ValueContent,
         path: &Path,
-    ) -> Result<ValueContent, ScriptError> {
+    ) -> ScriptResult<ValueContent> {
         let rc_host = self.host.upgrade().unwrap();
         let borrowed_host = rc_host.read().unwrap();
         let content;
@@ -214,14 +201,11 @@ impl Value {
                         reference: Some(Arc::downgrade(&param.unwrap())),
                     });
                 } else {
-                    let position = match &self.text {
-                        TextValue::Name(ps) => ps.position,
-                        _ => Position::default(),
+                    let ps = match &self.text {
+                        TextValue::Name(ps) => ps.clone(),
+                        _ => PositionnedString::default(),
                     };
-                    return Err(ScriptError::semantic(
-                        "Unknown name '".to_string() + &n.name + "' in declared parameters.",
-                        position,
-                    ));
+                    return ScriptResult::new_failure(ScriptError::undeclared_parameter(152, ps));
                 }
             }
             ValueContent::ContextReference((r, e)) => {
@@ -239,44 +223,46 @@ impl Value {
                         e.clone(),
                     ));
                 } else {
-                    let position = match &self.text {
-                        TextValue::ContextReference((ps, _)) => ps.position,
-                        _ => Position::default(),
+                    let ps = match &self.text {
+                        TextValue::ContextReference((ps, _)) => ps.clone(),
+                        _ => PositionnedString::default(),
                     };
-                    return Err(ScriptError::semantic(
-                        "Unknown context '".to_string() + &r.name + "' in treatment requirements.",
-                        position,
-                    ));
+                    return ScriptResult::new_failure(ScriptError::undeclared_context(153, ps));
                 }
             }
             ValueContent::Function(f) => {
-                f.write().unwrap().make_references(path)?;
-
-                content = ValueContent::Function(f.clone());
+                return f
+                    .write()
+                    .unwrap()
+                    .make_references(path)
+                    .and_then(|_| ScriptResult::new_success(ValueContent::Function(f.clone())))
             }
             ValueContent::Array(a) => {
+                let mut result = ScriptResult::new_success(());
                 let mut array = Vec::new();
                 for v in a {
-                    array.push(self.make_reference_valuecontent(v, path)?);
+                    if let Some(val) =
+                        result.merge_degrade_failure(self.make_reference_valuecontent(v, path))
+                    {
+                        array.push(val);
+                    }
                 }
 
-                content = ValueContent::Array(array);
+                return result.and_then(|_| ScriptResult::new_success(ValueContent::Array(array)));
             }
         }
 
-        Ok(content)
+        ScriptResult::new_success(content)
     }
 
-    pub fn make_executive_value(&self, datatype: &DataType) -> Result<ExecutiveValue, ScriptError> {
-        let possible_value = self.content.make_executive_value(datatype);
-
-        if possible_value.is_ok() {
-            Ok(possible_value.unwrap())
-        } else {
-            Err(ScriptError::semantic(
-                possible_value.unwrap_err(),
-                self.text.get_position(),
-            ))
+    pub fn make_executive_value(&self, datatype: &DataType) -> ScriptResult<ExecutiveValue> {
+        match self.content.make_executive_value(datatype) {
+            Ok(value) => ScriptResult::new_success(value),
+            Err(err) => ScriptResult::new_failure(ScriptError::executive_restitution_failed(
+                154,
+                self.text.get_positionned_string().clone(),
+                err,
+            )),
         }
     }
 
@@ -284,9 +270,11 @@ impl Value {
         &self,
         designer: &ParameterDesigner,
         datatype: &DataType,
-    ) -> Result<ValueDesigner, ScriptError> {
+    ) -> ScriptResult<ValueDesigner> {
         match &self.content {
-            ValueContent::Name(decl_param) => Ok(ValueDesigner::Variable(decl_param.name.clone())),
+            ValueContent::Name(decl_param) => {
+                ScriptResult::new_success(ValueDesigner::Variable(decl_param.name.clone()))
+            }
             ValueContent::ContextReference((context, name)) => {
                 if let Some(Entry::Context(context)) = designer
                     .scope()
@@ -310,25 +298,16 @@ impl Value {
                             .unwrap(),
                     )
                 {
-                    Ok(ValueDesigner::Context(Arc::clone(context), name.clone()))
+                    ScriptResult::new_success(ValueDesigner::Context(
+                        Arc::clone(context),
+                        name.clone(),
+                    ))
                 } else {
-                    Err(ScriptError::semantic(
-                        format!(
-                            "No known context '{}'.",
-                            context
-                                .reference
-                                .as_ref()
-                                .unwrap()
-                                .upgrade()
-                                .unwrap()
-                                .read()
-                                .unwrap()
-                                .name
-                        ),
-                        self.text.get_position(),
+                    ScriptResult::new_failure(ScriptError::undeclared_context(
+                        155,
+                        self.text.get_positionned_string().clone(),
                     ))
                 }
-                //Ok(ValueDesigner::Context((context.name.clone(), name.clone())))
             }
             ValueContent::Function(func) => {
                 let borrowed_func = func.read().unwrap();
@@ -343,6 +322,7 @@ impl Value {
                     .unwrap()
                     .get(&borrowed_func.type_identifier.as_ref().unwrap())
                 {
+                    let mut result = ScriptResult::new_success(());
                     let mut params = Vec::new();
                     for i in 0..func_descriptor.parameters().len() {
                         let desc_param = &func_descriptor.parameters()[i];
@@ -350,38 +330,49 @@ impl Value {
                         if let Some(rc_param) = borrowed_func.parameters.get(i) {
                             let borrowed_param = rc_param.read().unwrap();
 
-                            let param = borrowed_param
-                                .make_designed_value(designer, desc_param.datatype())?;
-
-                            params.push(param);
+                            if let Some(param) = result.merge_degrade_failure(
+                                borrowed_param.make_designed_value(designer, desc_param.datatype()),
+                            ) {
+                                params.push(param);
+                            }
                         } else {
-                            return Err(ScriptError::semantic(
-                                format!("Missing parameter on function {}.", borrowed_func.name),
-                                self.text.get_position(),
+                            result = result.and_degrade_failure(ScriptResult::new_failure(
+                                ScriptError::missing_function_parameter(
+                                    156,
+                                    self.text.get_positionned_string().clone(),
+                                    i,
+                                ),
                             ));
                         }
                     }
 
-                    Ok(ValueDesigner::Function(Arc::clone(func_descriptor), params))
+                    result.and_then(|_| {
+                        ScriptResult::new_success(ValueDesigner::Function(
+                            Arc::clone(func_descriptor),
+                            params,
+                        ))
+                    })
                 } else {
-                    Err(ScriptError::semantic(
-                        format!("No known function '{}'.", borrowed_func.name),
-                        self.text.get_position(),
+                    ScriptResult::new_failure(ScriptError::unimported_element(
+                        157,
+                        self.text.get_positionned_string().clone(),
                     ))
                 }
             }
-            _ => Ok(ValueDesigner::Raw(self.make_executive_value(datatype)?)),
+            _ => self
+                .make_executive_value(datatype)
+                .and_then(|val| ScriptResult::new_success(ValueDesigner::Raw(val))),
         }
     }
 }
 
 impl Node for Value {
-    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
-        let content = self.make_reference_valuecontent(&self.content, path)?;
-
-        self.content = content;
-
-        Ok(())
+    fn make_references(&mut self, path: &Path) -> ScriptResult<()> {
+        self.make_reference_valuecontent(&self.content, path)
+            .and_then(|content| {
+                self.content = content;
+                ScriptResult::new_success(())
+            })
     }
 
     fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {

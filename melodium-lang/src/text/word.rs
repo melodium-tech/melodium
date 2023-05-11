@@ -3,9 +3,11 @@
 //! This module contains low-level functions doing parsing and analysis of text, as well as [word elements](Word), the smallest unit of text that can be parsed.
 //! All functions there are unicode-aware.
 
-use crate::ScriptError;
+use core::fmt::{Display, Formatter};
+use melodium_engine::designer::Reference;
 use regex::Regex;
 use std::str;
+use std::sync::Arc;
 
 /// Word, smallest unit of parsed text.
 ///
@@ -18,6 +20,16 @@ pub struct Word {
     pub kind: Option<Kind>,
     /// Position of the word in the file.
     pub position: Position,
+}
+
+impl Default for Word {
+    fn default() -> Self {
+        Word {
+            text: String::new(),
+            kind: None,
+            position: Position::default(),
+        }
+    }
 }
 
 /// Position of a word or element in text.
@@ -40,6 +52,8 @@ pub struct PositionnedString {
     pub position: Position,
 }
 
+impl Reference for PositionnedString {}
+
 impl PositionnedString {
     pub fn remove_indent(&mut self) {
         let mut prefix = None;
@@ -59,6 +73,19 @@ impl PositionnedString {
                 less_indented_string.push_str("\n");
             }
             self.string = less_indented_string;
+        }
+    }
+
+    pub fn into_ref(&self) -> Arc<dyn Reference> {
+        Arc::new(self.clone())
+    }
+}
+
+impl From<&Word> for PositionnedString {
+    fn from(word: &Word) -> Self {
+        Self {
+            string: word.text.clone(),
+            position: word.position.clone(),
         }
     }
 }
@@ -118,6 +145,37 @@ pub enum Kind {
     Byte,
 }
 
+impl Display for Kind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        let str = match self {
+            Kind::Comment => "// Comment",
+            Kind::Annotation => "# Annotation",
+            Kind::OpeningParenthesis => "(",
+            Kind::ClosingParenthesis => ")",
+            Kind::OpeningBrace => "{",
+            Kind::ClosingBrace => "}",
+            Kind::OpeningBracket => "[",
+            Kind::ClosingBracket => "]",
+            Kind::OpeningChevron => "<",
+            Kind::ClosingChevron => ">",
+            Kind::Equal => "=",
+            Kind::Colon => ":",
+            Kind::Comma => ",",
+            Kind::Dot => ".",
+            Kind::Slash => "/",
+            Kind::RightArrow => "->",
+            Kind::Name => "name",
+            Kind::Context => "context (@Context)",
+            Kind::Function => "function (|function)",
+            Kind::Number => "number",
+            Kind::String => r#"string ("string")"#,
+            Kind::Character => "character ('§')",
+            Kind::Byte => "byte (0x2A)",
+        };
+        write!(f, "{}", str)
+    }
+}
+
 /// Convenience structure for internal treatments.
 ///
 /// Embeds different informations in fancy way, instead of a tuple.
@@ -134,86 +192,6 @@ impl Default for KindCheck {
             end_at: 0,
             is_well_formed: false,
         }
-    }
-}
-
-/// Give next word or create error.
-///
-/// Return the next word if any, or create a [ScriptError], with `error_str` as message.
-/// This function always increment `iter` from one.
-///
-/// ```
-/// # use melodium_lang::text::word::*;
-/// # use melodium_lang::ScriptError;
-/// let words = get_words("myNumber= 876").unwrap();
-/// let mut iter = words.iter();
-///
-/// let name = expect_word("Word expected.", &mut iter)?;
-/// let equal = expect_word("Word expected.", &mut iter)?;
-/// let value = expect_word("Word expected.", &mut iter)?;
-///
-/// assert_eq!(name.kind, Some(Kind::Name));
-/// assert_eq!(equal.kind, Some(Kind::Equal));
-/// assert_eq!(value.kind, Some(Kind::Number));
-/// # Ok::<(), ScriptError>(())
-/// ```
-pub fn expect_word(
-    error_str: &'static str,
-    iter: &mut std::slice::Iter<Word>,
-) -> Result<Word, ScriptError> {
-    let word = iter.next();
-    if word.is_some() {
-        let word = word.unwrap();
-        if word.kind.is_some() {
-            return Ok(word.clone());
-        }
-    }
-
-    Err(ScriptError::end_of_script(error_str.to_string()))
-}
-
-/// Check aext word kind and returns its text, or create error.
-///
-/// Return next word text if any and matches `kind`, else create a [ScriptError], with `error_str` as message.
-/// This function always increment `iter` from one.
-///
-/// ```
-/// # use melodium_lang::text::word::*;
-/// # use melodium_lang::ScriptError;
-/// let words = get_words("myNumber= 876").unwrap();
-/// let mut iter = words.iter();
-///
-/// let name = expect_word_kind(Kind::Name, "Name expected.", &mut iter)?;
-/// let equal = expect_word_kind(Kind::Equal, "Equal sign expected.", &mut iter)?;
-/// let value = expect_word_kind(Kind::Number, "Number expected.", &mut iter)?;
-///
-/// assert_eq!(name.string, "myNumber");
-/// assert_eq!(equal.string, "=");
-/// assert_eq!(value.string, "876");
-/// # Ok::<(), ScriptError>(())
-/// ```
-pub fn expect_word_kind(
-    kind: Kind,
-    error_str: &'static str,
-    iter: &mut std::slice::Iter<Word>,
-) -> Result<PositionnedString, ScriptError> {
-    let word = iter.next();
-    if word.is_some() {
-        let word = word.unwrap();
-        if word.kind == Some(kind) {
-            Ok(PositionnedString {
-                string: word.text.to_string(),
-                position: word.position,
-            })
-        } else {
-            Err(ScriptError::word(
-                error_str.to_string(),
-                word.text.to_string(),
-                word.position,
-            ))
-        }
-    } else {
-        Err(ScriptError::end_of_script(error_str.to_string()))
     }
 }
 

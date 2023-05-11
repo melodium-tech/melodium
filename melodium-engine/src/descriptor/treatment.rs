@@ -1,10 +1,10 @@
 use crate::design::Treatment as Design;
-use crate::designer::Treatment as Designer;
-use crate::error::LogicError;
+use crate::designer::{Reference, Treatment as Designer};
+use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
     Buildable, Context, Documented, Identified, Identifier, Input, Model, Output, Parameter,
-    Parameterized, Treatment as TreatmentDescriptor, TreatmentBuildMode,
+    Parameterized, Status, Treatment as TreatmentDescriptor, TreatmentBuildMode,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock, Weak};
@@ -46,43 +46,64 @@ impl Treatment {
         *option_designer = None;
     }
 
-    pub fn designer(&self) -> Result<Arc<RwLock<Designer>>, LogicError> {
+    pub fn designer(
+        &self,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> LogicResult<Arc<RwLock<Designer>>> {
         if self.auto_reference.strong_count() == 0 {
-            return Err(LogicError::uncommited_descriptor());
+            return Status::new_failure(
+                LogicError::uncommited_descriptor(3, self.identifier.clone(), None).into(),
+            );
         }
 
         let mut option_designer = self.designer.lock().expect("Mutex poisoned");
 
         if let Some(designer_ref) = &*option_designer {
-            Ok(designer_ref.clone())
+            Status::new_success(designer_ref.clone())
         } else {
-            let new_designer = Designer::new(&self.auto_reference.upgrade().unwrap());
+            let new_designer =
+                Designer::new(&self.auto_reference.upgrade().unwrap(), design_reference);
 
             *option_designer = Some(new_designer.clone());
 
-            Ok(new_designer)
+            Status::new_success(new_designer)
         }
     }
 
-    pub fn commit_design(&self) -> Result<(), LogicError> {
+    pub fn commit_design(&self) -> LogicResult<()> {
         let option_designer = self.designer.lock().expect("Mutex poisoned");
         let mut option_design = self.design.lock().expect("Mutex poisoned");
 
         if let Some(designer_ref) = &*option_designer {
             let designer = designer_ref.read().unwrap();
-            *option_design = Some(Arc::new(designer.design()?));
-        }
+            let mut result_design = designer.design();
 
-        Ok(())
+            if result_design.is_success() && result_design.has_errors() {
+                result_design =
+                    result_design.and(Status::new_failure(LogicError::erroneous_design(
+                        68,
+                        self.identifier.clone(),
+                        designer.design_reference().clone(),
+                    )));
+            }
+
+            result_design.and_then(|design| {
+                *option_design = Some(Arc::new(design));
+                Status::new_success(())
+            })
+        } else {
+            Status::new_failure(LogicError::no_designer(67, self.identifier.clone(), None))
+        }
     }
 
-    pub fn design(&self) -> Result<Arc<Design>, LogicError> {
+    pub fn design(&self) -> LogicResult<Arc<Design>> {
         let option_design = self.design.lock().expect("Mutex poisoned");
 
         option_design
             .as_ref()
             .map(|design| Arc::clone(design))
-            .ok_or_else(|| LogicError::unavailable_design())
+            .ok_or_else(|| LogicError::unavailable_design(5, self.identifier.clone(), None).into())
+            .into()
     }
 
     pub fn set_documentation(&mut self, documentation: &str) {
@@ -155,6 +176,10 @@ impl Documented for Treatment {
 impl Parameterized for Treatment {
     fn parameters(&self) -> &HashMap<String, Parameter> {
         &self.parameters
+    }
+
+    fn as_identified(&self) -> Arc<dyn Identified> {
+        self.auto_reference.upgrade().unwrap()
     }
 }
 

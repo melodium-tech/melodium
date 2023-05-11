@@ -1,4 +1,4 @@
-use super::TreatmentInstanciation;
+use super::{Reference, TreatmentInstanciation};
 use std::sync::{Arc, RwLock, Weak};
 
 #[derive(Debug)]
@@ -38,6 +38,8 @@ pub struct Connection {
 
     pub input_treatment: IO,
     pub input_name: String,
+
+    pub design_reference: Option<Arc<dyn Reference>>,
 }
 
 impl Connection {
@@ -46,21 +48,28 @@ impl Connection {
         output_treatment: &Arc<RwLock<TreatmentInstanciation>>,
         input_name: &str,
         input_treatment: &Arc<RwLock<TreatmentInstanciation>>,
+        design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
             output_name: output_name.to_string(),
             output_treatment: IO::Treatment(Arc::downgrade(output_treatment)),
             input_name: input_name.to_string(),
             input_treatment: IO::Treatment(Arc::downgrade(input_treatment)),
+            design_reference,
         }
     }
 
-    pub fn new_self(self_input_name: &str, self_output_name: &str) -> Self {
+    pub fn new_self(
+        self_input_name: &str,
+        self_output_name: &str,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> Self {
         Self {
             output_name: self_input_name.to_string(),
             output_treatment: IO::Sequence(),
             input_name: self_output_name.to_string(),
             input_treatment: IO::Sequence(),
+            design_reference,
         }
     }
 
@@ -68,12 +77,14 @@ impl Connection {
         self_input_name: &str,
         input_name: &str,
         input_treatment: &Arc<RwLock<TreatmentInstanciation>>,
+        design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
             output_name: self_input_name.to_string(),
             output_treatment: IO::Sequence(),
             input_name: input_name.to_string(),
             input_treatment: IO::Treatment(Arc::downgrade(input_treatment)),
+            design_reference,
         }
     }
 
@@ -81,12 +92,14 @@ impl Connection {
         output_name: &str,
         output_treatment: &Arc<RwLock<TreatmentInstanciation>>,
         self_output_name: &str,
+        design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
             output_name: output_name.to_string(),
             output_treatment: IO::Treatment(Arc::downgrade(output_treatment)),
             input_name: self_output_name.to_string(),
             input_treatment: IO::Sequence(),
+            design_reference,
         }
     }
 }

@@ -1,14 +1,6 @@
 //! Module dedicated to Treatment semantic analysis.
 
 use super::common::Node;
-
-use crate::error::{wrap_logic_error, ScriptError};
-use crate::path::Path;
-use crate::text::Treatment as TextTreatment;
-use melodium_common::descriptor::{Collection, Entry, Identifier, Treatment as TreatmentTrait};
-use melodium_engine::descriptor::Treatment as TreatmentDescriptor;
-use std::sync::{Arc, RwLock, Weak};
-
 use super::connection::Connection;
 use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
 use super::declared_model::{DeclaredModel, RefersTo as DeclaredModelRefersTo};
@@ -19,6 +11,17 @@ use super::output::Output;
 use super::requirement::Requirement;
 use super::script::Script;
 use super::treatment_instanciation::TreatmentInstanciation;
+use crate::error::ScriptError;
+use crate::path::Path;
+use crate::text::Treatment as TextTreatment;
+use crate::ScriptResult;
+use melodium_common::descriptor::{
+    Collection, Entry, Identified, Identifier, Treatment as TreatmentTrait,
+};
+use melodium_engine::descriptor::Treatment as TreatmentDescriptor;
+use melodium_engine::designer::Treatment as TreatmentDesigner;
+use melodium_engine::LogicError;
+use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a treatment.
 ///
@@ -56,7 +59,7 @@ impl Treatment {
     pub fn new(
         script: Arc<RwLock<Script>>,
         text: TextTreatment,
-    ) -> Result<Arc<RwLock<Self>>, ScriptError> {
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
         let treatment = Arc::<RwLock<Self>>::new(RwLock::new(Self {
             text: text.clone(),
             script: Arc::downgrade(&script),
@@ -72,93 +75,116 @@ impl Treatment {
             identifier: None,
             descriptor: RwLock::new(None),
         }));
+        let mut result = ScriptResult::new_success(Arc::clone(&treatment));
 
         {
             let borrowed_script = script.read().unwrap();
 
             let treatment = borrowed_script.find_treatment(&text.name.string);
             if treatment.is_some() {
-                return Err(ScriptError::semantic(
-                    "Treatment '".to_string() + &text.name.string + "' is already declared.",
-                    text.name.position,
+                result = result.and_degrade_failure(ScriptResult::new_failure(
+                    ScriptError::already_used_name(111, text.name.clone()),
                 ));
             }
 
             let r#use = borrowed_script.find_use(&text.name.string);
             if r#use.is_some() {
-                return Err(ScriptError::semantic(
-                    "Element '".to_string() + &text.name.string + "' is already declared as used.",
-                    text.name.position,
+                result = result.and_degrade_failure(ScriptResult::new_failure(
+                    ScriptError::already_used_name(112, text.name),
                 ));
             }
         }
 
         for c in text.configuration {
-            let declared_model = DeclaredModel::new(Arc::clone(&treatment), c)?;
-            treatment
-                .write()
-                .unwrap()
-                .declared_models
-                .push(declared_model);
+            if let Some(declared_model) =
+                result.merge_degrade_failure(DeclaredModel::new(Arc::clone(&treatment), c))
+            {
+                treatment
+                    .write()
+                    .unwrap()
+                    .declared_models
+                    .push(declared_model);
+            }
         }
 
         for p in text.parameters {
-            let declared_parameter = DeclaredParameter::new(
+            if let Some(declared_parameter) = result.merge_degrade_failure(DeclaredParameter::new(
                 Arc::clone(&treatment) as Arc<RwLock<dyn DeclarativeElement>>,
                 p,
-            )?;
-            treatment
-                .write()
-                .unwrap()
-                .parameters
-                .push(declared_parameter);
+            )) {
+                treatment
+                    .write()
+                    .unwrap()
+                    .parameters
+                    .push(declared_parameter);
+            }
         }
 
         for m in text.models {
-            let instancied_model = ModelInstanciation::new(Arc::clone(&treatment), m)?;
-            treatment
-                .write()
-                .unwrap()
-                .model_instanciations
-                .push(Arc::clone(&instancied_model));
-            let declared_model = DeclaredModel::from_instancied_model(instancied_model)?;
-            treatment
-                .write()
-                .unwrap()
-                .declared_models
-                .push(declared_model);
+            if let Some(instancied_model) =
+                result.merge_degrade_failure(ModelInstanciation::new(Arc::clone(&treatment), m))
+            {
+                treatment
+                    .write()
+                    .unwrap()
+                    .model_instanciations
+                    .push(Arc::clone(&instancied_model));
+                if let Some(declared_model) = result
+                    .merge_degrade_failure(DeclaredModel::from_instancied_model(instancied_model))
+                {
+                    treatment
+                        .write()
+                        .unwrap()
+                        .declared_models
+                        .push(declared_model);
+                }
+            }
         }
 
         for r in text.requirements {
-            let requirement = Requirement::new(Arc::clone(&treatment), r)?;
-            treatment.write().unwrap().requirements.push(requirement);
+            if let Some(requirement) =
+                result.merge_degrade_failure(Requirement::new(Arc::clone(&treatment), r))
+            {
+                treatment.write().unwrap().requirements.push(requirement);
+            }
         }
 
         for i in text.inputs {
-            let input = Input::new(Arc::clone(&treatment), i)?;
-            treatment.write().unwrap().inputs.push(input);
+            if let Some(input) = result.merge_degrade_failure(Input::new(Arc::clone(&treatment), i))
+            {
+                treatment.write().unwrap().inputs.push(input);
+            }
         }
 
         for o in text.outputs {
-            let output = Output::new(Arc::clone(&treatment), o)?;
-            treatment.write().unwrap().outputs.push(output);
+            if let Some(output) =
+                result.merge_degrade_failure(Output::new(Arc::clone(&treatment), o))
+            {
+                treatment.write().unwrap().outputs.push(output);
+            }
         }
 
         for t in text.treatments {
-            let treatment_instanciation = TreatmentInstanciation::new(Arc::clone(&treatment), t)?;
-            treatment
-                .write()
-                .unwrap()
-                .treatment_instanciations
-                .push(treatment_instanciation);
+            if let Some(treatment_instanciation) =
+                result.merge_degrade_failure(TreatmentInstanciation::new(Arc::clone(&treatment), t))
+            {
+                treatment
+                    .write()
+                    .unwrap()
+                    .treatment_instanciations
+                    .push(treatment_instanciation);
+            }
         }
 
         for c in text.connections {
-            let connection = Connection::new(Arc::clone(&treatment), c)?;
-            treatment.write().unwrap().connections.push(connection);
+            if let Some(connection) =
+                result.merge_degrade_failure(Connection::new(Arc::clone(&treatment), c))
+            {
+                treatment.write().unwrap().connections.push(connection);
+            }
         }
 
-        Ok(treatment)
+        result
     }
 
     /// Search for a declared model.
@@ -204,7 +230,8 @@ impl Treatment {
             .find(|&t| t.read().unwrap().name == name)
     }
 
-    pub fn make_descriptor(&self, collection: &mut Collection) -> Result<(), ScriptError> {
+    pub fn make_descriptor(&self, collection: &mut Collection) -> ScriptResult<()> {
+        let mut result = ScriptResult::new_success(());
         let mut descriptor = TreatmentDescriptor::new(self.identifier.as_ref().unwrap().clone());
 
         if let Some(documentation) = &self.text.doc {
@@ -244,16 +271,28 @@ impl Treatment {
                     .as_ref()
                     .unwrap()
                     .clone(),
-                _ => panic!("{:?}", &borrowed_model.refers),
+                _ => {
+                    return ScriptResult::new_failure(ScriptError::reference_unset(
+                        116,
+                        format!("{:?}", &borrowed_model.refers),
+                    ))
+                }
             };
 
             if let Some(Entry::Model(model_descriptor)) = collection.get(&model_identifier) {
                 descriptor.add_model(&borrowed_model.name, &model_descriptor)
             } else {
-                // Only the RefersTo::Use case can exist at that point.
-                return Err(ScriptError::semantic(
-                    "Model \"".to_string() + &model_identifier.to_string() + "\" does not exist.",
-                    borrowed_model.text.as_ref().unwrap().name.position,
+                result = result.and_degrade_failure(ScriptResult::new_failure(
+                    LogicError::unexisting_model(
+                        113,
+                        descriptor.identifier().clone(),
+                        model_identifier,
+                        borrowed_model
+                            .text
+                            .as_ref()
+                            .map(|text| text.name.into_ref()),
+                    )
+                    .into(),
                 ));
             };
         }
@@ -262,63 +301,89 @@ impl Treatment {
 
         for rc_parameter in &self.parameters {
             let borrowed_parameter = rc_parameter.read().unwrap();
-            let parameter_descriptor = borrowed_parameter.make_descriptor()?;
-
-            descriptor.add_parameter(parameter_descriptor);
+            if let Some(parameter_descriptor) =
+                result.merge_degrade_failure(borrowed_parameter.make_descriptor())
+            {
+                descriptor.add_parameter(parameter_descriptor);
+            }
         }
 
         for rc_input in &self.inputs {
             let borrowed_input = rc_input.read().unwrap();
-            let input_descriptor = borrowed_input.make_descriptor()?;
-
-            descriptor.add_input(input_descriptor);
+            if let Some(input_descriptor) =
+                result.merge_degrade_failure(borrowed_input.make_descriptor())
+            {
+                descriptor.add_input(input_descriptor);
+            }
         }
 
         for rc_output in &self.outputs {
             let borrowed_output = rc_output.read().unwrap();
-            let output_descriptor = borrowed_output.make_descriptor()?;
-
-            descriptor.add_output(output_descriptor);
+            if let Some(output_descriptor) =
+                result.merge_degrade_failure(borrowed_output.make_descriptor())
+            {
+                descriptor.add_output(output_descriptor);
+            }
         }
 
         for rc_requirement in &self.requirements {
             let borrowed_requirement = rc_requirement.read().unwrap();
 
-            let context =
-                match collection.get(borrowed_requirement.type_identifier.as_ref().unwrap()) {
-                    Some(Entry::Context(c)) => Ok(c),
-                    _ => Err(ScriptError::semantic(
-                        format!(
-                            r#"Context "{}" does not exist."#,
-                            borrowed_requirement.text.name.string
-                        ),
-                        borrowed_requirement.text.name.position,
-                    )),
-                }?;
-
-            descriptor.add_context(context);
+            if let Some(Entry::Context(context)) =
+                collection.get(borrowed_requirement.type_identifier.as_ref().unwrap())
+            {
+                descriptor.add_context(context);
+            } else {
+                result = result.and_degrade_failure(ScriptResult::new_failure(
+                    LogicError::unexisting_context(
+                        114,
+                        descriptor.identifier().clone(),
+                        borrowed_requirement
+                            .type_identifier
+                            .as_ref()
+                            .unwrap()
+                            .clone(),
+                        None,
+                    )
+                    .into(),
+                ));
+            }
         }
 
-        let descriptor = descriptor.commit();
+        if result.is_success() {
+            let descriptor = descriptor.commit();
 
-        collection.insert(Entry::Treatment(
-            Arc::clone(&descriptor) as Arc<dyn TreatmentTrait>
-        ));
+            collection.insert(Entry::Treatment(
+                Arc::clone(&descriptor) as Arc<dyn TreatmentTrait>
+            ));
 
-        *self.descriptor.write().unwrap() = Some(descriptor);
+            *self.descriptor.write().unwrap() = Some(descriptor);
+        }
 
-        Ok(())
+        result
     }
 
-    pub fn make_design(&self, collection: &Arc<Collection>) -> Result<(), ScriptError> {
+    pub fn make_design(&self, collection: &Arc<Collection>) -> ScriptResult<()> {
         let borrowed_descriptor = self.descriptor.read().unwrap();
         let descriptor = if let Some(descriptor) = &*borrowed_descriptor {
             descriptor
         } else {
-            return Err(ScriptError::no_descriptor());
+            return ScriptResult::new_failure(ScriptError::no_descriptor(
+                115,
+                self.text.name.clone(),
+            ));
         };
 
-        let rc_designer = descriptor.designer()?;
+        let mut result = ScriptResult::new_success(());
+
+        let rc_designer: Arc<RwLock<TreatmentDesigner>> = if let Some(designer) = result
+            .merge_degrade_failure(ScriptResult::from(
+                descriptor.designer(Some(self.text.name.into_ref())),
+            )) {
+            designer
+        } else {
+            return result;
+        };
         rc_designer
             .write()
             .unwrap()
@@ -328,50 +393,54 @@ impl Treatment {
         for rc_instancied_model in &self.model_instanciations {
             let instancied_model = rc_instancied_model.read().unwrap();
 
-            let instanciation_designer = wrap_logic_error!(
-                rc_designer.write().unwrap().add_model_instanciation(
-                    instancied_model.type_identifier.as_ref().unwrap(),
-                    &instancied_model.name
-                ),
-                instancied_model.text.name.position
+            let tmp_status = rc_designer.write().unwrap().add_model_instanciation(
+                instancied_model.type_identifier.as_ref().unwrap(),
+                &instancied_model.name,
+                Some(instancied_model.text.name.into_ref()),
             );
-
-            instancied_model.make_design(&instanciation_designer)?;
+            if let Some(instanciation_designer) =
+                result.merge_degrade_failure(ScriptResult::from(tmp_status))
+            {
+                result = result
+                    .and_degrade_failure(instancied_model.make_design(&instanciation_designer));
+            }
         }
 
         // Treatments
         for rc_treatment in &self.treatment_instanciations {
             let treatment = rc_treatment.read().unwrap();
 
-            let treatment_designer = wrap_logic_error!(
-                rc_designer
-                    .write()
-                    .unwrap()
-                    .add_treatment(treatment.type_identifier.as_ref().unwrap(), &treatment.name),
-                treatment.text.name.position
+            let tmp_status = rc_designer.write().unwrap().add_treatment(
+                treatment.type_identifier.as_ref().unwrap(),
+                &treatment.name,
+                Some(treatment.text.name.into_ref()),
             );
-
-            treatment.make_design(&treatment_designer)?;
+            if let Some(treatment_designer) =
+                result.merge_degrade_failure(ScriptResult::from(tmp_status))
+            {
+                result = result.and_degrade_failure(treatment.make_design(&treatment_designer));
+            }
         }
 
         // Connections
         for rc_connection in &self.connections {
             let connection = rc_connection.read().unwrap();
 
-            connection.make_design(&mut rc_designer.write().unwrap())?;
+            result = result
+                .and_degrade_failure(connection.make_design(&mut rc_designer.write().unwrap()));
         }
 
-        wrap_logic_error!(descriptor.commit_design(), self.text.name.position);
+        result = result.and_degrade_failure(ScriptResult::from(descriptor.commit_design()));
 
-        Ok(())
+        result
     }
 }
 
 impl Node for Treatment {
-    fn make_references(&mut self, path: &Path) -> Result<(), ScriptError> {
+    fn make_references(&mut self, path: &Path) -> ScriptResult<()> {
         self.identifier = path.to_identifier(&self.name);
 
-        Ok(())
+        ScriptResult::new_success(())
     }
 
     fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
