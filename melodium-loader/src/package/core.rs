@@ -211,7 +211,7 @@ impl Package for CorePackage {
             }
         }
 
-        results
+        results.and(LoadingResult::new_success(collection))
     }
 
     fn all_identifiers(&self, loader: &Loader) -> LoadingResult<Vec<Identifier>> {
