@@ -1,29 +1,25 @@
 
 .cargo-cache:
   variables:
-    CARGO_HOME: .cargo/
+    CARGO_HOME: .cargo_home/
   cache:
-    key: cargo-cache
-    paths:
-    - .cargo/
-    policy: pull
+    - key: cargo-cache:$CI_JOB_NAME
+      paths:
+      - .cargo_home/
+      policy: pull-push
 
-.osxcross-macos10.7-cache:
-  variables:
-    CARGO_HOME: .cargo/
+.osxcross-cache:
   cache:
-    key: osxcross-macos10.7-cache
-    paths:
-    - osxcross/
-    - .cargo/
-    policy: pull-push
+    - key: osxcross-cache:$CI_JOB_NAME
+      paths:
+      - osxcross/
+      policy: pull-push
 
-.osxcross-macos11.3-cache:
-  variables:
-    CARGO_HOME: .cargo/
+.xwin-cache:
   cache:
-    key: osxcross-macos11.3-cache
-    paths:
-    - osxcross/
-    - .cargo/
-    policy: pull-push
+    - key: xwin-cache:$CI_JOB_NAME
+      paths:
+      - .xwin/
+      - .xwin-cache/
+      policy: pull-push
+
