@@ -1,0 +1,27 @@
+[target.x86_64-pc-windows-msvc]
+linker = "lld"
+rustflags = [
+    "-Ctarget-feature=+crt-static",
+    "-Lnative=.xwin/crt/lib/x86_64",
+    "-Lnative=.xwin/sdk/lib/um/x86_64",
+    "-Lnative=.xwin/sdk/lib/ucrt/x86_64"
+]
+
+[target.i686-pc-windows-msvc]
+linker = "lld"
+rustflags = [
+    "-Ctarget-feature=+crt-static",
+    "-Lnative=.xwin/crt/lib/x86",
+    "-Lnative=.xwin/sdk/lib/um/x86",
+    "-Lnative=.xwin/sdk/lib/ucrt/x86"
+]
+
+[target.aarch64-pc-windows-msvc]
+linker = "lld"
+rustflags = [
+    "-Ctarget-feature=+crt-static",
+    "-Lnative=.xwin/crt/lib/aarch64",
+    "-Lnative=.xwin/sdk/lib/um/aarch64",
+    "-Lnative=.xwin/sdk/lib/ucrt/aarch64"
+]
+

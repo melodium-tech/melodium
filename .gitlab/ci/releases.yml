@@ -15,15 +15,15 @@ release:gitlab:
     description: 'melodium/CHANGELOG.md'
     assets:
       links:
-        # - name: Windows ARM 64 bits (arm64, MSVC compiler)
-        #   url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_aarch64-pc-windows-msvc.zip"
-        #   link_type: package
+        - name: Windows ARM 64 bits (arm64, MSVC compiler)
+          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_aarch64-pc-windows-msvc.zip"
+          link_type: package
         - name: Windows 32 bits (i686, MSVC compiler)
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-msvc.zip"
           link_type: package
-        # - name: Windows 32 bits (i686, GNU compiler)
-        #   url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-gnu.zip"
-        #   link_type: package
+        - name: Windows 32 bits (i686, GNU compiler)
+          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-gnu.zip"
+          link_type: package
         - name: Windows 64 bits (x86_64, MSVC compiler)
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-pc-windows-msvc.zip"
           link_type: package
@@ -39,13 +39,22 @@ release:gitlab:
         - name: MacOS 64 bits (x86_64)
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-apple-darwin.tar.gz"
           link_type: package
-        - name: Linux ARM 64 bits (arm64)
+        - name: Linux ARM 64 bits (arm64, musl)
+          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_aarch64-unknown-linux-musl.tar.gz"
+          link_type: package
+        - name: Linux ARM 64 bits (arm64, glibc)
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_aarch64-unknown-linux-gnu.tar.gz"
           link_type: package
-        - name: Linux 32 bits (i686)
+        - name: Linux 32 bits (i686, musl)
+          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-unknown-linux-musl.tar.gz"
+          link_type: package
+        - name: Linux 32 bits (i686, glibc)
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-unknown-linux-gnu.tar.gz"
           link_type: package
-        - name: Linux 64 bits (x86_64)
+        - name: Linux 64 bits (x86_64, musl)
+          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-unknown-linux-musl.tar.gz"
+          link_type: package
+        - name: Linux 64 bits (x86_64, glibc)
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-unknown-linux-gnu.tar.gz"
           link_type: package
         - name: crates.io
@@ -61,40 +70,23 @@ release:gitlab:
           url: "https://doc.melodium.tech/$VERSION/"
           link_type: other
 
-release:publish:
+release:publish:zips:
   stage: release
   image: debian:bullseye
   rules:
     - if: ( $CI_COMMIT_TAG )
+  variables:
+    GIT_STRATEGY: none
   needs:
     - job: package:zips
       artifacts: true
-    - job: doc:melodium:reference
-      artifacts: true
   before_script:
     - apt-get update
-    - apt-get install -y openssh-client sshpass
+    - apt-get install -y rsync sshpass
   script:
-    - export DATETIME=$(date --utc --iso-8601=seconds)
-    - |
-      SSHPASS="$PUBLISH_SSH_PASS" sshpass -e sftp -r "$PUBLISH_SFTP_SERVER" <<EOF
-      cd "$PUBLISH_REPO_DIRECTORY"
-      mkdir "$VERSION"
-      cd "$VERSION"
-      put SHA256SUMS
-      put melodium-*_x86_64-unknown-linux-gnu.tar.gz
-      put melodium-*_i686-unknown-linux-gnu.tar.gz
-      put melodium-*_aarch64-unknown-linux-gnu.tar.gz
-      put melodium-*_x86_64-apple-darwin.tar.gz
-      put melodium-*_i686-apple-darwin.tar.gz
-      put melodium-*_aarch64-apple-darwin.tar.gz
-      put melodium-*_x86_64-pc-windows-gnu.zip
-      put melodium-*_x86_64-pc-windows-msvc.zip
-      put melodium-*_i686-pc-windows-msvc.zip
-      cd "$PUBLISH_DOC_DIRECTORY"
-      put reference "$VERSION"
-      put reference .latest
-      rename latest ".old-latest_$DATETIME"
-      rename .latest latest
-      EOF
+    - mkdir ~/.ssh
+    - ssh-keyscan "$ZIP_RELEASE_PUBLISH_SERVER" >> ~/.ssh/known_hosts
+    - mkdir "$VERSION"
+    - mv melodium-* SHA256SUMS "$VERSION/"
+    - SSHPASS="$ZIP_RELEASE_PUBLISH_PASSWORD" sshpass -e rsync -a "$VERSION" "$ZIP_RELEASE_PUBLISH_USER@$ZIP_RELEASE_PUBLISH_SERVER:$ZIP_RELEASE_PUBLISH_DIRECTORY"
 
