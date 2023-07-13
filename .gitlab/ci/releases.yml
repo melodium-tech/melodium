@@ -5,7 +5,7 @@ release:gitlab:
   rules:
     - if: ( $CI_COMMIT_TAG )
   needs:
-    - job: package:zips
+    - job: packaging:zips
       artifacts: true
   script:
     - echo "Making GitLab release Mélodium version $VERSION from tag $CI_COMMIT_TAG"
@@ -78,7 +78,7 @@ release:publish:zips:
   variables:
     GIT_STRATEGY: none
   needs:
-    - job: package:zips
+    - job: packaging:zips
       artifacts: true
   before_script:
     - apt-get update
@@ -90,3 +90,22 @@ release:publish:zips:
     - mv melodium-* SHA256SUMS "$VERSION/"
     - SSHPASS="$ZIP_RELEASE_PUBLISH_PASSWORD" sshpass -e rsync -a "$VERSION" "$ZIP_RELEASE_PUBLISH_USER@$ZIP_RELEASE_PUBLISH_SERVER:$ZIP_RELEASE_PUBLISH_DIRECTORY"
 
+release:publish:deb:
+  stage: release
+  image: debian:bullseye
+  rules:
+    - if: ( $CI_COMMIT_TAG )
+  variables:
+    GIT_STRATEGY: none
+  needs:
+    - job: packaging:installers:deb
+      artifacts: true
+  before_script:
+    - apt-get update
+    - apt-get install -y rsync sshpass
+  script:
+    - mkdir ~/.ssh
+    - ssh-keyscan "$DEB_RELEASE_PUBLISH_SERVER" >> ~/.ssh/known_hosts
+    - mkdir "$VERSION"
+    - mv gnu musl "$VERSION/"
+    - SSHPASS="$DEB_RELEASE_PUBLISH_PASSWORD" sshpass -e rsync -a "$VERSION" "$DEB_RELEASE_PUBLISH_USER@$DEB_RELEASE_PUBLISH_SERVER:$DEB_RELEASE_PUBLISH_DIRECTORY"

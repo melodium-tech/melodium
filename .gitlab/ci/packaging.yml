@@ -1,0 +1,105 @@
+
+include:
+  - local: /.gitlab/ci/configs.yml
+  - local: /.gitlab/ci/builders.yml
+
+packaging:installers:deb:
+  stage: packaging
+  extends:
+    - .build-release
+    - .builder:linux:x86_64-unknown-linux-gnu
+  needs:
+    - build:release:aarch64-unknown-linux-gnu
+    - build:release:aarch64-unknown-linux-musl
+    - build:release:i686-unknown-linux-gnu
+    - build:release:i686-unknown-linux-musl
+    - build:release:x86_64-unknown-linux-gnu
+    - build:release:x86_64-unknown-linux-musl
+  script:
+    - cargo install cargo-deb
+    # Debian packages are built using cargo-deb (because cargo-bundle makes desktop entries we don't want)
+    - cargo deb --package melodium --no-build --no-strip --target aarch64-unknown-linux-gnu
+    - cargo deb --package melodium --no-build --no-strip --target aarch64-unknown-linux-musl
+    - cargo deb --package melodium --no-build --no-strip --target i686-unknown-linux-gnu
+    - cargo deb --package melodium --no-build --no-strip --target i686-unknown-linux-musl
+    - cargo deb --package melodium --no-build --no-strip --target x86_64-unknown-linux-gnu
+    - cargo deb --package melodium --no-build --no-strip --target x86_64-unknown-linux-musl
+    - mkdir gnu musl
+    - mv target/*-gnu/debian/*.deb gnu/
+    - mv target/*-musl/debian/*.deb musl/
+    - cd gnu
+    - sha256sum *.deb > SHA256SUMS
+    - cd ../musl
+    - sha256sum *.deb > SHA256SUMS
+    - cd ..
+  artifacts:
+    name: "packaging-installers-deb-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - gnu/
+      - musl/
+    expire_in: 1 day
+
+packaging:zips:
+  stage: packaging
+  image: debian:bullseye
+  extends: 
+    - .build-release
+  needs:
+    - build:release:aarch64-apple-darwin
+    - build:release:aarch64-pc-windows-msvc
+    - build:release:aarch64-unknown-linux-gnu
+    - build:release:aarch64-unknown-linux-musl
+    - build:release:i686-apple-darwin
+    - build:release:i686-pc-windows-gnu
+    - build:release:i686-pc-windows-msvc
+    - build:release:i686-unknown-linux-gnu
+    - build:release:i686-unknown-linux-musl
+    - build:release:x86_64-apple-darwin
+    - build:release:x86_64-pc-windows-gnu
+    - build:release:x86_64-pc-windows-msvc
+    - build:release:x86_64-unknown-linux-gnu
+    - build:release:x86_64-unknown-linux-musl
+  before_script:
+    - apt-get update
+    - apt-get install -y zip
+  script:
+    - export VERSION=${CI_COMMIT_TAG}
+    - export VERSION=${VERSION:-$CI_COMMIT_SHORT_SHA}
+    - export VERSION=$(echo $VERSION | sed 's/^v//')
+    - .gitlab/ci/package.sh -t aarch64-apple-darwin -v $VERSION -e melodium -z tgz
+    - .gitlab/ci/package.sh -t aarch64-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
+    - .gitlab/ci/package.sh -t aarch64-unknown-linux-gnu -v $VERSION -e melodium -z tgz
+    - .gitlab/ci/package.sh -t aarch64-unknown-linux-musl -v $VERSION -e melodium -z tgz
+    - .gitlab/ci/package.sh -t i686-apple-darwin -v $VERSION -e melodium -z tgz
+    - .gitlab/ci/package.sh -t i686-pc-windows-gnu -v $VERSION -e melodium.exe -z zip
+    - .gitlab/ci/package.sh -t i686-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
+    - .gitlab/ci/package.sh -t i686-unknown-linux-gnu -v $VERSION -e melodium -z tgz
+    - .gitlab/ci/package.sh -t i686-unknown-linux-musl -v $VERSION -e melodium -z tgz
+    - .gitlab/ci/package.sh -t x86_64-apple-darwin -v $VERSION -e melodium -z tgz
+    - .gitlab/ci/package.sh -t x86_64-pc-windows-gnu -v $VERSION -e melodium.exe -z zip
+    - .gitlab/ci/package.sh -t x86_64-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
+    - .gitlab/ci/package.sh -t x86_64-unknown-linux-gnu -v $VERSION -e melodium -z tgz
+    - .gitlab/ci/package.sh -t x86_64-unknown-linux-musl -v $VERSION -e melodium -z tgz
+    - sha256sum *.tar.gz *.zip > SHA256SUMS
+    - echo "VERSION=$VERSION" >> variables.env
+  artifacts:
+    name: "packaging-zips-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - SHA256SUMS
+      - melodium-*_aarch64-apple-darwin.tar.gz
+      - melodium-*_aarch64-pc-windows-msvc.zip
+      - melodium-*_aarch64-unknown-linux-gnu.tar.gz
+      - melodium-*_aarch64-unknown-linux-musl.tar.gz
+      - melodium-*_i686-apple-darwin.tar.gz
+      - melodium-*_i686-pc-windows-gnu.zip
+      - melodium-*_i686-pc-windows-msvc.zip
+      - melodium-*_i686-unknown-linux-gnu.tar.gz
+      - melodium-*_i686-unknown-linux-musl.tar.gz
+      - melodium-*_x86_64-apple-darwin.tar.gz
+      - melodium-*_x86_64-pc-windows-gnu.zip
+      - melodium-*_x86_64-pc-windows-msvc.zip
+      - melodium-*_x86_64-unknown-linux-gnu.tar.gz
+      - melodium-*_x86_64-unknown-linux-musl.tar.gz
+    expire_in: 1 day
+    reports:
+      dotenv: variables.env

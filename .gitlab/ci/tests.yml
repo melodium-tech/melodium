@@ -1,12 +1,11 @@
 
 include:
-  - local: /.gitlab/ci/builds.yml
+  - local: /.gitlab/ci/builders.yml
 
 test:rust:unit_tests:
   stage: test
   extends:
-    - .debian-host
-    - .cargo-cache
+    - .builder:linux:x86_64-unknown-linux-gnu
   needs: []
   dependencies: []
   script:

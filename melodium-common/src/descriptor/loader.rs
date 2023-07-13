@@ -1,7 +1,7 @@
 use crate::descriptor::{Context, Function, Identifier, Model, Treatment};
 use core::fmt::{Debug, Display, Formatter};
 use downcast_rs::{impl_downcast, Downcast};
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use super::Status;
 
@@ -10,11 +10,22 @@ pub enum LoadingErrorKind {
     NoPackage {
         name: String,
     },
+    NoEntryPointProvided,
+    UnreachableFile {
+        path: PathBuf,
+        error: String,
+    },
+    WrongConfiguration {
+        package: String,
+    },
     NotFound {
         element: String,
     },
     CircularReference {
         identifier: Identifier,
+    },
+    RepositoryError {
+        error: Arc<dyn RepositoryError>,
     },
     ContentError {
         error: Arc<dyn ContentError>,
@@ -35,16 +46,36 @@ pub enum LoadingErrorKind {
         expecter: Option<Identifier>,
         identifier: Identifier,
     },
+    JeuFormatError {
+        error: String,
+    },
+    UncompatiblePlatform {
+        platform: String,
+    },
+    LibraryLoadingError {
+        path: PathBuf,
+        error: String,
+    },
 }
 
 impl Display for LoadingErrorKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             LoadingErrorKind::NoPackage { name } => write!(f, "No package '{name}' found"),
+            LoadingErrorKind::NoEntryPointProvided => write!(f, "No entry point provided"),
+            LoadingErrorKind::UnreachableFile { path, error } => write!(
+                f,
+                "File '{path}' cannot be read: {error}",
+                path = path.to_string_lossy()
+            ),
+            LoadingErrorKind::WrongConfiguration { package } => {
+                write!(f, "Package '{package}' have wrong configuration")
+            }
             LoadingErrorKind::NotFound { element } => write!(f, "Element '{element}' not found"),
             LoadingErrorKind::CircularReference { identifier } => {
                 write!(f, "Element '{identifier}' cause a circular reference")
             }
+            LoadingErrorKind::RepositoryError { error } => write!(f, "{error}"),
             LoadingErrorKind::ContentError { error } => write!(f, "{error}"),
             LoadingErrorKind::ContextExpected {
                 expecter,
@@ -86,6 +117,17 @@ impl Display for LoadingErrorKind {
                 ),
                 None => write!(f, "'{identifier}' is not a treatment"),
             },
+            LoadingErrorKind::JeuFormatError { error } => {
+                write!(f, "Jeu data cannot be processed: {error}")
+            }
+            LoadingErrorKind::UncompatiblePlatform { platform } => {
+                write!(f, "Platform '{platform}' is not compatible")
+            }
+            LoadingErrorKind::LibraryLoadingError { path, error } => write!(
+                f,
+                "Loading '{path}' failed: {error}",
+                path = path.to_string_lossy()
+            ),
         }
     }
 }
@@ -104,6 +146,27 @@ impl LoadingError {
         }
     }
 
+    pub fn no_entry_point_provided(id: u32) -> Self {
+        Self {
+            id,
+            kind: LoadingErrorKind::NoEntryPointProvided,
+        }
+    }
+
+    pub fn unreachable_file(id: u32, path: PathBuf, error: String) -> Self {
+        Self {
+            id,
+            kind: LoadingErrorKind::UnreachableFile { path, error },
+        }
+    }
+
+    pub fn wrong_configuration(id: u32, package: String) -> Self {
+        Self {
+            id,
+            kind: LoadingErrorKind::WrongConfiguration { package },
+        }
+    }
+
     pub fn not_found(id: u32, element: String) -> Self {
         Self {
             id,
@@ -115,6 +178,13 @@ impl LoadingError {
         Self {
             id,
             kind: LoadingErrorKind::CircularReference { identifier },
+        }
+    }
+
+    pub fn repository_error(id: u32, error: Arc<dyn RepositoryError>) -> Self {
+        Self {
+            id,
+            kind: LoadingErrorKind::RepositoryError { error },
         }
     }
 
@@ -172,6 +242,27 @@ impl LoadingError {
             },
         }
     }
+
+    pub fn jeu_format_error(id: u32, error: String) -> Self {
+        Self {
+            id,
+            kind: LoadingErrorKind::JeuFormatError { error },
+        }
+    }
+
+    pub fn uncompatible_platform(id: u32, platform: String) -> Self {
+        Self {
+            id,
+            kind: LoadingErrorKind::UncompatiblePlatform { platform },
+        }
+    }
+
+    pub fn library_loading_error(id: u32, path: PathBuf, error: String) -> Self {
+        Self {
+            id,
+            kind: LoadingErrorKind::LibraryLoadingError { path, error },
+        }
+    }
 }
 
 impl Display for LoadingError {
@@ -190,7 +281,12 @@ pub trait Loader {
     fn load_treatment(&self, identifier: &Identifier) -> LoadingResult<Arc<dyn Treatment>>;
 }
 
+pub trait RepositoryError: Display + Debug + Downcast + Send + Sync {}
+impl_downcast!(RepositoryError);
+
+pub type RepositoryErrors = Vec<Arc<dyn RepositoryError>>;
+
 pub trait ContentError: Display + Debug + Downcast + Send + Sync {}
 impl_downcast!(ContentError);
 
-pub type ContentErrors = Vec<Box<dyn ContentError>>;
+pub type ContentErrors = Vec<Arc<dyn ContentError>>;

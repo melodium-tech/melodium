@@ -4,3 +4,20 @@
     - if: $BUILD_RELEASE == "true"
       allow_failure: true
     - if: ( $CI_COMMIT_TAG )
+
+.check-builds:
+  rules:
+    - if: $CHECK == "true"
+
+.build-packages:
+  rules:
+    - if: $BUILD_PACKAGES == "true"
+      allow_failure: true
+    - if: $RELEASE_PACKAGES == "true"
+    - if: ( $CI_COMMIT_TAG )
+
+.release-packages:
+  rules:
+    - if: $RELEASE_PACKAGES == "true"
+    - if: ( $CI_COMMIT_TAG )
+    

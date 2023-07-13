@@ -10,6 +10,7 @@ use core::{
 use melodium_common::descriptor::{
     Collection, ContentError as CommonContentError, Identifier, Status,
 };
+#[cfg(feature = "script")]
 use melodium_lang::{error::ScriptErrors, ScriptError};
 use std::sync::{Arc, Mutex, MutexGuard};
 

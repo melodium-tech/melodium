@@ -1,10 +1,12 @@
 
 # Changelog
 
-## Unreleased
+## [v0.7.0]
 
 - Improving loadgin errors reporting.
 - Refactoring loading process.
+- Adding `.jeu` format support.
+- Adding package management.
 
 ## [v0.6.2]
 

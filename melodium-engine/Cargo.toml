@@ -1,7 +1,7 @@
 [package]
 name = "melodium-engine"
 version = "0.6.0"
-authors = ["Quentin VIGNAUD <qvignaud@gmail.com>"]
+authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.60"
 edition = "2018"
 license = "EUPL-1.2"
@@ -18,11 +18,15 @@ name = "melodium_engine"
 [dependencies]
 melodium-common = { path = "../melodium-common", version = "0.6.0" }
 async-std = "~1.12"
-async-trait = "~0.1.60"
+async-trait = "~0.1.71"
 downcast-rs = "~1.2.0"
-futures = "~0.3.24"
+futures = "~0.3.28"
 lazy_static = "~1.4"
 
 [features]
-default = ["doc"]
+default = []
 doc = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

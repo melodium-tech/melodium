@@ -1,0 +1,15 @@
+
+include:
+  - local: /.gitlab/ci/configs.yml
+
+variables:
+  PACKAGES: conv engine flow fs ops type
+
+libs:release:
+  stage: build
+  extends:
+    - .build-packages
+  trigger:
+    include: /.gitlab/ci/packages.yml
+    forward:
+      pipeline_variables: true

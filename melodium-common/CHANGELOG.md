@@ -1,7 +1,7 @@
 
 # Changelog
 
-## Unrelease
+## [v0.7.0]
 
 - Adding Status for better error management.
 - Improving user display of elements.

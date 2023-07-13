@@ -11,3 +11,8 @@ for built-in elements are provided within the `descriptor` module.
 
 Look at the [Mélodium crate](https://docs.rs/melodium/latest/melodium/)
 or the [Mélodium Project](https://melodium.tech/) for more detailed information.
+
+## Features
+
+- `doc` (disabled by default): enables documentation management of elements, when disabled `documentation` and `set_documentation` functions will still be present but respectively return empty string and do nothing.
+

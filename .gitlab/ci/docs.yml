@@ -4,15 +4,13 @@ include:
 
 doc:melodium:reference:
   stage: doc
+  image: rust:bullseye
   rules:
     - when: manual
       allow_failure: true
   variables:
     MELODIUM_DOC_TITLE: 'Mélodium Standard Reference'
     MELODIUM_DOC_AUTHOR: 'Quentin VIGNAUD'
-  extends: 
-    - .debian-host
-    - .cargo-cache
   needs:
     - build:debug:x86_64-unknown-linux-gnu
   dependencies:
@@ -35,12 +33,10 @@ doc:melodium:reference:
 
 doc:melodium:doc:
   stage: doc
+  image: rust:bullseye
   rules:
     - when: manual
       allow_failure: true
-  extends:
-    - .debian-host
-    - .cargo-cache
   needs: []
   dependencies: []
   script:

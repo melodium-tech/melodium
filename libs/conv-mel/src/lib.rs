@@ -1,14 +1,5 @@
-//!
-//! # Mélodium core conversions library
-//!
-//! This library provides the data type conversion functions and treatments for the Mélodium environment.
-//!
-//! ## For Mélodium project
-//!
-//! This library is made for use within the Mélodium environment and has no purpose for pure Rust projects.
-//! Please refer to the [Mélodium Project](https://melodium.tech/) or
-//! the [Mélodium crate](https://docs.rs/melodium/latest/melodium/) for more accurate and detailed information.
-//!
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![doc = include_str!("../README.md")]
 
 use melodium_macro::mel_package;
 

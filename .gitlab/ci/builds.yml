@@ -1,17 +1,14 @@
 
 include:
   - local: /.gitlab/ci/configs.yml
-  - local: /.gitlab/ci/hosts.yml
-  - local: /.gitlab/ci/caches.yml
+  - local: /.gitlab/ci/builders.yml
 
 build:debug:x86_64-unknown-linux-gnu:
   stage: build
   extends: 
-    - .debian-host
-    - .cargo-cache
+    - .builder:linux:x86_64-unknown-linux-gnu
   script:
-    - rustc --version && cargo --version 
-    - cargo build --package melodium --locked --target x86_64-unknown-linux-gnu
+    - cargo build --package melodium --locked 
     - ls target/x86_64-unknown-linux-gnu/debug
   artifacts:
     paths:
@@ -22,11 +19,9 @@ build:release:x86_64-unknown-linux-gnu:
   stage: build
   extends:
     - .build-release
-    - .debian-host
-    - .cargo-cache
+    - .builder:linux:x86_64-unknown-linux-gnu
   script:
-    - rustc --version && cargo --version 
-    - cargo build --package melodium --locked --release --target x86_64-unknown-linux-gnu
+    - cargo build --package melodium --locked --release 
     - ls target/x86_64-unknown-linux-gnu/release
   artifacts:
     paths:
@@ -37,13 +32,9 @@ build:release:x86_64-unknown-linux-musl:
   stage: build
   extends:
     - .build-release
-    - .debian-host
-    - .cargo-cache
-  before_script:
-    - rustup target add x86_64-unknown-linux-musl
+    - .builder:linux:x86_64-unknown-linux-musl
   script:
-    - rustc --version && cargo --version 
-    - cargo build --package melodium --locked --release --target x86_64-unknown-linux-musl
+    - cargo build --package melodium --locked --release 
     - ls target/x86_64-unknown-linux-musl/release
   artifacts:
     paths:
@@ -54,17 +45,10 @@ build:release:i686-unknown-linux-gnu:
   stage: build
   extends:
     - .build-release
-    - .debian-host
-    - .cargo-cache
-  before_script:
-   - dpkg --add-architecture i386
-   - apt-get update
-   - apt-get install -y gcc-multilib
-   - rustup target add i686-unknown-linux-gnu
+    - .builder:linux:i686-unknown-linux-gnu
   script:
-   - rustc --version && cargo --version
-   - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --package melodium --locked --release --target i686-unknown-linux-gnu
-   - ls target/i686-unknown-linux-gnu/release
+    - cargo build --package melodium --locked --release 
+    - ls target/i686-unknown-linux-gnu/release
   artifacts:
     paths:
       - target/i686-unknown-linux-gnu/release/melodium
@@ -74,16 +58,9 @@ build:release:i686-unknown-linux-musl:
   stage: build
   extends:
     - .build-release
-    - .debian-host
-    - .cargo-cache
-  before_script:
-   - dpkg --add-architecture i386
-   - apt-get update
-   - apt-get install -y gcc-multilib
-   - rustup target add i686-unknown-linux-musl
+    - .builder:linux:i686-unknown-linux-musl
   script:
-   - rustc --version && cargo --version
-   - PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config cargo build --package melodium --locked --release --target i686-unknown-linux-musl
+   - cargo build --package melodium --locked --release 
    - ls target/i686-unknown-linux-musl/release
   artifacts:
     paths:
@@ -94,17 +71,9 @@ build:release:aarch64-unknown-linux-gnu:
   stage: build
   extends:
     - .build-release
-    - .debian-host
-    - .cargo-cache
-  before_script:
-   - dpkg --add-architecture arm64
-   - apt-get update
-   - apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross libc-dev:arm64
-   - ln -s /usr/aarch64-linux-gnu/lib/libgcc_s.so.1 /usr/aarch64-linux-gnu/lib/libgcc_s.so
-   - rustup target add aarch64-unknown-linux-gnu
+    - .builder:linux:aarch64-unknown-linux-gnu
   script:
-   - rustc --version && cargo --version 
-   - PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld cargo build --package melodium --locked --release --target aarch64-unknown-linux-gnu
+   - cargo build --package melodium --locked --release 
    - ls target/aarch64-unknown-linux-gnu/release
   artifacts:
     paths:
@@ -115,17 +84,9 @@ build:release:aarch64-unknown-linux-musl:
   stage: build
   extends:
     - .build-release
-    - .debian-host
-    - .cargo-cache
-  before_script:
-   - dpkg --add-architecture arm64
-   - apt-get update
-   - apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross libc-dev:arm64
-   - ln -s /usr/aarch64-linux-gnu/lib/libgcc_s.so.1 /usr/aarch64-linux-gnu/lib/libgcc_s.so
-   - rustup target add aarch64-unknown-linux-musl
+    - .builder:linux:aarch64-unknown-linux-musl
   script:
-   - rustc --version && cargo --version 
-   - PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=/usr/aarch64-linux-gnu/bin/ld cargo build --package melodium --locked --release --target aarch64-unknown-linux-musl
+   - cargo build --package melodium --locked --release 
    - ls target/aarch64-unknown-linux-musl/release
   artifacts:
     paths:
@@ -136,26 +97,9 @@ build:release:x86_64-apple-darwin:
   stage: build
   extends:
     - .build-release
-    - .debian-host
-    - .cargo-cache
-    - .osxcross-cache
-  before_script:
-   - apt-get update
-   - apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
-   - rustup target add x86_64-apple-darwin
-   - |
-     if [ ! -d osxcross ]
-     then
-       git clone https://github.com/tpoechtrager/osxcross
-       cd osxcross
-       wget -nc https://s3.dockerproject.org/darwin/v2/MacOSX10.11.sdk.tar.xz
-       mv MacOSX10.11.sdk.tar.xz tarballs/
-       UNATTENDED=yes OSX_VERSION_MIN=10.7 ./build.sh
-       cd ..
-     fi
+    - .builder:linux:x86_64-apple-darwin
   script:
-   - rustc --version && cargo --version 
-   - PATH=/builds/melodium/melodium/osxcross/target/bin:$PATH CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=x86_64-apple-darwin15-clang CARGO_TARGET_X86_64_APPLE_DARWIN_AR=x86_64-apple-darwin15-ar cargo build --package melodium --locked --release --target x86_64-apple-darwin
+   - cargo build --package melodium --locked --release 
    - ls target/x86_64-apple-darwin/release
   artifacts:
     paths:
@@ -166,32 +110,9 @@ build:release:i686-apple-darwin:
   stage: build
   extends:
     - .build-release
-    - .debian-host
-    - .cargo-cache
-    - .osxcross-cache
-  before_script:
-   - apt-get update
-   - apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
-   - rustup default nightly
-   - |
-     if [ ! -f .cargo_home/bin/xargo ]
-     then
-       cargo install xargo
-     fi
-   - rustup component add rust-src
-   - |
-     if [ ! -d osxcross ]
-     then
-       git clone https://github.com/tpoechtrager/osxcross
-       cd osxcross
-       wget -nc https://s3.dockerproject.org/darwin/v2/MacOSX10.11.sdk.tar.xz
-       mv MacOSX10.11.sdk.tar.xz tarballs/
-       UNATTENDED=yes OSX_VERSION_MIN=10.7 ./build.sh
-       cd ..
-     fi
+    - .builder:linux:i686-apple-darwin
   script:
-   - rustc --version && cargo --version 
-   - PATH=$(pwd)/.cargo_home/bin:$(pwd)/osxcross/target/bin:$PATH CARGO_TARGET_I686_APPLE_DARWIN_LINKER=i386-apple-darwin15-clang CARGO_TARGET_I686_APPLE_DARWIN_AR=i386-apple-darwin15-ar xargo build --package melodium --locked --release --target i686-apple-darwin
+   - xargo build --package melodium --locked --release --target i686-apple-darwin
    - ls target/i686-apple-darwin/release
   artifacts:
     paths:
@@ -202,27 +123,10 @@ build:release:aarch64-apple-darwin:
   stage: build
   extends:
     - .build-release
-    - .debian-host
-    - .cargo-cache
-    - .osxcross-cache
-  before_script:
-   - apt-get update
-   - apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
-   - rustup target add aarch64-apple-darwin
-   - |
-     if [ ! -d osxcross ]
-     then
-       git clone https://github.com/tpoechtrager/osxcross
-       cd osxcross
-       wget -nc https://storage.googleapis.com/ory.sh/build-assets/MacOSX11.3.sdk.tar.xz
-       mv MacOSX11.3.sdk.tar.xz tarballs/
-       UNATTENDED=yes OSX_VERSION_MIN=11.3 ./build.sh
-       cd ..
-     fi
+    - .builder:linux:aarch64-apple-darwin
   script:
-   - rustc --version && cargo --version 
-   - PATH=$(pwd)/.cargo_home/bin:$(pwd)/osxcross/target/bin:$PATH CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=aarch64-apple-darwin20.4-clang CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=aarch64-apple-darwin20.4-ar cargo build --package melodium --locked --release --target aarch64-apple-darwin
-   - ls target/aarch64-apple-darwin/release
+    - cargo build --package melodium --locked --release 
+    - ls target/aarch64-apple-darwin/release
   artifacts:
     paths:
       - target/aarch64-apple-darwin/release/melodium
@@ -232,15 +136,9 @@ build:release:x86_64-pc-windows-gnu:
   stage: build
   extends:
     - .build-release
-    - .debian-host
-    - .cargo-cache
-  before_script:
-    - apt-get update
-    - apt-get install -y mingw-w64
-    - rustup target add x86_64-pc-windows-gnu
+    - .builder:linux:x86_64-pc-windows-gnu
   script:
-    - rustc --version && cargo --version 
-    - cargo build --package melodium --locked --release --target x86_64-pc-windows-gnu
+    - cargo build --package melodium --locked --release 
     - ls target/x86_64-pc-windows-gnu/release
   artifacts:
     paths:
@@ -251,18 +149,9 @@ build:release:x86_64-pc-windows-msvc:
   stage: build
   extends:
     - .build-release
-    - .debian-host
-    - .cargo-cache
-    - .xwin-cache
-  before_script:
-    - apt-get update
-    - apt-get install -y lld
-    - rustup target add x86_64-pc-windows-msvc
-    - cargo install xwin --locked
-    - .cargo_home/bin/xwin --accept-license --arch x86_64 splat --output .xwin
+    - .builder:linux:x86_64-pc-windows-msvc
   script:
-    - rustc --version && cargo --version 
-    - cargo build --package melodium --locked --release --target x86_64-pc-windows-msvc
+    - cargo build --package melodium --locked --release 
     - ls target/x86_64-pc-windows-msvc/release
   artifacts:
     paths:
@@ -273,15 +162,9 @@ build:release:i686-pc-windows-gnu:
   stage: build
   extends:
     - .build-release
-    - .debian-host
-    - .cargo-cache
-  before_script:
-    - apt-get update
-    - apt-get install -y mingw-w64
-    - rustup target add i686-pc-windows-gnu
+    - .builder:linux:i686-pc-windows-gnu
   script:
-    - rustc --version && cargo --version 
-    - cargo build --package melodium --locked --release --target i686-pc-windows-gnu
+    - cargo build --package melodium --locked --release 
     - ls target/i686-pc-windows-gnu/release
   artifacts:
     paths:
@@ -292,18 +175,9 @@ build:release:i686-pc-windows-msvc:
   stage: build
   extends:
     - .build-release
-    - .debian-host
-    - .cargo-cache
-    - .xwin-cache
-  before_script:
-    - apt-get update
-    - apt-get install -y lld
-    - rustup target add i686-pc-windows-msvc
-    - cargo install xwin --locked
-    - .cargo_home/bin/xwin --accept-license --arch x86 splat --output .xwin
+    - .builder:linux:i686-pc-windows-msvc
   script:
-    - rustc --version && cargo --version 
-    - cargo build --package melodium --locked --release --target i686-pc-windows-msvc
+    - cargo build --package melodium --locked --release 
     - ls target/i686-pc-windows-msvc/release
   artifacts:
     paths:
@@ -314,20 +188,12 @@ build:release:aarch64-pc-windows-msvc:
   stage: build
   extends:
     - .build-release
-    - .debian-host
-    - .cargo-cache
-    - .xwin-cache
-  before_script:
-    - apt-get update
-    - apt-get install -y lld
-    - rustup target add aarch64-pc-windows-msvc
-    - cargo install xwin --locked
-    - .cargo_home/bin/xwin --accept-license --arch aarch64 splat --output .xwin
+    - .builder:linux:aarch64-pc-windows-msvc
   script:
-    - rustc --version && cargo --version 
-    - cargo build --package melodium --locked --release --target aarch64-pc-windows-msvc
+    - cargo build --package melodium --locked --release 
     - ls target/aarch64-pc-windows-msvc/release
   artifacts:
     paths:
       - target/aarch64-pc-windows-msvc/release/melodium.exe
     expire_in: 1 hour
+

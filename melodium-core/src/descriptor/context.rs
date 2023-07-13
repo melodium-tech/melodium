@@ -18,7 +18,8 @@ impl Context {
     pub fn new(
         identifier: Identifier,
         values: Vec<(&str, DataType)>,
-        documentation: String,
+        #[cfg(feature = "doc")] documentation: String,
+        #[cfg(not(feature = "doc"))] _documentation: String,
     ) -> Arc<Self> {
         Arc::new(Self {
             identifier,

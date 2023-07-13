@@ -1,11 +1,11 @@
 
 # Changelog
 
-## Unreleased
+## [v0.7.0]
 
 - Improving design error reporting.
 - Refactoring many design internal procedures.
-- Collection is updatable in designers.
+- Makes collection updatable in designers.
 
 ## [v0.6.0]
 

@@ -1,14 +1,13 @@
-#[cfg(feature = "filesystem")]
-use crate::package::FsPackage;
-use crate::package::{CorePackage, Package, RawPackage};
+use crate::package::PackageTrait as Package;
+use crate::package_manager::{PackageManager, PackageManagerConfiguration};
 use crate::LoadingConfig;
 use melodium_common::descriptor::{
     Collection, Context, Entry, Function, Identifier, Loader as LoaderTrait, LoadingError,
-    LoadingResult, Model, Treatment,
+    LoadingResult, Model, PackageRequirement, Treatment, VersionReq,
 };
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::{Arc, RwLock, RwLockReadGuard};
+use melodium_repository::network::NetworkRepositoryConfiguration;
+use melodium_repository::{Repository, RepositoryConfig};
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
 
 /**
  * Manages loading of Mélodium packages.
@@ -16,71 +15,59 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 #[derive(Debug)]
 pub struct Loader {
     collection: RwLock<Collection>,
-    packages: RwLock<HashMap<String, Box<dyn Package>>>,
-    search_locations: Vec<PathBuf>,
+    package_manager: PackageManager,
 }
 
 impl Loader {
     pub fn new(config: LoadingConfig) -> Self {
         Self {
             collection: RwLock::new(Collection::new()),
-            packages: RwLock::new(
-                config
-                    .core_packages
-                    .into_iter()
-                    .map(|p| {
-                        (
-                            p.name().to_string(),
-                            Box::new(CorePackage::new(p)) as Box<dyn Package>,
-                        )
-                    })
-                    .collect(),
-            ),
-            search_locations: config.search_locations,
-        }
-    }
-
-    pub fn load_package(&self, name: &str) -> LoadingResult<()> {
-        let mut result = LoadingResult::new_success(());
-        if !self.packages.read().unwrap().contains_key(name) {
-            let mut found = false;
-            for location in &self.search_locations {
-                let mut path = location.clone();
-                path.push(name);
-                if path.exists() {
-                    #[cfg(feature = "filesystem")]
-                    if let Some(package) = result.merge_degrade_failure(FsPackage::new(&path)) {
-                        for req in package.requirements() {
-                            result.merge_degrade_failure(self.load_package(req));
-                        }
-                        self.packages
-                            .write()
-                            .unwrap()
-                            .insert(name.to_string(), Box::new(package));
-                        found = true;
+            package_manager: PackageManager::new(PackageManagerConfiguration {
+                repositories: vec![Arc::new(Mutex::new(Repository::new(RepositoryConfig {
+                    repository_location: {
+                        let mut path = std::env::var_os("MELODIUM_HOME")
+                            .or_else(|| {
+                                std::env::var_os("HOME").map(|home| {
+                                    let mut path = home.to_os_string();
+                                    path.push("/.melodium");
+                                    path
+                                })
+                            })
+                            .unwrap_or("/tmp/melodium".into());
+                        path.push("/");
+                        path.push(env!("CARGO_PKG_VERSION"));
+                        path
                     }
-                }
-            }
-            if !found {
-                result = result.and_degrade_failure(LoadingResult::new_failure(
-                    LoadingError::no_package(166, name.to_string()),
-                ));
-            }
+                    .into(),
+                    network: if cfg!(feature = "network") {
+                        Some(NetworkRepositoryConfiguration::new())
+                    } else {
+                        None
+                    },
+                })))],
+                core_packages: config.core_packages,
+                search_locations: config.search_locations,
+                raw_elements: config.raw_elements,
+                allow_network: cfg!(feature = "network"),
+            }),
         }
-        result
     }
 
-    pub fn load_raw(&self, raw_content: &str) -> LoadingResult<String> {
-        RawPackage::new(raw_content).and_then(|package| {
-            let name = package.name().to_string();
+    pub fn load_package(&self, requirement: &PackageRequirement) -> LoadingResult<()> {
+        self.package_manager
+            .get_package(requirement)
+            .and(LoadingResult::new_success(()))
+    }
 
-            self.packages
-                .write()
-                .unwrap()
-                .insert(package.name().to_string(), Box::new(package));
-
-            LoadingResult::new_success(name)
-        })
+    pub fn load_raw(
+        &self,
+        raw_content: Arc<Vec<u8>>,
+    ) -> LoadingResult<(String, Option<Identifier>)> {
+        self.package_manager
+            .add_raw_package(raw_content)
+            .and_then(|pkg| {
+                LoadingResult::new_success((pkg.name().to_string(), pkg.main().clone()))
+            })
     }
 
     pub fn load(&self, identifier: &Identifier) -> LoadingResult<()> {
@@ -90,7 +77,7 @@ impl Loader {
 
     pub fn load_all(&self) -> LoadingResult<()> {
         let mut result = LoadingResult::new_success(());
-        for (_name, package) in self.packages.read().unwrap().iter() {
+        for package in self.package_manager.get_packages() {
             if let Some(additions) = result.merge_degrade_failure(package.full_collection(self)) {
                 self.add_collection(additions);
             }
@@ -102,7 +89,7 @@ impl Loader {
         let mut result = LoadingResult::new_success(());
         let collection = Arc::new(self.collection.read().unwrap().clone());
 
-        for (_name, package) in self.packages.read().unwrap().iter() {
+        for package in self.package_manager.get_packages() {
             result.merge_degrade_failure(package.make_building(&collection));
         }
 
@@ -114,23 +101,32 @@ impl Loader {
     }
 
     pub fn get_with_load(&self, identifier: &Identifier) -> LoadingResult<Entry> {
+        let mut result = LoadingResult::new_success(());
         let entry = self.collection.read().unwrap().get(identifier).cloned();
         if let Some(entry) = entry {
-            LoadingResult::new_success(entry)
-        } else if let Some(package) = self.packages.read().unwrap().get(identifier.root()) {
+            result.and_degrade_failure(LoadingResult::new_success(entry))
+        } else if let Some(package) =
+            result.merge_degrade_failure(self.package_manager.get_package(&PackageRequirement {
+                package: identifier.root().to_string(),
+                version_requirement: VersionReq::parse(">=0.0.0").unwrap(),
+            }))
+        {
             package.element(self, identifier).and_then(|additions| {
                 self.add_collection(additions);
-                LoadingResult::new_success(
+                result.and_degrade_failure(LoadingResult::new_success(
                     self.collection
                         .read()
                         .unwrap()
                         .get(identifier)
                         .unwrap()
                         .clone(),
-                )
+                ))
             })
         } else {
-            LoadingResult::new_failure(LoadingError::no_package(167, identifier.root().to_string()))
+            result.and_degrade_failure(LoadingResult::new_failure(LoadingError::no_package(
+                167,
+                identifier.root().to_string(),
+            )))
         }
     }
 
