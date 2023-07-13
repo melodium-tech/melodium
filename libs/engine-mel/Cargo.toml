@@ -1,7 +1,7 @@
 [package]
 name = "engine-mel"
 version = "0.6.0"
-authors = ["Quentin VIGNAUD <qvignaud@gmail.com>"]
+authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.60"
 edition = "2018"
 license = "EUPL-1.2"
@@ -13,9 +13,18 @@ keywords = ["dataflow","parallelization","scalability","async","signal"]
 categories = ["compilers", "science", "concurrency", "asynchronous"]
 
 [lib]
+crate-type = ["lib", "cdylib"]
 name = "engine_mel"
 
 [dependencies]
 melodium-core = { path = "../../melodium-core", version = "0.6.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.6.0" }
 
+[features]
+mock = []
+plugin = []
+real = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

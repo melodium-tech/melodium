@@ -1,7 +1,0 @@
-
-use super::super::builder::Builder;
-
-pub trait Designable {
-
-    fn register_builder(&self, builder: Box<dyn Builder>);
-}

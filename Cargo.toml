@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = [
     "libs/conv-mel",
     "libs/engine-mel",
@@ -15,4 +16,8 @@ members = [
     "melodium-lib",
     "melodium-loader",
     "melodium-macro",
+    "melodium-repository",
     ]
+
+[profile.release]
+strip = true

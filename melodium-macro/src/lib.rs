@@ -1,15 +1,5 @@
-//!
-//! Mélodium macros for compiled libraries.
-//!
-//! This crate is aimed to be used by compiled Mélodium libraries,
-//! in conjuction with [`melodium-core`](https://docs.rs/melodium-core/latest/melodium_core/).
-//!
-//! Macros to define and make internal implementation for Mélodium elements
-//! are provided here.
-//!
-//! Look at the [Mélodium crate](https://docs.rs/melodium/latest/melodium/)
-//! or the [Mélodium Project](https://melodium.tech/) for more detailed information.
-//!
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![doc = include_str!("../README.md")]
 
 use convert_case::{Case, Casing};
 use core::{borrow::Borrow, convert::TryFrom, iter::FromIterator};
@@ -620,7 +610,7 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
         })
         .unwrap()
         .keys()
-        .filter_map(|k| k.strip_suffix("-mel").map(|k| format!(r#""{k}""#)))
+        .filter_map(|k| k.strip_suffix("-mel").map(|k| format!(r#"melodium_core::common::descriptor::PackageRequirement{{package:"{k}".to_string(),version_requirement:melodium_core::common::descriptor::VersionReq::STAR}}"#)))
         .collect::<Vec<_>>()
         .join(",")
         .parse()
@@ -655,15 +645,22 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
         .unwrap();
 
     let expanded = quote! {
+
+        #[no_mangle]
+        #[cfg(feature = "plugin")]
+        pub extern "C" fn melodium_package() -> *const melodium_core::common::descriptor::Package {
+            std::sync::Arc::into_raw(__mel_package::package())
+        }
+
         pub mod __mel_package {
 
             static NAME: &str = #name;
             static VERSION: melodium_core::Lazy<melodium_core::common::descriptor::Version> = melodium_core::Lazy::new(|| melodium_core::common::descriptor::Version::parse(env!("CARGO_PKG_VERSION")).unwrap());
-            static REQUIREMENTS: melodium_core::Lazy<Vec<&str>> = melodium_core::Lazy::new(|| { vec![#requirements] });
+            static REQUIREMENTS: melodium_core::Lazy<Vec<melodium_core::common::descriptor::PackageRequirement>> = melodium_core::Lazy::new(|| { vec![#requirements] });
             static EMBEDDED: melodium_core::Lazy<std::collections::HashMap<&'static str, &'static [u8]>> = melodium_core::Lazy::new(|| { let mut embedded = std::collections::HashMap::new(); #embedded; embedded });
 
-            pub fn package() -> Box<dyn melodium_core::common::descriptor::Package> {
-                Box::new(MelPackage::new())
+            pub fn package() -> std::sync::Arc<dyn melodium_core::common::descriptor::Package> {
+                std::sync::Arc::new(MelPackage::new())
             }
 
             #[derive(Debug)]
@@ -688,7 +685,7 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
                     &VERSION
                 }
 
-                fn requirements(&self) -> &Vec<&str> {
+                fn requirements(&self) -> &Vec<melodium_core::common::descriptor::PackageRequirement> {
                     &REQUIREMENTS
                 }
 

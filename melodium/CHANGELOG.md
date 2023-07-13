@@ -1,9 +1,13 @@
 # Changelog
 
-## Unreleased
+## [v0.7.0]
 
 - Improving user error reporting.
 - Refactoring loading process.
+- Adding packages management.
+- Adding `.jeu` format management.
+- Easing portability.
+- Allow selective documentation.
 
 ## [v0.6.1]
 

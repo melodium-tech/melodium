@@ -1,0 +1,134 @@
+
+include:
+  - local: /.gitlab/ci/configs.yml
+  - local: /.gitlab/ci/builders.yml
+
+.check:
+  script:
+    - cargo check --package melodium-common --locked
+    - cargo check --package melodium-macro --locked
+    - cargo check --package melodium-core --locked
+    - cargo check --package melodium-core --locked --features doc
+    - cargo check --package melodium-lang --locked
+    - cargo check --package melodium-lang --locked --features restitution
+    - cargo check --package melodium-doc --locked
+    - cargo check --package melodium-engine --locked
+    - cargo check --package melodium-engine --locked --features doc
+    - cargo check --package melodium-repository --locked
+    - cargo check --package melodium-repository --locked --features network
+    - cargo check --package melodium-repository --locked --features cargo
+    - cargo check --package melodium-loader --locked --no-default-features
+    - cargo check --package melodium-loader --locked --no-default-features --features filesystem
+    - cargo check --package melodium-loader --locked --no-default-features --features network
+    - cargo check --package melodium-loader --locked --no-default-features --features jeu
+    - cargo check --package melodium-loader --locked --no-default-features --features script
+    - cargo check --package melodium-loader --locked --no-default-features --features jeu,script
+    - cargo check --package melodium-loader --locked --no-default-features --features filesystem,jeu,script
+    - cargo check --package melodium-loader --locked --no-default-features --features network,jeu,script
+    - cargo check --package melodium-loader --locked --no-default-features --features filesystem,network,jeu,script
+    - cargo check --package melodium --locked --no-default-features --features cli
+    - cargo check --package melodium --locked --no-default-features --features cli,jeu
+    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs
+    - cargo check --package melodium --locked --no-default-features --features core
+    - cargo check --package melodium --locked --no-default-features
+    - cargo check --package melodium --locked
+
+build:check:x86_64-unknown-linux-gnu:
+  stage: build
+  extends:
+    - .check-builds
+    - .builder:linux:x86_64-unknown-linux-gnu
+    - .check
+
+build:check:x86_64-unknown-linux-musl:
+  stage: build
+  extends:
+    - .check-builds
+    - .builder:linux:x86_64-unknown-linux-musl
+    - .check
+
+build:check:i686-unknown-linux-gnu:
+  stage: build
+  extends:
+    - .check-builds
+    - .builder:linux:i686-unknown-linux-gnu
+    - .check
+
+build:check:i686-unknown-linux-musl:
+  stage: build
+  extends:
+    - .check-builds
+    - .builder:linux:i686-unknown-linux-musl
+    - .check
+
+build:check:aarch64-unknown-linux-gnu:
+  stage: build
+  extends:
+    - .check-builds
+    - .builder:linux:aarch64-unknown-linux-gnu
+    - .check
+
+build:check:aarch64-unknown-linux-musl:
+  stage: build
+  extends:
+    - .check-builds
+    - .builder:linux:aarch64-unknown-linux-musl
+    - .check
+
+build:check:x86_64-apple-darwin:
+  stage: build
+  extends:
+    - .check-builds
+    - .builder:linux:x86_64-apple-darwin
+    - .check
+
+# Deactivated because require xargo build and so on… too much for just checks.
+# If other checks passes, we should be good here.
+# build:check:i686-apple-darwin:
+#   stage: build
+#   extends:
+#     - .check-builds
+#     - .builder:linux:i686-apple-darwin
+#     - .check
+
+build:check:aarch64-apple-darwin:
+  stage: build
+  extends:
+    - .check-builds
+    - .builder:linux:aarch64-apple-darwin
+    - .check
+
+build:check:x86_64-pc-windows-gnu:
+  stage: build
+  extends:
+    - .check-builds
+    - .builder:linux:x86_64-pc-windows-gnu
+    - .check
+
+build:check:x86_64-pc-windows-msvc:
+  stage: build
+  extends:
+    - .check-builds
+    - .builder:linux:x86_64-pc-windows-msvc
+    - .check
+
+build:check:i686-pc-windows-gnu:
+  stage: build
+  extends:
+    - .check-builds
+    - .builder:linux:i686-pc-windows-gnu
+    - .check
+
+build:check:i686-pc-windows-msvc:
+  stage: build
+  extends:
+    - .check-builds
+    - .builder:linux:i686-pc-windows-msvc
+    - .check
+
+build:check:aarch64-pc-windows-msvc:
+  stage: build
+  extends:
+    - .check-builds
+    - .builder:linux:aarch64-pc-windows-msvc
+    - .check

@@ -1,83 +1,345 @@
 
 include:
+  - local: /.gitlab/ci/builders.yml
   - local: /.gitlab/ci/configs.yml
 
-package:zips:
-  stage: package
+stages:
+  - build
+  - packaging
+  - release
+
+build:packages:release:x86_64-unknown-linux-gnu:
+  stage: build
   extends: 
-    - .build-release
-    - .debian-host
-  needs:
-    - build:release:aarch64-apple-darwin
-    - build:release:aarch64-pc-windows-msvc
-    - build:release:aarch64-unknown-linux-gnu
-    - build:release:aarch64-unknown-linux-musl
-    - build:release:i686-apple-darwin
-    - build:release:i686-pc-windows-gnu
-    - build:release:i686-pc-windows-msvc
-    - build:release:i686-unknown-linux-gnu
-    - build:release:i686-unknown-linux-musl
-    - build:release:x86_64-apple-darwin
-    - build:release:x86_64-pc-windows-gnu
-    - build:release:x86_64-pc-windows-msvc
-    - build:release:x86_64-unknown-linux-gnu
-    - build:release:x86_64-unknown-linux-musl
-  dependencies: 
-    - build:release:aarch64-apple-darwin
-    - build:release:aarch64-pc-windows-msvc
-    - build:release:aarch64-unknown-linux-gnu
-    - build:release:aarch64-unknown-linux-musl
-    - build:release:i686-apple-darwin
-    - build:release:i686-pc-windows-gnu
-    - build:release:i686-pc-windows-msvc
-    - build:release:i686-unknown-linux-gnu
-    - build:release:i686-unknown-linux-musl
-    - build:release:x86_64-apple-darwin
-    - build:release:x86_64-pc-windows-gnu
-    - build:release:x86_64-pc-windows-msvc
-    - build:release:x86_64-unknown-linux-gnu
-    - build:release:x86_64-unknown-linux-musl
-  before_script:
-    - apt-get update
-    - apt-get install -y zip
+    - .builder:linux:x86_64-unknown-linux-gnu
   script:
-    - export VERSION=${CI_COMMIT_TAG}
-    - export VERSION=${VERSION:-$CI_COMMIT_SHORT_SHA}
-    - export VERSION=$(echo $VERSION | sed 's/^v//')
-    - .gitlab/ci/package.sh -t aarch64-apple-darwin -v $VERSION -e melodium -z tgz
-    - .gitlab/ci/package.sh -t aarch64-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
-    - .gitlab/ci/package.sh -t aarch64-unknown-linux-gnu -v $VERSION -e melodium -z tgz
-    - .gitlab/ci/package.sh -t aarch64-unknown-linux-musl -v $VERSION -e melodium -z tgz
-    - .gitlab/ci/package.sh -t i686-apple-darwin -v $VERSION -e melodium -z tgz
-    - .gitlab/ci/package.sh -t i686-pc-windows-gnu -v $VERSION -e melodium.exe -z zip
-    - .gitlab/ci/package.sh -t i686-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
-    - .gitlab/ci/package.sh -t i686-unknown-linux-gnu -v $VERSION -e melodium -z tgz
-    - .gitlab/ci/package.sh -t i686-unknown-linux-musl -v $VERSION -e melodium -z tgz
-    - .gitlab/ci/package.sh -t x86_64-apple-darwin -v $VERSION -e melodium -z tgz
-    - .gitlab/ci/package.sh -t x86_64-pc-windows-gnu -v $VERSION -e melodium.exe -z zip
-    - .gitlab/ci/package.sh -t x86_64-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
-    - .gitlab/ci/package.sh -t x86_64-unknown-linux-gnu -v $VERSION -e melodium -z tgz
-    - .gitlab/ci/package.sh -t x86_64-unknown-linux-musl -v $VERSION -e melodium -z tgz
-    - sha256sum *.tar.gz *.zip > SHA256SUMS
+    - export RUSTFLAGS="$RUSTFLAGS"
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        cargo build --package $PACKAGE-mel --features plugin --locked --release 
+      done
+    - ls target/x86_64-unknown-linux-gnu/release
+  artifacts:
+    paths:
+      - target/x86_64-unknown-linux-gnu/release/lib*_mel.so
+    expire_in: 1 hour
+
+build:packages:release:x86_64-unknown-linux-musl:
+  stage: build
+  extends:
+    - .builder:linux:x86_64-unknown-linux-musl
+  script:
+    - export RUSTFLAGS="-C target-feature=-crt-static $RUSTFLAGS"
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        cargo build --package $PACKAGE-mel --features plugin --locked --release 
+      done
+    - ls target/x86_64-unknown-linux-musl/release
+  artifacts:
+    paths:
+      - target/x86_64-unknown-linux-musl/release/lib*_mel.so
+    expire_in: 1 hour
+
+build:packages:release:i686-unknown-linux-gnu:
+  stage: build
+  extends:
+    - .builder:linux:i686-unknown-linux-gnu
+  script:
+    - export RUSTFLAGS="$RUSTFLAGS"
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        cargo build --package $PACKAGE-mel --features plugin --locked --release 
+      done
+    - ls target/i686-unknown-linux-gnu/release
+  artifacts:
+    paths:
+      - target/i686-unknown-linux-gnu/release/lib*_mel.so
+    expire_in: 1 hour
+
+build:packages:release:i686-unknown-linux-musl:
+  stage: build
+  extends:
+    - .builder:linux:i686-unknown-linux-musl
+  script:
+    - export RUSTFLAGS="-C target-feature=-crt-static $RUSTFLAGS"
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        cargo build --package $PACKAGE-mel --features plugin --locked --release 
+      done
+    - ls target/i686-unknown-linux-musl/release
+  artifacts:
+    paths:
+      - target/i686-unknown-linux-musl/release/lib*_mel.so
+    expire_in: 1 hour
+
+build:packages:release:aarch64-unknown-linux-gnu:
+  stage: build
+  extends:
+    - .builder:linux:aarch64-unknown-linux-gnu
+  script:
+    - export RUSTFLAGS="$RUSTFLAGS"
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        cargo build --package $PACKAGE-mel --features plugin --locked --release 
+      done
+    - ls target/aarch64-unknown-linux-gnu/release
+  artifacts:
+    paths:
+      - target/aarch64-unknown-linux-gnu/release/lib*_mel.so
+    expire_in: 1 hour
+
+build:packages:release:aarch64-unknown-linux-musl:
+  stage: build
+  extends:
+    - .builder:linux:aarch64-unknown-linux-musl
+  script:
+    - export RUSTFLAGS="-C target-feature=-crt-static $RUSTFLAGS"
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        cargo build --package $PACKAGE-mel --features plugin --locked --release 
+      done
+    - ls target/aarch64-unknown-linux-musl/release
+  artifacts:
+    paths:
+      - target/aarch64-unknown-linux-musl/release/lib*_mel.so
+    expire_in: 1 hour
+
+build:packages:release:x86_64-apple-darwin:
+  stage: build
+  extends:
+    - .builder:linux:x86_64-apple-darwin
+  script:
+    - export RUSTFLAGS="$RUSTFLAGS"
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        cargo build --package $PACKAGE-mel --features plugin --locked --release 
+      done
+    - ls target/x86_64-apple-darwin/release
+  artifacts:
+    paths:
+      - target/x86_64-apple-darwin/release/lib*_mel.dylib
+    expire_in: 1 hour
+
+build:packages:release:i686-apple-darwin:
+  stage: build
+  extends:
+    - .builder:linux:i686-apple-darwin
+  script:
+    - export RUSTFLAGS="$RUSTFLAGS"
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        xargo build --package $PACKAGE-mel --features plugin --locked --release --target i686-apple-darwin
+      done
+    - ls target/i686-apple-darwin/release
+  artifacts:
+    paths:
+      - target/i686-apple-darwin/release/lib*_mel.dylib
+    expire_in: 1 hour
+
+build:packages:release:aarch64-apple-darwin:
+  stage: build
+  extends:
+    - .builder:linux:aarch64-apple-darwin
+  script:
+    - export RUSTFLAGS="$RUSTFLAGS"
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        cargo build --package $PACKAGE-mel --features plugin --locked --release 
+      done
+    - ls target/aarch64-apple-darwin/release
+  artifacts:
+    paths:
+      - target/aarch64-apple-darwin/release/lib*_mel.dylib
+    expire_in: 1 hour
+
+build:packages:release:x86_64-pc-windows-gnu:
+  stage: build
+  extends:
+    - .builder:linux:x86_64-pc-windows-gnu
+  script:
+    - export RUSTFLAGS="$RUSTFLAGS"
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        cargo build --package $PACKAGE-mel --features plugin --locked --release 
+      done
+    - ls target/x86_64-pc-windows-gnu/release
+  artifacts:
+    paths:
+      - target/x86_64-pc-windows-gnu/release/*_mel.dll
+    expire_in: 1 hour
+
+build:packages:release:x86_64-pc-windows-msvc:
+  stage: build
+  extends:
+    - .builder:linux:x86_64-pc-windows-msvc
+  script:
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        cargo build --package $PACKAGE-mel --features plugin --locked --release 
+      done
+    - ls target/x86_64-pc-windows-msvc/release
+  artifacts:
+    paths:
+      - target/x86_64-pc-windows-msvc/release/*_mel.dll
+    expire_in: 1 hour
+
+build:packages:release:i686-pc-windows-gnu:
+  stage: build
+  extends:
+    - .builder:linux:i686-pc-windows-gnu
+  script:
+    - export RUSTFLAGS="$RUSTFLAGS"
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        cargo build --package $PACKAGE-mel --features plugin --locked --release 
+      done
+    - ls target/i686-pc-windows-gnu/release
+  artifacts:
+    paths:
+      - target/i686-pc-windows-gnu/release/*_mel.dll
+    expire_in: 1 hour
+
+build:packages:release:i686-pc-windows-msvc:
+  stage: build
+  extends:
+    - .builder:linux:i686-pc-windows-msvc
+  script:
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        cargo build --package $PACKAGE-mel --features plugin --locked --release 
+      done
+    - ls target/i686-pc-windows-msvc/release
+  artifacts:
+    paths:
+      - target/i686-pc-windows-msvc/release/*_mel.dll
+    expire_in: 1 hour
+
+build:packages:release:aarch64-pc-windows-msvc:
+  stage: build
+  extends:
+    - .builder:linux:aarch64-pc-windows-msvc
+  script:
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        cargo build --package $PACKAGE-mel --features plugin --locked --release 
+      done
+    - ls target/aarch64-pc-windows-msvc/release
+  artifacts:
+    paths:
+      - target/aarch64-pc-windows-msvc/release/*_mel.dll
+    expire_in: 1 hour
+
+packaging:packages:raw:
+  stage: packaging
+  image: debian:bullseye
+  needs:
+    - build:packages:release:aarch64-apple-darwin
+    - build:packages:release:aarch64-pc-windows-msvc
+    - build:packages:release:aarch64-unknown-linux-gnu
+    - build:packages:release:aarch64-unknown-linux-musl
+    - build:packages:release:i686-apple-darwin
+    - build:packages:release:i686-pc-windows-gnu
+    - build:packages:release:i686-pc-windows-msvc
+    - build:packages:release:i686-unknown-linux-gnu
+    - build:packages:release:i686-unknown-linux-musl
+    - build:packages:release:x86_64-apple-darwin
+    - build:packages:release:x86_64-pc-windows-gnu
+    - build:packages:release:x86_64-pc-windows-msvc
+    - build:packages:release:x86_64-unknown-linux-gnu
+    - build:packages:release:x86_64-unknown-linux-musl
+  dependencies: 
+    - build:packages:release:aarch64-apple-darwin
+    - build:packages:release:aarch64-pc-windows-msvc
+    - build:packages:release:aarch64-unknown-linux-gnu
+    - build:packages:release:aarch64-unknown-linux-musl
+    - build:packages:release:i686-apple-darwin
+    - build:packages:release:i686-pc-windows-gnu
+    - build:packages:release:i686-pc-windows-msvc
+    - build:packages:release:i686-unknown-linux-gnu
+    - build:packages:release:i686-unknown-linux-musl
+    - build:packages:release:x86_64-apple-darwin
+    - build:packages:release:x86_64-pc-windows-gnu
+    - build:packages:release:x86_64-pc-windows-msvc
+    - build:packages:release:x86_64-unknown-linux-gnu
+    - build:packages:release:x86_64-unknown-linux-musl
+  script:
+    - ls -rh target/*
+  artifacts:
+    name: "packaging-packages-raw-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - target/*
+    expire_in: 1 day
+
+packaging:packages:repo:
+  stage: packaging
+  extends: 
+    - .builder:linux:x86_64-unknown-linux-gnu
+  needs:
+    - job: packaging:packages:raw
+      artifacts: true
+  script:
+    - cargo build --package melodium-repository --features cargo --bin melodium-repository
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        target/x86_64-unknown-linux-gnu/debug/melodium-repository $CI_PROJECT_DIR/repo $PACKAGE $CI_PROJECT_DIR/libs/$PACKAGE-mel/Cargo.toml \
+          aarch64-apple-darwin:real:target/aarch64-apple-darwin/release/lib${PACKAGE}_mel.dylib:$(sha256sum target/aarch64-apple-darwin/release/lib${PACKAGE}_mel.dylib | cut -d ' ' -f 1) \
+          aarch64-pc-windows-msvc:real:target/aarch64-pc-windows-msvc/release/${PACKAGE}_mel.dll:$(sha256sum target/aarch64-pc-windows-msvc/release/${PACKAGE}_mel.dll | cut -d ' ' -f 1) \
+          aarch64-unknown-linux-gnu:real:target/aarch64-unknown-linux-gnu/release/lib${PACKAGE}_mel.so:$(sha256sum target/aarch64-unknown-linux-gnu/release/lib${PACKAGE}_mel.so | cut -d ' ' -f 1) \
+          aarch64-unknown-linux-musl:real:target/aarch64-unknown-linux-musl/release/lib${PACKAGE}_mel.so:$(sha256sum target/aarch64-unknown-linux-musl/release/lib${PACKAGE}_mel.so | cut -d ' ' -f 1) \
+          i686-apple-darwin:real:target/i686-apple-darwin/release/lib${PACKAGE}_mel.dylib:$(sha256sum target/i686-apple-darwin/release/lib${PACKAGE}_mel.dylib | cut -d ' ' -f 1) \
+          i686-pc-windows-gnu:real:target/i686-pc-windows-gnu/release/${PACKAGE}_mel.dll:$(sha256sum target/i686-pc-windows-gnu/release/${PACKAGE}_mel.dll | cut -d ' ' -f 1) \
+          i686-pc-windows-msvc:real:target/i686-pc-windows-msvc/release/${PACKAGE}_mel.dll:$(sha256sum target/i686-pc-windows-msvc/release/${PACKAGE}_mel.dll | cut -d ' ' -f 1) \
+          i686-unknown-linux-gnu:real:target/i686-unknown-linux-gnu/release/lib${PACKAGE}_mel.so:$(sha256sum target/i686-unknown-linux-gnu/release/lib${PACKAGE}_mel.so | cut -d ' ' -f 1) \
+          i686-unknown-linux-musl:real:target/i686-unknown-linux-musl/release/lib${PACKAGE}_mel.so:$(sha256sum target/i686-unknown-linux-musl/release/lib${PACKAGE}_mel.so | cut -d ' ' -f 1) \
+          x86_64-apple-darwin:real:target/x86_64-apple-darwin/release/lib${PACKAGE}_mel.dylib:$(sha256sum target/x86_64-apple-darwin/release/lib${PACKAGE}_mel.dylib | cut -d ' ' -f 1) \
+          x86_64-pc-windows-gnu:real:target/x86_64-pc-windows-gnu/release/${PACKAGE}_mel.dll:$(sha256sum target/x86_64-pc-windows-gnu/release/${PACKAGE}_mel.dll | cut -d ' ' -f 1) \
+          x86_64-pc-windows-msvc:real:target/x86_64-pc-windows-msvc/release/${PACKAGE}_mel.dll:$(sha256sum target/x86_64-pc-windows-msvc/release/${PACKAGE}_mel.dll | cut -d ' ' -f 1) \
+          x86_64-unknown-linux-gnu:real:target/x86_64-unknown-linux-gnu/release/lib${PACKAGE}_mel.so:$(sha256sum target/x86_64-unknown-linux-gnu/release/lib${PACKAGE}_mel.so | cut -d ' ' -f 1) \
+          x86_64-unknown-linux-musl:real:target/x86_64-unknown-linux-musl/release/lib${PACKAGE}_mel.so:$(sha256sum target/x86_64-unknown-linux-musl/release/lib${PACKAGE}_mel.so | cut -d ' ' -f 1) 
+      done
+    - VERSION=${CI_COMMIT_TAG}
+    - VERSION=${VERSION:-$CI_COMMIT_SHORT_SHA}
+    - VERSION=$(echo $VERSION | sed 's/^v//')
     - echo "VERSION=$VERSION" >> variables.env
   artifacts:
-    name: "packages-release-zips-$CI_COMMIT_SHORT_SHA"
     paths:
-      - SHA256SUMS
-      - melodium-*_aarch64-apple-darwin.tar.gz
-      - melodium-*_aarch64-pc-windows-msvc.zip
-      - melodium-*_aarch64-unknown-linux-gnu.tar.gz
-      - melodium-*_aarch64-unknown-linux-musl.tar.gz
-      - melodium-*_i686-apple-darwin.tar.gz
-      - melodium-*_i686-pc-windows-gnu.zip
-      - melodium-*_i686-pc-windows-msvc.zip
-      - melodium-*_i686-unknown-linux-gnu.tar.gz
-      - melodium-*_i686-unknown-linux-musl.tar.gz
-      - melodium-*_x86_64-apple-darwin.tar.gz
-      - melodium-*_x86_64-pc-windows-gnu.zip
-      - melodium-*_x86_64-pc-windows-msvc.zip
-      - melodium-*_x86_64-unknown-linux-gnu.tar.gz
-      - melodium-*_x86_64-unknown-linux-musl.tar.gz
+      - repo/*
     expire_in: 1 day
     reports:
       dotenv: variables.env
+
+packaging:release:repo:
+  stage: release
+  image: debian:bullseye
+  extends:
+    - .release-packages
+  variables:
+    GIT_STRATEGY: none
+  needs:
+    - job: packaging:packages:repo
+      artifacts: true
+  before_script:
+    - apt-get update
+    - apt-get install -y rsync sshpass
+  script:
+    - mkdir ~/.ssh
+    - ssh-keyscan "$PACKAGES_REPO_RELEASE_PUBLISH_SERVER" >> ~/.ssh/known_hosts
+    - mv repo "$VERSION"
+    - SSHPASS="$PACKAGES_REPO_RELEASE_PUBLISH_PASSWORD" sshpass -e rsync -a "$VERSION" "$PACKAGES_REPO_RELEASE_PUBLISH_USER@$PACKAGES_REPO_RELEASE_PUBLISH_SERVER:$PACKAGES_REPO_RELEASE_PUBLISH_DIRECTORY"
+
+

@@ -6,10 +6,13 @@
 //!
 //! Please refer to the [crates.io page](https://crates.io/crates/melodium) or
 //! [project repository](https://gitlab.com/melodium/melodium) for compilation or development information.
-//!
-//!
 
-use melodium_common::descriptor::{Collection, Identifier, LoadingError, LoadingResult, Package};
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![doc = include_str!("../README.md")]
+
+use melodium_common::descriptor::{
+    Collection, Identifier, LoadingError, LoadingResult, Package, PackageRequirement, VersionReq,
+};
 use melodium_engine::LogicResult;
 use melodium_loader::Loader;
 pub use melodium_loader::LoadingConfig;
@@ -31,13 +34,17 @@ pub fn load_entry(
 
     let loader = Loader::new(config);
     loader
-        .load_package(identifier.root())
+        .load_package(&PackageRequirement {
+            package: identifier.root().to_string(),
+            version_requirement: VersionReq::parse(">=0.0.0").unwrap(),
+        })
         .and_then(|_| loader.load(identifier))
         .and_then(|_| loader.build())
 }
 
 pub fn load_raw(
-    raw: &str,
+    raw: Arc<Vec<u8>>,
+    main: Option<Identifier>,
     mut config: LoadingConfig,
 ) -> LoadingResult<(Identifier, Arc<Collection>)> {
     config.extend(core_config());
@@ -45,12 +52,12 @@ pub fn load_raw(
     let loader = Loader::new(config);
     loader
         .load_raw(raw)
-        .and_then(|name| {
-            let identifier = Identifier::new(vec![name], "main");
-
-            loader
-                .load(&identifier)
-                .and(LoadingResult::new_success(identifier))
+        .and_then(|(_, pkg_main)| {
+            if let Some(main) = main.or(pkg_main) {
+                loader.load(&main).and(LoadingResult::new_success(main))
+            } else {
+                LoadingResult::new_failure(LoadingError::no_entry_point_provided(238))
+            }
         })
         .and_then(|identifier| {
             loader
@@ -61,14 +68,14 @@ pub fn load_raw(
 
 pub fn load_file(
     file: PathBuf,
+    main: Option<Identifier>,
     config: LoadingConfig,
 ) -> LoadingResult<(Identifier, Arc<Collection>)> {
-    match std::fs::read_to_string(&file) {
-        Ok(content) => load_raw(&content, config),
-        Err(_) => LoadingResult::new_failure(LoadingError::no_package(
-            193,
-            file.to_string_lossy().to_string(),
-        )),
+    match std::fs::read(&file) {
+        Ok(content) => load_raw(Arc::new(content), main, config),
+        Err(err) => {
+            LoadingResult::new_failure(LoadingError::unreachable_file(193, file, err.to_string()))
+        }
     }
 }
 
@@ -85,10 +92,12 @@ pub fn core_config() -> LoadingConfig {
     LoadingConfig {
         core_packages: core_packages(),
         search_locations: Vec::new(),
+        raw_elements: Vec::new(),
     }
 }
 
-pub fn core_packages() -> Vec<Box<dyn Package>> {
+pub fn core_packages() -> Vec<Arc<dyn Package>> {
+    #[allow(unused_mut)]
     let mut packages = Vec::new();
     #[cfg(feature = "conv-mel")]
     packages.push(conv_mel::__mel_package::package());

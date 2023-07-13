@@ -1,7 +1,7 @@
 [package]
 name = "melodium-lib"
-version = "0.0.0-reserved"
-authors = ["Quentin VIGNAUD <qvignaud@gmail.com>"]
+version = "0.0.1-reserved"
+authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 edition = "2018"
 license = "EUPL-1.2"
 homepage = "https://melodium.tech"
@@ -13,3 +13,6 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 
 [lib]
 name = "melodium_lib"
+
+[package.metadata.workspaces]
+independent = true

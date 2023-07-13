@@ -1,0 +1,387 @@
+
+
+# Builders follows syntax [host os]/[target triple]
+
+.host:debian:
+  image: rust:bullseye
+
+.host:windows:
+  tags:
+    - shared-windows
+    - windows
+    - windows-1809
+
+.cache:cargo:
+  variables:
+    CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  cache:
+    - key: cargo-$CI_JOB_NAME_SLUG
+      paths:
+      - .cargo/
+      policy: pull-push
+
+.cache:cargo-osxcross:
+  variables:
+    CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  cache:
+    - key: cargo-osxcross-$CI_JOB_NAME_SLUG
+      paths:
+      - .cargo/
+      - osxcross/
+      policy: pull-push
+
+.cache:cargo-xwin:
+  variables:
+    CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  cache:
+    - key: cargo-xwin-$CI_JOB_NAME
+      paths:
+      - .cargo/
+      - .xwin/
+      policy: pull-push
+
+.builder:linux:x86_64-unknown-linux-gnu:
+  extends:
+    - .host:debian
+    - .cache:cargo
+  before_script:
+    - export CARGO_BUILD_TARGET=x86_64-unknown-linux-gnu
+    - rustc --version
+    - cargo --version 
+
+.builder:linux:x86_64-unknown-linux-musl:
+  extends:
+    - .host:debian
+    - .cache:cargo
+  before_script:
+    - apt-get update
+    - apt-get install -y musl-tools
+    - rustup target add x86_64-unknown-linux-musl
+    - export CARGO_BUILD_TARGET=x86_64-unknown-linux-musl
+    - rustc --version
+    - cargo --version 
+
+.builder:linux:i686-unknown-linux-gnu:
+  extends:
+    - .host:debian
+    - .cache:cargo
+  before_script:
+    - dpkg --add-architecture i386
+    - apt-get update
+    - apt-get install -y gcc-multilib
+    - rustup target add i686-unknown-linux-gnu
+    - export PATH="$CARGO_HOME/bin:$PATH"
+    - export PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config
+    - export CARGO_BUILD_TARGET=i686-unknown-linux-gnu
+    - rustc --version
+    - cargo --version 
+
+.builder:linux:i686-unknown-linux-musl:
+  extends:
+    - .host:debian
+    - .cache:cargo
+  before_script:
+   - dpkg --add-architecture i386
+   - apt-get update
+   - apt-get install -y gcc-multilib
+   - wget http://musl.cc/i686-linux-musl-cross.tgz
+   - tar --extract --gzip --file i686-linux-musl-cross.tgz --directory /usr/local
+   - ln -s /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc_s.so.1 /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc.so
+   - rustup target add i686-unknown-linux-musl
+   - export PATH="$CARGO_HOME/bin:$PATH"
+   - export PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config
+   - export CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_LINKER=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-ld
+   - export CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_AR=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-ar
+   - export TARGET_CC=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-gcc
+   - export TARGET_AR=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-gcc-ar
+   - export CARGO_BUILD_TARGET=i686-unknown-linux-musl
+   - rustc --version
+   - cargo --version
+
+.builder:linux:aarch64-unknown-linux-gnu:
+  extends:
+    - .host:debian
+    - .cache:cargo
+  before_script:
+   - dpkg --add-architecture arm64
+   - apt-get update
+   - apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev:arm64
+   - ln -s /usr/aarch64-linux-gnu/lib/libgcc_s.so.1 /usr/aarch64-linux-gnu/lib/libgcc_s.so
+   - rustup target add aarch64-unknown-linux-gnu
+   - export PATH="$CARGO_HOME/bin:$PATH"
+   - export PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config
+   - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld
+   - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_AR=aarch64-linux-gnu-gcc-ar
+   - export TARGET_CC=aarch64-linux-gnu-gcc
+   - export TARGET_AR=aarch64-linux-gnu-gcc-ar
+   - export CARGO_BUILD_TARGET=aarch64-unknown-linux-gnu
+   - rustc --version
+   - cargo --version
+
+.builder:linux:aarch64-unknown-linux-musl:
+  extends:
+    - .host:debian
+    - .cache:cargo
+  before_script:
+   - dpkg --add-architecture arm64
+   - apt-get update
+   - apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross musl-tools libc-dev:arm64
+   - wget https://musl.cc/aarch64-linux-musl-cross.tgz
+   - tar --extract --gzip --file aarch64-linux-musl-cross.tgz --directory /usr/local
+   - ln -s /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc_s.so.1 /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc.so
+   - rustup target add aarch64-unknown-linux-musl
+   - export PATH="$CARGO_HOME/bin:$PATH"
+   - export PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config
+   - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-ld
+   - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_AR=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-ar
+   - export LD_LIBRARY_PATH="/usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/:$LD_LIBRARY_PATH"
+   - export TARGET_CC=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc
+   - export TARGET_AR=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc-ar
+   - export CARGO_BUILD_TARGET=aarch64-unknown-linux-musl
+   - rustc --version
+   - cargo --version
+
+.builder:linux:x86_64-apple-darwin:
+  extends:
+    - .host:debian
+    - .cache:cargo-osxcross
+  before_script:
+    - apt-get update
+    - apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
+    - rustup target add x86_64-apple-darwin
+    - export PATH="$CARGO_HOME/bin:$PATH"
+    - |
+      if [ ! -d $CI_PROJECT_DIR/osxcross ]
+      then
+        base="$PWD"
+        git clone https://github.com/tpoechtrager/osxcross
+        cd osxcross
+        wget -nc https://s3.dockerproject.org/darwin/v2/MacOSX10.11.sdk.tar.xz
+        mv MacOSX10.11.sdk.tar.xz tarballs/
+        UNATTENDED=yes OSX_VERSION_MIN=10.7 ./build.sh
+        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin15-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
+        cd "$base"
+      fi
+    - export PATH="$CI_PROJECT_DIR/osxcross/target/bin:$PATH"
+    - export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=x86_64-apple-darwin15-clang
+    - export CARGO_TARGET_X86_64_APPLE_DARWIN_AR=x86_64-apple-darwin15-ar
+    - export TARGET_CC=x86_64-apple-darwin15-cc
+    - export TARGET_AR=x86_64-apple-darwin15-ar
+    - export CARGO_BUILD_TARGET=x86_64-apple-darwin
+    - rustc --version
+    - cargo --version
+
+.builder:linux:i686-apple-darwin:
+  extends:
+    - .host:debian
+    - .cache:cargo-osxcross
+  before_script:
+    - apt-get update
+    - apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
+    - rustup default nightly
+    - export PATH="$CARGO_HOME/bin:$PATH"
+    - |
+      if [ ! -f $CARGO_HOME/bin/xargo ]
+      then
+        cargo install xargo
+      fi
+    - rustup component add rust-src
+    - |
+      if [ ! -d $CI_PROJECT_DIR/osxcross ]
+      then
+        base="$PWD"
+        git clone https://github.com/tpoechtrager/osxcross
+        cd osxcross
+        wget -nc https://s3.dockerproject.org/darwin/v2/MacOSX10.11.sdk.tar.xz
+        mv MacOSX10.11.sdk.tar.xz tarballs/
+        UNATTENDED=yes OSX_VERSION_MIN=10.7 ./build.sh
+        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/i386-apple-darwin15-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
+        cd "$base"
+      fi
+    - export PATH="$CI_PROJECT_DIR/osxcross/target/bin:$PATH"
+    - export CARGO_TARGET_I686_APPLE_DARWIN_LINKER=i386-apple-darwin15-clang
+    - export CARGO_TARGET_I686_APPLE_DARWIN_AR=i386-apple-darwin15-ar
+    - export TARGET_CC=i386-apple-darwin15-cc
+    - export TARGET_AR=i386-apple-darwin15-ar
+    - export CARGO_BUILD_TARGET=i686-apple-darwin
+    - rustc --version
+    - cargo --version
+
+.builder:linux:aarch64-apple-darwin:
+  extends:
+    - .host:debian
+    - .cache:cargo-osxcross
+  before_script:
+    - apt-get update
+    - apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
+    - rustup target add aarch64-apple-darwin
+    - export PATH="$CARGO_HOME/bin:$PATH"
+    - |
+      if [ ! -d $CI_PROJECT_DIR/osxcross ]
+      then
+        base="$PWD"
+        git clone https://github.com/tpoechtrager/osxcross
+        cd osxcross
+        wget -nc https://storage.googleapis.com/ory.sh/build-assets/MacOSX11.3.sdk.tar.xz
+        mv MacOSX11.3.sdk.tar.xz tarballs/
+        UNATTENDED=yes OSX_VERSION_MIN=11.3 ./build.sh
+        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin20.4-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
+        cd "$base"
+      fi
+    - export PATH="$CI_PROJECT_DIR/osxcross/target/bin:$PATH"
+    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=aarch64-apple-darwin20.4-clang
+    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=aarch64-apple-darwin20.4-ar
+    - export TARGET_CC=aarch64-apple-darwin20.4-cc
+    - export TARGET_AR=aarch64-apple-darwin20.4-ar
+    - export CARGO_BUILD_TARGET=aarch64-apple-darwin
+    - rustc --version
+    - cargo --version
+
+.builder:linux:x86_64-pc-windows-gnu:
+  extends:
+    - .host:debian
+    - .cache:cargo
+  before_script:
+    - apt-get update
+    - apt-get install -y mingw-w64
+    - rustup target add x86_64-pc-windows-gnu
+    - export CARGO_BUILD_TARGET=x86_64-pc-windows-gnu
+    - rustc --version
+    - cargo --version
+
+.builder:linux:x86_64-pc-windows-msvc:
+  extends:
+    - .host:debian
+    - .cache:cargo-xwin
+  before_script:
+    - apt-get update
+    - apt-get install -y lld
+    - rustup target add x86_64-pc-windows-msvc
+    - export PATH="$CARGO_HOME/bin:$PATH"
+    - |
+      if [ ! -f .cargo/bin/xwin ]
+      then
+        cargo install xwin --locked
+        xwin --accept-license --arch x86_64 --cache-dir ./.xwin-cache splat --output $CI_PROJECT_DIR/.xwin
+      fi
+    - export CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS="-Ctarget-feature=+crt-static -Lnative=$CI_PROJECT_DIR/.xwin/crt/lib/x86_64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/um/x86_64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/ucrt/x86_64"
+    - export CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=lld
+    - export CARGO_BUILD_TARGET=x86_64-pc-windows-msvc
+    - rustc --version
+    - cargo --version
+
+.builder:windows:x86_64-pc-windows-msvc:
+  extends:
+    - .host:windows
+    - .cache:cargo
+  before_script:
+    - Invoke-WebRequest -Uri https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -UseBasicParsing -OutFile rustup-init.exe
+    - "& './rustup-init.exe' -vy"
+    - $env:Path = "$env:USERPROFILE\.cargo\bin;$env:CARGO_HOME/bin;$env:Path"
+    - rustup default stable-msvc
+    - $env:CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS = "-Ctarget-feature=+crt-static"
+    - rustc --version
+    - cargo --version 
+
+.builder:linux:i686-pc-windows-gnu:
+  extends:
+    - .host:debian
+    - .cache:cargo
+  before_script:
+    - apt-get update
+    - apt-get install -y mingw-w64
+    - rustup target add i686-pc-windows-gnu
+    - export PATH="$CARGO_HOME/bin:$PATH"
+    - export CARGO_BUILD_TARGET=i686-pc-windows-gnu
+    - rustc --version
+    - cargo --version
+
+.builder:linux:i686-pc-windows-msvc:
+  extends:
+    - .host:debian
+    - .cache:cargo-xwin
+  before_script:
+    - apt-get update
+    - apt-get install -y lld
+    - rustup target add i686-pc-windows-msvc
+    - export PATH="$CARGO_HOME/bin:$PATH"
+    - |
+      if [ ! -f .cargo/bin/xwin ]
+      then
+        cargo install xwin --locked
+        xwin --accept-license --arch x86 --cache-dir ./.xwin-cache splat --output $CI_PROJECT_DIR/.xwin
+      fi
+    - export CARGO_TARGET_I686_PC_WINDOWS_MSVC_RUSTFLAGS="-Ctarget-feature=+crt-static -Lnative=$CI_PROJECT_DIR/.xwin/crt/lib/x86 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/um/x86 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/ucrt/x86"
+    - export CARGO_TARGET_I686_PC_WINDOWS_MSVC_LINKER=lld
+    - export CARGO_BUILD_TARGET=i686-pc-windows-msvc
+    - rustc --version
+    - cargo --version
+
+.builder:windows:i686-pc-windows-msvc:
+  extends:
+    - .host:windows
+    - .cache:cargo
+  before_script:
+    - Invoke-WebRequest -Uri https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -UseBasicParsing -OutFile rustup-init.exe
+    - "& './rustup-init.exe' -vy"
+    - $env:Path = "$env:USERPROFILE\.cargo\bin;$env:CARGO_HOME/bin;$env:Path"
+    - rustup default stable-msvc
+    - rustup target add i686-pc-windows-msvc
+    - $env:CARGO_TARGET_I686_PC_WINDOWS_MSVC_RUSTFLAGS = "-Ctarget-feature=+crt-static"
+    - rustc --version
+    - cargo --version
+
+.builder:linux:aarch64-pc-windows-msvc:
+  extends:
+    - .host:debian
+    - .cache:cargo-xwin
+  before_script:
+    - apt-get update
+    - apt-get install -y lld
+    - rustup target add aarch64-pc-windows-msvc
+    - export PATH="$CARGO_HOME/bin:$PATH"
+    - |
+      if [ ! -f .cargo/bin/xwin ]
+      then
+        cargo install xwin --locked
+        xwin --accept-license --arch aarch64 --cache-dir ./.xwin-cache splat --output $CI_PROJECT_DIR/.xwin
+      fi
+    - export CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_RUSTFLAGS="-Ctarget-feature=+crt-static -Lnative=$CI_PROJECT_DIR/.xwin/crt/lib/aarch64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/um/aarch64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/ucrt/aarch64"
+    - export CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER=lld
+    - export CARGO_BUILD_TARGET=aarch64-pc-windows-msvc
+    - rustc --version
+    - cargo --version
+
+.builder:windows:aarch64-pc-windows-msvc:
+  extends:
+    - .host:windows
+    - .cache:cargo
+  before_script:
+    - echo "Current aarch64 MSVC build on Windows platform don't work"
+    - echo "LINK  fatal error LNK1181 cannot open input file 'libcmt.lib'"
+    - exit 1
+    - Invoke-WebRequest -Uri https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -UseBasicParsing -OutFile rustup-init.exe
+    - "& './rustup-init.exe' -vy"
+    - $env:Path = "$env:USERPROFILE\.cargo\bin;$env:CARGO_HOME/bin;$env:Path"
+    - rustup default stable-msvc
+    - rustup target add aarch64-pc-windows-msvc
+    - Install-Module Pscx -Force -AllowClobber -Scope CurrentUser
+    - Invoke-BatchFile "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" amd64_arm64
+    - $env:CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_RUSTFLAGS = "-Ctarget-feature=+crt-static"
+    - rustc --version
+    - cargo --version
+  # script:
+  #   - >
+  #     & cmd.exe /C '
+  #     set &&
+  #     "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" amd64_arm64 &&
+  #     set &&
+  #     rustc --version &&
+  #     cargo --version &&
+  #     cargo build --package melodium --locked --release --target aarch64-pc-windows-msvc
+  #     '
+  #   - ls target/aarch64-pc-windows-msvc/release
+  # artifacts:
+  #   paths:
+  #     - target/aarch64-pc-windows-msvc/release/melodium.exe
+  #   expire_in: 1 hour

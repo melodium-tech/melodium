@@ -1,21 +1,23 @@
+use crate::compo::Compo;
 use crate::content::Content;
-use crate::package::package::Package;
+use crate::package::package::PackageTrait;
 use crate::Loader;
 use glob::{glob_with, MatchOptions};
-use melodium_common::descriptor::{Collection, Identifier, LoadingError, LoadingResult};
-use semver::Version;
+use melodium_common::descriptor::{
+    Collection, Identifier, LoadingError, LoadingResult, PackageRequirement, Version,
+};
 use std::collections::HashMap;
 use std::fs::{metadata, read, read_to_string};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
-use toml::{Table, Value};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 #[derive(Debug)]
 pub struct FsPackage {
     path: PathBuf,
     name: String,
     version: Version,
-    requirements: Vec<String>,
+    requirements: Vec<PackageRequirement>,
+    main: Option<Identifier>,
     contents: RwLock<HashMap<PathBuf, Content>>,
 }
 
@@ -44,69 +46,24 @@ impl FsPackage {
                     ))
                 }
             };
-            let composition = match composition.parse::<Table>() {
-                Ok(table) => table,
-                Err(_) => {
-                    return LoadingResult::new_failure(LoadingError::no_package(
-                        178,
-                        path.to_string_lossy().to_string(),
-                    ))
-                }
-            };
 
-            if let (Value::String(name), Ok(version)) = (
-                match composition.get("name") {
-                    Some(val) => val,
-                    None => {
-                        return LoadingResult::new_failure(LoadingError::no_package(
-                            179,
-                            path.to_string_lossy().to_string(),
-                        ))
-                    }
-                },
-                Version::parse(
-                    match match composition.get("version") {
-                        Some(val) => val,
-                        None => {
-                            return LoadingResult::new_failure(LoadingError::no_package(
-                                180,
-                                path.to_string_lossy().to_string(),
-                            ))
-                        }
-                    }
-                    .as_str()
-                    {
-                        Some(val) => val,
-                        None => {
-                            return LoadingResult::new_failure(LoadingError::no_package(
-                                181,
-                                path.to_string_lossy().to_string(),
-                            ))
-                        }
-                    },
-                ),
-            ) {
-                let requirements =
-                    if let Some(Value::Table(dependencies)) = composition.get("dependencies") {
-                        dependencies
-                            .iter()
-                            .map(|(name, _)| name.to_string())
-                            .collect()
-                    } else {
-                        Vec::new()
-                    };
-
-                return LoadingResult::new_success(Self {
+            let mut result = LoadingResult::new_success(());
+            if let Some(composition) = result.merge_degrade_failure(Compo::parse(&composition)) {
+                result.and(LoadingResult::new_success(Self {
                     path: path.to_path_buf(),
-                    name: name.clone(),
-                    version,
-                    requirements,
+                    name: composition.name.clone(),
+                    main: composition.main.clone().map(|id| {
+                        let mut path = vec![composition.name.clone()];
+                        path.extend(id.path().iter().map(|s| s.clone()));
+                        Identifier::new(path, id.name())
+                    }),
+                    version: composition.version,
+                    requirements: composition.requirements,
                     contents: RwLock::new(HashMap::new()),
-                });
+                }))
             } else {
-                return LoadingResult::new_failure(LoadingError::no_package(
-                    182,
-                    path.to_string_lossy().to_string(),
+                return result.and_degrade_failure(LoadingResult::new_failure(
+                    LoadingError::no_package(182, path.to_string_lossy().to_string()),
                 ));
             }
         } else {
@@ -154,14 +111,14 @@ impl FsPackage {
             })
     }
 
-    fn all_contents(&self) -> LoadingResult<()> {
+    pub fn all_contents(&self) -> LoadingResult<()> {
         let pattern = format!("{}/**/*.mel", self.path.to_string_lossy().to_string());
 
         let options = MatchOptions {
             case_sensitive: true,
             require_literal_separator: false,
             require_literal_leading_dot: true,
-        }; //.map_err(|_| LoadingError::NotFound(7))
+        };
 
         let mut result = LoadingResult::new_success(());
         if let Some(paths) = result.merge_degrade_failure(match glob_with(&pattern, options) {
@@ -214,9 +171,17 @@ impl FsPackage {
                 .join("/")
         ))
     }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn contents(&self) -> RwLockReadGuard<HashMap<PathBuf, Content>> {
+        self.contents.read().unwrap()
+    }
 }
 
-impl Package for FsPackage {
+impl PackageTrait for FsPackage {
     fn name(&self) -> &str {
         &self.name
     }
@@ -225,8 +190,12 @@ impl Package for FsPackage {
         &self.version
     }
 
-    fn requirements(&self) -> &Vec<String> {
+    fn requirements(&self) -> &Vec<PackageRequirement> {
         &self.requirements
+    }
+
+    fn main(&self) -> &Option<Identifier> {
+        &self.main
     }
 
     fn embedded_collection(&self, _loader: &Loader) -> LoadingResult<Collection> {

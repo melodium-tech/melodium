@@ -1,7 +1,9 @@
 use crate::content::Content;
-use crate::package::package::Package;
+use crate::package::package::PackageTrait;
 use crate::Loader;
-use melodium_common::descriptor::{Collection, Identifier, LoadingError, LoadingResult};
+use melodium_common::descriptor::{
+    Collection, Identifier, LoadingError, LoadingResult, PackageRequirement, VersionReq,
+};
 use semver::Version;
 use std::sync::Arc;
 
@@ -9,7 +11,8 @@ use std::sync::Arc;
 pub struct RawPackage {
     name: String,
     version: Version,
-    requirements: Vec<String>,
+    requirements: Vec<PackageRequirement>,
+    main: Option<Identifier>,
     content: Content,
 }
 
@@ -49,7 +52,25 @@ impl RawPackage {
                 }
             } else if let Some(internal_requirements) = line.strip_prefix("#! require = ") {
                 for internal_requirement in internal_requirements.split(char::is_whitespace) {
-                    requirements.push(internal_requirement.to_string());
+                    let parts = internal_requirement.split(':').collect::<Vec<_>>();
+                    if parts.len() == 2 {
+                        if let Ok(version_requirement) = VersionReq::parse(parts[1]) {
+                            requirements.push(PackageRequirement {
+                                package: parts[0].to_string(),
+                                version_requirement,
+                            })
+                        } else {
+                            return LoadingResult::new_failure(LoadingError::wrong_configuration(
+                                209,
+                                "[raw package]".to_string(),
+                            ));
+                        }
+                    } else {
+                        return LoadingResult::new_failure(LoadingError::wrong_configuration(
+                            208,
+                            "[raw package]".to_string(),
+                        ));
+                    }
                 }
             } else if line.starts_with("#!") {
                 continue;
@@ -66,10 +87,16 @@ impl RawPackage {
             Content::new(&name, data.as_bytes())
                 .convert_failure_errors(|err| LoadingError::content_error(190, Arc::new(err)))
                 .and_then(|content| {
+                    let expected_main = Identifier::new(vec![name.clone()], "main");
                     LoadingResult::new_success(Self {
                         name: name.clone(),
                         version,
                         requirements,
+                        main: if content.provide().contains(&expected_main) {
+                            Some(expected_main)
+                        } else {
+                            None
+                        },
                         content,
                     })
                 })
@@ -82,7 +109,7 @@ impl RawPackage {
     }
 }
 
-impl Package for RawPackage {
+impl PackageTrait for RawPackage {
     fn name(&self) -> &str {
         &self.name
     }
@@ -91,8 +118,12 @@ impl Package for RawPackage {
         &self.version
     }
 
-    fn requirements(&self) -> &Vec<String> {
+    fn requirements(&self) -> &Vec<PackageRequirement> {
         &self.requirements
+    }
+
+    fn main(&self) -> &Option<Identifier> {
+        &self.main
     }
 
     fn embedded_collection(&self, _: &Loader) -> LoadingResult<Collection> {

@@ -16,7 +16,7 @@ impl Path {
     ///
     /// ```
     /// # use melodium_lang::Path;
-    /// // use main/foo/bar::UselessElement
+    /// // use main/foo/bar::Element
     /// let raw_valid_path = vec![  "main".to_string(),
     ///                             "foo".to_string(),
     ///                             "bar".to_string()];
@@ -54,7 +54,7 @@ impl Path {
     /// * `element_name`: name of the element supposed to be identified under that path.
     ///
     /// # Warning
-    /// A path can only be turned into identifier if its root exists and is different from `local` (local paths are not absolute so not usable to make idenfier).
+    /// Return `None` if the path is invalid.
     pub fn to_identifier(&self, element_name: &str) -> Option<Identifier> {
         if self.is_valid() {
             Some(Identifier::new(self.path.clone(), element_name))

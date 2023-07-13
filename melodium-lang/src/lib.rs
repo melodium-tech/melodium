@@ -1,17 +1,12 @@
-//!
-//! Mélodium language implementation.
-//!
-//! This crate provides language parsing, semantic building, and executive design for the Mélodium language.
-//!
-//! Look at the [Mélodium crate](https://docs.rs/melodium/latest/melodium/)
-//! or the [Mélodium Project](https://melodium.tech/) for more detailed information.
-//!
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![doc = include_str!("../README.md")]
 
 #[macro_use]
 extern crate lazy_static;
 
 pub mod error;
 pub mod path;
+#[cfg_attr(docsrs, doc(cfg(feature = "restitution")))]
 #[cfg(feature = "restitution")]
 pub mod restitution;
 pub mod semantic;

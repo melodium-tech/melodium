@@ -33,13 +33,16 @@ pub use function::Function;
 pub use identified::Identified;
 pub use identifier::Identifier;
 pub use input::Input;
-pub use loader::{ContentError, ContentErrors, Loader, LoadingError, LoadingErrors, LoadingResult};
+pub use loader::{
+    ContentError, ContentErrors, Loader, LoadingError, LoadingErrors, LoadingResult,
+    RepositoryError, RepositoryErrors,
+};
 pub use model::Model;
 pub use output::Output;
-pub use package::Package;
+pub use package::{Package, PackageRequirement};
 pub use parameter::Parameter;
 pub use parameterized::{OrderedParameterized, Parameterized};
-pub use semver::Version;
+pub use semver::{Version, VersionReq};
 pub use status::Status;
 pub use treatment::Treatment;
 pub use variability::Variability;

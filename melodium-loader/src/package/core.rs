@@ -1,8 +1,9 @@
 use crate::content::Content;
-use crate::package::package::Package;
+use crate::package::package::PackageTrait;
 use crate::Loader;
 use melodium_common::descriptor::{
     Collection, Identifier, LoadingError, LoadingResult, Package as CommonPackage,
+    PackageRequirement,
 };
 use semver::Version;
 use std::collections::HashMap;
@@ -10,20 +11,16 @@ use std::sync::{Arc, RwLock};
 
 #[derive(Debug)]
 pub struct CorePackage {
-    package: Box<dyn CommonPackage>,
-    requirements: Vec<String>,
+    package: Arc<dyn CommonPackage>,
+    requirements: Vec<PackageRequirement>,
     embedded_collection: RwLock<Option<Collection>>,
     contents: RwLock<HashMap<String, Content>>,
 }
 
 impl CorePackage {
-    pub fn new(package: Box<dyn CommonPackage>) -> Self {
+    pub fn new(package: Arc<dyn CommonPackage>) -> Self {
         Self {
-            requirements: package
-                .requirements()
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+            requirements: package.requirements().iter().map(|pr| pr.clone()).collect(),
             package,
             embedded_collection: RwLock::new(None),
             contents: RwLock::new(HashMap::new()),
@@ -83,7 +80,7 @@ impl CorePackage {
     }
 }
 
-impl Package for CorePackage {
+impl PackageTrait for CorePackage {
     fn name(&self) -> &str {
         self.package.name()
     }
@@ -92,8 +89,12 @@ impl Package for CorePackage {
         self.package.version()
     }
 
-    fn requirements(&self) -> &Vec<String> {
+    fn requirements(&self) -> &Vec<PackageRequirement> {
         &self.requirements
+    }
+
+    fn main(&self) -> &Option<Identifier> {
+        &None
     }
 
     fn embedded_collection(&self, loader: &Loader) -> LoadingResult<Collection> {

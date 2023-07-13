@@ -1,12 +1,5 @@
-//!
-//! Mélodium documentation generator and utilities.
-//!
-//! Provides a documentation generator for Mélodium environment.
-//! This crate is useful mostly through the [Mélodium crate](https://docs.rs/melodium/latest/melodium/)
-//! using the `doc` feature.
-//!
-//! Also see the [Mélodium Project](https://melodium.tech/) for more detailed information.
-//!
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![doc = include_str!("../README.md")]
 
 use itertools::Itertools;
 use melodium_common::descriptor::{
@@ -19,17 +12,34 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
+pub enum DocumentationSubject {
+    All,
+    One(String),
+    Multiple(Vec<String>),
+}
+
+#[derive(Clone, Debug)]
 pub struct Documentation {
     collection: Collection,
+    _subject: DocumentationSubject,
     tree: CollectionTree,
     output: PathBuf,
 }
 
 impl Documentation {
-    pub fn new(output: PathBuf, collection: Collection) -> Self {
+    pub fn new(output: PathBuf, collection: Collection, subject: DocumentationSubject) -> Self {
+        let mut tree = collection.get_tree();
+
+        match &subject {
+            DocumentationSubject::All => {}
+            DocumentationSubject::One(name) => tree.areas.retain(|k, _| k == name),
+            DocumentationSubject::Multiple(names) => tree.areas.retain(|k, _| names.contains(k)),
+        }
+
         Self {
-            tree: collection.get_tree(),
+            tree,
             collection,
+            _subject: subject,
             output,
         }
     }

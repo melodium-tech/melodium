@@ -7,3 +7,9 @@ This crate provides language parsing, semantic building, and executive design fo
 
 Look at the [Mélodium crate](https://docs.rs/melodium/latest/melodium/)
 or the [Mélodium Project](https://melodium.tech/) for more detailed information.
+
+## Features
+
+- `restitution` (disabled by default): enables ability to restitute Mélodium scripts from collection.
+
+

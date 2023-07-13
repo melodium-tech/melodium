@@ -1,7 +1,7 @@
 
 # Changelog
 
-## Unreleased
+## [v0.7.0]
 
 - Improving error reporting.
 - Refactoring script parsing process.
