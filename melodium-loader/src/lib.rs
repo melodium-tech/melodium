@@ -8,8 +8,9 @@ mod loading_config;
 mod package;
 mod package_manager;
 
-const TRIPLE: &str = env!("TARGET");
+pub const TRIPLE: &str = env!("TARGET");
 
+pub use compo::Compo;
 pub use loader::Loader;
 pub use loading_config::LoadingConfig;
 

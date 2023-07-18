@@ -3,6 +3,8 @@
 
 use melodium_macro::mel_package;
 
+pub mod dir;
 pub mod file;
+pub mod path;
 
 mel_package!();
