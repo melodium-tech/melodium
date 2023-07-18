@@ -2301,6 +2301,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "text-mel"
+version = "0.7.0-rc1"
+dependencies = [
+ "melodium-core",
+ "melodium-macro",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
