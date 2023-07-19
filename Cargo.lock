@@ -2304,8 +2304,10 @@ dependencies = [
 name = "text-mel"
 version = "0.7.0-rc1"
 dependencies = [
+ "futures",
  "melodium-core",
  "melodium-macro",
+ "regex",
 ]
 
 [[package]]

@@ -17,8 +17,10 @@ crate-type = ["lib", "cdylib"]
 name = "text_mel"
 
 [dependencies]
+futures = "~0.3.28"
 melodium-core = { path = "../../melodium-core", version = "=0.7.0-rc1" }
 melodium-macro = { path = "../../melodium-macro", version = "=0.7.0-rc1" }
+regex = "1.9.1"
 
 [features]
 mock = []
