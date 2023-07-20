@@ -8,8 +8,11 @@ use melodium_macro::{check, mel_function, mel_treatment};
 )]
 pub async fn exact(reference: char) {
     while let Ok(chars) = chars.recv_char().await {
-
-        check!(matches.send_bool(chars.into_iter().map(|char| char == reference).collect()).await);
+        check!(
+            matches
+                .send_bool(chars.into_iter().map(|char| char == reference).collect())
+                .await
+        );
     }
 }
 
@@ -26,8 +29,10 @@ pub fn exact(char: char, reference: char) -> bool {
 )]
 pub async fn is_alphabetic() {
     while let Ok(chars) = chars.recv_char().await {
-
-        check!(is.send_bool(chars.into_iter().map(|char| char.is_alphabetic()).collect()).await);
+        check!(
+            is.send_bool(chars.into_iter().map(|char| char.is_alphabetic()).collect())
+                .await
+        );
     }
 }
 
@@ -44,8 +49,15 @@ pub fn is_alphabetic(char: char) -> bool {
 )]
 pub async fn is_alphanumeric() {
     while let Ok(chars) = chars.recv_char().await {
-
-        check!(is.send_bool(chars.into_iter().map(|char| char.is_alphanumeric()).collect()).await);
+        check!(
+            is.send_bool(
+                chars
+                    .into_iter()
+                    .map(|char| char.is_alphanumeric())
+                    .collect()
+            )
+            .await
+        );
     }
 }
 
@@ -62,8 +74,10 @@ pub fn is_alphanumeric(char: char) -> bool {
 )]
 pub async fn is_ascii() {
     while let Ok(chars) = chars.recv_char().await {
-
-        check!(is.send_bool(chars.into_iter().map(|char| char.is_ascii()).collect()).await);
+        check!(
+            is.send_bool(chars.into_iter().map(|char| char.is_ascii()).collect())
+                .await
+        );
     }
 }
 
@@ -80,8 +94,10 @@ pub fn is_ascii(char: char) -> bool {
 )]
 pub async fn is_control() {
     while let Ok(chars) = chars.recv_char().await {
-
-        check!(is.send_bool(chars.into_iter().map(|char| char.is_control()).collect()).await);
+        check!(
+            is.send_bool(chars.into_iter().map(|char| char.is_control()).collect())
+                .await
+        );
     }
 }
 
@@ -92,7 +108,7 @@ pub fn is_control(char: char) -> bool {
 }
 
 /// Tells if chars are digit.
-/// 
+///
 /// - `base`: must be between 0 and 36, if over `is` will only be `false`.
 #[mel_treatment(
     input chars Stream<char>
@@ -100,26 +116,30 @@ pub fn is_control(char: char) -> bool {
 )]
 pub async fn is_digit(base: u8) {
     while let Ok(chars) = chars.recv_char().await {
-
         if base <= 36 {
-            check!(is.send_bool(chars.into_iter().map(|char| char.is_digit(base as u32)).collect()).await);
-        }
-        else {
+            check!(
+                is.send_bool(
+                    chars
+                        .into_iter()
+                        .map(|char| char.is_digit(base as u32))
+                        .collect()
+                )
+                .await
+            );
+        } else {
             check!(is.send_bool(vec![false; chars.len()]).await);
         }
-        
     }
 }
 
 /// Tells if char is digit.
-/// 
+///
 /// - `base`: must be between 0 and 36, if over function will return `false` in any case.
 #[mel_function]
 pub fn is_digit(char: char, base: u8) -> bool {
     if base <= 36 {
         char.is_digit(base as u32)
-    }
-    else {
+    } else {
         false
     }
 }
@@ -131,8 +151,10 @@ pub fn is_digit(char: char, base: u8) -> bool {
 )]
 pub async fn is_lowercase() {
     while let Ok(chars) = chars.recv_char().await {
-
-        check!(is.send_bool(chars.into_iter().map(|char| char.is_lowercase()).collect()).await);
+        check!(
+            is.send_bool(chars.into_iter().map(|char| char.is_lowercase()).collect())
+                .await
+        );
     }
 }
 
@@ -149,8 +171,10 @@ pub fn is_lowercase(char: char) -> bool {
 )]
 pub async fn is_uppercase() {
     while let Ok(chars) = chars.recv_char().await {
-
-        check!(is.send_bool(chars.into_iter().map(|char| char.is_uppercase()).collect()).await);
+        check!(
+            is.send_bool(chars.into_iter().map(|char| char.is_uppercase()).collect())
+                .await
+        );
     }
 }
 
@@ -167,8 +191,10 @@ pub fn is_uppercase(char: char) -> bool {
 )]
 pub async fn is_whitespace() {
     while let Ok(chars) = chars.recv_char().await {
-
-        check!(is.send_bool(chars.into_iter().map(|char| char.is_whitespace()).collect()).await);
+        check!(
+            is.send_bool(chars.into_iter().map(|char| char.is_whitespace()).collect())
+                .await
+        );
     }
 }
 

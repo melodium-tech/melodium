@@ -1882,6 +1882,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "regex-mel"
+version = "0.7.0-rc1"
+dependencies = [
+ "futures",
+ "melodium-core",
+ "melodium-macro",
+ "regex",
+]
+
+[[package]]
 name = "regex-syntax"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2307,7 +2317,6 @@ dependencies = [
  "futures",
  "melodium-core",
  "melodium-macro",
- "regex",
 ]
 
 [[package]]

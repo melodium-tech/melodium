@@ -44,7 +44,7 @@ pub async fn rescale(delimiter: string) {
 ///
 /// `text` is splitted according to `delimiter`, and streamed as `splitted` vector.
 /// - `inclusive`: set if the delimiter must be kept at the end of splitted strings (if present).
-/// 
+///
 /// ```mermaid
 /// graph LR
 ///     T("split()")

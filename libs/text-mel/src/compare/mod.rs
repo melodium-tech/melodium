@@ -1,4 +1,3 @@
-
 pub mod char;
 
 use melodium_core::*;
@@ -11,8 +10,11 @@ use melodium_macro::{check, mel_function, mel_treatment};
 )]
 pub async fn exact(pattern: string) {
     while let Ok(text) = text.recv_string().await {
-
-        check!(matches.send_bool(text.into_iter().map(|txt| txt == pattern).collect()).await);
+        check!(
+            matches
+                .send_bool(text.into_iter().map(|txt| txt == pattern).collect())
+                .await
+        );
     }
 }
 
@@ -29,8 +31,15 @@ pub fn exact(text: string, pattern: string) -> bool {
 )]
 pub async fn starts_with(pattern: string) {
     while let Ok(text) = text.recv_string().await {
-
-        check!(matches.send_bool(text.into_iter().map(|txt| txt.starts_with(&pattern)).collect()).await);
+        check!(
+            matches
+                .send_bool(
+                    text.into_iter()
+                        .map(|txt| txt.starts_with(&pattern))
+                        .collect()
+                )
+                .await
+        );
     }
 }
 
@@ -47,8 +56,15 @@ pub fn starts_with(text: string, pattern: string) -> bool {
 )]
 pub async fn ends_with(pattern: string) {
     while let Ok(text) = text.recv_string().await {
-
-        check!(matches.send_bool(text.into_iter().map(|txt| txt.ends_with(&pattern)).collect()).await);
+        check!(
+            matches
+                .send_bool(
+                    text.into_iter()
+                        .map(|txt| txt.ends_with(&pattern))
+                        .collect()
+                )
+                .await
+        );
     }
 }
 
