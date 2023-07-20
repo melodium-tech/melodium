@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "libs/conv-mel",
+    "libs/encoding-mel",
     "libs/engine-mel",
     "libs/flow-mel",
     "libs/fs-mel",
