@@ -1406,6 +1406,7 @@ dependencies = [
  "clap",
  "colored",
  "conv-mel",
+ "encoding-mel",
  "engine-mel",
  "flow-mel",
  "fs-mel",
@@ -1415,6 +1416,8 @@ dependencies = [
  "melodium-engine",
  "melodium-loader",
  "ops-mel",
+ "regex-mel",
+ "text-mel",
  "type-mel",
 ]
 

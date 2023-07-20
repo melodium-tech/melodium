@@ -2,8 +2,17 @@
 #![doc = include_str!("../README.md")]
 
 use melodium_core::*;
-use melodium_macro::{check, mel_function, mel_package, mel_treatment};
+use melodium_macro::{check, mel_package, mel_treatment};
 
+/// Decodes stream of bytes into string.
+/// 
+/// The incoming stream of bytes is decoded using the specified encoding.
+/// If some characters cannot be decoded for some reason (i.e. invalid according to encoding),
+/// it is replaced by the `U+FFFD REPLACEMENT CHARACTER` (�).
+/// 
+/// The supported encodings and possible values for `encoding` are defined in
+/// the [Encoding Standard](https://encoding.spec.whatwg.org/#names-and-labels).
+/// If `encoding` is not recognized, UTF-8 is assumed instead.
 #[mel_treatment(
     default encoding "utf-8"
     input data Stream<byte>
@@ -34,6 +43,16 @@ pub async fn decode(encoding: string) {
     }
 }
 
+/// Encodes streamed text with specified encoding.
+/// 
+/// The incoming string is encoded and outputted into raw bytes. If some characters cannot
+/// be encoded into the specified `encoding`, the behavior is set by `replace`:
+/// - `false`: the character is dropped;
+/// - `true`: the character is replaced with coded XML character (such as `&#65533;`).
+/// 
+/// The supported encodings and possible values for `encoding` are defined in
+/// the [Encoding Standard](https://encoding.spec.whatwg.org/#names-and-labels).
+/// If `encoding` is not recognized, UTF-8 is assumed instead.
 #[mel_treatment(
     default encoding "utf-8"
     default replace false
