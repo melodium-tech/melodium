@@ -14,7 +14,7 @@ use melodium_macro::{check, mel_function, mel_treatment};
 /// " ro justo ut sapien."
 /// ```
 ///
-/// While treamtments may expect well-defined strings:
+/// While treatments may expect well-defined strings:
 /// ```
 /// "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 /// "Aenean quam velit, tristique et arcu in, viverra pulvinar ante."
