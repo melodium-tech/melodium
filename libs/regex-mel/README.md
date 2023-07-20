@@ -1,7 +1,7 @@
 
-# Mélodium core types library
+# Mélodium regex library
 
-This library provides the data type utilities for the Mélodium environment.
+This library provides regex utilities for the Mélodium environment.
 
 ## For Mélodium project
 

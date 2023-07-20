@@ -1,7 +1,7 @@
 
-# Mélodium core types library
+# Mélodium text utilities library
 
-This library provides the data type utilities for the Mélodium environment.
+This library provides some text utilities for the Mélodium environment.
 
 ## For Mélodium project
 
