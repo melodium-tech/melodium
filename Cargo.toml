@@ -6,6 +6,7 @@ members = [
     "libs/engine-mel",
     "libs/flow-mel",
     "libs/fs-mel",
+    "libs/http-mel",
     "libs/ops-mel",
     "libs/regex-mel",
     "libs/text-mel",

@@ -1,0 +1,41 @@
+[package]
+name = "http-mel"
+version = "0.7.0-rc1"
+authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
+rust-version = "1.60"
+edition = "2018"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "Mélodium HTTP library"
+keywords = ["dataflow","parallelization","scalability","async","signal"]
+categories = ["compilers", "science", "concurrency", "asynchronous"]
+
+[lib]
+crate-type = ["lib", "cdylib"]
+name = "http_mel"
+
+[dependencies]
+async-std = "~1.12"
+melodium-core = { path = "../../melodium-core", version = "=0.7.0-rc1" }
+melodium-macro = { path = "../../melodium-macro", version = "=0.7.0-rc1" }
+
+[features]
+mock = []
+plugin = []
+real = []
+
+[target.'cfg(all(not(target_env = "msvc"), not(target_vendor = "apple")))'.dependencies.surf]
+version = "2.3.2"
+default-features = false
+features = ["h1-client-rustls"]
+
+[target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.surf]
+version = "2.3.2"
+default-features = false
+features = ["h1-client"] # Native TLS
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -287,6 +287,8 @@ fn config_optionnal_value(ts: &mut IntoIterTokenStream) -> Option<String> {
     } else if let Some(TokenTree::Ident(ident)) = next {
         if ident.to_string() == "none" {
             None
+        } else if ident.to_string() == "true" || ident.to_string() == "false" {
+            Some(ident.to_string())
         } else {
             panic!("Unrecognized default value")
         }
