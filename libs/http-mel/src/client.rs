@@ -8,6 +8,16 @@ use std::sync::{Arc, RwLock, Weak};
 use surf::Url;
 use surf::{Client, Config};
 
+/// HTTP client for general use
+///
+/// The HTTP client provides configuration for HTTP requests.
+/// All the default parameters are set up as good trade-off for general use.
+///
+/// - `base_url`: The base URL for a client. All request URLs will be relative to this URL. ℹ️ Note: a trailing slash is significant. Without it, the last path component is considered to be a “file” name to be removed to get at the “directory” that is used as the base.
+/// - `keep_alive`: HTTP 1.1 `keep-alive`, for connection pooling.
+/// - `max_connections_per_host`: Maximum number of simultaneous connections that the client is allowed to keep open to individual hosts at one time.
+/// - `tcp_no_delay`: TCP `NO_DELAY` field.
+/// - `timeout`: Connection timeout duration.
 #[mel_model(
     param base_url string ""
     param keep_alive bool true
@@ -113,6 +123,19 @@ impl HttpClient {
     }
 }
 
+/// Performs HTTP DELETE operation.
+///
+/// `url` input gives the URL to call DELETE on. Request starts as soon as the URL is transmitted.
+/// `failure` output gives the failures messages related to the network connection or HTTP transgression (and _not_ the errors that are defined by HTTP standard).
+/// `is_success` tells that server responded with positive code (`1xx`, `2xx` and `3xx` status ranges).
+/// `is_error` tells that server responded with negative code (`4xx` and `5xx` status ranges).
+/// `is_success` and `is_error` are mutually exclusive.
+///
+/// `http_code` contains the response code.
+/// `http_status` contains the canonical reason of the status code.
+///
+/// Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/DELETE).
+///
 #[mel_treatment(
     model http_client HttpClient
     input url Block<string>
@@ -148,6 +171,20 @@ pub async fn delete() {
     }
 }
 
+/// Performs HTTP GET operation.
+///
+/// `url` input gives the URL to call GET on. Request starts as soon as the URL is transmitted.
+/// `failure` output gives the failures messages related to the network connection or HTTP transgression (and _not_ the errors that are defined by HTTP standard).
+/// `is_success` tells that server responded with positive code (`1xx`, `2xx` and `3xx` status ranges).
+/// `is_error` tells that server responded with negative code (`4xx` and `5xx` status ranges).
+/// `is_success` and `is_error` are mutually exclusive.
+///
+/// `data` outputs the data body received from the server.
+/// `http_code` contains the response code.
+/// `http_status` contains the canonical reason of the status code.
+///
+/// Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/GET).
+///
 #[mel_treatment(
     model http_client HttpClient
     input url Block<string>
@@ -184,6 +221,19 @@ pub async fn get() {
     }
 }
 
+/// Performs HTTP HEAD operation.
+///
+/// `url` input gives the URL to call HEAD on. Request starts as soon as the URL is transmitted.
+/// `failure` output gives the failures messages related to the network connection or HTTP transgression (and _not_ the errors that are defined by HTTP standard).
+/// `is_success` tells that server responded with positive code (`1xx`, `2xx` and `3xx` status ranges).
+/// `is_error` tells that server responded with negative code (`4xx` and `5xx` status ranges).
+/// `is_success` and `is_error` are mutually exclusive.
+///
+/// `http_code` contains the response code.
+/// `http_status` contains the canonical reason of the status code.
+///
+/// Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/HEAD).
+///
 #[mel_treatment(
     model http_client HttpClient
     input url Block<string>
@@ -219,6 +269,20 @@ pub async fn head() {
     }
 }
 
+/// Performs HTTP OPTIONS operation.
+///
+/// `url` input gives the URL to call OPTIONS on. Request starts as soon as the URL is transmitted.
+/// `failure` output gives the failures messages related to the network connection or HTTP transgression (and _not_ the errors that are defined by HTTP standard).
+/// `is_success` tells that server responded with positive code (`1xx`, `2xx` and `3xx` status ranges).
+/// `is_error` tells that server responded with negative code (`4xx` and `5xx` status ranges).
+/// `is_success` and `is_error` are mutually exclusive.
+///
+/// `data` outputs the data body received from the server.
+/// `http_code` contains the response code.
+/// `http_status` contains the canonical reason of the status code.
+///
+/// Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/OPTIONS).
+///
 #[mel_treatment(
     model http_client HttpClient
     input url Block<string>
@@ -255,6 +319,21 @@ pub async fn options() {
     }
 }
 
+/// Performs HTTP PATCH operation.
+///
+/// `url` input gives the URL to call PATCH on. Request starts as soon as the URL is transmitted.
+/// `data` input gives request content to send to the server.
+///
+/// `failure` output gives the failures messages related to the network connection or HTTP transgression (and _not_ the errors that are defined by HTTP standard).
+/// `is_success` tells that server responded with positive code (`1xx`, `2xx` and `3xx` status ranges).
+/// `is_error` tells that server responded with negative code (`4xx` and `5xx` status ranges).
+/// `is_success` and `is_error` are mutually exclusive.
+///
+/// `http_code` contains the response code.
+/// `http_status` contains the canonical reason of the status code.
+///
+/// Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/PATCH).
+///
 #[mel_treatment(
     model http_client HttpClient
     input url Block<string>
@@ -295,6 +374,23 @@ pub async fn patch() {
     }
 }
 
+/// Performs HTTP POST operation.
+///
+/// `url` input gives the URL to call POST on. Request starts as soon as the URL is transmitted.
+/// `mime` input gives request content type.
+/// `form` input gives request content to send to the server.
+///
+/// `failure` output gives the failures messages related to the network connection or HTTP transgression (and _not_ the errors that are defined by HTTP standard).
+/// `is_success` tells that server responded with positive code (`1xx`, `2xx` and `3xx` status ranges).
+/// `is_error` tells that server responded with negative code (`4xx` and `5xx` status ranges).
+/// `is_success` and `is_error` are mutually exclusive.
+///
+/// `data` outputs the data body received from the server.
+/// `http_code` contains the response code.
+/// `http_status` contains the canonical reason of the status code.
+///
+/// Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/POST).
+///
 #[mel_treatment(
     model http_client HttpClient
     input url Block<string>
@@ -335,6 +431,114 @@ pub async fn post() {
                         let _ = failure.send_one_string(err.to_string()).await;
                     }
                 }
+            }
+        }
+    }
+}
+
+/// Performs HTTP PUT operation.
+///
+/// `url` input gives the URL to call PUT on. Request starts as soon as the URL is transmitted.
+/// `mime` input gives request content type.
+/// `data` input gives request content to send to the server.
+///
+/// `failure` output gives the failures messages related to the network connection or HTTP transgression (and _not_ the errors that are defined by HTTP standard).
+/// `is_success` tells that server responded with positive code (`1xx`, `2xx` and `3xx` status ranges).
+/// `is_error` tells that server responded with negative code (`4xx` and `5xx` status ranges).
+/// `is_success` and `is_error` are mutually exclusive.
+///
+/// `http_code` contains the response code.
+/// `http_status` contains the canonical reason of the status code.
+///
+/// Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/PUT).
+///
+#[mel_treatment(
+    model http_client HttpClient
+    input url Block<string>
+    input mime Block<string>
+    input data Block<Vec<byte>>
+    output failure Stream<string>
+    output is_error Block<bool>
+    output is_success Block<bool>
+    output http_code Block<u16>
+    output http_status Block<string>
+)]
+pub async fn put() {
+    if let Ok(url) = url.recv_one_string().await {
+        if let Ok(mime) = mime.recv_one_string().await {
+            if let Ok(data) = data.recv_one_vec_byte().await {
+                match Url::parse(&url) {
+                    Ok(url) => {
+                        let mut request = surf::Request::new(surf::http::Method::Put, url);
+
+                        request.body_bytes(&data);
+                        request.set_content_type(surf::http::Mime::from(mime.as_str()));
+
+                        HttpClientModel::into(http_client)
+                            .inner()
+                            .manage_request(
+                                request,
+                                None,
+                                &*failure,
+                                &*is_error,
+                                &*is_success,
+                                &*http_code,
+                                &*http_status,
+                            )
+                            .await;
+                    }
+                    Err(err) => {
+                        let _ = failure.send_one_string(err.to_string()).await;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Performs HTTP TRACE operation.
+///
+/// `url` input gives the URL to call TRACE on. Request starts as soon as the URL is transmitted.
+/// `failure` output gives the failures messages related to the network connection or HTTP transgression (and _not_ the errors that are defined by HTTP standard).
+/// `is_success` tells that server responded with positive code (`1xx`, `2xx` and `3xx` status ranges).
+/// `is_error` tells that server responded with negative code (`4xx` and `5xx` status ranges).
+/// `is_success` and `is_error` are mutually exclusive.
+///
+/// `http_code` contains the response code.
+/// `http_status` contains the canonical reason of the status code.
+///
+/// Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/TRACE).
+///
+#[mel_treatment(
+    model http_client HttpClient
+    input url Block<string>
+    output failure Stream<string>
+    output is_error Block<bool>
+    output is_success Block<bool>
+    output http_code Block<u16>
+    output http_status Block<string>
+)]
+pub async fn trace() {
+    if let Ok(url) = url.recv_one_string().await {
+        match Url::parse(&url) {
+            Ok(url) => {
+                let request = surf::Request::new(surf::http::Method::Trace, url);
+
+                HttpClientModel::into(http_client)
+                    .inner()
+                    .manage_request(
+                        request,
+                        None,
+                        &*failure,
+                        &*is_error,
+                        &*is_success,
+                        &*http_code,
+                        &*http_status,
+                    )
+                    .await;
+            }
+            Err(err) => {
+                let _ = failure.send_one_string(err.to_string()).await;
             }
         }
     }
