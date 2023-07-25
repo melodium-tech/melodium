@@ -6,11 +6,11 @@ use melodium_macro::{check, mel_function, mel_package, mel_treatment};
 use regex::Regex;
 
 /// Matches stream of strings against a regex.
-/// 
+///
 /// Every string coming through the `text` stream is matched against `regex`.
 /// `matches` tells if matching were found or not.
 /// `error` is emitted only if regex contains error.
-/// 
+///
 /// The regex engine is Unicode-aware. Please refer to [Regex Syntax](https://docs.rs/regex/latest/regex/index.html#syntax)
 /// in documentation for full syntax description.
 #[mel_treatment(
@@ -38,9 +38,9 @@ pub async fn matches(regex: string) {
 }
 
 /// Matches a string against a regex.
-/// 
+///
 /// `text` is matched against `regex`, returns wether the match were successful or not.
-/// 
+///
 /// The regex engine is Unicode-aware. Please refer to [Regex Syntax](https://docs.rs/regex/latest/regex/index.html#syntax)
 /// in documentation for full syntax description.
 #[mel_function]
@@ -52,12 +52,12 @@ pub fn matches(text: string, regex: string) -> bool {
 }
 
 /// Find in stream of strings according to a regex.
-/// 
+///
 /// Every string coming through the `text` stream is looked up with `regex`.
 /// `is_found` tells if something were found or not, `found` contains the found strings
 /// (or empty string if corresonding `text` input do not match).
 /// `error` is emitted only if regex contains error.
-/// 
+///
 /// The regex syntax is Unicode-aware. Please refer to [Regex Syntax](https://docs.rs/regex/latest/regex/index.html#syntax)
 /// in documentation for full syntax description.
 #[mel_treatment(
@@ -103,7 +103,7 @@ pub async fn find(regex: string) {
 }
 
 /// Find in string according to a regex.
-/// 
+///
 /// The regex syntax is Unicode-aware. Please refer to [Regex Syntax](https://docs.rs/regex/latest/regex/index.html#syntax)
 /// in documentation for full syntax description.
 #[mel_function]
@@ -118,12 +118,12 @@ pub fn find(text: string, regex: string) -> string {
 }
 
 /// Captures groups of text according to a regex.
-/// 
+///
 /// Every string coming through the `text` stream is passed through `regex`.
 /// `is_captured` tells for each group if something were found or not, `captured`
 /// contains the groups contents (or empty string if group is not captured).
 /// `error` is emitted only if regex contains error.
-/// 
+///
 /// The regex syntax is Unicode-aware. Please refer to [Regex Syntax](https://docs.rs/regex/latest/regex/index.html#syntax)
 /// in documentation for full syntax description.
 #[mel_treatment(
@@ -184,7 +184,7 @@ pub async fn capture(regex: string) {
 }
 
 /// Captures groups of text according to a regex.
-/// 
+///
 /// The regex syntax is Unicode-aware. Please refer to [Regex Syntax](https://docs.rs/regex/latest/regex/index.html#syntax)
 /// in documentation for full syntax description.
 #[mel_function]
@@ -202,12 +202,12 @@ pub fn capture(text: string, regex: string) -> Vec<string> {
 }
 
 /// Captures named groups of text according to a regex.
-/// 
+///
 /// Every string coming through the `text` stream is passed through `regex`.
 /// `names` tells the group names, `is_captured` tells for each group if something were found or not, `captured`
 /// contains the groups contents (or empty string if group is not captured).
 /// `error` is emitted only if regex contains error.
-/// 
+///
 /// The regex syntax is Unicode-aware. Please refer to [Regex Syntax](https://docs.rs/regex/latest/regex/index.html#syntax)
 /// in documentation for full syntax description.
 #[mel_treatment(
@@ -276,11 +276,11 @@ pub async fn capture_named(regex: string) {
 }
 
 /// Replace text according to a regex.
-/// 
+///
 /// Every string coming through the `text` stream is passed through `regex`,
 /// and `replacer` is applied.
 /// `error` is emitted only if regex contains error.
-/// 
+///
 /// The regex syntax is Unicode-aware. Please refer to [Regex Syntax](https://docs.rs/regex/latest/regex/index.html#syntax)
 /// in documentation for full syntax description.
 #[mel_treatment(
@@ -310,7 +310,7 @@ pub async fn replace(regex: string, replacer: string) {
 }
 
 /// Replace text according to a regex and replacer.
-/// 
+///
 /// The regex syntax is Unicode-aware. Please refer to [Regex Syntax](https://docs.rs/regex/latest/regex/index.html#syntax)
 /// in documentation for full syntax description.
 #[mel_function]
