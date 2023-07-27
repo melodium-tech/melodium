@@ -108,7 +108,7 @@ impl Loader {
         } else if let Some(package) =
             result.merge_degrade_failure(self.package_manager.get_package(&PackageRequirement {
                 package: identifier.root().to_string(),
-                version_requirement: VersionReq::parse(">=0.0.0").unwrap(),
+                version_requirement: VersionReq::parse("=0.7.0-rc1").unwrap(),
             }))
         {
             package.element(self, identifier).and_then(|additions| {

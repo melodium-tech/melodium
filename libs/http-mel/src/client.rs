@@ -99,13 +99,15 @@ impl HttpClient {
                         let mut vec_data = vec![0; 2_usize.pow(20)];
                         loop {
                             match response.read(&mut vec_data).await {
-                                Ok(len) => {
+                                Ok(len) if len > 0 => {
                                     vec_data.truncate(len);
                                     check!(data.send_byte(vec_data).await);
                                     vec_data = vec![0; 2_usize.pow(20)];
                                 }
+                                Ok(_) => break,
                                 Err(err) => {
                                     let _ = failure.send_one_string(err.to_string()).await;
+                                    break;
                                 }
                             }
                         }
