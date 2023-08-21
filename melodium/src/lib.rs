@@ -111,8 +111,8 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
     packages.push(fs_mel::__mel_package::package());
     #[cfg(feature = "http-mel")]
     packages.push(http_mel::__mel_package::package());
-    #[cfg(feature = "jaq-mel")]
-    packages.push(jaq_mel::__mel_package::package());
+    #[cfg(feature = "json-mel")]
+    packages.push(json_mel::__mel_package::package());
     #[cfg(feature = "ops-mel")]
     packages.push(ops_mel::__mel_package::package());
     #[cfg(feature = "regex-mel")]
