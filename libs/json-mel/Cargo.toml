@@ -1,5 +1,5 @@
 [package]
-name = "jaq-mel"
+name = "json-mel"
 version = "0.7.0-rc1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.60"
@@ -8,13 +8,13 @@ license = "EUPL-1.2"
 homepage = "https://melodium.tech"
 repository = "https://gitlab.com/melodium/melodium"
 readme = "README.md"
-description = "Mélodium JSON data processing `jaq` library"
+description = "Mélodium JSON data processing library"
 keywords = ["dataflow","parallelization","scalability","async","signal"]
 categories = ["compilers", "science", "concurrency", "asynchronous"]
 
 [lib]
 crate-type = ["lib", "cdylib"]
-name = "jaq_mel"
+name = "json_mel"
 
 [dependencies]
 melodium-core = { path = "../../melodium-core", version = "=0.7.0-rc1" }
@@ -23,6 +23,7 @@ jaq-core = { version = "1.0.0-beta" }
 jaq-interpret = { version = "1.0.0-beta" }
 jaq-parse = { version = "1.0.0-beta" }
 jaq-std = { version = "1.0.0-beta" }
+serde = "1.0.185"
 serde_json = "1.0.105"
 
 [features]

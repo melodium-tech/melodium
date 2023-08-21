@@ -1,7 +1,7 @@
 
-# Mélodium JSON data processing `jaq` libraryy
+# Mélodium JSON data processing libraryy
 
-This library provides the JSON data processing functions and treatments for the Mélodium environment, based on the `jaq` library.
+This library provides the JSON data processing functions and treatments for the Mélodium environment.
 
 ## For Mélodium project
 

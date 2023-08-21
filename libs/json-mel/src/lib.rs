@@ -2,8 +2,24 @@
 #![doc = include_str!("../README.md")]
 
 use melodium_core::*;
-use melodium_macro::{mel_package, mel_treatment};
+use melodium_macro::{check, mel_package, mel_treatment};
 use jaq_interpret::{Ctx, FilterT, ParseCtx, RcIter, Val};
+
+/// Validate JSON string.
+/// 
+/// Tells wether `text` is valid JSON or not.
+#[mel_treatment(
+    input text Stream<string>
+    output is_json Stream<bool>
+)]
+pub async fn validate() {
+    while let Ok(text) = text.recv_string().await {
+        check!(is_json.send_bool(text.iter().map(|t| match serde_json::from_str::<serde::de::IgnoredAny>(t) {
+            Ok(_) => true,
+            Err(_) => false,
+        }).collect()).await);
+    }
+}
 
 /// Execute query on JSON string.
 /// 
@@ -18,7 +34,7 @@ use jaq_interpret::{Ctx, FilterT, ParseCtx, RcIter, Val};
     output error Stream<Vec<string>>
     output failures Block<Vec<string>>
 )]
-pub async fn json_query(query: string) {
+pub async fn query(query: string) {
 
     let mut defs = ParseCtx::new(Vec::new());
     defs.insert_natives(jaq_core::core());
