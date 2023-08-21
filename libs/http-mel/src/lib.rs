@@ -4,5 +4,6 @@
 use melodium_macro::mel_package;
 
 pub mod client;
+pub mod server;
 
 mel_package!();
