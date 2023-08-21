@@ -36,6 +36,7 @@ engine-mel = { path = "../libs/engine-mel", version = "=0.7.0-rc1", optional = t
 flow-mel = { path = "../libs/flow-mel", version = "=0.7.0-rc1", optional = true }
 fs-mel = { path = "../libs/fs-mel", version = "=0.7.0-rc1", optional = true }
 http-mel = { path = "../libs/http-mel", version = "=0.7.0-rc1", optional = true }
+jaq-mel = { path = "../libs/jaq-mel", version = "=0.7.0-rc1", optional = true }
 ops-mel = { path = "../libs/ops-mel", version = "=0.7.0-rc1", optional = true }
 regex-mel = { path = "../libs/regex-mel", version = "=0.7.0-rc1", optional = true }
 text-mel = { path = "../libs/text-mel", version = "=0.7.0-rc1", optional = true }
@@ -49,7 +50,7 @@ doc = ["melodium-doc", "melodium-engine/doc", "melodium-core/doc"]
 core = ["conv-mel", "engine-mel", "flow-mel", "ops-mel", "type-mel"]
 network = ["http-mel", "melodium-loader/network"]
 fs = ["fs-mel", "melodium-loader/filesystem"]
-text = ["encoding-mel", "regex-mel", "text-mel"]
+text = ["encoding-mel", "jaq-mel", "regex-mel", "text-mel"]
 standard-edition = ["core", "jeu", "doc", "fs", "network", "text"]
 
 [package.metadata.docs.rs]
