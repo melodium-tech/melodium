@@ -19,8 +19,9 @@ use melodium_common::descriptor::{
     Output as OutputDescriptor,
 };
 use melodium_common::executive::{
-    Context as ExecutiveContext, ContinuousFuture, Model, ModelId, Output as ExecutiveOutput,
-    ResultStatus, TrackCreationCallback, TrackFuture, TrackId, World as ExecutiveWorld,
+    Context as ExecutiveContext, ContinuousFuture, Input as ExecutiveInput, Model, ModelId,
+    Output as ExecutiveOutput, ResultStatus, TrackCreationCallback, TrackFuture, TrackId,
+    World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
@@ -168,6 +169,12 @@ impl World {
 
     pub fn new_input(&self, descriptor: &InputDescriptor) -> Input {
         Input::new(descriptor)
+    }
+
+    pub fn new_blocked_input(&self, descriptor: &OutputDescriptor) -> Input {
+        let input = Input::from_output(descriptor);
+        input.close();
+        input
     }
 
     pub fn new_output(&self, descriptor: &OutputDescriptor) -> Output {
@@ -386,7 +393,7 @@ impl ExecutiveWorld for World {
         &self,
         id: ModelId,
         source: &str,
-        contexts: Vec<Box<dyn ExecutiveContext>>,
+        contexts: Vec<Arc<dyn ExecutiveContext>>,
         parent_track: Option<TrackId>,
         callback: Option<TrackCreationCallback>,
     ) {

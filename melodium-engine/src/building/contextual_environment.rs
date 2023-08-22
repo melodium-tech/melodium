@@ -7,7 +7,7 @@ pub struct ContextualEnvironment {
     track_id: TrackId,
     models: HashMap<String, Arc<dyn Model>>,
     variables: HashMap<String, Value>,
-    contexts: HashMap<String, Box<dyn Context>>,
+    contexts: HashMap<String, Arc<dyn Context>>,
 }
 
 impl ContextualEnvironment {
@@ -25,7 +25,7 @@ impl ContextualEnvironment {
             track_id: self.track_id,
             models: HashMap::new(),
             variables: HashMap::new(),
-            contexts: HashMap::new(),
+            contexts: self.contexts.clone(),
         }
     }
 
@@ -53,11 +53,11 @@ impl ContextualEnvironment {
         &self.variables
     }
 
-    pub fn add_context(&mut self, name: &str, context: Box<dyn Context>) {
+    pub fn add_context(&mut self, name: &str, context: Arc<dyn Context>) {
         self.contexts.insert(name.to_string(), context);
     }
 
-    pub fn get_context(&self, name: &str) -> Option<&Box<dyn Context>> {
+    pub fn get_context(&self, name: &str) -> Option<&Arc<dyn Context>> {
         self.contexts.get(name)
     }
 }

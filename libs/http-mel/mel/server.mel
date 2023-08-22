@@ -1,0 +1,23 @@
+use http/server::HttpServer
+use http/server::@HttpRequest
+use http/server::incoming
+use http/server::outgoing
+
+treatment connection[http_server: HttpServer]()
+  require @HttpRequest
+  input status: Block<u16>
+  input data: Stream<byte>
+  output data: Stream<byte>
+  output success: Block<void>
+  output failure: Block<void>
+{
+    incoming[http_server=http_server]()
+    outgoing[http_server=http_server](id=@HttpRequest[id])
+
+    incoming.data -> Self.data
+    incoming.success -> Self.success
+    incoming.failure -> Self.failure
+
+    Self.status -> outgoing.status
+    Self.data -> outgoing.data
+}

@@ -125,6 +125,7 @@ impl BuilderTrait for Builder {
         // Get build
         let borrowed_builds = self.builds.read().unwrap();
         let build_sample = borrowed_builds.get(build as usize).unwrap();
+        let descriptor = self.descriptor.upgrade().unwrap();
 
         let mut result = DynamicBuildResult::new();
 
@@ -141,6 +142,15 @@ impl BuilderTrait for Builder {
             .unwrap();
 
         result.feeding_inputs = host_build.feeding_inputs;
+        // We add here blocked inputs for source outputs that might not be used in scripts.
+        for (name, output_descriptor) in descriptor.outputs() {
+            if !result.feeding_inputs.contains_key(name) {
+                result.feeding_inputs.insert(
+                    name.clone(),
+                    vec![world.new_blocked_input(output_descriptor)],
+                );
+            }
+        }
         result.prepared_futures.extend(host_build.prepared_futures);
 
         self.building_inputs.write().unwrap().insert(

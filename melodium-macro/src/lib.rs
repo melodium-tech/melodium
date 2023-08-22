@@ -1257,7 +1257,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 path.push(name);
 
                 param_contextes = format!("{param_contextes} {fancy_name}: {},", path.join("::"));
-                assign_contextes = format!("{assign_contextes} Box::new({fancy_name}),");
+                assign_contextes = format!("{assign_contextes} std::sync::Arc::new({fancy_name}),");
             }
 
             let param_contextes: proc_macro2::TokenStream = param_contextes.parse().unwrap();
