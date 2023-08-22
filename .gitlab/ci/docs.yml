@@ -6,8 +6,7 @@ doc:melodium:reference:
   stage: doc
   image: rust:bullseye
   rules:
-    - when: manual
-      allow_failure: true
+    - allow_failure: true
   variables:
     MELODIUM_DOC_TITLE: 'Mélodium Standard Reference'
     MELODIUM_DOC_AUTHOR: 'Quentin VIGNAUD'
