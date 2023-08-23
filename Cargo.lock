@@ -312,20 +312,20 @@ dependencies = [
 
 [[package]]
 name = "async-session"
-version = "2.0.1"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "345022a2eed092cd105cc1b26fd61c341e100bd5fcbbd792df4baf31c2cc631f"
+checksum = "07da4ce523b4e2ebaaf330746761df23a465b951a83d84bbce4233dabedae630"
 dependencies = [
  "anyhow",
- "async-std",
+ "async-lock",
  "async-trait",
- "base64 0.12.3",
+ "base64 0.13.1",
  "bincode",
  "blake3",
  "chrono",
- "hmac 0.8.1",
- "kv-log-macro",
- "rand 0.7.3",
+ "hmac 0.11.0",
+ "log",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "sha2",
@@ -857,6 +857,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "crypto-mac"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1d1a86f49236c215f271d40892d5fc950490551400b02ef360692c29815c714"
+dependencies = [
+ "generic-array",
+ "subtle",
+]
+
+[[package]]
 name = "ctr"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1324,21 +1334,21 @@ dependencies = [
 
 [[package]]
 name = "hmac"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "126888268dcc288495a26bf004b38c5fdbb31682f992c84ceb046a1f0fe38840"
-dependencies = [
- "crypto-mac 0.8.0",
- "digest",
-]
-
-[[package]]
-name = "hmac"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1441c6b1e930e2817404b5046f1f989899143a12bf92de603b69f4e0aee1e15"
 dependencies = [
  "crypto-mac 0.10.1",
+ "digest",
+]
+
+[[package]]
+name = "hmac"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a2a2320eb7ec0ebe8da8f744d7812d9fc4cb4d09344ac01898dbcb6a20ae69b"
+dependencies = [
+ "crypto-mac 0.11.1",
  "digest",
 ]
 
@@ -2247,10 +2257,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "route-recognizer"
-version = "0.2.0"
+name = "routefinder"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56770675ebc04927ded3e60633437841581c285dc6236109ea25fbf3beb7b59e"
+checksum = "a44ef95cc607e41a7021da5cfb0f357ee0805113af2e9e6c617857c260940db4"
+dependencies = [
+ "smartcow",
+ "smartstring",
+]
 
 [[package]]
 name = "rustc-demangle"
@@ -2529,6 +2543,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb4feee49fdd9f707ef802e22365a35de4b7b299de4763d44bfea899442ff9"
 
 [[package]]
+name = "smartcow"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05e3ed3ccf93c7425507e5e2261a3fc90d14267d491f360b9b679ae0a4ce693e"
+dependencies = [
+ "smartstring",
+]
+
+[[package]]
+name = "smartstring"
+version = "0.2.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e714dff2b33f2321fdcd475b71cec79781a692d846f37f415fb395a1d2bcd48e"
+dependencies = [
+ "static_assertions",
+]
+
+[[package]]
 name = "socket2"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2800,9 +2832,9 @@ dependencies = [
 
 [[package]]
 name = "tide"
-version = "0.16.0"
+version = "0.17.0-beta.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c459573f0dd2cc734b539047f57489ea875af8ee950860ded20cf93a79a1dee0"
+checksum = "c5a885fbeb66af9d607a731ce167e3fdfe65e49a68f37f4bbd8618b5efc6ad51"
 dependencies = [
  "async-h1",
  "async-session",
@@ -2816,7 +2848,7 @@ dependencies = [
  "kv-log-macro",
  "log",
  "pin-project-lite 0.2.10",
- "route-recognizer",
+ "routefinder",
  "serde",
  "serde_json",
 ]
