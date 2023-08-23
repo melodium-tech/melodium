@@ -7,6 +7,7 @@ members = [
     "libs/flow-mel",
     "libs/fs-mel",
     "libs/http-mel",
+    "libs/javascript-mel",
     "libs/json-mel",
     "libs/ops-mel",
     "libs/regex-mel",

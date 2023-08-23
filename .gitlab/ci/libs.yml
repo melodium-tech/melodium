@@ -3,7 +3,7 @@ include:
   - local: /.gitlab/ci/configs.yml
 
 variables:
-  PACKAGES: conv encoding engine flow fs http json ops regex text type
+  PACKAGES: conv encoding engine flow fs http javascript json ops regex text type
 
 libs:release:
   stage: build

@@ -17,9 +17,11 @@ crate-type = ["lib", "cdylib"]
 name = "javascript_mel"
 
 [dependencies]
+async-std = "~1.12"
+boa_engine = { version = "0.17.0" }
 melodium-core = { path = "../../melodium-core", version = "=0.7.0-rc1" }
 melodium-macro = { path = "../../melodium-macro", version = "=0.7.0-rc1" }
-
+serde_json = "1.0.105"
 
 [features]
 mock = []
