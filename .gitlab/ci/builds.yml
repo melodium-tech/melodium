@@ -112,7 +112,7 @@ build:release:i686-apple-darwin:
     - .build-release
     - .builder:linux:i686-apple-darwin
   script:
-   - xargo build --package melodium --locked --release --target i686-apple-darwin
+   - xargo build --package melodium --release --target i686-apple-darwin
    - ls target/i686-apple-darwin/release
   artifacts:
     paths:
