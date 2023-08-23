@@ -15,5 +15,7 @@ engine-mel
 text-mel
 encoding-mel
 regex-mel
+json-mel
 fs-mel
+http-mel
 melodium
