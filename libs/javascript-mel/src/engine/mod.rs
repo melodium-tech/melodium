@@ -80,7 +80,13 @@ impl Engine {
                     let result = context.eval(Source::from_bytes(code.as_bytes()));
 
                     let result = match result {
-                        Ok(val) => val.to_json(&mut context).map_err(|err| err.to_string()),
+                        Ok(val) => {
+                            if !val.is_undefined() {
+                                val.to_json(&mut context).map_err(|err| err.to_string())
+                            } else {
+                                Err("result is `undefined`".to_string())
+                            }
+                        }
                         Err(err) => Err(err.to_string()),
                     };
 
