@@ -20,7 +20,7 @@ name = "http_mel"
 async-std = "~1.12"
 melodium-core = { path = "../../melodium-core", version = "=0.7.0-rc1" }
 melodium-macro = { path = "../../melodium-macro", version = "=0.7.0-rc1" }
-tide = { version = "0.17.0-beta.1" }
+tide = { version = "0.16.0", default-features = false, features = ["h1-server"] }
 
 [features]
 mock = []
