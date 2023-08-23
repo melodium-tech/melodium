@@ -127,22 +127,22 @@ build:packages:release:x86_64-apple-darwin:
       - target/x86_64-apple-darwin/release/lib*_mel.dylib
     expire_in: 1 hour
 
-build:packages:release:i686-apple-darwin:
-  stage: build
-  extends:
-    - .builder:linux:i686-apple-darwin
-  script:
-    - export RUSTFLAGS="$RUSTFLAGS"
-    - |
-      for PACKAGE in $PACKAGES
-      do
-        xargo build --package $PACKAGE-mel --features plugin --locked --release --target i686-apple-darwin
-      done
-    - ls target/i686-apple-darwin/release
-  artifacts:
-    paths:
-      - target/i686-apple-darwin/release/lib*_mel.dylib
-    expire_in: 1 hour
+# build:packages:release:i686-apple-darwin:
+#   stage: build
+#   extends:
+#     - .builder:linux:i686-apple-darwin
+#   script:
+#     - export RUSTFLAGS="$RUSTFLAGS"
+#     - |
+#       for PACKAGE in $PACKAGES
+#       do
+#         xargo build --package $PACKAGE-mel --features plugin --locked --release --target i686-apple-darwin
+#       done
+#     - ls target/i686-apple-darwin/release
+#   artifacts:
+#     paths:
+#       - target/i686-apple-darwin/release/lib*_mel.dylib
+#     expire_in: 1 hour
 
 build:packages:release:aarch64-apple-darwin:
   stage: build
@@ -251,7 +251,7 @@ packaging:packages:raw:
     - build:packages:release:aarch64-pc-windows-msvc
     - build:packages:release:aarch64-unknown-linux-gnu
     - build:packages:release:aarch64-unknown-linux-musl
-    - build:packages:release:i686-apple-darwin
+    # - build:packages:release:i686-apple-darwin
     - build:packages:release:i686-pc-windows-gnu
     - build:packages:release:i686-pc-windows-msvc
     - build:packages:release:i686-unknown-linux-gnu
@@ -266,7 +266,7 @@ packaging:packages:raw:
     - build:packages:release:aarch64-pc-windows-msvc
     - build:packages:release:aarch64-unknown-linux-gnu
     - build:packages:release:aarch64-unknown-linux-musl
-    - build:packages:release:i686-apple-darwin
+    # - build:packages:release:i686-apple-darwin
     - build:packages:release:i686-pc-windows-gnu
     - build:packages:release:i686-pc-windows-msvc
     - build:packages:release:i686-unknown-linux-gnu
@@ -301,7 +301,6 @@ packaging:packages:repo:
           aarch64-pc-windows-msvc:real:target/aarch64-pc-windows-msvc/release/${PACKAGE}_mel.dll:$(sha256sum target/aarch64-pc-windows-msvc/release/${PACKAGE}_mel.dll | cut -d ' ' -f 1) \
           aarch64-unknown-linux-gnu:real:target/aarch64-unknown-linux-gnu/release/lib${PACKAGE}_mel.so:$(sha256sum target/aarch64-unknown-linux-gnu/release/lib${PACKAGE}_mel.so | cut -d ' ' -f 1) \
           aarch64-unknown-linux-musl:real:target/aarch64-unknown-linux-musl/release/lib${PACKAGE}_mel.so:$(sha256sum target/aarch64-unknown-linux-musl/release/lib${PACKAGE}_mel.so | cut -d ' ' -f 1) \
-          i686-apple-darwin:real:target/i686-apple-darwin/release/lib${PACKAGE}_mel.dylib:$(sha256sum target/i686-apple-darwin/release/lib${PACKAGE}_mel.dylib | cut -d ' ' -f 1) \
           i686-pc-windows-gnu:real:target/i686-pc-windows-gnu/release/${PACKAGE}_mel.dll:$(sha256sum target/i686-pc-windows-gnu/release/${PACKAGE}_mel.dll | cut -d ' ' -f 1) \
           i686-pc-windows-msvc:real:target/i686-pc-windows-msvc/release/${PACKAGE}_mel.dll:$(sha256sum target/i686-pc-windows-msvc/release/${PACKAGE}_mel.dll | cut -d ' ' -f 1) \
           i686-unknown-linux-gnu:real:target/i686-unknown-linux-gnu/release/lib${PACKAGE}_mel.so:$(sha256sum target/i686-unknown-linux-gnu/release/lib${PACKAGE}_mel.so | cut -d ' ' -f 1) \
@@ -311,6 +310,7 @@ packaging:packages:repo:
           x86_64-pc-windows-msvc:real:target/x86_64-pc-windows-msvc/release/${PACKAGE}_mel.dll:$(sha256sum target/x86_64-pc-windows-msvc/release/${PACKAGE}_mel.dll | cut -d ' ' -f 1) \
           x86_64-unknown-linux-gnu:real:target/x86_64-unknown-linux-gnu/release/lib${PACKAGE}_mel.so:$(sha256sum target/x86_64-unknown-linux-gnu/release/lib${PACKAGE}_mel.so | cut -d ' ' -f 1) \
           x86_64-unknown-linux-musl:real:target/x86_64-unknown-linux-musl/release/lib${PACKAGE}_mel.so:$(sha256sum target/x86_64-unknown-linux-musl/release/lib${PACKAGE}_mel.so | cut -d ' ' -f 1) 
+          #  i686-apple-darwin:real:target/i686-apple-darwin/release/lib${PACKAGE}_mel.dylib:$(sha256sum target/i686-apple-darwin/release/lib${PACKAGE}_mel.dylib | cut -d ' ' -f 1) \
       done
     - VERSION=${CI_COMMIT_TAG}
     - VERSION=${VERSION:-$CI_COMMIT_SHORT_SHA}

@@ -33,9 +33,9 @@ release:gitlab:
         - name: MacOS ARM 64 bits (arm64)
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_aarch64-apple-darwin.tar.gz"
           link_type: package
-        - name: MacOS 32 bits (i686)
-          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-apple-darwin.tar.gz"
-          link_type: package
+        # - name: MacOS 32 bits (i686)
+        #   url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-apple-darwin.tar.gz"
+        #   link_type: package
         - name: MacOS 64 bits (x86_64)
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-apple-darwin.tar.gz"
           link_type: package
