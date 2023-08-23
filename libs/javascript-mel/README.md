@@ -1,7 +1,7 @@
 
-# Mélodium JSON data processing library
+# Mélodium JavaScript library
 
-This library provides the JSON data processing functions and treatments for the Mélodium environment.
+This library provides the JavaScript language for the Mélodium environment.
 
 ## For Mélodium project
 
