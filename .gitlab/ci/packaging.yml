@@ -90,7 +90,7 @@ packaging:zips:
       - melodium-*_aarch64-pc-windows-msvc.zip
       - melodium-*_aarch64-unknown-linux-gnu.tar.gz
       - melodium-*_aarch64-unknown-linux-musl.tar.gz
-      - melodium-*_i686-apple-darwin.tar.gz
+      # - melodium-*_i686-apple-darwin.tar.gz
       - melodium-*_i686-pc-windows-gnu.zip
       - melodium-*_i686-pc-windows-msvc.zip
       - melodium-*_i686-unknown-linux-gnu.tar.gz
