@@ -109,3 +109,22 @@ release:publish:deb:
     - mkdir "$VERSION"
     - mv gnu musl "$VERSION/"
     - SSHPASS="$DEB_RELEASE_PUBLISH_PASSWORD" sshpass -e rsync -a "$VERSION" "$DEB_RELEASE_PUBLISH_USER@$DEB_RELEASE_PUBLISH_SERVER:$DEB_RELEASE_PUBLISH_DIRECTORY"
+
+release:publish:doc:
+  stage: release
+  image: debian:bullseye
+  rules:
+    - if: ( $CI_COMMIT_TAG )
+  variables:
+    GIT_STRATEGY: none
+  needs:
+    - job: doc:melodium:reference
+      artifacts: true
+  before_script:
+    - apt-get update
+    - apt-get install -y rsync sshpass
+  script:
+    - mkdir ~/.ssh
+    - ssh-keyscan "$DOC_RELEASE_PUBLISH_SERVER" >> ~/.ssh/known_hosts
+    - mv reference "$VERSION"
+    - SSHPASS="$DOC_RELEASE_PUBLISH_PASSWORD" sshpass -e rsync -a "$VERSION" "$DOC_RELEASE_PUBLISH_USER@$DOC_RELEASE_PUBLISH_SERVER:$DOC_RELEASE_PUBLISH_DIRECTORY"
