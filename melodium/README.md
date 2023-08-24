@@ -12,9 +12,11 @@ Mélodium is _under development_ and continously being defined and improved. Rel
 
 ## Download & installation
 
-Mélodium releases are available for multiple platforms at [Mélodium.tech](https://melodium.tech/docs/install).
+Mélodium releases are available for multiple platforms at [Mélodium.tech](https://melodium.tech/).
 
 ## Command-line usage
+
+Mélodium is distributed as a program that have extensive and growing CLI, here are very basic examples.
 
 Launch a Mélodium program:
 ```shell
@@ -22,18 +24,21 @@ melodium <FILE>
 ```
 or
 ```shell
-melodium run --main <ENTRYPOINT> <FILE>
+melodium run <FILE>
 ```
 
-Check a Mélodium program validity:
+Or check a Mélodium program validity:
 ```shell
-melodium check --main <ENTRYPOINT> <FILE>
+melodium check <FILE>
 ```
 
-Generate documentation:
+To see the exhaustive commands and options list:
 ```shell
-melodium doc <OUTPUT>
+melodium help
 ```
+Please refer to the [Mélodium Project](https://melodium.tech/), [Mélodium Book](https://doc.melodium.tech/book/),
+or [Mélodium Documentation](https://doc.melodium.tech/latest/) for usage and more examples.
+
 ## Compilation
 
 ### Compile from source
@@ -51,17 +56,10 @@ Mélodium can also be directly installed from [crates.io](https://crates.io/crat
 cargo install melodium
 ```
 
-### Cross-compilation
-
-A more detailed explanation on how to cross-compile Mélodium is written in [dedicated file](../CROSS-COMPILATION.md).
-
-## Standard library
-
-Mélodium comes with its [standard library](https://doc.melodium.tech/latest/).
-
 ## Development
 
-Development channels and related Mélodium stuff are available on [Discord](https://discord.gg/GQmckruKNx).
+The development of Mélodium project is hosted by [GitLab](https://gitlab.com/melodium/melodium).
+Direct channels and news are available on [Discord](https://discord.gg/GQmckruKNx).
 
 ## Origin
 
