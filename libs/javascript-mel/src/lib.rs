@@ -10,6 +10,17 @@ use melodium_macro::{check, mel_model, mel_package, mel_treatment};
 use serde_json::Value;
 use std::sync::Weak;
 
+/// Provides JavaScript execution engine.
+///
+/// The JavaScript/ECMAScript engine manages execution of JS language within Mélodium.
+/// First, an engine is instancied with `code` parameter, that code can contains functions definitions, variables setup, and whatever seems useful for incoming use.
+/// Then `process` treatment is used for doing JavaScript processing.
+///
+/// Other parameters are defined:
+/// - `stack_size_limit`: Maximum stack size the JavaScript code may use, in bytes.
+/// - `recursion_limit`: Maximum recursion that can be reached.
+/// - `loop_iteration_limit`: Maximum iteration that can occur on any loop.
+/// - `strict`: Defines JavaScript interpretation strictness, can be override by `"use strict"` instruction in JavaScript code.
 #[derive(Debug)]
 #[mel_model(
     param stack_size_limit u64 1024
@@ -62,6 +73,15 @@ impl JavaScriptEngine {
     }
 }
 
+/// Executes JavaScript code on values.
+///
+/// For every incoming `value`, `code` is executed as-is within `engine`.
+/// Inside the `code` part the incoming value is reffered as globally-accessible `value` variable.
+/// `value` **must** be valid JSON data, in order to be turned into proper JS object.
+/// `code` can return any JS object convertible into JSON data.
+///
+/// If `value` is not proper JSON data, `code` not actually processable JavaScript code, or its return value not convertible into JSON, an empty `result` and `is_valid` `false` value are send.
+/// In all other cases, `result` contains JSON string and `is_valid` is `true`.
 #[mel_treatment(
     default code ""
     model engine JavaScriptEngine

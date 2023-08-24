@@ -3,6 +3,14 @@ use http/server::@HttpRequest
 use http/server::incoming
 use http/server::outgoing
 
+/**
+Connection on HTTP server.
+
+For every valid incoming HTTP request to `http_server`, a new track with all the outputs is created, and `data` output is filled with the data being received.
+Once the full request is received, `success` is emitted. If any problem occurs, `failure` is emitted and `data` cease to receive more contents.
+
+In order to process and give response to the requester, `status` and `data` inputs must be filled. `status` can be any valid HTTP code, for more informations please see the [MDN Documentation](https://developer.mozilla.org/docs/Web/HTTP/Status).
+*/
 treatment connection[http_server: HttpServer]()
   require @HttpRequest
   input status: Block<u16>

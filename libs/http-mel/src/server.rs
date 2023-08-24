@@ -8,6 +8,11 @@ use std::collections::HashMap;
 use std::sync::Weak;
 use tide::{Request, Response, Result, Server};
 
+/// Describes HTTP request data.
+///
+/// - `id`: Identifier of connection, it is an arbitrary number that uniquely identifies a HTTP connection to a server during the duration it exists.
+/// - `route`: The route called by the query.
+/// - `uri`: The URI called by the query.
 #[mel_context]
 pub struct HttpRequest {
     pub id: u64,
@@ -15,6 +20,19 @@ pub struct HttpRequest {
     pub uri: string,
 }
 
+/// A HTTP server for general use.
+///
+/// The HTTP server provides configuration for receiving and responding to HTTP incoming requests.
+/// - `bind`: The network address and port to listen, under the form `<ip/name>:<port>`.
+/// - `routes`: The list of routes the server manages, usually at least composed of [`"/"`].
+///
+/// `HttpServer` aims to be used with `connection` treatment.
+/// Every time a new HTTP request matching a configured route comes, a new track is created with `@HttpRequest` context.
+///
+/// ℹ️ If server binding fails, `failed_binding` is emitted.
+///
+/// ⚠️ Using `HttpServer` directly with `incoming` source and `outgoing` treatment should be done carefully.
+///
 #[mel_model(
     param routes Vec<string> none
     param bind string none
@@ -166,8 +184,6 @@ impl HttpServer {
     model http_server HttpServer
 )]
 pub async fn outgoing(id: u64) {
-    /*match id.recv_one_u64().await {
-    Ok(id) => {*/
     let output;
     {
         let connections = HttpServerModel::into(http_server).inner().connections();
@@ -183,7 +199,4 @@ pub async fn outgoing(id: u64) {
             let _ = output.send((status, buffer)).await;
         }
     }
-    /*}
-        Err(_) => {}
-    };*/
 }
