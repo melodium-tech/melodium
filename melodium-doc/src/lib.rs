@@ -361,18 +361,26 @@ impl Documentation {
                 let mut contexts = contexts.clone();
                 contexts.sort_by(|a, b| a.identifier().cmp(b.identifier()));
 
+                let contexts = if !contexts.is_empty() {
+                    format!(
+                        " with {contexts}",
+                        contexts = contexts
+                            .iter()
+                            .map(|c| format!(
+                                "[`{name}`]({link})",
+                                name = c.name(),
+                                link = self.get_link(model.identifier(), c.identifier())
+                            ))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                } else {
+                    String::default()
+                };
+
                 string.push_str(&format!(
-                    "⤇ `{name}:` [`{id}`]({link}) with {contexts}  \n",
+                    "⤇ `{name}:` [`{id}`]({link}){contexts}  \n",
                     name = id.name(),
-                    contexts = contexts
-                        .iter()
-                        .map(|c| format!(
-                            "[`{name}`]({link})",
-                            name = c.name(),
-                            link = self.get_link(model.identifier(), c.identifier())
-                        ))
-                        .collect::<Vec<_>>()
-                        .join(", "),
                     link = self.get_link(model.identifier(), treatment.identifier()),
                 ));
             }

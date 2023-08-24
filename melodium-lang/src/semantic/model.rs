@@ -230,12 +230,13 @@ impl Model {
         for rc_assignation in &self.assignations {
             let borrowed_assignation = rc_assignation.read().unwrap();
 
-            if let Some(assignation_designer) = result.merge_degrade_failure(ScriptResult::from(
-                rc_designer.write().unwrap().add_parameter(
-                    &borrowed_assignation.name,
-                    Some(borrowed_assignation.text.name.into_ref()),
-                ),
-            )) {
+            let tmp_status = rc_designer.write().unwrap().add_parameter(
+                &borrowed_assignation.name,
+                Some(borrowed_assignation.text.name.into_ref()),
+            );
+            if let Some(assignation_designer) =
+                result.merge_degrade_failure(ScriptResult::from(tmp_status))
+            {
                 result = result
                     .and_degrade_failure(borrowed_assignation.make_design(&assignation_designer));
             }
