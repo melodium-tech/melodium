@@ -3,7 +3,7 @@
 
 ## [v0.7.0]
 
-_None_
+- Adding exploration and metadata treatments and functions.
 
 ## [v0.6.0]
 

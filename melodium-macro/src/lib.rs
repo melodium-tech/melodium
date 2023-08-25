@@ -287,6 +287,8 @@ fn config_optionnal_value(ts: &mut IntoIterTokenStream) -> Option<String> {
     } else if let Some(TokenTree::Ident(ident)) = next {
         if ident.to_string() == "none" {
             None
+        } else if ident.to_string() == "true" || ident.to_string() == "false" {
+            Some(ident.to_string())
         } else {
             panic!("Unrecognized default value")
         }
@@ -609,8 +611,12 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
             }
         })
         .unwrap()
-        .keys()
-        .filter_map(|k| k.strip_suffix("-mel").map(|k| format!(r#"melodium_core::common::descriptor::PackageRequirement{{package:"{k}".to_string(),version_requirement:melodium_core::common::descriptor::VersionReq::STAR}}"#)))
+        .iter()
+        .filter_map(|(k, v)| {
+            if let (Some(mel_pkg), Some(version)) = (k.strip_suffix("-mel"), v.as_table().and_then(|t| t.get("version").and_then(|v| v.as_str()))) {
+                Some(format!(r#"melodium_core::common::descriptor::PackageRequirement{{package:"{mel_pkg}".to_string(),version_requirement:melodium_core::common::descriptor::VersionReq::parse("{version}").unwrap()}}"#))
+            } else { None }
+        })
         .collect::<Vec<_>>()
         .join(",")
         .parse()
@@ -1251,7 +1257,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 path.push(name);
 
                 param_contextes = format!("{param_contextes} {fancy_name}: {},", path.join("::"));
-                assign_contextes = format!("{assign_contextes} Box::new({fancy_name}),");
+                assign_contextes = format!("{assign_contextes} std::sync::Arc::new({fancy_name}),");
             }
 
             let param_contextes: proc_macro2::TokenStream = param_contextes.parse().unwrap();
@@ -1276,6 +1282,23 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
             };
         }
     }
+
+    /*let parameters_instanciation: proc_macro2::TokenStream = params.iter().map(|(name, (ty, default))| {
+        let datatype = into_mel_datatype(ty);
+        let default = default.as_ref().map(|lit| format!("Some(melodium_core::common::executive::Value::{ty}({val}))", val = into_rust_value(ty, lit))).unwrap_or_else(|| String::from("None"));
+        format!(
+            r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Const, {datatype}, {default})"#
+        )
+    }).collect::<Vec<_>>().join(",").parse().unwrap();*/
+
+    let parameters_initialization: proc_macro2::TokenStream = params.iter().filter_map(|(name, (ty, default))| {
+        if let Some(default) = default {
+            Some(
+                format!(r#"("{name}".to_string(), melodium_core::common::executive::Value::{ty}({val}))"#, val = into_rust_value(ty, default))
+            )
+        }
+        else { None }
+    }).collect::<Vec<_>>().join(",").parse().unwrap();
 
     let element_name = name.to_case(Case::UpperCamel);
     let module_name: proc_macro2::TokenStream = format!("__mel_model_{name}").parse().unwrap();
@@ -1348,7 +1371,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 pub fn new(world: std::sync::Arc<dyn melodium_core::common::executive::World>) -> std::sync::Arc<dyn melodium_core::common::executive::Model> {
                     std::sync::Arc::new_cyclic(|me| Self {
                         id: std::sync::Mutex::new(None),
-                        params: std::sync::Mutex::new(std::collections::HashMap::new()),
+                        params: std::sync::Mutex::new(vec![#parameters_initialization].into_iter().collect()),
                         model: #model_name::new(me.clone()),
                         world,
                         auto_reference: me.clone(),

@@ -101,14 +101,26 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
     let mut packages = Vec::new();
     #[cfg(feature = "conv-mel")]
     packages.push(conv_mel::__mel_package::package());
+    #[cfg(feature = "encoding-mel")]
+    packages.push(encoding_mel::__mel_package::package());
     #[cfg(feature = "engine-mel")]
     packages.push(engine_mel::__mel_package::package());
     #[cfg(feature = "flow-mel")]
     packages.push(flow_mel::__mel_package::package());
     #[cfg(feature = "fs-mel")]
     packages.push(fs_mel::__mel_package::package());
+    #[cfg(feature = "http-mel")]
+    packages.push(http_mel::__mel_package::package());
+    #[cfg(feature = "javascript-mel")]
+    packages.push(javascript_mel::__mel_package::package());
+    #[cfg(feature = "json-mel")]
+    packages.push(json_mel::__mel_package::package());
     #[cfg(feature = "ops-mel")]
     packages.push(ops_mel::__mel_package::package());
+    #[cfg(feature = "regex-mel")]
+    packages.push(regex_mel::__mel_package::package());
+    #[cfg(feature = "text-mel")]
+    packages.push(text_mel::__mel_package::package());
     #[cfg(feature = "type-mel")]
     packages.push(type_mel::__mel_package::package());
     packages

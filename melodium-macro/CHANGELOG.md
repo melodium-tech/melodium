@@ -3,7 +3,7 @@
 
 ## [v0.7.0]
 
-_None_
+- Fixing boolean default parameter parsing issue.
 
 ## [v0.6.0]
 

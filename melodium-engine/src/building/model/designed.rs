@@ -7,7 +7,7 @@ use crate::design::{Model, Value};
 use crate::error::LogicResult;
 use crate::world::World;
 use core::fmt::Debug;
-use melodium_common::descriptor::{Identified, Parameterized, Treatment};
+use melodium_common::descriptor::{Model as ModelDescriptor, Parameterized, Treatment};
 use std::sync::{Arc, Weak};
 
 #[derive(Debug)]
@@ -67,7 +67,7 @@ impl BuilderTrait for Builder {
         self.world
             .upgrade()
             .unwrap()
-            .builder(descriptor.identifier())
+            .builder(descriptor.base_model().unwrap().identifier())
             .and_then(|builder| {
                 builder.static_build(host_treatment, host_build, label, &remastered_environment)
             })

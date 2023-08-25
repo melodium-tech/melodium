@@ -106,18 +106,18 @@ build:release:x86_64-apple-darwin:
       - target/x86_64-apple-darwin/release/melodium
     expire_in: 1 hour
 
-build:release:i686-apple-darwin:
-  stage: build
-  extends:
-    - .build-release
-    - .builder:linux:i686-apple-darwin
-  script:
-   - xargo build --package melodium --locked --release --target i686-apple-darwin
-   - ls target/i686-apple-darwin/release
-  artifacts:
-    paths:
-      - target/i686-apple-darwin/release/melodium
-    expire_in: 1 hour
+# build:release:i686-apple-darwin:
+#   stage: build
+#   extends:
+#     - .build-release
+#     - .builder:linux:i686-apple-darwin
+#   script:
+#    - xargo build --package melodium --release --target i686-apple-darwin
+#    - ls target/i686-apple-darwin/release
+#   artifacts:
+#     paths:
+#       - target/i686-apple-darwin/release/melodium
+#     expire_in: 1 hour
 
 build:release:aarch64-apple-darwin:
   stage: build

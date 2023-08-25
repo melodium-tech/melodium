@@ -2,10 +2,16 @@
 resolver = "2"
 members = [
     "libs/conv-mel",
+    "libs/encoding-mel",
     "libs/engine-mel",
     "libs/flow-mel",
     "libs/fs-mel",
+    "libs/http-mel",
+    "libs/javascript-mel",
+    "libs/json-mel",
     "libs/ops-mel",
+    "libs/regex-mel",
+    "libs/text-mel",
     "libs/type-mel",
     "melodium",
     "melodium-common",

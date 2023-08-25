@@ -108,7 +108,9 @@ impl Loader {
         } else if let Some(package) =
             result.merge_degrade_failure(self.package_manager.get_package(&PackageRequirement {
                 package: identifier.root().to_string(),
-                version_requirement: VersionReq::parse(">=0.0.0").unwrap(),
+                // This is a development-phase tradeoff, see https://gitlab.com/melodium/melodium/-/issues/62
+                version_requirement:
+                    VersionReq::parse(&format!("={}", env!("CARGO_PKG_VERSION"))).unwrap(),
             }))
         {
             package.element(self, identifier).and_then(|additions| {

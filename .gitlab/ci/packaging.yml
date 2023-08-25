@@ -49,7 +49,7 @@ packaging:zips:
     - build:release:aarch64-pc-windows-msvc
     - build:release:aarch64-unknown-linux-gnu
     - build:release:aarch64-unknown-linux-musl
-    - build:release:i686-apple-darwin
+    # - build:release:i686-apple-darwin
     - build:release:i686-pc-windows-gnu
     - build:release:i686-pc-windows-msvc
     - build:release:i686-unknown-linux-gnu
@@ -70,7 +70,7 @@ packaging:zips:
     - .gitlab/ci/package.sh -t aarch64-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
     - .gitlab/ci/package.sh -t aarch64-unknown-linux-gnu -v $VERSION -e melodium -z tgz
     - .gitlab/ci/package.sh -t aarch64-unknown-linux-musl -v $VERSION -e melodium -z tgz
-    - .gitlab/ci/package.sh -t i686-apple-darwin -v $VERSION -e melodium -z tgz
+    # - .gitlab/ci/package.sh -t i686-apple-darwin -v $VERSION -e melodium -z tgz
     - .gitlab/ci/package.sh -t i686-pc-windows-gnu -v $VERSION -e melodium.exe -z zip
     - .gitlab/ci/package.sh -t i686-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
     - .gitlab/ci/package.sh -t i686-unknown-linux-gnu -v $VERSION -e melodium -z tgz
@@ -90,7 +90,7 @@ packaging:zips:
       - melodium-*_aarch64-pc-windows-msvc.zip
       - melodium-*_aarch64-unknown-linux-gnu.tar.gz
       - melodium-*_aarch64-unknown-linux-musl.tar.gz
-      - melodium-*_i686-apple-darwin.tar.gz
+      # - melodium-*_i686-apple-darwin.tar.gz
       - melodium-*_i686-pc-windows-gnu.zip
       - melodium-*_i686-pc-windows-msvc.zip
       - melodium-*_i686-unknown-linux-gnu.tar.gz
