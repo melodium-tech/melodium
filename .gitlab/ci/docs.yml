@@ -24,11 +24,17 @@ doc:melodium:reference:
     - bin/mdbook-mermaid install doc/
     - bin/mdbook build doc/
     - mv doc/book reference
+    - VERSION=${CI_COMMIT_TAG}
+    - VERSION=${VERSION:-$CI_COMMIT_SHORT_SHA}
+    - VERSION=$(echo $VERSION | sed 's/^v//')
+    - echo "VERSION=$VERSION" >> variables.env
   artifacts:
     name: "reference"
     paths:
       - reference
     expire_in: 1 day
+    reports:
+      dotenv: variables.env
 
 doc:melodium:doc:
   stage: doc

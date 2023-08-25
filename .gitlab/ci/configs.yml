@@ -14,10 +14,10 @@
     - if: $BUILD_PACKAGES == "true"
       allow_failure: true
     - if: $RELEASE_PACKAGES == "true"
-    - if: ( $CI_COMMIT_TAG )
+    #- if: ( $CI_COMMIT_TAG )
 
 .release-packages:
   rules:
     - if: $RELEASE_PACKAGES == "true"
-    - if: ( $CI_COMMIT_TAG )
+    #- if: ( $CI_COMMIT_TAG )
     
