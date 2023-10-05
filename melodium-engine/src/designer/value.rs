@@ -1,5 +1,5 @@
 use core::fmt::{Display, Formatter, Result};
-use melodium_common::descriptor::{Context, Function};
+use melodium_common::descriptor::{Context, Function, Identifier};
 use melodium_common::executive::Value as ExecutiveValue;
 use std::sync::Arc;
 
@@ -9,6 +9,20 @@ pub enum Value {
     Variable(String),
     Context(Arc<dyn Context>, String),
     Function(Arc<dyn Function>, Vec<Value>),
+}
+
+impl Value {
+    pub fn make_use(&self, identifier: &Identifier) -> bool {
+        match self {
+            Value::Raw(_) => false,
+            Value::Variable(_) => false,
+            Value::Context(context, _) => context.identifier() == identifier,
+            Value::Function(function, values) => {
+                function.identifier() == identifier
+                    || values.iter().any(|value| value.make_use(identifier))
+            }
+        }
+    }
 }
 
 impl Display for Value {

@@ -1,16 +1,19 @@
 use super::{Parameter, Reference, Scope, Treatment, Value};
+use crate::design::ModelInstanciation as ModelInstanciationDesign;
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Collection, Entry, Identified, Model as ModelDescriptor, Parameter as ParameterDescriptor,
-    Variability,
+    Collection, Identified, Identifier, Model as ModelDescriptor, Parameter as ParameterDescriptor,
+    Treatment as TreatmentDescriptor, Variability,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
 #[derive(Debug)]
 pub struct ModelInstanciation {
+    host_descriptor: Weak<dyn TreatmentDescriptor>,
     host_treatment: Weak<RwLock<Treatment>>,
+    host_id: Identifier,
     descriptor: Weak<dyn ModelDescriptor>,
     name: String,
     parameters: HashMap<String, Arc<RwLock<Parameter>>>,
@@ -19,13 +22,17 @@ pub struct ModelInstanciation {
 
 impl ModelInstanciation {
     pub fn new(
+        host_descriptor: &Arc<dyn TreatmentDescriptor>,
         host_treatment: &Arc<RwLock<Treatment>>,
+        host_id: Identifier,
         descriptor: &Arc<dyn ModelDescriptor>,
         name: &str,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
+            host_descriptor: Arc::downgrade(host_descriptor),
             host_treatment: Arc::downgrade(host_treatment),
+            host_id,
             descriptor: Arc::downgrade(descriptor),
             name: name.to_string(),
             parameters: HashMap::with_capacity(descriptor.parameters().len()),
@@ -41,39 +48,27 @@ impl ModelInstanciation {
         &self.design_reference
     }
 
-    pub fn update_collection(&mut self, collection: &Arc<Collection>) -> LogicResult<()> {
-        if let Some(Entry::Model(new_model)) =
-            collection.get(self.descriptor.upgrade().unwrap().identifier())
-        {
-            self.descriptor = Arc::downgrade(new_model);
+    pub(crate) fn import_design(
+        &mut self,
+        design: &ModelInstanciationDesign,
+        collection: &Arc<Collection>,
+    ) -> LogicResult<()> {
+        let mut result = LogicResult::new_success(());
 
-            let mut result = LogicResult::new_success(());
-            let mut deletion_list = Vec::new();
-            for (name, param) in &self.parameters {
-                let res = param.write().unwrap().update_collection(&collection);
-                if res.is_failure() {
-                    deletion_list.push(name.clone());
-                }
-                result = result.and_degrade_failure(res);
+        for (name, parameter_design) in &design.parameters {
+            if let Some(parameter) = result
+                .merge_degrade_failure(self.add_parameter(name, self.design_reference.clone()))
+            {
+                result.merge_degrade_failure(
+                    parameter
+                        .write()
+                        .unwrap()
+                        .import_design(parameter_design, collection),
+                );
             }
-            deletion_list.iter().for_each(|d| {
-                self.remove_parameter(d);
-            });
-
-            result.and(self.validate())
-        } else {
-            LogicResult::new_failure(LogicError::unexisting_model(
-                206,
-                self.host_treatment
-                    .upgrade()
-                    .unwrap()
-                    .read()
-                    .unwrap()
-                    .identifier(),
-                self.descriptor.upgrade().unwrap().identifier().clone(),
-                self.design_reference.clone(),
-            ))
         }
+
+        result
     }
 
     pub fn name(&self) -> &str {
@@ -86,11 +81,12 @@ impl ModelInstanciation {
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<Arc<RwLock<Parameter>>> {
         let mut result = LogicResult::new_success(());
-        let rc_host = self.host_treatment.upgrade().unwrap();
-        let host = rc_host.read().unwrap();
 
+        let host_descriptor = self.host_descriptor.upgrade().unwrap();
         let parameter = Parameter::new(
             &(self.host_treatment.upgrade().unwrap() as Arc<RwLock<dyn Scope>>),
+            &host_descriptor.as_parameterized(),
+            self.host_id.clone(),
             &self.descriptor().as_parameterized(),
             name,
             design_reference.clone(),
@@ -105,7 +101,7 @@ impl ModelInstanciation {
             result = result.and_degrade_failure(LogicResult::new_failure(
                 LogicError::multiple_parameter_assignation(
                     24,
-                    host.identifier().clone(),
+                    self.host_id.clone(),
                     self.descriptor().identifier().clone(),
                     name.to_string(),
                     design_reference.clone(),
@@ -116,7 +112,7 @@ impl ModelInstanciation {
         if !self.descriptor().parameters().contains_key(name) {
             result.errors_mut().push(LogicError::unexisting_parameter(
                 10,
-                host.identifier().clone(),
+                self.host_id.clone(),
                 self.descriptor().identifier().clone(),
                 self.name.clone(),
                 design_reference,

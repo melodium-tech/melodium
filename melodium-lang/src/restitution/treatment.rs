@@ -4,21 +4,17 @@ use melodium_common::descriptor::{
 };
 use melodium_engine::design::{Connection, Treatment as TreatmentDesign, IO};
 use std::collections::HashMap;
-use std::sync::Arc;
 
 pub struct Treatment {
-    design: Arc<TreatmentDesign>,
+    design: TreatmentDesign,
+    uses: Vec<Identifier>,
 }
 
 impl Treatment {
-    pub fn new(design: Arc<TreatmentDesign>) -> Self {
-        Self { design }
-    }
-
-    pub fn uses(&self) -> Vec<Identifier> {
+    pub fn new(design: TreatmentDesign) -> Self {
         let mut uses = Vec::new();
 
-        let descriptor = self.design.descriptor.upgrade().unwrap();
+        let descriptor = design.descriptor.upgrade().unwrap();
 
         for (_, model) in descriptor.models() {
             uses.push(model.identifier().clone())
@@ -28,22 +24,29 @@ impl Treatment {
             uses.push(context.identifier().clone())
         }
 
-        for (_, model) in &self.design.model_instanciations {
+        for (_, model) in &design.model_instanciations {
             uses.push(model.descriptor.upgrade().unwrap().identifier().clone())
         }
 
-        for (_, treatment) in &self.design.treatments {
+        for (_, treatment) in &design.treatments {
             uses.push(treatment.descriptor.upgrade().unwrap().identifier().clone())
         }
+        Self { design, uses }
+    }
 
-        uses
+    pub fn design(&self) -> &TreatmentDesign {
+        &self.design
+    }
+
+    pub fn uses(&self) -> &Vec<Identifier> {
+        &self.uses
     }
 
     pub fn implementation(&self, names: &HashMap<Identifier, String>) -> String {
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
         let mut implementation = format!(
-            "/**\n{}*/",
+            "/**\n{}*/\n",
             descriptor
                 .documentation()
                 .lines()
@@ -58,24 +61,30 @@ impl Treatment {
         if !descriptor.models().is_empty() {
             implementation.push_str("[");
 
-            for (name, model) in descriptor.models() {
-                implementation.push_str(name);
-                implementation.push_str(": ");
-                implementation.push_str(names.get(model.identifier()).unwrap());
-                implementation.push_str(", ");
-            }
-            implementation.truncate(implementation.len() - 2);
+            implementation.push_str(
+                &descriptor
+                    .models()
+                    .iter()
+                    .map(|(name, model)| {
+                        format!("{name}: {id}", id = names.get(model.identifier()).unwrap())
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            );
 
             implementation.push_str("]");
         }
 
         implementation.push_str("(");
 
-        for (_, param) in descriptor.parameters() {
-            implementation.push_str(&param.to_string());
-            implementation.push_str(", ");
-        }
-        implementation.truncate(implementation.len() - 2);
+        implementation.push_str(
+            &descriptor
+                .parameters()
+                .iter()
+                .map(|(_, param)| param.to_string())
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
 
         implementation.push_str(")\n");
 
@@ -109,18 +118,25 @@ impl Treatment {
 
             implementation.push_str("(");
 
-            for (_, param) in &model.parameters {
-                implementation.push_str(&param.name);
-                implementation.push_str(" = ");
-                implementation.push_str(&value(&param.value, names));
-                implementation.push_str(", ");
-            }
-            implementation.truncate(implementation.len() - 2);
+            implementation.push_str(
+                &model
+                    .parameters
+                    .iter()
+                    .map(|(_, param)| {
+                        format!(
+                            "{name} = {value}",
+                            name = param.name,
+                            value = value(&param.value, names)
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            );
 
             implementation.push_str(")\n");
         }
 
-        implementation.push_str("{");
+        implementation.push_str("{\n");
 
         for (_, instanciation) in &self.design.treatments {
             implementation.push_str("    ");
@@ -136,25 +152,33 @@ impl Treatment {
 
             if !instanciation.models.is_empty() {
                 implementation.push_str("[");
-                for (name, model) in &instanciation.models {
-                    implementation.push_str(name);
-                    implementation.push_str(" = ");
-                    implementation.push_str(model);
-                    implementation.push_str(", ");
-                }
-                implementation.truncate(implementation.len() - 2);
+                implementation.push_str(
+                    &instanciation
+                        .models
+                        .iter()
+                        .map(|(name, model)| format!("{name} = {model}"))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                );
                 implementation.push_str("]");
             }
 
             implementation.push_str("(");
 
-            for (_, param) in &instanciation.parameters {
-                implementation.push_str(&param.name);
-                implementation.push_str(" = ");
-                implementation.push_str(&value(&param.value, names));
-                implementation.push_str(", ");
-            }
-            implementation.truncate(implementation.len() - 2);
+            implementation.push_str(
+                &instanciation
+                    .parameters
+                    .iter()
+                    .map(|(_, param)| {
+                        format!(
+                            "{name} = {value}",
+                            name = param.name,
+                            value = value(&param.value, names)
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            );
 
             implementation.push_str(")\n");
         }

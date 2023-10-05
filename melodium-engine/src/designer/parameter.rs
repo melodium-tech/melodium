@@ -1,11 +1,16 @@
 use super::{Reference, Scope, Value};
+use crate::design::Parameter as ParameterDesign;
 use crate::error::{LogicError, LogicResult};
-use melodium_common::descriptor::{Collection, Entry, Function, Parameterized, Variability};
+use melodium_common::descriptor::{
+    Collection, Entry, Function, Identifier, Parameterized, Variability,
+};
 use std::sync::{Arc, RwLock, Weak};
 
 #[derive(Debug)]
 pub struct Parameter {
     scope: Weak<RwLock<dyn Scope>>,
+    scope_descriptor: Weak<dyn Parameterized>,
+    scope_id: Identifier,
     parent_descriptor: Weak<dyn Parameterized>,
     name: String,
     value: Option<Value>,
@@ -15,12 +20,16 @@ pub struct Parameter {
 impl Parameter {
     pub fn new(
         scope: &Arc<RwLock<dyn Scope>>,
+        scope_descriptor: &Arc<dyn Parameterized>,
+        scope_id: Identifier,
         parent_descriptor: &Arc<dyn Parameterized>,
         name: &str,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
             scope: Arc::downgrade(scope),
+            scope_descriptor: Arc::downgrade(scope_descriptor),
+            scope_id,
             parent_descriptor: Arc::downgrade(parent_descriptor),
             name: name.to_string(),
             value: None,
@@ -40,37 +49,53 @@ impl Parameter {
         &self.design_reference
     }
 
-    pub fn update_collection(&mut self, collection: &Arc<Collection>) -> LogicResult<()> {
+    pub(crate) fn import_design(
+        &mut self,
+        design: &ParameterDesign,
+        collection: &Arc<Collection>,
+    ) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
-        match &mut self.value {
-            Some(Value::Context(context, _)) => {
-                if let Some(Entry::Context(new_context)) = collection.get(context.identifier()) {
-                    *context = new_context.clone();
+
+        let value = match &design.value {
+            Value::Raw(executive_value) => Some(Value::Raw(executive_value.clone())),
+            Value::Variable(variable) => Some(Value::Variable(variable.clone())),
+            Value::Context(former_context, entry) => {
+                if let Some(Entry::Context(new_context)) =
+                    collection.get(former_context.identifier())
+                {
+                    Some(Value::Context(new_context.clone(), entry.clone()))
                 } else {
                     result = result.and(LogicResult::new_failure(LogicError::unexisting_context(
                         204,
-                        self.scope.upgrade().unwrap().read().unwrap().identifier(),
-                        context.identifier().clone(),
+                        self.scope_id.clone(),
+                        former_context.identifier().clone(),
                         self.design_reference.clone(),
                     )));
+                    None
                 }
             }
-            Some(Value::Function(function, _)) => {
-                if let Some(Entry::Function(new_function)) = collection.get(function.identifier()) {
-                    *function = new_function.clone();
+            Value::Function(former_function, values) => {
+                if let Some(Entry::Function(new_function)) =
+                    collection.get(former_function.identifier())
+                {
+                    Some(Value::Function(new_function.clone(), values.clone()))
                 } else {
                     result = result.and(LogicResult::new_failure(LogicError::unexisting_function(
                         205,
-                        self.scope.upgrade().unwrap().read().unwrap().identifier(),
-                        function.identifier().clone(),
+                        self.scope_id.clone(),
+                        former_function.identifier().clone(),
                         self.design_reference.clone(),
                     )));
+                    None
                 }
             }
-            _ => {}
+        };
+
+        if let Some(value) = value {
+            result = result.and(self.set_value(value));
         }
 
-        result.and(self.validate())
+        result
     }
 
     pub fn name(&self) -> &str {
@@ -79,8 +104,6 @@ impl Parameter {
 
     pub fn set_value(&mut self, value: Value) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
-        let rc_scope = self.scope.upgrade().unwrap();
-        let scope = rc_scope.read().unwrap();
         let parent_descriptor = self.parent_descriptor.upgrade().unwrap();
         let parameter = parent_descriptor.parameters().get(&self.name);
         match &value {
@@ -91,7 +114,7 @@ impl Parameter {
                     if !parameter.datatype().is_compatible(data) {
                         result.errors_mut().push(LogicError::unmatching_datatype(
                             13,
-                            scope.identifier().clone(),
+                            self.scope_id.clone(),
                             parent_descriptor.identifier().clone(),
                             self.name.clone(),
                             value.clone(),
@@ -105,7 +128,13 @@ impl Parameter {
             Value::Variable(name) => {
                 self.value = Some(value.clone());
 
-                if let Some(scope_variable) = scope.descriptor().parameters().get(name) {
+                if let Some(scope_variable) = self
+                    .scope_descriptor
+                    .upgrade()
+                    .unwrap()
+                    .parameters()
+                    .get(name)
+                {
                     if let Some(parameter) = parameter {
                         if *parameter.variability() == Variability::Const
                             && *scope_variable.variability() != Variability::Const
@@ -114,7 +143,7 @@ impl Parameter {
                                 .errors_mut()
                                 .push(LogicError::const_required_var_provided(
                                     60,
-                                    scope.identifier().clone(),
+                                    self.scope_id.clone(),
                                     parent_descriptor.identifier().clone(),
                                     self.name.clone(),
                                     name.to_string(),
@@ -125,7 +154,7 @@ impl Parameter {
                         if scope_variable.datatype() != parameter.datatype() {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 14,
-                                scope.identifier().clone(),
+                                self.scope_id.clone(),
                                 parent_descriptor.identifier().clone(),
                                 self.name.clone(),
                                 value.clone(),
@@ -138,7 +167,7 @@ impl Parameter {
                 } else {
                     result.errors_mut().push(LogicError::unexisting_variable(
                         6,
-                        scope.identifier().clone(),
+                        self.scope_id.clone(),
                         self.name.to_string(),
                         name.to_string(),
                         self.design_reference.clone(),
@@ -154,7 +183,7 @@ impl Parameter {
                             .errors_mut()
                             .push(LogicError::const_required_context_provided(
                                 61,
-                                scope.identifier().clone(),
+                                self.scope_id.clone(),
                                 parent_descriptor.identifier().clone(),
                                 self.name.clone(),
                                 context.identifier().clone(),
@@ -169,7 +198,7 @@ impl Parameter {
                         if context_variable_datatype != parameter.datatype() {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 15,
-                                scope.identifier().clone(),
+                                self.scope_id.clone(),
                                 parent_descriptor.identifier().clone(),
                                 self.name.clone(),
                                 value.clone(),
@@ -184,7 +213,7 @@ impl Parameter {
                         .errors_mut()
                         .push(LogicError::unexisting_context_variable(
                             8,
-                            scope.identifier().clone(),
+                            self.scope_id.clone(),
                             self.name.clone(),
                             context.identifier().clone(),
                             name.clone(),
@@ -205,7 +234,7 @@ impl Parameter {
                                     res.errors_mut().push(
                                         LogicError::const_required_function_returns_var(
                                             63,
-                                            scope.identifier().clone(),
+                                            self.scope_id.clone(),
                                             parent_descriptor.identifier().clone(),
                                             self.name.clone(),
                                             descriptor.identifier().clone(),
@@ -228,15 +257,13 @@ impl Parameter {
         parameters: &Vec<Value>,
     ) -> LogicResult<Variability> {
         let mut result = LogicResult::new_success(Variability::Const);
-        let rc_scope = self.scope.upgrade().unwrap();
-        let scope = rc_scope.read().unwrap();
 
         if descriptor.parameters().len() != parameters.len() {
             result
                 .errors_mut()
                 .push(LogicError::unmatching_number_of_parameters(
                     64,
-                    scope.identifier().clone(),
+                    self.scope_id.clone(),
                     descriptor.identifier().clone(),
                     self.design_reference.clone(),
                 ));
@@ -249,7 +276,7 @@ impl Parameter {
                     if !param_descriptor.datatype().is_compatible(&data) {
                         result.errors_mut().push(LogicError::unmatching_datatype(
                             16,
-                            scope.identifier().clone(),
+                            self.scope_id.clone(),
                             descriptor.identifier().clone(),
                             param_descriptor.name().to_string(),
                             parameters[i].clone(),
@@ -260,7 +287,13 @@ impl Parameter {
                     }
                 }
                 Value::Variable(name) => {
-                    if let Some(scope_variable) = scope.descriptor().parameters().get(name) {
+                    if let Some(scope_variable) = self
+                        .scope_descriptor
+                        .upgrade()
+                        .unwrap()
+                        .parameters()
+                        .get(name)
+                    {
                         if *scope_variable.variability() != Variability::Const {
                             result
                                 .success_mut()
@@ -270,7 +303,7 @@ impl Parameter {
                         if scope_variable.datatype() != param_descriptor.datatype() {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 17,
-                                scope.identifier().clone(),
+                                self.scope_id.clone(),
                                 descriptor.identifier().clone(),
                                 param_descriptor.name().to_string(),
                                 parameters[i].clone(),
@@ -282,7 +315,7 @@ impl Parameter {
                     } else {
                         result.errors_mut().push(LogicError::unexisting_variable(
                             7,
-                            scope.identifier().clone(),
+                            self.scope_id.clone(),
                             self.name.to_string(),
                             name.to_string(),
                             self.design_reference.clone(),
@@ -298,7 +331,7 @@ impl Parameter {
                         if context_variable_datatype != param_descriptor.datatype() {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 18,
-                                scope.identifier().clone(),
+                                self.scope_id.clone(),
                                 descriptor.identifier().clone(),
                                 param_descriptor.name().to_string(),
                                 parameters[i].clone(),
@@ -312,7 +345,7 @@ impl Parameter {
                             .errors_mut()
                             .push(LogicError::unexisting_context_variable(
                                 9,
-                                scope.identifier().clone(),
+                                self.scope_id.clone(),
                                 self.name.clone(),
                                 context.identifier().clone(),
                                 name.clone(),
@@ -349,15 +382,13 @@ impl Parameter {
     pub fn validate(&self) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
 
-        let rc_scope = self.scope.upgrade().unwrap();
-        let scope = rc_scope.read().unwrap();
         let parent_descriptor = self.parent_descriptor.upgrade().unwrap();
         let parameter = parent_descriptor.parameters().get(&self.name);
 
         if self.value.is_none() {
             result.errors_mut().push(LogicError::no_value(
                 27,
-                scope.identifier().clone(),
+                self.scope_id.clone(),
                 parent_descriptor.identifier().clone(),
                 self.name.clone(),
                 self.design_reference.clone(),
@@ -372,7 +403,7 @@ impl Parameter {
                     if !parameter.datatype().is_compatible(data) {
                         result.errors_mut().push(LogicError::unmatching_datatype(
                             195,
-                            scope.identifier().clone(),
+                            self.scope_id.clone(),
                             parent_descriptor.identifier().clone(),
                             self.name.clone(),
                             self.value.as_ref().unwrap().clone(),
@@ -383,7 +414,13 @@ impl Parameter {
                     }
                 }
                 Some(Value::Variable(name)) => {
-                    if let Some(scope_variable) = scope.descriptor().parameters().get(name) {
+                    if let Some(scope_variable) = self
+                        .scope_descriptor
+                        .upgrade()
+                        .unwrap()
+                        .parameters()
+                        .get(name)
+                    {
                         if *parameter.variability() == Variability::Const
                             && *scope_variable.variability() != Variability::Const
                         {
@@ -391,7 +428,7 @@ impl Parameter {
                                 .errors_mut()
                                 .push(LogicError::const_required_var_provided(
                                     196,
-                                    scope.identifier().clone(),
+                                    self.scope_id.clone(),
                                     parent_descriptor.identifier().clone(),
                                     self.name.clone(),
                                     name.to_string(),
@@ -402,7 +439,7 @@ impl Parameter {
                         if scope_variable.datatype() != parameter.datatype() {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 197,
-                                scope.identifier().clone(),
+                                self.scope_id.clone(),
                                 parent_descriptor.identifier().clone(),
                                 self.name.clone(),
                                 self.value.as_ref().unwrap().clone(),
@@ -414,7 +451,7 @@ impl Parameter {
                     } else {
                         result.errors_mut().push(LogicError::unexisting_variable(
                             198,
-                            scope.identifier().clone(),
+                            self.scope_id.clone(),
                             self.name.to_string(),
                             name.to_string(),
                             self.design_reference.clone(),
@@ -427,7 +464,7 @@ impl Parameter {
                             .errors_mut()
                             .push(LogicError::const_required_context_provided(
                                 199,
-                                scope.identifier().clone(),
+                                self.scope_id.clone(),
                                 parent_descriptor.identifier().clone(),
                                 self.name.clone(),
                                 context.identifier().clone(),
@@ -440,7 +477,7 @@ impl Parameter {
                         if context_variable_datatype != parameter.datatype() {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 200,
-                                scope.identifier().clone(),
+                                self.scope_id.clone(),
                                 parent_descriptor.identifier().clone(),
                                 self.name.clone(),
                                 self.value.as_ref().unwrap().clone(),
@@ -454,7 +491,7 @@ impl Parameter {
                             .errors_mut()
                             .push(LogicError::unexisting_context_variable(
                                 201,
-                                scope.identifier().clone(),
+                                self.scope_id.clone(),
                                 self.name.clone(),
                                 context.identifier().clone(),
                                 name.clone(),
@@ -473,7 +510,7 @@ impl Parameter {
                                     res.errors_mut().push(
                                         LogicError::const_required_function_returns_var(
                                             202,
-                                            scope.identifier().clone(),
+                                            self.scope_id.clone(),
                                             parent_descriptor.identifier().clone(),
                                             self.name.clone(),
                                             descriptor.identifier().clone(),
@@ -489,13 +526,7 @@ impl Parameter {
                 None => {
                     result.errors_mut().push(LogicError::no_value(
                         27,
-                        self.scope
-                            .upgrade()
-                            .unwrap()
-                            .read()
-                            .unwrap()
-                            .identifier()
-                            .clone(),
+                        self.scope_id.clone(),
                         self.parent_descriptor
                             .upgrade()
                             .unwrap()
@@ -509,7 +540,7 @@ impl Parameter {
         } else {
             result.errors_mut().push(LogicError::unexisting_parameter(
                 194,
-                scope.identifier().clone(),
+                self.scope_id.clone(),
                 parent_descriptor.identifier().clone(),
                 self.name.clone(),
                 self.design_reference.clone(),

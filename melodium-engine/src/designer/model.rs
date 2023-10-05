@@ -39,25 +39,6 @@ impl Model {
         })
     }
 
-    pub fn update_collection(&mut self, collection: Arc<Collection>) -> LogicResult<()> {
-        self.collection = collection;
-
-        let mut result = LogicResult::new_success(());
-        let mut deletion_list = Vec::new();
-        for (name, param) in &self.parameters {
-            let res = param.write().unwrap().update_collection(&self.collection);
-            if res.is_failure() {
-                deletion_list.push(name.clone());
-            }
-            result = result.and_degrade_failure(res);
-        }
-        deletion_list.iter().for_each(|d| {
-            self.remove_parameter(d);
-        });
-
-        result
-    }
-
     pub fn collection(&self) -> &Arc<Collection> {
         &self.collection
     }
@@ -68,6 +49,29 @@ impl Model {
 
     pub fn design_reference(&self) -> &Option<Arc<dyn Reference>> {
         &self.design_reference
+    }
+
+    pub fn import_design(
+        &mut self,
+        design: &ModelDesign,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> LogicResult<()> {
+        let mut result = LogicResult::new_success(());
+
+        for (name, parameter_design) in &design.parameters {
+            if let Some(parameter) =
+                result.merge_degrade_failure(self.add_parameter(name, design_reference.clone()))
+            {
+                result.merge_degrade_failure(
+                    parameter
+                        .write()
+                        .unwrap()
+                        .import_design(parameter_design, &self.collection),
+                );
+            }
+        }
+
+        result
     }
 
     pub fn add_parameter(
@@ -81,8 +85,11 @@ impl Model {
             .expect("Designed model must have base model");
 
         if base_model.parameters().contains_key(name) {
+            let descriptor = self.descriptor();
             let parameter = Parameter::new(
                 &(self.auto_reference.upgrade().unwrap() as Arc<RwLock<dyn Scope>>),
+                &(descriptor.clone() as Arc<dyn Parameterized>),
+                descriptor.identifier().clone(),
                 &base_model.as_parameterized(),
                 name,
                 design_reference.clone(),
@@ -182,6 +189,40 @@ impl Model {
         }
 
         result
+    }
+
+    pub fn make_use(&self, identifier: &Identifier) -> bool {
+        self.unvalidated_design()
+            .success()
+            .map(|design| design.make_use(identifier))
+            .unwrap_or(false)
+    }
+
+    pub fn unvalidated_design(&self) -> LogicResult<ModelDesign> {
+        let result = LogicResult::new_success(());
+
+        result.and_then(|_| {
+            LogicResult::new_success(ModelDesign {
+                descriptor: self.descriptor.clone(),
+                parameters: self
+                    .parameters
+                    .iter()
+                    .filter_map(|(name, param)| {
+                        if let Some(value) = param.read().unwrap().value().as_ref() {
+                            Some((
+                                name.clone(),
+                                ParameterDesign {
+                                    name: name.clone(),
+                                    value: value.clone(),
+                                },
+                            ))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect(),
+            })
+        })
     }
 
     pub fn design(&self) -> LogicResult<ModelDesign> {

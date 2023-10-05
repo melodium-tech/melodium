@@ -19,6 +19,11 @@ pub use melodium_loader::LoadingConfig;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+pub const TARGET: &'static str = env!("TARGET");
+pub const TARGET_FEATURES: &'static str = env!("TARGET_FEATURE");
+pub const BUILD_HOST: &'static str = env!("HOST");
+
 pub fn load_all(mut config: LoadingConfig) -> LoadingResult<Arc<Collection>> {
     config.extend(core_config());
 

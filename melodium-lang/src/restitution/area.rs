@@ -12,6 +12,7 @@ pub struct Area {
     path: Path,
     collection: Arc<Collection>,
     owned_ids: Vec<Identifier>,
+    uses_names: HashMap<Identifier, String>,
     models: Vec<Model>,
     treatments: Vec<Treatment>,
 }
@@ -31,54 +32,97 @@ impl Area {
         for id in &owned_ids {
             match collection.get(id).cloned().unwrap() {
                 Entry::Model(model) => {
-                    models.push(Model::new(
-                        model
-                            .clone()
-                            .downcast_arc::<ModelDescriptor>()
-                            .unwrap()
-                            .designer(collection.clone(), None)
-                            .success()
-                            .map(|designer| {
-                                Arc::new(
-                                    designer.read().unwrap().design().success().unwrap().clone(),
-                                )
-                            })
-                            .unwrap_or_else(|| {
-                                model
-                                    .downcast_arc::<ModelDescriptor>()
+                    let design = match model.clone().downcast_arc::<ModelDescriptor>() {
+                        Ok(designed) => {
+                            if let Some(designer) =
+                                designed.designer(collection.clone(), None).success()
+                            {
+                                if let Some(design) = designer
+                                    .read()
                                     .unwrap()
-                                    .design()
+                                    .unvalidated_design()
                                     .success()
-                                    .unwrap()
-                                    .clone()
-                            }),
-                    ));
+                                    .cloned()
+                                {
+                                    design
+                                } else {
+                                    if let Some(design) = designed.design().success() {
+                                        (**design).clone()
+                                    } else {
+                                        continue;
+                                    }
+                                }
+                            } else {
+                                continue;
+                            }
+                        }
+                        Err(_) => continue,
+                    };
+                    models.push(Model::new(design));
                 }
                 Entry::Treatment(treatment) => {
-                    treatments.push(Treatment::new(
-                        treatment
-                            .clone()
-                            .downcast_arc::<TreatmentDescriptor>()
-                            .unwrap()
-                            .designer(collection.clone(), None)
-                            .success()
-                            .map(|designer| {
-                                Arc::new(
-                                    designer.read().unwrap().design().success().unwrap().clone(),
-                                )
-                            })
-                            .unwrap_or_else(|| {
-                                treatment
-                                    .downcast_arc::<TreatmentDescriptor>()
+                    let design = match treatment.clone().downcast_arc::<TreatmentDescriptor>() {
+                        Ok(designed) => {
+                            if let Some(designer) =
+                                designed.designer(collection.clone(), None).success()
+                            {
+                                if let Some(design) = designer
+                                    .read()
                                     .unwrap()
-                                    .design()
+                                    .unvalidated_design()
                                     .success()
-                                    .unwrap()
-                                    .clone()
-                            }),
-                    ));
+                                    .cloned()
+                                {
+                                    design
+                                } else {
+                                    if let Some(design) = designed.design().success() {
+                                        (**design).clone()
+                                    } else {
+                                        continue;
+                                    }
+                                }
+                            } else {
+                                continue;
+                            }
+                        }
+                        Err(_) => continue,
+                    };
+                    treatments.push(Treatment::new(design));
                 }
                 _ => {}
+            }
+        }
+
+        let mut needs = Vec::new();
+
+        models.iter().for_each(|m| needs.extend(m.uses().clone()));
+        treatments
+            .iter()
+            .for_each(|t| needs.extend(t.uses().clone()));
+        needs.append(&mut owned_ids.clone());
+
+        needs.sort();
+        needs.dedup();
+
+        let mut names: HashMap<Identifier, String> = needs
+            .iter()
+            .map(|id| (id.clone(), id.name().to_string()))
+            .collect();
+        loop {
+            let conflicts = names
+                .iter()
+                .duplicates_by(|(_, name)| (*name).clone())
+                .map(|(id, name)| (id.clone(), name.clone()))
+                .collect::<Vec<_>>();
+            if conflicts.is_empty() {
+                break;
+            }
+
+            for (id, name) in conflicts {
+                if !owned_ids.contains(&id) {
+                    let new_name = Self::append_step(&id, &name);
+                    names.insert(id, new_name);
+                }
             }
         }
 
@@ -86,6 +130,7 @@ impl Area {
             path,
             collection,
             owned_ids,
+            uses_names: names,
             models,
             treatments,
         }
@@ -99,58 +144,50 @@ impl Area {
         &self.collection
     }
 
-    pub fn implementation(&self) -> String {
-        let mut needs = Vec::new();
+    pub fn owned_ids(&self) -> &Vec<Identifier> {
+        &self.owned_ids
+    }
 
-        self.models.iter().for_each(|m| needs.extend(m.uses()));
-        self.treatments.iter().for_each(|t| needs.extend(t.uses()));
-        needs.append(&mut self.owned_ids.clone());
+    pub fn uses_names(&self) -> &HashMap<Identifier, String> {
+        &self.uses_names
+    }
 
-        needs.sort();
-        needs.dedup();
+    pub fn models(&self) -> &Vec<Model> {
+        &self.models
+    }
 
-        let mut names: HashMap<Identifier, String> = needs
-            .iter()
-            .map(|id| (id.clone(), id.name().to_string()))
-            .collect();
-        loop {
-            let conflicts = names
-                .iter()
-                .duplicates_by(|(_, name)| name.clone())
-                .map(|(id, name)| (id.clone(), name.clone()))
-                .collect::<Vec<_>>();
-            if conflicts.is_empty() {
-                break;
-            }
+    pub fn treatments(&self) -> &Vec<Treatment> {
+        &self.treatments
+    }
 
-            for (id, name) in conflicts {
-                if !self.owned_ids.contains(&id) {
-                    let new_name = Self::append_step(&id, &name);
-                    names.insert(id, new_name);
-                }
-            }
-        }
-
+    pub fn implementation_needs(&self, needs: Vec<Identifier>) -> String {
         let mut result = String::new();
-
-        for need in &needs {
-            result.push_str(&need.to_string());
-            let name = names.get(need).unwrap();
-            if name != need.name() {
-                result.push_str(" as ");
-                result.push_str(name);
+        for (id, name) in &self.uses_names {
+            if needs.contains(id) {
+                result.push_str(&id.to_string());
+                if name != id.name() {
+                    result.push_str(" as ");
+                    result.push_str(name);
+                }
+                result.push_str("\n");
             }
-            result.push_str("\n");
         }
 
         result.push_str("\n");
 
+        result
+    }
+
+    pub fn implementation(&self) -> String {
+        let mut result =
+            self.implementation_needs(self.uses_names.keys().map(|id| id.clone()).collect_vec());
+
         for model in &self.models {
-            result.push_str(&model.implementation(&names));
+            result.push_str(&model.implementation(&self.uses_names));
         }
 
         for treatment in &self.treatments {
-            result.push_str(&treatment.implementation(&names));
+            result.push_str(&treatment.implementation(&self.uses_names));
         }
 
         result
