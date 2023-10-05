@@ -43,6 +43,6 @@ impl<'de> Deserialize<'de> for Author {
     where
         D: serde::Deserializer<'de>,
     {
-        Deserialize::deserialize(deserializer).map(|author| Author::new(author))
+        Deserialize::deserialize(deserializer).map(|author: String| Author::new(&author))
     }
 }

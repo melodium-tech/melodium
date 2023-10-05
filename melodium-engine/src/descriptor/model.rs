@@ -3,8 +3,8 @@ use crate::designer::{Model as Designer, Reference};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
-    Buildable, Collection, Context, Documented, Identified, Identifier, Model as ModelDescriptor,
-    ModelBuildMode, Parameter, Parameterized, Status,
+    Buildable, Collection, Context, Documented, Entry, Identified, Identifier,
+    Model as ModelDescriptor, ModelBuildMode, Parameter, Parameterized, Status, Variability,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock, Weak};
@@ -105,6 +105,20 @@ impl Model {
             .into()
     }
 
+    pub fn update_with_collection(&mut self, collection: &Collection) -> LogicResult<()> {
+        if let Some(Entry::Model(base_model)) = collection.get(self.base_model.identifier()) {
+            self.base_model = base_model.clone();
+            LogicResult::new_success(())
+        } else {
+            LogicResult::new_failure(LogicError::unexisting_model(
+                208,
+                self.identifier.clone(),
+                self.base_model.identifier().clone(),
+                None,
+            ))
+        }
+    }
+
     pub fn set_documentation(&mut self, documentation: &str) {
         #[cfg(feature = "doc")]
         {
@@ -114,7 +128,15 @@ impl Model {
         let _ = documentation;
     }
 
-    pub fn add_parameter(&mut self, parameter: Parameter) {
+    pub fn add_parameter(&mut self, mut parameter: Parameter) {
+        if parameter.variability() != &Variability::Const {
+            parameter = Parameter::new(
+                parameter.name(),
+                Variability::Const,
+                parameter.datatype().clone(),
+                parameter.default().clone(),
+            );
+        }
         self.parameters
             .insert(parameter.name().to_string(), parameter);
     }
@@ -176,6 +198,20 @@ impl Buildable<ModelBuildMode> for Model {
 
     fn make_use(&self, identifier: &Identifier) -> bool {
         self.base_model.identifier() == identifier
+            || self
+                .design
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|design| design.make_use(identifier))
+                .unwrap_or(false)
+            || self
+                .designer
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|designer| designer.read().unwrap().make_use(identifier))
+                .unwrap_or(false)
     }
 }
 
@@ -202,6 +238,26 @@ impl ModelDescriptor for Model {
 
     fn as_parameterized(&self) -> Arc<dyn Parameterized> {
         self.auto_reference.upgrade().unwrap()
+    }
+}
+
+impl Clone for Model {
+    /**
+     * Clone model descriptor.
+     *
+     * The descriptor and its inner descriptive elements are all cloned, but not the designer nor the related design.
+     * The cloned descriptor need to be commited.
+     */
+    fn clone(&self) -> Self {
+        Self {
+            identifier: self.identifier.clone(),
+            documentation: self.documentation.clone(),
+            base_model: self.base_model.clone(),
+            parameters: self.parameters.clone(),
+            designer: Mutex::new(None),
+            design: Mutex::new(None),
+            auto_reference: Weak::default(),
+        }
     }
 }
 

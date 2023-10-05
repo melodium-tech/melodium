@@ -3,29 +3,34 @@ use melodium_common::descriptor::{
 };
 use melodium_engine::design::Model as ModelDesign;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use super::value::value;
 pub struct Model {
-    design: Arc<ModelDesign>,
+    design: ModelDesign,
+    uses: Vec<Identifier>,
 }
 
 impl Model {
-    pub fn new(design: Arc<ModelDesign>) -> Self {
-        Self { design }
+    pub fn new(design: ModelDesign) -> Self {
+        let descriptor = design.descriptor.upgrade().unwrap();
+
+        let uses = vec![descriptor.base_model().unwrap().identifier().clone()];
+        Self { design, uses }
     }
 
-    pub fn uses(&self) -> Vec<Identifier> {
-        let descriptor = self.design.descriptor.upgrade().unwrap();
+    pub fn design(&self) -> &ModelDesign {
+        &self.design
+    }
 
-        vec![descriptor.base_model().unwrap().identifier().clone()]
+    pub fn uses(&self) -> &Vec<Identifier> {
+        &self.uses
     }
 
     pub fn implementation(&self, names: &HashMap<Identifier, String>) -> String {
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
         let mut implementation = format!(
-            "/**\n{}*/",
+            "/**\n{}*/\n",
             descriptor
                 .documentation()
                 .lines()
@@ -39,13 +44,16 @@ impl Model {
 
         implementation.push_str("(");
 
-        for (_, param) in descriptor.parameters() {
-            implementation.push_str(&param.to_string());
-            implementation.push_str(", ");
-        }
-        implementation.truncate(implementation.len() - 2);
+        implementation.push_str(
+            &descriptor
+                .parameters()
+                .iter()
+                .map(|(_, param)| param.to_string())
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
 
-        implementation.push_str(")\n{");
+        implementation.push_str(")\n{\n");
 
         for (_, param) in &self.design.parameters {
             implementation.push_str("    ");

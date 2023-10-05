@@ -88,23 +88,29 @@ impl Collection {
         self.elements.get(id)
     }
 
+    pub fn remove(&mut self, id: &Identifier) -> bool {
+        self.elements.remove(id).map(|_| true).unwrap_or(false)
+    }
+
     pub fn get_tree(&self) -> CollectionTree {
-        let mut tree = CollectionTree::new();
+        let mut tree = CollectionTree::new(Vec::new());
 
         fn insert_entry(
             tree: &mut CollectionTree,
             mut iter: Iter<String>,
+            mut path: Vec<String>,
             entry: Entry,
             name: String,
         ) {
             if let Some(next) = iter.next() {
+                path.push(next.clone());
                 match tree.areas.entry(next.to_string()) {
                     hash_map::Entry::Occupied(mut e) => {
-                        insert_entry(e.get_mut(), iter, entry, name);
+                        insert_entry(e.get_mut(), iter, path.clone(), entry, name);
                     }
                     hash_map::Entry::Vacant(v) => {
-                        let mut ct = CollectionTree::new();
-                        insert_entry(&mut ct, iter, entry, name);
+                        let mut ct = CollectionTree::new(path.clone());
+                        insert_entry(&mut ct, iter, path.clone(), entry, name);
                         v.insert(ct);
                     }
                 }
@@ -117,6 +123,7 @@ impl Collection {
             insert_entry(
                 &mut tree,
                 id.path().iter(),
+                Vec::new(),
                 entry.clone(),
                 id.name().to_string(),
             )
@@ -128,13 +135,15 @@ impl Collection {
 
 #[derive(Clone, Debug)]
 pub struct CollectionTree {
+    pub path: Vec<String>,
     pub areas: HashMap<String, CollectionTree>,
     pub entries: Vec<Entry>,
 }
 
 impl CollectionTree {
-    pub fn new() -> Self {
+    pub fn new(path: Vec<String>) -> Self {
         Self {
+            path,
             areas: HashMap::new(),
             entries: Vec::new(),
         }

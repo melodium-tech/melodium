@@ -46,43 +46,6 @@ impl Treatment {
         })
     }
 
-    pub fn update_collection(&mut self, collection: Arc<Collection>) -> LogicResult<()> {
-        self.collection = collection;
-
-        let mut result = LogicResult::new_success(());
-        let mut deletion_list = Vec::new();
-        for (name, model_instanciation) in &self.model_instanciations {
-            let res = model_instanciation
-                .write()
-                .unwrap()
-                .update_collection(&self.collection);
-            if res.is_failure() {
-                deletion_list.push(name.clone());
-            }
-            result = result.and_degrade_failure(res);
-        }
-        deletion_list.iter().for_each(|d| {
-            self.remove_model_instanciation(d);
-        });
-
-        let mut deletion_list = Vec::new();
-        for (name, treatment) in &self.treatments {
-            let res = treatment
-                .write()
-                .unwrap()
-                .update_collection(&self.collection);
-            if res.is_failure() {
-                deletion_list.push(name.clone());
-            }
-            result = result.and_degrade_failure(res);
-        }
-        deletion_list.iter().for_each(|d| {
-            self.remove_treatment(d);
-        });
-
-        result
-    }
-
     pub fn collection(&self) -> &Arc<Collection> {
         &self.collection
     }
@@ -95,6 +58,93 @@ impl Treatment {
         &self.design_reference
     }
 
+    pub fn import_design(
+        &mut self,
+        design: &TreatmentDesign,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> LogicResult<()> {
+        let mut result = LogicResult::new_success(());
+
+        for (name, model_instanciation_design) in &design.model_instanciations {
+            if let Some(model_instanciation) = result.merge_degrade_failure(
+                self.add_model_instanciation(
+                    model_instanciation_design
+                        .descriptor
+                        .upgrade()
+                        .unwrap()
+                        .identifier(),
+                    name,
+                    design_reference.clone(),
+                ),
+            ) {
+                result.merge_degrade_failure(
+                    model_instanciation
+                        .write()
+                        .unwrap()
+                        .import_design(model_instanciation_design, &self.collection),
+                );
+            }
+        }
+
+        for (name, treatment_instanciation_design) in &design.treatments {
+            if let Some(treatment_instanciation) = result.merge_degrade_failure(
+                self.add_treatment(
+                    treatment_instanciation_design
+                        .descriptor
+                        .upgrade()
+                        .unwrap()
+                        .identifier(),
+                    name,
+                    design_reference.clone(),
+                ),
+            ) {
+                result.merge_degrade_failure(
+                    treatment_instanciation
+                        .write()
+                        .unwrap()
+                        .import_design(treatment_instanciation_design, &self.collection),
+                );
+            }
+        }
+
+        for connection in &design.connections {
+            match (&connection.output_treatment, &connection.input_treatment) {
+                (IODesign::Sequence(), IODesign::Sequence()) => {
+                    result.merge_degrade_failure(self.add_self_connection(
+                        &connection.output_name,
+                        &connection.input_name,
+                        design_reference.clone(),
+                    ))
+                }
+                (IODesign::Sequence(), IODesign::Treatment(input_treatment)) => result
+                    .merge_degrade_failure(self.add_input_connection(
+                        &connection.output_name,
+                        input_treatment,
+                        &connection.input_name,
+                        design_reference.clone(),
+                    )),
+                (IODesign::Treatment(output_treatment), IODesign::Sequence()) => result
+                    .merge_degrade_failure(self.add_output_connection(
+                        &connection.input_name,
+                        output_treatment,
+                        &connection.output_name,
+                        design_reference.clone(),
+                    )),
+                (IODesign::Treatment(output_treatment), IODesign::Treatment(input_treatment)) => {
+                    result.merge_degrade_failure(self.add_connection(
+                        output_treatment,
+                        &connection.output_name,
+                        input_treatment,
+                        &connection.input_name,
+                        design_reference.clone(),
+                    ))
+                }
+            };
+        }
+
+        result
+    }
+
     pub fn add_model_instanciation(
         &mut self,
         model_identifier: &Identifier,
@@ -103,7 +153,9 @@ impl Treatment {
     ) -> LogicResult<Arc<RwLock<ModelInstanciation>>> {
         if let Some(Entry::Model(model_descriptor)) = self.collection.get(model_identifier) {
             let model = ModelInstanciation::new(
+                &(self.descriptor() as Arc<dyn TreatmentTrait>),
                 &self.auto_reference.upgrade().unwrap(),
+                self.identifier(),
                 model_descriptor,
                 name,
                 design_reference.clone(),
@@ -160,7 +212,9 @@ impl Treatment {
             self.collection.get(treatment_identifier)
         {
             let rc_treatment = TreatmentInstanciation::new(
+                &(self.descriptor() as Arc<dyn TreatmentTrait>),
                 &self.auto_reference.upgrade().unwrap(),
+                self.identifier(),
                 &treatment_descriptor,
                 name,
                 design_reference.clone(),
@@ -182,13 +236,15 @@ impl Treatment {
     pub fn remove_treatment(&mut self, name: &str) -> LogicResult<bool> {
         Ok(if let Some(ref treatment) = self.treatments.remove(name) {
             self.connections.retain(|conn| {
-                !if let IO::Treatment(input_treatment) = &conn.input_treatment {
-                    input_treatment.ptr_eq(&Arc::downgrade(treatment))
-                } else if let IO::Treatment(output_treatment) = &conn.output_treatment {
-                    output_treatment.ptr_eq(&Arc::downgrade(treatment))
-                } else {
-                    false
+                let mut result = true;
+                if let IO::Treatment(input_treatment) = &conn.input_treatment {
+                    result &= !input_treatment.ptr_eq(&Arc::downgrade(treatment));
                 }
+                if let IO::Treatment(output_treatment) = &conn.output_treatment {
+                    result &= !output_treatment.ptr_eq(&Arc::downgrade(treatment));
+                }
+
+                result
             });
 
             true
@@ -735,8 +791,15 @@ impl Treatment {
         result
     }
 
-    pub fn design(&self) -> LogicResult<TreatmentDesign> {
-        let result = self.validate();
+    pub fn make_use(&self, identifier: &Identifier) -> bool {
+        self.unvalidated_design()
+            .success()
+            .map(|design| design.make_use(identifier))
+            .unwrap_or(false)
+    }
+
+    pub fn unvalidated_design(&self) -> LogicResult<TreatmentDesign> {
+        let result = LogicResult::new_success(());
 
         result.and_then(|_| {
             LogicResult::new_success(TreatmentDesign {
@@ -754,20 +817,19 @@ impl Treatment {
                                 parameters: model_instanciation
                                     .parameters()
                                     .iter()
-                                    .map(|(name, param)| {
-                                        (
-                                            name.clone(),
-                                            ParameterDesign {
-                                                name: name.clone(),
-                                                value: param
-                                                    .read()
-                                                    .unwrap()
-                                                    .value()
-                                                    .as_ref()
-                                                    .unwrap()
-                                                    .clone(),
-                                            },
-                                        )
+                                    .filter_map(|(name, param)| {
+                                        if let Some(value) = param.read().unwrap().value().as_ref()
+                                        {
+                                            Some((
+                                                name.clone(),
+                                                ParameterDesign {
+                                                    name: name.clone(),
+                                                    value: value.clone(),
+                                                },
+                                            ))
+                                        } else {
+                                            None
+                                        }
                                     })
                                     .collect(),
                             },
@@ -788,20 +850,19 @@ impl Treatment {
                                 parameters: treatment_instanciation
                                     .parameters()
                                     .iter()
-                                    .map(|(name, param)| {
-                                        (
-                                            name.clone(),
-                                            ParameterDesign {
-                                                name: name.clone(),
-                                                value: param
-                                                    .read()
-                                                    .unwrap()
-                                                    .value()
-                                                    .as_ref()
-                                                    .unwrap()
-                                                    .clone(),
-                                            },
-                                        )
+                                    .filter_map(|(name, param)| {
+                                        if let Some(value) = param.read().unwrap().value().as_ref()
+                                        {
+                                            Some((
+                                                name.clone(),
+                                                ParameterDesign {
+                                                    name: name.clone(),
+                                                    value: value.clone(),
+                                                },
+                                            ))
+                                        } else {
+                                            None
+                                        }
                                     })
                                     .collect(),
                             },
@@ -811,25 +872,31 @@ impl Treatment {
                 connections: self
                     .connections
                     .iter()
-                    .map(|connection| ConnectionDesign {
-                        output_treatment: match &connection.output_treatment {
-                            IO::Sequence() => IODesign::Sequence(),
-                            IO::Treatment(t) => IODesign::Treatment(
-                                t.upgrade().unwrap().read().unwrap().name().to_string(),
-                            ),
-                        },
-                        output_name: connection.output_name.clone(),
-                        input_treatment: match &connection.input_treatment {
-                            IO::Sequence() => IODesign::Sequence(),
-                            IO::Treatment(t) => IODesign::Treatment(
-                                t.upgrade().unwrap().read().unwrap().name().to_string(),
-                            ),
-                        },
-                        input_name: connection.input_name.clone(),
+                    .filter_map(|connection| {
+                        Some(ConnectionDesign {
+                            output_treatment: match &connection.output_treatment {
+                                IO::Sequence() => IODesign::Sequence(),
+                                IO::Treatment(t) => IODesign::Treatment(
+                                    t.upgrade()?.read().unwrap().name().to_string(),
+                                ),
+                            },
+                            output_name: connection.output_name.clone(),
+                            input_treatment: match &connection.input_treatment {
+                                IO::Sequence() => IODesign::Sequence(),
+                                IO::Treatment(t) => IODesign::Treatment(
+                                    t.upgrade()?.read().unwrap().name().to_string(),
+                                ),
+                            },
+                            input_name: connection.input_name.clone(),
+                        })
                     })
                     .collect(),
             })
         })
+    }
+
+    pub fn design(&self) -> LogicResult<TreatmentDesign> {
+        self.validate().and_then(|_| self.unvalidated_design())
     }
 }
 

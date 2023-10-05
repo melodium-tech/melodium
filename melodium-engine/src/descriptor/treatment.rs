@@ -3,8 +3,8 @@ use crate::designer::{Reference, Treatment as Designer};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
-    Buildable, Collection, Context, Documented, Identified, Identifier, Input, Model, Output,
-    Parameter, Parameterized, Status, Treatment as TreatmentDescriptor, TreatmentBuildMode,
+    Buildable, Collection, Context, Documented, Entry, Identified, Identifier, Input, Model,
+    Output, Parameter, Parameterized, Status, Treatment as TreatmentDescriptor, TreatmentBuildMode,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock, Weak};
@@ -110,6 +110,42 @@ impl Treatment {
             .into()
     }
 
+    pub fn update_with_collection(&mut self, collection: &Collection) -> LogicResult<()> {
+        let mut result = LogicResult::new_success(());
+
+        let mut new_models = HashMap::new();
+        for (name, model) in &self.models {
+            if let Some(Entry::Model(model)) = collection.get(model.identifier()) {
+                new_models.insert(name.clone(), model.clone());
+            } else {
+                result.errors_mut().push(LogicError::unexisting_model(
+                    206,
+                    self.identifier.clone(),
+                    model.identifier().clone(),
+                    None,
+                ))
+            }
+        }
+        self.models = new_models;
+
+        let mut new_contexts = HashMap::new();
+        for (name, context) in &self.contexts {
+            if let Some(Entry::Context(context)) = collection.get(context.identifier()) {
+                new_contexts.insert(name.clone(), context.clone());
+            } else {
+                result.errors_mut().push(LogicError::unexisting_context(
+                    207,
+                    self.identifier.clone(),
+                    context.identifier().clone(),
+                    None,
+                ))
+            }
+        }
+        self.contexts = new_contexts;
+
+        result
+    }
+
     pub fn set_documentation(&mut self, documentation: &str) {
         #[cfg(feature = "doc")]
         {
@@ -170,7 +206,7 @@ impl Treatment {
     }
 
     pub fn remove_context(&mut self, name: &str) -> bool {
-        match self.models.remove(name) {
+        match self.contexts.remove(name) {
             Some(_) => true,
             None => false,
         }
@@ -235,6 +271,43 @@ impl Buildable<TreatmentBuildMode> for Treatment {
                 .contexts
                 .iter()
                 .any(|(_, context)| context.identifier() == identifier)
+            || self
+                .design
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|design| design.make_use(identifier))
+                .unwrap_or(false)
+            || self
+                .designer
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|designer| designer.read().unwrap().make_use(identifier))
+                .unwrap_or(false)
+    }
+}
+
+impl Clone for Treatment {
+    /**
+     * Clone treatment descriptor.
+     *
+     * The descriptor and its inner descriptive elements are all cloned, but not the designer nor the related design.
+     * The cloned descriptor need to be commited.
+     */
+    fn clone(&self) -> Self {
+        Self {
+            identifier: self.identifier.clone(),
+            documentation: self.documentation.clone(),
+            models: self.models.clone(),
+            parameters: self.parameters.clone(),
+            inputs: self.inputs.clone(),
+            outputs: self.outputs.clone(),
+            contexts: self.contexts.clone(),
+            designer: Mutex::new(None),
+            design: Mutex::new(None),
+            auto_reference: Weak::default(),
+        }
     }
 }
 

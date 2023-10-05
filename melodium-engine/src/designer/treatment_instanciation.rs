@@ -1,8 +1,9 @@
 use super::{Connection, Parameter, Reference, Scope, Treatment, Value, IO};
+use crate::design::TreatmentInstanciation as TreatmentInstanciationDesign;
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Collection, Entry, Identified, Parameter as ParameterDescriptor,
+    Collection, Identified, Identifier, Parameter as ParameterDescriptor,
     Treatment as TreatmentDescriptor,
 };
 use std::collections::HashMap;
@@ -10,7 +11,9 @@ use std::sync::{Arc, RwLock, Weak};
 
 #[derive(Debug)]
 pub struct TreatmentInstanciation {
+    host_descriptor: Weak<dyn TreatmentDescriptor>,
     host_treatment: Weak<RwLock<Treatment>>,
+    host_id: Identifier,
     descriptor: Weak<dyn TreatmentDescriptor>,
     name: String,
     models: HashMap<String, String>,
@@ -23,14 +26,18 @@ pub struct TreatmentInstanciation {
 
 impl TreatmentInstanciation {
     pub fn new(
+        host_descriptor: &Arc<dyn TreatmentDescriptor>,
         host_treatment: &Arc<RwLock<Treatment>>,
+        host_id: Identifier,
         descriptor: &Arc<dyn TreatmentDescriptor>,
         name: &str,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Arc<RwLock<Self>> {
         Arc::<RwLock<Self>>::new_cyclic(|me| {
             RwLock::new(Self {
+                host_descriptor: Arc::downgrade(host_descriptor),
                 host_treatment: Arc::downgrade(host_treatment),
+                host_id,
                 descriptor: Arc::downgrade(descriptor),
                 name: name.to_string(),
                 models: HashMap::with_capacity(descriptor.models().len()),
@@ -49,39 +56,31 @@ impl TreatmentInstanciation {
         &self.design_reference
     }
 
-    pub fn update_collection(&mut self, collection: &Arc<Collection>) -> LogicResult<()> {
-        if let Some(Entry::Treatment(new_treatment)) =
-            collection.get(self.descriptor.upgrade().unwrap().identifier())
-        {
-            self.descriptor = Arc::downgrade(new_treatment);
+    pub(crate) fn import_design(
+        &mut self,
+        design: &TreatmentInstanciationDesign,
+        collection: &Arc<Collection>,
+    ) -> LogicResult<()> {
+        let mut result = LogicResult::new_success(());
 
-            let mut result = LogicResult::new_success(());
-            let mut deletion_list = Vec::new();
-            for (name, param) in &self.parameters {
-                let res = param.write().unwrap().update_collection(&collection);
-                if res.is_failure() {
-                    deletion_list.push(name.clone());
-                }
-                result = result.and_degrade_failure(res);
+        for (name, parameter_design) in &design.parameters {
+            if let Some(parameter) = result
+                .merge_degrade_failure(self.add_parameter(name, self.design_reference.clone()))
+            {
+                result.merge_degrade_failure(
+                    parameter
+                        .write()
+                        .unwrap()
+                        .import_design(parameter_design, collection),
+                );
             }
-            deletion_list.iter().for_each(|d| {
-                self.remove_parameter(d);
-            });
-
-            result.and(self.validate())
-        } else {
-            LogicResult::new_failure(LogicError::unexisting_treatment(
-                207,
-                self.host_treatment
-                    .upgrade()
-                    .unwrap()
-                    .read()
-                    .unwrap()
-                    .identifier(),
-                self.descriptor.upgrade().unwrap().identifier().clone(),
-                self.design_reference.clone(),
-            ))
         }
+
+        for (parametric_name, local_name) in &design.models {
+            result.merge_degrade_failure(self.add_model(parametric_name, local_name));
+        }
+
+        result
     }
 
     pub fn name(&self) -> &str {
@@ -92,21 +91,23 @@ impl TreatmentInstanciation {
         self.models
             .insert(parametric_name.to_string(), local_name.to_string());
 
-        self.check_model(parametric_name, local_name)
+        LogicResult::new_success(())
     }
 
-    fn check_model(&self, parametric_name: &str, local_name: &str) -> LogicResult<()> {
+    fn check_model(
+        &self,
+        parent: &Treatment,
+        parametric_name: &str,
+        local_name: &str,
+    ) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
-        let rc_host = self.host_treatment.upgrade().unwrap();
-        let borrowed_host = rc_host.read().unwrap();
 
         if self.descriptor().models().contains_key(parametric_name) {
             let model_descriptor = if let Some(model_descriptor) =
-                borrowed_host.descriptor().models().get(local_name)
+                parent.descriptor().models().get(local_name)
             {
                 Some(Arc::clone(model_descriptor))
-            } else if let Some(model_instanciation) =
-                borrowed_host.model_instanciations().get(local_name)
+            } else if let Some(model_instanciation) = parent.model_instanciations().get(local_name)
             {
                 Some(model_instanciation.read().unwrap().descriptor())
             } else {
@@ -129,7 +130,7 @@ impl TreatmentInstanciation {
                 if !is_matching {
                     result.errors_mut().push(LogicError::unmatching_model_type(
                         53,
-                        borrowed_host.identifier().clone(),
+                        parent.identifier().clone(),
                         self.descriptor().identifier().clone(),
                         parametric_name.to_string(),
                         looking_for.identifier().clone(),
@@ -141,7 +142,7 @@ impl TreatmentInstanciation {
             } else {
                 result.errors_mut().push(LogicError::undeclared_model(
                     42,
-                    borrowed_host.identifier().clone(),
+                    parent.identifier().clone(),
                     local_name.to_string(),
                     self.design_reference.clone(),
                 ));
@@ -151,7 +152,7 @@ impl TreatmentInstanciation {
                 .errors_mut()
                 .push(LogicError::unexisting_parametric_model(
                     54,
-                    borrowed_host.identifier().clone(),
+                    parent.identifier().clone(),
                     self.descriptor().identifier().clone(),
                     parametric_name.to_string(),
                     self.design_reference.clone(),
@@ -176,11 +177,12 @@ impl TreatmentInstanciation {
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<Arc<RwLock<Parameter>>> {
         let mut result = LogicResult::new_success(());
-        let rc_host = self.host_treatment.upgrade().unwrap();
-        let host = rc_host.read().unwrap();
 
+        let host_descriptor = self.host_descriptor.upgrade().unwrap();
         let parameter = Parameter::new(
             &(self.host_treatment.upgrade().unwrap() as Arc<RwLock<dyn Scope>>),
+            &host_descriptor.as_parameterized(),
+            self.host_id.clone(),
             &self.descriptor().as_parameterized(),
             name,
             design_reference.clone(),
@@ -195,7 +197,7 @@ impl TreatmentInstanciation {
             result = result.and_degrade_failure(LogicResult::new_failure(
                 LogicError::multiple_parameter_assignation(
                     26,
-                    host.identifier().clone(),
+                    self.host_id.clone(),
                     self.descriptor().identifier().clone(),
                     self.name.clone(),
                     design_reference.clone(),
@@ -206,7 +208,7 @@ impl TreatmentInstanciation {
         if !self.descriptor().parameters().contains_key(name) {
             result.errors_mut().push(LogicError::unexisting_parameter(
                 11,
-                host.identifier().clone(),
+                self.host_id.clone(),
                 self.descriptor().identifier().clone(),
                 self.name.clone(),
                 design_reference.clone(),
@@ -283,7 +285,11 @@ impl TreatmentInstanciation {
         }
 
         for (param_name, local_name) in &self.models {
-            result = result.and_degrade_failure(self.check_model(param_name, local_name));
+            result = result.and_degrade_failure(self.check_model(
+                &borrowed_host,
+                param_name,
+                local_name,
+            ));
         }
 
         // Check if all models are filled

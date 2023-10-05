@@ -497,7 +497,7 @@ impl Repository {
             .iter()
             .find(|p| p.name == package.name && p.version == package.version)
         {
-            let mut path = self.packages_path();
+            let mut path = self.config.repository_location.clone();
             path.push(package.get_path());
             path.push("package.json");
             fs::read_to_string(path)
