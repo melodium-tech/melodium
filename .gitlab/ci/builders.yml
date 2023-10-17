@@ -3,7 +3,7 @@
 # Builders follows syntax [host os]/[target triple]
 
 .host:debian:
-  image: rust:1.71-bullseye
+  image: rust:1.73-bullseye
 
 .host:windows:
   tags:
@@ -141,6 +141,16 @@
    - rustc --version
    - cargo --version
 
+.builder:linux:wasm32-unknown-unknown:
+  extends:
+    - .host:debian
+    - .cache:cargo
+  before_script:
+    - rustup target add wasm32-unknown-unknown
+    - export CARGO_BUILD_TARGET=wasm32-unknown-unknown
+    - rustc --version
+    - cargo --version 
+
 .builder:linux:x86_64-apple-darwin:
   extends:
     - .host:debian
@@ -262,7 +272,7 @@
       if [ ! -f .cargo/bin/xwin ]
       then
         cargo install xwin --locked
-        xwin --accept-license --arch x86_64 --cache-dir ./.xwin-cache splat --output $CI_PROJECT_DIR/.xwin
+        xwin --accept-license --manifest-version 16 --arch x86_64 --cache-dir ./.xwin-cache splat --output $CI_PROJECT_DIR/.xwin
       fi
     - export CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS="-Ctarget-feature=+crt-static -Lnative=$CI_PROJECT_DIR/.xwin/crt/lib/x86_64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/um/x86_64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/ucrt/x86_64"
     - export CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=lld
@@ -309,7 +319,7 @@
       if [ ! -f .cargo/bin/xwin ]
       then
         cargo install xwin --locked
-        xwin --accept-license --arch x86 --cache-dir ./.xwin-cache splat --output $CI_PROJECT_DIR/.xwin
+        xwin --accept-license --manifest-version 16 --arch x86 --cache-dir ./.xwin-cache splat --output $CI_PROJECT_DIR/.xwin
       fi
     - export CARGO_TARGET_I686_PC_WINDOWS_MSVC_RUSTFLAGS="-Ctarget-feature=+crt-static -Lnative=$CI_PROJECT_DIR/.xwin/crt/lib/x86 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/um/x86 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/ucrt/x86"
     - export CARGO_TARGET_I686_PC_WINDOWS_MSVC_LINKER=lld
@@ -344,7 +354,7 @@
       if [ ! -f .cargo/bin/xwin ]
       then
         cargo install xwin --locked
-        xwin --accept-license --arch aarch64 --cache-dir ./.xwin-cache splat --output $CI_PROJECT_DIR/.xwin
+        xwin --accept-license --manifest-version 16 --arch aarch64 --cache-dir ./.xwin-cache splat --output $CI_PROJECT_DIR/.xwin
       fi
     - export CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_RUSTFLAGS="-Ctarget-feature=+crt-static -Lnative=$CI_PROJECT_DIR/.xwin/crt/lib/aarch64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/um/aarch64 -Lnative=$CI_PROJECT_DIR/.xwin/sdk/lib/ucrt/aarch64"
     - export CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER=lld

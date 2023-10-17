@@ -20,7 +20,7 @@ pub use future::ContinuousFuture;
 pub use future::TrackFuture;
 pub use input::Input;
 pub use model::{Model, ModelId};
-pub use output::Output;
+pub use output::{Output, Outputs};
 pub use result_status::ResultStatus;
 pub use transmission::{RecvResult, SendResult, TransmissionError};
 pub use treatment::Treatment;

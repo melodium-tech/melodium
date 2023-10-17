@@ -298,6 +298,7 @@ impl Clone for Treatment {
     fn clone(&self) -> Self {
         Self {
             identifier: self.identifier.clone(),
+            #[cfg(feature = "doc")]
             documentation: self.documentation.clone(),
             models: self.models.clone(),
             parameters: self.parameters.clone(),

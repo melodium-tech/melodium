@@ -5,19 +5,44 @@
       allow_failure: true
     - if: ( $CI_COMMIT_TAG )
 
+.build-debug:
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
+    - if: $BUILD_DEBUG == "true"
+      allow_failure: true
+    - if: $TEST == "true"
+      allow_failure: true
+
+.build-testers:
+  needs: []
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
+    - if: $TEST == "true"
+      allow_failure: true
+    - if: ( $CI_COMMIT_TAG )
+
+.run-tests:
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
+    - if: $TEST == "true"
+      allow_failure: true
+    - if: ( $CI_COMMIT_TAG )
+
 .check-builds:
   rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
     - if: $CHECK == "true"
 
 .build-packages:
   rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
     - if: $BUILD_PACKAGES == "true"
       allow_failure: true
     - if: $RELEASE_PACKAGES == "true"
-    #- if: ( $CI_COMMIT_TAG )
+    - if: ( $CI_COMMIT_TAG )
 
 .release-packages:
   rules:
     - if: $RELEASE_PACKAGES == "true"
-    #- if: ( $CI_COMMIT_TAG )
+    - if: ( $CI_COMMIT_TAG )
     

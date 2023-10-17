@@ -80,8 +80,8 @@ impl HttpServer {
                     .new_failed_binding(
                         None,
                         Some(Box::new(|mut outputs| {
-                            let error = outputs.remove("error").unwrap();
-                            let failure = outputs.remove("failure").unwrap();
+                            let error = outputs.get("error");
+                            let failure = outputs.get("failure");
 
                             vec![Box::new(Box::pin(async move {
                                 let _ = error.send_one_string(err.to_string()).await;
@@ -123,9 +123,9 @@ impl HttpServer {
                 None,
                 http_request,
                 Some(Box::new(|mut outputs| {
-                    let data = outputs.remove("data").unwrap();
-                    let success = outputs.remove("success").unwrap();
-                    let failure = outputs.remove("failure").unwrap();
+                    let data = outputs.get("data");
+                    let success = outputs.get("success");
+                    let failure = outputs.get("failure");
 
                     vec![Box::new(Box::pin(Self::read_body(
                         request, data, success, failure,

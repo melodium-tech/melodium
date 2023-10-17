@@ -109,3 +109,31 @@ packaging:zips:
     expire_in: 1 day
     reports:
       dotenv: variables.env
+
+packaging:packages:repo:
+  stage: packaging
+  extends: 
+    - .build-packages
+    - .builder:linux:x86_64-unknown-linux-gnu
+  needs:
+    - job: build:packages:release:wasm32-unknown-unknown
+      artifacts: true
+  script:
+    - cargo build --package melodium-repository --features cargo --bin melodium-repository
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        target/x86_64-unknown-linux-gnu/debug/melodium-repository $CI_PROJECT_DIR/repo $PACKAGE $CI_PROJECT_DIR/libs/$PACKAGE-mel/Cargo.toml \
+          wasm32-unknown-unknown:real:target/wasm32-unknown-unknown/release/${PACKAGE}_mel.wasm:$(sha256sum target/wasm32-unknown-unknown/release/${PACKAGE}_mel.wasm | cut -d ' ' -f 1) 
+      done
+    - VERSION=${CI_COMMIT_TAG}
+    - VERSION=${VERSION:-$CI_COMMIT_SHORT_SHA}
+    - VERSION=$(echo $VERSION | sed 's/^v//')
+    - echo "VERSION=$VERSION" >> variables.env
+  artifacts:
+    paths:
+      - repo/*
+    expire_in: 1 day
+    reports:
+      dotenv: variables.env
+      

@@ -128,3 +128,23 @@ release:publish:doc:
     - ssh-keyscan "$DOC_RELEASE_PUBLISH_SERVER" >> ~/.ssh/known_hosts
     - mv reference "$VERSION"
     - SSHPASS="$DOC_RELEASE_PUBLISH_PASSWORD" sshpass -e rsync -a "$VERSION" "$DOC_RELEASE_PUBLISH_USER@$DOC_RELEASE_PUBLISH_SERVER:$DOC_RELEASE_PUBLISH_DIRECTORY"
+
+release:publish:packages:
+  stage: release
+  image: debian:bullseye
+  extends:
+    - .release-packages
+  variables:
+    GIT_STRATEGY: none
+  needs:
+    - job: packaging:packages:repo
+      artifacts: true
+  before_script:
+    - apt-get update
+    - apt-get install -y rsync sshpass
+  script:
+    - mkdir ~/.ssh
+    - ssh-keyscan "$PACKAGES_REPO_RELEASE_PUBLISH_SERVER" >> ~/.ssh/known_hosts
+    - mv repo "$VERSION"
+    - SSHPASS="$PACKAGES_REPO_RELEASE_PUBLISH_PASSWORD" sshpass -e rsync -a "$VERSION" "$PACKAGES_REPO_RELEASE_PUBLISH_USER@$PACKAGES_REPO_RELEASE_PUBLISH_SERVER:$PACKAGES_REPO_RELEASE_PUBLISH_DIRECTORY"
+

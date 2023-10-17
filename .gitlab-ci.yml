@@ -2,11 +2,13 @@
 include:
   - local: /.gitlab/ci/builds.yml
   - local: /.gitlab/ci/checks.yml
-  - local: /.gitlab/ci/libs.yml
   - local: /.gitlab/ci/tests.yml
   - local: /.gitlab/ci/docs.yml
   - local: /.gitlab/ci/packaging.yml
   - local: /.gitlab/ci/releases.yml
+
+variables:
+  PACKAGES: conv encoding engine flow fs http javascript json ops regex text type
 
 workflow:
   rules:

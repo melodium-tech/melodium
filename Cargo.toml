@@ -24,6 +24,9 @@ members = [
     "melodium-macro",
     "melodium-repository",
     ]
+exclude = [
+    "tests/*"
+    ]
 
 [profile.release]
 strip = true

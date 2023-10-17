@@ -1269,7 +1269,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 pub async fn #fn_name(&self,
                         parent_track: Option<melodium_core::common::executive::TrackId>,
                         #param_contextes
-                        callback: Option<Box<dyn FnOnce(std::collections::HashMap<String, Box<dyn melodium_core::common::executive::Output>>) -> Vec<melodium_core::common::executive::TrackFuture> + Send>>
+                        callback: Option<Box<dyn FnOnce(Box<melodium_core::common::executive::Outputs>) -> Vec<melodium_core::common::executive::TrackFuture> + Send>>
                     ) {
                     self.world.create_track(
                         self.id().unwrap(),

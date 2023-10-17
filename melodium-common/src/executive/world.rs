@@ -1,12 +1,10 @@
-use crate::executive::{Context, ContinuousFuture, ModelId, Output, TrackFuture};
+use crate::executive::{Context, ContinuousFuture, ModelId, Outputs, TrackFuture};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 pub type TrackId = usize;
-pub type TrackCreationCallback =
-    Box<dyn FnOnce(HashMap<String, Box<dyn Output>>) -> Vec<TrackFuture> + Send>;
+pub type TrackCreationCallback = Box<dyn FnOnce(Box<dyn Outputs>) -> Vec<TrackFuture> + Send>;
 
 #[async_trait]
 pub trait World: Debug + Send + Sync {

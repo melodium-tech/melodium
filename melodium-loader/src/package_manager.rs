@@ -2,7 +2,6 @@
 
 use crate::package;
 use crate::package::{Package, PackageTrait};
-use libloading::{Library, Symbol};
 use melodium_common::descriptor::{
     LoadingError, LoadingResult, Package as CommonPackage, PackageRequirement,
 };
@@ -13,12 +12,6 @@ use melodium_repository::{
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-
-fn global_libraries() -> &'static Mutex<HashMap<PathBuf, Arc<Library>>> {
-    static LIBRARIES: once_cell::sync::OnceCell<Mutex<HashMap<PathBuf, Arc<Library>>>> =
-        once_cell::sync::OnceCell::new();
-    LIBRARIES.get_or_init(|| Mutex::new(HashMap::new()))
-}
 
 #[derive(Debug)]
 pub struct PackageManagerConfiguration {
@@ -343,70 +336,11 @@ impl PackageManager {
     }
 
     fn inspect_library_file(&self, path: &PathBuf) -> LoadingResult<Option<Arc<Package>>> {
-        type FunctionMelodiumPackage =
-            unsafe fn() -> *const dyn melodium_common::descriptor::Package;
-
-        let lib;
-        {
-            let mut libraries = match global_libraries().lock() {
-                Ok(lock) => lock,
-                Err(err_lock) => err_lock.into_inner(),
-            };
-            lib = match libraries.entry(path.clone()) {
-                std::collections::hash_map::Entry::Occupied(o) => Arc::clone(o.get()),
-                std::collections::hash_map::Entry::Vacant(v) => {
-                    let lib;
-                    unsafe {
-                        lib = match Library::new(path) {
-                            Ok(lib) => lib,
-                            Err(err) => {
-                                self.found_packages
-                                    .lock()
-                                    .unwrap()
-                                    .insert(path.clone(), None);
-                                return LoadingResult::new_failure(
-                                    LoadingError::library_loading_error(
-                                        219,
-                                        path.clone(),
-                                        format!("Dynamic library file cannot be loaded: {err}"),
-                                    ),
-                                );
-                            }
-                        };
-                    }
-                    Arc::clone(v.insert(Arc::new(lib)))
-                }
-            };
-        }
-
-        let package;
-        unsafe {
-            let package_call: Symbol<FunctionMelodiumPackage> = match lib.get(b"melodium_package") {
-                Ok(call) => call,
-                Err(err) => {
-                    self.found_packages
-                        .lock()
-                        .unwrap()
-                        .insert(path.clone(), None);
-                    return LoadingResult::new_failure(LoadingError::library_loading_error(
-                        221,
-                        path.clone(),
-                        format!("Dynamic library does not provide a Mélodium package: {err}"),
-                    ));
-                }
-            };
-
-            package = Arc::new(Package::Core(package::CorePackage::new(Arc::from_raw(
-                package_call(),
-            ))));
-        }
-
-        self.found_packages
-            .lock()
-            .unwrap()
-            .insert(path.clone(), Some(package.clone()));
-
-        LoadingResult::new_success(Some(package))
+        LoadingResult::new_failure(LoadingError::library_loading_error(
+            221,
+            path.clone(),
+            "Library files not supported yet".to_string(),
+        ))
     }
 
     pub fn add_raw_package(&self, raw: Arc<Vec<u8>>) -> LoadingResult<Arc<Package>> {
