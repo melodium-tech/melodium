@@ -1,0 +1,20 @@
+
+
+.runner:alpine:x86_64:
+  image: alpine:3.18
+
+.runner:debian:x86_64:
+  image: debian:bullseye
+
+.runner:mac:aarch64:
+  tags:
+    - saas-macos-medium-m1
+  image: macos-13-xcode-14
+
+.runner:windows:x86_64:
+  tags:
+    - shared-windows
+    - windows
+    - windows-1809
+
+

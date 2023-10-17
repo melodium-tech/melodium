@@ -11,22 +11,32 @@ For more exhaustive explanations, please refer to [the Mélodium Language book](
 
 Mélodium is _under development_ and continously being defined and improved. Released documentation is available on [docs.rs](https://docs.rs/melodium/latest/melodium/) and standard reference on [melodium.tech](https://doc.melodium.tech/latest/).
 
-## Download & installation
+## Run and execute
 
-Mélodium releases can be downloaded for multiple platforms from the [Mélodium Repository](https://repo.melodium.tech/).
+Please refer to the [Mélodium crate](melodium/) for informations about how to build and run Mélodium.
 
 ## Development
 
 Development channels and related Mélodium stuff are available on [Discord](https://discord.gg/GQmckruKNx).
 
-## Origin
+## Repository organization
 
-Mélodium were first developed during research in signal analysis and musical information retrieval, in need of a tool to manage large amount of records and easily write experimentations, without being concerned of underlying technical operations. It has been presented in [this thesis](https://www.researchgate.net/publication/344327676_Detection_et_classification_des_notes_d'une_piste_audio_musicale) (in French).
+### melodium-*
 
-The first implementation was in C++ and ran well on high performance computers, such as those of Compute Canada. That tool appeared to be really useful, and the concepts used within its configuration language to deserve more attention. This first experimental design is still available at <https://gitlab.com/qvignaud/Melodium>.
+Those folders corresponds to the different crates composing the Mélodium main program.
+They follow the cargo pattern with internal `src/`, `tests/`, etc. They only contains Rust code.
 
-The current project is the continuation of that work, rewritten from ground in Rust, and redesigned with a general approach of massively multithreaded data flows in mind.
+### libs/*-mel
 
+Those sub-folders each correspond to a standard Mélodium library/package.
+While they are technically Rust libraries, they don't make sense without Mélodium context, so the `-mel` suffix is added.
+They can contain both Rust and Mélodium code (located in `mel/`); apart from that, they are usual Rust crates.
+
+### tests
+
+Here are Mélodium integration tests.
+Those tests are managed by crates in `testers/` subfolder, and are living in their own workspace.
+They should not rely directly on any Mélodium Rust implementation, and only use it as external executable.
 
 ## Licence
 

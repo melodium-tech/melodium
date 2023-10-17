@@ -251,6 +251,7 @@ impl Clone for Model {
     fn clone(&self) -> Self {
         Self {
             identifier: self.identifier.clone(),
+            #[cfg(feature = "doc")]
             documentation: self.documentation.clone(),
             base_model: self.base_model.clone(),
             parameters: self.parameters.clone(),

@@ -6,7 +6,7 @@ use crate::building::{
 };
 use crate::engine::Engine;
 use crate::error::{LogicError, LogicErrors, LogicResult};
-use crate::transmission::{Input, Output};
+use crate::transmission::{Input, Output, Outputs};
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::sync::Mutex;
 use async_std::task::block_on;
@@ -20,8 +20,7 @@ use melodium_common::descriptor::{
 };
 use melodium_common::executive::{
     Context as ExecutiveContext, ContinuousFuture, Input as ExecutiveInput, Model, ModelId,
-    Output as ExecutiveOutput, ResultStatus, TrackCreationCallback, TrackFuture, TrackId,
-    World as ExecutiveWorld,
+    ResultStatus, TrackCreationCallback, TrackFuture, TrackId, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
@@ -445,12 +444,7 @@ impl ExecutiveWorld for World {
         }
 
         let model_futures = if let Some(callback) = callback {
-            callback(
-                outputs
-                    .into_iter()
-                    .map(|(name, output)| (name, Box::new(output) as Box<dyn ExecutiveOutput>))
-                    .collect(),
-            )
+            callback(Box::new(Outputs::new(outputs)))
         } else {
             Vec::new()
         };

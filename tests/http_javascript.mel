@@ -1,0 +1,50 @@
+#!/usr/bin/env melodium
+#! name = http_javascript
+#! version = 0.7.0
+#! require = http:0.7.0 flow:0.7.0 javascript:0.7.0 encoding:0.7.0
+
+use http/server::HttpServer
+use http/server::connection
+use flow/u16::emit
+use flow/byte::trigger
+use encoding::decode
+use encoding::encode
+use javascript::JavaScriptEngine
+use javascript::process
+
+treatment main()
+  model server: HttpServer(
+    routes=["/"],
+    bind="localhost:62333"
+  )
+{
+    connection[http_server=server]()
+    status: emit(value=200)
+    trigger()
+    
+    connection.data -> trigger.stream,start -> status.trigger,emit -> connection.status
+    
+    decode()
+    js_function()
+    encode()
+    
+    connection.data -> decode.data,text ->  js_function.data,data -> encode.text,data -> connection.data
+}
+
+model JsEngine(): JavaScriptEngine {
+    code = "function greet(someone) {
+    return {
+        response: `Hello ${someone}!`,
+        ps: \"Thanks for contacting me :D\"}
+    }"
+}
+
+treatment js_function()
+  model JsEngine: JsEngine()
+  input data: Stream<string>
+  output data: Stream<string>
+{
+    process[engine=JsEngine](code="greet(value)")
+    
+    Self.data -> process.value,result -> Self.data
+}

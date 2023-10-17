@@ -1,0 +1,38 @@
+#!/usr/bin/env melodium
+#! name = fs_test
+#! version = 0.7.0
+#! require = flow:0.7.0
+#! require = engine:0.7.0
+#! require = conv:0.7.0
+#! require = fs:0.7.0
+
+use engine/util::startup
+use flow/void::generate
+use flow/void::count
+use conv/u128::toByte
+use flow/vec/byte::flatten
+use flow/u128::emit as emitLength
+use flow/string::emit
+use fs/file::write
+
+treatment main() {
+    
+    startup()
+    emitLength(value=128000)
+    generate()
+    
+    startup.trigger -> emitLength.trigger,emit -> generate.length
+    
+    count()
+    toByte()
+    flatten()
+    
+    generate.stream -> count.stream,count -> toByte.value,data -> flatten.vector
+    
+    emit(value="./fs_try.data")
+    write()
+    
+    startup.trigger -> emit.trigger,emit -> write.path
+    flatten.value -> write.data
+    
+}

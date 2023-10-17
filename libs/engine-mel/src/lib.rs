@@ -28,7 +28,7 @@ impl Engine {
             .new_ready(
                 None,
                 Some(Box::new(|mut outputs| {
-                    let trigger = outputs.remove("trigger").unwrap();
+                    let trigger = outputs.get("trigger");
 
                     vec![Box::new(Box::pin(Self::ready(trigger)))]
                 })),

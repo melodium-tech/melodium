@@ -15,6 +15,175 @@ build:debug:x86_64-unknown-linux-gnu:
       - target/x86_64-unknown-linux-gnu/debug/melodium
     expire_in: 1 hour
 
+build:debug:x86_64-unknown-linux-musl:
+  stage: build
+  extends:
+    - .build-debug
+    - .builder:linux:x86_64-unknown-linux-musl
+  script:
+    - cargo build --package melodium --locked
+    - ls target/x86_64-unknown-linux-musl/debug
+  artifacts:
+    paths:
+      - target/x86_64-unknown-linux-musl/debug/melodium
+    expire_in: 1 hour
+
+build:debug:i686-unknown-linux-gnu:
+  stage: build
+  extends:
+    - .build-debug
+    - .builder:linux:i686-unknown-linux-gnu
+  script:
+    - cargo build --package melodium --locked
+    - ls target/i686-unknown-linux-gnu/debug
+  artifacts:
+    paths:
+      - target/i686-unknown-linux-gnu/debug/melodium
+    expire_in: 1 hour
+
+build:debug:i686-unknown-linux-musl:
+  stage: build
+  extends:
+    - .build-debug
+    - .builder:linux:i686-unknown-linux-musl
+  script:
+   - cargo build --package melodium --locked
+   - ls target/i686-unknown-linux-musl/debug
+  artifacts:
+    paths:
+      - target/i686-unknown-linux-musl/debug/melodium
+    expire_in: 1 hour
+
+build:debug:aarch64-unknown-linux-gnu:
+  stage: build
+  extends:
+    - .build-debug
+    - .builder:linux:aarch64-unknown-linux-gnu
+  script:
+   - cargo build --package melodium --locked
+   - ls target/aarch64-unknown-linux-gnu/debug
+  artifacts:
+    paths:
+      - target/aarch64-unknown-linux-gnu/debug/melodium
+    expire_in: 1 hour
+
+build:debug:aarch64-unknown-linux-musl:
+  stage: build
+  extends:
+    - .build-debug
+    - .builder:linux:aarch64-unknown-linux-musl
+  script:
+   - cargo build --package melodium --locked
+   - ls target/aarch64-unknown-linux-musl/debug
+  artifacts:
+    paths:
+      - target/aarch64-unknown-linux-musl/debug/melodium
+    expire_in: 1 hour
+
+build:debug:x86_64-apple-darwin:
+  stage: build
+  extends:
+    - .build-debug
+    - .builder:linux:x86_64-apple-darwin
+  script:
+   - cargo build --package melodium --locked
+   - ls target/x86_64-apple-darwin/debug
+  artifacts:
+    paths:
+      - target/x86_64-apple-darwin/debug/melodium
+    expire_in: 1 hour
+
+# build:debug:i686-apple-darwin:
+#   stage: build
+#   extends:
+#     - .build-debug
+#     - .builder:linux:i686-apple-darwin
+#   script:
+#    - xargo build --package melodium--target i686-apple-darwin
+#    - ls target/i686-apple-darwin/debug
+#   artifacts:
+#     paths:
+#       - target/i686-apple-darwin/debug/melodium
+#     expire_in: 1 hour
+
+build:debug:aarch64-apple-darwin:
+  stage: build
+  extends:
+    - .build-debug
+    - .builder:linux:aarch64-apple-darwin
+  script:
+    - cargo build --package melodium --locked
+    - ls target/aarch64-apple-darwin/debug
+  artifacts:
+    paths:
+      - target/aarch64-apple-darwin/debug/melodium
+    expire_in: 1 hour
+
+build:debug:x86_64-pc-windows-gnu:
+  stage: build
+  extends:
+    - .build-debug
+    - .builder:linux:x86_64-pc-windows-gnu
+  script:
+    - cargo build --package melodium --locked
+    - ls target/x86_64-pc-windows-gnu/debug
+  artifacts:
+    paths:
+      - target/x86_64-pc-windows-gnu/debug/melodium.exe
+    expire_in: 1 hour
+
+build:debug:x86_64-pc-windows-msvc:
+  stage: build
+  extends:
+    - .build-debug
+    - .builder:linux:x86_64-pc-windows-msvc
+  script:
+    - cargo build --package melodium --locked
+    - ls target/x86_64-pc-windows-msvc/debug
+  artifacts:
+    paths:
+      - target/x86_64-pc-windows-msvc/debug/melodium.exe
+    expire_in: 1 hour
+
+build:debug:i686-pc-windows-gnu:
+  stage: build
+  extends:
+    - .build-debug
+    - .builder:linux:i686-pc-windows-gnu
+  script:
+    - cargo build --package melodium --locked
+    - ls target/i686-pc-windows-gnu/debug
+  artifacts:
+    paths:
+      - target/i686-pc-windows-gnu/debug/melodium.exe
+    expire_in: 1 hour
+
+build:debug:i686-pc-windows-msvc:
+  stage: build
+  extends:
+    - .build-debug
+    - .builder:linux:i686-pc-windows-msvc
+  script:
+    - cargo build --package melodium --locked
+    - ls target/i686-pc-windows-msvc/debug
+  artifacts:
+    paths:
+      - target/i686-pc-windows-msvc/debug/melodium.exe
+    expire_in: 1 hour
+
+build:debug:aarch64-pc-windows-msvc:
+  stage: build
+  extends:
+    - .build-debug
+    - .builder:linux:aarch64-pc-windows-msvc
+  script:
+    - cargo build --package melodium --locked
+    - ls target/aarch64-pc-windows-msvc/debug
+  artifacts:
+    paths:
+      - target/aarch64-pc-windows-msvc/debug/melodium.exe
+    expire_in: 1 hour
+
 build:release:x86_64-unknown-linux-gnu:
   stage: build
   extends:
@@ -197,3 +366,27 @@ build:release:aarch64-pc-windows-msvc:
       - target/aarch64-pc-windows-msvc/release/melodium.exe
     expire_in: 1 hour
 
+build:packages:release:wasm32-unknown-unknown:
+  stage: build
+  extends: 
+    - .build-packages
+    - .builder:linux:wasm32-unknown-unknown
+  script:
+    - export RUSTFLAGS="$RUSTFLAGS"
+    - |
+      for PACKAGE in $PACKAGES
+      do
+        if cargo build --package $PACKAGE-mel --features plugin --locked --release 
+        then
+          echo $PACKAGE compiled
+        else
+          echo $PACKAGE failed
+          mkdir --parents target/wasm32-unknown-unknown/release
+          touch target/wasm32-unknown-unknown/release/${PACKAGE}_mel.wasm
+        fi
+      done
+    - ls target/wasm32-unknown-unknown/release
+  artifacts:
+    paths:
+      - target/wasm32-unknown-unknown/release/*_mel.wasm
+    expire_in: 1 day
