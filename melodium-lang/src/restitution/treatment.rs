@@ -1,9 +1,10 @@
 use super::value::value;
+use itertools::Itertools;
 use melodium_common::descriptor::{
     Documented, Identified, Identifier, Parameterized, Treatment as TreatmentDescriptor,
 };
 use melodium_engine::design::{Connection, Treatment as TreatmentDesign, IO};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 pub struct Treatment {
     design: TreatmentDesign,
@@ -42,7 +43,7 @@ impl Treatment {
         &self.uses
     }
 
-    pub fn implementation(&self, names: &HashMap<Identifier, String>) -> String {
+    pub fn implementation(&self, names: &BTreeMap<Identifier, String>) -> String {
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
         let mut implementation = format!(
@@ -65,6 +66,7 @@ impl Treatment {
                 &descriptor
                     .models()
                     .iter()
+                    .sorted_by_key(|(k, _)| *k)
                     .map(|(name, model)| {
                         format!("{name}: {id}", id = names.get(model.identifier()).unwrap())
                     })
@@ -81,6 +83,7 @@ impl Treatment {
             &descriptor
                 .parameters()
                 .iter()
+                .sorted_by_key(|(k, _)| *k)
                 .map(|(_, param)| param.to_string())
                 .collect::<Vec<_>>()
                 .join(", "),
@@ -88,25 +91,30 @@ impl Treatment {
 
         implementation.push_str(")\n");
 
-        for (_, context) in descriptor.contexts() {
+        for (_, context) in descriptor.contexts().iter().sorted_by_key(|(k, _)| *k) {
             implementation.push_str("  require ");
             implementation.push_str(names.get(context.identifier()).unwrap());
             implementation.push_str("\n");
         }
 
-        for (_, input) in descriptor.inputs() {
+        for (_, input) in descriptor.inputs().iter().sorted_by_key(|(k, _)| *k) {
             implementation.push_str("  input ");
             implementation.push_str(&input.to_string());
             implementation.push_str("\n");
         }
 
-        for (_, output) in descriptor.outputs() {
+        for (_, output) in descriptor.outputs().iter().sorted_by_key(|(k, _)| *k) {
             implementation.push_str("  output ");
             implementation.push_str(&output.to_string());
             implementation.push_str("\n");
         }
 
-        for (_, model) in &self.design.model_instanciations {
+        for (_, model) in self
+            .design
+            .model_instanciations
+            .iter()
+            .sorted_by_key(|(k, _)| *k)
+        {
             implementation.push_str("  model ");
             implementation.push_str(&model.name);
             implementation.push_str(": ");
@@ -122,6 +130,7 @@ impl Treatment {
                 &model
                     .parameters
                     .iter()
+                    .sorted_by_key(|(k, _)| *k)
                     .map(|(_, param)| {
                         format!(
                             "{name} = {value}",
@@ -138,7 +147,7 @@ impl Treatment {
 
         implementation.push_str("{\n");
 
-        for (_, instanciation) in &self.design.treatments {
+        for (_, instanciation) in self.design.treatments.iter().sorted_by_key(|(k, _)| *k) {
             implementation.push_str("    ");
             implementation.push_str(&instanciation.name);
 

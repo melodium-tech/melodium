@@ -6,13 +6,13 @@ use melodium_common::descriptor::{
     Collection, Entry, Identifier, ModelBuildMode, TreatmentBuildMode,
 };
 use melodium_engine::descriptor::{Model as ModelDescriptor, Treatment as TreatmentDescriptor};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::BTreeMap, sync::Arc};
 
 pub struct Area {
     path: Path,
     collection: Arc<Collection>,
     owned_ids: Vec<Identifier>,
-    uses_names: HashMap<Identifier, String>,
+    uses_names: BTreeMap<Identifier, String>,
     models: Vec<Model>,
     treatments: Vec<Treatment>,
 }
@@ -104,7 +104,7 @@ impl Area {
         needs.sort();
         needs.dedup();
 
-        let mut names: HashMap<Identifier, String> = needs
+        let mut names: BTreeMap<Identifier, String> = needs
             .iter()
             .map(|id| (id.clone(), id.name().to_string()))
             .collect();
@@ -148,7 +148,7 @@ impl Area {
         &self.owned_ids
     }
 
-    pub fn uses_names(&self) -> &HashMap<Identifier, String> {
+    pub fn uses_names(&self) -> &BTreeMap<Identifier, String> {
         &self.uses_names
     }
 

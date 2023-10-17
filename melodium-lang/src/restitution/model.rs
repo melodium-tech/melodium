@@ -1,8 +1,9 @@
+use itertools::Itertools;
 use melodium_common::descriptor::{
     Documented, Identified, Identifier, Model as ModelDescriptor, Parameterized,
 };
 use melodium_engine::design::Model as ModelDesign;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use super::value::value;
 pub struct Model {
@@ -26,7 +27,7 @@ impl Model {
         &self.uses
     }
 
-    pub fn implementation(&self, names: &HashMap<Identifier, String>) -> String {
+    pub fn implementation(&self, names: &BTreeMap<Identifier, String>) -> String {
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
         let mut implementation = format!(
@@ -48,6 +49,7 @@ impl Model {
             &descriptor
                 .parameters()
                 .iter()
+                .sorted_by_key(|(k, _)| *k)
                 .map(|(_, param)| param.to_string())
                 .collect::<Vec<_>>()
                 .join(", "),
@@ -55,7 +57,7 @@ impl Model {
 
         implementation.push_str(")\n{\n");
 
-        for (_, param) in &self.design.parameters {
+        for (_, param) in self.design.parameters.iter().sorted_by_key(|(k, _)| *k) {
             implementation.push_str("    ");
             implementation.push_str(&param.name);
             implementation.push_str(" = ");

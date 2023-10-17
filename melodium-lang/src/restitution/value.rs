@@ -1,8 +1,8 @@
 use melodium_common::descriptor::Identifier;
 use melodium_engine::designer::Value;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
-pub fn value(value: &Value, names: &HashMap<Identifier, String>) -> String {
+pub fn value(value: &Value, names: &BTreeMap<Identifier, String>) -> String {
     match value {
         Value::Raw(val) => val.to_string(),
         Value::Variable(var) => var.clone(),
