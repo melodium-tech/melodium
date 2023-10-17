@@ -1,4 +1,4 @@
-use melodium_common::descriptor::{Collection, Identifier};
+use melodium_common::descriptor::{Collection, Entry, Identifier, Model, Treatment};
 pub use melodium_lang::ScriptResult;
 use melodium_lang::{semantic::Tree as SemanticTree, text::Script as TextScript, Path};
 use std::sync::{Arc, Mutex};
@@ -86,12 +86,18 @@ impl Script {
 
         for (_, model) in &self.semantic.script.read().unwrap().models {
             let model = model.read().unwrap();
-            result = result.and_degrade_failure(model.make_descriptor(collection));
+            if let Some(model) = result.merge_degrade_failure(model.make_descriptor(collection)) {
+                collection.insert(Entry::Model(model as Arc<dyn Model>));
+            }
         }
 
         for (_, treatment) in &self.semantic.script.read().unwrap().treatments {
             let treatment = treatment.read().unwrap();
-            result = result.and_degrade_failure(treatment.make_descriptor(collection));
+            if let Some(treatment) =
+                result.merge_degrade_failure(treatment.make_descriptor(collection))
+            {
+                collection.insert(Entry::Treatment(treatment as Arc<dyn Treatment>));
+            }
         }
 
         if result.is_success() {

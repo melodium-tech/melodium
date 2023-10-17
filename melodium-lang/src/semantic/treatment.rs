@@ -15,9 +15,7 @@ use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Treatment as TextTreatment;
 use crate::ScriptResult;
-use melodium_common::descriptor::{
-    Collection, Entry, Identified, Identifier, Treatment as TreatmentTrait,
-};
+use melodium_common::descriptor::{Collection, Entry, Identified, Identifier};
 use melodium_engine::descriptor::Treatment as TreatmentDescriptor;
 use melodium_engine::designer::Treatment as TreatmentDesigner;
 use melodium_engine::LogicError;
@@ -230,7 +228,10 @@ impl Treatment {
             .find(|&t| t.read().unwrap().name == name)
     }
 
-    pub fn make_descriptor(&self, collection: &mut Collection) -> ScriptResult<()> {
+    pub fn make_descriptor(
+        &self,
+        collection: &Collection,
+    ) -> ScriptResult<Arc<TreatmentDescriptor>> {
         let mut result = ScriptResult::new_success(());
         let mut descriptor = TreatmentDescriptor::new(self.identifier.as_ref().unwrap().clone());
 
@@ -350,17 +351,13 @@ impl Treatment {
             }
         }
 
-        if result.is_success() {
+        result.and_then(|_| {
             let descriptor = descriptor.commit();
 
-            collection.insert(Entry::Treatment(
-                Arc::clone(&descriptor) as Arc<dyn TreatmentTrait>
-            ));
+            *self.descriptor.write().unwrap() = Some(descriptor.clone());
 
-            *self.descriptor.write().unwrap() = Some(descriptor);
-        }
-
-        result
+            ScriptResult::new_success(descriptor)
+        })
     }
 
     pub fn make_design(&self, collection: &Arc<Collection>) -> ScriptResult<()> {

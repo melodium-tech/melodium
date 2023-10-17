@@ -12,7 +12,7 @@ use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Model as TextModel;
 use crate::ScriptResult;
-use melodium_common::descriptor::{Collection, Entry, Identifier, Model as ModelTrait};
+use melodium_common::descriptor::{Collection, Entry, Identifier};
 use melodium_engine::descriptor::Model as ModelDescriptor;
 use melodium_engine::designer::Model as ModelDesigner;
 use melodium_engine::LogicError;
@@ -109,7 +109,7 @@ impl Model {
         result
     }
 
-    pub fn make_descriptor(&self, collection: &mut Collection) -> ScriptResult<()> {
+    pub fn make_descriptor(&self, collection: &Collection) -> ScriptResult<Arc<ModelDescriptor>> {
         let (type_identifier, _position) = match &self.r#type {
             RefersTo::Model(m) => (
                 m.reference
@@ -184,15 +184,13 @@ impl Model {
                 }
             }
 
-            if result.is_success() {
+            result.and_then(|_| {
                 let descriptor = descriptor.commit();
 
-                collection.insert(Entry::Model(Arc::clone(&descriptor) as Arc<dyn ModelTrait>));
+                *self.descriptor.write().unwrap() = Some(descriptor.clone());
 
-                *self.descriptor.write().unwrap() = Some(descriptor);
-            }
-
-            result
+                ScriptResult::new_success(descriptor)
+            })
         } else {
             ScriptResult::new_failure(
                 LogicError::unexisting_model(
