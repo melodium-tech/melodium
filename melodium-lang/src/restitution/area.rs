@@ -164,6 +164,7 @@ impl Area {
         let mut result = String::new();
         for (id, name) in &self.uses_names {
             if needs.contains(id) {
+                result.push_str("use ");
                 result.push_str(&id.to_string());
                 if name != id.name() {
                     result.push_str(" as ");

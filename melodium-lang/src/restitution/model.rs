@@ -30,18 +30,29 @@ impl Model {
     pub fn implementation(&self, names: &BTreeMap<Identifier, String>) -> String {
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
-        let mut implementation = format!(
-            "/**\n{}*/\n",
-            descriptor
-                .documentation()
-                .lines()
-                .map(|l| format!("\t{l}"))
-                .collect::<Vec<_>>()
-                .join("\n")
-        );
+        let mut implementation = if descriptor.documentation().is_empty() {
+            String::new()
+        } else {
+            format!(
+                "/**{}*/\n",
+                descriptor
+                    .documentation()
+                    .lines()
+                    .map(|l| format!("\t{l}"))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )
+        };
 
         implementation.push_str("model ");
         implementation.push_str(descriptor.identifier().name());
+
+        implementation.push_str(": ");
+        implementation.push_str(
+            names
+                .get(descriptor.base_model().unwrap().identifier())
+                .unwrap(),
+        );
 
         implementation.push_str("(");
 
