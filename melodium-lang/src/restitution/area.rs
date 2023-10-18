@@ -180,8 +180,18 @@ impl Area {
     }
 
     pub fn implementation(&self) -> String {
-        let mut result =
-            self.implementation_needs(self.uses_names.keys().map(|id| id.clone()).collect_vec());
+        let mut result = self.implementation_needs(
+            self.uses_names
+                .keys()
+                .filter_map(|id| {
+                    if self.path.path() != id.path() {
+                        Some(id.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect_vec(),
+        );
 
         for model in &self.models {
             result.push_str(&model.implementation(&self.uses_names));
