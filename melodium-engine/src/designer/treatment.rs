@@ -61,48 +61,51 @@ impl Treatment {
     pub fn import_design(
         &mut self,
         design: &TreatmentDesign,
+        replace: &HashMap<Identifier, Identifier>,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
 
         for (name, model_instanciation_design) in &design.model_instanciations {
+            let model_identifier = model_instanciation_design
+                .descriptor
+                .upgrade()
+                .unwrap()
+                .identifier()
+                .clone();
+            let model_identifier = replace.get(&model_identifier).unwrap_or(&model_identifier);
             if let Some(model_instanciation) = result.merge_degrade_failure(
-                self.add_model_instanciation(
-                    model_instanciation_design
-                        .descriptor
-                        .upgrade()
-                        .unwrap()
-                        .identifier(),
-                    name,
-                    design_reference.clone(),
-                ),
+                self.add_model_instanciation(model_identifier, name, design_reference.clone()),
             ) {
-                result.merge_degrade_failure(
-                    model_instanciation
-                        .write()
-                        .unwrap()
-                        .import_design(model_instanciation_design, &self.collection),
-                );
+                result.merge_degrade_failure(model_instanciation.write().unwrap().import_design(
+                    model_instanciation_design,
+                    &self.collection,
+                    replace,
+                ));
             }
         }
 
         for (name, treatment_instanciation_design) in &design.treatments {
-            if let Some(treatment_instanciation) = result.merge_degrade_failure(
-                self.add_treatment(
-                    treatment_instanciation_design
-                        .descriptor
-                        .upgrade()
-                        .unwrap()
-                        .identifier(),
-                    name,
-                    design_reference.clone(),
-                ),
-            ) {
+            let treatment_identifier = treatment_instanciation_design
+                .descriptor
+                .upgrade()
+                .unwrap()
+                .identifier()
+                .clone();
+            let treatment_identifier = replace
+                .get(&treatment_identifier)
+                .unwrap_or(&treatment_identifier);
+            if let Some(treatment_instanciation) = result.merge_degrade_failure(self.add_treatment(
+                treatment_identifier,
+                name,
+                design_reference.clone(),
+            )) {
                 result.merge_degrade_failure(
-                    treatment_instanciation
-                        .write()
-                        .unwrap()
-                        .import_design(treatment_instanciation_design, &self.collection),
+                    treatment_instanciation.write().unwrap().import_design(
+                        treatment_instanciation_design,
+                        &self.collection,
+                        replace,
+                    ),
                 );
             }
         }

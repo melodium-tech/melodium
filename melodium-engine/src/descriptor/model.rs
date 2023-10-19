@@ -35,6 +35,10 @@ impl Model {
         }
     }
 
+    pub fn set_identifier(&mut self, identifier: Identifier) {
+        self.identifier = identifier;
+    }
+
     pub fn reset_designer(&self) {
         let mut option_designer = self.designer.lock().expect("Mutex poisoned");
         *option_designer = None;
@@ -105,15 +109,22 @@ impl Model {
             .into()
     }
 
-    pub fn update_with_collection(&mut self, collection: &Collection) -> LogicResult<()> {
-        if let Some(Entry::Model(base_model)) = collection.get(self.base_model.identifier()) {
+    pub fn update_with_collection(
+        &mut self,
+        collection: &Collection,
+        replace: &HashMap<Identifier, Identifier>,
+    ) -> LogicResult<()> {
+        let base_identifier = replace
+            .get(self.base_model.identifier())
+            .unwrap_or_else(|| self.base_model.identifier());
+        if let Some(Entry::Model(base_model)) = collection.get(base_identifier) {
             self.base_model = base_model.clone();
             LogicResult::new_success(())
         } else {
             LogicResult::new_failure(LogicError::unexisting_model(
                 208,
                 self.identifier.clone(),
-                self.base_model.identifier().clone(),
+                base_identifier.clone(),
                 None,
             ))
         }

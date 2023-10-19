@@ -41,6 +41,10 @@ impl Treatment {
         }
     }
 
+    pub fn set_identifier(&mut self, identifier: Identifier) {
+        self.identifier = identifier;
+    }
+
     pub fn reset_designer(&self) {
         let mut option_designer = self.designer.lock().expect("Mutex poisoned");
         *option_designer = None;
@@ -110,18 +114,25 @@ impl Treatment {
             .into()
     }
 
-    pub fn update_with_collection(&mut self, collection: &Collection) -> LogicResult<()> {
+    pub fn update_with_collection(
+        &mut self,
+        collection: &Collection,
+        replace: &HashMap<Identifier, Identifier>,
+    ) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
 
         let mut new_models = HashMap::new();
         for (name, model) in &self.models {
-            if let Some(Entry::Model(model)) = collection.get(model.identifier()) {
+            let model_identifier = replace
+                .get(model.identifier())
+                .unwrap_or_else(|| model.identifier());
+            if let Some(Entry::Model(model)) = collection.get(model_identifier) {
                 new_models.insert(name.clone(), model.clone());
             } else {
                 result.errors_mut().push(LogicError::unexisting_model(
                     206,
                     self.identifier.clone(),
-                    model.identifier().clone(),
+                    model_identifier.clone(),
                     None,
                 ))
             }
@@ -130,13 +141,16 @@ impl Treatment {
 
         let mut new_contexts = HashMap::new();
         for (name, context) in &self.contexts {
-            if let Some(Entry::Context(context)) = collection.get(context.identifier()) {
+            let context_identifier = replace
+                .get(context.identifier())
+                .unwrap_or_else(|| context.identifier());
+            if let Some(Entry::Context(context)) = collection.get(context_identifier) {
                 new_contexts.insert(name.clone(), context.clone());
             } else {
                 result.errors_mut().push(LogicError::unexisting_context(
                     207,
                     self.identifier.clone(),
-                    context.identifier().clone(),
+                    context_identifier.clone(),
                     None,
                 ))
             }

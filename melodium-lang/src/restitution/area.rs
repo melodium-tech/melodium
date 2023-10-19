@@ -111,12 +111,23 @@ impl Area {
         loop {
             let conflicts = names
                 .iter()
-                .duplicates_by(|(_, name)| (*name).clone())
-                .map(|(id, name)| (id.clone(), name.clone()))
+                .map(|(_, name)| name)
+                .duplicates()
                 .collect::<Vec<_>>();
             if conflicts.is_empty() {
                 break;
             }
+
+            let conflicts = names
+                .iter()
+                .filter_map(|(id, name)| {
+                    if conflicts.contains(&name) {
+                        Some((id.clone(), name.clone()))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
 
             for (id, name) in conflicts {
                 if !owned_ids.contains(&id) {

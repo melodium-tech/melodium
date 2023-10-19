@@ -52,6 +52,7 @@ impl ModelInstanciation {
         &mut self,
         design: &ModelInstanciationDesign,
         collection: &Arc<Collection>,
+        replace: &HashMap<Identifier, Identifier>,
     ) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
 
@@ -59,12 +60,11 @@ impl ModelInstanciation {
             if let Some(parameter) = result
                 .merge_degrade_failure(self.add_parameter(name, self.design_reference.clone()))
             {
-                result.merge_degrade_failure(
-                    parameter
-                        .write()
-                        .unwrap()
-                        .import_design(parameter_design, collection),
-                );
+                result.merge_degrade_failure(parameter.write().unwrap().import_design(
+                    parameter_design,
+                    collection,
+                    replace,
+                ));
             }
         }
 

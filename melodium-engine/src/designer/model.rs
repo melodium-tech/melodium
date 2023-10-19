@@ -54,6 +54,7 @@ impl Model {
     pub fn import_design(
         &mut self,
         design: &ModelDesign,
+        replace: &HashMap<Identifier, Identifier>,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
@@ -62,12 +63,11 @@ impl Model {
             if let Some(parameter) =
                 result.merge_degrade_failure(self.add_parameter(name, design_reference.clone()))
             {
-                result.merge_degrade_failure(
-                    parameter
-                        .write()
-                        .unwrap()
-                        .import_design(parameter_design, &self.collection),
-                );
+                result.merge_degrade_failure(parameter.write().unwrap().import_design(
+                    parameter_design,
+                    &self.collection,
+                    replace,
+                ));
             }
         }
 

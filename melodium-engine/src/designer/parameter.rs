@@ -4,6 +4,7 @@ use crate::error::{LogicError, LogicResult};
 use melodium_common::descriptor::{
     Collection, Entry, Function, Identifier, Parameterized, Variability,
 };
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
 #[derive(Debug)]
@@ -53,6 +54,7 @@ impl Parameter {
         &mut self,
         design: &ParameterDesign,
         collection: &Arc<Collection>,
+        replace: &HashMap<Identifier, Identifier>,
     ) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
 
@@ -60,9 +62,11 @@ impl Parameter {
             Value::Raw(executive_value) => Some(Value::Raw(executive_value.clone())),
             Value::Variable(variable) => Some(Value::Variable(variable.clone())),
             Value::Context(former_context, entry) => {
-                if let Some(Entry::Context(new_context)) =
-                    collection.get(former_context.identifier())
-                {
+                if let Some(Entry::Context(new_context)) = collection.get(
+                    replace
+                        .get(former_context.identifier())
+                        .unwrap_or_else(|| former_context.identifier()),
+                ) {
                     Some(Value::Context(new_context.clone(), entry.clone()))
                 } else {
                     result = result.and(LogicResult::new_failure(LogicError::unexisting_context(
@@ -75,9 +79,11 @@ impl Parameter {
                 }
             }
             Value::Function(former_function, values) => {
-                if let Some(Entry::Function(new_function)) =
-                    collection.get(former_function.identifier())
-                {
+                if let Some(Entry::Function(new_function)) = collection.get(
+                    replace
+                        .get(former_function.identifier())
+                        .unwrap_or_else(|| former_function.identifier()),
+                ) {
                     Some(Value::Function(new_function.clone(), values.clone()))
                 } else {
                     result = result.and(LogicResult::new_failure(LogicError::unexisting_function(
