@@ -154,6 +154,15 @@ impl Treatment {
         name: &str,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<Arc<RwLock<ModelInstanciation>>> {
+        if self.model_instanciations.contains_key(name) {
+            return Err(LogicError::already_declared_model(
+                209,
+                self.descriptor().identifier().clone(),
+                name.to_string(),
+                design_reference.clone(),
+            ))
+            .into();
+        }
         if let Some(Entry::Model(model_descriptor)) = self.collection.get(model_identifier) {
             let model = ModelInstanciation::new(
                 &(self.descriptor() as Arc<dyn TreatmentTrait>),
@@ -175,6 +184,59 @@ impl Treatment {
                 design_reference.clone(),
             ))
             .into()
+        }
+    }
+
+    pub fn rename_model_instanciation(
+        &mut self,
+        actual_name: &str,
+        new_name: &str,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> LogicResult<()> {
+        let mut result = LogicResult::new_success(());
+        if self.model_instanciations.contains_key(new_name) {
+            result = result.and_degrade_failure(LogicResult::new_failure(
+                LogicError::already_declared_model(
+                    211,
+                    self.descriptor().identifier().clone(),
+                    new_name.to_string(),
+                    design_reference.clone(),
+                ),
+            ));
+        }
+        if let Some(model_instanciation) = self.model_instanciations.remove(actual_name) {
+            model_instanciation
+                .write()
+                .unwrap()
+                .set_name(new_name.to_string());
+            self.model_instanciations
+                .insert(new_name.to_string(), model_instanciation);
+
+            for (_, treatment) in &self.treatments {
+                let mut treatment = treatment.write().unwrap();
+                let to_replace = treatment
+                    .models()
+                    .iter()
+                    .filter_map(|(parametric_name, local_name)| {
+                        if local_name == actual_name {
+                            Some(parametric_name.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                for name in to_replace {
+                    let _ = treatment.add_model(&name, new_name);
+                }
+            }
+            result
+        } else {
+            result.and_degrade_failure(LogicResult::new_failure(LogicError::undeclared_model(
+                212,
+                self.descriptor().identifier().clone(),
+                actual_name.to_string(),
+                design_reference.clone(),
+            )))
         }
     }
 
@@ -211,6 +273,15 @@ impl Treatment {
         name: &str,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<Arc<RwLock<TreatmentInstanciation>>> {
+        if self.treatments.contains_key(name) {
+            return Err(LogicError::already_declared_treatment(
+                210,
+                self.descriptor().identifier().clone(),
+                name.to_string(),
+                design_reference.clone(),
+            ))
+            .into();
+        }
         if let Some(Entry::Treatment(treatment_descriptor)) =
             self.collection.get(treatment_identifier)
         {
@@ -233,6 +304,38 @@ impl Treatment {
                 design_reference.clone(),
             ))
             .into()
+        }
+    }
+
+    pub fn rename_treatment(
+        &mut self,
+        actual_name: &str,
+        new_name: &str,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> LogicResult<()> {
+        let mut result = LogicResult::new_success(());
+        if self.treatments.contains_key(new_name) {
+            result = result.and_degrade_failure(LogicResult::new_failure(
+                LogicError::already_declared_treatment(
+                    212,
+                    self.descriptor().identifier().clone(),
+                    new_name.to_string(),
+                    design_reference.clone(),
+                ),
+            ));
+        }
+        if let Some(treatment) = self.treatments.remove(actual_name) {
+            treatment.write().unwrap().set_name(new_name.to_string());
+            self.treatments.insert(new_name.to_string(), treatment);
+
+            result
+        } else {
+            result.and_degrade_failure(LogicResult::new_failure(LogicError::undeclared_treatment(
+                213,
+                self.descriptor().identifier().clone(),
+                actual_name.to_string(),
+                design_reference.clone(),
+            )))
         }
     }
 

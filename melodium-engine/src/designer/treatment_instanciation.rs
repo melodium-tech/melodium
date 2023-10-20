@@ -87,6 +87,10 @@ impl TreatmentInstanciation {
         &self.name
     }
 
+    pub(super) fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+
     pub fn add_model(&mut self, parametric_name: &str, local_name: &str) -> LogicResult<()> {
         self.models
             .insert(parametric_name.to_string(), local_name.to_string());

@@ -121,8 +121,15 @@ pub enum LogicErrorKind {
     },
     /// The model is not declared here.
     UndeclaredModel { scope: Identifier, model: String },
+    /// The model name is already declared.
+    AlreadyDeclaredModel { scope: Identifier, model: String },
     /// The treatment is not declared here.
     UndeclaredTreatment {
+        scope: Identifier,
+        treatment: String,
+    },
+    /// The treatment name is already declared.
+    AlreadyDeclaredTreatment {
         scope: Identifier,
         treatment: String,
     },
@@ -249,7 +256,9 @@ impl Display for LogicErrorKind {
             LogicErrorKind::UnexistingContext { scope: _, claimed } => write!(f, "Context '{claimed}' does not exist"),
             LogicErrorKind::UnexistingFunction{ scope: _, claimed } => write!(f, "Function '{claimed}' does not exist"),
             LogicErrorKind::UndeclaredModel { scope, model } => write!(f, "Model '{model}' is not declared in '{scope}'"),
+            LogicErrorKind::AlreadyDeclaredModel { scope, model } => write!(f, "Model '{model}' is already declared in '{scope}'"),
             LogicErrorKind::UndeclaredTreatment { scope, treatment } => write!(f, "Treatment '{treatment}' is not declared in '{scope}'"),
+            LogicErrorKind::AlreadyDeclaredTreatment { scope, treatment } => write!(f, "Treatment '{treatment}' is already declared in '{scope}'"),
             LogicErrorKind::UnexistingConnectionType { scope, from, output, to, input, output_type, input_type, output_flow, input_flow } => write!(f, "Connection from '{from}' to '{to}' in '{scope}' is not possible, '{output}' is {output_flow}<{output_type}> but '{input}' is {input_flow}<{input_type}>"),
             LogicErrorKind::UnsatisfiedOutput { scope, output } => write!(f, "Output '{output}' is not satisfied in '{scope}'"),
             LogicErrorKind::OverloadedOutput { scope, output } => write!(f, "Output '{output}' is overloaded in '{scope}', only one connection is possible to 'Self' outputs"),
@@ -657,6 +666,20 @@ impl LogicError {
         }
     }
 
+    /// Generates a new error with [`LogicErrorKind::AlreadyDeclaredModel`] kind.
+    pub fn already_declared_model(
+        id: u32,
+        scope: Identifier,
+        model: String,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> Self {
+        Self {
+            id,
+            design_reference,
+            kind: LogicErrorKind::AlreadyDeclaredModel { scope, model },
+        }
+    }
+
     /// Generates a new error with [`LogicErrorKind::UndeclaredTreatment`] kind.
     pub fn undeclared_treatment(
         id: u32,
@@ -668,6 +691,20 @@ impl LogicError {
             id,
             design_reference,
             kind: LogicErrorKind::UndeclaredTreatment { scope, treatment },
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::AlreadyDeclaredTreatment`] kind.
+    pub fn already_declared_treatment(
+        id: u32,
+        scope: Identifier,
+        treatment: String,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> Self {
+        Self {
+            id,
+            design_reference,
+            kind: LogicErrorKind::AlreadyDeclaredTreatment { scope, treatment },
         }
     }
 

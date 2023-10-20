@@ -75,6 +75,10 @@ impl ModelInstanciation {
         &self.name
     }
 
+    pub(super) fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+
     pub fn add_parameter(
         &mut self,
         name: &str,
