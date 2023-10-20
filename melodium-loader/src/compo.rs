@@ -101,4 +101,30 @@ impl Compo {
             ));
         }
     }
+
+    pub fn restitute(&self) -> String {
+        let mut toml = Table::new();
+
+        toml.insert("name".to_string(), Value::String(self.name.clone()));
+        toml.insert(
+            "version".to_string(),
+            Value::String(self.version.to_string()),
+        );
+        if !self.requirements.is_empty() {
+            let mut deps = Table::new();
+            for requirement in &self.requirements {
+                deps.insert(
+                    requirement.package.clone(),
+                    Value::String(requirement.version_requirement.to_string()),
+                );
+            }
+            toml.insert("dependencies".to_string(), Value::Table(deps));
+        }
+
+        if let Some(main) = &self.main {
+            toml.insert("main".to_string(), Value::String(main.to_string()));
+        }
+
+        toml::to_string_pretty(&toml).unwrap()
+    }
 }
