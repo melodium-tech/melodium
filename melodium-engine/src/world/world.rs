@@ -233,7 +233,6 @@ impl World {
 
     fn check_closing(&self) {
         if self.continous_ended.load(Ordering::Relaxed) && self.tracks_receiver.len() == 0 {
-            self.tracks_sender.close();
             self.end();
         }
     }
@@ -376,6 +375,7 @@ impl Engine for World {
                 .iter()
                 .for_each(|m| m.shutdown());
         }
+        self.tracks_sender.close();
         self.closing.store(true, Ordering::Relaxed);
     }
 }
