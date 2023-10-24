@@ -466,6 +466,6 @@ impl ExecutiveWorld for World {
         let info_track = InfoTrack::new(track_id, parent_track, ancestry);
         let execution_track = ExecutionTrack::new(track_id, ancestry, join_all(track_futures));
         self.tracks_info.lock().await.insert(track_id, info_track);
-        self.tracks_sender.send(execution_track).await.unwrap();
+        let _ = self.tracks_sender.send(execution_track).await;
     }
 }

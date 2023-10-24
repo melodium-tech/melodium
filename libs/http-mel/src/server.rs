@@ -1,6 +1,8 @@
 use async_std::channel::{bounded, Sender};
 use async_std::io::ReadExt;
-use async_std::sync::{Arc, RwLock};
+use async_std::sync::{Arc, Barrier, RwLock};
+use async_std::task;
+use futures::{future::FutureExt, pin_mut, select};
 use melodium_core::common::executive::{Output, ResultStatus};
 use melodium_core::*;
 use melodium_macro::{check, mel_context, mel_model, mel_treatment};
@@ -46,11 +48,13 @@ pub struct HttpRequest {
         error Block<string>
     )
     continuous (continuous)
+    shutdown shutdown
 )]
 #[derive(Debug)]
 pub struct HttpServer {
     model: Weak<HttpServerModel>,
     connections: Arc<RwLock<HashMap<u64, Sender<(u16, Vec<u8>)>>>>,
+    shutdown: Barrier,
 }
 
 impl HttpServer {
@@ -58,6 +62,7 @@ impl HttpServer {
         Self {
             model,
             connections: Arc::new(RwLock::new(HashMap::new())),
+            shutdown: Barrier::new(2),
         }
     }
 
@@ -74,27 +79,43 @@ impl HttpServer {
                 .at(&route)
                 .all(move |request| Self::request(Arc::clone(&model), request, route.clone()));
         }
-        match server.listen(model.get_bind()).await {
-            Err(err) => {
-                model
-                    .new_failed_binding(
-                        None,
-                        Some(Box::new(|mut outputs| {
-                            let error = outputs.get("error");
-                            let failure = outputs.get("failure");
+        let future_shutdown = async {
+            self.shutdown.wait().await;
+        }
+        .fuse();
+        let server_listen = server.listen(model.get_bind()).fuse();
+        pin_mut!(future_shutdown, server_listen);
+        loop {
+            select! {
+                () = future_shutdown => break,
+                result = server_listen => {
+                    match result {
+                        Err(err) => {
+                            model
+                                .new_failed_binding(
+                                    None,
+                                    Some(Box::new(|mut outputs| {
+                                        let error = outputs.get("error");
+                                        let failure = outputs.get("failure");
 
-                            vec![Box::new(Box::pin(async move {
-                                let _ = error.send_one_string(err.to_string()).await;
-                                let _ = failure.send_one_void(()).await;
-                                error.close().await;
-                                failure.close().await;
-                                ResultStatus::Ok
-                            }))]
-                        })),
-                    )
-                    .await
+                                        vec![Box::new(Box::pin(async move {
+                                            let _ = error.send_one_string(err.to_string()).await;
+                                            let _ = failure.send_one_void(()).await;
+                                            error.close().await;
+                                            failure.close().await;
+                                            ResultStatus::Ok
+                                        }))]
+                                    })),
+                                )
+                                .await;
+                            break
+                        }
+                        _ => {}
+                    }
+                }
+                complete => break,
+
             }
-            _ => {}
         }
     }
 
@@ -175,6 +196,12 @@ impl HttpServer {
         failure.close().await;
 
         ResultStatus::Ok
+    }
+
+    pub fn shutdown(&self) {
+        task::block_on(async {
+            self.shutdown.wait().await;
+        })
     }
 }
 
