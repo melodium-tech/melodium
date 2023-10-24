@@ -356,7 +356,7 @@ impl Display for Value {
             Value::Bool(v) => write!(f, "{}", v),
             Value::Byte(v) => write!(f, "0x{}", hex::encode([*v])),
             Value::Char(v) => write!(f, "'{}'", v),
-            Value::String(v) => write!(f, "\"{}\"", v),
+            Value::String(v) => write!(f, "\"{}\"", v.replace('"', "\\\"")),
 
             Value::VecVoid(v) => {
                 let list: Vec<String> = v.iter().map(|_| format!("()")).collect();

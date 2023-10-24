@@ -47,13 +47,6 @@ impl Model {
         implementation.push_str("model ");
         implementation.push_str(descriptor.identifier().name());
 
-        implementation.push_str(": ");
-        implementation.push_str(
-            names
-                .get(descriptor.base_model().unwrap().identifier())
-                .unwrap(),
-        );
-
         implementation.push_str("(");
 
         implementation.push_str(
@@ -66,7 +59,14 @@ impl Model {
                 .join(", "),
         );
 
-        implementation.push_str(")\n{\n");
+        implementation.push_str("): ");
+        implementation.push_str(
+            names
+                .get(descriptor.base_model().unwrap().identifier())
+                .unwrap(),
+        );
+
+        implementation.push_str("\n{\n");
 
         for (_, param) in self.design.parameters.iter().sorted_by_key(|(k, _)| *k) {
             implementation.push_str("    ");

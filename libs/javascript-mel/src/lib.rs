@@ -25,7 +25,7 @@ use std::sync::Weak;
 #[mel_model(
     param stack_size_limit u64 1024
     param recursion_limit u64 400
-    param loop_iteration_limit u64 18446744073709551615
+    param loop_iteration_limit u64 4294967295
     param strict bool false
     param code string ""
     initialize initialize
