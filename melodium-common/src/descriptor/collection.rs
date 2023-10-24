@@ -133,7 +133,7 @@ impl Collection {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct CollectionTree {
     pub path: Vec<String>,
     pub areas: HashMap<String, CollectionTree>,

@@ -88,7 +88,19 @@ impl PackageManager {
                 }
             }
             // Find direct .jeu files (path = /home/user/my_package.jeu)
-            // To do once jeu files are implemented
+            for path in &self.search_locations {
+                if !already_inspected_paths.contains(path) {
+                    if path.extension() == Some(std::ffi::OsStr::new("jeu")) {
+                        if let Some(Some(pkg)) =
+                            result.merge_degrade_failure(self.inspect_jeu_file(path))
+                        {
+                            if pkg.name() == name {
+                                packages.push(pkg);
+                            }
+                        }
+                    }
+                }
+            }
 
             // Find direct Compo.toml files (path = /home/user/my-package/Compo.toml)
             for path in &self.search_locations {
@@ -168,7 +180,49 @@ impl PackageManager {
             }
 
             // Find .jeu subfiles (path = /home/user/my_local_dir_with_custom_packages/)
-            // To do one jeu files are implemented
+            for path in &self.search_locations {
+                if path.is_dir() && {
+                    let mut p = path.to_path_buf();
+                    p.push("Compo.toml");
+                    !p.exists()
+                } {
+                    if let Some(entries) = result.merge_degrade_failure(
+                        glob::glob(&format!("{}/*.jeu", path.to_string_lossy()))
+                            .map_err(|err| {
+                                LoadingError::unreachable_file(
+                                    219,
+                                    path.clone(),
+                                    err.msg.to_string(),
+                                )
+                            })
+                            .into(),
+                    ) {
+                        for entry in entries {
+                            if let Some(entry) = result.merge_degrade_failure(
+                                entry
+                                    .map_err(|err| {
+                                        LoadingError::unreachable_file(
+                                            220,
+                                            err.path().to_path_buf(),
+                                            err.to_string(),
+                                        )
+                                    })
+                                    .into(),
+                            ) {
+                                if !already_inspected_paths.contains(&entry) {
+                                    if let Some(Some(pkg)) =
+                                        result.merge_degrade_failure(self.inspect_jeu_file(&entry))
+                                    {
+                                        if pkg.name() == name {
+                                            packages.push(pkg);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             // Find subdirectories with Compo.toml (path = /home/user/my_local_dir_with_custom_packages/)
             for path in &self.search_locations {
