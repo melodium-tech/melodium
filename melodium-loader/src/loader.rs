@@ -26,19 +26,21 @@ impl Loader {
                 repositories: vec![Arc::new(Mutex::new(Repository::new(RepositoryConfig {
                     repository_location: {
                         let mut path = std::env::var_os("MELODIUM_HOME")
+                            .map(|var| var.into())
                             .or_else(|| {
-                                std::env::var_os("HOME").map(|home| {
-                                    let mut path = home.to_os_string();
-                                    path.push("/.melodium");
+                                simple_home_dir::home_dir().map(|mut path| {
+                                    path.push(".melodium");
                                     path
                                 })
                             })
-                            .unwrap_or("/tmp/melodium".into());
-                        path.push("/");
+                            .unwrap_or_else(|| {
+                                let mut path = std::env::temp_dir();
+                                path.push("melodium");
+                                path
+                            });
                         path.push(env!("CARGO_PKG_VERSION"));
                         path
-                    }
-                    .into(),
+                    },
                     network: if cfg!(feature = "network") {
                         Some(NetworkRepositoryConfiguration::new())
                     } else {

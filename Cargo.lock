@@ -1974,6 +1974,7 @@ dependencies = [
  "melodium-repository",
  "once_cell",
  "semver 1.0.18",
+ "simple-home-dir",
  "tar",
  "toml",
 ]
@@ -2813,6 +2814,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8229b473baa5980ac72ef434c4415e70c4b5e71b423043adb4ba059f89c99a1"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "simple-home-dir"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "509fcbd8f28460b50b91c057bbc479dc0257f470f94c4564beb38c22c19fdaae"
+dependencies = [
+ "windows-sys",
 ]
 
 [[package]]
