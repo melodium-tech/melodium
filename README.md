@@ -38,6 +38,24 @@ Here are Mélodium integration tests.
 Those tests are managed by crates in `testers/` subfolder, and are living in their own workspace.
 They should not rely directly on any Mélodium Rust implementation, and only use it as external executable.
 
+## CI/CD
+
+The CI/CD runs on GitLab, and is configured to respond to main variables:
+- `CHECK`: when set to `true` this will run `cargo check` for all supported platforms and all registered combinations of features for every crate;
+- `TEST`: when set to `true` this will build debug versions of Mélodium and testers for all supported platforms and test them[^1];
+- `BUILD_DEBUG`: when set to `true` this will build debug versions of Mélodium for all supported platforms (implied when using `TEST`);
+- `BUILD_RELEASE`: when set to `true` this will build release versions of Mélodium for all supported platforms;
+- `BUILD_PACKAGES`: when set to `true` this will build the release webassembly version of every `lib/` crate.
+
+As example, to run checks or tests on a specific pushed commit:
+- `git push -o ci.variable="CHECK=true"`
+- `git push -o ci.variable="TEST=true"`
+- `git push -o ci.variable="CHECK=true" -o ci.variable="TEST=true"`
+
+`CHECK` and `TEST` are considered `true` for every commit on `master` branch, and _everything_ is considered `true` for tagged commits.
+
+[^1]: while build is made for all supported platforms, tests are only processed on some platorms where GitLab CI have matching native runners, such as Linux x86_64 (testing i686 and x86_64 versions, GNU and MUSL), Windows x86_64 (testing i686 and x86_64 versions, GNU and MSVC), and Mac OS ARM64 (testing arm64 version).
+
 ## Licence
 
 This software is free and open-source, under the EUPL licence.
