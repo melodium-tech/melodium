@@ -1,6 +1,6 @@
 [package]
 name = "http-mel"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.60"
 edition = "2018"
@@ -19,8 +19,8 @@ name = "http_mel"
 [dependencies]
 async-std = "~1.12"
 futures = "0.3"
-melodium-core = { path = "../../melodium-core", version = "=0.7.0" }
-melodium-macro = { path = "../../melodium-macro", version = "=0.7.0" }
+melodium-core = { path = "../../melodium-core", version = "0.7.1" }
+melodium-macro = { path = "../../melodium-macro", version = "0.7.1" }
 tide = { version = "0.16.0", default-features = false, features = ["h1-server"] }
 
 [features]

@@ -1,6 +1,6 @@
 [package]
 name = "ops-mel"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.60"
 edition = "2018"
@@ -17,8 +17,8 @@ crate-type = ["lib", "cdylib"]
 name = "ops_mel"
 
 [dependencies]
-melodium-core = { path = "../../melodium-core", version = "=0.7.0" }
-melodium-macro = { path = "../../melodium-macro", version = "=0.7.0" }
+melodium-core = { path = "../../melodium-core", version = "0.7.1" }
+melodium-macro = { path = "../../melodium-macro", version = "0.7.1" }
 
 [features]
 mock = []

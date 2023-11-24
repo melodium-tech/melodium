@@ -1,6 +1,6 @@
 [package]
 name = "javascript-mel"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.60"
 edition = "2018"
@@ -19,8 +19,8 @@ name = "javascript_mel"
 [dependencies]
 async-std = "~1.12"
 boa_engine = { version = "0.17.0" }
-melodium-core = { path = "../../melodium-core", version = "=0.7.0" }
-melodium-macro = { path = "../../melodium-macro", version = "=0.7.0" }
+melodium-core = { path = "../../melodium-core", version = "0.7.1" }
+melodium-macro = { path = "../../melodium-macro", version = "0.7.1" }
 serde_json = "1.0.105"
 
 [features]
