@@ -1,10 +1,10 @@
 #!/usr/bin/env melodium
 #! name = fs_test
-#! version = 0.7.0
-#! require = flow:0.7.0
-#! require = engine:0.7.0
-#! require = conv:0.7.0
-#! require = fs:0.7.0
+#! version = 0.7.1
+#! require = flow:0.7.1
+#! require = engine:0.7.1
+#! require = conv:0.7.1
+#! require = fs:0.7.1
 
 use engine/util::startup
 use flow/void::generate

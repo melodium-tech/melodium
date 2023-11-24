@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = http_javascript
-#! version = 0.7.0
-#! require = http:0.7.0 flow:0.7.0 javascript:0.7.0 encoding:0.7.0
+#! version = 0.7.1
+#! require = http:0.7.1 flow:0.7.1 javascript:0.7.1 encoding:0.7.1
 
 use http/server::HttpServer
 use http/server::connection
