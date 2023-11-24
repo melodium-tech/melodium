@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.7.1]
+
+- Adding `.jeu` files management as usual packages.
+- Fixing code restitution issues.
+
 ## [v0.7.0]
 
 - Improving user error reporting.

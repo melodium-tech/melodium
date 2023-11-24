@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.7.1]
+
+- Improving shutdown mechanism.
+
 ## [v0.7.0]
 
 - Improving design error reporting.

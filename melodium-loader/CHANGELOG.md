@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.7.1]
+
+- Considering `.jeu` files as possible packages.
+
 ## [v0.7.0]
 
 - Improving loadgin errors reporting.

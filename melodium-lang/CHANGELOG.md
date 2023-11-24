@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.7.1]
+
+- Fixing code restitution issues.
+
 ## [v0.7.0]
 
 - Improving error reporting.
