@@ -112,7 +112,12 @@ impl Builder {
                 if let Some(data) = contextual_environment.get_variable(&name) {
                     data.clone()
                 } else {
-                    genesis_environment.get_variable(&name).unwrap().clone()
+                    eprintln!("Contextual env: {contextual_environment:?}");
+                    eprintln!("Genesis env: {genesis_environment:?}");
+                    genesis_environment
+                        .get_variable(&name)
+                        .expect("Impossible data recoverage")
+                        .clone()
                 }
             }
             Value::Context(context, entry) => contextual_environment
@@ -148,6 +153,11 @@ impl BuilderTrait for Builder {
         let idx = builds_writer.len() as BuildId;
 
         let descriptor = self.design.descriptor.upgrade().unwrap();
+
+        eprintln!(
+            "Static build of '{}', genesis environment {environment:?}",
+            descriptor.identifier()
+        );
 
         // Assigning missing default values
         for (name, parameter) in descriptor
@@ -390,9 +400,14 @@ impl BuilderTrait for Builder {
     fn dynamic_build(
         &self,
         build: BuildId,
-        environment: &ContextualEnvironment,
+        environment: &Arc<ContextualEnvironment>,
     ) -> Option<DynamicBuildResult> {
         let world = self.world.upgrade().unwrap();
+
+        eprintln!(
+            "Dynamic build designed {} | Received contextual environment: {environment:?}",
+            self.design.descriptor.upgrade().unwrap().identifier()
+        );
 
         // Look for existing build
         {
@@ -425,9 +440,10 @@ impl BuilderTrait for Builder {
                     .success()
                     .unwrap(),
             );
-            let mut remastered_environment = environment.base();
+            let mut remastered_environment = environment.base_on();
 
             // Make the right contextual environment
+            eprintln!("Building for {}", treatment_descriptor.identifier());
 
             // Setup models
             for (model_treatment_name, _model) in treatment_descriptor.models() {
@@ -467,6 +483,7 @@ impl BuilderTrait for Builder {
 
                 remastered_environment.add_variable(&name, data);
             }
+            let remastered_environment = remastered_environment.commit();
 
             // Call their dynamic_build method with right contextual environment
             treatment_build_results.insert(
@@ -517,7 +534,7 @@ impl BuilderTrait for Builder {
                 .give_next(
                     build_sample.host_build_id.unwrap(),
                     build_sample.label.to_string(),
-                    &environment.base(),
+                    environment.parent().unwrap(),
                 )
                 .unwrap();
 
@@ -548,9 +565,11 @@ impl BuilderTrait for Builder {
         &self,
         within_build: BuildId,
         for_label: String,
-        environment: &ContextualEnvironment,
+        environment: &Arc<ContextualEnvironment>,
     ) -> Option<DynamicBuildResult> {
         let world = self.world.upgrade().unwrap();
+
+        eprintln!("Give next | Received contextual environment: {environment:?}");
 
         // Get build
         let borrowed_builds = self.builds.read().unwrap();
@@ -579,7 +598,7 @@ impl BuilderTrait for Builder {
                         .success()
                         .unwrap(),
                 );
-                let mut remastered_environment = environment.base();
+                let mut remastered_environment = environment.base_on();
 
                 // Make the right contextual environment
 
@@ -612,7 +631,16 @@ impl BuilderTrait for Builder {
                 }
 
                 // Setup parameters
+                eprintln!(
+                    "Treatment {} preparing {}",
+                    self.design.descriptor.upgrade().unwrap().identifier(),
+                    next_treatment_descriptor.identifier()
+                );
                 for (name, parameter) in &next_treatment.parameters {
+                    eprintln!(
+                        "Setting up parameter {name} with value {:?}",
+                        parameter.value
+                    );
                     let data = Self::get_value(
                         &parameter.value,
                         &build_sample.genesis_environment,
@@ -621,6 +649,9 @@ impl BuilderTrait for Builder {
 
                     remastered_environment.add_variable(&name, data);
                 }
+                let remastered_environment = remastered_environment.commit();
+
+                eprintln!("Remastered env: {remastered_environment:?}");
 
                 // Call their dynamic_build method with right contextual environment
                 next_treatments_build_results.insert(
@@ -675,7 +706,7 @@ impl BuilderTrait for Builder {
                 .give_next(
                     build_sample.host_build_id.unwrap(),
                     build_sample.label.to_string(),
-                    &environment.base(),
+                    environment.parent().unwrap(),
                 )
                 .unwrap();
 

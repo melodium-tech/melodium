@@ -102,7 +102,7 @@ impl BuilderTrait for Builder {
     fn dynamic_build(
         &self,
         build: BuildId,
-        environment: &ContextualEnvironment,
+        environment: &Arc<ContextualEnvironment>,
     ) -> Option<DynamicBuildResult> {
         let world = self.world.upgrade().unwrap();
 
@@ -137,7 +137,7 @@ impl BuilderTrait for Builder {
             .give_next(
                 build_sample.host_build_id.unwrap(),
                 build_sample.label.to_string(),
-                &environment.base(),
+                environment.parent().unwrap(),
             )
             .unwrap();
 
@@ -165,7 +165,7 @@ impl BuilderTrait for Builder {
         &self,
         _within_build: BuildId,
         _for_label: String,
-        _environment: &ContextualEnvironment,
+        _environment: &Arc<ContextualEnvironment>,
     ) -> Option<DynamicBuildResult> {
         // A core treatment cannot have sub-treatments (its not a sequence), so nothing to ever return.
         None

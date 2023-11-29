@@ -1,6 +1,6 @@
 use melodium_common::executive::{Context, Model, TrackId, Value};
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 #[derive(Debug)]
 pub struct ContextualEnvironment {
@@ -8,6 +8,8 @@ pub struct ContextualEnvironment {
     models: HashMap<String, Arc<dyn Model>>,
     variables: HashMap<String, Value>,
     contexts: HashMap<String, Arc<dyn Context>>,
+    parent: Option<Arc<Self>>,
+    me: Option<Weak<Self>>,
 }
 
 impl ContextualEnvironment {
@@ -17,16 +19,31 @@ impl ContextualEnvironment {
             models: HashMap::new(),
             variables: HashMap::new(),
             contexts: HashMap::new(),
+            parent: None,
+            me: None,
         }
     }
 
-    pub fn base(&self) -> Self {
+    pub fn base_on(&self) -> Self {
         Self {
             track_id: self.track_id,
             models: HashMap::new(),
             variables: HashMap::new(),
             contexts: self.contexts.clone(),
+            parent: Some(self.me.as_ref().unwrap().upgrade().unwrap()),
+            me: None,
         }
+    }
+
+    pub fn parent(&self) -> Option<&Arc<Self>> {
+        self.parent.as_ref()
+    }
+
+    pub fn commit(self) -> Arc<Self> {
+        Arc::new_cyclic(|me| Self {
+            me: Some(me.clone()),
+            ..self
+        })
     }
 
     pub fn track_id(&self) -> TrackId {

@@ -419,6 +419,8 @@ impl ExecutiveWorld for World {
                 contextual_environment.add_context(context.descriptor().name(), context)
             });
 
+            let contextual_environment = contextual_environment.commit();
+
             for entry in entries {
                 let build_result = self
                     .builder(entry.descriptor.identifier())
