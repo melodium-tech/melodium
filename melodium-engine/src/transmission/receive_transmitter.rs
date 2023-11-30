@@ -32,7 +32,7 @@ impl<T: Clone> RecvTransmitter<T> {
                 .as_mut()
                 .unwrap()
                 .pop_front()
-                .unwrap()),
+                .ok_or(TransmissionError::NoData)?),
             Err(e) => Err(e),
         }
     }

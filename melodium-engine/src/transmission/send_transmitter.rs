@@ -44,6 +44,8 @@ impl<T: Clone> SendTransmitter<T> {
     pub async fn send_multiple(&self, data: Vec<T>) -> SendResult {
         if !self.has_receivers.load(Ordering::Relaxed) {
             return Err(TransmissionError::NoReceiver);
+        } else if data.is_empty() {
+            return Ok(());
         } else {
             let mut buffer = self.buffer.lock().unwrap();
             buffer.extend(data);

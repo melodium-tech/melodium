@@ -112,7 +112,10 @@ impl Builder {
                 if let Some(data) = contextual_environment.get_variable(&name) {
                     data.clone()
                 } else {
-                    genesis_environment.get_variable(&name).unwrap().clone()
+                    genesis_environment
+                        .get_variable(&name)
+                        .expect("Impossible data recoverage")
+                        .clone()
                 }
             }
             Value::Context(context, entry) => contextual_environment
@@ -382,7 +385,7 @@ impl BuilderTrait for Builder {
     fn dynamic_build(
         &self,
         build: BuildId,
-        environment: &ContextualEnvironment,
+        environment: &Arc<ContextualEnvironment>,
     ) -> Option<DynamicBuildResult> {
         let world = self.world.upgrade().unwrap();
 
@@ -417,7 +420,7 @@ impl BuilderTrait for Builder {
                     .success()
                     .unwrap(),
             );
-            let mut remastered_environment = environment.base();
+            let mut remastered_environment = environment.base_on();
 
             // Make the right contextual environment
 
@@ -459,6 +462,7 @@ impl BuilderTrait for Builder {
 
                 remastered_environment.add_variable(&name, data);
             }
+            let remastered_environment = remastered_environment.commit();
 
             // Call their dynamic_build method with right contextual environment
             treatment_build_results.insert(
@@ -509,7 +513,7 @@ impl BuilderTrait for Builder {
                 .give_next(
                     build_sample.host_build_id.unwrap(),
                     build_sample.label.to_string(),
-                    &environment.base(),
+                    &environment.enriched_upper().commit(),
                 )
                 .unwrap();
 
@@ -540,7 +544,7 @@ impl BuilderTrait for Builder {
         &self,
         within_build: BuildId,
         for_label: String,
-        environment: &ContextualEnvironment,
+        environment: &Arc<ContextualEnvironment>,
     ) -> Option<DynamicBuildResult> {
         let world = self.world.upgrade().unwrap();
 
@@ -571,7 +575,7 @@ impl BuilderTrait for Builder {
                         .success()
                         .unwrap(),
                 );
-                let mut remastered_environment = environment.base();
+                let mut remastered_environment = environment.base_on();
 
                 // Make the right contextual environment
 
@@ -613,6 +617,7 @@ impl BuilderTrait for Builder {
 
                     remastered_environment.add_variable(&name, data);
                 }
+                let remastered_environment = remastered_environment.commit();
 
                 // Call their dynamic_build method with right contextual environment
                 next_treatments_build_results.insert(
@@ -667,7 +672,7 @@ impl BuilderTrait for Builder {
                 .give_next(
                     build_sample.host_build_id.unwrap(),
                     build_sample.label.to_string(),
-                    &environment.base(),
+                    &environment.enriched_upper().commit(),
                 )
                 .unwrap();
 
