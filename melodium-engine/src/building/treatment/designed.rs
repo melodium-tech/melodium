@@ -241,9 +241,9 @@ impl BuilderTrait for Builder {
             // Setup parameters
             for (name, parameter) in &treatment.parameters {
                 let data =
-                        Self::get_const_value(&parameter.value, &build_sample.genesis_environment);
+                    Self::get_const_value(&parameter.value, &build_sample.genesis_environment);
 
-                    remastered_environment.add_variable(&name, data);
+                remastered_environment.add_variable(&name, data);
             }
 
             let build_result =

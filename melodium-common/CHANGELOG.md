@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.7.2]
+
+- Managing no-data case in transmission.
+
 ## [v0.7.0]
 
 - Adding Status for better error management.

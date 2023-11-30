@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.7.2]
+
+- Making version check generic.
+
 ## [v0.7.1]
 
 - Considering `.jeu` files as possible packages.

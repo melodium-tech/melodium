@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.7.2]
+
+- Fixing parameters const/var and contexts transmission.
+- Checking empty data transmission between treatments.
+
 ## [v0.7.1]
 
 - Improving shutdown mechanism.
