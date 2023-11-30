@@ -35,8 +35,26 @@ impl ContextualEnvironment {
         }
     }
 
-    pub fn parent(&self) -> Option<&Arc<Self>> {
-        self.parent.as_ref()
+    pub fn enriched_upper(&self) -> Self {
+        if let Some(parent) = self.parent.as_ref() {
+            Self {
+                track_id: self.track_id,
+                models: parent.models.clone(),
+                variables: parent.variables.clone(),
+                contexts: self.contexts.clone(),
+                parent: parent.parent.clone(),
+                me: None,
+            }
+        } else {
+            Self {
+                track_id: self.track_id,
+                models: HashMap::new(),
+                variables: HashMap::new(),
+                contexts: self.contexts.clone(),
+                parent: None,
+                me: None,
+            }
+        }
     }
 
     pub fn commit(self) -> Arc<Self> {

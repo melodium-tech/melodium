@@ -136,11 +136,6 @@ impl BuilderTrait for Builder {
         let build_sample = borrowed_builds.get(build as usize).unwrap();
         let descriptor = self.descriptor.upgrade().unwrap();
 
-        eprintln!(
-            "Dynamic build of compiled {} | Received contextual environment: {environment:?}",
-            descriptor.identifier()
-        );
-
         let mut result = DynamicBuildResult::new();
 
         let treatment = (self.build_fn)();
@@ -161,7 +156,7 @@ impl BuilderTrait for Builder {
             .give_next(
                 build_sample.host_build_id.unwrap(),
                 build_sample.label.to_string(),
-                environment.parent().unwrap(),
+                &environment.enriched_upper().commit(),
             )
             .unwrap();
 

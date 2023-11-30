@@ -137,7 +137,7 @@ impl BuilderTrait for Builder {
             .give_next(
                 build_sample.host_build_id.unwrap(),
                 build_sample.label.to_string(),
-                environment.parent().unwrap(),
+                &environment.enriched_upper().commit(),
             )
             .unwrap();
 
