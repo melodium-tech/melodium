@@ -2,6 +2,7 @@
 pub enum TransmissionError {
     NoReceiver,
     EverythingClosed,
+    NoData,
 }
 
 pub type SendResult = Result<(), TransmissionError>;
