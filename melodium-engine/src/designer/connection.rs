@@ -51,6 +51,7 @@ impl Connection {
         output_treatment: &Arc<RwLock<TreatmentInstanciation>>,
         input_name: &str,
         input_treatment: &Arc<RwLock<TreatmentInstanciation>>,
+        attributes: Attributes,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
@@ -58,7 +59,7 @@ impl Connection {
             output_treatment: IO::Treatment(Arc::downgrade(output_treatment)),
             input_name: input_name.to_string(),
             input_treatment: IO::Treatment(Arc::downgrade(input_treatment)),
-            attributes: Attributes::default(),
+            attributes,
             design_reference,
         }
     }
@@ -66,6 +67,7 @@ impl Connection {
     pub fn new_self(
         self_input_name: &str,
         self_output_name: &str,
+        attributes: Attributes,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
@@ -73,7 +75,7 @@ impl Connection {
             output_treatment: IO::Sequence(),
             input_name: self_output_name.to_string(),
             input_treatment: IO::Sequence(),
-            attributes: Attributes::default(),
+            attributes,
             design_reference,
         }
     }
@@ -82,6 +84,7 @@ impl Connection {
         self_input_name: &str,
         input_name: &str,
         input_treatment: &Arc<RwLock<TreatmentInstanciation>>,
+        attributes: Attributes,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
@@ -89,7 +92,7 @@ impl Connection {
             output_treatment: IO::Sequence(),
             input_name: input_name.to_string(),
             input_treatment: IO::Treatment(Arc::downgrade(input_treatment)),
-            attributes: Attributes::default(),
+            attributes,
             design_reference,
         }
     }
@@ -98,6 +101,7 @@ impl Connection {
         output_name: &str,
         output_treatment: &Arc<RwLock<TreatmentInstanciation>>,
         self_output_name: &str,
+        attributes: Attributes,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
@@ -105,7 +109,7 @@ impl Connection {
             output_treatment: IO::Treatment(Arc::downgrade(output_treatment)),
             input_name: self_output_name.to_string(),
             input_treatment: IO::Sequence(),
-            attributes: Attributes::default(),
+            attributes,
             design_reference,
         }
     }
