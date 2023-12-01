@@ -2,7 +2,7 @@ use crate::design::Model as Design;
 use crate::designer::{Model as Designer, Reference};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
-use melodium_common::descriptor::{
+use melodium_common::descriptor::{Attribuable, Attributes,
     Buildable, Collection, Context, Documented, Entry, Identified, Identifier,
     Model as ModelDescriptor, ModelBuildMode, Parameter, Parameterized, Status, Variability,
 };
@@ -14,6 +14,7 @@ pub struct Model {
     identifier: Identifier,
     #[cfg(feature = "doc")]
     documentation: String,
+    attributes: Attributes,
     base_model: Arc<dyn ModelDescriptor>,
     parameters: HashMap<String, Parameter>,
     designer: Mutex<Option<Arc<RwLock<Designer>>>>,
@@ -27,6 +28,7 @@ impl Model {
             identifier,
             #[cfg(feature = "doc")]
             documentation: String::new(),
+            attributes: Attributes::default(),
             base_model: Arc::clone(base_model),
             parameters: HashMap::new(),
             designer: Mutex::new(None),
@@ -164,12 +166,19 @@ impl Model {
             identifier: self.identifier,
             #[cfg(feature = "doc")]
             documentation: self.documentation,
+            attributes: self.attributes,
             base_model: self.base_model,
             parameters: self.parameters,
             designer: self.designer,
             design: self.design,
             auto_reference: me.clone(),
         })
+    }
+}
+
+impl Attribuable for Model {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }
 
@@ -264,6 +273,7 @@ impl Clone for Model {
             identifier: self.identifier.clone(),
             #[cfg(feature = "doc")]
             documentation: self.documentation.clone(),
+            attributes: self.attributes.clone(),
             base_model: self.base_model.clone(),
             parameters: self.parameters.clone(),
             designer: Mutex::new(None),

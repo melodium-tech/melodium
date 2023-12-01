@@ -1,5 +1,5 @@
 use core::fmt::{Display, Formatter, Result};
-use melodium_common::descriptor::{
+use melodium_common::descriptor::{Attribuable, Attributes,
     Buildable, Context, Documented, Identified, Identifier, Model as ModelDescriptor,
     ModelBuildMode, Parameter, Parameterized,
 };
@@ -13,6 +13,7 @@ pub struct Model {
     identifier: Identifier,
     #[cfg(feature = "doc")]
     documentation: String,
+    attributes: Attributes,
     parameters: HashMap<String, Parameter>,
     sources: HashMap<String, Vec<Arc<dyn Context>>>,
     build_fn: fn(Arc<dyn World>) -> Arc<dyn ExecutiveModel>,
@@ -33,6 +34,7 @@ impl Model {
             identifier,
             #[cfg(feature = "doc")]
             documentation,
+            attributes: Attributes::default(),
             parameters: HashMap::from_iter(
                 parameters.into_iter().map(|p| (p.name().to_string(), p)),
             ),
@@ -40,6 +42,12 @@ impl Model {
             build_fn,
             auto_reference: me.clone(),
         })
+    }
+}
+
+impl Attribuable for Model {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }
 

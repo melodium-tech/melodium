@@ -1,5 +1,5 @@
 use core::fmt::{Display, Formatter, Result};
-use melodium_common::descriptor::{
+use melodium_common::descriptor::{Attributes, Attribuable,
     DataType, Documented, Function as FunctionDescriptor, Identified, Identifier,
     OrderedParameterized, Parameter,
 };
@@ -11,6 +11,7 @@ pub struct Function {
     identifier: Identifier,
     #[cfg(feature = "doc")]
     documentation: String,
+    attributes: Attributes,
     parameters: Vec<Parameter>,
     return_type: DataType,
     function: fn(Vec<Value>) -> Value,
@@ -31,11 +32,18 @@ impl Function {
             identifier,
             #[cfg(feature = "doc")]
             documentation,
+            attributes: Attributes::default(),
             parameters,
             return_type,
             function,
             auto_reference: me.clone(),
         })
+    }
+}
+
+impl Attribuable for Function {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }
 

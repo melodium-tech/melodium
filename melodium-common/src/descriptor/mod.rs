@@ -3,6 +3,7 @@
 //! The traits and types present here bring informations about all the components present into Mélodium environment.
 //!
 
+pub mod attribuable;
 pub mod buildable;
 pub mod collection;
 pub mod context;
@@ -23,6 +24,7 @@ pub mod status;
 pub mod treatment;
 pub mod variability;
 
+pub use attribuable::{Attribute, Attributes, Attribuable};
 pub use buildable::{Buildable, ModelBuildMode, TreatmentBuildMode};
 pub use collection::{Collection, CollectionTree, Entry};
 pub use context::Context;

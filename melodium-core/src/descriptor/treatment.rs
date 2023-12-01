@@ -1,5 +1,5 @@
 use core::fmt::{Display, Formatter, Result};
-use melodium_common::descriptor::{
+use melodium_common::descriptor::{Attributes, Attribuable,
     Buildable, Context, Documented, Identified, Identifier, Input, Model, Output, Parameter,
     Parameterized, Treatment as TreatmentDescriptor, TreatmentBuildMode,
 };
@@ -14,6 +14,7 @@ pub struct Treatment {
     identifier: Identifier,
     #[cfg(feature = "doc")]
     documentation: String,
+    attributes: Attributes,
     models: HashMap<String, Arc<dyn Model>>,
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
@@ -40,6 +41,7 @@ impl Treatment {
             identifier,
             #[cfg(feature = "doc")]
             documentation,
+            attributes: Attributes::default(),
             models: HashMap::from_iter(models.into_iter().map(|(n, m)| (n, m))),
             parameters: HashMap::from_iter(
                 parameters.into_iter().map(|p| (p.name().to_string(), p)),
@@ -50,6 +52,12 @@ impl Treatment {
             build_fn,
             auto_reference: me.clone(),
         })
+    }
+}
+
+impl Attribuable for Treatment {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }
 
