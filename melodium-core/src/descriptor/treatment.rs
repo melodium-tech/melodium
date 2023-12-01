@@ -1,7 +1,7 @@
 use core::fmt::{Display, Formatter, Result};
-use melodium_common::descriptor::{Attributes, Attribuable,
-    Buildable, Context, Documented, Identified, Identifier, Input, Model, Output, Parameter,
-    Parameterized, Treatment as TreatmentDescriptor, TreatmentBuildMode,
+use melodium_common::descriptor::{
+    Attribuable, Attributes, Buildable, Context, Documented, Identified, Identifier, Input, Model,
+    Output, Parameter, Parameterized, Treatment as TreatmentDescriptor, TreatmentBuildMode,
 };
 use melodium_common::executive::Treatment as ExecutiveTreatment;
 use once_cell::sync::OnceCell;

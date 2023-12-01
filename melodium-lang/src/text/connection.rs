@@ -3,7 +3,7 @@
 use core::slice::Windows;
 
 use super::word::{Kind, Word};
-use super::PositionnedString;
+use super::{CommentsAnnotations, PositionnedString};
 use crate::ScriptError;
 
 /// Structure describing a textual connection.
@@ -11,6 +11,7 @@ use crate::ScriptError;
 /// It owns starting point and ending point names, and the names of data associated with, if any.
 #[derive(Clone, Debug)]
 pub struct Connection {
+    pub annotations: Option<CommentsAnnotations>,
     pub name_start_point: PositionnedString,
     pub name_data_out: Option<PositionnedString>,
     pub name_end_point: PositionnedString,
@@ -18,12 +19,13 @@ pub struct Connection {
 }
 
 impl Connection {
-    /// Build a connection by parsing words, starting when then end point name is expected.
+    /// Build a connection by parsing words, starting when the end point name is expected.
     ///
     /// * `name`: The name already parsed for the start point (its accuracy is under responsibility of the caller).
     /// * `iter`: Iterator over words list, next() being expected to be the end point name.
     ///
     pub fn build_from_name_end_point(
+        annotations: Option<CommentsAnnotations>,
         name: PositionnedString,
         iter: &mut Windows<Word>,
     ) -> Result<Self, ScriptError> {
@@ -40,6 +42,7 @@ impl Connection {
             })?;
 
         Ok(Self {
+            annotations,
             name_start_point: name,
             name_data_out: None,
             name_end_point,
@@ -53,6 +56,7 @@ impl Connection {
     /// * `iter`: Iterator over words list, next() being expected to be the data out name.
     ///
     pub fn build_from_name_data_out(
+        annotations: Option<CommentsAnnotations>,
         name: PositionnedString,
         iter: &mut Windows<Word>,
     ) -> Result<Self, ScriptError> {
@@ -115,6 +119,7 @@ impl Connection {
             })?;
 
         Ok(Self {
+            annotations,
             name_start_point: name,
             name_data_out: Some(name_data_out),
             name_end_point: name_end_point,

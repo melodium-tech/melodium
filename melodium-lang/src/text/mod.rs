@@ -20,7 +20,7 @@ pub mod r#use;
 pub mod value;
 pub mod word;
 
-pub use annotation::Annotation;
+pub use annotation::{Annotation, CommentsAnnotations};
 pub use connection::Connection;
 pub use function::Function;
 pub use instanciation::Instanciation;

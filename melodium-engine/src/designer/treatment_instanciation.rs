@@ -2,9 +2,9 @@ use super::{Connection, Parameter, Reference, Scope, Treatment, Value, IO};
 use crate::design::TreatmentInstanciation as TreatmentInstanciationDesign;
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
-use melodium_common::descriptor::{Attribuable, Attribute, Attributes,
-    Collection, Identified, Identifier, Parameter as ParameterDescriptor,
-    Treatment as TreatmentDescriptor,
+use melodium_common::descriptor::{
+    Attribuable, Attribute, Attributes, Collection, Identified, Identifier,
+    Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};

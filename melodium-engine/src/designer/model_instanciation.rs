@@ -2,9 +2,10 @@ use super::{Parameter, Reference, Scope, Treatment, Value};
 use crate::design::ModelInstanciation as ModelInstanciationDesign;
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
-use melodium_common::descriptor::{Attributes, Attribuable, Attribute,
-    Collection, Identified, Identifier, Model as ModelDescriptor, Parameter as ParameterDescriptor,
-    Treatment as TreatmentDescriptor, Variability,
+use melodium_common::descriptor::{
+    Attribuable, Attribute, Attributes, Collection, Identified, Identifier,
+    Model as ModelDescriptor, Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor,
+    Variability,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};

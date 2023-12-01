@@ -1,11 +1,12 @@
 //! Module dedicated to [Model] parsing.
 
 use core::slice::Windows;
+use std::collections::HashMap;
 
 use super::common::parse_parameters_declarations;
 use super::parameter::Parameter;
 use super::word::{Kind, Word};
-use super::PositionnedString;
+use super::{CommentsAnnotations, PositionnedString};
 use crate::ScriptError;
 
 /// Structure describing a textual model.
@@ -13,7 +14,7 @@ use crate::ScriptError;
 /// It owns a name, parameters, and a type (model type, not [data type](super::Type)).
 #[derive(Clone, Debug)]
 pub struct Model {
-    pub doc: Option<PositionnedString>,
+    pub annotations: Option<CommentsAnnotations>,
     pub name: PositionnedString,
     pub parameters: Vec<Parameter>,
     pub r#type: PositionnedString,
@@ -27,7 +28,8 @@ impl Model {
     ///
     pub fn build(
         mut iter: &mut Windows<Word>,
-        mut doc: Option<PositionnedString>,
+        mut self_annotations: Option<CommentsAnnotations>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
         let word_name = iter
             .next()
@@ -45,7 +47,7 @@ impl Model {
         let parameters;
         match iter.next().map(|s| &s[0]) {
             Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
-                parameters = parse_parameters_declarations(&mut iter)?;
+                parameters = parse_parameters_declarations(&mut iter, global_annotations)?;
             }
             Some(w) => {
                 return Err(ScriptError::word(
@@ -106,7 +108,11 @@ impl Model {
                                 Ok(())
                             }
                         })?;
-                    assignations.push(Parameter::build_from_value(w.into(), &mut iter)?);
+                    assignations.push(Parameter::build_from_value(
+                        global_annotations.remove(w),
+                        w.into(),
+                        &mut iter,
+                    )?);
                 }
                 Some(w) => {
                     return Err(ScriptError::word(
@@ -119,12 +125,12 @@ impl Model {
             }
         }
 
-        if let Some(doc) = doc.as_mut() {
+        if let Some(doc) = self_annotations.as_mut().and_then(|sa| sa.doc.as_mut()) {
             doc.remove_indent();
         }
 
         Ok(Self {
-            doc,
+            annotations: self_annotations,
             name,
             parameters,
             r#type,

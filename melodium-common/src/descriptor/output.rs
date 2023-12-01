@@ -1,4 +1,4 @@
-use super::{DataType, Flow, Input, Attribuable, Attributes};
+use super::{Attribuable, Attributes, DataType, Flow, Input};
 use core::fmt::{Display, Formatter, Result};
 
 #[derive(Clone, PartialEq, Eq, Debug)]

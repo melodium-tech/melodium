@@ -2,9 +2,10 @@ use crate::design::Treatment as Design;
 use crate::designer::{Reference, Treatment as Designer};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
-use melodium_common::descriptor::{Attribuable, Attributes,
-    Buildable, Collection, Context, Documented, Entry, Identified, Identifier, Input, Model,
-    Output, Parameter, Parameterized, Status, Treatment as TreatmentDescriptor, TreatmentBuildMode, Attribute,
+use melodium_common::descriptor::{
+    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry,
+    Identified, Identifier, Input, Model, Output, Parameter, Parameterized, Status,
+    Treatment as TreatmentDescriptor, TreatmentBuildMode,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock, Weak};

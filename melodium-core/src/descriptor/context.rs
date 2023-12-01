@@ -1,6 +1,7 @@
 use core::fmt::{Display, Formatter, Result};
-use melodium_common::descriptor::{Attribuable, Attributes,
-    Context as ContextDescriptor, DataType, Documented, Identified, Identifier,
+use melodium_common::descriptor::{
+    Attribuable, Attributes, Context as ContextDescriptor, DataType, Documented, Identified,
+    Identifier,
 };
 use std::collections::HashMap;
 use std::iter::FromIterator;

@@ -1,4 +1,4 @@
-use super::{Identifier, Attribuable};
+use super::{Attribuable, Identifier};
 use core::fmt::Debug;
 
 pub trait Identified: Attribuable + Debug + Send + Sync {

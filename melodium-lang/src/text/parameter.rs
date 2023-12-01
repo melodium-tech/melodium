@@ -1,18 +1,19 @@
 //! Module dedicated to [Parameter] parsing.
 
-use core::slice::Windows;
-
 use super::r#type::Type;
 use super::value::Value;
 use super::word::*;
+use super::CommentsAnnotations;
 use super::PositionnedString;
 use crate::ScriptError;
+use core::slice::Windows;
 
 /// Structure describing a textual parameter.
 ///
 /// It owns a name, and optionnal [Type] and/or [Value]. There is no logical dependency between them at this point.
 #[derive(Clone, Debug)]
 pub struct Parameter {
+    pub annotations: Option<CommentsAnnotations>,
     pub name: PositionnedString,
     pub variability: Option<PositionnedString>,
     pub r#type: Option<Type>,
@@ -26,6 +27,7 @@ impl Parameter {
     /// * `iter`: Iterator over words list, next() being expected to be about [Type].
     ///
     pub fn build_from_name(
+        annotations: Option<CommentsAnnotations>,
         variability_or_name: PositionnedString,
         mut iter: &mut Windows<Word>,
     ) -> Result<Self, ScriptError> {
@@ -43,7 +45,12 @@ impl Parameter {
                             }
                         })?;
 
-                    Self::build_from_type(Some(variability_or_name), w.into(), &mut iter)
+                    Self::build_from_type(
+                        annotations,
+                        Some(variability_or_name),
+                        w.into(),
+                        &mut iter,
+                    )
                 }
                 Some(w) => return Err(ScriptError::word(57, w.clone(), &[Kind::Name])),
                 None => return Err(ScriptError::end_of_script(58)),
@@ -60,7 +67,7 @@ impl Parameter {
                     }
                 })?;
 
-            Self::build_from_type(None, variability_or_name, &mut iter)
+            Self::build_from_type(annotations, None, variability_or_name, &mut iter)
         }
     }
 
@@ -71,6 +78,7 @@ impl Parameter {
     /// * `iter`: Iterator over words list, next() being expected to be about [Type].
     ///
     pub fn build_from_type(
+        annotations: Option<CommentsAnnotations>,
         variability: Option<PositionnedString>,
         name: PositionnedString,
         mut iter: &mut Windows<Word>,
@@ -85,6 +93,7 @@ impl Parameter {
                 let value = Value::build_from_first_item(&mut iter)?;
 
                 Ok(Self {
+                    annotations,
                     name,
                     variability,
                     r#type: Some(r#type),
@@ -92,6 +101,7 @@ impl Parameter {
                 })
             }
             _ => Ok(Self {
+                annotations,
                 name,
                 variability,
                 r#type: Some(r#type),
@@ -106,12 +116,14 @@ impl Parameter {
     /// * `iter`: Iterator over words list, next() being expected to be about [Value].
     ///
     pub fn build_from_value(
+        annotations: Option<CommentsAnnotations>,
         name: PositionnedString,
         iter: &mut Windows<Word>,
     ) -> Result<Self, ScriptError> {
         let value = Value::build_from_first_item(iter)?;
 
         Ok(Self {
+            annotations,
             name,
             variability: None,
             r#type: None,

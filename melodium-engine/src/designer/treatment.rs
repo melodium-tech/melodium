@@ -8,7 +8,8 @@ use crate::design::{
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Collection, Entry, Identified, Identifier, Parameterized, Treatment as TreatmentTrait, Attribuable, Attributes,
+    Attribuable, Attributes, Collection, Entry, Identified, Identifier, Parameterized,
+    Treatment as TreatmentTrait,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
@@ -132,7 +133,8 @@ impl Treatment {
                     .merge_degrade_failure(self.add_output_connection(
                         &connection.input_name,
                         output_treatment,
-                        &connection.output_name,connection.attributes().clone(),
+                        &connection.output_name,
+                        connection.attributes().clone(),
                         design_reference.clone(),
                     )),
                 (IODesign::Treatment(output_treatment), IODesign::Treatment(input_treatment)) => {

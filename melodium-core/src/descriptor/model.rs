@@ -1,7 +1,7 @@
 use core::fmt::{Display, Formatter, Result};
-use melodium_common::descriptor::{Attribuable, Attributes,
-    Buildable, Context, Documented, Identified, Identifier, Model as ModelDescriptor,
-    ModelBuildMode, Parameter, Parameterized,
+use melodium_common::descriptor::{
+    Attribuable, Attributes, Buildable, Context, Documented, Identified, Identifier,
+    Model as ModelDescriptor, ModelBuildMode, Parameter, Parameterized,
 };
 use melodium_common::executive::{Model as ExecutiveModel, World};
 use std::collections::HashMap;

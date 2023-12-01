@@ -1,6 +1,6 @@
 use super::Parameter;
 use core::fmt::Debug;
-use melodium_common::descriptor::{Identifier, Treatment, Attribuable, Attributes};
+use melodium_common::descriptor::{Attribuable, Attributes, Identifier, Treatment};
 use std::collections::HashMap;
 use std::sync::Weak;
 

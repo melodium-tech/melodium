@@ -1,4 +1,4 @@
-use super::{DataType, Variability, Attribuable, Attributes};
+use super::{Attribuable, Attributes, DataType, Variability};
 use crate::executive::Value;
 use core::fmt::{Display, Formatter, Result};
 

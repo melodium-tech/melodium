@@ -1,4 +1,4 @@
-use melodium_common::descriptor::{Attributes, Attribuable};
+use melodium_common::descriptor::{Attribuable, Attributes};
 
 #[derive(Clone, Debug)]
 pub enum IO {
