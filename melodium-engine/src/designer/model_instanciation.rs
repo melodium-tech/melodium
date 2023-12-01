@@ -2,7 +2,7 @@ use super::{Parameter, Reference, Scope, Treatment, Value};
 use crate::design::ModelInstanciation as ModelInstanciationDesign;
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
-use melodium_common::descriptor::{
+use melodium_common::descriptor::{Attributes, Attribuable, Attribute,
     Collection, Identified, Identifier, Model as ModelDescriptor, Parameter as ParameterDescriptor,
     Treatment as TreatmentDescriptor, Variability,
 };
@@ -17,6 +17,7 @@ pub struct ModelInstanciation {
     descriptor: Weak<dyn ModelDescriptor>,
     name: String,
     parameters: HashMap<String, Arc<RwLock<Parameter>>>,
+    attributes: Attributes,
     design_reference: Option<Arc<dyn Reference>>,
 }
 
@@ -36,6 +37,7 @@ impl ModelInstanciation {
             descriptor: Arc::downgrade(descriptor),
             name: name.to_string(),
             parameters: HashMap::with_capacity(descriptor.parameters().len()),
+            attributes: Attributes::default(),
             design_reference,
         }
     }
@@ -77,6 +79,17 @@ impl ModelInstanciation {
 
     pub(super) fn set_name(&mut self, name: String) {
         self.name = name;
+    }
+
+    pub fn add_attribute(&mut self, name: String, attribute: Attribute) {
+        self.attributes.insert(name, attribute);
+    }
+
+    pub fn remove_attribute(&mut self, name: &str) -> bool {
+        match self.attributes.remove(name) {
+            Some(_) => true,
+            None => false,
+        }
     }
 
     pub fn add_parameter(
@@ -227,5 +240,11 @@ impl ModelInstanciation {
         }
 
         result
+    }
+}
+
+impl Attribuable for ModelInstanciation {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }

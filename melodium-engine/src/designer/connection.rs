@@ -1,4 +1,5 @@
 use super::{Reference, TreatmentInstanciation};
+use melodium_common::descriptor::{Attribuable, Attributes};
 use std::sync::{Arc, RwLock, Weak};
 
 #[derive(Debug)]
@@ -39,6 +40,8 @@ pub struct Connection {
     pub input_treatment: IO,
     pub input_name: String,
 
+    pub attributes: Attributes,
+
     pub design_reference: Option<Arc<dyn Reference>>,
 }
 
@@ -55,6 +58,7 @@ impl Connection {
             output_treatment: IO::Treatment(Arc::downgrade(output_treatment)),
             input_name: input_name.to_string(),
             input_treatment: IO::Treatment(Arc::downgrade(input_treatment)),
+            attributes: Attributes::default(),
             design_reference,
         }
     }
@@ -69,6 +73,7 @@ impl Connection {
             output_treatment: IO::Sequence(),
             input_name: self_output_name.to_string(),
             input_treatment: IO::Sequence(),
+            attributes: Attributes::default(),
             design_reference,
         }
     }
@@ -84,6 +89,7 @@ impl Connection {
             output_treatment: IO::Sequence(),
             input_name: input_name.to_string(),
             input_treatment: IO::Treatment(Arc::downgrade(input_treatment)),
+            attributes: Attributes::default(),
             design_reference,
         }
     }
@@ -99,7 +105,14 @@ impl Connection {
             output_treatment: IO::Treatment(Arc::downgrade(output_treatment)),
             input_name: self_output_name.to_string(),
             input_treatment: IO::Sequence(),
+            attributes: Attributes::default(),
             design_reference,
         }
+    }
+}
+
+impl Attribuable for Connection {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }

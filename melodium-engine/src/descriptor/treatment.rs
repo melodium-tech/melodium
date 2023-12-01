@@ -4,7 +4,7 @@ use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{Attribuable, Attributes,
     Buildable, Collection, Context, Documented, Entry, Identified, Identifier, Input, Model,
-    Output, Parameter, Parameterized, Status, Treatment as TreatmentDescriptor, TreatmentBuildMode,
+    Output, Parameter, Parameterized, Status, Treatment as TreatmentDescriptor, TreatmentBuildMode, Attribute,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock, Weak};
@@ -169,6 +169,17 @@ impl Treatment {
         }
         #[cfg(not(feature = "doc"))]
         let _ = documentation;
+    }
+
+    pub fn add_attribute(&mut self, name: String, attribute: Attribute) {
+        self.attributes.insert(name, attribute);
+    }
+
+    pub fn remove_attribute(&mut self, name: &str) -> bool {
+        match self.attributes.remove(name) {
+            Some(_) => true,
+            None => false,
+        }
     }
 
     pub fn add_model(&mut self, name: &str, model: &Arc<dyn Model>) {
