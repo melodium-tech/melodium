@@ -8,7 +8,7 @@ use crate::design::{
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Collection, Entry, Identified, Identifier, Parameterized, Treatment as TreatmentTrait,
+    Collection, Entry, Identified, Identifier, Parameterized, Treatment as TreatmentTrait, Attributes,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
@@ -919,6 +919,7 @@ impl Treatment {
                             name.clone(),
                             ModelInstanciationDesign {
                                 name: name.clone(),
+                                attributes: Attributes::default(),
                                 descriptor: Arc::downgrade(&model_instanciation.descriptor()),
                                 parameters: model_instanciation
                                     .parameters()
@@ -951,6 +952,7 @@ impl Treatment {
                             name.clone(),
                             TreatmentInstanciationDesign {
                                 name: name.clone(),
+                                attributes: Attributes::default(),
                                 descriptor: Arc::downgrade(&treatment_instanciation.descriptor()),
                                 models: treatment_instanciation.models().clone(),
                                 parameters: treatment_instanciation
@@ -980,6 +982,7 @@ impl Treatment {
                     .iter()
                     .filter_map(|connection| {
                         Some(ConnectionDesign {
+                            attributes: Attributes::default(),
                             output_treatment: match &connection.output_treatment {
                                 IO::Sequence() => IODesign::Sequence(),
                                 IO::Treatment(t) => IODesign::Treatment(

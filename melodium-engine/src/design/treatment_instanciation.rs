@@ -1,6 +1,6 @@
 use super::Parameter;
 use core::fmt::Debug;
-use melodium_common::descriptor::{Identifier, Treatment};
+use melodium_common::descriptor::{Identifier, Treatment, Attribuable, Attributes};
 use std::collections::HashMap;
 use std::sync::Weak;
 
@@ -10,6 +10,7 @@ pub struct TreatmentInstanciation {
     pub descriptor: Weak<dyn Treatment>,
     pub models: HashMap<String, String>,
     pub parameters: HashMap<String, Parameter>,
+    pub attributes: Attributes,
 }
 
 impl TreatmentInstanciation {
@@ -22,5 +23,11 @@ impl TreatmentInstanciation {
                 .parameters
                 .iter()
                 .any(|(_, parameter)| parameter.make_use(identifier))
+    }
+}
+
+impl Attribuable for TreatmentInstanciation {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }
