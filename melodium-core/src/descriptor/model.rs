@@ -24,6 +24,7 @@ impl Model {
     pub fn new(
         identifier: Identifier,
         documentation: String,
+        attributes: Attributes,
         parameters: Vec<Parameter>,
         sources: Vec<(String, Vec<Arc<dyn Context>>)>,
         build_fn: fn(Arc<dyn World>) -> Arc<dyn ExecutiveModel>,
@@ -34,7 +35,7 @@ impl Model {
             identifier,
             #[cfg(feature = "doc")]
             documentation,
-            attributes: Attributes::default(),
+            attributes,
             parameters: HashMap::from_iter(
                 parameters.into_iter().map(|p| (p.name().to_string(), p)),
             ),

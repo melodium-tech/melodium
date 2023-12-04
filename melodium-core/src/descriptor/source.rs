@@ -24,6 +24,7 @@ impl Source {
     pub fn new(
         identifier: Identifier,
         documentation: String,
+        attributes: Attributes,
         models: Vec<(String, Arc<dyn Model>)>,
         source_from: Vec<(String, Vec<String>)>,
         outputs: Vec<Output>,
@@ -34,7 +35,7 @@ impl Source {
             identifier,
             #[cfg(feature = "doc")]
             documentation,
-            attributes: Attributes::default(),
+            attributes,
             models: HashMap::from_iter(models.into_iter().map(|(n, m)| (n.to_string(), m))),
             outputs: HashMap::from_iter(outputs.into_iter().map(|o| (o.name().to_string(), o))),
             source_from: HashMap::from_iter(source_from.into_iter()),

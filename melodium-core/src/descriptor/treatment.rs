@@ -28,6 +28,7 @@ impl Treatment {
     pub fn new(
         identifier: Identifier,
         documentation: String,
+        attributes: Attributes,
         models: Vec<(String, Arc<dyn Model>)>,
         source_from: Vec<(String, Vec<String>)>,
         parameters: Vec<Parameter>,
@@ -41,7 +42,7 @@ impl Treatment {
             identifier,
             #[cfg(feature = "doc")]
             documentation,
-            attributes: Attributes::default(),
+            attributes,
             models: HashMap::from_iter(models.into_iter().map(|(n, m)| (n, m))),
             parameters: HashMap::from_iter(
                 parameters.into_iter().map(|p| (p.name().to_string(), p)),

@@ -22,13 +22,14 @@ impl Context {
         values: Vec<(&str, DataType)>,
         #[cfg(feature = "doc")] documentation: String,
         #[cfg(not(feature = "doc"))] _documentation: String,
+        attributes: Attributes,
     ) -> Arc<Self> {
         Arc::new(Self {
             identifier,
             values: HashMap::from_iter(values.iter().map(|v| (v.0.to_string(), v.1))),
             #[cfg(feature = "doc")]
             documentation,
-            attributes: Attributes::default(),
+            attributes,
         })
     }
 }

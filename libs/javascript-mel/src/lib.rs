@@ -85,11 +85,11 @@ impl JavaScriptEngine {
 #[mel_treatment(
     default code ""
     model engine JavaScriptEngine
-    input value Stream<string>
+    input {compo(type=json) hey()} value Stream<string>
     output result Stream<string>
     output is_valid Stream<bool>
 )]
-pub async fn process(code: string) {
+pub async fn process(#[mel(compo(type=javascript))] code: string) {
     let engine = JavaScriptEngineModel::into(engine);
 
     while let Ok(values) = value.recv_string().await {

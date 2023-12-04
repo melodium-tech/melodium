@@ -22,6 +22,7 @@ impl Function {
     pub fn new(
         identifier: Identifier,
         documentation: String,
+        attributes: Attributes,
         parameters: Vec<Parameter>,
         return_type: DataType,
         function: fn(Vec<Value>) -> Value,
@@ -32,7 +33,7 @@ impl Function {
             identifier,
             #[cfg(feature = "doc")]
             documentation,
-            attributes: Attributes::default(),
+            attributes,
             parameters,
             return_type,
             function,
