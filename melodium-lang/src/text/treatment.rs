@@ -203,7 +203,7 @@ impl Treatment {
             // Those are convenience variables, in case we're not continuing a connection chain,
             // reused in "else" block later.
             let element_name: PositionnedString;
-            let element_annotations;
+            let mut element_annotations = None;
             let determinant;
 
             match iter.next().map(|s| &s[0]) {

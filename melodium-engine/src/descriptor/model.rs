@@ -160,6 +160,7 @@ impl Model {
                 Variability::Const,
                 parameter.datatype().clone(),
                 parameter.default().clone(),
+                parameter.attributes().clone(),
             );
         }
         self.parameters

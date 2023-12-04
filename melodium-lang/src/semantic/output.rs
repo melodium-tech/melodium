@@ -72,7 +72,22 @@ impl Output {
 
     pub fn make_descriptor(&self) -> ScriptResult<OutputDescriptor> {
         self.r#type.make_descriptor().and_then(|(datatype, flow)| {
-            ScriptResult::new_success(OutputDescriptor::new(&self.name, datatype, flow))
+            ScriptResult::new_success(OutputDescriptor::new(
+                &self.name,
+                datatype,
+                flow,
+                self.text
+                    .annotations
+                    .as_ref()
+                    .map(|annotations| {
+                        annotations
+                            .annotations
+                            .iter()
+                            .filter_map(|annotation| annotation.as_attribute())
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+            ))
         })
     }
 }

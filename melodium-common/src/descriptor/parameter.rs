@@ -17,13 +17,14 @@ impl Parameter {
         variability: Variability,
         datatype: DataType,
         default: Option<Value>,
+        attributes: Attributes,
     ) -> Self {
         Self {
             name: name.to_string(),
             variability,
             datatype,
             default,
-            attributes: Attributes::default(),
+            attributes,
         }
     }
 

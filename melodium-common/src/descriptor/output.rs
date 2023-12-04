@@ -10,12 +10,12 @@ pub struct Output {
 }
 
 impl Output {
-    pub fn new(name: &str, datatype: DataType, flow: Flow) -> Self {
+    pub fn new(name: &str, datatype: DataType, flow: Flow, attributes: Attributes) -> Self {
         Self {
             name: name.to_string(),
             datatype,
             flow,
-            attributes: Attributes::default(),
+            attributes,
         }
     }
 

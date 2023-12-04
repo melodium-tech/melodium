@@ -171,8 +171,16 @@ impl Model {
             let mut descriptor =
                 ModelDescriptor::new(self.identifier.as_ref().unwrap().clone(), base_descriptor);
 
-            if let Some(documentation) = &self.text.doc {
-                descriptor.set_documentation(&documentation.string);
+            if let Some(annotations) = self.text.annotations.as_ref() {
+                if let Some(doc) = &annotations.doc {
+                    descriptor.set_documentation(&doc.string);
+                }
+
+                for annotation in &annotations.annotations {
+                    if let Some((name, attribute)) = annotation.as_attribute() {
+                        descriptor.add_attribute(name, attribute);
+                    }
+                }
             }
 
             for rc_parameter in &self.parameters {
