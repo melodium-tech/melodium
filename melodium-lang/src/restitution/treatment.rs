@@ -1,7 +1,8 @@
 use super::value::value;
 use itertools::Itertools;
 use melodium_common::descriptor::{
-    Documented, Identified, Identifier, Parameterized, Treatment as TreatmentDescriptor,
+    Attribuable, Documented, Identified, Identifier, Parameterized,
+    Treatment as TreatmentDescriptor,
 };
 use melodium_engine::design::{Connection, Treatment as TreatmentDesign, IO};
 use std::collections::BTreeMap;
@@ -60,6 +61,14 @@ impl Treatment {
             )
         };
 
+        for (name, attribute) in descriptor.attributes() {
+            implementation.push_str("#[");
+            implementation.push_str(name);
+            implementation.push_str("(");
+            implementation.push_str(&attribute);
+            implementation.push_str(")]\n");
+        }
+
         implementation.push_str("treatment ");
         implementation.push_str(descriptor.identifier().name());
 
@@ -88,7 +97,17 @@ impl Treatment {
                 .parameters()
                 .iter()
                 .sorted_by_key(|(k, _)| *k)
-                .map(|(_, param)| param.to_string())
+                .map(|(_, param)| {
+                    format!(
+                        "{attributes}{param}",
+                        attributes = param
+                            .attributes()
+                            .iter()
+                            .map(|(name, attribute)| format!("#[{name}({attribute})] "))
+                            .collect::<Vec<_>>()
+                            .join("")
+                    )
+                })
                 .collect::<Vec<_>>()
                 .join(", "),
         );
@@ -102,12 +121,26 @@ impl Treatment {
         }
 
         for (_, input) in descriptor.inputs().iter().sorted_by_key(|(k, _)| *k) {
+            for (name, attribute) in input.attributes() {
+                implementation.push_str("  #[");
+                implementation.push_str(name);
+                implementation.push_str("(");
+                implementation.push_str(&attribute);
+                implementation.push_str(")]\n");
+            }
             implementation.push_str("  input ");
             implementation.push_str(&input.to_string());
             implementation.push_str("\n");
         }
 
         for (_, output) in descriptor.outputs().iter().sorted_by_key(|(k, _)| *k) {
+            for (name, attribute) in output.attributes() {
+                implementation.push_str("  #[");
+                implementation.push_str(name);
+                implementation.push_str("(");
+                implementation.push_str(&attribute);
+                implementation.push_str(")]\n");
+            }
             implementation.push_str("  output ");
             implementation.push_str(&output.to_string());
             implementation.push_str("\n");
@@ -119,6 +152,13 @@ impl Treatment {
             .iter()
             .sorted_by_key(|(k, _)| *k)
         {
+            for (name, attribute) in model.attributes() {
+                implementation.push_str("  #[");
+                implementation.push_str(name);
+                implementation.push_str("(");
+                implementation.push_str(&attribute);
+                implementation.push_str(")]\n");
+            }
             implementation.push_str("  model ");
             implementation.push_str(&model.name);
             implementation.push_str(": ");
@@ -152,6 +192,13 @@ impl Treatment {
         implementation.push_str("{\n");
 
         for (_, instanciation) in self.design.treatments.iter().sorted_by_key(|(k, _)| *k) {
+            for (name, attribute) in instanciation.attributes() {
+                implementation.push_str("    #[");
+                implementation.push_str(name);
+                implementation.push_str("(");
+                implementation.push_str(&attribute);
+                implementation.push_str(")]\n");
+            }
             implementation.push_str("    ");
             implementation.push_str(&instanciation.name);
 
@@ -199,6 +246,13 @@ impl Treatment {
         implementation.push_str("\n");
 
         for connection in &self.design.connections {
+            for (name, attribute) in connection.attributes() {
+                implementation.push_str("    #[");
+                implementation.push_str(name);
+                implementation.push_str("(");
+                implementation.push_str(&attribute);
+                implementation.push_str(")]\n");
+            }
             implementation.push_str("    ");
             implementation.push_str(&Self::connection(connection));
             implementation.push_str("\n");
