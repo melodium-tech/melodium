@@ -3,6 +3,35 @@ use core::fmt::{Debug, Display, Formatter, Result};
 use crate::descriptor::{DataType, Structure, Type};
 
 #[derive(Clone, PartialEq, Debug)]
+pub enum GenericValue {
+    Void(()),
+
+    I8(i8),
+    I16(i16),
+    I32(i32),
+    I64(i64),
+    I128(i128),
+
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    U128(u128),
+
+    F32(f32),
+    F64(f64),
+
+    Bool(bool),
+    Byte(u8),
+    Char(char),
+    String(String),
+
+    Option(Box<Option<GenericValue>>),
+
+    Vec(Vec<GenericValue>),
+}
+
+#[derive(Clone, PartialEq, Debug)]
 pub enum Value {
     Void(()),
 
