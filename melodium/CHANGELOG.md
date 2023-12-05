@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- Including language attributes
+
 ## [v0.7.1]
 
 - Adding `.jeu` files management as usual packages.
