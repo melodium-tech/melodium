@@ -1,6 +1,7 @@
 //! Module dedicated to [Treatment](Treatment) parsing.
 
 use core::slice::Windows;
+use std::collections::HashMap;
 
 use super::common::{parse_configuration_declarations, parse_parameters_declarations};
 use super::connection::Connection;
@@ -8,7 +9,7 @@ use super::instanciation::Instanciation;
 use super::parameter::Parameter;
 use super::requirement::Requirement;
 use super::word::{Kind, Word};
-use super::PositionnedString;
+use super::{CommentsAnnotations, PositionnedString};
 use crate::ScriptError;
 
 /// Structure describing a textual treatment.
@@ -16,7 +17,7 @@ use crate::ScriptError;
 /// It owns the name, and the attributes of the treatment, as well as its internal treatments instanciations and connections. There is no logical dependency between them at this point.
 #[derive(Clone, Debug)]
 pub struct Treatment {
-    pub doc: Option<PositionnedString>,
+    pub annotations: Option<CommentsAnnotations>,
     pub name: PositionnedString,
     pub configuration: Vec<Parameter>,
     pub parameters: Vec<Parameter>,
@@ -35,7 +36,8 @@ impl Treatment {
     ///
     pub fn build(
         mut iter: &mut Windows<Word>,
-        mut doc: Option<PositionnedString>,
+        mut self_annotations: Option<CommentsAnnotations>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
         let word_name = iter
             .next()
@@ -54,11 +56,11 @@ impl Treatment {
         let parameters;
         match iter.next().map(|s| &s[0]) {
             Some(w) if w.kind == Some(Kind::OpeningBracket) => {
-                configuration = parse_configuration_declarations(&mut iter)?;
+                configuration = parse_configuration_declarations(&mut iter, global_annotations)?;
 
                 match iter.next().map(|s| &s[0]) {
                     Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
-                        parameters = parse_parameters_declarations(&mut iter)?;
+                        parameters = parse_parameters_declarations(&mut iter, global_annotations)?;
                     }
                     Some(w) => {
                         return Err(ScriptError::word(
@@ -71,7 +73,7 @@ impl Treatment {
                 }
             }
             Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
-                parameters = parse_parameters_declarations(&mut iter)?;
+                parameters = parse_parameters_declarations(&mut iter, global_annotations)?;
                 configuration = Vec::new();
             }
             Some(w) => {
@@ -120,7 +122,12 @@ impl Treatment {
                                 }
                             })?;
 
-                        inputs.push(Parameter::build_from_type(None, input_name, &mut iter)?);
+                        inputs.push(Parameter::build_from_type(
+                            global_annotations.remove(w),
+                            None,
+                            input_name,
+                            &mut iter,
+                        )?);
                     }
                     "output" => {
                         let output_name = iter
@@ -146,9 +153,18 @@ impl Treatment {
                                 }
                             })?;
 
-                        outputs.push(Parameter::build_from_type(None, output_name, &mut iter)?);
+                        outputs.push(Parameter::build_from_type(
+                            global_annotations.remove(w),
+                            None,
+                            output_name,
+                            &mut iter,
+                        )?);
                     }
-                    "model" => models.push(Instanciation::build(&mut iter)?),
+                    "model" => models.push(Instanciation::build(
+                        global_annotations.remove(&w),
+                        &mut iter,
+                        global_annotations,
+                    )?),
                     "require" => requirements.push(Requirement::build(&mut iter)?),
                     _ => {
                         return Err(ScriptError::description_element_expected(
@@ -187,6 +203,7 @@ impl Treatment {
             // Those are convenience variables, in case we're not continuing a connection chain,
             // reused in "else" block later.
             let element_name: PositionnedString;
+            let mut element_annotations = None;
             let determinant;
 
             match iter.next().map(|s| &s[0]) {
@@ -194,6 +211,7 @@ impl Treatment {
                 // we check if word is a comma.
                 Some(w) if w.kind == Some(Kind::Comma) && may_be_connection_data_out => {
                     let connection = Connection::build_from_name_data_out(
+                        element_annotations,
                         last_connection_name_end_point.unwrap(),
                         &mut iter,
                     )?;
@@ -211,6 +229,7 @@ impl Treatment {
                 Some(w) if w.kind == Some(Kind::RightArrow) && may_be_connection_end_point => {
                     // So it means we expect continuing a connection that only chains treatments (2).
                     let connection = Connection::build_from_name_end_point(
+                        element_annotations,
                         last_connection_name_end_point.unwrap(),
                         &mut iter,
                     )?;
@@ -232,6 +251,7 @@ impl Treatment {
                     // If we're not continuing a connection, word have to be the name of an element.
                     if w.kind == Some(Kind::Name) {
                         element_name = w.into();
+                        element_annotations = global_annotations.remove(w);
 
                         // And the next word is determinant of what can follow.
                         determinant = iter.next();
@@ -252,27 +272,40 @@ impl Treatment {
 
             match determinant.map(|s| &s[0]) {
                 // If determinant is ':', '[', or '(', we are in a treatment declaration.
-                Some(w) if w.kind == Some(Kind::Colon) => treatments.push(
-                    Instanciation::build_from_type(element_name.clone(), &mut iter)?,
-                ),
+                Some(w) if w.kind == Some(Kind::Colon) => {
+                    treatments.push(Instanciation::build_from_type(
+                        element_annotations,
+                        element_name.clone(),
+                        &mut iter,
+                        global_annotations,
+                    )?)
+                }
                 Some(w) if w.kind == Some(Kind::OpeningBracket) => {
                     treatments.push(Instanciation::build_from_configuration(
+                        element_annotations,
                         element_name.clone(),
                         element_name.clone(),
                         &mut iter,
+                        global_annotations,
                     )?)
                 }
                 Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
                     treatments.push(Instanciation::build_from_parameters(
+                        element_annotations,
                         element_name.clone(),
                         element_name.clone(),
                         Vec::new(),
                         &mut iter,
+                        global_annotations,
                     )?)
                 }
                 // If determinant is a dot '.', we are in a connection declaration, with data transmission (1).
                 Some(w) if w.kind == Some(Kind::Dot) => {
-                    let connection = Connection::build_from_name_data_out(element_name, &mut iter)?;
+                    let connection = Connection::build_from_name_data_out(
+                        element_annotations,
+                        element_name,
+                        &mut iter,
+                    )?;
                     last_connection_name_end_point = Some(connection.name_end_point.clone());
                     connections.push(connection);
                     // We remind that next iteration may be a continuation of connections.
@@ -280,8 +313,11 @@ impl Treatment {
                 }
                 // If determinant is an arrow '-->', we are in a connection declaration, without data transmission (2).
                 Some(w) if w.kind == Some(Kind::RightArrow) => {
-                    let connection =
-                        Connection::build_from_name_end_point(element_name, &mut iter)?;
+                    let connection = Connection::build_from_name_end_point(
+                        element_annotations,
+                        element_name,
+                        &mut iter,
+                    )?;
                     last_connection_name_end_point = Some(connection.name_end_point.clone());
                     connections.push(connection);
                     // We remind that next iteration may be a continuation of connections.
@@ -304,12 +340,12 @@ impl Treatment {
             }
         }
 
-        if let Some(doc) = doc.as_mut() {
+        if let Some(doc) = self_annotations.as_mut().and_then(|sa| sa.doc.as_mut()) {
             doc.remove_indent();
         }
 
         Ok(Self {
-            doc,
+            annotations: self_annotations,
             name,
             configuration,
             parameters,

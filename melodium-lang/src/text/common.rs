@@ -1,10 +1,11 @@
 //! Contains convenience functions and tools for text parsing.
 
-use core::slice::Windows;
-
 use super::parameter::Parameter;
 use super::word::{Kind, Word};
+use super::CommentsAnnotations;
 use crate::ScriptError;
+use core::slice::Windows;
+use std::collections::HashMap;
 
 /// Build a parameter declaration list by parsing words.
 ///
@@ -12,6 +13,7 @@ use crate::ScriptError;
 ///
 pub fn parse_parameters_declarations(
     mut iter: &mut Windows<Word>,
+    global_annotations: &mut HashMap<Word, CommentsAnnotations>,
 ) -> Result<Vec<Parameter>, ScriptError> {
     let mut parameters = Vec::new();
 
@@ -22,7 +24,11 @@ pub fn parse_parameters_declarations(
             Some(w) if w.kind == Some(Kind::Name) => {
                 first_param = false;
 
-                parameters.push(Parameter::build_from_name(w.into(), &mut iter)?);
+                parameters.push(Parameter::build_from_name(
+                    global_annotations.remove(w),
+                    w.into(),
+                    &mut iter,
+                )?);
 
                 match iter.next().map(|s| &s[0]) {
                     Some(w) if w.kind == Some(Kind::Comma) => continue,
@@ -56,6 +62,7 @@ pub fn parse_parameters_declarations(
 /// * `iter`: Iterator over words list, next() being expected to be the the first parameter, _not_ parenthesis.
 pub fn parse_parameters_assignations(
     mut iter: &mut Windows<Word>,
+    global_annotations: &mut HashMap<Word, CommentsAnnotations>,
 ) -> Result<Vec<Parameter>, ScriptError> {
     let mut parameters = Vec::new();
 
@@ -77,7 +84,11 @@ pub fn parse_parameters_assignations(
                         }
                     })?;
 
-                parameters.push(Parameter::build_from_value(w.into(), &mut iter)?);
+                parameters.push(Parameter::build_from_value(
+                    global_annotations.remove(w),
+                    w.into(),
+                    &mut iter,
+                )?);
 
                 match iter.next().map(|s| &s[0]) {
                     Some(w) if w.kind == Some(Kind::Comma) => continue,
@@ -111,6 +122,7 @@ pub fn parse_parameters_assignations(
 /// * `iter`: Iterator over words list, next() being expected to be the first parameter, _not_ bracket.
 pub fn parse_configuration_declarations(
     mut iter: &mut Windows<Word>,
+    global_annotations: &mut HashMap<Word, CommentsAnnotations>,
 ) -> Result<Vec<Parameter>, ScriptError> {
     let mut parameters = Vec::new();
 
@@ -132,7 +144,12 @@ pub fn parse_configuration_declarations(
                         }
                     })?;
 
-                parameters.push(Parameter::build_from_type(None, w.into(), &mut iter)?);
+                parameters.push(Parameter::build_from_type(
+                    global_annotations.remove(w),
+                    None,
+                    w.into(),
+                    &mut iter,
+                )?);
 
                 match iter.next().map(|s| &s[0]) {
                     Some(w) if w.kind == Some(Kind::Comma) => continue,
@@ -166,6 +183,7 @@ pub fn parse_configuration_declarations(
 /// * `iter`: Iterator over words list, next() being expected to be the first parameter, _not_ bracket.
 pub fn parse_configuration_assignations(
     mut iter: &mut Windows<Word>,
+    global_annotations: &mut HashMap<Word, CommentsAnnotations>,
 ) -> Result<Vec<Parameter>, ScriptError> {
     let mut parameters = Vec::new();
 
@@ -187,7 +205,11 @@ pub fn parse_configuration_assignations(
                         }
                     })?;
 
-                parameters.push(Parameter::build_from_value(w.into(), &mut iter)?);
+                parameters.push(Parameter::build_from_value(
+                    global_annotations.remove(w),
+                    w.into(),
+                    &mut iter,
+                )?);
 
                 match iter.next().map(|s| &s[0]) {
                     Some(w) if w.kind == Some(Kind::Comma) => continue,

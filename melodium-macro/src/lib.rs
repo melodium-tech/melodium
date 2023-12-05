@@ -186,18 +186,50 @@ fn config_default(ts: &mut IntoIterTokenStream) -> (String, String) {
     }
 }
 
-fn config_param(ts: &mut IntoIterTokenStream) -> (String, String, Option<String>) {
-    if let Some(TokenTree::Ident(name)) = ts.next() {
-        (name.to_string(), config_ty(ts), config_optionnal_value(ts))
+fn config_param(
+    ts: &mut IntoIterTokenStream,
+) -> (String, String, Option<String>, HashMap<String, String>) {
+    let mut next = ts.next();
+    let attributes;
+    if let Some(TokenTree::Group(attrs)) = next {
+        attributes = config_attributes(&mut attrs.stream().into_iter());
+        next = ts.next();
     } else {
-        panic!("Name identity expected")
+        attributes = HashMap::new();
+    }
+
+    if let Some(TokenTree::Ident(name)) = next {
+        (
+            name.to_string(),
+            config_ty(ts),
+            config_optionnal_value(ts),
+            attributes,
+        )
+    } else {
+        panic!(
+            "Name identity expected, found: {}",
+            next.unwrap().to_string()
+        )
     }
 }
 
 fn config_full_source(
     ts: &mut IntoIterTokenStream,
-) -> (String, Vec<String>, Vec<(String, String, String)>) {
-    if let Some(TokenTree::Ident(name)) = ts.next() {
+) -> (
+    String,
+    Vec<String>,
+    Vec<(String, String, String, HashMap<String, String>)>,
+    HashMap<String, String>,
+) {
+    let mut next = ts.next();
+    let attributes;
+    if let Some(TokenTree::Group(attrs)) = next {
+        attributes = config_attributes(&mut attrs.stream().into_iter());
+        next = ts.next();
+    } else {
+        attributes = HashMap::new();
+    }
+    if let Some(TokenTree::Ident(name)) = next {
         let mut contextes = Vec::new();
         if let Some(TokenTree::Group(group)) = ts.next() {
             for tt in group.stream() {
@@ -227,7 +259,7 @@ fn config_full_source(
             panic!("Outputs list expected")
         }
 
-        (name.to_string(), contextes, outputs)
+        (name.to_string(), contextes, outputs, attributes)
     } else {
         panic!("Name identity expected")
     }
@@ -387,20 +419,71 @@ fn config_ty(ts: &mut IntoIterTokenStream) -> String {
     mel_ty
 }
 
-fn config_io(ts: &mut IntoIterTokenStream) -> Option<(String, String, String)> {
-    if let Some(TokenTree::Ident(name)) = ts.next() {
+fn config_io(
+    ts: &mut IntoIterTokenStream,
+) -> Option<(String, String, String, HashMap<String, String>)> {
+    let mut next = ts.next();
+    let attributes;
+    if let Some(TokenTree::Group(attrs)) = next {
+        attributes = config_attributes(&mut attrs.stream().into_iter());
+        next = ts.next();
+    } else {
+        attributes = HashMap::new();
+    }
+    if let Some(TokenTree::Ident(name)) = next {
         if let Some(TokenTree::Ident(flow)) = ts.next() {
             ts.next(); // <
 
             let mel_ty = config_ty(ts);
 
             ts.next(); // >
-            Some((name.to_string(), flow.to_string(), mel_ty))
+            Some((name.to_string(), flow.to_string(), mel_ty, attributes))
         } else {
             panic!("Flow identity expected")
         }
     } else {
         None
+    }
+}
+
+fn config_attributes(ts: &mut IntoIterTokenStream) -> HashMap<String, String> {
+    let mut attributes = HashMap::new();
+    while let Some(next) = ts.next() {
+        if let TokenTree::Ident(name) = next {
+            ts.next(); // (
+
+            let mut attribute = String::new();
+            while let Some(next) = ts.next() {
+                if let TokenTree::Punct(punct) = &next {
+                    if punct.as_char() == ')' {
+                        break;
+                    }
+                }
+                attribute.push_str(&next.to_string());
+            }
+            attributes.insert(name.to_string(), attribute);
+        }
+    }
+
+    attributes
+}
+
+fn config_attribute(ts: &mut IntoIterTokenStream) -> (String, String) {
+    if let Some(TokenTree::Ident(name)) = ts.next() {
+        ts.next(); // (
+
+        let mut attribute = String::new();
+        while let Some(next) = ts.next() {
+            if let TokenTree::Punct(punct) = &next {
+                if punct.as_char() == ')' {
+                    break;
+                }
+            }
+            attribute.push_str(&next.to_string());
+        }
+        (name.to_string(), attribute)
+    } else {
+        panic!("Name identity expected")
     }
 }
 
@@ -716,6 +799,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut models = HashMap::new();
     let mut inputs = HashMap::new();
     let mut outputs = HashMap::new();
+    let mut attributes = HashMap::new();
 
     let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
     while let Some(tt) = iter_attr.next() {
@@ -735,14 +819,18 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                     models.insert(name, (ident, Some(source)));
                 }
                 "input" => {
-                    let (name, flow, ty) =
+                    let (name, flow, ty, attributes) =
                         config_io(&mut iter_attr).expect("Name identity expected");
-                    inputs.insert(name, (flow, ty));
+                    inputs.insert(name, (flow, ty, attributes));
                 }
                 "output" => {
-                    let (name, flow, ty) =
+                    let (name, flow, ty, attributes) =
                         config_io(&mut iter_attr).expect("Name identity expected");
-                    outputs.insert(name, (flow, ty));
+                    outputs.insert(name, (flow, ty, attributes));
+                }
+                "attribute" => {
+                    let (name, value) = config_attribute(&mut iter_attr);
+                    attributes.insert(name, value);
                 }
                 _ => panic!("Unrecognized configuration"),
             }
@@ -779,9 +867,30 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                     break;
                 };
 
+                let attributes = t
+                    .attrs
+                    .iter()
+                    .filter_map(|attr| {
+                        if let Some(name) = attr.path.get_ident() {
+                            if name.to_string() == "mel" {
+                                Some(config_attributes(&mut attr.tokens.clone().into_iter()))
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .fold(HashMap::new(), |mut acc, attrs| {
+                        for attr in attrs {
+                            acc.insert(attr.0, attr.1);
+                        }
+                        acc
+                    });
+
                 let ty = into_mel_type(t.ty.borrow());
 
-                params.insert(name, ty);
+                params.insert(name, (ty, attributes));
             }
             _ => eprintln!("Only Mélodium types are admissible arguments"),
         }
@@ -790,20 +899,32 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
     let description;
     {
         let documentation = documentation.join("\n");
-        let parameters: proc_macro2::TokenStream = params.iter().map(|(name, ty)| {
+        let attributes: proc_macro2::TokenStream = attributes
+            .iter()
+            .map(|(name, value)| {
+                format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)
+            })
+            .collect::<Vec<_>>()
+            .join(";")
+            .parse()
+            .unwrap();
+        let parameters: proc_macro2::TokenStream = params.iter().map(|(name, (ty, attributes))| {
             let datatype = into_mel_datatype(ty);
             let default = defaults.get(name).map(|lit| format!("Some(melodium_core::common::executive::Value::{ty}({val}))", val = into_rust_value(ty, lit))).unwrap_or_else(|| String::from("None"));
+            let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
             format!(
-                r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Var, {datatype}, {default})"#
+                r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Var, {datatype}, {default}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#
             )
         }).collect::<Vec<_>>().join(",").parse().unwrap();
-        let inputs: proc_macro2::TokenStream = inputs.iter().map(|(name, (flow, ty))| {
+        let inputs: proc_macro2::TokenStream = inputs.iter().map(|(name, (flow, ty, attributes))| {
             let datatype = into_mel_datatype(ty);
-            format!(r#"melodium_core::common::descriptor::Input::new("{name}", {datatype}, melodium_core::common::descriptor::Flow::{flow})"#)
+            let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
+            format!(r#"melodium_core::common::descriptor::Input::new("{name}", {datatype}, melodium_core::common::descriptor::Flow::{flow}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#)
         }).collect::<Vec<_>>().join(",").parse().unwrap();
-        let outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, (flow, ty))| {
+        let outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, (flow, ty, attributes))| {
             let datatype = into_mel_datatype(ty);
-            format!(r#"melodium_core::common::descriptor::Output::new("{name}", {datatype}, melodium_core::common::descriptor::Flow::{flow})"#)
+            let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
+            format!(r#"melodium_core::common::descriptor::Output::new("{name}", {datatype}, melodium_core::common::descriptor::Flow::{flow}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#)
         }).collect::<Vec<_>>().join(",").parse().unwrap();
         let sources: proc_macro2::TokenStream = models
             .iter()
@@ -846,6 +967,11 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                     let new = melodium_core::descriptor::Treatment::new(
                         identifier(),
                         #documentation.to_string(),
+                        {
+                            let mut attrs = melodium_core::common::descriptor::Attributes::new();
+                            #attributes;
+                            attrs
+                        },
                         vec![#models],
                         vec![#sources],
                         vec![#parameters],
@@ -866,7 +992,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
     {
         let parameters: proc_macro2::TokenStream = params
             .iter()
-            .map(|(name, ty)| {
+            .map(|(name, (ty, _))| {
                 let rust_type = into_rust_type(ty);
                 format!(r#"r#{name}: std::sync::Mutex<Option<{rust_type}>>,"#)
             })
@@ -899,7 +1025,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
     {
         let parameters: proc_macro2::TokenStream = params
             .iter()
-            .map(|(name, ty)| {
+            .map(|(name, (ty, _))| {
                 let default = defaults
                     .get(name)
                     .map(|lit| format!("Some({val})", val = into_rust_value(ty, lit)))
@@ -950,7 +1076,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
     {
         let parameters: proc_macro2::TokenStream = params
             .iter()
-            .map(|(name, ty)| {
+            .map(|(name, (ty, _))| {
                 let call = into_mel_value_call(ty);
                 format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(value.{call}()),"#)
             })
@@ -1102,6 +1228,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut initialization = None;
     let mut continuous = Vec::new();
     let mut shutdown = None;
+    let mut attributes = HashMap::new();
 
     let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
     while let Some(tt) = iter_attr.next() {
@@ -1109,12 +1236,12 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
             let qualif = id.to_string();
             match qualif.as_str() {
                 "param" => {
-                    let (param, ty, default_val) = config_param(&mut iter_attr);
-                    params.insert(param, (ty, default_val));
+                    let (param, ty, default_val, attributes) = config_param(&mut iter_attr);
+                    params.insert(param, (ty, default_val, attributes));
                 }
                 "source" => {
-                    let (name, contexts, outputs) = config_full_source(&mut iter_attr);
-                    sources.insert(name, (contexts, outputs));
+                    let (name, contexts, outputs, attributes) = config_full_source(&mut iter_attr);
+                    sources.insert(name, (contexts, outputs, attributes));
                 }
                 "initialize" => {
                     if let Some(TokenTree::Ident(name)) = iter_attr.next() {
@@ -1143,6 +1270,10 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                         panic!("Shutdown function name expected")
                     }
                 }
+                "attribute" => {
+                    let (name, value) = config_attribute(&mut iter_attr);
+                    attributes.insert(name, value);
+                }
                 _ => panic!("Unrecognized configuration"),
             }
         }
@@ -1167,16 +1298,26 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
     let model_description;
     {
         let documentation = documentation.join("\n");
-        let parameters: proc_macro2::TokenStream = params.iter().map(|(name, (ty, default))| {
+        let attributes: proc_macro2::TokenStream = attributes
+            .iter()
+            .map(|(name, value)| {
+                format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)
+            })
+            .collect::<Vec<_>>()
+            .join(";")
+            .parse()
+            .unwrap();
+        let parameters: proc_macro2::TokenStream = params.iter().map(|(name, (ty, default, attributes))| {
             let datatype = into_mel_datatype(ty);
             let default = default.as_ref().map(|lit| format!("Some(melodium_core::common::executive::Value::{ty}({val}))", val = into_rust_value(ty, lit))).unwrap_or_else(|| String::from("None"));
+            let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
             format!(
-                r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Const, {datatype}, {default})"#
+                r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Const, {datatype}, {default}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#
             )
         }).collect::<Vec<_>>().join(",").parse().unwrap();
         let sources: proc_macro2::TokenStream = sources
             .iter()
-            .map(|(name, (contextes, _))| {
+            .map(|(name, (contextes, _, _))| {
                 let contextes = contextes
                     .iter()
                     .map(|name| format!(r#"{name}::descriptor()"#))
@@ -1193,6 +1334,11 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
             let model = melodium_core::descriptor::Model::new(
                     melodium_core::descriptor::module_path_to_identifier(module_path!(), #name),
                     #documentation.to_string(),
+                    {
+                        let mut attrs = melodium_core::common::descriptor::Attributes::new();
+                        #attributes;
+                        attrs
+                    },
                     vec![#parameters],
                     vec![#sources],
                     AdHocModel::new,
@@ -1203,10 +1349,18 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut sources_description = proc_macro2::TokenStream::new();
     {
         let fancy_model_name = name.to_case(Case::Snake);
-        for (source_name, (_, outputs)) in &sources {
-            let outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, flow, ty)| {
+        for (source_name, (_, outputs, attributes)) in &sources {
+            let attributes = attributes
+                .iter()
+                .map(|(name, value)| {
+                    format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)
+                })
+                .collect::<Vec<_>>()
+                .join(";");
+            let outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, flow, ty, attributes)| {
                 let datatype = into_mel_datatype(ty);
-                format!(r#"melodium_core::common::descriptor::Output::new("{name}", {datatype}, melodium_core::common::descriptor::Flow::{flow})"#)
+                let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
+                format!(r#"melodium_core::common::descriptor::Output::new("{name}", {datatype}, melodium_core::common::descriptor::Flow::{flow}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#)
             }).collect::<Vec<_>>().join(",").parse().unwrap();
 
             sources_description = quote! {
@@ -1214,6 +1368,11 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 melodium_core::descriptor::Source::new(
                     melodium_core::descriptor::module_path_to_identifier(module_path!(), #source_name),
                     "".to_string(),
+                    {
+                        let mut attrs = melodium_core::common::descriptor::Attributes::new();
+                        #attributes;
+                        attrs
+                    },
                     vec![(#fancy_model_name.to_string(), std::sync::Arc::clone(&model) as std::sync::Arc<dyn melodium_core::common::descriptor::Model>)],
                     vec![(#fancy_model_name.to_string(), vec![#source_name.to_string()])],
                     vec![#outputs],
@@ -1226,7 +1385,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
     {
         let parameters: proc_macro2::TokenStream = params
             .iter()
-            .map(|(name, (ty, _))| {
+            .map(|(name, (ty, _, _))| {
                 let rust_type = into_rust_type(ty);
                 let call = into_mel_value_call(ty);
                 format!(
@@ -1244,7 +1403,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         helper_implementation = parameters;
 
-        for (source_name, (contextes, _)) in sources {
+        for (source_name, (contextes, _, _)) in sources {
             let mut param_contextes = String::new();
             let mut assign_contextes = String::new();
             for context in &contextes {
@@ -1291,7 +1450,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
         )
     }).collect::<Vec<_>>().join(",").parse().unwrap();*/
 
-    let parameters_initialization: proc_macro2::TokenStream = params.iter().filter_map(|(name, (ty, default))| {
+    let parameters_initialization: proc_macro2::TokenStream = params.iter().filter_map(|(name, (ty, default, _))| {
         if let Some(default) = default {
             Some(
                 format!(r#"("{name}".to_string(), melodium_core::common::executive::Value::{ty}({val}))"#, val = into_rust_value(ty, default))
@@ -1441,8 +1600,23 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn mel_context(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn mel_context(attr: TokenStream, item: TokenStream) -> TokenStream {
     let context: ItemStruct = parse(item).unwrap();
+    let mut attributes = HashMap::new();
+
+    let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
+    while let Some(tt) = iter_attr.next() {
+        if let TokenTree::Ident(id) = tt {
+            let qualif = id.to_string();
+            match qualif.as_str() {
+                "attribute" => {
+                    let (name, value) = config_attribute(&mut iter_attr);
+                    attributes.insert(name, value);
+                }
+                _ => panic!("Unrecognized configuration"),
+            }
+        }
+    }
 
     let mut documentation = Vec::new();
     for attr in context.attrs.clone() {
@@ -1476,6 +1650,16 @@ pub fn mel_context(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let description;
     {
         let documentation = documentation.join("\n");
+        let attributes: proc_macro2::TokenStream = attributes
+            .iter()
+            .map(|(name, value)| {
+                format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)
+            })
+            .collect::<Vec<_>>()
+            .join(";")
+            .parse()
+            .unwrap();
+
         let fields: proc_macro2::TokenStream = fields
             .iter()
             .map(|(name, ty)| {
@@ -1492,6 +1676,11 @@ pub fn mel_context(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     identifier(),
                     vec![#fields],
                     #documentation.to_string(),
+                    {
+                        let mut attrs = melodium_core::common::descriptor::Attributes::new();
+                        #attributes;
+                        attrs
+                    },
                 )
         };
     }
@@ -1574,8 +1763,24 @@ pub fn mel_context(_attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let function: ItemFn = parse(item).unwrap();
+pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let mut function: ItemFn = parse(item).unwrap();
+    let mut attributes = HashMap::new();
+
+    let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
+    while let Some(tt) = iter_attr.next() {
+        if let TokenTree::Ident(id) = tt {
+            let qualif = id.to_string();
+            match qualif.as_str() {
+                "attribute" => {
+                    let (name, value) = config_attribute(&mut iter_attr);
+                    attributes.insert(name, value);
+                }
+                _ => panic!("Unrecognized configuration"),
+            }
+        }
+    }
+
     let mut documentation = Vec::new();
     for attr in function.attrs.clone() {
         if let Some(segment) = attr.path.segments.first() {
@@ -1592,7 +1797,7 @@ pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let name = function.sig.ident.to_string();
     let mut args = Vec::new();
-    for arg in &function.sig.inputs {
+    for arg in &mut function.sig.inputs {
         match arg {
             FnArg::Typed(t) => {
                 let name = if let Pat::Ident(ident) = t.pat.borrow() {
@@ -1602,19 +1807,57 @@ pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     break;
                 };
 
+                let attributes = t
+                    .attrs
+                    .iter()
+                    .filter_map(|attr| {
+                        if let Some(name) = attr.path.get_ident() {
+                            if name.to_string() == "mel" {
+                                Some(config_attributes(&mut attr.tokens.clone().into_iter()))
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .fold(HashMap::new(), |mut acc, attrs| {
+                        for attr in attrs {
+                            acc.insert(attr.0, attr.1);
+                        }
+                        acc
+                    });
+                t.attrs.retain(|attr| {
+                    attr.path
+                        .get_ident()
+                        .map(|name| name.to_string() != "mel")
+                        .unwrap_or(true)
+                });
+
                 let ty = into_mel_type(t.ty.borrow());
 
-                args.push((name, ty));
+                args.push((name, (ty, attributes)));
             }
             _ => eprintln!("Only Mélodium types are admissible arguments"),
         }
     }
 
-    let parameters = args.iter().map(|(name, ty)| {
+    let attributes: proc_macro2::TokenStream = attributes
+        .iter()
+        .map(|(name, value)| {
+            format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)
+        })
+        .collect::<Vec<_>>()
+        .join(";")
+        .parse()
+        .unwrap();
+
+    let parameters = args.iter().map(|(name, (ty, attributes))| {
         let name = name.to_case(Case::Snake);
         let datatype = into_mel_datatype(ty);
+        let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
         format!(
-            r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Var, {datatype}, None)"#
+            r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Var, {datatype}, None, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#
         )
     }).collect::<Vec<_>>().join(",");
     let return_type = if let ReturnType::Type(_, rt) = &function.sig.output {
@@ -1627,7 +1870,7 @@ pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
         "melodium_core::common::executive::Value::{return_type}({name}({}))",
         args.iter()
             .enumerate()
-            .map(|(i, (_, ty))| format!("params[{i}].clone().{}()", into_mel_value_call(ty)))
+            .map(|(i, (_, (ty, _)))| format!("params[{i}].clone().{}()", into_mel_value_call(ty)))
             .collect::<Vec<_>>()
             .join(",")
     );
@@ -1661,6 +1904,11 @@ pub fn mel_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     let new = melodium_core::descriptor::Function::new(
                         identifier(),
                         #documentation.to_string(),
+                        {
+                            let mut attrs = melodium_core::common::descriptor::Attributes::new();
+                            #attributes;
+                            attrs
+                        },
                         vec![#parameters],
                         #return_type,
                         mel_function

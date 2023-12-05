@@ -235,8 +235,16 @@ impl Treatment {
         let mut result = ScriptResult::new_success(());
         let mut descriptor = TreatmentDescriptor::new(self.identifier.as_ref().unwrap().clone());
 
-        if let Some(documentation) = &self.text.doc {
-            descriptor.set_documentation(&documentation.string);
+        if let Some(annotations) = self.text.annotations.as_ref() {
+            if let Some(doc) = &annotations.doc {
+                descriptor.set_documentation(&doc.string);
+            }
+
+            for annotation in &annotations.annotations {
+                if let Some((name, attribute)) = annotation.as_attribute() {
+                    descriptor.add_attribute(name, attribute);
+                }
+            }
         }
 
         // We manage declaration of each model given to the treatment

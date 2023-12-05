@@ -1,7 +1,7 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    Buildable, Context, Documented, Identified, Identifier, Input, Model, Output, Parameter,
-    Parameterized, Treatment as TreatmentDescriptor, TreatmentBuildMode,
+    Attribuable, Attributes, Buildable, Context, Documented, Identified, Identifier, Input, Model,
+    Output, Parameter, Parameterized, Treatment as TreatmentDescriptor, TreatmentBuildMode,
 };
 use once_cell::sync::OnceCell;
 use std::collections::HashMap;
@@ -13,6 +13,7 @@ pub struct Source {
     identifier: Identifier,
     #[cfg(feature = "doc")]
     documentation: String,
+    attributes: Attributes,
     models: HashMap<String, Arc<dyn Model>>,
     outputs: HashMap<String, Output>,
     source_from: HashMap<String, Vec<String>>,
@@ -23,6 +24,7 @@ impl Source {
     pub fn new(
         identifier: Identifier,
         documentation: String,
+        attributes: Attributes,
         models: Vec<(String, Arc<dyn Model>)>,
         source_from: Vec<(String, Vec<String>)>,
         outputs: Vec<Output>,
@@ -33,11 +35,18 @@ impl Source {
             identifier,
             #[cfg(feature = "doc")]
             documentation,
+            attributes,
             models: HashMap::from_iter(models.into_iter().map(|(n, m)| (n.to_string(), m))),
             outputs: HashMap::from_iter(outputs.into_iter().map(|o| (o.name().to_string(), o))),
             source_from: HashMap::from_iter(source_from.into_iter()),
             auto_reference: me.clone(),
         })
+    }
+}
+
+impl Attribuable for Source {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }
 

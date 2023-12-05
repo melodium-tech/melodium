@@ -1,4 +1,4 @@
-use super::{DataType, Flow, Output};
+use super::{Attribuable, Attributes, DataType, Flow, Output};
 use core::fmt::{Display, Formatter, Result};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -6,14 +6,16 @@ pub struct Input {
     name: String,
     datatype: DataType,
     flow: Flow,
+    attributes: Attributes,
 }
 
 impl Input {
-    pub fn new(name: &str, datatype: DataType, flow: Flow) -> Self {
+    pub fn new(name: &str, datatype: DataType, flow: Flow, attributes: Attributes) -> Self {
         Self {
             name: name.to_string(),
             datatype,
             flow,
+            attributes,
         }
     }
 
@@ -35,6 +37,12 @@ impl Input {
 
     pub fn matches_output(&self, output: &Output) -> bool {
         &self.datatype == output.datatype() && &self.flow == output.flow()
+    }
+}
+
+impl Attribuable for Input {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }
 

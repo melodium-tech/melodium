@@ -67,39 +67,91 @@ impl Connection {
     pub fn make_design(&self, designer: &mut TreatmentDesigner) -> ScriptResult<()> {
         // something to something
         if !self.start_point_self && !self.end_point_self {
-            ScriptResult::from(designer.add_connection(
-                &self.start_point.name,
-                &self.name_data_out,
-                &self.end_point.name,
-                &self.name_data_in,
-                Some(self.text.name_start_point.into_ref()),
-            ))
+            ScriptResult::from(
+                designer.add_connection(
+                    &self.start_point.name,
+                    &self.name_data_out,
+                    &self.end_point.name,
+                    &self.name_data_in,
+                    self.text
+                        .annotations
+                        .as_ref()
+                        .map(|annotations| {
+                            annotations
+                                .annotations
+                                .iter()
+                                .filter_map(|annotation| annotation.as_attribute())
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    Some(self.text.name_start_point.into_ref()),
+                ),
+            )
         }
         // Self to something
         else if self.start_point_self && !self.end_point_self {
-            ScriptResult::from(designer.add_input_connection(
-                &self.name_data_out,
-                &self.end_point.name,
-                &self.name_data_in,
-                Some(self.text.name_start_point.into_ref()),
-            ))
+            ScriptResult::from(
+                designer.add_input_connection(
+                    &self.name_data_out,
+                    &self.end_point.name,
+                    &self.name_data_in,
+                    self.text
+                        .annotations
+                        .as_ref()
+                        .map(|annotations| {
+                            annotations
+                                .annotations
+                                .iter()
+                                .filter_map(|annotation| annotation.as_attribute())
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    Some(self.text.name_start_point.into_ref()),
+                ),
+            )
         }
         // Something to Self
         else if !self.start_point_self && self.end_point_self {
-            ScriptResult::from(designer.add_output_connection(
-                &self.name_data_in,
-                &self.start_point.name,
-                &self.name_data_out,
-                Some(self.text.name_start_point.into_ref()),
-            ))
+            ScriptResult::from(
+                designer.add_output_connection(
+                    &self.name_data_in,
+                    &self.start_point.name,
+                    &self.name_data_out,
+                    self.text
+                        .annotations
+                        .as_ref()
+                        .map(|annotations| {
+                            annotations
+                                .annotations
+                                .iter()
+                                .filter_map(|annotation| annotation.as_attribute())
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    Some(self.text.name_start_point.into_ref()),
+                ),
+            )
         }
         // Self to Self
         else {
-            ScriptResult::from(designer.add_self_connection(
-                &self.name_data_out,
-                &self.name_data_in,
-                Some(self.text.name_start_point.into_ref()),
-            ))
+            ScriptResult::from(
+                designer.add_self_connection(
+                    &self.name_data_out,
+                    &self.name_data_in,
+                    self.text
+                        .annotations
+                        .as_ref()
+                        .map(|annotations| {
+                            annotations
+                                .annotations
+                                .iter()
+                                .filter_map(|annotation| annotation.as_attribute())
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    Some(self.text.name_start_point.into_ref()),
+                ),
+            )
         }
     }
 }

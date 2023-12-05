@@ -1,4 +1,4 @@
-use super::{DataType, Variability};
+use super::{Attribuable, Attributes, DataType, Variability};
 use crate::executive::Value;
 use core::fmt::{Display, Formatter, Result};
 
@@ -8,6 +8,7 @@ pub struct Parameter {
     variability: Variability,
     datatype: DataType,
     default: Option<Value>,
+    attributes: Attributes,
 }
 
 impl Parameter {
@@ -16,12 +17,14 @@ impl Parameter {
         variability: Variability,
         datatype: DataType,
         default: Option<Value>,
+        attributes: Attributes,
     ) -> Self {
         Self {
             name: name.to_string(),
             variability,
             datatype,
             default,
+            attributes,
         }
     }
 
@@ -39,6 +42,12 @@ impl Parameter {
 
     pub fn default(&self) -> &Option<Value> {
         &self.default
+    }
+}
+
+impl Attribuable for Parameter {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }
 

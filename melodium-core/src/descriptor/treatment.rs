@@ -1,7 +1,7 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    Buildable, Context, Documented, Identified, Identifier, Input, Model, Output, Parameter,
-    Parameterized, Treatment as TreatmentDescriptor, TreatmentBuildMode,
+    Attribuable, Attributes, Buildable, Context, Documented, Identified, Identifier, Input, Model,
+    Output, Parameter, Parameterized, Treatment as TreatmentDescriptor, TreatmentBuildMode,
 };
 use melodium_common::executive::Treatment as ExecutiveTreatment;
 use once_cell::sync::OnceCell;
@@ -14,6 +14,7 @@ pub struct Treatment {
     identifier: Identifier,
     #[cfg(feature = "doc")]
     documentation: String,
+    attributes: Attributes,
     models: HashMap<String, Arc<dyn Model>>,
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
@@ -27,6 +28,7 @@ impl Treatment {
     pub fn new(
         identifier: Identifier,
         documentation: String,
+        attributes: Attributes,
         models: Vec<(String, Arc<dyn Model>)>,
         source_from: Vec<(String, Vec<String>)>,
         parameters: Vec<Parameter>,
@@ -40,6 +42,7 @@ impl Treatment {
             identifier,
             #[cfg(feature = "doc")]
             documentation,
+            attributes,
             models: HashMap::from_iter(models.into_iter().map(|(n, m)| (n, m))),
             parameters: HashMap::from_iter(
                 parameters.into_iter().map(|p| (p.name().to_string(), p)),
@@ -50,6 +53,12 @@ impl Treatment {
             build_fn,
             auto_reference: me.clone(),
         })
+    }
+}
+
+impl Attribuable for Treatment {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }
 

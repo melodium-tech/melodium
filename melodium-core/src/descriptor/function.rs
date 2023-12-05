@@ -1,7 +1,7 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    DataType, Documented, Function as FunctionDescriptor, Identified, Identifier,
-    OrderedParameterized, Parameter,
+    Attribuable, Attributes, DataType, Documented, Function as FunctionDescriptor, Identified,
+    Identifier, OrderedParameterized, Parameter,
 };
 use melodium_common::executive::Value;
 use std::sync::{Arc, Weak};
@@ -11,6 +11,7 @@ pub struct Function {
     identifier: Identifier,
     #[cfg(feature = "doc")]
     documentation: String,
+    attributes: Attributes,
     parameters: Vec<Parameter>,
     return_type: DataType,
     function: fn(Vec<Value>) -> Value,
@@ -21,6 +22,7 @@ impl Function {
     pub fn new(
         identifier: Identifier,
         documentation: String,
+        attributes: Attributes,
         parameters: Vec<Parameter>,
         return_type: DataType,
         function: fn(Vec<Value>) -> Value,
@@ -31,11 +33,18 @@ impl Function {
             identifier,
             #[cfg(feature = "doc")]
             documentation,
+            attributes,
             parameters,
             return_type,
             function,
             auto_reference: me.clone(),
         })
+    }
+}
+
+impl Attribuable for Function {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }
 

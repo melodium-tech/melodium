@@ -3,8 +3,9 @@ use crate::designer::{Reference, Treatment as Designer};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
-    Buildable, Collection, Context, Documented, Entry, Identified, Identifier, Input, Model,
-    Output, Parameter, Parameterized, Status, Treatment as TreatmentDescriptor, TreatmentBuildMode,
+    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry,
+    Identified, Identifier, Input, Model, Output, Parameter, Parameterized, Status,
+    Treatment as TreatmentDescriptor, TreatmentBuildMode,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock, Weak};
@@ -14,6 +15,7 @@ pub struct Treatment {
     identifier: Identifier,
     #[cfg(feature = "doc")]
     documentation: String,
+    attributes: Attributes,
     models: HashMap<String, Arc<dyn Model>>,
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
@@ -30,6 +32,7 @@ impl Treatment {
             identifier,
             #[cfg(feature = "doc")]
             documentation: String::new(),
+            attributes: Attributes::default(),
             models: HashMap::new(),
             parameters: HashMap::new(),
             inputs: HashMap::new(),
@@ -169,6 +172,17 @@ impl Treatment {
         let _ = documentation;
     }
 
+    pub fn add_attribute(&mut self, name: String, attribute: Attribute) {
+        self.attributes.insert(name, attribute);
+    }
+
+    pub fn remove_attribute(&mut self, name: &str) -> bool {
+        match self.attributes.remove(name) {
+            Some(_) => true,
+            None => false,
+        }
+    }
+
     pub fn add_model(&mut self, name: &str, model: &Arc<dyn Model>) {
         self.models.insert(name.to_string(), Arc::clone(model));
     }
@@ -231,6 +245,7 @@ impl Treatment {
             identifier: self.identifier,
             #[cfg(feature = "doc")]
             documentation: self.documentation,
+            attributes: self.attributes,
             models: self.models,
             parameters: self.parameters,
             inputs: self.inputs,
@@ -240,6 +255,12 @@ impl Treatment {
             design: self.design,
             auto_reference: me.clone(),
         })
+    }
+}
+
+impl Attribuable for Treatment {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }
 
@@ -314,6 +335,7 @@ impl Clone for Treatment {
             identifier: self.identifier.clone(),
             #[cfg(feature = "doc")]
             documentation: self.documentation.clone(),
+            attributes: self.attributes.clone(),
             models: self.models.clone(),
             parameters: self.parameters.clone(),
             inputs: self.inputs.clone(),

@@ -1,3 +1,5 @@
+use melodium_common::descriptor::{Attribuable, Attributes};
+
 #[derive(Clone, Debug)]
 pub enum IO {
     Sequence(),
@@ -11,4 +13,12 @@ pub struct Connection {
 
     pub input_treatment: IO,
     pub input_name: String,
+
+    pub attributes: Attributes,
+}
+
+impl Attribuable for Connection {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
+    }
 }

@@ -3,8 +3,9 @@ use crate::designer::{Model as Designer, Reference};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
-    Buildable, Collection, Context, Documented, Entry, Identified, Identifier,
-    Model as ModelDescriptor, ModelBuildMode, Parameter, Parameterized, Status, Variability,
+    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry,
+    Identified, Identifier, Model as ModelDescriptor, ModelBuildMode, Parameter, Parameterized,
+    Status, Variability,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock, Weak};
@@ -14,6 +15,7 @@ pub struct Model {
     identifier: Identifier,
     #[cfg(feature = "doc")]
     documentation: String,
+    attributes: Attributes,
     base_model: Arc<dyn ModelDescriptor>,
     parameters: HashMap<String, Parameter>,
     designer: Mutex<Option<Arc<RwLock<Designer>>>>,
@@ -27,6 +29,7 @@ impl Model {
             identifier,
             #[cfg(feature = "doc")]
             documentation: String::new(),
+            attributes: Attributes::default(),
             base_model: Arc::clone(base_model),
             parameters: HashMap::new(),
             designer: Mutex::new(None),
@@ -139,6 +142,17 @@ impl Model {
         let _ = documentation;
     }
 
+    pub fn add_attribute(&mut self, name: String, attribute: Attribute) {
+        self.attributes.insert(name, attribute);
+    }
+
+    pub fn remove_attribute(&mut self, name: &str) -> bool {
+        match self.attributes.remove(name) {
+            Some(_) => true,
+            None => false,
+        }
+    }
+
     pub fn add_parameter(&mut self, mut parameter: Parameter) {
         if parameter.variability() != &Variability::Const {
             parameter = Parameter::new(
@@ -146,6 +160,7 @@ impl Model {
                 Variability::Const,
                 parameter.datatype().clone(),
                 parameter.default().clone(),
+                parameter.attributes().clone(),
             );
         }
         self.parameters
@@ -164,12 +179,19 @@ impl Model {
             identifier: self.identifier,
             #[cfg(feature = "doc")]
             documentation: self.documentation,
+            attributes: self.attributes,
             base_model: self.base_model,
             parameters: self.parameters,
             designer: self.designer,
             design: self.design,
             auto_reference: me.clone(),
         })
+    }
+}
+
+impl Attribuable for Model {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }
 
@@ -264,6 +286,7 @@ impl Clone for Model {
             identifier: self.identifier.clone(),
             #[cfg(feature = "doc")]
             documentation: self.documentation.clone(),
+            attributes: self.attributes.clone(),
             base_model: self.base_model.clone(),
             parameters: self.parameters.clone(),
             designer: Mutex::new(None),

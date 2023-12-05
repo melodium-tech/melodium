@@ -18,7 +18,7 @@ use regex::Regex;
     output matches Stream<bool>
     output error Block<string>
 )]
-pub async fn matches(regex: string) {
+pub async fn matches(#[mel(content(regex))] regex: string) {
     match Regex::new(&regex) {
         Ok(regex) => {
             error.close().await;
@@ -44,7 +44,7 @@ pub async fn matches(regex: string) {
 /// The regex engine is Unicode-aware. Please refer to [Regex Syntax](https://docs.rs/regex/latest/regex/index.html#syntax)
 /// in documentation for full syntax description.
 #[mel_function]
-pub fn matches(text: string, regex: string) -> bool {
+pub fn matches(text: string, #[mel(content(regex))] regex: string) -> bool {
     match Regex::new(&regex) {
         Ok(regex) => regex.is_match(&text),
         Err(_) => false,
@@ -66,7 +66,7 @@ pub fn matches(text: string, regex: string) -> bool {
     output found Stream<string>
     output error Block<string>
 )]
-pub async fn find(regex: string) {
+pub async fn find(#[mel(content(regex))] regex: string) {
     match Regex::new(&regex) {
         Ok(regex) => {
             error.close().await;
@@ -107,7 +107,7 @@ pub async fn find(regex: string) {
 /// The regex syntax is Unicode-aware. Please refer to [Regex Syntax](https://docs.rs/regex/latest/regex/index.html#syntax)
 /// in documentation for full syntax description.
 #[mel_function]
-pub fn find(text: string, regex: string) -> string {
+pub fn find(text: string, #[mel(content(regex))] regex: string) -> string {
     match Regex::new(&regex) {
         Ok(regex) => regex
             .find(&text)
@@ -132,7 +132,7 @@ pub fn find(text: string, regex: string) -> string {
     output is_captured Stream<Vec<bool>>
     output error Block<string>
 )]
-pub async fn capture(regex: string) {
+pub async fn capture(#[mel(content(regex))] regex: string) {
     match Regex::new(&regex) {
         Ok(regex) => {
             error.close().await;
@@ -188,7 +188,7 @@ pub async fn capture(regex: string) {
 /// The regex syntax is Unicode-aware. Please refer to [Regex Syntax](https://docs.rs/regex/latest/regex/index.html#syntax)
 /// in documentation for full syntax description.
 #[mel_function]
-pub fn capture(text: string, regex: string) -> Vec<string> {
+pub fn capture(text: string, #[mel(content(regex))] regex: string) -> Vec<string> {
     match Regex::new(&regex) {
         Ok(regex) => match regex.captures(&text) {
             Some(capt) => capt
@@ -217,7 +217,7 @@ pub fn capture(text: string, regex: string) -> Vec<string> {
     output names Stream<Vec<string>>
     output error Block<string>
 )]
-pub async fn capture_named(regex: string) {
+pub async fn capture_named(#[mel(content(regex))] regex: string) {
     match Regex::new(&regex) {
         Ok(regex) => {
             error.close().await;
@@ -288,7 +288,7 @@ pub async fn capture_named(regex: string) {
     output replaced Stream<string>
     output error Block<string>
 )]
-pub async fn replace(regex: string, replacer: string) {
+pub async fn replace(#[mel(content(regex))] regex: string, replacer: string) {
     match Regex::new(&regex) {
         Ok(regex) => {
             error.close().await;
@@ -314,7 +314,7 @@ pub async fn replace(regex: string, replacer: string) {
 /// The regex syntax is Unicode-aware. Please refer to [Regex Syntax](https://docs.rs/regex/latest/regex/index.html#syntax)
 /// in documentation for full syntax description.
 #[mel_function]
-pub fn replace(text: string, regex: string, replacer: string) -> string {
+pub fn replace(text: string, #[mel(content(regex))] regex: string, replacer: string) -> string {
     match Regex::new(&regex) {
         Ok(regex) => regex.replace(&text, &replacer).to_string(),
         Err(_) => String::default(),

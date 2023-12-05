@@ -3,9 +3,10 @@
 use super::common::{parse_configuration_assignations, parse_parameters_assignations};
 use super::parameter::Parameter;
 use super::word::{Kind, Word};
-use super::PositionnedString;
+use super::{CommentsAnnotations, PositionnedString};
 use crate::ScriptError;
 use core::slice::Windows;
+use std::collections::HashMap;
 
 /// Structure describing a textual instanciation.
 ///
@@ -13,6 +14,7 @@ use core::slice::Windows;
 /// It owns a name, a type (treatment or model type, not [data type](super::Type)), and list of [parameters](super::Parameter).
 #[derive(Clone, Debug)]
 pub struct Instanciation {
+    pub annotations: Option<CommentsAnnotations>,
     pub name: PositionnedString,
     pub r#type: PositionnedString,
     pub configuration: Vec<Parameter>,
@@ -24,7 +26,11 @@ impl Instanciation {
     ///
     /// * `iter`: Iterator over words list, next() being expected to be the name.
     ///
-    pub fn build(mut iter: &mut Windows<Word>) -> Result<Self, ScriptError> {
+    pub fn build(
+        annotations: Option<CommentsAnnotations>,
+        mut iter: &mut Windows<Word>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
+    ) -> Result<Self, ScriptError> {
         let name: PositionnedString = iter
             .next()
             .map(|s| &s[0])
@@ -39,14 +45,23 @@ impl Instanciation {
 
         match iter.next().map(|s| &s[0]) {
             Some(w) if w.kind == Some(Kind::Colon) => {
-                Self::build_from_type(name.clone(), &mut iter)
+                Self::build_from_type(annotations, name.clone(), &mut iter, global_annotations)
             }
-            Some(w) if w.kind == Some(Kind::OpeningBracket) => {
-                Self::build_from_configuration(name.clone(), name, &mut iter)
-            }
-            Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
-                Self::build_from_parameters(name.clone(), name, Vec::new(), &mut iter)
-            }
+            Some(w) if w.kind == Some(Kind::OpeningBracket) => Self::build_from_configuration(
+                annotations,
+                name.clone(),
+                name,
+                &mut iter,
+                global_annotations,
+            ),
+            Some(w) if w.kind == Some(Kind::OpeningParenthesis) => Self::build_from_parameters(
+                annotations,
+                name.clone(),
+                name,
+                Vec::new(),
+                &mut iter,
+                global_annotations,
+            ),
             Some(w) => {
                 return Err(ScriptError::word(
                     64,
@@ -64,8 +79,10 @@ impl Instanciation {
     /// * `iter`: Iterator over words list, next() being expected to be the type name.
     ///
     pub fn build_from_type(
+        annotations: Option<CommentsAnnotations>,
         name: PositionnedString,
         mut iter: &mut Windows<Word>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
         let r#type = iter
             .next()
@@ -80,12 +97,21 @@ impl Instanciation {
             })?;
 
         match iter.next().map(|s| &s[0]) {
-            Some(w) if w.kind == Some(Kind::OpeningBracket) => {
-                Self::build_from_configuration(name.clone(), r#type, &mut iter)
-            }
-            Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
-                Self::build_from_parameters(name.clone(), r#type, Vec::new(), &mut iter)
-            }
+            Some(w) if w.kind == Some(Kind::OpeningBracket) => Self::build_from_configuration(
+                annotations,
+                name.clone(),
+                r#type,
+                &mut iter,
+                global_annotations,
+            ),
+            Some(w) if w.kind == Some(Kind::OpeningParenthesis) => Self::build_from_parameters(
+                annotations,
+                name.clone(),
+                r#type,
+                Vec::new(),
+                &mut iter,
+                global_annotations,
+            ),
             Some(w) => {
                 return Err(ScriptError::word(
                     68,
@@ -103,11 +129,13 @@ impl Instanciation {
     /// * `iter`: Iterator over words list, next() being expected to be about [Parameter].
     ///
     pub fn build_from_configuration(
+        annotations: Option<CommentsAnnotations>,
         name: PositionnedString,
         r#type: PositionnedString,
         mut iter: &mut Windows<Word>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
-        let configuration = parse_configuration_assignations(&mut iter)?;
+        let configuration = parse_configuration_assignations(&mut iter, global_annotations)?;
 
         // We expect parameters in any cases.
         iter.next()
@@ -124,7 +152,14 @@ impl Instanciation {
                     Ok(())
                 }
             })?;
-        Self::build_from_parameters(name, r#type, configuration, &mut iter)
+        Self::build_from_parameters(
+            annotations,
+            name,
+            r#type,
+            configuration,
+            &mut iter,
+            global_annotations,
+        )
     }
 
     /// Build an instanciation by parsing words, starting when [Parameter] is expected.
@@ -133,14 +168,17 @@ impl Instanciation {
     /// * `iter`: Iterator over words list, next() being expected to be about [Parameter].
     ///
     pub fn build_from_parameters(
+        annotations: Option<CommentsAnnotations>,
         name: PositionnedString,
         r#type: PositionnedString,
         configuration: Vec<Parameter>,
         mut iter: &mut Windows<Word>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
-        let parameters = parse_parameters_assignations(&mut iter)?;
+        let parameters = parse_parameters_assignations(&mut iter, global_annotations)?;
 
         Ok(Self {
+            annotations,
             name,
             r#type,
             configuration,

@@ -3,8 +3,8 @@ use crate::design::TreatmentInstanciation as TreatmentInstanciationDesign;
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Collection, Identified, Identifier, Parameter as ParameterDescriptor,
-    Treatment as TreatmentDescriptor,
+    Attribuable, Attribute, Attributes, Collection, Identified, Identifier,
+    Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
@@ -18,6 +18,7 @@ pub struct TreatmentInstanciation {
     name: String,
     models: HashMap<String, String>,
     parameters: HashMap<String, Arc<RwLock<Parameter>>>,
+    attributes: Attributes,
 
     design_reference: Option<Arc<dyn Reference>>,
 
@@ -42,6 +43,7 @@ impl TreatmentInstanciation {
                 name: name.to_string(),
                 models: HashMap::with_capacity(descriptor.models().len()),
                 parameters: HashMap::with_capacity(descriptor.parameters().len()),
+                attributes: Attributes::default(),
                 design_reference,
                 auto_reference: me.clone(),
             })
@@ -89,6 +91,17 @@ impl TreatmentInstanciation {
 
     pub(super) fn set_name(&mut self, name: String) {
         self.name = name;
+    }
+
+    pub fn add_attribute(&mut self, name: String, attribute: Attribute) {
+        self.attributes.insert(name, attribute);
+    }
+
+    pub fn remove_attribute(&mut self, name: &str) -> bool {
+        match self.attributes.remove(name) {
+            Some(_) => true,
+            None => false,
+        }
     }
 
     pub fn add_model(&mut self, parametric_name: &str, local_name: &str) -> LogicResult<()> {
@@ -392,5 +405,11 @@ impl TreatmentInstanciation {
         }
 
         level
+    }
+}
+
+impl Attribuable for TreatmentInstanciation {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }

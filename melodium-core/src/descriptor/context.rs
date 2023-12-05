@@ -1,6 +1,7 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    Context as ContextDescriptor, DataType, Documented, Identified, Identifier,
+    Attribuable, Attributes, Context as ContextDescriptor, DataType, Documented, Identified,
+    Identifier,
 };
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -12,6 +13,7 @@ pub struct Context {
     values: HashMap<String, DataType>,
     #[cfg(feature = "doc")]
     documentation: String,
+    attributes: Attributes,
 }
 
 impl Context {
@@ -20,13 +22,21 @@ impl Context {
         values: Vec<(&str, DataType)>,
         #[cfg(feature = "doc")] documentation: String,
         #[cfg(not(feature = "doc"))] _documentation: String,
+        attributes: Attributes,
     ) -> Arc<Self> {
         Arc::new(Self {
             identifier,
             values: HashMap::from_iter(values.iter().map(|v| (v.0.to_string(), v.1))),
             #[cfg(feature = "doc")]
             documentation,
+            attributes,
         })
+    }
+}
+
+impl Attribuable for Context {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }
 

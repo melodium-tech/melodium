@@ -1,6 +1,6 @@
 use super::Parameter;
 use core::fmt::Debug;
-use melodium_common::descriptor::{Identifier, Model};
+use melodium_common::descriptor::{Attribuable, Attributes, Identifier, Model};
 use std::collections::HashMap;
 use std::sync::Weak;
 
@@ -9,6 +9,7 @@ pub struct ModelInstanciation {
     pub name: String,
     pub descriptor: Weak<dyn Model>,
     pub parameters: HashMap<String, Parameter>,
+    pub attributes: Attributes,
 }
 
 impl ModelInstanciation {
@@ -21,5 +22,11 @@ impl ModelInstanciation {
                 .parameters
                 .iter()
                 .any(|(_, parameter)| parameter.make_use(identifier))
+    }
+}
+
+impl Attribuable for ModelInstanciation {
+    fn attributes(&self) -> &Attributes {
+        &self.attributes
     }
 }

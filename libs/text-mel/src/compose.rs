@@ -86,9 +86,7 @@ pub async fn split(delimiter: string, inclusive: bool) {
 ///
 /// `text` is splitted as `Vec<string>` according to `delimiter`.
 /// - `inclusive`: set if the delimiter must be kept at the end of splitted strings (if present).
-#[mel_function(
-    default inclusive true
-)]
+#[mel_function]
 pub fn split(text: string, delimiter: string, inclusive: bool) -> Vec<string> {
     if inclusive {
         text.split_inclusive(&delimiter)

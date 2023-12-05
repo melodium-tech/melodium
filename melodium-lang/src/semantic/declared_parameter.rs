@@ -131,6 +131,17 @@ impl DeclaredParameter {
                     self.variability.to_descriptor(),
                     datatype,
                     value,
+                    self.text
+                        .annotations
+                        .as_ref()
+                        .map(|annotations| {
+                            annotations
+                                .annotations
+                                .iter()
+                                .filter_map(|annotation| annotation.as_attribute())
+                                .collect()
+                        })
+                        .unwrap_or_default(),
                 ))
             })
     }

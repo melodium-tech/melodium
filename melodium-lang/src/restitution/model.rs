@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use melodium_common::descriptor::{
-    Documented, Identified, Identifier, Model as ModelDescriptor, Parameterized,
+    Attribuable, Documented, Identified, Identifier, Model as ModelDescriptor, Parameterized,
 };
 use melodium_engine::design::Model as ModelDesign;
 use std::collections::BTreeMap;
@@ -44,6 +44,14 @@ impl Model {
             )
         };
 
+        for (name, attribute) in descriptor.attributes() {
+            implementation.push_str("#[");
+            implementation.push_str(name);
+            implementation.push_str("(");
+            implementation.push_str(&attribute);
+            implementation.push_str(")]\n");
+        }
+
         implementation.push_str("model ");
         implementation.push_str(descriptor.identifier().name());
 
@@ -54,7 +62,17 @@ impl Model {
                 .parameters()
                 .iter()
                 .sorted_by_key(|(k, _)| *k)
-                .map(|(_, param)| param.to_string())
+                .map(|(_, param)| {
+                    format!(
+                        "{attributes}{param}",
+                        attributes = param
+                            .attributes()
+                            .iter()
+                            .map(|(name, attribute)| format!("#[{name}({attribute})] "))
+                            .collect::<Vec<_>>()
+                            .join("")
+                    )
+                })
                 .collect::<Vec<_>>()
                 .join(", "),
         );

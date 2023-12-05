@@ -27,7 +27,7 @@ use std::sync::Weak;
     param recursion_limit u64 400
     param loop_iteration_limit u64 4294967295
     param strict bool false
-    param code string ""
+    param {content(javascript)} code string ""
     initialize initialize
     shutdown shutdown
 )]
@@ -85,11 +85,11 @@ impl JavaScriptEngine {
 #[mel_treatment(
     default code ""
     model engine JavaScriptEngine
-    input value Stream<string>
-    output result Stream<string>
+    input {content(json)} value Stream<string>
+    output {content(json)} result Stream<string>
     output is_valid Stream<bool>
 )]
-pub async fn process(code: string) {
+pub async fn process(#[mel(content(json))] code: string) {
     let engine = JavaScriptEngineModel::into(engine);
 
     while let Ok(values) = value.recv_string().await {

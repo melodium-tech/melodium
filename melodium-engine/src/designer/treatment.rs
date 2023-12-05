@@ -8,7 +8,8 @@ use crate::design::{
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Collection, Entry, Identified, Identifier, Parameterized, Treatment as TreatmentTrait,
+    Attribuable, Attributes, Collection, Entry, Identified, Identifier, Parameterized,
+    Treatment as TreatmentTrait,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
@@ -116,6 +117,7 @@ impl Treatment {
                     result.merge_degrade_failure(self.add_self_connection(
                         &connection.output_name,
                         &connection.input_name,
+                        connection.attributes().clone(),
                         design_reference.clone(),
                     ))
                 }
@@ -124,6 +126,7 @@ impl Treatment {
                         &connection.output_name,
                         input_treatment,
                         &connection.input_name,
+                        connection.attributes().clone(),
                         design_reference.clone(),
                     )),
                 (IODesign::Treatment(output_treatment), IODesign::Sequence()) => result
@@ -131,6 +134,7 @@ impl Treatment {
                         &connection.input_name,
                         output_treatment,
                         &connection.output_name,
+                        connection.attributes().clone(),
                         design_reference.clone(),
                     )),
                 (IODesign::Treatment(output_treatment), IODesign::Treatment(input_treatment)) => {
@@ -139,6 +143,7 @@ impl Treatment {
                         &connection.output_name,
                         input_treatment,
                         &connection.input_name,
+                        connection.attributes().clone(),
                         design_reference.clone(),
                     ))
                 }
@@ -366,6 +371,7 @@ impl Treatment {
         output_name: &str,
         input_treatment: &str,
         input_name: &str,
+        attributes: Attributes,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
@@ -441,6 +447,7 @@ impl Treatment {
                     rc_output_treatment,
                     input_name,
                     rc_input_treatment,
+                    attributes,
                     design_reference.clone(),
                 ));
             } else {
@@ -503,6 +510,7 @@ impl Treatment {
         &mut self,
         self_input_name: &str,
         self_output_name: &str,
+        attributes: Attributes,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
@@ -540,6 +548,7 @@ impl Treatment {
                 self.connections.push(Connection::new_self(
                     input_self.name(),
                     output_self.name(),
+                    attributes,
                     design_reference.clone(),
                 ));
             } else {
@@ -597,6 +606,7 @@ impl Treatment {
         self_input_name: &str,
         input_treatment: &str,
         input_name: &str,
+        attributes: Attributes,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
@@ -654,6 +664,7 @@ impl Treatment {
                     input_self.name(),
                     input.name(),
                     rc_input_treatment,
+                    attributes,
                     design_reference.clone(),
                 ));
             } else {
@@ -713,6 +724,7 @@ impl Treatment {
         self_output_name: &str,
         output_treatment: &str,
         output_name: &str,
+        attributes: Attributes,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
@@ -770,6 +782,7 @@ impl Treatment {
                     output.name(),
                     rc_output_treatment,
                     output_self.name(),
+                    attributes,
                     design_reference.clone(),
                 ));
             } else {
@@ -919,6 +932,7 @@ impl Treatment {
                             name.clone(),
                             ModelInstanciationDesign {
                                 name: name.clone(),
+                                attributes: model_instanciation.attributes().clone(),
                                 descriptor: Arc::downgrade(&model_instanciation.descriptor()),
                                 parameters: model_instanciation
                                     .parameters()
@@ -951,6 +965,7 @@ impl Treatment {
                             name.clone(),
                             TreatmentInstanciationDesign {
                                 name: name.clone(),
+                                attributes: treatment_instanciation.attributes().clone(),
                                 descriptor: Arc::downgrade(&treatment_instanciation.descriptor()),
                                 models: treatment_instanciation.models().clone(),
                                 parameters: treatment_instanciation
@@ -980,6 +995,7 @@ impl Treatment {
                     .iter()
                     .filter_map(|connection| {
                         Some(ConnectionDesign {
+                            attributes: connection.attributes().clone(),
                             output_treatment: match &connection.output_treatment {
                                 IO::Sequence() => IODesign::Sequence(),
                                 IO::Treatment(t) => IODesign::Treatment(
