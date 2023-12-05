@@ -9,7 +9,7 @@ use melodium_macro::{check, mel_package, mel_treatment};
 ///
 /// Tells wether `text` is valid JSON or not.
 #[mel_treatment(
-    input text Stream<string>
+    input {content(json)} text Stream<string>
     output is_json Stream<bool>
 )]
 pub async fn validate() {
@@ -37,12 +37,12 @@ pub async fn validate() {
 ///
 /// `failures` is emitted only if the query provided is not valid [jq/jaq syntax](https://jqlang.github.io/jq/manual/v1.6/).
 #[mel_treatment(
-    input json Stream<string>
-    output parsed Stream<Vec<string>>
+    input {content(json)} json Stream<string>
+    output {content(json)} parsed Stream<Vec<string>>
     output error Stream<Vec<string>>
     output failures Block<Vec<string>>
 )]
-pub async fn query(query: string) {
+pub async fn query(#[mel(content(jq))] query: string) {
     let mut defs = ParseCtx::new(Vec::new());
     defs.insert_natives(jaq_core::core());
     defs.insert_defs(jaq_std::std());

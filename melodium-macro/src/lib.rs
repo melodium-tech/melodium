@@ -1764,7 +1764,7 @@ pub fn mel_context(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let function: ItemFn = parse(item).unwrap();
+    let mut function: ItemFn = parse(item).unwrap();
     let mut attributes = HashMap::new();
 
     let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
@@ -1797,7 +1797,7 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let name = function.sig.ident.to_string();
     let mut args = Vec::new();
-    for arg in &function.sig.inputs {
+    for arg in &mut function.sig.inputs {
         match arg {
             FnArg::Typed(t) => {
                 let name = if let Pat::Ident(ident) = t.pat.borrow() {
@@ -1827,6 +1827,12 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
                         }
                         acc
                     });
+                t.attrs.retain(|attr| {
+                    attr.path
+                        .get_ident()
+                        .map(|name| name.to_string() != "mel")
+                        .unwrap_or(true)
+                });
 
                 let ty = into_mel_type(t.ty.borrow());
 
