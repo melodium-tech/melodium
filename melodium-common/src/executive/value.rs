@@ -51,7 +51,7 @@ pub enum Value {
 
 impl From<()> for Value {
     fn from(value: ()) -> Self {
-        Value::Void(())
+        Value::Void(value)
     }
 }
 
