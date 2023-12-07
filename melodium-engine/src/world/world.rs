@@ -15,8 +15,7 @@ use core::fmt::Debug;
 use futures::future::{join, join_all};
 use futures::stream::{FuturesUnordered, StreamExt};
 use melodium_common::descriptor::{
-    Collection, Entry as CollectionEntry, Identified, Identifier, Input as InputDescriptor,
-    Output as OutputDescriptor,
+    Collection, Entry as CollectionEntry, Identified, Identifier
 };
 use melodium_common::executive::{
     Context as ExecutiveContext, ContinuousFuture, Input as ExecutiveInput, Model, ModelId,
@@ -166,17 +165,17 @@ impl World {
         }
     }
 
-    pub fn new_input(&self, descriptor: &InputDescriptor) -> Input {
+    pub fn new_input(&self) -> Input {
         Input::new()
     }
 
-    pub fn new_blocked_input(&self, descriptor: &OutputDescriptor) -> Input {
+    pub fn new_blocked_input(&self) -> Input {
         let input = Input::new();
         input.close();
         input
     }
 
-    pub fn new_output(&self, descriptor: &OutputDescriptor) -> Output {
+    pub fn new_output(&self) -> Output {
         Output::new()
     }
 
