@@ -280,6 +280,16 @@ impl ExecutiveInput for GenericInput {
     }
 }
 
+impl Clone for GenericInput {
+    fn clone(&self) -> Self {
+        Self {
+            receiver: self.receiver.clone(),
+            sender: self.sender.clone(),
+            buffer: AsyncMutex::new(None),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Input {
     Void(Arc<RecvTransmitter<()>>),

@@ -167,17 +167,17 @@ impl World {
     }
 
     pub fn new_input(&self, descriptor: &InputDescriptor) -> Input {
-        Input::new(descriptor)
+        Input::new()
     }
 
     pub fn new_blocked_input(&self, descriptor: &OutputDescriptor) -> Input {
-        let input = Input::from_output(descriptor);
+        let input = Input::new();
         input.close();
         input
     }
 
     pub fn new_output(&self, descriptor: &OutputDescriptor) -> Output {
-        Output::new(descriptor)
+        Output::new()
     }
 
     async fn run_tracks(&self) {

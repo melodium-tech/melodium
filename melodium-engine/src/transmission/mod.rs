@@ -6,6 +6,6 @@ mod receive_transmitter;
 mod send_transmitter;
 
 pub use blind_output::BlindOutput;
-pub use input::{GenericInput, Input};
-pub use output::{GenericOutput, Output};
-pub use outputs::Outputs;
+pub use input::{GenericInput, GenericInput as Input, Input as OldInput};
+pub use output::{GenericOutput, GenericOutput as Output, Output as OldOutput};
+pub use outputs::{GenericOutputs, GenericOutputs as Outputs, Outputs as OldOutputs};

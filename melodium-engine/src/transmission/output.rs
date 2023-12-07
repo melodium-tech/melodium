@@ -1,4 +1,5 @@
 use super::send_transmitter::SendTransmitter;
+use super::OldInput;
 use crate::transmission::{GenericInput, Input};
 use async_std::channel::Sender;
 use async_std::sync::Mutex as AsyncMutex;
@@ -331,6 +332,14 @@ impl ExecutiveOutput for GenericOutput {
     }
 }
 
+impl From<GenericInput> for GenericOutput {
+    fn from(value: GenericInput) -> Self {
+        let o = GenericOutput::new();
+        o.add_transmission(&vec![value]);
+        o
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Output {
     Void(Arc<SendTransmitter<()>>),
@@ -422,143 +431,143 @@ impl Output {
         }
     }
 
-    pub fn add_transmission(&self, inputs: &Vec<Input>) {
+    pub fn add_transmission(&self, inputs: &Vec<OldInput>) {
         for input in inputs {
             match self {
                 Output::Void(st) => match input {
-                    Input::Void(it) => st.add_transmitter(it),
+                    OldInput::Void(it) => st.add_transmitter(it),
                     _ => panic!("void send transmitter expected"),
                 },
                 Output::U8(st) => match input {
-                    Input::U8(it) => st.add_transmitter(it),
+                    OldInput::U8(it) => st.add_transmitter(it),
                     _ => panic!("u8 send transmitter expected"),
                 },
                 Output::U16(st) => match input {
-                    Input::U16(it) => st.add_transmitter(it),
+                    OldInput::U16(it) => st.add_transmitter(it),
                     _ => panic!("u16 send transmitter expected"),
                 },
                 Output::U32(st) => match input {
-                    Input::U32(it) => st.add_transmitter(it),
+                    OldInput::U32(it) => st.add_transmitter(it),
                     _ => panic!("u32 send transmitter expected"),
                 },
                 Output::U64(st) => match input {
-                    Input::U64(it) => st.add_transmitter(it),
+                    OldInput::U64(it) => st.add_transmitter(it),
                     _ => panic!("u64 send transmitter expected"),
                 },
                 Output::U128(st) => match input {
-                    Input::U128(it) => st.add_transmitter(it),
+                    OldInput::U128(it) => st.add_transmitter(it),
                     _ => panic!("u128 send transmitter expected"),
                 },
                 Output::I8(st) => match input {
-                    Input::I8(it) => st.add_transmitter(it),
+                    OldInput::I8(it) => st.add_transmitter(it),
                     _ => panic!("i8 send transmitter expected"),
                 },
                 Output::I16(st) => match input {
-                    Input::I16(it) => st.add_transmitter(it),
+                    OldInput::I16(it) => st.add_transmitter(it),
                     _ => panic!("i16 send transmitter expected"),
                 },
                 Output::I32(st) => match input {
-                    Input::I32(it) => st.add_transmitter(it),
+                    OldInput::I32(it) => st.add_transmitter(it),
                     _ => panic!("i32 send transmitter expected"),
                 },
                 Output::I64(st) => match input {
-                    Input::I64(it) => st.add_transmitter(it),
+                    OldInput::I64(it) => st.add_transmitter(it),
                     _ => panic!("i64 send transmitter expected"),
                 },
                 Output::I128(st) => match input {
-                    Input::I128(it) => st.add_transmitter(it),
+                    OldInput::I128(it) => st.add_transmitter(it),
                     _ => panic!("i128 send transmitter expected"),
                 },
                 Output::F32(st) => match input {
-                    Input::F32(it) => st.add_transmitter(it),
+                    OldInput::F32(it) => st.add_transmitter(it),
                     _ => panic!("f32 send transmitter expected"),
                 },
                 Output::F64(st) => match input {
-                    Input::F64(it) => st.add_transmitter(it),
+                    OldInput::F64(it) => st.add_transmitter(it),
                     _ => panic!("f64 send transmitter expected"),
                 },
                 Output::Bool(st) => match input {
-                    Input::Bool(it) => st.add_transmitter(it),
+                    OldInput::Bool(it) => st.add_transmitter(it),
                     _ => panic!("bool send transmitter expected"),
                 },
                 Output::Byte(st) => match input {
-                    Input::Byte(it) => st.add_transmitter(it),
+                    OldInput::Byte(it) => st.add_transmitter(it),
                     _ => panic!("byte send transmitter expected"),
                 },
                 Output::Char(st) => match input {
-                    Input::Char(it) => st.add_transmitter(it),
+                    OldInput::Char(it) => st.add_transmitter(it),
                     _ => panic!("char send transmitter expected"),
                 },
                 Output::String(st) => match input {
-                    Input::String(it) => st.add_transmitter(it),
+                    OldInput::String(it) => st.add_transmitter(it),
                     _ => panic!("string send transmitter expected"),
                 },
                 Output::VecVoid(st) => match input {
-                    Input::VecVoid(it) => st.add_transmitter(it),
+                    OldInput::VecVoid(it) => st.add_transmitter(it),
                     _ => panic!("Vec<void> send transmitter expected"),
                 },
                 Output::VecU8(st) => match input {
-                    Input::VecU8(it) => st.add_transmitter(it),
+                    OldInput::VecU8(it) => st.add_transmitter(it),
                     _ => panic!("Vec<u8> send transmitter expected"),
                 },
                 Output::VecU16(st) => match input {
-                    Input::VecU16(it) => st.add_transmitter(it),
+                    OldInput::VecU16(it) => st.add_transmitter(it),
                     _ => panic!("Vec<u16> send transmitter expected"),
                 },
                 Output::VecU32(st) => match input {
-                    Input::VecU32(it) => st.add_transmitter(it),
+                    OldInput::VecU32(it) => st.add_transmitter(it),
                     _ => panic!("Vec<u32> send transmitter expected"),
                 },
                 Output::VecU64(st) => match input {
-                    Input::VecU64(it) => st.add_transmitter(it),
+                    OldInput::VecU64(it) => st.add_transmitter(it),
                     _ => panic!("Vec<u64> send transmitter expected"),
                 },
                 Output::VecU128(st) => match input {
-                    Input::VecU128(it) => st.add_transmitter(it),
+                    OldInput::VecU128(it) => st.add_transmitter(it),
                     _ => panic!("Vec<u128> send transmitter expected"),
                 },
                 Output::VecI8(st) => match input {
-                    Input::VecI8(it) => st.add_transmitter(it),
+                    OldInput::VecI8(it) => st.add_transmitter(it),
                     _ => panic!("Vec<i8> send transmitter expected"),
                 },
                 Output::VecI16(st) => match input {
-                    Input::VecI16(it) => st.add_transmitter(it),
+                    OldInput::VecI16(it) => st.add_transmitter(it),
                     _ => panic!("Vec<i16> send transmitter expected"),
                 },
                 Output::VecI32(st) => match input {
-                    Input::VecI32(it) => st.add_transmitter(it),
+                    OldInput::VecI32(it) => st.add_transmitter(it),
                     _ => panic!("Vec<i32> send transmitter expected"),
                 },
                 Output::VecI64(st) => match input {
-                    Input::VecI64(it) => st.add_transmitter(it),
+                    OldInput::VecI64(it) => st.add_transmitter(it),
                     _ => panic!("Vec<i64> send transmitter expected"),
                 },
                 Output::VecI128(st) => match input {
-                    Input::VecI128(it) => st.add_transmitter(it),
+                    OldInput::VecI128(it) => st.add_transmitter(it),
                     _ => panic!("Vec<i128> send transmitter expected"),
                 },
                 Output::VecF32(st) => match input {
-                    Input::VecF32(it) => st.add_transmitter(it),
+                    OldInput::VecF32(it) => st.add_transmitter(it),
                     _ => panic!("Vec<f32> send transmitter expected"),
                 },
                 Output::VecF64(st) => match input {
-                    Input::VecF64(it) => st.add_transmitter(it),
+                    OldInput::VecF64(it) => st.add_transmitter(it),
                     _ => panic!("Vec<f64> send transmitter expected"),
                 },
                 Output::VecBool(st) => match input {
-                    Input::VecBool(it) => st.add_transmitter(it),
+                    OldInput::VecBool(it) => st.add_transmitter(it),
                     _ => panic!("Vec<bool> send transmitter expected"),
                 },
                 Output::VecByte(st) => match input {
-                    Input::VecByte(it) => st.add_transmitter(it),
+                    OldInput::VecByte(it) => st.add_transmitter(it),
                     _ => panic!("Vec<byte> send transmitter expected"),
                 },
                 Output::VecChar(st) => match input {
-                    Input::VecChar(it) => st.add_transmitter(it),
+                    OldInput::VecChar(it) => st.add_transmitter(it),
                     _ => panic!("Vec<char> send transmitter expected"),
                 },
                 Output::VecString(st) => match input {
-                    Input::VecString(it) => st.add_transmitter(it),
+                    OldInput::VecString(it) => st.add_transmitter(it),
                     _ => panic!("Vec<string> send transmitter expected"),
                 },
             }
@@ -1092,175 +1101,175 @@ impl ExecutiveOutput for Output {
     }
 }
 
-impl From<Input> for Output {
-    fn from(input: Input) -> Self {
+impl From<OldInput> for Output {
+    fn from(input: OldInput) -> Self {
         match input {
-            Input::Void(_) => {
+            OldInput::Void(_) => {
                 let o = Output::Void(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::U8(_) => {
+            OldInput::U8(_) => {
                 let o = Output::U8(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::U16(_) => {
+            OldInput::U16(_) => {
                 let o = Output::U16(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::U32(_) => {
+            OldInput::U32(_) => {
                 let o = Output::U32(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::U64(_) => {
+            OldInput::U64(_) => {
                 let o = Output::U64(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::U128(_) => {
+            OldInput::U128(_) => {
                 let o = Output::U128(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::I8(_) => {
+            OldInput::I8(_) => {
                 let o = Output::I8(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::I16(_) => {
+            OldInput::I16(_) => {
                 let o = Output::I16(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::I32(_) => {
+            OldInput::I32(_) => {
                 let o = Output::I32(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::I64(_) => {
+            OldInput::I64(_) => {
                 let o = Output::I64(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::I128(_) => {
+            OldInput::I128(_) => {
                 let o = Output::I128(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::F32(_) => {
+            OldInput::F32(_) => {
                 let o = Output::F32(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::F64(_) => {
+            OldInput::F64(_) => {
                 let o = Output::F64(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::Bool(_) => {
+            OldInput::Bool(_) => {
                 let o = Output::Bool(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::Byte(_) => {
+            OldInput::Byte(_) => {
                 let o = Output::Byte(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::Char(_) => {
+            OldInput::Char(_) => {
                 let o = Output::Char(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::String(_) => {
+            OldInput::String(_) => {
                 let o = Output::String(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecVoid(_) => {
+            OldInput::VecVoid(_) => {
                 let o = Output::VecVoid(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecU8(_) => {
+            OldInput::VecU8(_) => {
                 let o = Output::VecU8(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecU16(_) => {
+            OldInput::VecU16(_) => {
                 let o = Output::VecU16(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecU32(_) => {
+            OldInput::VecU32(_) => {
                 let o = Output::VecU32(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecU64(_) => {
+            OldInput::VecU64(_) => {
                 let o = Output::VecU64(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecU128(_) => {
+            OldInput::VecU128(_) => {
                 let o = Output::VecU128(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecI8(_) => {
+            OldInput::VecI8(_) => {
                 let o = Output::VecI8(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecI16(_) => {
+            OldInput::VecI16(_) => {
                 let o = Output::VecI16(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecI32(_) => {
+            OldInput::VecI32(_) => {
                 let o = Output::VecI32(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecI64(_) => {
+            OldInput::VecI64(_) => {
                 let o = Output::VecI64(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecI128(_) => {
+            OldInput::VecI128(_) => {
                 let o = Output::VecI128(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecF32(_) => {
+            OldInput::VecF32(_) => {
                 let o = Output::VecF32(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecF64(_) => {
+            OldInput::VecF64(_) => {
                 let o = Output::VecF64(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecBool(_) => {
+            OldInput::VecBool(_) => {
                 let o = Output::VecBool(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecByte(_) => {
+            OldInput::VecByte(_) => {
                 let o = Output::VecByte(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecChar(_) => {
+            OldInput::VecChar(_) => {
                 let o = Output::VecChar(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
             }
-            Input::VecString(_) => {
+            OldInput::VecString(_) => {
                 let o = Output::VecString(Arc::new(SendTransmitter::new()));
                 o.add_transmission(&vec![input.clone()]);
                 o
