@@ -110,9 +110,8 @@ impl ExecutiveOutput for GenericOutput {
             } else {
                 *lock = Some(data);
             }
-
-            self.check_send(false).await
         }
+        self.check_send(false).await
     }
     async fn send_one(&self, data: Value) -> SendResult {
         {
@@ -122,9 +121,8 @@ impl ExecutiveOutput for GenericOutput {
             } else {
                 *lock = Some(TransmissionValue::new(data));
             }
-
-            self.check_send(false).await
         }
+        self.check_send(false).await
     }
     async fn send_one_void(&self, data: ()) -> SendResult {
         self.send_one(data.into()).await
