@@ -8,7 +8,7 @@ use crate::error::{LogicError, LogicResult};
 use crate::world::World;
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Identified, Parameterized, Status, Treatment as TreatmentDescriptor,
+    Identified, Parameterized, Status, Treatment as TreatmentDescriptor, Variability,
 };
 use melodium_common::executive::{Model, TrackId, Value as ExecutiveValue};
 use std::collections::HashMap;
@@ -240,10 +240,18 @@ impl BuilderTrait for Builder {
 
             // Setup parameters
             for (name, parameter) in &treatment.parameters {
-                let data =
-                    Self::get_const_value(&parameter.value, &build_sample.genesis_environment);
+                if treatment_descriptor
+                    .parameters()
+                    .get(name)
+                    .unwrap()
+                    .variability()
+                    == &Variability::Const
+                {
+                    let data =
+                        Self::get_const_value(&parameter.value, &build_sample.genesis_environment);
 
-                remastered_environment.add_variable(&name, data);
+                    remastered_environment.add_variable(&name, data);
+                }
             }
 
             let build_result =
