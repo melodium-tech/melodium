@@ -18,7 +18,7 @@ use flow/string::emit as emitPath
 use conv/u128::toByte
 use flow/vec/byte::flatten
 
-treatment main(const content: string = "this is some text", var generate: u128 = 876, const output: string = "/tmp/output_count") {
+treatment main(const content: string = "this is some text", var generate: u128 = 876, const output: string = "./output_count") {
     startup()
     generate_arbitrary(length = generate, text = content)
     count_writer(output_file = output)
