@@ -1,3 +1,4 @@
+use super::{TransmissionValue, Value};
 use crate::executive::SendResult;
 use async_trait::async_trait;
 use core::fmt::Debug;
@@ -9,6 +10,10 @@ pub trait Outputs: Debug + Send + Sync {
 #[async_trait]
 pub trait Output: Debug + Send + Sync {
     async fn close(&self);
+
+    async fn send_many(&self, data: TransmissionValue) -> SendResult;
+    async fn send_one(&self, data: Value) -> SendResult;
+
     async fn send_one_void(&self, data: ()) -> SendResult;
     async fn send_void(&self, data: Vec<()>) -> SendResult;
     async fn send_one_u8(&self, data: u8) -> SendResult;

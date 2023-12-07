@@ -1,6 +1,6 @@
-use core::fmt::{Debug, Display, Formatter, Result};
-
 use crate::descriptor::{DataType, Structure, Type};
+use core::fmt::{self, Debug, Display, Formatter};
+use std::convert::TryInto;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Value {
@@ -47,6 +47,530 @@ pub enum Value {
     VecByte(Vec<u8>),
     VecChar(Vec<char>),
     VecString(Vec<String>),
+}
+
+impl From<()> for Value {
+    fn from(value: ()) -> Self {
+        Value::Void(value)
+    }
+}
+
+impl TryInto<()> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<(), Self::Error> {
+        match self {
+            Value::Void(_) => Ok(()),
+            _ => Err(self),
+        }
+    }
+}
+
+impl From<i8> for Value {
+    fn from(value: i8) -> Self {
+        Value::I8(value)
+    }
+}
+
+impl TryInto<i8> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<i8, Self::Error> {
+        match self {
+            Value::I8(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<i16> for Value {
+    fn from(value: i16) -> Self {
+        Value::I16(value)
+    }
+}
+
+impl TryInto<i16> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<i16, Self::Error> {
+        match self {
+            Value::I16(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<i32> for Value {
+    fn from(value: i32) -> Self {
+        Value::I32(value)
+    }
+}
+
+impl TryInto<i32> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<i32, Self::Error> {
+        match self {
+            Value::I32(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<i64> for Value {
+    fn from(value: i64) -> Self {
+        Value::I64(value)
+    }
+}
+
+impl TryInto<i64> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<i64, Self::Error> {
+        match self {
+            Value::I64(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<i128> for Value {
+    fn from(value: i128) -> Self {
+        Value::I128(value)
+    }
+}
+
+impl TryInto<i128> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<i128, Self::Error> {
+        match self {
+            Value::I128(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+
+impl From<u8> for Value {
+    fn from(value: u8) -> Self {
+        Value::U8(value)
+    }
+}
+
+impl TryInto<u8> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<u8, Self::Error> {
+        match self {
+            Value::U8(val) => Ok(val),
+            Value::Byte(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<u16> for Value {
+    fn from(value: u16) -> Self {
+        Value::U16(value)
+    }
+}
+
+impl TryInto<u16> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<u16, Self::Error> {
+        match self {
+            Value::U16(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<u32> for Value {
+    fn from(value: u32) -> Self {
+        Value::U32(value)
+    }
+}
+
+impl TryInto<u32> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<u32, Self::Error> {
+        match self {
+            Value::U32(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<u64> for Value {
+    fn from(value: u64) -> Self {
+        Value::U64(value)
+    }
+}
+
+impl TryInto<u64> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<u64, Self::Error> {
+        match self {
+            Value::U64(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<u128> for Value {
+    fn from(value: u128) -> Self {
+        Value::U128(value)
+    }
+}
+
+impl TryInto<u128> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<u128, Self::Error> {
+        match self {
+            Value::U128(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+
+impl From<f32> for Value {
+    fn from(value: f32) -> Self {
+        Value::F32(value)
+    }
+}
+
+impl TryInto<f32> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<f32, Self::Error> {
+        match self {
+            Value::F32(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<f64> for Value {
+    fn from(value: f64) -> Self {
+        Value::F64(value)
+    }
+}
+
+impl TryInto<f64> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<f64, Self::Error> {
+        match self {
+            Value::F64(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+
+impl From<bool> for Value {
+    fn from(value: bool) -> Self {
+        Value::Bool(value)
+    }
+}
+
+impl TryInto<bool> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<bool, Self::Error> {
+        match self {
+            Value::Bool(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<char> for Value {
+    fn from(value: char) -> Self {
+        Value::Char(value)
+    }
+}
+
+impl TryInto<char> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<char, Self::Error> {
+        match self {
+            Value::Char(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<String> for Value {
+    fn from(value: String) -> Self {
+        Value::String(value)
+    }
+}
+
+impl TryInto<String> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<String, Self::Error> {
+        match self {
+            Value::String(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+
+impl From<Vec<()>> for Value {
+    fn from(value: Vec<()>) -> Self {
+        Value::VecVoid(value)
+    }
+}
+
+impl TryInto<Vec<()>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<()>, Self::Error> {
+        match self {
+            Value::VecVoid(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+
+impl From<Vec<i8>> for Value {
+    fn from(value: Vec<i8>) -> Self {
+        Value::VecI8(value)
+    }
+}
+
+impl TryInto<Vec<i8>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<i8>, Self::Error> {
+        match self {
+            Value::VecI8(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<Vec<i16>> for Value {
+    fn from(value: Vec<i16>) -> Self {
+        Value::VecI16(value)
+    }
+}
+
+impl TryInto<Vec<i16>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<i16>, Self::Error> {
+        match self {
+            Value::VecI16(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<Vec<i32>> for Value {
+    fn from(value: Vec<i32>) -> Self {
+        Value::VecI32(value)
+    }
+}
+
+impl TryInto<Vec<i32>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<i32>, Self::Error> {
+        match self {
+            Value::VecI32(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<Vec<i64>> for Value {
+    fn from(value: Vec<i64>) -> Self {
+        Value::VecI64(value)
+    }
+}
+
+impl TryInto<Vec<i64>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<i64>, Self::Error> {
+        match self {
+            Value::VecI64(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<Vec<i128>> for Value {
+    fn from(value: Vec<i128>) -> Self {
+        Value::VecI128(value)
+    }
+}
+
+impl TryInto<Vec<i128>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<i128>, Self::Error> {
+        match self {
+            Value::VecI128(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+
+impl From<Vec<u8>> for Value {
+    fn from(value: Vec<u8>) -> Self {
+        Value::VecU8(value)
+    }
+}
+
+impl TryInto<Vec<u8>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<u8>, Self::Error> {
+        match self {
+            Value::VecU8(val) => Ok(val),
+            Value::VecByte(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<Vec<u16>> for Value {
+    fn from(value: Vec<u16>) -> Self {
+        Value::VecU16(value)
+    }
+}
+
+impl TryInto<Vec<u16>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<u16>, Self::Error> {
+        match self {
+            Value::VecU16(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<Vec<u32>> for Value {
+    fn from(value: Vec<u32>) -> Self {
+        Value::VecU32(value)
+    }
+}
+
+impl TryInto<Vec<u32>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<u32>, Self::Error> {
+        match self {
+            Value::VecU32(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<Vec<u64>> for Value {
+    fn from(value: Vec<u64>) -> Self {
+        Value::VecU64(value)
+    }
+}
+
+impl TryInto<Vec<u64>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<u64>, Self::Error> {
+        match self {
+            Value::VecU64(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<Vec<u128>> for Value {
+    fn from(value: Vec<u128>) -> Self {
+        Value::VecU128(value)
+    }
+}
+
+impl TryInto<Vec<u128>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<u128>, Self::Error> {
+        match self {
+            Value::VecU128(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+
+impl From<Vec<f32>> for Value {
+    fn from(value: Vec<f32>) -> Self {
+        Value::VecF32(value)
+    }
+}
+
+impl TryInto<Vec<f32>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<f32>, Self::Error> {
+        match self {
+            Value::VecF32(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<Vec<f64>> for Value {
+    fn from(value: Vec<f64>) -> Self {
+        Value::VecF64(value)
+    }
+}
+
+impl TryInto<Vec<f64>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<f64>, Self::Error> {
+        match self {
+            Value::VecF64(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+
+impl From<Vec<bool>> for Value {
+    fn from(value: Vec<bool>) -> Self {
+        Value::VecBool(value)
+    }
+}
+
+impl TryInto<Vec<bool>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<bool>, Self::Error> {
+        match self {
+            Value::VecBool(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<Vec<char>> for Value {
+    fn from(value: Vec<char>) -> Self {
+        Value::VecChar(value)
+    }
+}
+
+impl TryInto<Vec<char>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<char>, Self::Error> {
+        match self {
+            Value::VecChar(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
+}
+impl From<Vec<String>> for Value {
+    fn from(value: Vec<String>) -> Self {
+        Value::VecString(value)
+    }
+}
+
+impl TryInto<Vec<String>> for Value {
+    type Error = Self;
+
+    fn try_into(self) -> Result<Vec<String>, Self::Error> {
+        match self {
+            Value::VecString(val) => Ok(val),
+            _ => Err(self),
+        }
+    }
 }
 
 impl Value {
@@ -338,7 +862,7 @@ impl Value {
 }
 
 impl Display for Value {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Value::Void(_) => write!(f, "()"),
             Value::I8(v) => write!(f, "{}", v),

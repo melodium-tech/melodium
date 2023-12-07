@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "complex_call",
     "fs",
     "http_javascript",
 ]
