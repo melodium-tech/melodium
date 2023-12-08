@@ -1,10 +1,10 @@
-use super::{Connection, Parameter, Reference, Scope, Treatment, Value, IO};
+use super::{Connection, Parameter, Reference, Scope, Treatment, Value, IO, Generic};
 use crate::design::TreatmentInstanciation as TreatmentInstanciationDesign;
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
     Attribuable, Attribute, Attributes, Collection, Identified, Identifier,
-    Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor,
+    Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor, DataType, DescribedType,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
@@ -16,6 +16,7 @@ pub struct TreatmentInstanciation {
     host_id: Identifier,
     descriptor: Weak<dyn TreatmentDescriptor>,
     name: String,
+    generics: HashMap<String, DescribedType>,
     models: HashMap<String, String>,
     parameters: HashMap<String, Arc<RwLock<Parameter>>>,
     attributes: Attributes,
@@ -41,6 +42,7 @@ impl TreatmentInstanciation {
                 host_id,
                 descriptor: Arc::downgrade(descriptor),
                 name: name.to_string(),
+                generics: HashMap::with_capacity(descriptor.generics().len()),
                 models: HashMap::with_capacity(descriptor.models().len()),
                 parameters: HashMap::with_capacity(descriptor.parameters().len()),
                 attributes: Attributes::default(),
@@ -411,5 +413,11 @@ impl TreatmentInstanciation {
 impl Attribuable for TreatmentInstanciation {
     fn attributes(&self) -> &Attributes {
         &self.attributes
+    }
+}
+
+impl Generic for TreatmentInstanciation {
+    fn generics(&self) -> &HashMap<String, DescribedType> {
+        &self.generics
     }
 }

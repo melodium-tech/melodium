@@ -117,14 +117,14 @@ impl Parameter {
                 self.value = Some(value.clone());
 
                 if let Some(parameter) = parameter {
-                    if !parameter.datatype().is_compatible(data) {
+                    if !parameter.described_type().is_compatible(data) {
                         result.errors_mut().push(LogicError::unmatching_datatype(
                             13,
                             self.scope_id.clone(),
                             parent_descriptor.identifier().clone(),
                             self.name.clone(),
                             value.clone(),
-                            parameter.datatype().clone(),
+                            parameter.described_type().clone(),
                             data.datatype().clone(),
                             self.design_reference.clone(),
                         ));

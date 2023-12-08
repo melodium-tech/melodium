@@ -1,10 +1,27 @@
 use crate::executive::Value;
 use core::fmt::{Display, Formatter, Result};
+use std::collections::HashMap;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum DescribedType {
     Concrete(DataType),
     Generic(String),
+}
+
+impl DescribedType {
+    pub fn is_datatype(&self, dt: &DataType) -> bool {
+        match self {
+            DescribedType::Concrete(me) => me == dt,
+            DescribedType::Generic(_) => false,
+        }
+    }
+
+    pub fn is_compatible(&self, dt: &DataType, generics: &HashMap<String, DataType>) -> bool {
+        match self {
+            DescribedType::Concrete(me) => me == dt,
+            DescribedType::Generic(generic) => generics.get(generic).map(|me| me == dt).unwrap_or(false)
+        }
+    }
 }
 
 impl Display for DescribedType {

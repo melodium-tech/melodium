@@ -1,14 +1,14 @@
-use super::{Parameter, Reference, Scope, Value};
+use super::{Parameter, Reference, Scope, Value, Generic};
 use crate::descriptor::Model as ModelDescriptor;
 use crate::design::{Model as ModelDesign, Parameter as ParameterDesign};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
     Collection, Identified, Identifier, Model as ModelTrait, Parameter as ParameterDescriptor,
-    Parameterized,
+    Parameterized, DataType,
 };
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::{Arc, RwLock, Weak, OnceLock};
 
 #[derive(Debug)]
 pub struct Model {
@@ -262,3 +262,4 @@ impl Scope for Model {
         self.descriptor().identifier().clone()
     }
 }
+

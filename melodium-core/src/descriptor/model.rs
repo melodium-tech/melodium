@@ -1,9 +1,10 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
     Attribuable, Attributes, Buildable, Context, Documented, Identified, Identifier,
-    Model as ModelDescriptor, ModelBuildMode, Parameter, Parameterized,
+    Model as ModelDescriptor, ModelBuildMode, Parameter, Parameterized, Generic,
 };
 use melodium_common::executive::{Model as ExecutiveModel, World};
+use once_cell::sync::OnceCell;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::{Arc, Weak};
@@ -78,6 +79,13 @@ impl Parameterized for Model {
 
     fn as_identified(&self) -> Arc<dyn Identified> {
         self.auto_reference.upgrade().unwrap()
+    }
+}
+
+impl Generic for Model {
+    fn generics(&self) -> &Vec<String> {
+        static VEC: OnceCell<Vec<String>> = OnceCell::new();
+        VEC.get_or_init(|| Vec::new())
     }
 }
 

@@ -10,7 +10,6 @@ use std::sync::Arc;
 pub trait Treatment:
     Identified
     + Documented
-    + Generic
     + Parameterized
     + Buildable<TreatmentBuildMode>
     + DowncastSync

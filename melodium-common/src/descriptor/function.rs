@@ -7,7 +7,6 @@ use std::sync::Arc;
 pub trait Function:
     Identified
     + Documented
-    + Generic
     + OrderedParameterized
     + DowncastSync
     + Display

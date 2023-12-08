@@ -5,10 +5,10 @@ use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
     Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry,
     Identified, Identifier, Model as ModelDescriptor, ModelBuildMode, Parameter, Parameterized,
-    Status, Variability,
+    Status, Variability, Generic,
 };
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock, Weak};
+use std::sync::{Arc, Mutex, RwLock, Weak, OnceLock};
 
 #[derive(Debug)]
 pub struct Model {
@@ -221,6 +221,13 @@ impl Parameterized for Model {
 
     fn as_identified(&self) -> Arc<dyn Identified> {
         self.auto_reference.upgrade().unwrap()
+    }
+}
+
+impl Generic for Model {
+    fn generics(&self) -> &Vec<String> {
+        static VEC: OnceLock<Vec<String>> = OnceLock::new();
+        VEC.get_or_init(|| Vec::new())
     }
 }
 

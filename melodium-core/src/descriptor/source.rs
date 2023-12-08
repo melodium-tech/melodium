@@ -161,7 +161,7 @@ impl TreatmentDescriptor for Source {
 
 impl Generic for Source {
     fn generics(&self) -> &Vec<String> {
-        static HASHMAP: OnceCell<Vec<String>> = OnceCell::new();
-        HASHMAP.get_or_init(|| Vec::new())
+        static VEC: OnceCell<Vec<String>> = OnceCell::new();
+        VEC.get_or_init(|| Vec::new())
     }
 }
