@@ -14,9 +14,7 @@ use async_trait::async_trait;
 use core::fmt::Debug;
 use futures::future::{join, join_all};
 use futures::stream::{FuturesUnordered, StreamExt};
-use melodium_common::descriptor::{
-    Collection, Entry as CollectionEntry, Identified, Identifier
-};
+use melodium_common::descriptor::{Collection, Entry as CollectionEntry, Identified, Identifier};
 use melodium_common::executive::{
     Context as ExecutiveContext, ContinuousFuture, Input as ExecutiveInput, Model, ModelId,
     ResultStatus, TrackCreationCallback, TrackFuture, TrackId, World as ExecutiveWorld,

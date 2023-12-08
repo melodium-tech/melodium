@@ -1,7 +1,8 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    Attribuable, Attributes, Buildable, Context, Documented, Identified, Identifier, Input, Model,
-    Output, Parameter, Parameterized, Treatment as TreatmentDescriptor, TreatmentBuildMode,
+    Attribuable, Attributes, Buildable, Context, Documented, Generic, Identified, Identifier,
+    Input, Model, Output, Parameter, Parameterized, Treatment as TreatmentDescriptor,
+    TreatmentBuildMode,
 };
 use once_cell::sync::OnceCell;
 use std::collections::HashMap;
@@ -155,5 +156,12 @@ impl TreatmentDescriptor for Source {
 
     fn as_parameterized(&self) -> Arc<dyn Parameterized> {
         self.auto_reference.upgrade().unwrap()
+    }
+}
+
+impl Generic for Source {
+    fn generics(&self) -> &Vec<String> {
+        static HASHMAP: OnceCell<Vec<String>> = OnceCell::new();
+        HASHMAP.get_or_init(|| Vec::new())
     }
 }

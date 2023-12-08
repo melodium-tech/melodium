@@ -1,6 +1,21 @@
 use crate::executive::Value;
 use core::fmt::{Display, Formatter, Result};
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum DescribedType {
+    Concrete(DataType),
+    Generic(String),
+}
+
+impl Display for DescribedType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            DescribedType::Concrete(dt) => write!(f, "{}", dt),
+            DescribedType::Generic(gen) => write!(f, "{}", gen),
+        }
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DataType {
     r#type: Type,

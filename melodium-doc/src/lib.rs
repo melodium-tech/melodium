@@ -274,7 +274,11 @@ impl Documentation {
             let mut string = String::new();
 
             for param in function.parameters().iter() {
-                string.push_str(&format!("↳ `{}:` `{}`  \n", param.name(), param.datatype()));
+                string.push_str(&format!(
+                    "↳ `{}:` `{}`  \n",
+                    param.name(),
+                    param.described_type()
+                ));
             }
 
             format!("#### Parameters\n\n{}", string)
@@ -538,7 +542,7 @@ impl Documentation {
         format!("`{var} {name}:` `{type}{val}`",
             var = parameter.variability(),
             name = parameter.name(),
-            type = parameter.datatype(),
+            type = parameter.described_type(),
             val = parameter.default().as_ref().map(|v| format!(" = {v}")).unwrap_or_default(),
         )
     }
@@ -549,7 +553,7 @@ impl Documentation {
             Flow::Stream => "Stream",
         };
 
-        format!("{}<{}>", flow, input.datatype())
+        format!("{}<{}>", flow, input.described_type())
     }
 
     fn output(output: &Output) -> String {
@@ -558,7 +562,7 @@ impl Documentation {
             Flow::Stream => "Stream",
         };
 
-        format!("{}<{}>", flow, output.datatype())
+        format!("{}<{}>", flow, output.described_type())
     }
 
     fn get_title() -> String {

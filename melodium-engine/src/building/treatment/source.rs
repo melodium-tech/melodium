@@ -145,10 +145,9 @@ impl BuilderTrait for Builder {
         // We add here blocked inputs for source outputs that might not be used in scripts.
         for (name, _) in descriptor.outputs() {
             if !result.feeding_inputs.contains_key(name) {
-                result.feeding_inputs.insert(
-                    name.clone(),
-                    vec![world.new_blocked_input()],
-                );
+                result
+                    .feeding_inputs
+                    .insert(name.clone(), vec![world.new_blocked_input()]);
             }
         }
         result.prepared_futures.extend(host_build.prepared_futures);

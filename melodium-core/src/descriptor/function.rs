@@ -1,7 +1,7 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    Attribuable, Attributes, DataType, Documented, Function as FunctionDescriptor, Identified,
-    Identifier, OrderedParameterized, Parameter,
+    Attribuable, Attributes, DescribedType, Documented, Function as FunctionDescriptor, Generic,
+    Identified, Identifier, OrderedParameterized, Parameter,
 };
 use melodium_common::executive::Value;
 use std::sync::{Arc, Weak};
@@ -12,8 +12,9 @@ pub struct Function {
     #[cfg(feature = "doc")]
     documentation: String,
     attributes: Attributes,
+    generics: Vec<String>,
     parameters: Vec<Parameter>,
-    return_type: DataType,
+    return_type: DescribedType,
     function: fn(Vec<Value>) -> Value,
     auto_reference: Weak<Self>,
 }
@@ -23,8 +24,9 @@ impl Function {
         identifier: Identifier,
         documentation: String,
         attributes: Attributes,
+        generics: Vec<String>,
         parameters: Vec<Parameter>,
-        return_type: DataType,
+        return_type: DescribedType,
         function: fn(Vec<Value>) -> Value,
     ) -> Arc<Self> {
         #[cfg(not(feature = "doc"))]
@@ -34,6 +36,7 @@ impl Function {
             #[cfg(feature = "doc")]
             documentation,
             attributes,
+            generics,
             parameters,
             return_type,
             function,
@@ -49,7 +52,7 @@ impl Attribuable for Function {
 }
 
 impl FunctionDescriptor for Function {
-    fn return_type(&self) -> &DataType {
+    fn return_type(&self) -> &DescribedType {
         &self.return_type
     }
 
@@ -92,6 +95,12 @@ impl OrderedParameterized for Function {
 
     fn as_identified(&self) -> Arc<dyn Identified> {
         self.auto_reference.upgrade().unwrap()
+    }
+}
+
+impl Generic for Function {
+    fn generics(&self) -> &Vec<String> {
+        &self.generics
     }
 }
 

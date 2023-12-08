@@ -158,7 +158,7 @@ impl Model {
             parameter = Parameter::new(
                 parameter.name(),
                 Variability::Const,
-                parameter.datatype().clone(),
+                parameter.described_type().clone(),
                 parameter.default().clone(),
                 parameter.attributes().clone(),
             );
