@@ -1,5 +1,5 @@
 use super::{
-    Buildable, Context, Documented, Generic, Identified, Input, Model, Output, Parameterized,
+    Buildable, Context, Documented, Identified, Input, Model, Output, Parameterized,
     TreatmentBuildMode,
 };
 use core::fmt::{Debug, Display};

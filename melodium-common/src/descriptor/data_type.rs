@@ -9,18 +9,61 @@ pub enum DescribedType {
 }
 
 impl DescribedType {
-    pub fn is_datatype(&self, dt: &DataType) -> bool {
+    pub fn is_datatype(&self, dt: &DataType, generics: &HashMap<String, DescribedType>) -> bool {
         match self {
             DescribedType::Concrete(me) => me == dt,
-            DescribedType::Generic(_) => false,
+            DescribedType::Generic(generic) => generics
+                .get(generic)
+                .map(|me| match me {
+                    DescribedType::Concrete(me) => me == dt,
+                    DescribedType::Generic(_) => false,
+                })
+                .unwrap_or(false),
         }
     }
 
-    pub fn is_compatible(&self, dt: &DataType, generics: &HashMap<String, DataType>) -> bool {
-        match self {
-            DescribedType::Concrete(me) => me == dt,
-            DescribedType::Generic(generic) => generics.get(generic).map(|me| me == dt).unwrap_or(false)
+    pub fn is_compatible(
+        &self,
+        other: &DescribedType,
+        generics: &HashMap<String, DescribedType>,
+    ) -> bool {
+        match (self, other) {
+            (DescribedType::Concrete(me), DescribedType::Concrete(other)) => me == other,
+            (DescribedType::Generic(generic), DescribedType::Concrete(other)) => generics
+                .get(generic)
+                .map(|me| match me {
+                    DescribedType::Concrete(me) => me == other,
+                    DescribedType::Generic(_) => false,
+                })
+                .unwrap_or(false),
+            (DescribedType::Concrete(_), DescribedType::Generic(_)) => false,
+            (DescribedType::Generic(generic), DescribedType::Generic(other)) => generics
+                .get(generic)
+                .map(|me| match me {
+                    DescribedType::Concrete(_) => false,
+                    DescribedType::Generic(me) => me == other,
+                })
+                .unwrap_or(false),
         }
+    }
+
+    pub fn as_defined(&self, generics: &HashMap<String, DescribedType>) -> Option<DescribedType> {
+        match self {
+            DescribedType::Concrete(me) => Some(DescribedType::Concrete(me.clone())),
+            DescribedType::Generic(generic) => generics.get(generic).cloned(),
+        }
+    }
+}
+
+impl From<&DataType> for DescribedType {
+    fn from(value: &DataType) -> Self {
+        DescribedType::Concrete(value.clone())
+    }
+}
+
+impl From<DataType> for DescribedType {
+    fn from(value: DataType) -> Self {
+        DescribedType::Concrete(value)
     }
 }
 

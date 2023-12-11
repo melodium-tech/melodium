@@ -1,18 +1,11 @@
-use super::{DescribedType, Documented, Generic, Identified, OrderedParameterized};
+use super::{DescribedType, Documented, Identified, OrderedParameterized};
 use crate::executive::Value;
 use core::fmt::{Debug, Display};
 use downcast_rs::{impl_downcast, DowncastSync};
 use std::sync::Arc;
 
 pub trait Function:
-    Identified
-    + Documented
-    + OrderedParameterized
-    + DowncastSync
-    + Display
-    + Debug
-    + Send
-    + Sync
+    Identified + Documented + OrderedParameterized + DowncastSync + Display + Debug + Send + Sync
 {
     fn return_type(&self) -> &DescribedType;
     fn function(&self) -> fn(Vec<Value>) -> Value;

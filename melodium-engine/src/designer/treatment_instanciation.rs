@@ -1,10 +1,10 @@
-use super::{Connection, Parameter, Reference, Scope, Treatment, Value, IO, Generic};
+use super::{Connection, GenericInstanciation, Parameter, Reference, Scope, Treatment, Value, IO};
 use crate::design::TreatmentInstanciation as TreatmentInstanciationDesign;
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Attribuable, Attribute, Attributes, Collection, Identified, Identifier,
-    Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor, DataType, DescribedType,
+    Attribuable, Attribute, Attributes, Collection, DescribedType, Identified, Identifier,
+    Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
@@ -203,6 +203,7 @@ impl TreatmentInstanciation {
             &host_descriptor.as_parameterized(),
             self.host_id.clone(),
             &self.descriptor().as_parameterized(),
+            &(self.auto_reference.upgrade().unwrap() as Arc<RwLock<dyn GenericInstanciation>>),
             name,
             design_reference.clone(),
         );
@@ -416,8 +417,25 @@ impl Attribuable for TreatmentInstanciation {
     }
 }
 
-impl Generic for TreatmentInstanciation {
+impl GenericInstanciation for TreatmentInstanciation {
     fn generics(&self) -> &HashMap<String, DescribedType> {
         &self.generics
+    }
+
+    fn set_generic(&mut self, generic: String, r#type: DescribedType) -> LogicResult<()> {
+        let descriptor = self.descriptor();
+        if descriptor.generics().contains(&generic) {
+            self.generics.insert(generic, r#type);
+            LogicResult::new_success(())
+        } else {
+            LogicResult::new_failure(LogicError::unexisting_generic(
+                219,
+                self.host_id.clone(),
+                descriptor.identifier().clone(),
+                generic,
+                r#type,
+                self.design_reference.clone(),
+            ))
+        }
     }
 }

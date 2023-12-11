@@ -1,14 +1,14 @@
-use super::{Parameter, Reference, Scope, Treatment, Value};
+use super::{GenericInstanciation, Parameter, Reference, Scope, Treatment, Value};
 use crate::design::ModelInstanciation as ModelInstanciationDesign;
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Attribuable, Attribute, Attributes, Collection, Identified, Identifier,
+    Attribuable, Attribute, Attributes, Collection, DescribedType, Identified, Identifier,
     Model as ModelDescriptor, Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor,
     Variability,
 };
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::{Arc, OnceLock, RwLock, Weak};
 
 #[derive(Debug)]
 pub struct ModelInstanciation {
@@ -20,6 +20,8 @@ pub struct ModelInstanciation {
     parameters: HashMap<String, Arc<RwLock<Parameter>>>,
     attributes: Attributes,
     design_reference: Option<Arc<dyn Reference>>,
+
+    auto_reference: Weak<RwLock<Self>>,
 }
 
 impl ModelInstanciation {
@@ -30,17 +32,20 @@ impl ModelInstanciation {
         descriptor: &Arc<dyn ModelDescriptor>,
         name: &str,
         design_reference: Option<Arc<dyn Reference>>,
-    ) -> Self {
-        Self {
-            host_descriptor: Arc::downgrade(host_descriptor),
-            host_treatment: Arc::downgrade(host_treatment),
-            host_id,
-            descriptor: Arc::downgrade(descriptor),
-            name: name.to_string(),
-            parameters: HashMap::with_capacity(descriptor.parameters().len()),
-            attributes: Attributes::default(),
-            design_reference,
-        }
+    ) -> Arc<RwLock<Self>> {
+        Arc::<RwLock<Self>>::new_cyclic(|me| {
+            RwLock::new(Self {
+                host_descriptor: Arc::downgrade(host_descriptor),
+                host_treatment: Arc::downgrade(host_treatment),
+                host_id,
+                descriptor: Arc::downgrade(descriptor),
+                name: name.to_string(),
+                parameters: HashMap::with_capacity(descriptor.parameters().len()),
+                attributes: Attributes::default(),
+                design_reference,
+                auto_reference: me.clone(),
+            })
+        })
     }
 
     pub fn descriptor(&self) -> Arc<dyn ModelDescriptor> {
@@ -106,6 +111,7 @@ impl ModelInstanciation {
             &host_descriptor.as_parameterized(),
             self.host_id.clone(),
             &self.descriptor().as_parameterized(),
+            &(self.auto_reference.upgrade().unwrap() as Arc<RwLock<dyn GenericInstanciation>>),
             name,
             design_reference.clone(),
         );
@@ -247,5 +253,17 @@ impl ModelInstanciation {
 impl Attribuable for ModelInstanciation {
     fn attributes(&self) -> &Attributes {
         &self.attributes
+    }
+}
+
+// Models don't support generics
+impl GenericInstanciation for ModelInstanciation {
+    fn generics(&self) -> &HashMap<String, DescribedType> {
+        static HASHMAP: OnceLock<HashMap<String, DescribedType>> = OnceLock::new();
+        HASHMAP.get_or_init(|| HashMap::new())
+    }
+
+    fn set_generic(&mut self, _generic: String, _type: DescribedType) -> LogicResult<()> {
+        LogicResult::new_success(())
     }
 }

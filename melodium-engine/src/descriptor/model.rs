@@ -3,12 +3,12 @@ use crate::designer::{Model as Designer, Reference};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
-    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry,
+    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry, Generic,
     Identified, Identifier, Model as ModelDescriptor, ModelBuildMode, Parameter, Parameterized,
-    Status, Variability, Generic,
+    Status, Variability,
 };
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock, Weak, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, RwLock, Weak};
 
 #[derive(Debug)]
 pub struct Model {

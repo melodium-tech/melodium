@@ -1,5 +1,6 @@
 use super::{Attribuable, Attributes, DescribedType, Flow, Input};
 use core::fmt::{Display, Formatter, Result};
+use std::collections::HashMap;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Output {
@@ -36,14 +37,19 @@ impl Output {
         &self.flow
     }
 
-    /*
-    pub fn matches_input(&self, input: &Input) -> bool {
-        input.matches_output(self)
+    pub fn matches_input(&self, input: &Input, generics: &HashMap<String, DescribedType>) -> bool {
+        input.matches_output(self, generics)
     }
 
-    pub fn matches_output(&self, output: &Output) -> bool {
-        &self.datatype == output.datatype() && &self.flow == output.flow()
-    }*/
+    pub fn matches_output(
+        &self,
+        output: &Output,
+        generics: &HashMap<String, DescribedType>,
+    ) -> bool {
+        self.described_type
+            .is_compatible(output.described_type(), generics)
+            && &self.flow == output.flow()
+    }
 }
 
 impl Attribuable for Output {

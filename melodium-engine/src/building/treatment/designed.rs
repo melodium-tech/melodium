@@ -88,7 +88,7 @@ impl Builder {
         match value {
             Value::Raw(data) => data.clone(),
             Value::Variable(name) => genesis_environment.get_variable(&name).unwrap().clone(),
-            Value::Function(descriptor, params) => {
+            Value::Function(descriptor, _generics, params) => {
                 let executive_values = params
                     .iter()
                     .map(|v| Self::get_const_value(v, genesis_environment))
@@ -123,7 +123,7 @@ impl Builder {
                 .unwrap()
                 .get_value(entry)
                 .clone(),
-            Value::Function(descriptor, params) => {
+            Value::Function(descriptor, _generics, params) => {
                 let executive_values = params
                     .iter()
                     .map(|v| Self::get_value(v, genesis_environment, contextual_environment))

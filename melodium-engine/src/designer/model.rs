@@ -1,14 +1,14 @@
-use super::{Parameter, Reference, Scope, Value, Generic};
+use super::{GenericInstanciation, Parameter, Reference, Scope, Value};
 use crate::descriptor::Model as ModelDescriptor;
 use crate::design::{Model as ModelDesign, Parameter as ParameterDesign};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Collection, Identified, Identifier, Model as ModelTrait, Parameter as ParameterDescriptor,
-    Parameterized, DataType,
+    Collection, DescribedType, Identified, Identifier, Model as ModelTrait,
+    Parameter as ParameterDescriptor, Parameterized,
 };
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, Weak, OnceLock};
+use std::sync::{Arc, OnceLock, RwLock, Weak};
 
 #[derive(Debug)]
 pub struct Model {
@@ -91,6 +91,7 @@ impl Model {
                 &(descriptor.clone() as Arc<dyn Parameterized>),
                 descriptor.identifier().clone(),
                 &base_model.as_parameterized(),
+                &(self.auto_reference.upgrade().unwrap() as Arc<RwLock<dyn GenericInstanciation>>),
                 name,
                 design_reference.clone(),
             );
@@ -263,3 +264,14 @@ impl Scope for Model {
     }
 }
 
+// Models don't support generics
+impl GenericInstanciation for Model {
+    fn generics(&self) -> &HashMap<String, DescribedType> {
+        static HASHMAP: OnceLock<HashMap<String, DescribedType>> = OnceLock::new();
+        HASHMAP.get_or_init(|| HashMap::new())
+    }
+
+    fn set_generic(&mut self, _generic: String, _type: DescribedType) -> LogicResult<()> {
+        LogicResult::new_success(())
+    }
+}

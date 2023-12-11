@@ -1,5 +1,6 @@
 pub mod connection;
-pub mod generic;
+pub mod function_instanciation;
+pub mod generic_instanciation;
 pub mod model;
 pub mod model_instanciation;
 pub mod parameter;
@@ -10,7 +11,8 @@ pub mod treatment_instanciation;
 pub mod value;
 
 pub use connection::{Connection, IO};
-pub use generic::Generic;
+pub use function_instanciation::FunctionInstanciation;
+pub use generic_instanciation::GenericInstanciation;
 pub use model::Model;
 pub use model_instanciation::ModelInstanciation;
 pub use parameter::Parameter;
