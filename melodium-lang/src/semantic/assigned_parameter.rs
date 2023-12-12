@@ -6,6 +6,7 @@ use super::value::Value;
 use crate::error::ScriptError;
 use crate::text::Parameter as TextParameter;
 use crate::ScriptResult;
+use melodium_common::descriptor::DescribedType;
 use melodium_engine::designer::Parameter as ParameterDesigner;
 use std::sync::{Arc, RwLock, Weak};
 
@@ -93,7 +94,13 @@ impl AssignedParameter {
         self.value
             .read()
             .unwrap()
-            .make_designed_value(&designer, descriptor.datatype())
+            .make_designed_value(
+                &designer,
+                match descriptor.described_type() {
+                    DescribedType::Concrete(dt) => dt,
+                    DescribedType::Generic(_) => unimplemented!(),
+                },
+            )
             .and_then(|value| ScriptResult::from(designer.set_value(value)))
     }
 }

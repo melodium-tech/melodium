@@ -8,7 +8,9 @@ use super::variability::Variability;
 use crate::error::ScriptError;
 use crate::text::Parameter as TextParameter;
 use crate::ScriptResult;
-use melodium_common::descriptor::{Flow as FlowDescriptor, Parameter as ParameterDescriptor};
+use melodium_common::descriptor::{
+    DescribedType, Flow as FlowDescriptor, Parameter as ParameterDescriptor,
+};
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a declared parameter.
@@ -129,7 +131,7 @@ impl DeclaredParameter {
                 ScriptResult::new_success(ParameterDescriptor::new(
                     &self.name,
                     self.variability.to_descriptor(),
-                    datatype,
+                    DescribedType::Concrete(datatype),
                     value,
                     self.text
                         .annotations

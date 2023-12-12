@@ -3,12 +3,12 @@ use crate::designer::{Model as Designer, Reference};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
-    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry,
+    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry, Generic,
     Identified, Identifier, Model as ModelDescriptor, ModelBuildMode, Parameter, Parameterized,
     Status, Variability,
 };
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock, Weak};
+use std::sync::{Arc, Mutex, OnceLock, RwLock, Weak};
 
 #[derive(Debug)]
 pub struct Model {
@@ -158,7 +158,7 @@ impl Model {
             parameter = Parameter::new(
                 parameter.name(),
                 Variability::Const,
-                parameter.datatype().clone(),
+                parameter.described_type().clone(),
                 parameter.default().clone(),
                 parameter.attributes().clone(),
             );
@@ -221,6 +221,13 @@ impl Parameterized for Model {
 
     fn as_identified(&self) -> Arc<dyn Identified> {
         self.auto_reference.upgrade().unwrap()
+    }
+}
+
+impl Generic for Model {
+    fn generics(&self) -> &Vec<String> {
+        static VEC: OnceLock<Vec<String>> = OnceLock::new();
+        VEC.get_or_init(|| Vec::new())
     }
 }
 

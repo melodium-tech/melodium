@@ -5,7 +5,7 @@ use super::r#type::Type;
 use super::treatment::Treatment;
 use crate::text::Parameter as TextParameter;
 use crate::{error::ScriptError, ScriptResult};
-use melodium_common::descriptor::Output as OutputDescriptor;
+use melodium_common::descriptor::{DescribedType, Output as OutputDescriptor};
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of an output.
@@ -74,7 +74,7 @@ impl Output {
         self.r#type.make_descriptor().and_then(|(datatype, flow)| {
             ScriptResult::new_success(OutputDescriptor::new(
                 &self.name,
-                datatype,
+                DescribedType::Concrete(datatype),
                 flow,
                 self.text
                     .annotations

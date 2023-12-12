@@ -91,6 +91,7 @@ impl Model {
                 &(descriptor.clone() as Arc<dyn Parameterized>),
                 descriptor.identifier().clone(),
                 &base_model.as_parameterized(),
+                &Arc::new(RwLock::new(HashMap::new())),
                 name,
                 design_reference.clone(),
             );
