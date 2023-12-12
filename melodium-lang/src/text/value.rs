@@ -1,9 +1,10 @@
 //! Module dedicated to [Value] parsing.
 
 use core::slice::Windows;
+use std::collections::HashMap;
 
 use super::word::{Kind, Word};
-use super::{Function, Position, PositionnedString};
+use super::{CommentsAnnotations, Function, Position, PositionnedString};
 use crate::ScriptError;
 
 /// Enum describing a textual value.
@@ -38,13 +39,16 @@ impl Value {
     ///
     /// * `iter`: Iterator over words list, next() being expected to be the declaration of value.
     ///
-    pub fn build_from_first_item(mut iter: &mut Windows<Word>) -> Result<Self, ScriptError> {
+    pub fn build_from_first_item(
+        mut iter: &mut Windows<Word>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
+    ) -> Result<Self, ScriptError> {
         match iter.next().map(|s| &s[0]) {
             Some(w) if w.kind == Some(Kind::OpeningBracket) => {
                 let mut sub_values = Vec::new();
 
                 loop {
-                    sub_values.push(Self::build_from_first_item(&mut iter)?);
+                    sub_values.push(Self::build_from_first_item(&mut iter, global_annotations)?);
 
                     match iter.next().map(|s| &s[0]) {
                         Some(delimiter) if delimiter.kind == Some(Kind::ClosingBracket) => {
@@ -110,7 +114,8 @@ impl Value {
                 Ok(Self::ContextReference((context, inner_reference)))
             }
             Some(w) if w.kind == Some(Kind::Function) => {
-                let function = Function::build_from_parameters(w.into(), &mut iter)?;
+                let function =
+                    Function::build_from_generics(w.into(), &mut iter, global_annotations)?;
 
                 Ok(Self::Function(function))
             }

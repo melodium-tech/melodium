@@ -1,0 +1,31 @@
+#!/usr/bin/env melodium
+#! name = fs_test
+#! version = 0.7.1
+
+/*
+    This script is not supposed to do anything at this point, only to be parsed.
+*/
+
+treatment main() {
+    
+    addition: generic_add<u64>(add = 456)
+    concatenate<char, string, byte>()
+    
+}
+
+treatment generic_add<N>(var add: N)
+  input value: N
+  output sum: N
+{
+
+
+}
+
+treatment concatenate<A, B, C>()
+  input first: A
+  input second: B
+  output result: C
+{
+
+
+}

@@ -1,9 +1,11 @@
 //! Module dedicated to [Instanciation] parsing.
 
-use super::common::{parse_configuration_assignations, parse_parameters_assignations};
+use super::common::{
+    parse_configuration_assignations, parse_generics, parse_parameters_assignations,
+};
 use super::parameter::Parameter;
 use super::word::{Kind, Word};
-use super::{CommentsAnnotations, PositionnedString};
+use super::{CommentsAnnotations, Generic, PositionnedString};
 use crate::ScriptError;
 use core::slice::Windows;
 use std::collections::HashMap;
@@ -17,6 +19,7 @@ pub struct Instanciation {
     pub annotations: Option<CommentsAnnotations>,
     pub name: PositionnedString,
     pub r#type: PositionnedString,
+    pub generics: Vec<Generic>,
     pub configuration: Vec<Parameter>,
     pub parameters: Vec<Parameter>,
 }
@@ -47,10 +50,18 @@ impl Instanciation {
             Some(w) if w.kind == Some(Kind::Colon) => {
                 Self::build_from_type(annotations, name.clone(), &mut iter, global_annotations)
             }
+            Some(w) if w.kind == Some(Kind::OpeningBracket) => Self::build_from_generics(
+                annotations,
+                name.clone(),
+                name,
+                &mut iter,
+                global_annotations,
+            ),
             Some(w) if w.kind == Some(Kind::OpeningBracket) => Self::build_from_configuration(
                 annotations,
                 name.clone(),
                 name,
+                Vec::new(),
                 &mut iter,
                 global_annotations,
             ),
@@ -59,6 +70,7 @@ impl Instanciation {
                 name.clone(),
                 name,
                 Vec::new(),
+                Vec::new(),
                 &mut iter,
                 global_annotations,
             ),
@@ -66,7 +78,12 @@ impl Instanciation {
                 return Err(ScriptError::word(
                     64,
                     w.clone(),
-                    &[Kind::Colon, Kind::OpeningBracket, Kind::OpeningParenthesis],
+                    &[
+                        Kind::Colon,
+                        Kind::OpeningChevron,
+                        Kind::OpeningBracket,
+                        Kind::OpeningParenthesis,
+                    ],
                 ))
             }
             None => return Err(ScriptError::end_of_script(65)),
@@ -97,10 +114,18 @@ impl Instanciation {
             })?;
 
         match iter.next().map(|s| &s[0]) {
+            Some(w) if w.kind == Some(Kind::OpeningChevron) => Self::build_from_generics(
+                annotations,
+                name.clone(),
+                r#type,
+                &mut iter,
+                global_annotations,
+            ),
             Some(w) if w.kind == Some(Kind::OpeningBracket) => Self::build_from_configuration(
                 annotations,
                 name.clone(),
                 r#type,
+                Vec::new(),
                 &mut iter,
                 global_annotations,
             ),
@@ -109,6 +134,7 @@ impl Instanciation {
                 name.clone(),
                 r#type,
                 Vec::new(),
+                Vec::new(),
                 &mut iter,
                 global_annotations,
             ),
@@ -116,11 +142,55 @@ impl Instanciation {
                 return Err(ScriptError::word(
                     68,
                     w.clone(),
-                    &[Kind::OpeningBracket, Kind::OpeningParenthesis],
+                    &[
+                        Kind::OpeningChevron,
+                        Kind::OpeningBracket,
+                        Kind::OpeningParenthesis,
+                    ],
                 ))
             }
             None => return Err(ScriptError::end_of_script(69)),
         }
+    }
+
+    /// Build an instanciation by parsing words, starting when generics [Generic] is expected.
+    ///
+    /// * `name`: The name already parsed for the `Instanciation` (its accuracy is under responsibility of the caller).
+    /// * `iter`: Iterator over words list, next() being expected to be about [Generic].
+    ///
+    pub fn build_from_generics(
+        annotations: Option<CommentsAnnotations>,
+        name: PositionnedString,
+        r#type: PositionnedString,
+        mut iter: &mut Windows<Word>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
+    ) -> Result<Self, ScriptError> {
+        let generics = parse_generics(&mut iter, global_annotations)?;
+
+        // We expect configuration or parameters in any cases.
+        iter.next()
+            .map(|s| &s[0])
+            .ok_or_else(|| ScriptError::end_of_script(166))
+            .and_then(|w| {
+                if w.kind != Some(Kind::OpeningBracket) && w.kind != Some(Kind::OpeningParenthesis)
+                {
+                    Err(ScriptError::word(
+                        167,
+                        w.clone(),
+                        &[Kind::OpeningBracket, Kind::OpeningParenthesis],
+                    ))
+                } else {
+                    Ok(())
+                }
+            })?;
+        Self::build_from_configuration(
+            annotations,
+            name,
+            r#type,
+            generics,
+            &mut iter,
+            global_annotations,
+        )
     }
 
     /// Build an instanciation by parsing words, starting when configuration [Parameter] is expected.
@@ -132,6 +202,7 @@ impl Instanciation {
         annotations: Option<CommentsAnnotations>,
         name: PositionnedString,
         r#type: PositionnedString,
+        generics: Vec<Generic>,
         mut iter: &mut Windows<Word>,
         global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
@@ -156,6 +227,7 @@ impl Instanciation {
             annotations,
             name,
             r#type,
+            generics,
             configuration,
             &mut iter,
             global_annotations,
@@ -171,6 +243,7 @@ impl Instanciation {
         annotations: Option<CommentsAnnotations>,
         name: PositionnedString,
         r#type: PositionnedString,
+        generics: Vec<Generic>,
         configuration: Vec<Parameter>,
         mut iter: &mut Windows<Word>,
         global_annotations: &mut HashMap<Word, CommentsAnnotations>,
@@ -181,6 +254,7 @@ impl Instanciation {
             annotations,
             name,
             r#type,
+            generics,
             configuration,
             parameters,
         })

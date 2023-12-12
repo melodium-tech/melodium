@@ -7,6 +7,7 @@ use super::CommentsAnnotations;
 use super::PositionnedString;
 use crate::ScriptError;
 use core::slice::Windows;
+use std::collections::HashMap;
 
 /// Structure describing a textual parameter.
 ///
@@ -30,6 +31,7 @@ impl Parameter {
         annotations: Option<CommentsAnnotations>,
         variability_or_name: PositionnedString,
         mut iter: &mut Windows<Word>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
         if variability_or_name.string == "var" || variability_or_name.string == "const" {
             match iter.next().map(|s| &s[0]) {
@@ -50,6 +52,7 @@ impl Parameter {
                         Some(variability_or_name),
                         w.into(),
                         &mut iter,
+                        global_annotations,
                     )
                 }
                 Some(w) => return Err(ScriptError::word(57, w.clone(), &[Kind::Name])),
@@ -67,7 +70,13 @@ impl Parameter {
                     }
                 })?;
 
-            Self::build_from_type(annotations, None, variability_or_name, &mut iter)
+            Self::build_from_type(
+                annotations,
+                None,
+                variability_or_name,
+                &mut iter,
+                global_annotations,
+            )
         }
     }
 
@@ -82,6 +91,7 @@ impl Parameter {
         variability: Option<PositionnedString>,
         name: PositionnedString,
         mut iter: &mut Windows<Word>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
         let (r#type, possible_equal) = Type::build(&mut iter)?;
 
@@ -90,7 +100,7 @@ impl Parameter {
                 // We discard the equal sign.
                 iter.next();
 
-                let value = Value::build_from_first_item(&mut iter)?;
+                let value = Value::build_from_first_item(&mut iter, global_annotations)?;
 
                 Ok(Self {
                     annotations,
@@ -119,8 +129,9 @@ impl Parameter {
         annotations: Option<CommentsAnnotations>,
         name: PositionnedString,
         iter: &mut Windows<Word>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
-        let value = Value::build_from_first_item(iter)?;
+        let value = Value::build_from_first_item(iter, global_annotations)?;
 
         Ok(Self {
             annotations,
