@@ -12,7 +12,7 @@ pub fn value(value: &Value, names: &BTreeMap<Identifier, String>) -> String {
                 name = names.get(context.identifier()).unwrap()
             )
         }
-        Value::Function(function, params) => {
+        Value::Function(function, _generics, params) => {
             let name = names.get(function.identifier()).unwrap();
             let params = params
                 .iter()

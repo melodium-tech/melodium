@@ -86,6 +86,46 @@ _ => panic!("Given type cannot be made into datatype"),
     }.to_string()
 }
 
+fn into_mel_described_type(ty: &str) -> String {
+    match ty {
+        "U8" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U8))".to_string(),
+"U16" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U16))".to_string(),
+"U32" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U32))".to_string(),
+"U64" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U64))".to_string(),
+"U128" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U128))".to_string(),
+"I8" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I8))".to_string(),
+"I16" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I16))".to_string(),
+"I32" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I32))".to_string(),
+"I64" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I64))".to_string(),
+"I128" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I128))".to_string(),
+"F32" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::F32))".to_string(),
+"F64" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::F64))".to_string(),
+"Bool" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::Bool))".to_string(),
+"Byte" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::Byte))".to_string(),
+"Char" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::Char))".to_string(),
+"String" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::String))".to_string(),
+"Void" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::Void))".to_string(),
+"VecU8" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U8))".to_string(),
+"VecU16" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U16))".to_string(),
+"VecU32" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U32))".to_string(),
+"VecU64" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U64))".to_string(),
+"VecU128" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U128))".to_string(),
+"VecI8" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I8))".to_string(),
+"VecI16" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I16))".to_string(),
+"VecI32" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I32))".to_string(),
+"VecI64" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I64))".to_string(),
+"VecI128" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I128))".to_string(),
+"VecF32" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::F32))".to_string(),
+"VecF64" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::F64))".to_string(),
+"VecBool" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::Bool))".to_string(),
+"VecByte" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::Byte))".to_string(),
+"VecChar" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::Char))".to_string(),
+"VecString" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::String))".to_string(),
+"VecVoid" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::Void))".to_string(),
+generic => format!(r#"melodium_core::common::descriptor::DescribedType::Generic("{generic}".to_string())"#),
+    }
+}
+
 fn into_rust_type(ty: &str) -> String {
     match ty {
         "U8" => "u8",
@@ -487,6 +527,14 @@ fn config_attribute(ts: &mut IntoIterTokenStream) -> (String, String) {
     }
 }
 
+fn config_generic(ts: &mut IntoIterTokenStream) -> String {
+    if let Some(TokenTree::Ident(name)) = ts.next() {
+        name.to_string()
+    } else {
+        panic!("Name identity expected")
+    }
+}
+
 #[proc_macro]
 pub fn mel_package(_: TokenStream) -> TokenStream {
     let mut functions = Vec::new();
@@ -800,6 +848,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut inputs = HashMap::new();
     let mut outputs = HashMap::new();
     let mut attributes = HashMap::new();
+    let mut generics = Vec::new();
 
     let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
     while let Some(tt) = iter_attr.next() {
@@ -831,6 +880,10 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                 "attribute" => {
                     let (name, value) = config_attribute(&mut iter_attr);
                     attributes.insert(name, value);
+                }
+                "generic" => {
+                    let name = config_generic(&mut iter_attr);
+                    generics.push(name);
                 }
                 _ => panic!("Unrecognized configuration"),
             }
@@ -908,23 +961,30 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
             .join(";")
             .parse()
             .unwrap();
+        let generics: proc_macro2::TokenStream = generics
+            .iter()
+            .map(|name| format!(r#""{name}".to_string()"#))
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
         let parameters: proc_macro2::TokenStream = params.iter().map(|(name, (ty, attributes))| {
-            let datatype = into_mel_datatype(ty);
+            let described_type = into_mel_described_type(ty);
             let default = defaults.get(name).map(|lit| format!("Some(melodium_core::common::executive::Value::{ty}({val}))", val = into_rust_value(ty, lit))).unwrap_or_else(|| String::from("None"));
             let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
             format!(
-                r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Var, {datatype}, {default}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#
+                r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Var, {described_type}, {default}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#
             )
         }).collect::<Vec<_>>().join(",").parse().unwrap();
         let inputs: proc_macro2::TokenStream = inputs.iter().map(|(name, (flow, ty, attributes))| {
-            let datatype = into_mel_datatype(ty);
+            let described_type = into_mel_described_type(ty);
             let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
-            format!(r#"melodium_core::common::descriptor::Input::new("{name}", {datatype}, melodium_core::common::descriptor::Flow::{flow}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#)
+            format!(r#"melodium_core::common::descriptor::Input::new("{name}", {described_type}, melodium_core::common::descriptor::Flow::{flow}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#)
         }).collect::<Vec<_>>().join(",").parse().unwrap();
         let outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, (flow, ty, attributes))| {
-            let datatype = into_mel_datatype(ty);
+            let described_type = into_mel_described_type(ty);
             let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
-            format!(r#"melodium_core::common::descriptor::Output::new("{name}", {datatype}, melodium_core::common::descriptor::Flow::{flow}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#)
+            format!(r#"melodium_core::common::descriptor::Output::new("{name}", {described_type}, melodium_core::common::descriptor::Flow::{flow}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#)
         }).collect::<Vec<_>>().join(",").parse().unwrap();
         let sources: proc_macro2::TokenStream = models
             .iter()
@@ -972,6 +1032,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                             #attributes;
                             attrs
                         },
+                        vec![#generics],
                         vec![#models],
                         vec![#sources],
                         vec![#parameters],
@@ -1308,11 +1369,11 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
             .parse()
             .unwrap();
         let parameters: proc_macro2::TokenStream = params.iter().map(|(name, (ty, default, attributes))| {
-            let datatype = into_mel_datatype(ty);
+            let described_type = into_mel_described_type(ty);
             let default = default.as_ref().map(|lit| format!("Some(melodium_core::common::executive::Value::{ty}({val}))", val = into_rust_value(ty, lit))).unwrap_or_else(|| String::from("None"));
             let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
             format!(
-                r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Const, {datatype}, {default}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#
+                r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Const, {described_type}, {default}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#
             )
         }).collect::<Vec<_>>().join(",").parse().unwrap();
         let sources: proc_macro2::TokenStream = sources
@@ -1358,9 +1419,9 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 .collect::<Vec<_>>()
                 .join(";");
             let outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, flow, ty, attributes)| {
-                let datatype = into_mel_datatype(ty);
+                let described_type = into_mel_described_type(ty);
                 let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
-                format!(r#"melodium_core::common::descriptor::Output::new("{name}", {datatype}, melodium_core::common::descriptor::Flow::{flow}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#)
+                format!(r#"melodium_core::common::descriptor::Output::new("{name}", {described_type}, melodium_core::common::descriptor::Flow::{flow}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#)
             }).collect::<Vec<_>>().join(",").parse().unwrap();
 
             sources_description = quote! {
@@ -1766,6 +1827,7 @@ pub fn mel_context(attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut function: ItemFn = parse(item).unwrap();
     let mut attributes = HashMap::new();
+    let mut generics = Vec::new();
 
     let mut iter_attr = Into::<proc_macro2::TokenStream>::into(attr).into_iter();
     while let Some(tt) = iter_attr.next() {
@@ -1775,6 +1837,10 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
                 "attribute" => {
                     let (name, value) = config_attribute(&mut iter_attr);
                     attributes.insert(name, value);
+                }
+                "generic" => {
+                    let name = config_generic(&mut iter_attr);
+                    generics.push(name);
                 }
                 _ => panic!("Unrecognized configuration"),
             }
@@ -1851,13 +1917,19 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
         .join(";")
         .parse()
         .unwrap();
-
+    let generics: proc_macro2::TokenStream = generics
+        .iter()
+        .map(|name| format!(r#""{name}".to_string()"#))
+        .collect::<Vec<_>>()
+        .join(",")
+        .parse()
+        .unwrap();
     let parameters = args.iter().map(|(name, (ty, attributes))| {
         let name = name.to_case(Case::Snake);
-        let datatype = into_mel_datatype(ty);
+        let described_type = into_mel_described_type(ty);
         let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
         format!(
-            r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Var, {datatype}, None, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#
+            r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Var, {described_type}, None, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#
         )
     }).collect::<Vec<_>>().join(",");
     let return_type = if let ReturnType::Type(_, rt) = &function.sig.output {
@@ -1879,7 +1951,8 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
     let module_name: proc_macro2::TokenStream = format!("__mel_function_{name}").parse().unwrap();
     let documentation = documentation.join("\n");
     let parameters: proc_macro2::TokenStream = parameters.parse().unwrap();
-    let return_type: proc_macro2::TokenStream = into_mel_datatype(&return_type).parse().unwrap();
+    let return_type: proc_macro2::TokenStream =
+        into_mel_described_type(&return_type).parse().unwrap();
     let mel_call: proc_macro2::TokenStream = mel_call.parse().unwrap();
 
     let expanded = quote! {
@@ -1909,6 +1982,7 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
                             #attributes;
                             attrs
                         },
+                        vec![#generics],
                         vec![#parameters],
                         #return_type,
                         mel_function

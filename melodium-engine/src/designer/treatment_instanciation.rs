@@ -1,13 +1,13 @@
-use super::{Connection, Parameter, Reference, Scope, Treatment, Value, IO};
+use super::{Connection, GenericInstanciation, Parameter, Reference, Scope, Treatment, Value, IO};
 use crate::design::TreatmentInstanciation as TreatmentInstanciationDesign;
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Attribuable, Attribute, Attributes, Collection, Identified, Identifier,
+    Attribuable, Attribute, Attributes, Collection, DescribedType, Identified, Identifier,
     Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor,
 };
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::{Arc, RwLock, RwLockReadGuard, Weak};
 
 #[derive(Debug)]
 pub struct TreatmentInstanciation {
@@ -16,6 +16,7 @@ pub struct TreatmentInstanciation {
     host_id: Identifier,
     descriptor: Weak<dyn TreatmentDescriptor>,
     name: String,
+    generics: Arc<RwLock<HashMap<String, DescribedType>>>,
     models: HashMap<String, String>,
     parameters: HashMap<String, Arc<RwLock<Parameter>>>,
     attributes: Attributes,
@@ -41,6 +42,9 @@ impl TreatmentInstanciation {
                 host_id,
                 descriptor: Arc::downgrade(descriptor),
                 name: name.to_string(),
+                generics: Arc::new(RwLock::new(HashMap::with_capacity(
+                    descriptor.generics().len(),
+                ))),
                 models: HashMap::with_capacity(descriptor.models().len()),
                 parameters: HashMap::with_capacity(descriptor.parameters().len()),
                 attributes: Attributes::default(),
@@ -201,6 +205,7 @@ impl TreatmentInstanciation {
             &host_descriptor.as_parameterized(),
             self.host_id.clone(),
             &self.descriptor().as_parameterized(),
+            &self.generics,
             name,
             design_reference.clone(),
         );
@@ -411,5 +416,28 @@ impl TreatmentInstanciation {
 impl Attribuable for TreatmentInstanciation {
     fn attributes(&self) -> &Attributes {
         &self.attributes
+    }
+}
+
+impl GenericInstanciation for TreatmentInstanciation {
+    fn generics(&self) -> RwLockReadGuard<HashMap<String, DescribedType>> {
+        self.generics.read().unwrap()
+    }
+
+    fn set_generic(&mut self, generic: String, r#type: DescribedType) -> LogicResult<()> {
+        let descriptor = self.descriptor();
+        if descriptor.generics().contains(&generic) {
+            self.generics.write().unwrap().insert(generic, r#type);
+            LogicResult::new_success(())
+        } else {
+            LogicResult::new_failure(LogicError::unexisting_generic(
+                219,
+                self.host_id.clone(),
+                descriptor.identifier().clone(),
+                generic,
+                r#type,
+                self.design_reference.clone(),
+            ))
+        }
     }
 }

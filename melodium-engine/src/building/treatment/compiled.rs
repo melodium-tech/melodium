@@ -161,13 +161,13 @@ impl BuilderTrait for Builder {
             .unwrap();
 
         let mut inputs = HashMap::new();
-        for (name, input_descriptor) in descriptor.inputs() {
-            let input = world.new_input(input_descriptor);
+        for (name, _) in descriptor.inputs() {
+            let input = world.new_input();
             treatment.assign_input(name, Box::new(input.clone()));
             inputs.insert(name.clone(), input);
         }
-        for (name, output_descriptor) in descriptor.outputs() {
-            let output = world.new_output(output_descriptor);
+        for (name, _) in descriptor.outputs() {
+            let output = world.new_output();
             if let Some(inputs) = host_build.feeding_inputs.get(name) {
                 output.add_transmission(inputs);
             }

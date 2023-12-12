@@ -1,7 +1,8 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    Attribuable, Attributes, Buildable, Context, Documented, Identified, Identifier, Input, Model,
-    Output, Parameter, Parameterized, Treatment as TreatmentDescriptor, TreatmentBuildMode,
+    Attribuable, Attributes, Buildable, Context, Documented, Generic, Identified, Identifier,
+    Input, Model, Output, Parameter, Parameterized, Treatment as TreatmentDescriptor,
+    TreatmentBuildMode,
 };
 use melodium_common::executive::Treatment as ExecutiveTreatment;
 use once_cell::sync::OnceCell;
@@ -15,6 +16,7 @@ pub struct Treatment {
     #[cfg(feature = "doc")]
     documentation: String,
     attributes: Attributes,
+    generics: Vec<String>,
     models: HashMap<String, Arc<dyn Model>>,
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
@@ -29,6 +31,7 @@ impl Treatment {
         identifier: Identifier,
         documentation: String,
         attributes: Attributes,
+        generics: Vec<String>,
         models: Vec<(String, Arc<dyn Model>)>,
         source_from: Vec<(String, Vec<String>)>,
         parameters: Vec<Parameter>,
@@ -43,6 +46,7 @@ impl Treatment {
             #[cfg(feature = "doc")]
             documentation,
             attributes,
+            generics,
             models: HashMap::from_iter(models.into_iter().map(|(n, m)| (n, m))),
             parameters: HashMap::from_iter(
                 parameters.into_iter().map(|p| (p.name().to_string(), p)),
@@ -165,5 +169,11 @@ impl TreatmentDescriptor for Treatment {
 
     fn as_parameterized(&self) -> Arc<dyn Parameterized> {
         self.auto_reference.upgrade().unwrap()
+    }
+}
+
+impl Generic for Treatment {
+    fn generics(&self) -> &Vec<String> {
+        &self.generics
     }
 }

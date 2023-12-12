@@ -14,10 +14,7 @@ use async_trait::async_trait;
 use core::fmt::Debug;
 use futures::future::{join, join_all};
 use futures::stream::{FuturesUnordered, StreamExt};
-use melodium_common::descriptor::{
-    Collection, Entry as CollectionEntry, Identified, Identifier, Input as InputDescriptor,
-    Output as OutputDescriptor,
-};
+use melodium_common::descriptor::{Collection, Entry as CollectionEntry, Identified, Identifier};
 use melodium_common::executive::{
     Context as ExecutiveContext, ContinuousFuture, Input as ExecutiveInput, Model, ModelId,
     ResultStatus, TrackCreationCallback, TrackFuture, TrackId, World as ExecutiveWorld,
@@ -166,18 +163,18 @@ impl World {
         }
     }
 
-    pub fn new_input(&self, descriptor: &InputDescriptor) -> Input {
-        Input::new(descriptor)
+    pub fn new_input(&self) -> Input {
+        Input::new()
     }
 
-    pub fn new_blocked_input(&self, descriptor: &OutputDescriptor) -> Input {
-        let input = Input::from_output(descriptor);
+    pub fn new_blocked_input(&self) -> Input {
+        let input = Input::new();
         input.close();
         input
     }
 
-    pub fn new_output(&self, descriptor: &OutputDescriptor) -> Output {
-        Output::new(descriptor)
+    pub fn new_output(&self) -> Output {
+        Output::new()
     }
 
     async fn run_tracks(&self) {

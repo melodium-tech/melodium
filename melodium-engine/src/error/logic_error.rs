@@ -6,7 +6,7 @@ use core::fmt::{Debug, Display};
 use std::string::ToString;
 use std::sync::Arc;
 
-use melodium_common::descriptor::{DataType, Flow, Identifier, Status};
+use melodium_common::descriptor::{DescribedType, Flow, Identifier, Status};
 
 use crate::{building::CheckStep, design::Value, designer::Reference};
 
@@ -50,8 +50,8 @@ pub enum LogicErrorKind {
         called: Identifier,
         parameter: String,
         value: Value,
-        expected: DataType,
-        given: DataType,
+        expected: DescribedType,
+        given: DescribedType,
     },
     /// A parameter hasn't been set up compared to descriptor.
     UnsetParameter {
@@ -141,9 +141,9 @@ pub enum LogicErrorKind {
         to: String,
         input: String,
         output_flow: Flow,
-        output_type: DataType,
+        output_type: DescribedType,
         input_flow: Flow,
-        input_type: DataType,
+        input_type: DescribedType,
     },
     /// The sequence output is not currently satisfied, not connected to any treatment output.
     UnsatisfiedOutput { scope: Identifier, output: String },
@@ -216,6 +216,19 @@ pub enum LogicErrorKind {
         scope: Identifier,
         function: Identifier,
     },
+    /// A value is setup for a generic that doesn't exists
+    UnexistingGeneric {
+        scope: Identifier,
+        element: Identifier,
+        name: String,
+        described_type: DescribedType,
+    },
+    /// A generic value is not defined
+    UndefinedGeneric {
+        scope: Identifier,
+        element: Identifier,
+        described_type: DescribedType,
+    },
 }
 
 impl Display for LogicErrorKind {
@@ -272,6 +285,8 @@ impl Display for LogicErrorKind {
             LogicErrorKind::ModelInstanciationConstOnly { scope, called, name, parameter } => write!(f, "Variable provided for parameter '{parameter}' of model '{name}' from type '{called}' in '{scope}', model instanciations can only get constants"),
             LogicErrorKind::ConstRequiredFunctionReturnsVar { scope, called, parameter, function } => write!(f, "Parameter '{parameter}' of '{called}' is constant but provided '{function}' have variable return value in '{scope}'"),
             LogicErrorKind::UnmatchingNumberOfParameters { scope, function } => write!(f, "Number of parameters given do not match for function '{function}' in '{scope}'"),
+            LogicErrorKind::UnexistingGeneric { scope, element, name, described_type: _ } => write!(f, "The generic type '{name}' doesn't exist for '{element}' in '{scope}'"),
+            LogicErrorKind::UndefinedGeneric { scope, element, described_type } => write!(f, "Generic '{described_type}' is not defined for '{element}' in '{scope}'"),
         }
     }
 }
@@ -424,8 +439,8 @@ impl LogicError {
         called: Identifier,
         parameter: String,
         value: Value,
-        expected: DataType,
-        given: DataType,
+        expected: DescribedType,
+        given: DescribedType,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
@@ -717,9 +732,9 @@ impl LogicError {
         to: String,
         input: String,
         output_flow: Flow,
-        output_type: DataType,
+        output_type: DescribedType,
         input_flow: Flow,
-        input_type: DataType,
+        input_type: DescribedType,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
@@ -965,6 +980,46 @@ impl LogicError {
             id,
             design_reference,
             kind: LogicErrorKind::UnmatchingNumberOfParameters { scope, function },
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::UnexistingGeneric`] kind.
+    pub fn unexisting_generic(
+        id: u32,
+        scope: Identifier,
+        element: Identifier,
+        name: String,
+        described_type: DescribedType,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> Self {
+        Self {
+            id,
+            design_reference,
+            kind: LogicErrorKind::UnexistingGeneric {
+                scope,
+                element,
+                name,
+                described_type,
+            },
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::UndefinedGeneric`] kind.
+    pub fn undefined_generic(
+        id: u32,
+        scope: Identifier,
+        element: Identifier,
+        described_type: DescribedType,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> Self {
+        Self {
+            id,
+            design_reference,
+            kind: LogicErrorKind::UndefinedGeneric {
+                scope,
+                element,
+                described_type,
+            },
         }
     }
 }

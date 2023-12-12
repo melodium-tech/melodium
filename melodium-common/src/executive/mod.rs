@@ -22,7 +22,7 @@ pub use input::Input;
 pub use model::{Model, ModelId};
 pub use output::{Output, Outputs};
 pub use result_status::ResultStatus;
-pub use transmission::{RecvResult, SendResult, TransmissionError};
+pub use transmission::{RecvResult, SendResult, TransmissionError, TransmissionValue};
 pub use treatment::Treatment;
 pub use value::Value;
 pub use world::{TrackCreationCallback, TrackId, World};

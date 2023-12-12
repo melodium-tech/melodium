@@ -10,9 +10,11 @@ use crate::path::Path;
 use crate::text::value::Value as TextValue;
 use crate::text::PositionnedString;
 use crate::ScriptResult;
+use melodium_common::descriptor::DescribedType;
 use melodium_common::descriptor::{DataType, Entry};
 use melodium_common::executive::Value as ExecutiveValue;
 use melodium_engine::designer::{Parameter as ParameterDesigner, Value as ValueDesigner};
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing Value semantic analysis.
@@ -328,9 +330,15 @@ impl Value {
                         if let Some(rc_param) = borrowed_func.parameters.get(i) {
                             let borrowed_param = rc_param.read().unwrap();
 
-                            if let Some(param) = result.merge_degrade_failure(
-                                borrowed_param.make_designed_value(designer, desc_param.datatype()),
-                            ) {
+                            if let Some(param) =
+                                result.merge_degrade_failure(borrowed_param.make_designed_value(
+                                    designer,
+                                    match desc_param.described_type() {
+                                        DescribedType::Concrete(dt) => dt,
+                                        DescribedType::Generic(_) => unimplemented!(),
+                                    },
+                                ))
+                            {
                                 params.push(param);
                             }
                         } else {
@@ -347,6 +355,7 @@ impl Value {
                     result.and_then(|_| {
                         ScriptResult::new_success(ValueDesigner::Function(
                             Arc::clone(func_descriptor),
+                            HashMap::new(),
                             params,
                         ))
                     })
