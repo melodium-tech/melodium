@@ -7,7 +7,7 @@ use melodium_common::descriptor::{
     Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor,
 };
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::{Arc, RwLock, RwLockReadGuard, Weak};
 
 #[derive(Debug)]
 pub struct TreatmentInstanciation {
@@ -16,7 +16,7 @@ pub struct TreatmentInstanciation {
     host_id: Identifier,
     descriptor: Weak<dyn TreatmentDescriptor>,
     name: String,
-    generics: HashMap<String, DescribedType>,
+    generics: Arc<RwLock<HashMap<String, DescribedType>>>,
     models: HashMap<String, String>,
     parameters: HashMap<String, Arc<RwLock<Parameter>>>,
     attributes: Attributes,
@@ -42,7 +42,9 @@ impl TreatmentInstanciation {
                 host_id,
                 descriptor: Arc::downgrade(descriptor),
                 name: name.to_string(),
-                generics: HashMap::with_capacity(descriptor.generics().len()),
+                generics: Arc::new(RwLock::new(HashMap::with_capacity(
+                    descriptor.generics().len(),
+                ))),
                 models: HashMap::with_capacity(descriptor.models().len()),
                 parameters: HashMap::with_capacity(descriptor.parameters().len()),
                 attributes: Attributes::default(),
@@ -203,7 +205,7 @@ impl TreatmentInstanciation {
             &host_descriptor.as_parameterized(),
             self.host_id.clone(),
             &self.descriptor().as_parameterized(),
-            &(self.auto_reference.upgrade().unwrap() as Arc<RwLock<dyn GenericInstanciation>>),
+            &self.generics,
             name,
             design_reference.clone(),
         );
@@ -418,14 +420,14 @@ impl Attribuable for TreatmentInstanciation {
 }
 
 impl GenericInstanciation for TreatmentInstanciation {
-    fn generics(&self) -> &HashMap<String, DescribedType> {
-        &self.generics
+    fn generics(&self) -> RwLockReadGuard<HashMap<String, DescribedType>> {
+        self.generics.read().unwrap()
     }
 
     fn set_generic(&mut self, generic: String, r#type: DescribedType) -> LogicResult<()> {
         let descriptor = self.descriptor();
         if descriptor.generics().contains(&generic) {
-            self.generics.insert(generic, r#type);
+            self.generics.write().unwrap().insert(generic, r#type);
             LogicResult::new_success(())
         } else {
             LogicResult::new_failure(LogicError::unexisting_generic(

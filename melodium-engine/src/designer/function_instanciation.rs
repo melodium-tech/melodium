@@ -3,8 +3,10 @@ use crate::{LogicError, LogicResult};
 use melodium_common::descriptor::{
     DescribedType, Function as FunctionDescriptor, Identifier, Parameterized, Variability,
 };
-use std::collections::HashMap;
-use std::sync::{Arc, Weak};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock, RwLockReadGuard, Weak},
+};
 
 #[derive(Debug)]
 pub struct FunctionInstanciation {
@@ -12,7 +14,7 @@ pub struct FunctionInstanciation {
     scope_descriptor: Weak<dyn Parameterized>,
     scope_id: Identifier,
     parameter_name: String,
-    generics: HashMap<String, DescribedType>,
+    generics: Arc<RwLock<HashMap<String, DescribedType>>>,
     design_reference: Option<Arc<dyn Reference>>,
 }
 
@@ -22,7 +24,7 @@ impl FunctionInstanciation {
         scope_descriptor: &Arc<dyn Parameterized>,
         scope_id: Identifier,
         parameter_name: &str,
-        generics: HashMap<String, DescribedType>,
+        generics: Arc<RwLock<HashMap<String, DescribedType>>>,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
@@ -64,7 +66,7 @@ impl FunctionInstanciation {
                 Value::Raw(data) => {
                     if !param_descriptor
                         .described_type()
-                        .is_datatype(&data.datatype(), &self.generics)
+                        .is_datatype(&data.datatype(), &self.generics.read().unwrap())
                     {
                         result.errors_mut().push(LogicError::unmatching_datatype(
                             16,
@@ -92,10 +94,10 @@ impl FunctionInstanciation {
                                 .map(|variability| *variability = Variability::Var);
                         }
 
-                        if !param_descriptor
-                            .described_type()
-                            .is_compatible(scope_variable.described_type(), &self.generics)
-                        {
+                        if !param_descriptor.described_type().is_compatible(
+                            scope_variable.described_type(),
+                            &self.generics.read().unwrap(),
+                        ) {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 17,
                                 self.scope_id.clone(),
@@ -125,7 +127,7 @@ impl FunctionInstanciation {
                     if let Some(context_variable_datatype) = context.values().get(name) {
                         if !param_descriptor
                             .described_type()
-                            .is_datatype(context_variable_datatype, &self.generics)
+                            .is_datatype(context_variable_datatype, &self.generics.read().unwrap())
                         {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 18,
@@ -157,7 +159,7 @@ impl FunctionInstanciation {
                         &self.scope_descriptor.upgrade().unwrap(),
                         self.scope_id.clone(),
                         &self.parameter_name,
-                        generics.clone(),
+                        Arc::new(RwLock::new(generics.clone())),
                         self.design_reference.clone(),
                     );
 
@@ -167,7 +169,7 @@ impl FunctionInstanciation {
                             .and_then(|(sub_variability, sub_return_type)| {
                                 if !param_descriptor
                                     .described_type()
-                                    .is_compatible(&sub_return_type, &self.generics)
+                                    .is_compatible(&sub_return_type, &self.generics.read().unwrap())
                                 {
                                     LogicResult::new_failure(LogicError::unmatching_datatype(
                                         214,
@@ -194,7 +196,10 @@ impl FunctionInstanciation {
         }
 
         result.and_then(|variability| {
-            if let Some(described_type) = descriptor.return_type().as_defined(&self.generics) {
+            if let Some(described_type) = descriptor
+                .return_type()
+                .as_defined(&self.generics.read().unwrap())
+            {
                 LogicResult::new_success((variability, described_type))
             } else {
                 LogicResult::new_failure(LogicError::undefined_generic(
@@ -210,14 +215,14 @@ impl FunctionInstanciation {
 }
 
 impl GenericInstanciation for FunctionInstanciation {
-    fn generics(&self) -> &HashMap<String, DescribedType> {
-        &self.generics
+    fn generics(&self) -> RwLockReadGuard<HashMap<String, DescribedType>> {
+        self.generics.read().unwrap()
     }
 
     fn set_generic(&mut self, generic: String, r#type: DescribedType) -> LogicResult<()> {
         let descriptor = self.descriptor();
         if descriptor.generics().contains(&generic) {
-            self.generics.insert(generic, r#type);
+            self.generics.write().unwrap().insert(generic, r#type);
             LogicResult::new_success(())
         } else {
             LogicResult::new_failure(LogicError::unexisting_generic(

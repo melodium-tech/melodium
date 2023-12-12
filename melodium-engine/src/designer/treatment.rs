@@ -15,14 +15,14 @@ use melodium_common::descriptor::{
     Parameterized, Treatment as TreatmentTrait,
 };
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::{Arc, RwLock, RwLockReadGuard, Weak};
 
 #[derive(Debug)]
 pub struct Treatment {
     collection: Arc<Collection>,
     descriptor: Weak<TreatmentDescriptor>,
 
-    generics: HashMap<String, DescribedType>,
+    generics: Arc<RwLock<HashMap<String, DescribedType>>>,
     model_instanciations: HashMap<String, Arc<RwLock<ModelInstanciation>>>,
     treatments: HashMap<String, Arc<RwLock<TreatmentInstanciation>>>,
     connections: Vec<Connection>,
@@ -42,7 +42,9 @@ impl Treatment {
             RwLock::new(Self {
                 descriptor: Arc::downgrade(descriptor),
                 collection,
-                generics: HashMap::with_capacity(descriptor.generics().len()),
+                generics: Arc::new(RwLock::new(HashMap::with_capacity(
+                    descriptor.generics().len(),
+                ))),
                 model_instanciations: HashMap::new(),
                 treatments: HashMap::new(),
                 connections: Vec::new(),
@@ -445,7 +447,7 @@ impl Treatment {
         if let (Some(rc_output_treatment), Some(output), Some(rc_input_treatment), Some(input)) =
             (rc_output_treatment, output, rc_input_treatment, input)
         {
-            if input.matches_output(&output, &self.generics) {
+            if input.matches_output(&output, &self.generics()) {
                 self.connections.push(Connection::new_internal(
                     output_name,
                     rc_output_treatment,
@@ -548,7 +550,7 @@ impl Treatment {
         }
 
         if let (Some(input_self), Some(output_self)) = (input_self, output_self) {
-            if input_self.matches_output(&output_self, &self.generics) {
+            if input_self.matches_output(&output_self, &self.generics()) {
                 self.connections.push(Connection::new_self(
                     input_self.name(),
                     output_self.name(),
@@ -663,7 +665,7 @@ impl Treatment {
         if let (Some(input_self), Some(rc_input_treatment), Some(input)) =
             (input_self, rc_input_treatment, input)
         {
-            if input_self.matches_input(&input, &self.generics) {
+            if input_self.matches_input(&input, &self.generics()) {
                 self.connections.push(Connection::new_self_to_internal(
                     input_self.name(),
                     input.name(),
@@ -781,7 +783,7 @@ impl Treatment {
         if let (Some(output_self), Some(rc_output_treatment), Some(output)) =
             (output_self, rc_output_treatment, output)
         {
-            if output_self.matches_output(&output, &self.generics) {
+            if output_self.matches_output(&output, &self.generics()) {
                 self.connections.push(Connection::new_internal_to_self(
                     output.name(),
                     rc_output_treatment,
@@ -1041,14 +1043,14 @@ impl Scope for Treatment {
 }
 
 impl GenericInstanciation for Treatment {
-    fn generics(&self) -> &HashMap<String, DescribedType> {
-        &self.generics
+    fn generics(&self) -> RwLockReadGuard<HashMap<String, DescribedType>> {
+        self.generics.read().unwrap()
     }
 
     fn set_generic(&mut self, generic: String, r#type: DescribedType) -> LogicResult<()> {
         let descriptor = self.descriptor();
         if descriptor.generics().contains(&generic) {
-            self.generics.insert(generic, r#type);
+            self.generics.write().unwrap().insert(generic, r#type);
             LogicResult::new_success(())
         } else {
             LogicResult::new_failure(LogicError::unexisting_generic(

@@ -1,7 +1,9 @@
-use super::{FunctionInstanciation, GenericInstanciation, Reference, Scope, Value};
+use super::{FunctionInstanciation, Reference, Scope, Value};
 use crate::design::Parameter as ParameterDesign;
 use crate::error::{LogicError, LogicResult};
-use melodium_common::descriptor::{Collection, Entry, Identifier, Parameterized, Variability};
+use melodium_common::descriptor::{
+    Collection, DescribedType, Entry, Identifier, Parameterized, Variability,
+};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
@@ -11,7 +13,7 @@ pub struct Parameter {
     scope_descriptor: Weak<dyn Parameterized>,
     scope_id: Identifier,
     parent_descriptor: Weak<dyn Parameterized>,
-    parent_instanciation: Weak<RwLock<dyn GenericInstanciation>>,
+    parent_generics: Arc<RwLock<HashMap<String, DescribedType>>>,
     name: String,
     value: Option<Value>,
     design_reference: Option<Arc<dyn Reference>>,
@@ -23,7 +25,7 @@ impl Parameter {
         scope_descriptor: &Arc<dyn Parameterized>,
         scope_id: Identifier,
         parent_descriptor: &Arc<dyn Parameterized>,
-        parent_instanciation: &Arc<RwLock<dyn GenericInstanciation>>,
+        parent_generics: &Arc<RwLock<HashMap<String, DescribedType>>>,
         name: &str,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
@@ -32,7 +34,7 @@ impl Parameter {
             scope_descriptor: Arc::downgrade(scope_descriptor),
             scope_id,
             parent_descriptor: Arc::downgrade(parent_descriptor),
-            parent_instanciation: Arc::downgrade(parent_instanciation),
+            parent_generics: Arc::clone(parent_generics),
             name: name.to_string(),
             value: None,
             design_reference,
@@ -116,17 +118,16 @@ impl Parameter {
     pub fn set_value(&mut self, value: Value) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
         let parent_descriptor = self.parent_descriptor.upgrade().unwrap();
-        let parent_instanciation = self.parent_instanciation.upgrade().unwrap();
         let parameter = parent_descriptor.parameters().get(&self.name);
         match &value {
             Value::Raw(data) => {
                 self.value = Some(value.clone());
 
                 if let Some(parameter) = parameter {
-                    if !parameter.described_type().is_datatype(
-                        &data.datatype(),
-                        parent_instanciation.read().unwrap().generics(),
-                    ) {
+                    if !parameter
+                        .described_type()
+                        .is_datatype(&data.datatype(), &self.parent_generics.read().unwrap())
+                    {
                         result.errors_mut().push(LogicError::unmatching_datatype(
                             13,
                             self.scope_id.clone(),
@@ -168,7 +169,7 @@ impl Parameter {
 
                         if !parameter.described_type().is_compatible(
                             scope_variable.described_type(),
-                            parent_instanciation.read().unwrap().generics(),
+                            &self.parent_generics.read().unwrap(),
                         ) {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 14,
@@ -215,7 +216,7 @@ impl Parameter {
                     if let Some(parameter) = parameter {
                         if !parameter.described_type().is_datatype(
                             context_variable_datatype,
-                            parent_instanciation.read().unwrap().generics(),
+                            &self.parent_generics.read().unwrap(),
                         ) {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 15,
@@ -250,7 +251,7 @@ impl Parameter {
                     &self.scope_descriptor.upgrade().unwrap(),
                     self.scope_id.clone(),
                     &self.name,
-                    generics.clone(),
+                    Arc::new(RwLock::new(generics.clone())),
                     self.design_reference.clone(),
                 );
 
@@ -258,10 +259,10 @@ impl Parameter {
                     if let Some((sub_variability, sub_return_type)) = result.merge_degrade_failure(
                         function_instanciation.check_function_return(parameters),
                     ) {
-                        if !parameter.described_type().is_compatible(
-                            &sub_return_type,
-                            parent_instanciation.read().unwrap().generics(),
-                        ) {
+                        if !parameter
+                            .described_type()
+                            .is_compatible(&sub_return_type, &self.parent_generics.read().unwrap())
+                        {
                             result = result.and_degrade_failure(LogicResult::new_failure(
                                 LogicError::unmatching_datatype(
                                     216,
@@ -305,7 +306,6 @@ impl Parameter {
         let mut result = LogicResult::new_success(());
 
         let parent_descriptor = self.parent_descriptor.upgrade().unwrap();
-        let parent_instanciation = self.parent_instanciation.upgrade().unwrap();
         let parameter = parent_descriptor.parameters().get(&self.name);
 
         if self.value.is_none() {
@@ -323,10 +323,10 @@ impl Parameter {
             // Check datatype
             match &self.value {
                 Some(Value::Raw(data)) => {
-                    if !parameter.described_type().is_datatype(
-                        &data.datatype(),
-                        parent_instanciation.read().unwrap().generics(),
-                    ) {
+                    if !parameter
+                        .described_type()
+                        .is_datatype(&data.datatype(), &self.parent_generics.read().unwrap())
+                    {
                         result.errors_mut().push(LogicError::unmatching_datatype(
                             195,
                             self.scope_id.clone(),
@@ -364,7 +364,7 @@ impl Parameter {
 
                         if !parameter.described_type().is_compatible(
                             scope_variable.described_type(),
-                            parent_instanciation.read().unwrap().generics(),
+                            &self.parent_generics.read().unwrap(),
                         ) {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 197,
@@ -405,7 +405,7 @@ impl Parameter {
                     if let Some(context_variable_datatype) = context.values().get(name) {
                         if !parameter.described_type().is_datatype(
                             context_variable_datatype,
-                            parent_instanciation.read().unwrap().generics(),
+                            &self.parent_generics.read().unwrap(),
                         ) {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 200,
@@ -437,17 +437,17 @@ impl Parameter {
                         &self.scope_descriptor.upgrade().unwrap(),
                         self.scope_id.clone(),
                         &self.name,
-                        generics.clone(),
+                        Arc::new(RwLock::new(generics.clone())),
                         self.design_reference.clone(),
                     );
 
                     if let Some((sub_variability, sub_return_type)) = result.merge_degrade_failure(
                         function_instanciation.check_function_return(parameters),
                     ) {
-                        if !parameter.described_type().is_compatible(
-                            &sub_return_type,
-                            parent_instanciation.read().unwrap().generics(),
-                        ) {
+                        if !parameter
+                            .described_type()
+                            .is_compatible(&sub_return_type, &self.parent_generics.read().unwrap())
+                        {
                             result = result.and_degrade_failure(LogicResult::new_failure(
                                 LogicError::unmatching_datatype(
                                     217,

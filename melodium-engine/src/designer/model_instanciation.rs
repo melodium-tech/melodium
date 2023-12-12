@@ -1,14 +1,14 @@
-use super::{GenericInstanciation, Parameter, Reference, Scope, Treatment, Value};
+use super::{Parameter, Reference, Scope, Treatment, Value};
 use crate::design::ModelInstanciation as ModelInstanciationDesign;
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Attribuable, Attribute, Attributes, Collection, DescribedType, Identified, Identifier,
+    Attribuable, Attribute, Attributes, Collection, Identified, Identifier,
     Model as ModelDescriptor, Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor,
     Variability,
 };
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock, RwLock, Weak};
+use std::sync::{Arc, RwLock, Weak};
 
 #[derive(Debug)]
 pub struct ModelInstanciation {
@@ -21,7 +21,7 @@ pub struct ModelInstanciation {
     attributes: Attributes,
     design_reference: Option<Arc<dyn Reference>>,
 
-    auto_reference: Weak<RwLock<Self>>,
+    _auto_reference: Weak<RwLock<Self>>,
 }
 
 impl ModelInstanciation {
@@ -43,7 +43,7 @@ impl ModelInstanciation {
                 parameters: HashMap::with_capacity(descriptor.parameters().len()),
                 attributes: Attributes::default(),
                 design_reference,
-                auto_reference: me.clone(),
+                _auto_reference: me.clone(),
             })
         })
     }
@@ -111,7 +111,7 @@ impl ModelInstanciation {
             &host_descriptor.as_parameterized(),
             self.host_id.clone(),
             &self.descriptor().as_parameterized(),
-            &(self.auto_reference.upgrade().unwrap() as Arc<RwLock<dyn GenericInstanciation>>),
+            &Arc::new(RwLock::new(HashMap::new())),
             name,
             design_reference.clone(),
         );
@@ -253,17 +253,5 @@ impl ModelInstanciation {
 impl Attribuable for ModelInstanciation {
     fn attributes(&self) -> &Attributes {
         &self.attributes
-    }
-}
-
-// Models don't support generics
-impl GenericInstanciation for ModelInstanciation {
-    fn generics(&self) -> &HashMap<String, DescribedType> {
-        static HASHMAP: OnceLock<HashMap<String, DescribedType>> = OnceLock::new();
-        HASHMAP.get_or_init(|| HashMap::new())
-    }
-
-    fn set_generic(&mut self, _generic: String, _type: DescribedType) -> LogicResult<()> {
-        LogicResult::new_success(())
     }
 }
