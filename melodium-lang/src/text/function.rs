@@ -35,11 +35,8 @@ impl Function {
 
         match possible_closing_chevron {
             Some(w) if w.kind == Some(Kind::ClosingChevron) => {}
-            Some(w) => loop {
-                generics.push(Generic {
-                    name: w.into(),
-                    annotations: global_annotations.remove(&w),
-                });
+            Some(_) => loop {
+                generics.push(Generic::build(iter, global_annotations)?);
 
                 match iter.next().map(|s| &s[0]) {
                     Some(w) if w.kind == Some(Kind::Comma) => continue,

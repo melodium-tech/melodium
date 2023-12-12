@@ -253,15 +253,17 @@ pub fn parse_generics(
 
     let mut first_generic = true;
     loop {
-        match iter.next().map(|s| &s[0]) {
-            Some(w) if w.kind == Some(Kind::ClosingChevron) && first_generic => break,
-            Some(w) if w.kind == Some(Kind::Name) => {
+        match iter.next().map(|s| (&s[0], &s[1])) {
+            Some((w, _)) if w.kind == Some(Kind::ClosingChevron) && first_generic => break,
+            Some((w, nw)) if w.kind == Some(Kind::Name) => {
                 first_generic = false;
 
-                generics.push(Generic {
-                    annotations: global_annotations.remove(w),
-                    name: w.into(),
-                });
+                generics.push(Generic::build_from_next(
+                    global_annotations.remove(w),
+                    w.into(),
+                    iter,
+                    Some(nw),
+                )?);
 
                 match iter.next().map(|s| &s[0]) {
                     Some(w) if w.kind == Some(Kind::Comma) => continue,
@@ -276,7 +278,7 @@ pub fn parse_generics(
                     None => return Err(ScriptError::end_of_script(159)),
                 }
             }
-            Some(w) => {
+            Some((w, _)) => {
                 return Err(ScriptError::word(
                     160,
                     w.clone(),

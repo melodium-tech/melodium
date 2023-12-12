@@ -168,29 +168,31 @@ impl Instanciation {
         let generics = parse_generics(&mut iter, global_annotations)?;
 
         // We expect configuration or parameters in any cases.
-        iter.next()
-            .map(|s| &s[0])
-            .ok_or_else(|| ScriptError::end_of_script(166))
-            .and_then(|w| {
-                if w.kind != Some(Kind::OpeningBracket) && w.kind != Some(Kind::OpeningParenthesis)
-                {
-                    Err(ScriptError::word(
-                        167,
-                        w.clone(),
-                        &[Kind::OpeningBracket, Kind::OpeningParenthesis],
-                    ))
-                } else {
-                    Ok(())
-                }
-            })?;
-        Self::build_from_configuration(
-            annotations,
-            name,
-            r#type,
-            generics,
-            &mut iter,
-            global_annotations,
-        )
+        match iter.next().map(|s| &s[0]) {
+            Some(w) if w.kind == Some(Kind::OpeningBracket) => Self::build_from_configuration(
+                annotations,
+                name,
+                r#type,
+                generics,
+                &mut iter,
+                global_annotations,
+            ),
+            Some(w) if w.kind == Some(Kind::OpeningParenthesis) => Self::build_from_parameters(
+                annotations,
+                name,
+                r#type,
+                generics,
+                Vec::new(),
+                &mut iter,
+                global_annotations,
+            ),
+            Some(w) => Err(ScriptError::word(
+                167,
+                w.clone(),
+                &[Kind::OpeningBracket, Kind::OpeningParenthesis],
+            )),
+            None => Err(ScriptError::end_of_script(166)),
+        }
     }
 
     /// Build an instanciation by parsing words, starting when configuration [Parameter] is expected.

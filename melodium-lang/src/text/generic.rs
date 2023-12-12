@@ -2,7 +2,7 @@
 
 use super::word::*;
 use super::CommentsAnnotations;
-use super::PositionnedString;
+use super::Type;
 use crate::ScriptError;
 use core::slice::Windows;
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ use std::collections::HashMap;
 #[derive(Clone, Debug)]
 pub struct Generic {
     pub annotations: Option<CommentsAnnotations>,
-    pub name: PositionnedString,
+    pub r#type: Type,
 }
 
 impl Generic {
@@ -25,8 +25,8 @@ impl Generic {
         iter: &mut Windows<Word>,
         global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
-        let (annotations, name) = iter
-            .next()
+        let step_type = iter.next();
+        let (annotations, name) = step_type
             .map(|s| &s[0])
             .ok_or_else(|| ScriptError::end_of_script(53))
             .and_then(|w| {
@@ -37,6 +37,24 @@ impl Generic {
                 }
             })?;
 
-        Ok(Self { annotations, name })
+        Generic::build_from_next(annotations, name, iter, step_type.map(|s| &s[1]))
+    }
+
+    /// Build a generic by parsing words, considering name already been parsed.
+    ///
+    /// * `iter`: Iterator over words list.
+    ///
+    pub fn build_from_next(
+        annotations: Option<CommentsAnnotations>,
+        name: PositionnedString,
+        iter: &mut Windows<Word>,
+        following_word: Option<&Word>,
+    ) -> Result<Self, ScriptError> {
+        let (mut r#type, _) = Type::build_from_next(None, name, iter, following_word)?;
+
+        Ok(Self {
+            annotations: annotations.or(r#type.annotations.take()),
+            r#type,
+        })
     }
 }

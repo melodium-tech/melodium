@@ -93,7 +93,7 @@ impl Parameter {
         mut iter: &mut Windows<Word>,
         global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
-        let (r#type, possible_equal) = Type::build(&mut iter)?;
+        let (r#type, possible_equal) = Type::build(&mut iter, global_annotations)?;
 
         match possible_equal.kind {
             Some(Kind::Equal) => {
