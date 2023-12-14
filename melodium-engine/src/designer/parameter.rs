@@ -302,6 +302,31 @@ impl Parameter {
         &self.value
     }
 
+    pub fn described_type(&self) -> LogicResult<Option<DescribedType>> {
+        let parent_descriptor = self.parent_descriptor.upgrade().unwrap();
+        let parameter = parent_descriptor.parameters().get(&self.name);
+        match parameter.map(|parameter| {
+            parameter
+                .described_type()
+                .as_defined(&self.parent_generics.read().unwrap())
+                .ok_or_else(|| -> LogicResult<Option<DescribedType>> {
+                    LogicResult::new_failure(LogicError::undefined_generic(
+                        221,
+                        self.scope_id.clone(),
+                        parent_descriptor.identifier().clone(),
+                        parameter.described_type().clone(),
+                        self.design_reference.clone(),
+                    ))
+                })
+        }) {
+            Some(described_type) => match described_type {
+                Ok(described_type) => LogicResult::new_success(Some(described_type)),
+                Err(err) => err,
+            },
+            None => LogicResult::new_success(None),
+        }
+    }
+
     pub fn validate(&self) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
 

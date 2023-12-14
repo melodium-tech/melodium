@@ -28,10 +28,10 @@ impl Generic {
         let step_type = iter.next();
         let (annotations, name) = step_type
             .map(|s| &s[0])
-            .ok_or_else(|| ScriptError::end_of_script(53))
+            .ok_or_else(|| ScriptError::end_of_script(169))
             .and_then(|w| {
                 if w.kind != Some(Kind::Name) {
-                    Err(ScriptError::word(54, w.clone(), &[Kind::Name]))
+                    Err(ScriptError::word(170, w.clone(), &[Kind::Name]))
                 } else {
                     Ok((global_annotations.remove(&w), w.into()))
                 }

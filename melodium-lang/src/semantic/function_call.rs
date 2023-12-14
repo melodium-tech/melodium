@@ -1,5 +1,6 @@
 //! Module dedicated to Treatment semantic analysis.
 
+use super::assigned_generic::AssignedGeneric;
 use super::common::Node;
 use super::common::Reference;
 use super::declarative_element::{DeclarativeElement, DeclarativeElementType};
@@ -28,6 +29,7 @@ pub struct FunctionCall {
 
     pub name: String,
     pub r#type: RefersTo,
+    pub generics: Vec<Arc<RwLock<AssignedGeneric>>>,
     pub parameters: Vec<Arc<RwLock<Value>>>,
 
     pub type_identifier: Option<Identifier>,
@@ -39,6 +41,15 @@ impl FunctionCall {
         text: TextFunction,
     ) -> ScriptResult<Arc<RwLock<Self>>> {
         let mut result = ScriptResult::new_success(());
+
+        let mut generics = Vec::new();
+        for generic in &text.generics {
+            if let Some(generic) =
+                result.merge_degrade_failure(AssignedGeneric::new(generic.clone()))
+            {
+                generics.push(generic);
+            }
+        }
 
         let mut parameters = Vec::new();
         for val in &text.parameters {
@@ -56,6 +67,7 @@ impl FunctionCall {
                 r#type: RefersTo::Unknown(Reference::new(text.name.string.clone())),
                 scope: Arc::downgrade(&scope),
                 text,
+                generics,
                 parameters,
                 type_identifier: None,
             })))
@@ -101,6 +113,10 @@ impl Node for FunctionCall {
 
     fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
         let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();
+
+        for generic in &self.generics {
+            children.push(Arc::clone(&generic) as Arc<RwLock<dyn Node>>);
+        }
 
         for value in &self.parameters {
             children.push(Arc::clone(&value) as Arc<RwLock<dyn Node>>);

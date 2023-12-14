@@ -5,7 +5,7 @@ use super::r#type::Type;
 use super::treatment::Treatment;
 use crate::text::Parameter as TextParameter;
 use crate::{error::ScriptError, ScriptResult};
-use melodium_common::descriptor::{DescribedType, Input as InputDescriptor};
+use melodium_common::descriptor::Input as InputDescriptor;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of an input.
@@ -71,24 +71,26 @@ impl Input {
     }
 
     pub fn make_descriptor(&self) -> ScriptResult<InputDescriptor> {
-        self.r#type.make_descriptor().and_then(|(datatype, flow)| {
-            ScriptResult::new_success(InputDescriptor::new(
-                &self.name,
-                DescribedType::Concrete(datatype),
-                flow,
-                self.text
-                    .annotations
-                    .as_ref()
-                    .map(|annotations| {
-                        annotations
-                            .annotations
-                            .iter()
-                            .filter_map(|annotation| annotation.as_attribute())
-                            .collect()
-                    })
-                    .unwrap_or_default(),
-            ))
-        })
+        self.r#type
+            .make_descriptor()
+            .and_then(|(described_type, flow)| {
+                ScriptResult::new_success(InputDescriptor::new(
+                    &self.name,
+                    described_type,
+                    flow,
+                    self.text
+                        .annotations
+                        .as_ref()
+                        .map(|annotations| {
+                            annotations
+                                .annotations
+                                .iter()
+                                .filter_map(|annotation| annotation.as_attribute())
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                ))
+            })
     }
 }
 

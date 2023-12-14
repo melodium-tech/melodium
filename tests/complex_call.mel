@@ -5,6 +5,7 @@
 #! require = engine:0.7.1
 #! require = conv:0.7.1
 #! require = fs:0.7.1
+#! require = ops:0.7.1
 
 use engine/util::startup
 use flow/void::generate
@@ -17,10 +18,11 @@ use fs/file::write
 use flow/string::emit as emitPath
 use conv/u128::toByte
 use flow/vec/byte::flatten
+use ops/u128::|add
 
-treatment main(const content: string = "this is some text", var generate: u128 = 876, const output: string = "./output_count") {
+treatment main(const content: string = "this is some text", var generate: u128 = 873, const output: string = "./output_count") {
     startup()
-    generate_arbitrary(length = generate, text = content)
+    generate_arbitrary(length = |add(generate, 3), text = content)
     count_writer(output_file = output)
 
     startup.trigger -> generate_arbitrary.trigger,generated -> count_writer.text

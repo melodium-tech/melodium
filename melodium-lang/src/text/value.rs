@@ -43,8 +43,8 @@ impl Value {
         mut iter: &mut Windows<Word>,
         global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
-        match iter.next().map(|s| &s[0]) {
-            Some(w) if w.kind == Some(Kind::OpeningBracket) => {
+        match iter.next().map(|s| (&s[0], &s[1])) {
+            Some((w, _)) if w.kind == Some(Kind::OpeningBracket) => {
                 let mut sub_values = Vec::new();
 
                 loop {
@@ -74,7 +74,7 @@ impl Value {
                     // Else delimiter_kind is equal to comma, so continue…
                 }
             }
-            Some(w) if w.kind == Some(Kind::Context) => {
+            Some((w, _)) if w.kind == Some(Kind::Context) => {
                 let context = w.into();
 
                 iter.next()
@@ -113,13 +113,21 @@ impl Value {
 
                 Ok(Self::ContextReference((context, inner_reference)))
             }
-            Some(w) if w.kind == Some(Kind::Function) => {
-                let function =
-                    Function::build_from_generics(w.into(), &mut iter, global_annotations)?;
+            Some((w, nw)) if w.kind == Some(Kind::Function) => {
+                let function = if nw.kind == Some(Kind::OpeningChevron) {
+                    Function::build_from_generics(w.into(), &mut iter, global_annotations)?
+                } else {
+                    Function::build_from_parameters(
+                        w.into(),
+                        Vec::new(),
+                        &mut iter,
+                        global_annotations,
+                    )?
+                };
 
                 Ok(Self::Function(function))
             }
-            Some(value) => match value.kind {
+            Some((value, _)) => match value.kind {
                 Some(Kind::Number) => Ok(Self::Number(PositionnedString {
                     string: value.text.clone(),
                     position: value.position,

@@ -26,7 +26,7 @@ impl Function {
 
         let possible_closing_chevron;
         match iter.next().map(|s| (&s[0], &s[1])) {
-            Some((w, nw)) if w.kind != Some(Kind::OpeningChevron) => {
+            Some((w, nw)) if w.kind == Some(Kind::OpeningChevron) => {
                 possible_closing_chevron = Some(nw);
             }
             Some((w, _)) => return Err(ScriptError::word(162, w.clone(), &[Kind::OpeningChevron])),
@@ -67,7 +67,7 @@ impl Function {
 
         let possible_closing_parenthesis;
         match iter.next().map(|s| (&s[0], &s[1])) {
-            Some((w, nw)) if w.kind != Some(Kind::OpeningParenthesis) => {
+            Some((w, nw)) if w.kind == Some(Kind::OpeningParenthesis) => {
                 possible_closing_parenthesis = Some(nw);
             }
             Some((w, _)) => {

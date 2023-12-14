@@ -5,7 +5,7 @@ use super::r#type::Type;
 use super::treatment::Treatment;
 use crate::text::Parameter as TextParameter;
 use crate::{error::ScriptError, ScriptResult};
-use melodium_common::descriptor::{DescribedType, Output as OutputDescriptor};
+use melodium_common::descriptor::Output as OutputDescriptor;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of an output.
@@ -71,24 +71,26 @@ impl Output {
     }
 
     pub fn make_descriptor(&self) -> ScriptResult<OutputDescriptor> {
-        self.r#type.make_descriptor().and_then(|(datatype, flow)| {
-            ScriptResult::new_success(OutputDescriptor::new(
-                &self.name,
-                DescribedType::Concrete(datatype),
-                flow,
-                self.text
-                    .annotations
-                    .as_ref()
-                    .map(|annotations| {
-                        annotations
-                            .annotations
-                            .iter()
-                            .filter_map(|annotation| annotation.as_attribute())
-                            .collect()
-                    })
-                    .unwrap_or_default(),
-            ))
-        })
+        self.r#type
+            .make_descriptor()
+            .and_then(|(described_type, flow)| {
+                ScriptResult::new_success(OutputDescriptor::new(
+                    &self.name,
+                    described_type,
+                    flow,
+                    self.text
+                        .annotations
+                        .as_ref()
+                        .map(|annotations| {
+                            annotations
+                                .annotations
+                                .iter()
+                                .filter_map(|annotation| annotation.as_attribute())
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                ))
+            })
     }
 }
 

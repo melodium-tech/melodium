@@ -1054,7 +1054,7 @@ impl GenericInstanciation for Treatment {
             LogicResult::new_success(())
         } else {
             LogicResult::new_failure(LogicError::unexisting_generic(
-                219,
+                220,
                 self.descriptor().identifier().clone(),
                 descriptor.identifier().clone(),
                 generic,

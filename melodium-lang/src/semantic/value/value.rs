@@ -271,7 +271,7 @@ impl Value {
     pub fn make_designed_value(
         &self,
         designer: &ParameterDesigner,
-        datatype: &DataType,
+        described_type: &DescribedType,
     ) -> ScriptResult<ValueDesigner> {
         match &self.content {
             ValueContent::Name(decl_param) => {
@@ -323,22 +323,39 @@ impl Value {
                     .get(&borrowed_func.type_identifier.as_ref().unwrap())
                 {
                     let mut result = ScriptResult::new_success(());
+                    let mut generics = HashMap::new();
                     let mut params = Vec::new();
+                    for i in 0..func_descriptor.generics().len() {
+                        let desc_generic = &func_descriptor.generics()[i];
+
+                        if let Some(rc_generic) = borrowed_func.generics.get(i) {
+                            let borrowed_generic = rc_generic.read().unwrap();
+
+                            if let Some((r#type, _)) = result
+                                .merge_degrade_failure(borrowed_generic.r#type.make_descriptor())
+                            {
+                                generics.insert(desc_generic.clone(), r#type);
+                            }
+                        } else {
+                            result = result.and_degrade_failure(ScriptResult::new_failure(
+                                ScriptError::missing_function_generic(
+                                    171,
+                                    self.text.get_positionned_string().clone(),
+                                    i,
+                                ),
+                            ));
+                        }
+                    }
                     for i in 0..func_descriptor.parameters().len() {
                         let desc_param = &func_descriptor.parameters()[i];
 
                         if let Some(rc_param) = borrowed_func.parameters.get(i) {
                             let borrowed_param = rc_param.read().unwrap();
 
-                            if let Some(param) =
-                                result.merge_degrade_failure(borrowed_param.make_designed_value(
-                                    designer,
-                                    match desc_param.described_type() {
-                                        DescribedType::Concrete(dt) => dt,
-                                        DescribedType::Generic(_) => unimplemented!(),
-                                    },
-                                ))
-                            {
+                            if let Some(param) = result.merge_degrade_failure(
+                                borrowed_param
+                                    .make_designed_value(designer, desc_param.described_type()),
+                            ) {
                                 params.push(param);
                             }
                         } else {
@@ -355,7 +372,7 @@ impl Value {
                     result.and_then(|_| {
                         ScriptResult::new_success(ValueDesigner::Function(
                             Arc::clone(func_descriptor),
-                            HashMap::new(),
+                            generics,
                             params,
                         ))
                     })
@@ -366,9 +383,15 @@ impl Value {
                     ))
                 }
             }
-            _ => self
-                .make_executive_value(datatype)
-                .and_then(|val| ScriptResult::new_success(ValueDesigner::Raw(val))),
+            _ => match described_type {
+                DescribedType::Generic(_) => ScriptResult::new_failure(ScriptError::invalid_type(
+                    109,
+                    self.text.get_positionned_string().clone(),
+                )),
+                DescribedType::Concrete(datatype) => self
+                    .make_executive_value(datatype)
+                    .and_then(|val| ScriptResult::new_success(ValueDesigner::Raw(val))),
+            },
         }
     }
 }
