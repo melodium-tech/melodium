@@ -1,7 +1,9 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
-use melodium_macro::mel_package;
+use melodium_core::common::executive::Value;
+use melodium_macro::{mel_function, mel_package, mel_treatment};
+use std::collections::VecDeque;
 
 pub mod vec;
 
@@ -22,5 +24,92 @@ pub mod u32;
 pub mod u64;
 pub mod u8;
 pub mod void;
+
+/// Trigger on a stream start and end.
+///
+/// Emit `start` when a first value is send through the stream.
+/// Emit `end` when stream is finally over.
+///
+/// Emit `first` with the first value coming in the stream.
+/// Emit `last` with the last value coming in the stream.
+///
+/// ℹ️ `start` and `first` are always emitted together.
+/// If the stream only contains one element, `first` and `last` both contains it.
+/// If the stream never transmit any data before being ended, only `end` is emitted.
+///
+/// ```mermaid
+/// graph LR
+///     T("trigger()")
+///     B["🟥 … 🟨 🟨 🟨 🟨 🟨 🟨 … 🟩"] -->|stream| T
+///     
+///     T -->|start| S["〈🟦〉"]
+///     T -->|first| F["〈🟩〉"]
+///     T -->|last| L["〈🟥〉"]
+///     T -->|end| E["〈🟦〉"]
+///
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+///     style F fill:#ffff,stroke:#ffff
+///     style L fill:#ffff,stroke:#ffff
+///     style E fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    generic T
+    input stream Stream<T>
+    output start Block<void>
+    output end Block<void>
+    output first Block<T>
+    output last Block<T>
+)]
+pub async fn trigger() {
+    let mut last_value = None;
+
+    if let Ok(mut values) = stream.recv_many().await {
+        let _ = start.send_one(().into()).await;
+        if let Some(val) = values.pop_front() {
+            let _ = first.send_one(val).await;
+        }
+        last_value = Into::<VecDeque<Value>>::into(values).pop_back();
+        let _ = futures::join!(start.close(), first.close());
+    }
+
+    while let Ok(mut values) = stream.recv_many().await {
+        last_value = Into::<VecDeque<Value>>::into(values).pop_back();
+    }
+
+    let _ = end.send_one(().into()).await;
+    if let Some(val) = last_value {
+        let _ = last.send_one(val).await;
+    }
+
+    // We don't close `end` and `last` explicitly here,
+    // because it would be redundant with boilerplate
+    // implementation of treatments.
+}
+
+/// Emit a blocking value.
+///
+/// When `trigger` is enabled, `value` is emitted as block.
+///
+/// ```mermaid
+/// graph LR
+///     T("emit(value=🟨)")
+///     B["〈🟦〉"] -->|trigger| T
+///         
+///     T -->|emit| S["〈🟨〉"]
+///     
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    generic T
+    input trigger Block<void>
+    output emit Block<T>
+)]
+pub async fn emit(value: T) {
+    if let Ok(_) = trigger.recv_one().await {
+        let _ = emit.send_one(value).await;
+    }
+}
 
 mel_package!();

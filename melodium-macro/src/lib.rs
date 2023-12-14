@@ -941,7 +941,19 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                         acc
                     });
 
-                let ty = into_mel_type(t.ty.borrow());
+                // This part should be removable once structure become abstract
+                let ty = match t.ty.borrow() {
+                    Type::Path(path) => {
+                        let ty = path.path.segments.first().expect("Type expected");
+                        let ty = ty.ident.to_string();
+                        if !generics.contains(&ty) {
+                            into_mel_type(t.ty.borrow())
+                        } else {
+                            ty
+                        }
+                    }
+                    _ => panic!("Type expected"),
+                };
 
                 params.insert(name, (ty, attributes));
             }
@@ -1054,8 +1066,9 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let parameters: proc_macro2::TokenStream = params
             .iter()
             .map(|(name, (ty, _))| {
-                let rust_type = into_rust_type(ty);
-                format!(r#"r#{name}: std::sync::Mutex<Option<{rust_type}>>,"#)
+                if generics.contains(ty) {
+                    format!(r#"r#{name}: std::sync::Mutex<Option<melodium_core::common::executive::Value>>,"#)
+                } else {let rust_type = into_rust_type(ty);format!(r#"r#{name}: std::sync::Mutex<Option<{rust_type}>>,"#)}
             })
             .collect::<Vec<_>>()
             .join("")
@@ -1138,8 +1151,12 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let parameters: proc_macro2::TokenStream = params
             .iter()
             .map(|(name, (ty, _))| {
-                let call = into_mel_value_call(ty);
-                format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(value.{call}()),"#)
+                if generics.contains(ty) {
+                    format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(value),"#)
+                } else {
+                    let call = into_mel_value_call(ty);
+                    format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(value.{call}()),"#)
+                }
             })
             .collect::<Vec<_>>()
             .join("")
@@ -1900,13 +1917,68 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
                         .unwrap_or(true)
                 });
 
-                let ty = into_mel_type(t.ty.borrow());
+                // This part should be removable once structure become abstract
+                let ty = match t.ty.borrow() {
+                    Type::Path(path) => {
+                        let ty = path.path.segments.first().expect("Type expected");
+                        let ty = ty.ident.to_string();
+                        if !generics.contains(&ty) {
+                            into_mel_type(t.ty.borrow())
+                        } else {
+                            ty
+                        }
+                    }
+                    _ => panic!("Type expected"),
+                };
 
                 args.push((name, (ty, attributes)));
             }
             _ => eprintln!("Only Mélodium types are admissible arguments"),
         }
     }
+
+    let typedefs: proc_macro2::TokenStream = generics
+        .iter()
+        .map(|name| format!(r#"type {name} = melodium_core::common::executive::Value"#))
+        .collect::<Vec<_>>()
+        .join(";")
+        .parse()
+        .unwrap();
+    let (return_type, is_return_type_generic) =
+        if let ReturnType::Type(_, rt) = &function.sig.output {
+            // This part should be removable once structure become abstract
+            match rt.borrow() {
+                Type::Path(path) => {
+                    let ty = path.path.segments.first().expect("Type expected");
+                    let ty = ty.ident.to_string();
+                    if !generics.contains(&ty) {
+                        (into_mel_type(rt), false)
+                    } else {
+                        (ty, true)
+                    }
+                }
+                _ => panic!("Type expected"),
+            }
+        } else {
+            panic!("Return type expected");
+        };
+    let params_call = args
+        .iter()
+        .enumerate()
+        .map(|(i, (_, (ty, _)))| {
+            if generics.contains(ty) {
+                format!("params[{i}].clone()")
+            } else {
+                format!("params[{i}].clone().{}()", into_mel_value_call(ty))
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let mel_call = if is_return_type_generic {
+        format!("{name}({params_call})",)
+    } else {
+        format!("melodium_core::common::executive::Value::{return_type}({name}({params_call}))",)
+    };
 
     let attributes: proc_macro2::TokenStream = attributes
         .iter()
@@ -1932,20 +2004,6 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
             r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Var, {described_type}, None, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#
         )
     }).collect::<Vec<_>>().join(",");
-    let return_type = if let ReturnType::Type(_, rt) = &function.sig.output {
-        into_mel_type(rt)
-    } else {
-        panic!("Return type expected");
-    };
-
-    let mel_call = format!(
-        "melodium_core::common::executive::Value::{return_type}({name}({}))",
-        args.iter()
-            .enumerate()
-            .map(|(i, (_, (ty, _)))| format!("params[{i}].clone().{}()", into_mel_value_call(ty)))
-            .collect::<Vec<_>>()
-            .join(",")
-    );
 
     let element_name = format!("|{}", name.from_case(Case::Snake).to_case(Case::Snake));
     let module_name: proc_macro2::TokenStream = format!("__mel_function_{name}").parse().unwrap();
@@ -1956,8 +2014,6 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mel_call: proc_macro2::TokenStream = mel_call.parse().unwrap();
 
     let expanded = quote! {
-        #function
-
         pub mod #module_name {
 
             use super::*;
@@ -1993,6 +2049,11 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
 
             fn mel_function(params: Vec<melodium_core::common::executive::Value>) -> melodium_core::common::executive::Value {
+
+                #typedefs;
+
+                #function
+
                 #mel_call
             }
         }
