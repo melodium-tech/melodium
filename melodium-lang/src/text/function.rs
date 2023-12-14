@@ -1,10 +1,10 @@
 //! Module dedicated to [Function] parsing.
 
-use core::slice::Windows;
-
 use super::word::{Kind, Word};
-use super::{PositionnedString, Value};
+use super::{CommentsAnnotations, Generic, PositionnedString, Value};
 use crate::ScriptError;
+use core::slice::Windows;
+use std::collections::HashMap;
 
 /// Structure describing a textual requirement.
 ///
@@ -12,19 +12,62 @@ use crate::ScriptError;
 #[derive(Clone, Debug, Default)]
 pub struct Function {
     pub name: PositionnedString,
+    pub generics: Vec<Generic>,
     pub parameters: Vec<Value>,
 }
 
 impl Function {
-    pub fn build_from_parameters(
+    pub fn build_from_generics(
         name: PositionnedString,
         mut iter: &mut Windows<Word>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
+    ) -> Result<Self, ScriptError> {
+        let mut generics = Vec::new();
+
+        let possible_closing_chevron;
+        match iter.next().map(|s| (&s[0], &s[1])) {
+            Some((w, nw)) if w.kind == Some(Kind::OpeningChevron) => {
+                possible_closing_chevron = Some(nw);
+            }
+            Some((w, _)) => return Err(ScriptError::word(162, w.clone(), &[Kind::OpeningChevron])),
+            None => return Err(ScriptError::end_of_script(163)),
+        }
+
+        match possible_closing_chevron {
+            Some(w) if w.kind == Some(Kind::ClosingChevron) => {}
+            Some(_) => loop {
+                generics.push(Generic::build(iter, global_annotations)?);
+
+                match iter.next().map(|s| &s[0]) {
+                    Some(w) if w.kind == Some(Kind::Comma) => continue,
+                    Some(w) if w.kind == Some(Kind::ClosingChevron) => break,
+                    Some(w) => {
+                        return Err(ScriptError::word(
+                            163,
+                            w.clone(),
+                            &[Kind::Comma, Kind::ClosingChevron],
+                        ))
+                    }
+                    None => return Err(ScriptError::end_of_script(164)),
+                }
+            },
+            None => return Err(ScriptError::end_of_script(165)),
+        }
+
+        Self::build_from_parameters(name, generics, &mut iter, global_annotations)
+    }
+
+    pub fn build_from_parameters(
+        name: PositionnedString,
+        generics: Vec<Generic>,
+        mut iter: &mut Windows<Word>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
         let mut parameters = Vec::new();
 
         let possible_closing_parenthesis;
         match iter.next().map(|s| (&s[0], &s[1])) {
-            Some((w, nw)) if w.kind != Some(Kind::OpeningParenthesis) => {
+            Some((w, nw)) if w.kind == Some(Kind::OpeningParenthesis) => {
                 possible_closing_parenthesis = Some(nw);
             }
             Some((w, _)) => {
@@ -40,7 +83,7 @@ impl Function {
         match possible_closing_parenthesis {
             Some(w) if w.kind == Some(Kind::ClosingParenthesis) => {}
             _ => loop {
-                parameters.push(Value::build_from_first_item(&mut iter)?);
+                parameters.push(Value::build_from_first_item(&mut iter, global_annotations)?);
 
                 match iter.next().map(|s| &s[0]) {
                     Some(w) if w.kind == Some(Kind::Comma) => continue,
@@ -57,6 +100,10 @@ impl Function {
             },
         }
 
-        Ok(Self { name, parameters })
+        Ok(Self {
+            name,
+            generics,
+            parameters,
+        })
     }
 }

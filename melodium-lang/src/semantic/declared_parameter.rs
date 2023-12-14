@@ -117,21 +117,29 @@ impl DeclaredParameter {
                     ScriptResult::new_success((datatype, flow))
                 }
             })
-            .and_then(|(datatype, flow)| {
+            .and_then(|(described_type, flow)| {
                 if let Some(val) = &self.value {
-                    val.read()
-                        .unwrap()
-                        .make_executive_value(&datatype)
-                        .and_then(|val| ScriptResult::new_success((datatype, flow, Some(val))))
+                    match described_type {
+                        DescribedType::Concrete(datatype) => val
+                            .read()
+                            .unwrap()
+                            .make_executive_value(&datatype)
+                            .and_then(|val| {
+                                ScriptResult::new_success((described_type, flow, Some(val)))
+                            }),
+                        DescribedType::Generic(_) => ScriptResult::new_failure(
+                            ScriptError::default_forbidden(172, self.text.name.clone()),
+                        ),
+                    }
                 } else {
-                    ScriptResult::new_success((datatype, flow, None))
+                    ScriptResult::new_success((described_type, flow, None))
                 }
             })
-            .and_then(|(datatype, _, value)| {
+            .and_then(|(described_type, _, value)| {
                 ScriptResult::new_success(ParameterDescriptor::new(
                     &self.name,
                     self.variability.to_descriptor(),
-                    DescribedType::Concrete(datatype),
+                    described_type,
                     value,
                     self.text
                         .annotations

@@ -1,16 +1,17 @@
 //! Module dedicated to [Type] parsing.
 
-use core::slice::Windows;
-
 use super::word::{Kind, Word};
-use super::PositionnedString;
+use super::{CommentsAnnotations, PositionnedString};
 use crate::ScriptError;
+use core::slice::Windows;
+use std::collections::HashMap;
 
 /// Structure describing a textual type.
 ///
 /// It owns a name, and a flow or structure, if any.
 #[derive(Clone, Debug)]
 pub struct Type {
+    pub annotations: Option<CommentsAnnotations>,
     pub first_level_structure: Option<PositionnedString>,
     pub second_level_structure: Option<PositionnedString>,
     pub name: PositionnedString,
@@ -21,20 +22,41 @@ impl Type {
     ///
     /// * `iter`: Iterator over words list, next() being expected to be either the name or structure.
     ///
-    pub fn build(iter: &mut Windows<Word>) -> Result<(Self, Word), ScriptError> {
+    pub fn build(
+        iter: &mut Windows<Word>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
+    ) -> Result<(Self, Word), ScriptError> {
         let step_type = iter.next();
-        let first_name_or_structure = step_type
+        let (annotations, first_name_or_structure) = step_type
             .map(|s| &s[0])
             .ok_or_else(|| ScriptError::end_of_script(21))
             .and_then(|w| {
                 if w.kind != Some(Kind::Name) {
                     Err(ScriptError::word(22, w.clone(), &[Kind::Name]))
                 } else {
-                    Ok(w.into())
+                    Ok((global_annotations.remove(w), w.into()))
                 }
             })?;
 
-        match step_type.map(|s| &s[1]) {
+        Self::build_from_next(
+            annotations,
+            first_name_or_structure,
+            iter,
+            step_type.map(|s| &s[1]),
+        )
+    }
+
+    /// Build a type by parsing words, considering name already been parsed.
+    ///
+    /// * `iter`: Iterator over words list.
+    ///
+    pub fn build_from_next(
+        annotations: Option<CommentsAnnotations>,
+        first_name_or_structure: PositionnedString,
+        iter: &mut Windows<Word>,
+        following_word: Option<&Word>,
+    ) -> Result<(Self, Word), ScriptError> {
+        match following_word {
             Some(w) if w.kind == Some(Kind::OpeningChevron) => {
                 iter.next(); // Skipping chevron
 
@@ -88,6 +110,7 @@ impl Type {
 
                         Ok((
                             Self {
+                                annotations,
                                 first_level_structure: Some(first_name_or_structure),
                                 second_level_structure: Some(second_name_or_structure),
                                 name,
@@ -110,6 +133,7 @@ impl Type {
                             })?;
                         Ok((
                             Self {
+                                annotations,
                                 first_level_structure: Some(first_name_or_structure),
                                 second_level_structure: None,
                                 name: second_name_or_structure,
@@ -121,6 +145,7 @@ impl Type {
             }
             Some(w) => Ok((
                 Self {
+                    annotations,
                     first_level_structure: None,
                     second_level_structure: None,
                     name: first_name_or_structure,
@@ -145,7 +170,7 @@ mod tests {
         words.push(Word::default());
         let mut iter = words.windows(2);
 
-        let r#type = Type::build(&mut iter).unwrap().0;
+        let r#type = Type::build(&mut iter, &mut HashMap::new()).unwrap().0;
 
         assert!(r#type.first_level_structure.is_none());
         assert!(r#type.second_level_structure.is_none());
@@ -159,7 +184,7 @@ mod tests {
         words.push(Word::default());
         let mut iter = words.windows(2);
 
-        let r#type = Type::build(&mut iter).unwrap().0;
+        let r#type = Type::build(&mut iter, &mut HashMap::new()).unwrap().0;
 
         assert_eq!(r#type.first_level_structure.unwrap().string, "Vec");
         assert!(r#type.second_level_structure.is_none());
@@ -173,7 +198,7 @@ mod tests {
         words.push(Word::default());
         let mut iter = words.windows(2);
 
-        let r#type = Type::build(&mut iter).unwrap().0;
+        let r#type = Type::build(&mut iter, &mut HashMap::new()).unwrap().0;
 
         assert_eq!(r#type.first_level_structure.unwrap().string, "Stream");
         assert_eq!(r#type.second_level_structure.unwrap().string, "Vec");

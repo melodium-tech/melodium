@@ -112,6 +112,7 @@ impl Model {
                         global_annotations.remove(w),
                         w.into(),
                         &mut iter,
+                        global_annotations,
                     )?);
                 }
                 Some(w) => {

@@ -8,12 +8,15 @@ use super::common::Reference;
 use super::declarative_element::DeclarativeElement;
 use super::r#use::Use;
 use super::treatment::Treatment;
+use super::AssignedGeneric;
 use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Instanciation as TextTreatment;
 use crate::ScriptResult;
 use melodium_common::descriptor::Identifier;
-use melodium_engine::designer::TreatmentInstanciation as TreatmentInstanciationDesigner;
+use melodium_engine::designer::{
+    GenericInstanciation, TreatmentInstanciation as TreatmentInstanciationDesigner,
+};
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a treatment.
@@ -27,6 +30,7 @@ pub struct TreatmentInstanciation {
 
     pub name: String,
     pub r#type: RefersTo,
+    pub generics: Vec<Arc<RwLock<AssignedGeneric>>>,
     pub models: Vec<Arc<RwLock<AssignedModel>>>,
     pub parameters: Vec<Arc<RwLock<AssignedParameter>>>,
 
@@ -62,6 +66,7 @@ impl TreatmentInstanciation {
             treatment: Arc::downgrade(&treatment),
             name: text.name.string.clone(),
             r#type: RefersTo::Unknown(Reference::new(text.r#type.string)),
+            generics: Vec::new(),
             models: Vec::new(),
             parameters: Vec::new(),
             type_identifier: None,
@@ -75,6 +80,18 @@ impl TreatmentInstanciation {
                 result = result.and_degrade_failure(ScriptResult::new_failure(
                     ScriptError::already_used_name(116, text.name),
                 ));
+            }
+        }
+
+        for generic in &text.generics {
+            if let Some(generic) =
+                result.merge_degrade_failure(AssignedGeneric::new(generic.clone()))
+            {
+                treatment_instanciation
+                    .write()
+                    .unwrap()
+                    .generics
+                    .push(generic);
             }
         }
 
@@ -114,6 +131,28 @@ impl TreatmentInstanciation {
         let mut designer = designer.write().unwrap();
         let mut result = ScriptResult::new_success(());
 
+        let treatment_desc = designer.descriptor();
+
+        for i in 0..treatment_desc.generics().len() {
+            let desc_generic = &treatment_desc.generics()[i];
+
+            if let Some(rc_generic) = self.generics.get(i) {
+                let borrowed_generic = rc_generic.read().unwrap();
+
+                if let Some((r#type, _)) =
+                    result.merge_degrade_failure(borrowed_generic.r#type.make_descriptor())
+                {
+                    result = result.and_degrade_failure(ScriptResult::from(
+                        designer.set_generic(desc_generic.clone(), r#type),
+                    ));
+                }
+            } else {
+                result = result.and_degrade_failure(ScriptResult::new_failure(
+                    ScriptError::missing_function_generic(173, self.text.name.clone(), i),
+                ));
+            }
+        }
+
         for rc_model_assignation in &self.models {
             let borrowed_model_assignation = rc_model_assignation.read().unwrap();
 
@@ -152,7 +191,6 @@ impl AssignativeElement for TreatmentInstanciation {
     }
 
     /// Search for an assigned model.
-
     fn find_assigned_model(&self, name: &str) -> Option<&Arc<RwLock<AssignedModel>>> {
         self.models.iter().find(|&m| m.read().unwrap().name == name)
     }
@@ -169,6 +207,9 @@ impl Node for TreatmentInstanciation {
     fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
         let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();
 
+        self.generics
+            .iter()
+            .for_each(|g| children.push(Arc::clone(&g) as Arc<RwLock<dyn Node>>));
         self.models
             .iter()
             .for_each(|m| children.push(Arc::clone(&m) as Arc<RwLock<dyn Node>>));

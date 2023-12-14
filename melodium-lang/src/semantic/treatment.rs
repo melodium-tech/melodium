@@ -11,6 +11,7 @@ use super::output::Output;
 use super::requirement::Requirement;
 use super::script::Script;
 use super::treatment_instanciation::TreatmentInstanciation;
+use super::DeclaredGeneric;
 use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Treatment as TextTreatment;
@@ -32,6 +33,7 @@ pub struct Treatment {
 
     pub name: String,
 
+    pub generics: Vec<Arc<RwLock<DeclaredGeneric>>>,
     pub declared_models: Vec<Arc<RwLock<DeclaredModel>>>,
     pub parameters: Vec<Arc<RwLock<DeclaredParameter>>>,
     pub model_instanciations: Vec<Arc<RwLock<ModelInstanciation>>>,
@@ -62,6 +64,7 @@ impl Treatment {
             text: text.clone(),
             script: Arc::downgrade(&script),
             name: text.name.string.clone(),
+            generics: Vec::new(),
             declared_models: Vec::new(),
             parameters: Vec::new(),
             model_instanciations: Vec::new(),
@@ -90,6 +93,12 @@ impl Treatment {
                 result = result.and_degrade_failure(ScriptResult::new_failure(
                     ScriptError::already_used_name(112, text.name),
                 ));
+            }
+        }
+
+        for g in &text.generics {
+            if let Some(generic) = result.merge_degrade_failure(DeclaredGeneric::new(g.clone())) {
+                treatment.write().unwrap().generics.push(generic);
             }
         }
 
@@ -245,6 +254,12 @@ impl Treatment {
                     descriptor.add_attribute(name, attribute);
                 }
             }
+        }
+
+        for rc_generic in &self.generics {
+            let borrowed_generic = rc_generic.read().unwrap();
+
+            descriptor.add_generic(borrowed_generic.name.clone());
         }
 
         // We manage declaration of each model given to the treatment
@@ -447,6 +462,9 @@ impl Node for Treatment {
     fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
         let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();
 
+        self.generics
+            .iter()
+            .for_each(|g| children.push(Arc::clone(&g) as Arc<RwLock<dyn Node>>));
         self.declared_models
             .iter()
             .for_each(|m| children.push(Arc::clone(&m) as Arc<RwLock<dyn Node>>));

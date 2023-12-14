@@ -185,6 +185,14 @@ impl Treatment {
         }
     }
 
+    pub fn add_generic(&mut self, name: String) {
+        self.generics.push(name);
+    }
+
+    pub fn remove_generic(&mut self, name: &str) {
+        self.generics.retain(|generic| generic != name);
+    }
+
     pub fn add_model(&mut self, name: &str, model: &Arc<dyn Model>) {
         self.models.insert(name.to_string(), Arc::clone(model));
     }

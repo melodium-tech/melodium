@@ -2,7 +2,7 @@
 
 use super::parameter::Parameter;
 use super::word::{Kind, Word};
-use super::CommentsAnnotations;
+use super::{CommentsAnnotations, Generic};
 use crate::ScriptError;
 use core::slice::Windows;
 use std::collections::HashMap;
@@ -28,6 +28,7 @@ pub fn parse_parameters_declarations(
                     global_annotations.remove(w),
                     w.into(),
                     &mut iter,
+                    global_annotations,
                 )?);
 
                 match iter.next().map(|s| &s[0]) {
@@ -88,6 +89,7 @@ pub fn parse_parameters_assignations(
                     global_annotations.remove(w),
                     w.into(),
                     &mut iter,
+                    global_annotations,
                 )?);
 
                 match iter.next().map(|s| &s[0]) {
@@ -149,6 +151,7 @@ pub fn parse_configuration_declarations(
                     None,
                     w.into(),
                     &mut iter,
+                    global_annotations,
                 )?);
 
                 match iter.next().map(|s| &s[0]) {
@@ -209,6 +212,7 @@ pub fn parse_configuration_assignations(
                     global_annotations.remove(w),
                     w.into(),
                     &mut iter,
+                    global_annotations,
                 )?);
 
                 match iter.next().map(|s| &s[0]) {
@@ -236,4 +240,54 @@ pub fn parse_configuration_assignations(
     }
 
     Ok(parameters)
+}
+
+/// Build a generics declaration/assignation list by parsing words.
+///
+/// * `iter`: Iterator over words list, next() being expected to be the first parameter, _not_ bracket.
+pub fn parse_generics(
+    iter: &mut Windows<Word>,
+    global_annotations: &mut HashMap<Word, CommentsAnnotations>,
+) -> Result<Vec<Generic>, ScriptError> {
+    let mut generics = Vec::new();
+
+    let mut first_generic = true;
+    loop {
+        match iter.next().map(|s| (&s[0], &s[1])) {
+            Some((w, _)) if w.kind == Some(Kind::ClosingChevron) && first_generic => break,
+            Some((w, nw)) if w.kind == Some(Kind::Name) => {
+                first_generic = false;
+
+                generics.push(Generic::build_from_next(
+                    global_annotations.remove(w),
+                    w.into(),
+                    iter,
+                    Some(nw),
+                )?);
+
+                match iter.next().map(|s| &s[0]) {
+                    Some(w) if w.kind == Some(Kind::Comma) => continue,
+                    Some(w) if w.kind == Some(Kind::ClosingChevron) => break,
+                    Some(w) => {
+                        return Err(ScriptError::word(
+                            158,
+                            w.clone(),
+                            &[Kind::Comma, Kind::ClosingChevron],
+                        ))
+                    }
+                    None => return Err(ScriptError::end_of_script(159)),
+                }
+            }
+            Some((w, _)) => {
+                return Err(ScriptError::word(
+                    160,
+                    w.clone(),
+                    &[Kind::Name, Kind::ClosingChevron],
+                ))
+            }
+            None => return Err(ScriptError::end_of_script(161)),
+        }
+    }
+
+    Ok(generics)
 }

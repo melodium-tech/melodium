@@ -3,8 +3,9 @@
 use crate::ScriptError;
 use crate::{text::Type as TextType, ScriptResult};
 use melodium_common::descriptor::{
-    DataType as DataTypeDescriptor, Flow as FlowDescriptor,
-    Structure as DataTypeStructureDescriptor, Type as DataTypeTypeDescriptor,
+    DataType as DataTypeDescriptor, DescribedType as DescribedTypeDescriptor,
+    Flow as FlowDescriptor, Structure as DataTypeStructureDescriptor,
+    Type as DataTypeTypeDescriptor,
 };
 use std::fmt;
 
@@ -53,7 +54,7 @@ impl fmt::Display for TypeStructure {
 }
 
 /// Enum for type identification.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum TypeName {
     Void,
 
@@ -76,51 +77,105 @@ pub enum TypeName {
     Byte,
     Char,
     String,
+
+    Other(String),
 }
 
 impl TypeName {
-    fn from_string(name: &str) -> Option<Self> {
+    fn from_string(name: &str) -> Self {
         match name {
-            "void" => Some(Self::Void),
-            "i8" => Some(Self::I8),
-            "i16" => Some(Self::I16),
-            "i32" => Some(Self::I32),
-            "i64" => Some(Self::I64),
-            "i128" => Some(Self::I128),
-            "u8" => Some(Self::U8),
-            "u16" => Some(Self::U16),
-            "u32" => Some(Self::U32),
-            "u64" => Some(Self::U64),
-            "u128" => Some(Self::U128),
-            "f32" => Some(Self::F32),
-            "f64" => Some(Self::F64),
-            "bool" => Some(Self::Bool),
-            "byte" => Some(Self::Byte),
-            "char" => Some(Self::Char),
-            "string" => Some(Self::String),
-            _ => None,
+            "void" => Self::Void,
+            "i8" => Self::I8,
+            "i16" => Self::I16,
+            "i32" => Self::I32,
+            "i64" => Self::I64,
+            "i128" => Self::I128,
+            "u8" => Self::U8,
+            "u16" => Self::U16,
+            "u32" => Self::U32,
+            "u64" => Self::U64,
+            "u128" => Self::U128,
+            "f32" => Self::F32,
+            "f64" => Self::F64,
+            "bool" => Self::Bool,
+            "byte" => Self::Byte,
+            "char" => Self::Char,
+            "string" => Self::String,
+            other => Self::Other(other.to_string()),
         }
     }
 
-    fn to_descriptor(&self) -> DataTypeTypeDescriptor {
+    fn to_descriptor(&self, structure: DataTypeStructureDescriptor) -> DescribedTypeDescriptor {
         match self {
-            Self::Void => DataTypeTypeDescriptor::Void,
-            Self::I8 => DataTypeTypeDescriptor::I8,
-            Self::I16 => DataTypeTypeDescriptor::I16,
-            Self::I32 => DataTypeTypeDescriptor::I32,
-            Self::I64 => DataTypeTypeDescriptor::I64,
-            Self::I128 => DataTypeTypeDescriptor::I128,
-            Self::U8 => DataTypeTypeDescriptor::U8,
-            Self::U16 => DataTypeTypeDescriptor::U16,
-            Self::U32 => DataTypeTypeDescriptor::U32,
-            Self::U64 => DataTypeTypeDescriptor::U64,
-            Self::U128 => DataTypeTypeDescriptor::U128,
-            Self::F32 => DataTypeTypeDescriptor::F32,
-            Self::F64 => DataTypeTypeDescriptor::F64,
-            Self::Bool => DataTypeTypeDescriptor::Bool,
-            Self::Byte => DataTypeTypeDescriptor::Byte,
-            Self::Char => DataTypeTypeDescriptor::Char,
-            Self::String => DataTypeTypeDescriptor::String,
+            Self::Void => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::Void,
+            )),
+            Self::I8 => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::I8,
+            )),
+            Self::I16 => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::I16,
+            )),
+            Self::I32 => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::I32,
+            )),
+            Self::I64 => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::I64,
+            )),
+            Self::I128 => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::I128,
+            )),
+            Self::U8 => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::U8,
+            )),
+            Self::U16 => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::U16,
+            )),
+            Self::U32 => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::U32,
+            )),
+            Self::U64 => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::U64,
+            )),
+            Self::U128 => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::U128,
+            )),
+            Self::F32 => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::F32,
+            )),
+            Self::F64 => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::F64,
+            )),
+            Self::Bool => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::Bool,
+            )),
+            Self::Byte => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::Byte,
+            )),
+            Self::Char => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::Char,
+            )),
+            Self::String => DescribedTypeDescriptor::Concrete(DataTypeDescriptor::new(
+                structure,
+                DataTypeTypeDescriptor::String,
+            )),
+            Self::Other(name) => DescribedTypeDescriptor::Generic(name.clone()),
         }
     }
 }
@@ -148,6 +203,7 @@ impl fmt::Display for TypeName {
                 TypeName::Byte => "byte",
                 TypeName::Char => "char",
                 TypeName::String => "string",
+                TypeName::Other(name) => name.as_str(),
             }
         )
     }
@@ -211,19 +267,15 @@ impl Type {
             }
         };
 
-        if let Some(name) = TypeName::from_string(text.name.string.as_ref()) {
-            ScriptResult::new_success(Self {
-                text,
-                name,
-                flow,
-                structure,
-            })
-        } else {
-            ScriptResult::new_failure(ScriptError::invalid_type(109, text.name.clone()))
-        }
+        ScriptResult::new_success(Self {
+            name: TypeName::from_string(text.name.string.as_ref()),
+            text,
+            flow,
+            structure,
+        })
     }
 
-    pub fn make_descriptor(&self) -> ScriptResult<(DataTypeDescriptor, FlowDescriptor)> {
+    pub fn make_descriptor(&self) -> ScriptResult<(DescribedTypeDescriptor, FlowDescriptor)> {
         let flow = match self.flow {
             TypeFlow::Block => FlowDescriptor::Block,
             TypeFlow::Stream => FlowDescriptor::Stream,
@@ -234,8 +286,8 @@ impl Type {
             TypeStructure::Vector => DataTypeStructureDescriptor::Vector,
         };
 
-        let r#type = self.name.to_descriptor();
+        let r#type = self.name.to_descriptor(structure);
 
-        ScriptResult::new_success((DataTypeDescriptor::new(structure, r#type), flow))
+        ScriptResult::new_success((r#type, flow))
     }
 }

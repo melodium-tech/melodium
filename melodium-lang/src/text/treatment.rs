@@ -3,13 +3,15 @@
 use core::slice::Windows;
 use std::collections::HashMap;
 
-use super::common::{parse_configuration_declarations, parse_parameters_declarations};
+use super::common::{
+    parse_configuration_declarations, parse_generics, parse_parameters_declarations,
+};
 use super::connection::Connection;
 use super::instanciation::Instanciation;
 use super::parameter::Parameter;
 use super::requirement::Requirement;
 use super::word::{Kind, Word};
-use super::{CommentsAnnotations, PositionnedString};
+use super::{CommentsAnnotations, Generic, PositionnedString};
 use crate::ScriptError;
 
 /// Structure describing a textual treatment.
@@ -19,6 +21,7 @@ use crate::ScriptError;
 pub struct Treatment {
     pub annotations: Option<CommentsAnnotations>,
     pub name: PositionnedString,
+    pub generics: Vec<Generic>,
     pub configuration: Vec<Parameter>,
     pub parameters: Vec<Parameter>,
     pub models: Vec<Instanciation>,
@@ -52,38 +55,40 @@ impl Treatment {
             })?;
         let name: PositionnedString = (&word_name).into();
 
-        let configuration;
+        let mut generics_parsed = false;
+        let mut generics = Vec::new();
+        let mut configuration_parsed = false;
+        let mut configuration = Vec::new();
         let parameters;
-        match iter.next().map(|s| &s[0]) {
-            Some(w) if w.kind == Some(Kind::OpeningBracket) => {
-                configuration = parse_configuration_declarations(&mut iter, global_annotations)?;
-
-                match iter.next().map(|s| &s[0]) {
-                    Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
-                        parameters = parse_parameters_declarations(&mut iter, global_annotations)?;
-                    }
-                    Some(w) => {
-                        return Err(ScriptError::word(
-                            35,
-                            w.clone(),
-                            &[Kind::OpeningParenthesis],
-                        ))
-                    }
-                    None => return Err(ScriptError::end_of_script(36)),
+        loop {
+            match iter.next().map(|s| &s[0]) {
+                Some(w) if w.kind == Some(Kind::OpeningChevron) && !generics_parsed => {
+                    generics_parsed = true;
+                    generics = parse_generics(&mut iter, global_annotations)?;
                 }
+                Some(w) if w.kind == Some(Kind::OpeningBracket) && !configuration_parsed => {
+                    generics_parsed = true;
+                    configuration_parsed = true;
+                    configuration =
+                        parse_configuration_declarations(&mut iter, global_annotations)?;
+                }
+                Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
+                    parameters = parse_parameters_declarations(&mut iter, global_annotations)?;
+                    break;
+                }
+                Some(w) => {
+                    return Err(ScriptError::word(
+                        33,
+                        w.clone(),
+                        &[
+                            Kind::OpeningChevron,
+                            Kind::OpeningBracket,
+                            Kind::OpeningParenthesis,
+                        ],
+                    ))
+                }
+                None => return Err(ScriptError::end_of_script(34)),
             }
-            Some(w) if w.kind == Some(Kind::OpeningParenthesis) => {
-                parameters = parse_parameters_declarations(&mut iter, global_annotations)?;
-                configuration = Vec::new();
-            }
-            Some(w) => {
-                return Err(ScriptError::word(
-                    33,
-                    w.clone(),
-                    &[Kind::OpeningBracket, Kind::OpeningParenthesis],
-                ))
-            }
-            None => return Err(ScriptError::end_of_script(34)),
         }
 
         let mut models = Vec::new();
@@ -127,6 +132,7 @@ impl Treatment {
                             None,
                             input_name,
                             &mut iter,
+                            global_annotations,
                         )?);
                     }
                     "output" => {
@@ -158,6 +164,7 @@ impl Treatment {
                             None,
                             output_name,
                             &mut iter,
+                            global_annotations,
                         )?);
                     }
                     "model" => models.push(Instanciation::build(
@@ -271,10 +278,19 @@ impl Treatment {
             }
 
             match determinant.map(|s| &s[0]) {
-                // If determinant is ':', '[', or '(', we are in a treatment declaration.
+                // If determinant is ':', '<', '[', or '(', we are in a treatment declaration.
                 Some(w) if w.kind == Some(Kind::Colon) => {
                     treatments.push(Instanciation::build_from_type(
                         element_annotations,
+                        element_name.clone(),
+                        &mut iter,
+                        global_annotations,
+                    )?)
+                }
+                Some(w) if w.kind == Some(Kind::OpeningChevron) => {
+                    treatments.push(Instanciation::build_from_generics(
+                        element_annotations,
+                        element_name.clone(),
                         element_name.clone(),
                         &mut iter,
                         global_annotations,
@@ -285,6 +301,7 @@ impl Treatment {
                         element_annotations,
                         element_name.clone(),
                         element_name.clone(),
+                        Vec::new(),
                         &mut iter,
                         global_annotations,
                     )?)
@@ -294,6 +311,7 @@ impl Treatment {
                         element_annotations,
                         element_name.clone(),
                         element_name.clone(),
+                        Vec::new(),
                         Vec::new(),
                         &mut iter,
                         global_annotations,
@@ -329,6 +347,7 @@ impl Treatment {
                         w.clone(),
                         &[
                             Kind::Colon,
+                            Kind::OpeningChevron,
                             Kind::OpeningBracket,
                             Kind::OpeningParenthesis,
                             Kind::Dot,
@@ -347,6 +366,7 @@ impl Treatment {
         Ok(Self {
             annotations: self_annotations,
             name,
+            generics,
             configuration,
             parameters,
             models,
