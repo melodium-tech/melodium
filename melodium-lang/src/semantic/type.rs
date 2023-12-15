@@ -4,8 +4,7 @@ use crate::ScriptError;
 use crate::{text::Type as TextType, ScriptResult};
 use melodium_common::descriptor::{
     DataType as DataTypeDescriptor, DescribedType as DescribedTypeDescriptor,
-    Flow as FlowDescriptor, Structure as DataTypeStructureDescriptor,
-    Type as DataTypeTypeDescriptor,
+    Flow as FlowDescriptor,
 };
 use std::fmt;
 

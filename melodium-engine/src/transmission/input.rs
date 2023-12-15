@@ -120,157 +120,157 @@ impl ExecutiveInput for Input {
         Ok(self.recv_many().await?.try_into().unwrap())
     }
     async fn recv_vec_void(&self) -> RecvResult<Vec<Vec<()>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_u8(&self) -> RecvResult<Vec<Vec<u8>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_u16(&self) -> RecvResult<Vec<Vec<u16>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_u32(&self) -> RecvResult<Vec<Vec<u32>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_u64(&self) -> RecvResult<Vec<Vec<u64>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_u128(&self) -> RecvResult<Vec<Vec<u128>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_i8(&self) -> RecvResult<Vec<Vec<i8>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_i16(&self) -> RecvResult<Vec<Vec<i16>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_i32(&self) -> RecvResult<Vec<Vec<i32>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_i64(&self) -> RecvResult<Vec<Vec<i64>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_i128(&self) -> RecvResult<Vec<Vec<i128>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_f32(&self) -> RecvResult<Vec<Vec<f32>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_f64(&self) -> RecvResult<Vec<Vec<f64>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_bool(&self) -> RecvResult<Vec<Vec<bool>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_byte(&self) -> RecvResult<Vec<Vec<u8>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_char(&self) -> RecvResult<Vec<Vec<char>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_vec_string(&self) -> RecvResult<Vec<Vec<String>>> {
-        Ok(self.recv_many().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_void(&self) -> RecvResult<()> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_u8(&self) -> RecvResult<u8> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_u16(&self) -> RecvResult<u16> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_u32(&self) -> RecvResult<u32> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_u64(&self) -> RecvResult<u64> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_u128(&self) -> RecvResult<u128> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_i8(&self) -> RecvResult<i8> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_i16(&self) -> RecvResult<i16> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_i32(&self) -> RecvResult<i32> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_i64(&self) -> RecvResult<i64> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_i128(&self) -> RecvResult<i128> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_f32(&self) -> RecvResult<f32> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_f64(&self) -> RecvResult<f64> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_bool(&self) -> RecvResult<bool> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_byte(&self) -> RecvResult<u8> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_char(&self) -> RecvResult<char> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_string(&self) -> RecvResult<String> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_void(&self) -> RecvResult<Vec<()>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_u8(&self) -> RecvResult<Vec<u8>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_u16(&self) -> RecvResult<Vec<u16>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_u32(&self) -> RecvResult<Vec<u32>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_u64(&self) -> RecvResult<Vec<u64>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_u128(&self) -> RecvResult<Vec<u128>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_i8(&self) -> RecvResult<Vec<i8>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_i16(&self) -> RecvResult<Vec<i16>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_i32(&self) -> RecvResult<Vec<i32>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_i64(&self) -> RecvResult<Vec<i64>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_i128(&self) -> RecvResult<Vec<i128>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_f32(&self) -> RecvResult<Vec<f32>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_f64(&self) -> RecvResult<Vec<f64>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_bool(&self) -> RecvResult<Vec<bool>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_byte(&self) -> RecvResult<Vec<u8>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_char(&self) -> RecvResult<Vec<char>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
     async fn recv_one_vec_string(&self) -> RecvResult<Vec<String>> {
-        Ok(self.recv_one().await?.try_into().unwrap())
+        unimplemented!()
     }
 }
 

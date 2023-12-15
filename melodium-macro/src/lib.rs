@@ -2,7 +2,7 @@
 #![doc = include_str!("../README.md")]
 
 use convert_case::{Case, Casing};
-use core::{borrow::Borrow, convert::TryFrom, iter::FromIterator};
+use core::{borrow::Borrow, convert::TryFrom, iter::FromIterator, slice::Iter};
 use litrs::StringLit;
 use proc_macro::TokenStream;
 use proc_macro2::{token_stream::IntoIter as IntoIterTokenStream, TokenTree};
@@ -13,32 +13,30 @@ use syn::{
     PathArguments, ReturnType, Type,
 };
 
-fn into_mel_type(ty: &Type) -> String {
+fn into_mel_type(ty: &Type) -> Vec<String> {
     match ty {
         Type::Path(path) => {
             let ty = path.path.segments.first().expect("Type expected");
 
-            if ty.ident.to_string() == "Vec" {
-                if let PathArguments::AngleBracketed(ab) = &ty.arguments {
-                    if let GenericArgument::Type(ty) = ab.args.first().expect("Type expected") {
-                        let internal_type = into_mel_type(ty);
-                        format!("Vec{internal_type}")
+            let text_ty = ty.ident.to_string();
+            let mut desc = Vec::new();
+            desc.push(text_ty.clone());
+            match text_ty.as_str() {
+                "Vec" | "Option" => {
+                    if let PathArguments::AngleBracketed(ab) = &ty.arguments {
+                        if let GenericArgument::Type(ty) = ab.args.first().expect("Type expected") {
+                            desc.append(&mut into_mel_type(ty));
+                        } else {
+                            panic!("Type expected");
+                        }
                     } else {
                         panic!("Type expected");
                     }
-                } else {
-                    panic!("Type expected");
                 }
-            } else {
-                let internal_type = ty.ident.to_string();
-                match internal_type.as_str() {
-                    "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
-                    | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" => {
-                        internal_type.to_case(Case::UpperCamel)
-                    }
-                    _ => panic!("Given type is not a Mélodium one"),
-                }
+                _ => {}
             }
+
+            desc
         }
         _ => {
             panic!("Type expected");
@@ -46,176 +44,132 @@ fn into_mel_type(ty: &Type) -> String {
     }
 }
 
-fn into_mel_datatype(ty: &str) -> String {
-    match ty {
-        "U8" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U8)",
-"U16" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U16)",
-"U32" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U32)",
-"U64" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U64)",
-"U128" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U128)",
-"I8" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I8)",
-"I16" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I16)",
-"I32" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I32)",
-"I64" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I64)",
-"I128" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I128)",
-"F32" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::F32)",
-"F64" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::F64)",
-"Bool" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::Bool)",
-"Byte" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::Byte)",
-"Char" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::Char)",
-"String" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::String)",
-"Void" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::Void)",
-"VecU8" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U8)",
-"VecU16" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U16)",
-"VecU32" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U32)",
-"VecU64" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U64)",
-"VecU128" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U128)",
-"VecI8" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I8)",
-"VecI16" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I16)",
-"VecI32" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I32)",
-"VecI64" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I64)",
-"VecI128" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I128)",
-"VecF32" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::F32)",
-"VecF64" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::F64)",
-"VecBool" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::Bool)",
-"VecByte" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::Byte)",
-"VecChar" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::Char)",
-"VecString" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::String)",
-"VecVoid" => "melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::Void)",
-_ => panic!("Given type cannot be made into datatype"),
-    }.to_string()
+fn into_mel_datatype(ty: &Vec<String>) -> String {
+    fn write_datatype(iter: &mut Iter<String>) -> String {
+        let mut desc = String::new();
+        if let Some(ty) = iter.next() {
+            desc.push_str("melodium_core::common::descriptor::DataType::");
+            desc.push_str(&ty.to_case(Case::UpperCamel));
+
+            let next = write_datatype(iter);
+            if !next.is_empty() {
+                desc.push_str("(Box::new(");
+                desc.push_str(&next);
+                desc.push_str("))");
+            }
+        }
+        desc
+    }
+
+    write_datatype(&mut ty.iter())
 }
 
-fn into_mel_described_type(ty: &str) -> String {
-    match ty {
-        "U8" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U8))".to_string(),
-"U16" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U16))".to_string(),
-"U32" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U32))".to_string(),
-"U64" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U64))".to_string(),
-"U128" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::U128))".to_string(),
-"I8" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I8))".to_string(),
-"I16" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I16))".to_string(),
-"I32" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I32))".to_string(),
-"I64" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I64))".to_string(),
-"I128" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::I128))".to_string(),
-"F32" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::F32))".to_string(),
-"F64" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::F64))".to_string(),
-"Bool" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::Bool))".to_string(),
-"Byte" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::Byte))".to_string(),
-"Char" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::Char))".to_string(),
-"String" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::String))".to_string(),
-"Void" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Scalar, melodium_core::common::descriptor::Type::Void))".to_string(),
-"VecU8" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U8))".to_string(),
-"VecU16" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U16))".to_string(),
-"VecU32" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U32))".to_string(),
-"VecU64" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U64))".to_string(),
-"VecU128" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::U128))".to_string(),
-"VecI8" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I8))".to_string(),
-"VecI16" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I16))".to_string(),
-"VecI32" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I32))".to_string(),
-"VecI64" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I64))".to_string(),
-"VecI128" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::I128))".to_string(),
-"VecF32" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::F32))".to_string(),
-"VecF64" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::F64))".to_string(),
-"VecBool" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::Bool))".to_string(),
-"VecByte" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::Byte))".to_string(),
-"VecChar" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::Char))".to_string(),
-"VecString" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::String))".to_string(),
-"VecVoid" => "melodium_core::common::descriptor::DescribedType::Concrete(melodium_core::common::descriptor::DataType::new(melodium_core::common::descriptor::Structure::Vector, melodium_core::common::descriptor::Type::Void))".to_string(),
-generic => format!(r#"melodium_core::common::descriptor::DescribedType::Generic("{generic}".to_string())"#),
+fn into_mel_described_type(ty: &Vec<String>) -> String {
+    let mut desc = String::new();
+    if ty.len() == 1 {
+        match ty.first().unwrap().as_str() {
+            "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16" | "u32"
+            | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" => {
+                desc.push_str("melodium_core::common::descriptor::DescribedType::Concrete(");
+                desc.push_str(&into_mel_datatype(ty));
+                desc.push(')');
+            }
+            generic => {
+                desc.push_str(r#"melodium_core::common::descriptor::DescribedType::Generic(""#);
+                desc.push_str(generic);
+                desc.push_str(r#"".to_string())"#);
+            }
+        }
+    } else {
+        desc.push_str("melodium_core::common::descriptor::DescribedType::Concrete(");
+        desc.push_str(&into_mel_datatype(ty));
+        desc.push(')');
     }
+
+    desc
 }
 
-fn into_rust_type(ty: &str) -> String {
-    match ty {
-        "U8" => "u8",
-        "U16" => "u16",
-        "U32" => "u32",
-        "U64" => "u64",
-        "U128" => "u128",
-        "I8" => "i8",
-        "I16" => "i16",
-        "I32" => "i32",
-        "I64" => "i64",
-        "I128" => "i128",
-        "F32" => "f32",
-        "F64" => "f64",
-        "Bool" => "bool",
-        "Byte" => "byte",
-        "Char" => "char",
-        "String" => "string",
-        "Void" => "void",
-        "VecU8" => "Vec<u8>",
-        "VecU16" => "Vec<u16>",
-        "VecU32" => "Vec<u32>",
-        "VecU64" => "Vec<u64>",
-        "VecU128" => "Vec<u128>",
-        "VecI8" => "Vec<i8>",
-        "VecI16" => "Vec<i16>",
-        "VecI32" => "Vec<i32>",
-        "VecI64" => "Vec<i64>",
-        "VecI128" => "Vec<i128>",
-        "VecF32" => "Vec<f32>",
-        "VecF64" => "Vec<f64>",
-        "VecBool" => "Vec<bool>",
-        "VecByte" => "Vec<byte>",
-        "VecChar" => "Vec<char>",
-        "VecString" => "Vec<string>",
-        "VecVoid" => "Vec<void>",
-        _ => panic!("Given type cannot be made into rust one"),
+fn into_rust_type(ty: &Vec<String>) -> String {
+    fn add_type(iter: &mut Iter<String>) -> String {
+        let mut desc = String::new();
+        if let Some(ty) = iter.next() {
+            desc.push_str(ty);
+
+            let next = add_type(iter);
+            if !next.is_empty() {
+                desc.push('<');
+                desc.push_str(&next);
+                desc.push('>');
+            }
+        }
+        desc
     }
-    .to_string()
+
+    add_type(&mut ty.iter())
 }
 
-fn into_rust_value(ty: &str, lit: &str) -> String {
-    match ty {
-        "Byte" => format!("{lit}u8"),
-        "F32" => format!("{lit}f32"),
-        "F64" => format!("{lit}f64"),
-        "String" => format!("{lit}.to_string()"),
-        _ => lit.to_string(),
+fn into_rust_value(ty: &Vec<String>, lit: &str) -> String {
+    fn add_value(iter: &mut Iter<String>, lit: &str) -> String {
+        let mut desc = String::new();
+        if let Some(ty) = iter.next() {
+            match ty.as_str() {
+                "Vec" => {
+                    desc.push_str("melodium_core::common::executive::Value::Vec(vec![");
+                    let next = add_value(iter, lit);
+                    if !next.is_empty() {
+                        desc.push_str(&next);
+                    }
+                    desc.push_str("])");
+                }
+                "Option" => {
+                    let next = add_value(iter, lit);
+                    if !next.is_empty() {
+                        desc.push_str(
+                            "melodium_core::common::executive::Value::Option(Some(Box::new(",
+                        );
+                        desc.push_str(&next);
+                        desc.push_str(")))");
+                    } else {
+                        desc.push_str(
+                            "melodium_core::common::executive::Value::Option(Box::new(None))",
+                        );
+                    }
+                }
+                mel_ty => {
+                    desc.push_str("melodium_core::common::executive::Value::");
+                    desc.push_str(&mel_ty.to_case(Case::UpperCamel));
+                    desc.push('(');
+                    match mel_ty {
+                        "byte" => {
+                            desc.push_str(lit);
+                            desc.push_str("u8");
+                        }
+                        "f32" => {
+                            desc.push_str(lit);
+                            desc.push_str("f32");
+                        }
+                        "f64" => {
+                            desc.push_str(lit);
+                            desc.push_str("f64");
+                        }
+                        "string" => {
+                            desc.push_str(lit);
+                            desc.push_str(".to_string()");
+                        }
+                        _ => desc.push_str(lit),
+                    }
+                    desc.push(')');
+                }
+            }
+        }
+        desc
     }
+
+    add_value(&mut ty.iter(), lit)
 }
 
-fn into_mel_value_call(ty: &str) -> String {
-    match ty {
-        "U8" => "u8",
-        "U16" => "u16",
-        "U32" => "u32",
-        "U64" => "u64",
-        "U128" => "u128",
-        "I8" => "i8",
-        "I16" => "i16",
-        "I32" => "i32",
-        "I64" => "i64",
-        "I128" => "i128",
-        "F32" => "f32",
-        "F64" => "f64",
-        "Bool" => "bool",
-        "Byte" => "byte",
-        "Char" => "char",
-        "String" => "string",
-        "Void" => "void",
-        "VecU8" => "vec_u8",
-        "VecU16" => "vec_u16",
-        "VecU32" => "vec_u32",
-        "VecU64" => "vec_u64",
-        "VecU128" => "vec_u128",
-        "VecI8" => "vec_i8",
-        "VecI16" => "vec_i16",
-        "VecI32" => "vec_i32",
-        "VecI64" => "vec_i64",
-        "VecI128" => "vec_i128",
-        "VecF32" => "vec_f32",
-        "VecF64" => "vec_f64",
-        "VecBool" => "vec_bool",
-        "VecByte" => "vec_byte",
-        "VecChar" => "vec_char",
-        "VecString" => "vec_string",
-        "VecVoid" => "vec_void",
-        _ => panic!("Given type cannot be made into value call"),
-    }
-    .to_string()
+fn into_mel_value_call(ty: &Vec<String>) -> String {
+    format!("melodium_core::common::executive::GetData::<{}>::try_data", into_rust_type(ty))
 }
 
 fn config_default(ts: &mut IntoIterTokenStream) -> (String, String) {
@@ -228,7 +182,7 @@ fn config_default(ts: &mut IntoIterTokenStream) -> (String, String) {
 
 fn config_param(
     ts: &mut IntoIterTokenStream,
-) -> (String, String, Option<String>, HashMap<String, String>) {
+) -> (String, Vec<String>, Option<String>, HashMap<String, String>) {
     let mut next = ts.next();
     let attributes;
     if let Some(TokenTree::Group(attrs)) = next {
@@ -258,7 +212,7 @@ fn config_full_source(
 ) -> (
     String,
     Vec<String>,
-    Vec<(String, String, String, HashMap<String, String>)>,
+    Vec<(String, String, Vec<String>, HashMap<String, String>)>,
     HashMap<String, String>,
 ) {
     let mut next = ts.next();
@@ -432,36 +386,28 @@ fn token_stream_to_model_address(ts: proc_macro2::TokenStream) -> String {
     steps.join("::")
 }
 
-fn config_ty(ts: &mut IntoIterTokenStream) -> String {
-    let mel_ty;
-    if let Some(TokenTree::Ident(ty_env)) = ts.next() {
-        let ty_env = ty_env.to_string();
-        let env;
-        let ty;
-        if ty_env == "Vec" {
-            env = "Vec";
-            ts.next(); // <
-            if let Some(TokenTree::Ident(mandatory_ty)) = ts.next() {
-                ty = mandatory_ty.to_string().to_case(Case::UpperCamel);
-            } else {
-                panic!("Type identity expected")
+fn config_ty(mut ts: &mut IntoIterTokenStream) -> Vec<String> {
+    let mut list = Vec::new();
+    if let Some(TokenTree::Ident(ty)) = ts.next() {
+        let ty = ty.to_string();
+        list.push(ty.clone());
+        match ty.as_str() {
+            "Vec" | "Option" => {
+                ts.next(); // <
+                list.append(&mut config_ty(&mut ts));
+                ts.next(); // >
             }
-            ts.next(); // >
-        } else {
-            env = "";
-            ty = ty_env.to_case(Case::UpperCamel);
+            _ => {}
         }
-        mel_ty = format!("{env}{ty}");
     } else {
         panic!("Type identity expected")
     }
-
-    mel_ty
+    list
 }
 
 fn config_io(
     ts: &mut IntoIterTokenStream,
-) -> Option<(String, String, String, HashMap<String, String>)> {
+) -> Option<(String, String, Vec<String>, HashMap<String, String>)> {
     let mut next = ts.next();
     let attributes;
     if let Some(TokenTree::Group(attrs)) = next {
@@ -941,19 +887,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                         acc
                     });
 
-                // This part should be removable once structure become abstract
-                let ty = match t.ty.borrow() {
-                    Type::Path(path) => {
-                        let ty = path.path.segments.first().expect("Type expected");
-                        let ty = ty.ident.to_string();
-                        if !generics.contains(&ty) {
-                            into_mel_type(t.ty.borrow())
-                        } else {
-                            ty
-                        }
-                    }
-                    _ => panic!("Type expected"),
-                };
+                let ty = into_mel_type(t.ty.borrow());
 
                 params.insert(name, (ty, attributes));
             }
@@ -982,7 +916,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
             .unwrap();
         let parameters: proc_macro2::TokenStream = params.iter().map(|(name, (ty, attributes))| {
             let described_type = into_mel_described_type(ty);
-            let default = defaults.get(name).map(|lit| format!("Some(melodium_core::common::executive::Value::{ty}({val}))", val = into_rust_value(ty, lit))).unwrap_or_else(|| String::from("None"));
+            let default = defaults.get(name).map(|lit| format!("Some({val})", val = into_rust_value(ty, lit))).unwrap_or_else(|| String::from("None"));
             let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
             format!(
                 r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Var, {described_type}, {default}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#
@@ -1066,9 +1000,12 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let parameters: proc_macro2::TokenStream = params
             .iter()
             .map(|(name, (ty, _))| {
-                if generics.contains(ty) {
+                if generics.contains(ty.last().unwrap()) {
                     format!(r#"r#{name}: std::sync::Mutex<Option<melodium_core::common::executive::Value>>,"#)
-                } else {let rust_type = into_rust_type(ty);format!(r#"r#{name}: std::sync::Mutex<Option<{rust_type}>>,"#)}
+                } else {
+                    let rust_type = into_rust_type(ty);
+                    format!(r#"r#{name}: std::sync::Mutex<Option<{rust_type}>>,"#)
+                }
             })
             .collect::<Vec<_>>()
             .join("")
@@ -1102,7 +1039,11 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
             .map(|(name, (ty, _))| {
                 let default = defaults
                     .get(name)
-                    .map(|lit| format!("Some({val})", val = into_rust_value(ty, lit)))
+                    .map(|lit| if generics.contains(ty.last().unwrap()) {
+                        format!("Some({val})", val = into_rust_value(ty, lit))
+                    } else {
+                        format!("Some({call}({val}).unwrap())", call = into_mel_value_call(ty), val = into_rust_value(ty, lit))
+                    })
                     .unwrap_or_else(|| String::from("None"));
                 format!(r#"r#{name}: std::sync::Mutex::new({default}),"#)
             })
@@ -1151,11 +1092,11 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let parameters: proc_macro2::TokenStream = params
             .iter()
             .map(|(name, (ty, _))| {
-                if generics.contains(ty) {
+                if generics.contains(ty.last().unwrap()) {
                     format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(value),"#)
                 } else {
                     let call = into_mel_value_call(ty);
-                    format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(value.{call}()),"#)
+                    format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some({call}(value).unwrap()),"#)
                 }
             })
             .collect::<Vec<_>>()
@@ -1387,7 +1328,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
             .unwrap();
         let parameters: proc_macro2::TokenStream = params.iter().map(|(name, (ty, default, attributes))| {
             let described_type = into_mel_described_type(ty);
-            let default = default.as_ref().map(|lit| format!("Some(melodium_core::common::executive::Value::{ty}({val}))", val = into_rust_value(ty, lit))).unwrap_or_else(|| String::from("None"));
+            let default = default.as_ref().map(|lit| format!("Some({val})", val = into_rust_value(ty, lit))).unwrap_or_else(|| String::from("None"));
             let attributes = attributes.iter().map(|(name, value)| format!(r#"attrs.insert("{name}".to_string(), "{value}".to_string())"#)).collect::<Vec<_>>().join(";");
             format!(
                 r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Const, {described_type}, {default}, {{let mut attrs = melodium_core::common::descriptor::Attributes::new();{attributes};attrs}})"#
@@ -1469,7 +1410,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 format!(
                     r#"
                 pub fn get_{name}(&self) -> {rust_type} {{
-                    self.parameter("{name}").unwrap().{call}()
+                    {call}(self.parameter("{name}").unwrap()).unwrap()
                 }}
             "#
                 )
@@ -1528,14 +1469,22 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
         )
     }).collect::<Vec<_>>().join(",").parse().unwrap();*/
 
-    let parameters_initialization: proc_macro2::TokenStream = params.iter().filter_map(|(name, (ty, default, _))| {
-        if let Some(default) = default {
-            Some(
-                format!(r#"("{name}".to_string(), melodium_core::common::executive::Value::{ty}({val}))"#, val = into_rust_value(ty, default))
-            )
-        }
-        else { None }
-    }).collect::<Vec<_>>().join(",").parse().unwrap();
+    let parameters_initialization: proc_macro2::TokenStream = params
+        .iter()
+        .filter_map(|(name, (ty, default, _))| {
+            if let Some(default) = default {
+                Some(format!(
+                    r#"("{name}".to_string(), {val})"#,
+                    val = into_rust_value(ty, default)
+                ))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(",")
+        .parse()
+        .unwrap();
 
     let element_name = name.to_case(Case::UpperCamel);
     let module_name: proc_macro2::TokenStream = format!("__mel_model_{name}").parse().unwrap();
@@ -1765,9 +1714,9 @@ pub fn mel_context(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let implementation;
     {
-        let get: proc_macro2::TokenStream = fields.iter().map(|(name, ty)| {
+        let get: proc_macro2::TokenStream = fields.iter().map(|(name, _)| {
             format!(
-                r#""{name}" => melodium_core::common::executive::Value::{ty}(self.{name}.clone())"#
+                r#""{name}" => melodium_core::common::executive::Value::from(self.{name}.clone())"#
             )
         }).collect::<Vec<_>>().join(",").parse().unwrap();
 
@@ -1775,7 +1724,7 @@ pub fn mel_context(attr: TokenStream, item: TokenStream) -> TokenStream {
             .iter()
             .map(|(name, ty)| {
                 let call = into_mel_value_call(ty);
-                format!(r#""{name}" => {{self.{name} = value.{call}();}}"#)
+                format!(r#""{name}" => {{self.{name} = {call}(value).unwrap();}}"#)
             })
             .collect::<Vec<_>>()
             .join(",")
@@ -1917,19 +1866,7 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
                         .unwrap_or(true)
                 });
 
-                // This part should be removable once structure become abstract
-                let ty = match t.ty.borrow() {
-                    Type::Path(path) => {
-                        let ty = path.path.segments.first().expect("Type expected");
-                        let ty = ty.ident.to_string();
-                        if !generics.contains(&ty) {
-                            into_mel_type(t.ty.borrow())
-                        } else {
-                            ty
-                        }
-                    }
-                    _ => panic!("Type expected"),
-                };
+                let ty = into_mel_type(t.ty.borrow());
 
                 args.push((name, (ty, attributes)));
             }
@@ -1946,7 +1883,6 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
         .unwrap();
     let (return_type, is_return_type_generic) =
         if let ReturnType::Type(_, rt) = &function.sig.output {
-            // This part should be removable once structure become abstract
             match rt.borrow() {
                 Type::Path(path) => {
                     let ty = path.path.segments.first().expect("Type expected");
@@ -1954,7 +1890,7 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
                     if !generics.contains(&ty) {
                         (into_mel_type(rt), false)
                     } else {
-                        (ty, true)
+                        (vec![ty], true)
                     }
                 }
                 _ => panic!("Type expected"),
@@ -1966,10 +1902,10 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
         .iter()
         .enumerate()
         .map(|(i, (_, (ty, _)))| {
-            if generics.contains(ty) {
+            if generics.contains(ty.last().unwrap()) {
                 format!("params[{i}].clone()")
             } else {
-                format!("params[{i}].clone().{}()", into_mel_value_call(ty))
+                format!("{}(params[{i}].clone()).unwrap()", into_mel_value_call(ty))
             }
         })
         .collect::<Vec<_>>()
@@ -1977,7 +1913,7 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mel_call = if is_return_type_generic {
         format!("{name}({params_call})",)
     } else {
-        format!("melodium_core::common::executive::Value::{return_type}({name}({params_call}))",)
+        format!("melodium_core::common::executive::Value::from({name}({params_call}))")
     };
 
     let attributes: proc_macro2::TokenStream = attributes

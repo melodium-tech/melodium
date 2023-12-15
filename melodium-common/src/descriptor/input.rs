@@ -2,7 +2,7 @@ use super::{Attribuable, Attributes, DescribedType, Flow, Output};
 use core::fmt::{Display, Formatter, Result};
 use std::collections::HashMap;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Input {
     name: String,
     described_type: DescribedType,
