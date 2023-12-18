@@ -12,6 +12,8 @@ use crate::ScriptError;
 /// It sets what kind of value is represented, as well as its associated text.
 #[derive(Clone, Debug)]
 pub enum Value {
+    /// Void value, can represent option none.
+    Void(PositionnedString),
     /// `true` or `false`.
     Boolean(PositionnedString),
     /// Number, see [Kind::Number].
@@ -144,6 +146,10 @@ impl Value {
                     string: value.text.clone(),
                     position: value.position,
                 })),
+                Some(Kind::Underscore) => Ok(Self::Void(PositionnedString {
+                    string: value.text.clone(),
+                    position: value.position,
+                })),
                 Some(Kind::Name) => {
                     if value.text == "true" || value.text == "false" {
                         Ok(Self::Boolean(PositionnedString {
@@ -175,6 +181,7 @@ impl Value {
 
     pub fn get_positionned_string(&self) -> &PositionnedString {
         match self {
+            Value::Void(ps) => ps,
             Value::Boolean(ps) => ps,
             Value::Number(ps) => ps,
             Value::String(ps) => ps,

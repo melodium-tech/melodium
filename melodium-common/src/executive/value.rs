@@ -361,7 +361,7 @@ impl Value {
 impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Value::Void(_) => write!(f, "()"),
+            Value::Void(_) => write!(f, "_"),
             Value::I8(v) => write!(f, "{}", v),
             Value::I16(v) => write!(f, "{}", v),
             Value::I32(v) => write!(f, "{}", v),
@@ -380,9 +380,9 @@ impl Display for Value {
             Value::String(v) => write!(f, "\"{}\"", v.replace('"', "\\\"")),
             Value::Option(v) => {
                 if let Some(v) = v {
-                    write!(f, "Some({v})")
+                    write!(f, "{v}")
                 } else {
-                    write!(f, "None")
+                    write!(f, "_")
                 }
             }
             Value::Vec(v) => write!(

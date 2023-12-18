@@ -42,7 +42,7 @@ pub use input::Input;
 pub use model::Model;
 pub use model_instanciation::ModelInstanciation;
 pub use output::Output;
-pub use r#type::{Type, TypeFlow, TypeName, TypeStructure};
+pub use r#type::{Type, TypeContent, TypeFlow};
 pub use r#use::Use;
 pub use requirement::Requirement;
 pub use script::Script;

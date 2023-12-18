@@ -56,6 +56,7 @@ impl Value {
         text: &TextValue,
     ) -> ScriptResult<ValueContent> {
         match text {
+            TextValue::Void(_) => ScriptResult::new_success(ValueContent::Void),
             TextValue::Boolean(b) => Self::parse_boolean(b),
             TextValue::Number(n) => Self::parse_number(n),
             TextValue::String(s) => Self::parse_string(s),
@@ -174,6 +175,9 @@ impl Value {
         let content;
 
         match value {
+            ValueContent::Void => {
+                content = ValueContent::Void;
+            }
             ValueContent::Boolean(b) => {
                 content = ValueContent::Boolean(*b);
             }

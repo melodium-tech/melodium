@@ -3,5 +3,5 @@ pub mod content;
 pub mod script;
 
 pub use content::{Content, ContentError};
-#[cfg(feature = "script")]
-pub use script::Script;
+//#[cfg(feature = "script")]
+//pub use script::Script;

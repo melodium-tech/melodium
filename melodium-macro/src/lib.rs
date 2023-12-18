@@ -169,7 +169,10 @@ fn into_rust_value(ty: &Vec<String>, lit: &str) -> String {
 }
 
 fn into_mel_value_call(ty: &Vec<String>) -> String {
-    format!("melodium_core::common::executive::GetData::<{}>::try_data", into_rust_type(ty))
+    format!(
+        "melodium_core::common::executive::GetData::<{}>::try_data",
+        into_rust_type(ty)
+    )
 }
 
 fn config_default(ts: &mut IntoIterTokenStream) -> (String, String) {
@@ -1039,10 +1042,16 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
             .map(|(name, (ty, _))| {
                 let default = defaults
                     .get(name)
-                    .map(|lit| if generics.contains(ty.last().unwrap()) {
-                        format!("Some({val})", val = into_rust_value(ty, lit))
-                    } else {
-                        format!("Some({call}({val}).unwrap())", call = into_mel_value_call(ty), val = into_rust_value(ty, lit))
+                    .map(|lit| {
+                        if generics.contains(ty.last().unwrap()) {
+                            format!("Some({val})", val = into_rust_value(ty, lit))
+                        } else {
+                            format!(
+                                "Some({call}({val}).unwrap())",
+                                call = into_mel_value_call(ty),
+                                val = into_rust_value(ty, lit)
+                            )
+                        }
                     })
                     .unwrap_or_else(|| String::from("None"));
                 format!(r#"r#{name}: std::sync::Mutex::new({default}),"#)

@@ -119,7 +119,7 @@ impl DeclaredParameter {
             })
             .and_then(|(described_type, flow)| {
                 if let Some(val) = &self.value {
-                    match described_type {
+                    match &described_type {
                         DescribedType::Concrete(datatype) => val
                             .read()
                             .unwrap()
