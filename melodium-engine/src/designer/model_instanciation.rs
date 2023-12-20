@@ -109,6 +109,7 @@ impl ModelInstanciation {
         let parameter = Parameter::new(
             &(self.host_treatment.upgrade().unwrap() as Arc<RwLock<dyn Scope>>),
             &host_descriptor.as_parameterized(),
+            &Arc::new(RwLock::new(HashMap::new())),
             self.host_id.clone(),
             &self.descriptor().as_parameterized(),
             &Arc::new(RwLock::new(HashMap::new())),

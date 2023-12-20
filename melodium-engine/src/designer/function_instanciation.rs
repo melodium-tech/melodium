@@ -12,6 +12,7 @@ use std::{
 pub struct FunctionInstanciation {
     descriptor: Weak<dyn FunctionDescriptor>,
     scope_descriptor: Weak<dyn Parameterized>,
+    scope_generics: Arc<RwLock<HashMap<String, DescribedType>>>,
     scope_id: Identifier,
     parameter_name: String,
     generics: Arc<RwLock<HashMap<String, DescribedType>>>,
@@ -22,6 +23,7 @@ impl FunctionInstanciation {
     pub fn new(
         descriptor: &Arc<dyn FunctionDescriptor>,
         scope_descriptor: &Arc<dyn Parameterized>,
+        scope_generics: &Arc<RwLock<HashMap<String, DescribedType>>>,
         scope_id: Identifier,
         parameter_name: &str,
         generics: Arc<RwLock<HashMap<String, DescribedType>>>,
@@ -30,6 +32,7 @@ impl FunctionInstanciation {
         Self {
             descriptor: Arc::downgrade(descriptor),
             scope_descriptor: Arc::downgrade(scope_descriptor),
+            scope_generics: Arc::clone(scope_generics),
             scope_id,
             parameter_name: parameter_name.to_string(),
             generics,
@@ -95,8 +98,9 @@ impl FunctionInstanciation {
                         }
 
                         if !param_descriptor.described_type().is_compatible(
-                            scope_variable.described_type(),
                             &self.generics.read().unwrap(),
+                            scope_variable.described_type(),
+                            &self.scope_generics.read().unwrap(),
                         ) {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 17,
@@ -157,6 +161,7 @@ impl FunctionInstanciation {
                     let function_instanciation = FunctionInstanciation::new(
                         descriptor,
                         &self.scope_descriptor.upgrade().unwrap(),
+                        &self.scope_generics,
                         self.scope_id.clone(),
                         &self.parameter_name,
                         Arc::new(RwLock::new(generics.clone())),
@@ -167,10 +172,11 @@ impl FunctionInstanciation {
                         function_instanciation
                             .check_function_return(parameters)
                             .and_then(|(sub_variability, sub_return_type)| {
-                                if !param_descriptor
-                                    .described_type()
-                                    .is_compatible(&sub_return_type, &self.generics.read().unwrap())
-                                {
+                                if !param_descriptor.described_type().is_compatible(
+                                    &self.generics.read().unwrap(),
+                                    &sub_return_type,
+                                    &HashMap::new(),
+                                ) {
                                     LogicResult::new_failure(LogicError::unmatching_datatype(
                                         214,
                                         self.scope_id.clone(),

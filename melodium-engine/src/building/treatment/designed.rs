@@ -84,7 +84,7 @@ impl Builder {
         }
     }
 
-    fn get_const_value(value: &Value, genesis_environment: &GenesisEnvironment) -> ExecutiveValue {
+    /*fn get_const_value(value: &Value, genesis_environment: &GenesisEnvironment) -> ExecutiveValue {
         match value {
             Value::Raw(data) => data.clone(),
             Value::Variable(name) => genesis_environment.get_variable(&name).unwrap().clone(),
@@ -99,37 +99,39 @@ impl Builder {
             // Not possible in constant situation to use context, should have been catched by designer, aborting
             _ => panic!("Impossible data recoverage"),
         }
-    }
+    }*/
 
     fn get_value(
         value: &Value,
         genesis_environment: &GenesisEnvironment,
-        contextual_environment: &ContextualEnvironment,
-    ) -> ExecutiveValue {
+        contextual_environment: Option<&ContextualEnvironment>,
+    ) -> Option<ExecutiveValue> {
         match value {
-            Value::Raw(data) => data.clone(),
+            Value::Raw(data) => Some(data.clone()),
             Value::Variable(name) => {
-                if let Some(data) = contextual_environment.get_variable(&name) {
-                    data.clone()
-                } else {
+                if let Some(data) = contextual_environment.map(|ce| ce.get_variable(&name)).flatten() {
+                    Some(data.clone())
+                }
+                else {
                     genesis_environment
                         .get_variable(&name)
-                        .expect("Impossible data recoverage")
-                        .clone()
+                        .cloned()
                 }
             }
-            Value::Context(context, entry) => contextual_environment
-                .get_context(context.name())
-                .unwrap()
-                .get_value(entry)
-                .clone(),
+            Value::Context(context, entry) => contextual_environment.map(|ce| ce.get_context(context.name()).map(|c| c.get_value(entry))).flatten(),
             Value::Function(descriptor, _generics, params) => {
-                let executive_values = params
-                    .iter()
-                    .map(|v| Self::get_value(v, genesis_environment, contextual_environment))
-                    .collect();
+                let mut executive_values = Vec::with_capacity(descriptor.parameters().len());
+                for parameter in params {
+                    if let Some(value) = Self::get_value(parameter, genesis_environment, contextual_environment) {
+                        executive_values.push(value);
+                    }
+                    else {
+                        return None;
+                    }
+                }
 
-                descriptor.function()(executive_values)
+
+                Some(descriptor.function()(executive_values))
             }
         }
     }
@@ -167,11 +169,11 @@ impl BuilderTrait for Builder {
 
         // Instanciate models
         for (instanciation_name, model_instanciation) in &self.design.model_instanciations {
-            let mut remastered_environment = environment.base();
+            let mut remastered_environment = GenesisEnvironment::new();
 
             for (name, parameter) in &model_instanciation.parameters {
                 let data =
-                    Self::get_const_value(&parameter.value, &build_sample.genesis_environment);
+                    Self::get_value(&parameter.value, &build_sample.genesis_environment, None).expect("Impossible model parameter recoverage");
 
                 remastered_environment.add_variable(&name, data);
             }
@@ -205,7 +207,7 @@ impl BuilderTrait for Builder {
 
         // Make the internal treatments being built
         for (treatment_name, treatment) in &self.design.treatments {
-            let mut remastered_environment = environment.base();
+            let mut remastered_environment = GenesisEnvironment::new();
             let treatment_descriptor = treatment.descriptor.upgrade().unwrap();
 
             // Setup models
@@ -240,18 +242,12 @@ impl BuilderTrait for Builder {
 
             // Setup parameters
             for (name, parameter) in &treatment.parameters {
-                if treatment_descriptor
-                    .parameters()
-                    .get(name)
-                    .unwrap()
-                    .variability()
-                    == &Variability::Const
-                {
-                    let data =
-                        Self::get_const_value(&parameter.value, &build_sample.genesis_environment);
+                if let Some(data) =
+                        Self::get_value(&parameter.value, &build_sample.genesis_environment, None) {
+                            remastered_environment.add_variable(&name, data);
+                        }
 
-                    remastered_environment.add_variable(&name, data);
-                }
+                    
             }
 
             let build_result =
@@ -387,15 +383,18 @@ impl BuilderTrait for Builder {
 
         builds_writer.push(build_sample);
 
+        
         Status::new_success(StaticBuildResult::Build(idx))
     }
 
     fn dynamic_build(
         &self,
         build: BuildId,
-        environment: &Arc<ContextualEnvironment>,
+        environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         let world = self.world.upgrade().unwrap();
+
+        eprintln!("Context environment for {}: {environment:#?}",self.design.descriptor.upgrade().unwrap().identifier());
 
         // Look for existing build
         {
@@ -430,47 +429,17 @@ impl BuilderTrait for Builder {
             );
             let mut remastered_environment = environment.base_on();
 
-            // Make the right contextual environment
-
-            // Setup models
-            for (model_treatment_name, _model) in treatment_descriptor.models() {
-                // model_treatment_name is the name of the model as seen by the treatment,
-                // while model_scope_name is the name of the model as it exists within the scope.
-                // Treatment[model_treatment_name = model_scope_name]
-
-                let model_scope_name = treatment.models.get(model_treatment_name).unwrap();
-
-                let mut executive_model = None;
-
-                if let Some(sequence_parameter_given_model) =
-                    environment.get_model(model_scope_name)
-                {
-                    executive_model = Some(Arc::clone(sequence_parameter_given_model));
-                } else if let Some(instancied_model) =
-                    build_sample.instancied_models.get(model_scope_name)
-                {
-                    executive_model = Some(Arc::clone(instancied_model));
-                }
-
-                if let Some(executive_model) = executive_model {
-                    remastered_environment.add_model(model_treatment_name, executive_model);
-                } else {
-                    // We should have a model there, should have been catched by designer, aborting
-                    panic!("Impossible model recoverage")
-                }
-            }
 
             // Setup parameters
             for (name, parameter) in &treatment.parameters {
                 let data = Self::get_value(
                     &parameter.value,
                     &build_sample.genesis_environment,
-                    environment,
-                );
+                    Some(&environment),
+                ).expect("Impossible data recoverage");
 
                 remastered_environment.add_variable(&name, data);
             }
-            let remastered_environment = remastered_environment.commit();
 
             // Call their dynamic_build method with right contextual environment
             treatment_build_results.insert(
@@ -521,7 +490,7 @@ impl BuilderTrait for Builder {
                 .give_next(
                     build_sample.host_build_id.unwrap(),
                     build_sample.label.to_string(),
-                    &environment.enriched_upper().commit(),
+                    &environment.base_on(),
                 )
                 .unwrap();
 
@@ -552,9 +521,11 @@ impl BuilderTrait for Builder {
         &self,
         within_build: BuildId,
         for_label: String,
-        environment: &Arc<ContextualEnvironment>,
+        environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         let world = self.world.upgrade().unwrap();
+
+        eprintln!("Context environment for {} (label {for_label}): {environment:#?}",self.design.descriptor.upgrade().unwrap().identifier());
 
         // Get build
         let borrowed_builds = self.builds.read().unwrap();
@@ -587,45 +558,19 @@ impl BuilderTrait for Builder {
 
                 // Make the right contextual environment
 
-                // Setup models
-                for (model_treatment_name, _model) in next_treatment_descriptor.models() {
-                    // model_treatment_name is the name of the model as seen by the treatment,
-                    // while model_scope_name is the name of the model as it exists within the scope.
-                    // Treatment[model_treatment_name = model_scope_name]
-
-                    let model_scope_name = next_treatment.models.get(model_treatment_name).unwrap();
-
-                    let mut executive_model = None;
-
-                    if let Some(sequence_parameter_given_model) =
-                        environment.get_model(model_scope_name)
-                    {
-                        executive_model = Some(Arc::clone(sequence_parameter_given_model));
-                    } else if let Some(instancied_model) =
-                        build_sample.instancied_models.get(model_scope_name)
-                    {
-                        executive_model = Some(Arc::clone(instancied_model));
-                    }
-
-                    if let Some(executive_model) = executive_model {
-                        remastered_environment.add_model(model_treatment_name, executive_model);
-                    } else {
-                        // We should have a model there, should have been catched by designer, aborting
-                        panic!("Impossible model recoverage")
-                    }
-                }
-
                 // Setup parameters
                 for (name, parameter) in &next_treatment.parameters {
+                    eprintln!("Param {name}: {parameter:#?}");
                     let data = Self::get_value(
                         &parameter.value,
                         &build_sample.genesis_environment,
-                        environment,
-                    );
+                        Some(environment),
+                    ).expect("Impossible data recoverage");
 
                     remastered_environment.add_variable(&name, data);
                 }
-                let remastered_environment = remastered_environment.commit();
+                eprintln!("Context environment for {}: {remastered_environment:#?}",self.design.descriptor.upgrade().unwrap().identifier());
+            
 
                 // Call their dynamic_build method with right contextual environment
                 next_treatments_build_results.insert(
@@ -680,7 +625,7 @@ impl BuilderTrait for Builder {
                 .give_next(
                     build_sample.host_build_id.unwrap(),
                     build_sample.label.to_string(),
-                    &environment.enriched_upper().commit(),
+                    &environment.base_on(),
                 )
                 .unwrap();
 

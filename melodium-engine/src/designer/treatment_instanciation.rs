@@ -13,6 +13,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, Weak};
 pub struct TreatmentInstanciation {
     host_descriptor: Weak<dyn TreatmentDescriptor>,
     host_treatment: Weak<RwLock<Treatment>>,
+    host_generics: Arc<RwLock<HashMap<String, DescribedType>>>,
     host_id: Identifier,
     descriptor: Weak<dyn TreatmentDescriptor>,
     name: String,
@@ -30,6 +31,7 @@ impl TreatmentInstanciation {
     pub fn new(
         host_descriptor: &Arc<dyn TreatmentDescriptor>,
         host_treatment: &Arc<RwLock<Treatment>>,
+        host_generics: &Arc<RwLock<HashMap<String, DescribedType>>>,
         host_id: Identifier,
         descriptor: &Arc<dyn TreatmentDescriptor>,
         name: &str,
@@ -39,6 +41,7 @@ impl TreatmentInstanciation {
             RwLock::new(Self {
                 host_descriptor: Arc::downgrade(host_descriptor),
                 host_treatment: Arc::downgrade(host_treatment),
+                host_generics: Arc::clone(host_generics),
                 host_id,
                 descriptor: Arc::downgrade(descriptor),
                 name: name.to_string(),
@@ -95,6 +98,10 @@ impl TreatmentInstanciation {
 
     pub(super) fn set_name(&mut self, name: String) {
         self.name = name;
+    }
+
+    pub fn access_generics(&self) -> &Arc<RwLock<HashMap<String, DescribedType>>> {
+        &self.generics
     }
 
     pub fn add_attribute(&mut self, name: String, attribute: Attribute) {
@@ -203,6 +210,7 @@ impl TreatmentInstanciation {
         let parameter = Parameter::new(
             &(self.host_treatment.upgrade().unwrap() as Arc<RwLock<dyn Scope>>),
             &host_descriptor.as_parameterized(),
+            &self.host_generics,
             self.host_id.clone(),
             &self.descriptor().as_parameterized(),
             &self.generics,

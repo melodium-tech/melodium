@@ -201,6 +201,7 @@ impl Type {
         if remove_first {
             level_structure.remove(0);
         }
+        level_structure.push(text.name.clone());
 
         match TypeContent::from_positionned_strings(&level_structure)
             .map_err(|_| ScriptError::invalid_structure(177, text.name.clone()))

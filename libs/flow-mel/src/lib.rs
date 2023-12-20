@@ -2,7 +2,7 @@
 #![doc = include_str!("../README.md")]
 
 use melodium_core::common::executive::Value;
-use melodium_macro::{mel_function, mel_package, mel_treatment};
+use melodium_macro::{mel_package, mel_treatment};
 use std::collections::VecDeque;
 
 pub mod vec;
@@ -54,12 +54,12 @@ pub mod void;
 ///     style E fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
-    input stream Stream<T>
+    generic G
+    input stream Stream<G>
     output start Block<void>
     output end Block<void>
-    output first Block<T>
-    output last Block<T>
+    output first Block<G>
+    output last Block<G>
 )]
 pub async fn trigger() {
     let mut last_value = None;
@@ -73,7 +73,7 @@ pub async fn trigger() {
         let _ = futures::join!(start.close(), first.close());
     }
 
-    while let Ok(mut values) = stream.recv_many().await {
+    while let Ok(values) = stream.recv_many().await {
         last_value = Into::<VecDeque<Value>>::into(values).pop_back();
     }
 
@@ -102,13 +102,37 @@ pub async fn trigger() {
 ///     style S fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic F
     input trigger Block<void>
-    output emit Block<T>
+    output emit Block<F>
 )]
-pub async fn emit(value: T) {
+pub async fn emit(value: F) {
     if let Ok(_) = trigger.recv_one().await {
         let _ = emit.send_one(value).await;
+    }
+}
+
+/// Stream a blocking value.
+///
+/// ```mermaid
+/// graph LR
+///     T("stream()")
+///     B["〈🟦〉"] -->|block| T
+///         
+///     T -->|stream| S["🟦"]
+///     
+///     
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    generic Q
+    input block Block<Q>
+    output stream Stream<Q>
+)]
+pub async fn stream() {
+    if let Ok(val) = block.recv_one().await {
+        let _ = stream.send_one(val).await;
     }
 }
 

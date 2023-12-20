@@ -23,8 +23,9 @@ impl DescribedType {
 
     pub fn is_compatible(
         &self,
-        other: &DescribedType,
         generics: &HashMap<String, DescribedType>,
+        other: &DescribedType,
+        generics_other: &HashMap<String, DescribedType>,
     ) -> bool {
         match (self, other) {
             (DescribedType::Concrete(me), DescribedType::Concrete(other)) => me == other,
@@ -35,12 +36,30 @@ impl DescribedType {
                     DescribedType::Generic(_) => false,
                 })
                 .unwrap_or(false),
-            (DescribedType::Concrete(_), DescribedType::Generic(_)) => false,
+            (DescribedType::Concrete(me), DescribedType::Generic(other_generic)) => generics_other
+                .get(other_generic)
+                .map(|other| match other {
+                    DescribedType::Concrete(other) => me == other,
+                    DescribedType::Generic(_) => false,
+                })
+                .unwrap_or(false),
             (DescribedType::Generic(generic), DescribedType::Generic(other)) => generics
                 .get(generic)
                 .map(|me| match me {
-                    DescribedType::Concrete(_) => false,
-                    DescribedType::Generic(me) => me == other,
+                    DescribedType::Concrete(me) => generics_other
+                        .get(other)
+                        .map(|other| match other {
+                            DescribedType::Concrete(other) => me == other,
+                            DescribedType::Generic(_) => false,
+                        })
+                        .unwrap_or(false),
+                    DescribedType::Generic(me) => generics_other
+                        .get(other)
+                        .map(|other| match other {
+                            DescribedType::Concrete(_) => false,
+                            DescribedType::Generic(other) => me == other,
+                        })
+                        .unwrap_or(false),
                 })
                 .unwrap_or(false),
         }
