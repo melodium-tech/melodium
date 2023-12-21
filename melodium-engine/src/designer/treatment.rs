@@ -1003,6 +1003,10 @@ impl Treatment {
                                 name: name.clone(),
                                 attributes: treatment_instanciation.attributes().clone(),
                                 descriptor: Arc::downgrade(&treatment_instanciation.descriptor()),
+                                generics: {
+                                    let clone = treatment_instanciation.generics().clone();
+                                    clone
+                                },
                                 models: treatment_instanciation.models().clone(),
                                 parameters: treatment_instanciation
                                     .parameters()
