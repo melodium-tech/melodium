@@ -1054,9 +1054,7 @@ impl Treatment {
     }
 
     pub fn design(&self) -> LogicResult<TreatmentDesign> {
-        let design = self.unvalidated_design();
-        eprintln!("Design of {}:\n{design:#?}", self.descriptor().identifier());
-        self.validate().and_then(|_| design)
+        self.validate().and_then(|_| self.unvalidated_design())
     }
 }
 

@@ -8,7 +8,7 @@ use crate::error::{LogicError, LogicResult};
 use crate::world::World;
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Identified, Parameterized, Status, Treatment as TreatmentDescriptor, Variability,
+    Identified, Parameterized, Status, Treatment as TreatmentDescriptor,
 };
 use melodium_common::executive::{Model, TrackId, Value as ExecutiveValue};
 use std::collections::HashMap;
@@ -109,27 +109,29 @@ impl Builder {
         match value {
             Value::Raw(data) => Some(data.clone()),
             Value::Variable(name) => {
-                if let Some(data) = contextual_environment.map(|ce| ce.get_variable(&name)).flatten() {
+                if let Some(data) = contextual_environment
+                    .map(|ce| ce.get_variable(&name))
+                    .flatten()
+                {
                     Some(data.clone())
-                }
-                else {
-                    genesis_environment
-                        .get_variable(&name)
-                        .cloned()
+                } else {
+                    genesis_environment.get_variable(&name).cloned()
                 }
             }
-            Value::Context(context, entry) => contextual_environment.map(|ce| ce.get_context(context.name()).map(|c| c.get_value(entry))).flatten(),
+            Value::Context(context, entry) => contextual_environment
+                .map(|ce| ce.get_context(context.name()).map(|c| c.get_value(entry)))
+                .flatten(),
             Value::Function(descriptor, _generics, params) => {
                 let mut executive_values = Vec::with_capacity(descriptor.parameters().len());
                 for parameter in params {
-                    if let Some(value) = Self::get_value(parameter, genesis_environment, contextual_environment) {
+                    if let Some(value) =
+                        Self::get_value(parameter, genesis_environment, contextual_environment)
+                    {
                         executive_values.push(value);
-                    }
-                    else {
+                    } else {
                         return None;
                     }
                 }
-
 
                 Some(descriptor.function()(executive_values))
             }
@@ -173,7 +175,8 @@ impl BuilderTrait for Builder {
 
             for (name, parameter) in &model_instanciation.parameters {
                 let data =
-                    Self::get_value(&parameter.value, &build_sample.genesis_environment, None).expect("Impossible model parameter recoverage");
+                    Self::get_value(&parameter.value, &build_sample.genesis_environment, None)
+                        .expect("Impossible model parameter recoverage");
 
                 remastered_environment.add_variable(&name, data);
             }
@@ -243,11 +246,10 @@ impl BuilderTrait for Builder {
             // Setup parameters
             for (name, parameter) in &treatment.parameters {
                 if let Some(data) =
-                        Self::get_value(&parameter.value, &build_sample.genesis_environment, None) {
-                            remastered_environment.add_variable(&name, data);
-                        }
-
-                    
+                    Self::get_value(&parameter.value, &build_sample.genesis_environment, None)
+                {
+                    remastered_environment.add_variable(&name, data);
+                }
             }
 
             let build_result =
@@ -383,7 +385,6 @@ impl BuilderTrait for Builder {
 
         builds_writer.push(build_sample);
 
-        
         Status::new_success(StaticBuildResult::Build(idx))
     }
 
@@ -393,8 +394,6 @@ impl BuilderTrait for Builder {
         environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         let world = self.world.upgrade().unwrap();
-
-        eprintln!("Context environment for {}: {environment:#?}",self.design.descriptor.upgrade().unwrap().identifier());
 
         // Look for existing build
         {
@@ -429,14 +428,14 @@ impl BuilderTrait for Builder {
             );
             let mut remastered_environment = environment.base_on();
 
-
             // Setup parameters
             for (name, parameter) in &treatment.parameters {
                 let data = Self::get_value(
                     &parameter.value,
                     &build_sample.genesis_environment,
                     Some(&environment),
-                ).expect("Impossible data recoverage");
+                )
+                .expect("Impossible data recoverage");
 
                 remastered_environment.add_variable(&name, data);
             }
@@ -525,8 +524,6 @@ impl BuilderTrait for Builder {
     ) -> Option<DynamicBuildResult> {
         let world = self.world.upgrade().unwrap();
 
-        eprintln!("Context environment for {} (label {for_label}): {environment:#?}",self.design.descriptor.upgrade().unwrap().identifier());
-
         // Get build
         let borrowed_builds = self.builds.read().unwrap();
         let build_sample = borrowed_builds.get(within_build).unwrap();
@@ -560,17 +557,15 @@ impl BuilderTrait for Builder {
 
                 // Setup parameters
                 for (name, parameter) in &next_treatment.parameters {
-                    eprintln!("Param {name}: {parameter:#?}");
                     let data = Self::get_value(
                         &parameter.value,
                         &build_sample.genesis_environment,
                         Some(environment),
-                    ).expect("Impossible data recoverage");
+                    )
+                    .expect("Impossible data recoverage");
 
                     remastered_environment.add_variable(&name, data);
                 }
-                eprintln!("Context environment for {}: {remastered_environment:#?}",self.design.descriptor.upgrade().unwrap().identifier());
-            
 
                 // Call their dynamic_build method with right contextual environment
                 next_treatments_build_results.insert(

@@ -1,6 +1,6 @@
-use melodium_common::executive::{Context, Model, TrackId, Value};
+use melodium_common::executive::{Context, TrackId, Value};
 use std::collections::HashMap;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct ContextualEnvironment {
