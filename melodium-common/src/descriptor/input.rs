@@ -2,7 +2,7 @@ use super::{Attribuable, Attributes, DescribedType, Flow, Output};
 use core::fmt::{Display, Formatter, Result};
 use std::collections::HashMap;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Input {
     name: String,
     described_type: DescribedType,
@@ -37,19 +37,25 @@ impl Input {
         &self.flow
     }
 
-    pub fn matches_input(&self, input: &Input, generics: &HashMap<String, DescribedType>) -> bool {
+    pub fn matches_input(
+        &self,
+        generics: &HashMap<String, DescribedType>,
+        input: &Input,
+        other_generics: &HashMap<String, DescribedType>,
+    ) -> bool {
         self.described_type
-            .is_compatible(input.described_type(), generics)
+            .is_compatible(generics, input.described_type(), other_generics)
             && &self.flow == input.flow()
     }
 
     pub fn matches_output(
         &self,
-        output: &Output,
         generics: &HashMap<String, DescribedType>,
+        output: &Output,
+        other_generics: &HashMap<String, DescribedType>,
     ) -> bool {
         self.described_type
-            .is_compatible(output.described_type(), generics)
+            .is_compatible(generics, output.described_type(), other_generics)
             && &self.flow == output.flow()
     }
 }

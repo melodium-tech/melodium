@@ -24,5 +24,5 @@ pub use output::{Output, Outputs};
 pub use result_status::ResultStatus;
 pub use transmission::{RecvResult, SendResult, TransmissionError, TransmissionValue};
 pub use treatment::Treatment;
-pub use value::Value;
+pub use value::{GetData, Value};
 pub use world::{TrackCreationCallback, TrackId, World};

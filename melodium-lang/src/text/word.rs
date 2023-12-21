@@ -127,6 +127,8 @@ pub enum Kind {
     Dot,
     /// `/`
     Slash,
+    /// `_`
+    Underscore,
     /// An arrow made of one or more `-` terminated by `>`, `--->`.
     RightArrow,
     /// Anything corresponding to a name, meaning anything that is composed of letters (Unicode definition) or numbers, but not starting with a number.
@@ -163,6 +165,7 @@ impl Display for Kind {
             Kind::Comma => ",",
             Kind::Dot => ".",
             Kind::Slash => "/",
+            Kind::Underscore => "_",
             Kind::RightArrow => "->",
             Kind::Name => "name",
             Kind::Context => "context (@Context)",
@@ -313,6 +316,13 @@ pub fn get_words(script: &str) -> Result<Vec<Word>, Vec<Word>> {
             kind_check.is_that_kind
         } {
             kind = Some(Kind::Slash);
+        }
+        // Check if word is Underscore
+        else if {
+            kind_check = manage_single_char('_', remaining_script);
+            kind_check.is_that_kind
+        } {
+            kind = Some(Kind::Underscore);
         }
         // Check if word is RightArrow
         else if {

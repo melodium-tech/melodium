@@ -11,6 +11,7 @@ use std::sync::{Arc, RwLock, Weak};
 pub struct Parameter {
     scope: Weak<RwLock<dyn Scope>>,
     scope_descriptor: Weak<dyn Parameterized>,
+    scope_generics: Arc<RwLock<HashMap<String, DescribedType>>>,
     scope_id: Identifier,
     parent_descriptor: Weak<dyn Parameterized>,
     parent_generics: Arc<RwLock<HashMap<String, DescribedType>>>,
@@ -23,6 +24,7 @@ impl Parameter {
     pub fn new(
         scope: &Arc<RwLock<dyn Scope>>,
         scope_descriptor: &Arc<dyn Parameterized>,
+        scope_generics: &Arc<RwLock<HashMap<String, DescribedType>>>,
         scope_id: Identifier,
         parent_descriptor: &Arc<dyn Parameterized>,
         parent_generics: &Arc<RwLock<HashMap<String, DescribedType>>>,
@@ -32,6 +34,7 @@ impl Parameter {
         Self {
             scope: Arc::downgrade(scope),
             scope_descriptor: Arc::downgrade(scope_descriptor),
+            scope_generics: Arc::clone(scope_generics),
             scope_id,
             parent_descriptor: Arc::downgrade(parent_descriptor),
             parent_generics: Arc::clone(parent_generics),
@@ -168,8 +171,9 @@ impl Parameter {
                         }
 
                         if !parameter.described_type().is_compatible(
-                            scope_variable.described_type(),
                             &self.parent_generics.read().unwrap(),
+                            scope_variable.described_type(),
+                            &self.scope_generics.read().unwrap(),
                         ) {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 14,
@@ -249,6 +253,7 @@ impl Parameter {
                 let function_instanciation = FunctionInstanciation::new(
                     descriptor,
                     &self.scope_descriptor.upgrade().unwrap(),
+                    &self.scope_generics,
                     self.scope_id.clone(),
                     &self.name,
                     Arc::new(RwLock::new(generics.clone())),
@@ -259,10 +264,11 @@ impl Parameter {
                     if let Some((sub_variability, sub_return_type)) = result.merge_degrade_failure(
                         function_instanciation.check_function_return(parameters),
                     ) {
-                        if !parameter
-                            .described_type()
-                            .is_compatible(&sub_return_type, &self.parent_generics.read().unwrap())
-                        {
+                        if !parameter.described_type().is_compatible(
+                            &self.parent_generics.read().unwrap(),
+                            &sub_return_type,
+                            &self.scope_generics.read().unwrap(),
+                        ) {
                             result = result.and_degrade_failure(LogicResult::new_failure(
                                 LogicError::unmatching_datatype(
                                     216,
@@ -388,8 +394,9 @@ impl Parameter {
                         }
 
                         if !parameter.described_type().is_compatible(
-                            scope_variable.described_type(),
                             &self.parent_generics.read().unwrap(),
+                            scope_variable.described_type(),
+                            &self.scope_generics.read().unwrap(),
                         ) {
                             result.errors_mut().push(LogicError::unmatching_datatype(
                                 197,
@@ -460,6 +467,7 @@ impl Parameter {
                     let function_instanciation = FunctionInstanciation::new(
                         descriptor,
                         &self.scope_descriptor.upgrade().unwrap(),
+                        &self.scope_generics,
                         self.scope_id.clone(),
                         &self.name,
                         Arc::new(RwLock::new(generics.clone())),
@@ -469,10 +477,11 @@ impl Parameter {
                     if let Some((sub_variability, sub_return_type)) = result.merge_degrade_failure(
                         function_instanciation.check_function_return(parameters),
                     ) {
-                        if !parameter
-                            .described_type()
-                            .is_compatible(&sub_return_type, &self.parent_generics.read().unwrap())
-                        {
+                        if !parameter.described_type().is_compatible(
+                            &self.parent_generics.read().unwrap(),
+                            &sub_return_type,
+                            &self.scope_generics.read().unwrap(),
+                        ) {
                             result = result.and_degrade_failure(LogicResult::new_failure(
                                 LogicError::unmatching_datatype(
                                     217,

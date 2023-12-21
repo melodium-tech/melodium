@@ -227,103 +227,103 @@ impl ExecutiveOutput for Output {
         self.send_one(data.into()).await
     }
     async fn send_vec_void(&self, data: Vec<Vec<()>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_u8(&self, data: Vec<u8>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_u8(&self, data: Vec<Vec<u8>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_u16(&self, data: Vec<u16>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_u16(&self, data: Vec<Vec<u16>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_u32(&self, data: Vec<u32>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_u32(&self, data: Vec<Vec<u32>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_u64(&self, data: Vec<u64>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_u64(&self, data: Vec<Vec<u64>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_u128(&self, data: Vec<u128>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_u128(&self, data: Vec<Vec<u128>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_i8(&self, data: Vec<i8>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_i8(&self, data: Vec<Vec<i8>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_i16(&self, data: Vec<i16>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_i16(&self, data: Vec<Vec<i16>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_i32(&self, data: Vec<i32>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_i32(&self, data: Vec<Vec<i32>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_i64(&self, data: Vec<i64>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_i64(&self, data: Vec<Vec<i64>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_i128(&self, data: Vec<i128>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_i128(&self, data: Vec<Vec<i128>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_f32(&self, data: Vec<f32>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_f32(&self, data: Vec<Vec<f32>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_f64(&self, data: Vec<f64>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_f64(&self, data: Vec<Vec<f64>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_bool(&self, data: Vec<bool>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_bool(&self, data: Vec<Vec<bool>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_byte(&self, data: Vec<u8>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_byte(&self, data: Vec<Vec<u8>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_char(&self, data: Vec<char>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_char(&self, data: Vec<Vec<char>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
     async fn send_one_vec_string(&self, data: Vec<String>) -> SendResult {
         self.send_one(data.into()).await
     }
     async fn send_vec_string(&self, data: Vec<Vec<String>>) -> SendResult {
-        self.send_many(data.into()).await
+        unimplemented!()
     }
 }
 

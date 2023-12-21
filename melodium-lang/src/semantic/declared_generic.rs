@@ -1,9 +1,7 @@
 //! Module dedicated to DeclaredGeneric semantic analysis.
 
 use super::common::Node;
-use super::Type;
-use super::TypeFlow;
-use super::TypeName;
+use super::{Type, TypeContent, TypeFlow};
 use crate::error::ScriptError;
 use crate::text::Generic as TextGeneric;
 use crate::ScriptResult;
@@ -36,8 +34,8 @@ impl DeclaredGeneric {
                 if declared_type.flow != TypeFlow::Block {
                     ScriptResult::new_failure(ScriptError::flow_forbidden(174, text.r#type.name))
                 } else {
-                    match declared_type.name {
-                        TypeName::Other(name) => {
+                    match declared_type.content {
+                        TypeContent::Other(name) => {
                             ScriptResult::new_success(Arc::new(RwLock::new(Self { text, name })))
                         }
                         _ => ScriptResult::new_failure(ScriptError::invalid_generic(

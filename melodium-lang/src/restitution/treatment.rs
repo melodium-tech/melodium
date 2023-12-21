@@ -1,7 +1,7 @@
 use super::value::value;
 use itertools::Itertools;
 use melodium_common::descriptor::{
-    Attribuable, Documented, Identified, Identifier, Parameterized,
+    Attribuable, Documented, Generic, Identified, Identifier, Parameterized,
     Treatment as TreatmentDescriptor,
 };
 use melodium_engine::design::{Connection, Treatment as TreatmentDesign, IO};
@@ -71,6 +71,21 @@ impl Treatment {
 
         implementation.push_str("treatment ");
         implementation.push_str(descriptor.identifier().name());
+
+        if !descriptor.generics().is_empty() {
+            implementation.push('<');
+
+            implementation.push_str(
+                &descriptor
+                    .generics()
+                    .iter()
+                    .map(|generic| generic.clone())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            );
+
+            implementation.push('>');
+        }
 
         if !descriptor.models().is_empty() {
             implementation.push_str("[");
@@ -192,6 +207,8 @@ impl Treatment {
         implementation.push_str("{\n");
 
         for (_, instanciation) in self.design.treatments.iter().sorted_by_key(|(k, _)| *k) {
+            let descriptor = instanciation.descriptor.upgrade().unwrap();
+
             for (name, attribute) in instanciation.attributes() {
                 implementation.push_str("    #[");
                 implementation.push_str(name);
@@ -202,12 +219,31 @@ impl Treatment {
             implementation.push_str("    ");
             implementation.push_str(&instanciation.name);
 
-            let treatment_name = names
-                .get(instanciation.descriptor.upgrade().unwrap().identifier())
-                .unwrap();
+            let treatment_name = names.get(descriptor.identifier()).unwrap();
             if treatment_name != &instanciation.name {
                 implementation.push_str(": ");
                 implementation.push_str(treatment_name);
+            }
+
+            if !descriptor.generics().is_empty() && !instanciation.generics.is_empty() {
+                implementation.push('<');
+
+                implementation.push_str(
+                    &descriptor
+                        .generics()
+                        .iter()
+                        .map(|name| {
+                            instanciation
+                                .generics
+                                .get(name)
+                                .map(|desc_type| desc_type.to_string())
+                                .unwrap_or_else(|| "_".to_string())
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                );
+
+                implementation.push('>');
             }
 
             if !instanciation.models.is_empty() {

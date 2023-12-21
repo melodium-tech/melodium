@@ -29,7 +29,7 @@ pub use attribuable::{Attribuable, Attribute, Attributes};
 pub use buildable::{Buildable, ModelBuildMode, TreatmentBuildMode};
 pub use collection::{Collection, CollectionTree, Entry};
 pub use context::Context;
-pub use data_type::{DataType, DescribedType, Structure, Type};
+pub use data_type::{DataType, DescribedType};
 pub use documented::Documented;
 pub use flow::Flow;
 pub use function::Function;
