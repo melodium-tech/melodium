@@ -7,8 +7,8 @@ use melodium_macro::{check, mel_function, mel_treatment};
     output iter Stream<void>
 )]
 pub async fn to_void() {
-    while let Ok(values) = value.recv_f32().await {
-        check!(iter.send_void(vec![(); values.len()]).await)
+    while let Ok(values) = value.recv_many().await {
+        check!(iter.send_many(vec![(); values.len()].into()).await)
     }
 }
 
@@ -31,10 +31,16 @@ pub fn to_f64(value: f32) -> f64 {
     output into Stream<f64>
 )]
 pub async fn to_f64() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_f64(values.into_iter().map(|val| val as f64).collect())
-                .await
+            into.send_many(TransmissionValue::F64(
+                values.into_iter().map(|val| val as f64).collect()
+            ))
+            .await
         )
     }
 }
@@ -76,9 +82,13 @@ pub fn to_u8(value: f32, pos_infinity: u8, neg_infinity: u8, nan: u8) -> u8 {
     output into Stream<u8>
 )]
 pub async fn to_u8(pos_infinity: u8, neg_infinity: u8, nan: u8) {
-    while let Ok(numbers) = value.recv_f32().await {
+    while let Ok(numbers) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_u8(
+            into.send_many(TransmissionValue::U8(
                 numbers
                     .into_iter()
                     .map(|number| if number.is_finite() {
@@ -93,7 +103,7 @@ pub async fn to_u8(pos_infinity: u8, neg_infinity: u8, nan: u8) {
                         neg_infinity
                     })
                     .collect()
-            )
+            ))
             .await
         )
     }
@@ -136,9 +146,13 @@ pub fn to_u16(value: f32, pos_infinity: u16, neg_infinity: u16, nan: u16) -> u16
     output into Stream<u16>
 )]
 pub async fn to_u16(pos_infinity: u16, neg_infinity: u16, nan: u16) {
-    while let Ok(numbers) = value.recv_f32().await {
+    while let Ok(numbers) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_u16(
+            into.send_many(TransmissionValue::U16(
                 numbers
                     .into_iter()
                     .map(|number| if number.is_finite() {
@@ -153,7 +167,7 @@ pub async fn to_u16(pos_infinity: u16, neg_infinity: u16, nan: u16) {
                         neg_infinity
                     })
                     .collect()
-            )
+            ))
             .await
         )
     }
@@ -196,9 +210,13 @@ pub fn to_u32(value: f32, pos_infinity: u32, neg_infinity: u32, nan: u32) -> u32
     output into Stream<u32>
 )]
 pub async fn to_u32(pos_infinity: u32, neg_infinity: u32, nan: u32) {
-    while let Ok(numbers) = value.recv_f32().await {
+    while let Ok(numbers) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_u32(
+            into.send_many(TransmissionValue::U32(
                 numbers
                     .into_iter()
                     .map(|number| if number.is_finite() {
@@ -213,7 +231,7 @@ pub async fn to_u32(pos_infinity: u32, neg_infinity: u32, nan: u32) {
                         neg_infinity
                     })
                     .collect()
-            )
+            ))
             .await
         )
     }
@@ -256,9 +274,13 @@ pub fn to_u64(value: f32, pos_infinity: u64, neg_infinity: u64, nan: u64) -> u64
     output into Stream<u64>
 )]
 pub async fn to_u64(pos_infinity: u64, neg_infinity: u64, nan: u64) {
-    while let Ok(numbers) = value.recv_f32().await {
+    while let Ok(numbers) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_u64(
+            into.send_many(TransmissionValue::U64(
                 numbers
                     .into_iter()
                     .map(|number| if number.is_finite() {
@@ -273,7 +295,7 @@ pub async fn to_u64(pos_infinity: u64, neg_infinity: u64, nan: u64) {
                         neg_infinity
                     })
                     .collect()
-            )
+            ))
             .await
         )
     }
@@ -316,9 +338,13 @@ pub fn to_u128(value: f32, pos_infinity: u128, neg_infinity: u128, nan: u128) ->
     output into Stream<u128>
 )]
 pub async fn to_u128(pos_infinity: u128, neg_infinity: u128, nan: u128) {
-    while let Ok(numbers) = value.recv_f32().await {
+    while let Ok(numbers) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_u128(
+            into.send_many(TransmissionValue::U128(
                 numbers
                     .into_iter()
                     .map(|number| if number.is_finite() {
@@ -333,7 +359,7 @@ pub async fn to_u128(pos_infinity: u128, neg_infinity: u128, nan: u128) {
                         neg_infinity
                     })
                     .collect()
-            )
+            ))
             .await
         )
     }
@@ -376,9 +402,13 @@ pub fn to_i8(value: f32, pos_infinity: i8, neg_infinity: i8, nan: i8) -> i8 {
     output into Stream<i8>
 )]
 pub async fn to_i8(pos_infinity: i8, neg_infinity: i8, nan: i8) {
-    while let Ok(numbers) = value.recv_f32().await {
+    while let Ok(numbers) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_i8(
+            into.send_many(TransmissionValue::I8(
                 numbers
                     .into_iter()
                     .map(|number| if number.is_finite() {
@@ -393,7 +423,7 @@ pub async fn to_i8(pos_infinity: i8, neg_infinity: i8, nan: i8) {
                         neg_infinity
                     })
                     .collect()
-            )
+            ))
             .await
         )
     }
@@ -436,9 +466,13 @@ pub fn to_i16(value: f32, pos_infinity: i16, neg_infinity: i16, nan: i16) -> i16
     output into Stream<i16>
 )]
 pub async fn to_i16(pos_infinity: i16, neg_infinity: i16, nan: i16) {
-    while let Ok(numbers) = value.recv_f32().await {
+    while let Ok(numbers) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_i16(
+            into.send_many(TransmissionValue::I16(
                 numbers
                     .into_iter()
                     .map(|number| if number.is_finite() {
@@ -453,7 +487,7 @@ pub async fn to_i16(pos_infinity: i16, neg_infinity: i16, nan: i16) {
                         neg_infinity
                     })
                     .collect()
-            )
+            ))
             .await
         )
     }
@@ -496,9 +530,13 @@ pub fn to_i32(value: f32, pos_infinity: i32, neg_infinity: i32, nan: i32) -> i32
     output into Stream<i32>
 )]
 pub async fn to_i32(pos_infinity: i32, neg_infinity: i32, nan: i32) {
-    while let Ok(numbers) = value.recv_f32().await {
+    while let Ok(numbers) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_i32(
+            into.send_many(TransmissionValue::I32(
                 numbers
                     .into_iter()
                     .map(|number| if number.is_finite() {
@@ -513,7 +551,7 @@ pub async fn to_i32(pos_infinity: i32, neg_infinity: i32, nan: i32) {
                         neg_infinity
                     })
                     .collect()
-            )
+            ))
             .await
         )
     }
@@ -556,9 +594,13 @@ pub fn to_i64(value: f32, pos_infinity: i64, neg_infinity: i64, nan: i64) -> i64
     output into Stream<i64>
 )]
 pub async fn to_i64(pos_infinity: i64, neg_infinity: i64, nan: i64) {
-    while let Ok(numbers) = value.recv_f32().await {
+    while let Ok(numbers) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_i64(
+            into.send_many(TransmissionValue::I64(
                 numbers
                     .into_iter()
                     .map(|number| if number.is_finite() {
@@ -573,7 +615,7 @@ pub async fn to_i64(pos_infinity: i64, neg_infinity: i64, nan: i64) {
                         neg_infinity
                     })
                     .collect()
-            )
+            ))
             .await
         )
     }
@@ -616,9 +658,13 @@ pub fn to_i128(value: f32, pos_infinity: i128, neg_infinity: i128, nan: i128) ->
     output into Stream<i128>
 )]
 pub async fn to_i128(pos_infinity: i128, neg_infinity: i128, nan: i128) {
-    while let Ok(numbers) = value.recv_f32().await {
+    while let Ok(numbers) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_i128(
+            into.send_many(TransmissionValue::I128(
                 numbers
                     .into_iter()
                     .map(|number| if number.is_finite() {
@@ -633,7 +679,7 @@ pub async fn to_i128(pos_infinity: i128, neg_infinity: i128, nan: i128) {
                         neg_infinity
                     })
                     .collect()
-            )
+            ))
             .await
         )
     }
@@ -653,14 +699,20 @@ pub fn to_byte(value: f32) -> Vec<byte> {
     output data Stream<Vec<byte>>
 )]
 pub async fn to_byte() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            data.send_vec_byte(
+            data.send_many(TransmissionValue::Other(
                 values
                     .into_iter()
-                    .map(|val| val.to_be_bytes().to_vec())
+                    .map(|val| Value::Vec(
+                        val.to_be_bytes().iter().map(|v| Value::Byte(*v)).collect()
+                    ))
                     .collect()
-            )
+            ))
             .await
         )
     }

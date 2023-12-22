@@ -7,8 +7,8 @@ use melodium_macro::{check, mel_function, mel_treatment};
     output iter Stream<void>
 )]
 pub async fn to_void() {
-    while let Ok(values) = value.recv_u16().await {
-        check!(iter.send_void(vec![(); values.len()]).await)
+    while let Ok(values) = value.recv_many().await {
+        check!(iter.send_many(vec![(); values.len()].into()).await)
     }
 }
 
@@ -26,14 +26,20 @@ pub fn to_byte(value: u16) -> Vec<byte> {
     output data Stream<Vec<byte>>
 )]
 pub async fn to_byte() {
-    while let Ok(values) = value.recv_u16().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+    {
         check!(
-            data.send_vec_byte(
+            data.send_many(TransmissionValue::Other(
                 values
                     .into_iter()
-                    .map(|val| val.to_be_bytes().to_vec())
+                    .map(|val| Value::Vec(
+                        val.to_be_bytes().iter().map(|v| Value::Byte(*v)).collect()
+                    ))
                     .collect()
-            )
+            ))
             .await
         )
     }
@@ -56,10 +62,20 @@ pub fn to_u32(value: u16) -> u32 {
     output into Stream<u32>
 )]
 pub async fn to_u32() {
-    while let Ok(values) = value.recv_u16().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_u32(values.into_iter().map(|val| val as u32).collect())
-                .await
+            into.send_many(
+                values
+                    .into_iter()
+                    .map(|val| val as u32)
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -81,10 +97,20 @@ pub fn to_u64(value: u16) -> u64 {
     output into Stream<u64>
 )]
 pub async fn to_u64() {
-    while let Ok(values) = value.recv_u16().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_u64(values.into_iter().map(|val| val as u64).collect())
-                .await
+            into.send_many(
+                values
+                    .into_iter()
+                    .map(|val| val as u64)
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -106,10 +132,20 @@ pub fn to_u128(value: u16) -> u128 {
     output into Stream<u128>
 )]
 pub async fn to_u128() {
-    while let Ok(values) = value.recv_u16().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_u128(values.into_iter().map(|val| val as u128).collect())
-                .await
+            into.send_many(
+                values
+                    .into_iter()
+                    .map(|val| val as u128)
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -131,10 +167,20 @@ pub fn to_i32(value: u16) -> i32 {
     output into Stream<i32>
 )]
 pub async fn to_i32() {
-    while let Ok(values) = value.recv_u16().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_i32(values.into_iter().map(|val| val as i32).collect())
-                .await
+            into.send_many(
+                values
+                    .into_iter()
+                    .map(|val| val as i32)
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -156,10 +202,20 @@ pub fn to_i64(value: u16) -> i64 {
     output into Stream<i64>
 )]
 pub async fn to_i64() {
-    while let Ok(values) = value.recv_u16().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_i64(values.into_iter().map(|val| val as i64).collect())
-                .await
+            into.send_many(
+                values
+                    .into_iter()
+                    .map(|val| val as i64)
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -181,10 +237,20 @@ pub fn to_i128(value: u16) -> i128 {
     output into Stream<i128>
 )]
 pub async fn to_i128() {
-    while let Ok(values) = value.recv_u16().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_i128(values.into_iter().map(|val| val as i128).collect())
-                .await
+            into.send_many(
+                values
+                    .into_iter()
+                    .map(|val| val as i128)
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -206,10 +272,20 @@ pub fn to_f32(value: u16) -> f32 {
     output into Stream<f32>
 )]
 pub async fn to_f32() {
-    while let Ok(values) = value.recv_u16().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_f32(values.into_iter().map(|val| val as f32).collect())
-                .await
+            into.send_many(
+                values
+                    .into_iter()
+                    .map(|val| val as f32)
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -231,10 +307,20 @@ pub fn to_f64(value: u16) -> f64 {
     output into Stream<f64>
 )]
 pub async fn to_f64() {
-    while let Ok(values) = value.recv_u16().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+    {
         check!(
-            into.send_f64(values.into_iter().map(|val| val as f64).collect())
-                .await
+            into.send_many(
+                values
+                    .into_iter()
+                    .map(|val| val as f64)
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -273,21 +359,36 @@ pub fn to_u8(value: u16, truncate: bool, or_default: u8) -> u8 {
 )]
 pub async fn to_u8(truncate: bool, or_default: u8) {
     if truncate {
-        while let Ok(values) = value.recv_u16().await {
+        while let Ok(values) = value
+            .recv_many()
+            .await
+            .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+        {
             check!(
-                into.send_u8(values.into_iter().map(|val| val as u8).collect())
-                    .await
+                into.send_many(
+                    values
+                        .into_iter()
+                        .map(|val| val as u8)
+                        .collect::<VecDeque<_>>()
+                        .into()
+                )
+                .await
             )
         }
     } else {
         use std::convert::TryInto;
-        while let Ok(values) = value.recv_u16().await {
+        while let Ok(values) = value
+            .recv_many()
+            .await
+            .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+        {
             check!(
-                into.send_u8(
+                into.send_many(
                     values
                         .into_iter()
                         .map(|val| TryInto::<u8>::try_into(val).unwrap_or(or_default))
-                        .collect()
+                        .collect::<VecDeque<_>>()
+                        .into()
                 )
                 .await
             )
@@ -329,21 +430,36 @@ pub fn to_i8(value: u16, truncate: bool, or_default: i8) -> i8 {
 )]
 pub async fn to_i8(truncate: bool, or_default: i8) {
     if truncate {
-        while let Ok(values) = value.recv_u16().await {
+        while let Ok(values) = value
+            .recv_many()
+            .await
+            .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+        {
             check!(
-                into.send_i8(values.into_iter().map(|val| val as i8).collect())
-                    .await
+                into.send_many(
+                    values
+                        .into_iter()
+                        .map(|val| val as i8)
+                        .collect::<VecDeque<_>>()
+                        .into()
+                )
+                .await
             )
         }
     } else {
         use std::convert::TryInto;
-        while let Ok(values) = value.recv_u16().await {
+        while let Ok(values) = value
+            .recv_many()
+            .await
+            .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+        {
             check!(
-                into.send_i8(
+                into.send_many(
                     values
                         .into_iter()
                         .map(|val| TryInto::<i8>::try_into(val).unwrap_or(or_default))
-                        .collect()
+                        .collect::<VecDeque<_>>()
+                        .into()
                 )
                 .await
             )
@@ -385,21 +501,36 @@ pub fn to_i16(value: u16, truncate: bool, or_default: i16) -> i16 {
 )]
 pub async fn to_i16(truncate: bool, or_default: i16) {
     if truncate {
-        while let Ok(values) = value.recv_u16().await {
+        while let Ok(values) = value
+            .recv_many()
+            .await
+            .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+        {
             check!(
-                into.send_i16(values.into_iter().map(|val| val as i16).collect())
-                    .await
+                into.send_many(
+                    values
+                        .into_iter()
+                        .map(|val| val as i16)
+                        .collect::<VecDeque<_>>()
+                        .into()
+                )
+                .await
             )
         }
     } else {
         use std::convert::TryInto;
-        while let Ok(values) = value.recv_u16().await {
+        while let Ok(values) = value
+            .recv_many()
+            .await
+            .map(|values| TryInto::<Vec<u16>>::try_into(values).unwrap())
+        {
             check!(
-                into.send_i16(
+                into.send_many(
                     values
                         .into_iter()
                         .map(|val| TryInto::<i16>::try_into(val).unwrap_or(or_default))
-                        .collect()
+                        .collect::<VecDeque<_>>()
+                        .into()
                 )
                 .await
             )
