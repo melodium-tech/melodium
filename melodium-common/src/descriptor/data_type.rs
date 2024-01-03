@@ -43,42 +43,10 @@ impl DescribedType {
     }
 
     pub fn is_datatype(&self, dt: &DataType, generics: &HashMap<String, DescribedType>) -> bool {
-        match self {
-            DescribedType::Void => dt == &DataType::Void,
-
-            DescribedType::I8 => dt == &DataType::I8,
-            DescribedType::I16 => dt == &DataType::I16,
-            DescribedType::I32 => dt == &DataType::I32,
-            DescribedType::I64 => dt == &DataType::I64,
-            DescribedType::I128 => dt == &DataType::I128,
-
-            DescribedType::U8 => dt == &DataType::U8,
-            DescribedType::U16 => dt == &DataType::U16,
-            DescribedType::U32 => dt == &DataType::U32,
-            DescribedType::U64 => dt == &DataType::U64,
-            DescribedType::U128 => dt == &DataType::U128,
-
-            DescribedType::F32 => dt == &DataType::F32,
-            DescribedType::F64 => dt == &DataType::F64,
-
-            DescribedType::Bool => dt == &DataType::Bool,
-            DescribedType::Byte => dt == &DataType::Byte,
-
-            DescribedType::Char => dt == &DataType::Char,
-            DescribedType::String => dt == &DataType::String,
-
-            DescribedType::Option(me) => match dt {
-                DataType::Option(dt) => me.is_datatype(dt, generics),
-                _ => false,
-            },
-            DescribedType::Vec(me) => match dt {
-                DataType::Vec(dt) => me.is_datatype(dt, generics),
-                _ => false,
-            },
-            DescribedType::Generic(generic) => generics
-                .get(generic)
-                .map(|me| me.is_datatype(dt, generics))
-                .unwrap_or(false),
+        if let Some(me) = self.to_datatype(generics) {
+            &me == dt
+        } else {
+            false
         }
     }
 
@@ -180,7 +148,7 @@ impl From<&DataType> for DescribedType {
 impl From<DataType> for DescribedType {
     fn from(value: DataType) -> Self {
         match value {
-            DataType::Undetermined => panic!("Undetermined data type"),
+            DataType::Undetermined => DescribedType::Generic("undertermined".to_string()),
             DataType::Void => DescribedType::Void,
             DataType::I8 => DescribedType::I8,
             DataType::I16 => DescribedType::I16,

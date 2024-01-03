@@ -8,16 +8,14 @@
 #! require = ops:0.7.1
 
 use engine/util::startup
-use flow/void::generate
-use flow/u128::emit
-use flow/string::fill
-use flow/string::count
-use flow/u128::trigger
-use flow/u128::stream
+use flow::generate
+use flow::emit
+use flow::fill
+use flow::count
+use flow::stream
 use fs/file::write
-use flow/string::emit as emitPath
 use conv/u128::toByte
-use flow/vec/byte::flatten
+use flow/vec::flatten
 use ops/u128::|add
 
 treatment main(const content: string = "this is some text", var generate: u128 = 873, const output: string = "./output_count") {
@@ -42,8 +40,8 @@ treatment effective_generator(var size: u128)
   input trigger: Block<void>
   output data: Stream<void>
 {
-    generate()
-    emit(value=size)
+    generate<void>()
+    emit<u128>(value=size)
 
     Self.trigger -> emit.trigger,emit -> generate.length,stream -> Self.data 
 }
@@ -52,7 +50,7 @@ treatment converter(var content: string)
   input stream: Stream<void>
   output text: Stream<string>
 {
-    fill(value=content)
+    fill<string>(value=content)
 
     Self.stream -> fill.pattern,filled -> Self.text
 }
@@ -60,15 +58,15 @@ treatment converter(var content: string)
 treatment count_writer(var output_file: string)
     input text: Stream<string>
 {
-    count()
-    trigger()
-    stream()
+    count<string>()
+    trigger<u128>()
+    stream<u128>()
     write()
-    emitPath(value=output_file)
+    emit<string>(value=output_file)
     toByte()
-    flatten()
+    flatten<byte>()
 
     Self.text -> count.stream,count -> trigger.stream,last -> stream.block,stream -> toByte.value,data -> flatten.vector,value -> write.data
-    trigger.end -> emitPath.trigger,emit -> write.path
+    trigger.end -> emit.trigger,emit -> write.path
 }
 
