@@ -348,11 +348,11 @@ impl Value {
 
             Value::Option(val) => val
                 .as_ref()
-                .map(|val| val.datatype())
+                .map(|val| DataType::Option(Box::new(val.datatype())))
                 .unwrap_or(DataType::Undetermined),
             Value::Vec(val) => val
                 .first()
-                .map(|val| val.datatype())
+                .map(|val| DataType::Vec(Box::new(val.datatype())))
                 .unwrap_or(DataType::Undetermined),
         }
     }
