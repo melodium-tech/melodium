@@ -18,7 +18,7 @@ treatment main() {
     
     startup()
     emitLength: emit<u128>(value=128000)
-    generate<void>()
+    generate<void>(data = _)
     
     startup.trigger -> emitLength.trigger,emit -> generate.length
     

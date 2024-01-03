@@ -13,6 +13,7 @@ use flow::emit
 use flow::fill
 use flow::count
 use flow::stream
+use flow::trigger
 use fs/file::write
 use conv/u128::toByte
 use flow/vec::flatten
@@ -40,7 +41,7 @@ treatment effective_generator(var size: u128)
   input trigger: Block<void>
   output data: Stream<void>
 {
-    generate<void>()
+    generate<void>(data=_)
     emit<u128>(value=size)
 
     Self.trigger -> emit.trigger,emit -> generate.length,stream -> Self.data 
