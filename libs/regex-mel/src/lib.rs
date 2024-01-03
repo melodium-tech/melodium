@@ -23,16 +23,25 @@ pub async fn matches(#[mel(content(regex))] regex: string) {
         Ok(regex) => {
             error.close().await;
 
-            while let Ok(text) = text.recv_string().await {
+            while let Ok(text) = text
+                .recv_many()
+                .await
+                .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+            {
                 check!(
                     matches
-                        .send_bool(text.into_iter().map(|txt| regex.is_match(&txt)).collect())
+                        .send_many(
+                            text.into_iter()
+                                .map(|txt| regex.is_match(&txt))
+                                .collect::<VecDeque<_>>()
+                                .into()
+                        )
                         .await
                 );
             }
         }
         Err(err) => {
-            let _ = error.send_one_string(err.to_string()).await;
+            let _ = error.send_one(err.to_string().into()).await;
         }
     }
 }
@@ -71,7 +80,11 @@ pub async fn find(#[mel(content(regex))] regex: string) {
         Ok(regex) => {
             error.close().await;
 
-            while let Ok(text) = text.recv_string().await {
+            while let Ok(text) = text
+                .recv_many()
+                .await
+                .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+            {
                 let mut vec_is_found = Vec::with_capacity(text.len());
                 let mut vec_found = Vec::with_capacity(text.len());
 
@@ -89,15 +102,15 @@ pub async fn find(#[mel(content(regex))] regex: string) {
                 }
 
                 if let (Err(_), Err(_)) = futures::join!(
-                    is_found.send_bool(vec_is_found),
-                    found.send_string(vec_found)
+                    is_found.send_many(vec_is_found.into()),
+                    found.send_many(vec_found.into())
                 ) {
                     break;
                 }
             }
         }
         Err(err) => {
-            let _ = error.send_one_string(err.to_string()).await;
+            let _ = error.send_one(err.to_string().into()).await;
         }
     }
 }
@@ -137,7 +150,11 @@ pub async fn capture(#[mel(content(regex))] regex: string) {
         Ok(regex) => {
             error.close().await;
 
-            while let Ok(text) = text.recv_string().await {
+            while let Ok(text) = text
+                .recv_many()
+                .await
+                .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+            {
                 let mut vec_captured = Vec::with_capacity(text.len());
                 let mut vec_is_captured = Vec::with_capacity(text.len());
 
@@ -150,35 +167,35 @@ pub async fn capture(#[mel(content(regex))] regex: string) {
                             while let Some(capt) = it.next() {
                                 match capt {
                                     Some(s) => {
-                                        vec_capt.push(s.as_str().to_string());
-                                        vec_is_capt.push(true);
+                                        vec_capt.push(s.as_str().to_string().into());
+                                        vec_is_capt.push(true.into());
                                     }
                                     None => {
-                                        vec_capt.push(String::default());
-                                        vec_is_capt.push(false);
+                                        vec_capt.push(String::default().into());
+                                        vec_is_capt.push(false.into());
                                     }
                                 }
                             }
-                            vec_captured.push(vec_capt);
-                            vec_is_captured.push(vec_is_capt);
+                            vec_captured.push(Value::Vec(vec_capt));
+                            vec_is_captured.push(Value::Vec(vec_is_capt));
                         }
                         None => {
-                            vec_captured.push(Vec::new());
-                            vec_is_captured.push(Vec::new());
+                            vec_captured.push(Value::Vec(Vec::new()));
+                            vec_is_captured.push(Value::Vec(Vec::new()));
                         }
                     }
                 }
 
                 if let (Err(_), Err(_)) = futures::join!(
-                    is_captured.send_vec_bool(vec_is_captured),
-                    captured.send_vec_string(vec_captured)
+                    is_captured.send_many(TransmissionValue::Other(vec_is_captured.into())),
+                    captured.send_many(TransmissionValue::Other(vec_captured.into()))
                 ) {
                     break;
                 }
             }
         }
         Err(err) => {
-            let _ = error.send_one_string(err.to_string()).await;
+            let _ = error.send_one(err.to_string().into()).await;
         }
     }
 }
@@ -227,10 +244,20 @@ pub async fn capture_named(#[mel(content(regex))] regex: string) {
                 .map(|name| name.map(|n| n.to_string()).unwrap_or_default())
                 .collect();
 
-            while let Ok(text) = text.recv_string().await {
+            while let Ok(text) = text
+                .recv_many()
+                .await
+                .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+            {
                 let mut vec_captured = Vec::with_capacity(text.len());
                 let mut vec_is_captured = Vec::with_capacity(text.len());
-                let vec_names = vec![contained_names.clone(); text.len()];
+                let vec_names = vec![
+                    contained_names
+                        .iter()
+                        .map(|cn| Value::String(cn.clone()))
+                        .collect::<Vec<_>>();
+                    text.len()
+                ];
 
                 for text in text {
                     match regex.captures(&text) {
@@ -241,36 +268,38 @@ pub async fn capture_named(#[mel(content(regex))] regex: string) {
                             for name in &contained_names {
                                 match m.name(name.as_str()) {
                                     Some(s) => {
-                                        vec_capt.push(s.as_str().to_string());
-                                        vec_is_capt.push(true);
+                                        vec_capt.push(s.as_str().to_string().into());
+                                        vec_is_capt.push(true.into());
                                     }
                                     None => {
-                                        vec_capt.push(String::default());
-                                        vec_is_capt.push(false);
+                                        vec_capt.push(String::default().into());
+                                        vec_is_capt.push(false.into());
                                     }
                                 }
                             }
-                            vec_captured.push(vec_capt);
-                            vec_is_captured.push(vec_is_capt);
+                            vec_captured.push(Value::Vec(vec_capt));
+                            vec_is_captured.push(Value::Vec(vec_is_capt));
                         }
                         None => {
-                            vec_captured.push(Vec::new());
-                            vec_is_captured.push(Vec::new());
+                            vec_captured.push(Value::Vec(Vec::new()));
+                            vec_is_captured.push(Value::Vec(Vec::new()));
                         }
                     }
                 }
 
                 if let (Err(_), Err(_), Err(_)) = futures::join!(
-                    is_captured.send_vec_bool(vec_is_captured),
-                    captured.send_vec_string(vec_captured),
-                    names.send_vec_string(vec_names)
+                    is_captured.send_many(TransmissionValue::Other(vec_is_captured.into())),
+                    captured.send_many(TransmissionValue::Other(vec_captured.into())),
+                    names.send_many(TransmissionValue::Other(
+                        vec_names.into_iter().map(|i| Value::Vec(i)).collect()
+                    ))
                 ) {
                     break;
                 }
             }
         }
         Err(err) => {
-            let _ = error.send_one_string(err.to_string()).await;
+            let _ = error.send_one(err.to_string().into()).await;
         }
     }
 }
@@ -293,18 +322,22 @@ pub async fn replace(#[mel(content(regex))] regex: string, replacer: string) {
         Ok(regex) => {
             error.close().await;
 
-            while let Ok(text) = text.recv_string().await {
+            while let Ok(text) = text
+                .recv_many()
+                .await
+                .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+            {
                 let mut vec_replaced = Vec::with_capacity(text.len());
 
                 for text in text {
                     vec_replaced.push(regex.replace(&text, &replacer).to_string());
                 }
 
-                check!(replaced.send_string(vec_replaced).await);
+                check!(replaced.send_many(vec_replaced.into()).await);
             }
         }
         Err(err) => {
-            let _ = error.send_one_string(err.to_string()).await;
+            let _ = error.send_one(err.to_string().into()).await;
         }
     }
 }

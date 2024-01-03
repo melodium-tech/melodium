@@ -17,7 +17,11 @@ use melodium_macro::{check, mel_function, mel_treatment};
     output parent Stream<string>
 )]
 pub async fn composition() {
-    while let Ok(paths) = path.recv_string().await {
+    while let Ok(paths) = path
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
         let mut extensions = Vec::with_capacity(paths.len());
         let mut file_names = Vec::with_capacity(paths.len());
         let mut file_stems = Vec::with_capacity(paths.len());
@@ -46,10 +50,10 @@ pub async fn composition() {
             );
         }
         if let (Err(_), Err(_), Err(_), Err(_)) = futures::join!(
-            extension.send_string(extensions),
-            file_name.send_string(file_names),
-            file_stem.send_string(file_stems),
-            parent.send_string(parents)
+            extension.send_many(extensions.into()),
+            file_name.send_many(file_names.into()),
+            file_stem.send_many(file_stems.into()),
+            parent.send_many(parents.into())
         ) {
             break;
         }
@@ -66,12 +70,16 @@ pub async fn composition() {
     output exists Stream<bool>
 )]
 pub async fn exists() {
-    while let Ok(paths) = path.recv_string().await {
+    while let Ok(paths) = path
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
         let mut results = Vec::with_capacity(paths.len());
         for path in paths {
             results.push(PathBuf::from(path).exists().await);
         }
-        check!(exists.send_bool(results).await);
+        check!(exists.send_many(results.into()).await);
     }
 }
 
@@ -86,7 +94,11 @@ pub async fn exists() {
     output length Stream<u64>
 )]
 pub async fn meta() {
-    while let Ok(paths) = path.recv_string().await {
+    while let Ok(paths) = path
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
         let mut are_dirs = Vec::with_capacity(paths.len());
         let mut are_files = Vec::with_capacity(paths.len());
         let mut lengths = Vec::with_capacity(paths.len());
@@ -102,9 +114,9 @@ pub async fn meta() {
             }
         }
         if let (Err(_), Err(_), Err(_)) = futures::join!(
-            is_dir.send_bool(are_dirs),
-            is_file.send_bool(are_files),
-            length.send_u64(lengths)
+            is_dir.send_many(are_dirs.into()),
+            is_file.send_many(are_files.into()),
+            length.send_many(lengths.into())
         ) {
             break;
         }

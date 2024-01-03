@@ -20,8 +20,15 @@ pub fn not_equal(a: bool, b: bool) -> bool {
     output result Stream<bool>
 )]
 pub async fn equal() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_bool().await, b.recv_one_bool().await) {
-        check!(result.send_one_bool(a == b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<bool>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<bool>::try_data(val).unwrap()),
+    ) {
+        check!(result.send_one((a == b).into()).await)
     }
 }
 
@@ -32,8 +39,15 @@ pub async fn equal() {
     output result Stream<bool>
 )]
 pub async fn not_equal() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_bool().await, b.recv_one_bool().await) {
-        check!(result.send_one_bool(a != b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<bool>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<bool>::try_data(val).unwrap()),
+    ) {
+        check!(result.send_one((a != b).into()).await)
     }
 }
 
@@ -68,8 +82,15 @@ pub fn not(val: bool) -> bool {
     output result Stream<bool>
 )]
 pub async fn and() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_bool().await, b.recv_one_bool().await) {
-        check!(result.send_one_bool(a & b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<bool>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<bool>::try_data(val).unwrap()),
+    ) {
+        check!(result.send_one((a & b).into()).await)
     }
 }
 
@@ -80,8 +101,15 @@ pub async fn and() {
     output result Stream<bool>
 )]
 pub async fn or() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_bool().await, b.recv_one_bool().await) {
-        check!(result.send_one_bool(a | b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<bool>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<bool>::try_data(val).unwrap()),
+    ) {
+        check!(result.send_one((a | b).into()).await)
     }
 }
 
@@ -92,8 +120,15 @@ pub async fn or() {
     output result Stream<bool>
 )]
 pub async fn xor() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_bool().await, b.recv_one_bool().await) {
-        check!(result.send_one_bool(a ^ b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<bool>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<bool>::try_data(val).unwrap()),
+    ) {
+        check!(result.send_one((a ^ b).into()).await)
     }
 }
 
@@ -103,10 +138,20 @@ pub async fn xor() {
     output not Stream<bool>
 )]
 pub async fn not() {
-    while let Ok(values) = value.recv_bool().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<bool>>::try_into(values).unwrap())
+    {
         check!(
-            not.send_bool(values.into_iter().map(|v| !v).collect())
-                .await
+            not.send_many(
+                values
+                    .into_iter()
+                    .map(|v| !v)
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }

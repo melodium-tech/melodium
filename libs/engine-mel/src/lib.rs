@@ -37,7 +37,7 @@ impl Engine {
     }
 
     async fn ready(trigger: Box<dyn Output>) -> ResultStatus {
-        let _ = trigger.send_one_void(()).await;
+        let _ = trigger.send_one(().into()).await;
         trigger.close().await;
         ResultStatus::Ok
     }

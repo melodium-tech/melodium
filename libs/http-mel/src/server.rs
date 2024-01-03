@@ -99,8 +99,8 @@ impl HttpServer {
                                         let failure = outputs.get("failure");
 
                                         vec![Box::new(Box::pin(async move {
-                                            let _ = error.send_one_string(err.to_string()).await;
-                                            let _ = failure.send_one_void(()).await;
+                                            let _ = error.send_one(err.to_string().into()).await;
+                                            let _ = failure.send_one(().into()).await;
                                             error.close().await;
                                             failure.close().await;
                                             ResultStatus::Ok
@@ -177,15 +177,15 @@ impl HttpServer {
             let mut buffer = vec![0; 2usize.pow(20)];
             match body.read(&mut buffer).await {
                 Ok(0) => {
-                    let _ = success.send_one_void(()).await;
+                    let _ = success.send_one(().into()).await;
                     break;
                 }
                 Ok(n) => {
                     buffer.truncate(n);
-                    check!(data.send_byte(buffer).await);
+                    check!(data.send_many(TransmissionValue::Byte(buffer.into())).await);
                 }
                 Err(_err) => {
-                    let _ = failure.send_one_void(()).await;
+                    let _ = failure.send_one(().into()).await;
                     break;
                 }
             }
@@ -219,10 +219,19 @@ pub async fn outgoing(id: u64) {
     }
     if let Some(output) = output {
         let mut buffer = Vec::new();
-        while let (Ok(data), false) = (data.recv_byte().await, output.is_closed()) {
+        while let (Ok(data), false) = (
+            data.recv_many()
+                .await
+                .map(|values| TryInto::<Vec<byte>>::try_into(values).unwrap()),
+            output.is_closed(),
+        ) {
             buffer.extend(data);
         }
-        if let Ok(status) = status.recv_one_u16().await {
+        if let Ok(status) = status
+            .recv_one()
+            .await
+            .map(|val| GetData::<u16>::try_data(val).unwrap())
+        {
             let _ = output.send((status, buffer)).await;
         }
     }

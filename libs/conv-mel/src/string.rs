@@ -7,8 +7,8 @@ use melodium_macro::{check, mel_function, mel_treatment};
     output iter Stream<void>
 )]
 pub async fn to_void() {
-    while let Ok(values) = value.recv_string().await {
-        check!(iter.send_void(vec![(); values.len()]).await)
+    while let Ok(values) = value.recv_many().await {
+        check!(iter.send_many(vec![(); values.len()].into()).await)
     }
 }
 
@@ -30,14 +30,18 @@ pub fn to_byte(value: string) -> Vec<byte> {
     output data Stream<Vec<byte>>
 )]
 pub async fn to_byte() {
-    while let Ok(values) = value.recv_string().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
         check!(
-            data.send_vec_byte(
+            data.send_many(TransmissionValue::Other(
                 values
                     .into_iter()
-                    .map(|val| val.as_bytes().to_vec())
+                    .map(|val| Value::Vec(val.as_bytes().iter().map(|v| Value::Byte(*v)).collect()))
                     .collect()
-            )
+            ))
             .await
         )
     }

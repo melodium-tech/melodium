@@ -92,7 +92,11 @@ impl JavaScriptEngine {
 pub async fn process(#[mel(content(json))] code: string) {
     let engine = JavaScriptEngineModel::into(engine);
 
-    while let Ok(values) = value.recv_string().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
         for value in values {
             match serde_json::from_str::<Value>(&value) {
                 Ok(value) => {
@@ -105,12 +109,12 @@ pub async fn process(#[mel(content(json))] code: string) {
 
                     match processed {
                         Ok(Ok(value)) => {
-                            check!(result.send_one_string(value.to_string()).await);
-                            let _ = is_valid.send_one_bool(true).await;
+                            check!(result.send_one(value.to_string().into()).await);
+                            let _ = is_valid.send_one(true.into()).await;
                         }
                         Ok(Err(_err)) => {
-                            check!(result.send_one_string("".to_string()).await);
-                            let _ = is_valid.send_one_bool(false).await;
+                            check!(result.send_one("".to_string().into()).await);
+                            let _ = is_valid.send_one(false.into()).await;
                         }
                         Err(_) => {
                             break;
@@ -118,8 +122,8 @@ pub async fn process(#[mel(content(json))] code: string) {
                     }
                 }
                 Err(_err) => {
-                    check!(result.send_one_string("".to_string()).await);
-                    let _ = is_valid.send_one_bool(false).await;
+                    check!(result.send_one("".to_string().into()).await);
+                    let _ = is_valid.send_one(false.into()).await;
                 }
             }
         }

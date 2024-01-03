@@ -12,7 +12,7 @@ use flow::stream
 use fs/file::write
 use engine/util::startup
 use conv/string::toByte
-use flow/vec/byte::flatten
+use flow/vec::flatten
 
 /*
     This script is not supposed to do anything at this point, only to be parsed.
@@ -51,7 +51,7 @@ treatment write_file()
   emit_filename.emit -> write.path
 
   toByte()
-  flatten()
+  flatten<byte>()
   write()
 
   emit.emit -> stream.block,stream -> toByte.value,data -> flatten.vector,value -> write.data

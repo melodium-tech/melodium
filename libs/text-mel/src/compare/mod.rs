@@ -9,10 +9,19 @@ use melodium_macro::{check, mel_function, mel_treatment};
     output matches Stream<bool>
 )]
 pub async fn exact(pattern: string) {
-    while let Ok(text) = text.recv_string().await {
+    while let Ok(text) = text
+        .recv_many()
+        .await
+        .map(|values: TransmissionValue| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
         check!(
             matches
-                .send_bool(text.into_iter().map(|txt| txt == pattern).collect())
+                .send_many(
+                    text.into_iter()
+                        .map(|txt| txt == pattern)
+                        .collect::<VecDeque<_>>()
+                        .into()
+                )
                 .await
         );
     }
@@ -30,13 +39,18 @@ pub fn exact(text: string, pattern: string) -> bool {
     output matches Stream<bool>
 )]
 pub async fn starts_with(pattern: string) {
-    while let Ok(text) = text.recv_string().await {
+    while let Ok(text) = text
+        .recv_many()
+        .await
+        .map(|values: TransmissionValue| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
         check!(
             matches
-                .send_bool(
+                .send_many(
                     text.into_iter()
                         .map(|txt| txt.starts_with(&pattern))
-                        .collect()
+                        .collect::<VecDeque<_>>()
+                        .into()
                 )
                 .await
         );
@@ -55,13 +69,18 @@ pub fn starts_with(text: string, pattern: string) -> bool {
     output matches Stream<bool>
 )]
 pub async fn ends_with(pattern: string) {
-    while let Ok(text) = text.recv_string().await {
+    while let Ok(text) = text
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
         check!(
             matches
-                .send_bool(
+                .send_many(
                     text.into_iter()
                         .map(|txt| txt.ends_with(&pattern))
-                        .collect()
+                        .collect::<VecDeque<_>>()
+                        .into()
                 )
                 .await
         );

@@ -112,8 +112,16 @@ pub fn tanh(value: f32) -> f32 {
     output power Stream<f32>
 )]
 pub async fn pow() {
-    while let (Ok(base), Ok(exp)) = (base.recv_one_f32().await, exponent.recv_one_f32().await) {
-        check!(power.send_one_f32(base.powf(exp)).await)
+    while let (Ok(base), Ok(exp)) = (
+        base.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+        exponent
+            .recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+    ) {
+        check!(power.send_one(base.powf(exp).into()).await)
     }
 }
 
@@ -123,10 +131,20 @@ pub async fn pow() {
     output root Stream<f32>
 )]
 pub async fn cbrt() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            root.send_f32(values.into_iter().map(|v| v.cbrt()).collect())
-                .await
+            root.send_many(
+                values
+                    .into_iter()
+                    .map(|v| v.cbrt())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -137,10 +155,20 @@ pub async fn cbrt() {
     output log Stream<f32>
 )]
 pub async fn ln() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            log.send_f32(values.into_iter().map(|v| v.ln()).collect())
-                .await
+            log.send_many(
+                values
+                    .into_iter()
+                    .map(|v| v.ln())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -152,8 +180,16 @@ pub async fn ln() {
     output log Stream<f32>
 )]
 pub async fn log() {
-    while let (Ok(base), Ok(value)) = (base.recv_one_f32().await, value.recv_one_f32().await) {
-        check!(log.send_one_f32(value.log(base)).await)
+    while let (Ok(base), Ok(value)) = (
+        base.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+        value
+            .recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+    ) {
+        check!(log.send_one(value.log(base).into()).await)
     }
 }
 
@@ -163,10 +199,20 @@ pub async fn log() {
     output root Stream<f32>
 )]
 pub async fn sqrt() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            root.send_f32(values.into_iter().map(|v| v.sqrt()).collect())
-                .await
+            root.send_many(
+                values
+                    .into_iter()
+                    .map(|v| v.sqrt())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -179,10 +225,20 @@ pub async fn sqrt() {
     output acos Stream<f32>
 )]
 pub async fn acos() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            acos.send_f32(values.into_iter().map(|v| v.acos()).collect())
-                .await
+            acos.send_many(
+                values
+                    .into_iter()
+                    .map(|v| v.acos())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -193,10 +249,20 @@ pub async fn acos() {
     output acosh Stream<f32>
 )]
 pub async fn acosh() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
             acosh
-                .send_f32(values.into_iter().map(|v| v.acosh()).collect())
+                .send_many(
+                    values
+                        .into_iter()
+                        .map(|v| v.acosh())
+                        .collect::<VecDeque<_>>()
+                        .into()
+                )
                 .await
         )
     }
@@ -210,10 +276,20 @@ pub async fn acosh() {
     output asin Stream<f32>
 )]
 pub async fn asin() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            asin.send_f32(values.into_iter().map(|v| v.asin()).collect())
-                .await
+            asin.send_many(
+                values
+                    .into_iter()
+                    .map(|v| v.asin())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -224,10 +300,20 @@ pub async fn asin() {
     output asinh Stream<f32>
 )]
 pub async fn asinh() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
             asinh
-                .send_f32(values.into_iter().map(|v| v.asinh()).collect())
+                .send_many(
+                    values
+                        .into_iter()
+                        .map(|v| v.asinh())
+                        .collect::<VecDeque<_>>()
+                        .into()
+                )
                 .await
         )
     }
@@ -241,10 +327,20 @@ pub async fn asinh() {
     output atan Stream<f32>
 )]
 pub async fn atan() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            atan.send_f32(values.into_iter().map(|v| v.atan()).collect())
-                .await
+            atan.send_many(
+                values
+                    .into_iter()
+                    .map(|v| v.atan())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -255,10 +351,20 @@ pub async fn atan() {
     output atanh Stream<f32>
 )]
 pub async fn atanh() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
             atanh
-                .send_f32(values.into_iter().map(|v| v.atanh()).collect())
+                .send_many(
+                    values
+                        .into_iter()
+                        .map(|v| v.atanh())
+                        .collect::<VecDeque<_>>()
+                        .into()
+                )
                 .await
         )
     }
@@ -270,10 +376,20 @@ pub async fn atanh() {
     output cos Stream<f32>
 )]
 pub async fn cos() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            cos.send_f32(values.into_iter().map(|v| v.cos()).collect())
-                .await
+            cos.send_many(
+                values
+                    .into_iter()
+                    .map(|v| v.cos())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -284,10 +400,20 @@ pub async fn cos() {
     output cosh Stream<f32>
 )]
 pub async fn cosh() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            cosh.send_f32(values.into_iter().map(|v| v.cosh()).collect())
-                .await
+            cosh.send_many(
+                values
+                    .into_iter()
+                    .map(|v| v.cosh())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -298,10 +424,20 @@ pub async fn cosh() {
     output sin Stream<f32>
 )]
 pub async fn sin() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            sin.send_f32(values.into_iter().map(|v| v.sin()).collect())
-                .await
+            sin.send_many(
+                values
+                    .into_iter()
+                    .map(|v| v.sin())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -312,10 +448,20 @@ pub async fn sin() {
     output sinh Stream<f32>
 )]
 pub async fn sinh() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            sinh.send_f32(values.into_iter().map(|v| v.sinh()).collect())
-                .await
+            sinh.send_many(
+                values
+                    .into_iter()
+                    .map(|v| v.sinh())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -326,10 +472,20 @@ pub async fn sinh() {
     output tan Stream<f32>
 )]
 pub async fn tan() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            tan.send_f32(values.into_iter().map(|v| v.tan()).collect())
-                .await
+            tan.send_many(
+                values
+                    .into_iter()
+                    .map(|v| v.tan())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -340,10 +496,20 @@ pub async fn tan() {
     output tanh Stream<f32>
 )]
 pub async fn tanh() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            tanh.send_f32(values.into_iter().map(|v| v.tanh()).collect())
-                .await
+            tanh.send_many(
+                values
+                    .into_iter()
+                    .map(|v| v.tanh())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }
@@ -411,8 +577,15 @@ pub fn max(a: f32, b: f32) -> f32 {
     output sum Stream<f32>
 )]
 pub async fn add() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_f32().await, b.recv_one_f32().await) {
-        check!(sum.send_one_f32(a + b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+    ) {
+        check!(sum.send_one((a + b).into()).await)
     }
 }
 
@@ -425,8 +598,15 @@ pub async fn add() {
     output quotient Stream<f32>
 )]
 pub async fn div() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_f32().await, b.recv_one_f32().await) {
-        check!(quotient.send_one_f32(a / b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+    ) {
+        check!(quotient.send_one((a / b).into()).await)
     }
 }
 
@@ -439,8 +619,15 @@ pub async fn div() {
     output product Stream<f32>
 )]
 pub async fn mult() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_f32().await, b.recv_one_f32().await) {
-        check!(product.send_one_f32(a * b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+    ) {
+        check!(product.send_one((a * b).into()).await)
     }
 }
 
@@ -453,8 +640,15 @@ pub async fn mult() {
     output remainder Stream<f32>
 )]
 pub async fn rem() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_f32().await, b.recv_one_f32().await) {
-        check!(remainder.send_one_f32(a % b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+    ) {
+        check!(remainder.send_one((a % b).into()).await)
     }
 }
 
@@ -467,8 +661,15 @@ pub async fn rem() {
     output diff Stream<f32>
 )]
 pub async fn sub() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_f32().await, b.recv_one_f32().await) {
-        check!(diff.send_one_f32(a - b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+    ) {
+        check!(diff.send_one((a - b).into()).await)
     }
 }
 
@@ -479,8 +680,15 @@ pub async fn sub() {
     output min Stream<f32>
 )]
 pub async fn min() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_f32().await, b.recv_one_f32().await) {
-        check!(min.send_one_f32(a.min(b)).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+    ) {
+        check!(min.send_one(a.min(b).into()).await)
     }
 }
 
@@ -491,8 +699,15 @@ pub async fn min() {
     output max Stream<f32>
 )]
 pub async fn max() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_f32().await, b.recv_one_f32().await) {
-        check!(max.send_one_f32(a.max(b)).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+    ) {
+        check!(max.send_one(a.max(b).into()).await)
     }
 }
 
@@ -503,8 +718,15 @@ pub async fn max() {
     output is Stream<bool>
 )]
 pub async fn lower_than() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_f32().await, b.recv_one_f32().await) {
-        check!(is.send_one_bool(a < b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+    ) {
+        check!(is.send_one((a < b).into()).await)
     }
 }
 
@@ -515,8 +737,15 @@ pub async fn lower_than() {
     output is Stream<bool>
 )]
 pub async fn greater_than() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_f32().await, b.recv_one_f32().await) {
-        check!(is.send_one_bool(a > b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<f32>::try_data(val).unwrap()),
+    ) {
+        check!(is.send_one((a > b).into()).await)
     }
 }
 
@@ -532,10 +761,20 @@ pub fn abs(value: f32) -> f32 {
     output abs Stream<f32>
 )]
 pub async fn abs() {
-    while let Ok(values) = value.recv_f32().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
+    {
         check!(
-            abs.send_f32(values.into_iter().map(|v| v.abs()).collect())
-                .await
+            abs.send_many(
+                values
+                    .into_iter()
+                    .map(|v| v.abs())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }

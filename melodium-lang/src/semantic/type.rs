@@ -98,13 +98,34 @@ impl TypeContent {
         }
     }
 
-    fn to_descriptor(&self) -> Result<DescribedTypeDescriptor, ()> {
-        Ok(match self {
-            Self::Other(name) => DescribedTypeDescriptor::Generic(name.clone()),
-            me => DescribedTypeDescriptor::Concrete(me.to_datatype()?),
-        })
+    fn to_descriptor(&self) -> DescribedTypeDescriptor {
+        match self {
+            Self::Void => DescribedTypeDescriptor::Void,
+            Self::I8 => DescribedTypeDescriptor::I8,
+            Self::I16 => DescribedTypeDescriptor::I16,
+            Self::I32 => DescribedTypeDescriptor::I32,
+            Self::I64 => DescribedTypeDescriptor::I64,
+            Self::I128 => DescribedTypeDescriptor::I128,
+            Self::U8 => DescribedTypeDescriptor::U8,
+            Self::U16 => DescribedTypeDescriptor::U16,
+            Self::U32 => DescribedTypeDescriptor::U32,
+            Self::U64 => DescribedTypeDescriptor::U64,
+            Self::U128 => DescribedTypeDescriptor::U128,
+            Self::F32 => DescribedTypeDescriptor::F32,
+            Self::F64 => DescribedTypeDescriptor::F64,
+            Self::Bool => DescribedTypeDescriptor::Bool,
+            Self::Byte => DescribedTypeDescriptor::Byte,
+            Self::Char => DescribedTypeDescriptor::Char,
+            Self::String => DescribedTypeDescriptor::String,
+            Self::Option(internal) => {
+                DescribedTypeDescriptor::Option(Box::new(internal.to_descriptor()))
+            }
+            Self::Vec(internal) => DescribedTypeDescriptor::Vec(Box::new(internal.to_descriptor())),
+            Self::Other(generic) => DescribedTypeDescriptor::Generic(generic.clone()),
+        }
     }
 
+    #[allow(unused)]
     fn to_datatype(&self) -> Result<DataTypeDescriptor, ()> {
         match self {
             Self::Void => Ok(DataTypeDescriptor::Void),
@@ -221,13 +242,6 @@ impl Type {
             TypeFlow::Stream => FlowDescriptor::Stream,
         };
 
-        match self
-            .content
-            .to_descriptor()
-            .map_err(|_| ScriptError::unsupported_nested_generic(176, self.text.name.clone()))
-        {
-            Ok(described_type) => ScriptResult::new_success((described_type, flow)),
-            Err(error) => ScriptResult::new_failure(error),
-        }
+        ScriptResult::new_success((self.content.to_descriptor(), flow))
     }
 }
