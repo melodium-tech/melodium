@@ -9,13 +9,17 @@ use melodium_macro::{check, mel_function, mel_treatment};
     output chars Stream<Vec<char>>
 )]
 pub async fn to_char() {
-    while let Ok(text) = text.recv_string().await {
+    while let Ok(text) = text
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
         let output = text
             .into_iter()
-            .map(|text| text.chars().collect())
-            .collect();
+            .map(|text| Value::Vec(text.chars().map(|c| Value::Char(c)).collect()))
+            .collect::<VecDeque<_>>();
 
-        check!(chars.send_vec_char(output).await);
+        check!(chars.send_many(TransmissionValue::Other(output)).await);
     }
 }
 
@@ -33,13 +37,26 @@ pub fn to_char(text: string) -> Vec<char> {
     output text Stream<string>
 )]
 pub async fn from_char() {
-    while let Ok(chars) = chars.recv_vec_char().await {
+    while let Ok(chars) = chars
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
         let output = chars
             .into_iter()
-            .map(|text| text.into_iter().collect())
-            .collect();
+            .map(|text| match text {
+                Value::Vec(text) => text
+                    .into_iter()
+                    .map(|c| match c {
+                        Value::Char(c) => c,
+                        _ => panic!("char expected"),
+                    })
+                    .collect::<String>(),
+                _ => panic!("Vec<char> expected"),
+            })
+            .collect::<VecDeque<_>>();
 
-        check!(text.send_string(output).await);
+        check!(text.send_many(output.into()).await);
     }
 }
 
@@ -57,13 +74,17 @@ pub fn from_char(chars: Vec<char>) -> string {
     output encoded Stream<byte>
 )]
 pub async fn to_utf8() {
-    while let Ok(text) = text.recv_string().await {
-        let mut output = Vec::new();
+    while let Ok(text) = text
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
+        let mut output = VecDeque::new();
         for text in text {
             output.extend(text.as_bytes());
         }
 
-        check!(encoded.send_byte(output).await);
+        check!(encoded.send_many(TransmissionValue::Byte(output)).await);
     }
 }
 
@@ -81,10 +102,14 @@ pub fn to_utf8(text: string) -> Vec<byte> {
     output text Stream<string>
 )]
 pub async fn from_utf8() {
-    while let Ok(encoded) = encoded.recv_byte().await {
+    while let Ok(encoded) = encoded
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<byte>>::try_into(values).unwrap())
+    {
         let output = String::from_utf8_lossy(&encoded).to_string();
 
-        check!(text.send_one_string(output).await);
+        check!(text.send_one(output.into()).await);
     }
 }
 

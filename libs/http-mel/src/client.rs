@@ -83,16 +83,16 @@ impl HttpClient {
                 Ok(mut response) => {
                     let status = response.status();
                     if status.is_client_error() || status.is_server_error() {
-                        let _ = is_error.send_one_bool(true).await;
-                        let _ = is_success.send_one_bool(false).await;
+                        let _ = is_error.send_one(true.into()).await;
+                        let _ = is_success.send_one(false.into()).await;
                     } else {
-                        let _ = is_error.send_one_bool(false).await;
-                        let _ = is_success.send_one_bool(true).await;
+                        let _ = is_error.send_one(false.into()).await;
+                        let _ = is_success.send_one(true.into()).await;
                     }
 
-                    let _ = http_code.send_one_u16(status as u16).await;
+                    let _ = http_code.send_one((status as u16).into()).await;
                     let _ = http_status
-                        .send_one_string(status.canonical_reason().to_string())
+                        .send_one(status.canonical_reason().to_string().into())
                         .await;
 
                     if let Some(data) = data {
@@ -101,12 +101,15 @@ impl HttpClient {
                             match response.read(&mut vec_data).await {
                                 Ok(len) if len > 0 => {
                                     vec_data.truncate(len);
-                                    check!(data.send_byte(vec_data).await);
+                                    check!(
+                                        data.send_many(TransmissionValue::Byte(vec_data.into()))
+                                            .await
+                                    );
                                     vec_data = vec![0; 2_usize.pow(20)];
                                 }
                                 Ok(_) => break,
                                 Err(err) => {
-                                    let _ = failure.send_one_string(err.to_string()).await;
+                                    let _ = failure.send_one(err.to_string().into()).await;
                                     break;
                                 }
                             }
@@ -114,12 +117,12 @@ impl HttpClient {
                     }
                 }
                 Err(err) => {
-                    let _ = failure.send_one_string(err.to_string()).await;
+                    let _ = failure.send_one(err.to_string().into()).await;
                 }
             }
         } else {
             let _ = failure
-                .send_one_string("No HTTP client available".to_string())
+                .send_one("No HTTP client available".to_string().into())
                 .await;
         }
     }
@@ -148,7 +151,11 @@ impl HttpClient {
     output http_status Block<string>
 )]
 pub async fn delete() {
-    if let Ok(url) = url.recv_one_string().await {
+    if let Ok(url) = url
+        .recv_one()
+        .await
+        .map(|val| GetData::<string>::try_data(val).unwrap())
+    {
         match Url::parse(&url) {
             Ok(url) => {
                 let request = surf::Request::new(surf::http::Method::Delete, url);
@@ -167,7 +174,7 @@ pub async fn delete() {
                     .await;
             }
             Err(err) => {
-                let _ = failure.send_one_string(err.to_string()).await;
+                let _ = failure.send_one(err.to_string().into()).await;
             }
         }
     }
@@ -198,7 +205,11 @@ pub async fn delete() {
     output http_status Block<string>
 )]
 pub async fn get() {
-    if let Ok(url) = url.recv_one_string().await {
+    if let Ok(url) = url
+        .recv_one()
+        .await
+        .map(|val| GetData::<string>::try_data(val).unwrap())
+    {
         match Url::parse(&url) {
             Ok(url) => {
                 let request = surf::Request::new(surf::http::Method::Get, url);
@@ -217,7 +228,7 @@ pub async fn get() {
                     .await;
             }
             Err(err) => {
-                let _ = failure.send_one_string(err.to_string()).await;
+                let _ = failure.send_one(err.to_string().into()).await;
             }
         }
     }
@@ -246,7 +257,11 @@ pub async fn get() {
     output http_status Block<string>
 )]
 pub async fn head() {
-    if let Ok(url) = url.recv_one_string().await {
+    if let Ok(url) = url
+        .recv_one()
+        .await
+        .map(|val| GetData::<string>::try_data(val).unwrap())
+    {
         match Url::parse(&url) {
             Ok(url) => {
                 let request = surf::Request::new(surf::http::Method::Head, url);
@@ -265,7 +280,7 @@ pub async fn head() {
                     .await;
             }
             Err(err) => {
-                let _ = failure.send_one_string(err.to_string()).await;
+                let _ = failure.send_one(err.to_string().into()).await;
             }
         }
     }
@@ -296,7 +311,11 @@ pub async fn head() {
     output http_status Block<string>
 )]
 pub async fn options() {
-    if let Ok(url) = url.recv_one_string().await {
+    if let Ok(url) = url
+        .recv_one()
+        .await
+        .map(|val| GetData::<string>::try_data(val).unwrap())
+    {
         match Url::parse(&url) {
             Ok(url) => {
                 let request = surf::Request::new(surf::http::Method::Options, url);
@@ -315,7 +334,7 @@ pub async fn options() {
                     .await;
             }
             Err(err) => {
-                let _ = failure.send_one_string(err.to_string()).await;
+                let _ = failure.send_one(err.to_string().into()).await;
             }
         }
     }
@@ -347,8 +366,16 @@ pub async fn options() {
     output http_status Block<string>
 )]
 pub async fn patch() {
-    if let Ok(url) = url.recv_one_string().await {
-        if let Ok(data) = data.recv_one_vec_byte().await {
+    if let Ok(url) = url
+        .recv_one()
+        .await
+        .map(|val| GetData::<string>::try_data(val).unwrap())
+    {
+        if let Ok(data) = data
+            .recv_one()
+            .await
+            .map(|val| GetData::<Vec<byte>>::try_data(val).unwrap())
+        {
             match Url::parse(&url) {
                 Ok(url) => {
                     let mut request = surf::Request::new(surf::http::Method::Patch, url);
@@ -369,7 +396,7 @@ pub async fn patch() {
                         .await;
                 }
                 Err(err) => {
-                    let _ = failure.send_one_string(err.to_string()).await;
+                    let _ = failure.send_one(err.to_string().into()).await;
                 }
             }
         }
@@ -406,9 +433,21 @@ pub async fn patch() {
     output http_status Block<string>
 )]
 pub async fn post() {
-    if let Ok(url) = url.recv_one_string().await {
-        if let Ok(mime) = mime.recv_one_string().await {
-            if let Ok(form_data) = form.recv_one_vec_byte().await {
+    if let Ok(url) = url
+        .recv_one()
+        .await
+        .map(|val| GetData::<string>::try_data(val).unwrap())
+    {
+        if let Ok(mime) = mime
+            .recv_one()
+            .await
+            .map(|val| GetData::<string>::try_data(val).unwrap())
+        {
+            if let Ok(form_data) = form
+                .recv_one()
+                .await
+                .map(|val| GetData::<Vec<byte>>::try_data(val).unwrap())
+            {
                 match Url::parse(&url) {
                     Ok(url) => {
                         let mut request = surf::Request::new(surf::http::Method::Post, url);
@@ -430,7 +469,7 @@ pub async fn post() {
                             .await;
                     }
                     Err(err) => {
-                        let _ = failure.send_one_string(err.to_string()).await;
+                        let _ = failure.send_one(err.to_string().into()).await;
                     }
                 }
             }
@@ -466,9 +505,21 @@ pub async fn post() {
     output http_status Block<string>
 )]
 pub async fn put() {
-    if let Ok(url) = url.recv_one_string().await {
-        if let Ok(mime) = mime.recv_one_string().await {
-            if let Ok(data) = data.recv_one_vec_byte().await {
+    if let Ok(url) = url
+        .recv_one()
+        .await
+        .map(|val| GetData::<string>::try_data(val).unwrap())
+    {
+        if let Ok(mime) = mime
+            .recv_one()
+            .await
+            .map(|val| GetData::<string>::try_data(val).unwrap())
+        {
+            if let Ok(data) = data
+                .recv_one()
+                .await
+                .map(|val| GetData::<Vec<byte>>::try_data(val).unwrap())
+            {
                 match Url::parse(&url) {
                     Ok(url) => {
                         let mut request = surf::Request::new(surf::http::Method::Put, url);
@@ -490,7 +541,7 @@ pub async fn put() {
                             .await;
                     }
                     Err(err) => {
-                        let _ = failure.send_one_string(err.to_string()).await;
+                        let _ = failure.send_one(err.to_string().into()).await;
                     }
                 }
             }
@@ -521,7 +572,11 @@ pub async fn put() {
     output http_status Block<string>
 )]
 pub async fn trace() {
-    if let Ok(url) = url.recv_one_string().await {
+    if let Ok(url) = url
+        .recv_one()
+        .await
+        .map(|val| GetData::<string>::try_data(val).unwrap())
+    {
         match Url::parse(&url) {
             Ok(url) => {
                 let request = surf::Request::new(surf::http::Method::Trace, url);
@@ -540,7 +595,7 @@ pub async fn trace() {
                     .await;
             }
             Err(err) => {
-                let _ = failure.send_one_string(err.to_string()).await;
+                let _ = failure.send_one(err.to_string().into()).await;
             }
         }
     }

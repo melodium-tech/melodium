@@ -17,7 +17,11 @@ use melodium_macro::{check, mel_treatment};
     output message Stream<string>
 )]
 pub async fn read() {
-    if let Ok(path) = path.recv_one_string().await {
+    if let Ok(path) = path
+        .recv_one()
+        .await
+        .map(|val| GetData::<string>::try_data(val).unwrap())
+    {
         let file = OpenOptions::new().read(true).open(path).await;
         match file {
             Ok(mut file) => {
@@ -27,31 +31,31 @@ pub async fn read() {
                     match file.read(&mut vec).await {
                         Ok(n) if n > 0 => {
                             vec.truncate(n);
-                            check!(data.send_byte(vec).await);
+                            check!(data.send_many(TransmissionValue::Byte(vec.into())).await);
                             vec = vec![0; 2usize.pow(20)];
                         }
                         Ok(_) => {
                             break;
                         }
                         Err(err) => {
-                            let _ = failure.send_one_void(()).await;
-                            let _ = message.send_one_string(err.to_string()).await;
+                            let _ = failure.send_one(().into()).await;
+                            let _ = message.send_one(err.to_string().into()).await;
                             fail = true;
                             break;
                         }
                     }
                 }
                 if !fail {
-                    let _ = success.send_one_void(()).await;
+                    let _ = success.send_one(().into()).await;
                 }
             }
             Err(err) => {
-                let _ = failure.send_one_void(()).await;
-                let _ = message.send_one_string(err.to_string()).await;
+                let _ = failure.send_one(().into()).await;
+                let _ = message.send_one(err.to_string().into()).await;
             }
         }
     } else {
-        let _ = failure.send_one_void(()).await;
+        let _ = failure.send_one(().into()).await;
     }
 }
 
@@ -78,7 +82,11 @@ pub async fn read() {
     output amount Stream<u128>
 )]
 pub async fn write(append: bool, create: bool, new: bool) {
-    if let Ok(path) = path.recv_one_string().await {
+    if let Ok(path) = path
+        .recv_one()
+        .await
+        .map(|val| GetData::<string>::try_data(val).unwrap())
+    {
         let file = OpenOptions::new()
             .write(true)
             .append(append)
@@ -90,30 +98,34 @@ pub async fn write(append: bool, create: bool, new: bool) {
             Ok(mut file) => {
                 let mut written_amount = 0u128;
                 let mut fail = false;
-                while let Ok(data) = data.recv_byte().await {
+                while let Ok(data) = data
+                    .recv_many()
+                    .await
+                    .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
+                {
                     match file.write_all(&data).await {
                         Ok(_) => {
                             written_amount += data.len() as u128;
-                            let _ = amount.send_one_u128(written_amount).await;
+                            let _ = amount.send_one(written_amount.into()).await;
                         }
                         Err(err) => {
-                            let _ = failure.send_one_void(()).await;
-                            let _ = message.send_one_string(err.to_string()).await;
+                            let _ = failure.send_one(().into()).await;
+                            let _ = message.send_one(err.to_string().into()).await;
                             fail = true;
                             break;
                         }
                     }
                 }
                 if !fail {
-                    let _ = success.send_one_void(()).await;
+                    let _ = success.send_one(().into()).await;
                 }
             }
             Err(err) => {
-                let _ = failure.send_one_void(()).await;
-                let _ = message.send_one_string(err.to_string()).await;
+                let _ = failure.send_one(().into()).await;
+                let _ = message.send_one(err.to_string().into()).await;
             }
         }
     } else {
-        let _ = failure.send_one_void(()).await;
+        let _ = failure.send_one(().into()).await;
     }
 }
