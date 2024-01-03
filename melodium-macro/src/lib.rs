@@ -65,28 +65,33 @@ fn into_mel_datatype(ty: &Vec<String>) -> String {
 }
 
 fn into_mel_described_type(ty: &Vec<String>) -> String {
-    let mut desc = String::new();
-    if ty.len() == 1 {
-        match ty.first().unwrap().as_str() {
-            "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16" | "u32"
-            | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" => {
-                desc.push_str("melodium_core::common::descriptor::DescribedType::Concrete(");
-                desc.push_str(&into_mel_datatype(ty));
-                desc.push(')');
-            }
-            generic => {
-                desc.push_str(r#"melodium_core::common::descriptor::DescribedType::Generic(""#);
-                desc.push_str(generic);
-                desc.push_str(r#"".to_string())"#);
+    fn write_described_type(iter: &mut Iter<String>) -> String {
+        let mut desc = String::new();
+        if let Some(ty) = iter.next() {
+            match ty.as_str() {
+                "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
+                | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" => {
+                    desc.push_str("melodium_core::common::descriptor::DescribedType::");
+                    desc.push_str(&ty.to_case(Case::UpperCamel));
+                }
+                "Vec" | "Option" => {
+                    desc.push_str("melodium_core::common::descriptor::DescribedType::");
+                    desc.push_str(ty.as_str());
+                    desc.push_str("(Box::new(");
+                    desc.push_str(&write_described_type(iter));
+                    desc.push_str("))");
+                }
+                generic => {
+                    desc.push_str(r#"melodium_core::common::descriptor::DescribedType::Generic(""#);
+                    desc.push_str(generic);
+                    desc.push_str(r#"".to_string())"#);
+                }
             }
         }
-    } else {
-        desc.push_str("melodium_core::common::descriptor::DescribedType::Concrete(");
-        desc.push_str(&into_mel_datatype(ty));
-        desc.push(')');
+        desc
     }
 
-    desc
+    write_described_type(&mut ty.iter())
 }
 
 fn into_rust_type(ty: &Vec<String>) -> String {

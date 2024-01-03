@@ -20,7 +20,7 @@ use melodium_macro::{check, mel_treatment};
     output value Stream<T>
 )]
 pub async fn flatten() {
-    'main: while let Ok(vectors) = vector
+    'main: while let Ok(mut vectors) = vector
         .recv_many()
         .await
         .map(|values| Into::<VecDeque<Value>>::into(values))
@@ -183,8 +183,7 @@ pub async fn size() {
             size.send_many(
                 iter.into_iter()
                     .map(|v| match v {
-                        Value::Vec(v) => (v.len() as u64),
-
+                        Value::Vec(v) => v.len() as u64,
                         _ => panic!("Vec expected"),
                     })
                     .collect::<VecDeque<_>>()
@@ -223,9 +222,9 @@ pub async fn resize(default: T) {
         .await
         .map(|val| GetData::<u64>::try_data(val).unwrap())
     {
-        if let Ok(mut vec) = vector.recv_one().await {
+        if let Ok(vec) = vector.recv_one().await {
             match vec {
-                Value::Vec(vec) => {
+                Value::Vec(mut vec) => {
                     vec.resize(size as usize, default.clone());
                     check!(resized.send_one(vec.into()).await);
                 }

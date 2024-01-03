@@ -387,15 +387,18 @@ impl Value {
                     ))
                 }
             }
-            _ => match described_type {
-                DescribedType::Generic(_) => ScriptResult::new_failure(ScriptError::invalid_type(
-                    109,
-                    self.text.get_positionned_string().clone(),
-                )),
-                DescribedType::Concrete(datatype) => self
-                    .make_executive_value(datatype)
-                    .and_then(|val| ScriptResult::new_success(ValueDesigner::Raw(val))),
-            },
+            _ => described_type
+                .to_datatype(&HashMap::new())
+                .map(|datatype| {
+                    self.make_executive_value(&datatype)
+                        .and_then(|val| ScriptResult::new_success(ValueDesigner::Raw(val)))
+                })
+                .unwrap_or_else(|| {
+                    ScriptResult::new_failure(ScriptError::invalid_type(
+                        109,
+                        self.text.get_positionned_string().clone(),
+                    ))
+                }),
         }
     }
 }

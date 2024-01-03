@@ -8,9 +8,8 @@ use super::variability::Variability;
 use crate::error::ScriptError;
 use crate::text::Parameter as TextParameter;
 use crate::ScriptResult;
-use melodium_common::descriptor::{
-    DescribedType, Flow as FlowDescriptor, Parameter as ParameterDescriptor,
-};
+use melodium_common::descriptor::{Flow as FlowDescriptor, Parameter as ParameterDescriptor};
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a declared parameter.
@@ -119,17 +118,18 @@ impl DeclaredParameter {
             })
             .and_then(|(described_type, flow)| {
                 if let Some(val) = &self.value {
-                    match &described_type {
-                        DescribedType::Concrete(datatype) => val
-                            .read()
+                    if let Some(datatype) = described_type.to_datatype(&HashMap::new()) {
+                        val.read()
                             .unwrap()
                             .make_executive_value(&datatype)
                             .and_then(|val| {
                                 ScriptResult::new_success((described_type, flow, Some(val)))
-                            }),
-                        DescribedType::Generic(_) => ScriptResult::new_failure(
-                            ScriptError::default_forbidden(172, self.text.name.clone()),
-                        ),
+                            })
+                    } else {
+                        ScriptResult::new_failure(ScriptError::default_forbidden(
+                            172,
+                            self.text.name.clone(),
+                        ))
                     }
                 } else {
                     ScriptResult::new_success((described_type, flow, None))
