@@ -270,6 +270,21 @@ impl Documentation {
     }
 
     fn function_content(&self, function: &Arc<dyn Function>) -> String {
+        let generics = if !function.generics().is_empty() {
+            let mut string = String::new();
+
+            for generic in function.generics().iter() {
+                string.push_str(&format!(
+                    "○ `{}`  \n",
+                    generic
+                ));
+            }
+
+            format!("#### Generics\n\n{}", string)
+        } else {
+            String::default()
+        };
+
         let parameters = if !function.parameters().is_empty() {
             let mut string = String::new();
 
@@ -297,7 +312,7 @@ impl Documentation {
                 .join(", ")
         );
 
-        format!("# Function {name}\n\n`{id}`\n\n---\n\n#### Usage\n```\n{call}\n```\n\n{parameters}\n\n#### Return\n\n↴ `{return}`\n\n---\n\n{doc}",
+        format!("# Function {name}\n\n`{id}`\n\n---\n\n#### Usage\n```\n{call}\n```\n\n{generics}{parameters}\n\n#### Return\n\n↴ `{return}`\n\n---\n\n{doc}",
             name = function.identifier().name(),
             id = function.identifier().to_string(),
             call = call,
@@ -411,6 +426,21 @@ impl Documentation {
     }
 
     fn treatment_content(&self, treatment: &Arc<dyn Treatment>) -> String {
+        let generics = if !treatment.generics().is_empty() {
+            let mut string = String::new();
+
+            for generic in treatment.generics().iter() {
+                string.push_str(&format!(
+                    "○ `{}`  \n",
+                    generic
+                ));
+            }
+
+            format!("#### Generics\n\n{}", string)
+        } else {
+            String::default()
+        };
+
         let models = if !treatment.models().is_empty() {
             let mut string = String::new();
 
@@ -519,7 +549,7 @@ impl Documentation {
             String::default()
         };
 
-        format!("# Treatment {name}\n\n`{id}`\n\n---\n\n{models}{provided}{parameters}{requirements}{inputs}{outputs}\n\n---\n\n{doc}",
+        format!("# Treatment {name}\n\n`{id}`\n\n---\n\n{generics}{models}{provided}{parameters}{requirements}{inputs}{outputs}\n\n---\n\n{doc}",
             name = treatment.identifier().name(),
             id = treatment.identifier().to_string(),
             doc = treatment.documentation(),
