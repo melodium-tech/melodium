@@ -20,19 +20,19 @@ use flow/vec::flatten
 
 treatment main() {
     
-    make_stream(my_value = [[[_]]], lolilol = "Hey")
+    make_stream(my_value = [[[_]]], something = "Hey")
     trigger<Vec<Vec<Vec<Option<u16>>>>>()
     write_file()
 
   make_stream.values -> trigger.stream,end -> write_file.trigger
 }
 
-treatment make_stream(var my_value: Vec<Vec<Vec<Option<u16>>>>, var lolilol: string)
+treatment make_stream(var my_value: Vec<Vec<Vec<Option<u16>>>>, var something: string)
   output values: Stream<Vec<Vec<Vec<Option<u16>>>>>
 {
   startup()
   emit<Vec<Vec<Vec<Option<u16>>>>>(value = my_value)
-  lol: emit<string>(value = lolilol)
+  nothing: emit<string>(value = something)
   stream<Vec<Vec<Vec<Option<u16>>>>>()
 
   startup.trigger -> emit.trigger,emit -> stream.block,stream -> Self.values
@@ -45,7 +45,7 @@ treatment write_file()
   stream<string>()
   Self.trigger -> emit.trigger
 
-  emit_filename: emit<string>(value="lol.txt")
+  emit_filename: emit<string>(value="something.txt")
   Self.trigger -> emit_filename.trigger
 
   emit_filename.emit -> write.path
