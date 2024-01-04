@@ -28,12 +28,16 @@ use melodium_macro::{check, mel_function, mel_treatment};
 )]
 pub async fn rescale(delimiter: string) {
     let mut previous = String::new();
-    'main: while let Ok(input) = unscaled.recv_one_string().await {
+    'main: while let Ok(input) = unscaled
+        .recv_one()
+        .await
+        .map(|val| GetData::<string>::try_data(val).unwrap())
+    {
         let splits: Vec<&str> = input.split_inclusive(&delimiter).collect();
         for split in splits {
             previous.push_str(split);
             if previous.ends_with(&delimiter) {
-                check!('main, scaled.send_one_string(previous).await);
+                check!('main, scaled.send_one(previous.into()).await);
                 previous = String::new();
             }
         }
@@ -61,24 +65,32 @@ pub async fn rescale(delimiter: string) {
     output splitted Stream<Vec<string>>
 )]
 pub async fn split(delimiter: string, inclusive: bool) {
-    while let Ok(input) = text.recv_string().await {
-        let mut output = Vec::with_capacity(input.len());
+    while let Ok(input) = text
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
+        let mut output = VecDeque::with_capacity(input.len());
 
         if inclusive {
             input.into_iter().for_each(|text| {
-                output.push(
+                output.push_back(Value::Vec(
                     text.split_inclusive(&delimiter)
-                        .map(|s| s.to_string())
+                        .map(|s| s.to_string().into())
                         .collect(),
-                )
+                ))
             });
         } else {
             input.into_iter().for_each(|text| {
-                output.push(text.split(&delimiter).map(|s| s.to_string()).collect())
+                output.push_back(Value::Vec(
+                    text.split(&delimiter)
+                        .map(|s| s.to_string().into())
+                        .collect(),
+                ))
             });
         }
 
-        check!(splitted.send_vec_string(output).await);
+        check!(splitted.send_many(TransmissionValue::Other(output)).await);
     }
 }
 
@@ -106,10 +118,14 @@ pub fn split(text: string, delimiter: string, inclusive: bool) -> Vec<string> {
     output trimmed Stream<string>
 )]
 pub async fn trim() {
-    while let Ok(mut text) = text.recv_string().await {
+    while let Ok(mut text) = text
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
         text.iter_mut().for_each(|t| *t = t.trim().to_string());
 
-        check!(trimmed.send_string(text).await);
+        check!(trimmed.send_many(text.into()).await);
     }
 }
 

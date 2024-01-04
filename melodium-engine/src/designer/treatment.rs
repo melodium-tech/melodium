@@ -1,4 +1,7 @@
-use super::{Connection, ModelInstanciation, Reference, Scope, TreatmentInstanciation, IO};
+use super::{
+    Connection, GenericInstanciation, ModelInstanciation, Reference, Scope, TreatmentInstanciation,
+    IO,
+};
 use crate::descriptor::Treatment as TreatmentDescriptor;
 use crate::design::{
     Connection as ConnectionDesign, ModelInstanciation as ModelInstanciationDesign,
@@ -8,17 +11,18 @@ use crate::design::{
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Attribuable, Attributes, Collection, Entry, Identified, Identifier, Parameterized,
-    Treatment as TreatmentTrait,
+    Attribuable, Attributes, Collection, DescribedType, Entry, Generic, Identified, Identifier,
+    Parameterized, Treatment as TreatmentTrait,
 };
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::{Arc, RwLock, RwLockReadGuard, Weak};
 
 #[derive(Debug)]
 pub struct Treatment {
     collection: Arc<Collection>,
     descriptor: Weak<TreatmentDescriptor>,
 
+    generics: Arc<RwLock<HashMap<String, DescribedType>>>,
     model_instanciations: HashMap<String, Arc<RwLock<ModelInstanciation>>>,
     treatments: HashMap<String, Arc<RwLock<TreatmentInstanciation>>>,
     connections: Vec<Connection>,
@@ -38,6 +42,14 @@ impl Treatment {
             RwLock::new(Self {
                 descriptor: Arc::downgrade(descriptor),
                 collection,
+                generics: Arc::new(RwLock::new(
+                    // This is required to satisfy type/generics comparison for inner instanciantions.
+                    descriptor
+                        .generics()
+                        .iter()
+                        .map(|generic| (generic.clone(), DescribedType::Generic(generic.clone())))
+                        .collect(),
+                )),
                 model_instanciations: HashMap::new(),
                 treatments: HashMap::new(),
                 connections: Vec::new(),
@@ -177,10 +189,9 @@ impl Treatment {
                 name,
                 design_reference.clone(),
             );
-            let rc_model = Arc::new(RwLock::new(model));
             self.model_instanciations
-                .insert(name.to_string(), Arc::clone(&rc_model));
-            Ok(rc_model).into()
+                .insert(name.to_string(), Arc::clone(&model));
+            Ok(model).into()
         } else {
             Err(LogicError::unexisting_model(
                 41,
@@ -293,6 +304,7 @@ impl Treatment {
             let rc_treatment = TreatmentInstanciation::new(
                 &(self.descriptor() as Arc<dyn TreatmentTrait>),
                 &self.auto_reference.upgrade().unwrap(),
+                &self.generics,
                 self.identifier(),
                 &treatment_descriptor,
                 name,
@@ -378,10 +390,13 @@ impl Treatment {
 
         let mut rc_output_treatment = None;
         let mut output = None;
+        let mut output_treatment_generics = None;
         if let Some(pos_rc_output_treatment) = self.treatments.get(output_treatment) {
             rc_output_treatment = Some(pos_rc_output_treatment);
 
-            let output_treatment_descriptor = pos_rc_output_treatment.read().unwrap().descriptor();
+            let output_treatment = pos_rc_output_treatment.read().unwrap();
+            let output_treatment_descriptor = output_treatment.descriptor();
+            output_treatment_generics = Some(Arc::clone(output_treatment.access_generics()));
 
             if let Some(pos_output) = output_treatment_descriptor.outputs().get(output_name) {
                 output = Some(pos_output.clone());
@@ -409,10 +424,13 @@ impl Treatment {
 
         let mut rc_input_treatment = None;
         let mut input = None;
+        let mut input_treatment_generics = None;
         if let Some(pos_rc_input_treatment) = self.treatments.get(input_treatment) {
             rc_input_treatment = Some(pos_rc_input_treatment);
 
-            let input_treatment_descriptor = pos_rc_input_treatment.read().unwrap().descriptor();
+            let input_treatment = pos_rc_input_treatment.read().unwrap();
+            let input_treatment_descriptor = input_treatment.descriptor();
+            input_treatment_generics = Some(Arc::clone(input_treatment.access_generics()));
 
             if let Some(pos_input) = input_treatment_descriptor.inputs().get(input_name) {
                 input = Some(pos_input.clone());
@@ -441,7 +459,11 @@ impl Treatment {
         if let (Some(rc_output_treatment), Some(output), Some(rc_input_treatment), Some(input)) =
             (rc_output_treatment, output, rc_input_treatment, input)
         {
-            if input.matches_output(&output) {
+            if input.matches_output(
+                &input_treatment_generics.unwrap().read().unwrap(),
+                &output,
+                &output_treatment_generics.unwrap().read().unwrap(),
+            ) {
                 self.connections.push(Connection::new_internal(
                     output_name,
                     rc_output_treatment,
@@ -460,9 +482,9 @@ impl Treatment {
                         input_treatment.to_string(),
                         input_name.to_string(),
                         *output.flow(),
-                        *output.datatype(),
+                        output.described_type().clone(),
                         *input.flow(),
-                        *input.datatype(),
+                        input.described_type().clone(),
                         design_reference,
                     ),
                 ));
@@ -544,7 +566,7 @@ impl Treatment {
         }
 
         if let (Some(input_self), Some(output_self)) = (input_self, output_self) {
-            if input_self.matches_output(&output_self) {
+            if input_self.matches_output(&self.generics(), &output_self, &self.generics()) {
                 self.connections.push(Connection::new_self(
                     input_self.name(),
                     output_self.name(),
@@ -561,9 +583,9 @@ impl Treatment {
                         "Self".to_string(),
                         self_output_name.to_string(),
                         *input_self.flow(),
-                        *input_self.datatype(),
+                        input_self.described_type().clone(),
                         *output_self.flow(),
-                        *output_self.datatype(),
+                        output_self.described_type().clone(),
                         design_reference,
                     ),
                 ));
@@ -627,10 +649,13 @@ impl Treatment {
 
         let mut rc_input_treatment = None;
         let mut input = None;
+        let mut input_treatment_generics = None;
         if let Some(pos_rc_input_treatment) = self.treatments.get(input_treatment) {
             rc_input_treatment = Some(pos_rc_input_treatment);
 
-            let input_treatment_descriptor = pos_rc_input_treatment.read().unwrap().descriptor();
+            let input_treatment = pos_rc_input_treatment.read().unwrap();
+            let input_treatment_descriptor = input_treatment.descriptor();
+            input_treatment_generics = Some(Arc::clone(input_treatment.access_generics()));
 
             if let Some(pos_input) = input_treatment_descriptor.inputs().get(input_name) {
                 input = Some(pos_input.clone());
@@ -659,7 +684,11 @@ impl Treatment {
         if let (Some(input_self), Some(rc_input_treatment), Some(input)) =
             (input_self, rc_input_treatment, input)
         {
-            if input_self.matches_input(&input) {
+            if input_self.matches_input(
+                &self.generics(),
+                &input,
+                &input_treatment_generics.unwrap().read().unwrap(),
+            ) {
                 self.connections.push(Connection::new_self_to_internal(
                     input_self.name(),
                     input.name(),
@@ -677,9 +706,9 @@ impl Treatment {
                         input_treatment.to_string(),
                         input_name.to_string(),
                         *input_self.flow(),
-                        *input_self.datatype(),
+                        input_self.described_type().clone(),
                         *input.flow(),
-                        *input.datatype(),
+                        input.described_type().clone(),
                         design_reference,
                     ),
                 ));
@@ -745,10 +774,13 @@ impl Treatment {
 
         let mut rc_output_treatment = None;
         let mut output = None;
+        let mut output_treatment_generics = None;
         if let Some(pos_rc_output_treatment) = self.treatments.get(output_treatment) {
             rc_output_treatment = Some(pos_rc_output_treatment);
 
-            let output_treatment_descriptor = pos_rc_output_treatment.read().unwrap().descriptor();
+            let output_treatment = pos_rc_output_treatment.read().unwrap();
+            let output_treatment_descriptor = output_treatment.descriptor();
+            output_treatment_generics = Some(Arc::clone(output_treatment.access_generics()));
 
             if let Some(pos_output) = output_treatment_descriptor.outputs().get(output_name) {
                 output = Some(pos_output.clone());
@@ -777,7 +809,11 @@ impl Treatment {
         if let (Some(output_self), Some(rc_output_treatment), Some(output)) =
             (output_self, rc_output_treatment, output)
         {
-            if output_self.matches_output(&output) {
+            if output_self.matches_output(
+                &self.generics(),
+                &output,
+                &output_treatment_generics.unwrap().read().unwrap(),
+            ) {
                 self.connections.push(Connection::new_internal_to_self(
                     output.name(),
                     rc_output_treatment,
@@ -795,9 +831,9 @@ impl Treatment {
                         "Self".to_string(),
                         self_output_name.to_string(),
                         *output.flow(),
-                        *output.datatype(),
+                        output.described_type().clone(),
                         *output_self.flow(),
-                        *output_self.datatype(),
+                        output_self.described_type().clone(),
                         design_reference,
                     ),
                 ));
@@ -967,6 +1003,10 @@ impl Treatment {
                                 name: name.clone(),
                                 attributes: treatment_instanciation.attributes().clone(),
                                 descriptor: Arc::downgrade(&treatment_instanciation.descriptor()),
+                                generics: {
+                                    let clone = treatment_instanciation.generics().clone();
+                                    clone
+                                },
                                 models: treatment_instanciation.models().clone(),
                                 parameters: treatment_instanciation
                                     .parameters()
@@ -1033,5 +1073,28 @@ impl Scope for Treatment {
 
     fn identifier(&self) -> Identifier {
         self.descriptor().identifier().clone()
+    }
+}
+
+impl GenericInstanciation for Treatment {
+    fn generics(&self) -> RwLockReadGuard<HashMap<String, DescribedType>> {
+        self.generics.read().unwrap()
+    }
+
+    fn set_generic(&mut self, generic: String, r#type: DescribedType) -> LogicResult<()> {
+        let descriptor = self.descriptor();
+        if descriptor.generics().contains(&generic) {
+            self.generics.write().unwrap().insert(generic, r#type);
+            LogicResult::new_success(())
+        } else {
+            LogicResult::new_failure(LogicError::unexisting_generic(
+                220,
+                self.descriptor().identifier().clone(),
+                descriptor.identifier().clone(),
+                generic,
+                r#type,
+                self.design_reference.clone(),
+            ))
+        }
     }
 }

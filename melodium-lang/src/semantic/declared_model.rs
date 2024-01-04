@@ -83,7 +83,7 @@ impl DeclaredModel {
 
         let refers_string;
         if let Some(r#type) = &text.r#type {
-            if r#type.first_level_structure.is_some() || r#type.second_level_structure.is_some() {
+            if !r#type.level_structure.is_empty() {
                 result = result.and_degrade_failure(ScriptResult::new_failure(
                     ScriptError::structure_forbidden(138, text.name.clone()),
                 ));

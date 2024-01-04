@@ -7,29 +7,28 @@
 #! require = fs:0.7.1
 
 use engine/util::startup
-use flow/void::generate
-use flow/void::count
+use flow::generate
+use flow::count
 use conv/u128::toByte
-use flow/vec/byte::flatten
-use flow/u128::emit as emitLength
-use flow/string::emit
+use flow/vec::flatten
+use flow::emit
 use fs/file::write
 
 treatment main() {
     
     startup()
-    emitLength(value=128000)
-    generate()
+    emitLength: emit<u128>(value=128000)
+    generate<void>(data = _)
     
     startup.trigger -> emitLength.trigger,emit -> generate.length
     
-    count()
+    count<void>()
     toByte()
-    flatten()
+    flatten<byte>()
     
     generate.stream -> count.stream,count -> toByte.value,data -> flatten.vector
     
-    emit(value="./fs_try.data")
+    emit<string>(value="./fs_try.data")
     write()
     
     startup.trigger -> emit.trigger,emit -> write.path

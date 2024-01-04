@@ -133,6 +133,16 @@ pub enum ScriptErrorKind {
         text: PositionnedString,
         index: usize,
     },
+    MissingFunctionGeneric {
+        text: PositionnedString,
+        index: usize,
+    },
+    MissingTreatmentGeneric {
+        text: PositionnedString,
+    },
+    InvalidGeneric {
+        text: PositionnedString,
+    },
     /// The error comes from logic.
     Logic {
         error: LogicError,
@@ -212,6 +222,9 @@ impl Display for ScriptErrorKind {
             ScriptErrorKind::InvalidByte { text } => write!(f, "at line {} position {} '{}' is not a valid byte", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::ExecutiveRestitutionFailed { text, message } => write!(f, "at line {} position {} error occured with value '{}' because: {}", text.position.line_number, text.position.line_position, text.string, message),
             ScriptErrorKind::MissingFunctionParameter { text, index } => write!(f, "at line {} position {} for function '{}' parameter is missing at position {index}", text.position.line_number, text.position.line_position, text.string),
+            ScriptErrorKind::MissingFunctionGeneric { text, index } => write!(f, "at line {} position {} for function '{}' generic is missing at position {index}", text.position.line_number, text.position.line_position, text.string),
+            ScriptErrorKind::MissingTreatmentGeneric { text } => write!(f, "at line {} position {} for treatment '{}' generic is missing", text.position.line_number, text.position.line_position, text.string),
+            ScriptErrorKind::InvalidGeneric { text } => write!(f, "at line {} position {} '{}' is not a valid generic name", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::Logic { error } => {
                 if let Some(ps) = error
                     .design_reference
@@ -477,6 +490,27 @@ impl ScriptError {
         Self {
             id,
             kind: ScriptErrorKind::MissingFunctionParameter { text, index },
+        }
+    }
+
+    pub fn missing_function_generic(id: u32, text: PositionnedString, index: usize) -> Self {
+        Self {
+            id,
+            kind: ScriptErrorKind::MissingFunctionGeneric { text, index },
+        }
+    }
+
+    pub fn missing_treatment_generic(id: u32, text: PositionnedString) -> Self {
+        Self {
+            id,
+            kind: ScriptErrorKind::MissingTreatmentGeneric { text },
+        }
+    }
+
+    pub fn invalid_generic(id: u32, text: PositionnedString) -> Self {
+        Self {
+            id,
+            kind: ScriptErrorKind::InvalidGeneric { text },
         }
     }
 

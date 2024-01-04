@@ -1,9 +1,10 @@
 //! Module dedicated to [Value] parsing.
 
 use core::slice::Windows;
+use std::collections::HashMap;
 
 use super::word::{Kind, Word};
-use super::{Function, Position, PositionnedString};
+use super::{CommentsAnnotations, Function, Position, PositionnedString};
 use crate::ScriptError;
 
 /// Enum describing a textual value.
@@ -11,6 +12,8 @@ use crate::ScriptError;
 /// It sets what kind of value is represented, as well as its associated text.
 #[derive(Clone, Debug)]
 pub enum Value {
+    /// Void value, can represent option none.
+    Void(PositionnedString),
     /// `true` or `false`.
     Boolean(PositionnedString),
     /// Number, see [Kind::Number].
@@ -38,13 +41,16 @@ impl Value {
     ///
     /// * `iter`: Iterator over words list, next() being expected to be the declaration of value.
     ///
-    pub fn build_from_first_item(mut iter: &mut Windows<Word>) -> Result<Self, ScriptError> {
-        match iter.next().map(|s| &s[0]) {
-            Some(w) if w.kind == Some(Kind::OpeningBracket) => {
+    pub fn build_from_first_item(
+        mut iter: &mut Windows<Word>,
+        global_annotations: &mut HashMap<Word, CommentsAnnotations>,
+    ) -> Result<Self, ScriptError> {
+        match iter.next().map(|s| (&s[0], &s[1])) {
+            Some((w, _)) if w.kind == Some(Kind::OpeningBracket) => {
                 let mut sub_values = Vec::new();
 
                 loop {
-                    sub_values.push(Self::build_from_first_item(&mut iter)?);
+                    sub_values.push(Self::build_from_first_item(&mut iter, global_annotations)?);
 
                     match iter.next().map(|s| &s[0]) {
                         Some(delimiter) if delimiter.kind == Some(Kind::ClosingBracket) => {
@@ -70,7 +76,7 @@ impl Value {
                     // Else delimiter_kind is equal to comma, so continue…
                 }
             }
-            Some(w) if w.kind == Some(Kind::Context) => {
+            Some((w, _)) if w.kind == Some(Kind::Context) => {
                 let context = w.into();
 
                 iter.next()
@@ -109,12 +115,21 @@ impl Value {
 
                 Ok(Self::ContextReference((context, inner_reference)))
             }
-            Some(w) if w.kind == Some(Kind::Function) => {
-                let function = Function::build_from_parameters(w.into(), &mut iter)?;
+            Some((w, nw)) if w.kind == Some(Kind::Function) => {
+                let function = if nw.kind == Some(Kind::OpeningChevron) {
+                    Function::build_from_generics(w.into(), &mut iter, global_annotations)?
+                } else {
+                    Function::build_from_parameters(
+                        w.into(),
+                        Vec::new(),
+                        &mut iter,
+                        global_annotations,
+                    )?
+                };
 
                 Ok(Self::Function(function))
             }
-            Some(value) => match value.kind {
+            Some((value, _)) => match value.kind {
                 Some(Kind::Number) => Ok(Self::Number(PositionnedString {
                     string: value.text.clone(),
                     position: value.position,
@@ -128,6 +143,10 @@ impl Value {
                     position: value.position,
                 })),
                 Some(Kind::Byte) => Ok(Self::Byte(PositionnedString {
+                    string: value.text.clone(),
+                    position: value.position,
+                })),
+                Some(Kind::Underscore) => Ok(Self::Void(PositionnedString {
                     string: value.text.clone(),
                     position: value.position,
                 })),
@@ -162,6 +181,7 @@ impl Value {
 
     pub fn get_positionned_string(&self) -> &PositionnedString {
         match self {
+            Value::Void(ps) => ps,
             Value::Boolean(ps) => ps,
             Value::Number(ps) => ps,
             Value::String(ps) => ps,

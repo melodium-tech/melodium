@@ -13,16 +13,21 @@ use melodium_macro::{check, mel_package, mel_treatment};
     output is_json Stream<bool>
 )]
 pub async fn validate() {
-    while let Ok(text) = text.recv_string().await {
+    while let Ok(text) = text
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
         check!(
             is_json
-                .send_bool(
+                .send_many(
                     text.iter()
                         .map(|t| match serde_json::from_str::<serde::de::IgnoredAny>(t) {
                             Ok(_) => true,
                             Err(_) => false,
                         })
-                        .collect()
+                        .collect::<VecDeque<_>>()
+                        .into()
                 )
                 .await
         );
@@ -50,16 +55,27 @@ pub async fn query(#[mel(content(jq))] query: string) {
     let (filter, errs) = jaq_parse::parse(&query, jaq_parse::main());
     if !errs.is_empty() {
         let _ = failures
-            .send_one_vec_string(errs.into_iter().map(|e| e.to_string()).collect())
+            .send_one(Value::Vec(
+                errs.into_iter().map(|e| e.to_string().into()).collect(),
+            ))
             .await;
     } else {
         let filter = defs.compile(filter.unwrap());
         if !defs.errs.is_empty() {
             let _ = failures
-                .send_one_vec_string(defs.errs.into_iter().map(|e| e.0.to_string()).collect())
+                .send_one(Value::Vec(
+                    defs.errs
+                        .into_iter()
+                        .map(|e| e.0.to_string().into())
+                        .collect(),
+                ))
                 .await;
         } else {
-            while let Ok(json) = json.recv_one_string().await {
+            while let Ok(json) = json
+                .recv_one()
+                .await
+                .map(|val| GetData::<string>::try_data(val).unwrap())
+            {
                 match serde_json::from_str::<serde_json::Value>(&json) {
                     Ok(value) => {
                         let inputs = RcIter::new(core::iter::empty());
@@ -76,14 +92,14 @@ pub async fn query(#[mel(content(jq))] query: string) {
                             }
                         }
                         if let (Err(_), Err(_)) = (
-                            parsed.send_one_vec_string(outputs).await,
-                            error.send_one_vec_string(errors).await,
+                            parsed.send_one(outputs.into()).await,
+                            error.send_one(errors.into()).await,
                         ) {
                             break;
                         }
                     }
                     Err(err) => {
-                        let _ = error.send_one_vec_string(vec![err.to_string()]).await;
+                        let _ = error.send_one(vec![err.to_string()].into()).await;
                     }
                 }
             }

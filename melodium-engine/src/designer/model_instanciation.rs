@@ -20,6 +20,8 @@ pub struct ModelInstanciation {
     parameters: HashMap<String, Arc<RwLock<Parameter>>>,
     attributes: Attributes,
     design_reference: Option<Arc<dyn Reference>>,
+
+    _auto_reference: Weak<RwLock<Self>>,
 }
 
 impl ModelInstanciation {
@@ -30,17 +32,20 @@ impl ModelInstanciation {
         descriptor: &Arc<dyn ModelDescriptor>,
         name: &str,
         design_reference: Option<Arc<dyn Reference>>,
-    ) -> Self {
-        Self {
-            host_descriptor: Arc::downgrade(host_descriptor),
-            host_treatment: Arc::downgrade(host_treatment),
-            host_id,
-            descriptor: Arc::downgrade(descriptor),
-            name: name.to_string(),
-            parameters: HashMap::with_capacity(descriptor.parameters().len()),
-            attributes: Attributes::default(),
-            design_reference,
-        }
+    ) -> Arc<RwLock<Self>> {
+        Arc::<RwLock<Self>>::new_cyclic(|me| {
+            RwLock::new(Self {
+                host_descriptor: Arc::downgrade(host_descriptor),
+                host_treatment: Arc::downgrade(host_treatment),
+                host_id,
+                descriptor: Arc::downgrade(descriptor),
+                name: name.to_string(),
+                parameters: HashMap::with_capacity(descriptor.parameters().len()),
+                attributes: Attributes::default(),
+                design_reference,
+                _auto_reference: me.clone(),
+            })
+        })
     }
 
     pub fn descriptor(&self) -> Arc<dyn ModelDescriptor> {
@@ -104,8 +109,10 @@ impl ModelInstanciation {
         let parameter = Parameter::new(
             &(self.host_treatment.upgrade().unwrap() as Arc<RwLock<dyn Scope>>),
             &host_descriptor.as_parameterized(),
+            &Arc::new(RwLock::new(HashMap::new())),
             self.host_id.clone(),
             &self.descriptor().as_parameterized(),
+            &Arc::new(RwLock::new(HashMap::new())),
             name,
             design_reference.clone(),
         );

@@ -1,4 +1,4 @@
-use super::{Attribuable, Attributes, DataType, Variability};
+use super::{Attribuable, Attributes, DescribedType, Variability};
 use crate::executive::Value;
 use core::fmt::{Display, Formatter, Result};
 
@@ -6,7 +6,7 @@ use core::fmt::{Display, Formatter, Result};
 pub struct Parameter {
     name: String,
     variability: Variability,
-    datatype: DataType,
+    described_type: DescribedType,
     default: Option<Value>,
     attributes: Attributes,
 }
@@ -15,14 +15,14 @@ impl Parameter {
     pub fn new(
         name: &str,
         variability: Variability,
-        datatype: DataType,
+        described_type: DescribedType,
         default: Option<Value>,
         attributes: Attributes,
     ) -> Self {
         Self {
             name: name.to_string(),
             variability,
-            datatype,
+            described_type,
             default,
             attributes,
         }
@@ -36,8 +36,8 @@ impl Parameter {
         &self.variability
     }
 
-    pub fn datatype(&self) -> &DataType {
-        &self.datatype
+    pub fn described_type(&self) -> &DescribedType {
+        &self.described_type
     }
 
     pub fn default(&self) -> &Option<Value> {
@@ -58,7 +58,7 @@ impl Display for Parameter {
             "{} {}: {}{}",
             self.variability,
             self.name,
-            self.datatype,
+            self.described_type,
             self.default
                 .as_ref()
                 .map(|d| format!(" = {}", d))

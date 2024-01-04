@@ -3,7 +3,7 @@ use crate::designer::{Reference, Treatment as Designer};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
-    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry,
+    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry, Generic,
     Identified, Identifier, Input, Model, Output, Parameter, Parameterized, Status,
     Treatment as TreatmentDescriptor, TreatmentBuildMode,
 };
@@ -16,6 +16,7 @@ pub struct Treatment {
     #[cfg(feature = "doc")]
     documentation: String,
     attributes: Attributes,
+    generics: Vec<String>,
     models: HashMap<String, Arc<dyn Model>>,
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
@@ -33,6 +34,7 @@ impl Treatment {
             #[cfg(feature = "doc")]
             documentation: String::new(),
             attributes: Attributes::default(),
+            generics: Vec::new(),
             models: HashMap::new(),
             parameters: HashMap::new(),
             inputs: HashMap::new(),
@@ -183,6 +185,14 @@ impl Treatment {
         }
     }
 
+    pub fn add_generic(&mut self, name: String) {
+        self.generics.push(name);
+    }
+
+    pub fn remove_generic(&mut self, name: &str) {
+        self.generics.retain(|generic| generic != name);
+    }
+
     pub fn add_model(&mut self, name: &str, model: &Arc<dyn Model>) {
         self.models.insert(name.to_string(), Arc::clone(model));
     }
@@ -246,6 +256,7 @@ impl Treatment {
             #[cfg(feature = "doc")]
             documentation: self.documentation,
             attributes: self.attributes,
+            generics: self.generics,
             models: self.models,
             parameters: self.parameters,
             inputs: self.inputs,
@@ -336,6 +347,7 @@ impl Clone for Treatment {
             #[cfg(feature = "doc")]
             documentation: self.documentation.clone(),
             attributes: self.attributes.clone(),
+            generics: self.generics.clone(),
             models: self.models.clone(),
             parameters: self.parameters.clone(),
             inputs: self.inputs.clone(),
@@ -412,5 +424,11 @@ impl TreatmentDescriptor for Treatment {
 
     fn as_parameterized(&self) -> Arc<dyn Parameterized> {
         self.auto_reference.upgrade().unwrap()
+    }
+}
+
+impl Generic for Treatment {
+    fn generics(&self) -> &Vec<String> {
+        &self.generics
     }
 }

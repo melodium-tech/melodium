@@ -102,7 +102,7 @@ impl BuilderTrait for Builder {
     fn dynamic_build(
         &self,
         build: BuildId,
-        environment: &Arc<ContextualEnvironment>,
+        environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         let world = self.world.upgrade().unwrap();
 
@@ -137,18 +137,17 @@ impl BuilderTrait for Builder {
             .give_next(
                 build_sample.host_build_id.unwrap(),
                 build_sample.label.to_string(),
-                &environment.enriched_upper().commit(),
+                &environment.base_on(),
             )
             .unwrap();
 
         result.feeding_inputs = host_build.feeding_inputs;
         // We add here blocked inputs for source outputs that might not be used in scripts.
-        for (name, output_descriptor) in descriptor.outputs() {
+        for (name, _) in descriptor.outputs() {
             if !result.feeding_inputs.contains_key(name) {
-                result.feeding_inputs.insert(
-                    name.clone(),
-                    vec![world.new_blocked_input(output_descriptor)],
-                );
+                result
+                    .feeding_inputs
+                    .insert(name.clone(), vec![world.new_blocked_input()]);
             }
         }
         result.prepared_futures.extend(host_build.prepared_futures);
@@ -165,7 +164,7 @@ impl BuilderTrait for Builder {
         &self,
         _within_build: BuildId,
         _for_label: String,
-        _environment: &Arc<ContextualEnvironment>,
+        _environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         // A core treatment cannot have sub-treatments (its not a sequence), so nothing to ever return.
         None

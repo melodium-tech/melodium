@@ -20,8 +20,15 @@ pub fn not_equal(a: i8, b: i8) -> bool {
     output result Stream<bool>
 )]
 pub async fn equal() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_i8().await, b.recv_one_i8().await) {
-        check!(result.send_one_bool(a == b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+    ) {
+        check!(result.send_one((a == b).into()).await)
     }
 }
 
@@ -32,8 +39,15 @@ pub async fn equal() {
     output result Stream<bool>
 )]
 pub async fn not_equal() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_i8().await, b.recv_one_i8().await) {
-        check!(result.send_one_bool(a != b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+    ) {
+        check!(result.send_one((a != b).into()).await)
     }
 }
 
@@ -64,8 +78,16 @@ pub fn le(a: i8, b: i8) -> bool {
     output power Stream<i8>
 )]
 pub async fn pow() {
-    while let (Ok(base), Ok(exp)) = (base.recv_one_i8().await, exponent.recv_one_i8().await) {
-        check!(power.send_one_i8(base.pow(exp as u32)).await)
+    while let (Ok(base), Ok(exp)) = (
+        base.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+        exponent
+            .recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+    ) {
+        check!(power.send_one(base.pow(exp as u32).into()).await)
     }
 }
 
@@ -76,8 +98,15 @@ pub async fn pow() {
     output is Stream<bool>
 )]
 pub async fn lower_equal() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_i8().await, b.recv_one_i8().await) {
-        check!(is.send_one_bool(a <= b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+    ) {
+        check!(is.send_one((a <= b).into()).await)
     }
 }
 
@@ -88,8 +117,15 @@ pub async fn lower_equal() {
     output is Stream<bool>
 )]
 pub async fn greater_equal() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_i8().await, b.recv_one_i8().await) {
-        check!(is.send_one_bool(a >= b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+    ) {
+        check!(is.send_one((a >= b).into()).await)
     }
 }
 
@@ -156,8 +192,15 @@ pub fn max(a: i8, b: i8) -> i8 {
     output sum Stream<i8>
 )]
 pub async fn add() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_i8().await, b.recv_one_i8().await) {
-        check!(sum.send_one_i8(a + b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+    ) {
+        check!(sum.send_one((a + b).into()).await)
     }
 }
 
@@ -170,8 +213,15 @@ pub async fn add() {
     output quotient Stream<i8>
 )]
 pub async fn div() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_i8().await, b.recv_one_i8().await) {
-        check!(quotient.send_one_i8(a / b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+    ) {
+        check!(quotient.send_one((a / b).into()).await)
     }
 }
 
@@ -184,8 +234,15 @@ pub async fn div() {
     output product Stream<i8>
 )]
 pub async fn mult() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_i8().await, b.recv_one_i8().await) {
-        check!(product.send_one_i8(a * b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+    ) {
+        check!(product.send_one((a * b).into()).await)
     }
 }
 
@@ -198,8 +255,15 @@ pub async fn mult() {
     output remainder Stream<i8>
 )]
 pub async fn rem() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_i8().await, b.recv_one_i8().await) {
-        check!(remainder.send_one_i8(a % b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+    ) {
+        check!(remainder.send_one((a % b).into()).await)
     }
 }
 
@@ -212,8 +276,15 @@ pub async fn rem() {
     output diff Stream<i8>
 )]
 pub async fn sub() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_i8().await, b.recv_one_i8().await) {
-        check!(diff.send_one_i8(a - b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+    ) {
+        check!(diff.send_one((a - b).into()).await)
     }
 }
 
@@ -224,8 +295,15 @@ pub async fn sub() {
     output min Stream<i8>
 )]
 pub async fn min() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_i8().await, b.recv_one_i8().await) {
-        check!(min.send_one_i8(a.min(b)).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+    ) {
+        check!(min.send_one(a.min(b).into()).await)
     }
 }
 
@@ -236,8 +314,15 @@ pub async fn min() {
     output max Stream<i8>
 )]
 pub async fn max() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_i8().await, b.recv_one_i8().await) {
-        check!(max.send_one_i8(a.max(b)).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+    ) {
+        check!(max.send_one(a.max(b).into()).await)
     }
 }
 
@@ -248,8 +333,15 @@ pub async fn max() {
     output is Stream<bool>
 )]
 pub async fn lower_than() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_i8().await, b.recv_one_i8().await) {
-        check!(is.send_one_bool(a < b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+    ) {
+        check!(is.send_one((a < b).into()).await)
     }
 }
 
@@ -260,8 +352,15 @@ pub async fn lower_than() {
     output is Stream<bool>
 )]
 pub async fn greater_than() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_i8().await, b.recv_one_i8().await) {
-        check!(is.send_one_bool(a > b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<i8>::try_data(val).unwrap()),
+    ) {
+        check!(is.send_one((a > b).into()).await)
     }
 }
 
@@ -277,10 +376,20 @@ pub fn abs(value: i8) -> i8 {
     output abs Stream<i8>
 )]
 pub async fn abs() {
-    while let Ok(values) = value.recv_i8().await {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<i8>>::try_into(values).unwrap())
+    {
         check!(
-            abs.send_i8(values.into_iter().map(|v| v.abs()).collect())
-                .await
+            abs.send_many(
+                values
+                    .into_iter()
+                    .map(|v| v.abs())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         )
     }
 }

@@ -20,22 +20,26 @@ use melodium_macro::{check, mel_treatment};
     output message Stream<string>
 )]
 pub async fn create(recursive: bool) {
-    if let Ok(path) = path.recv_one_string().await {
+    if let Ok(path) = path
+        .recv_one()
+        .await
+        .map(|val| GetData::<string>::try_data(val).unwrap())
+    {
         match if recursive {
             fs::create_dir_all(path).await
         } else {
             fs::create_dir(path).await
         } {
             Ok(()) => {
-                let _ = success.send_one_void(()).await;
+                let _ = success.send_one(().into()).await;
             }
             Err(err) => {
-                let _ = message.send_one_string(err.to_string()).await;
-                let _ = failure.send_one_void(()).await;
+                let _ = message.send_one(err.to_string().into()).await;
+                let _ = failure.send_one(().into()).await;
             }
         }
     } else {
-        let _ = failure.send_one_void(()).await;
+        let _ = failure.send_one(().into()).await;
     }
 }
 
@@ -58,7 +62,11 @@ pub async fn create(recursive: bool) {
     output message Stream<string>
 )]
 pub async fn scan(recursive: bool, follow_links: bool) {
-    if let Ok(path) = path.recv_one_string().await {
+    if let Ok(path) = path
+        .recv_one()
+        .await
+        .map(|val| GetData::<string>::try_data(val).unwrap())
+    {
         let mut dir_entries = WalkDir::new(path).filter(move |entry| async move {
             match entry.file_type().await {
                 Ok(file_type) => {
@@ -86,17 +94,17 @@ pub async fn scan(recursive: bool, follow_links: bool) {
             match entry {
                 Ok(entry) => check!(
                     entries
-                        .send_one_string(entry.path().to_string_lossy().to_string())
+                        .send_one(entry.path().to_string_lossy().to_string().into())
                         .await
                 ),
                 Err(err) => {
-                    let _ = message.send_one_string(err.to_string()).await;
-                    let _ = failure.send_one_void(()).await;
+                    let _ = message.send_one(err.to_string().into()).await;
+                    let _ = failure.send_one(().into()).await;
                 }
             }
         }
-        let _ = success.send_one_void(()).await;
+        let _ = success.send_one(().into()).await;
     } else {
-        let _ = failure.send_one_void(()).await;
+        let _ = failure.send_one(().into()).await;
     }
 }

@@ -10,9 +10,11 @@ use crate::path::Path;
 use crate::text::value::Value as TextValue;
 use crate::text::PositionnedString;
 use crate::ScriptResult;
+use melodium_common::descriptor::DescribedType;
 use melodium_common::descriptor::{DataType, Entry};
 use melodium_common::executive::Value as ExecutiveValue;
 use melodium_engine::designer::{Parameter as ParameterDesigner, Value as ValueDesigner};
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing Value semantic analysis.
@@ -54,6 +56,7 @@ impl Value {
         text: &TextValue,
     ) -> ScriptResult<ValueContent> {
         match text {
+            TextValue::Void(_) => ScriptResult::new_success(ValueContent::Void),
             TextValue::Boolean(b) => Self::parse_boolean(b),
             TextValue::Number(n) => Self::parse_number(n),
             TextValue::String(s) => Self::parse_string(s),
@@ -172,6 +175,9 @@ impl Value {
         let content;
 
         match value {
+            ValueContent::Void => {
+                content = ValueContent::Void;
+            }
             ValueContent::Boolean(b) => {
                 content = ValueContent::Boolean(*b);
             }
@@ -269,7 +275,7 @@ impl Value {
     pub fn make_designed_value(
         &self,
         designer: &ParameterDesigner,
-        datatype: &DataType,
+        described_type: &DescribedType,
     ) -> ScriptResult<ValueDesigner> {
         match &self.content {
             ValueContent::Name(decl_param) => {
@@ -321,7 +327,29 @@ impl Value {
                     .get(&borrowed_func.type_identifier.as_ref().unwrap())
                 {
                     let mut result = ScriptResult::new_success(());
+                    let mut generics = HashMap::new();
                     let mut params = Vec::new();
+                    for i in 0..func_descriptor.generics().len() {
+                        let desc_generic = &func_descriptor.generics()[i];
+
+                        if let Some(rc_generic) = borrowed_func.generics.get(i) {
+                            let borrowed_generic = rc_generic.read().unwrap();
+
+                            if let Some((r#type, _)) = result
+                                .merge_degrade_failure(borrowed_generic.r#type.make_descriptor())
+                            {
+                                generics.insert(desc_generic.clone(), r#type);
+                            }
+                        } else {
+                            result = result.and_degrade_failure(ScriptResult::new_failure(
+                                ScriptError::missing_function_generic(
+                                    171,
+                                    self.text.get_positionned_string().clone(),
+                                    i,
+                                ),
+                            ));
+                        }
+                    }
                     for i in 0..func_descriptor.parameters().len() {
                         let desc_param = &func_descriptor.parameters()[i];
 
@@ -329,7 +357,8 @@ impl Value {
                             let borrowed_param = rc_param.read().unwrap();
 
                             if let Some(param) = result.merge_degrade_failure(
-                                borrowed_param.make_designed_value(designer, desc_param.datatype()),
+                                borrowed_param
+                                    .make_designed_value(designer, desc_param.described_type()),
                             ) {
                                 params.push(param);
                             }
@@ -347,6 +376,7 @@ impl Value {
                     result.and_then(|_| {
                         ScriptResult::new_success(ValueDesigner::Function(
                             Arc::clone(func_descriptor),
+                            generics,
                             params,
                         ))
                     })
@@ -357,9 +387,18 @@ impl Value {
                     ))
                 }
             }
-            _ => self
-                .make_executive_value(datatype)
-                .and_then(|val| ScriptResult::new_success(ValueDesigner::Raw(val))),
+            _ => described_type
+                .to_datatype(&HashMap::new())
+                .map(|datatype| {
+                    self.make_executive_value(&datatype)
+                        .and_then(|val| ScriptResult::new_success(ValueDesigner::Raw(val)))
+                })
+                .unwrap_or_else(|| {
+                    ScriptResult::new_failure(ScriptError::invalid_type(
+                        109,
+                        self.text.get_positionned_string().clone(),
+                    ))
+                }),
         }
     }
 }

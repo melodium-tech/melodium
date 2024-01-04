@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [Unreleased]
+
+- Adding generics management
+- Including language attributes
+
 ## [v0.7.0]
 
 - Fixing boolean default parameter parsing issue.

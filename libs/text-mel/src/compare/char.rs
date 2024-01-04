@@ -7,10 +7,20 @@ use melodium_macro::{check, mel_function, mel_treatment};
     output matches Stream<bool>
 )]
 pub async fn exact(reference: char) {
-    while let Ok(chars) = chars.recv_char().await {
+    while let Ok(chars) = chars
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<char>>::try_into(values).unwrap())
+    {
         check!(
             matches
-                .send_bool(chars.into_iter().map(|char| char == reference).collect())
+                .send_many(
+                    chars
+                        .into_iter()
+                        .map(|char| char == reference)
+                        .collect::<VecDeque<_>>()
+                        .into()
+                )
                 .await
         );
     }
@@ -28,10 +38,20 @@ pub fn exact(char: char, reference: char) -> bool {
     output is Stream<bool>
 )]
 pub async fn is_alphabetic() {
-    while let Ok(chars) = chars.recv_char().await {
+    while let Ok(chars) = chars
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<char>>::try_into(values).unwrap())
+    {
         check!(
-            is.send_bool(chars.into_iter().map(|char| char.is_alphabetic()).collect())
-                .await
+            is.send_many(
+                chars
+                    .into_iter()
+                    .map(|char| char.is_alphabetic())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         );
     }
 }
@@ -48,13 +68,18 @@ pub fn is_alphabetic(char: char) -> bool {
     output is Stream<bool>
 )]
 pub async fn is_alphanumeric() {
-    while let Ok(chars) = chars.recv_char().await {
+    while let Ok(chars) = chars
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<char>>::try_into(values).unwrap())
+    {
         check!(
-            is.send_bool(
+            is.send_many(
                 chars
                     .into_iter()
                     .map(|char| char.is_alphanumeric())
-                    .collect()
+                    .collect::<VecDeque<_>>()
+                    .into()
             )
             .await
         );
@@ -73,10 +98,20 @@ pub fn is_alphanumeric(char: char) -> bool {
     output is Stream<bool>
 )]
 pub async fn is_ascii() {
-    while let Ok(chars) = chars.recv_char().await {
+    while let Ok(chars) = chars
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<char>>::try_into(values).unwrap())
+    {
         check!(
-            is.send_bool(chars.into_iter().map(|char| char.is_ascii()).collect())
-                .await
+            is.send_many(
+                chars
+                    .into_iter()
+                    .map(|char| char.is_ascii())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         );
     }
 }
@@ -93,10 +128,20 @@ pub fn is_ascii(char: char) -> bool {
     output is Stream<bool>
 )]
 pub async fn is_control() {
-    while let Ok(chars) = chars.recv_char().await {
+    while let Ok(chars) = chars
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<char>>::try_into(values).unwrap())
+    {
         check!(
-            is.send_bool(chars.into_iter().map(|char| char.is_control()).collect())
-                .await
+            is.send_many(
+                chars
+                    .into_iter()
+                    .map(|char| char.is_control())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         );
     }
 }
@@ -115,19 +160,24 @@ pub fn is_control(char: char) -> bool {
     output is Stream<bool>
 )]
 pub async fn is_digit(base: u8) {
-    while let Ok(chars) = chars.recv_char().await {
+    while let Ok(chars) = chars
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<char>>::try_into(values).unwrap())
+    {
         if base <= 36 {
             check!(
-                is.send_bool(
+                is.send_many(
                     chars
                         .into_iter()
                         .map(|char| char.is_digit(base as u32))
-                        .collect()
+                        .collect::<VecDeque<_>>()
+                        .into()
                 )
                 .await
             );
         } else {
-            check!(is.send_bool(vec![false; chars.len()]).await);
+            check!(is.send_many(vec![false; chars.len()].into()).await);
         }
     }
 }
@@ -150,10 +200,20 @@ pub fn is_digit(char: char, base: u8) -> bool {
     output is Stream<bool>
 )]
 pub async fn is_lowercase() {
-    while let Ok(chars) = chars.recv_char().await {
+    while let Ok(chars) = chars
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<char>>::try_into(values).unwrap())
+    {
         check!(
-            is.send_bool(chars.into_iter().map(|char| char.is_lowercase()).collect())
-                .await
+            is.send_many(
+                chars
+                    .into_iter()
+                    .map(|char| char.is_lowercase())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         );
     }
 }
@@ -170,10 +230,20 @@ pub fn is_lowercase(char: char) -> bool {
     output is Stream<bool>
 )]
 pub async fn is_uppercase() {
-    while let Ok(chars) = chars.recv_char().await {
+    while let Ok(chars) = chars
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<char>>::try_into(values).unwrap())
+    {
         check!(
-            is.send_bool(chars.into_iter().map(|char| char.is_uppercase()).collect())
-                .await
+            is.send_many(
+                chars
+                    .into_iter()
+                    .map(|char| char.is_uppercase())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         );
     }
 }
@@ -190,10 +260,20 @@ pub fn is_uppercase(char: char) -> bool {
     output is Stream<bool>
 )]
 pub async fn is_whitespace() {
-    while let Ok(chars) = chars.recv_char().await {
+    while let Ok(chars) = chars
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<char>>::try_into(values).unwrap())
+    {
         check!(
-            is.send_bool(chars.into_iter().map(|char| char.is_whitespace()).collect())
-                .await
+            is.send_many(
+                chars
+                    .into_iter()
+                    .map(|char| char.is_whitespace())
+                    .collect::<VecDeque<_>>()
+                    .into()
+            )
+            .await
         );
     }
 }

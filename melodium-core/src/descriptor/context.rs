@@ -26,7 +26,7 @@ impl Context {
     ) -> Arc<Self> {
         Arc::new(Self {
             identifier,
-            values: HashMap::from_iter(values.iter().map(|v| (v.0.to_string(), v.1))),
+            values: HashMap::from_iter(values.into_iter().map(|v| (v.0.to_string(), v.1))),
             #[cfg(feature = "doc")]
             documentation,
             attributes,

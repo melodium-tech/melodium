@@ -30,7 +30,7 @@ impl BuilderTrait for Builder {
         label: String,
         environment: &GenesisEnvironment,
     ) -> LogicResult<StaticBuildResult> {
-        let mut remastered_environment = environment.base();
+        let mut remastered_environment = GenesisEnvironment::new();
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
         // We do assign default values (will be replaced if some other explicitly assigned)
@@ -76,7 +76,7 @@ impl BuilderTrait for Builder {
     fn dynamic_build(
         &self,
         _build: BuildId,
-        _environment: &Arc<ContextualEnvironment>,
+        _environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         // Doing nothing, models are not supposed to have dynamic building phase
 
@@ -87,7 +87,7 @@ impl BuilderTrait for Builder {
         &self,
         _within_build: BuildId,
         _for_label: String,
-        _environment: &Arc<ContextualEnvironment>,
+        _environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         // Doing nothing, models are not supposed to have dynamic building phase
 

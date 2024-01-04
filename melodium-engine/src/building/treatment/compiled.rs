@@ -111,7 +111,7 @@ impl BuilderTrait for Builder {
     fn dynamic_build(
         &self,
         build: BuildId,
-        environment: &Arc<ContextualEnvironment>,
+        environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         let world = self.world.upgrade().unwrap();
 
@@ -156,18 +156,18 @@ impl BuilderTrait for Builder {
             .give_next(
                 build_sample.host_build_id.unwrap(),
                 build_sample.label.to_string(),
-                &environment.enriched_upper().commit(),
+                &environment.base_on(),
             )
             .unwrap();
 
         let mut inputs = HashMap::new();
-        for (name, input_descriptor) in descriptor.inputs() {
-            let input = world.new_input(input_descriptor);
+        for (name, _) in descriptor.inputs() {
+            let input = world.new_input();
             treatment.assign_input(name, Box::new(input.clone()));
             inputs.insert(name.clone(), input);
         }
-        for (name, output_descriptor) in descriptor.outputs() {
-            let output = world.new_output(output_descriptor);
+        for (name, _) in descriptor.outputs() {
+            let output = world.new_output();
             if let Some(inputs) = host_build.feeding_inputs.get(name) {
                 output.add_transmission(inputs);
             }
@@ -195,7 +195,7 @@ impl BuilderTrait for Builder {
         &self,
         _within_build: BuildId,
         _for_label: String,
-        _environment: &Arc<ContextualEnvironment>,
+        _environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         // A core treatment cannot have sub-treatments (it is not a sequence), so nothing to ever return.
         None

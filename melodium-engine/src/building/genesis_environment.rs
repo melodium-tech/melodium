@@ -5,18 +5,12 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct GenesisEnvironment {
     models: HashMap<String, Arc<dyn Model>>,
+    // All variables that can be determined at static build (all consts and some vars).
     variables: HashMap<String, Value>,
 }
 
 impl GenesisEnvironment {
     pub fn new() -> Self {
-        Self {
-            models: HashMap::new(),
-            variables: HashMap::new(),
-        }
-    }
-
-    pub fn base(&self) -> Self {
         Self {
             models: HashMap::new(),
             variables: HashMap::new(),

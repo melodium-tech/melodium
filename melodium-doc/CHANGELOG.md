@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [Unreleased]
+
+- Adding generics management
+
 ## [v0.7.0]
 
 - Making documentation selective on areas to generate.

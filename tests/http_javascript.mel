@@ -5,8 +5,8 @@
 
 use http/server::HttpServer
 use http/server::connection
-use flow/u16::emit
-use flow/byte::trigger
+use flow::emit
+use flow::trigger
 use encoding::decode
 use encoding::encode
 use javascript::JavaScriptEngine
@@ -19,8 +19,8 @@ treatment main()
   )
 {
     connection[http_server=server]()
-    status: emit(value=200)
-    trigger()
+    status: emit<u16>(value=200)
+    trigger<byte>()
     
     connection.data -> trigger.stream,start -> status.trigger,emit -> connection.status
     

@@ -1,0 +1,58 @@
+#!/usr/bin/env melodium
+#! name = generics
+#! version = 0.7.1
+#! require = flow:0.7.1
+#! require = fs:0.7.1
+#! require = engine:0.7.1
+#! require = conv:0.7.1
+
+use flow::emit
+use flow::trigger
+use flow::stream
+use fs/file::write
+use engine/util::startup
+use conv/string::toByte
+use flow/vec::flatten
+
+/*
+    This script is not supposed to do anything at this point, only to be parsed.
+*/
+
+treatment main() {
+    
+    make_stream(my_value = [[[_]]], something = "Hey")
+    trigger<Vec<Vec<Vec<Option<u16>>>>>()
+    write_file()
+
+  make_stream.values -> trigger.stream,end -> write_file.trigger
+}
+
+treatment make_stream(var my_value: Vec<Vec<Vec<Option<u16>>>>, var something: string)
+  output values: Stream<Vec<Vec<Vec<Option<u16>>>>>
+{
+  startup()
+  emit<Vec<Vec<Vec<Option<u16>>>>>(value = my_value)
+  nothing: emit<string>(value = something)
+  stream<Vec<Vec<Vec<Option<u16>>>>>()
+
+  startup.trigger -> emit.trigger,emit -> stream.block,stream -> Self.values
+}
+
+treatment write_file()
+  input trigger: Block<void>
+{
+  emit<string>(value="Okey !")
+  stream<string>()
+  Self.trigger -> emit.trigger
+
+  emit_filename: emit<string>(value="something.txt")
+  Self.trigger -> emit_filename.trigger
+
+  emit_filename.emit -> write.path
+
+  toByte()
+  flatten<byte>()
+  write()
+
+  emit.emit -> stream.block,stream -> toByte.value,data -> flatten.vector,value -> write.data
+}

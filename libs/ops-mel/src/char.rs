@@ -20,8 +20,15 @@ pub fn not_equal(a: char, b: char) -> bool {
     output result Stream<bool>
 )]
 pub async fn equal() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_char().await, b.recv_one_char().await) {
-        check!(result.send_one_bool(a == b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<char>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<char>::try_data(val).unwrap()),
+    ) {
+        check!(result.send_one((a == b).into()).await)
     }
 }
 
@@ -32,7 +39,14 @@ pub async fn equal() {
     output result Stream<bool>
 )]
 pub async fn not_equal() {
-    while let (Ok(a), Ok(b)) = (a.recv_one_char().await, b.recv_one_char().await) {
-        check!(result.send_one_bool(a != b).await)
+    while let (Ok(a), Ok(b)) = (
+        a.recv_one()
+            .await
+            .map(|val| GetData::<char>::try_data(val).unwrap()),
+        b.recv_one()
+            .await
+            .map(|val| GetData::<char>::try_data(val).unwrap()),
+    ) {
+        check!(result.send_one((a != b).into()).await)
     }
 }

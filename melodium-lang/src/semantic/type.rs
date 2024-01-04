@@ -1,10 +1,12 @@
 //! Module for Type identification and structure semantic analysis.
 
+use crate::text::PositionnedString;
 use crate::ScriptError;
 use crate::{text::Type as TextType, ScriptResult};
+use core::slice::Iter;
 use melodium_common::descriptor::{
-    DataType as DataTypeDescriptor, Flow as FlowDescriptor,
-    Structure as DataTypeStructureDescriptor, Type as DataTypeTypeDescriptor,
+    DataType as DataTypeDescriptor, DescribedType as DescribedTypeDescriptor,
+    Flow as FlowDescriptor,
 };
 use std::fmt;
 
@@ -30,31 +32,9 @@ impl fmt::Display for TypeFlow {
     }
 }
 
-/// Enum for type structure identification.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum TypeStructure {
-    /// Data is one unique value.
-    Scalar,
-    /// Data is a continuous one-dimension vector.
-    Vector,
-}
-
-impl fmt::Display for TypeStructure {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                TypeStructure::Scalar => "Scal",
-                TypeStructure::Vector => "Vec",
-            }
-        )
-    }
-}
-
 /// Enum for type identification.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum TypeName {
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum TypeContent {
     Void,
 
     I8,
@@ -76,80 +56,128 @@ pub enum TypeName {
     Byte,
     Char,
     String,
+
+    Option(Box<TypeContent>),
+    Vec(Box<TypeContent>),
+
+    Other(String),
 }
 
-impl TypeName {
-    fn from_string(name: &str) -> Option<Self> {
-        match name {
-            "void" => Some(Self::Void),
-            "i8" => Some(Self::I8),
-            "i16" => Some(Self::I16),
-            "i32" => Some(Self::I32),
-            "i64" => Some(Self::I64),
-            "i128" => Some(Self::I128),
-            "u8" => Some(Self::U8),
-            "u16" => Some(Self::U16),
-            "u32" => Some(Self::U32),
-            "u64" => Some(Self::U64),
-            "u128" => Some(Self::U128),
-            "f32" => Some(Self::F32),
-            "f64" => Some(Self::F64),
-            "bool" => Some(Self::Bool),
-            "byte" => Some(Self::Byte),
-            "char" => Some(Self::Char),
-            "string" => Some(Self::String),
-            _ => None,
+impl TypeContent {
+    fn from_positionned_strings(list: &Vec<PositionnedString>) -> Result<Self, ()> {
+        Self::from_positionned_string(list.iter()).ok_or(())
+    }
+
+    fn from_positionned_string(mut iter: Iter<PositionnedString>) -> Option<Self> {
+        let step = iter.next();
+        if let Some(pos_str) = step {
+            Some(match pos_str.string.as_str() {
+                "void" => Self::Void,
+                "i8" => Self::I8,
+                "i16" => Self::I16,
+                "i32" => Self::I32,
+                "i64" => Self::I64,
+                "i128" => Self::I128,
+                "u8" => Self::U8,
+                "u16" => Self::U16,
+                "u32" => Self::U32,
+                "u64" => Self::U64,
+                "u128" => Self::U128,
+                "f32" => Self::F32,
+                "f64" => Self::F64,
+                "bool" => Self::Bool,
+                "byte" => Self::Byte,
+                "char" => Self::Char,
+                "string" => Self::String,
+                "Option" => Self::Option(Box::new(Self::from_positionned_string(iter)?)),
+                "Vec" => Self::Vec(Box::new(Self::from_positionned_string(iter)?)),
+                other => Self::Other(other.to_string()),
+            })
+        } else {
+            None
         }
     }
 
-    fn to_descriptor(&self) -> DataTypeTypeDescriptor {
+    fn to_descriptor(&self) -> DescribedTypeDescriptor {
         match self {
-            Self::Void => DataTypeTypeDescriptor::Void,
-            Self::I8 => DataTypeTypeDescriptor::I8,
-            Self::I16 => DataTypeTypeDescriptor::I16,
-            Self::I32 => DataTypeTypeDescriptor::I32,
-            Self::I64 => DataTypeTypeDescriptor::I64,
-            Self::I128 => DataTypeTypeDescriptor::I128,
-            Self::U8 => DataTypeTypeDescriptor::U8,
-            Self::U16 => DataTypeTypeDescriptor::U16,
-            Self::U32 => DataTypeTypeDescriptor::U32,
-            Self::U64 => DataTypeTypeDescriptor::U64,
-            Self::U128 => DataTypeTypeDescriptor::U128,
-            Self::F32 => DataTypeTypeDescriptor::F32,
-            Self::F64 => DataTypeTypeDescriptor::F64,
-            Self::Bool => DataTypeTypeDescriptor::Bool,
-            Self::Byte => DataTypeTypeDescriptor::Byte,
-            Self::Char => DataTypeTypeDescriptor::Char,
-            Self::String => DataTypeTypeDescriptor::String,
+            Self::Void => DescribedTypeDescriptor::Void,
+            Self::I8 => DescribedTypeDescriptor::I8,
+            Self::I16 => DescribedTypeDescriptor::I16,
+            Self::I32 => DescribedTypeDescriptor::I32,
+            Self::I64 => DescribedTypeDescriptor::I64,
+            Self::I128 => DescribedTypeDescriptor::I128,
+            Self::U8 => DescribedTypeDescriptor::U8,
+            Self::U16 => DescribedTypeDescriptor::U16,
+            Self::U32 => DescribedTypeDescriptor::U32,
+            Self::U64 => DescribedTypeDescriptor::U64,
+            Self::U128 => DescribedTypeDescriptor::U128,
+            Self::F32 => DescribedTypeDescriptor::F32,
+            Self::F64 => DescribedTypeDescriptor::F64,
+            Self::Bool => DescribedTypeDescriptor::Bool,
+            Self::Byte => DescribedTypeDescriptor::Byte,
+            Self::Char => DescribedTypeDescriptor::Char,
+            Self::String => DescribedTypeDescriptor::String,
+            Self::Option(internal) => {
+                DescribedTypeDescriptor::Option(Box::new(internal.to_descriptor()))
+            }
+            Self::Vec(internal) => DescribedTypeDescriptor::Vec(Box::new(internal.to_descriptor())),
+            Self::Other(generic) => DescribedTypeDescriptor::Generic(generic.clone()),
+        }
+    }
+
+    #[allow(unused)]
+    fn to_datatype(&self) -> Result<DataTypeDescriptor, ()> {
+        match self {
+            Self::Void => Ok(DataTypeDescriptor::Void),
+            Self::I8 => Ok(DataTypeDescriptor::I8),
+            Self::I16 => Ok(DataTypeDescriptor::I16),
+            Self::I32 => Ok(DataTypeDescriptor::I32),
+            Self::I64 => Ok(DataTypeDescriptor::I64),
+            Self::I128 => Ok(DataTypeDescriptor::I128),
+            Self::U8 => Ok(DataTypeDescriptor::U8),
+            Self::U16 => Ok(DataTypeDescriptor::U16),
+            Self::U32 => Ok(DataTypeDescriptor::U32),
+            Self::U64 => Ok(DataTypeDescriptor::U64),
+            Self::U128 => Ok(DataTypeDescriptor::U128),
+            Self::F32 => Ok(DataTypeDescriptor::F32),
+            Self::F64 => Ok(DataTypeDescriptor::F64),
+            Self::Bool => Ok(DataTypeDescriptor::Bool),
+            Self::Byte => Ok(DataTypeDescriptor::Byte),
+            Self::Char => Ok(DataTypeDescriptor::Char),
+            Self::String => Ok(DataTypeDescriptor::String),
+            Self::Option(internal) => Ok(DataTypeDescriptor::Option(Box::new(
+                internal.to_datatype()?,
+            ))),
+            Self::Vec(internal) => Ok(DataTypeDescriptor::Vec(Box::new(internal.to_datatype()?))),
+            Self::Other(_) => Err(()),
         }
     }
 }
 
-impl fmt::Display for TypeName {
+impl fmt::Display for TypeContent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                TypeName::Void => "void",
-                TypeName::I8 => "i8",
-                TypeName::I16 => "i16",
-                TypeName::I32 => "i32",
-                TypeName::I64 => "i64",
-                TypeName::I128 => "i128",
-                TypeName::U8 => "u8",
-                TypeName::U16 => "u16",
-                TypeName::U32 => "u32",
-                TypeName::U64 => "u64",
-                TypeName::U128 => "u128",
-                TypeName::F32 => "f32",
-                TypeName::F64 => "f64",
-                TypeName::Bool => "bool",
-                TypeName::Byte => "byte",
-                TypeName::Char => "char",
-                TypeName::String => "string",
-            }
-        )
+        match self {
+            TypeContent::Void => write!(f, "void"),
+            TypeContent::I8 => write!(f, "i8"),
+            TypeContent::I16 => write!(f, "i16"),
+            TypeContent::I32 => write!(f, "i32"),
+            TypeContent::I64 => write!(f, "i64"),
+            TypeContent::I128 => write!(f, "i128"),
+            TypeContent::U8 => write!(f, "u8"),
+            TypeContent::U16 => write!(f, "u16"),
+            TypeContent::U32 => write!(f, "u32"),
+            TypeContent::U64 => write!(f, "u64"),
+            TypeContent::U128 => write!(f, "u128"),
+            TypeContent::F32 => write!(f, "f32"),
+            TypeContent::F64 => write!(f, "f64"),
+            TypeContent::Bool => write!(f, "bool"),
+            TypeContent::Byte => write!(f, "byte"),
+            TypeContent::Char => write!(f, "char"),
+            TypeContent::String => write!(f, "string"),
+            TypeContent::Option(inner) => write!(f, "Option<{inner}>"),
+            TypeContent::Vec(inner) => write!(f, "Vec<{inner}>"),
+            TypeContent::Other(name) => write!(f, "{name}"),
+        }
     }
 }
 
@@ -163,9 +191,8 @@ impl fmt::Display for TypeName {
 pub struct Type {
     pub text: TextType,
 
-    pub name: TypeName,
     pub flow: TypeFlow,
-    pub structure: TypeStructure,
+    pub content: TypeContent,
 }
 
 impl Type {
@@ -174,68 +201,47 @@ impl Type {
     /// * `text`: the textual type.
     ///
     pub fn new(text: TextType) -> ScriptResult<Self> {
-        // Keep if flow has been specified.
-        let mut valid_flow = true;
-        let flow_name = match text.first_level_structure.clone() {
-            None => None,
-            Some(s) => Some(s.string),
-        };
-        let flow = match flow_name.as_deref() {
-            None => TypeFlow::Block,
-            Some("Block") => TypeFlow::Block,
-            Some("Stream") => TypeFlow::Stream,
-            _ => {
-                valid_flow = false;
-                TypeFlow::Block
-            }
-        };
-
-        let raw_structure = if valid_flow {
-            &text.second_level_structure
-        } else {
-            &text.first_level_structure
-        };
-        let structure_name = match raw_structure.clone() {
-            None => None,
-            Some(s) => Some(s.string),
-        };
-        let structure = match structure_name.as_deref() {
-            None => TypeStructure::Scalar,
-            Some("Scal") => TypeStructure::Scalar,
-            Some("Vec") => TypeStructure::Vector,
-            _ => {
-                return ScriptResult::new_failure(ScriptError::invalid_structure(
-                    110,
-                    raw_structure.as_ref().unwrap().clone(),
-                ));
-            }
-        };
-
-        if let Some(name) = TypeName::from_string(text.name.string.as_ref()) {
-            ScriptResult::new_success(Self {
-                text,
-                name,
-                flow,
-                structure,
+        let mut remove_first = false;
+        let flow = text
+            .level_structure
+            .first()
+            .map(|possible_flow| match possible_flow.string.as_str() {
+                "Block" => {
+                    remove_first = true;
+                    TypeFlow::Block
+                }
+                "Stream" => {
+                    remove_first = true;
+                    TypeFlow::Stream
+                }
+                _ => TypeFlow::Block,
             })
-        } else {
-            ScriptResult::new_failure(ScriptError::invalid_type(109, text.name.clone()))
+            .unwrap_or(TypeFlow::Block);
+
+        let mut level_structure = text.level_structure.clone();
+        if remove_first {
+            level_structure.remove(0);
+        }
+        level_structure.push(text.name.clone());
+
+        match TypeContent::from_positionned_strings(&level_structure)
+            .map_err(|_| ScriptError::invalid_structure(177, text.name.clone()))
+        {
+            Ok(content) => ScriptResult::new_success(Self {
+                content,
+                text,
+                flow,
+            }),
+            Err(error) => ScriptResult::new_failure(error),
         }
     }
 
-    pub fn make_descriptor(&self) -> ScriptResult<(DataTypeDescriptor, FlowDescriptor)> {
+    pub fn make_descriptor(&self) -> ScriptResult<(DescribedTypeDescriptor, FlowDescriptor)> {
         let flow = match self.flow {
             TypeFlow::Block => FlowDescriptor::Block,
             TypeFlow::Stream => FlowDescriptor::Stream,
         };
 
-        let structure = match self.structure {
-            TypeStructure::Scalar => DataTypeStructureDescriptor::Scalar,
-            TypeStructure::Vector => DataTypeStructureDescriptor::Vector,
-        };
-
-        let r#type = self.name.to_descriptor();
-
-        ScriptResult::new_success((DataTypeDescriptor::new(structure, r#type), flow))
+        ScriptResult::new_success((self.content.to_descriptor(), flow))
     }
 }

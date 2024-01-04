@@ -89,8 +89,10 @@ impl Model {
             let parameter = Parameter::new(
                 &(self.auto_reference.upgrade().unwrap() as Arc<RwLock<dyn Scope>>),
                 &(descriptor.clone() as Arc<dyn Parameterized>),
+                &Arc::new(RwLock::new(HashMap::new())),
                 descriptor.identifier().clone(),
                 &base_model.as_parameterized(),
+                &Arc::new(RwLock::new(HashMap::new())),
                 name,
                 design_reference.clone(),
             );

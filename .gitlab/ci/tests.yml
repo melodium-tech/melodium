@@ -14,7 +14,7 @@ test:rust:unit_tests:
     - cargo test --locked --verbose
 
 variables:
-  TESTS: fs http_javascript
+  TESTS: complex_call fs generics http_javascript
 
 testers:rust:x86_64-unknown-linux-gnu:
   stage: test

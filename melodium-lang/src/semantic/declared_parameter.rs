@@ -9,6 +9,7 @@ use crate::error::ScriptError;
 use crate::text::Parameter as TextParameter;
 use crate::ScriptResult;
 use melodium_common::descriptor::{Flow as FlowDescriptor, Parameter as ParameterDescriptor};
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a declared parameter.
@@ -115,21 +116,30 @@ impl DeclaredParameter {
                     ScriptResult::new_success((datatype, flow))
                 }
             })
-            .and_then(|(datatype, flow)| {
+            .and_then(|(described_type, flow)| {
                 if let Some(val) = &self.value {
-                    val.read()
-                        .unwrap()
-                        .make_executive_value(&datatype)
-                        .and_then(|val| ScriptResult::new_success((datatype, flow, Some(val))))
+                    if let Some(datatype) = described_type.to_datatype(&HashMap::new()) {
+                        val.read()
+                            .unwrap()
+                            .make_executive_value(&datatype)
+                            .and_then(|val| {
+                                ScriptResult::new_success((described_type, flow, Some(val)))
+                            })
+                    } else {
+                        ScriptResult::new_failure(ScriptError::default_forbidden(
+                            172,
+                            self.text.name.clone(),
+                        ))
+                    }
                 } else {
-                    ScriptResult::new_success((datatype, flow, None))
+                    ScriptResult::new_success((described_type, flow, None))
                 }
             })
-            .and_then(|(datatype, _, value)| {
+            .and_then(|(described_type, _, value)| {
                 ScriptResult::new_success(ParameterDescriptor::new(
                     &self.name,
                     self.variability.to_descriptor(),
-                    datatype,
+                    described_type,
                     value,
                     self.text
                         .annotations

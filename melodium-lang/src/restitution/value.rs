@@ -12,15 +12,33 @@ pub fn value(value: &Value, names: &BTreeMap<Identifier, String>) -> String {
                 name = names.get(context.identifier()).unwrap()
             )
         }
-        Value::Function(function, params) => {
+        Value::Function(function, generics, params) => {
             let name = names.get(function.identifier()).unwrap();
+
+            let generics = if !function.generics().is_empty() && !generics.is_empty() {
+                format!(
+                    "<{}>",
+                    function
+                        .generics()
+                        .iter()
+                        .map(|generic| generics
+                            .get(generic)
+                            .map(|desc_type| desc_type.to_string())
+                            .unwrap_or_else(|| "_".to_string()))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            } else {
+                String::new()
+            };
+
             let params = params
                 .iter()
                 .map(|p| self::value(p, names))
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            format!("{name}({params})")
+            format!("{name}{generics}({params})")
         }
     }
 }
