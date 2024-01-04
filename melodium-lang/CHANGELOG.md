@@ -3,6 +3,7 @@
 
 ## [Unreleased]
 
+- Adding generics management
 - Including language attributes
 
 ## [v0.7.1]
