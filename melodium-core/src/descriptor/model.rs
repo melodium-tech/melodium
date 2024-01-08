@@ -1,7 +1,7 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    Attribuable, Attributes, Buildable, Context, Documented, Generic, Identified, Identifier,
-    Model as ModelDescriptor, ModelBuildMode, Parameter, Parameterized,
+    Attribuable, Attributes, Buildable, Context, Documented, Generics, Identified, Identifier,
+    Model as ModelDescriptor, ModelBuildMode, Parameter, Parameterized, Generic,
 };
 use melodium_common::executive::{Model as ExecutiveModel, World};
 use once_cell::sync::OnceCell;
@@ -82,9 +82,9 @@ impl Parameterized for Model {
     }
 }
 
-impl Generic for Model {
-    fn generics(&self) -> &Vec<String> {
-        static VEC: OnceCell<Vec<String>> = OnceCell::new();
+impl Generics for Model {
+    fn generics(&self) -> &Vec<Generic> {
+        static VEC: OnceCell<Vec<Generic>> = OnceCell::new();
         VEC.get_or_init(|| Vec::new())
     }
 }

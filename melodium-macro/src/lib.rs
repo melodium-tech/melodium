@@ -481,9 +481,19 @@ fn config_attribute(ts: &mut IntoIterTokenStream) -> (String, String) {
     }
 }
 
-fn config_generic(ts: &mut IntoIterTokenStream) -> String {
+fn config_generic(ts: &mut IntoIterTokenStream) -> (String, Vec<String>) {
     if let Some(TokenTree::Ident(name)) = ts.next() {
-        name.to_string()
+        let name = name.to_string();
+
+        if let Some(TokenTree::Group(group)) = ts.next() {
+            (
+                name,
+                group.stream().into_iter().map(|tt| if let TokenTree::Ident(trait_name) = tt {trait_name.to_string()} else {panic!("Expecting trait name")}).collect(),
+            )
+        } else {
+            panic!("Trait list expected")
+        }
+
     } else {
         panic!("Name identity expected")
     }
@@ -917,7 +927,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
             .unwrap();
         let generics: proc_macro2::TokenStream = generics
             .iter()
-            .map(|name| format!(r#""{name}".to_string()"#))
+            .map(|(name, traits)| format!(r#"melodium_core::common::descriptor::Generic::new("{name}".to_string(), vec![{}])"#, traits.iter().map(|tr| format!("melodium_core::common::descriptor::DataTrait::{tr}")).collect::<Vec<_>>().join(", ")))
             .collect::<Vec<_>>()
             .join(",")
             .parse()
@@ -1008,7 +1018,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let parameters: proc_macro2::TokenStream = params
             .iter()
             .map(|(name, (ty, _))| {
-                if generics.contains(ty.last().unwrap()) {
+                if generics.iter().any(|(gen, _)| gen == ty.last().unwrap()) {
                     format!(r#"r#{name}: std::sync::Mutex<Option<melodium_core::common::executive::Value>>,"#)
                 } else {
                     let rust_type = into_rust_type(ty);
@@ -1048,7 +1058,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                 let default = defaults
                     .get(name)
                     .map(|lit| {
-                        if generics.contains(ty.last().unwrap()) {
+                        if generics.iter().any(|(gen, _)| gen == ty.last().unwrap()) {
                             format!("Some({val})", val = into_rust_value(ty, lit))
                         } else {
                             format!(
@@ -1106,7 +1116,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let parameters: proc_macro2::TokenStream = params
             .iter()
             .map(|(name, (ty, _))| {
-                if generics.contains(ty.last().unwrap()) {
+                if generics.iter().any(|(gen, _)| gen == ty.last().unwrap()) {
                     format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(value),"#)
                 } else {
                     let call = into_mel_value_call(ty);
@@ -1890,7 +1900,7 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let typedefs: proc_macro2::TokenStream = generics
         .iter()
-        .map(|name| format!(r#"type {name} = melodium_core::common::executive::Value"#))
+        .map(|(name, _)| format!(r#"type {name} = melodium_core::common::executive::Value"#))
         .collect::<Vec<_>>()
         .join(";")
         .parse()
@@ -1901,7 +1911,7 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
                 Type::Path(path) => {
                     let ty = path.path.segments.first().expect("Type expected");
                     let ty = ty.ident.to_string();
-                    if !generics.contains(&ty) {
+                    if !generics.iter().any(|(gen, _)| gen == &ty) {
                         (into_mel_type(rt), false)
                     } else {
                         (vec![ty], true)
@@ -1916,7 +1926,7 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
         .iter()
         .enumerate()
         .map(|(i, (_, (ty, _)))| {
-            if generics.contains(ty.last().unwrap()) {
+            if generics.iter().find(|(gen, _)| gen == ty.last().unwrap()).is_some() {
                 format!("params[{i}].clone()")
             } else {
                 format!("{}(params[{i}].clone()).unwrap()", into_mel_value_call(ty))
@@ -1941,7 +1951,7 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
         .unwrap();
     let generics: proc_macro2::TokenStream = generics
         .iter()
-        .map(|name| format!(r#""{name}".to_string()"#))
+        .map(|(name, traits)| format!(r#"melodium_core::common::descriptor::Generic::new("{name}".to_string(), vec![{}])"#, traits.iter().map(|tr| format!("melodium_core::common::descriptor::DataTrait::{tr}")).collect::<Vec<_>>().join(", ")))
         .collect::<Vec<_>>()
         .join(",")
         .parse()

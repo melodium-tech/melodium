@@ -3,9 +3,9 @@ use crate::designer::{Reference, Treatment as Designer};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
-    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry, Generic,
+    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry, Generics,
     Identified, Identifier, Input, Model, Output, Parameter, Parameterized, Status,
-    Treatment as TreatmentDescriptor, TreatmentBuildMode,
+    Treatment as TreatmentDescriptor, TreatmentBuildMode, Generic,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock, Weak};
@@ -16,7 +16,7 @@ pub struct Treatment {
     #[cfg(feature = "doc")]
     documentation: String,
     attributes: Attributes,
-    generics: Vec<String>,
+    generics: Vec<Generic>,
     models: HashMap<String, Arc<dyn Model>>,
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
@@ -185,12 +185,15 @@ impl Treatment {
         }
     }
 
-    pub fn add_generic(&mut self, name: String) {
-        self.generics.push(name);
+    pub fn add_generic(&mut self, generic: Generic) {
+        self.generics.retain(|gen| gen.name != generic.name);
+        self.generics.push(generic);
     }
 
-    pub fn remove_generic(&mut self, name: &str) {
-        self.generics.retain(|generic| generic != name);
+    pub fn remove_generic(&mut self, name: &str) -> bool {
+        let mut found = false;
+        self.generics.retain(|gen| if gen.name != name {found = true;false} else {true});
+        found
     }
 
     pub fn add_model(&mut self, name: &str, model: &Arc<dyn Model>) {
@@ -198,10 +201,7 @@ impl Treatment {
     }
 
     pub fn remove_model(&mut self, name: &str) -> bool {
-        match self.models.remove(name) {
-            Some(_) => true,
-            None => false,
-        }
+        self.models.remove(name).is_some()
     }
 
     pub fn add_parameter(&mut self, parameter: Parameter) {
@@ -210,10 +210,7 @@ impl Treatment {
     }
 
     pub fn remove_parameter(&mut self, name: &str) -> bool {
-        match self.parameters.remove(name) {
-            Some(_) => true,
-            None => false,
-        }
+        self.parameters.remove(name).is_some()
     }
 
     pub fn add_input(&mut self, input: Input) {
@@ -427,8 +424,8 @@ impl TreatmentDescriptor for Treatment {
     }
 }
 
-impl Generic for Treatment {
-    fn generics(&self) -> &Vec<String> {
+impl Generics for Treatment {
+    fn generics(&self) -> &Vec<Generic> {
         &self.generics
     }
 }

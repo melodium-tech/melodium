@@ -37,7 +37,7 @@ pub use described_type::DescribedType;
 pub use documented::Documented;
 pub use flow::Flow;
 pub use function::Function;
-pub use generic::Generic;
+pub use generic::{Generic, Generics};
 pub use identified::Identified;
 pub use identifier::Identifier;
 pub use input::Input;

@@ -23,7 +23,7 @@ pub mod vec;
 ///     style O fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input first Stream<T>
     input second Stream<T>
     output chained Stream<T>
@@ -67,7 +67,7 @@ pub async fn chain() {
 ///     style E fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input stream Stream<T>
     output start Block<void>
     output end Block<void>
@@ -115,11 +115,11 @@ pub async fn trigger() {
 ///     style S fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic F
+    generic T ()
     input trigger Block<void>
-    output emit Block<F>
+    output emit Block<T>
 )]
-pub async fn emit(value: F) {
+pub async fn emit(value: T) {
     if let Ok(_) = trigger.recv_one().await {
         let _ = emit.send_one(value).await;
     }
@@ -139,7 +139,7 @@ pub async fn emit(value: F) {
 ///     style S fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input block Block<T>
     output stream Stream<T>
 )]
@@ -177,7 +177,7 @@ pub async fn stream() {
 ///     style B fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input a Stream<T>
     input b Stream<T>
     input select Stream<bool>
@@ -221,7 +221,7 @@ pub async fn merge() {
 /// style O fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input pattern Stream<void>
     output filled Stream<T>
 )]
@@ -254,7 +254,7 @@ pub async fn fill(value: T) {
 ///     style R fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input value Stream<T>
     input select Stream<bool>
     output accepted Stream<T>
@@ -305,7 +305,7 @@ pub async fn filter() {
 ///     style O fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input value Stream<T>
     input pattern Stream<void>
     output fitted Stream<T>
@@ -341,7 +341,7 @@ pub async fn fit() {
 ///     style P fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input stream Stream<T>
     output count Stream<u128>
 )]
@@ -372,7 +372,7 @@ pub async fn count() {
 ///     style S fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input length Block<u128>
     output stream Stream<T>
 )]
@@ -412,7 +412,7 @@ pub async fn generate(data: T) {
 ///     style S fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input trigger Block<void>
     output stream Stream<T>
 )]

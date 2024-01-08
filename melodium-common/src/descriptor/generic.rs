@@ -1,7 +1,23 @@
 use core::fmt::{Debug, Display};
 use downcast_rs::{impl_downcast, DowncastSync};
+use super::DataTrait;
 
-pub trait Generic: DowncastSync + Display + Debug + Send + Sync {
-    fn generics(&self) -> &Vec<String>;
+#[derive(Clone, Hash, Debug)]
+pub struct Generic {
+    pub name: String,
+    pub traits: Vec<DataTrait>,
 }
-impl_downcast!(sync Generic);
+
+impl Generic {
+    pub fn new(name: String, traits: Vec<DataTrait>) -> Self {
+        Self {
+            name,
+            traits,
+        }
+    }
+}
+
+pub trait Generics: DowncastSync + Display + Debug + Send + Sync {
+    fn generics(&self) -> &Vec<Generic>;
+}
+impl_downcast!(sync Generics);

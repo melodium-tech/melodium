@@ -1,7 +1,7 @@
 use super::value::value;
 use itertools::Itertools;
 use melodium_common::descriptor::{
-    Attribuable, Documented, Generic, Identified, Identifier, Parameterized,
+    Attribuable, Documented, Generics, Identified, Identifier, Parameterized,
     Treatment as TreatmentDescriptor,
 };
 use melodium_engine::design::{Connection, Treatment as TreatmentDesign, IO};

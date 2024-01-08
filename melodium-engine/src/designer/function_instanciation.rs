@@ -227,7 +227,7 @@ impl GenericInstanciation for FunctionInstanciation {
 
     fn set_generic(&mut self, generic: String, r#type: DescribedType) -> LogicResult<()> {
         let descriptor = self.descriptor();
-        if descriptor.generics().contains(&generic) {
+        if descriptor.generics().iter().any(|gen| gen.name == generic){
             self.generics.write().unwrap().insert(generic, r#type);
             LogicResult::new_success(())
         } else {

@@ -11,7 +11,7 @@ use crate::design::{
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Attribuable, Attributes, Collection, DescribedType, Entry, Generic, Identified, Identifier,
+    Attribuable, Attributes, Collection, DescribedType, Entry, Generics, Identified, Identifier,
     Parameterized, Treatment as TreatmentTrait,
 };
 use std::collections::HashMap;
@@ -47,7 +47,7 @@ impl Treatment {
                     descriptor
                         .generics()
                         .iter()
-                        .map(|generic| (generic.clone(), DescribedType::Generic(generic.clone())))
+                        .map(|generic| (generic.name.clone(), DescribedType::Generic(generic.name.clone())))
                         .collect(),
                 )),
                 model_instanciations: HashMap::new(),
@@ -1083,7 +1083,7 @@ impl GenericInstanciation for Treatment {
 
     fn set_generic(&mut self, generic: String, r#type: DescribedType) -> LogicResult<()> {
         let descriptor = self.descriptor();
-        if descriptor.generics().contains(&generic) {
+        if descriptor.generics().iter().any(|gen| gen.name == generic) {
             self.generics.write().unwrap().insert(generic, r#type);
             LogicResult::new_success(())
         } else {

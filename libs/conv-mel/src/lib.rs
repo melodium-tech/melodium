@@ -22,7 +22,7 @@ pub mod u8;
 
 /// Turns any stream into `void` one.
 #[mel_treatment(
-    generic T
+    generic T ()
     input value Stream<T>
     output iter Stream<void>
 )]
@@ -35,7 +35,7 @@ pub async fn to_void() {
 /// Turns data into `Vec<byte>`.
 ///
 #[mel_function(
-    generic T
+    generic T ()
 )]
 pub fn to_byte(value: T) -> Vec<byte> {
     match value {
@@ -73,7 +73,7 @@ pub fn to_byte(value: T) -> Vec<byte> {
 ///
 /// ℹ️ A `bool` always corresponds to one `byte`, being `0` if `false` and `1` if `true`.
 #[mel_treatment(
-    generic T
+    generic T ()
     input value Stream<T>
     output data Stream<Vec<byte>>
 )]

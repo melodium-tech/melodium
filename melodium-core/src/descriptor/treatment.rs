@@ -1,8 +1,8 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    Attribuable, Attributes, Buildable, Context, Documented, Generic, Identified, Identifier,
+    Attribuable, Attributes, Buildable, Context, Documented, Generics, Identified, Identifier,
     Input, Model, Output, Parameter, Parameterized, Treatment as TreatmentDescriptor,
-    TreatmentBuildMode,
+    TreatmentBuildMode, Generic,
 };
 use melodium_common::executive::Treatment as ExecutiveTreatment;
 use once_cell::sync::OnceCell;
@@ -16,7 +16,7 @@ pub struct Treatment {
     #[cfg(feature = "doc")]
     documentation: String,
     attributes: Attributes,
-    generics: Vec<String>,
+    generics: Vec<Generic>,
     models: HashMap<String, Arc<dyn Model>>,
     parameters: HashMap<String, Parameter>,
     inputs: HashMap<String, Input>,
@@ -31,7 +31,7 @@ impl Treatment {
         identifier: Identifier,
         documentation: String,
         attributes: Attributes,
-        generics: Vec<String>,
+        generics: Vec<Generic>,
         models: Vec<(String, Arc<dyn Model>)>,
         source_from: Vec<(String, Vec<String>)>,
         parameters: Vec<Parameter>,
@@ -172,8 +172,8 @@ impl TreatmentDescriptor for Treatment {
     }
 }
 
-impl Generic for Treatment {
-    fn generics(&self) -> &Vec<String> {
+impl Generics for Treatment {
+    fn generics(&self) -> &Vec<Generic> {
         &self.generics
     }
 }

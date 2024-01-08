@@ -3,9 +3,9 @@ use crate::designer::{Model as Designer, Reference};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
-    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry, Generic,
+    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry, Generics,
     Identified, Identifier, Model as ModelDescriptor, ModelBuildMode, Parameter, Parameterized,
-    Status, Variability,
+    Status, Variability, Generic,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock, RwLock, Weak};
@@ -224,9 +224,9 @@ impl Parameterized for Model {
     }
 }
 
-impl Generic for Model {
-    fn generics(&self) -> &Vec<String> {
-        static VEC: OnceLock<Vec<String>> = OnceLock::new();
+impl Generics for Model {
+    fn generics(&self) -> &Vec<Generic> {
+        static VEC: OnceLock<Vec<Generic>> = OnceLock::new();
         VEC.get_or_init(|| Vec::new())
     }
 }

@@ -22,7 +22,7 @@ pub mod u8;
 
 /// Return whether `a` is equal to `b`
 #[mel_function(
-    generic T
+    generic T ()
 )]
 pub fn equal(a: T, b: T) -> bool {
     a == b
@@ -30,7 +30,7 @@ pub fn equal(a: T, b: T) -> bool {
 
 /// Return whether `a` is different `b`
 #[mel_function(
-    generic T
+    generic T ()
 )]
 pub fn not_equal(a: T, b: T) -> bool {
     a != b
@@ -38,7 +38,7 @@ pub fn not_equal(a: T, b: T) -> bool {
 
 /// Determine whether `a` is equal to `b`
 #[mel_treatment(
-    generic T
+    generic T ()
     input a Stream<T>
     input b Stream<T>
     output result Stream<bool>
@@ -51,7 +51,7 @@ pub async fn equal() {
 
 /// Determine whether `a` is different from `b`
 #[mel_treatment(
-    generic T
+    generic T ()
     input a Stream<T>
     input b Stream<T>
     output result Stream<bool>
