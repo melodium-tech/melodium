@@ -2,6 +2,10 @@ use core::fmt::{Display, Formatter, Result};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum DataTrait {
+
+    Option,
+    Vec,
+
     // Infallilble conversions
     ToI8,
     ToI16,
@@ -95,6 +99,8 @@ pub enum DataTrait {
 impl Display for DataTrait {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
+            DataTrait::Option => write!(f, "Option"),
+            DataTrait::Vec => write!(f, "Vec"),
             DataTrait::ToI8 => write!(f, "ToI8"),
             DataTrait::ToI16 => write!(f, "ToI16"),
             DataTrait::ToI32 => write!(f, "ToI32"),
