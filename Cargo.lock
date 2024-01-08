@@ -2051,6 +2051,7 @@ dependencies = [
  "async-trait",
  "downcast-rs",
  "hex",
+ "num-traits",
  "semver 1.0.20",
 ]
 

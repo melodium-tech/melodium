@@ -274,10 +274,7 @@ impl Documentation {
             let mut string = String::new();
 
             for generic in function.generics().iter() {
-                string.push_str(&format!(
-                    "○ `{}`  \n",
-                    generic
-                ));
+                string.push_str(&format!("○ `{}`  \n", generic));
             }
 
             format!("#### Generics\n\n{}", string)
@@ -430,10 +427,7 @@ impl Documentation {
             let mut string = String::new();
 
             for generic in treatment.generics().iter() {
-                string.push_str(&format!(
-                    "○ `{}`  \n",
-                    generic
-                ));
+                string.push_str(&format!("○ `{}`  \n", generic));
             }
 
             format!("#### Generics\n\n{}", string)
