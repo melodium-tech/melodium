@@ -82,9 +82,9 @@ fn into_mel_described_type(ty: &Vec<String>) -> String {
                     desc.push_str("))");
                 }
                 generic => {
-                    desc.push_str(r#"melodium_core::common::descriptor::DescribedType::Generic(""#);
+                    desc.push_str(r#"melodium_core::common::descriptor::DescribedType::Generic(Box::new(melodium_core::common::descriptor::Generic::new(""#);
                     desc.push_str(generic);
-                    desc.push_str(r#"".to_string())"#);
+                    desc.push_str(r#"".to_string(), Vec::new())))"#);
                 }
             }
         }
