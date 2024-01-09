@@ -3,9 +3,9 @@ use crate::designer::{Reference, Treatment as Designer};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
-    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry, Generics,
-    Identified, Identifier, Input, Model, Output, Parameter, Parameterized, Status,
-    Treatment as TreatmentDescriptor, TreatmentBuildMode, Generic,
+    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry, Generic,
+    Generics, Identified, Identifier, Input, Model, Output, Parameter, Parameterized, Status,
+    Treatment as TreatmentDescriptor, TreatmentBuildMode,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock, Weak};
@@ -192,7 +192,14 @@ impl Treatment {
 
     pub fn remove_generic(&mut self, name: &str) -> bool {
         let mut found = false;
-        self.generics.retain(|gen| if gen.name != name {found = true;false} else {true});
+        self.generics.retain(|gen| {
+            if gen.name != name {
+                found = true;
+                false
+            } else {
+                true
+            }
+        });
         found
     }
 

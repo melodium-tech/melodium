@@ -488,12 +488,21 @@ fn config_generic(ts: &mut IntoIterTokenStream) -> (String, Vec<String>) {
         if let Some(TokenTree::Group(group)) = ts.next() {
             (
                 name,
-                group.stream().into_iter().map(|tt| if let TokenTree::Ident(trait_name) = tt {trait_name.to_string()} else {panic!("Expecting trait name")}).collect(),
+                group
+                    .stream()
+                    .into_iter()
+                    .map(|tt| {
+                        if let TokenTree::Ident(trait_name) = tt {
+                            trait_name.to_string()
+                        } else {
+                            panic!("Expecting trait name")
+                        }
+                    })
+                    .collect(),
             )
         } else {
             panic!("Trait list expected")
         }
-
     } else {
         panic!("Name identity expected")
     }
@@ -1926,7 +1935,11 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
         .iter()
         .enumerate()
         .map(|(i, (_, (ty, _)))| {
-            if generics.iter().find(|(gen, _)| gen == ty.last().unwrap()).is_some() {
+            if generics
+                .iter()
+                .find(|(gen, _)| gen == ty.last().unwrap())
+                .is_some()
+            {
                 format!("params[{i}].clone()")
             } else {
                 format!("{}(params[{i}].clone()).unwrap()", into_mel_value_call(ty))

@@ -37,7 +37,7 @@ pub enum DataType {
 }
 
 impl DataType {
-    pub fn implements(&self, _data_trait: DataTrait) -> bool {
+    pub fn implements(&self, data_trait: &DataTrait) -> bool {
         false
     }
 }

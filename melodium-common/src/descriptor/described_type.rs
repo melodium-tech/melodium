@@ -1,4 +1,4 @@
-use super::DataType;
+use super::{DataTrait, DataType, Generic};
 use core::fmt::{Display, Formatter, Result};
 use std::collections::HashMap;
 
@@ -30,7 +30,7 @@ pub enum DescribedType {
     Vec(Box<DescribedType>),
     Option(Box<DescribedType>),
 
-    Generic(String),
+    Generic(Box<Generic>),
 }
 
 impl DescribedType {
@@ -40,6 +40,16 @@ impl DescribedType {
             DescribedType::Vec(me) => me.contains_generic(),
             DescribedType::Generic(_) => true,
             _ => false,
+        }
+    }
+
+    pub fn implements(&self, data_trait: &DataTrait) -> bool {
+        match self {
+            DescribedType::Generic(generic) => generic.traits.contains(data_trait),
+            any => any
+                .to_datatype(&HashMap::new())
+                .map(|dt| dt.implements(data_trait))
+                .unwrap_or(false),
         }
     }
 
@@ -83,7 +93,7 @@ impl DescribedType {
                 .to_datatype(generics)
                 .map(|dt| DataType::Vec(Box::new(dt))),
             DescribedType::Generic(generic) => generics
-                .get(generic)
+                .get(&generic.name)
                 .and_then(|me| me.to_datatype(generics)),
         }
     }
@@ -101,7 +111,7 @@ impl DescribedType {
             (Some(me), Some(other)) => me == other,
             (None, None) => match (self, other) {
                 (DescribedType::Generic(me), DescribedType::Generic(other)) => {
-                    generics.get(me) == generics_other.get(other)
+                    generics.get(&me.name) == generics_other.get(&other.name)
                 }
                 _ => false,
             },
@@ -111,7 +121,7 @@ impl DescribedType {
 
     pub fn as_defined(&self, generics: &HashMap<String, DescribedType>) -> Option<DescribedType> {
         match self {
-            DescribedType::Generic(generic) => generics.get(generic).cloned(),
+            DescribedType::Generic(generic) => generics.get(&generic.name).cloned(),
             me => Some(me.clone()),
         }
     }
@@ -149,7 +159,10 @@ impl From<&DataType> for DescribedType {
 impl From<DataType> for DescribedType {
     fn from(value: DataType) -> Self {
         match value {
-            DataType::Undetermined => DescribedType::Generic("undertermined".to_string()),
+            DataType::Undetermined => DescribedType::Generic(Box::new(Generic::new(
+                "undertermined".to_string(),
+                Vec::new(),
+            ))),
             DataType::Void => DescribedType::Void,
             DataType::I8 => DescribedType::I8,
             DataType::I16 => DescribedType::I16,

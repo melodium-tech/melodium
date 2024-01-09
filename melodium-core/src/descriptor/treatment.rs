@@ -1,8 +1,8 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    Attribuable, Attributes, Buildable, Context, Documented, Generics, Identified, Identifier,
-    Input, Model, Output, Parameter, Parameterized, Treatment as TreatmentDescriptor,
-    TreatmentBuildMode, Generic,
+    Attribuable, Attributes, Buildable, Context, Documented, Generic, Generics, Identified,
+    Identifier, Input, Model, Output, Parameter, Parameterized, Treatment as TreatmentDescriptor,
+    TreatmentBuildMode,
 };
 use melodium_common::executive::Treatment as ExecutiveTreatment;
 use once_cell::sync::OnceCell;

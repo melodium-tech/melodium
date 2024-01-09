@@ -1,7 +1,7 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    Attribuable, Attributes, DescribedType, Documented, Function as FunctionDescriptor, Generics,
-    Identified, Identifier, OrderedParameterized, Parameter, Generic,
+    Attribuable, Attributes, DescribedType, Documented, Function as FunctionDescriptor, Generic,
+    Generics, Identified, Identifier, OrderedParameterized, Parameter,
 };
 use melodium_common::executive::Value;
 use std::sync::{Arc, Weak};

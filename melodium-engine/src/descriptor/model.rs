@@ -3,9 +3,9 @@ use crate::designer::{Model as Designer, Reference};
 use crate::error::{LogicError, LogicResult};
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use melodium_common::descriptor::{
-    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry, Generics,
-    Identified, Identifier, Model as ModelDescriptor, ModelBuildMode, Parameter, Parameterized,
-    Status, Variability, Generic,
+    Attribuable, Attribute, Attributes, Buildable, Collection, Context, Documented, Entry, Generic,
+    Generics, Identified, Identifier, Model as ModelDescriptor, ModelBuildMode, Parameter,
+    Parameterized, Status, Variability,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock, RwLock, Weak};

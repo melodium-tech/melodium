@@ -47,7 +47,12 @@ impl Treatment {
                     descriptor
                         .generics()
                         .iter()
-                        .map(|generic| (generic.name.clone(), DescribedType::Generic(generic.name.clone())))
+                        .map(|generic| {
+                            (
+                                generic.name.clone(),
+                                DescribedType::Generic(Box::new(generic.clone())),
+                            )
+                        })
                         .collect(),
                 )),
                 model_instanciations: HashMap::new(),
@@ -1081,20 +1086,7 @@ impl GenericInstanciation for Treatment {
         self.generics.read().unwrap()
     }
 
-    fn set_generic(&mut self, generic: String, r#type: DescribedType) -> LogicResult<()> {
-        let descriptor = self.descriptor();
-        if descriptor.generics().iter().any(|gen| gen.name == generic) {
-            self.generics.write().unwrap().insert(generic, r#type);
-            LogicResult::new_success(())
-        } else {
-            LogicResult::new_failure(LogicError::unexisting_generic(
-                220,
-                self.descriptor().identifier().clone(),
-                descriptor.identifier().clone(),
-                generic,
-                r#type,
-                self.design_reference.clone(),
-            ))
-        }
+    fn set_generic(&mut self, _generic_name: String, _type: DescribedType) -> LogicResult<()> {
+        LogicResult::new_success(())
     }
 }
