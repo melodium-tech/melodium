@@ -1,5 +1,5 @@
 use super::DataTrait;
-use core::fmt::{Display, Formatter, Result};
+use core::{fmt::{Display, Formatter, Result}, str::FromStr};
 
 #[derive(Clone, Hash, Debug)]
 pub enum DataType {
@@ -37,8 +37,8 @@ pub enum DataType {
 }
 
 impl DataType {
-    pub fn implements(&self, data_trait: &DataTrait) -> bool {
-        false
+    pub fn implements(&self, _data_trait: &DataTrait) -> bool {
+        true
     }
 }
 

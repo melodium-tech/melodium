@@ -27,11 +27,11 @@ treatment main() {
   make_stream.values -> trigger.stream,end -> write_file.trigger
 }
 
-treatment make_stream(var my_value: Vec<Vec<Vec<Option<u16>>>>, var something: string)
-  output values: Stream<Vec<Vec<Vec<Option<u16>>>>>
+treatment make_stream<T: Vec>(var my_value: T, var something: string)
+  output values: Stream<T>
 {
   startup()
-  emit<Vec<Vec<Vec<Option<u16>>>>>(value = my_value)
+  emit<T>(value = my_value)
   nothing: emit<string>(value = something)
   stream<Vec<Vec<Vec<Option<u16>>>>>()
 
