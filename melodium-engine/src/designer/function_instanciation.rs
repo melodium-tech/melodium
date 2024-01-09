@@ -1,7 +1,8 @@
 use super::{GenericInstanciation, Reference, Value};
 use crate::{LogicError, LogicResult};
 use melodium_common::descriptor::{
-    DescribedType, Function as FunctionDescriptor, Identifier, Parameterized, Variability,
+    DataTrait, DescribedType, Function as FunctionDescriptor, Identifier, Parameterized,
+    Variability,
 };
 use std::{
     collections::HashMap,
@@ -225,17 +226,38 @@ impl GenericInstanciation for FunctionInstanciation {
         self.generics.read().unwrap()
     }
 
-    fn set_generic(&mut self, generic: String, r#type: DescribedType) -> LogicResult<()> {
+    fn set_generic(&mut self, generic_name: String, r#type: DescribedType) -> LogicResult<()> {
         let descriptor = self.descriptor();
-        if descriptor.generics().contains(&generic) {
-            self.generics.write().unwrap().insert(generic, r#type);
-            LogicResult::new_success(())
+        if let Some(generic) = descriptor
+            .generics()
+            .iter()
+            .find(|gen| gen.name == generic_name)
+        {
+            let unimplemented: Vec<DataTrait> = generic
+                .traits
+                .iter()
+                .filter(|tr| !r#type.implements(tr))
+                .map(|dt| *dt)
+                .collect();
+            if unimplemented.is_empty() {
+                self.generics.write().unwrap().insert(generic_name, r#type);
+                LogicResult::new_success(())
+            } else {
+                LogicResult::new_failure(LogicError::unsatisfied_traits(
+                    222,
+                    self.scope_id.clone(),
+                    descriptor.identifier().clone(),
+                    r#type,
+                    unimplemented,
+                    self.design_reference.clone(),
+                ))
+            }
         } else {
             LogicResult::new_failure(LogicError::unexisting_generic(
                 218,
                 self.scope_id.clone(),
                 descriptor.identifier().clone(),
-                generic,
+                generic_name,
                 r#type,
                 self.design_reference.clone(),
             ))

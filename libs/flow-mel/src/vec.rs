@@ -15,7 +15,7 @@ use melodium_macro::{check, mel_treatment};
 ///     style O fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input vector Stream<Vec<T>>
     output value Stream<T>
 )]
@@ -49,7 +49,7 @@ pub async fn flatten() {
 ///     style O fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input stream Stream<Vec<T>>
     output pattern Stream<Vec<void>>
 )]
@@ -88,7 +88,7 @@ pub async fn pattern() {
 ///     style O fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input value Stream<T>
     input pattern Stream<Vec<void>>
     output fitted Stream<Vec<T>>
@@ -132,7 +132,7 @@ pub async fn fit() {
 /// style O fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input pattern Stream<Vec<void>>
     output filled Stream<Vec<T>>
 )]
@@ -169,7 +169,7 @@ pub async fn fill(value: T) {
 ///     style P fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input vector Stream<Vec<T>>
     output size Stream<u64>
 )]
@@ -211,7 +211,7 @@ pub async fn size() {
 ///     style P fill:#ffff,stroke:#ffff
 /// ```
 #[mel_treatment(
-    generic T
+    generic T ()
     input vector Stream<Vec<T>>
     input size Stream<u64>
     output resized Stream<Vec<T>>

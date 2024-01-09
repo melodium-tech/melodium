@@ -2,7 +2,6 @@ use core::fmt::{Display, Formatter, Result};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum DataTrait {
-
     Option,
     Vec,
 

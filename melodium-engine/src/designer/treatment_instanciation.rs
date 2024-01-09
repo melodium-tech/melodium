@@ -3,8 +3,8 @@ use crate::design::TreatmentInstanciation as TreatmentInstanciationDesign;
 use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Attribuable, Attribute, Attributes, Collection, DescribedType, Identified, Identifier,
-    Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor,
+    Attribuable, Attribute, Attributes, Collection, DataTrait, DescribedType, Identified,
+    Identifier, Parameter as ParameterDescriptor, Treatment as TreatmentDescriptor,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, RwLockReadGuard, Weak};
@@ -432,17 +432,38 @@ impl GenericInstanciation for TreatmentInstanciation {
         self.generics.read().unwrap()
     }
 
-    fn set_generic(&mut self, generic: String, r#type: DescribedType) -> LogicResult<()> {
+    fn set_generic(&mut self, generic_name: String, r#type: DescribedType) -> LogicResult<()> {
         let descriptor = self.descriptor();
-        if descriptor.generics().contains(&generic) {
-            self.generics.write().unwrap().insert(generic, r#type);
-            LogicResult::new_success(())
+        if let Some(generic) = descriptor
+            .generics()
+            .iter()
+            .find(|gen| gen.name == generic_name)
+        {
+            let unimplemented: Vec<DataTrait> = generic
+                .traits
+                .iter()
+                .filter(|tr| !r#type.implements(tr))
+                .map(|dt| *dt)
+                .collect();
+            if unimplemented.is_empty() {
+                self.generics.write().unwrap().insert(generic_name, r#type);
+                LogicResult::new_success(())
+            } else {
+                LogicResult::new_failure(LogicError::unsatisfied_traits(
+                    223,
+                    self.host_id.clone(),
+                    descriptor.identifier().clone(),
+                    r#type,
+                    unimplemented,
+                    self.design_reference.clone(),
+                ))
+            }
         } else {
             LogicResult::new_failure(LogicError::unexisting_generic(
                 219,
                 self.host_id.clone(),
                 descriptor.identifier().clone(),
-                generic,
+                generic_name,
                 r#type,
                 self.design_reference.clone(),
             ))

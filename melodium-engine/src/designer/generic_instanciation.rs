@@ -5,6 +5,6 @@ use std::fmt::Debug;
 use std::sync::RwLockReadGuard;
 
 pub trait GenericInstanciation: Send + Sync + Debug {
-    fn set_generic(&mut self, generic: String, r#type: DescribedType) -> LogicResult<()>;
+    fn set_generic(&mut self, generic_name: String, r#type: DescribedType) -> LogicResult<()>;
     fn generics(&self) -> RwLockReadGuard<HashMap<String, DescribedType>>;
 }

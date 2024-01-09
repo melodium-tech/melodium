@@ -6,7 +6,7 @@ use core::fmt::{Debug, Display};
 use std::string::ToString;
 use std::sync::Arc;
 
-use melodium_common::descriptor::{DescribedType, Flow, Identifier, Status};
+use melodium_common::descriptor::{DataTrait, DescribedType, Flow, Identifier, Status};
 
 use crate::{building::CheckStep, design::Value, designer::Reference};
 
@@ -229,6 +229,13 @@ pub enum LogicErrorKind {
         element: Identifier,
         described_type: DescribedType,
     },
+    /// Traits are not satisfied
+    UnsatisfiedTraits {
+        scope: Identifier,
+        element: Identifier,
+        described_type: DescribedType,
+        unsatisfied_traits: Vec<DataTrait>,
+    },
 }
 
 impl Display for LogicErrorKind {
@@ -287,6 +294,7 @@ impl Display for LogicErrorKind {
             LogicErrorKind::UnmatchingNumberOfParameters { scope, function } => write!(f, "Number of parameters given do not match for function '{function}' in '{scope}'"),
             LogicErrorKind::UnexistingGeneric { scope, element, name, described_type: _ } => write!(f, "The generic type '{name}' doesn't exist for '{element}' in '{scope}'"),
             LogicErrorKind::UndefinedGeneric { scope, element, described_type } => write!(f, "Generic '{described_type}' is not defined for '{element}' in '{scope}'"),
+            LogicErrorKind::UnsatisfiedTraits { scope, element, described_type, unsatisfied_traits } => write!(f, "Type '{described_type}' does not satisfy trait {} for '{element}' in '{scope}'", unsatisfied_traits.iter().map(|tr| tr.to_string()).collect::<Vec<_>>().join(" + ")),
         }
     }
 }
@@ -1019,6 +1027,27 @@ impl LogicError {
                 scope,
                 element,
                 described_type,
+            },
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::UnsatisfiedTraits`] kind.
+    pub fn unsatisfied_traits(
+        id: u32,
+        scope: Identifier,
+        element: Identifier,
+        described_type: DescribedType,
+        unsatisfied_traits: Vec<DataTrait>,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> Self {
+        Self {
+            id,
+            design_reference,
+            kind: LogicErrorKind::UnsatisfiedTraits {
+                scope,
+                element,
+                described_type,
+                unsatisfied_traits,
             },
         }
     }
