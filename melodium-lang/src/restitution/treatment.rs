@@ -79,7 +79,22 @@ impl Treatment {
                 &descriptor
                     .generics()
                     .iter()
-                    .map(|generic| generic.clone())
+                    .map(|generic| {
+                        if generic.traits.is_empty() {
+                            generic.name.clone()
+                        } else {
+                            format!(
+                                "{}: {}",
+                                generic.name,
+                                generic
+                                    .traits
+                                    .iter()
+                                    .map(|tr| tr.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(" + ")
+                            )
+                        }
+                    })
                     .collect::<Vec<_>>()
                     .join(", "),
             );
@@ -232,10 +247,10 @@ impl Treatment {
                     &descriptor
                         .generics()
                         .iter()
-                        .map(|name| {
+                        .map(|generic| {
                             instanciation
                                 .generics
-                                .get(name)
+                                .get(&generic.name)
                                 .map(|desc_type| desc_type.to_string())
                                 .unwrap_or_else(|| "_".to_string())
                         })

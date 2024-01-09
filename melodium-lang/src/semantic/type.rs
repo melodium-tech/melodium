@@ -6,7 +6,7 @@ use crate::{text::Type as TextType, ScriptResult};
 use core::slice::Iter;
 use melodium_common::descriptor::{
     DataType as DataTypeDescriptor, DescribedType as DescribedTypeDescriptor,
-    Flow as FlowDescriptor,
+    Flow as FlowDescriptor, Generic,
 };
 use std::fmt;
 
@@ -121,7 +121,10 @@ impl TypeContent {
                 DescribedTypeDescriptor::Option(Box::new(internal.to_descriptor()))
             }
             Self::Vec(internal) => DescribedTypeDescriptor::Vec(Box::new(internal.to_descriptor())),
-            Self::Other(generic) => DescribedTypeDescriptor::Generic(generic.clone()),
+            Self::Other(generic) => DescribedTypeDescriptor::Generic(Box::new(Generic::new(
+                generic.clone(),
+                Vec::new(),
+            ))),
         }
     }
 

@@ -129,6 +129,8 @@ pub enum Kind {
     Slash,
     /// `_`
     Underscore,
+    /// `+`,
+    Plus,
     /// An arrow made of one or more `-` terminated by `>`, `--->`.
     RightArrow,
     /// Anything corresponding to a name, meaning anything that is composed of letters (Unicode definition) or numbers, but not starting with a number.
@@ -137,7 +139,7 @@ pub enum Kind {
     Context,
     /// Same thing than `Name`, but having `|` in the first place.
     Function,
-    /// Anything matching a number, starting with `+`, `-`, or any digit, and having an arbitrary number of digits, with at most one point `.` inside.
+    /// Anything matching a number, starting optionally with `-`, or any digit, and having an arbitrary number of digits, with at most one point `.` inside.
     Number,
     /// Any string starting and ending with `"` (with a preservation of `\"` and `\\`).
     String,
@@ -166,6 +168,7 @@ impl Display for Kind {
             Kind::Dot => ".",
             Kind::Slash => "/",
             Kind::Underscore => "_",
+            Kind::Plus => "+",
             Kind::RightArrow => "->",
             Kind::Name => "name",
             Kind::Context => "context (@Context)",
@@ -323,6 +326,13 @@ pub fn get_words(script: &str) -> Result<Vec<Word>, Vec<Word>> {
             kind_check.is_that_kind
         } {
             kind = Some(Kind::Underscore);
+        }
+        // Check if word is Plus
+        else if {
+            kind_check = manage_single_char('+', remaining_script);
+            kind_check.is_that_kind
+        } {
+            kind = Some(Kind::Plus);
         }
         // Check if word is RightArrow
         else if {

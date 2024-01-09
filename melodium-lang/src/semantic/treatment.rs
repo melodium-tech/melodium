@@ -16,7 +16,8 @@ use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Treatment as TextTreatment;
 use crate::ScriptResult;
-use melodium_common::descriptor::{Collection, Entry, Identified, Identifier};
+use core::str::FromStr;
+use melodium_common::descriptor::{Collection, DataTrait, Entry, Generic, Identified, Identifier};
 use melodium_engine::descriptor::Treatment as TreatmentDescriptor;
 use melodium_engine::designer::Treatment as TreatmentDesigner;
 use melodium_engine::LogicError;
@@ -259,7 +260,20 @@ impl Treatment {
         for rc_generic in &self.generics {
             let borrowed_generic = rc_generic.read().unwrap();
 
-            descriptor.add_generic(borrowed_generic.name.clone());
+            let mut traits = Vec::new();
+            for trait_index in 0..borrowed_generic.traits.len() {
+                match DataTrait::from_str(&borrowed_generic.traits[trait_index]) {
+                    Ok(dt) => traits.push(dt),
+                    Err(_) => {
+                        return ScriptResult::new_failure(ScriptError::invalid_trait(
+                            180,
+                            borrowed_generic.text.traits[trait_index].clone(),
+                        ))
+                    }
+                }
+            }
+
+            descriptor.add_generic(Generic::new(borrowed_generic.name.clone(), traits));
         }
 
         // We manage declaration of each model given to the treatment

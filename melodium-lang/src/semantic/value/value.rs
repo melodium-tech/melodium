@@ -338,7 +338,7 @@ impl Value {
                             if let Some((r#type, _)) = result
                                 .merge_degrade_failure(borrowed_generic.r#type.make_descriptor())
                             {
-                                generics.insert(desc_generic.clone(), r#type);
+                                generics.insert(desc_generic.name.clone(), r#type);
                             }
                         } else {
                             result = result.and_degrade_failure(ScriptResult::new_failure(

@@ -1,4 +1,7 @@
-use core::fmt::{Display, Formatter, Result};
+use core::{
+    fmt::{self, Display, Formatter},
+    str::FromStr,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum DataTrait {
@@ -96,7 +99,7 @@ pub enum DataTrait {
 }
 
 impl Display for DataTrait {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             DataTrait::Option => write!(f, "Option"),
             DataTrait::Vec => write!(f, "Vec"),
@@ -177,6 +180,105 @@ impl Display for DataTrait {
             DataTrait::Serialize => write!(f, "Serialize"),
             DataTrait::Deserialize => write!(f, "Deserialize"),
             DataTrait::Display => write!(f, "Display"),
+        }
+    }
+}
+
+impl FromStr for DataTrait {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Option" => Ok(DataTrait::Option),
+            "Vec" => Ok(DataTrait::Vec),
+
+            "ToI8" => Ok(DataTrait::ToI8),
+            "ToI16" => Ok(DataTrait::ToI16),
+            "ToI32" => Ok(DataTrait::ToI32),
+            "ToI64" => Ok(DataTrait::ToI64),
+            "ToI128" => Ok(DataTrait::ToI128),
+            "ToU8" => Ok(DataTrait::ToU8),
+            "ToU16" => Ok(DataTrait::ToU16),
+            "ToU32" => Ok(DataTrait::ToU32),
+            "ToU64" => Ok(DataTrait::ToU64),
+            "ToU128" => Ok(DataTrait::ToU128),
+            "ToF32" => Ok(DataTrait::ToF32),
+            "ToF64" => Ok(DataTrait::ToF64),
+            "ToBool" => Ok(DataTrait::ToBool),
+            "ToByte" => Ok(DataTrait::ToByte),
+            "ToChar" => Ok(DataTrait::ToChar),
+            "ToString" => Ok(DataTrait::ToString),
+
+            "TryToI8" => Ok(DataTrait::TryToI8),
+            "TryToI16" => Ok(DataTrait::TryToI16),
+            "TryToI32" => Ok(DataTrait::TryToI32),
+            "TryToI64" => Ok(DataTrait::TryToI64),
+            "TryToI128" => Ok(DataTrait::TryToI128),
+            "TryToU8" => Ok(DataTrait::TryToU8),
+            "TryToU16" => Ok(DataTrait::TryToU16),
+            "TryToU32" => Ok(DataTrait::TryToU32),
+            "TryToU64" => Ok(DataTrait::TryToU64),
+            "TryToU128" => Ok(DataTrait::TryToU128),
+            "TryToF32" => Ok(DataTrait::TryToF32),
+            "TryToF64" => Ok(DataTrait::TryToF64),
+            "TryToBool" => Ok(DataTrait::TryToBool),
+            "TryToByte" => Ok(DataTrait::TryToByte),
+            "TryToChar" => Ok(DataTrait::TryToChar),
+            "TryToString" => Ok(DataTrait::TryToString),
+
+            "SaturatingToI8" => Ok(DataTrait::SaturatingToI8),
+            "SaturatingToI16" => Ok(DataTrait::SaturatingToI16),
+            "SaturatingToI32" => Ok(DataTrait::SaturatingToI32),
+            "SaturatingToI64" => Ok(DataTrait::SaturatingToI64),
+            "SaturatingToI128" => Ok(DataTrait::SaturatingToI128),
+            "SaturatingToU8" => Ok(DataTrait::SaturatingToU8),
+            "SaturatingToU16" => Ok(DataTrait::SaturatingToU16),
+            "SaturatingToU32" => Ok(DataTrait::SaturatingToU32),
+            "SaturatingToU64" => Ok(DataTrait::SaturatingToU64),
+            "SaturatingToU128" => Ok(DataTrait::SaturatingToU128),
+            "SaturatingToF32" => Ok(DataTrait::SaturatingToF32),
+            "SaturatingToF64" => Ok(DataTrait::SaturatingToF64),
+
+            "Signed" => Ok(DataTrait::Signed),
+            "Float" => Ok(DataTrait::Float),
+
+            "PartialEquality" => Ok(DataTrait::PartialEquality),
+            "Equality" => Ok(DataTrait::Equality),
+            "PartialOrder" => Ok(DataTrait::PartialOrder),
+            "Order" => Ok(DataTrait::Order),
+
+            "Add" => Ok(DataTrait::Add),
+            "CheckedAdd" => Ok(DataTrait::CheckedAdd),
+            "SaturatingAdd" => Ok(DataTrait::SaturatingAdd),
+            "WrappingAdd" => Ok(DataTrait::WrappingAdd),
+            "Sub" => Ok(DataTrait::Sub),
+            "CheckedSub" => Ok(DataTrait::CheckedSub),
+            "SaturatingSub" => Ok(DataTrait::SaturatingSub),
+            "WrappingSub" => Ok(DataTrait::WrappingSub),
+            "Mul" => Ok(DataTrait::Mul),
+            "CheckedMul" => Ok(DataTrait::CheckedMul),
+            "SaturatingMul" => Ok(DataTrait::SaturatingMul),
+            "WrappingMul" => Ok(DataTrait::WrappingMul),
+            "Div" => Ok(DataTrait::Div),
+            "CheckedDiv" => Ok(DataTrait::CheckedDiv),
+            "Rem" => Ok(DataTrait::Rem),
+            "CheckedRem" => Ok(DataTrait::CheckedRem),
+            "Neg" => Ok(DataTrait::Neg),
+            "CheckedNeg" => Ok(DataTrait::CheckedNeg),
+            "WrappingNeg" => Ok(DataTrait::WrappingNeg),
+            "Pow" => Ok(DataTrait::Pow),
+            "CheckedPow" => Ok(DataTrait::CheckedPow),
+
+            "Euclid" => Ok(DataTrait::Euclid),
+            "CheckedEuclid" => Ok(DataTrait::CheckedEuclid),
+
+            "Hash" => Ok(DataTrait::Hash),
+
+            "Serialize" => Ok(DataTrait::Serialize),
+            "Deserialize" => Ok(DataTrait::Deserialize),
+
+            "Display" => Ok(DataTrait::Display),
+            _ => Err(s.to_string()),
         }
     }
 }
