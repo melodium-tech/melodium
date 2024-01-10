@@ -1,5 +1,8 @@
 use super::DataTrait;
-use core::{fmt::{Display, Formatter, Result}, str::FromStr};
+use core::{
+    fmt::{Display, Formatter, Result},
+    str::FromStr,
+};
 
 #[derive(Clone, Hash, Debug)]
 pub enum DataType {

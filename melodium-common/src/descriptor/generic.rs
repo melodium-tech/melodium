@@ -11,8 +11,8 @@ pub struct Generic {
 impl PartialEq for Generic {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
-            && self.traits.len() == other.traits.len()
-            && !self.traits.iter().any(|tr| !other.traits.contains(tr))
+        /*&& self.traits.len() == other.traits.len()
+        && !self.traits.iter().any(|tr| !other.traits.contains(tr))*/
     }
 }
 

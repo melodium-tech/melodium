@@ -71,7 +71,6 @@ impl Generic {
 
     fn parse_traits(iter: &mut Windows<Word>) -> Result<Vec<PositionnedString>, ScriptError> {
         let mut traits = Vec::new();
-        eprintln!("Parse traits…");
         while let Some((trait_name, nw)) = iter.next().map(|s| (&s[0], &s[1])) {
             if trait_name.kind == Some(Kind::Name) {
                 traits.push(trait_name.into());
@@ -81,13 +80,10 @@ impl Generic {
                     None => return Err(ScriptError::end_of_script(179)),
                     _ => break,
                 }
-            }
-            else {
-                return Err(ScriptError::word(176, trait_name.clone(), &[Kind::Name]))
+            } else {
+                return Err(ScriptError::word(176, trait_name.clone(), &[Kind::Name]));
             }
         }
-
-        eprintln!("Traits parsed!");
 
         Ok(traits)
     }

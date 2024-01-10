@@ -20,7 +20,7 @@ use flow/vec::flatten
 
 treatment main() {
     
-    make_stream(my_value = [[[_]]], something = "Hey")
+    make_stream<Vec<Vec<Vec<Option<u16>>>>>(my_value = [[[_]]], something = "Hey")
     trigger<Vec<Vec<Vec<Option<u16>>>>>()
     write_file()
 
@@ -33,7 +33,7 @@ treatment make_stream<T: Vec>(var my_value: T, var something: string)
   startup()
   emit<T>(value = my_value)
   nothing: emit<string>(value = something)
-  stream<Vec<Vec<Vec<Option<u16>>>>>()
+  stream<T>()
 
   startup.trigger -> emit.trigger,emit -> stream.block,stream -> Self.values
 }
