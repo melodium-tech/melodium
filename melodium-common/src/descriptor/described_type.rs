@@ -111,10 +111,11 @@ impl DescribedType {
             (Some(me), Some(other)) => me == other,
             (None, None) => match (self, other) {
                 (DescribedType::Generic(me), DescribedType::Generic(other)) => {
-                    if let (Some(DescribedType::Generic(me)), Some(DescribedType::Generic(other))) = (generics.get(&me.name), generics_other.get(&other.name)) {
+                    if let (Some(DescribedType::Generic(me)), Some(DescribedType::Generic(other))) =
+                        (generics.get(&me.name), generics_other.get(&other.name))
+                    {
                         me.name == other.name
-                    }
-                    else {
+                    } else {
                         false
                     }
                 }
