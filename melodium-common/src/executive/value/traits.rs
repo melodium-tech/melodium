@@ -1489,155 +1489,361 @@ impl DataTrait for Value {
     }
 
     fn float_is_nan(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::Bool(val.is_nan()),
+            Value::F64(val) => Value::Bool(val.is_nan()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_is_infinite(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::Bool(val.is_infinite()),
+            Value::F64(val) => Value::Bool(val.is_infinite()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_is_finite(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::Bool(val.is_finite()),
+            Value::F64(val) => Value::Bool(val.is_finite()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_is_normal(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::Bool(val.is_normal()),
+            Value::F64(val) => Value::Bool(val.is_normal()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_is_subnormal(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::Bool(val.is_subnormal()),
+            Value::F64(val) => Value::Bool(val.is_subnormal()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_floor(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.floor()),
+            Value::F64(val) => Value::F64(val.floor()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_ceil(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.ceil()),
+            Value::F64(val) => Value::F64(val.ceil()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_round(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.round()),
+            Value::F64(val) => Value::F64(val.round()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_trunc(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.trunc()),
+            Value::F64(val) => Value::F64(val.trunc()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_fract(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.fract()),
+            Value::F64(val) => Value::F64(val.fract()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_recip(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.recip()),
+            Value::F64(val) => Value::F64(val.recip()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_pow(&self, n: &Value) -> Value {
-        todo!()
+        match (self, n) {
+            (Value::F32(val), Value::F32(n)) => Value::F32(val.powf(*n)),
+            (Value::F64(val), Value::F64(n)) => Value::F64(val.powf(*n)),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_sqrt(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.sqrt()),
+            Value::F64(val) => Value::F64(val.sqrt()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_exp(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.exp()),
+            Value::F64(val) => Value::F64(val.exp()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_exp2(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.exp2()),
+            Value::F64(val) => Value::F64(val.exp2()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_ln(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.ln()),
+            Value::F64(val) => Value::F64(val.ln()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_log(&self, base: &Value) -> Value {
-        todo!()
+        match (self, base) {
+            (Value::F32(val), Value::F32(n)) => Value::F32(val.log(*n)),
+            (Value::F64(val), Value::F64(n)) => Value::F64(val.log(*n)),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_log2(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.log2()),
+            Value::F64(val) => Value::F64(val.log2()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_log10(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.log10()),
+            Value::F64(val) => Value::F64(val.log10()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_cbrt(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.cbrt()),
+            Value::F64(val) => Value::F64(val.cbrt()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
-    fn float_hypot(&self) -> Value {
-        todo!()
+    fn float_hypot(&self, n: &Value) -> Value {
+        match (self, n) {
+            (Value::F32(val), Value::F32(n)) => Value::F32(val.hypot(*n)),
+            (Value::F64(val), Value::F64(n)) => Value::F64(val.hypot(*n)),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_sin(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.sin()),
+            Value::F64(val) => Value::F64(val.sin()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_cos(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.cos()),
+            Value::F64(val) => Value::F64(val.cos()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_tan(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.tan()),
+            Value::F64(val) => Value::F64(val.tan()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_asin(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.asin()),
+            Value::F64(val) => Value::F64(val.asin()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_acos(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.acos()),
+            Value::F64(val) => Value::F64(val.acos()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_atan(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.atan()),
+            Value::F64(val) => Value::F64(val.atan()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
-    fn float_atan2(&self) -> Value {
-        todo!()
+    fn float_atan2(&self, n: &Value) -> Value {
+        match (self, n) {
+            (Value::F32(val), Value::F32(n)) => Value::F32(val.atan2(*n)),
+            (Value::F64(val), Value::F64(n)) => Value::F64(val.atan2(*n)),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_sinh(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.sinh()),
+            Value::F64(val) => Value::F64(val.sinh()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_cosh(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.cosh()),
+            Value::F64(val) => Value::F64(val.cosh()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_tanh(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.tanh()),
+            Value::F64(val) => Value::F64(val.tanh()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_asinh(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.asinh()),
+            Value::F64(val) => Value::F64(val.asinh()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_acosh(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.acosh()),
+            Value::F64(val) => Value::F64(val.acosh()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_atanh(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.atanh()),
+            Value::F64(val) => Value::F64(val.atanh()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_to_degrees(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.to_degrees()),
+            Value::F64(val) => Value::F64(val.to_degrees()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn float_to_radians(&self) -> Value {
-        todo!()
+        match self {
+            Value::F32(val) => Value::F32(val.to_radians()),
+            Value::F64(val) => Value::F64(val.to_radians()),
+            other => panic!("Float not supported for {}", other.datatype()),
+        }
     }
 
     fn partial_equality_eq(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::Bool(me == other),
+            (Value::I16(me), Value::I16(other)) => Value::Bool(me == other),
+            (Value::I32(me), Value::I32(other)) => Value::Bool(me == other),
+            (Value::I64(me), Value::I64(other)) => Value::Bool(me == other),
+            (Value::I128(me), Value::I128(other)) => Value::Bool(me == other),
+
+            (Value::U8(me), Value::U8(other)) => Value::Bool(me == other),
+            (Value::U16(me), Value::U16(other)) => Value::Bool(me == other),
+            (Value::U32(me), Value::U32(other)) => Value::Bool(me == other),
+            (Value::U64(me), Value::U64(other)) => Value::Bool(me == other),
+            (Value::U128(me), Value::U128(other)) => Value::Bool(me == other),
+
+            (Value::F32(me), Value::F32(other)) => Value::Bool(me == other),
+            (Value::F64(me), Value::F64(other)) => Value::Bool(me == other),
+
+            (Value::Bool(me), Value::Bool(other)) => Value::Bool(me == other),
+            (Value::Byte(me), Value::Byte(other)) => Value::Bool(me == other),
+
+            (Value::Char(me), Value::Char(other)) => Value::Bool(me == other),
+            (Value::String(me), Value::String(other)) => Value::Bool(me == other),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("PartialEq not supported for {}", other.datatype()),
+        }
     }
 
     fn partial_equality_ne(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::Bool(me != other),
+            (Value::I16(me), Value::I16(other)) => Value::Bool(me != other),
+            (Value::I32(me), Value::I32(other)) => Value::Bool(me != other),
+            (Value::I64(me), Value::I64(other)) => Value::Bool(me != other),
+            (Value::I128(me), Value::I128(other)) => Value::Bool(me != other),
+
+            (Value::U8(me), Value::U8(other)) => Value::Bool(me != other),
+            (Value::U16(me), Value::U16(other)) => Value::Bool(me != other),
+            (Value::U32(me), Value::U32(other)) => Value::Bool(me != other),
+            (Value::U64(me), Value::U64(other)) => Value::Bool(me != other),
+            (Value::U128(me), Value::U128(other)) => Value::Bool(me != other),
+
+            (Value::F32(me), Value::F32(other)) => Value::Bool(me != other),
+            (Value::F64(me), Value::F64(other)) => Value::Bool(me != other),
+
+            (Value::Bool(me), Value::Bool(other)) => Value::Bool(me != other),
+            (Value::Byte(me), Value::Byte(other)) => Value::Bool(me != other),
+
+            (Value::Char(me), Value::Char(other)) => Value::Bool(me != other),
+            (Value::String(me), Value::String(other)) => Value::Bool(me != other),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("PartialEq not supported for {}", other.datatype()),
+        }
     }
 
     fn partial_order_lt(&self, other: &Value) -> Value {

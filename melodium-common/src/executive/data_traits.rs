@@ -75,14 +75,14 @@ pub trait DataTrait {
     fn float_log2(&self) -> Value;
     fn float_log10(&self) -> Value;
     fn float_cbrt(&self) -> Value;
-    fn float_hypot(&self) -> Value;
+    fn float_hypot(&self, n: &Value) -> Value;
     fn float_sin(&self) -> Value;
     fn float_cos(&self) -> Value;
     fn float_tan(&self) -> Value;
     fn float_asin(&self) -> Value;
     fn float_acos(&self) -> Value;
     fn float_atan(&self) -> Value;
-    fn float_atan2(&self) -> Value;
+    fn float_atan2(&self, n: &Value) -> Value;
     fn float_sinh(&self) -> Value;
     fn float_cosh(&self) -> Value;
     fn float_tanh(&self) -> Value;
