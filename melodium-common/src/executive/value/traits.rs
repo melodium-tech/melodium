@@ -924,10 +924,7 @@ impl DataTrait for Value {
                 val if val > i16::MAX as i128 => i16::MAX,
                 val => val as i16,
             }),
-            Value::U8(val) => Value::I16(match *val {
-                val if val > i16::MAX as u8 => i16::MAX,
-                val => val as i16,
-            }),
+            Value::U8(val) => Value::I16(*val as i16),
             Value::U16(val) => Value::I16(match *val {
                 val if val > i16::MAX as u16 => i16::MAX,
                 val => val as i16,
@@ -981,14 +978,8 @@ impl DataTrait for Value {
                 val if val > i32::MAX as i128 => i32::MAX,
                 val => val as i32,
             }),
-            Value::U8(val) => Value::I32(match *val {
-                val if val > i32::MAX as u8 => i32::MAX,
-                val => val as i32,
-            }),
-            Value::U16(val) => Value::I32(match *val {
-                val if val > i32::MAX as u16 => i32::MAX,
-                val => val as i32,
-            }),
+            Value::U8(val) => Value::I32(*val as i32),
+            Value::U16(val) => Value::I32(*val as i32),
             Value::U32(val) => Value::I32(match *val {
                 val if val > i32::MAX as u32 => i32::MAX,
                 val => val as i32,
@@ -1034,18 +1025,9 @@ impl DataTrait for Value {
                 val if val > i64::MAX as i128 => i64::MAX,
                 val => val as i64,
             }),
-            Value::U8(val) => Value::I64(match *val {
-                val if val > i64::MAX as u8 => i64::MAX,
-                val => val as i64,
-            }),
-            Value::U16(val) => Value::I64(match *val {
-                val if val > i64::MAX as u16 => i64::MAX,
-                val => val as i64,
-            }),
-            Value::U32(val) => Value::I64(match *val {
-                val if val > i64::MAX as u32 => i64::MAX,
-                val => val as i64,
-            }),
+            Value::U8(val) => Value::I64(*val as i64),
+            Value::U16(val) => Value::I64(*val as i64),
+            Value::U32(val) => Value::I64(*val as i64),
             Value::U64(val) => Value::I64(match *val {
                 val if val > i64::MAX as u64 => i64::MAX,
                 val => val as i64,
@@ -1083,22 +1065,10 @@ impl DataTrait for Value {
             Value::I32(val) => Value::I128(*val as i128),
             Value::I64(val) => Value::I128(*val as i128),
             Value::I128(val) => Value::I128(*val),
-            Value::U8(val) => Value::I128(match *val {
-                val if val > i128::MAX as u8 => i128::MAX,
-                val => val as i128,
-            }),
-            Value::U16(val) => Value::I128(match *val {
-                val if val > i128::MAX as u16 => i128::MAX,
-                val => val as i128,
-            }),
-            Value::U32(val) => Value::I128(match *val {
-                val if val > i128::MAX as u32 => i128::MAX,
-                val => val as i128,
-            }),
-            Value::U64(val) => Value::I128(match *val {
-                val if val > i128::MAX as u64 => i128::MAX,
-                val => val as i128,
-            }),
+            Value::U8(val) => Value::I128(*val as i128),
+            Value::U16(val) => Value::I128(*val as i128),
+            Value::U32(val) => Value::I128(*val as i128),
+            Value::U64(val) => Value::I128(*val as i128),
             Value::U128(val) => Value::I128(match *val {
                 val if val > i128::MAX as u128 => i128::MAX,
                 val => val as i128,
@@ -1126,23 +1096,288 @@ impl DataTrait for Value {
     }
 
     fn saturating_to_u8(&self) -> Value {
-        todo!()
+        match self {
+            Value::I8(val) => Value::U8(match *val {
+                val if val < u8::MIN as i8 => u8::MIN,
+                val => val as u8,
+            }),
+            Value::I16(val) => Value::U8(match *val {
+                val if val < u8::MIN as i16 => u8::MIN,
+                val if val > u8::MAX as i16 => u8::MAX,
+                val => val as u8,
+            }),
+            Value::I32(val) => Value::U8(match *val {
+                val if val < u8::MIN as i32 => u8::MIN,
+                val if val > u8::MAX as i32 => u8::MAX,
+                val => val as u8,
+            }),
+            Value::I64(val) => Value::U8(match *val {
+                val if val < u8::MIN as i64 => u8::MIN,
+                val if val > u8::MAX as i64 => u8::MAX,
+                val => val as u8,
+            }),
+            Value::I128(val) => Value::U8(match *val {
+                val if val < u8::MIN as i128 => u8::MIN,
+                val if val > u8::MAX as i128 => u8::MAX,
+                val => val as u8,
+            }),
+            Value::U8(val) => Value::U8(*val),
+            Value::U16(val) => Value::U8(match *val {
+                val if val > u8::MAX as u16 => u8::MAX,
+                val => val as u8,
+            }),
+            Value::U32(val) => Value::U8(match *val {
+                val if val > u8::MAX as u32 => u8::MAX,
+                val => val as u8,
+            }),
+            Value::U64(val) => Value::U8(match *val {
+                val if val > u8::MAX as u64 => u8::MAX,
+                val => val as u8,
+            }),
+            Value::U128(val) => Value::U8(match *val {
+                val if val > u8::MAX as u128 => u8::MAX,
+                val => val as u8,
+            }),
+            Value::F32(val) => Value::U8(if val.is_nan() {
+                0
+            } else if *val < u8::MIN as f32 {
+                u8::MIN
+            } else if *val > u8::MAX as f32 {
+                u8::MAX
+            } else {
+                *val as u8
+            }),
+            Value::F64(val) => Value::U8(if val.is_nan() {
+                0
+            } else if *val < u8::MIN as f64 {
+                u8::MIN
+            } else if *val > u8::MAX as f64 {
+                u8::MAX
+            } else {
+                *val as u8
+            }),
+            other => panic!("SaturatingToU8 not supported for {}", other.datatype()),
+        }
     }
 
     fn saturating_to_u16(&self) -> Value {
-        todo!()
+        match self {
+            Value::I8(val) => Value::U16(match *val {
+                val if val < u16::MIN as i8 => u16::MIN,
+                val => val as u16,
+            }),
+            Value::I16(val) => Value::U16(match *val {
+                val if val < u16::MIN as i16 => u16::MIN,
+                val => val as u16,
+            }),
+            Value::I32(val) => Value::U16(match *val {
+                val if val < u16::MIN as i32 => u16::MIN,
+                val if val > u16::MAX as i32 => u16::MAX,
+                val => val as u16,
+            }),
+            Value::I64(val) => Value::U16(match *val {
+                val if val < u16::MIN as i64 => u16::MIN,
+                val if val > u16::MAX as i64 => u16::MAX,
+                val => val as u16,
+            }),
+            Value::I128(val) => Value::U16(match *val {
+                val if val < u16::MIN as i128 => u16::MIN,
+                val if val > u16::MAX as i128 => u16::MAX,
+                val => val as u16,
+            }),
+            Value::U8(val) => Value::U16(*val as u16),
+            Value::U16(val) => Value::U16(*val),
+            Value::U32(val) => Value::U16(match *val {
+                val if val > u16::MAX as u32 => u16::MAX,
+                val => val as u16,
+            }),
+            Value::U64(val) => Value::U16(match *val {
+                val if val > u16::MAX as u64 => u16::MAX,
+                val => val as u16,
+            }),
+            Value::U128(val) => Value::U16(match *val {
+                val if val > u16::MAX as u128 => u16::MAX,
+                val => val as u16,
+            }),
+            Value::F32(val) => Value::U16(if val.is_nan() {
+                0
+            } else if *val < u16::MIN as f32 {
+                u16::MIN
+            } else if *val > u16::MAX as f32 {
+                u16::MAX
+            } else {
+                *val as u16
+            }),
+            Value::F64(val) => Value::U16(if val.is_nan() {
+                0
+            } else if *val < u16::MIN as f64 {
+                u16::MIN
+            } else if *val > u16::MAX as f64 {
+                u16::MAX
+            } else {
+                *val as u16
+            }),
+            other => panic!("SaturatingToU16 not supported for {}", other.datatype()),
+        }
     }
 
     fn saturating_to_u32(&self) -> Value {
-        todo!()
+        match self {
+            Value::I8(val) => Value::U32(match *val {
+                val if val < u32::MIN as i8 => u32::MIN,
+                val => val as u32,
+            }),
+            Value::I16(val) => Value::U32(match *val {
+                val if val < u32::MIN as i16 => u32::MIN,
+                val => val as u32,
+            }),
+            Value::I32(val) => Value::U32(match *val {
+                val if val < u32::MIN as i32 => u32::MIN,
+                val => val as u32,
+            }),
+            Value::I64(val) => Value::U32(match *val {
+                val if val < u32::MIN as i64 => u32::MIN,
+                val if val > u32::MAX as i64 => u32::MAX,
+                val => val as u32,
+            }),
+            Value::I128(val) => Value::U32(match *val {
+                val if val < u32::MIN as i128 => u32::MIN,
+                val if val > u32::MAX as i128 => u32::MAX,
+                val => val as u32,
+            }),
+            Value::U8(val) => Value::U32(*val as u32),
+            Value::U16(val) => Value::U32(*val as u32),
+            Value::U32(val) => Value::U32(*val),
+            Value::U64(val) => Value::U32(match *val {
+                val if val > u32::MAX as u64 => u32::MAX,
+                val => val as u32,
+            }),
+            Value::U128(val) => Value::U32(match *val {
+                val if val > u32::MAX as u128 => u32::MAX,
+                val => val as u32,
+            }),
+            Value::F32(val) => Value::U32(if val.is_nan() {
+                0
+            } else if *val < u32::MIN as f32 {
+                u32::MIN
+            } else if *val > u32::MAX as f32 {
+                u32::MAX
+            } else {
+                *val as u32
+            }),
+            Value::F64(val) => Value::U32(if val.is_nan() {
+                0
+            } else if *val < u32::MIN as f64 {
+                u32::MIN
+            } else if *val > u32::MAX as f64 {
+                u32::MAX
+            } else {
+                *val as u32
+            }),
+            other => panic!("SaturatingToU32 not supported for {}", other.datatype()),
+        }
     }
 
     fn saturating_to_u64(&self) -> Value {
-        todo!()
+        match self {
+            Value::I8(val) => Value::U64(match *val {
+                val if val < u64::MIN as i8 => u64::MIN,
+                val => val as u64,
+            }),
+            Value::I16(val) => Value::U64(match *val {
+                val if val < u64::MIN as i16 => u64::MIN,
+                val => val as u64,
+            }),
+            Value::I32(val) => Value::U64(match *val {
+                val if val < u64::MIN as i32 => u64::MIN,
+                val => val as u64,
+            }),
+            Value::I64(val) => Value::U64(match *val {
+                val if val < u64::MIN as i64 => u64::MIN,
+                val => val as u64,
+            }),
+            Value::I128(val) => Value::U64(match *val {
+                val if val < u64::MIN as i128 => u64::MIN,
+                val if val > u64::MAX as i128 => u64::MAX,
+                val => val as u64,
+            }),
+            Value::U8(val) => Value::U64(*val as u64),
+            Value::U16(val) => Value::U64(*val as u64),
+            Value::U32(val) => Value::U64(*val as u64),
+            Value::U64(val) => Value::U64(*val),
+            Value::U128(val) => Value::U64(match *val {
+                val if val > u64::MAX as u128 => u64::MAX,
+                val => val as u64,
+            }),
+            Value::F32(val) => Value::U64(if val.is_nan() {
+                0
+            } else if *val < u64::MIN as f32 {
+                u64::MIN
+            } else if *val > u64::MAX as f32 {
+                u64::MAX
+            } else {
+                *val as u64
+            }),
+            Value::F64(val) => Value::U64(if val.is_nan() {
+                0
+            } else if *val < u64::MIN as f64 {
+                u64::MIN
+            } else if *val > u64::MAX as f64 {
+                u64::MAX
+            } else {
+                *val as u64
+            }),
+            other => panic!("SaturatingToU64 not supported for {}", other.datatype()),
+        }
     }
 
     fn saturating_to_u128(&self) -> Value {
-        todo!()
+        match self {
+            Value::I8(val) => Value::U128(match *val {
+                val if val < u128::MIN as i8 => u128::MIN,
+                val => val as u128,
+            }),
+            Value::I16(val) => Value::U128(match *val {
+                val if val < u128::MIN as i16 => u128::MIN,
+                val => val as u128,
+            }),
+            Value::I32(val) => Value::U128(match *val {
+                val if val < u128::MIN as i32 => u128::MIN,
+                val => val as u128,
+            }),
+            Value::I64(val) => Value::U128(match *val {
+                val if val < u128::MIN as i64 => u128::MIN,
+                val => val as u128,
+            }),
+            Value::I128(val) => Value::U128(match *val {
+                val if val < u128::MIN as i128 => u128::MIN,
+                val => val as u128,
+            }),
+            Value::U8(val) => Value::U128(*val as u128),
+            Value::U16(val) => Value::U128(*val as u128),
+            Value::U32(val) => Value::U128(*val as u128),
+            Value::U64(val) => Value::U128(*val as u128),
+            Value::U128(val) => Value::U128(*val),
+            Value::F32(val) => Value::U128(if val.is_nan() {
+                0
+            } else if *val < u128::MIN as f32 {
+                u128::MIN
+            } else if *val > u128::MAX as f32 {
+                u128::MAX
+            } else {
+                *val as u128
+            }),
+            Value::F64(val) => Value::U128(if val.is_nan() {
+                0
+            } else if *val < u128::MIN as f64 {
+                u128::MIN
+            } else if *val > u128::MAX as f64 {
+                u128::MAX
+            } else {
+                *val as u128
+            }),
+            other => panic!("SaturatingToU128 not supported for {}", other.datatype()),
+        }
     }
 
     fn saturating_to_f32(&self) -> Value {
