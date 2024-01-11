@@ -1,5 +1,5 @@
 use super::Value;
-use crate::executive::DataTrait;
+use crate::{descriptor::DataType, executive::DataTrait};
 use core::convert::TryInto;
 
 impl DataTrait for Value {
@@ -1795,19 +1795,15 @@ impl DataTrait for Value {
             (Value::I32(me), Value::I32(other)) => Value::Bool(me == other),
             (Value::I64(me), Value::I64(other)) => Value::Bool(me == other),
             (Value::I128(me), Value::I128(other)) => Value::Bool(me == other),
-
             (Value::U8(me), Value::U8(other)) => Value::Bool(me == other),
             (Value::U16(me), Value::U16(other)) => Value::Bool(me == other),
             (Value::U32(me), Value::U32(other)) => Value::Bool(me == other),
             (Value::U64(me), Value::U64(other)) => Value::Bool(me == other),
             (Value::U128(me), Value::U128(other)) => Value::Bool(me == other),
-
             (Value::F32(me), Value::F32(other)) => Value::Bool(me == other),
             (Value::F64(me), Value::F64(other)) => Value::Bool(me == other),
-
             (Value::Bool(me), Value::Bool(other)) => Value::Bool(me == other),
             (Value::Byte(me), Value::Byte(other)) => Value::Bool(me == other),
-
             (Value::Char(me), Value::Char(other)) => Value::Bool(me == other),
             (Value::String(me), Value::String(other)) => Value::Bool(me == other),
             (a, b) if a.datatype() != b.datatype() => {
@@ -1824,19 +1820,15 @@ impl DataTrait for Value {
             (Value::I32(me), Value::I32(other)) => Value::Bool(me != other),
             (Value::I64(me), Value::I64(other)) => Value::Bool(me != other),
             (Value::I128(me), Value::I128(other)) => Value::Bool(me != other),
-
             (Value::U8(me), Value::U8(other)) => Value::Bool(me != other),
             (Value::U16(me), Value::U16(other)) => Value::Bool(me != other),
             (Value::U32(me), Value::U32(other)) => Value::Bool(me != other),
             (Value::U64(me), Value::U64(other)) => Value::Bool(me != other),
             (Value::U128(me), Value::U128(other)) => Value::Bool(me != other),
-
             (Value::F32(me), Value::F32(other)) => Value::Bool(me != other),
             (Value::F64(me), Value::F64(other)) => Value::Bool(me != other),
-
             (Value::Bool(me), Value::Bool(other)) => Value::Bool(me != other),
             (Value::Byte(me), Value::Byte(other)) => Value::Bool(me != other),
-
             (Value::Char(me), Value::Char(other)) => Value::Bool(me != other),
             (Value::String(me), Value::String(other)) => Value::Bool(me != other),
             (a, b) if a.datatype() != b.datatype() => {
@@ -1853,19 +1845,15 @@ impl DataTrait for Value {
             (Value::I32(me), Value::I32(other)) => Value::Bool(me < other),
             (Value::I64(me), Value::I64(other)) => Value::Bool(me < other),
             (Value::I128(me), Value::I128(other)) => Value::Bool(me < other),
-
             (Value::U8(me), Value::U8(other)) => Value::Bool(me < other),
             (Value::U16(me), Value::U16(other)) => Value::Bool(me < other),
             (Value::U32(me), Value::U32(other)) => Value::Bool(me < other),
             (Value::U64(me), Value::U64(other)) => Value::Bool(me < other),
             (Value::U128(me), Value::U128(other)) => Value::Bool(me < other),
-
             (Value::F32(me), Value::F32(other)) => Value::Bool(me < other),
             (Value::F64(me), Value::F64(other)) => Value::Bool(me < other),
-
             (Value::Bool(me), Value::Bool(other)) => Value::Bool(me < other),
             (Value::Byte(me), Value::Byte(other)) => Value::Bool(me < other),
-
             (Value::Char(me), Value::Char(other)) => Value::Bool(me < other),
             (Value::String(me), Value::String(other)) => Value::Bool(me < other),
             (a, b) if a.datatype() != b.datatype() => {
@@ -1882,19 +1870,15 @@ impl DataTrait for Value {
             (Value::I32(me), Value::I32(other)) => Value::Bool(me <= other),
             (Value::I64(me), Value::I64(other)) => Value::Bool(me <= other),
             (Value::I128(me), Value::I128(other)) => Value::Bool(me <= other),
-
             (Value::U8(me), Value::U8(other)) => Value::Bool(me <= other),
             (Value::U16(me), Value::U16(other)) => Value::Bool(me <= other),
             (Value::U32(me), Value::U32(other)) => Value::Bool(me <= other),
             (Value::U64(me), Value::U64(other)) => Value::Bool(me <= other),
             (Value::U128(me), Value::U128(other)) => Value::Bool(me <= other),
-
             (Value::F32(me), Value::F32(other)) => Value::Bool(me <= other),
             (Value::F64(me), Value::F64(other)) => Value::Bool(me <= other),
-
             (Value::Bool(me), Value::Bool(other)) => Value::Bool(me <= other),
             (Value::Byte(me), Value::Byte(other)) => Value::Bool(me <= other),
-
             (Value::Char(me), Value::Char(other)) => Value::Bool(me <= other),
             (Value::String(me), Value::String(other)) => Value::Bool(me <= other),
             (a, b) if a.datatype() != b.datatype() => {
@@ -1911,19 +1895,15 @@ impl DataTrait for Value {
             (Value::I32(me), Value::I32(other)) => Value::Bool(me > other),
             (Value::I64(me), Value::I64(other)) => Value::Bool(me > other),
             (Value::I128(me), Value::I128(other)) => Value::Bool(me > other),
-
             (Value::U8(me), Value::U8(other)) => Value::Bool(me > other),
             (Value::U16(me), Value::U16(other)) => Value::Bool(me > other),
             (Value::U32(me), Value::U32(other)) => Value::Bool(me > other),
             (Value::U64(me), Value::U64(other)) => Value::Bool(me > other),
             (Value::U128(me), Value::U128(other)) => Value::Bool(me > other),
-
             (Value::F32(me), Value::F32(other)) => Value::Bool(me > other),
             (Value::F64(me), Value::F64(other)) => Value::Bool(me > other),
-
             (Value::Bool(me), Value::Bool(other)) => Value::Bool(me > other),
             (Value::Byte(me), Value::Byte(other)) => Value::Bool(me > other),
-
             (Value::Char(me), Value::Char(other)) => Value::Bool(me > other),
             (Value::String(me), Value::String(other)) => Value::Bool(me > other),
             (a, b) if a.datatype() != b.datatype() => {
@@ -1940,19 +1920,15 @@ impl DataTrait for Value {
             (Value::I32(me), Value::I32(other)) => Value::Bool(me >= other),
             (Value::I64(me), Value::I64(other)) => Value::Bool(me >= other),
             (Value::I128(me), Value::I128(other)) => Value::Bool(me >= other),
-
             (Value::U8(me), Value::U8(other)) => Value::Bool(me >= other),
             (Value::U16(me), Value::U16(other)) => Value::Bool(me >= other),
             (Value::U32(me), Value::U32(other)) => Value::Bool(me >= other),
             (Value::U64(me), Value::U64(other)) => Value::Bool(me >= other),
             (Value::U128(me), Value::U128(other)) => Value::Bool(me >= other),
-
             (Value::F32(me), Value::F32(other)) => Value::Bool(me >= other),
             (Value::F64(me), Value::F64(other)) => Value::Bool(me >= other),
-
             (Value::Bool(me), Value::Bool(other)) => Value::Bool(me >= other),
             (Value::Byte(me), Value::Byte(other)) => Value::Bool(me >= other),
-
             (Value::Char(me), Value::Char(other)) => Value::Bool(me >= other),
             (Value::String(me), Value::String(other)) => Value::Bool(me >= other),
             (a, b) if a.datatype() != b.datatype() => {
@@ -1969,19 +1945,15 @@ impl DataTrait for Value {
             (Value::I32(me), Value::I32(other)) => Value::I32((*me).max(*other)),
             (Value::I64(me), Value::I64(other)) => Value::I64((*me).max(*other)),
             (Value::I128(me), Value::I128(other)) => Value::I128((*me).max(*other)),
-
             (Value::U8(me), Value::U8(other)) => Value::U8((*me).max(*other)),
             (Value::U16(me), Value::U16(other)) => Value::U16((*me).max(*other)),
             (Value::U32(me), Value::U32(other)) => Value::U32((*me).max(*other)),
             (Value::U64(me), Value::U64(other)) => Value::U64((*me).max(*other)),
             (Value::U128(me), Value::U128(other)) => Value::U128((*me).max(*other)),
-
             (Value::F32(me), Value::F32(other)) => Value::F32((*me).max(*other)),
             (Value::F64(me), Value::F64(other)) => Value::F64((*me).max(*other)),
-
             (Value::Bool(me), Value::Bool(other)) => Value::Bool((*me).max(*other)),
             (Value::Byte(me), Value::Byte(other)) => Value::Byte((*me).max(*other)),
-
             (Value::Char(me), Value::Char(other)) => Value::Char((*me).max(*other)),
             (Value::String(me), Value::String(other)) => Value::String(me.max(other).clone()),
             (a, b) if a.datatype() != b.datatype() => {
@@ -1998,19 +1970,15 @@ impl DataTrait for Value {
             (Value::I32(me), Value::I32(other)) => Value::I32((*me).min(*other)),
             (Value::I64(me), Value::I64(other)) => Value::I64((*me).min(*other)),
             (Value::I128(me), Value::I128(other)) => Value::I128((*me).min(*other)),
-
             (Value::U8(me), Value::U8(other)) => Value::U8((*me).min(*other)),
             (Value::U16(me), Value::U16(other)) => Value::U16((*me).min(*other)),
             (Value::U32(me), Value::U32(other)) => Value::U32((*me).min(*other)),
             (Value::U64(me), Value::U64(other)) => Value::U64((*me).min(*other)),
             (Value::U128(me), Value::U128(other)) => Value::U128((*me).min(*other)),
-
             (Value::F32(me), Value::F32(other)) => Value::F32((*me).min(*other)),
             (Value::F64(me), Value::F64(other)) => Value::F64((*me).min(*other)),
-
             (Value::Bool(me), Value::Bool(other)) => Value::Bool((*me).min(*other)),
             (Value::Byte(me), Value::Byte(other)) => Value::Byte((*me).min(*other)),
-
             (Value::Char(me), Value::Char(other)) => Value::Char((*me).min(*other)),
             (Value::String(me), Value::String(other)) => Value::String(me.min(other).clone()),
             (a, b) if a.datatype() != b.datatype() => {
@@ -2035,7 +2003,6 @@ impl DataTrait for Value {
             (Value::I128(me), Value::I128(min), Value::I128(max)) => {
                 Value::I128((*me).clamp(*min, *max))
             }
-
             (Value::U8(me), Value::U8(min), Value::U8(max)) => Value::U8((*me).clamp(*min, *max)),
             (Value::U16(me), Value::U16(min), Value::U16(max)) => {
                 Value::U16((*me).clamp(*min, *max))
@@ -2049,21 +2016,18 @@ impl DataTrait for Value {
             (Value::U128(me), Value::U128(min), Value::U128(max)) => {
                 Value::U128((*me).clamp(*min, *max))
             }
-
             (Value::F32(me), Value::F32(min), Value::F32(max)) => {
                 Value::F32((*me).clamp(*min, *max))
             }
             (Value::F64(me), Value::F64(min), Value::F64(max)) => {
                 Value::F64((*me).clamp(*min, *max))
             }
-
             (Value::Bool(me), Value::Bool(min), Value::Bool(max)) => {
                 Value::Bool((*me).clamp(*min, *max))
             }
             (Value::Byte(me), Value::Byte(min), Value::Byte(max)) => {
                 Value::Byte((*me).clamp(*min, *max))
             }
-
             (Value::Char(me), Value::Char(min), Value::Char(max)) => {
                 Value::Char((*me).clamp(*min, *max))
             }
@@ -2078,126 +2042,651 @@ impl DataTrait for Value {
     }
 
     fn add(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8(*me + *other),
+            (Value::I16(me), Value::I16(other)) => Value::I16(*me + *other),
+            (Value::I32(me), Value::I32(other)) => Value::I32(*me + *other),
+            (Value::I64(me), Value::I64(other)) => Value::I64(*me + *other),
+            (Value::I128(me), Value::I128(other)) => Value::I128(*me + *other),
+            (Value::U8(me), Value::U8(other)) => Value::U8(*me + *other),
+            (Value::U16(me), Value::U16(other)) => Value::U16(*me + *other),
+            (Value::U32(me), Value::U32(other)) => Value::U32(*me + *other),
+            (Value::U64(me), Value::U64(other)) => Value::U64(*me + *other),
+            (Value::U128(me), Value::U128(other)) => Value::U128(*me + *other),
+            (Value::F32(me), Value::F32(other)) => Value::F32(*me + *other),
+            (Value::F64(me), Value::F64(other)) => Value::F64(*me + *other),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Add not supported for {}", other.datatype()),
+        }
     }
 
     fn checked_add(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => {
+                Value::Option(me.checked_add(*other).map(|val| Box::new(Value::I8(val))))
+            }
+            (Value::I16(me), Value::I16(other)) => {
+                Value::Option(me.checked_add(*other).map(|val| Box::new(Value::I16(val))))
+            }
+            (Value::I32(me), Value::I32(other)) => {
+                Value::Option(me.checked_add(*other).map(|val| Box::new(Value::I32(val))))
+            }
+            (Value::I64(me), Value::I64(other)) => {
+                Value::Option(me.checked_add(*other).map(|val| Box::new(Value::I64(val))))
+            }
+            (Value::I128(me), Value::I128(other)) => {
+                Value::Option(me.checked_add(*other).map(|val| Box::new(Value::I128(val))))
+            }
+            (Value::U8(me), Value::U8(other)) => {
+                Value::Option(me.checked_add(*other).map(|val| Box::new(Value::U8(val))))
+            }
+            (Value::U16(me), Value::U16(other)) => {
+                Value::Option(me.checked_add(*other).map(|val| Box::new(Value::U16(val))))
+            }
+            (Value::U32(me), Value::U32(other)) => {
+                Value::Option(me.checked_add(*other).map(|val| Box::new(Value::U32(val))))
+            }
+            (Value::U64(me), Value::U64(other)) => {
+                Value::Option(me.checked_add(*other).map(|val| Box::new(Value::U64(val))))
+            }
+            (Value::U128(me), Value::U128(other)) => {
+                Value::Option(me.checked_add(*other).map(|val| Box::new(Value::U128(val))))
+            }
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("CheckedAdd not supported for {}", other.datatype()),
+        }
     }
 
     fn saturating_add(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8(me.saturating_add(*other)),
+            (Value::I16(me), Value::I16(other)) => Value::I16(me.saturating_add(*other)),
+            (Value::I32(me), Value::I32(other)) => Value::I32(me.saturating_add(*other)),
+            (Value::I64(me), Value::I64(other)) => Value::I64(me.saturating_add(*other)),
+            (Value::I128(me), Value::I128(other)) => Value::I128(me.saturating_add(*other)),
+            (Value::U8(me), Value::U8(other)) => Value::U8(me.saturating_add(*other)),
+            (Value::U16(me), Value::U16(other)) => Value::U16(me.saturating_add(*other)),
+            (Value::U32(me), Value::U32(other)) => Value::U32(me.saturating_add(*other)),
+            (Value::U64(me), Value::U64(other)) => Value::U64(me.saturating_add(*other)),
+            (Value::U128(me), Value::U128(other)) => Value::U128(me.saturating_add(*other)),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("SaturatingAdd not supported for {}", other.datatype()),
+        }
     }
 
     fn wrapping_add(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8(me.wrapping_add(*other)),
+            (Value::I16(me), Value::I16(other)) => Value::I16(me.wrapping_add(*other)),
+            (Value::I32(me), Value::I32(other)) => Value::I32(me.wrapping_add(*other)),
+            (Value::I64(me), Value::I64(other)) => Value::I64(me.wrapping_add(*other)),
+            (Value::I128(me), Value::I128(other)) => Value::I128(me.wrapping_add(*other)),
+            (Value::U8(me), Value::U8(other)) => Value::U8(me.wrapping_add(*other)),
+            (Value::U16(me), Value::U16(other)) => Value::U16(me.wrapping_add(*other)),
+            (Value::U32(me), Value::U32(other)) => Value::U32(me.wrapping_add(*other)),
+            (Value::U64(me), Value::U64(other)) => Value::U64(me.wrapping_add(*other)),
+            (Value::U128(me), Value::U128(other)) => Value::U128(me.wrapping_add(*other)),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("WrappingAdd not supported for {}", other.datatype()),
+        }
     }
 
     fn sub(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8(*me - *other),
+            (Value::I16(me), Value::I16(other)) => Value::I16(*me - *other),
+            (Value::I32(me), Value::I32(other)) => Value::I32(*me - *other),
+            (Value::I64(me), Value::I64(other)) => Value::I64(*me - *other),
+            (Value::I128(me), Value::I128(other)) => Value::I128(*me - *other),
+            (Value::U8(me), Value::U8(other)) => Value::U8(*me - *other),
+            (Value::U16(me), Value::U16(other)) => Value::U16(*me - *other),
+            (Value::U32(me), Value::U32(other)) => Value::U32(*me - *other),
+            (Value::U64(me), Value::U64(other)) => Value::U64(*me - *other),
+            (Value::U128(me), Value::U128(other)) => Value::U128(*me - *other),
+            (Value::F32(me), Value::F32(other)) => Value::F32(*me - *other),
+            (Value::F64(me), Value::F64(other)) => Value::F64(*me - *other),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Sub not supported for {}", other.datatype()),
+        }
     }
 
     fn checked_sub(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => {
+                Value::Option(me.checked_sub(*other).map(|val| Box::new(Value::I8(val))))
+            }
+            (Value::I16(me), Value::I16(other)) => {
+                Value::Option(me.checked_sub(*other).map(|val| Box::new(Value::I16(val))))
+            }
+            (Value::I32(me), Value::I32(other)) => {
+                Value::Option(me.checked_sub(*other).map(|val| Box::new(Value::I32(val))))
+            }
+            (Value::I64(me), Value::I64(other)) => {
+                Value::Option(me.checked_sub(*other).map(|val| Box::new(Value::I64(val))))
+            }
+            (Value::I128(me), Value::I128(other)) => {
+                Value::Option(me.checked_sub(*other).map(|val| Box::new(Value::I128(val))))
+            }
+            (Value::U8(me), Value::U8(other)) => {
+                Value::Option(me.checked_sub(*other).map(|val| Box::new(Value::U8(val))))
+            }
+            (Value::U16(me), Value::U16(other)) => {
+                Value::Option(me.checked_sub(*other).map(|val| Box::new(Value::U16(val))))
+            }
+            (Value::U32(me), Value::U32(other)) => {
+                Value::Option(me.checked_sub(*other).map(|val| Box::new(Value::U32(val))))
+            }
+            (Value::U64(me), Value::U64(other)) => {
+                Value::Option(me.checked_sub(*other).map(|val| Box::new(Value::U64(val))))
+            }
+            (Value::U128(me), Value::U128(other)) => {
+                Value::Option(me.checked_sub(*other).map(|val| Box::new(Value::U128(val))))
+            }
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("CheckedSub not supported for {}", other.datatype()),
+        }
     }
 
     fn saturating_sub(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8(me.saturating_sub(*other)),
+            (Value::I16(me), Value::I16(other)) => Value::I16(me.saturating_sub(*other)),
+            (Value::I32(me), Value::I32(other)) => Value::I32(me.saturating_sub(*other)),
+            (Value::I64(me), Value::I64(other)) => Value::I64(me.saturating_sub(*other)),
+            (Value::I128(me), Value::I128(other)) => Value::I128(me.saturating_sub(*other)),
+            (Value::U8(me), Value::U8(other)) => Value::U8(me.saturating_sub(*other)),
+            (Value::U16(me), Value::U16(other)) => Value::U16(me.saturating_sub(*other)),
+            (Value::U32(me), Value::U32(other)) => Value::U32(me.saturating_sub(*other)),
+            (Value::U64(me), Value::U64(other)) => Value::U64(me.saturating_sub(*other)),
+            (Value::U128(me), Value::U128(other)) => Value::U128(me.saturating_sub(*other)),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("SaturatingSub not supported for {}", other.datatype()),
+        }
     }
 
     fn wrapping_sub(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8(me.wrapping_sub(*other)),
+            (Value::I16(me), Value::I16(other)) => Value::I16(me.wrapping_sub(*other)),
+            (Value::I32(me), Value::I32(other)) => Value::I32(me.wrapping_sub(*other)),
+            (Value::I64(me), Value::I64(other)) => Value::I64(me.wrapping_sub(*other)),
+            (Value::I128(me), Value::I128(other)) => Value::I128(me.wrapping_sub(*other)),
+            (Value::U8(me), Value::U8(other)) => Value::U8(me.wrapping_sub(*other)),
+            (Value::U16(me), Value::U16(other)) => Value::U16(me.wrapping_sub(*other)),
+            (Value::U32(me), Value::U32(other)) => Value::U32(me.wrapping_sub(*other)),
+            (Value::U64(me), Value::U64(other)) => Value::U64(me.wrapping_sub(*other)),
+            (Value::U128(me), Value::U128(other)) => Value::U128(me.wrapping_sub(*other)),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("WrappingSub not supported for {}", other.datatype()),
+        }
     }
 
     fn mul(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8(*me * *other),
+            (Value::I16(me), Value::I16(other)) => Value::I16(*me * *other),
+            (Value::I32(me), Value::I32(other)) => Value::I32(*me * *other),
+            (Value::I64(me), Value::I64(other)) => Value::I64(*me * *other),
+            (Value::I128(me), Value::I128(other)) => Value::I128(*me * *other),
+            (Value::U8(me), Value::U8(other)) => Value::U8(*me * *other),
+            (Value::U16(me), Value::U16(other)) => Value::U16(*me * *other),
+            (Value::U32(me), Value::U32(other)) => Value::U32(*me * *other),
+            (Value::U64(me), Value::U64(other)) => Value::U64(*me * *other),
+            (Value::U128(me), Value::U128(other)) => Value::U128(*me * *other),
+            (Value::F32(me), Value::F32(other)) => Value::F32(*me * *other),
+            (Value::F64(me), Value::F64(other)) => Value::F64(*me * *other),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Mul not supported for {}", other.datatype()),
+        }
     }
 
     fn checked_mul(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => {
+                Value::Option(me.checked_mul(*other).map(|val| Box::new(Value::I8(val))))
+            }
+            (Value::I16(me), Value::I16(other)) => {
+                Value::Option(me.checked_mul(*other).map(|val| Box::new(Value::I16(val))))
+            }
+            (Value::I32(me), Value::I32(other)) => {
+                Value::Option(me.checked_mul(*other).map(|val| Box::new(Value::I32(val))))
+            }
+            (Value::I64(me), Value::I64(other)) => {
+                Value::Option(me.checked_mul(*other).map(|val| Box::new(Value::I64(val))))
+            }
+            (Value::I128(me), Value::I128(other)) => {
+                Value::Option(me.checked_mul(*other).map(|val| Box::new(Value::I128(val))))
+            }
+            (Value::U8(me), Value::U8(other)) => {
+                Value::Option(me.checked_mul(*other).map(|val| Box::new(Value::U8(val))))
+            }
+            (Value::U16(me), Value::U16(other)) => {
+                Value::Option(me.checked_mul(*other).map(|val| Box::new(Value::U16(val))))
+            }
+            (Value::U32(me), Value::U32(other)) => {
+                Value::Option(me.checked_mul(*other).map(|val| Box::new(Value::U32(val))))
+            }
+            (Value::U64(me), Value::U64(other)) => {
+                Value::Option(me.checked_mul(*other).map(|val| Box::new(Value::U64(val))))
+            }
+            (Value::U128(me), Value::U128(other)) => {
+                Value::Option(me.checked_mul(*other).map(|val| Box::new(Value::U128(val))))
+            }
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("CheckedMul not supported for {}", other.datatype()),
+        }
     }
 
     fn saturating_mul(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8(me.saturating_mul(*other)),
+            (Value::I16(me), Value::I16(other)) => Value::I16(me.saturating_mul(*other)),
+            (Value::I32(me), Value::I32(other)) => Value::I32(me.saturating_mul(*other)),
+            (Value::I64(me), Value::I64(other)) => Value::I64(me.saturating_mul(*other)),
+            (Value::I128(me), Value::I128(other)) => Value::I128(me.saturating_mul(*other)),
+            (Value::U8(me), Value::U8(other)) => Value::U8(me.saturating_mul(*other)),
+            (Value::U16(me), Value::U16(other)) => Value::U16(me.saturating_mul(*other)),
+            (Value::U32(me), Value::U32(other)) => Value::U32(me.saturating_mul(*other)),
+            (Value::U64(me), Value::U64(other)) => Value::U64(me.saturating_mul(*other)),
+            (Value::U128(me), Value::U128(other)) => Value::U128(me.saturating_mul(*other)),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("SaturatingMul not supported for {}", other.datatype()),
+        }
     }
 
     fn wrapping_mul(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8(me.wrapping_mul(*other)),
+            (Value::I16(me), Value::I16(other)) => Value::I16(me.wrapping_mul(*other)),
+            (Value::I32(me), Value::I32(other)) => Value::I32(me.wrapping_mul(*other)),
+            (Value::I64(me), Value::I64(other)) => Value::I64(me.wrapping_mul(*other)),
+            (Value::I128(me), Value::I128(other)) => Value::I128(me.wrapping_mul(*other)),
+            (Value::U8(me), Value::U8(other)) => Value::U8(me.wrapping_mul(*other)),
+            (Value::U16(me), Value::U16(other)) => Value::U16(me.wrapping_mul(*other)),
+            (Value::U32(me), Value::U32(other)) => Value::U32(me.wrapping_mul(*other)),
+            (Value::U64(me), Value::U64(other)) => Value::U64(me.wrapping_mul(*other)),
+            (Value::U128(me), Value::U128(other)) => Value::U128(me.wrapping_mul(*other)),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("WrappingMul not supported for {}", other.datatype()),
+        }
     }
 
     fn div(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8(*me / *other),
+            (Value::I16(me), Value::I16(other)) => Value::I16(*me / *other),
+            (Value::I32(me), Value::I32(other)) => Value::I32(*me / *other),
+            (Value::I64(me), Value::I64(other)) => Value::I64(*me / *other),
+            (Value::I128(me), Value::I128(other)) => Value::I128(*me / *other),
+            (Value::U8(me), Value::U8(other)) => Value::U8(*me / *other),
+            (Value::U16(me), Value::U16(other)) => Value::U16(*me / *other),
+            (Value::U32(me), Value::U32(other)) => Value::U32(*me / *other),
+            (Value::U64(me), Value::U64(other)) => Value::U64(*me / *other),
+            (Value::U128(me), Value::U128(other)) => Value::U128(*me / *other),
+            (Value::F32(me), Value::F32(other)) => Value::F32(*me / *other),
+            (Value::F64(me), Value::F64(other)) => Value::F64(*me / *other),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Div not supported for {}", other.datatype()),
+        }
     }
 
     fn checked_div(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => {
+                Value::Option(me.checked_div(*other).map(|val| Box::new(Value::I8(val))))
+            }
+            (Value::I16(me), Value::I16(other)) => {
+                Value::Option(me.checked_div(*other).map(|val| Box::new(Value::I16(val))))
+            }
+            (Value::I32(me), Value::I32(other)) => {
+                Value::Option(me.checked_div(*other).map(|val| Box::new(Value::I32(val))))
+            }
+            (Value::I64(me), Value::I64(other)) => {
+                Value::Option(me.checked_div(*other).map(|val| Box::new(Value::I64(val))))
+            }
+            (Value::I128(me), Value::I128(other)) => {
+                Value::Option(me.checked_div(*other).map(|val| Box::new(Value::I128(val))))
+            }
+            (Value::U8(me), Value::U8(other)) => {
+                Value::Option(me.checked_div(*other).map(|val| Box::new(Value::U8(val))))
+            }
+            (Value::U16(me), Value::U16(other)) => {
+                Value::Option(me.checked_div(*other).map(|val| Box::new(Value::U16(val))))
+            }
+            (Value::U32(me), Value::U32(other)) => {
+                Value::Option(me.checked_div(*other).map(|val| Box::new(Value::U32(val))))
+            }
+            (Value::U64(me), Value::U64(other)) => {
+                Value::Option(me.checked_div(*other).map(|val| Box::new(Value::U64(val))))
+            }
+            (Value::U128(me), Value::U128(other)) => {
+                Value::Option(me.checked_div(*other).map(|val| Box::new(Value::U128(val))))
+            }
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("CheckedDiv not supported for {}", other.datatype()),
+        }
     }
 
     fn rem(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8(*me % *other),
+            (Value::I16(me), Value::I16(other)) => Value::I16(*me % *other),
+            (Value::I32(me), Value::I32(other)) => Value::I32(*me % *other),
+            (Value::I64(me), Value::I64(other)) => Value::I64(*me % *other),
+            (Value::I128(me), Value::I128(other)) => Value::I128(*me % *other),
+            (Value::U8(me), Value::U8(other)) => Value::U8(*me % *other),
+            (Value::U16(me), Value::U16(other)) => Value::U16(*me % *other),
+            (Value::U32(me), Value::U32(other)) => Value::U32(*me % *other),
+            (Value::U64(me), Value::U64(other)) => Value::U64(*me % *other),
+            (Value::U128(me), Value::U128(other)) => Value::U128(*me % *other),
+            (Value::F32(me), Value::F32(other)) => Value::F32(*me % *other),
+            (Value::F64(me), Value::F64(other)) => Value::F64(*me % *other),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Rem not supported for {}", other.datatype()),
+        }
     }
 
     fn checked_rem(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => {
+                Value::Option(me.checked_rem(*other).map(|val| Box::new(Value::I8(val))))
+            }
+            (Value::I16(me), Value::I16(other)) => {
+                Value::Option(me.checked_rem(*other).map(|val| Box::new(Value::I16(val))))
+            }
+            (Value::I32(me), Value::I32(other)) => {
+                Value::Option(me.checked_rem(*other).map(|val| Box::new(Value::I32(val))))
+            }
+            (Value::I64(me), Value::I64(other)) => {
+                Value::Option(me.checked_rem(*other).map(|val| Box::new(Value::I64(val))))
+            }
+            (Value::I128(me), Value::I128(other)) => {
+                Value::Option(me.checked_rem(*other).map(|val| Box::new(Value::I128(val))))
+            }
+            (Value::U8(me), Value::U8(other)) => {
+                Value::Option(me.checked_rem(*other).map(|val| Box::new(Value::U8(val))))
+            }
+            (Value::U16(me), Value::U16(other)) => {
+                Value::Option(me.checked_rem(*other).map(|val| Box::new(Value::U16(val))))
+            }
+            (Value::U32(me), Value::U32(other)) => {
+                Value::Option(me.checked_rem(*other).map(|val| Box::new(Value::U32(val))))
+            }
+            (Value::U64(me), Value::U64(other)) => {
+                Value::Option(me.checked_rem(*other).map(|val| Box::new(Value::U64(val))))
+            }
+            (Value::U128(me), Value::U128(other)) => {
+                Value::Option(me.checked_rem(*other).map(|val| Box::new(Value::U128(val))))
+            }
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("CheckedRem not supported for {}", other.datatype()),
+        }
     }
 
     fn neg(&self) -> Value {
-        todo!()
+        match self {
+            Value::I8(me) => Value::I8(-*me),
+            Value::I16(me) => Value::I16(-*me),
+            Value::I32(me) => Value::I32(-*me),
+            Value::I64(me) => Value::I64(-*me),
+            Value::I128(me) => Value::I128(-*me),
+            Value::F32(me) => Value::F32(-*me),
+            Value::F64(me) => Value::F64(-*me),
+            other => panic!("Neg not supported for {}", other.datatype()),
+        }
     }
 
     fn checked_neg(&self) -> Value {
-        todo!()
+        match self {
+            Value::I8(me) => Value::Option(me.checked_neg().map(|val| Box::new(Value::I8(val)))),
+            Value::I16(me) => Value::Option(me.checked_neg().map(|val| Box::new(Value::I16(val)))),
+            Value::I32(me) => Value::Option(me.checked_neg().map(|val| Box::new(Value::I32(val)))),
+            Value::I64(me) => Value::Option(me.checked_neg().map(|val| Box::new(Value::I64(val)))),
+            Value::I128(me) => {
+                Value::Option(me.checked_neg().map(|val| Box::new(Value::I128(val))))
+            }
+            other => panic!("CheckedNeg not supported for {}", other.datatype()),
+        }
     }
 
     fn wrapping_neg(&self) -> Value {
-        todo!()
+        match self {
+            Value::I8(me) => Value::I8(me.wrapping_neg()),
+            Value::I16(me) => Value::I16(me.wrapping_neg()),
+            Value::I32(me) => Value::I32(me.wrapping_neg()),
+            Value::I64(me) => Value::I64(me.wrapping_neg()),
+            Value::I128(me) => Value::I128(me.wrapping_neg()),
+            other => panic!("WrappingNeg not supported for {}", other.datatype()),
+        }
     }
 
     fn pow(&self, exp: &Value) -> Value {
-        todo!()
+        match (self, exp) {
+            (Value::I8(me), Value::U32(exp)) => Value::I8(me.pow(*exp)),
+            (Value::I16(me), Value::U32(exp)) => Value::I16(me.pow(*exp)),
+            (Value::I32(me), Value::U32(exp)) => Value::I32(me.pow(*exp)),
+            (Value::I64(me), Value::U32(exp)) => Value::I64(me.pow(*exp)),
+            (Value::I128(me), Value::U32(exp)) => Value::I128(me.pow(*exp)),
+            (Value::U8(me), Value::U32(exp)) => Value::U8(me.pow(*exp)),
+            (Value::U16(me), Value::U32(exp)) => Value::U16(me.pow(*exp)),
+            (Value::U32(me), Value::U32(exp)) => Value::U32(me.pow(*exp)),
+            (Value::U64(me), Value::U32(exp)) => Value::U64(me.pow(*exp)),
+            (Value::U128(me), Value::U32(exp)) => Value::U128(me.pow(*exp)),
+            (_, exp) if exp.datatype() != DataType::U32 => {
+                panic!("Unsupported operation, exponent must be u32")
+            }
+            (other, _) => panic!("Pow not supported for {}", other.datatype()),
+        }
     }
 
     fn checked_pow(&self, exp: &Value) -> Value {
-        todo!()
+        match (self, exp) {
+            (Value::I8(me), Value::U32(exp)) => {
+                Value::Option(me.checked_pow(*exp).map(|val| Box::new(Value::I8(val))))
+            }
+            (Value::I16(me), Value::U32(exp)) => {
+                Value::Option(me.checked_pow(*exp).map(|val| Box::new(Value::I16(val))))
+            }
+            (Value::I32(me), Value::U32(exp)) => {
+                Value::Option(me.checked_pow(*exp).map(|val| Box::new(Value::I32(val))))
+            }
+            (Value::I64(me), Value::U32(exp)) => {
+                Value::Option(me.checked_pow(*exp).map(|val| Box::new(Value::I64(val))))
+            }
+            (Value::I128(me), Value::U32(exp)) => {
+                Value::Option(me.checked_pow(*exp).map(|val| Box::new(Value::I128(val))))
+            }
+            (Value::U8(me), Value::U32(exp)) => {
+                Value::Option(me.checked_pow(*exp).map(|val| Box::new(Value::U8(val))))
+            }
+            (Value::U16(me), Value::U32(exp)) => {
+                Value::Option(me.checked_pow(*exp).map(|val| Box::new(Value::U16(val))))
+            }
+            (Value::U32(me), Value::U32(exp)) => {
+                Value::Option(me.checked_pow(*exp).map(|val| Box::new(Value::U32(val))))
+            }
+            (Value::U64(me), Value::U32(exp)) => {
+                Value::Option(me.checked_pow(*exp).map(|val| Box::new(Value::U64(val))))
+            }
+            (Value::U128(me), Value::U32(exp)) => {
+                Value::Option(me.checked_pow(*exp).map(|val| Box::new(Value::U128(val))))
+            }
+            (_, exp) if exp.datatype() != DataType::U32 => {
+                panic!("Unsupported operation, exponent must be u32")
+            }
+            (other, _) => panic!("CheckedPow not supported for {}", other.datatype()),
+        }
     }
 
     fn euclid_div(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8(me.div_euclid(*other)),
+            (Value::I16(me), Value::I16(other)) => Value::I16(me.div_euclid(*other)),
+            (Value::I32(me), Value::I32(other)) => Value::I32(me.div_euclid(*other)),
+            (Value::I64(me), Value::I64(other)) => Value::I64(me.div_euclid(*other)),
+            (Value::I128(me), Value::I128(other)) => Value::I128(me.div_euclid(*other)),
+            (Value::U8(me), Value::U8(other)) => Value::U8(me.div_euclid(*other)),
+            (Value::U16(me), Value::U16(other)) => Value::U16(me.div_euclid(*other)),
+            (Value::U32(me), Value::U32(other)) => Value::U32(me.div_euclid(*other)),
+            (Value::U64(me), Value::U64(other)) => Value::U64(me.div_euclid(*other)),
+            (Value::U128(me), Value::U128(other)) => Value::U128(me.div_euclid(*other)),
+            (Value::F32(me), Value::F32(other)) => Value::F32(me.div_euclid(*other)),
+            (Value::F64(me), Value::F64(other)) => Value::F64(me.div_euclid(*other)),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Euclid not supported for {}", other.datatype()),
+        }
     }
 
     fn euclid_rem(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8(me.rem_euclid(*other)),
+            (Value::I16(me), Value::I16(other)) => Value::I16(me.rem_euclid(*other)),
+            (Value::I32(me), Value::I32(other)) => Value::I32(me.rem_euclid(*other)),
+            (Value::I64(me), Value::I64(other)) => Value::I64(me.rem_euclid(*other)),
+            (Value::I128(me), Value::I128(other)) => Value::I128(me.rem_euclid(*other)),
+            (Value::U8(me), Value::U8(other)) => Value::U8(me.rem_euclid(*other)),
+            (Value::U16(me), Value::U16(other)) => Value::U16(me.rem_euclid(*other)),
+            (Value::U32(me), Value::U32(other)) => Value::U32(me.rem_euclid(*other)),
+            (Value::U64(me), Value::U64(other)) => Value::U64(me.rem_euclid(*other)),
+            (Value::U128(me), Value::U128(other)) => Value::U128(me.rem_euclid(*other)),
+            (Value::F32(me), Value::F32(other)) => Value::F32(me.rem_euclid(*other)),
+            (Value::F64(me), Value::F64(other)) => Value::F64(me.rem_euclid(*other)),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Euclid not supported for {}", other.datatype()),
+        }
     }
 
     fn checked_euclid_div(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::Option(
+                me.checked_div_euclid(*other)
+                    .map(|val| Box::new(Value::I8(val))),
+            ),
+            (Value::I16(me), Value::I16(other)) => Value::Option(
+                me.checked_div_euclid(*other)
+                    .map(|val| Box::new(Value::I16(val))),
+            ),
+            (Value::I32(me), Value::I32(other)) => Value::Option(
+                me.checked_div_euclid(*other)
+                    .map(|val| Box::new(Value::I32(val))),
+            ),
+            (Value::I64(me), Value::I64(other)) => Value::Option(
+                me.checked_div_euclid(*other)
+                    .map(|val| Box::new(Value::I64(val))),
+            ),
+            (Value::I128(me), Value::I128(other)) => Value::Option(
+                me.checked_div_euclid(*other)
+                    .map(|val| Box::new(Value::I128(val))),
+            ),
+            (Value::U8(me), Value::U8(other)) => Value::Option(
+                me.checked_div_euclid(*other)
+                    .map(|val| Box::new(Value::U8(val))),
+            ),
+            (Value::U16(me), Value::U16(other)) => Value::Option(
+                me.checked_div_euclid(*other)
+                    .map(|val| Box::new(Value::U16(val))),
+            ),
+            (Value::U32(me), Value::U32(other)) => Value::Option(
+                me.checked_div_euclid(*other)
+                    .map(|val| Box::new(Value::U32(val))),
+            ),
+            (Value::U64(me), Value::U64(other)) => Value::Option(
+                me.checked_div_euclid(*other)
+                    .map(|val| Box::new(Value::U64(val))),
+            ),
+            (Value::U128(me), Value::U128(other)) => Value::Option(
+                me.checked_div_euclid(*other)
+                    .map(|val| Box::new(Value::U128(val))),
+            ),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("CheckedEuclid not supported for {}", other.datatype()),
+        }
     }
 
     fn checked_euclid_rem(&self, other: &Value) -> Value {
-        todo!()
-    }
-}
-
-impl core::ops::Add for Value {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Value::I8(me), Value::I8(other)) => Value::I8(me + other),
-            (Value::I16(me), Value::I16(other)) => Value::I16(me + other),
-            (Value::I32(me), Value::I32(other)) => Value::I32(me + other),
-            (Value::I64(me), Value::I64(other)) => Value::I64(me + other),
-            (Value::I128(me), Value::I128(other)) => Value::I128(me + other),
-
-            (Value::U8(me), Value::U8(other)) => Value::U8(me + other),
-            (Value::U16(me), Value::U16(other)) => Value::U16(me + other),
-            (Value::U32(me), Value::U32(other)) => Value::U32(me + other),
-            (Value::U64(me), Value::U64(other)) => Value::U64(me + other),
-            (Value::U128(me), Value::U128(other)) => Value::U128(me + other),
-
-            (Value::F32(me), Value::F32(other)) => Value::F32(me + other),
-            (Value::F64(me), Value::F64(other)) => Value::F64(me + other),
-            _ => panic!("Illegal `add` call, this is an internal bug to report."),
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::Option(
+                me.checked_rem_euclid(*other)
+                    .map(|val| Box::new(Value::I8(val))),
+            ),
+            (Value::I16(me), Value::I16(other)) => Value::Option(
+                me.checked_rem_euclid(*other)
+                    .map(|val| Box::new(Value::I16(val))),
+            ),
+            (Value::I32(me), Value::I32(other)) => Value::Option(
+                me.checked_rem_euclid(*other)
+                    .map(|val| Box::new(Value::I32(val))),
+            ),
+            (Value::I64(me), Value::I64(other)) => Value::Option(
+                me.checked_rem_euclid(*other)
+                    .map(|val| Box::new(Value::I64(val))),
+            ),
+            (Value::I128(me), Value::I128(other)) => Value::Option(
+                me.checked_rem_euclid(*other)
+                    .map(|val| Box::new(Value::I128(val))),
+            ),
+            (Value::U8(me), Value::U8(other)) => Value::Option(
+                me.checked_rem_euclid(*other)
+                    .map(|val| Box::new(Value::U8(val))),
+            ),
+            (Value::U16(me), Value::U16(other)) => Value::Option(
+                me.checked_rem_euclid(*other)
+                    .map(|val| Box::new(Value::U16(val))),
+            ),
+            (Value::U32(me), Value::U32(other)) => Value::Option(
+                me.checked_rem_euclid(*other)
+                    .map(|val| Box::new(Value::U32(val))),
+            ),
+            (Value::U64(me), Value::U64(other)) => Value::Option(
+                me.checked_rem_euclid(*other)
+                    .map(|val| Box::new(Value::U64(val))),
+            ),
+            (Value::U128(me), Value::U128(other)) => Value::Option(
+                me.checked_rem_euclid(*other)
+                    .map(|val| Box::new(Value::U128(val))),
+            ),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("CheckedEuclid not supported for {}", other.datatype()),
         }
     }
 }
