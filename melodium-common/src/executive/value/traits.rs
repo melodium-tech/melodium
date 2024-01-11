@@ -1381,11 +1381,39 @@ impl DataTrait for Value {
     }
 
     fn saturating_to_f32(&self) -> Value {
-        todo!()
+        match self {
+            Value::I8(val) => Value::F32(*val as f32),
+            Value::I16(val) => Value::F32(*val as f32),
+            Value::I32(val) => Value::F32(*val as f32),
+            Value::I64(val) => Value::F32(*val as f32),
+            Value::I128(val) => Value::F32(*val as f32),
+            Value::U8(val) => Value::F32(*val as f32),
+            Value::U16(val) => Value::F32(*val as f32),
+            Value::U32(val) => Value::F32(*val as f32),
+            Value::U64(val) => Value::F32(*val as f32),
+            Value::U128(val) => Value::F32(*val as f32),
+            Value::F32(val) => Value::F32(*val),
+            Value::F64(val) => Value::F32(*val as f32),
+            other => panic!("SaturatingToF32 not supported for {}", other.datatype()),
+        }
     }
 
     fn saturating_to_f64(&self) -> Value {
-        todo!()
+        match self {
+            Value::I8(val) => Value::F64(*val as f64),
+            Value::I16(val) => Value::F64(*val as f64),
+            Value::I32(val) => Value::F64(*val as f64),
+            Value::I64(val) => Value::F64(*val as f64),
+            Value::I128(val) => Value::F64(*val as f64),
+            Value::U8(val) => Value::F64(*val as f64),
+            Value::U16(val) => Value::F64(*val as f64),
+            Value::U32(val) => Value::F64(*val as f64),
+            Value::U64(val) => Value::F64(*val as f64),
+            Value::U128(val) => Value::F64(*val as f64),
+            Value::F32(val) => Value::F64(*val as f64),
+            Value::F64(val) => Value::F64(*val),
+            other => panic!("SaturatingToF64 not supported for {}", other.datatype()),
+        }
     }
 
     fn signed_abs(&self) -> Value {
