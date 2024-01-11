@@ -50,10 +50,9 @@ pub trait DataTrait {
 
     // signed
     fn signed_abs(&self) -> Value;
-    fn signed_abs_sub(&self, other: &Value) -> Value;
     fn signed_signum(&self) -> Value;
-    fn signed_is_positive(&self, other: &Value) -> Value;
-    fn signed_is_negative(&self, other: &Value) -> Value;
+    fn signed_is_positive(&self) -> Value;
+    fn signed_is_negative(&self) -> Value;
 
     // float
     fn float_is_nan(&self) -> Value;

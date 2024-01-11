@@ -1417,23 +1417,75 @@ impl DataTrait for Value {
     }
 
     fn signed_abs(&self) -> Value {
-        todo!()
-    }
-
-    fn signed_abs_sub(&self, other: &Value) -> Value {
-        todo!()
+        match self {
+            Value::I8(val) => Value::Option(if *val == i8::MIN {
+                None
+            } else {
+                Some(Box::new(Value::I8(val.abs())))
+            }),
+            Value::I16(val) => Value::Option(if *val == i16::MIN {
+                None
+            } else {
+                Some(Box::new(Value::I16(val.abs())))
+            }),
+            Value::I32(val) => Value::Option(if *val == i32::MIN {
+                None
+            } else {
+                Some(Box::new(Value::I32(val.abs())))
+            }),
+            Value::I64(val) => Value::Option(if *val == i64::MIN {
+                None
+            } else {
+                Some(Box::new(Value::I64(val.abs())))
+            }),
+            Value::I128(val) => Value::Option(if *val == i128::MIN {
+                None
+            } else {
+                Some(Box::new(Value::I128(val.abs())))
+            }),
+            Value::F32(val) => Value::Option(Some(Box::new(Value::F32(val.abs())))),
+            Value::F64(val) => Value::Option(Some(Box::new(Value::F64(val.abs())))),
+            other => panic!("Signed not supported for {}", other.datatype()),
+        }
     }
 
     fn signed_signum(&self) -> Value {
-        todo!()
+        match self {
+            Value::I8(val) => Value::I8(val.signum()),
+            Value::I16(val) => Value::I16(val.signum()),
+            Value::I32(val) => Value::I32(val.signum()),
+            Value::I64(val) => Value::I64(val.signum()),
+            Value::I128(val) => Value::I128(val.signum()),
+            Value::F32(val) => Value::F32(val.signum()),
+            Value::F64(val) => Value::F64(val.signum()),
+            other => panic!("Signed not supported for {}", other.datatype()),
+        }
     }
 
-    fn signed_is_positive(&self, other: &Value) -> Value {
-        todo!()
+    fn signed_is_positive(&self) -> Value {
+        match self {
+            Value::I8(val) => Value::Bool(val.is_positive()),
+            Value::I16(val) => Value::Bool(val.is_positive()),
+            Value::I32(val) => Value::Bool(val.is_positive()),
+            Value::I64(val) => Value::Bool(val.is_positive()),
+            Value::I128(val) => Value::Bool(val.is_positive()),
+            Value::F32(val) => Value::Bool(val.is_sign_positive()),
+            Value::F64(val) => Value::Bool(val.is_sign_positive()),
+            other => panic!("Signed not supported for {}", other.datatype()),
+        }
     }
 
-    fn signed_is_negative(&self, other: &Value) -> Value {
-        todo!()
+    fn signed_is_negative(&self) -> Value {
+        match self {
+            Value::I8(val) => Value::Bool(val.is_negative()),
+            Value::I16(val) => Value::Bool(val.is_negative()),
+            Value::I32(val) => Value::Bool(val.is_negative()),
+            Value::I64(val) => Value::Bool(val.is_negative()),
+            Value::I128(val) => Value::Bool(val.is_negative()),
+            Value::F32(val) => Value::Bool(val.is_sign_negative()),
+            Value::F64(val) => Value::Bool(val.is_sign_negative()),
+            other => panic!("Signed not supported for {}", other.datatype()),
+        }
     }
 
     fn float_is_nan(&self) -> Value {
