@@ -1963,15 +1963,118 @@ impl DataTrait for Value {
     }
 
     fn order_max(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8((*me).max(*other)),
+            (Value::I16(me), Value::I16(other)) => Value::I16((*me).max(*other)),
+            (Value::I32(me), Value::I32(other)) => Value::I32((*me).max(*other)),
+            (Value::I64(me), Value::I64(other)) => Value::I64((*me).max(*other)),
+            (Value::I128(me), Value::I128(other)) => Value::I128((*me).max(*other)),
+
+            (Value::U8(me), Value::U8(other)) => Value::U8((*me).max(*other)),
+            (Value::U16(me), Value::U16(other)) => Value::U16((*me).max(*other)),
+            (Value::U32(me), Value::U32(other)) => Value::U32((*me).max(*other)),
+            (Value::U64(me), Value::U64(other)) => Value::U64((*me).max(*other)),
+            (Value::U128(me), Value::U128(other)) => Value::U128((*me).max(*other)),
+
+            (Value::F32(me), Value::F32(other)) => Value::F32((*me).max(*other)),
+            (Value::F64(me), Value::F64(other)) => Value::F64((*me).max(*other)),
+
+            (Value::Bool(me), Value::Bool(other)) => Value::Bool((*me).max(*other)),
+            (Value::Byte(me), Value::Byte(other)) => Value::Byte((*me).max(*other)),
+
+            (Value::Char(me), Value::Char(other)) => Value::Char((*me).max(*other)),
+            (Value::String(me), Value::String(other)) => Value::String(me.max(other).clone()),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Ord not supported for {}", other.datatype()),
+        }
     }
 
     fn order_min(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::I8((*me).min(*other)),
+            (Value::I16(me), Value::I16(other)) => Value::I16((*me).min(*other)),
+            (Value::I32(me), Value::I32(other)) => Value::I32((*me).min(*other)),
+            (Value::I64(me), Value::I64(other)) => Value::I64((*me).min(*other)),
+            (Value::I128(me), Value::I128(other)) => Value::I128((*me).min(*other)),
+
+            (Value::U8(me), Value::U8(other)) => Value::U8((*me).min(*other)),
+            (Value::U16(me), Value::U16(other)) => Value::U16((*me).min(*other)),
+            (Value::U32(me), Value::U32(other)) => Value::U32((*me).min(*other)),
+            (Value::U64(me), Value::U64(other)) => Value::U64((*me).min(*other)),
+            (Value::U128(me), Value::U128(other)) => Value::U128((*me).min(*other)),
+
+            (Value::F32(me), Value::F32(other)) => Value::F32((*me).min(*other)),
+            (Value::F64(me), Value::F64(other)) => Value::F64((*me).min(*other)),
+
+            (Value::Bool(me), Value::Bool(other)) => Value::Bool((*me).min(*other)),
+            (Value::Byte(me), Value::Byte(other)) => Value::Byte((*me).min(*other)),
+
+            (Value::Char(me), Value::Char(other)) => Value::Char((*me).min(*other)),
+            (Value::String(me), Value::String(other)) => Value::String(me.min(other).clone()),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Ord not supported for {}", other.datatype()),
+        }
     }
 
     fn order_clamp(&self, min: &Value, max: &Value) -> Value {
-        todo!()
+        match (self, min, max) {
+            (Value::I8(me), Value::I8(min), Value::I8(max)) => Value::I8((*me).clamp(*min, *max)),
+            (Value::I16(me), Value::I16(min), Value::I16(max)) => {
+                Value::I16((*me).clamp(*min, *max))
+            }
+            (Value::I32(me), Value::I32(min), Value::I32(max)) => {
+                Value::I32((*me).clamp(*min, *max))
+            }
+            (Value::I64(me), Value::I64(min), Value::I64(max)) => {
+                Value::I64((*me).clamp(*min, *max))
+            }
+            (Value::I128(me), Value::I128(min), Value::I128(max)) => {
+                Value::I128((*me).clamp(*min, *max))
+            }
+
+            (Value::U8(me), Value::U8(min), Value::U8(max)) => Value::U8((*me).clamp(*min, *max)),
+            (Value::U16(me), Value::U16(min), Value::U16(max)) => {
+                Value::U16((*me).clamp(*min, *max))
+            }
+            (Value::U32(me), Value::U32(min), Value::U32(max)) => {
+                Value::U32((*me).clamp(*min, *max))
+            }
+            (Value::U64(me), Value::U64(min), Value::U64(max)) => {
+                Value::U64((*me).clamp(*min, *max))
+            }
+            (Value::U128(me), Value::U128(min), Value::U128(max)) => {
+                Value::U128((*me).clamp(*min, *max))
+            }
+
+            (Value::F32(me), Value::F32(min), Value::F32(max)) => {
+                Value::F32((*me).clamp(*min, *max))
+            }
+            (Value::F64(me), Value::F64(min), Value::F64(max)) => {
+                Value::F64((*me).clamp(*min, *max))
+            }
+
+            (Value::Bool(me), Value::Bool(min), Value::Bool(max)) => {
+                Value::Bool((*me).clamp(*min, *max))
+            }
+            (Value::Byte(me), Value::Byte(min), Value::Byte(max)) => {
+                Value::Byte((*me).clamp(*min, *max))
+            }
+
+            (Value::Char(me), Value::Char(min), Value::Char(max)) => {
+                Value::Char((*me).clamp(*min, *max))
+            }
+            (Value::String(me), Value::String(min), Value::String(max)) => {
+                Value::String((me).clamp(min, max).clone())
+            }
+            (a, b, c) if a.datatype() != b.datatype() || a.datatype() != c.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _, _) => panic!("Ord not supported for {}", other.datatype()),
+        }
     }
 
     fn add(&self, other: &Value) -> Value {
