@@ -1847,19 +1847,119 @@ impl DataTrait for Value {
     }
 
     fn partial_order_lt(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::Bool(me < other),
+            (Value::I16(me), Value::I16(other)) => Value::Bool(me < other),
+            (Value::I32(me), Value::I32(other)) => Value::Bool(me < other),
+            (Value::I64(me), Value::I64(other)) => Value::Bool(me < other),
+            (Value::I128(me), Value::I128(other)) => Value::Bool(me < other),
+
+            (Value::U8(me), Value::U8(other)) => Value::Bool(me < other),
+            (Value::U16(me), Value::U16(other)) => Value::Bool(me < other),
+            (Value::U32(me), Value::U32(other)) => Value::Bool(me < other),
+            (Value::U64(me), Value::U64(other)) => Value::Bool(me < other),
+            (Value::U128(me), Value::U128(other)) => Value::Bool(me < other),
+
+            (Value::F32(me), Value::F32(other)) => Value::Bool(me < other),
+            (Value::F64(me), Value::F64(other)) => Value::Bool(me < other),
+
+            (Value::Bool(me), Value::Bool(other)) => Value::Bool(me < other),
+            (Value::Byte(me), Value::Byte(other)) => Value::Bool(me < other),
+
+            (Value::Char(me), Value::Char(other)) => Value::Bool(me < other),
+            (Value::String(me), Value::String(other)) => Value::Bool(me < other),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("PartialOrd not supported for {}", other.datatype()),
+        }
     }
 
     fn partial_order_le(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::Bool(me <= other),
+            (Value::I16(me), Value::I16(other)) => Value::Bool(me <= other),
+            (Value::I32(me), Value::I32(other)) => Value::Bool(me <= other),
+            (Value::I64(me), Value::I64(other)) => Value::Bool(me <= other),
+            (Value::I128(me), Value::I128(other)) => Value::Bool(me <= other),
+
+            (Value::U8(me), Value::U8(other)) => Value::Bool(me <= other),
+            (Value::U16(me), Value::U16(other)) => Value::Bool(me <= other),
+            (Value::U32(me), Value::U32(other)) => Value::Bool(me <= other),
+            (Value::U64(me), Value::U64(other)) => Value::Bool(me <= other),
+            (Value::U128(me), Value::U128(other)) => Value::Bool(me <= other),
+
+            (Value::F32(me), Value::F32(other)) => Value::Bool(me <= other),
+            (Value::F64(me), Value::F64(other)) => Value::Bool(me <= other),
+
+            (Value::Bool(me), Value::Bool(other)) => Value::Bool(me <= other),
+            (Value::Byte(me), Value::Byte(other)) => Value::Bool(me <= other),
+
+            (Value::Char(me), Value::Char(other)) => Value::Bool(me <= other),
+            (Value::String(me), Value::String(other)) => Value::Bool(me <= other),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("PartialOrd not supported for {}", other.datatype()),
+        }
     }
 
     fn partial_order_gt(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::Bool(me > other),
+            (Value::I16(me), Value::I16(other)) => Value::Bool(me > other),
+            (Value::I32(me), Value::I32(other)) => Value::Bool(me > other),
+            (Value::I64(me), Value::I64(other)) => Value::Bool(me > other),
+            (Value::I128(me), Value::I128(other)) => Value::Bool(me > other),
+
+            (Value::U8(me), Value::U8(other)) => Value::Bool(me > other),
+            (Value::U16(me), Value::U16(other)) => Value::Bool(me > other),
+            (Value::U32(me), Value::U32(other)) => Value::Bool(me > other),
+            (Value::U64(me), Value::U64(other)) => Value::Bool(me > other),
+            (Value::U128(me), Value::U128(other)) => Value::Bool(me > other),
+
+            (Value::F32(me), Value::F32(other)) => Value::Bool(me > other),
+            (Value::F64(me), Value::F64(other)) => Value::Bool(me > other),
+
+            (Value::Bool(me), Value::Bool(other)) => Value::Bool(me > other),
+            (Value::Byte(me), Value::Byte(other)) => Value::Bool(me > other),
+
+            (Value::Char(me), Value::Char(other)) => Value::Bool(me > other),
+            (Value::String(me), Value::String(other)) => Value::Bool(me > other),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("PartialOrd not supported for {}", other.datatype()),
+        }
     }
 
     fn partial_order_ge(&self, other: &Value) -> Value {
-        todo!()
+        match (self, other) {
+            (Value::I8(me), Value::I8(other)) => Value::Bool(me >= other),
+            (Value::I16(me), Value::I16(other)) => Value::Bool(me >= other),
+            (Value::I32(me), Value::I32(other)) => Value::Bool(me >= other),
+            (Value::I64(me), Value::I64(other)) => Value::Bool(me >= other),
+            (Value::I128(me), Value::I128(other)) => Value::Bool(me >= other),
+
+            (Value::U8(me), Value::U8(other)) => Value::Bool(me >= other),
+            (Value::U16(me), Value::U16(other)) => Value::Bool(me >= other),
+            (Value::U32(me), Value::U32(other)) => Value::Bool(me >= other),
+            (Value::U64(me), Value::U64(other)) => Value::Bool(me >= other),
+            (Value::U128(me), Value::U128(other)) => Value::Bool(me >= other),
+
+            (Value::F32(me), Value::F32(other)) => Value::Bool(me >= other),
+            (Value::F64(me), Value::F64(other)) => Value::Bool(me >= other),
+
+            (Value::Bool(me), Value::Bool(other)) => Value::Bool(me >= other),
+            (Value::Byte(me), Value::Byte(other)) => Value::Bool(me >= other),
+
+            (Value::Char(me), Value::Char(other)) => Value::Bool(me >= other),
+            (Value::String(me), Value::String(other)) => Value::Bool(me >= other),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("PartialOrd not supported for {}", other.datatype()),
+        }
     }
 
     fn order_max(&self, other: &Value) -> Value {
