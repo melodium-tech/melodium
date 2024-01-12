@@ -4,22 +4,6 @@
 use melodium_core::*;
 use melodium_macro::{check, mel_function, mel_package, mel_treatment};
 
-pub mod bool;
-pub mod char;
-pub mod f32;
-pub mod f64;
-pub mod i128;
-pub mod i16;
-pub mod i32;
-pub mod i64;
-pub mod i8;
-//pub mod string;
-pub mod u128;
-pub mod u16;
-pub mod u32;
-pub mod u64;
-pub mod u8;
-
 /// Turns any data into `void`.
 #[mel_function(
     generic T ()
@@ -143,7 +127,7 @@ fn value_to_byte(value: Value) -> Value {
     }
 }
 
-/// Turns any data into `i8`.
+/// Truns data into `i8`.
 #[mel_function(
     generic T (ToI8)
 )]
@@ -174,7 +158,7 @@ pub async fn to_i8() {
     }
 }
 
-/// Turns any data into `i16`.
+/// Truns data into `i16`.
 #[mel_function(
     generic T (ToI16)
 )]
@@ -205,7 +189,7 @@ pub async fn to_i16() {
     }
 }
 
-/// Turns any data into `i32`.
+/// Truns data into `i32`.
 #[mel_function(
     generic T (ToI32)
 )]
@@ -236,7 +220,7 @@ pub async fn to_i32() {
     }
 }
 
-/// Turns any data into `i64`.
+/// Truns data into `i64`.
 #[mel_function(
     generic T (ToI64)
 )]
@@ -267,7 +251,7 @@ pub async fn to_i64() {
     }
 }
 
-/// Turns any data into `i128`.
+/// Truns data into `i128`.
 #[mel_function(
     generic T (ToI128)
 )]
@@ -298,7 +282,7 @@ pub async fn to_i128() {
     }
 }
 
-/// Turns any data into `u8`.
+/// Truns data into `u8`.
 #[mel_function(
     generic T (ToU8)
 )]
@@ -329,7 +313,7 @@ pub async fn to_u8() {
     }
 }
 
-/// Turns any data into `u16`.
+/// Truns data into `u16`.
 #[mel_function(
     generic T (ToU16)
 )]
@@ -360,7 +344,7 @@ pub async fn to_u16() {
     }
 }
 
-/// Turns any data into `u32`.
+/// Truns data into `u32`.
 #[mel_function(
     generic T (ToU32)
 )]
@@ -391,7 +375,7 @@ pub async fn to_u32() {
     }
 }
 
-/// Turns any data into `u64`.
+/// Truns data into `u64`.
 #[mel_function(
     generic T (ToU64)
 )]
@@ -422,7 +406,7 @@ pub async fn to_u64() {
     }
 }
 
-/// Turns any data into `u128`.
+/// Truns data into `u128`.
 #[mel_function(
     generic T (ToU128)
 )]
@@ -453,7 +437,7 @@ pub async fn to_u128() {
     }
 }
 
-/// Turns any data into `f32`.
+/// Truns data into `f32`.
 #[mel_function(
     generic T (ToF32)
 )]
@@ -484,7 +468,7 @@ pub async fn to_f32() {
     }
 }
 
-/// Turns any data into `f64`.
+/// Truns data into `f64`.
 #[mel_function(
     generic T (ToF64)
 )]
@@ -515,7 +499,7 @@ pub async fn to_f64() {
     }
 }
 
-/// Turns any data into `bool`.
+/// Truns data into `bool`.
 #[mel_function(
     generic T (ToBool)
 )]
@@ -546,13 +530,13 @@ pub async fn to_bool() {
     }
 }
 
-/// Turns any data into `byte`.
-/*#[mel_function(
+/// Truns data into `byte`.
+#[mel_function(
     generic T (ToByte)
 )]
 pub fn to_byte(value: T) -> byte {
     value.to_byte()
-}*/
+}
 
 /// Turns stream into `byte` one.
 ///
@@ -577,7 +561,7 @@ pub async fn to_byte() {
     }
 }
 
-/// Turns any data into `char`.
+/// Truns data into `char`.
 #[mel_function(
     generic T (ToChar)
 )]
@@ -608,7 +592,7 @@ pub async fn to_char() {
     }
 }
 
-/// Turns any data into `string`.
+/// Truns data into `string`.
 #[mel_function(
     generic T (ToString)
 )]
@@ -1227,6 +1211,506 @@ pub async fn try_to_string() {
                 values
                     .into_iter()
                     .map(|val| val.try_to_string().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns data into `i8`, saturating if needed.
+///
+/// This function makes a saturating and infaillible conversion to `i8`.
+/// If incoming data represents something out of bounds for `i8`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_function(
+    generic T (SaturatingToI8)
+)]
+pub fn saturating_to_i8(value: T) -> i8 {
+    value.saturating_to_i8()
+}
+
+/// Turns stream into `i8` one, saturating if needed.
+///
+/// This treatment manages saturating and infaillible conversion to `i8`.
+/// If incoming data represents something out of bounds for `i8`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_treatment(
+    generic T (SaturatingToI8)
+    input value Stream<T>
+    output into Stream<i8>
+)]
+pub async fn saturating_to_i8() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::I8(
+                values
+                    .into_iter()
+                    .map(|val| val.saturating_to_i8())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns data into `i16`, saturating if needed.
+///
+/// This function makes a saturating and infaillible conversion to `i16`.
+/// If incoming data represents something out of bounds for `i16`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_function(
+    generic T (SaturatingToI16)
+)]
+pub fn saturating_to_i16(value: T) -> i16 {
+    value.saturating_to_i16()
+}
+
+/// Turns stream into `i16` one, saturating if needed.
+///
+/// This treatment manages saturating and infaillible conversion to `i16`.
+/// If incoming data represents something out of bounds for `i16`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_treatment(
+    generic T (SaturatingToI16)
+    input value Stream<T>
+    output into Stream<i16>
+)]
+pub async fn saturating_to_i16() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::I16(
+                values
+                    .into_iter()
+                    .map(|val| val.saturating_to_i16())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns data into `i32`, saturating if needed.
+///
+/// This function makes a saturating and infaillible conversion to `i32`.
+/// If incoming data represents something out of bounds for `i32`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_function(
+    generic T (SaturatingToI32)
+)]
+pub fn saturating_to_i32(value: T) -> i32 {
+    value.saturating_to_i32()
+}
+
+/// Turns stream into `i32` one, saturating if needed.
+///
+/// This treatment manages saturating and infaillible conversion to `i32`.
+/// If incoming data represents something out of bounds for `i32`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_treatment(
+    generic T (SaturatingToI32)
+    input value Stream<T>
+    output into Stream<i32>
+)]
+pub async fn saturating_to_i32() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::I32(
+                values
+                    .into_iter()
+                    .map(|val| val.saturating_to_i32())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns data into `i64`, saturating if needed.
+///
+/// This function makes a saturating and infaillible conversion to `i64`.
+/// If incoming data represents something out of bounds for `i64`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_function(
+    generic T (SaturatingToI64)
+)]
+pub fn saturating_to_i64(value: T) -> i64 {
+    value.saturating_to_i64()
+}
+
+/// Turns stream into `i64` one, saturating if needed.
+///
+/// This treatment manages saturating and infaillible conversion to `i64`.
+/// If incoming data represents something out of bounds for `i64`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_treatment(
+    generic T (SaturatingToI64)
+    input value Stream<T>
+    output into Stream<i64>
+)]
+pub async fn saturating_to_i64() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::I64(
+                values
+                    .into_iter()
+                    .map(|val| val.saturating_to_i64())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns data into `i128`, saturating if needed.
+///
+/// This function makes a saturating and infaillible conversion to `i128`.
+/// If incoming data represents something out of bounds for `i128`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_function(
+    generic T (SaturatingToI128)
+)]
+pub fn saturating_to_i128(value: T) -> i128 {
+    value.saturating_to_i128()
+}
+
+/// Turns stream into `i128` one, saturating if needed.
+///
+/// This treatment manages saturating and infaillible conversion to `i128`.
+/// If incoming data represents something out of bounds for `i128`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_treatment(
+    generic T (SaturatingToI128)
+    input value Stream<T>
+    output into Stream<i128>
+)]
+pub async fn saturating_to_i128() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::I128(
+                values
+                    .into_iter()
+                    .map(|val| val.saturating_to_i128())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns data into `u8`, saturating if needed.
+///
+/// This function makes a saturating and infaillible conversion to `u8`.
+/// If incoming data represents something out of bounds for `u8`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_function(
+    generic T (SaturatingToU8)
+)]
+pub fn saturating_to_u8(value: T) -> u8 {
+    value.saturating_to_u8()
+}
+
+/// Turns stream into `u8` one, saturating if needed.
+///
+/// This treatment manages saturating and infaillible conversion to `u8`.
+/// If incoming data represents something out of bounds for `u8`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_treatment(
+    generic T (SaturatingToU8)
+    input value Stream<T>
+    output into Stream<u8>
+)]
+pub async fn saturating_to_u8() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::U8(
+                values
+                    .into_iter()
+                    .map(|val| val.saturating_to_u8())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns data into `u16`, saturating if needed.
+///
+/// This function makes a saturating and infaillible conversion to `u16`.
+/// If incoming data represents something out of bounds for `u16`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_function(
+    generic T (SaturatingToU16)
+)]
+pub fn saturating_to_u16(value: T) -> u16 {
+    value.saturating_to_u16()
+}
+
+/// Turns stream into `u16` one, saturating if needed.
+///
+/// This treatment manages saturating and infaillible conversion to `u16`.
+/// If incoming data represents something out of bounds for `u16`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_treatment(
+    generic T (SaturatingToU16)
+    input value Stream<T>
+    output into Stream<u16>
+)]
+pub async fn saturating_to_u16() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::U16(
+                values
+                    .into_iter()
+                    .map(|val| val.saturating_to_u16())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns data into `u32`, saturating if needed.
+///
+/// This function makes a saturating and infaillible conversion to `u32`.
+/// If incoming data represents something out of bounds for `u32`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_function(
+    generic T (SaturatingToU32)
+)]
+pub fn saturating_to_u32(value: T) -> u32 {
+    value.saturating_to_u32()
+}
+
+/// Turns stream into `u32` one, saturating if needed.
+///
+/// This treatment manages saturating and infaillible conversion to `u32`.
+/// If incoming data represents something out of bounds for `u32`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_treatment(
+    generic T (SaturatingToU32)
+    input value Stream<T>
+    output into Stream<u32>
+)]
+pub async fn saturating_to_u32() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::U32(
+                values
+                    .into_iter()
+                    .map(|val| val.saturating_to_u32())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns data into `u64`, saturating if needed.
+///
+/// This function makes a saturating and infaillible conversion to `u64`.
+/// If incoming data represents something out of bounds for `u64`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_function(
+    generic T (SaturatingToU64)
+)]
+pub fn saturating_to_u64(value: T) -> u64 {
+    value.saturating_to_u64()
+}
+
+/// Turns stream into `u64` one, saturating if needed.
+///
+/// This treatment manages saturating and infaillible conversion to `u64`.
+/// If incoming data represents something out of bounds for `u64`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_treatment(
+    generic T (SaturatingToU64)
+    input value Stream<T>
+    output into Stream<u64>
+)]
+pub async fn saturating_to_u64() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::U64(
+                values
+                    .into_iter()
+                    .map(|val| val.saturating_to_u64())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns data into `u128`, saturating if needed.
+///
+/// This function makes a saturating and infaillible conversion to `u128`.
+/// If incoming data represents something out of bounds for `u128`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_function(
+    generic T (SaturatingToU128)
+)]
+pub fn saturating_to_u128(value: T) -> u128 {
+    value.saturating_to_u128()
+}
+
+/// Turns stream into `u128` one, saturating if needed.
+///
+/// This treatment manages saturating and infaillible conversion to `u128`.
+/// If incoming data represents something out of bounds for `u128`, then
+/// the resulting value is set to minimum or maximum, depending what is
+/// the closest to truth.
+#[mel_treatment(
+    generic T (SaturatingToU128)
+    input value Stream<T>
+    output into Stream<u128>
+)]
+pub async fn saturating_to_u128() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::U128(
+                values
+                    .into_iter()
+                    .map(|val| val.saturating_to_u128())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns data into `f32`, saturating if needed.
+///
+/// This function makes a saturating and infaillible conversion to `f32`.
+/// If incoming data represents something not representable purely in `f32`,
+/// then the resulting value is set to the closest approximation possible.
+#[mel_function(
+    generic T (SaturatingToF32)
+)]
+pub fn saturating_to_f32(value: T) -> f32 {
+    value.saturating_to_f32()
+}
+
+/// Turns stream into `f32` one, saturating if needed.
+///
+/// This treatment manages saturating and infaillible conversion to `f32`.
+/// If incoming data represents something out of bounds for `f32`,
+/// then the resulting value is set to the closest approximation possible.
+#[mel_treatment(
+    generic T (SaturatingToF32)
+    input value Stream<T>
+    output into Stream<f32>
+)]
+pub async fn saturating_to_f32() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::F32(
+                values
+                    .into_iter()
+                    .map(|val| val.saturating_to_f32())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns data into `f64`, saturating if needed.
+///
+/// This function makes a saturating and infaillible conversion to `f64`.
+/// If incoming data represents something out of bounds for `f64`,
+/// then the resulting value is set to the closest approximation possible.
+#[mel_function(
+    generic T (SaturatingToF64)
+)]
+pub fn saturating_to_f64(value: T) -> f64 {
+    value.saturating_to_f64()
+}
+
+/// Turns stream into `f64` one, saturating if needed.
+///
+/// This treatment manages saturating and infaillible conversion to `f64`.
+/// If incoming data represents something out of bounds for `f64`,
+/// then the resulting value is set to the closest approximation possible.
+#[mel_treatment(
+    generic T (SaturatingToF64)
+    input value Stream<T>
+    output into Stream<f64>
+)]
+pub async fn saturating_to_f64() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::F64(
+                values
+                    .into_iter()
+                    .map(|val| val.saturating_to_f64())
                     .collect()
             ))
             .await
