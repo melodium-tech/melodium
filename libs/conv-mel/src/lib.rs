@@ -642,4 +642,596 @@ pub async fn to_string() {
     }
 }
 
+/// Try to turn data into `i8`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToI8)
+)]
+pub fn try_to_i8(value: T) -> Option<i8> {
+    value.try_to_i8()
+}
+
+/// Try to turn data stream into `i8` one.
+///
+/// This treatment manages faillible conversion to `i8` data type.
+/// If conversion is successful, an option with `i8` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToI8)
+    input value Stream<T>
+    output into Stream<Option<i8>>
+)]
+pub async fn try_to_i8() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_i8().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `i16`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToI16)
+)]
+pub fn try_to_i16(value: T) -> Option<i16> {
+    value.try_to_i16()
+}
+
+/// Try to turn data stream into `i16` one.
+///
+/// This treatment manages faillible conversion to `i16` data type.
+/// If conversion is successful, an option with `i16` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToI16)
+    input value Stream<T>
+    output into Stream<Option<i16>>
+)]
+pub async fn try_to_i16() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_i16().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `i32`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToI32)
+)]
+pub fn try_to_i32(value: T) -> Option<i32> {
+    value.try_to_i32()
+}
+
+/// Try to turn data stream into `i32` one.
+///
+/// This treatment manages faillible conversion to `i32` data type.
+/// If conversion is successful, an option with `i32` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToI32)
+    input value Stream<T>
+    output into Stream<Option<i32>>
+)]
+pub async fn try_to_i32() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_i32().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `i64`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToI64)
+)]
+pub fn try_to_i64(value: T) -> Option<i64> {
+    value.try_to_i64()
+}
+
+/// Try to turn data stream into `i64` one.
+///
+/// This treatment manages faillible conversion to `i64` data type.
+/// If conversion is successful, an option with `i64` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToI64)
+    input value Stream<T>
+    output into Stream<Option<i64>>
+)]
+pub async fn try_to_i64() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_i64().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `i128`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToI128)
+)]
+pub fn try_to_i128(value: T) -> Option<i128> {
+    value.try_to_i128()
+}
+
+/// Try to turn data stream into `i128` one.
+///
+/// This treatment manages faillible conversion to `i128` data type.
+/// If conversion is successful, an option with `i128` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToI128)
+    input value Stream<T>
+    output into Stream<Option<i128>>
+)]
+pub async fn try_to_i128() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_i128().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `u8`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToU8)
+)]
+pub fn try_to_u8(value: T) -> Option<u8> {
+    value.try_to_u8()
+}
+
+/// Try to turn data stream into `u8` one.
+///
+/// This treatment manages faillible conversion to `u8` data type.
+/// If conversion is successful, an option with `u8` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToU8)
+    input value Stream<T>
+    output into Stream<Option<u8>>
+)]
+pub async fn try_to_u8() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_u8().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `u16`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToU16)
+)]
+pub fn try_to_u16(value: T) -> Option<u16> {
+    value.try_to_u16()
+}
+
+/// Try to turn data stream into `u16` one.
+///
+/// This treatment manages faillible conversion to `u16` data type.
+/// If conversion is successful, an option with `u16` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToU16)
+    input value Stream<T>
+    output into Stream<Option<u16>>
+)]
+pub async fn try_to_u16() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_u16().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `u32`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToU32)
+)]
+pub fn try_to_u32(value: T) -> Option<u32> {
+    value.try_to_u32()
+}
+
+/// Try to turn data stream into `u32` one.
+///
+/// This treatment manages faillible conversion to `u32` data type.
+/// If conversion is successful, an option with `u32` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToU32)
+    input value Stream<T>
+    output into Stream<Option<u32>>
+)]
+pub async fn try_to_u32() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_u32().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `u64`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToU64)
+)]
+pub fn try_to_u64(value: T) -> Option<u64> {
+    value.try_to_u64()
+}
+
+/// Try to turn data stream into `u64` one.
+///
+/// This treatment manages faillible conversion to `u64` data type.
+/// If conversion is successful, an option with `u64` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToU64)
+    input value Stream<T>
+    output into Stream<Option<u64>>
+)]
+pub async fn try_to_u64() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_u64().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `u128`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToU128)
+)]
+pub fn try_to_u128(value: T) -> Option<u128> {
+    value.try_to_u128()
+}
+
+/// Try to turn data stream into `u128` one.
+///
+/// This treatment manages faillible conversion to `u128` data type.
+/// If conversion is successful, an option with `u128` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToU128)
+    input value Stream<T>
+    output into Stream<Option<u128>>
+)]
+pub async fn try_to_u128() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_u128().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `f32`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToF32)
+)]
+pub fn try_to_f32(value: T) -> Option<f32> {
+    value.try_to_f32()
+}
+
+/// Try to turn data stream into `f32` one.
+///
+/// This treatment manages faillible conversion to `f32` data type.
+/// If conversion is successful, an option with `f32` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToF32)
+    input value Stream<T>
+    output into Stream<Option<f32>>
+)]
+pub async fn try_to_f32() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_f32().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `f64`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToF64)
+)]
+pub fn try_to_f64(value: T) -> Option<f64> {
+    value.try_to_f64()
+}
+
+/// Try to turn data stream into `f64` one.
+///
+/// This treatment manages faillible conversion to `f64` data type.
+/// If conversion is successful, an option with `f64` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToF64)
+    input value Stream<T>
+    output into Stream<Option<f64>>
+)]
+pub async fn try_to_f64() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_f64().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `bool`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToBool)
+)]
+pub fn try_to_bool(value: T) -> Option<bool> {
+    value.try_to_bool()
+}
+
+/// Try to turn data stream into `bool` one.
+///
+/// This treatment manages faillible conversion to `bool` data type.
+/// If conversion is successful, an option with `bool` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToBool)
+    input value Stream<T>
+    output into Stream<Option<bool>>
+)]
+pub async fn try_to_bool() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_bool().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `byte`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToByte)
+)]
+pub fn try_to_byte(value: T) -> Option<byte> {
+    value.try_to_byte()
+}
+
+/// Try to turn data stream into `byte` one.
+///
+/// This treatment manages faillible conversion to `byte` data type.
+/// If conversion is successful, an option with `byte` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToByte)
+    input value Stream<T>
+    output into Stream<Option<byte>>
+)]
+pub async fn try_to_byte() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_byte().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `char`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToChar)
+)]
+pub fn try_to_char(value: T) -> Option<char> {
+    value.try_to_char()
+}
+
+/// Try to turn data stream into `char` one.
+///
+/// This treatment manages faillible conversion to `char` data type.
+/// If conversion is successful, an option with `char` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToChar)
+    input value Stream<T>
+    output into Stream<Option<Char>>
+)]
+pub async fn try_to_char() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_char().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Try to turn data into `string`.
+///
+/// This function returns an `Option` containing value if conversion is successful.
+#[mel_function(
+    generic T (TryToString)
+)]
+pub fn try_to_string(value: T) -> Option<string> {
+    value.try_to_string()
+}
+
+/// Try to turn data stream into `string` one.
+///
+/// This treatment manages faillible conversion to `string` data type.
+/// If conversion is successful, an option with `string` value is streamed, else the option is set to none.
+#[mel_treatment(
+    generic T (TryToString)
+    input value Stream<T>
+    output into Stream<Option<string>>
+)]
+pub async fn try_to_string() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Other(
+                values
+                    .into_iter()
+                    .map(|val| val.try_to_string().into())
+                    .collect()
+            ))
+            .await
+        )
+    }
+}
+
 mel_package!();
