@@ -20,6 +20,14 @@ pub mod u32;
 pub mod u64;
 pub mod u8;
 
+/// Turns any data into `void`.
+#[mel_function(
+    generic T ()
+)]
+pub fn to_void(_value: T) -> void {
+    ()
+}
+
 /// Turns any stream into `void` one.
 #[mel_treatment(
     generic T ()
@@ -34,10 +42,15 @@ pub async fn to_void() {
 
 /// Turns data into `Vec<byte>`.
 ///
+/// Data element gets converted into `Vec<byte>`, with vector containing the binary form of data it represents.
+///
+/// ℹ️ While this conversion is infaillible, resulting vector may be empty.
+/// Content format and length of vector is totally dependent on data type given, and might not be constant (like for `char` or `string` types).
+
 #[mel_function(
     generic T ()
 )]
-pub fn to_byte(value: T) -> Vec<byte> {
+pub fn to_bytes(value: T) -> Vec<byte> {
     match value {
         Value::Void(_) => Vec::new(),
         Value::I8(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
@@ -53,31 +66,32 @@ pub fn to_byte(value: T) -> Vec<byte> {
         Value::F32(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
         Value::F64(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
         Value::Bool(val) => match val {
-            true => vec![1],
-            false => vec![0],
+            true => vec![1u8],
+            false => vec![0u8],
         },
         Value::Byte(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
         Value::Char(val) => val.to_string().as_bytes().iter().map(|v| *v).collect(),
         Value::String(val) => val.as_bytes().iter().map(|v| *v).collect(),
         Value::Vec(_vals) => Vec::new(),
         Value::Option(val) => match val {
-            Some(val) => to_byte(*val),
+            Some(val) => to_bytes(*val),
             None => Vec::new(),
         },
     }
 }
 
-/// Turns data stream into `byte` one.
+/// Turns data stream into `Vec<byte>` one.
 ///
-/// Each `bool` gets converted into `Vec<byte>`, with each vector containing the `byte` of the former scalar `bool` it represents.
+/// Each data element gets converted into `Vec<byte>`, with each vector containing the binary form of data it represents.
 ///
-/// ℹ️ A `bool` always corresponds to one `byte`, being `0` if `false` and `1` if `true`.
+/// ℹ️ While this conversion is infaillible, resulting vector may be empty.
+/// Content format and length of each vector is totally dependent on data type given, and might not be constant (like for `char` or `string` types).
 #[mel_treatment(
     generic T ()
     input value Stream<T>
     output data Stream<Vec<byte>>
 )]
-pub async fn to_byte() {
+pub async fn to_bytes() {
     while let Ok(values) = value
         .recv_many()
         .await
@@ -126,6 +140,385 @@ fn value_to_byte(value: Value) -> Value {
             Some(val) => value_to_byte(*val),
             None => Value::Vec(Vec::new()),
         },
+    }
+}
+
+/// Turns any data into `void`.
+#[mel_function(
+    generic T (ToI8)
+)]
+pub fn to_i8(value: T) -> i8 {
+    value.to_i8()
+}
+
+/// Turns stream into `i8` one.
+///
+/// This treatment manages infaillible conversions to `i8` data type.
+#[mel_treatment(
+    generic T (ToI8)
+    input value Stream<T>
+    output into Stream<i8>
+)]
+pub async fn to_i8() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::I8(
+                values.into_iter().map(|val| val.to_i8()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `i16` one.
+///
+/// This treatment manages infaillible conversions to `i16` data type.
+#[mel_treatment(
+    generic T (ToI16)
+    input value Stream<T>
+    output into Stream<i16>
+)]
+pub async fn to_i16() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::I16(
+                values.into_iter().map(|val| val.to_i16()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `i32` one.
+///
+/// This treatment manages infaillible conversions to `i32` data type.
+#[mel_treatment(
+    generic T (ToI32)
+    input value Stream<T>
+    output into Stream<i32>
+)]
+pub async fn to_i32() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::I32(
+                values.into_iter().map(|val| val.to_i32()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `i64` one.
+///
+/// This treatment manages infaillible conversions to `i64` data type.
+#[mel_treatment(
+    generic T (ToI64)
+    input value Stream<T>
+    output into Stream<i64>
+)]
+pub async fn to_i64() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::I64(
+                values.into_iter().map(|val| val.to_i64()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `i128` one.
+///
+/// This treatment manages infaillible conversions to `i128` data type.
+#[mel_treatment(
+    generic T (ToI128)
+    input value Stream<T>
+    output into Stream<i128>
+)]
+pub async fn to_i128() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::I128(
+                values.into_iter().map(|val| val.to_i128()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `u8` one.
+///
+/// This treatment manages infaillible conversions to `u8` data type.
+#[mel_treatment(
+    generic T (ToU8)
+    input value Stream<T>
+    output into Stream<u8>
+)]
+pub async fn to_u8() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::U8(
+                values.into_iter().map(|val| val.to_u8()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `u16` one.
+///
+/// This treatment manages infaillible conversions to `u16` data type.
+#[mel_treatment(
+    generic T (ToU16)
+    input value Stream<T>
+    output into Stream<u16>
+)]
+pub async fn to_u16() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::U16(
+                values.into_iter().map(|val| val.to_u16()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `u32` one.
+///
+/// This treatment manages infaillible conversions to `u32` data type.
+#[mel_treatment(
+    generic T (ToU32)
+    input value Stream<T>
+    output into Stream<u32>
+)]
+pub async fn to_u32() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::U32(
+                values.into_iter().map(|val| val.to_u32()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `u64` one.
+///
+/// This treatment manages infaillible conversions to `u64` data type.
+#[mel_treatment(
+    generic T (ToU64)
+    input value Stream<T>
+    output into Stream<u64>
+)]
+pub async fn to_u64() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::U64(
+                values.into_iter().map(|val| val.to_u64()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `u128` one.
+///
+/// This treatment manages infaillible conversions to `u128` data type.
+#[mel_treatment(
+    generic T (ToU128)
+    input value Stream<T>
+    output into Stream<u128>
+)]
+pub async fn to_u128() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::U128(
+                values.into_iter().map(|val| val.to_u128()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `f32` one.
+///
+/// This treatment manages infaillible conversions to `f32` data type.
+#[mel_treatment(
+    generic T (ToF32)
+    input value Stream<T>
+    output into Stream<f32>
+)]
+pub async fn to_f32() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::F32(
+                values.into_iter().map(|val| val.to_f32()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `f64` one.
+///
+/// This treatment manages infaillible conversions to `f64` data type.
+#[mel_treatment(
+    generic T (ToF64)
+    input value Stream<T>
+    output into Stream<f64>
+)]
+pub async fn to_f64() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::F64(
+                values.into_iter().map(|val| val.to_f64()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `bool` one.
+///
+/// This treatment manages infaillible conversions to `bool` data type.
+#[mel_treatment(
+    generic T (ToBool)
+    input value Stream<T>
+    output into Stream<bool>
+)]
+pub async fn to_bool() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Bool(
+                values.into_iter().map(|val| val.to_bool()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `byte` one.
+///
+/// This treatment manages infaillible conversions to `byte` data type.
+#[mel_treatment(
+    generic T (ToByte)
+    input value Stream<T>
+    output into Stream<byte>
+)]
+pub async fn to_byte() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Byte(
+                values.into_iter().map(|val| val.to_byte()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `char` one.
+///
+/// This treatment manages infaillible conversions to `char` data type.
+#[mel_treatment(
+    generic T (ToChar)
+    input value Stream<T>
+    output into Stream<char>
+)]
+pub async fn to_char() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::Char(
+                values.into_iter().map(|val| val.to_char()).collect()
+            ))
+            .await
+        )
+    }
+}
+
+/// Turns stream into `string` one.
+///
+/// This treatment manages infaillible conversions to `string` data type.
+#[mel_treatment(
+    generic T (ToString)
+    input value Stream<T>
+    output into Stream<string>
+)]
+pub async fn to_string() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            into.send_many(TransmissionValue::String(
+                values
+                    .into_iter()
+                    .map(|val| DataTrait::to_string(&val))
+                    .collect()
+            ))
+            .await
+        )
     }
 }
 

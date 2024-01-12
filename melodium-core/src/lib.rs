@@ -6,7 +6,7 @@ pub use melodium_common as common;
 pub use once_cell::sync::Lazy;
 pub mod descriptor;
 
-pub use melodium_common::executive::{GetData, TransmissionValue, Value};
+pub use melodium_common::executive::{DataTrait, GetData, TransmissionValue, Value};
 pub use std::collections::VecDeque;
 pub type u8 = core::primitive::u8;
 pub type u16 = core::primitive::u16;

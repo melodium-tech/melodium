@@ -1,4 +1,4 @@
-use super::{Value, GetData};
+use super::{GetData, Value};
 use std::collections::VecDeque;
 use std::convert::TryInto;
 
@@ -355,9 +355,8 @@ impl TryInto<VecDeque<()>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -378,9 +377,8 @@ impl TryInto<Vec<()>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -413,9 +411,8 @@ impl TryInto<VecDeque<i8>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -436,9 +433,8 @@ impl TryInto<Vec<i8>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -471,9 +467,8 @@ impl TryInto<VecDeque<i16>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -494,9 +489,8 @@ impl TryInto<Vec<i16>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -529,9 +523,8 @@ impl TryInto<VecDeque<i32>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -552,9 +545,8 @@ impl TryInto<Vec<i32>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -587,9 +579,8 @@ impl TryInto<VecDeque<i64>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -610,9 +601,8 @@ impl TryInto<Vec<i64>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -645,9 +635,8 @@ impl TryInto<VecDeque<i128>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -668,9 +657,8 @@ impl TryInto<Vec<i128>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -704,9 +692,8 @@ impl TryInto<VecDeque<u8>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -728,9 +715,8 @@ impl TryInto<Vec<u8>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -763,9 +749,8 @@ impl TryInto<VecDeque<u16>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -786,9 +771,8 @@ impl TryInto<Vec<u16>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -821,9 +805,8 @@ impl TryInto<VecDeque<u32>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -844,9 +827,8 @@ impl TryInto<Vec<u32>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -879,9 +861,8 @@ impl TryInto<VecDeque<u64>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -902,9 +883,8 @@ impl TryInto<Vec<u64>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -937,9 +917,8 @@ impl TryInto<VecDeque<u128>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -960,9 +939,8 @@ impl TryInto<Vec<u128>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -995,9 +973,8 @@ impl TryInto<VecDeque<f32>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -1018,9 +995,8 @@ impl TryInto<Vec<f32>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -1053,9 +1029,8 @@ impl TryInto<VecDeque<f64>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -1076,9 +1051,8 @@ impl TryInto<Vec<f64>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -1111,9 +1085,8 @@ impl TryInto<VecDeque<bool>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -1134,9 +1107,8 @@ impl TryInto<Vec<bool>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -1169,9 +1141,8 @@ impl TryInto<VecDeque<char>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -1192,9 +1163,8 @@ impl TryInto<Vec<char>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -1227,9 +1197,8 @@ impl TryInto<VecDeque<String>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push_back(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
@@ -1250,9 +1219,8 @@ impl TryInto<Vec<String>> for TransmissionValue {
                 for val in data {
                     if let Ok(val) = val.try_data() {
                         vec.push(val);
-                    }
-                    else {
-                        return Err(())
+                    } else {
+                        return Err(());
                     }
                 }
                 Ok(vec)
