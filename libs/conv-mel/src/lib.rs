@@ -13,7 +13,7 @@ pub mod i16;
 pub mod i32;
 pub mod i64;
 pub mod i8;
-pub mod string;
+//pub mod string;
 pub mod u128;
 pub mod u16;
 pub mod u32;
@@ -143,7 +143,7 @@ fn value_to_byte(value: Value) -> Value {
     }
 }
 
-/// Turns any data into `void`.
+/// Turns any data into `i8`.
 #[mel_function(
     generic T (ToI8)
 )]
@@ -174,6 +174,14 @@ pub async fn to_i8() {
     }
 }
 
+/// Turns any data into `i16`.
+#[mel_function(
+    generic T (ToI16)
+)]
+pub fn to_i16(value: T) -> i16 {
+    value.to_i16()
+}
+
 /// Turns stream into `i16` one.
 ///
 /// This treatment manages infaillible conversions to `i16` data type.
@@ -195,6 +203,14 @@ pub async fn to_i16() {
             .await
         )
     }
+}
+
+/// Turns any data into `i32`.
+#[mel_function(
+    generic T (ToI32)
+)]
+pub fn to_i32(value: T) -> i32 {
+    value.to_i32()
 }
 
 /// Turns stream into `i32` one.
@@ -220,6 +236,14 @@ pub async fn to_i32() {
     }
 }
 
+/// Turns any data into `i64`.
+#[mel_function(
+    generic T (ToI64)
+)]
+pub fn to_i64(value: T) -> i64 {
+    value.to_i64()
+}
+
 /// Turns stream into `i64` one.
 ///
 /// This treatment manages infaillible conversions to `i64` data type.
@@ -241,6 +265,14 @@ pub async fn to_i64() {
             .await
         )
     }
+}
+
+/// Turns any data into `i128`.
+#[mel_function(
+    generic T (ToI128)
+)]
+pub fn to_i128(value: T) -> i128 {
+    value.to_i128()
 }
 
 /// Turns stream into `i128` one.
@@ -266,6 +298,14 @@ pub async fn to_i128() {
     }
 }
 
+/// Turns any data into `u8`.
+#[mel_function(
+    generic T (ToU8)
+)]
+pub fn to_u8(value: T) -> u8 {
+    value.to_u8()
+}
+
 /// Turns stream into `u8` one.
 ///
 /// This treatment manages infaillible conversions to `u8` data type.
@@ -287,6 +327,14 @@ pub async fn to_u8() {
             .await
         )
     }
+}
+
+/// Turns any data into `u16`.
+#[mel_function(
+    generic T (ToU16)
+)]
+pub fn to_u16(value: T) -> u16 {
+    value.to_u16()
 }
 
 /// Turns stream into `u16` one.
@@ -312,6 +360,14 @@ pub async fn to_u16() {
     }
 }
 
+/// Turns any data into `u32`.
+#[mel_function(
+    generic T (ToU32)
+)]
+pub fn to_u32(value: T) -> u32 {
+    value.to_u32()
+}
+
 /// Turns stream into `u32` one.
 ///
 /// This treatment manages infaillible conversions to `u32` data type.
@@ -333,6 +389,14 @@ pub async fn to_u32() {
             .await
         )
     }
+}
+
+/// Turns any data into `u64`.
+#[mel_function(
+    generic T (ToU64)
+)]
+pub fn to_u64(value: T) -> u64 {
+    value.to_u64()
 }
 
 /// Turns stream into `u64` one.
@@ -358,6 +422,14 @@ pub async fn to_u64() {
     }
 }
 
+/// Turns any data into `u128`.
+#[mel_function(
+    generic T (ToU128)
+)]
+pub fn to_u128(value: T) -> u128 {
+    value.to_u128()
+}
+
 /// Turns stream into `u128` one.
 ///
 /// This treatment manages infaillible conversions to `u128` data type.
@@ -379,6 +451,14 @@ pub async fn to_u128() {
             .await
         )
     }
+}
+
+/// Turns any data into `f32`.
+#[mel_function(
+    generic T (ToF32)
+)]
+pub fn to_f32(value: T) -> f32 {
+    value.to_f32()
 }
 
 /// Turns stream into `f32` one.
@@ -404,6 +484,14 @@ pub async fn to_f32() {
     }
 }
 
+/// Turns any data into `f64`.
+#[mel_function(
+    generic T (ToF64)
+)]
+pub fn to_f64(value: T) -> f64 {
+    value.to_f64()
+}
+
 /// Turns stream into `f64` one.
 ///
 /// This treatment manages infaillible conversions to `f64` data type.
@@ -425,6 +513,14 @@ pub async fn to_f64() {
             .await
         )
     }
+}
+
+/// Turns any data into `bool`.
+#[mel_function(
+    generic T (ToBool)
+)]
+pub fn to_bool(value: T) -> bool {
+    value.to_bool()
 }
 
 /// Turns stream into `bool` one.
@@ -450,6 +546,14 @@ pub async fn to_bool() {
     }
 }
 
+/// Turns any data into `byte`.
+/*#[mel_function(
+    generic T (ToByte)
+)]
+pub fn to_byte(value: T) -> byte {
+    value.to_byte()
+}*/
+
 /// Turns stream into `byte` one.
 ///
 /// This treatment manages infaillible conversions to `byte` data type.
@@ -473,6 +577,14 @@ pub async fn to_byte() {
     }
 }
 
+/// Turns any data into `char`.
+#[mel_function(
+    generic T (ToChar)
+)]
+pub fn to_char(value: T) -> char {
+    value.to_char()
+}
+
 /// Turns stream into `char` one.
 ///
 /// This treatment manages infaillible conversions to `char` data type.
@@ -494,6 +606,14 @@ pub async fn to_char() {
             .await
         )
     }
+}
+
+/// Turns any data into `string`.
+#[mel_function(
+    generic T (ToString)
+)]
+pub fn to_string(value: T) -> string {
+    DataTrait::to_string(&value)
 }
 
 /// Turns stream into `string` one.
