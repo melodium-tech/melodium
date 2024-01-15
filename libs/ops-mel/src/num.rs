@@ -168,7 +168,7 @@ pub fn add(a: N, b: N) -> N {
 
 /// Add values from two streams.
 ///
-/// Values passed through `a` & `b` are added and send in sum.
+/// Values passed through `a` & `b` are added and send in `sum`.
 /// This treatment is infaillible but output may overflow if `a + b` is out of bounds for the data type.
 #[mel_treatment(
     generic N (Add)
@@ -194,7 +194,7 @@ pub fn checked_add(a: N, b: N) -> Option<N> {
 
 /// Add values from two streams, checking if overflow occurs.
 ///
-/// Values passed through `a` & `b` are added and send in sum.
+/// Values passed through `a` & `b` are added and send in `sum`.
 /// This treatment outputs an option containing `a + b`, or none if result cause overflow in data type.
 #[mel_treatment(
     generic N (CheckedAdd)
@@ -220,7 +220,7 @@ pub fn saturating_add(a: N, b: N) -> N {
 
 /// Add values from two streams, saturating to bounds.
 ///
-/// Values passed through `a` & `b` are added and send in sum.
+/// Values passed through `a` & `b` are added and send in `sum`.
 /// This treatment is infaillible and saturate to the closest bound, minimal or maximal, if `a + b` is out of bounds for the data type.
 #[mel_treatment(
     generic N (SaturatingAdd)
@@ -246,7 +246,7 @@ pub fn wrapping_add(a: N, b: N) -> N {
 
 /// Add values from two streams, wrapping on bounds.
 ///
-/// Values passed through `a` & `b` are added and send in sum.
+/// Values passed through `a` & `b` are added and send in `sum`.
 /// This treatment is infaillible and wrap if `a + b` reach boundary of the data type.
 #[mel_treatment(
     generic N (WrappingAdd)
@@ -272,7 +272,7 @@ pub fn sub(a: N, b: N) -> N {
 
 /// Substract values from two streams.
 ///
-/// Values passed through `b` are substracted to `a` and send in diff.
+/// Values passed through `b` are substracted to `a` and send in `diff`.
 /// This treatment is infaillible but output may overflow if `a - b` is out of bounds for the data type.
 #[mel_treatment(
     generic N (Add)
@@ -298,7 +298,7 @@ pub fn checked_sub(a: N, b: N) -> Option<N> {
 
 /// Substract values from two streams, checking if overflow occurs.
 ///
-/// Values passed through `b` are substracted to `a` and send in diff.
+/// Values passed through `b` are substracted to `a` and send in `diff`.
 /// This treatment outputs an option containing `a - b`, or none if result cause overflow in data type.
 #[mel_treatment(
     generic N (CheckedSub)
@@ -324,7 +324,7 @@ pub fn saturating_sub(a: N, b: N) -> N {
 
 /// Substract values from two streams, saturating to bounds.
 ///
-/// Values passed through `b` are substracted to `a` and send in diff.
+/// Values passed through `b` are substracted to `a` and send in `diff`.
 /// This treatment is infaillible and saturate to the closest bound, minimal or maximal, if `a - b` is out of bounds for the data type.
 #[mel_treatment(
     generic N (SaturatingSub)
@@ -350,7 +350,7 @@ pub fn wrapping_sub(a: N, b: N) -> N {
 
 /// Substract values from two streams, wrapping on bounds.
 ///
-/// Values passed through `b` are substracted to `a` and send in diff.
+/// Values passed through `b` are substracted to `a` and send in `diff`.
 /// This treatment is infaillible and wrap if `a - b` reach boundary of the data type.
 #[mel_treatment(
     generic N (WrappingSub)
@@ -376,7 +376,7 @@ pub fn mul(a: N, b: N) -> N {
 
 /// Multiply values from two streams.
 ///
-/// Values passed through `a` & `b` are multiplied and send in prod.
+/// Values passed through `a` & `b` are multiplied and send in `prod`.
 /// This treatment is infaillible but output may overflow if `a × b` is out of bounds for the data type.
 #[mel_treatment(
     generic N (Mul)
@@ -402,7 +402,7 @@ pub fn checked_mul(a: N, b: N) -> Option<N> {
 
 /// Multiply values from two streams, checking if overflow occurs.
 ///
-/// Values passed through `a` & `b` are multiplied and send in prod.
+/// Values passed through `a` & `b` are multiplied and send in `prod`.
 /// This treatment outputs an option containing `a × b`, or none if result cause overflow in data type.
 #[mel_treatment(
     generic N (CheckedMul)
@@ -428,7 +428,7 @@ pub fn saturating_mul(a: N, b: N) -> N {
 
 /// Multiply values from two streams, saturating to bounds.
 ///
-/// Values passed through `a` & `b` are multiplied and send in prod.
+/// Values passed through `a` & `b` are multiplied and send in `prod`.
 /// This treatment is infaillible and saturate to the closest bound, minimal or maximal, if `a × b` is out of bounds for the data type.
 #[mel_treatment(
     generic N (SaturatingMul)
@@ -454,7 +454,7 @@ pub fn wrapping_mul(a: N, b: N) -> N {
 
 /// Multiply values from two streams, wrapping on bounds.
 ///
-/// Values passed through `a` & `b` are multiplied and send in prod.
+/// Values passed through `a` & `b` are multiplied and send in `prod`.
 /// This treatment is infaillible and wrap if `a × b` reach boundary of the data type.
 #[mel_treatment(
     generic N (WrappingMul)
@@ -482,7 +482,7 @@ pub fn div(a: N, b: N) -> N {
 
 /// Divide values from two streams.
 ///
-/// Values passed through `a` are divided by `b` and send in quot.
+/// Values passed through `a` are divided by `b` and send in `quot`.
 /// This treatment is infaillible but may overflow if `a ÷ b` is out of bounds for the data type.  
 /// ⚠️ For integers, this treatment outputs `0` for divisions by `0`.  
 /// ℹ️ For floating types, this treatment return infinity for divisions by `0`.
@@ -510,7 +510,7 @@ pub fn checked_div(a: N, b: N) -> Option<N> {
 
 /// Divide values from two streams, checking if division is possible or if overflow occurs.
 ///
-/// Values passed through `a` are divided by `b` and send in quot.
+/// Values passed through `a` are divided by `b` and send in `quot`.
 /// This treatment outputs an option containing `a ÷ b`, or none if division is not possible (as division by 0), or result cause overflow in data type.
 #[mel_treatment(
     generic N (CheckedDiv)
@@ -538,7 +538,7 @@ pub fn rem(a: N, b: N) -> N {
 
 /// Gives remainder of division from two streams.
 ///
-/// Remainder is computed for values passed through `a` divided by `b` and send in rem.
+/// Remainder is computed for values passed through `a` divided by `b` and send in `rem`.
 /// This treatment is infaillible but may overflow if `a _mod_ b` is out of bounds for the data type.  
 /// ⚠️ For integers, this treatment outputs `0` for divisions by `0`.  
 /// ℹ️ For floating types, this treatment return not-a-number (`NaN`) for divisions by `0`.
@@ -566,7 +566,7 @@ pub fn checked_rem(a: N, b: N) -> Option<N> {
 
 /// Gives remainder of division from two streams, checking if division is possible or if overflow occurs.
 ///
-/// Remainder is computed for values passed through `a` divided by `b` and send in rem.
+/// Remainder is computed for values passed through `a` divided by `b` and send in `rem`.
 /// This treatment outputs an option containing `a _mod_ b`, or none if division is not possible (as division by 0), or result cause overflow in data type.
 #[mel_treatment(
     generic N (CheckedRem)
@@ -768,7 +768,7 @@ pub fn euclid_div(a: N, b: N) -> N {
 
 /// Proceed to euclidian division from two streams.
 ///
-/// Values passed through `a` are divided by `b` and send in quot.
+/// Values passed through `a` are divided by `b` and send in `quot`.
 /// This treatment is infaillible but may overflow if `a ÷ b` is out of bounds for the data type.  
 /// ⚠️ For integers, this treatment outputs `0` for divisions by `0`.  
 /// ℹ️ For floating types, this treatment return infinity for divisions by `0`.
@@ -798,7 +798,7 @@ pub fn euclid_rem(a: N, b: N) -> N {
 
 /// Gives euclidian remainder of division from two streams.
 ///
-/// Remainder is computed for values passed through `a` divided by `b` and send in rem.
+/// Remainder is computed for values passed through `a` divided by `b` and send in `rem`.
 /// This treatment is infaillible but may overflow if `a _mod_ b` is out of bounds for the data type.  
 /// ⚠️ For integers, this treatment outputs `0` for divisions by `0`.  
 /// ℹ️ For floating types, this treatment return not-a-number (`NaN`) for divisions by `0`.
@@ -827,7 +827,7 @@ pub fn checked_euclid_div(a: N, b: N) -> Option<N> {
 
 /// Proceed to euclidian division from two streams, checking if division is possible or if overflow occurs.
 ///
-/// Values passed through `a` are divided by `b` and send in quot.
+/// Values passed through `a` are divided by `b` and send in `quot`.
 /// This treatment outputs an option containing `a ÷ b`, or none if division is not possible (as division by 0), or result cause overflow in data type.
 /// ℹ️ For floating types, this function return infinity for divisions by `0`.
 #[mel_treatment(
@@ -854,7 +854,7 @@ pub fn checked_euclid_rem(a: N, b: N) -> Option<N> {
 
 /// Gives euclidian remainder of division from two streams, checking if division is possible or if overflow occurs.
 ///
-/// Remainder is computed for values passed through `a` divided by `b` and send in rem.
+/// Remainder is computed for values passed through `a` divided by `b` and send in `rem`.
 /// This treatment outputs an option containing `a _mod_ b`, or none if division is not possible (as division by 0), or result cause overflow in data type.
 #[mel_treatment(
     generic N (CheckedEuclid)
