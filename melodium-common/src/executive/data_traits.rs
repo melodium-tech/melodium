@@ -136,8 +136,8 @@ pub trait DataTrait: Sized {
     fn neg(&self) -> Self;
     fn checked_neg(&self) -> Option<Self>;
     fn wrapping_neg(&self) -> Self;
-    fn pow(&self, exp: &Self) -> Self;
-    fn checked_pow(&self, exp: &Self) -> Option<Self>;
+    fn pow(&self, exp: &u32) -> Self;
+    fn checked_pow(&self, exp: &u32) -> Option<Self>;
 
     // euclid
     fn euclid_div(&self, other: &Self) -> Self;

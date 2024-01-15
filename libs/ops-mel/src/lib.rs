@@ -4,6 +4,9 @@
 use melodium_core::*;
 use melodium_macro::{check, mel_function, mel_package, mel_treatment};
 
+pub mod float;
+pub mod num;
+
 pub mod bool;
 pub mod byte;
 pub mod char;

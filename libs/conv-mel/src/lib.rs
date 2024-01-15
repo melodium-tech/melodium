@@ -127,7 +127,7 @@ fn value_to_byte(value: Value) -> Value {
     }
 }
 
-/// Truns data into `i8`.
+/// Turns data into `i8`.
 #[mel_function(
     generic T (ToI8)
 )]
@@ -158,7 +158,7 @@ pub async fn to_i8() {
     }
 }
 
-/// Truns data into `i16`.
+/// Turns data into `i16`.
 #[mel_function(
     generic T (ToI16)
 )]
@@ -189,7 +189,7 @@ pub async fn to_i16() {
     }
 }
 
-/// Truns data into `i32`.
+/// Turns data into `i32`.
 #[mel_function(
     generic T (ToI32)
 )]
@@ -220,7 +220,7 @@ pub async fn to_i32() {
     }
 }
 
-/// Truns data into `i64`.
+/// Turns data into `i64`.
 #[mel_function(
     generic T (ToI64)
 )]
@@ -251,7 +251,7 @@ pub async fn to_i64() {
     }
 }
 
-/// Truns data into `i128`.
+/// Turns data into `i128`.
 #[mel_function(
     generic T (ToI128)
 )]
@@ -282,7 +282,7 @@ pub async fn to_i128() {
     }
 }
 
-/// Truns data into `u8`.
+/// Turns data into `u8`.
 #[mel_function(
     generic T (ToU8)
 )]
@@ -313,7 +313,7 @@ pub async fn to_u8() {
     }
 }
 
-/// Truns data into `u16`.
+/// Turns data into `u16`.
 #[mel_function(
     generic T (ToU16)
 )]
@@ -344,7 +344,7 @@ pub async fn to_u16() {
     }
 }
 
-/// Truns data into `u32`.
+/// Turns data into `u32`.
 #[mel_function(
     generic T (ToU32)
 )]
@@ -375,7 +375,7 @@ pub async fn to_u32() {
     }
 }
 
-/// Truns data into `u64`.
+/// Turns data into `u64`.
 #[mel_function(
     generic T (ToU64)
 )]
@@ -406,7 +406,7 @@ pub async fn to_u64() {
     }
 }
 
-/// Truns data into `u128`.
+/// Turns data into `u128`.
 #[mel_function(
     generic T (ToU128)
 )]
@@ -437,7 +437,7 @@ pub async fn to_u128() {
     }
 }
 
-/// Truns data into `f32`.
+/// Turns data into `f32`.
 #[mel_function(
     generic T (ToF32)
 )]
@@ -468,7 +468,7 @@ pub async fn to_f32() {
     }
 }
 
-/// Truns data into `f64`.
+/// Turns data into `f64`.
 #[mel_function(
     generic T (ToF64)
 )]
@@ -499,7 +499,7 @@ pub async fn to_f64() {
     }
 }
 
-/// Truns data into `bool`.
+/// Turns data into `bool`.
 #[mel_function(
     generic T (ToBool)
 )]
@@ -530,7 +530,7 @@ pub async fn to_bool() {
     }
 }
 
-/// Truns data into `byte`.
+/// Turns data into `byte`.
 #[mel_function(
     generic T (ToByte)
 )]
@@ -561,7 +561,7 @@ pub async fn to_byte() {
     }
 }
 
-/// Truns data into `char`.
+/// Turns data into `char`.
 #[mel_function(
     generic T (ToChar)
 )]
@@ -592,7 +592,7 @@ pub async fn to_char() {
     }
 }
 
-/// Truns data into `string`.
+/// Turns data into `string`.
 #[mel_function(
     generic T (ToString)
 )]

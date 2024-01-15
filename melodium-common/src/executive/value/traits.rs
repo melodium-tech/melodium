@@ -1,5 +1,5 @@
 use super::Value;
-use crate::{descriptor::DataType, executive::DataTrait};
+use crate::executive::DataTrait;
 use core::convert::TryInto;
 
 impl DataTrait for Value {
@@ -2116,16 +2116,36 @@ impl DataTrait for Value {
 
     fn div(&self, other: &Value) -> Value {
         match (self, other) {
-            (Value::I8(me), Value::I8(other)) => Value::I8(*me / *other),
-            (Value::I16(me), Value::I16(other)) => Value::I16(*me / *other),
-            (Value::I32(me), Value::I32(other)) => Value::I32(*me / *other),
-            (Value::I64(me), Value::I64(other)) => Value::I64(*me / *other),
-            (Value::I128(me), Value::I128(other)) => Value::I128(*me / *other),
-            (Value::U8(me), Value::U8(other)) => Value::U8(*me / *other),
-            (Value::U16(me), Value::U16(other)) => Value::U16(*me / *other),
-            (Value::U32(me), Value::U32(other)) => Value::U32(*me / *other),
-            (Value::U64(me), Value::U64(other)) => Value::U64(*me / *other),
-            (Value::U128(me), Value::U128(other)) => Value::U128(*me / *other),
+            (Value::I8(me), Value::I8(other)) => {
+                Value::I8(if *other != 0 { *me / *other } else { 0 })
+            }
+            (Value::I16(me), Value::I16(other)) => {
+                Value::I16(if *other != 0 { *me / *other } else { 0 })
+            }
+            (Value::I32(me), Value::I32(other)) => {
+                Value::I32(if *other != 0 { *me / *other } else { 0 })
+            }
+            (Value::I64(me), Value::I64(other)) => {
+                Value::I64(if *other != 0 { *me / *other } else { 0 })
+            }
+            (Value::I128(me), Value::I128(other)) => {
+                Value::I128(if *other != 0 { *me / *other } else { 0 })
+            }
+            (Value::U8(me), Value::U8(other)) => {
+                Value::U8(if *other != 0 { *me / *other } else { 0 })
+            }
+            (Value::U16(me), Value::U16(other)) => {
+                Value::U16(if *other != 0 { *me / *other } else { 0 })
+            }
+            (Value::U32(me), Value::U32(other)) => {
+                Value::U32(if *other != 0 { *me / *other } else { 0 })
+            }
+            (Value::U64(me), Value::U64(other)) => {
+                Value::U64(if *other != 0 { *me / *other } else { 0 })
+            }
+            (Value::U128(me), Value::U128(other)) => {
+                Value::U128(if *other != 0 { *me / *other } else { 0 })
+            }
             (Value::F32(me), Value::F32(other)) => Value::F32(*me / *other),
             (Value::F64(me), Value::F64(other)) => Value::F64(*me / *other),
             (a, b) if a.datatype() != b.datatype() => {
@@ -2172,16 +2192,36 @@ impl DataTrait for Value {
 
     fn rem(&self, other: &Value) -> Value {
         match (self, other) {
-            (Value::I8(me), Value::I8(other)) => Value::I8(*me % *other),
-            (Value::I16(me), Value::I16(other)) => Value::I16(*me % *other),
-            (Value::I32(me), Value::I32(other)) => Value::I32(*me % *other),
-            (Value::I64(me), Value::I64(other)) => Value::I64(*me % *other),
-            (Value::I128(me), Value::I128(other)) => Value::I128(*me % *other),
-            (Value::U8(me), Value::U8(other)) => Value::U8(*me % *other),
-            (Value::U16(me), Value::U16(other)) => Value::U16(*me % *other),
-            (Value::U32(me), Value::U32(other)) => Value::U32(*me % *other),
-            (Value::U64(me), Value::U64(other)) => Value::U64(*me % *other),
-            (Value::U128(me), Value::U128(other)) => Value::U128(*me % *other),
+            (Value::I8(me), Value::I8(other)) => {
+                Value::I8(if *other != 0 { *me % *other } else { 0 })
+            }
+            (Value::I16(me), Value::I16(other)) => {
+                Value::I16(if *other != 0 { *me % *other } else { 0 })
+            }
+            (Value::I32(me), Value::I32(other)) => {
+                Value::I32(if *other != 0 { *me % *other } else { 0 })
+            }
+            (Value::I64(me), Value::I64(other)) => {
+                Value::I64(if *other != 0 { *me % *other } else { 0 })
+            }
+            (Value::I128(me), Value::I128(other)) => {
+                Value::I128(if *other != 0 { *me % *other } else { 0 })
+            }
+            (Value::U8(me), Value::U8(other)) => {
+                Value::U8(if *other != 0 { *me % *other } else { 0 })
+            }
+            (Value::U16(me), Value::U16(other)) => {
+                Value::U16(if *other != 0 { *me % *other } else { 0 })
+            }
+            (Value::U32(me), Value::U32(other)) => {
+                Value::U32(if *other != 0 { *me % *other } else { 0 })
+            }
+            (Value::U64(me), Value::U64(other)) => {
+                Value::U64(if *other != 0 { *me % *other } else { 0 })
+            }
+            (Value::U128(me), Value::U128(other)) => {
+                Value::U128(if *other != 0 { *me % *other } else { 0 })
+            }
             (Value::F32(me), Value::F32(other)) => Value::F32(*me % *other),
             (Value::F64(me), Value::F64(other)) => Value::F64(*me % *other),
             (a, b) if a.datatype() != b.datatype() => {
@@ -2261,41 +2301,35 @@ impl DataTrait for Value {
         }
     }
 
-    fn pow(&self, exp: &Value) -> Value {
-        match (self, exp) {
-            (Value::I8(me), Value::U32(exp)) => Value::I8(me.pow(*exp)),
-            (Value::I16(me), Value::U32(exp)) => Value::I16(me.pow(*exp)),
-            (Value::I32(me), Value::U32(exp)) => Value::I32(me.pow(*exp)),
-            (Value::I64(me), Value::U32(exp)) => Value::I64(me.pow(*exp)),
-            (Value::I128(me), Value::U32(exp)) => Value::I128(me.pow(*exp)),
-            (Value::U8(me), Value::U32(exp)) => Value::U8(me.pow(*exp)),
-            (Value::U16(me), Value::U32(exp)) => Value::U16(me.pow(*exp)),
-            (Value::U32(me), Value::U32(exp)) => Value::U32(me.pow(*exp)),
-            (Value::U64(me), Value::U32(exp)) => Value::U64(me.pow(*exp)),
-            (Value::U128(me), Value::U32(exp)) => Value::U128(me.pow(*exp)),
-            (_, exp) if exp.datatype() != DataType::U32 => {
-                panic!("Unsupported operation, exponent must be u32")
-            }
-            (other, _) => panic!("Pow not supported for {}", other.datatype()),
+    fn pow(&self, exp: &u32) -> Value {
+        match self {
+            Value::I8(me) => Value::I8(me.pow(*exp)),
+            Value::I16(me) => Value::I16(me.pow(*exp)),
+            Value::I32(me) => Value::I32(me.pow(*exp)),
+            Value::I64(me) => Value::I64(me.pow(*exp)),
+            Value::I128(me) => Value::I128(me.pow(*exp)),
+            Value::U8(me) => Value::U8(me.pow(*exp)),
+            Value::U16(me) => Value::U16(me.pow(*exp)),
+            Value::U32(me) => Value::U32(me.pow(*exp)),
+            Value::U64(me) => Value::U64(me.pow(*exp)),
+            Value::U128(me) => Value::U128(me.pow(*exp)),
+            other => panic!("Pow not supported for {}", other.datatype()),
         }
     }
 
-    fn checked_pow(&self, exp: &Value) -> Option<Value> {
-        match (self, exp) {
-            (Value::I8(me), Value::U32(exp)) => me.checked_pow(*exp).map(|val| Value::I8(val)),
-            (Value::I16(me), Value::U32(exp)) => me.checked_pow(*exp).map(|val| Value::I16(val)),
-            (Value::I32(me), Value::U32(exp)) => me.checked_pow(*exp).map(|val| Value::I32(val)),
-            (Value::I64(me), Value::U32(exp)) => me.checked_pow(*exp).map(|val| Value::I64(val)),
-            (Value::I128(me), Value::U32(exp)) => me.checked_pow(*exp).map(|val| Value::I128(val)),
-            (Value::U8(me), Value::U32(exp)) => me.checked_pow(*exp).map(|val| Value::U8(val)),
-            (Value::U16(me), Value::U32(exp)) => me.checked_pow(*exp).map(|val| Value::U16(val)),
-            (Value::U32(me), Value::U32(exp)) => me.checked_pow(*exp).map(|val| Value::U32(val)),
-            (Value::U64(me), Value::U32(exp)) => me.checked_pow(*exp).map(|val| Value::U64(val)),
-            (Value::U128(me), Value::U32(exp)) => me.checked_pow(*exp).map(|val| Value::U128(val)),
-            (_, exp) if exp.datatype() != DataType::U32 => {
-                panic!("Unsupported operation, exponent must be u32")
-            }
-            (other, _) => panic!("CheckedPow not supported for {}", other.datatype()),
+    fn checked_pow(&self, exp: &u32) -> Option<Value> {
+        match self {
+            Value::I8(me) => me.checked_pow(*exp).map(|val| Value::I8(val)),
+            Value::I16(me) => me.checked_pow(*exp).map(|val| Value::I16(val)),
+            Value::I32(me) => me.checked_pow(*exp).map(|val| Value::I32(val)),
+            Value::I64(me) => me.checked_pow(*exp).map(|val| Value::I64(val)),
+            Value::I128(me) => me.checked_pow(*exp).map(|val| Value::I128(val)),
+            Value::U8(me) => me.checked_pow(*exp).map(|val| Value::U8(val)),
+            Value::U16(me) => me.checked_pow(*exp).map(|val| Value::U16(val)),
+            Value::U32(me) => me.checked_pow(*exp).map(|val| Value::U32(val)),
+            Value::U64(me) => me.checked_pow(*exp).map(|val| Value::U64(val)),
+            Value::U128(me) => me.checked_pow(*exp).map(|val| Value::U128(val)),
+            other => panic!("CheckedPow not supported for {}", other.datatype()),
         }
     }
 
