@@ -272,7 +272,7 @@ pub fn trunc(val: F) -> F {
     val.float_trunc()
 }
 
-/// Computes integer part of of streamed values.
+/// Computes integer part of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -301,7 +301,7 @@ pub fn fract(val: F) -> F {
     val.float_fract()
 }
 
-/// Computes fractional part of of streamed values.
+/// Computes fractional part of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -330,7 +330,7 @@ pub fn recip(val: F) -> F {
     val.float_recip()
 }
 
-/// Computes inverse of of streamed values.
+/// Computes inverse of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -389,7 +389,7 @@ pub fn sqrt(val: F) -> F {
     val.float_sqrt()
 }
 
-/// Computes square root of of streamed values.
+/// Computes square root of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -417,7 +417,7 @@ pub fn exp(val: F) -> F {
     val.float_exp()
 }
 
-/// Computes exponential of of streamed values.
+/// Computes exponential of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -473,7 +473,7 @@ pub fn ln(val: F) -> F {
     val.float_ln()
 }
 
-/// Computes natural logarithm of of streamed values.
+/// Computes natural logarithm of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -502,7 +502,7 @@ pub fn log(val: F, base: F) -> F {
     val.float_log(&base)
 }
 
-/// Compute exponent of streamed values
+/// Compute logarithm of streamed values
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -531,7 +531,7 @@ pub fn log2(val: F) -> F {
     val.float_log2()
 }
 
-/// Computes base 2 logarithm of of streamed values.
+/// Computes base 2 logarithm of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -559,7 +559,7 @@ pub fn log10(val: F) -> F {
     val.float_log10()
 }
 
-/// Computes base 10 logarithm of of streamed values.
+/// Computes base 10 logarithm of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -588,7 +588,7 @@ pub fn cbrt(val: F) -> F {
     val.float_cbrt()
 }
 
-/// Computes cube root of of streamed values.
+/// Computes cube root of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -647,7 +647,7 @@ pub fn sin(val: F) -> F {
     val.float_sin()
 }
 
-/// Computes sine of of streamed values.
+/// Computes sine of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -675,7 +675,7 @@ pub fn cos(val: F) -> F {
     val.float_cos()
 }
 
-/// Computes cosine of of streamed values.
+/// Computes cosine of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -703,7 +703,7 @@ pub fn tan(val: F) -> F {
     val.float_tan()
 }
 
-/// Computes tangent of of streamed values.
+/// Computes tangent of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -731,7 +731,7 @@ pub fn asin(val: F) -> F {
     val.float_asin()
 }
 
-/// Computes arcsine of of streamed values.
+/// Computes arcsine of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -759,7 +759,7 @@ pub fn acos(val: F) -> F {
     val.float_acos()
 }
 
-/// Computes arcosine of of streamed values.
+/// Computes arcosine of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
@@ -787,7 +787,7 @@ pub fn atan(val: F) -> F {
     val.float_atan()
 }
 
-/// Computes arctangent of of streamed values.
+/// Computes arctangent of streamed values.
 #[mel_treatment(
     generic F (Float)
     input value Stream<F>
