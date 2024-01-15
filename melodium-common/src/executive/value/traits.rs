@@ -2335,16 +2335,56 @@ impl DataTrait for Value {
 
     fn euclid_div(&self, other: &Value) -> Value {
         match (self, other) {
-            (Value::I8(me), Value::I8(other)) => Value::I8(me.div_euclid(*other)),
-            (Value::I16(me), Value::I16(other)) => Value::I16(me.div_euclid(*other)),
-            (Value::I32(me), Value::I32(other)) => Value::I32(me.div_euclid(*other)),
-            (Value::I64(me), Value::I64(other)) => Value::I64(me.div_euclid(*other)),
-            (Value::I128(me), Value::I128(other)) => Value::I128(me.div_euclid(*other)),
-            (Value::U8(me), Value::U8(other)) => Value::U8(me.div_euclid(*other)),
-            (Value::U16(me), Value::U16(other)) => Value::U16(me.div_euclid(*other)),
-            (Value::U32(me), Value::U32(other)) => Value::U32(me.div_euclid(*other)),
-            (Value::U64(me), Value::U64(other)) => Value::U64(me.div_euclid(*other)),
-            (Value::U128(me), Value::U128(other)) => Value::U128(me.div_euclid(*other)),
+            (Value::I8(me), Value::I8(other)) => Value::I8(if *other != 0 {
+                me.overflowing_div_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::I16(me), Value::I16(other)) => Value::I16(if *other != 0 {
+                me.overflowing_div_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::I32(me), Value::I32(other)) => Value::I32(if *other != 0 {
+                me.overflowing_div_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::I64(me), Value::I64(other)) => Value::I64(if *other != 0 {
+                me.overflowing_div_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::I128(me), Value::I128(other)) => Value::I128(if *other != 0 {
+                me.overflowing_div_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::U8(me), Value::U8(other)) => Value::U8(if *other != 0 {
+                me.overflowing_div_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::U16(me), Value::U16(other)) => Value::U16(if *other != 0 {
+                me.overflowing_div_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::U32(me), Value::U32(other)) => Value::U32(if *other != 0 {
+                me.overflowing_div_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::U64(me), Value::U64(other)) => Value::U64(if *other != 0 {
+                me.overflowing_div_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::U128(me), Value::U128(other)) => Value::U128(if *other != 0 {
+                me.overflowing_div_euclid(*other).0
+            } else {
+                0
+            }),
             (Value::F32(me), Value::F32(other)) => Value::F32(me.div_euclid(*other)),
             (Value::F64(me), Value::F64(other)) => Value::F64(me.div_euclid(*other)),
             (a, b) if a.datatype() != b.datatype() => {
@@ -2356,16 +2396,56 @@ impl DataTrait for Value {
 
     fn euclid_rem(&self, other: &Value) -> Value {
         match (self, other) {
-            (Value::I8(me), Value::I8(other)) => Value::I8(me.rem_euclid(*other)),
-            (Value::I16(me), Value::I16(other)) => Value::I16(me.rem_euclid(*other)),
-            (Value::I32(me), Value::I32(other)) => Value::I32(me.rem_euclid(*other)),
-            (Value::I64(me), Value::I64(other)) => Value::I64(me.rem_euclid(*other)),
-            (Value::I128(me), Value::I128(other)) => Value::I128(me.rem_euclid(*other)),
-            (Value::U8(me), Value::U8(other)) => Value::U8(me.rem_euclid(*other)),
-            (Value::U16(me), Value::U16(other)) => Value::U16(me.rem_euclid(*other)),
-            (Value::U32(me), Value::U32(other)) => Value::U32(me.rem_euclid(*other)),
-            (Value::U64(me), Value::U64(other)) => Value::U64(me.rem_euclid(*other)),
-            (Value::U128(me), Value::U128(other)) => Value::U128(me.rem_euclid(*other)),
+            (Value::I8(me), Value::I8(other)) => Value::I8(if *other != 0 {
+                me.overflowing_rem_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::I16(me), Value::I16(other)) => Value::I16(if *other != 0 {
+                me.overflowing_rem_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::I32(me), Value::I32(other)) => Value::I32(if *other != 0 {
+                me.overflowing_rem_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::I64(me), Value::I64(other)) => Value::I64(if *other != 0 {
+                me.overflowing_rem_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::I128(me), Value::I128(other)) => Value::I128(if *other != 0 {
+                me.overflowing_rem_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::U8(me), Value::U8(other)) => Value::U8(if *other != 0 {
+                me.overflowing_rem_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::U16(me), Value::U16(other)) => Value::U16(if *other != 0 {
+                me.overflowing_rem_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::U32(me), Value::U32(other)) => Value::U32(if *other != 0 {
+                me.overflowing_rem_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::U64(me), Value::U64(other)) => Value::U64(if *other != 0 {
+                me.overflowing_rem_euclid(*other).0
+            } else {
+                0
+            }),
+            (Value::U128(me), Value::U128(other)) => Value::U128(if *other != 0 {
+                me.overflowing_rem_euclid(*other).0
+            } else {
+                0
+            }),
             (Value::F32(me), Value::F32(other)) => Value::F32(me.rem_euclid(*other)),
             (Value::F64(me), Value::F64(other)) => Value::F64(me.rem_euclid(*other)),
             (a, b) if a.datatype() != b.datatype() => {
