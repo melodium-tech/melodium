@@ -15,13 +15,13 @@ use flow::count
 use flow::stream
 use flow::trigger
 use fs/file::write
-use conv/u128::toByte
+use conv::toBytes
 use flow/vec::flatten
-use ops/u128::|add
+use ops/num::|add
 
 treatment main(const content: string = "this is some text", var generate: u128 = 873, const output: string = "./output_count") {
     startup()
-    generate_arbitrary(length = |add(generate, 3), text = content)
+    generate_arbitrary(length = |add<u128>(generate, 3), text = content)
     count_writer(output_file = output)
 
     startup.trigger -> generate_arbitrary.trigger,generated -> count_writer.text
@@ -64,10 +64,10 @@ treatment count_writer(var output_file: string)
     stream<u128>()
     write()
     emit<string>(value=output_file)
-    toByte()
+    toBytes<u128>()
     flatten<byte>()
 
-    Self.text -> count.stream,count -> trigger.stream,last -> stream.block,stream -> toByte.value,data -> flatten.vector,value -> write.data
+    Self.text -> count.stream,count -> trigger.stream,last -> stream.block,stream -> toBytes.value,data -> flatten.vector,value -> write.data
     trigger.end -> emit.trigger,emit -> write.path
 }
 

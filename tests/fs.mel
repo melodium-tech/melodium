@@ -9,7 +9,7 @@
 use engine/util::startup
 use flow::generate
 use flow::count
-use conv/u128::toByte
+use conv::toBytes
 use flow/vec::flatten
 use flow::emit
 use fs/file::write
@@ -23,10 +23,10 @@ treatment main() {
     startup.trigger -> emitLength.trigger,emit -> generate.length
     
     count<void>()
-    toByte()
+    toBytes<u128>()
     flatten<byte>()
     
-    generate.stream -> count.stream,count -> toByte.value,data -> flatten.vector
+    generate.stream -> count.stream,count -> toBytes.value,data -> flatten.vector
     
     emit<string>(value="./fs_try.data")
     write()

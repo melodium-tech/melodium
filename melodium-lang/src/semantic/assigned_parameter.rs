@@ -83,6 +83,7 @@ impl AssignedParameter {
         let mut designer = designer.write().unwrap();
 
         let described_type_result = designer.described_type();
+
         if let Some(Some(described_type)) = described_type_result.success() {
             let designed_value = self
                 .value
