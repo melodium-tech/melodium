@@ -11,7 +11,7 @@ use flow::trigger
 use flow::stream
 use fs/file::write
 use engine/util::startup
-use conv/string::toByte
+use conv::toBytes
 use flow/vec::flatten
 
 /*
@@ -50,9 +50,9 @@ treatment write_file()
 
   emit_filename.emit -> write.path
 
-  toByte()
+  toBytes<string>()
   flatten<byte>()
   write()
 
-  emit.emit -> stream.block,stream -> toByte.value,data -> flatten.vector,value -> write.data
+  emit.emit -> stream.block,stream -> toBytes.value,data -> flatten.vector,value -> write.data
 }
