@@ -1197,6 +1197,47 @@ impl DataTrait for Value {
         }
     }
 
+    fn binary_and(&self, other: &Value) -> Value {
+        match (self, other) {
+            (Value::Bool(val), Value::Bool(other)) => Value::Bool(val & other),
+            (Value::Byte(val), Value::Byte(other)) => Value::Byte(val & other),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Binary not supported for {}", other.datatype()),
+        }
+    }
+
+    fn binary_or(&self, other: &Value) -> Value {
+        match (self, other) {
+            (Value::Bool(val), Value::Bool(other)) => Value::Bool(val | other),
+            (Value::Byte(val), Value::Byte(other)) => Value::Byte(val | other),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Binary not supported for {}", other.datatype()),
+        }
+    }
+
+    fn binary_xor(&self, other: &Value) -> Value {
+        match (self, other) {
+            (Value::Bool(val), Value::Bool(other)) => Value::Bool(val ^ other),
+            (Value::Byte(val), Value::Byte(other)) => Value::Byte(val ^ other),
+            (a, b) if a.datatype() != b.datatype() => {
+                panic!("Unsupported operation, values involved must have same type")
+            }
+            (other, _) => panic!("Binary not supported for {}", other.datatype()),
+        }
+    }
+
+    fn binary_not(&self) -> Value {
+        match self {
+            Value::Bool(val) => Value::Bool(!val),
+            Value::Byte(val) => Value::Byte(!val),
+            other => panic!("Binary not supported for {}", other.datatype()),
+        }
+    }
+
     fn signed_abs(&self) -> Option<Value> {
         match self {
             Value::I8(val) => {

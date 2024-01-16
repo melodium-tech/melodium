@@ -46,6 +46,12 @@ pub trait DataTrait: Sized {
     fn saturating_to_f32(&self) -> f32;
     fn saturating_to_f64(&self) -> f64;
 
+    // binary
+    fn binary_and(&self, other: &Self) -> Self;
+    fn binary_or(&self, other: &Self) -> Self;
+    fn binary_xor(&self, other: &Self) -> Self;
+    fn binary_not(&self) -> Self;
+
     // signed
     fn signed_abs(&self) -> Option<Self>;
     fn signed_signum(&self) -> Self;
