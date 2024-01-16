@@ -17,7 +17,7 @@ use flow::trigger
 use fs/file::write
 use conv::toBytes
 use flow/vec::flatten
-use ops::|add
+use ops/num::|add
 
 treatment main(const content: string = "this is some text", var generate: u128 = 873, const output: string = "./output_count") {
     startup()
