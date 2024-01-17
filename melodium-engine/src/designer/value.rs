@@ -47,7 +47,7 @@ impl Display for Value {
                         "<{}>",
                         desc.generics()
                             .iter()
-                            .map(|gen| if let Some(val) = described_types.get(gen) {
+                            .map(|gen| if let Some(val) = described_types.get(&gen.name) {
                                 val.to_string()
                             } else {
                                 "_".to_string()

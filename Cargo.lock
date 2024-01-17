@@ -904,14 +904,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fbdcdcb6d86f71c5e97409ad45898af11cbc995b4ee8112d59095a28d376c935"
 
 [[package]]
-name = "conv-mel"
-version = "0.7.1"
-dependencies = [
- "melodium-core",
- "melodium-macro",
-]
-
-[[package]]
 name = "convert_case"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1141,14 +1133,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "engine-mel"
-version = "0.7.1"
-dependencies = [
- "melodium-core",
- "melodium-macro",
-]
-
-[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1253,16 +1237,6 @@ dependencies = [
  "libc",
  "redox_syscall 0.3.5",
  "windows-sys",
-]
-
-[[package]]
-name = "flow-mel"
-version = "0.7.1"
-dependencies = [
- "conv-mel",
- "futures",
- "melodium-core",
- "melodium-macro",
 ]
 
 [[package]]
@@ -2025,10 +1999,7 @@ version = "0.7.1"
 dependencies = [
  "clap",
  "colored",
- "conv-mel",
  "encoding-mel",
- "engine-mel",
- "flow-mel",
  "fs-mel",
  "http-mel",
  "javascript-mel",
@@ -2038,10 +2009,8 @@ dependencies = [
  "melodium-doc",
  "melodium-engine",
  "melodium-loader",
- "ops-mel",
  "regex-mel",
- "text-mel",
- "type-mel",
+ "std-mel",
 ]
 
 [[package]]
@@ -2337,14 +2306,6 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
-]
-
-[[package]]
-name = "ops-mel"
-version = "0.7.1"
-dependencies = [
- "melodium-core",
- "melodium-macro",
 ]
 
 [[package]]
@@ -3078,6 +3039,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
+name = "std-mel"
+version = "0.7.1"
+dependencies = [
+ "futures",
+ "melodium-core",
+ "melodium-macro",
+]
+
+[[package]]
 name = "stdweb"
 version = "0.4.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3305,15 +3275,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "text-mel"
-version = "0.7.1"
-dependencies = [
- "futures",
- "melodium-core",
- "melodium-macro",
-]
-
-[[package]]
 name = "thin-vec"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3523,14 +3484,6 @@ name = "tracing-core"
 version = "0.1.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c06d3da6113f116aaee68e4d601191614c9053067f9ab7f6edbcb161237daa54"
-
-[[package]]
-name = "type-mel"
-version = "0.7.1"
-dependencies = [
- "melodium-core",
- "melodium-macro",
-]
 
 [[package]]
 name = "typenum"

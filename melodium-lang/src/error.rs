@@ -143,6 +143,9 @@ pub enum ScriptErrorKind {
     InvalidGeneric {
         text: PositionnedString,
     },
+    InvalidTrait {
+        text: PositionnedString,
+    },
     /// The error comes from logic.
     Logic {
         error: LogicError,
@@ -225,6 +228,7 @@ impl Display for ScriptErrorKind {
             ScriptErrorKind::MissingFunctionGeneric { text, index } => write!(f, "at line {} position {} for function '{}' generic is missing at position {index}", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::MissingTreatmentGeneric { text } => write!(f, "at line {} position {} for treatment '{}' generic is missing", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::InvalidGeneric { text } => write!(f, "at line {} position {} '{}' is not a valid generic name", text.position.line_number, text.position.line_position, text.string),
+            ScriptErrorKind::InvalidTrait { text } => write!(f, "at line {} position {} '{}' is not a valid trait", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::Logic { error } => {
                 if let Some(ps) = error
                     .design_reference
@@ -511,6 +515,13 @@ impl ScriptError {
         Self {
             id,
             kind: ScriptErrorKind::InvalidGeneric { text },
+        }
+    }
+
+    pub fn invalid_trait(id: u32, text: PositionnedString) -> Self {
+        Self {
+            id,
+            kind: ScriptErrorKind::InvalidTrait { text },
         }
     }
 

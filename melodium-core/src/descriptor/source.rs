@@ -1,7 +1,7 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    Attribuable, Attributes, Buildable, Context, Documented, Generic, Identified, Identifier,
-    Input, Model, Output, Parameter, Parameterized, Treatment as TreatmentDescriptor,
+    Attribuable, Attributes, Buildable, Context, Documented, Generic, Generics, Identified,
+    Identifier, Input, Model, Output, Parameter, Parameterized, Treatment as TreatmentDescriptor,
     TreatmentBuildMode,
 };
 use once_cell::sync::OnceCell;
@@ -159,9 +159,9 @@ impl TreatmentDescriptor for Source {
     }
 }
 
-impl Generic for Source {
-    fn generics(&self) -> &Vec<String> {
-        static VEC: OnceCell<Vec<String>> = OnceCell::new();
+impl Generics for Source {
+    fn generics(&self) -> &Vec<Generic> {
+        static VEC: OnceCell<Vec<Generic>> = OnceCell::new();
         VEC.get_or_init(|| Vec::new())
     }
 }

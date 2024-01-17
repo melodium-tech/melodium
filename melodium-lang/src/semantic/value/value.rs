@@ -338,7 +338,7 @@ impl Value {
                             if let Some((r#type, _)) = result
                                 .merge_degrade_failure(borrowed_generic.r#type.make_descriptor())
                             {
-                                generics.insert(desc_generic.clone(), r#type);
+                                generics.insert(desc_generic.name.clone(), r#type);
                             }
                         } else {
                             result = result.and_degrade_failure(ScriptResult::new_failure(
@@ -356,9 +356,13 @@ impl Value {
                         if let Some(rc_param) = borrowed_func.parameters.get(i) {
                             let borrowed_param = rc_param.read().unwrap();
 
+                            let described_type = desc_param
+                                .described_type()
+                                .as_defined(&generics)
+                                .unwrap_or_else(|| desc_param.described_type().clone());
+
                             if let Some(param) = result.merge_degrade_failure(
-                                borrowed_param
-                                    .make_designed_value(designer, desc_param.described_type()),
+                                borrowed_param.make_designed_value(designer, &described_type),
                             ) {
                                 params.push(param);
                             }

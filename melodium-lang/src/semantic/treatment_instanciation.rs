@@ -143,7 +143,7 @@ impl TreatmentInstanciation {
                     result.merge_degrade_failure(borrowed_generic.r#type.make_descriptor())
                 {
                     result = result.and_degrade_failure(ScriptResult::from(
-                        designer.set_generic(desc_generic.clone(), r#type),
+                        designer.set_generic(desc_generic.name.clone(), r#type),
                     ));
                 }
             } else {

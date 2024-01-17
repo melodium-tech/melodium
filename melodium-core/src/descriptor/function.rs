@@ -1,7 +1,7 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
     Attribuable, Attributes, DescribedType, Documented, Function as FunctionDescriptor, Generic,
-    Identified, Identifier, OrderedParameterized, Parameter,
+    Generics, Identified, Identifier, OrderedParameterized, Parameter,
 };
 use melodium_common::executive::Value;
 use std::sync::{Arc, Weak};
@@ -12,7 +12,7 @@ pub struct Function {
     #[cfg(feature = "doc")]
     documentation: String,
     attributes: Attributes,
-    generics: Vec<String>,
+    generics: Vec<Generic>,
     parameters: Vec<Parameter>,
     return_type: DescribedType,
     function: fn(Vec<Value>) -> Value,
@@ -24,7 +24,7 @@ impl Function {
         identifier: Identifier,
         documentation: String,
         attributes: Attributes,
-        generics: Vec<String>,
+        generics: Vec<Generic>,
         parameters: Vec<Parameter>,
         return_type: DescribedType,
         function: fn(Vec<Value>) -> Value,
@@ -98,8 +98,8 @@ impl OrderedParameterized for Function {
     }
 }
 
-impl Generic for Function {
-    fn generics(&self) -> &Vec<String> {
+impl Generics for Function {
+    fn generics(&self) -> &Vec<Generic> {
         &self.generics
     }
 }

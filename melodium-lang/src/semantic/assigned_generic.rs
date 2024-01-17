@@ -30,6 +30,16 @@ impl AssignedGeneric {
         let result = ScriptResult::new_success(());
 
         result
+            .and_then(|_| {
+                if !text.traits.is_empty() {
+                    ScriptResult::new_failure(ScriptError::invalid_generic(
+                        178,
+                        text.r#type.name.clone(),
+                    ))
+                } else {
+                    ScriptResult::new_success(())
+                }
+            })
             .and_then(|_| Type::new(text.r#type.clone()))
             .and_then(|assigned_type| {
                 if assigned_type.flow != TypeFlow::Block {

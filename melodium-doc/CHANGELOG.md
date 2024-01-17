@@ -3,7 +3,8 @@
 
 ## [Unreleased]
 
-- Adding generics management
+- Adding generics management.
+- Adding traits management.
 
 ## [v0.7.0]
 

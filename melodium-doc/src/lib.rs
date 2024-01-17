@@ -274,10 +274,20 @@ impl Documentation {
             let mut string = String::new();
 
             for generic in function.generics().iter() {
-                string.push_str(&format!(
-                    "○ `{}`  \n",
-                    generic
-                ));
+                if generic.traits.is_empty() {
+                    string.push_str(&format!("○ `{}` _(any)_  \n", generic.name));
+                } else {
+                    string.push_str(&format!(
+                        "○ `{}:` {}  \n",
+                        generic.name,
+                        generic
+                            .traits
+                            .iter()
+                            .map(|tr| format!("`{tr}`"))
+                            .collect::<Vec<_>>()
+                            .join(" + ")
+                    ));
+                }
             }
 
             format!("#### Generics\n\n{}", string)
@@ -430,10 +440,20 @@ impl Documentation {
             let mut string = String::new();
 
             for generic in treatment.generics().iter() {
-                string.push_str(&format!(
-                    "○ `{}`  \n",
-                    generic
-                ));
+                if generic.traits.is_empty() {
+                    string.push_str(&format!("○ `{}` _(any)_  \n", generic.name));
+                } else {
+                    string.push_str(&format!(
+                        "○ `{}:` {}  \n",
+                        generic.name,
+                        generic
+                            .traits
+                            .iter()
+                            .map(|tr| format!("`{tr}`"))
+                            .collect::<Vec<_>>()
+                            .join(" + ")
+                    ));
+                }
             }
 
             format!("#### Generics\n\n{}", string)

@@ -14,6 +14,7 @@ use std::collections::HashMap;
 pub struct Generic {
     pub annotations: Option<CommentsAnnotations>,
     pub r#type: Type,
+    pub traits: Vec<PositionnedString>,
 }
 
 impl Generic {
@@ -47,14 +48,47 @@ impl Generic {
     pub fn build_from_next(
         annotations: Option<CommentsAnnotations>,
         name: PositionnedString,
-        iter: &mut Windows<Word>,
+        mut iter: &mut Windows<Word>,
         following_word: Option<&Word>,
     ) -> Result<Self, ScriptError> {
-        let (mut r#type, _) = Type::build_from_next(None, name, iter, following_word)?;
+        let (mut r#type, next_word) = Type::build_from_next(None, name, iter, following_word)?;
+
+        let traits = match next_word.kind {
+            Some(Kind::Colon) => {
+                // Skip ':'
+                iter.next();
+                Self::parse_traits(&mut iter)?
+            }
+            _ => Vec::new(),
+        };
 
         Ok(Self {
             annotations: annotations.or(r#type.annotations.take()),
             r#type,
+            traits,
         })
+    }
+
+    fn parse_traits(iter: &mut Windows<Word>) -> Result<Vec<PositionnedString>, ScriptError> {
+        let mut traits = Vec::new();
+        while let Some((trait_name, nw)) = iter.next().map(|s| (&s[0], &s[1])) {
+            if trait_name.kind == Some(Kind::Name) {
+                traits.push(trait_name.into());
+
+                match nw.kind {
+                    Some(Kind::Plus) => {
+                        // Dropping '+'
+                        iter.next();
+                        continue;
+                    }
+                    None => return Err(ScriptError::end_of_script(179)),
+                    _ => break,
+                }
+            } else {
+                return Err(ScriptError::word(176, trait_name.clone(), &[Kind::Name]));
+            }
+        }
+
+        Ok(traits)
     }
 }

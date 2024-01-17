@@ -14,10 +14,11 @@ use std::sync::{Arc, RwLock};
 pub struct DeclaredGeneric {
     pub text: TextGeneric,
     pub name: String,
+    pub traits: Vec<String>,
 }
 
 impl DeclaredGeneric {
-    /// Create a new semantic declaretion of generic, based on textual generic.
+    /// Create a new semantic declaration of generic, based on textual generic.
     ///
     /// * `parent`: the parent element owning this declaterion.
     /// * `text`: the textual generic.
@@ -36,7 +37,11 @@ impl DeclaredGeneric {
                 } else {
                     match declared_type.content {
                         TypeContent::Other(name) => {
-                            ScriptResult::new_success(Arc::new(RwLock::new(Self { text, name })))
+                            ScriptResult::new_success(Arc::new(RwLock::new(Self {
+                                name,
+                                traits: text.traits.iter().map(|ps| ps.string.clone()).collect(),
+                                text,
+                            })))
                         }
                         _ => ScriptResult::new_failure(ScriptError::invalid_generic(
                             175,

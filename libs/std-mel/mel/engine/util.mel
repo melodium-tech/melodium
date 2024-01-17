@@ -1,0 +1,17 @@
+
+use std/engine::Engine
+use std/engine::ready
+
+/**
+  Trigger at startup of engine.
+
+  When program is ready to run, `trigger` is emitted.
+ */
+treatment startup()
+  model engine: Engine()
+  output trigger: Block<void>
+{
+    ready[engine=engine]()
+
+    ready.trigger -> Self.trigger
+}

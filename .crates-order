@@ -7,12 +7,7 @@ melodium-lang
 melodium-repository
 melodium-loader
 melodium-doc
-conv-mel
-flow-mel
-type-mel
-ops-mel
-engine-mel
-text-mel
+std-mel
 encoding-mel
 regex-mel
 json-mel

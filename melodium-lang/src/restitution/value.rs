@@ -22,7 +22,7 @@ pub fn value(value: &Value, names: &BTreeMap<Identifier, String>) -> String {
                         .generics()
                         .iter()
                         .map(|generic| generics
-                            .get(generic)
+                            .get(&generic.name)
                             .map(|desc_type| desc_type.to_string())
                             .unwrap_or_else(|| "_".to_string()))
                         .collect::<Vec<_>>()
