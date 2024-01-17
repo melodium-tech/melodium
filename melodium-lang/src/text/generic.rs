@@ -76,7 +76,11 @@ impl Generic {
                 traits.push(trait_name.into());
 
                 match nw.kind {
-                    Some(Kind::Plus) => continue,
+                    Some(Kind::Plus) => {
+                        // Dropping '+'
+                        iter.next();
+                        continue;
+                    }
                     None => return Err(ScriptError::end_of_script(179)),
                     _ => break,
                 }
