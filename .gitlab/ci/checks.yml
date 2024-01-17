@@ -29,7 +29,8 @@ include:
     - cargo check --package melodium --locked --no-default-features --features cli
     - cargo check --package melodium --locked --no-default-features --features cli,jeu
     - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs
-    - cargo check --package melodium --locked --no-default-features --features core
+    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network
+    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,text,javascript
     - cargo check --package melodium --locked --no-default-features
     - cargo check --package melodium --locked
 
