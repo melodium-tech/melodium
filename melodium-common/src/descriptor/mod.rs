@@ -19,6 +19,7 @@ pub mod identifier;
 pub mod input;
 pub mod loader;
 pub mod model;
+pub mod object;
 pub mod output;
 pub mod package;
 pub mod parameter;
@@ -46,6 +47,7 @@ pub use loader::{
     RepositoryError, RepositoryErrors,
 };
 pub use model::Model;
+pub use object::Object;
 pub use output::Output;
 pub use package::{Package, PackageRequirement};
 pub use parameter::Parameter;

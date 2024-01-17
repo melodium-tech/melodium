@@ -1,10 +1,12 @@
 mod data;
 mod traits;
 
+use super::Object;
 use crate::descriptor::DataType;
 pub use data::GetData;
+use std::sync::Arc;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub enum Value {
     Void(()),
 
@@ -30,6 +32,8 @@ pub enum Value {
 
     Vec(Vec<Value>),
     Option(Option<Box<Value>>),
+
+    Object(Arc<dyn Object>),
 }
 
 impl Value {
@@ -65,6 +69,8 @@ impl Value {
                 .first()
                 .map(|val| DataType::Vec(Box::new(val.datatype())))
                 .unwrap_or(DataType::Undetermined),
+
+            Value::Object(obj) => DataType::Object(obj.descriptor()),
         }
     }
 }

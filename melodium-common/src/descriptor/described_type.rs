@@ -1,8 +1,9 @@
-use super::{DataTrait, DataType, Generic};
+use super::{DataTrait, DataType, Generic, Object};
 use core::fmt::{Display, Formatter, Result};
 use std::collections::HashMap;
+use std::sync::Arc;
 
-#[derive(Clone, PartialEq, Hash, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum DescribedType {
     Void,
 
@@ -29,6 +30,8 @@ pub enum DescribedType {
 
     Vec(Box<DescribedType>),
     Option(Box<DescribedType>),
+
+    Object(Box<Arc<dyn Object>>),
 
     Generic(Box<Generic>),
 }
@@ -85,6 +88,8 @@ impl DescribedType {
 
             DescribedType::Char => Some(DataType::Char),
             DescribedType::String => Some(DataType::String),
+
+            DescribedType::Object(obj) => Some(DataType::Object(Arc::clone(obj))),
 
             DescribedType::Option(me) => me
                 .to_datatype(generics)
@@ -158,6 +163,7 @@ impl From<&DataType> for DescribedType {
             DataType::Option(inner) => {
                 DescribedType::Option(Box::new(DescribedType::from(&**inner)))
             }
+            DataType::Object(obj) => DescribedType::Object(Box::new(Arc::clone(obj))),
         }
     }
 }
@@ -188,6 +194,7 @@ impl From<DataType> for DescribedType {
             DataType::String => DescribedType::String,
             DataType::Vec(inner) => DescribedType::Vec(Box::new(DescribedType::from(*inner))),
             DataType::Option(inner) => DescribedType::Option(Box::new(DescribedType::from(*inner))),
+            DataType::Object(obj) => DescribedType::Object(Box::new(obj)),
         }
     }
 }
@@ -214,6 +221,7 @@ impl Display for DescribedType {
             DescribedType::String => write!(f, "string"),
             DescribedType::Vec(inner) => write!(f, "Vec<{inner}>"),
             DescribedType::Option(inner) => write!(f, "Option<{inner}>"),
+            DescribedType::Object(obj) => write!(f, "{}", obj.identifier().name()),
             DescribedType::Generic(gen) => write!(f, "{}", gen),
         }
     }

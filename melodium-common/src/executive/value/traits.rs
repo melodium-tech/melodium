@@ -2610,6 +2610,8 @@ impl core::fmt::Display for Value {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
+
+            Value::Object(obj) => write!(f, "/* {} */", obj.descriptor().identifier().name()),
         }
     }
 }

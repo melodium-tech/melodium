@@ -2,7 +2,7 @@ use super::{Attribuable, Attributes, DescribedType, Variability};
 use crate::executive::Value;
 use core::fmt::{Display, Formatter, Result};
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub struct Parameter {
     name: String,
     variability: Variability,
