@@ -104,6 +104,7 @@ pub fn core_config() -> LoadingConfig {
 pub fn core_packages() -> Vec<Arc<dyn Package>> {
     #[allow(unused_mut)]
     let mut packages = Vec::new();
+    packages.push(std_mel::__mel_package::package());
     #[cfg(feature = "conv-mel")]
     packages.push(conv_mel::__mel_package::package());
     #[cfg(feature = "encoding-mel")]

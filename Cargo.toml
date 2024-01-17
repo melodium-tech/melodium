@@ -11,6 +11,7 @@ members = [
     "libs/json-mel",
     "libs/ops-mel",
     "libs/regex-mel",
+    "libs/std-mel",
     "libs/text-mel",
     "libs/type-mel",
     "melodium",
