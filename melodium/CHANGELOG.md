@@ -2,8 +2,10 @@
 
 ## [Unreleased]
 
-- Adding generics management
-- Including language attributes
+- Adding generics management.
+- Adding traits management.
+- Including language attributes.
+- Uniting disparate core libes into `std`.
 
 ## [v0.7.1]
 

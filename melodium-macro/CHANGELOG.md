@@ -3,8 +3,9 @@
 
 ## [Unreleased]
 
-- Adding generics management
-- Including language attributes
+- Adding generics management.
+- Adding traits management.
+- Including language attributes.
 
 ## [v0.7.0]
 
