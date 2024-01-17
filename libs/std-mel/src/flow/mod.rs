@@ -425,4 +425,3 @@ pub async fn generate_indefinitely(data: T) {
         }
     }
 }
-

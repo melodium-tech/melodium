@@ -1,4 +1,3 @@
-
 pub mod byte;
 pub mod char;
 pub mod f32;

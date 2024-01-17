@@ -1,17 +1,15 @@
 #!/usr/bin/env melodium
 #! name = fs_test
 #! version = 0.7.1
-#! require = flow:0.7.1
-#! require = engine:0.7.1
-#! require = conv:0.7.1
+#! require = std:0.7.1
 #! require = fs:0.7.1
 
-use engine/util::startup
-use flow::generate
-use flow::count
-use conv::toBytes
-use flow/vec::flatten
-use flow::emit
+use std/engine/util::startup
+use std/flow::generate
+use std/flow::count
+use std/conv::toBytes
+use std/flow/vec::flatten
+use std/flow::emit
 use fs/file::write
 
 treatment main() {

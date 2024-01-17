@@ -1,12 +1,12 @@
 #!/usr/bin/env melodium
 #! name = http_javascript
 #! version = 0.7.1
-#! require = http:0.7.1 flow:0.7.1 javascript:0.7.1 encoding:0.7.1
+#! require = http:0.7.1 std:0.7.1 javascript:0.7.1 encoding:0.7.1
 
 use http/server::HttpServer
 use http/server::connection
-use flow::emit
-use flow::trigger
+use std/flow::emit
+use std/flow::trigger
 use encoding::decode
 use encoding::encode
 use javascript::JavaScriptEngine

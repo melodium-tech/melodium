@@ -1,23 +1,20 @@
 #!/usr/bin/env melodium
 #! name = fs_test
 #! version = 0.7.1
-#! require = flow:0.7.1
-#! require = engine:0.7.1
-#! require = conv:0.7.1
+#! require = std:0.7.1
 #! require = fs:0.7.1
-#! require = ops:0.7.1
 
-use engine/util::startup
-use flow::generate
-use flow::emit
-use flow::fill
-use flow::count
-use flow::stream
-use flow::trigger
+use std/engine/util::startup
+use std/flow::generate
+use std/flow::emit
+use std/flow::fill
+use std/flow::count
+use std/flow::stream
+use std/flow::trigger
 use fs/file::write
-use conv::toBytes
-use flow/vec::flatten
-use ops/num::|add
+use std/conv::toBytes
+use std/flow/vec::flatten
+use std/ops/num::|add
 
 treatment main(const content: string = "this is some text", var generate: u128 = 873, const output: string = "./output_count") {
     startup()

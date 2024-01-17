@@ -1,4 +1,3 @@
-
 use melodium_core::*;
 use melodium_macro::{check, mel_function, mel_treatment};
 
@@ -1715,4 +1714,3 @@ pub async fn saturating_to_f64() {
         )
     }
 }
-

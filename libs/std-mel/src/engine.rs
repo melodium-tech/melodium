@@ -1,4 +1,3 @@
-
 use melodium_core::common::executive::{Output, ResultStatus};
 use melodium_macro::mel_model;
 

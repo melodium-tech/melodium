@@ -32,30 +32,23 @@ melodium-doc = { path = "../melodium-doc", version = "0.7.1", optional = true }
 
 std-mel = { path = "../libs/std-mel", version = "0.7.1" }
 
-conv-mel = { path = "../libs/conv-mel", version = "0.7.1", optional = true }
 encoding-mel = { path = "../libs/encoding-mel", version = "0.7.1", optional = true }
-engine-mel = { path = "../libs/engine-mel", version = "0.7.1", optional = true }
-flow-mel = { path = "../libs/flow-mel", version = "0.7.1", optional = true }
 fs-mel = { path = "../libs/fs-mel", version = "0.7.1", optional = true }
 http-mel = { path = "../libs/http-mel", version = "0.7.1", optional = true }
 javascript-mel = { path = "../libs/javascript-mel", version = "0.7.1", optional = true }
 json-mel = { path = "../libs/json-mel", version = "0.7.1", optional = true }
-ops-mel = { path = "../libs/ops-mel", version = "0.7.1", optional = true }
 regex-mel = { path = "../libs/regex-mel", version = "0.7.1", optional = true }
-text-mel = { path = "../libs/text-mel", version = "0.7.1", optional = true }
-type-mel = { path = "../libs/type-mel", version = "0.7.1", optional = true }
 
 [features]
 default = ["cli", "standard-edition"]
 cli = ["clap", "colored"]
 jeu = ["melodium-loader/jeu"]
 doc = ["melodium-doc", "melodium-engine/doc", "melodium-core/doc"]
-core = ["conv-mel", "engine-mel", "flow-mel", "ops-mel", "type-mel"]
 network = ["http-mel", "melodium-loader/network"]
 fs = ["fs-mel", "melodium-loader/filesystem"]
-text = ["encoding-mel", "json-mel", "regex-mel", "text-mel"]
-javascript = ["javascript-mel"]
-standard-edition = ["core", "jeu", "doc", "fs", "network", "text", "javascript"]
+text = ["encoding-mel", "regex-mel"]
+javascript = ["javascript-mel", "json-mel"]
+standard-edition = ["jeu", "doc", "fs", "network", "text", "javascript"]
 
 [package.metadata.docs.rs]
 all-features = true
