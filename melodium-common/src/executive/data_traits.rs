@@ -1,4 +1,6 @@
-pub trait DataTrait: Sized {
+use super::Value;
+
+pub trait DataTrait {
     fn to_i8(&self) -> i8;
     fn to_i16(&self) -> i16;
     fn to_i32(&self) -> i32;
@@ -47,14 +49,14 @@ pub trait DataTrait: Sized {
     fn saturating_to_f64(&self) -> f64;
 
     // binary
-    fn binary_and(&self, other: &Self) -> Self;
-    fn binary_or(&self, other: &Self) -> Self;
-    fn binary_xor(&self, other: &Self) -> Self;
-    fn binary_not(&self) -> Self;
+    fn binary_and(&self, other: &Value) -> Value;
+    fn binary_or(&self, other: &Value) -> Value;
+    fn binary_xor(&self, other: &Value) -> Value;
+    fn binary_not(&self) -> Value;
 
     // signed
-    fn signed_abs(&self) -> Option<Self>;
-    fn signed_signum(&self) -> Self;
+    fn signed_abs(&self) -> Option<Value>;
+    fn signed_signum(&self) -> Value;
     fn signed_is_positive(&self) -> bool;
     fn signed_is_negative(&self) -> bool;
 
@@ -64,76 +66,76 @@ pub trait DataTrait: Sized {
     fn float_is_finite(&self) -> bool;
     fn float_is_normal(&self) -> bool;
     fn float_is_subnormal(&self) -> bool;
-    fn float_floor(&self) -> Self;
-    fn float_ceil(&self) -> Self;
-    fn float_round(&self) -> Self;
-    fn float_trunc(&self) -> Self;
-    fn float_fract(&self) -> Self;
-    fn float_recip(&self) -> Self;
-    fn float_pow(&self, n: &Self) -> Self;
-    fn float_sqrt(&self) -> Self;
-    fn float_exp(&self) -> Self;
-    fn float_exp2(&self) -> Self;
-    fn float_ln(&self) -> Self;
-    fn float_log(&self, base: &Self) -> Self;
-    fn float_log2(&self) -> Self;
-    fn float_log10(&self) -> Self;
-    fn float_cbrt(&self) -> Self;
-    fn float_hypot(&self, n: &Self) -> Self;
-    fn float_sin(&self) -> Self;
-    fn float_cos(&self) -> Self;
-    fn float_tan(&self) -> Self;
-    fn float_asin(&self) -> Self;
-    fn float_acos(&self) -> Self;
-    fn float_atan(&self) -> Self;
-    fn float_atan2(&self, n: &Self) -> Self;
-    fn float_sinh(&self) -> Self;
-    fn float_cosh(&self) -> Self;
-    fn float_tanh(&self) -> Self;
-    fn float_asinh(&self) -> Self;
-    fn float_acosh(&self) -> Self;
-    fn float_atanh(&self) -> Self;
-    fn float_to_degrees(&self) -> Self;
-    fn float_to_radians(&self) -> Self;
+    fn float_floor(&self) -> Value;
+    fn float_ceil(&self) -> Value;
+    fn float_round(&self) -> Value;
+    fn float_trunc(&self) -> Value;
+    fn float_fract(&self) -> Value;
+    fn float_recip(&self) -> Value;
+    fn float_pow(&self, n: &Value) -> Value;
+    fn float_sqrt(&self) -> Value;
+    fn float_exp(&self) -> Value;
+    fn float_exp2(&self) -> Value;
+    fn float_ln(&self) -> Value;
+    fn float_log(&self, base: &Value) -> Value;
+    fn float_log2(&self) -> Value;
+    fn float_log10(&self) -> Value;
+    fn float_cbrt(&self) -> Value;
+    fn float_hypot(&self, n: &Value) -> Value;
+    fn float_sin(&self) -> Value;
+    fn float_cos(&self) -> Value;
+    fn float_tan(&self) -> Value;
+    fn float_asin(&self) -> Value;
+    fn float_acos(&self) -> Value;
+    fn float_atan(&self) -> Value;
+    fn float_atan2(&self, n: &Value) -> Value;
+    fn float_sinh(&self) -> Value;
+    fn float_cosh(&self) -> Value;
+    fn float_tanh(&self) -> Value;
+    fn float_asinh(&self) -> Value;
+    fn float_acosh(&self) -> Value;
+    fn float_atanh(&self) -> Value;
+    fn float_to_degrees(&self) -> Value;
+    fn float_to_radians(&self) -> Value;
 
-    fn partial_equality_eq(&self, other: &Self) -> bool;
-    fn partial_equality_ne(&self, other: &Self) -> bool;
+    fn partial_equality_eq(&self, other: &Value) -> bool;
+    fn partial_equality_ne(&self, other: &Value) -> bool;
 
-    fn partial_order_lt(&self, other: &Self) -> bool;
-    fn partial_order_le(&self, other: &Self) -> bool;
-    fn partial_order_gt(&self, other: &Self) -> bool;
-    fn partial_order_ge(&self, other: &Self) -> bool;
+    fn partial_order_lt(&self, other: &Value) -> bool;
+    fn partial_order_le(&self, other: &Value) -> bool;
+    fn partial_order_gt(&self, other: &Value) -> bool;
+    fn partial_order_ge(&self, other: &Value) -> bool;
 
-    fn order_max(&self, other: &Self) -> Self;
-    fn order_min(&self, other: &Self) -> Self;
-    fn order_clamp(&self, min: &Self, max: &Self) -> Self;
+    fn order_max(&self, other: &Value) -> Value;
+    fn order_min(&self, other: &Value) -> Value;
+    fn order_clamp(&self, min: &Value, max: &Value) -> Value;
 
     // Ops traits, one per line
-    fn add(&self, other: &Self) -> Self;
-    fn checked_add(&self, other: &Self) -> Option<Self>;
-    fn saturating_add(&self, other: &Self) -> Self;
-    fn wrapping_add(&self, other: &Self) -> Self;
-    fn sub(&self, other: &Self) -> Self;
-    fn checked_sub(&self, other: &Self) -> Option<Self>;
-    fn saturating_sub(&self, other: &Self) -> Self;
-    fn wrapping_sub(&self, other: &Self) -> Self;
-    fn mul(&self, other: &Self) -> Self;
-    fn checked_mul(&self, other: &Self) -> Option<Self>;
-    fn saturating_mul(&self, other: &Self) -> Self;
-    fn wrapping_mul(&self, other: &Self) -> Self;
-    fn div(&self, other: &Self) -> Self;
-    fn checked_div(&self, other: &Self) -> Option<Self>;
-    fn rem(&self, other: &Self) -> Self;
-    fn checked_rem(&self, other: &Self) -> Option<Self>;
-    fn neg(&self) -> Self;
-    fn checked_neg(&self) -> Option<Self>;
-    fn wrapping_neg(&self) -> Self;
-    fn pow(&self, exp: &u32) -> Self;
-    fn checked_pow(&self, exp: &u32) -> Option<Self>;
+    fn add(&self, other: &Value) -> Value;
+    fn checked_add(&self, other: &Value) -> Option<Value>;
+    fn saturating_add(&self, other: &Value) -> Value;
+    fn wrapping_add(&self, other: &Value) -> Value;
+    fn sub(&self, other: &Value) -> Value;
+    fn checked_sub(&self, other: &Value) -> Option<Value>;
+    fn saturating_sub(&self, other: &Value) -> Value;
+    fn wrapping_sub(&self, other: &Value) -> Value;
+    fn mul(&self, other: &Value) -> Value;
+    fn checked_mul(&self, other: &Value) -> Option<Value>;
+    fn saturating_mul(&self, other: &Value) -> Value;
+    fn wrapping_mul(&self, other: &Value) -> Value;
+    fn div(&self, other: &Value) -> Value;
+    fn checked_div(&self, other: &Value) -> Option<Value>;
+    fn rem(&self, other: &Value) -> Value;
+    fn checked_rem(&self, other: &Value) -> Option<Value>;
+    fn neg(&self) -> Value;
+    fn checked_neg(&self) -> Option<Value>;
+    fn wrapping_neg(&self) -> Value;
+    fn pow(&self, exp: &u32) -> Value;
+    fn checked_pow(&self, exp: &u32) -> Option<Value>;
 
     // euclid
-    fn euclid_div(&self, other: &Self) -> Self;
-    fn euclid_rem(&self, other: &Self) -> Self;
-    fn checked_euclid_div(&self, other: &Self) -> Option<Self>;
-    fn checked_euclid_rem(&self, other: &Self) -> Option<Self>;
+    fn euclid_div(&self, other: &Value) -> Value;
+    fn euclid_rem(&self, other: &Value) -> Value;
+    fn checked_euclid_div(&self, other: &Value) -> Option<Value>;
+    fn checked_euclid_rem(&self, other: &Value) -> Option<Value>;
 }
