@@ -12,7 +12,7 @@ pub enum TransmissionError {
 pub type SendResult = Result<(), TransmissionError>;
 pub type RecvResult<T> = Result<T, TransmissionError>;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub enum TransmissionValue {
     Void(VecDeque<()>),
 

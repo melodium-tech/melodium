@@ -3,8 +3,8 @@
 
 use itertools::Itertools;
 use melodium_common::descriptor::{
-    Collection, CollectionTree, Context, Entry, Flow, Function, Identifier, Input, Model, Output,
-    Parameter, Treatment,
+    Collection, CollectionTree, Context, Entry, Flow, Function, Identifier, Input, Model, Object,
+    Output, Parameter, Treatment,
 };
 use std::collections::HashMap;
 use std::error::Error;
@@ -111,6 +111,11 @@ impl Documentation {
                     m.identifier().name(),
                     Self::id_filepath(m.identifier())
                 ),
+                Entry::Object(o) => format!(
+                    "- [■ {}]({})\n",
+                    o.identifier().name(),
+                    Self::id_filepath(o.identifier())
+                ),
                 Entry::Treatment(t) => format!(
                     "- [⤇ {}]({})\n",
                     t.identifier().name(),
@@ -156,6 +161,7 @@ impl Documentation {
             self.make_area(sub_area, sub_path)?;
         }
 
+        let mut objects = String::new();
         let mut contexts = String::new();
         let mut functions = String::new();
         let mut models = String::new();
@@ -190,6 +196,16 @@ impl Documentation {
                     models.push_str(&format!(
                         "⬢[ {name}]({name}.md)  \n",
                         name = m.identifier().name()
+                    ));
+                }
+                Entry::Object(o) => {
+                    if objects.is_empty() {
+                        objects.push_str("## Objects\n\n");
+                    }
+
+                    objects.push_str(&format!(
+                        "■[ {name}]({name}.md)  \n",
+                        name = o.identifier().name()
                     ));
                 }
                 Entry::Treatment(t) => {
@@ -230,6 +246,7 @@ impl Documentation {
             Entry::Context(c) => self.context_content(c),
             Entry::Function(f) => self.function_content(f),
             Entry::Model(m) => self.model_content(m),
+            Entry::Object(o) => self.object_content(o),
             Entry::Treatment(t) => self.treatment_content(t),
         };
 
@@ -432,6 +449,15 @@ impl Documentation {
             base = base,
             parameters = parameters,
             doc = model.documentation(),
+        )
+    }
+
+    fn object_content(&self, object: &Arc<dyn Object>) -> String {
+        format!(
+            "# Object {name}\n\n`{id}`\n\n---\n\n{doc}",
+            name = object.identifier().name(),
+            id = object.identifier().to_string(),
+            doc = object.documentation(),
         )
     }
 

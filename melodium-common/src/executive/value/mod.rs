@@ -1,10 +1,12 @@
 mod data;
 mod traits;
 
+use super::Object;
 use crate::descriptor::DataType;
 pub use data::GetData;
+use std::sync::Arc;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub enum Value {
     Void(()),
 
@@ -30,6 +32,8 @@ pub enum Value {
 
     Vec(Vec<Value>),
     Option(Option<Box<Value>>),
+
+    Object(Arc<dyn Object>),
 }
 
 impl Value {
@@ -65,6 +69,36 @@ impl Value {
                 .first()
                 .map(|val| DataType::Vec(Box::new(val.datatype())))
                 .unwrap_or(DataType::Undetermined),
+
+            Value::Object(obj) => DataType::Object(obj.descriptor()),
+        }
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Void(l0), Self::Void(r0)) => l0 == r0,
+            (Self::I8(l0), Self::I8(r0)) => l0 == r0,
+            (Self::I16(l0), Self::I16(r0)) => l0 == r0,
+            (Self::I32(l0), Self::I32(r0)) => l0 == r0,
+            (Self::I64(l0), Self::I64(r0)) => l0 == r0,
+            (Self::I128(l0), Self::I128(r0)) => l0 == r0,
+            (Self::U8(l0), Self::U8(r0)) => l0 == r0,
+            (Self::U16(l0), Self::U16(r0)) => l0 == r0,
+            (Self::U32(l0), Self::U32(r0)) => l0 == r0,
+            (Self::U64(l0), Self::U64(r0)) => l0 == r0,
+            (Self::U128(l0), Self::U128(r0)) => l0 == r0,
+            (Self::F32(l0), Self::F32(r0)) => l0 == r0,
+            (Self::F64(l0), Self::F64(r0)) => l0 == r0,
+            (Self::Bool(l0), Self::Bool(r0)) => l0 == r0,
+            (Self::Byte(l0), Self::Byte(r0)) => l0 == r0,
+            (Self::Char(l0), Self::Char(r0)) => l0 == r0,
+            (Self::String(l0), Self::String(r0)) => l0 == r0,
+            (Self::Vec(l0), Self::Vec(r0)) => l0 == r0,
+            (Self::Option(l0), Self::Option(r0)) => l0 == r0,
+            (Self::Object(_l0), Self::Object(_r0)) => false,
+            _ => false,
         }
     }
 }
