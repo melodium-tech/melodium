@@ -4,9 +4,9 @@
 mod object_traits;
 
 use convert_case::{Case, Casing};
-use object_traits::object_traits;
 use core::{borrow::Borrow, convert::TryFrom, iter::FromIterator, slice::Iter};
 use litrs::StringLit;
+use object_traits::object_traits;
 use proc_macro::TokenStream;
 use proc_macro2::{token_stream::IntoIter as IntoIterTokenStream, TokenTree};
 use quote::quote;
@@ -497,17 +497,16 @@ fn config_generic(mut ts: &mut IntoIterTokenStream) -> (String, Vec<String>) {
 fn config_traits(ts: &mut IntoIterTokenStream) -> Vec<String> {
     if let Some(TokenTree::Group(group)) = ts.next() {
         group
-                .stream()
-                .into_iter()
-                .map(|tt| {
-                    if let TokenTree::Ident(trait_name) = tt {
-                        trait_name.to_string()
-                    } else {
-                        panic!("Expecting trait name")
-                    }
-                })
-                .collect()
-        
+            .stream()
+            .into_iter()
+            .map(|tt| {
+                if let TokenTree::Ident(trait_name) = tt {
+                    trait_name.to_string()
+                } else {
+                    panic!("Expecting trait name")
+                }
+            })
+            .collect()
     } else {
         panic!("Trait list expected")
     }
@@ -520,6 +519,7 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
     let mut models = Vec::new();
     let mut sources = Vec::new();
     let mut treatments = Vec::new();
+    let mut types = Vec::new();
 
     let mut root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     root.push_str("/src/");
@@ -534,6 +534,7 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
                         let mut is_mel_treatment = false;
                         let mut is_mel_model = false;
                         let mut is_mel_context = false;
+                        let mut is_mel_type = false;
                         match item {
                             Item::Fn(item_fn) => {
                                 name = item_fn.sig.ident.to_string();
@@ -569,6 +570,7 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
                                     {
                                         "mel_model" => is_mel_model = true,
                                         "mel_context" => is_mel_context = true,
+                                        "mel_type" => is_mel_type = true,
                                         _ => {}
                                     }
                                 });
@@ -611,6 +613,9 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
                         } else if is_mel_context {
                             call.push_str(&format!("::__mel_context_{name}::descriptor()"));
                             contexts.push(call);
+                        } else if is_mel_type {
+                            call.push_str(&format!("::__mel_type_{name}::descriptor()"));
+                            types.push(call);
                         }
                     }
                 }
@@ -665,9 +670,20 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
         .collect::<Vec<_>>()
         .join("\n");
 
+    let types = types
+        .iter()
+        .map(|elmt| {
+            format!(
+                "collection.insert(melodium_core::common::descriptor::Entry::Object(crate{elmt}));"
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
     let collection: proc_macro2::TokenStream = format!(
         r"
             let mut collection = melodium_core::common::descriptor::Collection::new();
+            {types}
             {functions}
             {contexts}
             {models}
@@ -1827,10 +1843,9 @@ pub fn mel_context(attr: TokenStream, item: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-
 #[proc_macro_attribute]
-pub fn mel_object(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let context: ItemStruct = parse(item).unwrap();
+pub fn mel_type(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let typ: ItemStruct = parse(item).unwrap();
     let mut attributes = HashMap::new();
     let mut traits = Vec::new();
 
@@ -1852,7 +1867,7 @@ pub fn mel_object(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let mut documentation = Vec::new();
-    for attr in context.attrs.clone() {
+    for attr in typ.attrs.clone() {
         if let Some(segment) = attr.path.segments.first() {
             if segment.ident.to_string() == "doc" {
                 for tt in attr.tokens {
@@ -1865,7 +1880,7 @@ pub fn mel_object(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     }
 
-    let name = context.ident.to_string();
+    let name = typ.ident.to_string();
 
     let description;
     {
@@ -1882,9 +1897,7 @@ pub fn mel_object(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         let traits: proc_macro2::TokenStream = traits
             .iter()
-            .map(|name| {
-                format!(r#"melodium_core::common::descriptor::DataTrait::{name}"#)
-            })
+            .map(|name| format!(r#"melodium_core::common::descriptor::DataTrait::{name}"#))
             .collect::<Vec<_>>()
             .join(",")
             .parse()
@@ -1940,20 +1953,20 @@ pub fn mel_object(attr: TokenStream, item: TokenStream) -> TokenStream {
         };
     }*/
 
-    let element_name = format!("@{}", name.to_case(Case::UpperCamel));
+    let element_name = name.clone();
     let name: proc_macro2::TokenStream = name.parse().unwrap();
-    let module_name: proc_macro2::TokenStream = format!("__mel_context_{name}").parse().unwrap();
+    let module_name: proc_macro2::TokenStream = format!("__mel_type_{name}").parse().unwrap();
     let expanded = quote! {
         pub mod #module_name {
             use super::*;
 
-            static DESCRIPTOR: std::sync::Mutex<Option<std::sync::Arc<melodium_core::descriptor::Context>>> = std::sync::Mutex::new(None);
+            static DESCRIPTOR: std::sync::Mutex<Option<std::sync::Arc<melodium_core::descriptor::Object>>> = std::sync::Mutex::new(None);
 
             pub fn identifier() -> melodium_core::common::descriptor::Identifier {
                 melodium_core::descriptor::module_path_to_identifier(module_path!(), #element_name)
             }
 
-            pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Context> {
+            pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Object> {
                 let mut desc = DESCRIPTOR.lock().unwrap();
                 if let Some(desc) = &*desc {
                     std::sync::Arc::clone(&desc)
@@ -1966,15 +1979,14 @@ pub fn mel_object(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        #[derive(Debug)]
-        #context
+        #typ
 
-        impl melodium_core::common::executive::Context for #name {
-            fn descriptor(&self) -> std::sync::Arc<dyn melodium_core::common::descriptor::Context> {
+        #implementation
+
+        impl melodium_core::common::executive::Object for #name {
+            fn descriptor(&self) -> std::sync::Arc<dyn melodium_core::common::descriptor::Object> {
                 #module_name::descriptor()
             }
-
-            #implementation
         }
     };
 

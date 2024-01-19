@@ -1,7 +1,9 @@
 use core::fmt::{Display, Formatter};
+use melodium_common::descriptor::{
+    Attribuable, Attributes, DataTrait, Documented, Identified, Identifier,
+    Object as ObjectDescriptor,
+};
 use std::sync::Arc;
-use melodium_common::descriptor::{DataTrait, Identifier, Attributes, Object as ObjectDescriptor, Attribuable, Identified, Documented};
-
 
 #[derive(Debug)]
 pub struct Object {
@@ -11,7 +13,6 @@ pub struct Object {
     attributes: Attributes,
     implements: Vec<DataTrait>,
 }
-
 
 impl Object {
     pub fn new(
@@ -59,11 +60,7 @@ impl Documented for Object {
 
 impl Display for Object {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "object {}",
-            self.identifier.to_string(),
-        )?;
+        write!(f, "object {}", self.identifier.to_string(),)?;
 
         Ok(())
     }

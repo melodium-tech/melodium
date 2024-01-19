@@ -1,4 +1,3 @@
-
 use crate::string;
 
 pub trait ToI8 {
@@ -16,7 +15,6 @@ pub trait ToI32 {
 pub trait ToI64 {
     fn to_i64(&self) -> i64;
 }
-
 
 pub trait ToI128 {
     fn to_i128(&self) -> i128;
@@ -66,7 +64,6 @@ pub trait ToString {
     fn to_string(&self) -> string;
 }
 
-
 pub trait TryToI8 {
     fn try_to_i8(&self) -> Option<i8>;
 }
@@ -82,7 +79,6 @@ pub trait TryToI32 {
 pub trait TryToI64 {
     fn try_to_i64(&self) -> Option<i64>;
 }
-
 
 pub trait TryToI128 {
     fn try_to_i128(&self) -> Option<i128>;
@@ -132,7 +128,6 @@ pub trait TryToString {
     fn try_to_string(&self) -> Option<string>;
 }
 
-
 pub trait SaturatingToI8 {
     fn saturating_to_i8(&self) -> i8;
 }
@@ -148,7 +143,6 @@ pub trait SaturatingToI32 {
 pub trait SaturatingToI64 {
     fn saturating_to_i64(&self) -> i64;
 }
-
 
 pub trait SaturatingToI128 {
     fn saturating_to_i128(&self) -> i128;
@@ -233,6 +227,75 @@ pub trait Float {
     fn atanh(&self) -> Self;
     fn to_degrees(&self) -> Self;
     fn to_radians(&self) -> Self;
+}
+
+pub trait PartialEquality {
+    fn eq(&self, other: &Self) -> bool;
+    fn ne(&self, other: &Self) -> bool;
+}
+
+impl<T> PartialEquality for T
+where
+    T: core::cmp::PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        core::cmp::PartialEq::eq(self, other)
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        core::cmp::PartialEq::ne(self, other)
+    }
+}
+
+pub trait PartialOrder {
+    fn lt(&self, other: &Self) -> bool;
+    fn le(&self, other: &Self) -> bool;
+    fn gt(&self, other: &Self) -> bool;
+    fn ge(&self, other: &Self) -> bool;
+}
+
+impl<T> PartialOrder for T
+where
+    T: core::cmp::PartialOrd,
+{
+    fn lt(&self, other: &Self) -> bool {
+        core::cmp::PartialOrd::lt(self, other)
+    }
+
+    fn le(&self, other: &Self) -> bool {
+        core::cmp::PartialOrd::le(self, other)
+    }
+
+    fn gt(&self, other: &Self) -> bool {
+        core::cmp::PartialOrd::gt(self, other)
+    }
+
+    fn ge(&self, other: &Self) -> bool {
+        core::cmp::PartialOrd::ge(self, other)
+    }
+}
+
+pub trait Order {
+    fn max(&self, other: &Self) -> Self;
+    fn min(&self, other: &Self) -> Self;
+    fn clamp(&self, min: &Self, max: &Self) -> Self;
+}
+
+impl<T> Order for T
+where
+    T: core::cmp::Ord + Clone,
+{
+    fn max(&self, other: &Self) -> Self {
+        core::cmp::Ord::max(self, other).clone()
+    }
+
+    fn min(&self, other: &Self) -> Self {
+        core::cmp::Ord::min(self, other).clone()
+    }
+
+    fn clamp(&self, min: &Self, max: &Self) -> Self {
+        core::cmp::Ord::clamp(self, min, max).clone()
+    }
 }
 
 pub trait Add {

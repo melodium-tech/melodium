@@ -4,6 +4,7 @@
 use melodium_macro::mel_package;
 
 pub mod conv;
+pub mod data;
 pub mod engine;
 pub mod flow;
 pub mod ops;
