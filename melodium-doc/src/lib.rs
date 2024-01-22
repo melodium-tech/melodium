@@ -111,10 +111,10 @@ impl Documentation {
                     m.identifier().name(),
                     Self::id_filepath(m.identifier())
                 ),
-                Entry::Data(o) => format!(
-                    "- [■ {}]({})\n",
-                    o.identifier().name(),
-                    Self::id_filepath(o.identifier())
+                Entry::Data(d) => format!(
+                    "- [◼ {}]({})\n",
+                    d.identifier().name(),
+                    Self::id_filepath(d.identifier())
                 ),
                 Entry::Treatment(t) => format!(
                     "- [⤇ {}]({})\n",
@@ -161,7 +161,7 @@ impl Documentation {
             self.make_area(sub_area, sub_path)?;
         }
 
-        let mut objects = String::new();
+        let mut datas = String::new();
         let mut contexts = String::new();
         let mut functions = String::new();
         let mut models = String::new();
@@ -198,14 +198,14 @@ impl Documentation {
                         name = m.identifier().name()
                     ));
                 }
-                Entry::Data(o) => {
-                    if objects.is_empty() {
-                        objects.push_str("## Objects\n\n");
+                Entry::Data(d) => {
+                    if datas.is_empty() {
+                        datas.push_str("## Data types\n\n");
                     }
 
-                    objects.push_str(&format!(
-                        "■[ {name}]({name}.md)  \n",
-                        name = o.identifier().name()
+                    datas.push_str(&format!(
+                        "◼[ {name}]({name}.md)  \n",
+                        name = d.identifier().name()
                     ));
                 }
                 Entry::Treatment(t) => {
@@ -233,7 +233,7 @@ impl Documentation {
             format!("src/{}/index.md", path.join("/"))
         };
         let content = format!(
-            "# {title}{display_path}\n\n---\n\n{subs}{contexts}{functions}{models}{treatments}"
+            "# {title}{display_path}\n\n---\n\n{subs}{datas}{contexts}{functions}{models}{treatments}"
         );
 
         self.write(&file, content.as_bytes())?;
@@ -246,7 +246,7 @@ impl Documentation {
             Entry::Context(c) => self.context_content(c),
             Entry::Function(f) => self.function_content(f),
             Entry::Model(m) => self.model_content(m),
-            Entry::Data(o) => self.object_content(o),
+            Entry::Data(o) => self.data_content(o),
             Entry::Treatment(t) => self.treatment_content(t),
         };
 
@@ -292,10 +292,10 @@ impl Documentation {
 
             for generic in function.generics().iter() {
                 if generic.traits.is_empty() {
-                    string.push_str(&format!("○ `{}` _(any)_  \n", generic.name));
+                    string.push_str(&format!("◻ `{}` _(any)_  \n", generic.name));
                 } else {
                     string.push_str(&format!(
-                        "○ `{}:` {}  \n",
+                        "◻ `{}:` {}  \n",
                         generic.name,
                         generic
                             .traits
@@ -452,12 +452,12 @@ impl Documentation {
         )
     }
 
-    fn object_content(&self, object: &Arc<dyn Data>) -> String {
+    fn data_content(&self, data: &Arc<dyn Data>) -> String {
         format!(
-            "# Object {name}\n\n`{id}`\n\n---\n\n{doc}",
-            name = object.identifier().name(),
-            id = object.identifier().to_string(),
-            doc = object.documentation(),
+            "# Data {name}\n\n`{id}`\n\n---\n\n{doc}",
+            name = data.identifier().name(),
+            id = data.identifier().to_string(),
+            doc = data.documentation(),
         )
     }
 
@@ -467,10 +467,10 @@ impl Documentation {
 
             for generic in treatment.generics().iter() {
                 if generic.traits.is_empty() {
-                    string.push_str(&format!("○ `{}` _(any)_  \n", generic.name));
+                    string.push_str(&format!("◻ `{}` _(any)_  \n", generic.name));
                 } else {
                     string.push_str(&format!(
-                        "○ `{}:` {}  \n",
+                        "◻ `{}:` {}  \n",
                         generic.name,
                         generic
                             .traits
