@@ -1,11 +1,11 @@
 use super::{DataTrait, Documented, Identified};
 use core::fmt::{Debug, Display};
 
-pub trait Object: Identified + Documented + Display + Debug + Send + Sync {
+pub trait Data: Identified + Documented + Display + Debug + Send + Sync {
     fn implements(&self) -> &[DataTrait];
 }
 
-impl PartialEq for dyn Object {
+impl PartialEq for dyn Data {
     fn eq(&self, other: &Self) -> bool {
         self.identifier() == other.identifier()
     }

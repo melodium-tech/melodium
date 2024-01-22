@@ -1,12 +1,12 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
-mod object_traits;
+mod data_traits;
 
 use convert_case::{Case, Casing};
 use core::{borrow::Borrow, convert::TryFrom, iter::FromIterator, slice::Iter};
+use data_traits::data_traits;
 use litrs::StringLit;
-use object_traits::object_traits;
 use proc_macro::TokenStream;
 use proc_macro2::{token_stream::IntoIter as IntoIterTokenStream, TokenTree};
 use quote::quote;
@@ -674,7 +674,7 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
         .iter()
         .map(|elmt| {
             format!(
-                "collection.insert(melodium_core::common::descriptor::Entry::Object(crate{elmt}));"
+                "collection.insert(melodium_core::common::descriptor::Entry::Data(crate{elmt}));"
             )
         })
         .collect::<Vec<_>>()
@@ -1904,7 +1904,7 @@ pub fn mel_type(attr: TokenStream, item: TokenStream) -> TokenStream {
             .unwrap();
 
         description = quote! {
-            melodium_core::descriptor::Object::new(
+            melodium_core::descriptor::Data::new(
                     identifier(),
                     #documentation.to_string(),
                     {
@@ -1917,7 +1917,7 @@ pub fn mel_type(attr: TokenStream, item: TokenStream) -> TokenStream {
         };
     }
 
-    let implementation = object_traits(&name, &traits);
+    let implementation = data_traits(&name, &traits);
     /*{
         let get: proc_macro2::TokenStream = fields.iter().map(|(name, _)| {
             format!(
@@ -1960,13 +1960,13 @@ pub fn mel_type(attr: TokenStream, item: TokenStream) -> TokenStream {
         pub mod #module_name {
             use super::*;
 
-            static DESCRIPTOR: std::sync::Mutex<Option<std::sync::Arc<melodium_core::descriptor::Object>>> = std::sync::Mutex::new(None);
+            static DESCRIPTOR: std::sync::Mutex<Option<std::sync::Arc<melodium_core::descriptor::Data>>> = std::sync::Mutex::new(None);
 
             pub fn identifier() -> melodium_core::common::descriptor::Identifier {
                 melodium_core::descriptor::module_path_to_identifier(module_path!(), #element_name)
             }
 
-            pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Object> {
+            pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Data> {
                 let mut desc = DESCRIPTOR.lock().unwrap();
                 if let Some(desc) = &*desc {
                     std::sync::Arc::clone(&desc)
@@ -1983,8 +1983,8 @@ pub fn mel_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         #implementation
 
-        impl melodium_core::common::executive::Object for #name {
-            fn descriptor(&self) -> std::sync::Arc<dyn melodium_core::common::descriptor::Object> {
+        impl melodium_core::common::executive::Data for #name {
+            fn descriptor(&self) -> std::sync::Arc<dyn melodium_core::common::descriptor::Data> {
                 #module_name::descriptor()
             }
         }

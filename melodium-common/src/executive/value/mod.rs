@@ -1,7 +1,7 @@
 mod data;
 mod traits;
 
-use super::Object;
+use super::Data;
 use crate::descriptor::DataType;
 pub use data::GetData;
 use std::sync::Arc;
@@ -33,7 +33,7 @@ pub enum Value {
     Vec(Vec<Value>),
     Option(Option<Box<Value>>),
 
-    Object(Arc<dyn Object>),
+    Data(Arc<dyn Data>),
 }
 
 impl Value {
@@ -70,7 +70,7 @@ impl Value {
                 .map(|val| DataType::Vec(Box::new(val.datatype())))
                 .unwrap_or(DataType::Undetermined),
 
-            Value::Object(obj) => DataType::Object(obj.descriptor()),
+            Value::Data(obj) => DataType::Data(obj.descriptor()),
         }
     }
 }
@@ -97,7 +97,7 @@ impl PartialEq for Value {
             (Self::String(l0), Self::String(r0)) => l0 == r0,
             (Self::Vec(l0), Self::Vec(r0)) => l0 == r0,
             (Self::Option(l0), Self::Option(r0)) => l0 == r0,
-            (Self::Object(_l0), Self::Object(_r0)) => false,
+            (Self::Data(_l0), Self::Data(_r0)) => false,
             _ => false,
         }
     }

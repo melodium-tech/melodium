@@ -3,7 +3,7 @@
 
 use itertools::Itertools;
 use melodium_common::descriptor::{
-    Collection, CollectionTree, Context, Entry, Flow, Function, Identifier, Input, Model, Object,
+    Collection, CollectionTree, Context, Data, Entry, Flow, Function, Identifier, Input, Model,
     Output, Parameter, Treatment,
 };
 use std::collections::HashMap;
@@ -111,7 +111,7 @@ impl Documentation {
                     m.identifier().name(),
                     Self::id_filepath(m.identifier())
                 ),
-                Entry::Object(o) => format!(
+                Entry::Data(o) => format!(
                     "- [■ {}]({})\n",
                     o.identifier().name(),
                     Self::id_filepath(o.identifier())
@@ -198,7 +198,7 @@ impl Documentation {
                         name = m.identifier().name()
                     ));
                 }
-                Entry::Object(o) => {
+                Entry::Data(o) => {
                     if objects.is_empty() {
                         objects.push_str("## Objects\n\n");
                     }
@@ -246,7 +246,7 @@ impl Documentation {
             Entry::Context(c) => self.context_content(c),
             Entry::Function(f) => self.function_content(f),
             Entry::Model(m) => self.model_content(m),
-            Entry::Object(o) => self.object_content(o),
+            Entry::Data(o) => self.object_content(o),
             Entry::Treatment(t) => self.treatment_content(t),
         };
 
@@ -452,7 +452,7 @@ impl Documentation {
         )
     }
 
-    fn object_content(&self, object: &Arc<dyn Object>) -> String {
+    fn object_content(&self, object: &Arc<dyn Data>) -> String {
         format!(
             "# Object {name}\n\n`{id}`\n\n---\n\n{doc}",
             name = object.identifier().name(),

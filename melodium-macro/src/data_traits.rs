@@ -1,10 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-pub fn object_traits<T: AsRef<str> + PartialEq<str>>(
-    name_str: &str,
-    traits: &Vec<T>,
-) -> TokenStream {
+pub fn data_traits<T: AsRef<str> + PartialEq<str>>(name_str: &str, traits: &Vec<T>) -> TokenStream {
     let name: TokenStream = name_str.parse().unwrap();
 
     let to_i8 = to_i8(name_str, traits.iter().any(|t| t == "ToI8"));
@@ -847,9 +844,9 @@ fn binary(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn binary_and(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Binary::and(self, &obj))
                             )
                         }
@@ -862,9 +859,9 @@ fn binary(name: &str, implemented: bool) -> TokenStream {
 
             fn binary_or(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Binary::or(self, &obj))
                             )
                         }
@@ -877,9 +874,9 @@ fn binary(name: &str, implemented: bool) -> TokenStream {
 
             fn binary_xor(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Binary::xor(self, &obj))
                             )
                         }
@@ -891,7 +888,7 @@ fn binary(name: &str, implemented: bool) -> TokenStream {
             }
 
             fn binary_not(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Binary::not(self))
                 )
             }
@@ -922,13 +919,13 @@ fn signed(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn signed_abs(&self) -> Option<melodium_core::common::executive::Value> {
                 melodium_core::executive::Signed::abs(self)
-                    .map(|obj| melodium_core::common::executive::Value::Object(
+                    .map(|obj| melodium_core::common::executive::Value::Data(
                         std::sync::Arc::new(obj)
                     ))
             }
 
             fn signed_signum(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Signed::signum(self))
                 )
             }
@@ -986,46 +983,46 @@ fn float(name: &str, implemented: bool) -> TokenStream {
             }
 
             fn float_floor(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::floor(self))
                 )
             }
 
             fn float_ceil(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::ceil(self))
                 )
             }
 
             fn float_round(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::round(self))
                 )
             }
 
             fn float_trunc(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::trunc(self))
                 )
             }
 
             fn float_fract(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::fract(self))
                 )
             }
 
             fn float_recip(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::recip(self))
                 )
             }
 
             fn float_pow(&self, n: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match n {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Float::pow(self, &obj))
                             )
                         }
@@ -1037,34 +1034,34 @@ fn float(name: &str, implemented: bool) -> TokenStream {
             }
 
             fn float_sqrt(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::sqrt(self))
                 )
             }
 
             fn float_exp(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::exp(self))
                 )
             }
 
             fn float_exp2(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::exp2(self))
                 )
             }
 
             fn float_ln(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::ln(self))
                 )
             }
 
             fn float_log(&self, base: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match base {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Float::log(self, &obj))
                             )
                         }
@@ -1076,28 +1073,28 @@ fn float(name: &str, implemented: bool) -> TokenStream {
             }
 
             fn float_log2(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::log2(self))
                 )
             }
 
             fn float_log10(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::log10(self))
                 )
             }
 
             fn float_cbrt(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::cbrt(self))
                 )
             }
 
             fn float_hypot(&self, n: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match n {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Float::hypot(self, &obj))
                             )
                         }
@@ -1109,46 +1106,46 @@ fn float(name: &str, implemented: bool) -> TokenStream {
             }
 
             fn float_sin(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::sin(self))
                 )
             }
 
             fn float_cos(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::cos(self))
                 )
             }
 
             fn float_tan(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::tan(self))
                 )
             }
 
             fn float_asin(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::asin(self))
                 )
             }
 
             fn float_acos(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::acos(self))
                 )
             }
 
             fn float_atan(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::atan(self))
                 )
             }
 
             fn float_atan2(&self, n: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match n {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Float::atan2(self, &obj))
                             )
                         }
@@ -1160,49 +1157,49 @@ fn float(name: &str, implemented: bool) -> TokenStream {
             }
 
             fn float_sinh(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::sinh(self))
                 )
             }
 
             fn float_cosh(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::cosh(self))
                 )
             }
 
             fn float_tanh(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::tanh(self))
                 )
             }
 
             fn float_asinh(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::asinh(self))
                 )
             }
 
             fn float_acosh(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::acosh(self))
                 )
             }
 
             fn float_atanh(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::atanh(self))
                 )
             }
 
             fn float_to_degrees(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::to_degrees(self))
                 )
             }
 
             fn float_to_radians(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Float::to_radians(self))
                 )
             }
@@ -1361,7 +1358,7 @@ fn partial_equality(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn partial_equality_eq(&self, other: &melodium_core::common::executive::Value) -> bool {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
                             melodium_core::executive::PartialEquality::eq(self, &obj)
                         }
@@ -1374,7 +1371,7 @@ fn partial_equality(name: &str, implemented: bool) -> TokenStream {
 
             fn partial_equality_ne(&self, other: &melodium_core::common::executive::Value) -> bool {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
                             melodium_core::executive::PartialEquality::ne(self, &obj)
                         }
@@ -1403,7 +1400,7 @@ fn partial_order(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn partial_order_lt(&self, other: &melodium_core::common::executive::Value) -> bool {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
                             melodium_core::executive::PartialOrder::lt(self, &obj)
                         }
@@ -1416,7 +1413,7 @@ fn partial_order(name: &str, implemented: bool) -> TokenStream {
 
             fn partial_order_le(&self, other: &melodium_core::common::executive::Value) -> bool {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
                             melodium_core::executive::PartialOrder::le(self, &obj)
                         }
@@ -1429,7 +1426,7 @@ fn partial_order(name: &str, implemented: bool) -> TokenStream {
 
             fn partial_order_gt(&self, other: &melodium_core::common::executive::Value) -> bool {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
                             melodium_core::executive::PartialOrder::gt(self, &obj)
                         }
@@ -1442,7 +1439,7 @@ fn partial_order(name: &str, implemented: bool) -> TokenStream {
 
             fn partial_order_ge(&self, other: &melodium_core::common::executive::Value) -> bool {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
                             melodium_core::executive::PartialOrder::ge(self, &obj)
                         }
@@ -1479,9 +1476,9 @@ fn order(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn order_max(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Order::max(self, &obj))
                             )
                         }
@@ -1494,9 +1491,9 @@ fn order(name: &str, implemented: bool) -> TokenStream {
 
             fn order_min(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Order::min(self, &obj))
                             )
                         }
@@ -1509,9 +1506,9 @@ fn order(name: &str, implemented: bool) -> TokenStream {
 
             fn order_clamp(&self, min: &melodium_core::common::executive::Value, max: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match (min, max) {
-                    (melodium_core::common::executive::Value::Object(min), melodium_core::common::executive::Value::Object(max)) =>
+                    (melodium_core::common::executive::Value::Data(min), melodium_core::common::executive::Value::Data(max)) =>
                         if let (Ok(min), Ok(max)) = (std::sync::Arc::clone(min).downcast_arc::<Self>(), std::sync::Arc::clone(max).downcast_arc::<Self>()) {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Order::clamp(self, &min, &max))
                             )
                         }
@@ -1544,9 +1541,9 @@ fn add(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn add(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Add::add(self, &obj))
                             )
                         }
@@ -1572,10 +1569,10 @@ fn checked_add(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn checked_add(&self, other: &melodium_core::common::executive::Value) -> Option<melodium_core::common::executive::Value> {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
                             melodium_core::executive::CheckedAdd::checked_add(self, &obj)
-                                .map(|obj| melodium_core::common::executive::Value::Object(
+                                .map(|obj| melodium_core::common::executive::Value::Data(
                                     std::sync::Arc::new(obj)
                                 ))
                         }
@@ -1600,9 +1597,9 @@ fn saturating_add(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn saturating_add(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::SaturatingAdd::saturating_add(self, &obj))
                             )
                         }
@@ -1627,9 +1624,9 @@ fn wrapping_add(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn wrapping_add(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::WrappingAdd::wrapping_add(self, &obj))
                             )
                         }
@@ -1654,9 +1651,9 @@ fn sub(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn sub(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Sub::sub(self, &obj))
                             )
                         }
@@ -1681,10 +1678,10 @@ fn checked_sub(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn checked_sub(&self, other: &melodium_core::common::executive::Value) -> Option<melodium_core::common::executive::Value> {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
                             melodium_core::executive::CheckedSub::checked_sub(self, &obj)
-                                .map(|obj| melodium_core::common::executive::Value::Object(
+                                .map(|obj| melodium_core::common::executive::Value::Data(
                                     std::sync::Arc::new(obj)
                                 ))
                         }
@@ -1708,9 +1705,9 @@ fn saturating_sub(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn saturating_sub(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::SaturatingSub::saturating_sub(self, &obj))
                             )
                         }
@@ -1735,9 +1732,9 @@ fn wrapping_sub(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn wrapping_sub(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::WrappingSub::wrapping_sub(self, &obj))
                             )
                         }
@@ -1762,9 +1759,9 @@ fn mul(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn mul(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Mul::mul(self, &obj))
                             )
                         }
@@ -1789,10 +1786,10 @@ fn checked_mul(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn checked_mul(&self, other: &melodium_core::common::executive::Value) -> Option<melodium_core::common::executive::Value> {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
                             melodium_core::executive::CheckedMul::checked_mul(self, &obj)
-                                .map(|obj| melodium_core::common::executive::Value::Object(
+                                .map(|obj| melodium_core::common::executive::Value::Data(
                                     std::sync::Arc::new(obj)
                                 ))
                         }
@@ -1816,9 +1813,9 @@ fn saturating_mul(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn saturating_mul(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::SaturatingMul::saturating_mul(self, &obj))
                             )
                         }
@@ -1843,9 +1840,9 @@ fn wrapping_mul(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn wrapping_mul(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::WrappingMul::wrapping_mul(self, &obj))
                             )
                         }
@@ -1870,9 +1867,9 @@ fn div(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn div(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Div::div(self, &obj))
                             )
                         }
@@ -1897,10 +1894,10 @@ fn checked_div(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn checked_div(&self, other: &melodium_core::common::executive::Value) -> Option<melodium_core::common::executive::Value> {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
                             melodium_core::executive::CheckedDiv::checked_div(self, &obj)
-                                .map(|obj| melodium_core::common::executive::Value::Object(
+                                .map(|obj| melodium_core::common::executive::Value::Data(
                                     std::sync::Arc::new(obj)
                                 ))
                         }
@@ -1924,9 +1921,9 @@ fn rem(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn rem(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Rem::rem(self, &obj))
                             )
                         }
@@ -1951,10 +1948,10 @@ fn checked_rem(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn checked_rem(&self, other: &melodium_core::common::executive::Value) -> Option<melodium_core::common::executive::Value> {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
                             melodium_core::executive::CheckedRem::checked_rem(self, &obj)
-                                .map(|obj| melodium_core::common::executive::Value::Object(
+                                .map(|obj| melodium_core::common::executive::Value::Data(
                                     std::sync::Arc::new(obj)
                                 ))
                         }
@@ -1978,7 +1975,7 @@ fn neg(name: &str, implemented: bool) -> TokenStream {
     if implemented {
         quote! {
             fn neg(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Neg::neg(self))
                 )
             }
@@ -1997,7 +1994,7 @@ fn checked_neg(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn checked_neg(&self) -> Option<melodium_core::common::executive::Value> {
                 melodium_core::executive::CheckedNeg::checked_neg(self)
-                    .map(|obj| melodium_core::common::executive::Value::Object(
+                    .map(|obj| melodium_core::common::executive::Value::Data(
                         std::sync::Arc::new(obj)
                     ))
             }
@@ -2015,7 +2012,7 @@ fn wrapping_neg(name: &str, implemented: bool) -> TokenStream {
     if implemented {
         quote! {
             fn wrapping_neg(&self) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::WrappingNeg::wrapping_neg(self))
                 )
             }
@@ -2033,7 +2030,7 @@ fn pow(name: &str, implemented: bool) -> TokenStream {
     if implemented {
         quote! {
             fn pow(&self, exp: &u32) -> melodium_core::common::executive::Value {
-                melodium_core::common::executive::Value::Object(
+                melodium_core::common::executive::Value::Data(
                     std::sync::Arc::new(melodium_core::executive::Pow::pow(self, exp))
                 )
             }
@@ -2052,7 +2049,7 @@ fn checked_pow(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn checked_pow(&self, exp: &u32) -> Option<melodium_core::common::executive::Value> {
                 melodium_core::executive::CheckedPow::checked_pow(self, exp)
-                    .map(|obj| melodium_core::common::executive::Value::Object(
+                    .map(|obj| melodium_core::common::executive::Value::Data(
                         std::sync::Arc::new(obj)
                     ))
             }
@@ -2071,9 +2068,9 @@ fn euclid(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn euclid_div(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Euclid::euclid_div(self, &obj))
                             )
                         }
@@ -2086,9 +2083,9 @@ fn euclid(name: &str, implemented: bool) -> TokenStream {
 
             fn euclid_rem(&self, other: &melodium_core::common::executive::Value) -> melodium_core::common::executive::Value {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
-                            melodium_core::common::executive::Value::Object(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(melodium_core::executive::Euclid::euclid_rem(self, &obj))
                             )
                         }
@@ -2118,10 +2115,10 @@ fn checked_euclid(name: &str, implemented: bool) -> TokenStream {
         quote! {
             fn checked_euclid_div(&self, other: &melodium_core::common::executive::Value) -> Option<melodium_core::common::executive::Value> {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
                             melodium_core::executive::CheckedEuclid::checked_euclid_div(self, &obj)
-                                .map(|obj| melodium_core::common::executive::Value::Object(
+                                .map(|obj| melodium_core::common::executive::Value::Data(
                                     std::sync::Arc::new(obj)
                                 ))
                         }
@@ -2134,10 +2131,10 @@ fn checked_euclid(name: &str, implemented: bool) -> TokenStream {
 
             fn checked_euclid_rem(&self, other: &melodium_core::common::executive::Value) -> Option<melodium_core::common::executive::Value> {
                 match other {
-                    melodium_core::common::executive::Value::Object(obj) =>
+                    melodium_core::common::executive::Value::Data(obj) =>
                         if let Ok(obj) = std::sync::Arc::clone(obj).downcast_arc::<Self>() {
                             melodium_core::executive::CheckedEuclid::checked_euclid_rem(self, &obj)
-                                .map(|obj| melodium_core::common::executive::Value::Object(
+                                .map(|obj| melodium_core::common::executive::Value::Data(
                                     std::sync::Arc::new(obj)
                                 ))
                         }
