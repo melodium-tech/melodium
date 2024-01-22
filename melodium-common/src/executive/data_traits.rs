@@ -1,3 +1,6 @@
+use core::{hash::Hasher, fmt::Formatter};
+use erased_serde::Serializer;
+
 use super::Value;
 
 pub trait DataTrait {
@@ -138,4 +141,15 @@ pub trait DataTrait {
     fn euclid_rem(&self, other: &Value) -> Value;
     fn checked_euclid_div(&self, other: &Value) -> Option<Value>;
     fn checked_euclid_rem(&self, other: &Value) -> Option<Value>;
+
+    fn hash(&self, state: &mut dyn Hasher);
+    
+    fn serialize(
+        &self,
+        serializer: &mut dyn Serializer
+    ) -> Result<(), erased_serde::Error>;
+
+    //fn as_serialize(&self) -> &dyn erased_serde::Serialize;
+
+    fn display(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error>;
 }

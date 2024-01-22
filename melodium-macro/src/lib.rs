@@ -534,7 +534,7 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
                         let mut is_mel_treatment = false;
                         let mut is_mel_model = false;
                         let mut is_mel_context = false;
-                        let mut is_mel_type = false;
+                        let mut is_mel_data = false;
                         match item {
                             Item::Fn(item_fn) => {
                                 name = item_fn.sig.ident.to_string();
@@ -570,7 +570,7 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
                                     {
                                         "mel_model" => is_mel_model = true,
                                         "mel_context" => is_mel_context = true,
-                                        "mel_type" => is_mel_type = true,
+                                        "mel_data" => is_mel_data = true,
                                         _ => {}
                                     }
                                 });
@@ -613,8 +613,8 @@ pub fn mel_package(_: TokenStream) -> TokenStream {
                         } else if is_mel_context {
                             call.push_str(&format!("::__mel_context_{name}::descriptor()"));
                             contexts.push(call);
-                        } else if is_mel_type {
-                            call.push_str(&format!("::__mel_type_{name}::descriptor()"));
+                        } else if is_mel_data {
+                            call.push_str(&format!("::__mel_data_{name}::descriptor()"));
                             types.push(call);
                         }
                     }
@@ -1844,7 +1844,7 @@ pub fn mel_context(attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn mel_type(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn mel_data(attr: TokenStream, item: TokenStream) -> TokenStream {
     let typ: ItemStruct = parse(item).unwrap();
     let mut attributes = HashMap::new();
     let mut traits = Vec::new();
@@ -1955,7 +1955,7 @@ pub fn mel_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let element_name = name.clone();
     let name: proc_macro2::TokenStream = name.parse().unwrap();
-    let module_name: proc_macro2::TokenStream = format!("__mel_type_{name}").parse().unwrap();
+    let module_name: proc_macro2::TokenStream = format!("__mel_data_{name}").parse().unwrap();
     let expanded = quote! {
         pub mod #module_name {
             use super::*;

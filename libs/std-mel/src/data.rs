@@ -1,80 +1,42 @@
+use std::collections::HashMap;
 use melodium_core::{executive::*, *};
-use melodium_macro::mel_type;
+use melodium_macro::mel_data;
+use serde::{Serialize, Deserialize};
 
-#[mel_type(
-    traits (Binary Signed PartialEquality PartialOrder Order Euclid CheckedEuclid Pow CheckedNeg)
+#[mel_data(
+    traits (PartialEquality Serialize Deserialize)
 )]
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Structure {
-    truc: String,
+    inner: HashMap<String, Item>,
 }
 
-impl Binary for Structure {
-    fn and(&self, other: &Self) -> Self {
-        Structure {
-            truc: "".to_string(),
-        }
-    }
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum Item {
+    Void(()),
 
-    fn or(&self, other: &Self) -> Self {
-        todo!()
-    }
+    I8(i8),
+    I16(i16),
+    I32(i32),
+    I64(i64),
+    I128(i128),
 
-    fn xor(&self, other: &Self) -> Self {
-        todo!()
-    }
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    U128(u128),
 
-    fn not(&self) -> Self {
-        todo!()
-    }
-}
+    F32(f32),
+    F64(f64),
 
-impl Signed for Structure {
-    fn abs(&self) -> Option<Self> {
-        todo!()
-    }
+    Bool(bool),
+    Byte(u8),
+    Char(char),
+    String(String),
 
-    fn signum(&self) -> Self {
-        todo!()
-    }
+    Vec(Vec<Item>),
+    Option(Option<Box<Item>>),
 
-    fn is_positive(&self) -> bool {
-        todo!()
-    }
-
-    fn is_negative(&self) -> bool {
-        todo!()
-    }
-}
-
-impl Euclid for Structure {
-    fn euclid_div(&self, other: &Self) -> Self {
-        todo!()
-    }
-
-    fn euclid_rem(&self, other: &Self) -> Self {
-        todo!()
-    }
-}
-
-impl CheckedEuclid for Structure {
-    fn checked_euclid_div(&self, other: &Self) -> Option<Self> {
-        todo!()
-    }
-
-    fn checked_euclid_rem(&self, other: &Self) -> Option<Self> {
-        todo!()
-    }
-}
-
-impl Pow for Structure {
-    fn pow(&self, exp: &u32) -> Self {
-        todo!()
-    }
-}
-
-impl CheckedNeg for Structure {
-    fn checked_neg(&self) -> Option<Self> {
-        todo!()
-    }
+    Structure(Box<Item>),
 }

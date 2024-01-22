@@ -2,8 +2,22 @@
 #![doc = include_str!("../README.md")]
 
 use jaq_interpret::{Ctx, FilterT, ParseCtx, RcIter, Val};
-use melodium_core::*;
-use melodium_macro::{check, mel_package, mel_treatment};
+use melodium_core::{*, executive::*};
+use melodium_macro::{check, mel_package, mel_treatment, mel_data};
+
+#[mel_data(
+    traits (ToString Hash Display)
+)]
+#[derive(Debug, Clone)]
+pub struct Json {
+    json: String,
+}
+
+impl ToString for Json {
+    fn to_string(&self) -> string {
+        self.json.clone()
+    }
+}
 
 /// Validate JSON string.
 ///
