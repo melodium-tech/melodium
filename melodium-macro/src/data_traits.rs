@@ -88,6 +88,9 @@ pub fn data_traits<T: AsRef<str> + PartialEq<str>>(name_str: &str, traits: &Vec<
     let checked_pow = checked_pow(name_str, traits.iter().any(|t| t == "CheckedPow"));
     let euclid = euclid(name_str, traits.iter().any(|t| t == "Euclid"));
     let checked_euclid = checked_euclid(name_str, traits.iter().any(|t| t == "CheckedEuclid"));
+    let hash = hash(name_str, traits.iter().any(|t| t == "Hash"));
+    let serialize = serialize(name_str, traits.iter().any(|t| t == "Serialize"));
+    let display = display(name_str, traits.iter().any(|t| t == "Display"));
 
     quote! {
 
@@ -173,6 +176,12 @@ pub fn data_traits<T: AsRef<str> + PartialEq<str>>(name_str: &str, traits: &Vec<
 
             #euclid
             #checked_euclid
+
+            #hash
+
+            #serialize
+
+            #display
         }
 
     }
@@ -2154,6 +2163,60 @@ fn checked_euclid(name: &str, implemented: bool) -> TokenStream {
 
             fn checked_euclid_rem(&self, other: &melodium_core::common::executive::Value) -> Option<melodium_core::common::executive::Value> {
                 panic!("CheckedEuclid not implemented for {}", #name)
+            }
+        }
+    }
+}
+
+fn hash(name: &str, implemented: bool) -> TokenStream {
+    if implemented {
+        quote! {
+            fn hash(&self, mut state: &mut dyn core::hash::Hasher) {
+                melodium_core::executive::Hash::hash(self, &mut state)
+            }
+        }
+    } else {
+        quote! {
+            fn hash(&self, _state: &mut dyn core::hash::Hasher) {
+                panic!("Hash not implemented for {}", #name)
+            }
+        }
+    }
+}
+
+fn serialize(name: &str, implemented: bool) -> TokenStream {
+    if implemented {
+        quote! {
+            fn serialize(
+                &self,
+                mut serializer: &mut dyn melodium_core::ErasedSerializer
+            ) -> Result<(), melodium_core::ErasedSerdeError> {
+                melodium_core::executive::Serialize::serialize(self, &mut serializer)
+            }
+        }
+    } else {
+        quote! {
+            fn serialize(
+                &self,
+                _serializer: &mut dyn melodium_core::ErasedSerializer
+            ) -> Result<(), melodium_core::ErasedSerdeError> {
+                panic!("Serialize not implemented for {}", #name)
+            }
+        }
+    }
+}
+
+fn display(name: &str, implemented: bool) -> TokenStream {
+    if implemented {
+        quote! {
+            fn display(&self, mut f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+                melodium_core::executive::Display::display(self, &mut f)
+            }
+        }
+    } else {
+        quote! {
+            fn display(&self, _f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+                panic!("Display not implemented for {}", #name)
             }
         }
     }

@@ -1,8 +1,8 @@
-use erased_serde::Serialize;
-use serde::ser::SerializeSeq;
 use super::Value;
 use crate::executive::DataTrait;
-use core::{convert::TryInto, hash::Hash};
+use core::{convert::TryInto, fmt::Debug, hash::Hash};
+use erased_serde::Serialize;
+use serde::ser::SerializeSeq;
 
 impl DataTrait for Value {
     fn to_i8(&self) -> i8 {
@@ -2725,11 +2725,13 @@ impl DataTrait for Value {
             Value::Char(me) => me.hash(&mut state),
             Value::String(me) => me.hash(&mut state),
             Value::Vec(me) => me.iter().for_each(|elmt| elmt.hash(&mut state)),
-            Value::Option(me) => if let Some(elmt) = me {
-                elmt.hash(&mut state)
-            } else {
-                ().hash(&mut state)
-            },
+            Value::Option(me) => {
+                if let Some(elmt) = me {
+                    elmt.hash(&mut state)
+                } else {
+                    ().hash(&mut state)
+                }
+            }
             Value::Data(me) => me.hash(&mut state),
             other => panic!("Hash not supported for {}", other.datatype()),
         }
@@ -2737,80 +2739,60 @@ impl DataTrait for Value {
 
     fn serialize(
         &self,
-        serializer: &mut dyn erased_serde::Serializer
+        serializer: &mut dyn erased_serde::Serializer,
     ) -> Result<(), erased_serde::Error> {
         self.erased_serialize(serializer)
-        //erased_serde::serialize(self, serializer)
-        /*match self {
-            Value::Void(_) => Ok(serializer.erased_serialize_unit()),
-            Value::I8(me) => Ok(serializer.erased_serialize_i8(*me)),
-            Value::I16(me) => Ok(serializer.erased_serialize_i16(*me)),
-            Value::I32(me) => Ok(serializer.erased_serialize_i32(*me)),
-            Value::I64(me) => Ok(serializer.erased_serialize_i64(*me)),
-            Value::I128(me) => Ok(serializer.erased_serialize_i128(*me)),
-            Value::U8(me) => Ok(serializer.erased_serialize_u8(*me)),
-            Value::U16(me) => Ok(serializer.erased_serialize_u16(*me)),
-            Value::U32(me) => Ok(serializer.erased_serialize_u32(*me)),
-            Value::U64(me) => Ok(serializer.erased_serialize_u64(*me)),
-            Value::U128(me) => Ok(serializer.erased_serialize_u128(*me)),
-            Value::F32(me) => Ok(serializer.erased_serialize_f32(*me)),
-            Value::F64(me) => Ok(serializer.erased_serialize_f64(*me)),
-            Value::Bool(me) => Ok(serializer.erased_serialize_bool(*me)),
-            Value::Byte(me) => Ok(serializer.erased_serialize_bytes(&[*me])),
-            Value::Char(me) => Ok(serializer.erased_serialize_char(*me)),
-            Value::String(me) => Ok(serializer.erased_serialize_str(me)),
-            Value::Vec(me) => /*serializer.erased_serialize_seq(Some(me.len())).map(|ser| {
-                todo!()
-            })*/todo!(),
-            Value::Option(_) => todo!(),
-            Value::Data(_) => todo!(),
-        }*/
     }
 
-    fn display(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
-        todo!()
+    fn display(&self, mut f: &mut std::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+        match self {
+            Value::Data(data) => data.display(&mut f),
+            _ => self.fmt(f),
+        }
     }
 }
 
 impl serde::Serialize for Value {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer {
+        S: serde::Serializer,
+    {
         match self {
             Value::Void(_) => serializer.serialize_unit(),
-            Value::I8(_) => todo!(),
-            Value::I16(_) => todo!(),
-            Value::I32(_) => todo!(),
-            Value::I64(_) => todo!(),
-            Value::I128(_) => todo!(),
-            Value::U8(_) => todo!(),
-            Value::U16(_) => todo!(),
-            Value::U32(_) => todo!(),
-            Value::U64(_) => todo!(),
-            Value::U128(_) => todo!(),
-            Value::F32(_) => todo!(),
-            Value::F64(_) => todo!(),
-            Value::Bool(_) => todo!(),
-            Value::Byte(_) => todo!(),
-            Value::Char(_) => todo!(),
-            Value::String(_) => todo!(),
-            Value::Vec(me) => {let mut ser = serializer.serialize_seq(Some(me.len()))?; 
+            Value::I8(me) => serializer.serialize_i8(*me),
+            Value::I16(me) => serializer.serialize_i16(*me),
+            Value::I32(me) => serializer.serialize_i32(*me),
+            Value::I64(me) => serializer.serialize_i64(*me),
+            Value::I128(me) => serializer.serialize_i128(*me),
+            Value::U8(me) => serializer.serialize_u8(*me),
+            Value::U16(me) => serializer.serialize_u16(*me),
+            Value::U32(me) => serializer.serialize_u32(*me),
+            Value::U64(me) => serializer.serialize_u64(*me),
+            Value::U128(me) => serializer.serialize_u128(*me),
+            Value::F32(me) => serializer.serialize_f32(*me),
+            Value::F64(me) => serializer.serialize_f64(*me),
+            Value::Bool(me) => serializer.serialize_bool(*me),
+            Value::Byte(me) => serializer.serialize_bytes(&[*me]),
+            Value::Char(me) => serializer.serialize_char(*me),
+            Value::String(me) => serializer.serialize_str(me),
+            Value::Vec(me) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
                 for val in me {
                     ser.serialize_element(val)?;
                 }
                 ser.end()
-            },
-            Value::Option(me) => if let Some(elmt) = me {
-                serializer.serialize_some(elmt)
-            } else {
-                serializer.serialize_none()
-            },
-            Value::Data(data) => todo!(),//data.serialize(<dyn erased_serde::Serializer>::erase(serializer)).map(|_| S::Ok),
+            }
+            Value::Option(me) => {
+                if let Some(elmt) = me {
+                    serializer.serialize_some(elmt)
+                } else {
+                    serializer.serialize_none()
+                }
+            }
+            Value::Data(data) => serde::Serialize::serialize(&data, serializer),
         }
     }
 }
-
-
 
 impl core::fmt::Display for Value {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

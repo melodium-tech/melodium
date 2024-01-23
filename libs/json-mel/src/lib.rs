@@ -2,13 +2,13 @@
 #![doc = include_str!("../README.md")]
 
 use jaq_interpret::{Ctx, FilterT, ParseCtx, RcIter, Val};
-use melodium_core::{*, executive::*};
-use melodium_macro::{check, mel_package, mel_treatment, mel_data};
+use melodium_core::{executive::*, *};
+use melodium_macro::{check, mel_data, mel_package, mel_treatment};
 
 #[mel_data(
-    traits (ToString Hash Display)
+    traits (ToString Hash)
 )]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Serialize)]
 pub struct Json {
     json: String,
 }

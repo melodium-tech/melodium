@@ -391,3 +391,48 @@ pub trait CheckedEuclid: Sized {
     fn checked_euclid_div(&self, other: &Self) -> Option<Self>;
     fn checked_euclid_rem(&self, other: &Self) -> Option<Self>;
 }
+
+pub trait Hash {
+    fn hash(&self, state: &mut dyn core::hash::Hasher);
+}
+
+impl<T> Hash for T
+where
+    T: core::hash::Hash,
+{
+    fn hash(&self, mut state: &mut dyn core::hash::Hasher) {
+        core::hash::Hash::hash(&self, &mut state)
+    }
+}
+
+pub trait Serialize {
+    fn serialize(
+        &self,
+        serializer: &mut dyn crate::ErasedSerializer,
+    ) -> Result<(), crate::ErasedSerdeError>;
+}
+
+impl<T> Serialize for T
+where
+    T: crate::ErasedSerialize,
+{
+    fn serialize(
+        &self,
+        serializer: &mut dyn crate::ErasedSerializer,
+    ) -> Result<(), crate::ErasedSerdeError> {
+        self.erased_serialize(serializer)
+    }
+}
+
+pub trait Display {
+    fn display(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error>;
+}
+
+impl<T> Display for T
+where
+    T: core::fmt::Display,
+{
+    fn display(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+        core::fmt::Display::fmt(self, f)
+    }
+}

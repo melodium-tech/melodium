@@ -2038,8 +2038,10 @@ dependencies = [
 name = "melodium-core"
 version = "0.7.1"
 dependencies = [
+ "erased-serde 0.4.2",
  "melodium-common",
  "once_cell",
+ "serde",
 ]
 
 [[package]]

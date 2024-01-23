@@ -1,12 +1,11 @@
-use std::collections::HashMap;
 use melodium_core::{executive::*, *};
 use melodium_macro::mel_data;
-use serde::{Serialize, Deserialize};
+use std::collections::HashMap;
 
 #[mel_data(
     traits (PartialEquality Serialize Deserialize)
 )]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Structure {
     inner: HashMap<String, Item>,
 }

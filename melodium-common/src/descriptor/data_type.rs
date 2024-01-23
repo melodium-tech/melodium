@@ -1815,7 +1815,7 @@ impl DataType {
             },
             DataTrait::Serialize => match self {
                 DataType::Undetermined => false,
-                DataType::Void => false,
+                DataType::Void => true,
                 DataType::I8 => true,
                 DataType::I16 => true,
                 DataType::I32 => true,

@@ -1,9 +1,8 @@
-use core::{hash::Hasher, fmt::Formatter};
-use erased_serde::Serializer;
-
 use super::Value;
+use core::{fmt::Formatter, hash::Hasher};
+use erased_serde::{serialize_trait_object, Serialize, Serializer};
 
-pub trait DataTrait {
+pub trait DataTrait: Serialize {
     fn to_i8(&self) -> i8;
     fn to_i16(&self) -> i16;
     fn to_i32(&self) -> i32;
@@ -143,13 +142,10 @@ pub trait DataTrait {
     fn checked_euclid_rem(&self, other: &Value) -> Option<Value>;
 
     fn hash(&self, state: &mut dyn Hasher);
-    
-    fn serialize(
-        &self,
-        serializer: &mut dyn Serializer
-    ) -> Result<(), erased_serde::Error>;
 
-    //fn as_serialize(&self) -> &dyn erased_serde::Serialize;
+    fn serialize(&self, serializer: &mut dyn Serializer) -> Result<(), erased_serde::Error>;
 
     fn display(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error>;
 }
+
+serialize_trait_object!(DataTrait);
