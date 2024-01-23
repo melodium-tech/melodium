@@ -3,14 +3,21 @@ use melodium_macro::mel_data;
 use std::collections::HashMap;
 
 #[mel_data(
-    traits (PartialEquality Serialize Deserialize)
+    traits (PartialEquality Serialize Deserialize Display)
 )]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Structure {
     inner: HashMap<String, Item>,
 }
 
+impl Display for Structure {
+    fn display(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+        write!(f, "{:#?}", self)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum Item {
     Void(()),
 
@@ -37,5 +44,5 @@ pub enum Item {
     Vec(Vec<Item>),
     Option(Option<Box<Item>>),
 
-    Structure(Box<Item>),
+    Structure(Box<Structure>),
 }
