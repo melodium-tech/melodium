@@ -56,7 +56,7 @@ pub async fn validate() {
 ///
 /// `failures` is emitted only if the query provided is not valid [jq/jaq syntax](https://jqlang.github.io/jq/manual/v1.6/).
 #[mel_treatment(
-    input {content(json)} json Stream<string>
+    input {content(json)} json Stream<Json>
     output {content(json)} parsed Stream<Vec<string>>
     output error Stream<Vec<string>>
     output failures Block<Vec<string>>

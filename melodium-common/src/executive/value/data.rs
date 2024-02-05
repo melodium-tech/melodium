@@ -1,4 +1,6 @@
+use super::super::Data;
 use super::Value;
+use std::sync::Arc;
 
 /// Trait allowing to get real data based on Rust type.
 ///
@@ -287,6 +289,21 @@ where
                 }
                 Ok(result)
             }
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<Arc<dyn Data>> for Value {
+    fn from(value: Arc<dyn Data>) -> Self {
+        Value::Data(value)
+    }
+}
+
+impl GetData<Arc<dyn Data>> for Value {
+    fn try_data(self) -> Result<Arc<dyn Data>, ()> {
+        match self {
+            Value::Data(val) => Ok(val),
             _ => Err(()),
         }
     }

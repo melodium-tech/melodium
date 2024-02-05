@@ -97,13 +97,29 @@ fn into_mel_described_type(ty: &Vec<String>) -> String {
     write_described_type(&mut ty.iter())
 }
 
-fn into_rust_type(ty: &Vec<String>) -> String {
-    fn add_type(iter: &mut Iter<String>) -> String {
+fn into_rust_type(ty: &Vec<String>, as_dyn_if_data: bool) -> String {
+    fn add_type(iter: &mut Iter<String>, as_dyn_if_data: bool) -> String {
         let mut desc = String::new();
         if let Some(ty) = iter.next() {
-            desc.push_str(ty);
+            match ty.as_str() {
+                "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
+                | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" | "Vec"
+                | "Option" => {
+                    desc.push_str(ty);
+                }
+                data => {
+                    desc.push_str("std::sync::Arc<");
 
-            let next = add_type(iter);
+                    if as_dyn_if_data {
+                        desc.push_str("dyn melodium_core::common::executive::Data");
+                    } else {
+                        desc.push_str(data);
+                    }
+                    desc.push_str(">");
+                }
+            }
+
+            let next = add_type(iter, as_dyn_if_data);
             if !next.is_empty() {
                 desc.push('<');
                 desc.push_str(&next);
@@ -113,7 +129,7 @@ fn into_rust_type(ty: &Vec<String>) -> String {
         desc
     }
 
-    add_type(&mut ty.iter())
+    add_type(&mut ty.iter(), as_dyn_if_data)
 }
 
 fn into_rust_value(ty: &Vec<String>, lit: &str) -> String {
@@ -176,11 +192,19 @@ fn into_rust_value(ty: &Vec<String>, lit: &str) -> String {
     add_value(&mut ty.iter(), lit)
 }
 
-fn into_mel_value_call(ty: &Vec<String>) -> String {
-    format!(
-        "melodium_core::common::executive::GetData::<{}>::try_data",
-        into_rust_type(ty)
-    )
+fn into_mel_value_call(ty: &Vec<String>, inner_param: String) -> String {
+    match ty.last().unwrap().as_str() {
+            "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
+                | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" | "Vec" | "Option"
+                 => format!(
+                    "melodium_core::common::executive::GetData::<{}>::try_data({inner_param}).unwrap()",
+                    into_rust_type(ty, false)
+                ),
+            _ => format!(
+                "melodium_core::common::executive::GetData::<{}>::try_data({inner_param}).unwrap().downcast_arc().unwrap()",
+                into_rust_type(ty, true)
+            ),
+        }
 }
 
 fn config_default(ts: &mut IntoIterTokenStream) -> (String, String) {
@@ -1051,7 +1075,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                 if generics.iter().any(|(gen, _)| gen == ty.last().unwrap()) {
                     format!(r#"r#{name}: std::sync::Mutex<Option<melodium_core::common::executive::Value>>,"#)
                 } else {
-                    let rust_type = into_rust_type(ty);
+                    let rust_type = into_rust_type(ty, false);
                     format!(r#"r#{name}: std::sync::Mutex<Option<{rust_type}>>,"#)
                 }
             })
@@ -1092,9 +1116,8 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                             format!("Some({val})", val = into_rust_value(ty, lit))
                         } else {
                             format!(
-                                "Some({call}({val}).unwrap())",
-                                call = into_mel_value_call(ty),
-                                val = into_rust_value(ty, lit)
+                                "Some({call})",
+                                call = into_mel_value_call(ty, into_rust_value(ty, lit)),
                             )
                         }
                     })
@@ -1149,8 +1172,8 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                 if generics.iter().any(|(gen, _)| gen == ty.last().unwrap()) {
                     format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(value),"#)
                 } else {
-                    let call = into_mel_value_call(ty);
-                    format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some({call}(value).unwrap()),"#)
+                    let call = into_mel_value_call(ty, "value".to_string());
+                    format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some({call}),"#)
                 }
             })
             .collect::<Vec<_>>()
@@ -1459,12 +1482,12 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
         let parameters: proc_macro2::TokenStream = params
             .iter()
             .map(|(name, (ty, _, _))| {
-                let rust_type = into_rust_type(ty);
-                let call = into_mel_value_call(ty);
+                let rust_type = into_rust_type(ty, false);
+                let call = into_mel_value_call(ty, format!(r#"self.parameter("{name}").unwrap()"#));
                 format!(
                     r#"
                 pub fn get_{name}(&self) -> {rust_type} {{
-                    {call}(self.parameter("{name}").unwrap()).unwrap()
+                    {call}
                 }}
             "#
                 )
@@ -1777,8 +1800,8 @@ pub fn mel_context(attr: TokenStream, item: TokenStream) -> TokenStream {
         let set: proc_macro2::TokenStream = fields
             .iter()
             .map(|(name, ty)| {
-                let call = into_mel_value_call(ty);
-                format!(r#""{name}" => {{self.{name} = {call}(value).unwrap();}}"#)
+                let call = into_mel_value_call(ty, "value".to_string());
+                format!(r#""{name}" => {{self.{name} = {call};}}"#)
             })
             .collect::<Vec<_>>()
             .join(",")
@@ -2113,7 +2136,7 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
             {
                 format!("params[{i}].clone()")
             } else {
-                format!("{}(params[{i}].clone()).unwrap()", into_mel_value_call(ty))
+                into_mel_value_call(ty, format!("params[{i}].clone()"))
             }
         })
         .collect::<Vec<_>>()
