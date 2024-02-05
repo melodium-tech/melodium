@@ -59,7 +59,7 @@ impl Documented for Data {
 
 impl Display for Data {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "object {}", self.identifier.to_string(),)?;
+        write!(f, "data {}", self.identifier.to_string(),)?;
 
         Ok(())
     }

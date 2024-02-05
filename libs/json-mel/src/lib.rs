@@ -10,7 +10,7 @@ use melodium_macro::{check, mel_data, mel_package, mel_treatment};
 )]
 #[derive(Debug, Clone, Hash, Serialize)]
 pub struct Json {
-    json: String,
+    pub json: String,
 }
 
 impl ToString for Json {
@@ -61,12 +61,12 @@ pub async fn validate() {
     output error Stream<Vec<string>>
     output failures Block<Vec<string>>
 )]
-pub async fn query(#[mel(content(jq))] query: string) {
+pub async fn query(#[mel(content(jq))] query: Json) {
     let mut defs = ParseCtx::new(Vec::new());
     defs.insert_natives(jaq_core::core());
     defs.insert_defs(jaq_std::std());
 
-    let (filter, errs) = jaq_parse::parse(&query, jaq_parse::main());
+    let (filter, errs) = jaq_parse::parse(&query.json, jaq_parse::main());
     if !errs.is_empty() {
         let _ = failures
             .send_one(Value::Vec(

@@ -1160,7 +1160,7 @@ pub fn try_to_char(value: T) -> Option<char> {
 #[mel_treatment(
     generic T (TryToChar)
     input value Stream<T>
-    output into Stream<Option<Char>>
+    output into Stream<Option<char>>
 )]
 pub async fn try_to_char() {
     while let Ok(values) = value

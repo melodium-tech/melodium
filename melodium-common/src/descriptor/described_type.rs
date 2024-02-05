@@ -39,10 +39,73 @@ pub enum DescribedType {
 impl DescribedType {
     pub fn contains_generic(&self) -> bool {
         match self {
-            DescribedType::Option(me) => me.contains_generic(),
-            DescribedType::Vec(me) => me.contains_generic(),
+            DescribedType::Option(me) | DescribedType::Vec(me) => me.contains_generic(),
             DescribedType::Generic(_) => true,
             _ => false,
+        }
+    }
+
+    pub fn contains_core(&self) -> bool {
+        match self {
+            DescribedType::Void
+            | DescribedType::I8
+            | DescribedType::I16
+            | DescribedType::I32
+            | DescribedType::I64
+            | DescribedType::I128
+            | DescribedType::U8
+            | DescribedType::U16
+            | DescribedType::U32
+            | DescribedType::U64
+            | DescribedType::U128
+            | DescribedType::F32
+            | DescribedType::F64
+            | DescribedType::Bool
+            | DescribedType::Byte
+            | DescribedType::Char
+            | DescribedType::String => true,
+            DescribedType::Option(d) | DescribedType::Vec(d) => d.contains_core(),
+            DescribedType::Data(_) => false,
+            DescribedType::Generic(_) => false,
+        }
+    }
+
+    pub fn contains_data(&self) -> bool {
+        match self {
+            DescribedType::Void
+            | DescribedType::I8
+            | DescribedType::I16
+            | DescribedType::I32
+            | DescribedType::I64
+            | DescribedType::I128
+            | DescribedType::U8
+            | DescribedType::U16
+            | DescribedType::U32
+            | DescribedType::U64
+            | DescribedType::U128
+            | DescribedType::F32
+            | DescribedType::F64
+            | DescribedType::Bool
+            | DescribedType::Byte
+            | DescribedType::Char
+            | DescribedType::String => false,
+            DescribedType::Option(d) | DescribedType::Vec(d) => d.contains_data(),
+            DescribedType::Data(_) => true,
+            DescribedType::Generic(_) => false,
+        }
+    }
+
+    pub fn final_type(&self) -> &DescribedType {
+        match self {
+            DescribedType::Vec(inner) | DescribedType::Option(inner) => inner,
+            other => other,
+        }
+    }
+
+    pub fn data(&self) -> Option<&Arc<dyn Data>> {
+        match self {
+            DescribedType::Data(data) => Some(data),
+            _ => None,
         }
     }
 
