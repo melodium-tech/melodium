@@ -1,4 +1,4 @@
-use super::{Context, Function, Identifier, Model, Object, Treatment};
+use super::{Context, Data, Function, Identifier, Model, Treatment};
 use std::cmp::Ordering;
 use std::collections::{hash_map, HashMap};
 use std::slice::Iter;
@@ -7,9 +7,9 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub enum Entry {
     Context(Arc<dyn Context>),
+    Data(Arc<dyn Data>),
     Function(Arc<dyn Function>),
     Model(Arc<dyn Model>),
-    Object(Arc<dyn Object>),
     Treatment(Arc<dyn Treatment>),
 }
 
@@ -19,7 +19,7 @@ impl Entry {
             Entry::Context(c) => c.identifier().clone(),
             Entry::Function(f) => f.identifier().clone(),
             Entry::Model(m) => m.identifier().clone(),
-            Entry::Object(o) => o.identifier().clone(),
+            Entry::Data(d) => d.identifier().clone(),
             Entry::Treatment(t) => t.identifier().clone(),
         }
     }
@@ -31,7 +31,7 @@ impl PartialEq for Entry {
             (Self::Context(l0), Self::Context(r0)) => l0.identifier() == r0.identifier(),
             (Self::Function(l0), Self::Function(r0)) => l0.identifier() == r0.identifier(),
             (Self::Model(l0), Self::Model(r0)) => l0.identifier() == r0.identifier(),
-            (Self::Object(l0), Self::Object(r0)) => l0.identifier() == r0.identifier(),
+            (Self::Data(l0), Self::Data(r0)) => l0.identifier() == r0.identifier(),
             (Self::Treatment(l0), Self::Treatment(r0)) => l0.identifier() == r0.identifier(),
             _ => false,
         }
@@ -48,16 +48,16 @@ impl PartialOrd for Entry {
                 l0.identifier().partial_cmp(r0.identifier())
             }
             (Self::Model(l0), Self::Model(r0)) => l0.identifier().partial_cmp(r0.identifier()),
-            (Self::Object(l0), Self::Object(r0)) => l0.identifier().partial_cmp(r0.identifier()),
+            (Self::Data(l0), Self::Data(r0)) => l0.identifier().partial_cmp(r0.identifier()),
             (Self::Treatment(l0), Self::Treatment(r0)) => {
                 l0.identifier().partial_cmp(r0.identifier())
             }
-            (Self::Object(_), _) => Some(Ordering::Less),
-            (Self::Context(_), Self::Object(_)) => Some(Ordering::Greater),
+            (Self::Data(_), _) => Some(Ordering::Less),
+            (Self::Context(_), Self::Data(_)) => Some(Ordering::Greater),
             (Self::Context(_), _) => Some(Ordering::Less),
-            (Self::Function(_), Self::Object(_) | Self::Context(_)) => Some(Ordering::Greater),
+            (Self::Function(_), Self::Data(_) | Self::Context(_)) => Some(Ordering::Greater),
             (Self::Function(_), _) => Some(Ordering::Less),
-            (Self::Model(_), Self::Object(_) | Self::Context(_) | Self::Function(_)) => {
+            (Self::Model(_), Self::Data(_) | Self::Context(_) | Self::Function(_)) => {
                 Some(Ordering::Greater)
             }
             (Self::Model(_), Self::Treatment(_)) => Some(Ordering::Less),

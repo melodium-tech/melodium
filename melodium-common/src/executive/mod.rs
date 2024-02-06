@@ -5,11 +5,11 @@
 //!
 
 pub mod context;
+pub mod data;
 pub mod data_traits;
 pub mod future;
 pub mod input;
 pub mod model;
-pub mod object;
 pub mod output;
 pub mod result_status;
 pub mod transmission;
@@ -18,12 +18,12 @@ pub mod value;
 pub mod world;
 
 pub use context::Context;
+pub use data::Data;
 pub use data_traits::DataTrait;
 pub use future::ContinuousFuture;
 pub use future::TrackFuture;
 pub use input::Input;
 pub use model::{Model, ModelId};
-pub use object::Object;
 pub use output::{Output, Outputs};
 pub use result_status::ResultStatus;
 pub use transmission::{RecvResult, SendResult, TransmissionError, TransmissionValue};

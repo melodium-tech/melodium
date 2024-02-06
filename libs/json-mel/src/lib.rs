@@ -2,8 +2,22 @@
 #![doc = include_str!("../README.md")]
 
 use jaq_interpret::{Ctx, FilterT, ParseCtx, RcIter, Val};
-use melodium_core::*;
-use melodium_macro::{check, mel_package, mel_treatment};
+use melodium_core::{executive::*, *};
+use melodium_macro::{check, mel_data, mel_package, mel_treatment};
+
+#[mel_data(
+    traits (ToString Hash)
+)]
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct Json {
+    pub json: String,
+}
+
+impl ToString for Json {
+    fn to_string(&self) -> string {
+        self.json.clone()
+    }
+}
 
 /// Validate JSON string.
 ///
@@ -42,17 +56,17 @@ pub async fn validate() {
 ///
 /// `failures` is emitted only if the query provided is not valid [jq/jaq syntax](https://jqlang.github.io/jq/manual/v1.6/).
 #[mel_treatment(
-    input {content(json)} json Stream<string>
+    input {content(json)} json Stream<Json>
     output {content(json)} parsed Stream<Vec<string>>
     output error Stream<Vec<string>>
     output failures Block<Vec<string>>
 )]
-pub async fn query(#[mel(content(jq))] query: string) {
+pub async fn query(#[mel(content(jq))] query: Json) {
     let mut defs = ParseCtx::new(Vec::new());
     defs.insert_natives(jaq_core::core());
     defs.insert_defs(jaq_std::std());
 
-    let (filter, errs) = jaq_parse::parse(&query, jaq_parse::main());
+    let (filter, errs) = jaq_parse::parse(&query.json, jaq_parse::main());
     if !errs.is_empty() {
         let _ = failures
             .send_one(Value::Vec(

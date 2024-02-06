@@ -243,7 +243,7 @@ impl Area {
                     ModelBuildMode::Compiled(_) => false,
                     ModelBuildMode::Designed() => true,
                 },
-                Entry::Object(_) => false,
+                Entry::Data(_) => false,
                 Entry::Treatment(treatment) => match treatment.build_mode() {
                     TreatmentBuildMode::Compiled(_, _) => false,
                     TreatmentBuildMode::Source(_) => false,

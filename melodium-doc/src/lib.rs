@@ -3,8 +3,8 @@
 
 use itertools::Itertools;
 use melodium_common::descriptor::{
-    Collection, CollectionTree, Context, Entry, Flow, Function, Identifier, Input, Model, Object,
-    Output, Parameter, Treatment,
+    Collection, CollectionTree, Context, Data, DescribedType, Entry, Flow, Function, Identifier,
+    Input, Model, Output, Parameter, Treatment,
 };
 use std::collections::HashMap;
 use std::error::Error;
@@ -111,10 +111,10 @@ impl Documentation {
                     m.identifier().name(),
                     Self::id_filepath(m.identifier())
                 ),
-                Entry::Object(o) => format!(
-                    "- [■ {}]({})\n",
-                    o.identifier().name(),
-                    Self::id_filepath(o.identifier())
+                Entry::Data(d) => format!(
+                    "- [◼ {}]({})\n",
+                    d.identifier().name(),
+                    Self::id_filepath(d.identifier())
                 ),
                 Entry::Treatment(t) => format!(
                     "- [⤇ {}]({})\n",
@@ -161,7 +161,7 @@ impl Documentation {
             self.make_area(sub_area, sub_path)?;
         }
 
-        let mut objects = String::new();
+        let mut datas = String::new();
         let mut contexts = String::new();
         let mut functions = String::new();
         let mut models = String::new();
@@ -198,14 +198,14 @@ impl Documentation {
                         name = m.identifier().name()
                     ));
                 }
-                Entry::Object(o) => {
-                    if objects.is_empty() {
-                        objects.push_str("## Objects\n\n");
+                Entry::Data(d) => {
+                    if datas.is_empty() {
+                        datas.push_str("## Data types\n\n");
                     }
 
-                    objects.push_str(&format!(
-                        "■[ {name}]({name}.md)  \n",
-                        name = o.identifier().name()
+                    datas.push_str(&format!(
+                        "◼[ {name}]({name}.md)  \n",
+                        name = d.identifier().name()
                     ));
                 }
                 Entry::Treatment(t) => {
@@ -233,7 +233,7 @@ impl Documentation {
             format!("src/{}/index.md", path.join("/"))
         };
         let content = format!(
-            "# {title}{display_path}\n\n---\n\n{subs}{contexts}{functions}{models}{treatments}"
+            "# {title}{display_path}\n\n---\n\n{subs}{datas}{contexts}{functions}{models}{treatments}"
         );
 
         self.write(&file, content.as_bytes())?;
@@ -246,7 +246,7 @@ impl Documentation {
             Entry::Context(c) => self.context_content(c),
             Entry::Function(f) => self.function_content(f),
             Entry::Model(m) => self.model_content(m),
-            Entry::Object(o) => self.object_content(o),
+            Entry::Data(o) => self.data_content(o),
             Entry::Treatment(t) => self.treatment_content(t),
         };
 
@@ -266,10 +266,21 @@ impl Documentation {
             let mut string = String::new();
 
             for entry_name in context.values().keys().sorted() {
+                let data_type = context.values().get(entry_name).unwrap();
                 string.push_str(&format!(
-                    "↪ `{}:` `{}`  \n",
+                    "↪ `{}:` `{}`{type_link}  \n",
                     entry_name,
-                    context.values().get(entry_name).unwrap()
+                    data_type,
+                    type_link =
+                        if let Some(data) = DescribedType::from(data_type).final_type().data() {
+                            format!(
+                                " _([`{id}`]({link}))_",
+                                id = data.identifier(),
+                                link = self.get_link(context.identifier(), data.identifier())
+                            )
+                        } else {
+                            String::new()
+                        }
                 ));
             }
 
@@ -292,15 +303,16 @@ impl Documentation {
 
             for generic in function.generics().iter() {
                 if generic.traits.is_empty() {
-                    string.push_str(&format!("○ `{}` _(any)_  \n", generic.name));
+                    string.push_str(&format!("◻ `{}` _(any)_  \n", generic.name));
                 } else {
                     string.push_str(&format!(
-                        "○ `{}:` {}  \n",
+                        "◻ `{}:` {}  \n",
                         generic.name,
                         generic
                             .traits
                             .iter()
                             .map(|tr| format!("`{tr}`"))
+                            .sorted()
                             .collect::<Vec<_>>()
                             .join(" + ")
                     ));
@@ -317,9 +329,18 @@ impl Documentation {
 
             for param in function.parameters().iter() {
                 string.push_str(&format!(
-                    "↳ `{}:` `{}`  \n",
+                    "↳ `{}:` `{}`{type_link}  \n",
                     param.name(),
-                    param.described_type()
+                    param.described_type(),
+                    type_link = if let Some(data) = param.described_type().final_type().data() {
+                        format!(
+                            " _([`{id}`]({link}))_",
+                            id = data.identifier(),
+                            link = self.get_link(function.identifier(), data.identifier())
+                        )
+                    } else {
+                        String::new()
+                    }
                 ));
             }
 
@@ -356,7 +377,10 @@ impl Documentation {
             for param_name in model.parameters().keys().sorted() {
                 string.push_str(&format!(
                     "↳ {}  \n",
-                    Self::parameter(model.parameters().get(param_name).unwrap())
+                    self.parameter(
+                        model.parameters().get(param_name).unwrap(),
+                        model.identifier()
+                    )
                 ));
             }
 
@@ -452,12 +476,24 @@ impl Documentation {
         )
     }
 
-    fn object_content(&self, object: &Arc<dyn Object>) -> String {
+    fn data_content(&self, data: &Arc<dyn Data>) -> String {
+        let traits = if !data.implements().is_empty() {
+            let mut string = String::new();
+
+            for name in data.implements().iter().map(|t| t.to_string()).sorted() {
+                string.push_str(&format!("∈ `{name}`  \n",));
+            }
+
+            format!("#### Traits\n\n{}", string)
+        } else {
+            String::from("_This data type do not implement any trait_")
+        };
+
         format!(
-            "# Object {name}\n\n`{id}`\n\n---\n\n{doc}",
-            name = object.identifier().name(),
-            id = object.identifier().to_string(),
-            doc = object.documentation(),
+            "# Data {name}\n\n`{id}`\n\n---\n\n{traits}\n\n---\n\n{doc}",
+            name = data.identifier().name(),
+            id = data.identifier().to_string(),
+            doc = data.documentation(),
         )
     }
 
@@ -467,15 +503,16 @@ impl Documentation {
 
             for generic in treatment.generics().iter() {
                 if generic.traits.is_empty() {
-                    string.push_str(&format!("○ `{}` _(any)_  \n", generic.name));
+                    string.push_str(&format!("◻ `{}` _(any)_  \n", generic.name));
                 } else {
                     string.push_str(&format!(
-                        "○ `{}:` {}  \n",
+                        "◻ `{}:` {}  \n",
                         generic.name,
                         generic
                             .traits
                             .iter()
                             .map(|tr| format!("`{tr}`"))
+                            .sorted()
                             .collect::<Vec<_>>()
                             .join(" + ")
                     ));
@@ -539,7 +576,10 @@ impl Documentation {
             for param_name in treatment.parameters().keys().sorted() {
                 string.push_str(&format!(
                     "↳ {}  \n",
-                    Self::parameter(treatment.parameters().get(param_name).unwrap())
+                    self.parameter(
+                        treatment.parameters().get(param_name).unwrap(),
+                        treatment.identifier()
+                    )
                 ));
             }
 
@@ -567,10 +607,20 @@ impl Documentation {
             let mut string = String::new();
 
             for input_name in treatment.inputs().keys().sorted() {
+                let input = treatment.inputs().get(input_name).unwrap();
                 string.push_str(&format!(
-                    "⇥ `{}:` `{}`  \n",
+                    "⇥ `{}:` `{}`{type_link}  \n",
                     input_name,
-                    Self::input(treatment.inputs().get(input_name).unwrap())
+                    self.input(input),
+                    type_link = if let Some(data) = input.described_type().final_type().data() {
+                        format!(
+                            " _([`{id}`]({link}))_",
+                            id = data.identifier(),
+                            link = self.get_link(treatment.identifier(), data.identifier())
+                        )
+                    } else {
+                        String::new()
+                    }
                 ));
             }
 
@@ -583,10 +633,20 @@ impl Documentation {
             let mut string = String::new();
 
             for output_name in treatment.outputs().keys().sorted() {
+                let output = treatment.outputs().get(output_name).unwrap();
                 string.push_str(&format!(
-                    "↦ `{}:` `{}`  \n",
+                    "↦ `{}:` `{}`{type_link}  \n",
                     output_name,
-                    Self::output(treatment.outputs().get(output_name).unwrap())
+                    self.output(output),
+                    type_link = if let Some(data) = output.described_type().final_type().data() {
+                        format!(
+                            " _([`{id}`]({link}))_",
+                            id = data.identifier(),
+                            link = self.get_link(treatment.identifier(), data.identifier())
+                        )
+                    } else {
+                        String::new()
+                    }
                 ));
             }
 
@@ -614,25 +674,30 @@ impl Documentation {
         format!("{}/{}.md", id.path().join("/"), id.name())
     }
 
-    fn parameter(parameter: &Parameter) -> String {
-        format!("`{var} {name}:` `{type}{val}`",
+    fn parameter(&self, parameter: &Parameter, current_id: &Identifier) -> String {
+        format!("`{var} {name}:` `{type}{val}`{type_link}",
             var = parameter.variability(),
             name = parameter.name(),
             type = parameter.described_type(),
             val = parameter.default().as_ref().map(|v| format!(" = {v}")).unwrap_or_default(),
+            type_link = if let Some(data) = parameter.described_type().final_type().data() {
+                format!(" _([`{id}`]({link}))_", id = data.identifier(), link = self.get_link(current_id, data.identifier()))
+            } else {
+                String::new()
+            }
         )
     }
 
-    fn input(input: &Input) -> String {
+    fn input(&self, input: &Input) -> String {
         let flow = match input.flow() {
             Flow::Block => "Block",
             Flow::Stream => "Stream",
         };
 
-        format!("{}<{}>", flow, input.described_type())
+        format!("{}<{}>", flow, input.described_type(),)
     }
 
-    fn output(output: &Output) -> String {
+    fn output(&self, output: &Output) -> String {
         let flow = match output.flow() {
             Flow::Block => "Block",
             Flow::Stream => "Stream",

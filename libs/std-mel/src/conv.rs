@@ -58,7 +58,7 @@ pub fn to_bytes(value: T) -> Vec<byte> {
             Some(val) => to_bytes(*val),
             None => Vec::new(),
         },
-        Value::Object(_) => Vec::new(),
+        Value::Data(_) => Vec::new(),
     }
 }
 
@@ -122,7 +122,7 @@ fn value_to_byte(value: Value) -> Value {
             Some(val) => value_to_byte(*val),
             None => Value::Vec(Vec::new()),
         },
-        Value::Object(_) => Value::Vec(Vec::new()),
+        Value::Data(_) => Value::Vec(Vec::new()),
     }
 }
 
@@ -1160,7 +1160,7 @@ pub fn try_to_char(value: T) -> Option<char> {
 #[mel_treatment(
     generic T (TryToChar)
     input value Stream<T>
-    output into Stream<Option<Char>>
+    output into Stream<Option<char>>
 )]
 pub async fn try_to_char() {
     while let Ok(values) = value
