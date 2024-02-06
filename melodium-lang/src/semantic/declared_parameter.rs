@@ -8,7 +8,9 @@ use super::variability::Variability;
 use crate::error::ScriptError;
 use crate::text::Parameter as TextParameter;
 use crate::ScriptResult;
-use melodium_common::descriptor::{Flow as FlowDescriptor, Parameter as ParameterDescriptor};
+use melodium_common::descriptor::{
+    Collection, Flow as FlowDescriptor, Parameter as ParameterDescriptor,
+};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
@@ -84,7 +86,7 @@ impl DeclaredParameter {
 
         if let Some(text_type) = text.r#type.clone() {
             result
-                .and_degrade_failure(Type::new(text_type))
+                .and_degrade_failure(Type::new(Arc::clone(&parent), text_type))
                 .and_then(|r#type| {
                     ScriptResult::new_success(Arc::<RwLock<Self>>::new(RwLock::new(Self {
                         parent: Arc::downgrade(&parent),
@@ -103,9 +105,9 @@ impl DeclaredParameter {
         }
     }
 
-    pub fn make_descriptor(&self) -> ScriptResult<ParameterDescriptor> {
+    pub fn make_descriptor(&self, collection: &Collection) -> ScriptResult<ParameterDescriptor> {
         self.r#type
-            .make_descriptor()
+            .make_descriptor(collection)
             .and_then(|(datatype, flow)| {
                 if flow != FlowDescriptor::Block {
                     ScriptResult::new_failure(ScriptError::flow_forbidden(

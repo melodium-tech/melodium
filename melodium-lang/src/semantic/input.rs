@@ -3,9 +3,10 @@
 use super::common::Node;
 use super::r#type::Type;
 use super::treatment::Treatment;
+use super::DeclarativeElement;
 use crate::text::Parameter as TextParameter;
 use crate::{error::ScriptError, ScriptResult};
-use melodium_common::descriptor::Input as InputDescriptor;
+use melodium_common::descriptor::{Collection, Input as InputDescriptor};
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of an input.
@@ -53,7 +54,10 @@ impl Input {
 
         if let Some(text_type) = text.r#type.clone() {
             result
-                .and_degrade_failure(Type::new(text_type))
+                .and_degrade_failure(Type::new(
+                    Arc::clone(&treatment) as Arc<RwLock<dyn DeclarativeElement>>,
+                    text_type,
+                ))
                 .and_then(|r#type| {
                     ScriptResult::new_success(Arc::<RwLock<Self>>::new(RwLock::new(Self {
                         treatment: Arc::downgrade(&treatment),
@@ -70,9 +74,9 @@ impl Input {
         }
     }
 
-    pub fn make_descriptor(&self) -> ScriptResult<InputDescriptor> {
+    pub fn make_descriptor(&self, collection: &Collection) -> ScriptResult<InputDescriptor> {
         self.r#type
-            .make_descriptor()
+            .make_descriptor(&collection)
             .and_then(|(described_type, flow)| {
                 ScriptResult::new_success(InputDescriptor::new(
                     &self.name,

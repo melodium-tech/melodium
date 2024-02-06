@@ -58,7 +58,7 @@ pub trait Node {
 }
 
 /// Structure holding name and weak-counted reference to another element.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Reference<T> {
     pub name: String,
     pub reference: Option<Weak<RwLock<T>>>,

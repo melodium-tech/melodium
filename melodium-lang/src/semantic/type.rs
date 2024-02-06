@@ -1,14 +1,16 @@
 //! Module for Type identification and structure semantic analysis.
 
+use super::{DeclarativeElement, DeclarativeElementType, Node, Reference, Use};
 use crate::text::PositionnedString;
-use crate::ScriptError;
 use crate::{text::Type as TextType, ScriptResult};
+use crate::{Path, ScriptError};
 use core::slice::Iter;
 use melodium_common::descriptor::{
-    DataType as DataTypeDescriptor, DescribedType as DescribedTypeDescriptor,
+    Collection, DataType as DataTypeDescriptor, DescribedType as DescribedTypeDescriptor, Entry,
     Flow as FlowDescriptor, Generic,
 };
 use std::fmt;
+use std::sync::{Arc, RwLock, Weak};
 
 /// Enum for type flow identification.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -32,9 +34,17 @@ impl fmt::Display for TypeFlow {
     }
 }
 
+#[derive(Debug, Clone)]
+enum RefersTo {
+    // Designates either core type or generic one
+    Implicit(Reference<()>),
+    // Designates data type imported through `use`
+    Use(Reference<Use>),
+}
+
 /// Enum for type identification.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum TypeContent {
+#[derive(Clone, Debug)]
+enum TypeContent {
     Void,
 
     I8,
@@ -57,21 +67,27 @@ pub enum TypeContent {
     Char,
     String,
 
-    Option(Box<TypeContent>),
-    Vec(Box<TypeContent>),
+    Option(Arc<RwLock<TypeContent>>),
+    Vec(Arc<RwLock<TypeContent>>),
 
-    Other(String),
+    Other((Weak<RwLock<dyn DeclarativeElement>>, RefersTo)),
 }
 
 impl TypeContent {
-    fn from_positionned_strings(list: &Vec<PositionnedString>) -> Result<Self, ()> {
-        Self::from_positionned_string(list.iter()).ok_or(())
+    fn from_positionned_strings(
+        list: &Vec<PositionnedString>,
+        scope: Weak<RwLock<dyn DeclarativeElement>>,
+    ) -> Result<Arc<RwLock<Self>>, ()> {
+        Self::from_positionned_string(list.iter(), scope).ok_or(())
     }
 
-    fn from_positionned_string(mut iter: Iter<PositionnedString>) -> Option<Self> {
+    fn from_positionned_string(
+        mut iter: Iter<PositionnedString>,
+        scope: Weak<RwLock<dyn DeclarativeElement>>,
+    ) -> Option<Arc<RwLock<Self>>> {
         let step = iter.next();
         if let Some(pos_str) = step {
-            Some(match pos_str.string.as_str() {
+            Some(Arc::new(RwLock::new(match pos_str.string.as_str() {
                 "void" => Self::Void,
                 "i8" => Self::I8,
                 "i16" => Self::I16,
@@ -89,42 +105,66 @@ impl TypeContent {
                 "byte" => Self::Byte,
                 "char" => Self::Char,
                 "string" => Self::String,
-                "Option" => Self::Option(Box::new(Self::from_positionned_string(iter)?)),
-                "Vec" => Self::Vec(Box::new(Self::from_positionned_string(iter)?)),
-                other => Self::Other(other.to_string()),
-            })
+                "Option" => Self::Option(Self::from_positionned_string(iter, scope)?),
+                "Vec" => Self::Vec(Self::from_positionned_string(iter, scope)?),
+                other => {
+                    Self::Other((scope, RefersTo::Implicit(Reference::new(other.to_string()))))
+                }
+            })))
         } else {
             None
         }
     }
 
-    fn to_descriptor(&self) -> DescribedTypeDescriptor {
+    fn to_descriptor(&self, collection: &Collection) -> Option<DescribedTypeDescriptor> {
         match self {
-            Self::Void => DescribedTypeDescriptor::Void,
-            Self::I8 => DescribedTypeDescriptor::I8,
-            Self::I16 => DescribedTypeDescriptor::I16,
-            Self::I32 => DescribedTypeDescriptor::I32,
-            Self::I64 => DescribedTypeDescriptor::I64,
-            Self::I128 => DescribedTypeDescriptor::I128,
-            Self::U8 => DescribedTypeDescriptor::U8,
-            Self::U16 => DescribedTypeDescriptor::U16,
-            Self::U32 => DescribedTypeDescriptor::U32,
-            Self::U64 => DescribedTypeDescriptor::U64,
-            Self::U128 => DescribedTypeDescriptor::U128,
-            Self::F32 => DescribedTypeDescriptor::F32,
-            Self::F64 => DescribedTypeDescriptor::F64,
-            Self::Bool => DescribedTypeDescriptor::Bool,
-            Self::Byte => DescribedTypeDescriptor::Byte,
-            Self::Char => DescribedTypeDescriptor::Char,
-            Self::String => DescribedTypeDescriptor::String,
-            Self::Option(internal) => {
-                DescribedTypeDescriptor::Option(Box::new(internal.to_descriptor()))
-            }
-            Self::Vec(internal) => DescribedTypeDescriptor::Vec(Box::new(internal.to_descriptor())),
-            Self::Other(generic) => DescribedTypeDescriptor::Generic(Box::new(Generic::new(
-                generic.clone(),
-                Vec::new(),
-            ))),
+            Self::Void => Some(DescribedTypeDescriptor::Void),
+            Self::I8 => Some(DescribedTypeDescriptor::I8),
+            Self::I16 => Some(DescribedTypeDescriptor::I16),
+            Self::I32 => Some(DescribedTypeDescriptor::I32),
+            Self::I64 => Some(DescribedTypeDescriptor::I64),
+            Self::I128 => Some(DescribedTypeDescriptor::I128),
+            Self::U8 => Some(DescribedTypeDescriptor::U8),
+            Self::U16 => Some(DescribedTypeDescriptor::U16),
+            Self::U32 => Some(DescribedTypeDescriptor::U32),
+            Self::U64 => Some(DescribedTypeDescriptor::U64),
+            Self::U128 => Some(DescribedTypeDescriptor::U128),
+            Self::F32 => Some(DescribedTypeDescriptor::F32),
+            Self::F64 => Some(DescribedTypeDescriptor::F64),
+            Self::Bool => Some(DescribedTypeDescriptor::Bool),
+            Self::Byte => Some(DescribedTypeDescriptor::Byte),
+            Self::Char => Some(DescribedTypeDescriptor::Char),
+            Self::String => Some(DescribedTypeDescriptor::String),
+            Self::Option(internal) => internal
+                .read()
+                .unwrap()
+                .to_descriptor(collection)
+                .map(|int| DescribedTypeDescriptor::Option(Box::new(int))),
+
+            Self::Vec(internal) => internal
+                .read()
+                .unwrap()
+                .to_descriptor(collection)
+                .map(|int| DescribedTypeDescriptor::Vec(Box::new(int))),
+            Self::Other((_, refer)) => match refer {
+                RefersTo::Implicit(implicit) => Some(DescribedTypeDescriptor::Generic(Box::new(
+                    Generic::new(implicit.name.clone(), Vec::new()),
+                ))),
+                RefersTo::Use(external) => external
+                    .reference
+                    .as_ref()
+                    .and_then(|weak| {
+                        weak.upgrade().and_then(|arc| {
+                            arc.read().ok().and_then(|r#use| r#use.identifier.clone())
+                        })
+                    })
+                    .and_then(|identifier| match collection.get(&identifier) {
+                        Some(Entry::Data(data)) => {
+                            Some(DescribedTypeDescriptor::Data(Box::new(Arc::clone(data))))
+                        }
+                        _ => None,
+                    }),
+            },
         }
     }
 
@@ -149,9 +189,11 @@ impl TypeContent {
             Self::Char => Ok(DataTypeDescriptor::Char),
             Self::String => Ok(DataTypeDescriptor::String),
             Self::Option(internal) => Ok(DataTypeDescriptor::Option(Box::new(
-                internal.to_datatype()?,
+                internal.read().unwrap().to_datatype()?,
             ))),
-            Self::Vec(internal) => Ok(DataTypeDescriptor::Vec(Box::new(internal.to_datatype()?))),
+            Self::Vec(internal) => Ok(DataTypeDescriptor::Vec(Box::new(
+                internal.read().unwrap().to_datatype()?,
+            ))),
             Self::Other(_) => Err(()),
         }
     }
@@ -177,9 +219,58 @@ impl fmt::Display for TypeContent {
             TypeContent::Byte => write!(f, "byte"),
             TypeContent::Char => write!(f, "char"),
             TypeContent::String => write!(f, "string"),
-            TypeContent::Option(inner) => write!(f, "Option<{inner}>"),
-            TypeContent::Vec(inner) => write!(f, "Vec<{inner}>"),
-            TypeContent::Other(name) => write!(f, "{name}"),
+            TypeContent::Option(inner) => write!(f, "Option<{}>", inner.read().unwrap()),
+            TypeContent::Vec(inner) => write!(f, "Vec<{}>", inner.read().unwrap()),
+            TypeContent::Other((_, refer)) => write!(
+                f,
+                "{}",
+                match refer {
+                    RefersTo::Implicit(implicit) => &implicit.name,
+                    RefersTo::Use(external) => &external.name,
+                }
+            ),
+        }
+    }
+}
+
+impl Node for TypeContent {
+    fn make_references(&mut self, _path: &Path) -> ScriptResult<()> {
+        match self {
+            TypeContent::Other((scope, RefersTo::Implicit(reference))) => {
+                let rc_script = match scope
+                    .upgrade()
+                    .unwrap()
+                    .read()
+                    .unwrap()
+                    .declarative_element()
+                {
+                    DeclarativeElementType::Model(m) => m.script.upgrade().unwrap(),
+                    DeclarativeElementType::Treatment(t) => t.script.upgrade().unwrap(),
+                };
+                let borrowed_script = rc_script.read().unwrap();
+
+                if let Some(r#use) = borrowed_script.find_use(&reference.name) {
+                    let reference = RefersTo::Use(Reference {
+                        name: reference.name.clone(),
+                        reference: Some(Arc::downgrade(r#use)),
+                    });
+
+                    *self = TypeContent::Other((scope.clone(), reference));
+                    ScriptResult::new_success(())
+                }
+                // No use imported, assuming generic, that is catched after by engine design
+                else {
+                    ScriptResult::new_success(())
+                }
+            }
+            _ => ScriptResult::new_success(()),
+        }
+    }
+
+    fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
+        match self {
+            TypeContent::Option(inner) | TypeContent::Vec(inner) => vec![inner.clone()],
+            _ => Vec::new(),
         }
     }
 }
@@ -194,8 +285,10 @@ impl fmt::Display for TypeContent {
 pub struct Type {
     pub text: TextType,
 
+    pub scope: Weak<RwLock<dyn DeclarativeElement>>,
+
     pub flow: TypeFlow,
-    pub content: TypeContent,
+    content: Arc<RwLock<TypeContent>>,
 }
 
 impl Type {
@@ -203,7 +296,7 @@ impl Type {
     ///
     /// * `text`: the textual type.
     ///
-    pub fn new(text: TextType) -> ScriptResult<Self> {
+    pub fn new(scope: Arc<RwLock<dyn DeclarativeElement>>, text: TextType) -> ScriptResult<Self> {
         let mut remove_first = false;
         let flow = text
             .level_structure
@@ -227,10 +320,11 @@ impl Type {
         }
         level_structure.push(text.name.clone());
 
-        match TypeContent::from_positionned_strings(&level_structure)
+        match TypeContent::from_positionned_strings(&level_structure, Arc::downgrade(&scope))
             .map_err(|_| ScriptError::invalid_structure(177, text.name.clone()))
         {
             Ok(content) => ScriptResult::new_success(Self {
+                scope: Arc::downgrade(&scope),
                 content,
                 text,
                 flow,
@@ -239,12 +333,25 @@ impl Type {
         }
     }
 
-    pub fn make_descriptor(&self) -> ScriptResult<(DescribedTypeDescriptor, FlowDescriptor)> {
+    pub fn make_descriptor(
+        &self,
+        collection: &Collection,
+    ) -> ScriptResult<(DescribedTypeDescriptor, FlowDescriptor)> {
         let flow = match self.flow {
             TypeFlow::Block => FlowDescriptor::Block,
             TypeFlow::Stream => FlowDescriptor::Stream,
         };
 
-        ScriptResult::new_success((self.content.to_descriptor(), flow))
+        if let Some(descriptor) = self.content.read().unwrap().to_descriptor(collection) {
+            ScriptResult::new_success((descriptor, flow))
+        } else {
+            ScriptResult::new_failure(ScriptError::undeclared_data(181, self.text.name.clone()))
+        }
+    }
+}
+
+impl Node for Type {
+    fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
+        vec![Arc::clone(&self.content) as Arc<RwLock<dyn Node>>]
     }
 }

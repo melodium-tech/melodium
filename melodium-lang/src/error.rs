@@ -107,6 +107,9 @@ pub enum ScriptErrorKind {
     UndeclaredContext {
         text: PositionnedString,
     },
+    UndeclaredData {
+        text: PositionnedString,
+    },
     ReferenceUnset {
         debug_reference: String,
     },
@@ -217,6 +220,7 @@ impl Display for ScriptErrorKind {
             ScriptErrorKind::UndeclaredModel { text } => write!(f, "at line {} position {} no model declared as '{}'", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::UndeclaredParameter { text } => write!(f, "at line {} position {} no parameter declared as '{}'", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::UndeclaredContext { text } => write!(f, "at line {} position {} no context declared as '{}'", text.position.line_number, text.position.line_position, text.string),
+            ScriptErrorKind::UndeclaredData { text } => write!(f, "at line {} position {} no data type declared as '{}'", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::ReferenceUnset { debug_reference } => write!(f, "reference is not set, this is an internal error: '{debug_reference}'"),
             ScriptErrorKind::InvalidBoolean { text } => write!(f, "at line {} position {} '{}' is not a boolean value", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::InvalidNumber { text } => write!(f, "at line {} position {} '{}' is not a numeric value", text.position.line_number, text.position.line_position, text.string),
@@ -438,6 +442,13 @@ impl ScriptError {
         Self {
             id,
             kind: ScriptErrorKind::UndeclaredContext { text },
+        }
+    }
+
+    pub fn undeclared_data(id: u32, text: PositionnedString) -> Self {
+        Self {
+            id,
+            kind: ScriptErrorKind::UndeclaredData { text },
         }
     }
 
