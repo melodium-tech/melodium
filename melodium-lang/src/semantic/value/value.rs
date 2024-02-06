@@ -336,10 +336,11 @@ impl Value {
 
                         if let Some(rc_generic) = borrowed_func.generics.get(i) {
                             let borrowed_generic = rc_generic.read().unwrap();
+                            let borrowed_type = borrowed_generic.r#type.read().unwrap();
 
-                            if let Some((r#type, _)) = result.merge_degrade_failure(
-                                borrowed_generic.r#type.make_descriptor(collection),
-                            ) {
+                            if let Some((r#type, _)) = result
+                                .merge_degrade_failure(borrowed_type.make_descriptor(collection))
+                            {
                                 generics.insert(desc_generic.name.clone(), r#type);
                             }
                         } else {

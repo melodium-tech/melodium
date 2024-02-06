@@ -140,9 +140,10 @@ impl TreatmentInstanciation {
 
             if let Some(rc_generic) = self.generics.get(i) {
                 let borrowed_generic = rc_generic.read().unwrap();
+                let borrwed_type = borrowed_generic.r#type.read().unwrap();
 
-                if let Some((r#type, _)) = result
-                    .merge_degrade_failure(borrowed_generic.r#type.make_descriptor(collection))
+                if let Some((r#type, _)) =
+                    result.merge_degrade_failure(borrwed_type.make_descriptor(collection))
                 {
                     result = result.and_degrade_failure(ScriptResult::from(
                         designer.set_generic(desc_generic.name.clone(), r#type),

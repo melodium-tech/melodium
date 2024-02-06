@@ -18,7 +18,7 @@ pub struct AssignedGeneric {
 
     pub scope: Weak<RwLock<dyn DeclarativeElement>>,
 
-    pub r#type: Type,
+    pub r#type: Arc<RwLock<Type>>,
 }
 
 impl AssignedGeneric {
@@ -54,7 +54,7 @@ impl AssignedGeneric {
                 } else {
                     ScriptResult::new_success(Arc::new(RwLock::new(Self {
                         text,
-                        r#type: assigned_type,
+                        r#type: Arc::new(RwLock::new(assigned_type)),
                         scope: Arc::downgrade(&scope),
                     })))
                 }
@@ -62,4 +62,8 @@ impl AssignedGeneric {
     }
 }
 
-impl Node for AssignedGeneric {}
+impl Node for AssignedGeneric {
+    fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
+        vec![Arc::clone(&self.r#type) as Arc<RwLock<dyn Node>>]
+    }
+}

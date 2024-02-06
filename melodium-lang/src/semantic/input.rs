@@ -19,7 +19,7 @@ pub struct Input {
     pub treatment: Weak<RwLock<Treatment>>,
 
     pub name: String,
-    pub r#type: Type,
+    pub r#type: Arc<RwLock<Type>>,
 }
 
 impl Input {
@@ -63,7 +63,7 @@ impl Input {
                         treatment: Arc::downgrade(&treatment),
                         name: text.name.string.clone(),
                         text,
-                        r#type,
+                        r#type: Arc::new(RwLock::new(r#type)),
                     })))
                 })
         } else {
@@ -76,6 +76,8 @@ impl Input {
 
     pub fn make_descriptor(&self, collection: &Collection) -> ScriptResult<InputDescriptor> {
         self.r#type
+            .read()
+            .unwrap()
             .make_descriptor(&collection)
             .and_then(|(described_type, flow)| {
                 ScriptResult::new_success(InputDescriptor::new(
@@ -98,4 +100,8 @@ impl Input {
     }
 }
 
-impl Node for Input {}
+impl Node for Input {
+    fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
+        vec![Arc::clone(&self.r#type) as Arc<RwLock<dyn Node>>]
+    }
+}

@@ -28,7 +28,7 @@ pub struct DeclaredParameter {
 
     pub name: String,
     pub variability: Variability,
-    pub r#type: Type,
+    pub r#type: Arc<RwLock<Type>>,
     pub value: Option<Arc<RwLock<Value>>>,
 }
 
@@ -93,7 +93,7 @@ impl DeclaredParameter {
                         name: text.name.string.clone(),
                         text,
                         variability,
-                        r#type,
+                        r#type: Arc::new(RwLock::new(r#type)),
                         value,
                     })))
                 })
@@ -107,6 +107,8 @@ impl DeclaredParameter {
 
     pub fn make_descriptor(&self, collection: &Collection) -> ScriptResult<ParameterDescriptor> {
         self.r#type
+            .read()
+            .unwrap()
             .make_descriptor(collection)
             .and_then(|(datatype, flow)| {
                 if flow != FlowDescriptor::Block {
@@ -159,4 +161,8 @@ impl DeclaredParameter {
     }
 }
 
-impl Node for DeclaredParameter {}
+impl Node for DeclaredParameter {
+    fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
+        vec![Arc::clone(&self.r#type) as Arc<RwLock<dyn Node>>]
+    }
+}
