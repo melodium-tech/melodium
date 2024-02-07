@@ -1888,6 +1888,7 @@ version = "0.7.1"
 dependencies = [
  "async-std",
  "boa_engine",
+ "json-mel",
  "melodium-core",
  "melodium-macro",
  "serde_json",
@@ -1906,6 +1907,7 @@ dependencies = [
 name = "json-mel"
 version = "0.7.1"
 dependencies = [
+ "futures",
  "jaq-core",
  "jaq-interpret",
  "jaq-parse",

@@ -215,6 +215,49 @@ fn into_mel_value_call(ty: &Vec<String>, inner_param: String) -> String {
         }
 }
 
+fn convert_to_mel_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) -> String {
+    fn conv_value(iter: &mut Iter<String>, generics: &Vec<&str>) -> String {
+        let conv;
+        if let Some(ty) = iter.next() {
+            match ty.as_str() {
+                "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
+                | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" => {
+                    conv = format!(
+                        "melodium_core::Value::{}(value)",
+                        ty.to_case(Case::UpperCamel)
+                    )
+                }
+                "Vec" => {
+                    let deeper = conv_value(iter, generics);
+                    conv = format!(
+                        "value.into_iter().map(|value| {deeper}).collect::<Vec<_>>().into()"
+                    )
+                }
+                "Option" => {
+                    let deeper = conv_value(iter, generics);
+                    conv = format!("value.map(|value| {deeper}).into()")
+                }
+                data if generics.contains(&data) => conv = "value".to_string(),
+                _obj => {
+                    conv = "std::sync::Arc::new(value) as std::sync::Arc<dyn melodium_core::Data>"
+                        .to_string()
+                }
+            }
+        } else {
+            panic!("Deeper type expected")
+        }
+        conv
+    }
+
+    format!(
+        "{{let value = {call}; {}}}",
+        conv_value(
+            &mut ty.iter(),
+            &generics.iter().map(|s| s.as_str()).collect()
+        )
+    )
+}
+
 fn config_default(ts: &mut IntoIterTokenStream) -> (String, String) {
     if let Some(TokenTree::Ident(name)) = ts.next() {
         (name.to_string(), config_value(ts))
@@ -2124,23 +2167,11 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
         .join(";")
         .parse()
         .unwrap();
-    let (return_type, is_return_type_generic) =
-        if let ReturnType::Type(_, rt) = &function.sig.output {
-            match rt.borrow() {
-                Type::Path(path) => {
-                    let ty = path.path.segments.first().expect("Type expected");
-                    let ty = ty.ident.to_string();
-                    if !generics.iter().any(|(gen, _)| gen == &ty) {
-                        (into_mel_type(rt), false)
-                    } else {
-                        (vec![ty], true)
-                    }
-                }
-                _ => panic!("Type expected"),
-            }
-        } else {
-            panic!("Return type expected");
-        };
+    let return_type = if let ReturnType::Type(_, rt) = &function.sig.output {
+        into_mel_type(rt)
+    } else {
+        panic!("Return type expected");
+    };
     let params_call = args
         .iter()
         .enumerate()
@@ -2157,11 +2188,11 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
         })
         .collect::<Vec<_>>()
         .join(",");
-    let mel_call = if is_return_type_generic {
-        format!("{name}({params_call})",)
-    } else {
-        format!("melodium_core::common::executive::Value::from({name}({params_call}))")
-    };
+    let mel_call = convert_to_mel_value(
+        &return_type,
+        &generics_list,
+        &format!("{name}({params_call})"),
+    );
 
     let attributes: proc_macro2::TokenStream = attributes
         .iter()
