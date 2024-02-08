@@ -258,6 +258,60 @@ fn convert_to_mel_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) ->
     )
 }
 
+fn convert_to_rust_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) -> String {
+    fn conv_value(iter: &mut Iter<String>, generics: &Vec<&str>) -> String {
+        let conv;
+        if let Some(ty) = iter.next() {
+            match ty.as_str() {
+            "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
+                | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" => {
+                    conv = format!(
+                        "melodium_core::common::executive::GetData::<{ty}>::try_data(value).unwrap()"
+                    )
+                },
+            "Vec" => {
+                let deeper = conv_value(iter, generics);
+                conv = format!(r#"match value {{
+                    melodium_core::common::executive::Value::Vec(value) => {{
+                        value.into_iter().map(|value| {{
+                            {deeper}
+                        }}).collect::<Vec<_>>()
+                    }}
+                    _ => panic!("Invalid type")
+                }}"#)
+                },
+            "Option" => {
+                    let deeper = conv_value(iter, generics);
+                    conv = format!(
+                    r#"match value {{
+                        melodium_core::common::executive::Value::Option(value) => {{
+                            value.map(|value| {{ let value = *value; {deeper} }})
+                        }}
+                        _ => panic!("Invalid type")
+                    }}"#);
+                },
+            generic if generics.contains(&generic) => {
+                conv = "value".to_string();
+            }
+            _ => {
+                conv = "melodium_core::common::executive::GetData::<std::sync::Arc<dyn melodium_core::Data>>::try_data(value).unwrap().downcast_arc().unwrap()".to_string()
+            }
+            }
+        } else {
+            panic!("Deeper type expected")
+        }
+        conv
+    }
+
+    format!(
+        "{{ let value = {call}; {} }}",
+        conv_value(
+            &mut ty.iter(),
+            &generics.iter().map(|s| s.as_str()).collect()
+        )
+    )
+}
+
 fn config_default(ts: &mut IntoIterTokenStream) -> (String, String) {
     if let Some(TokenTree::Ident(name)) = ts.next() {
         (name.to_string(), config_value(ts))
@@ -2176,15 +2230,16 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
         .iter()
         .enumerate()
         .map(|(i, (_, (ty, _)))| {
-            if generics
+            /*if generics
                 .iter()
                 .find(|(gen, _)| gen == ty.last().unwrap())
                 .is_some()
-            {
+            { // #######################################
                 format!("params[{i}].clone()")
             } else {
                 into_mel_value_call(ty, format!("params[{i}].clone()"))
-            }
+            }*/
+            convert_to_rust_value(ty, &generics_list, &format!("params[{i}].clone()"))
         })
         .collect::<Vec<_>>()
         .join(",");

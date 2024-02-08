@@ -1,4 +1,3 @@
-
 use melodium_core::*;
 use melodium_macro::{check, mel_function, mel_treatment};
 
