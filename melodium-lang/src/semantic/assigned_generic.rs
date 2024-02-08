@@ -1,12 +1,13 @@
 //! Module dedicated to AssignedGeneric semantic analysis.
 
 use super::common::Node;
+use super::DeclarativeElement;
 use super::Type;
 use super::TypeFlow;
 use crate::error::ScriptError;
 use crate::text::Generic as TextGeneric;
 use crate::ScriptResult;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of an assigned generic.
 ///
@@ -14,7 +15,10 @@ use std::sync::{Arc, RwLock};
 #[derive(Debug)]
 pub struct AssignedGeneric {
     pub text: TextGeneric,
-    pub r#type: Type,
+
+    pub scope: Weak<RwLock<dyn DeclarativeElement>>,
+
+    pub r#type: Arc<RwLock<Type>>,
 }
 
 impl AssignedGeneric {
@@ -26,7 +30,10 @@ impl AssignedGeneric {
     /// # Note
     /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    pub fn new(text: TextGeneric) -> ScriptResult<Arc<RwLock<Self>>> {
+    pub fn new(
+        scope: Arc<RwLock<dyn DeclarativeElement>>,
+        text: TextGeneric,
+    ) -> ScriptResult<Arc<RwLock<Self>>> {
         let result = ScriptResult::new_success(());
 
         result
@@ -40,18 +47,23 @@ impl AssignedGeneric {
                     ScriptResult::new_success(())
                 }
             })
-            .and_then(|_| Type::new(text.r#type.clone()))
+            .and_then(|_| Type::new(Arc::clone(&scope), text.r#type.clone()))
             .and_then(|assigned_type| {
                 if assigned_type.flow != TypeFlow::Block {
                     ScriptResult::new_failure(ScriptError::flow_forbidden(168, text.r#type.name))
                 } else {
                     ScriptResult::new_success(Arc::new(RwLock::new(Self {
                         text,
-                        r#type: assigned_type,
+                        r#type: Arc::new(RwLock::new(assigned_type)),
+                        scope: Arc::downgrade(&scope),
                     })))
                 }
             })
     }
 }
 
-impl Node for AssignedGeneric {}
+impl Node for AssignedGeneric {
+    fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
+        vec![Arc::clone(&self.r#type) as Arc<RwLock<dyn Node>>]
+    }
+}

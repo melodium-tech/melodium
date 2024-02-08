@@ -117,6 +117,8 @@ impl Value {
             }
             Some((w, nw)) if w.kind == Some(Kind::Function) => {
                 let function = if nw.kind == Some(Kind::OpeningChevron) {
+                    // Discard '<'
+                    iter.next();
                     Function::build_from_generics(w.into(), &mut iter, global_annotations)?
                 } else {
                     Function::build_from_parameters(

@@ -11,7 +11,7 @@ pub use serde::{Deserialize, Serialize};
 pub mod descriptor;
 pub mod executive;
 
-pub use melodium_common::executive::{DataTrait, GetData, TransmissionValue, Value};
+pub use melodium_common::executive::{Data, DataTrait, GetData, TransmissionValue, Value};
 pub use std::collections::VecDeque;
 pub type u8 = core::primitive::u8;
 pub type u16 = core::primitive::u16;

@@ -1,3 +1,4 @@
+use crate::restitution::describe_type;
 use melodium_common::descriptor::Identifier;
 use melodium_engine::designer::Value;
 use std::collections::BTreeMap;
@@ -23,7 +24,7 @@ pub fn value(value: &Value, names: &BTreeMap<Identifier, String>) -> String {
                         .iter()
                         .map(|generic| generics
                             .get(&generic.name)
-                            .map(|desc_type| desc_type.to_string())
+                            .map(|desc_type| describe_type(desc_type, names))
                             .unwrap_or_else(|| "_".to_string()))
                         .collect::<Vec<_>>()
                         .join(", ")

@@ -4,6 +4,7 @@ use melodium_macro::{check, mel_function, mel_treatment};
 pub mod bin;
 pub mod float;
 pub mod num;
+pub mod option;
 
 /// Return whether `a` is equal to `b`
 #[mel_function(

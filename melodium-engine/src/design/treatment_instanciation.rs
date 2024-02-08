@@ -24,6 +24,27 @@ impl TreatmentInstanciation {
                 .parameters
                 .iter()
                 .any(|(_, parameter)| parameter.make_use(identifier))
+            || self.generics.iter().any(|(_, dt)| {
+                dt.final_type()
+                    .data()
+                    .map(|data| data.identifier() == identifier)
+                    .unwrap_or(false)
+            })
+    }
+
+    pub fn uses(&self) -> Vec<Identifier> {
+        let mut uses = vec![self.descriptor.upgrade().unwrap().identifier().clone()];
+        uses.extend(
+            self.generics
+                .iter()
+                .filter_map(|(_, dt)| dt.final_type().data().map(|data| data.identifier().clone())),
+        );
+        uses.extend(
+            self.parameters
+                .iter()
+                .flat_map(|(_, parameter)| parameter.uses()),
+        );
+        uses
     }
 }
 

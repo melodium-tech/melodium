@@ -6,6 +6,7 @@ use super::value::Value;
 use crate::error::ScriptError;
 use crate::text::Parameter as TextParameter;
 use crate::ScriptResult;
+use melodium_common::descriptor::Collection;
 use melodium_engine::{designer::Parameter as ParameterDesigner, LogicResult};
 use std::sync::{Arc, RwLock, Weak};
 
@@ -79,17 +80,21 @@ impl AssignedParameter {
         }
     }
 
-    pub fn make_design(&self, designer: &Arc<RwLock<ParameterDesigner>>) -> ScriptResult<()> {
+    pub fn make_design(
+        &self,
+        designer: &Arc<RwLock<ParameterDesigner>>,
+        collection: &Arc<Collection>,
+    ) -> ScriptResult<()> {
         let mut designer = designer.write().unwrap();
 
         let described_type_result = designer.described_type();
 
         if let Some(Some(described_type)) = described_type_result.success() {
-            let designed_value = self
-                .value
-                .read()
-                .unwrap()
-                .make_designed_value(&designer, &described_type);
+            let designed_value = self.value.read().unwrap().make_designed_value(
+                &designer,
+                &described_type,
+                collection,
+            );
             designed_value
                 .and_then(|designed_value| ScriptResult::from(designer.set_value(designed_value)))
         } else {

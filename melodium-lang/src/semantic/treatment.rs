@@ -98,7 +98,10 @@ impl Treatment {
         }
 
         for g in &text.generics {
-            if let Some(generic) = result.merge_degrade_failure(DeclaredGeneric::new(g.clone())) {
+            if let Some(generic) = result.merge_degrade_failure(DeclaredGeneric::new(
+                Arc::clone(&treatment) as Arc<RwLock<dyn DeclarativeElement>>,
+                g.clone(),
+            )) {
                 treatment.write().unwrap().generics.push(generic);
             }
         }
@@ -340,7 +343,7 @@ impl Treatment {
         for rc_parameter in &self.parameters {
             let borrowed_parameter = rc_parameter.read().unwrap();
             if let Some(parameter_descriptor) =
-                result.merge_degrade_failure(borrowed_parameter.make_descriptor())
+                result.merge_degrade_failure(borrowed_parameter.make_descriptor(collection))
             {
                 descriptor.add_parameter(parameter_descriptor);
             }
@@ -349,7 +352,7 @@ impl Treatment {
         for rc_input in &self.inputs {
             let borrowed_input = rc_input.read().unwrap();
             if let Some(input_descriptor) =
-                result.merge_degrade_failure(borrowed_input.make_descriptor())
+                result.merge_degrade_failure(borrowed_input.make_descriptor(collection))
             {
                 descriptor.add_input(input_descriptor);
             }
@@ -358,7 +361,7 @@ impl Treatment {
         for rc_output in &self.outputs {
             let borrowed_output = rc_output.read().unwrap();
             if let Some(output_descriptor) =
-                result.merge_degrade_failure(borrowed_output.make_descriptor())
+                result.merge_degrade_failure(borrowed_output.make_descriptor(collection))
             {
                 descriptor.add_output(output_descriptor);
             }
@@ -431,8 +434,9 @@ impl Treatment {
             if let Some(instanciation_designer) =
                 result.merge_degrade_failure(ScriptResult::from(tmp_status))
             {
-                result = result
-                    .and_degrade_failure(instancied_model.make_design(&instanciation_designer));
+                result = result.and_degrade_failure(
+                    instancied_model.make_design(&instanciation_designer, collection),
+                );
             }
         }
 
@@ -448,7 +452,8 @@ impl Treatment {
             if let Some(treatment_designer) =
                 result.merge_degrade_failure(ScriptResult::from(tmp_status))
             {
-                result = result.and_degrade_failure(treatment.make_design(&treatment_designer));
+                result = result
+                    .and_degrade_failure(treatment.make_design(&treatment_designer, &collection));
             }
         }
 

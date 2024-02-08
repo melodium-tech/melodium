@@ -13,7 +13,7 @@ use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Instanciation as TextTreatment;
 use crate::ScriptResult;
-use melodium_common::descriptor::Identifier;
+use melodium_common::descriptor::{Collection, Identifier};
 use melodium_engine::designer::{
     GenericInstanciation, TreatmentInstanciation as TreatmentInstanciationDesigner,
 };
@@ -84,9 +84,10 @@ impl TreatmentInstanciation {
         }
 
         for generic in &text.generics {
-            if let Some(generic) =
-                result.merge_degrade_failure(AssignedGeneric::new(generic.clone()))
-            {
+            if let Some(generic) = result.merge_degrade_failure(AssignedGeneric::new(
+                Arc::clone(&treatment) as Arc<RwLock<dyn DeclarativeElement>>,
+                generic.clone(),
+            )) {
                 treatment_instanciation
                     .write()
                     .unwrap()
@@ -127,6 +128,7 @@ impl TreatmentInstanciation {
     pub fn make_design(
         &self,
         designer: &Arc<RwLock<TreatmentInstanciationDesigner>>,
+        collection: &Arc<Collection>,
     ) -> ScriptResult<()> {
         let mut designer = designer.write().unwrap();
         let mut result = ScriptResult::new_success(());
@@ -138,9 +140,10 @@ impl TreatmentInstanciation {
 
             if let Some(rc_generic) = self.generics.get(i) {
                 let borrowed_generic = rc_generic.read().unwrap();
+                let borrwed_type = borrowed_generic.r#type.read().unwrap();
 
                 if let Some((r#type, _)) =
-                    result.merge_degrade_failure(borrowed_generic.r#type.make_descriptor())
+                    result.merge_degrade_failure(borrwed_type.make_descriptor(collection))
                 {
                     result = result.and_degrade_failure(ScriptResult::from(
                         designer.set_generic(desc_generic.name.clone(), r#type),
@@ -172,7 +175,7 @@ impl TreatmentInstanciation {
                 )))
             {
                 result = result.and_degrade_failure(
-                    borrowed_param_assignation.make_design(&param_assignation_designer),
+                    borrowed_param_assignation.make_design(&param_assignation_designer, collection),
                 );
             }
         }
