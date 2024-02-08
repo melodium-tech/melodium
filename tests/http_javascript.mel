@@ -1,16 +1,22 @@
 #!/usr/bin/env melodium
 #! name = http_javascript
 #! version = 0.7.1
-#! require = http:0.7.1 std:0.7.1 javascript:0.7.1 encoding:0.7.1
+#! require = http:0.7.1 std:0.7.1 javascript:0.7.1 encoding:0.7.1 json:0.7.1
 
 use http/server::HttpServer
 use http/server::connection
 use std/flow::emit
 use std/flow::trigger
+use std/ops/option::unwrapOr
+use std/ops/option::ignore
+use std/conv::toString
 use encoding::decode
 use encoding::encode
 use javascript::JavaScriptEngine
 use javascript::process
+use json::toJson
+use json::Json
+use json/value::|null
 
 treatment main()
   model server: HttpServer(
@@ -25,10 +31,12 @@ treatment main()
     connection.data -> trigger.stream,start -> status.trigger,emit -> connection.status
     
     decode()
+    toJson()
+    ignore<Json>()
     js_function()
     encode()
     
-    connection.data -> decode.data,text ->  js_function.data,data -> encode.text,data -> connection.data
+    connection.data -> decode.data,text -> toJson.text,json -> ignore.option,value -> js_function.data,data -> encode.text,data -> connection.data
 }
 
 model JsEngine(): JavaScriptEngine {
@@ -41,10 +49,13 @@ model JsEngine(): JavaScriptEngine {
 
 treatment js_function()
   model JsEngine: JsEngine()
-  input data: Stream<string>
+  input data: Stream<Json>
   output data: Stream<string>
 {
     process[engine=JsEngine](code="greet(value)")
+
+    unwrapOr<Json>(default=|null())
+    toString<Json>()
     
-    Self.data -> process.value,result -> Self.data
+    Self.data -> process.value,result -> unwrapOr.option,value -> toString.value,into -> Self.data
 }

@@ -237,9 +237,9 @@ fn convert_to_mel_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) ->
                     let deeper = conv_value(iter, generics);
                     conv = format!("value.map(|value| {deeper}).into()")
                 }
-                data if generics.contains(&data) => conv = "value".to_string(),
-                _obj => {
-                    conv = "std::sync::Arc::new(value) as std::sync::Arc<dyn melodium_core::Data>"
+                generic if generics.contains(&generic) => conv = "value".to_string(),
+                _data => {
+                    conv = "melodium_core::Value::Data(std::sync::Arc::new(value) as std::sync::Arc<dyn melodium_core::Data>)"
                         .to_string()
                 }
             }

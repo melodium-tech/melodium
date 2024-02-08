@@ -82,3 +82,54 @@ pub async fn fuse() {
         }
     }
 }
+
+#[mel_treatment(
+    generic T ()
+    input option Stream<Option<T>>
+    output value Stream<T>
+)]
+pub async fn ignore() {
+    'main: while let Ok(values) = option
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        for val in values {
+            match val {
+                Value::Option(Some(val)) => check!('main, value.send_one(*val).await),
+                _ => continue,
+            }
+        }
+    }
+}
+
+#[mel_function(
+    generic T ()
+)]
+pub fn wrap(value: T) -> Option<T> {
+    Some(value)
+}
+
+#[mel_treatment(
+    generic T ()
+    input value Stream<T>
+    output option Stream<Option<T>>
+)]
+pub async fn wrap() {
+    while let Ok(values) = value
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            option
+                .send_many(TransmissionValue::Other(
+                    values
+                        .into_iter()
+                        .map(|val| Value::Option(Some(Box::new(val))))
+                        .collect()
+                ))
+                .await
+        )
+    }
+}

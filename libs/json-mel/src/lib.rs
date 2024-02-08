@@ -6,6 +6,8 @@ use melodium_core::{executive::*, *};
 use melodium_macro::{check, mel_data, mel_function, mel_package, mel_treatment};
 use std::sync::Arc;
 
+pub mod value;
+
 /// JSON data.
 ///
 /// `Json` data type contains any valid json value.
