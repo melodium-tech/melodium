@@ -238,6 +238,14 @@ impl Buildable<ModelBuildMode> for Model {
 
     fn make_use(&self, identifier: &Identifier) -> bool {
         self.base_model.identifier() == identifier
+            || self.parameters.values().any(|parameter| {
+                parameter
+                    .described_type()
+                    .final_type()
+                    .data()
+                    .map(|data| data.identifier() == identifier)
+                    .unwrap_or(false)
+            })
             || self
                 .design
                 .lock()
