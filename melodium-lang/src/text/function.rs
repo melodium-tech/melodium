@@ -23,10 +23,6 @@ impl Function {
         mut iter: &mut Windows<Word>,
         global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
-
-        // Discard '<'
-        iter.next();
-
         let generics = parse_generics(&mut iter, global_annotations)?;
 
         Self::build_from_parameters(name, generics, &mut iter, global_annotations)
