@@ -8,7 +8,7 @@ use crate::error::{LogicError, LogicResult};
 use crate::world::World;
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Identified, Parameterized, Status, Treatment as TreatmentDescriptor,
+    DescribedType, Identified, Parameterized, Status, Treatment as TreatmentDescriptor,
 };
 use melodium_common::executive::{Model, TrackId, Value as ExecutiveValue};
 use std::collections::HashMap;
@@ -241,6 +241,21 @@ impl BuilderTrait for Builder {
                     // We should have a model there, should have been catched by designer, aborting
                     panic!("Impossible model recoverage")
                 }
+            }
+
+            // Setup generics
+            for (name, generic) in &treatment.generics {
+                let data_type = if generic.contains_generic() {
+                    match generic {
+                        DescribedType::Generic(generic) => {
+                            environment.generics().get(&generic.name).unwrap().clone()
+                        }
+                        _ => panic!("Impossible generic recoverage"),
+                    }
+                } else {
+                    generic.to_datatype(&HashMap::new()).unwrap()
+                };
+                remastered_environment.add_generic(name, data_type);
             }
 
             // Setup parameters

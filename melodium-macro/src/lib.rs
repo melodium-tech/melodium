@@ -1201,11 +1201,15 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let models: proc_macro2::TokenStream = models.iter().map(|(name, _)| {
             format!(r#"r#{name}: std::sync::Mutex<Option<std::sync::Arc<dyn melodium_core::common::executive::Model>>>,"#)
         }).collect::<Vec<_>>().join("").parse().unwrap();
+        let generics:proc_macro2::TokenStream = generics.iter().map(|(name, _)| {
+            format!(r#"#[allow(non_snake_case)] r#{name}: std::sync::Mutex<Option<melodium_core::common::descriptor::DataType>>,"#)
+        }).collect::<Vec<_>>().join("").parse().unwrap();
 
         declaration = quote! {
             #[derive(Debug)]
             pub struct AdHocTreatment {
                 #models
+                #generics
                 #inputs
                 #outputs
                 #parameters
@@ -1258,6 +1262,13 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
             .join("")
             .parse()
             .unwrap();
+        let generics: proc_macro2::TokenStream = generics
+            .iter()
+            .map(|(name, _)| format!(r#"r#{name}: std::sync::Mutex::new(None),"#))
+            .collect::<Vec<_>>()
+            .join("")
+            .parse()
+            .unwrap();
 
         self_implementation = quote! {
             impl AdHocTreatment {
@@ -1267,6 +1278,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                         #inputs
                         #outputs
                         #models
+                        #generics
                     })
                 }
             }
@@ -1316,10 +1328,26 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
             .join("")
             .parse()
             .unwrap();
+        let generics: proc_macro2::TokenStream = generics
+            .iter()
+            .map(|(name, _)| {
+                format!(r#""{name}" => *self.r#{name}.lock().unwrap() = Some(data_type),"#)
+            })
+            .collect::<Vec<_>>()
+            .join("")
+            .parse()
+            .unwrap();
 
         trait_implementation = quote! {
             fn descriptor(&self) -> std::sync::Arc<dyn melodium_core::common::descriptor::Treatment> {
                 descriptor()
+            }
+
+            fn set_generic(&self, generic: &str, data_type: melodium_core::common::descriptor::DataType) {
+                match generic {
+                    #generics
+                    _ => {},
+                }
             }
 
             fn set_parameter(&self, param: &str, value: melodium_core::common::executive::Value) {
@@ -1380,12 +1408,16 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let models: proc_macro2::TokenStream = models.iter().map(|(name, _)| {
             format!(r#"let {name} = std::mem::replace(&mut *self.r#{name}.lock().unwrap(), None).unwrap()"#)
         }).collect::<Vec<_>>().join(";").parse().unwrap();
+        let generics: proc_macro2::TokenStream = generics.iter().map(|(name, _)| {
+            format!(r#"#[allow(non_snake_case)] let {name} = std::mem::replace(&mut *self.r#{name}.lock().unwrap(), None).unwrap()"#)
+        }).collect::<Vec<_>>().join(";").parse().unwrap();
 
         let body = treatment.block;
 
         prepare_implementation = quote! {
             fn prepare(&self) -> Vec<melodium_core::common::executive::TrackFuture> {
 
+                #generics;
                 #parameters;
                 #models;
                 #pre_inputs;
