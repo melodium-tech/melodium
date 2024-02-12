@@ -121,7 +121,26 @@ impl Builder {
             Value::Context(context, entry) => contextual_environment
                 .map(|ce| ce.get_context(context.name()).map(|c| c.get_value(entry)))
                 .flatten(),
-            Value::Function(descriptor, _generics, params) => {
+            Value::Function(descriptor, generics, params) => {
+                let generics = generics
+                    .iter()
+                    .map(|(name, generic)| {
+                        (
+                            name.clone(),
+                            if generic.contains_generic() {
+                                match generic {
+                                    DescribedType::Generic(generic) => genesis_environment
+                                        .get_generic(&generic.name)
+                                        .unwrap()
+                                        .clone(),
+                                    _ => panic!("Impossible generic recoverage"),
+                                }
+                            } else {
+                                generic.to_datatype(&HashMap::new()).unwrap()
+                            },
+                        )
+                    })
+                    .collect();
                 let mut executive_values = Vec::with_capacity(descriptor.parameters().len());
                 for parameter in params {
                     if let Some(value) =
@@ -133,7 +152,7 @@ impl Builder {
                     }
                 }
 
-                Some(descriptor.function()(executive_values))
+                Some(descriptor.function()(generics, executive_values))
             }
         }
     }

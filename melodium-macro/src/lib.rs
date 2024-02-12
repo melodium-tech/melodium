@@ -2362,7 +2362,7 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
             }
 
-            fn mel_function(params: Vec<melodium_core::common::executive::Value>) -> melodium_core::common::executive::Value {
+            fn mel_function(generics: std::collections::HashMap<String, melodium_core::common::descriptor::DataType>, params: Vec<melodium_core::common::executive::Value>) -> melodium_core::common::executive::Value {
 
                 #typedefs;
 

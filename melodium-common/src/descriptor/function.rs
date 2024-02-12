@@ -2,13 +2,13 @@ use super::{DataType, DescribedType, Documented, Identified, OrderedParameterize
 use crate::executive::Value;
 use core::fmt::{Debug, Display};
 use downcast_rs::{impl_downcast, DowncastSync};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 pub trait Function:
     Identified + Documented + OrderedParameterized + DowncastSync + Display + Debug + Send + Sync
 {
     fn return_type(&self) -> &DescribedType;
-    fn function(&self) -> fn(Vec<Value>) -> Value;
+    fn function(&self) -> fn(HashMap<String, DataType>, Vec<Value>) -> Value;
     fn as_identified(&self) -> Arc<dyn Identified>;
     fn as_ordered_parameterized(&self) -> Arc<dyn OrderedParameterized>;
 }

@@ -1,9 +1,10 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    Attribuable, Attributes, DescribedType, Documented, Function as FunctionDescriptor, Generic,
-    Generics, Identified, Identifier, OrderedParameterized, Parameter,
+    Attribuable, Attributes, DataType, DescribedType, Documented, Function as FunctionDescriptor,
+    Generic, Generics, Identified, Identifier, OrderedParameterized, Parameter,
 };
 use melodium_common::executive::Value;
+use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
 #[derive(Debug)]
@@ -15,7 +16,7 @@ pub struct Function {
     generics: Vec<Generic>,
     parameters: Vec<Parameter>,
     return_type: DescribedType,
-    function: fn(Vec<Value>) -> Value,
+    function: fn(HashMap<String, DataType>, Vec<Value>) -> Value,
     auto_reference: Weak<Self>,
 }
 
@@ -27,7 +28,7 @@ impl Function {
         generics: Vec<Generic>,
         parameters: Vec<Parameter>,
         return_type: DescribedType,
-        function: fn(Vec<Value>) -> Value,
+        function: fn(HashMap<String, DataType>, Vec<Value>) -> Value,
     ) -> Arc<Self> {
         #[cfg(not(feature = "doc"))]
         let _ = documentation;
@@ -56,7 +57,7 @@ impl FunctionDescriptor for Function {
         &self.return_type
     }
 
-    fn function(&self) -> fn(Vec<Value>) -> Value {
+    fn function(&self) -> fn(HashMap<String, DataType>, Vec<Value>) -> Value {
         self.function
     }
 
