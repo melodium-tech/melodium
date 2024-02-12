@@ -8,11 +8,3 @@ use melodium_macro::mel_function;
 pub fn replacement_character() -> char {
     char::REPLACEMENT_CHARACTER
 }
-
-/// Return the highest code point `char` can contains.
-///
-/// The highest code point is `U+10FFFF`.
-#[mel_function]
-pub fn max() -> char {
-    char::MAX
-}

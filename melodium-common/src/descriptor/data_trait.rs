@@ -57,6 +57,8 @@ pub enum DataTrait {
     SaturatingToF32,
     SaturatingToF64,
 
+    Bounded,
+
     Binary,
 
     Signed,
@@ -149,6 +151,7 @@ impl Display for DataTrait {
             DataTrait::SaturatingToU128 => write!(f, "SaturatingToU128"),
             DataTrait::SaturatingToF32 => write!(f, "SaturatingToF32"),
             DataTrait::SaturatingToF64 => write!(f, "SaturatingToF64"),
+            DataTrait::Bounded => write!(f, "Bounded"),
             DataTrait::Binary => write!(f, "Binary"),
             DataTrait::Signed => write!(f, "Signed"),
             DataTrait::Float => write!(f, "Float"),
@@ -242,6 +245,7 @@ impl FromStr for DataTrait {
             "SaturatingToF32" => Ok(DataTrait::SaturatingToF32),
             "SaturatingToF64" => Ok(DataTrait::SaturatingToF64),
 
+            "Bounded" => Ok(DataTrait::Bounded),
             "Binary" => Ok(DataTrait::Binary),
             "Signed" => Ok(DataTrait::Signed),
             "Float" => Ok(DataTrait::Float),
