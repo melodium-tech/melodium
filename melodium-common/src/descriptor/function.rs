@@ -1,4 +1,4 @@
-use super::{DescribedType, Documented, Identified, OrderedParameterized};
+use super::{DataType, DescribedType, Documented, Identified, OrderedParameterized};
 use crate::executive::Value;
 use core::fmt::{Debug, Display};
 use downcast_rs::{impl_downcast, DowncastSync};

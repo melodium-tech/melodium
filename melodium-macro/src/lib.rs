@@ -2246,6 +2246,17 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     }
 
+    let closure = {
+        let params = function.sig.inputs.clone();
+        let return_type = function.sig.output.clone();
+        let content = function.block.clone();
+        let name = function.sig.ident.clone();
+
+        quote! {
+            let #name = move |#params| #return_type #content;
+        }
+    };
+
     let typedefs: proc_macro2::TokenStream = generics
         .iter()
         .map(|(name, _)| format!(r#"type {name} = melodium_core::common::executive::Value"#))
@@ -2355,7 +2366,7 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 #typedefs;
 
-                #function
+                #closure
 
                 #mel_call
             }
