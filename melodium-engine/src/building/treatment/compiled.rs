@@ -140,6 +140,10 @@ impl BuilderTrait for Builder {
 
         let treatment = (self.build_fn)();
 
+        for (name, generic) in build_sample.genesis_environment.generics() {
+            treatment.set_generic(name, generic.clone());
+        }
+
         for (name, model) in build_sample.genesis_environment.models() {
             treatment.set_model(name, Arc::clone(model));
         }

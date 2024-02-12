@@ -1,3 +1,5 @@
+use crate::executive::Value;
+
 use super::{Data, DataTrait};
 use core::fmt::{Display, Formatter, Result};
 use std::sync::Arc;
@@ -1100,6 +1102,29 @@ impl DataType {
                 DataType::Option(_) => false,
                 DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
+            DataTrait::Bounded => match self {
+                DataType::Undetermined => false,
+                DataType::Void => false,
+                DataType::I8 => true,
+                DataType::I16 => true,
+                DataType::I32 => true,
+                DataType::I64 => true,
+                DataType::I128 => true,
+                DataType::U8 => true,
+                DataType::U16 => true,
+                DataType::U32 => true,
+                DataType::U64 => true,
+                DataType::U128 => true,
+                DataType::F32 => true,
+                DataType::F64 => true,
+                DataType::Bool => false,
+                DataType::Byte => true,
+                DataType::Char => false,
+                DataType::String => false,
+                DataType::Vec(_) => false,
+                DataType::Option(_) => false,
+                DataType::Data(_) => false,
+            },
             DataTrait::Binary => match self {
                 DataType::Undetermined => false,
                 DataType::Void => false,
@@ -1882,6 +1907,68 @@ impl DataType {
                 DataType::Option(inner) => inner.implements(data_trait),
                 DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
+        }
+    }
+
+    pub fn bounded_min(&self) -> Value {
+        match self {
+            DataType::I8 => Value::I8(i8::MIN),
+            DataType::I16 => Value::I16(i16::MIN),
+            DataType::I32 => Value::I32(i32::MIN),
+            DataType::I64 => Value::I64(i64::MIN),
+            DataType::I128 => Value::I128(i128::MIN),
+            DataType::U8 => Value::U8(u8::MIN),
+            DataType::U16 => Value::U16(u16::MIN),
+            DataType::U32 => Value::U32(u32::MIN),
+            DataType::U64 => Value::U64(u64::MIN),
+            DataType::U128 => Value::U128(u128::MIN),
+            DataType::F32 => Value::F32(f32::MIN),
+            DataType::F64 => Value::F64(f64::MIN),
+            DataType::Byte => Value::Byte(u8::MIN),
+            _ => panic!("Bounded not supported for {}", self),
+        }
+    }
+
+    pub fn bounded_max(&self) -> Value {
+        match self {
+            DataType::I8 => Value::I8(i8::MAX),
+            DataType::I16 => Value::I16(i16::MAX),
+            DataType::I32 => Value::I32(i32::MAX),
+            DataType::I64 => Value::I64(i64::MAX),
+            DataType::I128 => Value::I128(i128::MAX),
+            DataType::U8 => Value::U8(u8::MAX),
+            DataType::U16 => Value::U16(u16::MAX),
+            DataType::U32 => Value::U32(u32::MAX),
+            DataType::U64 => Value::U64(u64::MAX),
+            DataType::U128 => Value::U128(u128::MAX),
+            DataType::F32 => Value::F32(f32::MAX),
+            DataType::F64 => Value::F64(f64::MAX),
+            DataType::Byte => Value::Byte(u8::MAX),
+            _ => panic!("Bounded not supported for {}", self),
+        }
+    }
+
+    pub fn float_infinity(&self) -> Value {
+        match self {
+            DataType::F32 => Value::F32(f32::INFINITY),
+            DataType::F64 => Value::F64(f64::INFINITY),
+            _ => panic!("Float not supported for {}", self),
+        }
+    }
+
+    pub fn float_neg_infinity(&self) -> Value {
+        match self {
+            DataType::F32 => Value::F32(f32::NEG_INFINITY),
+            DataType::F64 => Value::F64(f64::NEG_INFINITY),
+            _ => panic!("Float not supported for {}", self),
+        }
+    }
+
+    pub fn float_nan(&self) -> Value {
+        match self {
+            DataType::F32 => Value::F32(f32::NAN),
+            DataType::F64 => Value::F64(f64::NAN),
+            _ => panic!("Float not supported for {}", self),
         }
     }
 }

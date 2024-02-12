@@ -8,7 +8,7 @@ use crate::error::{LogicError, LogicResult};
 use crate::world::World;
 use core::fmt::Debug;
 use melodium_common::descriptor::{
-    Identified, Parameterized, Status, Treatment as TreatmentDescriptor,
+    DescribedType, Identified, Parameterized, Status, Treatment as TreatmentDescriptor,
 };
 use melodium_common::executive::{Model, TrackId, Value as ExecutiveValue};
 use std::collections::HashMap;
@@ -121,7 +121,26 @@ impl Builder {
             Value::Context(context, entry) => contextual_environment
                 .map(|ce| ce.get_context(context.name()).map(|c| c.get_value(entry)))
                 .flatten(),
-            Value::Function(descriptor, _generics, params) => {
+            Value::Function(descriptor, generics, params) => {
+                let generics = generics
+                    .iter()
+                    .map(|(name, generic)| {
+                        (
+                            name.clone(),
+                            if generic.contains_generic() {
+                                match generic {
+                                    DescribedType::Generic(generic) => genesis_environment
+                                        .get_generic(&generic.name)
+                                        .unwrap()
+                                        .clone(),
+                                    _ => panic!("Impossible generic recoverage"),
+                                }
+                            } else {
+                                generic.to_datatype(&HashMap::new()).unwrap()
+                            },
+                        )
+                    })
+                    .collect();
                 let mut executive_values = Vec::with_capacity(descriptor.parameters().len());
                 for parameter in params {
                     if let Some(value) =
@@ -133,7 +152,7 @@ impl Builder {
                     }
                 }
 
-                Some(descriptor.function()(executive_values))
+                Some(descriptor.function()(generics, executive_values))
             }
         }
     }
@@ -241,6 +260,21 @@ impl BuilderTrait for Builder {
                     // We should have a model there, should have been catched by designer, aborting
                     panic!("Impossible model recoverage")
                 }
+            }
+
+            // Setup generics
+            for (name, generic) in &treatment.generics {
+                let data_type = if generic.contains_generic() {
+                    match generic {
+                        DescribedType::Generic(generic) => {
+                            environment.generics().get(&generic.name).unwrap().clone()
+                        }
+                        _ => panic!("Impossible generic recoverage"),
+                    }
+                } else {
+                    generic.to_datatype(&HashMap::new()).unwrap()
+                };
+                remastered_environment.add_generic(name, data_type);
             }
 
             // Setup parameters
