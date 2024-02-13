@@ -11,4 +11,8 @@ impl Parameter {
     pub fn make_use(&self, identifier: &Identifier) -> bool {
         self.value.make_use(identifier)
     }
+
+    pub fn uses(&self) -> Vec<Identifier> {
+        self.value.uses()
+    }
 }

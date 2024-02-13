@@ -10,6 +10,7 @@ use crate::path::Path;
 use crate::text::value::Value as TextValue;
 use crate::text::PositionnedString;
 use crate::ScriptResult;
+use melodium_common::descriptor::Collection;
 use melodium_common::descriptor::DescribedType;
 use melodium_common::descriptor::{DataType, Entry};
 use melodium_common::executive::Value as ExecutiveValue;
@@ -276,6 +277,7 @@ impl Value {
         &self,
         designer: &ParameterDesigner,
         described_type: &DescribedType,
+        collection: &Collection,
     ) -> ScriptResult<ValueDesigner> {
         match &self.content {
             ValueContent::Name(decl_param) => {
@@ -334,9 +336,10 @@ impl Value {
 
                         if let Some(rc_generic) = borrowed_func.generics.get(i) {
                             let borrowed_generic = rc_generic.read().unwrap();
+                            let borrowed_type = borrowed_generic.r#type.read().unwrap();
 
                             if let Some((r#type, _)) = result
-                                .merge_degrade_failure(borrowed_generic.r#type.make_descriptor())
+                                .merge_degrade_failure(borrowed_type.make_descriptor(collection))
                             {
                                 generics.insert(desc_generic.name.clone(), r#type);
                             }
@@ -361,9 +364,13 @@ impl Value {
                                 .as_defined(&generics)
                                 .unwrap_or_else(|| desc_param.described_type().clone());
 
-                            if let Some(param) = result.merge_degrade_failure(
-                                borrowed_param.make_designed_value(designer, &described_type),
-                            ) {
+                            if let Some(param) =
+                                result.merge_degrade_failure(borrowed_param.make_designed_value(
+                                    designer,
+                                    &described_type,
+                                    collection,
+                                ))
+                            {
                                 params.push(param);
                             }
                         } else {

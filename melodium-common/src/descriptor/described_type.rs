@@ -1,8 +1,9 @@
-use super::{DataTrait, DataType, Generic};
+use super::{Data, DataTrait, DataType, Generic};
 use core::fmt::{Display, Formatter, Result};
 use std::collections::HashMap;
+use std::sync::Arc;
 
-#[derive(Clone, PartialEq, Hash, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum DescribedType {
     Void,
 
@@ -30,16 +31,81 @@ pub enum DescribedType {
     Vec(Box<DescribedType>),
     Option(Box<DescribedType>),
 
+    Data(Box<Arc<dyn Data>>),
+
     Generic(Box<Generic>),
 }
 
 impl DescribedType {
     pub fn contains_generic(&self) -> bool {
         match self {
-            DescribedType::Option(me) => me.contains_generic(),
-            DescribedType::Vec(me) => me.contains_generic(),
+            DescribedType::Option(me) | DescribedType::Vec(me) => me.contains_generic(),
             DescribedType::Generic(_) => true,
             _ => false,
+        }
+    }
+
+    pub fn contains_core(&self) -> bool {
+        match self {
+            DescribedType::Void
+            | DescribedType::I8
+            | DescribedType::I16
+            | DescribedType::I32
+            | DescribedType::I64
+            | DescribedType::I128
+            | DescribedType::U8
+            | DescribedType::U16
+            | DescribedType::U32
+            | DescribedType::U64
+            | DescribedType::U128
+            | DescribedType::F32
+            | DescribedType::F64
+            | DescribedType::Bool
+            | DescribedType::Byte
+            | DescribedType::Char
+            | DescribedType::String => true,
+            DescribedType::Option(d) | DescribedType::Vec(d) => d.contains_core(),
+            DescribedType::Data(_) => false,
+            DescribedType::Generic(_) => false,
+        }
+    }
+
+    pub fn contains_data(&self) -> bool {
+        match self {
+            DescribedType::Void
+            | DescribedType::I8
+            | DescribedType::I16
+            | DescribedType::I32
+            | DescribedType::I64
+            | DescribedType::I128
+            | DescribedType::U8
+            | DescribedType::U16
+            | DescribedType::U32
+            | DescribedType::U64
+            | DescribedType::U128
+            | DescribedType::F32
+            | DescribedType::F64
+            | DescribedType::Bool
+            | DescribedType::Byte
+            | DescribedType::Char
+            | DescribedType::String => false,
+            DescribedType::Option(d) | DescribedType::Vec(d) => d.contains_data(),
+            DescribedType::Data(_) => true,
+            DescribedType::Generic(_) => false,
+        }
+    }
+
+    pub fn final_type(&self) -> &DescribedType {
+        match self {
+            DescribedType::Vec(inner) | DescribedType::Option(inner) => inner,
+            other => other,
+        }
+    }
+
+    pub fn data(&self) -> Option<&Arc<dyn Data>> {
+        match self {
+            DescribedType::Data(data) => Some(data),
+            _ => None,
         }
     }
 
@@ -85,6 +151,8 @@ impl DescribedType {
 
             DescribedType::Char => Some(DataType::Char),
             DescribedType::String => Some(DataType::String),
+
+            DescribedType::Data(obj) => Some(DataType::Data(Arc::clone(obj))),
 
             DescribedType::Option(me) => me
                 .to_datatype(generics)
@@ -158,6 +226,7 @@ impl From<&DataType> for DescribedType {
             DataType::Option(inner) => {
                 DescribedType::Option(Box::new(DescribedType::from(&**inner)))
             }
+            DataType::Data(obj) => DescribedType::Data(Box::new(Arc::clone(obj))),
         }
     }
 }
@@ -188,6 +257,7 @@ impl From<DataType> for DescribedType {
             DataType::String => DescribedType::String,
             DataType::Vec(inner) => DescribedType::Vec(Box::new(DescribedType::from(*inner))),
             DataType::Option(inner) => DescribedType::Option(Box::new(DescribedType::from(*inner))),
+            DataType::Data(obj) => DescribedType::Data(Box::new(obj)),
         }
     }
 }
@@ -214,6 +284,7 @@ impl Display for DescribedType {
             DescribedType::String => write!(f, "string"),
             DescribedType::Vec(inner) => write!(f, "Vec<{inner}>"),
             DescribedType::Option(inner) => write!(f, "Option<{inner}>"),
+            DescribedType::Data(obj) => write!(f, "{}", obj.identifier().name()),
             DescribedType::Generic(gen) => write!(f, "{}", gen),
         }
     }

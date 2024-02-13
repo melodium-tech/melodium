@@ -44,8 +44,8 @@ impl FunctionCall {
 
         let mut generics = Vec::new();
         for generic in &text.generics {
-            if let Some(generic) =
-                result.merge_degrade_failure(AssignedGeneric::new(generic.clone()))
+            if let Some(generic) = result
+                .merge_degrade_failure(AssignedGeneric::new(Arc::clone(&scope), generic.clone()))
             {
                 generics.push(generic);
             }

@@ -32,33 +32,37 @@ pub async fn to_void() {
     generic T ()
 )]
 pub fn to_bytes(value: T) -> Vec<byte> {
-    match value {
-        Value::Void(_) => Vec::new(),
-        Value::I8(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
-        Value::I16(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
-        Value::I32(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
-        Value::I64(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
-        Value::I128(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
-        Value::U8(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
-        Value::U16(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
-        Value::U32(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
-        Value::U64(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
-        Value::U128(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
-        Value::F32(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
-        Value::F64(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
-        Value::Bool(val) => match val {
-            true => vec![1u8],
-            false => vec![0u8],
-        },
-        Value::Byte(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
-        Value::Char(val) => val.to_string().as_bytes().iter().map(|v| *v).collect(),
-        Value::String(val) => val.as_bytes().iter().map(|v| *v).collect(),
-        Value::Vec(_vals) => Vec::new(),
-        Value::Option(val) => match val {
-            Some(val) => to_bytes(*val),
-            None => Vec::new(),
-        },
+    fn to_bytes(value: T) -> Vec<byte> {
+        match value {
+            Value::Void(_) => Vec::new(),
+            Value::I8(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
+            Value::I16(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
+            Value::I32(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
+            Value::I64(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
+            Value::I128(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
+            Value::U8(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
+            Value::U16(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
+            Value::U32(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
+            Value::U64(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
+            Value::U128(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
+            Value::F32(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
+            Value::F64(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
+            Value::Bool(val) => match val {
+                true => vec![1u8],
+                false => vec![0u8],
+            },
+            Value::Byte(val) => val.to_be_bytes().iter().map(|v| *v).collect(),
+            Value::Char(val) => val.to_string().as_bytes().iter().map(|v| *v).collect(),
+            Value::String(val) => val.as_bytes().iter().map(|v| *v).collect(),
+            Value::Vec(_vals) => Vec::new(),
+            Value::Option(val) => match val {
+                Some(val) => to_bytes(*val),
+                None => Vec::new(),
+            },
+            Value::Data(_) => Vec::new(),
+        }
     }
+    to_bytes(value)
 }
 
 /// Turns data stream into `Vec<byte>` one.
@@ -121,6 +125,7 @@ fn value_to_byte(value: Value) -> Value {
             Some(val) => value_to_byte(*val),
             None => Value::Vec(Vec::new()),
         },
+        Value::Data(_) => Value::Vec(Vec::new()),
     }
 }
 
@@ -1158,7 +1163,7 @@ pub fn try_to_char(value: T) -> Option<char> {
 #[mel_treatment(
     generic T (TryToChar)
     input value Stream<T>
-    output into Stream<Option<Char>>
+    output into Stream<Option<char>>
 )]
 pub async fn try_to_char() {
     while let Ok(values) = value

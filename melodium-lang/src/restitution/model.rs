@@ -1,11 +1,11 @@
+use super::value::value;
+use crate::restitution::describe_type;
 use itertools::Itertools;
 use melodium_common::descriptor::{
     Attribuable, Documented, Identified, Identifier, Model as ModelDescriptor, Parameterized,
 };
 use melodium_engine::design::Model as ModelDesign;
 use std::collections::BTreeMap;
-
-use super::value::value;
 pub struct Model {
     design: ModelDesign,
     uses: Vec<Identifier>,
@@ -13,9 +13,8 @@ pub struct Model {
 
 impl Model {
     pub fn new(design: ModelDesign) -> Self {
-        let descriptor = design.descriptor.upgrade().unwrap();
+        let uses = design.uses();
 
-        let uses = vec![descriptor.base_model().unwrap().identifier().clone()];
         Self { design, uses }
     }
 
@@ -70,7 +69,8 @@ impl Model {
                             .iter()
                             .map(|(name, attribute)| format!("#[{name}({attribute})] "))
                             .collect::<Vec<_>>()
-                            .join("")
+                            .join(""),
+                        param = describe_type(param.described_type(), names),
                     )
                 })
                 .collect::<Vec<_>>()

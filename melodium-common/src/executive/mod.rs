@@ -5,6 +5,7 @@
 //!
 
 pub mod context;
+pub mod data;
 pub mod data_traits;
 pub mod future;
 pub mod input;
@@ -17,6 +18,7 @@ pub mod value;
 pub mod world;
 
 pub use context::Context;
+pub use data::Data;
 pub use data_traits::DataTrait;
 pub use future::ContinuousFuture;
 pub use future::TrackFuture;

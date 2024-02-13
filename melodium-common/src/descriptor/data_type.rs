@@ -1,7 +1,10 @@
-use super::DataTrait;
-use core::fmt::{Display, Formatter, Result};
+use crate::executive::Value;
 
-#[derive(Clone, Hash, Debug)]
+use super::{Data, DataTrait};
+use core::fmt::{Display, Formatter, Result};
+use std::sync::Arc;
+
+#[derive(Clone, Debug)]
 pub enum DataType {
     /// Special variant not aimed to be explicitly used,
     /// it corresponds to the case a value Vec or Option
@@ -34,6 +37,8 @@ pub enum DataType {
 
     Vec(Box<DataType>),
     Option(Box<DataType>),
+
+    Data(Arc<dyn Data>),
 }
 
 impl DataType {
@@ -60,6 +65,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => true,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Vec => match self {
                 DataType::Undetermined => false,
@@ -82,6 +88,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => true,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToI8 => match self {
                 DataType::Undetermined => false,
@@ -104,6 +111,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToI16 => match self {
                 DataType::Undetermined => false,
@@ -126,6 +134,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToI32 => match self {
                 DataType::Undetermined => false,
@@ -148,6 +157,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToI64 => match self {
                 DataType::Undetermined => false,
@@ -170,6 +180,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToI128 => match self {
                 DataType::Undetermined => false,
@@ -192,6 +203,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToU8 => match self {
                 DataType::Undetermined => false,
@@ -214,6 +226,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToU16 => match self {
                 DataType::Undetermined => false,
@@ -236,6 +249,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToU32 => match self {
                 DataType::Undetermined => false,
@@ -258,6 +272,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToU64 => match self {
                 DataType::Undetermined => false,
@@ -280,6 +295,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToU128 => match self {
                 DataType::Undetermined => false,
@@ -302,6 +318,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToF32 => match self {
                 DataType::Undetermined => false,
@@ -324,6 +341,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToF64 => match self {
                 DataType::Undetermined => false,
@@ -346,6 +364,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToBool => match self {
                 DataType::Undetermined => false,
@@ -368,6 +387,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToByte => match self {
                 DataType::Undetermined => false,
@@ -390,6 +410,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToChar => match self {
                 DataType::Undetermined => false,
@@ -412,6 +433,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::ToString => match self {
                 DataType::Undetermined => false,
@@ -434,6 +456,7 @@ impl DataType {
                 DataType::String => true,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToI8 => match self {
                 DataType::Undetermined => false,
@@ -456,6 +479,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToI16 => match self {
                 DataType::Undetermined => false,
@@ -478,6 +502,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToI32 => match self {
                 DataType::Undetermined => false,
@@ -500,6 +525,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToI64 => match self {
                 DataType::Undetermined => false,
@@ -522,6 +548,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToI128 => match self {
                 DataType::Undetermined => false,
@@ -544,6 +571,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToU8 => match self {
                 DataType::Undetermined => false,
@@ -566,6 +594,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToU16 => match self {
                 DataType::Undetermined => false,
@@ -588,6 +617,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToU32 => match self {
                 DataType::Undetermined => false,
@@ -610,6 +640,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToU64 => match self {
                 DataType::Undetermined => false,
@@ -632,6 +663,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToU128 => match self {
                 DataType::Undetermined => false,
@@ -654,6 +686,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToF32 => match self {
                 DataType::Undetermined => false,
@@ -676,6 +709,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToF64 => match self {
                 DataType::Undetermined => false,
@@ -698,6 +732,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToBool => match self {
                 DataType::Undetermined => false,
@@ -720,6 +755,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToByte => match self {
                 DataType::Undetermined => false,
@@ -742,6 +778,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToChar => match self {
                 DataType::Undetermined => false,
@@ -764,6 +801,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::TryToString => match self {
                 DataType::Undetermined => false,
@@ -786,6 +824,7 @@ impl DataType {
                 DataType::String => true,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingToI8 => match self {
                 DataType::Undetermined => false,
@@ -808,6 +847,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingToI16 => match self {
                 DataType::Undetermined => false,
@@ -830,6 +870,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingToI32 => match self {
                 DataType::Undetermined => false,
@@ -852,6 +893,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingToI64 => match self {
                 DataType::Undetermined => false,
@@ -874,6 +916,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingToI128 => match self {
                 DataType::Undetermined => false,
@@ -896,6 +939,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingToU8 => match self {
                 DataType::Undetermined => false,
@@ -918,6 +962,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingToU16 => match self {
                 DataType::Undetermined => false,
@@ -940,6 +985,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingToU32 => match self {
                 DataType::Undetermined => false,
@@ -962,6 +1008,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingToU64 => match self {
                 DataType::Undetermined => false,
@@ -984,6 +1031,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingToU128 => match self {
                 DataType::Undetermined => false,
@@ -1006,6 +1054,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingToF32 => match self {
                 DataType::Undetermined => false,
@@ -1028,6 +1077,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingToF64 => match self {
                 DataType::Undetermined => false,
@@ -1050,6 +1100,30 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
+            },
+            DataTrait::Bounded => match self {
+                DataType::Undetermined => false,
+                DataType::Void => false,
+                DataType::I8 => true,
+                DataType::I16 => true,
+                DataType::I32 => true,
+                DataType::I64 => true,
+                DataType::I128 => true,
+                DataType::U8 => true,
+                DataType::U16 => true,
+                DataType::U32 => true,
+                DataType::U64 => true,
+                DataType::U128 => true,
+                DataType::F32 => true,
+                DataType::F64 => true,
+                DataType::Bool => false,
+                DataType::Byte => true,
+                DataType::Char => false,
+                DataType::String => false,
+                DataType::Vec(_) => false,
+                DataType::Option(_) => false,
+                DataType::Data(_) => false,
             },
             DataTrait::Binary => match self {
                 DataType::Undetermined => false,
@@ -1072,6 +1146,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Signed => match self {
                 DataType::Undetermined => false,
@@ -1094,6 +1169,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Float => match self {
                 DataType::Undetermined => false,
@@ -1116,6 +1192,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::PartialEquality => match self {
                 DataType::Undetermined => false,
@@ -1138,6 +1215,7 @@ impl DataType {
                 DataType::String => true,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Equality => match self {
                 DataType::Undetermined => false,
@@ -1160,6 +1238,7 @@ impl DataType {
                 DataType::String => true,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::PartialOrder => match self {
                 DataType::Undetermined => false,
@@ -1182,6 +1261,7 @@ impl DataType {
                 DataType::String => true,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Order => match self {
                 DataType::Undetermined => false,
@@ -1204,6 +1284,7 @@ impl DataType {
                 DataType::String => true,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Add => match self {
                 DataType::Undetermined => false,
@@ -1226,6 +1307,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::CheckedAdd => match self {
                 DataType::Undetermined => false,
@@ -1248,6 +1330,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingAdd => match self {
                 DataType::Undetermined => false,
@@ -1270,6 +1353,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::WrappingAdd => match self {
                 DataType::Undetermined => false,
@@ -1292,6 +1376,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Sub => match self {
                 DataType::Undetermined => false,
@@ -1314,6 +1399,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::CheckedSub => match self {
                 DataType::Undetermined => false,
@@ -1336,6 +1422,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingSub => match self {
                 DataType::Undetermined => false,
@@ -1358,6 +1445,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::WrappingSub => match self {
                 DataType::Undetermined => false,
@@ -1380,6 +1468,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Mul => match self {
                 DataType::Undetermined => false,
@@ -1402,6 +1491,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::CheckedMul => match self {
                 DataType::Undetermined => false,
@@ -1424,6 +1514,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::SaturatingMul => match self {
                 DataType::Undetermined => false,
@@ -1446,6 +1537,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::WrappingMul => match self {
                 DataType::Undetermined => false,
@@ -1468,6 +1560,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Div => match self {
                 DataType::Undetermined => false,
@@ -1490,6 +1583,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::CheckedDiv => match self {
                 DataType::Undetermined => false,
@@ -1512,6 +1606,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Rem => match self {
                 DataType::Undetermined => false,
@@ -1534,6 +1629,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::CheckedRem => match self {
                 DataType::Undetermined => false,
@@ -1556,6 +1652,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Neg => match self {
                 DataType::Undetermined => false,
@@ -1578,6 +1675,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::CheckedNeg => match self {
                 DataType::Undetermined => false,
@@ -1600,6 +1698,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::WrappingNeg => match self {
                 DataType::Undetermined => false,
@@ -1622,6 +1721,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Pow => match self {
                 DataType::Undetermined => false,
@@ -1644,6 +1744,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::CheckedPow => match self {
                 DataType::Undetermined => false,
@@ -1666,6 +1767,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Euclid => match self {
                 DataType::Undetermined => false,
@@ -1688,6 +1790,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::CheckedEuclid => match self {
                 DataType::Undetermined => false,
@@ -1710,6 +1813,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Hash => match self {
                 DataType::Undetermined => false,
@@ -1732,10 +1836,11 @@ impl DataType {
                 DataType::String => true,
                 DataType::Vec(inner) => inner.implements(data_trait),
                 DataType::Option(inner) => inner.implements(data_trait),
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Serialize => match self {
                 DataType::Undetermined => false,
-                DataType::Void => false,
+                DataType::Void => true,
                 DataType::I8 => true,
                 DataType::I16 => true,
                 DataType::I32 => true,
@@ -1754,6 +1859,7 @@ impl DataType {
                 DataType::String => true,
                 DataType::Vec(inner) => inner.implements(data_trait),
                 DataType::Option(inner) => inner.implements(data_trait),
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Deserialize => match self {
                 DataType::Undetermined => false,
@@ -1776,6 +1882,7 @@ impl DataType {
                 DataType::String => true,
                 DataType::Vec(inner) => inner.implements(data_trait),
                 DataType::Option(inner) => inner.implements(data_trait),
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Display => match self {
                 DataType::Undetermined => false,
@@ -1798,7 +1905,70 @@ impl DataType {
                 DataType::String => true,
                 DataType::Vec(inner) => inner.implements(data_trait),
                 DataType::Option(inner) => inner.implements(data_trait),
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
+        }
+    }
+
+    pub fn bounded_min(&self) -> Value {
+        match self {
+            DataType::I8 => Value::I8(i8::MIN),
+            DataType::I16 => Value::I16(i16::MIN),
+            DataType::I32 => Value::I32(i32::MIN),
+            DataType::I64 => Value::I64(i64::MIN),
+            DataType::I128 => Value::I128(i128::MIN),
+            DataType::U8 => Value::U8(u8::MIN),
+            DataType::U16 => Value::U16(u16::MIN),
+            DataType::U32 => Value::U32(u32::MIN),
+            DataType::U64 => Value::U64(u64::MIN),
+            DataType::U128 => Value::U128(u128::MIN),
+            DataType::F32 => Value::F32(f32::MIN),
+            DataType::F64 => Value::F64(f64::MIN),
+            DataType::Byte => Value::Byte(u8::MIN),
+            _ => panic!("Bounded not supported for {}", self),
+        }
+    }
+
+    pub fn bounded_max(&self) -> Value {
+        match self {
+            DataType::I8 => Value::I8(i8::MAX),
+            DataType::I16 => Value::I16(i16::MAX),
+            DataType::I32 => Value::I32(i32::MAX),
+            DataType::I64 => Value::I64(i64::MAX),
+            DataType::I128 => Value::I128(i128::MAX),
+            DataType::U8 => Value::U8(u8::MAX),
+            DataType::U16 => Value::U16(u16::MAX),
+            DataType::U32 => Value::U32(u32::MAX),
+            DataType::U64 => Value::U64(u64::MAX),
+            DataType::U128 => Value::U128(u128::MAX),
+            DataType::F32 => Value::F32(f32::MAX),
+            DataType::F64 => Value::F64(f64::MAX),
+            DataType::Byte => Value::Byte(u8::MAX),
+            _ => panic!("Bounded not supported for {}", self),
+        }
+    }
+
+    pub fn float_infinity(&self) -> Value {
+        match self {
+            DataType::F32 => Value::F32(f32::INFINITY),
+            DataType::F64 => Value::F64(f64::INFINITY),
+            _ => panic!("Float not supported for {}", self),
+        }
+    }
+
+    pub fn float_neg_infinity(&self) -> Value {
+        match self {
+            DataType::F32 => Value::F32(f32::NEG_INFINITY),
+            DataType::F64 => Value::F64(f64::NEG_INFINITY),
+            _ => panic!("Float not supported for {}", self),
+        }
+    }
+
+    pub fn float_nan(&self) -> Value {
+        match self {
+            DataType::F32 => Value::F32(f32::NAN),
+            DataType::F64 => Value::F64(f64::NAN),
+            _ => panic!("Float not supported for {}", self),
         }
     }
 }
@@ -1837,6 +2007,7 @@ impl Display for DataType {
             DataType::String => write!(f, "string"),
             DataType::Vec(dt) => write!(f, "Vec<{dt}>"),
             DataType::Option(dt) => write!(f, "Option<{dt}>"),
+            DataType::Data(obj) => write!(f, "{}", obj.identifier().name()),
         }
     }
 }

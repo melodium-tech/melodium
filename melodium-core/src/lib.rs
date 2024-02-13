@@ -2,11 +2,16 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
+pub use erased_serde::{
+    Error as ErasedSerdeError, Serialize as ErasedSerialize, Serializer as ErasedSerializer,
+};
 pub use melodium_common as common;
 pub use once_cell::sync::Lazy;
+pub use serde::{Deserialize, Serialize};
 pub mod descriptor;
+pub mod executive;
 
-pub use melodium_common::executive::{DataTrait, GetData, TransmissionValue, Value};
+pub use melodium_common::executive::{Data, DataTrait, GetData, TransmissionValue, Value};
 pub use std::collections::VecDeque;
 pub type u8 = core::primitive::u8;
 pub type u16 = core::primitive::u16;

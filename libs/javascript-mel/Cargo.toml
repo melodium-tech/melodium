@@ -21,6 +21,7 @@ async-std = "~1.12"
 boa_engine = { version = "0.17.0" }
 melodium-core = { path = "../../melodium-core", version = "0.7.1" }
 melodium-macro = { path = "../../melodium-macro", version = "0.7.1" }
+json-mel = { path = "../json-mel", version = "0.7.1" }
 serde_json = "1.0.105"
 
 [features]

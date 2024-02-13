@@ -300,6 +300,7 @@ impl ValueContent {
                 ValueContent::Void => Ok(ExecutiveValue::Option(None)),
                 me => Ok(me.make_executive_value(&inner_type)?),
             },
+            DataType::Data(_) => Err("Object cannot be build from script".to_string()),
         }
     }
 }

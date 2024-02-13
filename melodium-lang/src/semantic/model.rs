@@ -186,7 +186,7 @@ impl Model {
             for rc_parameter in &self.parameters {
                 let borrowed_parameter = rc_parameter.read().unwrap();
                 if let Some(parameter_descriptor) =
-                    result.merge_degrade_failure(borrowed_parameter.make_descriptor())
+                    result.merge_degrade_failure(borrowed_parameter.make_descriptor(collection))
                 {
                     descriptor.add_parameter(parameter_descriptor);
                 }
@@ -243,8 +243,9 @@ impl Model {
             if let Some(assignation_designer) =
                 result.merge_degrade_failure(ScriptResult::from(tmp_status))
             {
-                result = result
-                    .and_degrade_failure(borrowed_assignation.make_design(&assignation_designer));
+                result = result.and_degrade_failure(
+                    borrowed_assignation.make_design(&assignation_designer, collection),
+                );
             }
         }
 

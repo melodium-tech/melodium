@@ -12,7 +12,7 @@ use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Instanciation as TextInstanciation;
 use crate::ScriptResult;
-use melodium_common::descriptor::Identifier;
+use melodium_common::descriptor::{Collection, Identifier};
 use melodium_engine::designer::ModelInstanciation as ModelInstanciationDesigner;
 use std::sync::{Arc, RwLock, Weak};
 
@@ -91,6 +91,7 @@ impl ModelInstanciation {
     pub fn make_design(
         &self,
         designer: &Arc<RwLock<ModelInstanciationDesigner>>,
+        collection: &Arc<Collection>,
     ) -> ScriptResult<()> {
         let mut designer = designer.write().unwrap();
         let mut result = ScriptResult::new_success(());
@@ -103,8 +104,9 @@ impl ModelInstanciation {
                     Some(borrowed_assignation.text.name.into_ref()),
                 )))
             {
-                result = result
-                    .and_degrade_failure(borrowed_assignation.make_design(&assignation_designer));
+                result = result.and_degrade_failure(
+                    borrowed_assignation.make_design(&assignation_designer, collection),
+                );
             }
         }
 

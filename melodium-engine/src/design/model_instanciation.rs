@@ -23,6 +23,17 @@ impl ModelInstanciation {
                 .iter()
                 .any(|(_, parameter)| parameter.make_use(identifier))
     }
+
+    pub fn uses(&self) -> Vec<Identifier> {
+        let descriptor = self.descriptor.upgrade().unwrap();
+        let mut uses = vec![descriptor.identifier().clone()];
+        uses.extend(
+            self.parameters
+                .iter()
+                .flat_map(|(_, parameter)| parameter.uses()),
+        );
+        uses
+    }
 }
 
 impl Attribuable for ModelInstanciation {

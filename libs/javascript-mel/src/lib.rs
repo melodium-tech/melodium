@@ -5,10 +5,10 @@ mod engine;
 
 use async_std::sync::RwLock;
 use engine::Engine;
+use json_mel::*;
 use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_package, mel_treatment};
-use serde_json::Value;
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 
 /// Provides JavaScript execution engine.
 ///
@@ -83,50 +83,62 @@ impl JavaScriptEngine {
 /// If `value` is not proper JSON data, `code` not actually processable JavaScript code, or its return value not convertible into JSON, an empty `result` and `is_valid` `false` value are send.
 /// In all other cases, `result` contains JSON string and `is_valid` is `true`.
 #[mel_treatment(
-    default code ""
     model engine JavaScriptEngine
-    input {content(json)} value Stream<string>
-    output {content(json)} result Stream<string>
-    output is_valid Stream<bool>
+    input value Stream<Json>
+    output result Stream<Option<Json>>
 )]
-pub async fn process(#[mel(content(json))] code: string) {
+pub async fn process(#[mel(content(javascript))] code: string) {
     let engine = JavaScriptEngineModel::into(engine);
 
-    while let Ok(values) = value
+    'main: while let Ok(values) = value
         .recv_many()
         .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+        .map(|values| Into::<Vec<Value>>::into(values))
     {
         for value in values {
-            match serde_json::from_str::<Value>(&value) {
-                Ok(value) => {
-                    let processed;
-                    if let Some(engine) = engine.inner().engine().read().await.as_ref() {
-                        processed = engine.process(value, code.clone()).await;
-                    } else {
-                        break;
-                    }
-
-                    match processed {
-                        Ok(Ok(value)) => {
-                            check!(result.send_one(value.to_string().into()).await);
-                            let _ = is_valid.send_one(true.into()).await;
-                        }
-                        Ok(Err(_err)) => {
-                            check!(result.send_one("".to_string().into()).await);
-                            let _ = is_valid.send_one(false.into()).await;
-                        }
-                        Err(_) => {
+            if let Value::Data(value) = value {
+                match value.downcast_arc::<Json>() {
+                    Ok(value) => {
+                        let processed;
+                        if let Some(engine) = engine.inner().engine().read().await.as_ref() {
+                            processed = engine.process(value.0.clone(), code.clone()).await;
+                        } else {
                             break;
                         }
+
+                        match processed {
+                            Ok(Ok(value)) => {
+                                check!(
+                                    result
+                                        .send_one(
+                                            Some(Arc::new(Json(value)) as Arc<dyn Data>).into()
+                                        )
+                                        .await
+                                );
+                            }
+                            Ok(Err(_err)) => {
+                                check!(result.send_one(Option::<Arc<dyn Data>>::None.into()).await);
+                            }
+                            Err(_) => {
+                                break 'main;
+                            }
+                        }
                     }
-                }
-                Err(_err) => {
-                    check!(result.send_one("".to_string().into()).await);
-                    let _ = is_valid.send_one(false.into()).await;
+                    Err(_) => break 'main,
                 }
             }
         }
+        /*match serde_json::from_str::<Value>(&value) {
+                    Ok(value) => {
+
+                    }
+                    Err(_err) => {
+                        check!(result.send_one("".to_string().into()).await);
+                        let _ = is_valid.send_one(false.into()).await;
+                    }
+                }
+            }
+        }*/
     }
 }
 

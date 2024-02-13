@@ -319,8 +319,16 @@ impl Buildable<TreatmentBuildMode> for Treatment {
             .any(|(_, model)| model.identifier() == identifier)
             || self
                 .contexts
-                .iter()
-                .any(|(_, context)| context.identifier() == identifier)
+                .values()
+                .any(|context| context.identifier() == identifier)
+            || self.parameters.values().any(|parameter| {
+                parameter
+                    .described_type()
+                    .final_type()
+                    .data()
+                    .map(|data| data.identifier() == identifier)
+                    .unwrap_or(false)
+            })
             || self
                 .design
                 .lock()

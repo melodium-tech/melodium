@@ -1,14 +1,24 @@
-pub mod byte;
+use melodium_macro::mel_function;
+
 pub mod char;
-pub mod f32;
-pub mod f64;
-pub mod i128;
-pub mod i16;
-pub mod i32;
-pub mod i64;
-pub mod i8;
-pub mod u128;
-pub mod u16;
-pub mod u32;
-pub mod u64;
-pub mod u8;
+pub mod float;
+
+/// Return the smallest value that can be represented by the type.
+#[mel_function(
+    generic B (Bounded)
+)]
+pub fn min() -> B {
+    let b = generics.get("B").unwrap();
+
+    b.bounded_min()
+}
+
+/// Return the highest value that can be represented by the type.
+#[mel_function(
+    generic B (Bounded)
+)]
+pub fn max() -> B {
+    let b = generics.get("B").unwrap();
+
+    b.bounded_max()
+}

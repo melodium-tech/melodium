@@ -1,4 +1,4 @@
-use super::value::value;
+use super::{describe_type, value::value};
 use itertools::Itertools;
 use melodium_common::descriptor::{
     Attribuable, Documented, Generics, Identified, Identifier, Parameterized,
@@ -14,25 +14,8 @@ pub struct Treatment {
 
 impl Treatment {
     pub fn new(design: TreatmentDesign) -> Self {
-        let mut uses = Vec::new();
+        let uses = design.uses();
 
-        let descriptor = design.descriptor.upgrade().unwrap();
-
-        for (_, model) in descriptor.models() {
-            uses.push(model.identifier().clone())
-        }
-
-        for (_, context) in descriptor.contexts() {
-            uses.push(context.identifier().clone())
-        }
-
-        for (_, model) in &design.model_instanciations {
-            uses.push(model.descriptor.upgrade().unwrap().identifier().clone())
-        }
-
-        for (_, treatment) in &design.treatments {
-            uses.push(treatment.descriptor.upgrade().unwrap().identifier().clone())
-        }
         Self { design, uses }
     }
 
@@ -135,7 +118,8 @@ impl Treatment {
                             .iter()
                             .map(|(name, attribute)| format!("#[{name}({attribute})] "))
                             .collect::<Vec<_>>()
-                            .join("")
+                            .join(""),
+                        param = describe_type(param.described_type(), names),
                     )
                 })
                 .collect::<Vec<_>>()
@@ -159,7 +143,7 @@ impl Treatment {
                 implementation.push_str(")]\n");
             }
             implementation.push_str("  input ");
-            implementation.push_str(&input.to_string());
+            implementation.push_str(&describe_type(input.described_type(), names));
             implementation.push_str("\n");
         }
 
@@ -172,7 +156,7 @@ impl Treatment {
                 implementation.push_str(")]\n");
             }
             implementation.push_str("  output ");
-            implementation.push_str(&output.to_string());
+            implementation.push_str(&describe_type(output.described_type(), names));
             implementation.push_str("\n");
         }
 
@@ -251,7 +235,7 @@ impl Treatment {
                             instanciation
                                 .generics
                                 .get(&generic.name)
-                                .map(|desc_type| desc_type.to_string())
+                                .map(|desc_type| describe_type(desc_type, names))
                                 .unwrap_or_else(|| "_".to_string())
                         })
                         .collect::<Vec<_>>()

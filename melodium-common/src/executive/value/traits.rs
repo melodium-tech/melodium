@@ -1,11 +1,14 @@
 use super::Value;
 use crate::executive::DataTrait;
-use core::convert::TryInto;
+use core::{convert::TryInto, fmt::Debug, hash::Hash};
+use erased_serde::Serialize;
+use serde::ser::SerializeSeq;
 
 impl DataTrait for Value {
     fn to_i8(&self) -> i8 {
         match self {
             Value::I8(val) => *val,
+            Value::Data(obj) => obj.to_i8(),
             other => panic!("ToI8 not supported for {}", other.datatype()),
         }
     }
@@ -15,6 +18,7 @@ impl DataTrait for Value {
             Value::I8(val) => *val as i16,
             Value::I16(val) => *val,
             Value::U8(val) => *val as i16,
+            Value::Data(obj) => obj.to_i16(),
             other => panic!("ToI16 not supported for {}", other.datatype()),
         }
     }
@@ -26,6 +30,7 @@ impl DataTrait for Value {
             Value::I32(val) => *val,
             Value::U8(val) => *val as i32,
             Value::U16(val) => *val as i32,
+            Value::Data(obj) => obj.to_i32(),
             other => panic!("ToI32 not supported for {}", other.datatype()),
         }
     }
@@ -39,6 +44,7 @@ impl DataTrait for Value {
             Value::U8(val) => *val as i64,
             Value::U16(val) => *val as i64,
             Value::U32(val) => *val as i64,
+            Value::Data(obj) => obj.to_i64(),
             other => panic!("ToI64 not supported for {}", other.datatype()),
         }
     }
@@ -54,6 +60,7 @@ impl DataTrait for Value {
             Value::U32(val) => *val as i128,
             Value::U64(val) => *val as i128,
             Value::I128(val) => *val,
+            Value::Data(obj) => obj.to_i128(),
             other => panic!("ToI128 not supported for {}", other.datatype()),
         }
     }
@@ -62,6 +69,7 @@ impl DataTrait for Value {
         match self {
             Value::U8(val) => *val,
             Value::Byte(val) => *val,
+            Value::Data(obj) => obj.to_u8(),
             other => panic!("ToU8 not supported for {}", other.datatype()),
         }
     }
@@ -70,6 +78,7 @@ impl DataTrait for Value {
         match self {
             Value::U8(val) => *val as u16,
             Value::U16(val) => *val,
+            Value::Data(obj) => obj.to_u16(),
             other => panic!("ToU16 not supported for {}", other.datatype()),
         }
     }
@@ -79,6 +88,7 @@ impl DataTrait for Value {
             Value::U8(val) => *val as u32,
             Value::U16(val) => *val as u32,
             Value::U32(val) => *val,
+            Value::Data(obj) => obj.to_u32(),
             other => panic!("ToU32 not supported for {}", other.datatype()),
         }
     }
@@ -89,6 +99,7 @@ impl DataTrait for Value {
             Value::U16(val) => *val as u64,
             Value::U32(val) => *val as u64,
             Value::U64(val) => *val,
+            Value::Data(obj) => obj.to_u64(),
             other => panic!("ToU64 not supported for {}", other.datatype()),
         }
     }
@@ -100,6 +111,7 @@ impl DataTrait for Value {
             Value::U32(val) => *val as u128,
             Value::U64(val) => *val as u128,
             Value::U128(val) => *val,
+            Value::Data(obj) => obj.to_u128(),
             other => panic!("ToU128 not supported for {}", other.datatype()),
         }
     }
@@ -118,6 +130,7 @@ impl DataTrait for Value {
             Value::U128(val) => *val as f32,
             Value::F32(val) => *val,
             Value::F64(val) => *val as f32,
+            Value::Data(obj) => obj.to_f32(),
             other => panic!("ToF32 not supported for {}", other.datatype()),
         }
     }
@@ -136,6 +149,7 @@ impl DataTrait for Value {
             Value::U128(val) => *val as f64,
             Value::F32(val) => *val as f64,
             Value::F64(val) => *val,
+            Value::Data(obj) => obj.to_f64(),
             other => panic!("ToF64 not supported for {}", other.datatype()),
         }
     }
@@ -154,6 +168,7 @@ impl DataTrait for Value {
             Value::U128(val) => *val != 0,
             Value::Bool(val) => *val,
             Value::Byte(val) => *val != 0,
+            Value::Data(obj) => obj.to_bool(),
             other => panic!("ToBool not supported for {}", other.datatype()),
         }
     }
@@ -163,6 +178,7 @@ impl DataTrait for Value {
             Value::U8(val) => *val,
             Value::Bool(val) => *val as u8,
             Value::Byte(val) => *val,
+            Value::Data(obj) => obj.to_byte(),
             other => panic!("ToByte not supported for {}", other.datatype()),
         }
     }
@@ -170,6 +186,7 @@ impl DataTrait for Value {
     fn to_char(&self) -> char {
         match self {
             Value::Char(val) => *val,
+            Value::Data(obj) => obj.to_char(),
             other => panic!("ToChar not supported for {}", other.datatype()),
         }
     }
@@ -178,6 +195,7 @@ impl DataTrait for Value {
         match self {
             Value::Char(val) => val.to_string(),
             Value::String(val) => val.clone(),
+            Value::Data(obj) => obj.to_string(),
             other => panic!("ToString not supported for {}", other.datatype()),
         }
     }
@@ -211,6 +229,8 @@ impl DataTrait for Value {
                 }
             }
 
+            Value::Data(obj) => obj.try_to_i8(),
+
             other => panic!("TryToI8 not supported for {}", other.datatype()),
         }
     }
@@ -242,6 +262,8 @@ impl DataTrait for Value {
                     None
                 }
             }
+
+            Value::Data(obj) => obj.try_to_i16(),
 
             other => panic!("TryToI16 not supported for {}", other.datatype()),
         }
@@ -275,6 +297,8 @@ impl DataTrait for Value {
                 }
             }
 
+            Value::Data(obj) => obj.try_to_i32(),
+
             other => panic!("TryToI32 not supported for {}", other.datatype()),
         }
     }
@@ -306,6 +330,8 @@ impl DataTrait for Value {
                     None
                 }
             }
+
+            Value::Data(obj) => obj.try_to_i64(),
 
             other => panic!("TryToI64 not supported for {}", other.datatype()),
         }
@@ -339,6 +365,8 @@ impl DataTrait for Value {
                 }
             }
 
+            Value::Data(obj) => obj.try_to_i128(),
+
             other => panic!("TryToI128 not supported for {}", other.datatype()),
         }
     }
@@ -370,6 +398,8 @@ impl DataTrait for Value {
                     None
                 }
             }
+
+            Value::Data(obj) => obj.try_to_u8(),
 
             other => panic!("TryToU8 not supported for {}", other.datatype()),
         }
@@ -403,6 +433,8 @@ impl DataTrait for Value {
                 }
             }
 
+            Value::Data(obj) => obj.try_to_u16(),
+
             other => panic!("TryToU16 not supported for {}", other.datatype()),
         }
     }
@@ -434,6 +466,8 @@ impl DataTrait for Value {
                     None
                 }
             }
+
+            Value::Data(obj) => obj.try_to_u32(),
 
             other => panic!("TryToU32 not supported for {}", other.datatype()),
         }
@@ -467,6 +501,8 @@ impl DataTrait for Value {
                 }
             }
 
+            Value::Data(obj) => obj.try_to_u64(),
+
             other => panic!("TryToU64 not supported for {}", other.datatype()),
         }
     }
@@ -499,6 +535,8 @@ impl DataTrait for Value {
                 }
             }
 
+            Value::Data(obj) => obj.try_to_u128(),
+
             other => panic!("TryToU128 not supported for {}", other.datatype()),
         }
     }
@@ -517,6 +555,7 @@ impl DataTrait for Value {
             Value::U128(val) => Some(*val as f32),
             Value::F32(val) => Some(*val),
             Value::F64(val) => Some(*val as f32),
+            Value::Data(obj) => obj.try_to_f32(),
             other => panic!("TryToF32 not supported for {}", other.datatype()),
         }
     }
@@ -535,6 +574,7 @@ impl DataTrait for Value {
             Value::U128(val) => Some(*val as f64),
             Value::F32(val) => Some(*val as f64),
             Value::F64(val) => Some(*val),
+            Value::Data(obj) => obj.try_to_f64(),
             other => panic!("TryToF32 not supported for {}", other.datatype()),
         }
     }
@@ -553,6 +593,7 @@ impl DataTrait for Value {
             Value::U128(val) => Some(*val != 0),
             Value::Bool(val) => Some(*val),
             Value::Byte(val) => Some(*val != 0),
+            Value::Data(obj) => obj.try_to_bool(),
             other => panic!("TryToBool not supported for {}", other.datatype()),
         }
     }
@@ -562,6 +603,7 @@ impl DataTrait for Value {
             Value::U8(val) => Some(*val),
             Value::Bool(val) => Some(*val as u8),
             Value::Byte(val) => Some(*val),
+            Value::Data(obj) => obj.try_to_byte(),
             other => panic!("TryToByte not supported for {}", other.datatype()),
         }
     }
@@ -569,6 +611,7 @@ impl DataTrait for Value {
     fn try_to_char(&self) -> Option<char> {
         match self {
             Value::Char(val) => Some(*val),
+            Value::Data(obj) => obj.try_to_char(),
             other => panic!("TryToChar not supported for {}", other.datatype()),
         }
     }
@@ -577,6 +620,7 @@ impl DataTrait for Value {
         match self {
             Value::Char(val) => Some(val.to_string()),
             Value::String(val) => Some(val.clone()),
+            Value::Data(obj) => obj.try_to_string(),
             other => panic!("TryToString not supported for {}", other.datatype()),
         }
     }
@@ -646,6 +690,7 @@ impl DataTrait for Value {
                     *val as i8
                 }
             }
+            Value::Data(obj) => obj.saturating_to_i8(),
             other => panic!("SaturatingToI8 not supported for {}", other.datatype()),
         }
     }
@@ -708,6 +753,7 @@ impl DataTrait for Value {
                     *val as i16
                 }
             }
+            Value::Data(obj) => obj.saturating_to_i16(),
             other => panic!("SaturatingToI16 not supported for {}", other.datatype()),
         }
     }
@@ -763,6 +809,7 @@ impl DataTrait for Value {
                     *val as i32
                 }
             }
+            Value::Data(obj) => obj.saturating_to_i32(),
             other => panic!("SaturatingToI32 not supported for {}", other.datatype()),
         }
     }
@@ -811,6 +858,7 @@ impl DataTrait for Value {
                     *val as i64
                 }
             }
+            Value::Data(obj) => obj.saturating_to_i64(),
             other => panic!("SaturatingToI64 not supported for {}", other.datatype()),
         }
     }
@@ -852,6 +900,7 @@ impl DataTrait for Value {
                     *val as i128
                 }
             }
+            Value::Data(obj) => obj.saturating_to_i128(),
             other => panic!("SaturatingToI128 not supported for {}", other.datatype()),
         }
     }
@@ -921,6 +970,7 @@ impl DataTrait for Value {
                     *val as u8
                 }
             }
+            Value::Data(obj) => obj.saturating_to_u8(),
             other => panic!("SaturatingToU8 not supported for {}", other.datatype()),
         }
     }
@@ -986,6 +1036,7 @@ impl DataTrait for Value {
                     *val as u16
                 }
             }
+            Value::Data(obj) => obj.saturating_to_u16(),
             other => panic!("SaturatingToU16 not supported for {}", other.datatype()),
         }
     }
@@ -1047,6 +1098,7 @@ impl DataTrait for Value {
                     *val as u32
                 }
             }
+            Value::Data(obj) => obj.saturating_to_u32(),
             other => panic!("SaturatingToU32 not supported for {}", other.datatype()),
         }
     }
@@ -1104,6 +1156,7 @@ impl DataTrait for Value {
                     *val as u64
                 }
             }
+            Value::Data(obj) => obj.saturating_to_u64(),
             other => panic!("SaturatingToU64 not supported for {}", other.datatype()),
         }
     }
@@ -1157,6 +1210,7 @@ impl DataTrait for Value {
                     *val as u128
                 }
             }
+            Value::Data(obj) => obj.saturating_to_u128(),
             other => panic!("SaturatingToU128 not supported for {}", other.datatype()),
         }
     }
@@ -1175,6 +1229,7 @@ impl DataTrait for Value {
             Value::U128(val) => *val as f32,
             Value::F32(val) => *val,
             Value::F64(val) => *val as f32,
+            Value::Data(obj) => obj.saturating_to_f32(),
             other => panic!("SaturatingToF32 not supported for {}", other.datatype()),
         }
     }
@@ -1193,6 +1248,7 @@ impl DataTrait for Value {
             Value::U128(val) => *val as f64,
             Value::F32(val) => *val as f64,
             Value::F64(val) => *val,
+            Value::Data(obj) => obj.saturating_to_f64(),
             other => panic!("SaturatingToF64 not supported for {}", other.datatype()),
         }
     }
@@ -1201,6 +1257,7 @@ impl DataTrait for Value {
         match (self, other) {
             (Value::Bool(val), Value::Bool(other)) => Value::Bool(val & other),
             (Value::Byte(val), Value::Byte(other)) => Value::Byte(val & other),
+            (Value::Data(obj), Value::Data(_)) => obj.binary_and(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1212,6 +1269,7 @@ impl DataTrait for Value {
         match (self, other) {
             (Value::Bool(val), Value::Bool(other)) => Value::Bool(val | other),
             (Value::Byte(val), Value::Byte(other)) => Value::Byte(val | other),
+            (Value::Data(obj), Value::Data(_)) => obj.binary_or(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1223,6 +1281,7 @@ impl DataTrait for Value {
         match (self, other) {
             (Value::Bool(val), Value::Bool(other)) => Value::Bool(val ^ other),
             (Value::Byte(val), Value::Byte(other)) => Value::Byte(val ^ other),
+            (Value::Data(obj), Value::Data(_)) => obj.binary_xor(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1234,6 +1293,7 @@ impl DataTrait for Value {
         match self {
             Value::Bool(val) => Value::Bool(!val),
             Value::Byte(val) => Value::Byte(!val),
+            Value::Data(obj) => obj.binary_not(),
             other => panic!("Binary not supported for {}", other.datatype()),
         }
     }
@@ -1277,6 +1337,7 @@ impl DataTrait for Value {
             }
             Value::F32(val) => Some(Value::F32(val.abs())),
             Value::F64(val) => Some(Value::F64(val.abs())),
+            Value::Data(obj) => obj.signed_abs(),
             other => panic!("Signed not supported for {}", other.datatype()),
         }
     }
@@ -1290,6 +1351,7 @@ impl DataTrait for Value {
             Value::I128(val) => Value::I128(val.signum()),
             Value::F32(val) => Value::F32(val.signum()),
             Value::F64(val) => Value::F64(val.signum()),
+            Value::Data(obj) => obj.signed_signum(),
             other => panic!("Signed not supported for {}", other.datatype()),
         }
     }
@@ -1303,6 +1365,7 @@ impl DataTrait for Value {
             Value::I128(val) => val.is_positive(),
             Value::F32(val) => val.is_sign_positive(),
             Value::F64(val) => val.is_sign_positive(),
+            Value::Data(obj) => obj.signed_is_positive(),
             other => panic!("Signed not supported for {}", other.datatype()),
         }
     }
@@ -1316,6 +1379,7 @@ impl DataTrait for Value {
             Value::I128(val) => val.is_negative(),
             Value::F32(val) => val.is_sign_negative(),
             Value::F64(val) => val.is_sign_negative(),
+            Value::Data(obj) => obj.signed_is_negative(),
             other => panic!("Signed not supported for {}", other.datatype()),
         }
     }
@@ -1324,6 +1388,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => val.is_nan(),
             Value::F64(val) => val.is_nan(),
+            Value::Data(obj) => obj.float_is_nan(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1332,6 +1397,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => val.is_infinite(),
             Value::F64(val) => val.is_infinite(),
+            Value::Data(obj) => obj.float_is_infinite(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1340,6 +1406,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => val.is_finite(),
             Value::F64(val) => val.is_finite(),
+            Value::Data(obj) => obj.float_is_finite(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1348,6 +1415,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => val.is_normal(),
             Value::F64(val) => val.is_normal(),
+            Value::Data(obj) => obj.float_is_normal(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1356,6 +1424,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => val.is_subnormal(),
             Value::F64(val) => val.is_subnormal(),
+            Value::Data(obj) => obj.float_is_subnormal(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1364,6 +1433,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.floor()),
             Value::F64(val) => Value::F64(val.floor()),
+            Value::Data(obj) => obj.float_floor(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1372,6 +1442,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.ceil()),
             Value::F64(val) => Value::F64(val.ceil()),
+            Value::Data(obj) => obj.float_ceil(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1380,6 +1451,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.round()),
             Value::F64(val) => Value::F64(val.round()),
+            Value::Data(obj) => obj.float_round(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1388,6 +1460,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.trunc()),
             Value::F64(val) => Value::F64(val.trunc()),
+            Value::Data(obj) => obj.float_trunc(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1396,6 +1469,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.fract()),
             Value::F64(val) => Value::F64(val.fract()),
+            Value::Data(obj) => obj.float_fract(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1404,6 +1478,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.recip()),
             Value::F64(val) => Value::F64(val.recip()),
+            Value::Data(obj) => obj.float_recip(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1412,6 +1487,7 @@ impl DataTrait for Value {
         match (self, n) {
             (Value::F32(val), Value::F32(n)) => Value::F32(val.powf(*n)),
             (Value::F64(val), Value::F64(n)) => Value::F64(val.powf(*n)),
+            (Value::Data(obj), Value::Data(_)) => obj.float_pow(n),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1423,6 +1499,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.sqrt()),
             Value::F64(val) => Value::F64(val.sqrt()),
+            Value::Data(obj) => obj.float_sqrt(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1431,6 +1508,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.exp()),
             Value::F64(val) => Value::F64(val.exp()),
+            Value::Data(obj) => obj.float_exp(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1439,6 +1517,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.exp2()),
             Value::F64(val) => Value::F64(val.exp2()),
+            Value::Data(obj) => obj.float_exp2(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1447,6 +1526,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.ln()),
             Value::F64(val) => Value::F64(val.ln()),
+            Value::Data(obj) => obj.float_ln(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1455,6 +1535,7 @@ impl DataTrait for Value {
         match (self, base) {
             (Value::F32(val), Value::F32(n)) => Value::F32(val.log(*n)),
             (Value::F64(val), Value::F64(n)) => Value::F64(val.log(*n)),
+            (Value::Data(obj), Value::Data(_)) => obj.float_log(base),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1466,6 +1547,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.log2()),
             Value::F64(val) => Value::F64(val.log2()),
+            Value::Data(obj) => obj.float_log2(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1474,6 +1556,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.log10()),
             Value::F64(val) => Value::F64(val.log10()),
+            Value::Data(obj) => obj.float_log10(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1482,6 +1565,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.cbrt()),
             Value::F64(val) => Value::F64(val.cbrt()),
+            Value::Data(obj) => obj.float_cbrt(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1490,6 +1574,7 @@ impl DataTrait for Value {
         match (self, n) {
             (Value::F32(val), Value::F32(n)) => Value::F32(val.hypot(*n)),
             (Value::F64(val), Value::F64(n)) => Value::F64(val.hypot(*n)),
+            (Value::Data(obj), Value::Data(_)) => obj.float_hypot(n),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1501,6 +1586,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.sin()),
             Value::F64(val) => Value::F64(val.sin()),
+            Value::Data(obj) => obj.float_sin(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1509,6 +1595,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.cos()),
             Value::F64(val) => Value::F64(val.cos()),
+            Value::Data(obj) => obj.float_cos(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1517,6 +1604,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.tan()),
             Value::F64(val) => Value::F64(val.tan()),
+            Value::Data(obj) => obj.float_tan(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1525,6 +1613,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.asin()),
             Value::F64(val) => Value::F64(val.asin()),
+            Value::Data(obj) => obj.float_asin(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1533,6 +1622,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.acos()),
             Value::F64(val) => Value::F64(val.acos()),
+            Value::Data(obj) => obj.float_acos(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1541,6 +1631,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.atan()),
             Value::F64(val) => Value::F64(val.atan()),
+            Value::Data(obj) => obj.float_atan(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1549,6 +1640,7 @@ impl DataTrait for Value {
         match (self, n) {
             (Value::F32(val), Value::F32(n)) => Value::F32(val.atan2(*n)),
             (Value::F64(val), Value::F64(n)) => Value::F64(val.atan2(*n)),
+            (Value::Data(obj), Value::Data(_)) => obj.binary_and(n),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1560,6 +1652,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.sinh()),
             Value::F64(val) => Value::F64(val.sinh()),
+            Value::Data(obj) => obj.float_sinh(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1568,6 +1661,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.cosh()),
             Value::F64(val) => Value::F64(val.cosh()),
+            Value::Data(obj) => obj.float_cosh(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1576,6 +1670,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.tanh()),
             Value::F64(val) => Value::F64(val.tanh()),
+            Value::Data(obj) => obj.float_tanh(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1584,6 +1679,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.asinh()),
             Value::F64(val) => Value::F64(val.asinh()),
+            Value::Data(obj) => obj.float_asinh(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1592,6 +1688,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.acosh()),
             Value::F64(val) => Value::F64(val.acosh()),
+            Value::Data(obj) => obj.float_acosh(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1600,6 +1697,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.atanh()),
             Value::F64(val) => Value::F64(val.atanh()),
+            Value::Data(obj) => obj.float_atanh(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1608,6 +1706,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.to_degrees()),
             Value::F64(val) => Value::F64(val.to_degrees()),
+            Value::Data(obj) => obj.float_to_degrees(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1616,6 +1715,7 @@ impl DataTrait for Value {
         match self {
             Value::F32(val) => Value::F32(val.to_radians()),
             Value::F64(val) => Value::F64(val.to_radians()),
+            Value::Data(obj) => obj.float_to_radians(),
             other => panic!("Float not supported for {}", other.datatype()),
         }
     }
@@ -1638,6 +1738,7 @@ impl DataTrait for Value {
             (Value::Byte(me), Value::Byte(other)) => me == other,
             (Value::Char(me), Value::Char(other)) => me == other,
             (Value::String(me), Value::String(other)) => me == other,
+            (Value::Data(obj), Value::Data(_)) => obj.partial_equality_eq(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1663,6 +1764,7 @@ impl DataTrait for Value {
             (Value::Byte(me), Value::Byte(other)) => me != other,
             (Value::Char(me), Value::Char(other)) => me != other,
             (Value::String(me), Value::String(other)) => me != other,
+            (Value::Data(obj), Value::Data(_)) => obj.partial_equality_ne(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1688,6 +1790,7 @@ impl DataTrait for Value {
             (Value::Byte(me), Value::Byte(other)) => me < other,
             (Value::Char(me), Value::Char(other)) => me < other,
             (Value::String(me), Value::String(other)) => me < other,
+            (Value::Data(obj), Value::Data(_)) => obj.partial_order_lt(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1713,6 +1816,7 @@ impl DataTrait for Value {
             (Value::Byte(me), Value::Byte(other)) => me <= other,
             (Value::Char(me), Value::Char(other)) => me <= other,
             (Value::String(me), Value::String(other)) => me <= other,
+            (Value::Data(obj), Value::Data(_)) => obj.partial_order_le(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1738,6 +1842,7 @@ impl DataTrait for Value {
             (Value::Byte(me), Value::Byte(other)) => me > other,
             (Value::Char(me), Value::Char(other)) => me > other,
             (Value::String(me), Value::String(other)) => me > other,
+            (Value::Data(obj), Value::Data(_)) => obj.partial_order_gt(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1763,6 +1868,7 @@ impl DataTrait for Value {
             (Value::Byte(me), Value::Byte(other)) => me >= other,
             (Value::Char(me), Value::Char(other)) => me >= other,
             (Value::String(me), Value::String(other)) => me >= other,
+            (Value::Data(obj), Value::Data(_)) => obj.partial_order_ge(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1788,6 +1894,7 @@ impl DataTrait for Value {
             (Value::Byte(me), Value::Byte(other)) => Value::Byte((*me).max(*other)),
             (Value::Char(me), Value::Char(other)) => Value::Char((*me).max(*other)),
             (Value::String(me), Value::String(other)) => Value::String(me.max(other).clone()),
+            (Value::Data(obj), Value::Data(_)) => obj.order_max(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1813,6 +1920,7 @@ impl DataTrait for Value {
             (Value::Byte(me), Value::Byte(other)) => Value::Byte((*me).min(*other)),
             (Value::Char(me), Value::Char(other)) => Value::Char((*me).min(*other)),
             (Value::String(me), Value::String(other)) => Value::String(me.min(other).clone()),
+            (Value::Data(obj), Value::Data(_)) => obj.order_min(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1866,6 +1974,7 @@ impl DataTrait for Value {
             (Value::String(me), Value::String(min), Value::String(max)) => {
                 Value::String((me).clamp(min, max).clone())
             }
+            (Value::Data(obj), Value::Data(_), Value::Data(_)) => obj.order_clamp(min, max),
             (a, b, c) if a.datatype() != b.datatype() || a.datatype() != c.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1887,6 +1996,7 @@ impl DataTrait for Value {
             (Value::U128(me), Value::U128(other)) => Value::U128(*me + *other),
             (Value::F32(me), Value::F32(other)) => Value::F32(*me + *other),
             (Value::F64(me), Value::F64(other)) => Value::F64(*me + *other),
+            (Value::Data(obj), Value::Data(_)) => obj.add(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1922,6 +2032,7 @@ impl DataTrait for Value {
             (Value::U128(me), Value::U128(other)) => {
                 me.checked_add(*other).map(|val| Value::U128(val))
             }
+            (Value::Data(obj), Value::Data(_)) => obj.checked_add(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1941,6 +2052,7 @@ impl DataTrait for Value {
             (Value::U32(me), Value::U32(other)) => Value::U32(me.saturating_add(*other)),
             (Value::U64(me), Value::U64(other)) => Value::U64(me.saturating_add(*other)),
             (Value::U128(me), Value::U128(other)) => Value::U128(me.saturating_add(*other)),
+            (Value::Data(obj), Value::Data(_)) => obj.saturating_add(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1960,6 +2072,7 @@ impl DataTrait for Value {
             (Value::U32(me), Value::U32(other)) => Value::U32(me.wrapping_add(*other)),
             (Value::U64(me), Value::U64(other)) => Value::U64(me.wrapping_add(*other)),
             (Value::U128(me), Value::U128(other)) => Value::U128(me.wrapping_add(*other)),
+            (Value::Data(obj), Value::Data(_)) => obj.wrapping_add(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -1981,6 +2094,7 @@ impl DataTrait for Value {
             (Value::U128(me), Value::U128(other)) => Value::U128(*me - *other),
             (Value::F32(me), Value::F32(other)) => Value::F32(*me - *other),
             (Value::F64(me), Value::F64(other)) => Value::F64(*me - *other),
+            (Value::Data(obj), Value::Data(_)) => obj.sub(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2016,6 +2130,7 @@ impl DataTrait for Value {
             (Value::U128(me), Value::U128(other)) => {
                 me.checked_sub(*other).map(|val| Value::U128(val))
             }
+            (Value::Data(obj), Value::Data(_)) => obj.checked_sub(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2035,6 +2150,7 @@ impl DataTrait for Value {
             (Value::U32(me), Value::U32(other)) => Value::U32(me.saturating_sub(*other)),
             (Value::U64(me), Value::U64(other)) => Value::U64(me.saturating_sub(*other)),
             (Value::U128(me), Value::U128(other)) => Value::U128(me.saturating_sub(*other)),
+            (Value::Data(obj), Value::Data(_)) => obj.saturating_sub(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2054,6 +2170,7 @@ impl DataTrait for Value {
             (Value::U32(me), Value::U32(other)) => Value::U32(me.wrapping_sub(*other)),
             (Value::U64(me), Value::U64(other)) => Value::U64(me.wrapping_sub(*other)),
             (Value::U128(me), Value::U128(other)) => Value::U128(me.wrapping_sub(*other)),
+            (Value::Data(obj), Value::Data(_)) => obj.wrapping_sub(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2075,6 +2192,7 @@ impl DataTrait for Value {
             (Value::U128(me), Value::U128(other)) => Value::U128(*me * *other),
             (Value::F32(me), Value::F32(other)) => Value::F32(*me * *other),
             (Value::F64(me), Value::F64(other)) => Value::F64(*me * *other),
+            (Value::Data(obj), Value::Data(_)) => obj.mul(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2110,6 +2228,7 @@ impl DataTrait for Value {
             (Value::U128(me), Value::U128(other)) => {
                 me.checked_mul(*other).map(|val| Value::U128(val))
             }
+            (Value::Data(obj), Value::Data(_)) => obj.checked_mul(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2129,6 +2248,7 @@ impl DataTrait for Value {
             (Value::U32(me), Value::U32(other)) => Value::U32(me.saturating_mul(*other)),
             (Value::U64(me), Value::U64(other)) => Value::U64(me.saturating_mul(*other)),
             (Value::U128(me), Value::U128(other)) => Value::U128(me.saturating_mul(*other)),
+            (Value::Data(obj), Value::Data(_)) => obj.saturating_mul(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2148,6 +2268,7 @@ impl DataTrait for Value {
             (Value::U32(me), Value::U32(other)) => Value::U32(me.wrapping_mul(*other)),
             (Value::U64(me), Value::U64(other)) => Value::U64(me.wrapping_mul(*other)),
             (Value::U128(me), Value::U128(other)) => Value::U128(me.wrapping_mul(*other)),
+            (Value::Data(obj), Value::Data(_)) => obj.wrapping_mul(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2189,6 +2310,7 @@ impl DataTrait for Value {
             }
             (Value::F32(me), Value::F32(other)) => Value::F32(*me / *other),
             (Value::F64(me), Value::F64(other)) => Value::F64(*me / *other),
+            (Value::Data(obj), Value::Data(_)) => obj.div(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2224,6 +2346,7 @@ impl DataTrait for Value {
             (Value::U128(me), Value::U128(other)) => {
                 me.checked_div(*other).map(|val| Value::U128(val))
             }
+            (Value::Data(obj), Value::Data(_)) => obj.checked_div(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2265,6 +2388,7 @@ impl DataTrait for Value {
             }
             (Value::F32(me), Value::F32(other)) => Value::F32(*me % *other),
             (Value::F64(me), Value::F64(other)) => Value::F64(*me % *other),
+            (Value::Data(obj), Value::Data(_)) => obj.rem(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2300,6 +2424,7 @@ impl DataTrait for Value {
             (Value::U128(me), Value::U128(other)) => {
                 me.checked_rem(*other).map(|val| Value::U128(val))
             }
+            (Value::Data(obj), Value::Data(_)) => obj.checked_rem(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2316,6 +2441,7 @@ impl DataTrait for Value {
             Value::I128(me) => Value::I128(-*me),
             Value::F32(me) => Value::F32(-*me),
             Value::F64(me) => Value::F64(-*me),
+            Value::Data(obj) => obj.neg(),
             other => panic!("Neg not supported for {}", other.datatype()),
         }
     }
@@ -2327,6 +2453,7 @@ impl DataTrait for Value {
             Value::I32(me) => me.checked_neg().map(|val| Value::I32(val)),
             Value::I64(me) => me.checked_neg().map(|val| Value::I64(val)),
             Value::I128(me) => me.checked_neg().map(|val| Value::I128(val)),
+            Value::Data(obj) => obj.checked_neg(),
             other => panic!("CheckedNeg not supported for {}", other.datatype()),
         }
     }
@@ -2338,6 +2465,7 @@ impl DataTrait for Value {
             Value::I32(me) => Value::I32(me.wrapping_neg()),
             Value::I64(me) => Value::I64(me.wrapping_neg()),
             Value::I128(me) => Value::I128(me.wrapping_neg()),
+            Value::Data(obj) => obj.wrapping_neg(),
             other => panic!("WrappingNeg not supported for {}", other.datatype()),
         }
     }
@@ -2354,6 +2482,7 @@ impl DataTrait for Value {
             Value::U32(me) => Value::U32(me.pow(*exp)),
             Value::U64(me) => Value::U64(me.pow(*exp)),
             Value::U128(me) => Value::U128(me.pow(*exp)),
+            Value::Data(obj) => obj.pow(exp),
             other => panic!("Pow not supported for {}", other.datatype()),
         }
     }
@@ -2370,6 +2499,7 @@ impl DataTrait for Value {
             Value::U32(me) => me.checked_pow(*exp).map(|val| Value::U32(val)),
             Value::U64(me) => me.checked_pow(*exp).map(|val| Value::U64(val)),
             Value::U128(me) => me.checked_pow(*exp).map(|val| Value::U128(val)),
+            Value::Data(obj) => obj.checked_pow(exp),
             other => panic!("CheckedPow not supported for {}", other.datatype()),
         }
     }
@@ -2428,6 +2558,7 @@ impl DataTrait for Value {
             }),
             (Value::F32(me), Value::F32(other)) => Value::F32(me.div_euclid(*other)),
             (Value::F64(me), Value::F64(other)) => Value::F64(me.div_euclid(*other)),
+            (Value::Data(obj), Value::Data(_)) => obj.euclid_div(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2489,6 +2620,7 @@ impl DataTrait for Value {
             }),
             (Value::F32(me), Value::F32(other)) => Value::F32(me.rem_euclid(*other)),
             (Value::F64(me), Value::F64(other)) => Value::F64(me.rem_euclid(*other)),
+            (Value::Data(obj), Value::Data(_)) => obj.euclid_rem(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2528,6 +2660,7 @@ impl DataTrait for Value {
             (Value::U128(me), Value::U128(other)) => {
                 me.checked_div_euclid(*other).map(|val| Value::U128(val))
             }
+            (Value::Data(obj), Value::Data(_)) => obj.checked_euclid_div(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
@@ -2567,10 +2700,96 @@ impl DataTrait for Value {
             (Value::U128(me), Value::U128(other)) => {
                 me.checked_rem_euclid(*other).map(|val| Value::U128(val))
             }
+            (Value::Data(obj), Value::Data(_)) => obj.checked_euclid_rem(other),
             (a, b) if a.datatype() != b.datatype() => {
                 panic!("Unsupported operation, values involved must have same type")
             }
             (other, _) => panic!("CheckedEuclid not supported for {}", other.datatype()),
+        }
+    }
+
+    fn hash(&self, mut state: &mut dyn std::hash::Hasher) {
+        match self {
+            Value::I8(me) => me.hash(&mut state),
+            Value::I16(me) => me.hash(&mut state),
+            Value::I32(me) => me.hash(&mut state),
+            Value::I64(me) => me.hash(&mut state),
+            Value::I128(me) => me.hash(&mut state),
+            Value::U8(me) => me.hash(&mut state),
+            Value::U16(me) => me.hash(&mut state),
+            Value::U32(me) => me.hash(&mut state),
+            Value::U64(me) => me.hash(&mut state),
+            Value::U128(me) => me.hash(&mut state),
+            Value::Bool(me) => me.hash(&mut state),
+            Value::Byte(me) => me.hash(&mut state),
+            Value::Char(me) => me.hash(&mut state),
+            Value::String(me) => me.hash(&mut state),
+            Value::Vec(me) => me.iter().for_each(|elmt| elmt.hash(&mut state)),
+            Value::Option(me) => {
+                if let Some(elmt) = me {
+                    elmt.hash(&mut state)
+                } else {
+                    ().hash(&mut state)
+                }
+            }
+            Value::Data(me) => me.hash(&mut state),
+            other => panic!("Hash not supported for {}", other.datatype()),
+        }
+    }
+
+    fn serialize(
+        &self,
+        serializer: &mut dyn erased_serde::Serializer,
+    ) -> Result<(), erased_serde::Error> {
+        self.erased_serialize(serializer)
+    }
+
+    fn display(&self, mut f: &mut std::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+        match self {
+            Value::Data(data) => data.display(&mut f),
+            _ => self.fmt(f),
+        }
+    }
+}
+
+impl serde::Serialize for Value {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Value::Void(_) => serializer.serialize_unit(),
+            Value::I8(me) => serializer.serialize_i8(*me),
+            Value::I16(me) => serializer.serialize_i16(*me),
+            Value::I32(me) => serializer.serialize_i32(*me),
+            Value::I64(me) => serializer.serialize_i64(*me),
+            Value::I128(me) => serializer.serialize_i128(*me),
+            Value::U8(me) => serializer.serialize_u8(*me),
+            Value::U16(me) => serializer.serialize_u16(*me),
+            Value::U32(me) => serializer.serialize_u32(*me),
+            Value::U64(me) => serializer.serialize_u64(*me),
+            Value::U128(me) => serializer.serialize_u128(*me),
+            Value::F32(me) => serializer.serialize_f32(*me),
+            Value::F64(me) => serializer.serialize_f64(*me),
+            Value::Bool(me) => serializer.serialize_bool(*me),
+            Value::Byte(me) => serializer.serialize_bytes(&[*me]),
+            Value::Char(me) => serializer.serialize_char(*me),
+            Value::String(me) => serializer.serialize_str(me),
+            Value::Vec(me) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Option(me) => {
+                if let Some(elmt) = me {
+                    serializer.serialize_some(elmt)
+                } else {
+                    serializer.serialize_none()
+                }
+            }
+            Value::Data(data) => serde::Serialize::serialize(&data, serializer),
         }
     }
 }
@@ -2610,6 +2829,8 @@ impl core::fmt::Display for Value {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
+
+            Value::Data(obj) => write!(f, "/* {} */", obj.descriptor().identifier().name()),
         }
     }
 }

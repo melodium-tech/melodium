@@ -11,7 +11,7 @@ use std::sync::{Arc, RwLock, Weak};
 /// Structure managing and describing semantic of a use.
 ///
 /// It owns the whole [text use](Use).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Use {
     pub text: TextUse,
 

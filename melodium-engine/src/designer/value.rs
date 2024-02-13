@@ -22,9 +22,30 @@ impl Value {
             Value::Raw(_) => false,
             Value::Variable(_) => false,
             Value::Context(context, _) => context.identifier() == identifier,
-            Value::Function(function, _described_types, values) => {
+            Value::Function(function, described_types, values) => {
                 function.identifier() == identifier
+                    || described_types.iter().any(|(_, dt)| {
+                        dt.final_type()
+                            .data()
+                            .map(|data| data.identifier() == identifier)
+                            .unwrap_or(false)
+                    })
                     || values.iter().any(|value| value.make_use(identifier))
+            }
+        }
+    }
+
+    pub fn uses(&self) -> Vec<Identifier> {
+        match self {
+            Value::Raw(_) | Value::Variable(_) => vec![],
+            Value::Context(context, _) => vec![context.identifier().clone()],
+            Value::Function(function, described_types, values) => {
+                let mut uses = vec![function.identifier().clone()];
+                uses.extend(described_types.iter().filter_map(|(_, dt)| {
+                    dt.final_type().data().map(|data| data.identifier().clone())
+                }));
+                uses.extend(values.iter().flat_map(|value| value.uses()));
+                uses
             }
         }
     }

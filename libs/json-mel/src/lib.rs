@@ -1,9 +1,72 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
-use jaq_interpret::{Ctx, FilterT, ParseCtx, RcIter, Val};
-use melodium_core::*;
-use melodium_macro::{check, mel_package, mel_treatment};
+//use jaq_interpret::{Ctx, FilterT, ParseCtx, RcIter, Val};
+use melodium_core::{executive::*, *};
+use melodium_macro::{check, mel_data, mel_function, mel_package, mel_treatment};
+use std::sync::Arc;
+
+pub mod value;
+
+/// JSON data.
+///
+/// `Json` data type contains any valid json value.
+#[mel_data(traits(ToString))]
+#[derive(Debug, Clone, Serialize)]
+pub struct Json(pub serde_json::Value);
+
+impl ToString for Json {
+    fn to_string(&self) -> string {
+        self.0.to_string()
+    }
+}
+
+/// Parse string into Json data.
+#[mel_function]
+pub fn to_json(text: string) -> Option<Json> {
+    serde_json::from_str::<serde_json::Value>(&text)
+        .ok()
+        .map(|json| Json(json))
+}
+
+/// Parse string into Json data.
+///
+/// `json` output get filled with json data if input `text` contains valid json.
+/// `error` output get filled with message if input `text` is not valid json.
+#[mel_treatment(
+    input text Stream<string>
+    output json Stream<Option<Json>>
+    output error Stream<Option<string>>
+)]
+pub async fn to_json() {
+    'main: while let Ok(text) = text
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
+        for t in text {
+            let result = serde_json::from_str::<serde_json::Value>(&t);
+            match result {
+                Ok(json_value) => {
+                    if let (Err(_), Err(_)) = futures::join!(
+                        json.send_one(Some(Arc::new(Json(json_value)) as Arc<dyn Data>).into()),
+                        error.send_one(Option::<string>::None.into())
+                    ) {
+                        break 'main;
+                    }
+                }
+                Err(err) => {
+                    if let (Err(_), Err(_)) = futures::join!(
+                        json.send_one(Option::<Arc<dyn Data>>::None.into()),
+                        error.send_one(Some(err.to_string()).into())
+                    ) {
+                        break 'main;
+                    }
+                }
+            }
+        }
+    }
+}
 
 /// Validate JSON string.
 ///
@@ -34,6 +97,7 @@ pub async fn validate() {
     }
 }
 
+/*
 /// Execute query on JSON string.
 ///
 /// For each string coming through `json`, `query` is applied.
@@ -42,7 +106,7 @@ pub async fn validate() {
 ///
 /// `failures` is emitted only if the query provided is not valid [jq/jaq syntax](https://jqlang.github.io/jq/manual/v1.6/).
 #[mel_treatment(
-    input {content(json)} json Stream<string>
+    input json Stream<Json>
     output {content(json)} parsed Stream<Vec<string>>
     output error Stream<Vec<string>>
     output failures Block<Vec<string>>
@@ -52,7 +116,7 @@ pub async fn query(#[mel(content(jq))] query: string) {
     defs.insert_natives(jaq_core::core());
     defs.insert_defs(jaq_std::std());
 
-    let (filter, errs) = jaq_parse::parse(&query, jaq_parse::main());
+    let (filter, errs) = jaq_parse::parse(&query.json, jaq_parse::main());
     if !errs.is_empty() {
         let _ = failures
             .send_one(Value::Vec(
@@ -105,6 +169,6 @@ pub async fn query(#[mel(content(jq))] query: string) {
             }
         }
     }
-}
+}*/
 
 mel_package!();
