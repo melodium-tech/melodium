@@ -6,6 +6,7 @@
 - Adding custom data types management.
 - Adding generics management.
 - Adding traits management.
+- Source treatments can have `const` parameters.
 - Including language attributes.
 
 ## [v0.7.0]

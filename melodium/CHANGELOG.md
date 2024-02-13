@@ -5,6 +5,7 @@
 - Adding custom data types management.
 - Adding generics management.
 - Adding traits management.
+- Source treatments can have parameters.
 - Including language attributes.
 - Uniting disparate core libes into `std`.
 
