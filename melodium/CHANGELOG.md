@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Adding custom data types management.
 - Adding generics management.
 - Adding traits management.
 - Including language attributes.
