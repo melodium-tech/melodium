@@ -5,7 +5,7 @@ use melodium_macro::mel_model;
 ///
 /// `ready` source is triggered at startup when engine is ready to process.
 #[mel_model(
-    source ready () (trigger Block<void>)
+    source ready () () (trigger Block<void>)
     continuous (continuous)
 )]
 #[derive(Debug)]
