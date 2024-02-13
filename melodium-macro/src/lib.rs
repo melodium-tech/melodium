@@ -1694,11 +1694,13 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 pub async fn #fn_name(&self,
                         parent_track: Option<melodium_core::common::executive::TrackId>,
                         #param_contextes
+                        params: &std::collections::HashMap<String, melodium_core::common::executive::Value>,
                         callback: Option<Box<dyn FnOnce(Box<melodium_core::common::executive::Outputs>) -> Vec<melodium_core::common::executive::TrackFuture> + Send>>
                     ) {
                     self.world.create_track(
                         self.id().unwrap(),
                         #source_name,
+                        params,
                         vec![#assign_contextes],
                         parent_track,
                         callback,
@@ -1707,14 +1709,6 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
             };
         }
     }
-
-    /*let parameters_instanciation: proc_macro2::TokenStream = params.iter().map(|(name, (ty, default))| {
-        let datatype = into_mel_datatype(ty);
-        let default = default.as_ref().map(|lit| format!("Some(melodium_core::common::executive::Value::{ty}({val}))", val = into_rust_value(ty, lit))).unwrap_or_else(|| String::from("None"));
-        format!(
-            r#"melodium_core::common::descriptor::Parameter::new("{name}", melodium_core::common::descriptor::Variability::Const, {datatype}, {default})"#
-        )
-    }).collect::<Vec<_>>().join(",").parse().unwrap();*/
 
     let parameters_initialization: proc_macro2::TokenStream = params
         .iter()
@@ -1862,6 +1856,10 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 fn shutdown(&self) {
                     #shutdown
+                }
+
+                fn invoke_source(&self, source: &str, params: std::collections::HashMap<String, melodium_core::common::executive::Value>) {
+                    self.model.invoke_source(source, params);
                 }
             }
         }

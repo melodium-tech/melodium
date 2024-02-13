@@ -4,6 +4,7 @@ use core::time::Duration;
 use melodium_core::common::executive::Output;
 use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_treatment};
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 use surf::Url;
 use surf::{Client, Config};
@@ -126,6 +127,8 @@ impl HttpClient {
                 .await;
         }
     }
+
+    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
 /// Performs HTTP DELETE operation.

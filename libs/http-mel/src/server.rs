@@ -94,6 +94,7 @@ impl HttpServer {
                             model
                                 .new_failed_binding(
                                     None,
+                                    &HashMap::new(),
                                     Some(Box::new(|mut outputs| {
                                         let error = outputs.get("error");
                                         let failure = outputs.get("failure");
@@ -143,6 +144,7 @@ impl HttpServer {
             .new_incoming(
                 None,
                 http_request,
+                &HashMap::new(),
                 Some(Box::new(|mut outputs| {
                     let data = outputs.get("data");
                     let success = outputs.get("success");
@@ -202,6 +204,10 @@ impl HttpServer {
         task::block_on(async {
             self.shutdown.wait().await;
         })
+    }
+
+    fn invoke_source(&self, source: &str, params: HashMap<String, Value>) {
+        //eprintln!("Source {source} invoked: {params:?}")
     }
 }
 

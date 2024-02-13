@@ -89,6 +89,7 @@ impl BuilderTrait for Builder {
                     matching_model.id().unwrap(),
                     source,
                     TreatmentDescriptor::as_identified(&*self.descriptor.upgrade().unwrap()),
+                    environment.variables().clone(),
                     idx,
                 );
             }
