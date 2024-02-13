@@ -8,7 +8,10 @@ use engine::Engine;
 use json_mel::*;
 use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_package, mel_treatment};
-use std::sync::{Arc, Weak};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Weak},
+};
 
 /// Provides JavaScript execution engine.
 ///
@@ -67,6 +70,8 @@ impl JavaScriptEngine {
             }
         });
     }
+
+    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 
     pub(crate) fn engine(&self) -> &RwLock<Option<Engine>> {
         &self.engine

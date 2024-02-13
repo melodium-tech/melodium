@@ -17,7 +17,7 @@ use futures::stream::{FuturesUnordered, StreamExt};
 use melodium_common::descriptor::{Collection, Entry as CollectionEntry, Identified, Identifier};
 use melodium_common::executive::{
     Context as ExecutiveContext, ContinuousFuture, Input as ExecutiveInput, Model, ModelId,
-    ResultStatus, TrackCreationCallback, TrackFuture, TrackId, World as ExecutiveWorld,
+    ResultStatus, TrackCreationCallback, TrackFuture, TrackId, Value, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
@@ -110,6 +110,7 @@ impl World {
         model_id: ModelId,
         name: &str,
         descriptor: Arc<dyn Identified>,
+        params: HashMap<String, Value>,
         build_id: BuildId,
     ) {
         let mut sources = self.sources.write().unwrap();
@@ -121,7 +122,12 @@ impl World {
         sources.push(SourceEntry {
             descriptor,
             id: build_id,
+            params: params.clone(),
         });
+
+        let model = self.models.read().unwrap()[model_id].clone();
+
+        model.invoke_source(name, params);
     }
 
     pub fn builder(&self, identifier: &Identifier) -> LogicResult<Arc<dyn Builder>> {
@@ -389,6 +395,7 @@ impl ExecutiveWorld for World {
         &self,
         id: ModelId,
         source: &str,
+        params: &HashMap<String, Value>,
         contexts: Vec<Arc<dyn ExecutiveContext>>,
         parent_track: Option<TrackId>,
         callback: Option<TrackCreationCallback>,
@@ -417,23 +424,25 @@ impl ExecutiveWorld for World {
             });
 
             for entry in entries {
-                let build_result = self
-                    .builder(entry.descriptor.identifier())
-                    .success()
-                    .unwrap()
-                    .dynamic_build(entry.id, &contextual_environment)
-                    .unwrap();
+                if &entry.params == params {
+                    let build_result = self
+                        .builder(entry.descriptor.identifier())
+                        .success()
+                        .unwrap()
+                        .dynamic_build(entry.id, &contextual_environment)
+                        .unwrap();
 
-                track_futures.extend(build_result.prepared_futures);
+                    track_futures.extend(build_result.prepared_futures);
 
-                for (input_name, mut input_transmitters) in build_result.feeding_inputs {
-                    match outputs.entry(input_name) {
-                        Entry::Vacant(e) => {
-                            let e = e.insert(Output::from(input_transmitters.pop().unwrap()));
-                            e.add_transmission(&input_transmitters);
-                        }
-                        Entry::Occupied(e) => {
-                            e.get().add_transmission(&input_transmitters);
+                    for (input_name, mut input_transmitters) in build_result.feeding_inputs {
+                        match outputs.entry(input_name) {
+                            Entry::Vacant(e) => {
+                                let e = e.insert(Output::from(input_transmitters.pop().unwrap()));
+                                e.add_transmission(&input_transmitters);
+                            }
+                            Entry::Occupied(e) => {
+                                e.get().add_transmission(&input_transmitters);
+                            }
                         }
                     }
                 }

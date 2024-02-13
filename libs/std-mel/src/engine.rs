@@ -1,11 +1,15 @@
-use melodium_core::common::executive::{Output, ResultStatus};
+use melodium_core::{
+    common::executive::{Output, ResultStatus},
+    *,
+};
 use melodium_macro::mel_model;
+use std::collections::HashMap;
 
 /// Provides interactions with Mélodium engine.
 ///
 /// `ready` source is triggered at startup when engine is ready to process.
 #[mel_model(
-    source ready () (trigger Block<void>)
+    source ready () () (trigger Block<void>)
     continuous (continuous)
 )]
 #[derive(Debug)]
@@ -24,6 +28,7 @@ impl Engine {
         model
             .new_ready(
                 None,
+                &HashMap::new(),
                 Some(Box::new(|mut outputs| {
                     let trigger = outputs.get("trigger");
 
@@ -38,4 +43,6 @@ impl Engine {
         trigger.close().await;
         ResultStatus::Ok
     }
+
+    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
