@@ -38,9 +38,7 @@ pub struct HttpRequest {
 #[mel_model(
     param routes Vec<string> none
     param {content(binding)} bind string none
-    source incoming (HttpRequest) (
-        param useless string none
-    ) (
+    source incoming (HttpRequest) () (
         data Stream<byte>
         success Block<void>
         failure Block<void>
