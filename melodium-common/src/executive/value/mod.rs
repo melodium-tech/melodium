@@ -97,7 +97,21 @@ impl PartialEq for Value {
             (Self::String(l0), Self::String(r0)) => l0 == r0,
             (Self::Vec(l0), Self::Vec(r0)) => l0 == r0,
             (Self::Option(l0), Self::Option(r0)) => l0 == r0,
-            (Self::Data(_l0), Self::Data(_r0)) => false,
+            (Self::Data(l0), Self::Data(r0)) => {
+                if l0.descriptor() == r0.descriptor() {
+                    if l0
+                        .descriptor()
+                        .implements()
+                        .contains(&crate::descriptor::DataTrait::PartialEquality)
+                    {
+                        l0.partial_equality_eq(other)
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
             _ => false,
         }
     }
