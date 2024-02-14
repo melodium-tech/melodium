@@ -1,7 +1,7 @@
 use crate::compo::Compo;
 use crate::content::Content;
 use crate::package::package::PackageTrait;
-use crate::Loader;
+use crate::{Loader, PackageInfo};
 use bzip2_rs::DecoderReader;
 use melodium_common::descriptor::{
     Collection, Identifier, LoadingError, LoadingResult, PackageRequirement, Version,
@@ -17,7 +17,7 @@ pub struct JeuPackage {
     name: String,
     version: Version,
     requirements: Vec<PackageRequirement>,
-    main: Option<Identifier>,
+    entrypoints: HashMap<String, Identifier>,
     contents: HashMap<PathBuf, Content>,
 }
 
@@ -115,12 +115,8 @@ impl JeuPackage {
 
         if let Some(compo) = composition {
             result.and(LoadingResult::new_success(Self {
-                name: compo.name.clone(),
-                main: compo.main.clone().map(|id| {
-                    let mut path = vec![compo.name.clone()];
-                    path.extend(id.path().iter().map(|s| s.clone()));
-                    Identifier::new(path, id.name())
-                }),
+                name: compo.name,
+                entrypoints: compo.entrypoints,
                 version: compo.version,
                 requirements: compo.requirements,
                 contents,
@@ -230,7 +226,7 @@ impl JeuPackage {
     }
 }
 
-impl PackageTrait for JeuPackage {
+impl PackageInfo for JeuPackage {
     fn name(&self) -> &str {
         &self.name
     }
@@ -243,10 +239,12 @@ impl PackageTrait for JeuPackage {
         &self.requirements
     }
 
-    fn main(&self) -> &Option<Identifier> {
-        &self.main
+    fn entrypoints(&self) -> &HashMap<String, Identifier> {
+        &self.entrypoints
     }
+}
 
+impl PackageTrait for JeuPackage {
     fn embedded_collection(&self, _loader: &Loader) -> LoadingResult<Collection> {
         LoadingResult::new_success(Collection::new())
     }

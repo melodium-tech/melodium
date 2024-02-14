@@ -2,7 +2,7 @@ use crate::Loader;
 use core::fmt::Debug;
 use melodium_common::descriptor::{Collection, Identifier, LoadingResult, PackageRequirement};
 use semver::Version;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Debug)]
 pub enum Package {
@@ -14,7 +14,7 @@ pub enum Package {
     Jeu(super::JeuPackage),
 }
 
-impl PackageTrait for Package {
+impl PackageInfo for Package {
     fn name(&self) -> &str {
         match self {
             Package::Core(pkg) => pkg.name(),
@@ -48,17 +48,19 @@ impl PackageTrait for Package {
         }
     }
 
-    fn main(&self) -> &Option<Identifier> {
+    fn entrypoints(&self) -> &HashMap<String, Identifier> {
         match self {
-            Package::Core(pkg) => pkg.main(),
-            Package::Raw(pkg) => pkg.main(),
+            Package::Core(pkg) => pkg.entrypoints(),
+            Package::Raw(pkg) => pkg.entrypoints(),
             #[cfg(feature = "filesystem")]
-            Package::Fs(pkg) => pkg.main(),
+            Package::Fs(pkg) => pkg.entrypoints(),
             #[cfg(feature = "jeu")]
-            Package::Jeu(pkg) => pkg.main(),
+            Package::Jeu(pkg) => pkg.entrypoints(),
         }
     }
+}
 
+impl PackageTrait for Package {
     fn embedded_collection(&self, loader: &Loader) -> LoadingResult<Collection> {
         match self {
             Package::Core(pkg) => pkg.embedded_collection(loader),
@@ -115,11 +117,14 @@ impl PackageTrait for Package {
     }
 }
 
-pub trait PackageTrait: Debug {
+pub trait PackageInfo: Debug {
     fn name(&self) -> &str;
     fn version(&self) -> &Version;
     fn requirements(&self) -> &Vec<PackageRequirement>;
-    fn main(&self) -> &Option<Identifier>;
+    fn entrypoints(&self) -> &HashMap<String, Identifier>;
+}
+
+pub trait PackageTrait: Debug + PackageInfo {
     /**
      * Gives all elements that are ready to use as soon as package is loaded in memory.
      *
