@@ -126,6 +126,14 @@ impl Loader {
         result.and(LoadingResult::new_success(collection))
     }
 
+    pub fn packages(&self) -> Vec<Arc<dyn PackageInfo>> {
+        self.package_manager
+            .get_packages()
+            .into_iter()
+            .map(|pkg| Arc::clone(&pkg) as Arc<dyn PackageInfo>)
+            .collect()
+    }
+
     pub fn collection(&self) -> RwLockReadGuard<Collection> {
         self.collection.read().unwrap()
     }
