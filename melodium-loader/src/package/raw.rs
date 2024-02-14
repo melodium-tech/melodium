@@ -1,18 +1,19 @@
-use crate::content::Content;
 use crate::package::package::PackageTrait;
 use crate::Loader;
+use crate::{content::Content, PackageInfo};
+use core::iter::FromIterator;
 use melodium_common::descriptor::{
     Collection, Identifier, LoadingError, LoadingResult, PackageRequirement, VersionReq,
 };
 use semver::Version;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Debug)]
 pub struct RawPackage {
     name: String,
     version: Version,
     requirements: Vec<PackageRequirement>,
-    main: Option<Identifier>,
+    entrypoints: HashMap<String, Identifier>,
     content: Content,
 }
 
@@ -92,10 +93,10 @@ impl RawPackage {
                         name: name.clone(),
                         version,
                         requirements,
-                        main: if content.provide().contains(&expected_main) {
-                            Some(expected_main)
+                        entrypoints: if content.provide().contains(&expected_main) {
+                            HashMap::from_iter([("main".to_string(), expected_main)])
                         } else {
-                            None
+                            HashMap::new()
                         },
                         content,
                     })
@@ -109,7 +110,7 @@ impl RawPackage {
     }
 }
 
-impl PackageTrait for RawPackage {
+impl PackageInfo for RawPackage {
     fn name(&self) -> &str {
         &self.name
     }
@@ -122,10 +123,12 @@ impl PackageTrait for RawPackage {
         &self.requirements
     }
 
-    fn main(&self) -> &Option<Identifier> {
-        &self.main
+    fn entrypoints(&self) -> &HashMap<String, Identifier> {
+        &self.entrypoints
     }
+}
 
+impl PackageTrait for RawPackage {
     fn embedded_collection(&self, _: &Loader) -> LoadingResult<Collection> {
         LoadingResult::new_success(Collection::new())
     }

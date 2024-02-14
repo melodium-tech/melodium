@@ -1,6 +1,5 @@
 use clap::{Parser, Subcommand};
 use colored::Colorize;
-use core::convert::TryFrom;
 use melodium::*;
 use melodium_common::descriptor::{Collection, Identifier, LoadingResult, Status};
 use std::path::PathBuf;
@@ -196,21 +195,6 @@ fn check(args: Check) {
 }
 
 fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
-    let id = if let Some(main) = args.main {
-        match Identifier::try_from(&main) {
-            Ok(id) => Some(id),
-            Err(err) => {
-                eprintln!(
-                    "{}: '{err}' is not a valid identifier",
-                    "error".bold().red()
-                );
-                return Err(());
-            }
-        }
-    } else {
-        None
-    };
-
     let mut config = LoadingConfig {
         core_packages: Vec::new(),
         search_locations: args
@@ -221,7 +205,7 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
         raw_elements: Vec::new(),
     };
 
-    let file = if let Some(file) = args.file.map(|f| PathBuf::from(f)) {
+    let file = if let Some(file) = args.file.as_ref().map(|f| PathBuf::from(f)) {
         if file.is_file() {
             Some(file)
         } else if file.is_dir() {
@@ -234,11 +218,11 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
         None
     };
 
-    let result = match (id, file) {
-        (Some(id), None) => load_entry(config, &id)
-            .and_then(|collection| LoadingResult::new_success((id, collection))),
-        (None, Some(file)) => load_file(file, None, config),
-        (Some(id), Some(file)) => load_file(file, Some(id), config),
+    let result = match (&args.main, file) {
+        (Some(entrypoint), None) => load_entry(config, &entrypoint),
+        //.and_then(|collection| LoadingResult::new_success((id, collection))),
+        (None, Some(file)) => load_file(file, "main", config),
+        (Some(entrypoint), Some(file)) => load_file(file, entrypoint, config),
         _ => {
             eprintln!("{}: file or identifier must be given", "error".bold().red());
             return Err(());
@@ -247,7 +231,18 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
 
     print_result(&result);
 
-    result.into_result().map_err(|_| ())
+    result
+        .into_result()
+        .map(|(pkg, collection)| {
+            (
+                pkg.entrypoints()
+                    .get(args.main.as_ref().unwrap_or(&"main".to_string()))
+                    .unwrap()
+                    .clone(),
+                collection,
+            )
+        })
+        .map_err(|_| ())
 }
 
 #[cfg(feature = "doc")]
@@ -266,10 +261,10 @@ fn doc(args: Doc) {
         let path = file.into();
         match std::fs::read(&path) {
             Ok(data) => {
-                if let Some((pkg, _)) =
+                if let Some(pkg) =
                     loading_result.merge_degrade_failure(loader.load_raw(Arc::new(data)))
                 {
-                    doc_packages.push(pkg)
+                    doc_packages.push(pkg.name().to_string())
                 }
             }
             Err(err) => {
