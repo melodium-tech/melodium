@@ -11,6 +11,14 @@ use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
 
 /**
  * Manages loading of Mélodium packages.
+ * 
+ * The loader take care of managing package dependencies (through an internal [PackageManager]), loading inner elements of packages,
+ * and building a coherent [Collection].
+ * 
+ * Loading can be made through the `load`-ing functions, and then final collection rendered using `build()`.
+ * 
+ * This loader aims to be lazy, please read carefully the behavior of each `load`-ing function in order to make best
+ * use of them.
  */
 #[derive(Debug)]
 pub struct Loader {
@@ -55,12 +63,26 @@ impl Loader {
         }
     }
 
+    /**
+     * Loads the given package, according to requirements.
+     * 
+     * This function _does not_ load any package content on its own, see [Self::load], [Self::load_all] or the functions of [LoaderTrait]
+     * to get elements required loaded.
+     */
     pub fn load_package(&self, requirement: &PackageRequirement) -> LoadingResult<()> {
         self.package_manager
             .get_package(requirement)
             .and(LoadingResult::new_success(()))
     }
 
+    /**
+     * Loads the given raw package content.
+     * 
+     * Returns the name of the package and its main entry point, if any.
+     * 
+     * This function _does not_ load any package content on its own, see [Self::load], [Self::load_all] or the functions of [LoaderTrait]
+     * to get elements required loaded.
+     */
     pub fn load_raw(
         &self,
         raw_content: Arc<Vec<u8>>,
@@ -72,11 +94,19 @@ impl Loader {
             })
     }
 
+    /**
+     * Load the given identifier.
+     */
     pub fn load(&self, identifier: &Identifier) -> LoadingResult<()> {
         self.get_with_load(identifier)
             .and_then(|_| LoadingResult::new_success(()))
     }
 
+    /**
+     * Load all the elements from all the packages.
+     * 
+     * Packages concerned have to be already loaded through [Self::load_package] of [Self::load_raw] functions.
+     */
     pub fn load_all(&self) -> LoadingResult<()> {
         let mut result = LoadingResult::new_success(());
         for package in self.package_manager.get_packages() {
@@ -87,6 +117,9 @@ impl Loader {
         result
     }
 
+    /**
+     * Proceed to build of coherent collection.
+     */
     pub fn build(&self) -> LoadingResult<Arc<Collection>> {
         let mut result = LoadingResult::new_success(());
         let collection = Arc::new(self.collection.read().unwrap().clone());
