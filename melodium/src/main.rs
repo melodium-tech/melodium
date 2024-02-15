@@ -32,16 +32,16 @@ struct Cli {
 #[derive(clap::Args)]
 /// Run given program, with optionnal arguments
 struct Run {
-    #[clap(value_parser)]
-    /// Program file to run, can be either `.mel` or `.jeu` file.
-    file: Option<String>,
     #[clap(long)]
     /// Path to use for packages.
     path: Vec<String>,
     #[clap(long, value_name = "IDENTIFIER")]
-    /// Force identifier to use as entrypoint.
+    /// Force identifier to be used as entrypoint.
     force_entry: Option<String>,
-    #[clap(value_parser, value_name = "COMMAND ARGUMENTS")]
+    #[clap(value_parser)]
+    /// Program file to run, can be either `.mel` or `.jeu` file.
+    file: Option<String>,
+    #[clap(value_parser, allow_hyphen_values(true), value_name = "COMMAND ARGUMENTS")]
     /// Arguments to pass to program, if COMMAND is not set it defaults to `main`.
     prog_args: Vec<String>,
 }
@@ -49,15 +49,15 @@ struct Run {
 #[derive(clap::Args)]
 /// Check given program
 struct Check {
-    #[clap(value_parser)]
-    /// Program file to check, can be either `.mel` or `.jeu` file.
-    file: Option<String>,
     #[clap(long)]
     /// Path to look for packages.
     path: Vec<String>,
     #[clap(long, value_name = "IDENTIFIER")]
-    /// Force identifier to use as entrypoint.
+    /// Force identifier to be used as entrypoint.
     force_entry: Option<String>,
+    #[clap(value_parser)]
+    /// Program file to check, can be either `.mel` or `.jeu` file.
+    file: Option<String>,
     #[clap(value_parser, value_name = "COMMAND")]
     /// Entrypoint command to check (default to `main`).
     prog_cmd: Option<String>,
@@ -397,10 +397,11 @@ fn parse_args(
     let mut cmd =
         Command::new(displayed_name.unwrap_or_else(|| treatment.identifier().to_string()))
             .no_binary_name(true)
-            .after_help(treatment.documentation().to_string());
+            .about(treatment.documentation().to_string());
 
     for (name, param) in treatment.parameters() {
         let mut arg = Arg::new(name)
+            .long(name)
             .action(ArgAction::Set)
             .help(param.described_type().to_string());
         if let Some(default) = param.default() {
