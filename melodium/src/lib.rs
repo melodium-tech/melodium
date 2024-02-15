@@ -16,6 +16,7 @@ use melodium_common::descriptor::{
 use melodium_engine::LogicResult;
 pub use melodium_loader::LoadingConfig;
 use melodium_loader::{Loader, PackageInfo};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -61,7 +62,7 @@ pub fn load_raw(
     let loader = Loader::new(config);
     loader
         .load_raw(raw)
-        .and_then(|(pkg)| {
+        .and_then(|pkg| {
             if let Some(main) = pkg.entrypoints().get(entrypoint) {
                 loader.load(&main).and(LoadingResult::new_success(pkg))
             } else {
@@ -90,7 +91,7 @@ pub fn load_file(
 
 pub fn launch(collection: Arc<Collection>, identifier: &Identifier) -> LogicResult<()> {
     let engine = melodium_engine::new_engine(collection);
-    engine.genesis(&identifier).and_then(|_| {
+    engine.genesis(&identifier, HashMap::new()).and_then(|_| {
         engine.live();
         engine.end();
         LogicResult::new_success(())
