@@ -76,6 +76,26 @@ pub fn load_raw(
         })
 }
 
+pub fn load_raw_force_entrypoint(
+    raw: Arc<Vec<u8>>,
+    identifier: &Identifier,
+    mut config: LoadingConfig,
+) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
+    config.extend(core_config());
+
+    let loader = Loader::new(config);
+    loader
+        .load_raw(raw)
+        .and_then(|pkg| {
+            loader.load(&identifier).and(LoadingResult::new_success(pkg))
+        })
+        .and_then(|pkg| {
+            loader
+                .build()
+                .and_then(|collection| LoadingResult::new_success((pkg, collection)))
+        })
+}
+
 pub fn load_file(
     file: PathBuf,
     entrypoint: &str,
@@ -85,6 +105,19 @@ pub fn load_file(
         Ok(content) => load_raw(Arc::new(content), entrypoint, config),
         Err(err) => {
             LoadingResult::new_failure(LoadingError::unreachable_file(193, file, err.to_string()))
+        }
+    }
+}
+
+pub fn load_file_force_entrypoint(
+    file: PathBuf,
+    identifier: &Identifier,
+    config: LoadingConfig,
+) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
+    match std::fs::read(&file) {
+        Ok(content) => load_raw_force_entrypoint(Arc::new(content), identifier, config),
+        Err(err) => {
+            LoadingResult::new_failure(LoadingError::unreachable_file(243, file, err.to_string()))
         }
     }
 }

@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 use melodium::*;
 use melodium_common::descriptor::{Collection, Identifier, LoadingResult, Status};
+use core::convert::TryFrom;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -27,11 +28,14 @@ struct Run {
     /// Program file to run, can be either `.mel` or `.jeu` file.
     file: Option<String>,
     #[clap(long)]
-    /// Path to look for packages.
+    /// Path to use for packages.
     path: Vec<String>,
-    #[clap(short, long)]
-    /// Entrypoint to use.
-    main: Option<String>,
+    #[clap(long, value_name = "IDENTIFIER")]
+    /// Force identifier to use as entrypoint.
+    force_entry: Option<String>,
+    #[clap(short, long, value_name = "ENTRYPOINT")]
+    /// Entrypoint to use (default to 'main').
+    entry: Option<String>,
     #[clap(value_parser, value_name = "ARGUMENTS")]
     /// Arguments to pass to program.
     file_args: Vec<String>,
@@ -46,9 +50,12 @@ struct Check {
     #[clap(long)]
     /// Path to look for packages.
     path: Vec<String>,
-    #[clap(short, long)]
-    /// Entrypoint to use.
-    main: Option<String>,
+    #[clap(long, value_name = "IDENTIFIER")]
+    /// Force identifier to use as entrypoint.
+    force_entry: Option<String>,
+    #[clap(short, long, value_name = "ENTRYPOINT")]
+    /// Entrypoint to use (default to 'main').
+    entry: Option<String>,
 }
 
 #[derive(Subcommand)]
@@ -133,10 +140,11 @@ pub fn main() {
 
     if let Some(file) = cli.file {
         let args = Run {
-            main: None,
+            entry: None,
             path: Vec::new(),
             file: Some(file),
             file_args: cli.file_args,
+            force_entry: None,
         };
 
         run(args);
@@ -171,7 +179,8 @@ fn run(args: Run) {
     if let Ok((identifier, collection)) = check_load(Check {
         file: args.file,
         path: args.path,
-        main: args.main,
+        entry: args.entry,
+        force_entry: args.force_entry,
     }) {
         let launch = launch(collection, &identifier);
         if let Some(failure) = launch.failure() {
@@ -218,13 +227,24 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
         None
     };
 
-    let result = match (&args.main, file) {
-        (Some(entrypoint), None) => load_entry(config, &entrypoint),
-        //.and_then(|collection| LoadingResult::new_success((id, collection))),
-        (None, Some(file)) => load_file(file, "main", config),
-        (Some(entrypoint), Some(file)) => load_file(file, entrypoint, config),
-        _ => {
-            eprintln!("{}: file or identifier must be given", "error".bold().red());
+    let result = match (&args.entry, &args.force_entry, file) {
+        (None, None, Some(file)) => load_file(file, "main", config),
+        (Some(entrypoint), None, Some(file)) => load_file(file, entrypoint, config),
+        (None, Some(identifier), Some(file)) => {
+            let identifier = match Identifier::try_from(identifier) {
+                Ok(id) => id,
+                Err(str) => {
+                    eprintln!("{}: '{str}' is not a valid identifier", "error".bold().red());
+            return Err(());
+                }
+            };
+            load_file_force_entrypoint(file, &identifier, config)},
+        (_, _, None) => {
+            eprintln!("{}: file must be given", "error".bold().red());
+            return Err(());
+        }
+        (Some(_), Some(_), _) => {
+            eprintln!("{}: entrypoint cannot be specified and forced at same time", "error".bold().red());
             return Err(());
         }
     };
@@ -236,7 +256,7 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
         .map(|(pkg, collection)| {
             (
                 pkg.entrypoints()
-                    .get(args.main.as_ref().unwrap_or(&"main".to_string()))
+                    .get(args.entry.as_ref().unwrap_or(&"main".to_string()))
                     .unwrap()
                     .clone(),
                 collection,
