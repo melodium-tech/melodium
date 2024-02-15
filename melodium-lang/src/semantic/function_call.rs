@@ -88,6 +88,7 @@ impl Node for FunctionCall {
             {
                 DeclarativeElementType::Model(m) => m.script.upgrade().unwrap(),
                 DeclarativeElementType::Treatment(t) => t.script.upgrade().unwrap(),
+                DeclarativeElementType::None => return ScriptResult::new_success(()),
             };
             let borrowed_script = rc_script.read().unwrap();
 

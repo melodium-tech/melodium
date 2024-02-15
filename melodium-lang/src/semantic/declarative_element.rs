@@ -23,4 +23,21 @@ pub trait DeclarativeElement: Node + Debug + Send + Sync {
 pub enum DeclarativeElementType<'a> {
     Model(&'a Model),
     Treatment(&'a Treatment),
+    None,
 }
+
+/// Provides a 'none' declarative element, useful for raw value and functions parsing.
+#[derive(Debug)]
+pub struct NoneDeclarativeElement;
+
+impl DeclarativeElement for NoneDeclarativeElement {
+    fn declarative_element(&self) -> DeclarativeElementType {
+        DeclarativeElementType::None
+    }
+
+    fn find_declared_parameter(&self, _name: &str) -> Option<&Arc<RwLock<DeclaredParameter>>> {
+        None
+    }
+}
+
+impl Node for NoneDeclarativeElement {}

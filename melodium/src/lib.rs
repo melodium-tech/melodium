@@ -10,8 +10,9 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
-use melodium_common::descriptor::{
-    Collection, Identifier, LoadingError, LoadingResult, Package, PackageRequirement, VersionReq,
+use melodium_common::{
+    descriptor::{Collection, Identifier, LoadingError, LoadingResult, Package},
+    executive::Value,
 };
 use melodium_engine::LogicResult;
 pub use melodium_loader::LoadingConfig;
@@ -32,14 +33,17 @@ pub fn load_all(mut config: LoadingConfig) -> LoadingResult<Arc<Collection>> {
     loader.load_all().and_then(|_| loader.build())
 }
 
+/*
+
+This former function is kept as implementation idea for direct load and launch of directly available elements.
+
 pub fn load_entry(
     mut config: LoadingConfig,
-    //identifier: &Identifier,
-    entrypoint: &str,
+    identifier: &Identifier,
 ) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
     config.extend(core_config());
 
-    /*
+
     let loader = Loader::new(config);
     loader
         .load_package(&PackageRequirement {
@@ -48,9 +52,7 @@ pub fn load_entry(
         })
         .and_then(|_| loader.load(identifier))
         .and_then(|_| loader.build())
-        */
-    todo!("Ticket #85")
-}
+}*/
 
 pub fn load_raw(
     raw: Arc<Vec<u8>>,
@@ -87,7 +89,9 @@ pub fn load_raw_force_entrypoint(
     loader
         .load_raw(raw)
         .and_then(|pkg| {
-            loader.load(&identifier).and(LoadingResult::new_success(pkg))
+            loader
+                .load(&identifier)
+                .and(LoadingResult::new_success(pkg))
         })
         .and_then(|pkg| {
             loader
@@ -122,9 +126,13 @@ pub fn load_file_force_entrypoint(
     }
 }
 
-pub fn launch(collection: Arc<Collection>, identifier: &Identifier) -> LogicResult<()> {
+pub fn launch(
+    collection: Arc<Collection>,
+    identifier: &Identifier,
+    parameters: HashMap<String, Value>,
+) -> LogicResult<()> {
     let engine = melodium_engine::new_engine(collection);
-    engine.genesis(&identifier, HashMap::new()).and_then(|_| {
+    engine.genesis(&identifier, parameters).and_then(|_| {
         engine.live();
         engine.end();
         LogicResult::new_success(())
