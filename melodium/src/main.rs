@@ -1,9 +1,18 @@
-use clap::{Parser, Subcommand};
+use clap::{Arg, ArgAction, Command, Parser, Subcommand};
 use colored::Colorize;
+use core::convert::TryFrom;
 use melodium::*;
-use melodium_common::descriptor::{Collection, Identifier, LoadingResult, Status};
+use melodium_common::{
+    descriptor::{Collection, Entry, Identifier, LoadingResult, Status, Treatment},
+    executive::Value,
+};
+use melodium_lang::{
+    semantic::{NoneDeclarativeElement, Value as SemanticValue},
+    text::{word::get_words, Value as TextValue},
+};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::{collections::HashMap, sync::RwLock};
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -12,7 +21,7 @@ struct Cli {
     /// Program file to run (see `melodium run --help`)
     file: Option<String>,
 
-    #[clap(value_parser, value_name = "ARGUMENTS")]
+    #[clap(value_parser, allow_hyphen_values(true), value_name = "ARGUMENTS")]
     /// Arguments to pass to program (see `melodium run --help`)
     file_args: Vec<String>,
 
@@ -23,32 +32,50 @@ struct Cli {
 #[derive(clap::Args)]
 /// Run given program, with optionnal arguments
 struct Run {
+    #[clap(long)]
+    /// Path to use for packages.
+    path: Vec<String>,
+    #[clap(long, value_name = "IDENTIFIER")]
+    /// Force identifier to be used as entrypoint.
+    force_entry: Option<String>,
     #[clap(value_parser)]
     /// Program file to run, can be either `.mel` or `.jeu` file.
     file: Option<String>,
-    #[clap(long)]
-    /// Path to look for packages.
-    path: Vec<String>,
-    #[clap(short, long)]
-    /// Entrypoint to use.
-    main: Option<String>,
-    #[clap(value_parser, value_name = "ARGUMENTS")]
-    /// Arguments to pass to program.
-    file_args: Vec<String>,
+    #[clap(
+        value_parser,
+        allow_hyphen_values(true),
+        value_name = "COMMAND ARGUMENTS"
+    )]
+    /// Arguments to pass to program, if COMMAND is not set it defaults to `main`.
+    prog_args: Vec<String>,
 }
 
 #[derive(clap::Args)]
 /// Check given program
 struct Check {
-    #[clap(value_parser)]
-    /// Program file to check, can be either `.mel` or `.jeu` file.
-    file: Option<String>,
     #[clap(long)]
     /// Path to look for packages.
     path: Vec<String>,
-    #[clap(short, long)]
-    /// Entrypoint to use.
-    main: Option<String>,
+    #[clap(long, value_name = "IDENTIFIER")]
+    /// Force identifier to be used as entrypoint.
+    force_entry: Option<String>,
+    #[clap(value_parser)]
+    /// Program file to check, can be either `.mel` or `.jeu` file.
+    file: Option<String>,
+    #[clap(value_parser, value_name = "COMMAND")]
+    /// Entrypoint command to check (default to `main`).
+    prog_cmd: Option<String>,
+}
+
+#[derive(clap::Args)]
+/// Give information about program or package
+struct Info {
+    #[clap(long)]
+    /// Path to look for packages.
+    path: Vec<String>,
+    #[clap(value_parser)]
+    /// Program file, can be either `.mel` or `.jeu` file.
+    name: String,
 }
 
 #[derive(Subcommand)]
@@ -95,7 +122,7 @@ struct JeuExtract {}
 
 #[cfg(feature = "doc")]
 #[derive(clap::Args)]
-/// Generates documentation as mdBook.
+/// Generates documentation
 struct Doc {
     #[clap(long)]
     /// Document every loaded package (default if none --file or --packages options are provided)
@@ -110,7 +137,7 @@ struct Doc {
     /// Path to look for packages.
     path: Vec<String>,
     #[clap(value_parser)]
-    /// Output location to write documentation, directory is created if it does not exists.
+    /// Output location to write documentation as mdBook, directory is created if it does not exists.
     output: String,
 }
 
@@ -123,6 +150,7 @@ struct Doc {}
 enum Commands {
     Run(Run),
     Check(Check),
+    Info(Info),
     #[clap(subcommand)]
     Jeu(Jeu),
     Doc(Doc),
@@ -133,10 +161,10 @@ pub fn main() {
 
     if let Some(file) = cli.file {
         let args = Run {
-            main: None,
             path: Vec::new(),
             file: Some(file),
-            file_args: cli.file_args,
+            prog_args: cli.file_args,
+            force_entry: None,
         };
 
         run(args);
@@ -144,6 +172,7 @@ pub fn main() {
         match command {
             Commands::Run(args) => run(args),
             Commands::Check(args) => check(args),
+            Commands::Info(args) => info(args),
             #[cfg(feature = "doc")]
             Commands::Doc(args) => doc(args),
             #[cfg(not(feature = "doc"))]
@@ -171,9 +200,39 @@ fn run(args: Run) {
     if let Ok((identifier, collection)) = check_load(Check {
         file: args.file,
         path: args.path,
-        main: args.main,
+        force_entry: args.force_entry.clone(),
+        prog_cmd: args.prog_args.first().cloned(),
     }) {
-        let launch = launch(collection, &identifier);
+        let (entry_name, arguments) = if args
+            .prog_args
+            .first()
+            .map(|arg| !arg.starts_with('-'))
+            .unwrap_or(false)
+        {
+            let mut args = args.prog_args.clone();
+            if args.first().is_some() {
+                (Some(args.remove(0)), args)
+            } else {
+                (None, args)
+            }
+        } else {
+            if args.force_entry.is_some() {
+                (None, args.prog_args.clone())
+            } else {
+                (Some("main".to_string()), args.prog_args.clone())
+            }
+        };
+
+        let treatment = if let Some(Entry::Treatment(tr)) = collection.get(&identifier) {
+            tr
+        } else {
+            eprintln!("{}: entrypoint must be a treatment", "failure".bold().red());
+            std::process::exit(1);
+        };
+
+        let params = parse_args(entry_name, treatment, arguments);
+
+        let launch = launch(collection, &identifier, params);
         if let Some(failure) = launch.failure() {
             eprintln!("{}: {failure}", "failure".bold().red());
         }
@@ -218,13 +277,35 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
         None
     };
 
-    let result = match (&args.main, file) {
-        (Some(entrypoint), None) => load_entry(config, &entrypoint),
-        //.and_then(|collection| LoadingResult::new_success((id, collection))),
-        (None, Some(file)) => load_file(file, "main", config),
-        (Some(entrypoint), Some(file)) => load_file(file, entrypoint, config),
-        _ => {
-            eprintln!("{}: file or identifier must be given", "error".bold().red());
+    let result = match (
+        args.prog_cmd.as_ref().filter(|arg| !arg.starts_with('-')),
+        &args.force_entry,
+        file,
+    ) {
+        (None, None, Some(file)) => load_file(file, "main", config),
+        (Some(entrypoint), None, Some(file)) => load_file(file, entrypoint, config),
+        (None, Some(identifier), Some(file)) => {
+            let identifier = match Identifier::try_from(identifier) {
+                Ok(id) => id,
+                Err(str) => {
+                    eprintln!(
+                        "{}: '{str}' is not a valid identifier",
+                        "error".bold().red()
+                    );
+                    return Err(());
+                }
+            };
+            load_file_force_entrypoint(file, &identifier, config)
+        }
+        (_, _, None) => {
+            eprintln!("{}: file must be given", "error".bold().red());
+            return Err(());
+        }
+        (Some(_), Some(_), _) => {
+            eprintln!(
+                "{}: entrypoint cannot be specified and forced at same time",
+                "error".bold().red()
+            );
             return Err(());
         }
     };
@@ -236,13 +317,46 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
         .map(|(pkg, collection)| {
             (
                 pkg.entrypoints()
-                    .get(args.main.as_ref().unwrap_or(&"main".to_string()))
+                    .get(
+                        args.prog_cmd
+                            .as_ref()
+                            .filter(|arg| !arg.starts_with('-'))
+                            .unwrap_or(&"main".to_string()),
+                    )
                     .unwrap()
                     .clone(),
                 collection,
             )
         })
         .map_err(|_| ())
+}
+
+fn info(args: Info) {
+    let mut loading_config = core_config();
+    loading_config
+        .search_locations
+        .extend(args.path.into_iter().map(|p| p.into()));
+    let result = load_file_all_entrypoints(args.name.into(), loading_config);
+
+    print_result(&result);
+
+    if let Some((pkg, collection)) = result.success() {
+        let mut cmd = Command::new(pkg.name().to_string())
+            .no_binary_name(true)
+            .disable_help_subcommand(true)
+            .before_long_help(format!("{}\nVersion {}", pkg.name(), pkg.version()))
+            .version(pkg.version().to_string())
+            .disable_version_flag(true);
+        for (name, id) in pkg.entrypoints() {
+            if let Some(Entry::Treatment(treatment)) = collection.get(id) {
+                let sub_cmd = build_cmd(Some(name.clone()), treatment);
+                cmd = cmd.subcommand(sub_cmd);
+            }
+        }
+        let _ = cmd.print_long_help();
+    } else {
+        std::process::exit(1);
+    }
 }
 
 #[cfg(feature = "doc")]
@@ -318,6 +432,124 @@ fn doc(args: Doc) {
             path = args.output
         )
     }
+}
+
+fn build_cmd(displayed_name: Option<String>, treatment: &Arc<dyn Treatment>) -> Command {
+    let mut cmd =
+        Command::new(displayed_name.unwrap_or_else(|| treatment.identifier().to_string()))
+            .no_binary_name(true)
+            .about(treatment.documentation().to_string());
+
+    for (name, param) in treatment.parameters() {
+        let mut arg = Arg::new(name)
+            .long(name)
+            .action(ArgAction::Set)
+            .help(param.described_type().to_string());
+        if let Some(default) = param.default() {
+            arg = arg.default_value(default.to_string());
+        }
+        cmd = cmd.arg(arg);
+    }
+
+    cmd
+}
+
+fn parse_args(
+    displayed_name: Option<String>,
+    treatment: &Arc<dyn Treatment>,
+    arguments: Vec<String>,
+) -> HashMap<String, Value> {
+    let cmd = build_cmd(displayed_name, treatment);
+
+    let matches = cmd.get_matches_from(arguments);
+
+    let mut parsed = HashMap::new();
+    for (name, param) in treatment.parameters() {
+        if let Some(raw_value) = matches.get_one::<String>(name.as_str()) {
+            if matches.value_source(name.as_str()) != Some(clap::parser::ValueSource::DefaultValue)
+            {
+                let mut words = match get_words(raw_value) {
+                    Ok(w) => w,
+                    Err(_) => {
+                        eprintln!(
+                            "{}: argument '{name}' cannot be parsed",
+                            "failure".bold().red()
+                        );
+                        std::process::exit(1);
+                    }
+                };
+                words.push(melodium_lang::text::word::Word::default());
+
+                let value = match TextValue::build_from_first_item(
+                    &mut words.windows(2),
+                    &mut HashMap::new(),
+                ) {
+                    Ok(v) => v,
+                    Err(err) => {
+                        eprintln!(
+                            "{}: argument '{name}' cannot be parsed: {err}",
+                            "failure".bold().red()
+                        );
+                        std::process::exit(1);
+                    }
+                };
+
+                let decl_element = Arc::new(RwLock::new(NoneDeclarativeElement));
+                let value = match SemanticValue::new(decl_element.clone(), value) {
+                    Status::Success { success, errors } => {
+                        if !errors.is_empty() {
+                            errors
+                                .iter()
+                                .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
+                            std::process::exit(1);
+                        }
+                        success
+                    }
+                    Status::Failure { failure, errors } => {
+                        eprintln!("{}: {failure}", "failure".bold().red());
+                        errors
+                            .iter()
+                            .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
+                        std::process::exit(1);
+                    }
+                };
+
+                let datatype = if let Some(dt) = param.described_type().to_datatype(&HashMap::new())
+                {
+                    dt
+                } else {
+                    eprintln!(
+                        "{}: provided treatment have generics, it cannot be used as entrypoint",
+                        "failure".bold().red()
+                    );
+                    std::process::exit(1);
+                };
+
+                let value = match value.read().unwrap().make_executive_value(&datatype) {
+                    Status::Success { success, errors } => {
+                        if !errors.is_empty() {
+                            errors
+                                .iter()
+                                .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
+                            std::process::exit(1);
+                        }
+                        success
+                    }
+                    Status::Failure { failure, errors } => {
+                        eprintln!("{}: {failure}", "failure".bold().red());
+                        errors
+                            .iter()
+                            .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
+                        std::process::exit(1);
+                    }
+                };
+
+                parsed.insert(name.clone(), value);
+            }
+        }
+    }
+
+    parsed
 }
 
 #[cfg(all(feature = "jeu", feature = "fs"))]

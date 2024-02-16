@@ -76,6 +76,7 @@ impl DeclaredParameter {
                     variability = Variability::Var;
                 }
             }
+            DeclarativeElementType::None => variability = Variability::Var,
         }
 
         let value = if let Some(value) = text.value.as_ref().cloned() {

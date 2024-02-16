@@ -2019,6 +2019,7 @@ dependencies = [
  "melodium-core",
  "melodium-doc",
  "melodium-engine",
+ "melodium-lang",
  "melodium-loader",
  "regex-mel",
  "std-mel",

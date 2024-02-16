@@ -16,7 +16,7 @@ use std/conv::toBytes
 use std/flow/vec::flatten
 use std/ops/num::|add
 
-treatment main(const content: string = "this is some text", var generate: u128 = 873, const output: string = "./output_count") {
+treatment main(const content: string = "this is some text", var generate: u128 = 873, const output: string) {
     startup()
     generate_arbitrary(length = |add<u128>(generate, 3), text = content)
     count_writer(output_file = output)

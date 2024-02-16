@@ -10,6 +10,8 @@ fn main() {
     let mut melodium = Command::new("melodium")
         .arg("run")
         .arg("complex_call.mel")
+        .arg("--output")
+        .arg(r#""./output_count""#)
         .spawn()
         .expect("failed to launch Mélodium executable");
 

@@ -33,7 +33,7 @@ pub use assigned_model::AssignedModel;
 pub use assigned_parameter::AssignedParameter;
 pub use common::{Node, Reference, Tree};
 pub use connection::Connection;
-pub use declarative_element::{DeclarativeElement, DeclarativeElementType};
+pub use declarative_element::{DeclarativeElement, DeclarativeElementType, NoneDeclarativeElement};
 pub use declared_generic::DeclaredGeneric;
 pub use declared_model::DeclaredModel;
 pub use declared_parameter::DeclaredParameter;

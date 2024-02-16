@@ -22,11 +22,12 @@ name = "melodium"
 required-features = ["cli"]
 
 [dependencies]
-clap = { version = "4.0.32", features = ["cargo", "derive"], optional = true }
+clap = { version = "4.0.32", features = ["cargo", "derive", "string"], optional = true }
 colored = { version = "2.0.2", optional = true }
 melodium-common = { path = "../melodium-common", version = "0.7.1" }
 melodium-core = { path = "../melodium-core", version = "0.7.1", optional = true  }
 melodium-engine = { path = "../melodium-engine", version = "0.7.1" }
+melodium-lang = { path = "../melodium-lang", version = "0.7.1" }
 melodium-loader = { path = "../melodium-loader", version = "0.7.1" }
 melodium-doc = { path = "../melodium-doc", version = "0.7.1", optional = true }
 
