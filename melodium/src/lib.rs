@@ -26,11 +26,17 @@ pub const TARGET: &'static str = env!("TARGET");
 pub const TARGET_FEATURES: &'static str = env!("TARGET_FEATURE");
 pub const BUILD_HOST: &'static str = env!("HOST");
 
-pub fn load_all(mut config: LoadingConfig) -> LoadingResult<Arc<Collection>> {
+pub fn load_all(
+    mut config: LoadingConfig,
+) -> LoadingResult<(Vec<Arc<dyn PackageInfo>>, Arc<Collection>)> {
     config.extend(core_config());
 
     let loader = Loader::new(config);
-    loader.load_all().and_then(|_| loader.build())
+    loader.load_all().and_then(|_| {
+        loader
+            .build()
+            .and_then(|coll| LoadingResult::new_success((loader.packages(), coll)))
+    })
 }
 
 /*
@@ -78,6 +84,33 @@ pub fn load_raw(
         })
 }
 
+pub fn load_raw_all_entrypoints(
+    raw: Arc<Vec<u8>>,
+    mut config: LoadingConfig,
+) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
+    config.extend(core_config());
+
+    let loader = Loader::new(config);
+    loader
+        .load_raw(raw)
+        .and_then(|pkg| {
+            let mut result = LoadingResult::new_success(Arc::clone(&pkg));
+            for (_, id) in pkg.entrypoints() {
+                result = result.and(
+                    loader
+                        .load(id)
+                        .and(LoadingResult::new_success(Arc::clone(&pkg))),
+                )
+            }
+            result
+        })
+        .and_then(|pkg| {
+            loader
+                .build()
+                .and_then(|collection| LoadingResult::new_success((pkg, collection)))
+        })
+}
+
 pub fn load_raw_force_entrypoint(
     raw: Arc<Vec<u8>>,
     identifier: &Identifier,
@@ -109,6 +142,18 @@ pub fn load_file(
         Ok(content) => load_raw(Arc::new(content), entrypoint, config),
         Err(err) => {
             LoadingResult::new_failure(LoadingError::unreachable_file(193, file, err.to_string()))
+        }
+    }
+}
+
+pub fn load_file_all_entrypoints(
+    file: PathBuf,
+    config: LoadingConfig,
+) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
+    match std::fs::read(&file) {
+        Ok(content) => load_raw_all_entrypoints(Arc::new(content), config),
+        Err(err) => {
+            LoadingResult::new_failure(LoadingError::unreachable_file(244, file, err.to_string()))
         }
     }
 }

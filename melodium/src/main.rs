@@ -41,7 +41,11 @@ struct Run {
     #[clap(value_parser)]
     /// Program file to run, can be either `.mel` or `.jeu` file.
     file: Option<String>,
-    #[clap(value_parser, allow_hyphen_values(true), value_name = "COMMAND ARGUMENTS")]
+    #[clap(
+        value_parser,
+        allow_hyphen_values(true),
+        value_name = "COMMAND ARGUMENTS"
+    )]
     /// Arguments to pass to program, if COMMAND is not set it defaults to `main`.
     prog_args: Vec<String>,
 }
@@ -61,6 +65,17 @@ struct Check {
     #[clap(value_parser, value_name = "COMMAND")]
     /// Entrypoint command to check (default to `main`).
     prog_cmd: Option<String>,
+}
+
+#[derive(clap::Args)]
+/// Give information about program or package
+struct Info {
+    #[clap(long)]
+    /// Path to look for packages.
+    path: Vec<String>,
+    #[clap(value_parser)]
+    /// Program file, can be either `.mel` or `.jeu` file.
+    name: String,
 }
 
 #[derive(Subcommand)]
@@ -107,7 +122,7 @@ struct JeuExtract {}
 
 #[cfg(feature = "doc")]
 #[derive(clap::Args)]
-/// Generates documentation as mdBook.
+/// Generates documentation
 struct Doc {
     #[clap(long)]
     /// Document every loaded package (default if none --file or --packages options are provided)
@@ -122,7 +137,7 @@ struct Doc {
     /// Path to look for packages.
     path: Vec<String>,
     #[clap(value_parser)]
-    /// Output location to write documentation, directory is created if it does not exists.
+    /// Output location to write documentation as mdBook, directory is created if it does not exists.
     output: String,
 }
 
@@ -135,6 +150,7 @@ struct Doc {}
 enum Commands {
     Run(Run),
     Check(Check),
+    Info(Info),
     #[clap(subcommand)]
     Jeu(Jeu),
     Doc(Doc),
@@ -156,6 +172,7 @@ pub fn main() {
         match command {
             Commands::Run(args) => run(args),
             Commands::Check(args) => check(args),
+            Commands::Info(args) => info(args),
             #[cfg(feature = "doc")]
             Commands::Doc(args) => doc(args),
             #[cfg(not(feature = "doc"))]
@@ -207,7 +224,7 @@ fn run(args: Run) {
         };
 
         let treatment = if let Some(Entry::Treatment(tr)) = collection.get(&identifier) {
-            tr.clone()
+            tr
         } else {
             eprintln!("{}: entrypoint must be a treatment", "failure".bold().red());
             std::process::exit(1);
@@ -314,6 +331,34 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
         .map_err(|_| ())
 }
 
+fn info(args: Info) {
+    let mut loading_config = core_config();
+    loading_config
+        .search_locations
+        .extend(args.path.into_iter().map(|p| p.into()));
+    let result = load_file_all_entrypoints(args.name.into(), loading_config);
+
+    print_result(&result);
+
+    if let Some((pkg, collection)) = result.success() {
+        let mut cmd = Command::new(pkg.name().to_string())
+            .no_binary_name(true)
+            .disable_help_subcommand(true)
+            .before_long_help(format!("{}\nVersion {}", pkg.name(), pkg.version()))
+            .version(pkg.version().to_string())
+            .disable_version_flag(true);
+        for (name, id) in pkg.entrypoints() {
+            if let Some(Entry::Treatment(treatment)) = collection.get(id) {
+                let sub_cmd = build_cmd(Some(name.clone()), treatment);
+                cmd = cmd.subcommand(sub_cmd);
+            }
+        }
+        let _ = cmd.print_long_help();
+    } else {
+        std::process::exit(1);
+    }
+}
+
 #[cfg(feature = "doc")]
 fn doc(args: Doc) {
     let mut loading_config = core_config();
@@ -389,11 +434,7 @@ fn doc(args: Doc) {
     }
 }
 
-fn parse_args(
-    displayed_name: Option<String>,
-    treatment: Arc<dyn Treatment>,
-    arguments: Vec<String>,
-) -> HashMap<String, Value> {
+fn build_cmd(displayed_name: Option<String>, treatment: &Arc<dyn Treatment>) -> Command {
     let mut cmd =
         Command::new(displayed_name.unwrap_or_else(|| treatment.identifier().to_string()))
             .no_binary_name(true)
@@ -409,6 +450,16 @@ fn parse_args(
         }
         cmd = cmd.arg(arg);
     }
+
+    cmd
+}
+
+fn parse_args(
+    displayed_name: Option<String>,
+    treatment: &Arc<dyn Treatment>,
+    arguments: Vec<String>,
+) -> HashMap<String, Value> {
+    let cmd = build_cmd(displayed_name, treatment);
 
     let matches = cmd.get_matches_from(arguments);
 
