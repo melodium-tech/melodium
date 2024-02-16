@@ -26,8 +26,17 @@ or
 ```shell
 melodium run <FILE>
 ```
+or launch a specific command in Mélodium program:
+```shell
+melodium run <FILE> <CMD> [ARGS…]
+```
 
-Or check a Mélodium program validity:
+See the commands and options of a program:
+```shell
+melodium info <FILE>
+```
+
+Check a Mélodium program validity:
 ```shell
 melodium check <FILE>
 ```
