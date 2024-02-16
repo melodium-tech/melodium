@@ -1,7 +1,7 @@
 #![allow(unused)]
 
-use crate::package;
 use crate::package::{Package, PackageTrait};
+use crate::{package, PackageInfo};
 use melodium_common::descriptor::{
     LoadingError, LoadingResult, Package as CommonPackage, PackageRequirement,
 };

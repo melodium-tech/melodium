@@ -4,6 +4,7 @@ use core::convert::TryFrom;
 use melodium_common::descriptor::{
     Identifier, LoadingError, LoadingResult, PackageRequirement, Version, VersionReq,
 };
+use std::collections::HashMap;
 use toml::{Table, Value};
 
 #[derive(Debug)]
@@ -11,7 +12,7 @@ pub struct Compo {
     pub name: String,
     pub version: Version,
     pub requirements: Vec<PackageRequirement>,
-    pub main: Option<Identifier>,
+    pub entrypoints: HashMap<String, Identifier>,
 }
 
 impl Compo {
@@ -78,16 +79,26 @@ impl Compo {
                         Vec::new()
                     };
 
-                    let main = composition
-                        .get("main")
-                        .and_then(|v| v.as_str())
-                        .and_then(|v| Identifier::try_from(v).ok());
+                    let mut entrypoints = HashMap::new();
+                    if let Some(Value::Table(toml_entrypoints)) = composition.get("entrypoints") {
+                        for (name, pos_id) in toml_entrypoints {
+                            if let Value::String(pos_id) = pos_id {
+                                if let Ok(pos_id) = Identifier::try_from(pos_id) {
+                                    entrypoints.insert(name.clone(), pos_id);
+                                } else {
+                                    return LoadingResult::new_failure(
+                                        LoadingError::wrong_configuration(242, name.clone()),
+                                    );
+                                }
+                            }
+                        }
+                    }
 
                     LoadingResult::new_success(Self {
                         name,
                         version,
                         requirements,
-                        main,
+                        entrypoints,
                     })
                 }
                 Err(_) => {
@@ -121,8 +132,12 @@ impl Compo {
             toml.insert("dependencies".to_string(), Value::Table(deps));
         }
 
-        if let Some(main) = &self.main {
-            toml.insert("main".to_string(), Value::String(main.to_string()));
+        if !self.entrypoints.is_empty() {
+            let mut entrypoints = Table::new();
+            for (name, id) in &self.entrypoints {
+                entrypoints.insert(name.clone(), Value::String(id.to_string()));
+            }
+            toml.insert("entrypoints".to_string(), Value::Table(entrypoints));
         }
 
         toml::to_string_pretty(&toml).unwrap()

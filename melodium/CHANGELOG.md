@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Adding direct entrypoint call through CLI.
 - Adding custom data types management.
 - Adding generics management.
 - Adding traits management.

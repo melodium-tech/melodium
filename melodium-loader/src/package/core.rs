@@ -1,13 +1,13 @@
 use crate::content::Content;
 use crate::package::package::PackageTrait;
-use crate::Loader;
+use crate::{Loader, PackageInfo};
 use melodium_common::descriptor::{
     Collection, Identifier, LoadingError, LoadingResult, Package as CommonPackage,
     PackageRequirement,
 };
 use semver::Version;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, OnceLock, RwLock};
 
 #[derive(Debug)]
 pub struct CorePackage {
@@ -80,7 +80,7 @@ impl CorePackage {
     }
 }
 
-impl PackageTrait for CorePackage {
+impl PackageInfo for CorePackage {
     fn name(&self) -> &str {
         self.package.name()
     }
@@ -93,10 +93,13 @@ impl PackageTrait for CorePackage {
         &self.requirements
     }
 
-    fn main(&self) -> &Option<Identifier> {
-        &None
+    fn entrypoints(&self) -> &HashMap<String, Identifier> {
+        static MAP: OnceLock<HashMap<String, Identifier>> = OnceLock::new();
+        MAP.get_or_init(|| HashMap::new())
     }
+}
 
+impl PackageTrait for CorePackage {
     fn embedded_collection(&self, loader: &Loader) -> LoadingResult<Collection> {
         let mut embedded_collection = self.embedded_collection.write().unwrap();
         if let Some(collection) = &*embedded_collection {

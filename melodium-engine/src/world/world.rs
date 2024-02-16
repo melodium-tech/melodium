@@ -246,11 +246,37 @@ impl Engine for World {
         Arc::clone(&self.collection)
     }
 
-    fn genesis(&self, beginning: &Identifier) -> LogicResult<()> {
-        let gen_env = GenesisEnvironment::new();
+    fn genesis(&self, entry: &Identifier, mut params: HashMap<String, Value>) -> LogicResult<()> {
+        let mut gen_env = GenesisEnvironment::new();
+
+        if let Some(CollectionEntry::Treatment(descriptor)) = self.collection.get(entry) {
+            for (name, param) in descriptor.parameters() {
+                if let Some(value) = params.remove(name).filter(|val| {
+                    param
+                        .described_type()
+                        .to_datatype(&HashMap::new())
+                        .map(|dt| dt == val.datatype())
+                        .unwrap_or(false)
+                }) {
+                    gen_env.add_variable(name, value);
+                } else if param.default().is_some() {
+                    continue;
+                } else {
+                    return LogicResult::new_failure(LogicError::launch_wrong_parameter(
+                        225,
+                        name.clone(),
+                    ));
+                }
+            }
+        } else {
+            return LogicResult::new_failure(LogicError::launch_expect_treatment(
+                224,
+                entry.clone(),
+            ));
+        }
 
         let result = self
-            .builder(beginning)
+            .builder(entry)
             .and_then(|builder| builder.static_build(None, None, "main".to_string(), &gen_env));
         if let Some(failure) = result.failure() {
             let mut errors = self.errors.write().unwrap();

@@ -1,6 +1,6 @@
 use crate::package::PackageTrait as Package;
 use crate::package_manager::{PackageManager, PackageManagerConfiguration};
-use crate::LoadingConfig;
+use crate::{LoadingConfig, PackageInfo};
 use melodium_common::descriptor::{
     Collection, Context, Entry, Function, Identifier, Loader as LoaderTrait, LoadingError,
     LoadingResult, Model, PackageRequirement, Treatment, VersionReq,
@@ -11,6 +11,14 @@ use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
 
 /**
  * Manages loading of Mélodium packages.
+ *
+ * The loader take care of managing package dependencies, loading inner elements of packages,
+ * and building a coherent [Collection].
+ *
+ * Loading can be made through the `load`-ing functions, and then final collection rendered using `build()`.
+ *
+ * This loader aims to be lazy, please read carefully the behavior of each `load`-ing function in order to make best
+ * use of them.
  */
 #[derive(Debug)]
 pub struct Loader {
@@ -55,28 +63,45 @@ impl Loader {
         }
     }
 
+    /**
+     * Loads the given package, according to requirements.
+     *
+     * This function _does not_ load any package content on its own, see [Self::load], [Self::load_all] or the functions of [LoaderTrait]
+     * to get elements required loaded.
+     */
     pub fn load_package(&self, requirement: &PackageRequirement) -> LoadingResult<()> {
         self.package_manager
             .get_package(requirement)
             .and(LoadingResult::new_success(()))
     }
 
-    pub fn load_raw(
-        &self,
-        raw_content: Arc<Vec<u8>>,
-    ) -> LoadingResult<(String, Option<Identifier>)> {
+    /**
+     * Loads the given raw package content.
+     *
+     * Returns the name of the package and its main entry point, if any.
+     *
+     * This function _does not_ load any package content on its own, see [Self::load], [Self::load_all] or the functions of [LoaderTrait]
+     * to get elements required loaded.
+     */
+    pub fn load_raw(&self, raw_content: Arc<Vec<u8>>) -> LoadingResult<Arc<dyn PackageInfo>> {
         self.package_manager
             .add_raw_package(raw_content)
-            .and_then(|pkg| {
-                LoadingResult::new_success((pkg.name().to_string(), pkg.main().clone()))
-            })
+            .and_then(|pkg| LoadingResult::new_success(Arc::clone(&pkg) as Arc<dyn PackageInfo>))
     }
 
+    /**
+     * Load the given identifier.
+     */
     pub fn load(&self, identifier: &Identifier) -> LoadingResult<()> {
         self.get_with_load(identifier)
             .and_then(|_| LoadingResult::new_success(()))
     }
 
+    /**
+     * Load all the elements from all the packages.
+     *
+     * Packages concerned have to be already loaded through [Self::load_package] of [Self::load_raw] functions.
+     */
     pub fn load_all(&self) -> LoadingResult<()> {
         let mut result = LoadingResult::new_success(());
         for package in self.package_manager.get_packages() {
@@ -87,6 +112,9 @@ impl Loader {
         result
     }
 
+    /**
+     * Proceed to build of coherent collection.
+     */
     pub fn build(&self) -> LoadingResult<Arc<Collection>> {
         let mut result = LoadingResult::new_success(());
         let collection = Arc::new(self.collection.read().unwrap().clone());
@@ -96,6 +124,14 @@ impl Loader {
         }
 
         result.and(LoadingResult::new_success(collection))
+    }
+
+    pub fn packages(&self) -> Vec<Arc<dyn PackageInfo>> {
+        self.package_manager
+            .get_packages()
+            .into_iter()
+            .map(|pkg| Arc::clone(&pkg) as Arc<dyn PackageInfo>)
+            .collect()
     }
 
     pub fn collection(&self) -> RwLockReadGuard<Collection> {

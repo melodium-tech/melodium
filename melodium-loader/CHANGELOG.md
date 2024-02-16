@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [Unreleased]
+
+- Adding entrypoints management.
+
 ## [v0.7.2]
 
 - Making version check generic.

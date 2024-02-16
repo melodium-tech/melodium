@@ -11,7 +11,7 @@ pub use self::core::CorePackage;
 pub use filesystem::FsPackage;
 #[cfg(feature = "jeu")]
 pub use jeu::JeuPackage;
-pub use package::{Package, PackageTrait};
+pub use package::{Package, PackageInfo, PackageTrait};
 pub use raw::RawPackage;
 
 /// Builds a `.jeu` file from a given package on filesystem.

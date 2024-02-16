@@ -25,6 +25,10 @@ pub enum LogicErrorKind {
     ErroneousChecks,
     /// No design available.
     UnavailableDesign { identifier: Identifier },
+    /// The launch must be done using a treatment.
+    LaunchExpectTreatment { wrong_identifier: Identifier },
+    /// A parameter with wrong or missing value was given for launch.
+    LaunchWrongParameter { parameter: String },
     /// The referenced variable for value doesn't exist.
     UnexistingVariable {
         identifier: Identifier,
@@ -247,6 +251,8 @@ impl Display for LogicErrorKind {
             LogicErrorKind::ErroneousDesign {identifier} => write!(f, "Design for '{identifier}' contains errors and cannot be commited"),
             LogicErrorKind::ErroneousChecks => write!(f, "Building coherency checks found errors, build cannot be made"),
             LogicErrorKind::UnavailableDesign { identifier } => write!(f, "Unavailable design for '{identifier}'"),
+            LogicErrorKind::LaunchExpectTreatment { wrong_identifier } => write!(f, "Launch must be done using a treatment, '{wrong_identifier}' is not one"),
+            LogicErrorKind::LaunchWrongParameter { parameter } => write!(f, "Parameter '{parameter}' has no valid value for launch"),
             LogicErrorKind::UnexistingVariable {identifier,
                 parameter,
                 variable,} => write!(f, "Referenced '{variable}' variable for '{parameter}' parameter doesn't exist in '{identifier}'"),
@@ -378,6 +384,23 @@ impl LogicError {
             id,
             design_reference,
             kind: LogicErrorKind::UnavailableDesign { identifier },
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::LaunchExpectTreatment`] kind.
+    pub fn launch_expect_treatment(id: u32, wrong_identifier: Identifier) -> Self {
+        Self {
+            id,
+            design_reference: None,
+            kind: LogicErrorKind::LaunchExpectTreatment { wrong_identifier },
+        }
+    }
+
+    pub fn launch_wrong_parameter(id: u32, parameter: String) -> Self {
+        Self {
+            id,
+            design_reference: None,
+            kind: LogicErrorKind::LaunchWrongParameter { parameter },
         }
     }
 

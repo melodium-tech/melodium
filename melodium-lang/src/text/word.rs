@@ -175,7 +175,7 @@ impl Display for Kind {
             Kind::Function => "function (|function)",
             Kind::Number => "number",
             Kind::String => r#"string ("string")"#,
-            Kind::Character => "character ('§')",
+            Kind::Character => "character ('c')",
             Kind::Byte => "byte (0x2A)",
         };
         write!(f, "{}", str)

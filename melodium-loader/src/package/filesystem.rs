@@ -1,7 +1,7 @@
 use crate::compo::Compo;
 use crate::content::Content;
 use crate::package::package::PackageTrait;
-use crate::Loader;
+use crate::{Loader, PackageInfo};
 use glob::{glob_with, MatchOptions};
 use melodium_common::descriptor::{
     Collection, Identifier, LoadingError, LoadingResult, PackageRequirement, Version,
@@ -17,7 +17,7 @@ pub struct FsPackage {
     name: String,
     version: Version,
     requirements: Vec<PackageRequirement>,
-    main: Option<Identifier>,
+    entrypoints: HashMap<String, Identifier>,
     contents: RwLock<HashMap<PathBuf, Content>>,
 }
 
@@ -52,11 +52,7 @@ impl FsPackage {
                 result.and(LoadingResult::new_success(Self {
                     path: path.to_path_buf(),
                     name: composition.name.clone(),
-                    main: composition.main.clone().map(|id| {
-                        let mut path = vec![composition.name.clone()];
-                        path.extend(id.path().iter().map(|s| s.clone()));
-                        Identifier::new(path, id.name())
-                    }),
+                    entrypoints: composition.entrypoints,
                     version: composition.version,
                     requirements: composition.requirements,
                     contents: RwLock::new(HashMap::new()),
@@ -181,7 +177,7 @@ impl FsPackage {
     }
 }
 
-impl PackageTrait for FsPackage {
+impl PackageInfo for FsPackage {
     fn name(&self) -> &str {
         &self.name
     }
@@ -194,10 +190,12 @@ impl PackageTrait for FsPackage {
         &self.requirements
     }
 
-    fn main(&self) -> &Option<Identifier> {
-        &self.main
+    fn entrypoints(&self) -> &HashMap<String, Identifier> {
+        &self.entrypoints
     }
+}
 
+impl PackageTrait for FsPackage {
     fn embedded_collection(&self, _loader: &Loader) -> LoadingResult<Collection> {
         LoadingResult::new_success(Collection::new())
     }

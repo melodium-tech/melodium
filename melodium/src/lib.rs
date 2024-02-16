@@ -10,12 +10,14 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
-use melodium_common::descriptor::{
-    Collection, Identifier, LoadingError, LoadingResult, Package, PackageRequirement, VersionReq,
+use melodium_common::{
+    descriptor::{Collection, Identifier, LoadingError, LoadingResult, Package},
+    executive::Value,
 };
 use melodium_engine::LogicResult;
-use melodium_loader::Loader;
 pub use melodium_loader::LoadingConfig;
+use melodium_loader::{Loader, PackageInfo};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -24,18 +26,29 @@ pub const TARGET: &'static str = env!("TARGET");
 pub const TARGET_FEATURES: &'static str = env!("TARGET_FEATURE");
 pub const BUILD_HOST: &'static str = env!("HOST");
 
-pub fn load_all(mut config: LoadingConfig) -> LoadingResult<Arc<Collection>> {
+pub fn load_all(
+    mut config: LoadingConfig,
+) -> LoadingResult<(Vec<Arc<dyn PackageInfo>>, Arc<Collection>)> {
     config.extend(core_config());
 
     let loader = Loader::new(config);
-    loader.load_all().and_then(|_| loader.build())
+    loader.load_all().and_then(|_| {
+        loader
+            .build()
+            .and_then(|coll| LoadingResult::new_success((loader.packages(), coll)))
+    })
 }
+
+/*
+
+This former function is kept as implementation idea for direct load and launch of directly available elements.
 
 pub fn load_entry(
     mut config: LoadingConfig,
     identifier: &Identifier,
-) -> LoadingResult<Arc<Collection>> {
+) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
     config.extend(core_config());
+
 
     let loader = Loader::new(config);
     loader
@@ -45,48 +58,126 @@ pub fn load_entry(
         })
         .and_then(|_| loader.load(identifier))
         .and_then(|_| loader.build())
-}
+}*/
 
 pub fn load_raw(
     raw: Arc<Vec<u8>>,
-    main: Option<Identifier>,
+    entrypoint: &str,
     mut config: LoadingConfig,
-) -> LoadingResult<(Identifier, Arc<Collection>)> {
+) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
     config.extend(core_config());
 
     let loader = Loader::new(config);
     loader
         .load_raw(raw)
-        .and_then(|(_, pkg_main)| {
-            if let Some(main) = main.or(pkg_main) {
-                loader.load(&main).and(LoadingResult::new_success(main))
+        .and_then(|pkg| {
+            if let Some(main) = pkg.entrypoints().get(entrypoint) {
+                loader.load(&main).and(LoadingResult::new_success(pkg))
             } else {
                 LoadingResult::new_failure(LoadingError::no_entry_point_provided(238))
             }
         })
-        .and_then(|identifier| {
+        .and_then(|pkg| {
             loader
                 .build()
-                .and_then(|collection| LoadingResult::new_success((identifier, collection)))
+                .and_then(|collection| LoadingResult::new_success((pkg, collection)))
+        })
+}
+
+pub fn load_raw_all_entrypoints(
+    raw: Arc<Vec<u8>>,
+    mut config: LoadingConfig,
+) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
+    config.extend(core_config());
+
+    let loader = Loader::new(config);
+    loader
+        .load_raw(raw)
+        .and_then(|pkg| {
+            let mut result = LoadingResult::new_success(Arc::clone(&pkg));
+            for (_, id) in pkg.entrypoints() {
+                result = result.and(
+                    loader
+                        .load(id)
+                        .and(LoadingResult::new_success(Arc::clone(&pkg))),
+                )
+            }
+            result
+        })
+        .and_then(|pkg| {
+            loader
+                .build()
+                .and_then(|collection| LoadingResult::new_success((pkg, collection)))
+        })
+}
+
+pub fn load_raw_force_entrypoint(
+    raw: Arc<Vec<u8>>,
+    identifier: &Identifier,
+    mut config: LoadingConfig,
+) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
+    config.extend(core_config());
+
+    let loader = Loader::new(config);
+    loader
+        .load_raw(raw)
+        .and_then(|pkg| {
+            loader
+                .load(&identifier)
+                .and(LoadingResult::new_success(pkg))
+        })
+        .and_then(|pkg| {
+            loader
+                .build()
+                .and_then(|collection| LoadingResult::new_success((pkg, collection)))
         })
 }
 
 pub fn load_file(
     file: PathBuf,
-    main: Option<Identifier>,
+    entrypoint: &str,
     config: LoadingConfig,
-) -> LoadingResult<(Identifier, Arc<Collection>)> {
+) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
     match std::fs::read(&file) {
-        Ok(content) => load_raw(Arc::new(content), main, config),
+        Ok(content) => load_raw(Arc::new(content), entrypoint, config),
         Err(err) => {
             LoadingResult::new_failure(LoadingError::unreachable_file(193, file, err.to_string()))
         }
     }
 }
 
-pub fn launch(collection: Arc<Collection>, identifier: &Identifier) -> LogicResult<()> {
+pub fn load_file_all_entrypoints(
+    file: PathBuf,
+    config: LoadingConfig,
+) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
+    match std::fs::read(&file) {
+        Ok(content) => load_raw_all_entrypoints(Arc::new(content), config),
+        Err(err) => {
+            LoadingResult::new_failure(LoadingError::unreachable_file(244, file, err.to_string()))
+        }
+    }
+}
+
+pub fn load_file_force_entrypoint(
+    file: PathBuf,
+    identifier: &Identifier,
+    config: LoadingConfig,
+) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
+    match std::fs::read(&file) {
+        Ok(content) => load_raw_force_entrypoint(Arc::new(content), identifier, config),
+        Err(err) => {
+            LoadingResult::new_failure(LoadingError::unreachable_file(243, file, err.to_string()))
+        }
+    }
+}
+
+pub fn launch(
+    collection: Arc<Collection>,
+    identifier: &Identifier,
+    parameters: HashMap<String, Value>,
+) -> LogicResult<()> {
     let engine = melodium_engine::new_engine(collection);
-    engine.genesis(&identifier).and_then(|_| {
+    engine.genesis(&identifier, parameters).and_then(|_| {
         engine.live();
         engine.end();
         LogicResult::new_success(())

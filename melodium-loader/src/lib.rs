@@ -13,6 +13,7 @@ pub const TRIPLE: &str = env!("TARGET");
 pub use compo::Compo;
 pub use loader::Loader;
 pub use loading_config::LoadingConfig;
+pub use package::PackageInfo;
 
 #[cfg(all(feature = "filesystem", feature = "jeu"))]
 pub use package::build_jeu;
