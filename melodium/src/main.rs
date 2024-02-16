@@ -21,7 +21,7 @@ struct Cli {
     /// Program file to run (see `melodium run --help`)
     file: Option<String>,
 
-    #[clap(value_parser, value_name = "ARGUMENTS")]
+    #[clap(value_parser, allow_hyphen_values(true), value_name = "ARGUMENTS")]
     /// Arguments to pass to program (see `melodium run --help`)
     file_args: Vec<String>,
 
@@ -417,7 +417,7 @@ fn parse_args(
         if let Some(raw_value) = matches.get_one::<String>(name.as_str()) {
             if matches.value_source(name.as_str()) != Some(clap::parser::ValueSource::DefaultValue)
             {
-                let words = match get_words(raw_value) {
+                let mut words = match get_words(raw_value) {
                     Ok(w) => w,
                     Err(_) => {
                         eprintln!(
@@ -427,6 +427,7 @@ fn parse_args(
                         std::process::exit(1);
                     }
                 };
+                words.push(melodium_lang::text::word::Word::default());
 
                 let value = match TextValue::build_from_first_item(
                     &mut words.windows(2),
