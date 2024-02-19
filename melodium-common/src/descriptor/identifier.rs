@@ -4,9 +4,11 @@ use core::{
     result::Result,
     str::FromStr,
 };
+use super::Version;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Identifier {
+    version: Option<Version>,
     path: Vec<String>,
     name: String,
 }
@@ -18,9 +20,26 @@ impl Identifier {
         }
 
         Self {
+            version: None,
             path,
             name: name.to_string(),
         }
+    }
+
+    pub fn new_versionned(version: &Version, path: Vec<String>, name: &str) -> Self {
+        if path.is_empty() {
+            panic!("Identifier path cannot be empty.")
+        }
+
+        Self {
+            version: Some(version.clone()),
+            path,
+            name: name.to_string(),
+        }
+    }
+
+    pub fn version(&self) -> Option<&Version> {
+        self.version.as_ref()
     }
 
     pub fn root(&self) -> &String {
@@ -34,6 +53,14 @@ impl Identifier {
     pub fn name(&self) -> &str {
         &self.name
     }
+
+    pub fn with_version(&self, version: &Version) -> Self {
+        Self {
+            version: Some(version.clone()),
+            path: self.path.clone(),
+            name: self.name.clone(),
+        }
+    }
 }
 
 impl Display for Identifier {
@@ -42,7 +69,12 @@ impl Display for Identifier {
 
         string = string + "::" + &self.name;
 
-        write!(f, "{}", string)
+        if let Some(version) = &self.version {
+            write!(f, "{} ({})", string, version)
+        }
+        else {
+            write!(f, "{}", string)
+        }
     }
 }
 
@@ -78,6 +110,7 @@ impl TryFrom<&str> for Identifier {
             let path = path.split('/').map(|s| s.to_string()).collect::<Vec<_>>();
             if path.len() >= 1 {
                 Ok(Self {
+                    version: None,
                     path,
                     name: name.to_string(),
                 })
