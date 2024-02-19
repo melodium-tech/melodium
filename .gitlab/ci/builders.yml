@@ -161,7 +161,6 @@
     - rustup target add x86_64-apple-darwin
     - export PATH="$CARGO_HOME/bin:$PATH"
     - |
-      rm -rf osxcross
       if [ ! -d $CI_PROJECT_DIR/osxcross ]
       then
         base="$PWD"
@@ -171,14 +170,14 @@
         mv MacOSX10.12.sdk.tar.xz tarballs/
         UNATTENDED=yes OSX_VERSION_MIN=10.12 ./build.sh
         ls "$CI_PROJECT_DIR/osxcross/target/bin"
-        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin15-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
+        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin16-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
         cd "$base"
       fi
     - export PATH="$CI_PROJECT_DIR/osxcross/target/bin:$PATH"
-    - export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=x86_64-apple-darwin15-clang
-    - export CARGO_TARGET_X86_64_APPLE_DARWIN_AR=x86_64-apple-darwin15-ar
-    - export TARGET_CC=x86_64-apple-darwin15-cc
-    - export TARGET_AR=x86_64-apple-darwin15-ar
+    - export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=x86_64-apple-darwin16-clang
+    - export CARGO_TARGET_X86_64_APPLE_DARWIN_AR=x86_64-apple-darwin16-ar
+    - export TARGET_CC=x86_64-apple-darwin16-cc
+    - export TARGET_AR=x86_64-apple-darwin16-ar
     - export CARGO_BUILD_TARGET=x86_64-apple-darwin
     - rustc --version
     - cargo --version
