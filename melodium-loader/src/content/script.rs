@@ -1,4 +1,4 @@
-use melodium_common::descriptor::{Collection, Entry, Identifier, Model, Treatment};
+use melodium_common::descriptor::{Collection, Entry, Identifier, Model, Treatment, Version};
 pub use melodium_lang::ScriptResult;
 use melodium_lang::{semantic::Tree as SemanticTree, text::Script as TextScript, Path};
 use std::sync::{Arc, Mutex};
@@ -81,7 +81,7 @@ impl Script {
         identifiers
     }
 
-    pub fn make_descriptors(&self, collection: &mut Collection) -> ScriptResult<()> {
+    pub fn make_descriptors(&self, version: &Version, collection: &mut Collection) -> ScriptResult<()> {
         let mut result = ScriptResult::new_success(());
 
         for (_, model) in &self.semantic.script.read().unwrap().models {

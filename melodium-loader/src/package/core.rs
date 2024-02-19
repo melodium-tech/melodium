@@ -2,8 +2,7 @@ use crate::content::Content;
 use crate::package::package::PackageTrait;
 use crate::{Loader, PackageInfo};
 use melodium_common::descriptor::{
-    Collection, Identifier, LoadingError, LoadingResult, Package as CommonPackage,
-    PackageRequirement,
+    Collection, Identifier, IdentifierRequirement, LoadingError, LoadingResult, Package as CommonPackage, PackageRequirement, VersionReq
 };
 use semver::Version;
 use std::collections::HashMap;
@@ -64,10 +63,10 @@ impl CorePackage {
 
     fn insure_loading(loader: &Loader, identifiers: Vec<Identifier>) -> LoadingResult<()> {
         let mut result = LoadingResult::new_success(());
-        for identifier in identifiers {
+        for identifier in &identifiers {
             result = result.and_degrade_failure(
                 loader
-                    .get_with_load(&identifier)
+                    .get_with_load(&identifier.into())
                     .and(LoadingResult::new_success(())),
             );
         }
@@ -165,8 +164,10 @@ impl PackageTrait for CorePackage {
         {
             if collection.get(&need).is_none() {
                 if need.root() != self.name() {
-                    if !external_needs.contains(&need) {
-                        external_needs.push(need);
+                    if !external_needs.iter().any(|en| en.path() == need.path() && en.name() == need.name()) {
+                        let external_package_version_req = self.requirements.iter().find(|pr| &pr.package == need.root()).map(|pr| pr.version_requirement.clone()).unwrap_or_else(|| VersionReq::STAR);
+                        let identifier_requirement = IdentifierRequirement::new_with_identifier(external_package_version_req, &need);
+                        external_needs.push(identifier_requirement);
                     }
                 } else {
                     // Knowing we don't have circular dependency, we can apply this logic
@@ -188,8 +189,8 @@ impl PackageTrait for CorePackage {
             }
         }
 
-        for identifier in external_needs {
-            if let Some(entry) = results.merge_degrade_failure(loader.get_with_load(&identifier)) {
+        for identifier_req in &external_needs {
+            if let Some(entry) = results.merge_degrade_failure(loader.get_with_load(identifier_req)) {
                 collection.insert(entry);
             }
         }
@@ -233,7 +234,7 @@ impl PackageTrait for CorePackage {
                     .read()
                     .unwrap()
                     .iter()
-                    .map(|(_, content)| content.provide())
+                    .map(|(_, content)| content.provide().into_iter().map(|id| id.with_version(self.package.version())).collect::<Vec<_>>())
                     .flatten(),
             );
             LoadingResult::new_success(identifiers)

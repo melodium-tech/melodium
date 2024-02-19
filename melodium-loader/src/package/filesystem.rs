@@ -4,7 +4,7 @@ use crate::package::package::PackageTrait;
 use crate::{Loader, PackageInfo};
 use glob::{glob_with, MatchOptions};
 use melodium_common::descriptor::{
-    Collection, Identifier, LoadingError, LoadingResult, PackageRequirement, Version,
+    Collection, Identifier, LoadingError, LoadingResult, PackageRequirement, Version, VersionReq,
 };
 use std::collections::HashMap;
 use std::fs::{metadata, read, read_to_string};
@@ -28,7 +28,7 @@ impl FsPackage {
             Err(_) => {
                 return LoadingResult::new_failure(LoadingError::no_package(
                     176,
-                    path.to_string_lossy().to_string(),
+                     PackageRequirement::new(&path.to_string_lossy(), &VersionReq::STAR)
                 ))
             }
         };
@@ -42,7 +42,7 @@ impl FsPackage {
                 Err(_) => {
                     return LoadingResult::new_failure(LoadingError::no_package(
                         177,
-                        path.to_string_lossy().to_string(),
+                        PackageRequirement::new(&path.to_string_lossy(), &VersionReq::STAR)
                     ))
                 }
             };
@@ -59,13 +59,13 @@ impl FsPackage {
                 }))
             } else {
                 return result.and_degrade_failure(LoadingResult::new_failure(
-                    LoadingError::no_package(182, path.to_string_lossy().to_string()),
+                    LoadingError::no_package(182, PackageRequirement::new(&path.to_string_lossy(), &VersionReq::STAR)),
                 ));
             }
         } else {
             return LoadingResult::new_failure(LoadingError::no_package(
                 183,
-                path.to_string_lossy().to_string(),
+                PackageRequirement::new(&path.to_string_lossy(), &VersionReq::STAR),
             ));
         }
     }
@@ -82,7 +82,7 @@ impl FsPackage {
             Err(_) => {
                 return LoadingResult::new_failure(LoadingError::no_package(
                     182,
-                    designation.to_string_lossy().to_string(),
+                    PackageRequirement::new(&designation.to_string_lossy(), &VersionReq::STAR),
                 ))
             }
         };
@@ -121,7 +121,7 @@ impl FsPackage {
             Ok(paths) => LoadingResult::new_success(paths),
             Err(_) => LoadingResult::new_failure(LoadingError::no_package(
                 184,
-                self.path.to_string_lossy().to_string(),
+                PackageRequirement::new(&self.path.to_string_lossy(), &VersionReq::STAR),
             )),
         }) {
             for entry in paths {
@@ -133,7 +133,7 @@ impl FsPackage {
                             result.merge_degrade_failure::<()>(LoadingResult::new_failure(
                                 LoadingError::no_package(
                                     185,
-                                    self.path.to_string_lossy().to_string(),
+                                    PackageRequirement::new(&self.path.to_string_lossy(), &VersionReq::STAR),
                                 ),
                             ));
                         }
@@ -233,7 +233,7 @@ impl PackageTrait for FsPackage {
             .read()
             .unwrap()
             .iter()
-            .for_each(|(_, content)| identifiers.extend(content.provide()));
+            .for_each(|(_, content)| identifiers.extend(content.provide().into_iter().map(|id| id.with_version(&self.version)).collect::<Vec<_>>()));
 
         LoadingResult::new_success(identifiers)
     }

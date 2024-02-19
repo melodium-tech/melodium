@@ -44,6 +44,7 @@ pub use function::Function;
 pub use generic::{Generic, Generics};
 pub use identified::Identified;
 pub use identifier::Identifier;
+pub use identifier_requirement::IdentifierRequirement;
 pub use input::Input;
 pub use loader::{
     ContentError, ContentErrors, Loader, LoadingError, LoadingErrors, LoadingResult,

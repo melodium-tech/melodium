@@ -1,3 +1,4 @@
+use core::fmt::{Display, Formatter};
 use crate::descriptor::VersionReq;
 
 #[derive(Clone, Debug)]
@@ -12,5 +13,11 @@ impl PackageRequirement {
             package: name.to_string(),
             version_requirement: version_requirement.clone()
         }
+    }
+}
+
+impl Display for PackageRequirement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{} ({})", self.package, self.version_requirement)
     }
 }

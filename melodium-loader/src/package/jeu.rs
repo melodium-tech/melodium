@@ -273,7 +273,7 @@ impl PackageTrait for JeuPackage {
         let mut identifiers = Vec::new();
         self.contents
             .iter()
-            .for_each(|(_, content)| identifiers.extend(content.provide()));
+            .for_each(|(_, content)| identifiers.extend(content.provide().into_iter().map(|id| id.with_version(&self.version)).collect::<Vec<_>>()));
 
         LoadingResult::new_success(identifiers)
     }

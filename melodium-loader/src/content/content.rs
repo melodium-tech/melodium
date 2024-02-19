@@ -8,7 +8,7 @@ use core::{
     str::Utf8Error,
 };
 use melodium_common::descriptor::{
-    Collection, ContentError as CommonContentError, Identifier, Status,
+    Collection, ContentError as CommonContentError, Identifier, Status, Version,
 };
 #[cfg(feature = "script")]
 use melodium_lang::{error::ScriptErrors, ScriptError};
@@ -95,11 +95,11 @@ impl Content {
         }
     }
 
-    pub fn insert_descriptors(&self, collection: &mut Collection) -> ContentResult<()> {
+    pub fn insert_descriptors(&self, version: &Version, collection: &mut Collection) -> ContentResult<()> {
         match &self.content {
             #[cfg(feature = "script")]
             ContentType::Script(script) => script
-                .make_descriptors(collection)
+                .make_descriptors(version, collection)
                 .convert_failure_errors(|error| ContentError::ScriptError {
                     path: script.path().to_string(),
                     error,
