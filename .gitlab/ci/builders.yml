@@ -161,7 +161,8 @@
     - rustup target add x86_64-apple-darwin
     - export PATH="$CARGO_HOME/bin:$PATH"
     - |
-      if [ ! -d $CI_PROJECT_DIR/osxcross ]
+      #if [ ! -d $CI_PROJECT_DIR/osxcross ]
+      if true
       then
         base="$PWD"
         git clone https://github.com/tpoechtrager/osxcross
@@ -197,8 +198,7 @@
       fi
     - rustup component add rust-src
     - |
-      #if [ ! -d $CI_PROJECT_DIR/osxcross ]
-      if true
+      if [ ! -d $CI_PROJECT_DIR/osxcross ]
       then
         base="$PWD"
         git clone https://github.com/tpoechtrager/osxcross
