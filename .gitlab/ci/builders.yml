@@ -161,15 +161,15 @@
     - rustup target add x86_64-apple-darwin
     - export PATH="$CARGO_HOME/bin:$PATH"
     - |
-      #if [ ! -d $CI_PROJECT_DIR/osxcross ]
-      if true
+      rm -rf osxcross
+      if [ ! -d $CI_PROJECT_DIR/osxcross ]
       then
         base="$PWD"
         git clone https://github.com/tpoechtrager/osxcross
         cd osxcross
         wget -nc https://s3.dockerproject.org/darwin/v2/MacOSX10.11.sdk.tar.xz
         mv MacOSX10.11.sdk.tar.xz tarballs/
-        UNATTENDED=yes OSX_VERSION_MIN=10.12 ./build.sh
+        UNATTENDED=yes OSX_VERSION_MIN=10.7 ./build.sh
         ln -s "$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin15-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
         cd "$base"
       fi
