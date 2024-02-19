@@ -22,6 +22,7 @@ pub mod loader;
 pub mod model;
 pub mod output;
 pub mod package;
+pub mod package_requirement;
 pub mod parameter;
 pub mod parameterized;
 pub mod status;
@@ -49,7 +50,8 @@ pub use loader::{
 };
 pub use model::Model;
 pub use output::Output;
-pub use package::{Package, PackageRequirement};
+pub use package::Package;
+pub use package_requirement::PackageRequirement;
 pub use parameter::Parameter;
 pub use parameterized::{OrderedParameterized, Parameterized};
 pub use semver::{Version, VersionReq};
