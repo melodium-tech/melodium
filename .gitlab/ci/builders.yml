@@ -197,7 +197,8 @@
       fi
     - rustup component add rust-src
     - |
-      if [ ! -d $CI_PROJECT_DIR/osxcross ]
+      #if [ ! -d $CI_PROJECT_DIR/osxcross ]
+      if true
       then
         base="$PWD"
         git clone https://github.com/tpoechtrager/osxcross
