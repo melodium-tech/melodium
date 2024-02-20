@@ -1160,7 +1160,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
             static DESCRIPTOR: std::sync::Mutex<Option<std::sync::Arc<melodium_core::descriptor::Treatment>>> = std::sync::Mutex::new(None);
 
             pub fn identifier() -> melodium_core::common::descriptor::Identifier {
-                melodium_core::descriptor::module_path_to_identifier(module_path!(), #element_name)
+                melodium_core::descriptor::module_path_to_identifier(env!("CARGO_PKG_VERSION"), module_path!(), #element_name)
             }
 
             pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Treatment> {
@@ -1589,7 +1589,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         model_description = quote! {
             let model = melodium_core::descriptor::Model::new(
-                    melodium_core::descriptor::module_path_to_identifier(module_path!(), #name),
+                    melodium_core::descriptor::module_path_to_identifier(env!("CARGO_PKG_VERSION"), module_path!(), #name),
                     #documentation.to_string(),
                     {
                         let mut attrs = melodium_core::common::descriptor::Attributes::new();
@@ -1631,7 +1631,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
             sources_description = quote! {
                 #sources_description
                 melodium_core::descriptor::Source::new(
-                    melodium_core::descriptor::module_path_to_identifier(module_path!(), #source_name),
+                    melodium_core::descriptor::module_path_to_identifier(env!("CARGO_PKG_VERSION"), module_path!(), #source_name),
                     "".to_string(),
                     {
                         let mut attrs = melodium_core::common::descriptor::Attributes::new();
@@ -1753,7 +1753,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
             static SOURCES: std::sync::Mutex<Option<Vec<std::sync::Arc<melodium_core::descriptor::Source>>>> = std::sync::Mutex::new(None);
 
             pub fn identifier() -> melodium_core::common::descriptor::Identifier {
-                melodium_core::descriptor::module_path_to_identifier(module_path!(), #element_name)
+                melodium_core::descriptor::module_path_to_identifier(env!("CARGO_PKG_VERSION"), module_path!(), #element_name)
             }
 
             pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Model> {
@@ -2003,7 +2003,7 @@ pub fn mel_context(attr: TokenStream, item: TokenStream) -> TokenStream {
             static DESCRIPTOR: std::sync::Mutex<Option<std::sync::Arc<melodium_core::descriptor::Context>>> = std::sync::Mutex::new(None);
 
             pub fn identifier() -> melodium_core::common::descriptor::Identifier {
-                melodium_core::descriptor::module_path_to_identifier(module_path!(), #element_name)
+                melodium_core::descriptor::module_path_to_identifier(env!("CARGO_PKG_VERSION"), module_path!(), #element_name)
             }
 
             pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Context> {
@@ -2154,7 +2154,7 @@ pub fn mel_data(attr: TokenStream, item: TokenStream) -> TokenStream {
             static DESCRIPTOR: std::sync::Mutex<Option<std::sync::Arc<melodium_core::descriptor::Data>>> = std::sync::Mutex::new(None);
 
             pub fn identifier() -> melodium_core::common::descriptor::Identifier {
-                melodium_core::descriptor::module_path_to_identifier(module_path!(), #element_name)
+                melodium_core::descriptor::module_path_to_identifier(env!("CARGO_PKG_VERSION"), module_path!(), #element_name)
             }
 
             pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Data> {
@@ -2362,7 +2362,7 @@ pub fn mel_function(attr: TokenStream, item: TokenStream) -> TokenStream {
             static DESCRIPTOR: std::sync::Mutex<Option<std::sync::Arc<melodium_core::descriptor::Function>>> = std::sync::Mutex::new(None);
 
             pub fn identifier() -> melodium_core::common::descriptor::Identifier {
-                melodium_core::descriptor::module_path_to_identifier(module_path!(), #element_name)
+                melodium_core::descriptor::module_path_to_identifier(env!("CARGO_PKG_VERSION"), module_path!(), #element_name)
             }
 
             pub fn descriptor() -> std::sync::Arc<melodium_core::descriptor::Function> {
