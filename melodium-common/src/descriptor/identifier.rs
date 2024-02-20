@@ -85,6 +85,14 @@ impl Identifier {
             name: self.name.clone(),
         }
     }
+
+    pub fn without_version(&self) -> Self {
+        Self {
+            version: None,
+            path: self.path.clone(),
+            name: self.name.clone(),
+        }
+    }
 }
 
 impl Display for Identifier {
