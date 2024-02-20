@@ -105,7 +105,7 @@ impl RawPackage {
             )
             .convert_failure_errors(|err| LoadingError::content_error(190, Arc::new(err)))
             .and_then(|content| {
-                let expected_main = Identifier::new(vec![name.clone()], "main");
+                let expected_main = Identifier::new_versionned(&version, vec![name.clone()], "main");
                 LoadingResult::new_success(Self {
                     name: name.clone(),
                     version: version.clone(),
