@@ -8,7 +8,9 @@ use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Connection as TextConnection;
 use crate::ScriptResult;
+use melodium_common::descriptor::VersionReq;
 use melodium_engine::designer::Treatment as TreatmentDesigner;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a connection.
@@ -157,7 +159,11 @@ impl Connection {
 }
 
 impl Node for Connection {
-    fn make_references(&mut self, _path: &Path) -> ScriptResult<()> {
+    fn make_references(
+        &mut self,
+        _path: &Path,
+        _versions: &HashMap<String, VersionReq>,
+    ) -> ScriptResult<()> {
         let mut result = ScriptResult::new_success(());
         let rc_treatment = self.treatment.upgrade().unwrap();
         let treatment = rc_treatment.read().unwrap();

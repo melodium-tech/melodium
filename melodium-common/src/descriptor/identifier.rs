@@ -1,10 +1,10 @@
+use super::Version;
 use core::{
     convert::TryFrom,
     fmt::{Display, Formatter},
     result::Result,
     str::FromStr,
 };
-use super::Version;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Identifier {
@@ -38,6 +38,22 @@ impl Identifier {
         }
     }
 
+    pub fn new_optionally_versionned(
+        version: Option<&Version>,
+        path: Vec<String>,
+        name: &str,
+    ) -> Self {
+        if path.is_empty() {
+            panic!("Identifier path cannot be empty.")
+        }
+
+        Self {
+            version: version.cloned(),
+            path,
+            name: name.to_string(),
+        }
+    }
+
     pub fn version(&self) -> Option<&Version> {
         self.version.as_ref()
     }
@@ -61,6 +77,14 @@ impl Identifier {
             name: self.name.clone(),
         }
     }
+
+    pub fn with_optionnal_version(&self, version: Option<&Version>) -> Self {
+        Self {
+            version: version.cloned(),
+            path: self.path.clone(),
+            name: self.name.clone(),
+        }
+    }
 }
 
 impl Display for Identifier {
@@ -71,8 +95,7 @@ impl Display for Identifier {
 
         if let Some(version) = &self.version {
             write!(f, "{} ({})", string, version)
-        }
-        else {
+        } else {
             write!(f, "{}", string)
         }
     }

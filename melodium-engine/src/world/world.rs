@@ -138,7 +138,7 @@ impl World {
         if let Some(builder) = possible_builder {
             LogicResult::new_success(builder)
         } else {
-            if let Some(entry) = self.collection.get(identifier) {
+            if let Some(entry) = self.collection.get(&identifier.into()) {
                 let builder = match entry {
                     CollectionEntry::Model(model) => get_builder_model(
                         self.auto_reference.upgrade().unwrap(),
@@ -249,7 +249,7 @@ impl Engine for World {
     fn genesis(&self, entry: &Identifier, mut params: HashMap<String, Value>) -> LogicResult<()> {
         let mut gen_env = GenesisEnvironment::new();
 
-        if let Some(CollectionEntry::Treatment(descriptor)) = self.collection.get(entry) {
+        if let Some(CollectionEntry::Treatment(descriptor)) = self.collection.get(&entry.into()) {
             for (name, param) in descriptor.parameters() {
                 if let Some(value) = params.remove(name).filter(|val| {
                     param

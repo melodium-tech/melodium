@@ -4,7 +4,8 @@ use crate::package::package::PackageTrait;
 use crate::{Loader, PackageInfo};
 use glob::{glob_with, MatchOptions};
 use melodium_common::descriptor::{
-    Collection, Identifier, LoadingError, LoadingResult, PackageRequirement, Version, VersionReq,
+    Collection, Identifier, IdentifierRequirement, LoadingError, LoadingResult, PackageRequirement,
+    Version, VersionReq,
 };
 use std::collections::HashMap;
 use std::fs::{metadata, read, read_to_string};
@@ -28,7 +29,7 @@ impl FsPackage {
             Err(_) => {
                 return LoadingResult::new_failure(LoadingError::no_package(
                     176,
-                     PackageRequirement::new(&path.to_string_lossy(), &VersionReq::STAR)
+                    PackageRequirement::new(&path.to_string_lossy(), &VersionReq::STAR),
                 ))
             }
         };
@@ -42,7 +43,7 @@ impl FsPackage {
                 Err(_) => {
                     return LoadingResult::new_failure(LoadingError::no_package(
                         177,
-                        PackageRequirement::new(&path.to_string_lossy(), &VersionReq::STAR)
+                        PackageRequirement::new(&path.to_string_lossy(), &VersionReq::STAR),
                     ))
                 }
             };
@@ -59,7 +60,10 @@ impl FsPackage {
                 }))
             } else {
                 return result.and_degrade_failure(LoadingResult::new_failure(
-                    LoadingError::no_package(182, PackageRequirement::new(&path.to_string_lossy(), &VersionReq::STAR)),
+                    LoadingError::no_package(
+                        182,
+                        PackageRequirement::new(&path.to_string_lossy(), &VersionReq::STAR),
+                    ),
                 ));
             }
         } else {
@@ -94,6 +98,12 @@ impl FsPackage {
                 designation.as_os_str().to_string_lossy()
             ),
             &raw,
+            self.version(),
+            &self
+                .requirements
+                .iter()
+                .map(|pkg_req| (pkg_req.package.clone(), pkg_req.version_requirement.clone()))
+                .collect(),
         );
 
         result_content
@@ -133,7 +143,10 @@ impl FsPackage {
                             result.merge_degrade_failure::<()>(LoadingResult::new_failure(
                                 LoadingError::no_package(
                                     185,
-                                    PackageRequirement::new(&self.path.to_string_lossy(), &VersionReq::STAR),
+                                    PackageRequirement::new(
+                                        &self.path.to_string_lossy(),
+                                        &VersionReq::STAR,
+                                    ),
                                 ),
                             ));
                         }
@@ -146,10 +159,13 @@ impl FsPackage {
         result
     }
 
-    fn insure_loading(loader: &Loader, identifiers: Vec<Identifier>) -> LoadingResult<()> {
+    fn insure_loading(
+        loader: &Loader,
+        identifiers: Vec<IdentifierRequirement>,
+    ) -> LoadingResult<()> {
         let mut result = LoadingResult::new_success(());
-        for identifier in identifiers {
-            result.merge_degrade_failure(loader.get_with_load(&identifier));
+        for identifier in &identifiers {
+            result.merge_degrade_failure(loader.get_with_load(identifier));
         }
 
         result
@@ -204,13 +220,15 @@ impl PackageTrait for FsPackage {
         let mut collection = Collection::new();
         let mut result = LoadingResult::new_success(());
         if let Some(identifiers) = result.merge_degrade_failure(self.all_identifiers(loader)) {
-            for identifier in identifiers {
-                if collection.get(&identifier).is_none() {
+            for identifier in &identifiers {
+                if collection.get(&identifier.into()).is_none() {
                     if let Some(specific_collection) =
                         result.merge_degrade_failure(self.element(loader, &identifier))
                     {
                         for identifier in &specific_collection.identifiers() {
-                            collection.insert(specific_collection.get(identifier).unwrap().clone());
+                            collection.insert(
+                                specific_collection.get(&identifier.into()).unwrap().clone(),
+                            );
                         }
                     }
                 }
@@ -233,7 +251,15 @@ impl PackageTrait for FsPackage {
             .read()
             .unwrap()
             .iter()
-            .for_each(|(_, content)| identifiers.extend(content.provide().into_iter().map(|id| id.with_version(&self.version)).collect::<Vec<_>>()));
+            .for_each(|(_, content)| {
+                identifiers.extend(
+                    content
+                        .provide()
+                        .into_iter()
+                        .map(|id| id.with_version(&self.version))
+                        .collect::<Vec<_>>(),
+                )
+            });
 
         LoadingResult::new_success(identifiers)
     }
@@ -262,7 +288,7 @@ impl PackageTrait for FsPackage {
                 result = result.and_degrade_failure(LoadingResult::new_success(collection));
             } else {
                 result.merge_degrade_failure::<()>(LoadingResult::new_failure(
-                    LoadingError::circular_reference(173, identifier.clone()),
+                    LoadingError::circular_reference(173, identifier.into()),
                 ));
             }
         } else {

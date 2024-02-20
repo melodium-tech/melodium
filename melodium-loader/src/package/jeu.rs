@@ -4,7 +4,8 @@ use crate::package::package::PackageTrait;
 use crate::{Loader, PackageInfo};
 use bzip2_rs::DecoderReader;
 use melodium_common::descriptor::{
-    Collection, Identifier, LoadingError, LoadingResult, PackageRequirement, Version,
+    Collection, Identifier, IdentifierRequirement, LoadingError, LoadingResult, PackageRequirement,
+    Version,
 };
 use std::collections::HashMap;
 use std::io::Read;
@@ -73,6 +74,17 @@ impl JeuPackage {
                                                 path.to_string_lossy()
                                             ),
                                             &content,
+                                            &composition.version,
+                                            &composition
+                                                .requirements
+                                                .iter()
+                                                .map(|pkg_req| {
+                                                    (
+                                                        pkg_req.package.clone(),
+                                                        pkg_req.version_requirement.clone(),
+                                                    )
+                                                })
+                                                .collect(),
                                         )
                                         .convert_failure_errors(|err| {
                                             LoadingError::content_error(231, Arc::new(err))
@@ -162,10 +174,13 @@ impl JeuPackage {
         ))
     }
 
-    fn insure_loading(loader: &Loader, identifiers: Vec<Identifier>) -> LoadingResult<()> {
+    fn insure_loading(
+        loader: &Loader,
+        identifiers: Vec<IdentifierRequirement>,
+    ) -> LoadingResult<()> {
         let mut result = LoadingResult::new_success(());
-        for identifier in identifiers {
-            result.merge_degrade_failure(loader.get_with_load(&identifier));
+        for identifier in &identifiers {
+            result.merge_degrade_failure(loader.get_with_load(identifier));
         }
 
         result
@@ -253,13 +268,15 @@ impl PackageTrait for JeuPackage {
         let mut collection = Collection::new();
         let mut result = LoadingResult::new_success(());
         if let Some(identifiers) = result.merge_degrade_failure(self.all_identifiers(loader)) {
-            for identifier in identifiers {
-                if collection.get(&identifier).is_none() {
+            for identifier in &identifiers {
+                if collection.get(&identifier.into()).is_none() {
                     if let Some(specific_collection) =
                         result.merge_degrade_failure(self.element(loader, &identifier))
                     {
                         for identifier in &specific_collection.identifiers() {
-                            collection.insert(specific_collection.get(identifier).unwrap().clone());
+                            collection.insert(
+                                specific_collection.get(&identifier.into()).unwrap().clone(),
+                            );
                         }
                     }
                 }
@@ -271,9 +288,15 @@ impl PackageTrait for JeuPackage {
 
     fn all_identifiers(&self, _loader: &Loader) -> LoadingResult<Vec<Identifier>> {
         let mut identifiers = Vec::new();
-        self.contents
-            .iter()
-            .for_each(|(_, content)| identifiers.extend(content.provide().into_iter().map(|id| id.with_version(&self.version)).collect::<Vec<_>>()));
+        self.contents.iter().for_each(|(_, content)| {
+            identifiers.extend(
+                content
+                    .provide()
+                    .into_iter()
+                    .map(|id| id.with_version(&self.version))
+                    .collect::<Vec<_>>(),
+            )
+        });
 
         LoadingResult::new_success(identifiers)
     }
@@ -299,7 +322,7 @@ impl PackageTrait for JeuPackage {
                 result = result.and_degrade_failure(LoadingResult::new_success(collection));
             } else {
                 result = result.and_degrade_failure(LoadingResult::new_failure(
-                    LoadingError::circular_reference(234, identifier.clone()),
+                    LoadingError::circular_reference(234, identifier.into()),
                 ));
             }
         } else {

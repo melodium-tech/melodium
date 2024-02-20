@@ -1,7 +1,12 @@
-use melodium_common::descriptor::{Collection, Entry, Identifier, Model, Treatment, Version};
+use melodium_common::descriptor::{
+    Collection, Entry, Identifier, IdentifierRequirement, Model, Treatment, Version, VersionReq,
+};
 pub use melodium_lang::ScriptResult;
 use melodium_lang::{semantic::Tree as SemanticTree, text::Script as TextScript, Path};
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 #[derive(Clone, Copy, Debug)]
 pub enum ScriptBuildLevel {
@@ -18,17 +23,26 @@ pub struct Script {
 }
 
 impl Script {
-    pub fn new(path: &str, text: &str) -> ScriptResult<Self> {
+    pub fn new(
+        path: &str,
+        text: &str,
+        version: &Version,
+        dependencies_versions: &HashMap<String, VersionReq>,
+    ) -> ScriptResult<Self> {
         match TextScript::build(&text) {
-            Ok(text) => SemanticTree::new(text)
+            Ok(text) => SemanticTree::new(text, version.clone())
                 .and_then(|tree| {
-                    tree.make_references(&Path::new(
-                        path.strip_suffix(".mel")
-                            .unwrap_or(path)
-                            .split("/")
-                            .map(|s| s.to_string())
-                            .collect(),
-                    ))
+                    tree.make_references(
+                        &Path::new(
+                            version.clone(),
+                            path.strip_suffix(".mel")
+                                .unwrap_or(path)
+                                .split("/")
+                                .map(|s| s.to_string())
+                                .collect(),
+                        ),
+                        dependencies_versions,
+                    )
                     .and(ScriptResult::new_success(tree))
                 })
                 .and_then(|tree| {
@@ -54,7 +68,7 @@ impl Script {
         identifier.path().join("/") == self.path
     }
 
-    pub fn need(&self) -> Vec<Identifier> {
+    pub fn need(&self) -> Vec<IdentifierRequirement> {
         let mut identifiers = Vec::new();
 
         for entry in &self.semantic.script.read().unwrap().uses {
@@ -81,7 +95,7 @@ impl Script {
         identifiers
     }
 
-    pub fn make_descriptors(&self, version: &Version, collection: &mut Collection) -> ScriptResult<()> {
+    pub fn make_descriptors(&self, collection: &mut Collection) -> ScriptResult<()> {
         let mut result = ScriptResult::new_success(());
 
         for (_, model) in &self.semantic.script.read().unwrap().models {

@@ -416,7 +416,10 @@ impl PackageManager {
                     .and_then(|pkg| LoadingResult::new_success(Arc::new(Package::Jeu(pkg))));
                 if result.is_failure() {
                     result = result.and_degrade_failure(LoadingResult::new_failure(
-                        LoadingError::no_package(210, PackageRequirement::new("[raw package]", &VersionReq::STAR)),
+                        LoadingError::no_package(
+                            210,
+                            PackageRequirement::new("[raw package]", &VersionReq::STAR),
+                        ),
                     ));
                 }
                 result

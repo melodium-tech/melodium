@@ -17,10 +17,13 @@ use crate::path::Path;
 use crate::text::Treatment as TextTreatment;
 use crate::ScriptResult;
 use core::str::FromStr;
-use melodium_common::descriptor::{Collection, DataTrait, Entry, Generic, Identified, Identifier};
+use melodium_common::descriptor::{
+    Collection, DataTrait, Entry, Generic, Identified, Identifier, VersionReq,
+};
 use melodium_engine::descriptor::Treatment as TreatmentDescriptor;
 use melodium_engine::designer::Treatment as TreatmentDesigner;
 use melodium_engine::LogicError;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a treatment.
@@ -311,7 +314,7 @@ impl Treatment {
                     .identifier
                     .as_ref()
                     .unwrap()
-                    .clone(),
+                    .into(),
                 _ => {
                     return ScriptResult::new_failure(ScriptError::reference_unset(
                         116,
@@ -371,7 +374,7 @@ impl Treatment {
             let borrowed_requirement = rc_requirement.read().unwrap();
 
             if let Some(Entry::Context(context)) =
-                collection.get(borrowed_requirement.type_identifier.as_ref().unwrap())
+                collection.get(&borrowed_requirement.type_identifier.as_ref().unwrap())
             {
                 descriptor.add_context(context);
             } else {
@@ -472,7 +475,11 @@ impl Treatment {
 }
 
 impl Node for Treatment {
-    fn make_references(&mut self, path: &Path) -> ScriptResult<()> {
+    fn make_references(
+        &mut self,
+        path: &Path,
+        _versions: &HashMap<String, VersionReq>,
+    ) -> ScriptResult<()> {
         self.identifier = path.to_identifier(&self.name);
 
         ScriptResult::new_success(())

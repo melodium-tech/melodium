@@ -4,7 +4,11 @@ use super::script::Script;
 use crate::path::Path;
 use crate::text::Script as TextScript;
 use crate::ScriptResult;
-use std::sync::{Arc, RwLock, Weak};
+use melodium_common::descriptor::{Version, VersionReq};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock, Weak},
+};
 
 /// Semantic tree.
 ///
@@ -15,21 +19,34 @@ pub struct Tree {
 }
 
 impl Tree {
-    pub fn new(text: TextScript) -> ScriptResult<Self> {
-        Script::new(text).and_then(|script| ScriptResult::new_success(Self { script }))
+    pub fn new(text: TextScript, version: Version) -> ScriptResult<Self> {
+        Script::new(text, version).and_then(|script| ScriptResult::new_success(Self { script }))
     }
 
-    pub fn make_references(&self, path: &Path) -> ScriptResult<()> {
-        Self::make_references_node(Arc::clone(&self.script) as Arc<RwLock<dyn Node>>, path)
+    pub fn make_references(
+        &self,
+        path: &Path,
+        versions: &HashMap<String, VersionReq>,
+    ) -> ScriptResult<()> {
+        Self::make_references_node(
+            Arc::clone(&self.script) as Arc<RwLock<dyn Node>>,
+            path,
+            versions,
+        )
     }
 
-    fn make_references_node(node: Arc<RwLock<dyn Node>>, path: &Path) -> ScriptResult<()> {
-        let mut result = node.write().unwrap().make_references(path);
+    fn make_references_node(
+        node: Arc<RwLock<dyn Node>>,
+        path: &Path,
+        versions: &HashMap<String, VersionReq>,
+    ) -> ScriptResult<()> {
+        let mut result = node.write().unwrap().make_references(path, versions);
 
         if result.is_success() {
             let children = node.read().unwrap().children();
             for child in children {
-                result = result.and_degrade_failure(Self::make_references_node(child, path));
+                result =
+                    result.and_degrade_failure(Self::make_references_node(child, path, versions));
             }
         }
 
@@ -47,7 +64,12 @@ pub trait Node {
     /// This exclude parent-child references, which are made when creating the elements.
     ///
     /// * `path`: path to the current element
-    fn make_references(&mut self, _path: &Path) -> ScriptResult<()> {
+    /// * `versions`: versions for roots
+    fn make_references(
+        &mut self,
+        _path: &Path,
+        _versions: &HashMap<String, VersionReq>,
+    ) -> ScriptResult<()> {
         ScriptResult::new_success(())
     }
 

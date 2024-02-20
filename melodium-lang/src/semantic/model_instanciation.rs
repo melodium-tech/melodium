@@ -12,8 +12,9 @@ use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Instanciation as TextInstanciation;
 use crate::ScriptResult;
-use melodium_common::descriptor::{Collection, Identifier};
+use melodium_common::descriptor::{Collection, IdentifierRequirement, VersionReq};
 use melodium_engine::designer::ModelInstanciation as ModelInstanciationDesigner;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a model instanciation.
@@ -29,7 +30,7 @@ pub struct ModelInstanciation {
     pub r#type: RefersTo,
     pub parameters: Vec<Arc<RwLock<AssignedParameter>>>,
 
-    pub type_identifier: Option<Identifier>,
+    pub type_identifier: Option<IdentifierRequirement>,
 }
 
 /// Enumeration managing what model instanciation refers to.
@@ -143,7 +144,11 @@ impl Node for ModelInstanciation {
         children
     }
 
-    fn make_references(&mut self, path: &Path) -> ScriptResult<()> {
+    fn make_references(
+        &mut self,
+        path: &Path,
+        _versions: &HashMap<String, VersionReq>,
+    ) -> ScriptResult<()> {
         if let RefersTo::Unknown(reference) = &self.r#type {
             let rc_treatment = self.treatment.upgrade().unwrap();
             let borrowed_treatment = rc_treatment.read().unwrap();
@@ -154,7 +159,7 @@ impl Node for ModelInstanciation {
             if r#use.is_some() {
                 let r#use = r#use.unwrap();
 
-                self.type_identifier = r#use.read().unwrap().identifier.clone();
+                self.type_identifier = r#use.read().unwrap().identifier.as_ref().cloned();
 
                 self.r#type = RefersTo::Use(Reference {
                     name: reference.name.clone(),
@@ -163,7 +168,7 @@ impl Node for ModelInstanciation {
             } else {
                 let model = borrowed_script.find_model(&reference.name);
                 if model.is_some() {
-                    self.type_identifier = path.to_identifier(&reference.name);
+                    self.type_identifier = path.to_identifier_requirement(&reference.name);
 
                     self.r#type = RefersTo::Model(Reference {
                         name: reference.name.clone(),

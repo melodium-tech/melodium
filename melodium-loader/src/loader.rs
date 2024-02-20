@@ -2,8 +2,8 @@ use crate::package::PackageTrait as Package;
 use crate::package_manager::{PackageManager, PackageManagerConfiguration};
 use crate::{LoadingConfig, PackageInfo};
 use melodium_common::descriptor::{
-    Collection, Context, Entry, Function, Identifier, IdentifierRequirement, Loader as LoaderTrait, LoadingError,
-    LoadingResult, Model, PackageRequirement, Treatment, VersionReq,
+    Collection, Context, Entry, Function, Identifier, IdentifierRequirement, Loader as LoaderTrait,
+    LoadingError, LoadingResult, Model, PackageRequirement, Treatment,
 };
 use melodium_repository::network::NetworkRepositoryConfiguration;
 use melodium_repository::{Repository, RepositoryConfig};
@@ -92,7 +92,10 @@ impl Loader {
     /**
      * Load the given identifier.
      */
-    pub fn load(&self, identifier_requirement: &IdentifierRequirement) -> LoadingResult<Identifier> {
+    pub fn load(
+        &self,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Identifier> {
         self.get_with_load(identifier_requirement)
             .and_then(|entry| LoadingResult::new_success(entry.identifier()))
     }
@@ -138,25 +141,36 @@ impl Loader {
         self.collection.read().unwrap()
     }
 
-    pub fn get_with_load(&self, identifier_requirement: &IdentifierRequirement) -> LoadingResult<Entry> {
+    pub fn get_with_load(
+        &self,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Entry> {
         let mut result = LoadingResult::new_success(());
-        let entry = self.collection.read().unwrap().get(identifier_requirement).cloned();
+        let entry = self
+            .collection
+            .read()
+            .unwrap()
+            .get(identifier_requirement)
+            .cloned();
         if let Some(entry) = entry {
             result.and_degrade_failure(LoadingResult::new_success(entry))
-        } else if let Some(package) =
-            result.merge_degrade_failure(self.package_manager.get_package(&identifier_requirement.package_requirement()))
-        {
-            package.element(self, &identifier_requirement.to_identifier()).and_then(|additions| {
-                self.add_collection(additions);
-                result.and_degrade_failure(LoadingResult::new_success(
-                    self.collection
-                        .read()
-                        .unwrap()
-                        .get(identifier)
-                        .unwrap()
-                        .clone(),
-                ))
-            })
+        } else if let Some(package) = result.merge_degrade_failure(
+            self.package_manager
+                .get_package(&identifier_requirement.package_requirement()),
+        ) {
+            package
+                .element(self, &identifier_requirement.to_identifier())
+                .and_then(|additions| {
+                    self.add_collection(additions);
+                    result.and_degrade_failure(LoadingResult::new_success(
+                        self.collection
+                            .read()
+                            .unwrap()
+                            .get(identifier_requirement)
+                            .unwrap()
+                            .clone(),
+                    ))
+                })
         } else {
             result.and_degrade_failure(LoadingResult::new_failure(LoadingError::no_package(
                 167,
@@ -174,14 +188,17 @@ impl Loader {
         if !others.is_empty() {
             let mut collection = self.collection.write().unwrap();
             for id in &others {
-                collection.insert(other_collection.get(id).unwrap().clone());
+                collection.insert(other_collection.get(&id.into()).unwrap().clone());
             }
         }
     }
 }
 
 impl LoaderTrait for Loader {
-    fn load_context(&self, identifier_requirement: &IdentifierRequirement) -> LoadingResult<Arc<dyn Context>> {
+    fn load_context(
+        &self,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Arc<dyn Context>> {
         self.get_with_load(identifier_requirement)
             .and_then(|entry| match entry {
                 Entry::Context(context) => LoadingResult::new_success(context),
@@ -193,7 +210,10 @@ impl LoaderTrait for Loader {
             })
     }
 
-    fn load_function(&self, identifier_requirement: &IdentifierRequirement) -> LoadingResult<Arc<dyn Function>> {
+    fn load_function(
+        &self,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Arc<dyn Function>> {
         self.get_with_load(identifier_requirement)
             .and_then(|entry| match entry {
                 Entry::Function(function) => LoadingResult::new_success(function),
@@ -205,7 +225,10 @@ impl LoaderTrait for Loader {
             })
     }
 
-    fn load_model(&self, identifier_requirement: &IdentifierRequirement) -> LoadingResult<Arc<dyn Model>> {
+    fn load_model(
+        &self,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Arc<dyn Model>> {
         self.get_with_load(identifier_requirement)
             .and_then(|entry| match entry {
                 Entry::Model(model) => LoadingResult::new_success(model),
@@ -217,7 +240,10 @@ impl LoaderTrait for Loader {
             })
     }
 
-    fn load_treatment(&self, identifier_requirement: &IdentifierRequirement) -> LoadingResult<Arc<dyn Treatment>> {
+    fn load_treatment(
+        &self,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Arc<dyn Treatment>> {
         self.get_with_load(identifier_requirement)
             .and_then(|entry| match entry {
                 Entry::Treatment(treatment) => LoadingResult::new_success(treatment),

@@ -30,7 +30,7 @@ impl Area {
         let mut treatments = Vec::new();
 
         for id in &owned_ids {
-            match collection.get(id).cloned().unwrap() {
+            match collection.get(&id.into()).cloned().unwrap() {
                 Entry::Model(model) => {
                     let design = match model.clone().downcast_arc::<ModelDescriptor>() {
                         Ok(designed) => {
@@ -236,7 +236,7 @@ impl Area {
 
     fn is_owned(path: &Path, collection: &Arc<Collection>, id: &Identifier) -> bool {
         if id.path() == path.path() {
-            match collection.get(id).unwrap() {
+            match collection.get(&id.into()).unwrap() {
                 Entry::Context(_) => false,
                 Entry::Function(_) => false,
                 Entry::Model(model) => match model.build_mode() {

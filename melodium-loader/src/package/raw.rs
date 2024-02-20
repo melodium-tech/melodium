@@ -31,7 +31,10 @@ impl RawPackage {
                 } else {
                     return LoadingResult::new_failure(LoadingError::no_package(
                         186,
-                        name.map(|name| PackageRequirement::new(&name, &VersionReq::STAR)).unwrap_or_else(|| PackageRequirement::new("[raw package]", &VersionReq::STAR)),
+                        name.map(|name| PackageRequirement::new(&name, &VersionReq::STAR))
+                            .unwrap_or_else(|| {
+                                PackageRequirement::new("[raw package]", &VersionReq::STAR)
+                            }),
                     ));
                 }
             } else if let Some(internal_version) = line.strip_prefix("#! version = ") {
@@ -41,14 +44,20 @@ impl RawPackage {
                         Err(_) => {
                             return LoadingResult::new_failure(LoadingError::no_package(
                                 188,
-                                name.map(|name| PackageRequirement::new(&name, &VersionReq::STAR)).unwrap_or_else(|| PackageRequirement::new("[raw package]", &VersionReq::STAR)),
+                                name.map(|name| PackageRequirement::new(&name, &VersionReq::STAR))
+                                    .unwrap_or_else(|| {
+                                        PackageRequirement::new("[raw package]", &VersionReq::STAR)
+                                    }),
                             ))
                         }
                     });
                 } else {
                     return LoadingResult::new_failure(LoadingError::no_package(
                         187,
-                        name.map(|name| PackageRequirement::new(&name, &VersionReq::STAR)).unwrap_or_else(|| PackageRequirement::new("[raw package]", &VersionReq::STAR)),
+                        name.map(|name| PackageRequirement::new(&name, &VersionReq::STAR))
+                            .unwrap_or_else(|| {
+                                PackageRequirement::new("[raw package]", &VersionReq::STAR)
+                            }),
                     ));
                 }
             } else if let Some(internal_requirements) = line.strip_prefix("#! require = ") {
@@ -85,26 +94,38 @@ impl RawPackage {
         }
 
         if let (Some(name), Some(version)) = (&name, version) {
-            Content::new(&name, data.as_bytes())
-                .convert_failure_errors(|err| LoadingError::content_error(190, Arc::new(err)))
-                .and_then(|content| {
-                    let expected_main = Identifier::new(vec![name.clone()], "main");
-                    LoadingResult::new_success(Self {
-                        name: name.clone(),
-                        version: version.clone(),
-                        requirements,
-                        entrypoints: if content.provide().contains(&expected_main) {
-                            HashMap::from_iter([("main".to_string(), expected_main.with_version(&version))])
-                        } else {
-                            HashMap::new()
-                        },
-                        content,
-                    })
+            Content::new(
+                &name,
+                data.as_bytes(),
+                &version,
+                &requirements
+                    .iter()
+                    .map(|pkg_req| (pkg_req.package.clone(), pkg_req.version_requirement.clone()))
+                    .collect(),
+            )
+            .convert_failure_errors(|err| LoadingError::content_error(190, Arc::new(err)))
+            .and_then(|content| {
+                let expected_main = Identifier::new(vec![name.clone()], "main");
+                LoadingResult::new_success(Self {
+                    name: name.clone(),
+                    version: version.clone(),
+                    requirements,
+                    entrypoints: if content.provide().contains(&expected_main) {
+                        HashMap::from_iter([(
+                            "main".to_string(),
+                            expected_main.with_version(&version),
+                        )])
+                    } else {
+                        HashMap::new()
+                    },
+                    content,
                 })
+            })
         } else {
             LoadingResult::new_failure(LoadingError::no_package(
                 189,
-                name.map(|name| PackageRequirement::new(&name, &VersionReq::STAR)).unwrap_or_else(|| PackageRequirement::new("[raw package]", &VersionReq::STAR)),
+                name.map(|name| PackageRequirement::new(&name, &VersionReq::STAR))
+                    .unwrap_or_else(|| PackageRequirement::new("[raw package]", &VersionReq::STAR)),
             ))
         }
     }
@@ -137,8 +158,8 @@ impl PackageTrait for RawPackage {
         let mut result = LoadingResult::new_success(Collection::new());
         let mut collection = Collection::new();
 
-        for need in self.content.require() {
-            if let Some(entry) = result.merge_degrade_failure(loader.get_with_load(&need)) {
+        for need in &self.content.require() {
+            if let Some(entry) = result.merge_degrade_failure(loader.get_with_load(need)) {
                 collection.insert(entry);
             }
         }
@@ -153,7 +174,13 @@ impl PackageTrait for RawPackage {
     }
 
     fn all_identifiers(&self, _: &Loader) -> LoadingResult<Vec<Identifier>> {
-        LoadingResult::new_success(self.content.provide().into_iter().map(|id| id.with_version(&self.version)).collect())
+        LoadingResult::new_success(
+            self.content
+                .provide()
+                .into_iter()
+                .map(|id| id.with_version(&self.version))
+                .collect(),
+        )
     }
 
     fn element(&self, loader: &Loader, _identifier: &Identifier) -> LoadingResult<Collection> {

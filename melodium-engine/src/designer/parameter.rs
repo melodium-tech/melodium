@@ -69,16 +69,17 @@ impl Parameter {
             Value::Variable(variable) => Some(Value::Variable(variable.clone())),
             Value::Context(former_context, entry) => {
                 if let Some(Entry::Context(new_context)) = collection.get(
-                    replace
+                    &replace
                         .get(former_context.identifier())
-                        .unwrap_or_else(|| former_context.identifier()),
+                        .unwrap_or_else(|| former_context.identifier())
+                        .into(),
                 ) {
                     Some(Value::Context(new_context.clone(), entry.clone()))
                 } else {
                     result = result.and(LogicResult::new_failure(LogicError::unexisting_context(
                         204,
                         self.scope_id.clone(),
-                        former_context.identifier().clone(),
+                        former_context.identifier().into(),
                         self.design_reference.clone(),
                     )));
                     None
@@ -86,9 +87,10 @@ impl Parameter {
             }
             Value::Function(former_function, generics, values) => {
                 if let Some(Entry::Function(new_function)) = collection.get(
-                    replace
+                    &replace
                         .get(former_function.identifier())
-                        .unwrap_or_else(|| former_function.identifier()),
+                        .unwrap_or_else(|| former_function.identifier())
+                        .into(),
                 ) {
                     Some(Value::Function(
                         new_function.clone(),
@@ -99,7 +101,7 @@ impl Parameter {
                     result = result.and(LogicResult::new_failure(LogicError::unexisting_function(
                         205,
                         self.scope_id.clone(),
-                        former_function.identifier().clone(),
+                        former_function.identifier().into(),
                         self.design_reference.clone(),
                     )));
                     None

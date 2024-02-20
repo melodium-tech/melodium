@@ -12,7 +12,7 @@ use crate::error::{LogicError, LogicResult};
 use core::fmt::Debug;
 use melodium_common::descriptor::{
     Attribuable, Attributes, Collection, DescribedType, Entry, Generics, Identified, Identifier,
-    Parameterized, Treatment as TreatmentTrait,
+    IdentifierRequirement, Parameterized, Treatment as TreatmentTrait,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, RwLockReadGuard, Weak};
@@ -92,9 +92,13 @@ impl Treatment {
                 .identifier()
                 .clone();
             let model_identifier = replace.get(&model_identifier).unwrap_or(&model_identifier);
-            if let Some(model_instanciation) = result.merge_degrade_failure(
-                self.add_model_instanciation(model_identifier, name, design_reference.clone()),
-            ) {
+            if let Some(model_instanciation) =
+                result.merge_degrade_failure(self.add_model_instanciation(
+                    &model_identifier.into(),
+                    name,
+                    design_reference.clone(),
+                ))
+            {
                 result.merge_degrade_failure(model_instanciation.write().unwrap().import_design(
                     model_instanciation_design,
                     &self.collection,
@@ -114,7 +118,7 @@ impl Treatment {
                 .get(&treatment_identifier)
                 .unwrap_or(&treatment_identifier);
             if let Some(treatment_instanciation) = result.merge_degrade_failure(self.add_treatment(
-                treatment_identifier,
+                &treatment_identifier.into(),
                 name,
                 design_reference.clone(),
             )) {
@@ -172,7 +176,7 @@ impl Treatment {
 
     pub fn add_model_instanciation(
         &mut self,
-        model_identifier: &Identifier,
+        model_identifier: &IdentifierRequirement,
         name: &str,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<Arc<RwLock<ModelInstanciation>>> {
@@ -290,7 +294,7 @@ impl Treatment {
 
     pub fn add_treatment(
         &mut self,
-        treatment_identifier: &Identifier,
+        treatment_identifier: &IdentifierRequirement,
         name: &str,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> LogicResult<Arc<RwLock<TreatmentInstanciation>>> {
