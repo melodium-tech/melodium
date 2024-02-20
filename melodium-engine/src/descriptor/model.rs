@@ -120,14 +120,14 @@ impl Model {
         let base_identifier = replace
             .get(self.base_model.identifier())
             .unwrap_or_else(|| self.base_model.identifier());
-        if let Some(Entry::Model(base_model)) = collection.get(base_identifier) {
+        if let Some(Entry::Model(base_model)) = collection.get(&base_identifier.into()) {
             self.base_model = base_model.clone();
             LogicResult::new_success(())
         } else {
             LogicResult::new_failure(LogicError::unexisting_model(
                 208,
                 self.identifier.clone(),
-                base_identifier.clone(),
+                base_identifier.into(),
                 None,
             ))
         }

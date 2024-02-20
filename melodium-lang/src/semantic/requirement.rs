@@ -8,7 +8,9 @@ use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Requirement as TextRequirement;
 use crate::ScriptResult;
-use melodium_common::descriptor::Identifier;
+use melodium_common::descriptor::IdentifierRequirement;
+use melodium_common::descriptor::VersionReq;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a requirement.
@@ -23,7 +25,7 @@ pub struct Requirement {
     pub name: String,
     pub r#type: RefersTo,
 
-    pub type_identifier: Option<Identifier>,
+    pub type_identifier: Option<IdentifierRequirement>,
 }
 
 /// Enumeration managing what requirement type refers to.
@@ -69,7 +71,11 @@ impl Requirement {
 }
 
 impl Node for Requirement {
-    fn make_references(&mut self, _path: &Path) -> ScriptResult<()> {
+    fn make_references(
+        &mut self,
+        _path: &Path,
+        _versions: &HashMap<String, VersionReq>,
+    ) -> ScriptResult<()> {
         if let RefersTo::Unknown(reference) = &self.r#type {
             let rc_treatment = self.treatment.upgrade().unwrap();
             let borrowed_treatment = rc_treatment.read().unwrap();
@@ -80,7 +86,7 @@ impl Node for Requirement {
             if r#use.is_some() {
                 let r#use = r#use.unwrap();
 
-                self.type_identifier = r#use.read().unwrap().identifier.clone();
+                self.type_identifier = r#use.read().unwrap().identifier.as_ref().cloned();
 
                 self.r#type = RefersTo::Use(Reference {
                     name: reference.name.clone(),

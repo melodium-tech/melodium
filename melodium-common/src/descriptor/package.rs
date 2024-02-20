@@ -1,4 +1,4 @@
-use crate::descriptor::{Collection, Loader, LoadingResult, Version, PackageRequirement};
+use crate::descriptor::{Collection, Loader, LoadingResult, PackageRequirement, Version};
 use core::{any::Any, fmt::Debug};
 use std::collections::HashMap;
 
@@ -9,4 +9,3 @@ pub trait Package: Debug + Any + Send + Sync {
     fn collection(&self, loader: &dyn Loader) -> LoadingResult<Collection>;
     fn embedded(&self) -> &HashMap<&'static str, &'static [u8]>;
 }
-

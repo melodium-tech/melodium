@@ -11,6 +11,8 @@ use crate::path::Path;
 use crate::text::word::PositionnedString;
 use crate::text::Parameter as TextParameter;
 use crate::ScriptResult;
+use melodium_common::descriptor::VersionReq;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a declared model.
@@ -141,7 +143,11 @@ impl DeclaredModel {
 }
 
 impl Node for DeclaredModel {
-    fn make_references(&mut self, _path: &Path) -> ScriptResult<()> {
+    fn make_references(
+        &mut self,
+        _path: &Path,
+        _versions: &HashMap<String, VersionReq>,
+    ) -> ScriptResult<()> {
         // Reference to an instancied model already been done through Self::from_instancied_model
         // so we only look for reference to a use.
         if let RefersTo::Unknown(reference) = &self.refers {

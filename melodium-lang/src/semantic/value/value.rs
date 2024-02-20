@@ -12,6 +12,7 @@ use crate::text::PositionnedString;
 use crate::ScriptResult;
 use melodium_common::descriptor::Collection;
 use melodium_common::descriptor::DescribedType;
+use melodium_common::descriptor::VersionReq;
 use melodium_common::descriptor::{DataType, Entry};
 use melodium_common::executive::Value as ExecutiveValue;
 use melodium_engine::designer::{Parameter as ParameterDesigner, Value as ValueDesigner};
@@ -170,6 +171,7 @@ impl Value {
         &self,
         value: &ValueContent,
         path: &Path,
+        versions: &HashMap<String, VersionReq>,
     ) -> ScriptResult<ValueContent> {
         let rc_host = self.host.upgrade().unwrap();
         let borrowed_host = rc_host.read().unwrap();
@@ -241,15 +243,15 @@ impl Value {
                 return f
                     .write()
                     .unwrap()
-                    .make_references(path)
+                    .make_references(path, versions)
                     .and_then(|_| ScriptResult::new_success(ValueContent::Function(f.clone())))
             }
             ValueContent::Array(a) => {
                 let mut result = ScriptResult::new_success(());
                 let mut array = Vec::new();
                 for v in a {
-                    if let Some(val) =
-                        result.merge_degrade_failure(self.make_reference_valuecontent(v, path))
+                    if let Some(val) = result
+                        .merge_degrade_failure(self.make_reference_valuecontent(v, path, versions))
                     {
                         array.push(val);
                     }
@@ -292,7 +294,7 @@ impl Value {
                     .unwrap()
                     .collection()
                     .get(
-                        context
+                        &context
                             .reference
                             .as_ref()
                             .unwrap()
@@ -415,8 +417,12 @@ impl Value {
 }
 
 impl Node for Value {
-    fn make_references(&mut self, path: &Path) -> ScriptResult<()> {
-        self.make_reference_valuecontent(&self.content, path)
+    fn make_references(
+        &mut self,
+        path: &Path,
+        versions: &HashMap<String, VersionReq>,
+    ) -> ScriptResult<()> {
+        self.make_reference_valuecontent(&self.content, path, versions)
             .and_then(|content| {
                 self.content = content;
                 ScriptResult::new_success(())

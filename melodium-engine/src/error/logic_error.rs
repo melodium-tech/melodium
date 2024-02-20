@@ -6,7 +6,9 @@ use core::fmt::{Debug, Display};
 use std::string::ToString;
 use std::sync::Arc;
 
-use melodium_common::descriptor::{DataTrait, DescribedType, Flow, Identifier, Status};
+use melodium_common::descriptor::{
+    DataTrait, DescribedType, Flow, Identifier, IdentifierRequirement, Status,
+};
 
 use crate::{building::CheckStep, design::Value, designer::Reference};
 
@@ -106,22 +108,22 @@ pub enum LogicErrorKind {
     /// The treatment is not existing within current available treatments.
     UnexistingTreatment {
         scope: Identifier,
-        claimed: Identifier,
+        claimed: IdentifierRequirement,
     },
     /// The model is not existing within current available models.
     UnexistingModel {
         scope: Identifier,
-        claimed: Identifier,
+        claimed: IdentifierRequirement,
     },
     /// The context is not existing within current available contextes.
     UnexistingContext {
         scope: Identifier,
-        claimed: Identifier,
+        claimed: IdentifierRequirement,
     },
     /// The function is not existing within current available functions.
     UnexistingFunction {
         scope: Identifier,
-        claimed: Identifier,
+        claimed: IdentifierRequirement,
     },
     /// The model is not declared here.
     UndeclaredModel { scope: Identifier, model: String },
@@ -646,7 +648,7 @@ impl LogicError {
     pub fn unexisting_treatment(
         id: u32,
         scope: Identifier,
-        claimed: Identifier,
+        claimed: IdentifierRequirement,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
@@ -660,7 +662,7 @@ impl LogicError {
     pub fn unexisting_model(
         id: u32,
         scope: Identifier,
-        claimed: Identifier,
+        claimed: IdentifierRequirement,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
@@ -674,7 +676,7 @@ impl LogicError {
     pub fn unexisting_context(
         id: u32,
         scope: Identifier,
-        claimed: Identifier,
+        claimed: IdentifierRequirement,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
@@ -688,7 +690,7 @@ impl LogicError {
     pub fn unexisting_function(
         id: u32,
         scope: Identifier,
-        claimed: Identifier,
+        claimed: IdentifierRequirement,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {

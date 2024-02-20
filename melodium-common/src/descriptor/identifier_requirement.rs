@@ -1,6 +1,5 @@
-
+use crate::descriptor::{Identifier, PackageRequirement, VersionReq};
 use core::fmt::{Display, Formatter};
-use crate::descriptor::{PackageRequirement, VersionReq};
 
 #[derive(Clone, Debug)]
 pub struct IdentifierRequirement {
@@ -22,6 +21,14 @@ impl IdentifierRequirement {
         }
     }
 
+    pub fn new_with_identifier(version_requirement: VersionReq, identifier: &Identifier) -> Self {
+        Self {
+            version_requirement,
+            path: identifier.path().clone(),
+            name: identifier.name().to_string(),
+        }
+    }
+
     pub fn version_requirement(&self) -> &VersionReq {
         &self.version_requirement
     }
@@ -38,8 +45,48 @@ impl IdentifierRequirement {
         &self.name
     }
 
+    pub fn to_identifier(&self) -> Identifier {
+        Identifier::new(self.path.clone(), &self.name)
+    }
+
     pub fn package_requirement(&self) -> PackageRequirement {
         PackageRequirement::new(self.root(), &self.version_requirement)
+    }
+
+    pub fn matches(&self, id: &Identifier) -> bool {
+        if let Some(version) = id.version() {
+            if &self.path == id.path()
+                && &self.name == id.name()
+                && self.version_requirement.matches(version)
+            {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+}
+
+impl From<&Identifier> for IdentifierRequirement {
+    fn from(value: &Identifier) -> Self {
+        IdentifierRequirement::new(
+            value
+                .version()
+                .map(|v| VersionReq {
+                    comparators: vec![semver::Comparator {
+                        op: semver::Op::Exact,
+                        major: v.major,
+                        minor: Some(v.minor),
+                        patch: Some(v.patch),
+                        pre: v.pre.clone(),
+                    }],
+                })
+                .unwrap_or_default(),
+            value.path().clone(),
+            value.name(),
+        )
     }
 }
 

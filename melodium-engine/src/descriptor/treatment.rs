@@ -131,13 +131,13 @@ impl Treatment {
             let model_identifier = replace
                 .get(model.identifier())
                 .unwrap_or_else(|| model.identifier());
-            if let Some(Entry::Model(model)) = collection.get(model_identifier) {
+            if let Some(Entry::Model(model)) = collection.get(&model_identifier.into()) {
                 new_models.insert(name.clone(), model.clone());
             } else {
                 result.errors_mut().push(LogicError::unexisting_model(
                     206,
                     self.identifier.clone(),
-                    model_identifier.clone(),
+                    model_identifier.into(),
                     None,
                 ))
             }
@@ -149,13 +149,13 @@ impl Treatment {
             let context_identifier = replace
                 .get(context.identifier())
                 .unwrap_or_else(|| context.identifier());
-            if let Some(Entry::Context(context)) = collection.get(context_identifier) {
+            if let Some(Entry::Context(context)) = collection.get(&context_identifier.into()) {
                 new_contexts.insert(name.clone(), context.clone());
             } else {
                 result.errors_mut().push(LogicError::unexisting_context(
                     207,
                     self.identifier.clone(),
-                    context_identifier.clone(),
+                    context_identifier.into(),
                     None,
                 ))
             }

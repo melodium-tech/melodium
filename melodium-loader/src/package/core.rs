@@ -2,8 +2,8 @@ use crate::content::Content;
 use crate::package::package::PackageTrait;
 use crate::{Loader, PackageInfo};
 use melodium_common::descriptor::{
-    Collection, Identifier, LoadingError, LoadingResult, Package as CommonPackage,
-    PackageRequirement,
+    Collection, Identifier, IdentifierRequirement, LoadingError, LoadingResult,
+    Package as CommonPackage, PackageRequirement,
 };
 use semver::Version;
 use std::collections::HashMap;
@@ -33,17 +33,26 @@ impl CorePackage {
                 if self.contents.read().unwrap().contains_key(designation) {
                     LoadingResult::new_success(())
                 } else {
-                    Content::new(designation, data)
-                        .convert_failure_errors(|err| {
-                            LoadingError::content_error(158, Arc::new(err))
-                        })
-                        .and_then(|content| {
-                            self.contents
-                                .write()
-                                .unwrap()
-                                .insert(designation.to_string(), content);
-                            LoadingResult::new_success(())
-                        })
+                    Content::new(
+                        designation,
+                        data,
+                        self.version(),
+                        &self
+                            .requirements
+                            .iter()
+                            .map(|pkg_req| {
+                                (pkg_req.package.clone(), pkg_req.version_requirement.clone())
+                            })
+                            .collect(),
+                    )
+                    .convert_failure_errors(|err| LoadingError::content_error(158, Arc::new(err)))
+                    .and_then(|content| {
+                        self.contents
+                            .write()
+                            .unwrap()
+                            .insert(designation.to_string(), content);
+                        LoadingResult::new_success(())
+                    })
                 }
             }
             None => {
@@ -62,12 +71,15 @@ impl CorePackage {
         result
     }
 
-    fn insure_loading(loader: &Loader, identifiers: Vec<Identifier>) -> LoadingResult<()> {
+    fn insure_loading(
+        loader: &Loader,
+        identifiers: Vec<IdentifierRequirement>,
+    ) -> LoadingResult<()> {
         let mut result = LoadingResult::new_success(());
-        for identifier in identifiers {
+        for identifier in &identifiers {
             result = result.and_degrade_failure(
                 loader
-                    .get_with_load(&identifier)
+                    .get_with_load(identifier)
                     .and(LoadingResult::new_success(())),
             );
         }
@@ -75,7 +87,7 @@ impl CorePackage {
         result
     }
 
-    fn designation(identifier: &Identifier) -> String {
+    fn designation(identifier: &IdentifierRequirement) -> String {
         format!("{}.mel", identifier.path().join("/"))
     }
 }
@@ -151,9 +163,9 @@ impl PackageTrait for CorePackage {
             all_needs.insert(designation.clone(), needs);
         }
 
-        let mut external_needs = Vec::new();
+        let mut external_needs: Vec<IdentifierRequirement> = Vec::new();
         let mut internal_needs = Vec::new();
-        for (designation_requester, designation_requested, need) in all_needs
+        for (designation_requester, designation_requested, ref need) in all_needs
             .into_iter()
             .map(|(designation, needs)| {
                 needs
@@ -163,10 +175,15 @@ impl PackageTrait for CorePackage {
             })
             .flatten()
         {
-            if collection.get(&need).is_none() {
+            if collection.get(need).is_none() {
                 if need.root() != self.name() {
-                    if !external_needs.contains(&need) {
-                        external_needs.push(need);
+                    if !external_needs
+                        .iter()
+                        .any(|en| en.path() == need.path() && en.name() == need.name())
+                    {
+                        //let external_package_version_req = self.requirements.iter().find(|pr| &pr.package == need.root()).map(|pr| pr.version_requirement.clone()).unwrap_or_else(|| VersionReq::STAR);
+                        //let identifier_requirement = IdentifierRequirement::new_with_identifier(external_package_version_req, &need);
+                        external_needs.push(need.clone());
                     }
                 } else {
                     // Knowing we don't have circular dependency, we can apply this logic
@@ -188,8 +205,9 @@ impl PackageTrait for CorePackage {
             }
         }
 
-        for identifier in external_needs {
-            if let Some(entry) = results.merge_degrade_failure(loader.get_with_load(&identifier)) {
+        for identifier_req in &external_needs {
+            if let Some(entry) = results.merge_degrade_failure(loader.get_with_load(identifier_req))
+            {
                 collection.insert(entry);
             }
         }
@@ -233,7 +251,13 @@ impl PackageTrait for CorePackage {
                     .read()
                     .unwrap()
                     .iter()
-                    .map(|(_, content)| content.provide())
+                    .map(|(_, content)| {
+                        content
+                            .provide()
+                            .into_iter()
+                            .map(|id| id.with_version(self.package.version()))
+                            .collect::<Vec<_>>()
+                    })
                     .flatten(),
             );
             LoadingResult::new_success(identifiers)
@@ -244,12 +268,12 @@ impl PackageTrait for CorePackage {
         let mut result = LoadingResult::new_success(Collection::new());
 
         if let Some(collection) = result.merge_degrade_failure(self.embedded_collection(loader)) {
-            if collection.get(identifier).is_some() {
+            if collection.get(&identifier.into()).is_some() {
                 return result.and_degrade_failure(LoadingResult::new_success(collection));
             }
         }
 
-        let designation = Self::designation(identifier);
+        let designation = Self::designation(&identifier.into());
 
         if let None = result.merge_degrade_failure(self.insure_content(&designation)) {
             return result;
@@ -272,7 +296,7 @@ impl PackageTrait for CorePackage {
                 result = result.and_degrade_failure(LoadingResult::new_success(collection));
             } else {
                 result.merge_degrade_failure::<()>(LoadingResult::new_failure(
-                    LoadingError::circular_reference(164, identifier.clone()),
+                    LoadingError::circular_reference(164, identifier.into()),
                 ));
             }
         } else {

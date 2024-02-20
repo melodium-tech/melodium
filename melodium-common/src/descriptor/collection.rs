@@ -1,6 +1,6 @@
-use super::{Context, Data, Function, Identifier, Model, Treatment};
+use super::{Context, Data, Function, Identifier, IdentifierRequirement, Model, Treatment};
 use std::cmp::Ordering;
-use std::collections::{hash_map, HashMap};
+use std::collections::{btree_map, BTreeMap};
 use std::slice::Iter;
 use std::sync::Arc;
 
@@ -74,13 +74,13 @@ impl Ord for Entry {
 
 #[derive(Clone, Debug)]
 pub struct Collection {
-    elements: HashMap<Identifier, Entry>,
+    elements: BTreeMap<Identifier, Entry>,
 }
 
 impl Collection {
     pub fn new() -> Self {
         Self {
-            elements: HashMap::new(),
+            elements: BTreeMap::new(),
         }
     }
 
@@ -92,8 +92,14 @@ impl Collection {
         self.elements.insert(entry.identifier().clone(), entry);
     }
 
-    pub fn get(&self, id: &Identifier) -> Option<&Entry> {
-        self.elements.get(id)
+    pub fn get(&self, id_requirement: &IdentifierRequirement) -> Option<&Entry> {
+        self.elements.iter().find_map(|(id, entry)| {
+            if id_requirement.matches(id) {
+                Some(entry)
+            } else {
+                None
+            }
+        })
     }
 
     pub fn remove(&mut self, id: &Identifier) -> bool {
@@ -113,10 +119,10 @@ impl Collection {
             if let Some(next) = iter.next() {
                 path.push(next.clone());
                 match tree.areas.entry(next.to_string()) {
-                    hash_map::Entry::Occupied(mut e) => {
+                    btree_map::Entry::Occupied(mut e) => {
                         insert_entry(e.get_mut(), iter, path.clone(), entry, name);
                     }
-                    hash_map::Entry::Vacant(v) => {
+                    btree_map::Entry::Vacant(v) => {
                         let mut ct = CollectionTree::new(path.clone());
                         insert_entry(&mut ct, iter, path.clone(), entry, name);
                         v.insert(ct);
@@ -144,7 +150,7 @@ impl Collection {
 #[derive(Clone, Debug, Default)]
 pub struct CollectionTree {
     pub path: Vec<String>,
-    pub areas: HashMap<String, CollectionTree>,
+    pub areas: BTreeMap<String, CollectionTree>,
     pub entries: Vec<Entry>,
 }
 
@@ -152,7 +158,7 @@ impl CollectionTree {
     pub fn new(path: Vec<String>) -> Self {
         Self {
             path,
-            areas: HashMap::new(),
+            areas: BTreeMap::new(),
             entries: Vec::new(),
         }
     }

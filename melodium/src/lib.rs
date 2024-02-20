@@ -72,7 +72,9 @@ pub fn load_raw(
         .load_raw(raw)
         .and_then(|pkg| {
             if let Some(main) = pkg.entrypoints().get(entrypoint) {
-                loader.load(&main).and(LoadingResult::new_success(pkg))
+                loader
+                    .load(&main.into())
+                    .and(LoadingResult::new_success(pkg))
             } else {
                 LoadingResult::new_failure(LoadingError::no_entry_point_provided(238))
             }
@@ -98,7 +100,7 @@ pub fn load_raw_all_entrypoints(
             for (_, id) in pkg.entrypoints() {
                 result = result.and(
                     loader
-                        .load(id)
+                        .load(&id.into())
                         .and(LoadingResult::new_success(Arc::clone(&pkg))),
                 )
             }
@@ -123,7 +125,7 @@ pub fn load_raw_force_entrypoint(
         .load_raw(raw)
         .and_then(|pkg| {
             loader
-                .load(&identifier)
+                .load(&identifier.into())
                 .and(LoadingResult::new_success(pkg))
         })
         .and_then(|pkg| {

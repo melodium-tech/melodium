@@ -7,8 +7,9 @@ use crate::{Path, ScriptError};
 use core::slice::Iter;
 use melodium_common::descriptor::{
     Collection, DataType as DataTypeDescriptor, DescribedType as DescribedTypeDescriptor, Entry,
-    Flow as FlowDescriptor, Generic,
+    Flow as FlowDescriptor, Generic, VersionReq,
 };
+use std::collections::HashMap;
 use std::fmt;
 use std::sync::{Arc, RwLock, Weak};
 
@@ -234,7 +235,11 @@ impl fmt::Display for TypeContent {
 }
 
 impl Node for TypeContent {
-    fn make_references(&mut self, _path: &Path) -> ScriptResult<()> {
+    fn make_references(
+        &mut self,
+        _path: &Path,
+        _versions: &HashMap<String, VersionReq>,
+    ) -> ScriptResult<()> {
         match self {
             TypeContent::Other((scope, RefersTo::Implicit(reference))) => {
                 let rc_script = match scope
