@@ -12,10 +12,11 @@ use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Model as TextModel;
 use crate::ScriptResult;
-use melodium_common::descriptor::{Collection, Entry, Identifier};
+use melodium_common::descriptor::{Collection, Entry, Identifier, VersionReq};
 use melodium_engine::descriptor::Model as ModelDescriptor;
 use melodium_engine::designer::Model as ModelDesigner;
 use melodium_engine::LogicError;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a model.
@@ -110,7 +111,7 @@ impl Model {
     }
 
     pub fn make_descriptor(&self, collection: &Collection) -> ScriptResult<Arc<ModelDescriptor>> {
-        let (type_identifier, _position) = match &self.r#type {
+        let (ref type_identifier, _position) = match &self.r#type {
             RefersTo::Model(m) => (
                 m.reference
                     .as_ref()
@@ -122,7 +123,7 @@ impl Model {
                     .identifier
                     .as_ref()
                     .unwrap()
-                    .clone(),
+                    .into(),
                 m.reference
                     .as_ref()
                     .unwrap()
@@ -165,7 +166,7 @@ impl Model {
             }
         };
 
-        if let Some(Entry::Model(base_descriptor)) = collection.get(&type_identifier) {
+        if let Some(Entry::Model(base_descriptor)) = collection.get(type_identifier) {
             let mut result = ScriptResult::new_success(());
 
             let mut descriptor =
@@ -284,7 +285,11 @@ impl AssignativeElement for Model {
 }
 
 impl Node for Model {
-    fn make_references(&mut self, path: &Path) -> ScriptResult<()> {
+    fn make_references(
+        &mut self,
+        path: &Path,
+        _versions: &HashMap<String, VersionReq>,
+    ) -> ScriptResult<()> {
         if let RefersTo::Unknown(r#type) = &self.r#type {
             let rc_script = self.script.upgrade().unwrap();
             let borrowed_script = rc_script.read().unwrap();

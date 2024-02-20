@@ -1,14 +1,15 @@
-use crate::descriptor::{Context, Function, Identifier, Model, Treatment};
+use crate::descriptor::{
+    Context, Function, Identifier, IdentifierRequirement, Model, PackageRequirement, Status,
+    Treatment,
+};
 use core::fmt::{Debug, Display, Formatter};
 use downcast_rs::{impl_downcast, Downcast};
 use std::{path::PathBuf, sync::Arc};
 
-use super::Status;
-
 #[derive(Debug, Clone)]
 pub enum LoadingErrorKind {
     NoPackage {
-        name: String,
+        package_requirement: PackageRequirement,
     },
     NoEntryPointProvided,
     UnreachableFile {
@@ -22,7 +23,7 @@ pub enum LoadingErrorKind {
         element: String,
     },
     CircularReference {
-        identifier: Identifier,
+        identifier: IdentifierRequirement,
     },
     RepositoryError {
         error: Arc<dyn RepositoryError>,
@@ -32,19 +33,19 @@ pub enum LoadingErrorKind {
     },
     ContextExpected {
         expecter: Option<Identifier>,
-        identifier: Identifier,
+        identifier_requirement: IdentifierRequirement,
     },
     FunctionExpected {
         expecter: Option<Identifier>,
-        identifier: Identifier,
+        identifier_requirement: IdentifierRequirement,
     },
     ModelExpected {
         expecter: Option<Identifier>,
-        identifier: Identifier,
+        identifier_requirement: IdentifierRequirement,
     },
     TreatmentExpected {
         expecter: Option<Identifier>,
-        identifier: Identifier,
+        identifier_requirement: IdentifierRequirement,
     },
     JeuFormatError {
         error: String,
@@ -61,7 +62,9 @@ pub enum LoadingErrorKind {
 impl Display for LoadingErrorKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            LoadingErrorKind::NoPackage { name } => write!(f, "No package '{name}' found"),
+            LoadingErrorKind::NoPackage {
+                package_requirement,
+            } => write!(f, "No package '{package_requirement}' found"),
             LoadingErrorKind::NoEntryPointProvided => write!(f, "No entry point provided"),
             LoadingErrorKind::UnreachableFile { path, error } => write!(
                 f,
@@ -79,43 +82,43 @@ impl Display for LoadingErrorKind {
             LoadingErrorKind::ContentError { error } => write!(f, "{error}"),
             LoadingErrorKind::ContextExpected {
                 expecter,
-                identifier,
+                identifier_requirement,
             } => match expecter {
                 Some(expecter) => write!(
                     f,
-                    "'{expecter}' expected a context, but '{identifier}' is not"
+                    "'{expecter}' expected a context, but '{identifier_requirement}' is not"
                 ),
-                None => write!(f, "'{identifier}' is not a context"),
+                None => write!(f, "'{identifier_requirement}' is not a context"),
             },
             LoadingErrorKind::FunctionExpected {
                 expecter,
-                identifier,
+                identifier_requirement,
             } => match expecter {
                 Some(expecter) => write!(
                     f,
-                    "'{expecter}' expected a function, but '{identifier}' is not"
+                    "'{expecter}' expected a function, but '{identifier_requirement}' is not"
                 ),
-                None => write!(f, "'{identifier}' is not a function"),
+                None => write!(f, "'{identifier_requirement}' is not a function"),
             },
             LoadingErrorKind::ModelExpected {
                 expecter,
-                identifier,
+                identifier_requirement,
             } => match expecter {
                 Some(expecter) => write!(
                     f,
-                    "'{expecter}' expected a model, but '{identifier}' is not"
+                    "'{expecter}' expected a model, but '{identifier_requirement}' is not"
                 ),
-                None => write!(f, "'{identifier}' is not a model"),
+                None => write!(f, "'{identifier_requirement}' is not a model"),
             },
             LoadingErrorKind::TreatmentExpected {
                 expecter,
-                identifier,
+                identifier_requirement,
             } => match expecter {
                 Some(expecter) => write!(
                     f,
-                    "'{expecter}' expected a treatment, but '{identifier}' is not"
+                    "'{expecter}' expected a treatment, but '{identifier_requirement}' is not"
                 ),
-                None => write!(f, "'{identifier}' is not a treatment"),
+                None => write!(f, "'{identifier_requirement}' is not a treatment"),
             },
             LoadingErrorKind::JeuFormatError { error } => {
                 write!(f, "Jeu data cannot be processed: {error}")
@@ -139,10 +142,12 @@ pub struct LoadingError {
 }
 
 impl LoadingError {
-    pub fn no_package(id: u32, name: String) -> Self {
+    pub fn no_package(id: u32, package_requirement: PackageRequirement) -> Self {
         Self {
             id,
-            kind: LoadingErrorKind::NoPackage { name },
+            kind: LoadingErrorKind::NoPackage {
+                package_requirement,
+            },
         }
     }
 
@@ -174,7 +179,7 @@ impl LoadingError {
         }
     }
 
-    pub fn circular_reference(id: u32, identifier: Identifier) -> Self {
+    pub fn circular_reference(id: u32, identifier: IdentifierRequirement) -> Self {
         Self {
             id,
             kind: LoadingErrorKind::CircularReference { identifier },
@@ -195,12 +200,16 @@ impl LoadingError {
         }
     }
 
-    pub fn context_expected(id: u32, expecter: Option<Identifier>, identifier: Identifier) -> Self {
+    pub fn context_expected(
+        id: u32,
+        expecter: Option<Identifier>,
+        identifier_requirement: IdentifierRequirement,
+    ) -> Self {
         Self {
             id,
             kind: LoadingErrorKind::ContextExpected {
                 expecter,
-                identifier,
+                identifier_requirement,
             },
         }
     }
@@ -208,23 +217,27 @@ impl LoadingError {
     pub fn function_expected(
         id: u32,
         expecter: Option<Identifier>,
-        identifier: Identifier,
+        identifier_requirement: IdentifierRequirement,
     ) -> Self {
         Self {
             id,
             kind: LoadingErrorKind::FunctionExpected {
                 expecter,
-                identifier,
+                identifier_requirement,
             },
         }
     }
 
-    pub fn model_expected(id: u32, expecter: Option<Identifier>, identifier: Identifier) -> Self {
+    pub fn model_expected(
+        id: u32,
+        expecter: Option<Identifier>,
+        identifier_requirement: IdentifierRequirement,
+    ) -> Self {
         Self {
             id,
             kind: LoadingErrorKind::ModelExpected {
                 expecter,
-                identifier,
+                identifier_requirement,
             },
         }
     }
@@ -232,13 +245,13 @@ impl LoadingError {
     pub fn treatment_expected(
         id: u32,
         expecter: Option<Identifier>,
-        identifier: Identifier,
+        identifier_requirement: IdentifierRequirement,
     ) -> Self {
         Self {
             id,
             kind: LoadingErrorKind::TreatmentExpected {
                 expecter,
-                identifier,
+                identifier_requirement,
             },
         }
     }
@@ -275,10 +288,22 @@ pub type LoadingErrors = Vec<LoadingError>;
 pub type LoadingResult<T> = Status<T, LoadingError, LoadingError>;
 
 pub trait Loader {
-    fn load_context(&self, identifier: &Identifier) -> LoadingResult<Arc<dyn Context>>;
-    fn load_function(&self, identifier: &Identifier) -> LoadingResult<Arc<dyn Function>>;
-    fn load_model(&self, identifier: &Identifier) -> LoadingResult<Arc<dyn Model>>;
-    fn load_treatment(&self, identifier: &Identifier) -> LoadingResult<Arc<dyn Treatment>>;
+    fn load_context(
+        &self,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Arc<dyn Context>>;
+    fn load_function(
+        &self,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Arc<dyn Function>>;
+    fn load_model(
+        &self,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Arc<dyn Model>>;
+    fn load_treatment(
+        &self,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Arc<dyn Treatment>>;
 }
 
 pub trait RepositoryError: Display + Debug + Downcast + Send + Sync {}

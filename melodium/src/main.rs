@@ -223,7 +223,7 @@ fn run(args: Run) {
             }
         };
 
-        let treatment = if let Some(Entry::Treatment(tr)) = collection.get(&identifier) {
+        let treatment = if let Some(Entry::Treatment(tr)) = collection.get(&(&identifier).into()) {
             tr
         } else {
             eprintln!("{}: entrypoint must be a treatment", "failure".bold().red());
@@ -348,7 +348,7 @@ fn info(args: Info) {
             .version(pkg.version().to_string())
             .disable_version_flag(true);
         for (name, id) in pkg.entrypoints() {
-            if let Some(Entry::Treatment(treatment)) = collection.get(id) {
+            if let Some(Entry::Treatment(treatment)) = collection.get(&id.into()) {
                 let sub_cmd = build_cmd(Some(name.clone()), treatment);
                 cmd = cmd.subcommand(sub_cmd);
             }

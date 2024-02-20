@@ -10,6 +10,8 @@ use crate::path::Path;
 use crate::text::Parameter as TextParameter;
 use crate::text::Value as TextValue;
 use crate::ScriptResult;
+use melodium_common::descriptor::VersionReq;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of an assigned model.
@@ -78,7 +80,11 @@ impl AssignedModel {
 }
 
 impl Node for AssignedModel {
-    fn make_references(&mut self, _path: &Path) -> ScriptResult<()> {
+    fn make_references(
+        &mut self,
+        _path: &Path,
+        _versions: &HashMap<String, VersionReq>,
+    ) -> ScriptResult<()> {
         if self.model.reference.is_none() {
             let rc_parent = self.parent.upgrade().unwrap();
             let borrowed_parent = rc_parent.read().unwrap();

@@ -84,7 +84,7 @@ impl Compo {
                         for (name, pos_id) in toml_entrypoints {
                             if let Value::String(pos_id) = pos_id {
                                 if let Ok(pos_id) = Identifier::try_from(pos_id) {
-                                    entrypoints.insert(name.clone(), pos_id);
+                                    entrypoints.insert(name.clone(), pos_id.with_version(&version));
                                 } else {
                                     return LoadingResult::new_failure(
                                         LoadingError::wrong_configuration(242, name.clone()),

@@ -3,7 +3,7 @@
 use crate::package::{Package, PackageTrait};
 use crate::{package, PackageInfo};
 use melodium_common::descriptor::{
-    LoadingError, LoadingResult, Package as CommonPackage, PackageRequirement,
+    LoadingError, LoadingResult, Package as CommonPackage, PackageRequirement, VersionReq,
 };
 use melodium_repository::{
     technical::Availability, technical::Package as RepositoryPackage, technical::Platform,
@@ -416,7 +416,10 @@ impl PackageManager {
                     .and_then(|pkg| LoadingResult::new_success(Arc::new(Package::Jeu(pkg))));
                 if result.is_failure() {
                     result = result.and_degrade_failure(LoadingResult::new_failure(
-                        LoadingError::no_package(210, "[raw package]".to_string()),
+                        LoadingError::no_package(
+                            210,
+                            PackageRequirement::new("[raw package]", &VersionReq::STAR),
+                        ),
                     ));
                 }
                 result
@@ -608,7 +611,7 @@ impl PackageManager {
 
         result.and_degrade_failure(LoadingResult::new_failure(LoadingError::no_package(
             209,
-            requirement.package.clone(),
+            requirement.clone(),
         )))
     }
 

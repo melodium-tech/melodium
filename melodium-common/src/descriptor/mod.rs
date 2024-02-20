@@ -17,11 +17,13 @@ pub mod function;
 pub mod generic;
 pub mod identified;
 pub mod identifier;
+pub mod identifier_requirement;
 pub mod input;
 pub mod loader;
 pub mod model;
 pub mod output;
 pub mod package;
+pub mod package_requirement;
 pub mod parameter;
 pub mod parameterized;
 pub mod status;
@@ -42,6 +44,7 @@ pub use function::Function;
 pub use generic::{Generic, Generics};
 pub use identified::Identified;
 pub use identifier::Identifier;
+pub use identifier_requirement::IdentifierRequirement;
 pub use input::Input;
 pub use loader::{
     ContentError, ContentErrors, Loader, LoadingError, LoadingErrors, LoadingResult,
@@ -49,7 +52,8 @@ pub use loader::{
 };
 pub use model::Model;
 pub use output::Output;
-pub use package::{Package, PackageRequirement};
+pub use package::Package;
+pub use package_requirement::PackageRequirement;
 pub use parameter::Parameter;
 pub use parameterized::{OrderedParameterized, Parameterized};
 pub use semver::{Version, VersionReq};

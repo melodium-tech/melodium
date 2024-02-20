@@ -10,7 +10,9 @@ use crate::error::ScriptError;
 use crate::path::Path;
 use crate::text::Function as TextFunction;
 use crate::ScriptResult;
-use melodium_common::descriptor::identifier::Identifier;
+use melodium_common::descriptor::IdentifierRequirement;
+use melodium_common::descriptor::VersionReq;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
 #[derive(Debug)]
@@ -32,7 +34,7 @@ pub struct FunctionCall {
     pub generics: Vec<Arc<RwLock<AssignedGeneric>>>,
     pub parameters: Vec<Arc<RwLock<Value>>>,
 
-    pub type_identifier: Option<Identifier>,
+    pub type_identifier: Option<IdentifierRequirement>,
 }
 
 impl FunctionCall {
@@ -76,7 +78,11 @@ impl FunctionCall {
 }
 
 impl Node for FunctionCall {
-    fn make_references(&mut self, _path: &Path) -> ScriptResult<()> {
+    fn make_references(
+        &mut self,
+        _path: &Path,
+        _versions: &HashMap<String, VersionReq>,
+    ) -> ScriptResult<()> {
         if let RefersTo::Unknown(reference) = &self.r#type {
             let rc_script = match self
                 .scope
@@ -93,7 +99,7 @@ impl Node for FunctionCall {
             let borrowed_script = rc_script.read().unwrap();
 
             if let Some(r#use) = borrowed_script.find_use(&reference.name) {
-                self.type_identifier = r#use.read().unwrap().identifier.clone();
+                self.type_identifier = r#use.read().unwrap().identifier.as_ref().cloned();
 
                 self.r#type = RefersTo::Use(Reference {
                     name: reference.name.clone(),

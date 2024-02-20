@@ -1,5 +1,7 @@
 //! Module dedicated to Script semantic analysis.
 
+use melodium_common::descriptor::Version;
+
 use super::common::Node;
 use super::model::Model;
 use super::r#use::Use;
@@ -32,7 +34,7 @@ impl Script {
     /// # Note
     /// Only parent-child relationships are made at this step. Other references can be made afterwards using the [Node trait](Node).
     ///
-    pub fn new(text: TextScript) -> ScriptResult<Arc<RwLock<Self>>> {
+    pub fn new(text: TextScript, version: Version) -> ScriptResult<Arc<RwLock<Self>>> {
         let script = Arc::<RwLock<Self>>::new(RwLock::new(Self {
             text: text.clone(),
             uses: Vec::new(),
@@ -42,9 +44,11 @@ impl Script {
         let mut result = ScriptResult::new_success(script.clone());
 
         for u in text.uses {
-            if let Some(r#use) =
-                result.merge_degrade_failure(Use::new(Arc::clone(&script), u.clone()))
-            {
+            if let Some(r#use) = result.merge_degrade_failure(Use::new(
+                Arc::clone(&script),
+                u.clone(),
+                version.clone(),
+            )) {
                 script.write().unwrap().uses.push(r#use);
             }
         }

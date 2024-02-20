@@ -8,11 +8,15 @@ use core::{
     str::Utf8Error,
 };
 use melodium_common::descriptor::{
-    Collection, ContentError as CommonContentError, Identifier, Status,
+    Collection, ContentError as CommonContentError, Identifier, IdentifierRequirement, Status,
+    Version, VersionReq,
 };
 #[cfg(feature = "script")]
 use melodium_lang::{error::ScriptErrors, ScriptError};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex, MutexGuard},
+};
 
 #[derive(Debug)]
 pub struct Content {
@@ -21,7 +25,12 @@ pub struct Content {
 }
 
 impl Content {
-    pub fn new(path: &str, content: &[u8]) -> ContentResult<Self> {
+    pub fn new(
+        path: &str,
+        content: &[u8],
+        version: &Version,
+        dependencies_versions: &HashMap<String, VersionReq>,
+    ) -> ContentResult<Self> {
         // Currently only script content is supported
         #[cfg(feature = "script")]
         {
@@ -35,7 +44,7 @@ impl Content {
                 Err(err) => return err,
             };
 
-            Script::new(&path, text)
+            Script::new(&path, text, version, dependencies_versions)
                 .convert_failure_errors(|error| ContentError::ScriptError {
                     path: path.to_string(),
                     error,
@@ -72,7 +81,7 @@ impl Content {
         }
     }
 
-    pub fn require(&self) -> Vec<Identifier> {
+    pub fn require(&self) -> Vec<IdentifierRequirement> {
         match &self.content {
             #[cfg(feature = "script")]
             ContentType::Script(script) => script.need(),

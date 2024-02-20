@@ -48,8 +48,8 @@ impl Documentation {
         self.write("book.toml", Self::default_mdbook_config().as_bytes())?;
         self.make_summary()?;
         self.make_areas()?;
-        for id in self.collection.identifiers() {
-            self.make_entry(self.collection.get(&id).unwrap())?;
+        for id in &self.collection.identifiers() {
+            self.make_entry(self.collection.get(&id.into()).unwrap())?;
         }
 
         Ok(())
@@ -398,8 +398,8 @@ impl Documentation {
                 .filter(|id| id.root() == model.identifier().root())
                 .collect::<Vec<_>>();
 
-            for id in all_ids {
-                if let Some(entry) = self.collection.get(&id) {
+            for id in &all_ids {
+                if let Some(entry) = self.collection.get(&id.into()) {
                     match entry {
                         Entry::Treatment(treatment) => {
                             for (model_name, model_desc) in treatment.models() {
