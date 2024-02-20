@@ -18,12 +18,13 @@ impl Path {
     ///
     /// ```
     /// # use melodium_lang::Path;
+    /// # use melodium_common::descriptor::Version;
     /// // use main/foo/bar::Element
     /// let raw_valid_path = vec![  "main".to_string(),
     ///                             "foo".to_string(),
     ///                             "bar".to_string()];
     ///
-    /// let valid_path = Path::new(raw_valid_path);
+    /// let valid_path = Path::new(Version::parse("0.1.0").unwrap(), raw_valid_path);
     /// assert_eq!(valid_path.root(), "main");
     /// assert!(valid_path.is_valid());
     /// ```
