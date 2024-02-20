@@ -427,7 +427,7 @@ impl PackageManager {
             #[cfg(not(feature = "jeu"))]
             Err(_) => LoadingResult::new_failure(LoadingError::no_package(
                 241,
-                "[raw package]".to_string(),
+                PackageRequirement::new("[raw package]", &VersionReq::STAR),
             )),
         }
     }
