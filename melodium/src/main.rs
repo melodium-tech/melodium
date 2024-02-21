@@ -157,6 +157,9 @@ enum Commands {
 }
 
 pub fn main() {
+    #[cfg(windows)]
+    let _ = colored::control::set_virtual_terminal(true);
+
     let cli = Cli::parse();
 
     if let Some(file) = cli.file {
