@@ -20,10 +20,10 @@ name = "json_mel"
 futures = "0.3.28"
 melodium-core = { path = "../../melodium-core", version = "0.7.1" }
 melodium-macro = { path = "../../melodium-macro", version = "0.7.1" }
-jaq-core = { version = "1.0.0-beta" }
-jaq-interpret = { version = "1.0.0-beta", features = ["serde_json"] }
-jaq-parse = { version = "1.0.0-beta" }
-jaq-std = { version = "1.0.0-beta" }
+#jaq-core = { version = "1.0.0-beta" }
+#jaq-interpret = { version = "1.0.0-beta", features = ["serde_json"] }
+#jaq-parse = { version = "1.0.0-beta" }
+#jaq-std = { version = "1.0.0-beta" }
 serde = "1.0.185"
 serde_json = "1.0.105"
 
