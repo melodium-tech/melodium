@@ -11,13 +11,28 @@ pub mod value;
 /// JSON data.
 ///
 /// `Json` data type contains any valid json value.
-#[mel_data(traits(ToString))]
+///
+/// ℹ️ The traits `ToString` and `TryToString` have different behavior for conversion:
+/// - `ToString`, as infaillible, will give the literal JSON object string;
+/// - `TryToString`, as faillible, will give the internal string _if JSON object is only a string_, and none in the other cases.
+#[mel_data(traits(ToString TryToString))]
 #[derive(Debug, Clone, Serialize)]
 pub struct Json(pub serde_json::Value);
 
 impl ToString for Json {
     fn to_string(&self) -> string {
         self.0.to_string()
+    }
+}
+
+impl TryToString for Json {
+    fn try_to_string(&self) -> Option<string> {
+        if let Json(serde_json::Value::String(s)) = self {
+            Some(s.clone())
+        }
+        else {
+            None
+        }
     }
 }
 
