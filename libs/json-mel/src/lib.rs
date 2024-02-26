@@ -29,8 +29,7 @@ impl TryToString for Json {
     fn try_to_string(&self) -> Option<string> {
         if let Json(serde_json::Value::String(s)) = self {
             Some(s.clone())
-        }
-        else {
+        } else {
             None
         }
     }

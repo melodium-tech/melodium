@@ -294,7 +294,7 @@ fn convert_to_rust_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) -
                 conv = "value".to_string();
             }
             _ => {
-                conv = "melodium_core::common::executive::GetData::<std::sync::Arc<dyn melodium_core::Data>>::try_data(value).unwrap().downcast_arc().unwrap()".to_string()
+                conv = "std::sync::Arc::unwrap_or_clone(melodium_core::common::executive::GetData::<std::sync::Arc<dyn melodium_core::Data>>::try_data(value).unwrap().downcast_arc().unwrap())".to_string()
             }
             }
         } else {
