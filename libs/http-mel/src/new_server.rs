@@ -1,4 +1,5 @@
-use super::*;
+use crate::method::*;
+use crate::status::*;
 use async_ringbuf::{AsyncHeapRb, AsyncProducer, AsyncRb};
 use async_std::sync::{Arc as AsyncArc, RwLock as AsyncRwLock};
 use core::{fmt::Debug, mem::MaybeUninit};
@@ -15,6 +16,7 @@ use trillium::{Body, Conn};
 use trillium_async_std::Stopper;
 use trillium_router::{Router, RouterConnExt};
 use uuid::Uuid;
+use trillium::{Method, Status};
 
 #[mel_context]
 pub struct HttpRequest {
