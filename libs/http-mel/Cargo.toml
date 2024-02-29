@@ -21,6 +21,15 @@ async-std = "~1.12"
 futures = "0.3"
 melodium-core = { path = "../../melodium-core", version = "0.7.1" }
 melodium-macro = { path = "../../melodium-macro", version = "0.7.1" }
+serde = "1.0.185"
+trillium = { version = "0.2", features = ["serde"] }
+trillium-router = "0.3"
+trillium-async-std = "0.3"
+ringbuf = "0.3"
+async-ringbuf = "0.1"
+routefinder = "0.5"
+uuid = { version = "1.7", features = ["v4", "fast-rng"] }
+
 tide = { version = "0.16.0", default-features = false, features = ["h1-server"] }
 
 [features]

@@ -3,8 +3,12 @@
 #! version = 0.7.1
 #! require = http:0.7.1 std:0.7.1 javascript:0.7.1 encoding:0.7.1 json:0.7.1
 
-use http/server::HttpServer
-use http/server::connection
+use http/new_server::HttpServer
+use http/new_server::connection
+use http::HttpMethod
+use http::|ok
+use http::HttpStatus
+use http::|post
 use std/flow::emit
 use std/flow::trigger
 use std/ops/option::unwrapOr
@@ -20,12 +24,12 @@ use json/value::|null
 
 treatment main()
   model server: HttpServer(
-    routes=["/"],
-    bind="localhost:62333"
+    host="localhost",
+    port=62333
   )
 {
-    connection[http_server=server]()
-    status: emit<u16>(value=200)
+    connection[http_server=server](method=|post(), route="/hello")
+    status: emit<HttpStatus>(value=|ok())
     trigger<byte>()
     
     connection.data -> trigger.stream,start -> status.trigger,emit -> connection.status

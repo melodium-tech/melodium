@@ -206,6 +206,9 @@ impl ModelInstanciation {
                 self.design_reference.clone(),
             ));
         }
+        if result.has_errors() || result.is_failure() {
+            return result
+        }
 
         // Check all parameters does not refers to a context.
         for (name, param) in self.parameters.iter().filter(|&(_param_name, param)| {
