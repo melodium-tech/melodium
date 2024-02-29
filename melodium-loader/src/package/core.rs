@@ -214,12 +214,13 @@ impl PackageTrait for CorePackage {
 
         let contents = self.contents.read().unwrap();
         for designation in &internal_needs {
-            let content = contents.get(designation).unwrap();
-            results.merge_degrade_failure(
-                content
-                    .insert_descriptors(&mut collection)
-                    .convert_failure_errors(|err| LoadingError::content_error(161, Arc::new(err))),
-            );
+            if let Some(content) = contents.get(designation) {
+                results.merge_degrade_failure(
+                    content
+                        .insert_descriptors(&mut collection)
+                        .convert_failure_errors(|err| LoadingError::content_error(161, Arc::new(err))),
+                );
+            }
         }
         for (designation, content) in &*contents {
             if !internal_needs.contains(designation) {

@@ -3,7 +3,6 @@
 
 use melodium_core::{executive::*, *};
 use melodium_macro::{mel_data, mel_function, mel_package};
-use trillium::{Method, Status};
 
 pub mod client;
 pub mod method;

@@ -5,10 +5,10 @@
 
 use http/new_server::HttpServer
 use http/new_server::connection
-use http::HttpMethod
-use http::|ok
-use http::HttpStatus
-use http::|post
+use http/method::HttpMethod
+use http/status::|ok
+use http/status::HttpStatus
+use http/method::|post
 use std/flow::emit
 use std/flow::trigger
 use std/ops/option::unwrapOr
