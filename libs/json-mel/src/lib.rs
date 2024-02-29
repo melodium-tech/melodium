@@ -11,13 +11,73 @@ pub mod value;
 /// JSON data.
 ///
 /// `Json` data type contains any valid json value.
-#[mel_data(traits(ToString))]
+///
+/// ℹ️ The traits `ToString` and `TryToString` have different behavior for conversion:
+/// - `ToString`, as infaillible, will give the literal JSON object string;
+/// - `TryToString`, as faillible, will give the internal string _if JSON object is only a string_, and none in the other cases.
+#[mel_data(traits(ToString TryToString TryToBool TryToI64 TryToU64 TryToF64 Display))]
 #[derive(Debug, Clone, Serialize)]
 pub struct Json(pub serde_json::Value);
 
 impl ToString for Json {
     fn to_string(&self) -> string {
         self.0.to_string()
+    }
+}
+
+impl TryToString for Json {
+    fn try_to_string(&self) -> Option<string> {
+        if let Json(serde_json::Value::String(s)) = self {
+            Some(s.clone())
+        } else {
+            None
+        }
+    }
+}
+
+impl TryToBool for Json {
+    fn try_to_bool(&self) -> Option<bool> {
+        if let Json(serde_json::Value::Bool(b)) = self {
+            Some(*b)
+        } else {
+            None
+        }
+    }
+}
+
+impl TryToI64 for Json {
+    fn try_to_i64(&self) -> Option<i64> {
+        if let Json(serde_json::Value::Number(num)) = self {
+            num.as_i64()
+        } else {
+            None
+        }
+    }
+}
+
+impl TryToU64 for Json {
+    fn try_to_u64(&self) -> Option<u64> {
+        if let Json(serde_json::Value::Number(num)) = self {
+            num.as_u64()
+        } else {
+            None
+        }
+    }
+}
+
+impl TryToF64 for Json {
+    fn try_to_f64(&self) -> Option<f64> {
+        if let Json(serde_json::Value::Number(num)) = self {
+            num.as_f64()
+        } else {
+            None
+        }
+    }
+}
+
+impl Display for Json {
+    fn display(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+        write!(f, "{}", serde_json::ser::to_string_pretty(&self.0).unwrap())
     }
 }
 

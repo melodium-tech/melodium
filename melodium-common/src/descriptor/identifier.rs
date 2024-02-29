@@ -97,15 +97,7 @@ impl Identifier {
 
 impl Display for Identifier {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        let mut string = self.path.join("/");
-
-        string = string + "::" + &self.name;
-
-        if let Some(version) = &self.version {
-            write!(f, "{} ({})", string, version)
-        } else {
-            write!(f, "{}", string)
-        }
+        write!(f, "{}::{}", self.path.join("/"), self.name)
     }
 }
 
@@ -119,13 +111,31 @@ impl FromStr for Identifier {
 
 impl Ord for Identifier {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        self.to_string().cmp(&other.to_string())
+        let c = self.to_string().cmp(&other.to_string());
+        if c == core::cmp::Ordering::Equal {
+            if let (Some(s), Some(o)) = (self.version(), other.version()) {
+                s.cmp(o)
+            } else {
+                c
+            }
+        } else {
+            c
+        }
     }
 }
 
 impl PartialOrd for Identifier {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        self.to_string().partial_cmp(&other.to_string())
+        let c = self.to_string().partial_cmp(&other.to_string());
+        if c == Some(core::cmp::Ordering::Equal) {
+            if let (Some(s), Some(o)) = (self.version(), other.version()) {
+                s.partial_cmp(o)
+            } else {
+                c
+            }
+        } else {
+            c
+        }
     }
 }
 
