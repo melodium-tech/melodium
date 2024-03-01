@@ -1,0 +1,28 @@
+#!/usr/bin/env melodium
+#! name = http_client
+#! version = 0.7.1
+#! require = http:0.7.1 std:0.7.1 fs:0.7.1
+
+use http/new_client::HttpClient
+use http/new_client::get
+use std/flow::emit
+use std/engine/util::startup
+use fs/file::write
+
+treatment main(url: string, file: string)
+  model client: HttpClient(
+    base_url= _
+  )
+{
+    startup()
+    url: emit<string>(value=url)
+    filename: emit<string>(value=file)
+    get[client=client]()
+    write()
+
+    startup.trigger -> url.trigger,emit -> get.url
+    startup.trigger -> filename.trigger,emit -> write.path
+
+    get.data -> write.data
+}
+

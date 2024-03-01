@@ -1,0 +1,21 @@
+use http/method::HttpMethod
+use http/method::|get
+use http/new_client::HttpClient
+use http/status::HttpStatus
+use http/new_client::request
+use http/new_client::requestWithBody
+
+treatment get[client: HttpClient]()
+  input url: Block<string>
+  output data: Stream<byte>
+  output failure: Block<string>
+  output status: Block<HttpStatus>
+{
+    request[client=client](method=|get())
+
+    Self.url --------> request.url
+
+    request.data ----> Self.data
+    request.failure -> Self.failure
+    request.status --> Self.status
+}

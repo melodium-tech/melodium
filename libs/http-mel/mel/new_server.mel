@@ -18,7 +18,7 @@ treatment connection[http_server: HttpServer](const method: HttpMethod, const ro
   input status: Block<HttpStatus>
   input data: Stream<byte>
   output data: Stream<byte>
-  output failure: Block<void>
+  output failure: Block<string>
 {
     incoming[http_server=http_server](method=method, route=route)
     outgoing[http_server=http_server](id=@HttpRequest[id])

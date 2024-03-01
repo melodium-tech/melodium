@@ -4,5 +4,6 @@ members = [
     "complex_call",
     "fs",
     "generics",
+    "http_client",
     "http_javascript",
 ]

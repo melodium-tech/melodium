@@ -11,7 +11,7 @@ use trillium_client::{Body, Client};
 
 #[mel_model(
     param base_url Option<string> none
-    param tcp_no_delay bool none
+    param tcp_no_delay bool true
     initialize initialization
 )]
 #[derive(Debug)]
@@ -49,7 +49,7 @@ impl HttpClient {
 }
 
 #[mel_treatment(
-    model http_client HttpClient
+    model client HttpClient
     input url Block<string>
     output data Stream<byte>
     output failure Block<string>
@@ -61,7 +61,7 @@ pub async fn request(method: HttpMethod) {
         .await
         .map(|val| GetData::<string>::try_data(val).unwrap())
     {
-        if let Some(client) = HttpClientModel::into(http_client).inner().client() {
+        if let Some(client) = HttpClientModel::into(client).inner().client() {
             match client.build_conn(method.0, url).await {
                 Ok(mut conn) => {
                     if let Some(recv_status) = conn.status() {
@@ -108,7 +108,7 @@ pub async fn request(method: HttpMethod) {
 }
 
 #[mel_treatment(
-    model http_client HttpClient
+    model client HttpClient
     input url Block<string>
     input body Stream<byte>
     output data Stream<byte>
@@ -121,7 +121,7 @@ pub async fn request_with_body(method: HttpMethod) {
         .await
         .map(|val| GetData::<string>::try_data(val).unwrap())
     {
-        if let Some(client) = HttpClientModel::into(http_client).inner().client() {
+        if let Some(client) = HttpClientModel::into(client).inner().client() {
             let in_body_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
             let (mut in_prod, in_cons) = in_body_buf.split();
 
