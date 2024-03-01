@@ -3,7 +3,7 @@ use melodium_macro::{mel_data, mel_function};
 use trillium::Method;
 
 #[mel_data(traits(ToString PartialEquality Equality Display))]
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct HttpMethod(pub Method);
 
 impl ToString for HttpMethod {

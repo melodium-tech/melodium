@@ -6,15 +6,14 @@ use melodium_macro::{mel_data, mel_function, mel_package};
 
 pub mod client;
 pub mod method;
-pub mod status;
 pub mod server;
+pub mod status;
 
+pub mod new_client;
 pub mod new_server;
 
-
-
 #[mel_data(traits(ToString PartialEquality Equality Display))]
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Url(String);
 
 impl ToString for Url {

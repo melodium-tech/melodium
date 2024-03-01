@@ -51,14 +51,26 @@ fn into_mel_datatype(ty: &Vec<String>) -> String {
     fn write_datatype(iter: &mut Iter<String>) -> String {
         let mut desc = String::new();
         if let Some(ty) = iter.next() {
-            desc.push_str("melodium_core::common::descriptor::DataType::");
-            desc.push_str(&ty.to_case(Case::UpperCamel));
-
-            let next = write_datatype(iter);
-            if !next.is_empty() {
-                desc.push_str("(Box::new(");
-                desc.push_str(&next);
-                desc.push_str("))");
+            match ty.as_str() {
+                "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
+                | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" => {
+                    desc.push_str("melodium_core::common::descriptor::DataType::");
+                    desc.push_str(&ty.to_case(Case::UpperCamel));
+                }
+                "Vec" | "Option" => {
+                    desc.push_str("melodium_core::common::descriptor::DataType::");
+                    desc.push_str(ty.as_str());
+                    desc.push_str("(Box::new(");
+                    desc.push_str(&write_datatype(iter));
+                    desc.push_str("))");
+                }
+                data => {
+                    desc.push_str(
+                        r#"melodium_core::common::descriptor::DataType::Data(__mel_data_"#,
+                    );
+                    desc.push_str(data);
+                    desc.push_str(r#"::descriptor())"#);
+                }
             }
         }
         desc
@@ -1959,16 +1971,23 @@ pub fn mel_context(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let implementation;
     {
-        let get: proc_macro2::TokenStream = fields.iter().map(|(name, _)| {
-            format!(
-                r#""{name}" => melodium_core::common::executive::Value::from(self.{name}.clone())"#
-            )
-        }).collect::<Vec<_>>().join(",").parse().unwrap();
+        let get: proc_macro2::TokenStream = fields
+            .iter()
+            .map(|(name, ty)| {
+                format!(
+                    r#""{name}" => {{ let value = self.{name}.clone(); {} }}"#,
+                    convert_to_mel_value(ty, &Vec::new(), "value")
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+            .parse()
+            .unwrap();
 
         let set: proc_macro2::TokenStream = fields
             .iter()
             .map(|(name, ty)| {
-                let call = into_mel_value_call(ty, "value".to_string());
+                let call = convert_to_rust_value(ty, &Vec::new(), "value");
                 format!(r#""{name}" => {{self.{name} = {call};}}"#)
             })
             .collect::<Vec<_>>()

@@ -218,7 +218,9 @@ impl PackageTrait for CorePackage {
                 results.merge_degrade_failure(
                     content
                         .insert_descriptors(&mut collection)
-                        .convert_failure_errors(|err| LoadingError::content_error(161, Arc::new(err))),
+                        .convert_failure_errors(|err| {
+                            LoadingError::content_error(161, Arc::new(err))
+                        }),
                 );
             }
         }

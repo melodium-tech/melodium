@@ -13,16 +13,17 @@ use std::{
     sync::{RwLock, Weak},
 };
 use trillium::{Body, Conn};
+use trillium::{Method, Status};
 use trillium_async_std::Stopper;
 use trillium_router::{Router, RouterConnExt};
 use uuid::Uuid;
-use trillium::{Method, Status};
 
 #[mel_context]
 pub struct HttpRequest {
     pub id: u128,
     pub route: string,
     pub path: string,
+    pub method: HttpMethod,
 }
 
 type AsyncProducerStatus =
@@ -38,7 +39,7 @@ type AsyncProducerOutgoing =
         param route string none
     ) (
         data Stream<byte>
-        failure Block<void>
+        failure Block<string>
     )
     source failed_binding () () (
         failure Block<string>
@@ -105,7 +106,7 @@ impl HttpServer {
                 let outgoing = Arc::clone(&outgoing);
                 let model = Arc::clone(&model);
                 let method = Arc::clone(&method);
-                eprintln!("Preparing route handler {route:?}");
+
                 move |mut conn: Conn| {
                     let route = Arc::clone(&route);
                     let status = Arc::clone(&status);
@@ -113,17 +114,14 @@ impl HttpServer {
                     let model = Arc::clone(&model);
                     let method = Arc::clone(&method);
 
-                    eprintln!("Preparing route {route:?}");
-
                     async move {
                         let id = Uuid::new_v4();
                         let http_request = HttpRequest {
                             id: id.as_u128(),
                             route: conn.route().map(|r| r.to_string()).unwrap_or_default(),
                             path: conn.path().to_string(),
+                            method: (*method).clone(),
                         };
-
-                        eprintln!("Incoming request ({id})");
 
                         let params = {
                             let mut params = HashMap::new();
@@ -144,9 +142,9 @@ impl HttpServer {
                         outgoing.write().await.insert(id, prod);
 
                         let body = conn.request_body().await;
-                        let (content, is_failure) = match body.read_bytes().await {
-                            Ok(content) => (content, false),
-                            Err(_) => (Vec::new(), true),
+                        let (content, occured_failure) = match body.read_bytes().await {
+                            Ok(content) => (content, None),
+                            Err(err) => (Vec::new(), Some(err.to_string())),
                         };
 
                         model
@@ -159,10 +157,9 @@ impl HttpServer {
                                     let failure = outputs.get("failure");
 
                                     vec![Box::new(Box::pin(async move {
-                                        if is_failure {
-                                            let _ = failure.send_one(().into()).await;
+                                        if let Some(occured_failure) = occured_failure {
+                                            let _ = failure.send_one(occured_failure.into()).await;
                                         } else {
-                                            eprintln!("Received {} bytes", content.len());
                                             let _ = data
                                                 .send_many(TransmissionValue::Byte(content.into()))
                                                 .await;
@@ -197,8 +194,6 @@ impl HttpServer {
                 _ => {}
             }
         }
-
-        eprintln!("{router:?}");
 
         trillium_async_std::config()
             .without_signals()

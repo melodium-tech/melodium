@@ -1,9 +1,9 @@
 use melodium_core::{executive::*, *};
-use melodium_macro::{mel_data, mel_function,};
+use melodium_macro::{mel_data, mel_function};
 use trillium::Status;
 
 #[mel_data(traits(ToString PartialEquality Equality Display))]
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct HttpStatus(pub Status);
 
 impl ToString for HttpStatus {
