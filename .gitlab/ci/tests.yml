@@ -222,6 +222,7 @@ test:melodium:x86_64-unknown-linux-gnu:
     - testers:rust:x86_64-unknown-linux-gnu
   script:
     - export PATH="$CI_PROJECT_DIR/target/x86_64-unknown-linux-gnu/debug:$PATH"
+    - curl -v https://melodium.tech/ > /dev/null
     - cd tests/
     - |
       OK=0
@@ -248,6 +249,7 @@ test:melodium:x86_64-unknown-linux-musl:
     - testers:rust:x86_64-unknown-linux-musl
   script:
     - export PATH="$CI_PROJECT_DIR/target/x86_64-unknown-linux-musl/debug:$PATH"
+    - curl -v https://melodium.tech/ > /dev/null
     - cd tests/
     - |
       OK=0
@@ -278,6 +280,7 @@ test:melodium:i686-unknown-linux-gnu:
     - apt-get install -y libc6:i386 libstdc++6:i386
   script:
     - export PATH="$CI_PROJECT_DIR/target/i686-unknown-linux-gnu/debug:$PATH"
+    - curl -v https://melodium.tech/ > /dev/null
     - cd tests/
     - |
       OK=0
@@ -304,6 +307,7 @@ test:melodium:i686-unknown-linux-musl:
     - testers:rust:i686-unknown-linux-musl
   script:
     - export PATH="$CI_PROJECT_DIR/target/i686-unknown-linux-musl/debug:$PATH"
+    - curl -v https://melodium.tech/ > /dev/null
     - cd tests/
     - |
       OK=0
@@ -330,6 +334,7 @@ test:melodium:aarch64-apple-darwin:
     - testers:rust:aarch64-apple-darwin
   script:
     - export PATH="$CI_PROJECT_DIR/target/aarch64-apple-darwin/debug:$PATH"
+    - curl -v https://melodium.tech/ > /dev/null
     - cd tests/
     - |
       OK=0
