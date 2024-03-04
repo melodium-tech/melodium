@@ -36,10 +36,10 @@ mock = []
 plugin = []
 real = []
 
-[target.'cfg(not(any(target_env = "msvc", target_vendor = "apple", target_env = "gnu")))'.dependencies.trillium-rustls]
+[target.'cfg(all(not(target_env = "msvc"), not(target_vendor = "apple")))'.dependencies.trillium-rustls]
 version = "0.6"
 
-[target.'cfg(any(target_env = "msvc", target_vendor = "apple", target_env = "gnu"))'.dependencies.trillium-native-tls]
+[target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.trillium-native-tls]
 version = "0.3"
 
 [package.metadata.docs.rs]

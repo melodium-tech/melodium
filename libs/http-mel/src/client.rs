@@ -9,9 +9,9 @@ use std::sync::{Arc, Weak};
 use trillium_async_std::ClientConfig;
 use trillium_client::Url;
 use trillium_client::{Body, Client};
-#[cfg(any(target_env = "msvc", target_vendor = "apple", target_env = "gnu"))]
+#[cfg(any(target_env = "msvc", target_vendor = "apple"))]
 use trillium_native_tls::NativeTlsConfig as TlsConfig;
-#[cfg(not(any(target_env = "msvc", target_vendor = "apple", target_env = "gnu")))]
+#[cfg(all(not(target_env = "msvc"), not(target_vendor = "apple")))]
 use trillium_rustls::RustlsConfig as TlsConfig;
 
 /// HTTP client for general use
