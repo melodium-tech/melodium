@@ -18,6 +18,12 @@ use trillium_async_std::Stopper;
 use trillium_router::{Router, RouterConnExt};
 use uuid::Uuid;
 
+/// Describes HTTP request data.
+///
+/// - `id`: identifier of connection, it is an arbitrary number that uniquely identifies a HTTP connection to a server.
+/// - `route`: the route used by the request.
+/// - `path`: the path called by the request.
+/// - `method`: the HTTP method used by the request.
 #[mel_context]
 pub struct HttpRequest {
     pub id: u128,
@@ -31,6 +37,19 @@ type AsyncProducerStatus =
 type AsyncProducerOutgoing =
     AsyncProducer<u8, Arc<AsyncRb<u8, SharedRb<u8, Vec<MaybeUninit<u8>>>>>>;
 
+/// A HTTP server for general use.
+///
+/// The HTTP server provides configuration for receiving and responding to HTTP incoming requests.
+/// - `host`: the network address to bind with.
+/// - `port`: the port to bind with.
+///
+/// `HttpServer` aims to be used with `connection` treatment.
+/// Every time a new HTTP request matching a configured route comes, a new track is created with `@HttpRequest` context.
+///
+/// ℹ️ If server binding fails, `failed_binding` is emitted.
+///
+/// ⚠️ Use `HttpServer` with `connection` treatment, as using `incoming` source and `outgoing` treatment directly should be done carefully.
+///
 #[mel_model(
     param host string none
     param port u16 none
@@ -49,7 +68,6 @@ type AsyncProducerOutgoing =
 )]
 pub struct HttpServer {
     model: Weak<HttpServerModel>,
-    //connections: Arc<RwLock<HashMap<u64, Sender<(u16, Vec<u8>)>>>>,
     routes: RwLock<Vec<(Arc<HttpMethod>, String)>>,
     status: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerStatus>>>,
     outgoing: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerOutgoing>>>,

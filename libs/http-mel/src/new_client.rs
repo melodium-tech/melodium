@@ -9,6 +9,12 @@ use std::sync::{Arc, Weak};
 use trillium_async_std::ClientConfig;
 use trillium_client::{Body, Client};
 
+/// HTTP client for general use
+///
+/// The HTTP client provides configuration for HTTP requests.
+///
+/// - `base_url`: The base URL for a client. All request URLs will be relative to this URL.
+/// - `tcp_no_delay`: TCP `NO_DELAY` field.
 #[mel_model(
     param base_url Option<string> none
     param tcp_no_delay bool true
@@ -48,6 +54,16 @@ impl HttpClient {
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
+/// Performs HTTP operation without data emission.
+///
+/// This treatment process HTTP request to the given `url`.
+/// - `method`: HTTP method used for the request.
+///
+/// - `url`: the URL to use for the request (combined with optionnal base from the client model), request starts as soon as the URL is transmitted.
+///
+/// - `status`: HTTP status response.
+/// - `data`: data received as response, corresponding to the HTTP body.
+/// - `failure`: emitted if the request failed technically, containing the failure message.
 #[mel_treatment(
     model client HttpClient
     input url Block<string>
@@ -107,6 +123,17 @@ pub async fn request(method: HttpMethod) {
     }
 }
 
+/// Performs HTTP operation with data emission.
+///
+/// This treatment process HTTP request to the given `url`.
+/// - `method`: HTTP method used for the request.
+///
+/// - `url`: the URL to use for the request (combined with optionnal base from the client model), request starts as soon as the URL is transmitted.
+/// - `body`: data to send as request body.
+///
+/// - `status`: HTTP status response.
+/// - `data`: data received as response, corresponding to the HTTP body.
+/// - `failure`: emitted if the request failed technically, containing the failure message.
 #[mel_treatment(
     model client HttpClient
     input url Block<string>

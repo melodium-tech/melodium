@@ -13,7 +13,7 @@ fn main() {
 
     for trial in 0..3 {
         sleep(Duration::from_millis(200));
-        match ureq::post("http://localhost:62333/")
+        match ureq::post("http://localhost:62333/hello")
             .set("Content-Type", "text/plain")
             .send_bytes(r#""Pingouin""#.as_bytes())
         {
