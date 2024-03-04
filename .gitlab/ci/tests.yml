@@ -221,6 +221,7 @@ test:melodium:x86_64-unknown-linux-gnu:
     - build:debug:x86_64-unknown-linux-gnu
     - testers:rust:x86_64-unknown-linux-gnu
   script:
+    - apt install curl
     - export PATH="$CI_PROJECT_DIR/target/x86_64-unknown-linux-gnu/debug:$PATH"
     - curl -v https://melodium.tech/ > /dev/null
     - cd tests/
@@ -248,6 +249,8 @@ test:melodium:x86_64-unknown-linux-musl:
     - build:debug:x86_64-unknown-linux-musl
     - testers:rust:x86_64-unknown-linux-musl
   script:
+    - apk update
+    - apk add curl
     - export PATH="$CI_PROJECT_DIR/target/x86_64-unknown-linux-musl/debug:$PATH"
     - curl -v https://melodium.tech/ > /dev/null
     - cd tests/
@@ -279,6 +282,7 @@ test:melodium:i686-unknown-linux-gnu:
     - apt-get update
     - apt-get install -y libc6:i386 libstdc++6:i386
   script:
+    - apt install curl
     - export PATH="$CI_PROJECT_DIR/target/i686-unknown-linux-gnu/debug:$PATH"
     - curl -v https://melodium.tech/ > /dev/null
     - cd tests/
@@ -306,6 +310,8 @@ test:melodium:i686-unknown-linux-musl:
     - build:debug:i686-unknown-linux-musl
     - testers:rust:i686-unknown-linux-musl
   script:
+    - apk update
+    - apk add curl
     - export PATH="$CI_PROJECT_DIR/target/i686-unknown-linux-musl/debug:$PATH"
     - curl -v https://melodium.tech/ > /dev/null
     - cd tests/

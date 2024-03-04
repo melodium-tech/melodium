@@ -4,6 +4,7 @@ fn main() {
     // Without TLS
     test_download("http://neverssl.com/", "neverssl.html", "neverssl.log");
     // With TLS
+    test_download("https://google.fr/", "google_withtls.html", "glg.log");
     test_download("https://melodium.tech/", "melodium_withtls.html", "tls.log");
 }
 
