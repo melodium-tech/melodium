@@ -3498,7 +3498,6 @@ dependencies = [
  "log",
  "rustls 0.22.2",
  "rustls-native-certs",
- "rustls-pemfile",
  "trillium-server-common",
  "webpki-roots 0.26.1",
 ]

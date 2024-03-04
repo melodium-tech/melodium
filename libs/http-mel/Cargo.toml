@@ -38,6 +38,8 @@ real = []
 
 [target.'cfg(all(not(target_env = "msvc"), not(target_vendor = "apple")))'.dependencies.trillium-rustls]
 version = "0.6"
+default-features = false
+features = ["native-roots", "ring", "client"]
 
 [target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.trillium-native-tls]
 version = "0.3"
