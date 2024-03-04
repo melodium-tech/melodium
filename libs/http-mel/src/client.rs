@@ -8,6 +8,10 @@ use std::sync::RwLock;
 use std::sync::{Arc, Weak};
 use trillium_async_std::ClientConfig;
 use trillium_client::{Body, Client};
+#[cfg(any(target_env = "msvc", target_vendor = "apple"))]
+use trillium_native_tls::NativeTlsConfig as TlsConfig;
+#[cfg(all(not(target_env = "msvc"), not(target_vendor = "apple")))]
+use trillium_rustls::RustlsConfig as TlsConfig;
 
 /// HTTP client for general use
 ///
@@ -37,7 +41,8 @@ impl HttpClient {
     fn initialization(&self) {
         let model = self.model.upgrade().unwrap();
 
-        let config = ClientConfig::new().with_nodelay(model.get_tcp_no_delay());
+        let config = TlsConfig::default()
+            .with_tcp_config(ClientConfig::new().with_nodelay(model.get_tcp_no_delay()));
 
         let mut client = Client::new(config).with_default_pool();
         if let Some(base) = model.get_base_url() {
@@ -88,32 +93,30 @@ pub async fn request(method: HttpMethod) {
                             .await;
 
                         let data_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
-                        let (mut prod, mut cons) = data_buf.split();
+                        let (prod, mut cons) = data_buf.split();
 
-                        let mut response_body = conn.response_body();
-                        let _ = futures::join!(
-                            async_std::io::copy(&mut response_body, &mut prod),
-                            async {
-                                loop {
-                                    let mut size = 2usize.pow(20);
-                                    let mut recv_data = vec![0; size];
-                                    match cons.pop_slice(&mut recv_data).await {
-                                        Ok(_) => {}
-                                        Err(written_size) => size = written_size,
-                                    }
+                        let response_body = conn.response_body();
+                        let _ = futures::join!(async_std::io::copy(response_body, prod), async {
+                            loop {
+                                let mut size = 2usize.pow(20);
+                                let mut recv_data = vec![0; size];
 
-                                    recv_data.truncate(size);
+                                match cons.pop_slice(&mut recv_data).await {
+                                    Ok(_) => {}
+                                    Err(written_size) => size = written_size,
+                                }
 
-                                    check!(
-                                        data.send_many(TransmissionValue::Byte(recv_data.into()))
-                                            .await
-                                    );
-                                    if cons.is_closed() {
-                                        break;
-                                    }
+                                recv_data.truncate(size);
+
+                                check!(
+                                    data.send_many(TransmissionValue::Byte(recv_data.into()))
+                                        .await
+                                );
+                                if cons.is_closed() {
+                                    break;
                                 }
                             }
-                        );
+                        });
                     }
                 }
                 Err(err) => {
@@ -181,12 +184,11 @@ pub async fn request_with_body(method: HttpMethod) {
                             .await;
 
                         let out_data_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
-                        let (mut out_prod, mut out_cons) = out_data_buf.split();
+                        let (out_prod, mut out_cons) = out_data_buf.split();
 
-                        let mut response_body = conn.response_body();
-                        let _ = futures::join!(
-                            async_std::io::copy(&mut response_body, &mut out_prod),
-                            async {
+                        let response_body = conn.response_body();
+                        let _ =
+                            futures::join!(async_std::io::copy(response_body, out_prod), async {
                                 loop {
                                     let mut size = 2usize.pow(20);
                                     let mut recv_data = vec![0; size];
@@ -205,8 +207,7 @@ pub async fn request_with_body(method: HttpMethod) {
                                         break;
                                     }
                                 }
-                            }
-                        );
+                            });
                     }
                 }
                 (_, Err(err)) => {

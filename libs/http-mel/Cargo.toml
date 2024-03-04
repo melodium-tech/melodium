@@ -17,7 +17,7 @@ crate-type = ["lib", "cdylib"]
 name = "http_mel"
 
 [dependencies]
-async-std = "~1.12"
+async-std = {version="~1.12", features=["unstable"]}
 futures = "0.3"
 melodium-core = { path = "../../melodium-core", version = "0.7.1" }
 melodium-macro = { path = "../../melodium-macro", version = "0.7.1" }
@@ -36,15 +36,13 @@ mock = []
 plugin = []
 real = []
 
-# [target.'cfg(all(not(target_env = "msvc"), not(target_vendor = "apple")))'.dependencies.surf]
-# version = "2.3.2"
-# default-features = false
-# features = ["h1-client-rustls"]
+[target.'cfg(all(not(target_env = "msvc"), not(target_vendor = "apple")))'.dependencies.trillium-rustls]
+version = "0.6"
+default-features = false
+features = ["native-roots", "ring", "client"]
 
-# [target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.surf]
-# version = "2.3.2"
-# default-features = false
-# features = ["h1-client"] # Native TLS
+[target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.trillium-native-tls]
+version = "0.3"
 
 [package.metadata.docs.rs]
 all-features = true

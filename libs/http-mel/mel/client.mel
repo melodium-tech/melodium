@@ -7,10 +7,10 @@ use http/method::|patch
 use http/method::|post
 use http/method::|put
 use http/method::|trace
-use http/new_client::HttpClient
+use http/client::HttpClient
 use http/status::HttpStatus
-use http/new_client::request
-use http/new_client::requestWithBody
+use http/client::request
+use http/client::requestWithBody
 
 /** Performs HTTP DELETE operation.
 
