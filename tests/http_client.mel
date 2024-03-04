@@ -8,8 +8,10 @@ use http/client::get
 use std/flow::emit
 use std/engine/util::startup
 use fs/file::write
+use std/text/convert/string::toUtf8
+use std/flow::stream
 
-treatment main(url: string, file: string)
+treatment main(url: string, file: string, log: string)
   model client: HttpClient(
     base_url= _
   )
@@ -23,6 +25,13 @@ treatment main(url: string, file: string)
     startup.trigger -> url.trigger,emit -> get.url
     startup.trigger -> filename.trigger,emit -> write.path
 
+    log_name: emit<string>(value=log)
+    log: write()
+    startup.trigger -> log_name.trigger,emit -> log.path
+    toUtf8()
+    stream<string>()
+
     get.data -> write.data
+    get.failure -> stream.block,stream -> toUtf8.text,encoded -> log.data
 }
 
