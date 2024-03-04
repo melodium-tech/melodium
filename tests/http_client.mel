@@ -3,8 +3,8 @@
 #! version = 0.7.1
 #! require = http:0.7.1 std:0.7.1 fs:0.7.1
 
-use http/new_client::HttpClient
-use http/new_client::get
+use http/client::HttpClient
+use http/client::get
 use std/flow::emit
 use std/engine/util::startup
 use fs/file::write

@@ -9,9 +9,6 @@ pub mod method;
 pub mod server;
 pub mod status;
 
-pub mod new_client;
-pub mod new_server;
-
 #[mel_data(traits(ToString PartialEquality Equality Display))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Url(String);

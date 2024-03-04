@@ -3,8 +3,8 @@
 #! version = 0.7.1
 #! require = http:0.7.1 std:0.7.1 javascript:0.7.1 encoding:0.7.1 json:0.7.1
 
-use http/new_server::HttpServer
-use http/new_server::connection
+use http/server::HttpServer
+use http/server::connection
 use http/method::HttpMethod
 use http/status::|ok
 use http/status::HttpStatus

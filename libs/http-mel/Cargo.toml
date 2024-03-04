@@ -31,22 +31,20 @@ async-ringbuf = "0.1"
 routefinder = "0.5"
 uuid = { version = "1.7", features = ["v4", "fast-rng"] }
 
-tide = { version = "0.16.0", default-features = false, features = ["h1-server"] }
-
 [features]
 mock = []
 plugin = []
 real = []
 
-[target.'cfg(all(not(target_env = "msvc"), not(target_vendor = "apple")))'.dependencies.surf]
-version = "2.3.2"
-default-features = false
-features = ["h1-client-rustls"]
+# [target.'cfg(all(not(target_env = "msvc"), not(target_vendor = "apple")))'.dependencies.surf]
+# version = "2.3.2"
+# default-features = false
+# features = ["h1-client-rustls"]
 
-[target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.surf]
-version = "2.3.2"
-default-features = false
-features = ["h1-client"] # Native TLS
+# [target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.surf]
+# version = "2.3.2"
+# default-features = false
+# features = ["h1-client"] # Native TLS
 
 [package.metadata.docs.rs]
 all-features = true
