@@ -12,7 +12,7 @@ fn test_download(url: &str, file: &str) {
         .arg("run")
         .arg("http_client.mel")
         .arg("--url")
-        .arg(r#""{url}""#)
+        .arg(&format!(r#""{url}""#))
         .arg("--file")
         .arg(&format!(r#""{file}""#))
         .spawn()

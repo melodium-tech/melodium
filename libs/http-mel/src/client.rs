@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 use std::sync::{Arc, Weak};
 use trillium_async_std::ClientConfig;
+use trillium_client::Url;
 use trillium_client::{Body, Client};
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
 use trillium_native_tls::NativeTlsConfig as TlsConfig;
@@ -46,7 +47,9 @@ impl HttpClient {
 
         let mut client = Client::new(config).with_default_pool();
         if let Some(base) = model.get_base_url() {
-            client = client.with_base(base);
+            if let Ok(url) = Url::parse(&base) {
+                client = client.with_base(url);
+            }
         }
 
         *self.client.write().unwrap() = Some(Arc::new(client));
@@ -83,42 +86,54 @@ pub async fn request(method: HttpMethod) {
         .map(|val| GetData::<string>::try_data(val).unwrap())
     {
         if let Some(client) = HttpClientModel::into(client).inner().client() {
-            match client.build_conn(method.0, url).await {
-                Ok(mut conn) => {
-                    if let Some(recv_status) = conn.status() {
-                        let _ = status
-                            .send_one(Value::Data(
-                                Arc::new(HttpStatus(recv_status)) as Arc<dyn Data>
-                            ))
-                            .await;
+            match client
+                .base()
+                .map(|base_url| base_url.join(&url))
+                .unwrap_or_else(|| Url::parse(&url))
+            {
+                Ok(_) => match client.build_conn(method.0, url).await {
+                    Ok(mut conn) => {
+                        if let Some(recv_status) = conn.status() {
+                            let _ = status
+                                .send_one(Value::Data(
+                                    Arc::new(HttpStatus(recv_status)) as Arc<dyn Data>
+                                ))
+                                .await;
 
-                        let data_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
-                        let (prod, mut cons) = data_buf.split();
+                            let data_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
+                            let (prod, mut cons) = data_buf.split();
 
-                        let response_body = conn.response_body();
-                        let _ = futures::join!(async_std::io::copy(response_body, prod), async {
-                            loop {
-                                let mut size = 2usize.pow(20);
-                                let mut recv_data = vec![0; size];
+                            let response_body = conn.response_body();
+                            let _ =
+                                futures::join!(async_std::io::copy(response_body, prod), async {
+                                    loop {
+                                        let mut size = 2usize.pow(20);
+                                        let mut recv_data = vec![0; size];
 
-                                match cons.pop_slice(&mut recv_data).await {
-                                    Ok(_) => {}
-                                    Err(written_size) => size = written_size,
-                                }
+                                        match cons.pop_slice(&mut recv_data).await {
+                                            Ok(_) => {}
+                                            Err(written_size) => size = written_size,
+                                        }
 
-                                recv_data.truncate(size);
+                                        recv_data.truncate(size);
 
-                                check!(
-                                    data.send_many(TransmissionValue::Byte(recv_data.into()))
-                                        .await
-                                );
-                                if cons.is_closed() {
-                                    break;
-                                }
-                            }
-                        });
+                                        check!(
+                                            data.send_many(TransmissionValue::Byte(
+                                                recv_data.into()
+                                            ))
+                                            .await
+                                        );
+                                        if cons.is_closed() {
+                                            break;
+                                        }
+                                    }
+                                });
+                        }
                     }
-                }
+                    Err(err) => {
+                        let _ = failure.send_one(err.to_string().into()).await;
+                    }
+                },
                 Err(err) => {
                     let _ = failure.send_one(err.to_string().into()).await;
                 }
@@ -153,64 +168,79 @@ pub async fn request_with_body(method: HttpMethod) {
         .map(|val| GetData::<string>::try_data(val).unwrap())
     {
         if let Some(client) = HttpClientModel::into(client).inner().client() {
-            let in_body_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
-            let (mut in_prod, in_cons) = in_body_buf.split();
+            match client
+                .base()
+                .map(|base_url| base_url.join(&url))
+                .unwrap_or_else(|| Url::parse(&url))
+            {
+                Ok(_) => {
+                    let in_body_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
+                    let (mut in_prod, in_cons) = in_body_buf.split();
 
-            let conn_doing = async {
-                client
-                    .build_conn(method.0, url)
-                    .with_body(Body::new_streaming(in_cons, None))
-                    .await
-            };
-            let body_transmission = async {
-                while let Ok(body_data) = body
-                    .recv_many()
-                    .await
-                    .map(|values| TryInto::<VecDeque<u8>>::try_into(values).unwrap())
-                {
-                    if let Err(_) = in_prod.push_iter(body_data.into_iter()).await {
-                        break;
+                    let conn_doing = async {
+                        client
+                            .build_conn(method.0, url)
+                            .with_body(Body::new_streaming(in_cons, None))
+                            .await
+                    };
+                    let body_transmission = async {
+                        while let Ok(body_data) = body
+                            .recv_many()
+                            .await
+                            .map(|values| TryInto::<VecDeque<u8>>::try_into(values).unwrap())
+                        {
+                            if let Err(_) = in_prod.push_iter(body_data.into_iter()).await {
+                                break;
+                            }
+                        }
+                    };
+
+                    match futures::join!(body_transmission, conn_doing) {
+                        (_, Ok(mut conn)) => {
+                            if let Some(recv_status) = conn.status() {
+                                let _ = status
+                                    .send_one(Value::Data(
+                                        Arc::new(HttpStatus(recv_status)) as Arc<dyn Data>
+                                    ))
+                                    .await;
+
+                                let out_data_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
+                                let (out_prod, mut out_cons) = out_data_buf.split();
+
+                                let response_body = conn.response_body();
+                                let _ = futures::join!(
+                                    async_std::io::copy(response_body, out_prod),
+                                    async {
+                                        loop {
+                                            let mut size = 2usize.pow(20);
+                                            let mut recv_data = vec![0; size];
+                                            match out_cons.pop_slice(&mut recv_data).await {
+                                                Ok(_) => {}
+                                                Err(written_size) => size = written_size,
+                                            }
+
+                                            recv_data.truncate(size);
+
+                                            check!(
+                                                data.send_many(TransmissionValue::Byte(
+                                                    recv_data.into()
+                                                ))
+                                                .await
+                                            );
+                                            if out_cons.is_closed() {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                );
+                            }
+                        }
+                        (_, Err(err)) => {
+                            let _ = failure.send_one(err.to_string().into()).await;
+                        }
                     }
                 }
-            };
-
-            match futures::join!(body_transmission, conn_doing) {
-                (_, Ok(mut conn)) => {
-                    if let Some(recv_status) = conn.status() {
-                        let _ = status
-                            .send_one(Value::Data(
-                                Arc::new(HttpStatus(recv_status)) as Arc<dyn Data>
-                            ))
-                            .await;
-
-                        let out_data_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
-                        let (out_prod, mut out_cons) = out_data_buf.split();
-
-                        let response_body = conn.response_body();
-                        let _ =
-                            futures::join!(async_std::io::copy(response_body, out_prod), async {
-                                loop {
-                                    let mut size = 2usize.pow(20);
-                                    let mut recv_data = vec![0; size];
-                                    match out_cons.pop_slice(&mut recv_data).await {
-                                        Ok(_) => {}
-                                        Err(written_size) => size = written_size,
-                                    }
-
-                                    recv_data.truncate(size);
-
-                                    check!(
-                                        data.send_many(TransmissionValue::Byte(recv_data.into()))
-                                            .await
-                                    );
-                                    if out_cons.is_closed() {
-                                        break;
-                                    }
-                                }
-                            });
-                    }
-                }
-                (_, Err(err)) => {
+                Err(err) => {
                     let _ = failure.send_one(err.to_string().into()).await;
                 }
             }
