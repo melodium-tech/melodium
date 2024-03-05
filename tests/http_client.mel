@@ -10,19 +10,24 @@ use std/engine/util::startup
 use fs/file::write
 use std/text/convert/string::toUtf8
 use std/flow::stream
+use std/data::Map
+use std/data::|map
 
 treatment main(url: string, file: string, log: string)
   model client: HttpClient(
-    base_url= _
+    base_url= _,
+    headers=|map([])
   )
 {
     startup()
     url: emit<string>(value=url)
+    headers: emit<Map>(value=|map([]))
     filename: emit<string>(value=file)
     get[client=client]()
     write()
 
-    startup.trigger -> url.trigger,emit -> get.url
+    startup.trigger -> url.trigger,emit ------> get.url
+    startup.trigger -> headers.trigger,emit --> get.headers
     startup.trigger -> filename.trigger,emit -> write.path
 
     log_name: emit<string>(value=log)

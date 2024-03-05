@@ -9,14 +9,21 @@ use http/method::|put
 use http/method::|trace
 use http/client::HttpClient
 use http/status::HttpStatus
+use std/data::Map
 use http/client::request
 use http/client::requestWithBody
 
 /** Performs HTTP DELETE operation.
 
-    - `url`: input gives the URL to call DELETE on (combined with optionnal base from the client model), request starts as soon as the URL is transmitted.
-    
+    Request starts as soon as the URL and headers are transmitted.
+
+    Inputs:
+    - `url`: input gives the URL to call DELETE on (combined with optionnal base from the client model).
+    - `headers`: headers to send in request.
+
+    Outputs:
     - `status`: HTTP status response.
+    - `headers`: headers received in response.
     - `data`: data received as response, corresponding to the HTTP body.
     - `failure`: emitted if the request failed technically, containing the failure message.
     
@@ -24,24 +31,34 @@ use http/client::requestWithBody
 */
 treatment delete[client: HttpClient]()
   input url: Block<string>
+  input headers: Block<Map>
   output data: Stream<byte>
+  output headers: Block<Map>
   output failure: Block<string>
   output status: Block<HttpStatus>
 {
     request[client=client](method=|delete())
 
     Self.url --------> request.url
+    Self.headers ----> request.req_headers
 
-    request.data ----> Self.data
-    request.failure -> Self.failure
-    request.status --> Self.status
+    request.data --------> Self.data
+    request.res_headers -> Self.headers
+    request.failure -----> Self.failure
+    request.status ------> Self.status
 }
 
 /** Performs HTTP GET operation.
 
-    - `url`: input gives the URL to call GET on (combined with optionnal base from the client model), request starts as soon as the URL is transmitted.
+  Request starts as soon as the URL and headers are transmitted.
+
+    Inputs:
+    - `url`: input gives the URL to call GET on (combined with optionnal base from the client model).
+    - `headers`: headers to send in request.
     
+    Outputs:
     - `status`: HTTP status response.
+    - `headers`: headers received in response.
     - `data`: data received as response, corresponding to the HTTP body.
     - `failure`: emitted if the request failed technically, containing the failure message.
     
@@ -49,46 +66,66 @@ treatment delete[client: HttpClient]()
 */
 treatment get[client: HttpClient]()
   input url: Block<string>
+  input headers: Block<Map>
   output data: Stream<byte>
+  output headers: Block<Map>
   output failure: Block<string>
   output status: Block<HttpStatus>
 {
     request[client=client](method=|get())
 
     Self.url --------> request.url
+    Self.headers ----> request.req_headers
 
-    request.data ----> Self.data
-    request.failure -> Self.failure
-    request.status --> Self.status
+    request.data --------> Self.data
+    request.res_headers -> Self.headers
+    request.failure -----> Self.failure
+    request.status ------> Self.status
 }
 
 /** Performs HTTP HEAD operation.
 
-    - `url`: input gives the URL to call HEAD on (combined with optionnal base from the client model), request starts as soon as the URL is transmitted.
+    Request starts as soon as the URL and headers are transmitted.
+
+    Inputs:
+    - `url`: input gives the URL to call HEAD on (combined with optionnal base from the client model).
+    - `headers`: headers to send in request.
     
+    Outputs:
     - `status`: HTTP status response.
+    - `headers`: headers received in response.
     - `failure`: emitted if the request failed technically, containing the failure message.
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/HEAD).
 */
 treatment head[client: HttpClient]()
   input url: Block<string>
+  input headers: Block<Map>
+  output headers: Block<Map>
   output failure: Block<string>
   output status: Block<HttpStatus>
 {
     request[client=client](method=|head())
 
     Self.url --------> request.url
+    Self.headers ----> request.req_headers
 
-    request.failure -> Self.failure
-    request.status --> Self.status
+    request.res_headers -> Self.headers
+    request.failure -----> Self.failure
+    request.status ------> Self.status
 }
 
 /** Performs HTTP OPTIONS operation.
 
-    - `url`: input gives the URL to call OPTIONS on (combined with optionnal base from the client model), request starts as soon as the URL is transmitted.
+    Request starts as soon as the URL and headers are transmitted.
+
+    Inputs:
+    - `url`: input gives the URL to call OPTIONS on (combined with optionnal base from the client model).
+    - `headers`: headers to send in request.
     
+    Outputs:
     - `status`: HTTP status response.
+    - `headers`: headers received in response.
     - `data`: data received as response, corresponding to the HTTP body.
     - `failure`: emitted if the request failed technically, containing the failure message.
     
@@ -96,50 +133,71 @@ treatment head[client: HttpClient]()
 */
 treatment options[client: HttpClient]()
   input url: Block<string>
+  input headers: Block<Map>
   output data: Stream<byte>
+  output headers: Block<Map>
   output failure: Block<string>
   output status: Block<HttpStatus>
 {
     request[client=client](method=|options())
 
     Self.url --------> request.url
+    Self.headers ----> request.req_headers
 
-    request.data ----> Self.data
-    request.failure -> Self.failure
-    request.status --> Self.status
+    request.data --------> Self.data
+    request.res_headers -> Self.headers
+    request.failure -----> Self.failure
+    request.status ------> Self.status
 }
 
 /** Performs HTTP PATCH operation.
 
-    - `url`: input gives the URL to call PATCH on (combined with optionnal base from the client model), request starts as soon as the URL is transmitted.
+    Request starts as soon as the URL and headers are transmitted.
+
+    Inputs:
+    - `url`: input gives the URL to call PATCH on (combined with optionnal base from the client model).
+    - `headers`: headers to send in request.
     - `data`: data sent in request, corresponding to the HTTP body.
 
+    Outputs:
     - `status`: HTTP status response.
+    - `headers`: headers received in response.
     - `failure`: emitted if the request failed technically, containing the failure message.
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/PATCH).
 */
 treatment patch[client: HttpClient]()
   input url: Block<string>
+  input headers: Block<Map>
   input data: Stream<byte>
+  output headers: Block<Map>
   output failure: Block<string>
   output status: Block<HttpStatus>
 {
     request: requestWithBody[client=client](method=|patch())
 
     Self.url --------> request.url
+    Self.headers ----> request.req_headers
     Self.data -------> request.body
 
-    request.failure -> Self.failure
-    request.status --> Self.status
+    request.res_headers -> Self.headers
+    request.failure -----> Self.failure
+    request.status ------> Self.status
 }
 
 /** Performs HTTP POST operation.
 
-    - `url`: input gives the URL to call POST on (combined with optionnal base from the client model), request starts as soon as the URL is transmitted.
+    Request starts as soon as the URL and headers are transmitted.
+
+    Inputs:
+    - `url`: input gives the URL to call POST on (combined with optionnal base from the client model).
+    - `headers`: headers to send in request.
     - `data`: data sent in request, corresponding to the HTTP body.
 
+
+    Outputs:
     - `status`: HTTP status response.
+    - `headers`: headers received in response.
     - `data`: data received as response, corresponding to the HTTP body.
     - `failure`: emitted if the request failed technically, containing the failure message.
     
@@ -147,65 +205,89 @@ treatment patch[client: HttpClient]()
 */
 treatment post[client: HttpClient]()
   input url: Block<string>
+  input headers: Block<Map>
   input data: Stream<byte>
   output data: Stream<byte>
+  output headers: Block<Map>
   output failure: Block<string>
   output status: Block<HttpStatus>
 {
     request: requestWithBody[client=client](method=|post())
 
     Self.url --------> request.url
+    Self.headers ----> request.req_headers
     Self.data -------> request.body
 
-    request.data ----> Self.data
-    request.failure -> Self.failure
-    request.status --> Self.status
+    request.data --------> Self.data
+    request.res_headers -> Self.headers
+    request.failure -----> Self.failure
+    request.status ------> Self.status
 }
 
 /** Performs HTTP PUT operation.
 
-    - `url`: input gives the URL to call PUT on (combined with optionnal base from the client model), request starts as soon as the URL is transmitted.
+    Request starts as soon as the URL and headers are transmitted.
+
+    Inputs:
+    - `url`: input gives the URL to call PUT on (combined with optionnal base from the client model).
+    - `headers`: headers to send in request.
     - `data`: data sent in request, corresponding to the HTTP body.
 
+    Outputs:
     - `status`: HTTP status response.
+    - `headers`: headers received in response.
     - `failure`: emitted if the request failed technically, containing the failure message.
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/PUT).
 */
 treatment put[client: HttpClient]()
   input url: Block<string>
+  input headers: Block<Map>
   input data: Stream<byte>
+  output headers: Block<Map>
   output failure: Block<string>
   output status: Block<HttpStatus>
 {
     request: requestWithBody[client=client](method=|put())
 
     Self.url --------> request.url
+    Self.headers ----> request.req_headers
     Self.data -------> request.body
 
-    request.failure -> Self.failure
-    request.status --> Self.status
+    request.res_headers -> Self.headers
+    request.failure -----> Self.failure
+    request.status ------> Self.status
 }
 
 /** Performs HTTP TRACE operation.
 
-    - `url`: input gives the URL to call TRACE on (combined with optionnal base from the client model), request starts as soon as the URL is transmitted.
+    Request starts as soon as the URL and headers are transmitted.
 
+    Inputs:
+    - `url`: input gives the URL to call TRACE on (combined with optionnal base from the client model).
+    - `headers`: headers to send in request.
+
+    Outputs:
     - `status`: HTTP status response.
+    - `headers`: headers received in response.
     - `failure`: emitted if the request failed technically, containing the failure message.
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/TRACE).
 */
 treatment trace[client: HttpClient]()
   input url: Block<string>
+  input headers: Block<Map>
+  output headers: Block<Map>
   output failure: Block<string>
   output status: Block<HttpStatus>
 {
     request[client=client](method=|trace())
 
     Self.url --------> request.url
+    Self.headers ----> request.req_headers
 
-    request.failure -> Self.failure
-    request.status --> Self.status
+    request.res_headers -> Self.headers
+    request.failure -----> Self.failure
+    request.status ------> Self.status
 }
 

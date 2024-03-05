@@ -7,7 +7,19 @@ use std::collections::HashMap;
 )]
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Map {
-    map: HashMap<String, Value>,
+    pub map: HashMap<String, Value>,
+}
+
+impl Map {
+    pub fn new() -> Self {
+        Self {
+            map: HashMap::new()
+        }
+    }
+
+    pub fn new_with(map: HashMap<String, Value>) -> Self {
+        Self { map }
+    }
 }
 
 impl Display for Map {

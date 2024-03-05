@@ -6,6 +6,10 @@ use melodium_macro::{check, mel_model, mel_treatment};
 use std::collections::HashMap;
 use std::sync::RwLock;
 use std::sync::{Arc, Weak};
+use std_mel::data::*;
+use trillium::HeaderName;
+use trillium::HeaderValue;
+use trillium::KnownHeaderName;
 use trillium_async_std::ClientConfig;
 use trillium_client::Url;
 use trillium_client::{Body, Client};
@@ -14,15 +18,21 @@ use trillium_native_tls::NativeTlsConfig as TlsConfig;
 #[cfg(all(not(target_env = "msvc"), not(target_vendor = "apple")))]
 use trillium_rustls::RustlsConfig as TlsConfig;
 
+pub const USER_AGENT: &str = concat!("http-mel/", env!("CARGO_PKG_VERSION"));
+
 /// HTTP client for general use
 ///
 /// The HTTP client provides configuration for HTTP requests.
 ///
 /// - `base_url`: The base URL for a client. All request URLs will be relative to this URL.
 /// - `tcp_no_delay`: TCP `NO_DELAY` field.
+/// - `headers`: Headers to add in requests made with this client.
+///
+/// The default headers are `Accept: */*` and `User-Agent: http-mel/<version>`
 #[mel_model(
     param base_url Option<string> none
     param tcp_no_delay bool true
+    param headers Map none
     initialize initialization
 )]
 #[derive(Debug)]
@@ -45,7 +55,9 @@ impl HttpClient {
         let config = TlsConfig::default()
             .with_tcp_config(ClientConfig::new().with_nodelay(model.get_tcp_no_delay()));
 
-        let mut client = Client::new(config).with_default_pool();
+        let mut client = Client::new(config)
+            .with_default_pool()
+            .with_default_header(KnownHeaderName::UserAgent, USER_AGENT);
         if let Some(base) = model.get_base_url() {
             if let Ok(url) = Url::parse(&base) {
                 client = client.with_base(url);
@@ -68,35 +80,72 @@ impl HttpClient {
 /// - `method`: HTTP method used for the request.
 ///
 /// - `url`: the URL to use for the request (combined with optionnal base from the client model), request starts as soon as the URL is transmitted.
+/// - `req_headers`: the headers to use for the request (combined with ones defined at client level).
 ///
 /// - `status`: HTTP status response.
+/// - `res_headers`: the headers contained in the response.
 /// - `data`: data received as response, corresponding to the HTTP body.
 /// - `failure`: emitted if the request failed technically, containing the failure message.
 #[mel_treatment(
     model client HttpClient
     input url Block<string>
+    input req_headers Block<Map>
+    output res_headers Block<Map>
     output data Stream<byte>
     output failure Block<string>
     output status Block<HttpStatus>
 )]
 pub async fn request(method: HttpMethod) {
-    if let Ok(url) = url
-        .recv_one()
-        .await
-        .map(|val| GetData::<string>::try_data(val).unwrap())
-    {
+    if let (Ok(url), Ok(req_headers)) = (
+        url.recv_one()
+            .await
+            .map(|val| GetData::<string>::try_data(val).unwrap()),
+        req_headers.recv_one().await.map(|val| {
+            GetData::<Arc<dyn Data>>::try_data(val)
+                .unwrap()
+                .downcast_arc::<Map>()
+                .unwrap()
+        }),
+    ) {
         if let Some(client) = HttpClientModel::into(client).inner().client() {
             match client
                 .base()
                 .map(|base_url| base_url.join(&url))
                 .unwrap_or_else(|| Url::parse(&url))
             {
-                Ok(_) => match client.build_conn(method.0, url).await {
+                Ok(_) => match {
+                    let mut conn = client.build_conn(method.0, url);
+                    for (name, content) in &req_headers.map {
+                        let header_name = HeaderName::from(name.as_str());
+                        if header_name.is_valid()
+                            && content
+                                .datatype()
+                                .implements(&melodium_core::common::descriptor::DataTrait::ToString)
+                        {
+                            let header_content =
+                                HeaderValue::from(melodium_core::DataTrait::to_string(content));
+                            if header_content.is_valid() {
+                                conn.request_headers_mut()
+                                    .insert(header_name.to_owned(), header_content);
+                            }
+                        }
+                    }
+                    conn
+                }
+                .await
+                {
                     Ok(mut conn) => {
                         if let Some(recv_status) = conn.status() {
                             let _ = status
                                 .send_one(Value::Data(
                                     Arc::new(HttpStatus(recv_status)) as Arc<dyn Data>
+                                ))
+                                .await;
+
+                            let headers = conn.response_headers().iter().filter_map(|(name, value)| value.as_str().map(|value| (name.to_string(), Value::String(value.to_string())))).collect();
+                            let _ = status
+                                .send_one(Value::Data(
+                                    Arc::new(Map::new_with(headers)) as Arc<dyn Data>
                                 ))
                                 .await;
 
@@ -148,24 +197,34 @@ pub async fn request(method: HttpMethod) {
 /// - `method`: HTTP method used for the request.
 ///
 /// - `url`: the URL to use for the request (combined with optionnal base from the client model), request starts as soon as the URL is transmitted.
+/// - `req_headers`: the headers to use for the request (combined with ones defined at client level).
 /// - `body`: data to send as request body.
 ///
 /// - `status`: HTTP status response.
+/// - `res_headers`: the headers contained in the response.
 /// - `data`: data received as response, corresponding to the HTTP body.
 /// - `failure`: emitted if the request failed technically, containing the failure message.
 #[mel_treatment(
     model client HttpClient
     input url Block<string>
+    input req_headers Block<Map>
     input body Stream<byte>
     output data Stream<byte>
+    output res_headers Block<Map>
     output failure Block<string>
     output status Block<HttpStatus>
 )]
 pub async fn request_with_body(method: HttpMethod) {
-    if let Ok(url) = url
-        .recv_one()
-        .await
-        .map(|val| GetData::<string>::try_data(val).unwrap())
+    if let (Ok(url), Ok(req_headers)) = (
+        url.recv_one()
+            .await
+            .map(|val| GetData::<string>::try_data(val).unwrap()),
+        req_headers.recv_one().await.map(|val| {
+            GetData::<Arc<dyn Data>>::try_data(val)
+                .unwrap()
+                .downcast_arc::<Map>()
+                .unwrap()
+        }))
     {
         if let Some(client) = HttpClientModel::into(client).inner().client() {
             match client
@@ -178,9 +237,27 @@ pub async fn request_with_body(method: HttpMethod) {
                     let (mut in_prod, in_cons) = in_body_buf.split();
 
                     let conn_doing = async {
-                        client
-                            .build_conn(method.0, url)
-                            .with_body(Body::new_streaming(in_cons, None))
+                        {
+                            let mut conn = client.build_conn(method.0, url);
+                            for (name, content) in &req_headers.map {
+                                let header_name = HeaderName::from(name.as_str());
+                                if header_name.is_valid()
+                                    && content
+                                        .datatype()
+                                        .implements(&melodium_core::common::descriptor::DataTrait::ToString)
+                                {
+                                    let header_content =
+                                        HeaderValue::from(melodium_core::DataTrait::to_string(content));
+                                    if header_content.is_valid() {
+                                        conn.request_headers_mut()
+                                            .insert(header_name.to_owned(), header_content);
+                                    }
+                                }
+                            }
+                            conn.with_body(Body::new_streaming(in_cons, None))
+                        }
+                        
+                            
                             .await
                     };
                     let body_transmission = async {
@@ -203,6 +280,13 @@ pub async fn request_with_body(method: HttpMethod) {
                                         Arc::new(HttpStatus(recv_status)) as Arc<dyn Data>
                                     ))
                                     .await;
+
+                                    let headers = conn.response_headers().iter().filter_map(|(name, value)| value.as_str().map(|value| (name.to_string(), Value::String(value.to_string())))).collect();
+                                    let _ = status
+                                        .send_one(Value::Data(
+                                            Arc::new(Map::new_with(headers)) as Arc<dyn Data>
+                                        ))
+                                        .await;
 
                                 let out_data_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
                                 let (out_prod, mut out_cons) = out_data_buf.split();
