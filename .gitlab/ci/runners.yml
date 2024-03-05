@@ -5,6 +5,9 @@
 
 .runner:debian:x86_64:
   image: debian:bullseye
+  before_script:
+    - apt-get update 
+    - apt-get install -y ca-certificates
 
 .runner:mac:aarch64:
   tags:
