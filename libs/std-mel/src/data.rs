@@ -1,13 +1,67 @@
 use melodium_core::{executive::*, *};
-use melodium_macro::mel_data;
+use melodium_macro::{mel_data, mel_function};
 use std::collections::HashMap;
+
+#[mel_data(
+    traits (PartialEquality Serialize Display)
+)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Map {
+    map: HashMap<String, Value>,
+}
+
+impl Display for Map {
+    fn display(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+        write!(f, "{:#?}", self)
+    }
+}
+
+/// Create a map from entries
+#[mel_function]
+pub fn map(entries: Vec<Map>) -> Map {
+    let mut map = HashMap::new();
+    for submap in entries {
+        map.extend(submap.map);
+    }
+    Map { map }
+}
+
+/// Create a map with one entry
+#[mel_function(
+    generic T ()
+)]
+pub fn entry(key: string, value: T) -> Map {
+    let mut map = HashMap::new();
+    map.insert(key, value);
+    Map { map }
+}
+
+/// Get a map entry
+#[mel_function(
+    generic T ()
+)]
+pub fn get(map: Map, key: string) -> Option<T> {
+    generics
+        .get("T")
+        .map(|dt| map.map.get(&key).cloned().filter(|v| &v.datatype() == dt))
+        .flatten()
+}
+
+/// Insert one entry in a map
+#[mel_function(
+    generic T ()
+)]
+pub fn insert(mut map: Map, key: string, value: T) -> Map {
+    map.map.insert(key, value);
+    map
+}
 
 #[mel_data(
     traits (PartialEquality Serialize Deserialize Display)
 )]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Structure {
-    inner: HashMap<String, Item>,
+    inner: HashMap<String, StructureItem>,
 }
 
 impl Display for Structure {
@@ -18,7 +72,7 @@ impl Display for Structure {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Item {
+pub enum StructureItem {
     Void(()),
 
     I8(i8),
@@ -41,8 +95,8 @@ pub enum Item {
     Char(char),
     String(String),
 
-    Vec(Vec<Item>),
-    Option(Option<Box<Item>>),
+    Vec(Vec<StructureItem>),
+    Option(Option<Box<StructureItem>>),
 
     Structure(Box<Structure>),
 }
