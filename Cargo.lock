@@ -1553,6 +1553,7 @@ dependencies = [
  "ringbuf",
  "routefinder",
  "serde",
+ "std-mel",
  "trillium",
  "trillium-async-std",
  "trillium-client",
