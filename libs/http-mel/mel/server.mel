@@ -4,6 +4,7 @@ use http/server::incoming
 use http/server::outgoing
 use http/method::HttpMethod
 use http/status::HttpStatus
+use std/data::Map
 
 /**
 Connection on HTTP server.
@@ -16,16 +17,20 @@ In order to process and give response to the requester, `status` and `data` inpu
 treatment connection[http_server: HttpServer](const method: HttpMethod, const route: string)
   require @HttpRequest
   input status: Block<HttpStatus>
+  input headers: Block<Map>
   input data: Stream<byte>
+  output headers: Block<Map>
   output data: Stream<byte>
   output failure: Block<string>
 {
     incoming[http_server=http_server](method=method, route=route)
     outgoing[http_server=http_server](id=@HttpRequest[id])
 
+    incoming.headers -> Self.headers
     incoming.data -> Self.data
     incoming.failure -> Self.failure
 
     Self.status -> outgoing.status
+    Self.headers -> outgoing.headers
     Self.data -> outgoing.data
 }

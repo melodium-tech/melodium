@@ -14,6 +14,8 @@ use std/flow::trigger
 use std/ops/option::unwrapOr
 use std/ops/option::ignore
 use std/conv::toString
+use std/data::Map
+use std/data::|map
 use encoding::decode
 use encoding::encode
 use javascript::JavaScriptEngine
@@ -30,9 +32,11 @@ treatment main()
 {
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())
+    headers: emit<Map>(value=|map([]))
     trigger<byte>()
     
-    connection.data -> trigger.stream,start -> status.trigger,emit -> connection.status
+    connection.data -> trigger.stream,start --> status.trigger,emit -> connection.status
+                       trigger.start --------> headers.trigger,emit -> connection.headers
     
     decode()
     toJson()

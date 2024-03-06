@@ -15,11 +15,14 @@ use std::{
 use std_mel::data::*;
 use trillium::HeaderName;
 use trillium::HeaderValue;
+use trillium::KnownHeaderName;
 use trillium::{Body, Conn};
 use trillium::{Method, Status};
 use trillium_async_std::Stopper;
 use trillium_router::{Router, RouterConnExt};
 use uuid::Uuid;
+
+pub const SERVER: &str = concat!("http-mel/", env!("CARGO_PKG_VERSION"));
 
 /// Describes HTTP request data.
 ///
@@ -178,7 +181,7 @@ impl HttpServer {
                         outgoing.write().await.insert(id, prod);
 
                         let incoming_headers = conn
-                            .response_headers()
+                            .request_headers()
                             .iter()
                             .filter_map(|(name, value)| {
                                 value.as_str().map(|value| {
@@ -233,6 +236,8 @@ impl HttpServer {
                             futures::join!(status_cons.pop(), headers_cons.pop())
                         {
                             conn.set_status(status);
+                            conn.response_headers_mut()
+                                .insert(KnownHeaderName::Server, SERVER);
 
                             for (name, content) in &headers.map {
                                 let header_name = HeaderName::from(name.as_str());
@@ -245,7 +250,7 @@ impl HttpServer {
                                         melodium_core::DataTrait::to_string(content),
                                     );
                                     if header_content.is_valid() {
-                                        conn.request_headers_mut()
+                                        conn.response_headers_mut()
                                             .insert(header_name.to_owned(), header_content);
                                     }
                                 }
