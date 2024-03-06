@@ -13,7 +13,7 @@ pub struct Map {
 impl Map {
     pub fn new() -> Self {
         Self {
-            map: HashMap::new()
+            map: HashMap::new(),
         }
     }
 

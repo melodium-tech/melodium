@@ -142,12 +142,23 @@ pub async fn request(method: HttpMethod) {
                                 ))
                                 .await;
 
-                            let headers = conn.response_headers().iter().filter_map(|(name, value)| value.as_str().map(|value| (name.to_string(), Value::String(value.to_string())))).collect();
-                            let _ = status
+                            let headers = conn
+                                .response_headers()
+                                .iter()
+                                .filter_map(|(name, value)| {
+                                    value.as_str().map(|value| {
+                                        (name.to_string(), Value::String(value.to_string()))
+                                    })
+                                })
+                                .collect();
+                            let _ = res_headers
                                 .send_one(Value::Data(
                                     Arc::new(Map::new_with(headers)) as Arc<dyn Data>
                                 ))
                                 .await;
+
+                            status.close().await;
+                            res_headers.close().await;
 
                             let data_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
                             let (prod, mut cons) = data_buf.split();
@@ -224,8 +235,8 @@ pub async fn request_with_body(method: HttpMethod) {
                 .unwrap()
                 .downcast_arc::<Map>()
                 .unwrap()
-        }))
-    {
+        }),
+    ) {
         if let Some(client) = HttpClientModel::into(client).inner().client() {
             match client
                 .base()
@@ -242,12 +253,13 @@ pub async fn request_with_body(method: HttpMethod) {
                             for (name, content) in &req_headers.map {
                                 let header_name = HeaderName::from(name.as_str());
                                 if header_name.is_valid()
-                                    && content
-                                        .datatype()
-                                        .implements(&melodium_core::common::descriptor::DataTrait::ToString)
+                                    && content.datatype().implements(
+                                        &melodium_core::common::descriptor::DataTrait::ToString,
+                                    )
                                 {
-                                    let header_content =
-                                        HeaderValue::from(melodium_core::DataTrait::to_string(content));
+                                    let header_content = HeaderValue::from(
+                                        melodium_core::DataTrait::to_string(content),
+                                    );
                                     if header_content.is_valid() {
                                         conn.request_headers_mut()
                                             .insert(header_name.to_owned(), header_content);
@@ -256,9 +268,7 @@ pub async fn request_with_body(method: HttpMethod) {
                             }
                             conn.with_body(Body::new_streaming(in_cons, None))
                         }
-                        
-                            
-                            .await
+                        .await
                     };
                     let body_transmission = async {
                         while let Ok(body_data) = body
@@ -281,12 +291,23 @@ pub async fn request_with_body(method: HttpMethod) {
                                     ))
                                     .await;
 
-                                    let headers = conn.response_headers().iter().filter_map(|(name, value)| value.as_str().map(|value| (name.to_string(), Value::String(value.to_string())))).collect();
-                                    let _ = status
-                                        .send_one(Value::Data(
-                                            Arc::new(Map::new_with(headers)) as Arc<dyn Data>
-                                        ))
-                                        .await;
+                                let headers = conn
+                                    .response_headers()
+                                    .iter()
+                                    .filter_map(|(name, value)| {
+                                        value.as_str().map(|value| {
+                                            (name.to_string(), Value::String(value.to_string()))
+                                        })
+                                    })
+                                    .collect();
+                                let _ = res_headers
+                                    .send_one(Value::Data(
+                                        Arc::new(Map::new_with(headers)) as Arc<dyn Data>
+                                    ))
+                                    .await;
+
+                                status.close().await;
+                                res_headers.close().await;
 
                                 let out_data_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
                                 let (out_prod, mut out_cons) = out_data_buf.split();

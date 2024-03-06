@@ -12,6 +12,9 @@ use std::{
     collections::HashMap,
     sync::{RwLock, Weak},
 };
+use std_mel::data::*;
+use trillium::HeaderName;
+use trillium::HeaderValue;
 use trillium::{Body, Conn};
 use trillium::{Method, Status};
 use trillium_async_std::Stopper;
@@ -34,6 +37,8 @@ pub struct HttpRequest {
 
 type AsyncProducerStatus =
     AsyncProducer<Status, Arc<AsyncRb<Status, SharedRb<Status, Vec<MaybeUninit<Status>>>>>>;
+type AsyncProducerHeaders =
+    AsyncProducer<Map, Arc<AsyncRb<Map, SharedRb<Map, Vec<MaybeUninit<Map>>>>>>;
 type AsyncProducerOutgoing =
     AsyncProducer<u8, Arc<AsyncRb<u8, SharedRb<u8, Vec<MaybeUninit<u8>>>>>>;
 
@@ -57,6 +62,7 @@ type AsyncProducerOutgoing =
         param method HttpMethod none
         param route string none
     ) (
+        headers Block<Map>
         data Stream<byte>
         failure Block<string>
     )
@@ -70,6 +76,7 @@ pub struct HttpServer {
     model: Weak<HttpServerModel>,
     routes: RwLock<Vec<(Arc<HttpMethod>, String)>>,
     status: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerStatus>>>,
+    headers: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerHeaders>>>,
     outgoing: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerOutgoing>>>,
     shutdown: Stopper,
 }
@@ -90,6 +97,7 @@ impl HttpServer {
             model,
             routes: RwLock::new(Vec::new()),
             status: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
+            headers: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
             outgoing: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
             shutdown: Stopper::new(),
         }
@@ -97,6 +105,10 @@ impl HttpServer {
 
     pub fn statuses(&self) -> AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerStatus>>> {
         AsyncArc::clone(&self.status)
+    }
+
+    pub fn headers(&self) -> AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerHeaders>>> {
+        AsyncArc::clone(&self.headers)
     }
 
     pub fn outgoing(&self) -> AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerOutgoing>>> {
@@ -109,6 +121,7 @@ impl HttpServer {
         let routes = self.routes.read().unwrap().clone();
 
         let status = self.status.clone();
+        let headers = self.headers.clone();
         let outgoing = self.outgoing.clone();
 
         let mut router = Router::new();
@@ -121,6 +134,7 @@ impl HttpServer {
             let handler = {
                 let route = Arc::new(route.clone());
                 let status = Arc::clone(&status);
+                let headers = Arc::clone(&headers);
                 let outgoing = Arc::clone(&outgoing);
                 let model = Arc::clone(&model);
                 let method = Arc::clone(&method);
@@ -128,6 +142,7 @@ impl HttpServer {
                 move |mut conn: Conn| {
                     let route = Arc::clone(&route);
                     let status = Arc::clone(&status);
+                    let headers = Arc::clone(&headers);
                     let outgoing = Arc::clone(&outgoing);
                     let model = Arc::clone(&model);
                     let method = Arc::clone(&method);
@@ -153,12 +168,26 @@ impl HttpServer {
 
                         let status_buf = AsyncHeapRb::<Status>::new(1);
                         let (status_prod, mut status_cons) = status_buf.split();
+                        let headers_buf = AsyncHeapRb::<Map>::new(1);
+                        let (headers_prod, mut headers_cons) = headers_buf.split();
                         let outgoing_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
                         let (prod, cons) = outgoing_buf.split();
 
                         status.write().await.insert(id, status_prod);
+                        headers.write().await.insert(id, headers_prod);
                         outgoing.write().await.insert(id, prod);
 
+                        let incoming_headers = conn
+                            .response_headers()
+                            .iter()
+                            .filter_map(|(name, value)| {
+                                value.as_str().map(|value| {
+                                    (name.to_string(), Value::String(value.to_string()))
+                                })
+                            })
+                            .collect();
+
+                        // For now the reading of request is "one-shot", not allowing effective streaming of very large incoming requests.
                         let body = conn.request_body().await;
                         let (content, occured_failure) = match body.read_bytes().await {
                             Ok(content) => (content, None),
@@ -171,6 +200,7 @@ impl HttpServer {
                                 http_request,
                                 &params,
                                 Some(Box::new(move |mut outputs| {
+                                    let headers = outputs.get("headers");
                                     let data = outputs.get("data");
                                     let failure = outputs.get("failure");
 
@@ -178,11 +208,19 @@ impl HttpServer {
                                         if let Some(occured_failure) = occured_failure {
                                             let _ = failure.send_one(occured_failure.into()).await;
                                         } else {
+                                            let _ = headers
+                                                .send_one(Value::Data(Arc::new(Map::new_with(
+                                                    incoming_headers,
+                                                ))
+                                                    as Arc<dyn Data>))
+                                                .await;
+                                            headers.close().await;
                                             let _ = data
                                                 .send_many(TransmissionValue::Byte(content.into()))
                                                 .await;
                                         }
 
+                                        headers.close().await;
                                         data.close().await;
                                         failure.close().await;
                                         ResultStatus::Ok
@@ -191,8 +229,28 @@ impl HttpServer {
                             )
                             .await;
 
-                        if let Some(status) = status_cons.pop().await {
+                        if let (Some(status), Some(headers)) =
+                            futures::join!(status_cons.pop(), headers_cons.pop())
+                        {
                             conn.set_status(status);
+
+                            for (name, content) in &headers.map {
+                                let header_name = HeaderName::from(name.as_str());
+                                if header_name.is_valid()
+                                    && content.datatype().implements(
+                                        &melodium_core::common::descriptor::DataTrait::ToString,
+                                    )
+                                {
+                                    let header_content = HeaderValue::from(
+                                        melodium_core::DataTrait::to_string(content),
+                                    );
+                                    if header_content.is_valid() {
+                                        conn.request_headers_mut()
+                                            .insert(header_name.to_owned(), header_content);
+                                    }
+                                }
+                            }
+
                             conn.set_body(Body::new_streaming(cons, None));
                         } else {
                             conn.set_status(Status::InternalServerError);
@@ -249,6 +307,7 @@ impl HttpServer {
 
 #[mel_treatment(
     input status Block<HttpStatus>
+    input headers Block<Map>
     input data Stream<byte>
     model http_server HttpServer
 )]
@@ -258,6 +317,7 @@ pub async fn outgoing(id: u128) {
     let http_server = model.inner();
 
     let out_status;
+    let out_headers;
     let output;
     {
         let statuses = http_server.statuses();
@@ -265,19 +325,37 @@ pub async fn outgoing(id: u128) {
         out_status = lock.remove(&id);
     }
     {
+        let headers = http_server.headers();
+        let mut lock = headers.write().await;
+        out_headers = lock.remove(&id);
+    }
+    {
         let outputs = http_server.outgoing();
         let mut lock = outputs.write().await;
         output = lock.remove(&id);
     }
-    if let (Some(mut out_status), Some(mut output)) = (out_status, output) {
-        if let Ok(status) = status.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<HttpStatus>()
-                .unwrap()
-        }) {
-            match out_status.push(status.0).await {
-                Ok(_) => {
+    if let (Some(mut out_status), Some(mut out_headers), Some(mut output)) =
+        (out_status, out_headers, output)
+    {
+        if let (Ok(status), Ok(headers)) = (
+            status.recv_one().await.map(|val| {
+                GetData::<Arc<dyn Data>>::try_data(val)
+                    .unwrap()
+                    .downcast_arc::<HttpStatus>()
+                    .unwrap()
+            }),
+            headers.recv_one().await.map(|val| {
+                GetData::<Arc<dyn Data>>::try_data(val)
+                    .unwrap()
+                    .downcast_arc::<Map>()
+                    .unwrap()
+            }),
+        ) {
+            match futures::join!(
+                out_status.push(status.0),
+                out_headers.push(Arc::unwrap_or_clone(headers))
+            ) {
+                (Ok(_), Ok(_)) => {
                     while let (Ok(data), false) = (
                         data.recv_many()
                             .await
@@ -290,7 +368,7 @@ pub async fn outgoing(id: u128) {
                         }
                     }
                 }
-                Err(_) => {}
+                (_, _) => {}
             }
         }
     }
