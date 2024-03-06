@@ -1,0 +1,31 @@
+use std/data::Map
+use std/data::|map
+use std/flow::emit
+use std/ops/option::|unwrap_or
+use root/client::HttpClient
+use root/client::get as fullGet
+
+treatment get(url: string, headers: Option<Map> = _)
+  model client: HttpClient(
+    base_url = _,
+    headers = |map([])
+  )
+  input trigger: Block<void>
+  output data: Stream<byte>
+  output headers: Block<Map>
+  output failure: Block<string>
+  output status: Block<HttpStatus>
+{
+    fullGet[client=client]()
+
+    url: emit<string>(value=url)
+    headers: emit<Map>(value=|unwrap_or(headers, |map([])))
+
+    Self.trigger -----> url.trigger,emit -> fullGet.url
+    Self.trigger -> headers.trigger,emit -> fullGet.headers
+
+    fullGet.status --> Self.status
+    fullGet.headers -> Self.headers
+    fullGet.data ----> Self.data
+    fullGet.failure -> Self.failure
+}
