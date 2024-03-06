@@ -9,10 +9,20 @@ use std/data::Map
 /**
 Connection on HTTP server.
 
-For every valid incoming HTTP request to `http_server`, a new track with all the outputs is created, and `data` output is filled with the data being received.
-Once the full request is received, `success` is emitted. If any problem occurs, `failure` is emitted and `data` cease to receive more contents.
+For every valid incoming HTTP request to `http_server`, a new track with all the outputs is created.
 
-In order to process and give response to the requester, `status` and `data` inputs must be filled. `status` can be any valid HTTP code, for more informations please see the [MDN Documentation](https://developer.mozilla.org/docs/Web/HTTP/Status).
+In order to start sending response to the requester, `status` and `headers` inputs must be filled.
+`status` can be any valid HTTP code, for more informations please see the [MDN Documentation](https://developer.mozilla.org/docs/Web/HTTP/Status).
+
+Outputs:
+    - `headers`: headers send in request.
+    - `data`: the raw body data received in the request.
+    - `failure`: emitted if a failure occurs during the processing of request.
+
+Inputs:
+    - `status`: HTTP status response.
+    - `headers`: headers to send in response.
+    - `data`: data to send in response, corresponding to the HTTP body.
 */
 treatment connection[http_server: HttpServer](const method: HttpMethod, const route: string)
   require @HttpRequest
