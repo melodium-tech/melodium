@@ -2567,6 +2567,7 @@ dependencies = [
  "melodium-core",
  "melodium-macro",
  "regex",
+ "std-mel",
 ]
 
 [[package]]

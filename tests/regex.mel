@@ -1,0 +1,34 @@
+#!/usr/bin/env melodium
+#! name = regex_test
+#! version = 0.7.1
+#! require = std:0.7.1
+#! require = regex:0.7.1
+#! require = fs:0.7.1
+
+use std/engine/util::startup
+use std/flow::emit
+use std/flow::stream
+use std/ops/option::unwrap
+use std/data::Map
+use std/data::get
+use std/text/convert/string::toUtf8
+use regex::capture
+use fs/file::write
+
+treatment main(text: string, file: string) {
+    
+    startup()
+    emit<string>(value=text)
+    stream<string>()
+    capture(regex="(?<number>\d+)")
+    unwrapMap: unwrap<Map>()
+    get<string>(key="number")
+    unwrapString: unwrap<string>()
+    toUtf8()
+    filename: emit<string>(value=file)
+    write()
+
+    startup.trigger -> filename.trigger,emit -> write.path
+    startup.trigger -> emit.trigger,emit -> stream.block,stream -> capture.text,captured -> unwrapMap.option,value -> get.map,value -> unwrapString.option,value -> toUtf8.text,encoded -> write.data
+    
+}
