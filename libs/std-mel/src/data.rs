@@ -1,6 +1,7 @@
 use melodium_core::{executive::*, *};
-use melodium_macro::{mel_data, mel_function};
+use melodium_macro::{check, mel_data, mel_function, mel_treatment};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 #[mel_data(
     traits (PartialEquality Serialize Display)
@@ -57,6 +58,25 @@ pub fn get(map: Map, key: string) -> Option<T> {
         .get("T")
         .map(|dt| map.map.get(&key).cloned().filter(|v| &v.datatype() == dt))
         .flatten()
+}
+
+/// Get a map entry
+///
+/// For every `map` coming through the stream, get the `key` entry.
+#[mel_treatment(
+    generic T ()
+    input map Stream<Map>
+    output value Stream<Option<T>>
+)]
+pub async fn get(key: string) {
+    while let Ok(map) = map.recv_one().await.map(|val| {
+        GetData::<Arc<dyn Data>>::try_data(val)
+            .unwrap()
+            .downcast_arc::<Map>()
+            .unwrap()
+    }) {
+        check!(value.send_one(map.map.get(&key).cloned().into()).await)
+    }
 }
 
 /// Insert one entry in a map

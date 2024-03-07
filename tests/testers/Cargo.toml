@@ -6,4 +6,5 @@ members = [
     "generics",
     "http_client",
     "http_javascript",
+    "regex",
 ]
