@@ -90,31 +90,50 @@ impl Node for Use {
                 self.path.root(),
             ))
         } else {
-            if self.path.root() == "local" {
-                // "Local" case
+            match self.path.root().as_str() {
+                "root" => {
+                    // "Root" package case
 
-                let mut steps = path.path().clone();
-                self.path
-                    .path()
-                    .iter()
-                    .skip(1)
-                    .for_each(|s| steps.push(s.clone()));
+                    let mut steps = vec![path.root()];
+                    self.path
+                        .path()
+                        .iter()
+                        .skip(1)
+                        .for_each(|s| steps.push(s.clone()));
 
-                self.identifier = Some(
-                    (&Identifier::new_versionned(path.version(), steps, &self.element)).into(),
-                );
+                    self.identifier = Some(
+                        (&Identifier::new_versionned(path.version(), steps, &self.element)).into(),
+                    );
 
-                ScriptResult::new_success(())
-            } else {
-                // "Non-local" case
+                    ScriptResult::new_success(())
+                }
+                "local" => {
+                    // "Local" case
 
-                self.identifier = Some(IdentifierRequirement::new(
-                    versions.get(&self.path.root()).cloned().unwrap_or_default(),
-                    self.path.path().clone(),
-                    &self.element,
-                ));
+                    let mut steps = path.path().clone();
+                    self.path
+                        .path()
+                        .iter()
+                        .skip(1)
+                        .for_each(|s| steps.push(s.clone()));
 
-                ScriptResult::new_success(())
+                    self.identifier = Some(
+                        (&Identifier::new_versionned(path.version(), steps, &self.element)).into(),
+                    );
+
+                    ScriptResult::new_success(())
+                }
+                _ => {
+                    // "Non-local" case
+
+                    self.identifier = Some(IdentifierRequirement::new(
+                        versions.get(&self.path.root()).cloned().unwrap_or_default(),
+                        self.path.path().clone(),
+                        &self.element,
+                    ));
+
+                    ScriptResult::new_success(())
+                }
             }
         }
     }

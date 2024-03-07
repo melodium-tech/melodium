@@ -14,7 +14,7 @@ pub struct CorePackage {
     package: Arc<dyn CommonPackage>,
     requirements: Vec<PackageRequirement>,
     embedded_collection: RwLock<Option<Collection>>,
-    contents: RwLock<HashMap<String, Content>>,
+    contents: RwLock<HashMap<String, Arc<Content>>>,
 }
 
 impl CorePackage {
@@ -50,7 +50,7 @@ impl CorePackage {
                         self.contents
                             .write()
                             .unwrap()
-                            .insert(designation.to_string(), content);
+                            .insert(designation.to_string(), Arc::new(content));
                         LoadingResult::new_success(())
                     })
                 }
@@ -282,7 +282,8 @@ impl PackageTrait for CorePackage {
             return result;
         }
 
-        if let Some(content) = self.contents.read().unwrap().get(&designation) {
+        let content = { self.contents.read().unwrap().get(&designation).cloned() };
+        if let Some(content) = content {
             if let Ok(_guard) = content.try_lock() {
                 let needs = content.require();
                 result.merge_degrade_failure(Self::insure_loading(loader, needs));
