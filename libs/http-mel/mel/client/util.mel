@@ -1,11 +1,78 @@
 use std/data::Map
 use std/data::|map
 use std/flow::emit
+use std/flow::trigger
 use std/ops/option::|unwrap_or
 use root/client::HttpClient
 use root/status::HttpStatus
+use root/client::delete as fullDelete
 use root/client::get as fullGet
+use root/client::head as fullHead
+use root/client::options as fullOptions
+use root/client::patch as fullPatch
+use root/client::post as fullPost
+use root/client::put as fullPut
+use root/client::trace as fullTrace
 
+/** Performs HTTP DELETE operation.
+
+    Parameters:
+    - `url`: the URL to call DELETE on.
+    - `headers`: headers to send in request.
+
+    Inputs:
+    - `trigger`: starts the request.
+
+    Outputs:
+    - `status`: HTTP status response.
+    - `headers`: headers received in response.
+    - `data`: data received as response, corresponding to the HTTP body.
+    - `failure`: emitted if the request failed technically, containing the failure message.
+    
+    Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/DELETE).
+*/
+treatment delete(url: string, headers: Option<Map> = _)
+  model client: HttpClient(
+    base_url = _,
+    headers = |map([])
+  )
+  input trigger: Block<void>
+  output data: Stream<byte>
+  output headers: Block<Map>
+  output failure: Block<string>
+  output status: Block<HttpStatus>
+{
+    fullDelete[client=client]()
+
+    url: emit<string>(value=url)
+    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+
+    Self.trigger -----> url.trigger,emit -> fullDelete.url
+    Self.trigger -> headers.trigger,emit -> fullDelete.headers
+
+    fullDelete.data --------> Self.data
+    fullDelete.headers -----> Self.headers
+    fullDelete.failure -----> Self.failure
+    fullDelete.status ------> Self.status
+}
+
+/** Performs HTTP GET operation.
+
+    Parameters:
+    - `url`: the URL to call GET on.
+    - `headers`: headers to send in request.
+
+    Inputs:
+    - `trigger`: starts the request.
+    
+    Outputs:
+    - `status`: HTTP status response.
+    - `headers`: headers received in response.
+    - `data`: data received as response, corresponding to the HTTP body.
+    - `failure`: emitted if the request failed technically, containing the failure message.
+    
+    Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/GET).
+*/
 treatment get(url: string, headers: Option<Map> = _)
   model client: HttpClient(
     base_url = _,
@@ -29,4 +96,251 @@ treatment get(url: string, headers: Option<Map> = _)
     fullGet.headers -> Self.headers
     fullGet.data ----> Self.data
     fullGet.failure -> Self.failure
+}
+
+/** Performs HTTP HEAD operation.
+
+    Parameters:
+    - `url`: the URL to call HEAD on.
+    - `headers`: headers to send in request.
+
+    Inputs:
+    - `trigger`: starts the request.
+    
+    Outputs:
+    - `status`: HTTP status response.
+    - `headers`: headers received in response.
+    - `failure`: emitted if the request failed technically, containing the failure message.
+    
+    Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/HEAD).
+*/
+treatment head(url: string, headers: Option<Map> = _)
+  model client: HttpClient(
+    base_url = _,
+    headers = |map([])
+  )
+  input trigger: Block<void>
+  output headers: Block<Map>
+  output failure: Block<string>
+  output status: Block<HttpStatus>
+{
+    fullHead[client=client]()
+
+    url: emit<string>(value=url)
+    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+
+    Self.trigger -----> url.trigger,emit -> fullHead.url
+    Self.trigger -> headers.trigger,emit -> fullHead.headers
+
+    fullHead.status --> Self.status
+    fullHead.headers -> Self.headers
+    fullHead.failure -> Self.failure
+}
+
+/** Performs HTTP OPTIONS operation.
+
+    Parameters:
+    - `url`: the URL to call OPTIONS on.
+    - `headers`: headers to send in request.
+
+    Inputs:
+    - `trigger`: starts the request.
+    
+    Outputs:
+    - `status`: HTTP status response.
+    - `headers`: headers received in response.
+    - `data`: data received as response, corresponding to the HTTP body.
+    - `failure`: emitted if the request failed technically, containing the failure message.
+    
+    Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/OPTIONS).
+*/
+treatment options(url: string, headers: Option<Map> = _)
+  model client: HttpClient(
+    base_url = _,
+    headers = |map([])
+  )
+  input trigger: Block<void>
+  output data: Stream<byte>
+  output headers: Block<Map>
+  output failure: Block<string>
+  output status: Block<HttpStatus>
+{
+    fullOptions[client=client]()
+
+    url: emit<string>(value=url)
+    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+
+    Self.trigger -----> url.trigger,emit -> fullOptions.url
+    Self.trigger -> headers.trigger,emit -> fullOptions.headers
+
+    fullOptions.status --> Self.status
+    fullOptions.headers -> Self.headers
+    fullOptions.data ----> Self.data
+    fullOptions.failure -> Self.failure
+}
+
+/** Performs HTTP PATCH operation.
+
+    Parameters:
+    - `url`: the URL to call PATCH on.
+    - `headers`: headers to send in request.
+
+    Inputs:
+    - `data`: data sent in request, corresponding to the HTTP body.
+    
+    Outputs:
+    - `status`: HTTP status response.
+    - `headers`: headers received in response.
+    - `failure`: emitted if the request failed technically, containing the failure message.
+    
+    Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/PATCH).
+*/
+treatment patch(url: string, headers: Option<Map> = _)
+  model client: HttpClient(
+    base_url = _,
+    headers = |map([])
+  )
+  input data: Stream<byte>
+  output headers: Block<Map>
+  output failure: Block<string>
+  output status: Block<HttpStatus>
+{
+    fullPatch[client=client]()
+
+    trigger<byte>()
+    url: emit<string>(value=url)
+    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+
+    Self.data -> trigger.stream,start -----> url.trigger,emit -> fullPatch.url
+                 trigger.start --------> headers.trigger,emit -> fullPatch.headers
+    Self.data -------------------------------------------------> fullPatch.data
+
+    fullPatch.status --> Self.status
+    fullPatch.headers -> Self.headers
+    fullPatch.failure -> Self.failure
+}
+
+/** Performs HTTP POST operation.
+
+    Parameters:
+    - `url`: the URL to call POST on.
+    - `headers`: headers to send in request.
+
+    Inputs:
+    - `data`: data sent in request, corresponding to the HTTP body.
+    
+    Outputs:
+    - `status`: HTTP status response.
+    - `headers`: headers received in response.
+    - `data`: data received as response, corresponding to the HTTP body.
+    - `failure`: emitted if the request failed technically, containing the failure message.
+    
+    Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/POST).
+*/
+treatment post(url: string, headers: Option<Map> = _)
+  model client: HttpClient(
+    base_url = _,
+    headers = |map([])
+  )
+  input data: Stream<byte>
+  output headers: Block<Map>
+  output data: Stream<byte>
+  output failure: Block<string>
+  output status: Block<HttpStatus>
+{
+    fullPost[client=client]()
+
+    trigger<byte>()
+    url: emit<string>(value=url)
+    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+
+    Self.data -> trigger.stream,start -----> url.trigger,emit -> fullPost.url
+                 trigger.start --------> headers.trigger,emit -> fullPost.headers
+    Self.data -------------------------------------------------> fullPost.data
+
+    fullPost.status --> Self.status
+    fullPost.headers -> Self.headers
+    fullPost.data ----> Self.data
+    fullPost.failure -> Self.failure
+}
+
+/** Performs HTTP PUT operation.
+
+    Parameters:
+    - `url`: the URL to call PUT on.
+    - `headers`: headers to send in request.
+
+    Inputs:
+    - `data`: data sent in request, corresponding to the HTTP body.
+    
+    Outputs:
+    - `status`: HTTP status response.
+    - `headers`: headers received in response.
+    - `data`: data received as response, corresponding to the HTTP body.
+    - `failure`: emitted if the request failed technically, containing the failure message.
+    
+    Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/PUT).
+*/
+treatment put(url: string, headers: Option<Map> = _)
+  model client: HttpClient(
+    base_url = _,
+    headers = |map([])
+  )
+  input data: Stream<byte>
+  output headers: Block<Map>
+  output failure: Block<string>
+  output status: Block<HttpStatus>
+{
+    fullPut[client=client]()
+
+    trigger<byte>()
+    url: emit<string>(value=url)
+    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+
+    Self.data -> trigger.stream,start -----> url.trigger,emit -> fullPut.url
+                 trigger.start --------> headers.trigger,emit -> fullPut.headers
+    Self.data -------------------------------------------------> fullPut.data
+
+    fullPut.status --> Self.status
+    fullPut.headers -> Self.headers
+    fullPut.failure -> Self.failure
+}
+
+/** Performs HTTP TRACE operation.
+
+    Parameters:
+    - `url`: the URL to call TRACE on.
+    - `headers`: headers to send in request.
+
+    Inputs:
+    - `trigger`: starts the request.
+    
+    Outputs:
+    - `status`: HTTP status response.
+    - `headers`: headers received in response.
+    - `failure`: emitted if the request failed technically, containing the failure message.
+    
+    Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/TRACE).
+*/
+treatment trace(url: string, headers: Option<Map> = _)
+  model client: HttpClient(
+    base_url = _,
+    headers = |map([])
+  )
+  input trigger: Block<void>
+  output headers: Block<Map>
+  output failure: Block<string>
+  output status: Block<HttpStatus>
+{
+    fullTrace[client=client]()
+
+    url: emit<string>(value=url)
+    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+
+    Self.trigger -----> url.trigger,emit -> fullTrace.url
+    Self.trigger -> headers.trigger,emit -> fullTrace.headers
+
+    fullTrace.status --> Self.status
+    fullTrace.headers -> Self.headers
+    fullTrace.failure -> Self.failure
 }
