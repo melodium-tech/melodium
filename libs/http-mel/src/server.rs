@@ -1,244 +1,380 @@
-use async_std::channel::{bounded, Sender};
-use async_std::io::ReadExt;
-use async_std::sync::{Arc, Barrier, RwLock};
-use async_std::task;
-use futures::{future::FutureExt, pin_mut, select};
-use melodium_core::common::executive::{Output, ResultStatus};
-use melodium_core::*;
-use melodium_macro::{check, mel_context, mel_model, mel_treatment};
-use std::collections::HashMap;
-use std::sync::Weak;
-use tide::{Request, Response, Result, Server};
+use crate::method::*;
+use crate::status::*;
+use async_ringbuf::{AsyncHeapRb, AsyncProducer, AsyncRb};
+use async_std::sync::{Arc as AsyncArc, RwLock as AsyncRwLock};
+use core::{fmt::Debug, mem::MaybeUninit};
+use melodium_core::{common::executive::ResultStatus, *};
+use melodium_macro::{mel_context, mel_model, mel_treatment};
+use ringbuf::SharedRb;
+use routefinder::RouteSpec;
+use std::sync::Arc;
+use std::{
+    collections::HashMap,
+    sync::{RwLock, Weak},
+};
+use std_mel::data::*;
+use trillium::HeaderName;
+use trillium::HeaderValue;
+use trillium::KnownHeaderName;
+use trillium::{Body, Conn};
+use trillium::{Method, Status};
+use trillium_async_std::Stopper;
+use trillium_router::{Router, RouterConnExt};
+use uuid::Uuid;
+
+pub const SERVER: &str = concat!("http-mel/", env!("CARGO_PKG_VERSION"));
 
 /// Describes HTTP request data.
 ///
-/// - `id`: Identifier of connection, it is an arbitrary number that uniquely identifies a HTTP connection to a server during the duration it exists.
-/// - `route`: The route called by the query.
-/// - `uri`: The URI called by the query.
+/// - `id`: identifier of connection, it is an arbitrary number that uniquely identifies a HTTP connection to a server.
+/// - `route`: the route used by the request.
+/// - `path`: the path called by the request.
+/// - `method`: the HTTP method used by the request.
 #[mel_context]
 pub struct HttpRequest {
-    pub id: u64,
+    pub id: u128,
     pub route: string,
-    pub uri: string,
+    pub path: string,
+    pub method: HttpMethod,
 }
+
+type AsyncProducerStatus =
+    AsyncProducer<Status, Arc<AsyncRb<Status, SharedRb<Status, Vec<MaybeUninit<Status>>>>>>;
+type AsyncProducerHeaders =
+    AsyncProducer<Map, Arc<AsyncRb<Map, SharedRb<Map, Vec<MaybeUninit<Map>>>>>>;
+type AsyncProducerOutgoing =
+    AsyncProducer<u8, Arc<AsyncRb<u8, SharedRb<u8, Vec<MaybeUninit<u8>>>>>>;
 
 /// A HTTP server for general use.
 ///
 /// The HTTP server provides configuration for receiving and responding to HTTP incoming requests.
-/// - `bind`: The network address and port to listen, under the form `<ip/name>:<port>`.
-/// - `routes`: The list of routes the server manages, usually at least composed of [`"/"`].
+/// - `host`: the network address to bind with.
+/// - `port`: the port to bind with.
 ///
 /// `HttpServer` aims to be used with `connection` treatment.
 /// Every time a new HTTP request matching a configured route comes, a new track is created with `@HttpRequest` context.
 ///
 /// ℹ️ If server binding fails, `failed_binding` is emitted.
 ///
-/// ⚠️ Using `HttpServer` directly with `incoming` source and `outgoing` treatment should be done carefully.
+/// ⚠️ Use `HttpServer` with `connection` treatment, as using `incoming` source and `outgoing` treatment directly should be done carefully.
 ///
 #[mel_model(
-    param routes Vec<string> none
-    param {content(binding)} bind string none
-    source incoming (HttpRequest) () (
+    param host string none
+    param port u16 none
+    source incoming (HttpRequest) (
+        param method HttpMethod none
+        param route string none
+    ) (
+        headers Block<Map>
         data Stream<byte>
-        success Block<void>
-        failure Block<void>
+        failure Block<string>
     )
     source failed_binding () () (
-        failure Block<void>
-        error Block<string>
+        failure Block<string>
     )
     continuous (continuous)
     shutdown shutdown
 )]
-#[derive(Debug)]
 pub struct HttpServer {
     model: Weak<HttpServerModel>,
-    connections: Arc<RwLock<HashMap<u64, Sender<(u16, Vec<u8>)>>>>,
-    shutdown: Barrier,
+    routes: RwLock<Vec<(Arc<HttpMethod>, String)>>,
+    status: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerStatus>>>,
+    headers: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerHeaders>>>,
+    outgoing: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerOutgoing>>>,
+    shutdown: Stopper,
+}
+
+impl Debug for HttpServer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HttpServer")
+            .field("model", &self.model)
+            .field("routes", &self.routes)
+            .field("shutdown", &self.shutdown)
+            .finish()
+    }
 }
 
 impl HttpServer {
-    fn new(model: Weak<HttpServerModel>) -> Self {
+    pub fn new(model: Weak<HttpServerModel>) -> Self {
         Self {
             model,
-            connections: Arc::new(RwLock::new(HashMap::new())),
-            shutdown: Barrier::new(2),
+            routes: RwLock::new(Vec::new()),
+            status: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
+            headers: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
+            outgoing: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
+            shutdown: Stopper::new(),
         }
     }
 
-    pub(crate) fn connections(&self) -> Arc<RwLock<HashMap<u64, Sender<(u16, Vec<u8>)>>>> {
-        Arc::clone(&self.connections)
+    pub fn statuses(&self) -> AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerStatus>>> {
+        AsyncArc::clone(&self.status)
+    }
+
+    pub fn headers(&self) -> AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerHeaders>>> {
+        AsyncArc::clone(&self.headers)
+    }
+
+    pub fn outgoing(&self) -> AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerOutgoing>>> {
+        AsyncArc::clone(&self.outgoing)
     }
 
     async fn continuous(&self) {
-        let mut server = Server::with_state(self.connections.clone());
         let model = self.model.upgrade().unwrap();
-        for route in model.get_routes() {
-            let model = Arc::clone(&model);
-            server
-                .at(&route)
-                .all(move |request| Self::request(Arc::clone(&model), request, route.clone()));
-        }
-        let future_shutdown = async {
-            self.shutdown.wait().await;
-        }
-        .fuse();
-        let server_listen = server.listen(model.get_bind()).fuse();
-        pin_mut!(future_shutdown, server_listen);
-        loop {
-            select! {
-                () = future_shutdown => break,
-                result = server_listen => {
-                    match result {
-                        Err(err) => {
-                            model
-                                .new_failed_binding(
-                                    None,
-                                    &HashMap::new(),
-                                    Some(Box::new(|mut outputs| {
-                                        let error = outputs.get("error");
-                                        let failure = outputs.get("failure");
 
-                                        vec![Box::new(Box::pin(async move {
-                                            let _ = error.send_one(err.to_string().into()).await;
-                                            let _ = failure.send_one(().into()).await;
-                                            error.close().await;
-                                            failure.close().await;
-                                            ResultStatus::Ok
-                                        }))]
-                                    })),
-                                )
-                                .await;
-                            break
+        let routes = self.routes.read().unwrap().clone();
+
+        let status = self.status.clone();
+        let headers = self.headers.clone();
+        let outgoing = self.outgoing.clone();
+
+        let mut router = Router::new();
+        for (method, route) in routes {
+            let route = match RouteSpec::try_from(route.as_str()) {
+                Ok(route) => route,
+                Err(_) => continue,
+            };
+
+            let handler = {
+                let route = Arc::new(route.clone());
+                let status = Arc::clone(&status);
+                let headers = Arc::clone(&headers);
+                let outgoing = Arc::clone(&outgoing);
+                let model = Arc::clone(&model);
+                let method = Arc::clone(&method);
+
+                move |mut conn: Conn| {
+                    let route = Arc::clone(&route);
+                    let status = Arc::clone(&status);
+                    let headers = Arc::clone(&headers);
+                    let outgoing = Arc::clone(&outgoing);
+                    let model = Arc::clone(&model);
+                    let method = Arc::clone(&method);
+
+                    async move {
+                        let id = Uuid::new_v4();
+                        let http_request = HttpRequest {
+                            id: id.as_u128(),
+                            route: conn.route().map(|r| r.to_string()).unwrap_or_default(),
+                            path: conn.path().to_string(),
+                            method: (*method).clone(),
+                        };
+
+                        let params = {
+                            let mut params = HashMap::new();
+                            params.insert(
+                                "method".to_string(),
+                                Value::Data(Arc::clone(&method) as Arc<dyn Data>),
+                            );
+                            params.insert("route".to_string(), route.to_string().into());
+                            params
+                        };
+
+                        let status_buf = AsyncHeapRb::<Status>::new(1);
+                        let (status_prod, mut status_cons) = status_buf.split();
+                        let headers_buf = AsyncHeapRb::<Map>::new(1);
+                        let (headers_prod, mut headers_cons) = headers_buf.split();
+                        let outgoing_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
+                        let (prod, cons) = outgoing_buf.split();
+
+                        status.write().await.insert(id, status_prod);
+                        headers.write().await.insert(id, headers_prod);
+                        outgoing.write().await.insert(id, prod);
+
+                        let incoming_headers = conn
+                            .request_headers()
+                            .iter()
+                            .filter_map(|(name, value)| {
+                                value.as_str().map(|value| {
+                                    (name.to_string(), Value::String(value.to_string()))
+                                })
+                            })
+                            .collect();
+
+                        // For now the reading of request is "one-shot", not allowing effective streaming of very large incoming requests.
+                        let body = conn.request_body().await;
+                        let (content, occured_failure) = match body.read_bytes().await {
+                            Ok(content) => (content, None),
+                            Err(err) => (Vec::new(), Some(err.to_string())),
+                        };
+
+                        model
+                            .new_incoming(
+                                None,
+                                http_request,
+                                &params,
+                                Some(Box::new(move |mut outputs| {
+                                    let headers = outputs.get("headers");
+                                    let data = outputs.get("data");
+                                    let failure = outputs.get("failure");
+
+                                    vec![Box::new(Box::pin(async move {
+                                        if let Some(occured_failure) = occured_failure {
+                                            let _ = failure.send_one(occured_failure.into()).await;
+                                        } else {
+                                            let _ = headers
+                                                .send_one(Value::Data(Arc::new(Map::new_with(
+                                                    incoming_headers,
+                                                ))
+                                                    as Arc<dyn Data>))
+                                                .await;
+                                            headers.close().await;
+                                            let _ = data
+                                                .send_many(TransmissionValue::Byte(content.into()))
+                                                .await;
+                                        }
+
+                                        headers.close().await;
+                                        data.close().await;
+                                        failure.close().await;
+                                        ResultStatus::Ok
+                                    }))]
+                                })),
+                            )
+                            .await;
+
+                        if let (Some(status), Some(headers)) =
+                            futures::join!(status_cons.pop(), headers_cons.pop())
+                        {
+                            conn.set_status(status);
+                            conn.response_headers_mut()
+                                .insert(KnownHeaderName::Server, SERVER);
+
+                            for (name, content) in &headers.map {
+                                let header_name = HeaderName::from(name.as_str());
+                                if header_name.is_valid()
+                                    && content.datatype().implements(
+                                        &melodium_core::common::descriptor::DataTrait::ToString,
+                                    )
+                                {
+                                    let header_content = HeaderValue::from(
+                                        melodium_core::DataTrait::to_string(content),
+                                    );
+                                    if header_content.is_valid() {
+                                        conn.response_headers_mut()
+                                            .insert(header_name.to_owned(), header_content);
+                                    }
+                                }
+                            }
+
+                            conn.set_body(Body::new_streaming(cons, None));
+                        } else {
+                            conn.set_status(Status::InternalServerError);
                         }
-                        _ => {}
+
+                        conn.halt()
                     }
                 }
-                complete => break,
+            };
 
-            }
-        }
-    }
-
-    async fn request(
-        model: Arc<HttpServerModel>,
-        request: Request<Arc<RwLock<HashMap<u64, Sender<(u16, Vec<u8>)>>>>>,
-        route: String,
-    ) -> Result {
-        let (sender, receiver) = bounded(1);
-
-        let id;
-        {
-            let mut lock = request.state().write().await;
-            id = lock.len() as u64;
-            lock.insert(id, sender);
-        }
-
-        let http_request = HttpRequest {
-            id,
-            route,
-            uri: request.url().to_string(),
-        };
-
-        model
-            .new_incoming(
-                None,
-                http_request,
-                &HashMap::new(),
-                Some(Box::new(|mut outputs| {
-                    let data = outputs.get("data");
-                    let success = outputs.get("success");
-                    let failure = outputs.get("failure");
-
-                    vec![Box::new(Box::pin(Self::read_body(
-                        request, data, success, failure,
-                    )))]
-                })),
-            )
-            .await;
-
-        // TODO build a decent response, probably add status code and headers.
-        match receiver.recv().await {
-            Ok((status, data)) => Ok({
-                let mut response = Response::new(status);
-                response.set_body(data);
-                response
-            }),
-            Err(_err) => Err(tide::Error::from_str(500, "")),
-        }
-    }
-
-    async fn read_body(
-        mut request: Request<Arc<RwLock<HashMap<u64, Sender<(u16, Vec<u8>)>>>>>,
-        data: Box<dyn Output>,
-        success: Box<dyn Output>,
-        failure: Box<dyn Output>,
-    ) -> ResultStatus {
-        let mut body = request.take_body();
-        loop {
-            let mut buffer = vec![0; 2usize.pow(20)];
-            match body.read(&mut buffer).await {
-                Ok(0) => {
-                    let _ = success.send_one(().into()).await;
-                    break;
-                }
-                Ok(n) => {
-                    buffer.truncate(n);
-                    check!(data.send_many(TransmissionValue::Byte(buffer.into())).await);
-                }
-                Err(_err) => {
-                    let _ = failure.send_one(().into()).await;
-                    break;
-                }
+            match method.0 {
+                Method::Delete => router = router.delete(route, handler),
+                Method::Get => router = router.get(route, handler),
+                Method::Patch => router = router.patch(route, handler),
+                Method::Post => router = router.post(route, handler),
+                Method::Put => router = router.put(route, handler),
+                _ => {}
             }
         }
 
-        data.close().await;
-        success.close().await;
-        failure.close().await;
-
-        ResultStatus::Ok
-    }
-
-    pub fn shutdown(&self) {
-        task::block_on(async {
-            self.shutdown.wait().await;
-        })
+        trillium_async_std::config()
+            .without_signals()
+            .with_stopper(self.shutdown.clone())
+            .with_port(model.get_port())
+            .with_host(&model.get_host())
+            .run_async(router)
+            .await
     }
 
     fn invoke_source(&self, source: &str, params: HashMap<String, Value>) {
-        //eprintln!("Source {source} invoked: {params:?}")
+        match source {
+            "incoming" => {
+                let method: Arc<HttpMethod> = melodium_core::GetData::<Arc<dyn Data>>::try_data(
+                    params.get("method").unwrap().clone(),
+                )
+                .unwrap()
+                .downcast_arc()
+                .unwrap();
+                let route = melodium_core::GetData::<String>::try_data(
+                    params.get("route").unwrap().clone(),
+                )
+                .unwrap();
+
+                self.routes.write().unwrap().push((method, route));
+            }
+            _ => {}
+        }
+    }
+
+    fn shutdown(&self) {
+        self.shutdown.stop();
     }
 }
 
 #[mel_treatment(
-    input status Block<u16>
+    input status Block<HttpStatus>
+    input headers Block<Map>
     input data Stream<byte>
     model http_server HttpServer
 )]
-pub async fn outgoing(id: u64) {
+pub async fn outgoing(id: u128) {
+    let id = Uuid::from_u128(id);
+    let model = HttpServerModel::into(http_server);
+    let http_server = model.inner();
+
+    let out_status;
+    let out_headers;
     let output;
     {
-        let connections = HttpServerModel::into(http_server).inner().connections();
-        let lock = connections.read().await;
-        output = lock.get(&id).cloned();
+        let statuses = http_server.statuses();
+        let mut lock = statuses.write().await;
+        out_status = lock.remove(&id);
     }
-    if let Some(output) = output {
-        let mut buffer = Vec::new();
-        while let (Ok(data), false) = (
-            data.recv_many()
-                .await
-                .map(|values| TryInto::<Vec<byte>>::try_into(values).unwrap()),
-            output.is_closed(),
+    {
+        let headers = http_server.headers();
+        let mut lock = headers.write().await;
+        out_headers = lock.remove(&id);
+    }
+    {
+        let outputs = http_server.outgoing();
+        let mut lock = outputs.write().await;
+        output = lock.remove(&id);
+    }
+    if let (Some(mut out_status), Some(mut out_headers), Some(mut output)) =
+        (out_status, out_headers, output)
+    {
+        if let (Ok(status), Ok(headers)) = (
+            status.recv_one().await.map(|val| {
+                GetData::<Arc<dyn Data>>::try_data(val)
+                    .unwrap()
+                    .downcast_arc::<HttpStatus>()
+                    .unwrap()
+            }),
+            headers.recv_one().await.map(|val| {
+                GetData::<Arc<dyn Data>>::try_data(val)
+                    .unwrap()
+                    .downcast_arc::<Map>()
+                    .unwrap()
+            }),
         ) {
-            buffer.extend(data);
-        }
-        if let Ok(status) = status
-            .recv_one()
-            .await
-            .map(|val| GetData::<u16>::try_data(val).unwrap())
-        {
-            let _ = output.send((status, buffer)).await;
+            match futures::join!(
+                out_status.push(status.0),
+                out_headers.push(Arc::unwrap_or_clone(headers))
+            ) {
+                (Ok(_), Ok(_)) => {
+                    while let (Ok(data), false) = (
+                        data.recv_many()
+                            .await
+                            .map(|values| TryInto::<Vec<byte>>::try_into(values).unwrap()),
+                        output.is_closed(),
+                    ) {
+                        match output.push_iter(data.into_iter()).await {
+                            Ok(_) => {}
+                            Err(_) => break,
+                        }
+                    }
+                }
+                (_, _) => {}
+            }
         }
     }
 }

@@ -5,11 +5,17 @@
 
 use http/server::HttpServer
 use http/server::connection
+use http/method::HttpMethod
+use http/status::|ok
+use http/status::HttpStatus
+use http/method::|post
 use std/flow::emit
 use std/flow::trigger
 use std/ops/option::unwrapOr
 use std/ops/option::ignore
 use std/conv::toString
+use std/data::Map
+use std/data::|map
 use encoding::decode
 use encoding::encode
 use javascript::JavaScriptEngine
@@ -20,15 +26,17 @@ use json/value::|null
 
 treatment main()
   model server: HttpServer(
-    routes=["/"],
-    bind="localhost:62333"
+    host="localhost",
+    port=62333
   )
 {
-    connection[http_server=server]()
-    status: emit<u16>(value=200)
+    connection[http_server=server](method=|post(), route="/hello")
+    status: emit<HttpStatus>(value=|ok())
+    headers: emit<Map>(value=|map([]))
     trigger<byte>()
     
-    connection.data -> trigger.stream,start -> status.trigger,emit -> connection.status
+    connection.data -> trigger.stream,start --> status.trigger,emit -> connection.status
+                       trigger.start --------> headers.trigger,emit -> connection.headers
     
     decode()
     toJson()

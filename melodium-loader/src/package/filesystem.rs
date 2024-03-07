@@ -19,7 +19,7 @@ pub struct FsPackage {
     version: Version,
     requirements: Vec<PackageRequirement>,
     entrypoints: HashMap<String, Identifier>,
-    contents: RwLock<HashMap<PathBuf, Content>>,
+    contents: RwLock<HashMap<PathBuf, Arc<Content>>>,
 }
 
 impl FsPackage {
@@ -112,7 +112,7 @@ impl FsPackage {
                 self.contents
                     .write()
                     .unwrap()
-                    .insert(designation.to_path_buf(), content);
+                    .insert(designation.to_path_buf(), Arc::new(content));
                 LoadingResult::new_success(())
             })
     }
@@ -188,7 +188,7 @@ impl FsPackage {
         &self.path
     }
 
-    pub fn contents(&self) -> RwLockReadGuard<HashMap<PathBuf, Content>> {
+    pub fn contents(&self) -> RwLockReadGuard<HashMap<PathBuf, Arc<Content>>> {
         self.contents.read().unwrap()
     }
 }
@@ -271,7 +271,8 @@ impl PackageTrait for FsPackage {
             return result;
         }
 
-        if let Some(content) = self.contents.read().unwrap().get(&designation) {
+        let content = { self.contents.read().unwrap().get(&designation).cloned() };
+        if let Some(content) = content {
             if let Ok(_guard) = content.try_lock() {
                 let needs = content.require();
                 result.merge_degrade_failure(Self::insure_loading(loader, needs));

@@ -1978,6 +1978,7 @@ impl PartialEq for DataType {
         match (self, other) {
             (Self::Vec(l0), Self::Vec(r0)) => l0 == r0,
             (Self::Option(l0), Self::Option(r0)) => l0 == r0,
+            (Self::Data(l0), Self::Data(r0)) => l0.identifier() == r0.identifier(),
             (Self::Undetermined, _) | (_, Self::Undetermined) => true,
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }

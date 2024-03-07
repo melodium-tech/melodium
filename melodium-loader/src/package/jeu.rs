@@ -19,7 +19,7 @@ pub struct JeuPackage {
     version: Version,
     requirements: Vec<PackageRequirement>,
     entrypoints: HashMap<String, Identifier>,
-    contents: HashMap<PathBuf, Content>,
+    contents: HashMap<PathBuf, Arc<Content>>,
 }
 
 impl JeuPackage {
@@ -90,7 +90,7 @@ impl JeuPackage {
                                             LoadingError::content_error(231, Arc::new(err))
                                         }),
                                     ) {
-                                        contents.insert(path.to_path_buf(), content);
+                                        contents.insert(path.to_path_buf(), Arc::new(content));
                                     }
                                 }
                                 Err(err) => {

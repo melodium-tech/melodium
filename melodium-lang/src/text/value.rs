@@ -46,9 +46,20 @@ impl Value {
         global_annotations: &mut HashMap<Word, CommentsAnnotations>,
     ) -> Result<Self, ScriptError> {
         match iter.next().map(|s| (&s[0], &s[1])) {
-            Some((w, _)) if w.kind == Some(Kind::OpeningBracket) => {
+            Some((w, nw)) if w.kind == Some(Kind::OpeningBracket) => {
                 let mut sub_values = Vec::new();
 
+                if nw.kind == Some(Kind::ClosingBracket) {
+                    // Consuming ']'
+                    iter.next();
+                    return Ok(Self::Array(
+                        PositionnedString {
+                            string: nw.text.clone(),
+                            position: nw.position,
+                        },
+                        sub_values,
+                    ));
+                }
                 loop {
                     sub_values.push(Self::build_from_first_item(&mut iter, global_annotations)?);
 

@@ -17,26 +17,38 @@ crate-type = ["lib", "cdylib"]
 name = "http_mel"
 
 [dependencies]
-async-std = "~1.12"
+async-std = {version="~1.12", features=["unstable"]}
 futures = "0.3"
 melodium-core = { path = "../../melodium-core", version = "0.7.1" }
 melodium-macro = { path = "../../melodium-macro", version = "0.7.1" }
-tide = { version = "0.16.0", default-features = false, features = ["h1-server"] }
+std-mel = { path = "../std-mel", version = "0.7.1" }
+serde = "1.0.185"
+trillium = { version = "0.2", features = ["serde"] }
+trillium-router = "0.3"
+trillium-async-std = "0.3"
+trillium-client = "0.5"
+ringbuf = "0.3"
+async-ringbuf = "0.1"
+routefinder = "0.5"
+uuid = { version = "1.7", features = ["v4", "fast-rng"] }
 
 [features]
 mock = []
 plugin = []
 real = []
 
-[target.'cfg(all(not(target_env = "msvc"), not(target_vendor = "apple")))'.dependencies.surf]
-version = "2.3.2"
+[target.'cfg(all(not(target_os = "windows"), not(target_vendor = "apple")))'.dependencies.trillium-rustls]
+version = "0.6"
 default-features = false
-features = ["h1-client-rustls"]
+features = ["native-roots", "ring", "client"]
 
-[target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.surf]
-version = "2.3.2"
+[target.'cfg(all(target_os = "windows", target_env = "gnu"))'.dependencies.trillium-rustls]
+version = "0.6"
 default-features = false
-features = ["h1-client"] # Native TLS
+features = ["ring", "client"]
+
+[target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.trillium-native-tls]
+version = "0.3"
 
 [package.metadata.docs.rs]
 all-features = true

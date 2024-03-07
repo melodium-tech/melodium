@@ -14,7 +14,7 @@ pub struct CorePackage {
     package: Arc<dyn CommonPackage>,
     requirements: Vec<PackageRequirement>,
     embedded_collection: RwLock<Option<Collection>>,
-    contents: RwLock<HashMap<String, Content>>,
+    contents: RwLock<HashMap<String, Arc<Content>>>,
 }
 
 impl CorePackage {
@@ -50,7 +50,7 @@ impl CorePackage {
                         self.contents
                             .write()
                             .unwrap()
-                            .insert(designation.to_string(), content);
+                            .insert(designation.to_string(), Arc::new(content));
                         LoadingResult::new_success(())
                     })
                 }
@@ -214,12 +214,15 @@ impl PackageTrait for CorePackage {
 
         let contents = self.contents.read().unwrap();
         for designation in &internal_needs {
-            let content = contents.get(designation).unwrap();
-            results.merge_degrade_failure(
-                content
-                    .insert_descriptors(&mut collection)
-                    .convert_failure_errors(|err| LoadingError::content_error(161, Arc::new(err))),
-            );
+            if let Some(content) = contents.get(designation) {
+                results.merge_degrade_failure(
+                    content
+                        .insert_descriptors(&mut collection)
+                        .convert_failure_errors(|err| {
+                            LoadingError::content_error(161, Arc::new(err))
+                        }),
+                );
+            }
         }
         for (designation, content) in &*contents {
             if !internal_needs.contains(designation) {
@@ -279,7 +282,8 @@ impl PackageTrait for CorePackage {
             return result;
         }
 
-        if let Some(content) = self.contents.read().unwrap().get(&designation) {
+        let content = { self.contents.read().unwrap().get(&designation).cloned() };
+        if let Some(content) = content {
             if let Ok(_guard) = content.try_lock() {
                 let needs = content.require();
                 result.merge_degrade_failure(Self::insure_loading(loader, needs));

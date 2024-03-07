@@ -14,7 +14,7 @@ test:rust:unit_tests:
     - cargo test --locked --verbose
 
 variables:
-  TESTS: complex_call fs generics http_javascript
+  TESTS: complex_call fs generics http_client http_javascript
 
 testers:rust:x86_64-unknown-linux-gnu:
   stage: test
@@ -272,11 +272,10 @@ test:melodium:i686-unknown-linux-gnu:
   needs:
     - build:debug:i686-unknown-linux-gnu
     - testers:rust:i686-unknown-linux-gnu
-  before_script:
+  script:
     - dpkg --add-architecture i386
     - apt-get update
     - apt-get install -y libc6:i386 libstdc++6:i386
-  script:
     - export PATH="$CI_PROJECT_DIR/target/i686-unknown-linux-gnu/debug:$PATH"
     - cd tests/
     - |
