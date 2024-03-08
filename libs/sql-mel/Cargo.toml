@@ -21,12 +21,20 @@ async-std = {version="~1.12", features=["unstable"]}
 melodium-core = { path = "../../melodium-core", version = "0.7.1" }
 melodium-macro = { path = "../../melodium-macro", version = "0.7.1" }
 std-mel = { path = "../std-mel", version = "0.7.1" }
-sqlx = { version = "0.7.3", features = ["runtime-async-std", "postgres", "mysql"] }
 
 [features]
 mock = []
 plugin = []
 real = []
+
+[target.'cfg(not(any(target_env = "msvc", target_vendor = "apple")))'.dependencies.sqlx]
+version = "0.7.3"
+features = ["runtime-async-std", "postgres", "mysql", "tls-rustls"]
+
+[target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.sqlx]
+version = "0.7.3"
+features = ["runtime-async-std", "postgres", "mysql", "tls-native-tls"]
+
 
 [package.metadata.docs.rs]
 all-features = true
