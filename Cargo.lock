@@ -2157,6 +2157,7 @@ dependencies = [
  "melodium-lang",
  "melodium-loader",
  "regex-mel",
+ "sql-mel",
  "std-mel",
 ]
 
