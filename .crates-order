@@ -13,5 +13,6 @@ regex-mel
 json-mel
 fs-mel
 http-mel
+sql-mel
 javascript-mel
 melodium

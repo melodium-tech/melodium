@@ -211,6 +211,8 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
     packages.push(json_mel::__mel_package::package());
     #[cfg(feature = "regex-mel")]
     packages.push(regex_mel::__mel_package::package());
+    #[cfg(feature = "sql-mel")]
+    packages.push(sql_mel::__mel_package::package());
 
     packages
 }
