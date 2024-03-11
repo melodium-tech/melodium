@@ -116,7 +116,7 @@ impl SqlPool {
     output failure Block<string>
     model pool SqlPool
 )]
-pub async fn execute(sql: string) {
+pub async fn execute_raw(sql: string) {
     match SqlPoolModel::into(pool).inner().pool().await {
         Ok(pool) => match QueryBuilder::new(sql).build().execute(&*pool).await {
             Ok(result) => {
@@ -124,6 +124,136 @@ pub async fn execute(sql: string) {
             }
             Err(error) => {
                 let _ = failure.send_one(error.to_string().into()).await;
+            }
+        },
+        Err(error) => {
+            let _ = failure.send_one(error.to_string().into()).await;
+        }
+    }
+}
+
+#[mel_treatment(
+    input bind Block<Map>
+    output affected Block<u64>
+    output failure Block<string>
+    model pool SqlPool
+)]
+pub async fn execute(sql: string, bindings: Vec<string>) {
+    if let Ok(bind) = bind.recv_one().await.map(|val| {
+        GetData::<Arc<dyn Data>>::try_data(val)
+            .unwrap()
+            .downcast_arc::<Map>()
+            .unwrap()
+    }) {
+        match SqlPoolModel::into(pool).inner().pool().await {
+            Ok(pool) => {
+                let mut query = sqlx::query(&sql);
+
+                for binding in &bindings {
+                    query = query.bind(
+                        bind.map
+                            .get(binding)
+                            .filter(|val| {
+                                val.datatype().implements(
+                                    &melodium_core::common::descriptor::DataTrait::ToString,
+                                )
+                            })
+                            .map(|val| melodium_core::DataTrait::to_string(val)),
+                    );
+                }
+
+                match query.execute(&*pool).await {
+                    Ok(result) => {
+                        let _ = affected.send_one(Value::U64(result.rows_affected())).await;
+                    }
+                    Err(error) => {
+                        let _ = failure.send_one(error.to_string().into()).await;
+                    }
+                }
+            }
+            Err(error) => {
+                let _ = failure.send_one(error.to_string().into()).await;
+            }
+        }
+    }
+}
+
+#[mel_treatment(
+    default separator ", "
+    default stop_on_failure true
+    default bind_limit 65535
+    input bind Stream<Map>
+    output affected Stream<u64>
+    output failure Stream<string>
+    model pool SqlPool
+)]
+pub async fn execute_batch(
+    base: string,
+    batch: string,
+    bindings: Vec<string>,
+    bind_limit: u64,
+    separator: string,
+    stop_on_failure: bool,
+) {
+    let limit = bind_limit.min(65535);
+    let batch_max = limit / bindings.len() as u64;
+
+    match SqlPoolModel::into(pool).inner().pool().await {
+        Ok(pool) => 'main: loop {
+            let mut query_builder = QueryBuilder::new(base.as_str());
+
+            let mut full_batch = Vec::with_capacity(batch_max as usize);
+            for _ in 0..batch_max {
+                if let Ok(bind) = bind.recv_one().await.map(|val| {
+                    GetData::<Arc<dyn Data>>::try_data(val)
+                        .unwrap()
+                        .downcast_arc::<Map>()
+                        .unwrap()
+                }) {
+                    full_batch.push(bind);
+                } else {
+                    break;
+                }
+            }
+
+            if full_batch.is_empty() {
+                break;
+            }
+
+            let mut query = query_builder
+                .push(
+                    std::iter::repeat(batch.as_str())
+                        .take(full_batch.len())
+                        .collect::<Vec<_>>()
+                        .join(&separator),
+                )
+                .build();
+
+            for b in full_batch {
+                for binding in &bindings {
+                    query = query.bind(
+                        b.map
+                            .get(binding)
+                            .filter(|val| {
+                                val.datatype().implements(
+                                    &melodium_core::common::descriptor::DataTrait::ToString,
+                                )
+                            })
+                            .map(|val| melodium_core::DataTrait::to_string(val)),
+                    );
+                }
+            }
+
+            match query.execute(&*pool).await {
+                Ok(result) => {
+                    let _ = affected.send_one(Value::U64(result.rows_affected())).await;
+                }
+                Err(error) => {
+                    let _ = failure.send_one(error.to_string().into()).await;
+                    if stop_on_failure {
+                        break 'main;
+                    }
+                }
             }
         },
         Err(error) => {
@@ -192,6 +322,106 @@ pub async fn fetch(sql: string, bindings: Vec<string>) {
             Err(error) => {
                 let _ = failure.send_one(error.to_string().into()).await;
             }
+        }
+    }
+}
+
+#[mel_treatment(
+    default separator ", "
+    default stop_on_failure true
+    default bind_limit 65535
+    input bind Stream<Map>
+    output data Stream<Map>
+    output failure Stream<string>
+    model pool SqlPool
+)]
+pub async fn fetch_batch(
+    base: string,
+    batch: string,
+    bindings: Vec<string>,
+    bind_limit: u64,
+    separator: string,
+    stop_on_failure: bool,
+) {
+    let limit = bind_limit.min(65535);
+    let batch_max = limit / bindings.len() as u64;
+
+    match SqlPoolModel::into(pool).inner().pool().await {
+        Ok(pool) => 'main: loop {
+            let mut query_builder = QueryBuilder::new(base.as_str());
+
+            let mut full_batch = Vec::with_capacity(batch_max as usize);
+            for _ in 0..batch_max {
+                if let Ok(bind) = bind.recv_one().await.map(|val| {
+                    GetData::<Arc<dyn Data>>::try_data(val)
+                        .unwrap()
+                        .downcast_arc::<Map>()
+                        .unwrap()
+                }) {
+                    full_batch.push(bind);
+                } else {
+                    break;
+                }
+            }
+
+            if full_batch.is_empty() {
+                break;
+            }
+
+            let mut query = query_builder
+                .push(
+                    std::iter::repeat(batch.as_str())
+                        .take(full_batch.len())
+                        .collect::<Vec<_>>()
+                        .join(&separator),
+                )
+                .build();
+
+            for b in full_batch {
+                for binding in &bindings {
+                    query = query.bind(
+                        b.map
+                            .get(binding)
+                            .filter(|val| {
+                                val.datatype().implements(
+                                    &melodium_core::common::descriptor::DataTrait::ToString,
+                                )
+                            })
+                            .map(|val| melodium_core::DataTrait::to_string(val)),
+                    );
+                }
+            }
+
+            let mut stream = query.fetch(&*pool);
+            'result: while let Some(row) = stream.next().await {
+                match row {
+                    Ok(row) => {
+                        let mut map = HashMap::with_capacity(row.len());
+                        for column in row.columns() {
+                            match row.try_get::<string, _>(column.ordinal()) {
+                                Ok(val) => {
+                                    map.insert(column.name().to_string(), Value::String(val));
+                                }
+                                Err(_) => {}
+                            }
+                        }
+                        let _ = data
+                            .send_one(Value::Data(Arc::new(Map::new_with(map)) as Arc<dyn Data>))
+                            .await;
+                    }
+                    Err(error) => {
+                        let _ = failure.send_one(error.to_string().into()).await;
+                        if stop_on_failure {
+                            break 'main;
+                        } else {
+                            break 'result;
+                        }
+                    }
+                }
+            }
+        },
+        Err(error) => {
+            let _ = failure.send_one(error.to_string().into()).await;
         }
     }
 }
