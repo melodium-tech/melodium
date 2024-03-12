@@ -11,10 +11,17 @@ use fs/file::write
 use sql::SqlPool
 use sql::failure
 use sql::executeRaw
+use sql::executeBatch
 use std/flow::trigger
 use std/flow::stream
+use std/flow::check
 use std/conv::toString
 use std/text/convert/string::toUtf8
+use std/flow::generate
+use std/data::Map
+use std/data::|map
+use std/data::|entry
+use std/data::|insert
 
 treatment main(const server_url: string, conn_error_file: string, exec_error_file: string, success_file: string)
   model sql: SqlPool(url=server_url, min_connections=1)
@@ -23,7 +30,7 @@ treatment main(const server_url: string, conn_error_file: string, exec_error_fil
     startup()
     failure[sql_pool=sql]()
     writeConnectionFailure: writeFile(path=conn_error_file)
-    executeRaw[pool=sql](sql="CREATE TABLE table_test (foo TEXT, bar INT); INSERT INTO table_test (foo, bar) VALUES ('La réponse', 42);")
+    executeRaw[pool=sql](sql="CREATE TABLE table_test (foo TEXT, bar TEXT)")
     writeExecutionFailure: writeFile(path=exec_error_file)
     writeExecutionSuccess: writeFile(path=success_file)
 
@@ -43,6 +50,11 @@ treatment main(const server_url: string, conn_error_file: string, exec_error_fil
     executionFailureAsUtf8: toUtf8()
 
     executeRaw.failure -> streamExecutionFailure.block,stream -> executionFailureAsUtf8.text,encoded -> writeExecutionFailure.data
+
+
+    insertRows[sql=sql](number=8, exec_error_file=exec_error_file, success_file=success_file)
+    check<u64>()
+    executeRaw.affected -> check.value,check -> insertRows.trigger
     
 }
 
@@ -55,4 +67,33 @@ treatment writeFile(path: string)
 
     Self.data -> trigger.stream,start -> emit.trigger,emit -> write.path
     Self.data ----------------------------------------------> write.data
+}
+
+treatment insertRows[sql: SqlPool](number: u128, exec_error_file: string, success_file: string)
+  input trigger: Block<void>
+{
+    /*generate<Map>(data=|map([
+        |entry<string>("foo", "La réponse"),
+        |entry<u64>("bar", 42)
+    ]))*/
+    generate<Map>(data=|insert<u64>(|insert<string>(|map([]), "foo", "La réponse"), "bar", 42))
+    emit<u128>(value=number)
+    executeBatch[pool=sql](
+        base = "INSERT INTO table_test (foo, bar) VALUES ",
+        batch = "($1, $2)",
+        bindings = ["foo", "bar"]
+    )
+
+    Self.trigger -> emit.trigger,emit -> generate.length,stream -> executeBatch.bind
+
+    writeExecutionFailure: writeFile(path=exec_error_file)
+    writeExecutionSuccess: writeFile(path=success_file)
+
+    affectedAsString: toString<u64>()
+    affectedAsUtf8: toUtf8()
+    executeBatch.affected -> affectedAsString.value,into -> affectedAsUtf8.text,encoded -> writeExecutionSuccess.data
+
+    executionFailureAsUtf8: toUtf8()
+    executeBatch.failure -> executionFailureAsUtf8.text,encoded -> writeExecutionFailure.data
+
 }
