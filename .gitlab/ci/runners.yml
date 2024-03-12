@@ -20,4 +20,11 @@
     - windows
     - windows-1809
 
-
+.service:postgresql:
+  services:
+    - postgres:16
+  variables:
+    POSTGRES_DB: test_db
+    POSTGRES_USER: test_user
+    POSTGRES_PASSWORD: test_pAs$w0rÐ
+    POSTGRES_HOST_AUTH_METHOD: trust

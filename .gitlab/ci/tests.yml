@@ -14,7 +14,7 @@ test:rust:unit_tests:
     - cargo test --locked --verbose
 
 variables:
-  TESTS: complex_call fs generics http_client http_javascript regex
+  TESTS: complex_call fs generics http_client http_javascript regex sql
 
 testers:rust:x86_64-unknown-linux-gnu:
   stage: test
@@ -217,16 +217,11 @@ test:melodium:x86_64-unknown-linux-gnu:
   extends: 
     - .run-tests
     - .runner:debian:x86_64
+    - .service:postgresql
   needs:
     - build:debug:x86_64-unknown-linux-gnu
     - testers:rust:x86_64-unknown-linux-gnu
   script:
-    # Installing test tools
-    - apt-get update
-    - apt-get install -y postgres
-    - postgres -D /usr/local/var/postgres
-    - PGPASSWORD='test' pg_isready -U postgres
-    # Testing
     - export PATH="$CI_PROJECT_DIR/target/x86_64-unknown-linux-gnu/debug:$PATH"
     - cd tests/
     - |
@@ -249,15 +244,11 @@ test:melodium:x86_64-unknown-linux-musl:
   extends: 
     - .run-tests
     - .runner:alpine:x86_64
+    - .service:postgresql
   needs:
     - build:debug:x86_64-unknown-linux-musl
     - testers:rust:x86_64-unknown-linux-musl
   script:
-    # Installing test tools
-    - apk update && apk add postgresql
-    - postgres -D /usr/local/var/postgres
-    - PGPASSWORD='test' pg_isready -U postgres
-    # Testing
     - export PATH="$CI_PROJECT_DIR/target/x86_64-unknown-linux-musl/debug:$PATH"
     - cd tests/
     - |
@@ -280,17 +271,14 @@ test:melodium:i686-unknown-linux-gnu:
   extends: 
     - .run-tests
     - .runner:debian:x86_64
+    - .service:postgresql
   needs:
     - build:debug:i686-unknown-linux-gnu
     - testers:rust:i686-unknown-linux-gnu
   script:
-    # Installing test tools
     - dpkg --add-architecture i386
     - apt-get update
-    - apt-get install -y libc6:i386 libstdc++6:i386 postgres
-    - postgres -D /usr/local/var/postgres
-    - PGPASSWORD='test' pg_isready -U postgres
-    # Testing
+    - apt-get install -y libc6:i386 libstdc++6:i386
     - export PATH="$CI_PROJECT_DIR/target/i686-unknown-linux-gnu/debug:$PATH"
     - cd tests/
     - |
@@ -313,15 +301,11 @@ test:melodium:i686-unknown-linux-musl:
   extends: 
     - .run-tests
     - .runner:alpine:x86_64
+    - .service:postgresql
   needs:
     - build:debug:i686-unknown-linux-musl
     - testers:rust:i686-unknown-linux-musl
   script:
-    # Installing test tools
-    - apk update && apk add postgresql
-    - postgres -D /usr/local/var/postgres
-    - PGPASSWORD='test' pg_isready -U postgres
-    # Testing
     - export PATH="$CI_PROJECT_DIR/target/i686-unknown-linux-musl/debug:$PATH"
     - cd tests/
     - |
@@ -344,15 +328,11 @@ test:melodium:aarch64-apple-darwin:
   extends: 
     - .run-tests
     - .runner:mac:aarch64
+    - .service:postgresql
   needs:
     - build:debug:aarch64-apple-darwin
     - testers:rust:aarch64-apple-darwin
   script:
-    # Installing test tools
-    - brew install postgresql@16
-    - postgres -D /usr/local/var/postgres
-    - PGPASSWORD='test' pg_isready -U postgres
-    # Testing
     - export PATH="$CI_PROJECT_DIR/target/aarch64-apple-darwin/debug:$PATH"
     - cd tests/
     - |
@@ -375,14 +355,11 @@ test:melodium:x86_64-pc-windows-gnu:
   extends: 
     - .run-tests
     - .runner:windows:x86_64
+    - .service:postgresql
   needs:
     - build:debug:x86_64-pc-windows-gnu
     - testers:rust:x86_64-pc-windows-gnu
   script:
-    # Installing test tools
-    - choco install postgresql16 --params '/Password:test' --ia '--enable-components server,commandlinetools'
-    - $Env:PGPASSWORD='test'; pg_isready -Upostgres
-    # Testing
     - $Env:Path="$CI_PROJECT_DIR/target/x86_64-pc-windows-gnu/debug;$Env:Path"
     - cd tests/
     - $TESTS = $TESTS.Split(" ")
@@ -406,14 +383,11 @@ test:melodium:x86_64-pc-windows-msvc:
   extends: 
     - .run-tests
     - .runner:windows:x86_64
+    - .service:postgresql
   needs:
     - build:debug:x86_64-pc-windows-msvc
     - testers:rust:x86_64-pc-windows-msvc
   script:
-    # Installing test tools
-    - choco install postgresql16 --params '/Password:test' --ia '--enable-components server,commandlinetools'
-    - $Env:PGPASSWORD='test'; pg_isready -Upostgres
-    # Testing
     - $Env:Path="$CI_PROJECT_DIR/target/x86_64-pc-windows-msvc/debug;$Env:Path"
     - cd tests/
     - $TESTS = $TESTS.Split(" ")
@@ -437,14 +411,11 @@ test:melodium:i686-pc-windows-gnu:
   extends: 
     - .run-tests
     - .runner:windows:x86_64
+    - .service:postgresql
   needs:
     - build:debug:i686-pc-windows-gnu
     - testers:rust:i686-pc-windows-gnu
   script:
-    # Installing test tools
-    - choco install postgresql16 --params '/Password:test' --ia '--enable-components server,commandlinetools'
-    - $Env:PGPASSWORD='test'; pg_isready -Upostgres
-    # Testing
     - $Env:Path="$CI_PROJECT_DIR/target/i686-pc-windows-gnu/debug;$Env:Path"
     - cd tests/
     - $TESTS = $TESTS.Split(" ")
@@ -468,14 +439,11 @@ test:melodium:i686-pc-windows-msvc:
   extends: 
     - .run-tests
     - .runner:windows:x86_64
+    - .service:postgresql
   needs:
     - build:debug:i686-pc-windows-msvc
     - testers:rust:i686-pc-windows-msvc
   script:
-    # Installing test tools
-    - choco install postgresql16 --params '/Password:test' --ia '--enable-components server,commandlinetools'
-    - $Env:PGPASSWORD='test'; pg_isready -Upostgres
-    # Testing
     - $Env:Path="$CI_PROJECT_DIR/target/i686-pc-windows-msvc/debug;$Env:Path"
     - cd tests/
     - $TESTS = $TESTS.Split(" ")
