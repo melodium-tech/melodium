@@ -44,6 +44,8 @@ impl SqlPool {
     }
 
     fn initialize(&self) {
+        sqlx::any::install_default_drivers();
+
         let model = self.model.upgrade().unwrap();
 
         match AnyPoolOptions::new()
