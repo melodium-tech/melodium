@@ -339,7 +339,7 @@ test:melodium:aarch64-apple-darwin:
     POSTGRES_HOST: localhost
   script:
     # Installing test tools
-    - brew install postgres@16
+    - brew install postgresql@16
     - postgres -D /usr/local/var/postgres
     - |
       psql --command "CREATE ROLE $POSTGRES_USER WITH
@@ -395,7 +395,7 @@ test:melodium:x86_64-pc-windows-gnu:
     POSTGRES_HOST: localhost
   script:
     # Installing test tools
-    - choco install postgresql16 --params '/Password:test' --ia '--enable-components server,commandlinetools'
+    - choco install postgresql16 -y --params '/Password:test' --ia '--enable-components server,commandlinetools'
     - |
       $Env:PGPASSWORD='test'; psql -U postgres --command "CREATE ROLE $Env:POSTGRES_USER WITH
         LOGIN
@@ -451,7 +451,7 @@ test:melodium:x86_64-pc-windows-msvc:
     POSTGRES_HOST: localhost
   script:
     # Installing test tools
-    - choco install postgresql16 --params '/Password:test' --ia '--enable-components server,commandlinetools'
+    - choco install postgresql16 -y --params '/Password:test' --ia '--enable-components server,commandlinetools'
     - |
       $Env:PGPASSWORD='test'; psql -U postgres --command "CREATE ROLE $Env:POSTGRES_USER WITH
         LOGIN
@@ -507,7 +507,7 @@ test:melodium:i686-pc-windows-gnu:
     POSTGRES_HOST: localhost
   script:
     # Installing test tools
-    - choco install postgresql16 --params '/Password:test' --ia '--enable-components server,commandlinetools'
+    - choco install postgresql16 -y --params '/Password:test' --ia '--enable-components server,commandlinetools'
     - |
       $Env:PGPASSWORD='test'; psql -U postgres --command "CREATE ROLE $Env:POSTGRES_USER WITH
         LOGIN
@@ -563,7 +563,7 @@ test:melodium:i686-pc-windows-msvc:
     POSTGRES_HOST: localhost
   script:
     # Installing test tools
-    - choco install postgresql16 --params '/Password:test' --ia '--enable-components server,commandlinetools'
+    - choco install postgresql16 -y --params '/Password:test' --ia '--enable-components server,commandlinetools'
     - |
       $Env:PGPASSWORD='test'; psql -U postgres --command "CREATE ROLE $Env:POSTGRES_USER WITH
         LOGIN
