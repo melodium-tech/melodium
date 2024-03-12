@@ -6,7 +6,7 @@ const EXEC_ERROR_FILENAME: &str = "execution_error";
 const SUCCESS_FILENAME: &str = "success_affected";
 
 fn main() {
-    if env::var("CI").is_some() && cfg!(target_os = "windows") {
+    if env::var("CI").is_ok() && cfg!(target_os = "windows") {
         // On CI for Windows, for now, we skip SQL tests as we have no acceptable solution
         // to get a working and available DBMS to make tests with (see tests.yml file).
         exit(0);
