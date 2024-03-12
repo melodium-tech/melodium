@@ -27,4 +27,5 @@
     POSTGRES_DB: test_db
     POSTGRES_USER: test_user
     POSTGRES_PASSWORD: test_pAs$w0rÐ
+    POSTGRES_HOST: postgres
     POSTGRES_HOST_AUTH_METHOD: trust

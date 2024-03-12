@@ -11,9 +11,10 @@ fn main() {
         .arg("sql.mel")
         .arg("--server_url")
         .arg(&format!(
-            r#""postgres://{user}:{password}@localhost:5432/{database}""#,
+            r#""postgres://{user}:{password}@{host}:5432/{database}""#,
             user = env::var("POSTGRES_USER").unwrap(),
             password = env::var("POSTGRES_PASSWORD").unwrap(),
+            host = env::var("POSTGRES_HOST").unwrap(),
             database = env::var("POSTGRES_DB").unwrap(),
         ))
         .arg("--conn_error_file")
