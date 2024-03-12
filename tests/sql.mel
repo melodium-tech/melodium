@@ -17,7 +17,7 @@ use std/conv::toString
 use std/text/convert/string::toUtf8
 
 treatment main(const server_url: string, conn_error_file: string, exec_error_file: string, success_file: string)
-  model sql: SqlPool(url=server_url)
+  model sql: SqlPool(url=server_url, min_connections=1)
 {
     
     startup()

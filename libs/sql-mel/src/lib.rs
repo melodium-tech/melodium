@@ -120,7 +120,7 @@ impl SqlPool {
 )]
 pub async fn execute_raw(sql: string) {
     match SqlPoolModel::into(pool).inner().pool().await {
-        Ok(pool) => match QueryBuilder::new(sql).build().execute(&*pool).await {
+        Ok(pool) => match sqlx::raw_sql(&sql).execute(&*pool).await {
             Ok(result) => {
                 let _ = affected.send_one(Value::U64(result.rows_affected())).await;
             }
