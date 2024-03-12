@@ -328,11 +328,39 @@ test:melodium:aarch64-apple-darwin:
   extends: 
     - .run-tests
     - .runner:mac:aarch64
-    - .service:postgresql
   needs:
     - build:debug:aarch64-apple-darwin
     - testers:rust:aarch64-apple-darwin
+  variables:
+    # On Mac, services cannot be used, so defining global PG stuff.
+    POSTGRES_DB: test_db
+    POSTGRES_USER: test_user
+    POSTGRES_PASSWORD: test_pAs$w0rÐ
+    POSTGRES_HOST: localhost
   script:
+    # Installing test tools
+    - brew install postgres@16
+    - postgres -D /usr/local/var/postgres
+    - |
+      psql --command "CREATE ROLE $POSTGRES_USER WITH
+        LOGIN
+        NOSUPERUSER
+        INHERIT
+        NOCREATEDB
+        NOCREATEROLE
+        NOREPLICATION
+        NOBYPASSRLS
+        UNENCRYPTED PASSWORD '$POSTGRES_PASSWORD';
+        CREATE DATABASE $POSTGRES_DB
+        WITH
+        OWNER = $POSTGRES_USER
+        ENCODING = 'UTF8'
+        LC_COLLATE = 'fr_FR.UTF-8'
+        LC_CTYPE = 'fr_FR.UTF-8'
+        TABLESPACE = pg_default
+        CONNECTION LIMIT = -1
+        IS_TEMPLATE = False;"
+    # Test phase
     - export PATH="$CI_PROJECT_DIR/target/aarch64-apple-darwin/debug:$PATH"
     - cd tests/
     - |
@@ -359,7 +387,35 @@ test:melodium:x86_64-pc-windows-gnu:
   needs:
     - build:debug:x86_64-pc-windows-gnu
     - testers:rust:x86_64-pc-windows-gnu
+  variables:
+    # On Windows, services cannot be used, so defining global PG stuff.
+    POSTGRES_DB: test_db
+    POSTGRES_USER: test_user
+    POSTGRES_PASSWORD: test_pAs$w0rÐ
+    POSTGRES_HOST: localhost
   script:
+    # Installing test tools
+    - choco install postgresql16 --params '/Password:test' --ia '--enable-components server,commandlinetools'
+    - |
+      $Env:PGPASSWORD='test'; psql -U postgres --command "CREATE ROLE $Env:POSTGRES_USER WITH
+        LOGIN
+        NOSUPERUSER
+        INHERIT
+        NOCREATEDB
+        NOCREATEROLE
+        NOREPLICATION
+        NOBYPASSRLS
+        UNENCRYPTED PASSWORD '$Env:POSTGRES_PASSWORD';
+        CREATE DATABASE $Env:POSTGRES_DB
+        WITH
+        OWNER = $Env:POSTGRES_USER
+        ENCODING = 'UTF8'
+        LC_COLLATE = 'fr_FR.UTF-8'
+        LC_CTYPE = 'fr_FR.UTF-8'
+        TABLESPACE = pg_default
+        CONNECTION LIMIT = -1
+        IS_TEMPLATE = False;"
+    # Test phase
     - $Env:Path="$CI_PROJECT_DIR/target/x86_64-pc-windows-gnu/debug;$Env:Path"
     - cd tests/
     - $TESTS = $TESTS.Split(" ")
@@ -387,7 +443,35 @@ test:melodium:x86_64-pc-windows-msvc:
   needs:
     - build:debug:x86_64-pc-windows-msvc
     - testers:rust:x86_64-pc-windows-msvc
+  variables:
+    # On Windows, services cannot be used, so defining global PG stuff.
+    POSTGRES_DB: test_db
+    POSTGRES_USER: test_user
+    POSTGRES_PASSWORD: test_pAs$w0rÐ
+    POSTGRES_HOST: localhost
   script:
+    # Installing test tools
+    - choco install postgresql16 --params '/Password:test' --ia '--enable-components server,commandlinetools'
+    - |
+      $Env:PGPASSWORD='test'; psql -U postgres --command "CREATE ROLE $Env:POSTGRES_USER WITH
+        LOGIN
+        NOSUPERUSER
+        INHERIT
+        NOCREATEDB
+        NOCREATEROLE
+        NOREPLICATION
+        NOBYPASSRLS
+        UNENCRYPTED PASSWORD '$Env:POSTGRES_PASSWORD';
+        CREATE DATABASE $Env:POSTGRES_DB
+        WITH
+        OWNER = $Env:POSTGRES_USER
+        ENCODING = 'UTF8'
+        LC_COLLATE = 'fr_FR.UTF-8'
+        LC_CTYPE = 'fr_FR.UTF-8'
+        TABLESPACE = pg_default
+        CONNECTION LIMIT = -1
+        IS_TEMPLATE = False;"
+    # Test phase
     - $Env:Path="$CI_PROJECT_DIR/target/x86_64-pc-windows-msvc/debug;$Env:Path"
     - cd tests/
     - $TESTS = $TESTS.Split(" ")
@@ -415,7 +499,35 @@ test:melodium:i686-pc-windows-gnu:
   needs:
     - build:debug:i686-pc-windows-gnu
     - testers:rust:i686-pc-windows-gnu
+  variables:
+    # On Windows, services cannot be used, so defining global PG stuff.
+    POSTGRES_DB: test_db
+    POSTGRES_USER: test_user
+    POSTGRES_PASSWORD: test_pAs$w0rÐ
+    POSTGRES_HOST: localhost
   script:
+    # Installing test tools
+    - choco install postgresql16 --params '/Password:test' --ia '--enable-components server,commandlinetools'
+    - |
+      $Env:PGPASSWORD='test'; psql -U postgres --command "CREATE ROLE $Env:POSTGRES_USER WITH
+        LOGIN
+        NOSUPERUSER
+        INHERIT
+        NOCREATEDB
+        NOCREATEROLE
+        NOREPLICATION
+        NOBYPASSRLS
+        UNENCRYPTED PASSWORD '$Env:POSTGRES_PASSWORD';
+        CREATE DATABASE $Env:POSTGRES_DB
+        WITH
+        OWNER = $Env:POSTGRES_USER
+        ENCODING = 'UTF8'
+        LC_COLLATE = 'fr_FR.UTF-8'
+        LC_CTYPE = 'fr_FR.UTF-8'
+        TABLESPACE = pg_default
+        CONNECTION LIMIT = -1
+        IS_TEMPLATE = False;"
+    # Test phase
     - $Env:Path="$CI_PROJECT_DIR/target/i686-pc-windows-gnu/debug;$Env:Path"
     - cd tests/
     - $TESTS = $TESTS.Split(" ")
@@ -443,7 +555,35 @@ test:melodium:i686-pc-windows-msvc:
   needs:
     - build:debug:i686-pc-windows-msvc
     - testers:rust:i686-pc-windows-msvc
+  variables:
+    # On Windows, services cannot be used, so defining global PG stuff.
+    POSTGRES_DB: test_db
+    POSTGRES_USER: test_user
+    POSTGRES_PASSWORD: test_pAs$w0rÐ
+    POSTGRES_HOST: localhost
   script:
+    # Installing test tools
+    - choco install postgresql16 --params '/Password:test' --ia '--enable-components server,commandlinetools'
+    - |
+      $Env:PGPASSWORD='test'; psql -U postgres --command "CREATE ROLE $Env:POSTGRES_USER WITH
+        LOGIN
+        NOSUPERUSER
+        INHERIT
+        NOCREATEDB
+        NOCREATEROLE
+        NOREPLICATION
+        NOBYPASSRLS
+        UNENCRYPTED PASSWORD '$Env:POSTGRES_PASSWORD';
+        CREATE DATABASE $Env:POSTGRES_DB
+        WITH
+        OWNER = $Env:POSTGRES_USER
+        ENCODING = 'UTF8'
+        LC_COLLATE = 'fr_FR.UTF-8'
+        LC_CTYPE = 'fr_FR.UTF-8'
+        TABLESPACE = pg_default
+        CONNECTION LIMIT = -1
+        IS_TEMPLATE = False;"
+    # Test phase
     - $Env:Path="$CI_PROJECT_DIR/target/i686-pc-windows-msvc/debug;$Env:Path"
     - cd tests/
     - $TESTS = $TESTS.Split(" ")
