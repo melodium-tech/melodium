@@ -333,34 +333,36 @@ test:melodium:aarch64-apple-darwin:
     - testers:rust:aarch64-apple-darwin
   variables:
     # On Mac, services cannot be used, so defining global PG stuff.
-    POSTGRES_DB: test_db
-    POSTGRES_USER: test_user
-    POSTGRES_PASSWORD: test_pAs$w0rÐ
-    POSTGRES_HOST: localhost
+    # POSTGRES_DB: test_db
+    # POSTGRES_USER: test_user
+    # POSTGRES_PASSWORD: test_pAs$w0rÐ
+    # POSTGRES_HOST: localhost
   script:
-    # Installing test tools
-    - brew install postgresql@16
-    - LC_ALL="C" /opt/homebrew/opt/postgresql@16/bin/postgres -p 5432 -D /opt/homebrew/var/postgresql@16 >/tmp/pg_log 2>&1 &
-    - |
-      /opt/homebrew/opt/postgresql@16/bin/psql --command "CREATE ROLE $POSTGRES_USER WITH
-        LOGIN
-        NOSUPERUSER
-        INHERIT
-        NOCREATEDB
-        NOCREATEROLE
-        NOREPLICATION
-        NOBYPASSRLS
-        UNENCRYPTED PASSWORD '$POSTGRES_PASSWORD';
-        CREATE DATABASE $POSTGRES_DB
-        WITH
-        OWNER = $POSTGRES_USER
-        ENCODING = 'UTF8'
-        LC_COLLATE = 'fr_FR.UTF-8'
-        LC_CTYPE = 'fr_FR.UTF-8'
-        TABLESPACE = pg_default
-        CONNECTION LIMIT = -1
-        IS_TEMPLATE = False;"
-    # Test phase
+    # On Mac, Gitlab CI doesn't provide a way to have side services (such as Postgre),
+    # so we should install stuff ourselves, however PG installation (or any other tool) is
+    # prohibitively long (and doesn't match with the 'raw base system' logic for tests), so here
+    # is the script allowing to install PG, but we don't actually use it.
+    # - brew install postgresql@16
+    # - LC_ALL="C" /opt/homebrew/opt/postgresql@16/bin/postgres -p 5432 -D /opt/homebrew/var/postgresql@16 >/tmp/pg_log 2>&1 &
+    # - |
+    #   /opt/homebrew/opt/postgresql@16/bin/psql --command "CREATE ROLE $POSTGRES_USER WITH
+    #     LOGIN
+    #     NOSUPERUSER
+    #     INHERIT
+    #     NOCREATEDB
+    #     NOCREATEROLE
+    #     NOREPLICATION
+    #     NOBYPASSRLS
+    #     UNENCRYPTED PASSWORD '$POSTGRES_PASSWORD';
+    #     CREATE DATABASE $POSTGRES_DB
+    #     WITH
+    #     OWNER = $POSTGRES_USER
+    #     ENCODING = 'UTF8'
+    #     LC_COLLATE = 'fr_FR.UTF-8'
+    #     LC_CTYPE = 'fr_FR.UTF-8'
+    #     TABLESPACE = pg_default
+    #     CONNECTION LIMIT = -1
+    #     IS_TEMPLATE = False;"
     - export PATH="$CI_PROJECT_DIR/target/aarch64-apple-darwin/debug:$PATH"
     - cd tests/
     - |
