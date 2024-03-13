@@ -340,7 +340,7 @@ test:melodium:aarch64-apple-darwin:
   script:
     # Installing test tools
     - brew install postgresql@16
-    - LC_ALL="C" /opt/homebrew/opt/postgresql@16/bin/postgres -D /opt/homebrew/var/postgresql@16 >/tmp/pg_log 2>&1 &
+    - LC_ALL="C" /opt/homebrew/opt/postgresql@16/bin/postgres -p 5432 -D /opt/homebrew/var/postgresql@16 >/tmp/pg_log 2>&1 &
     - |
       /opt/homebrew/opt/postgresql@16/bin/psql --command "CREATE ROLE $POSTGRES_USER WITH
         LOGIN
