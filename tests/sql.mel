@@ -80,7 +80,7 @@ treatment insertRows[sql: SqlPool](number: u128, exec_error_file: string, succes
     emit<u128>(value=number)
     executeBatch[pool=sql](
         base = "INSERT INTO table_test (foo, bar) VALUES ",
-        batch = "($1, $2)",
+        batch = "(?, ?)",
         bindings = ["foo", "bar"]
     )
 

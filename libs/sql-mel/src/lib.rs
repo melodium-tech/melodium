@@ -13,6 +13,18 @@ use std::{
 };
 use std_mel::data::*;
 
+fn postgres_bind_replace(mut sql_to_bind: String, bind_symbol: &str) -> String {
+    let bind_num = sql_to_bind.matches(bind_symbol).count();
+
+    for i in 1..=bind_num {
+        sql_to_bind = sql_to_bind
+            .replacen(bind_symbol, &format!("${i}"), 1)
+            .to_string();
+    }
+
+    sql_to_bind
+}
+
 #[derive(Debug)]
 #[mel_model(
     param url string none
@@ -138,9 +150,10 @@ pub async fn execute_raw(sql: string) {
     input bind Block<Map>
     output affected Block<u64>
     output failure Block<string>
+    default bind_symbol "?"
     model pool SqlPool
 )]
-pub async fn execute(sql: string, bindings: Vec<string>) {
+pub async fn execute(sql: string, bindings: Vec<string>, bind_symbol: string) {
     if let Ok(bind) = bind.recv_one().await.map(|val| {
         GetData::<Arc<dyn Data>>::try_data(val)
             .unwrap()
@@ -149,6 +162,10 @@ pub async fn execute(sql: string, bindings: Vec<string>) {
     }) {
         match SqlPoolModel::into(pool).inner().pool().await {
             Ok(pool) => {
+                let sql = match pool.connect_options().database_url.scheme() {
+                    "postgres" => postgres_bind_replace(sql, &bind_symbol),
+                    _ => sql,
+                };
                 let mut query = sqlx::query(&sql);
 
                 for binding in &bindings {
@@ -184,6 +201,7 @@ pub async fn execute(sql: string, bindings: Vec<string>) {
     default separator ", "
     default stop_on_failure true
     default bind_limit 65535
+    default bind_symbol "?"
     input bind Stream<Map>
     output affected Stream<u64>
     output failure Stream<string>
@@ -193,6 +211,7 @@ pub async fn execute_batch(
     base: string,
     batch: string,
     bindings: Vec<string>,
+    bind_symbol: string,
     bind_limit: u64,
     separator: string,
     stop_on_failure: bool,
@@ -223,12 +242,16 @@ pub async fn execute_batch(
             }
 
             let mut query = query_builder
-                .push(
-                    std::iter::repeat(batch.as_str())
+                .push({
+                    let batch = std::iter::repeat(batch.as_str())
                         .take(full_batch.len())
                         .collect::<Vec<_>>()
-                        .join(&separator),
-                )
+                        .join(&separator);
+                    match pool.connect_options().database_url.scheme() {
+                        "postgres" => postgres_bind_replace(batch, &bind_symbol),
+                        _ => batch,
+                    }
+                })
                 .build();
 
             for b in full_batch {
@@ -268,9 +291,10 @@ pub async fn execute_batch(
     input bind Block<Map>
     output data Stream<Map>
     output failure Block<string>
+    default bind_symbol "?"
     model pool SqlPool
 )]
-pub async fn fetch(sql: string, bindings: Vec<string>) {
+pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
     if let Ok(bind) = bind.recv_one().await.map(|val| {
         GetData::<Arc<dyn Data>>::try_data(val)
             .unwrap()
@@ -279,6 +303,10 @@ pub async fn fetch(sql: string, bindings: Vec<string>) {
     }) {
         match SqlPoolModel::into(pool).inner().pool().await {
             Ok(pool) => {
+                let sql = match pool.connect_options().database_url.scheme() {
+                    "postgres" => postgres_bind_replace(sql, &bind_symbol),
+                    _ => sql,
+                };
                 let mut query = sqlx::query(&sql);
 
                 for binding in &bindings {
@@ -332,6 +360,7 @@ pub async fn fetch(sql: string, bindings: Vec<string>) {
     default separator ", "
     default stop_on_failure true
     default bind_limit 65535
+    default bind_symbol "?"
     input bind Stream<Map>
     output data Stream<Map>
     output failure Stream<string>
@@ -342,6 +371,7 @@ pub async fn fetch_batch(
     batch: string,
     bindings: Vec<string>,
     bind_limit: u64,
+    bind_symbol: string,
     separator: string,
     stop_on_failure: bool,
 ) {
@@ -371,12 +401,16 @@ pub async fn fetch_batch(
             }
 
             let mut query = query_builder
-                .push(
-                    std::iter::repeat(batch.as_str())
+                .push({
+                    let batch = std::iter::repeat(batch.as_str())
                         .take(full_batch.len())
                         .collect::<Vec<_>>()
-                        .join(&separator),
-                )
+                        .join(&separator);
+                    match pool.connect_options().database_url.scheme() {
+                        "postgres" => postgres_bind_replace(batch, &bind_symbol),
+                        _ => batch,
+                    }
+                })
                 .build();
 
             for b in full_batch {
