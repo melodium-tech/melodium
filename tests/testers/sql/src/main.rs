@@ -49,7 +49,7 @@ fn main() {
             match std::fs::metadata(SUCCESS_FILENAME) {
                 Ok(_metadata) => match std::fs::read_to_string(SUCCESS_FILENAME) {
                     Ok(contents) => {
-                        if contents != "1" {
+                        if contents != "8" {
                             eprintln!("Invalid result content: {contents}");
                             exit(1);
                         }

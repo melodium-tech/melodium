@@ -30,7 +30,7 @@ treatment main(const server_url: string, conn_error_file: string, exec_error_fil
     startup()
     failure[sql_pool=sql]()
     writeConnectionFailure: writeFile(path=conn_error_file)
-    executeRaw[pool=sql](sql="CREATE TABLE table_test (foo TEXT, bar TEXT)")
+    executeRaw[pool=sql](sql="CREATE TABLE table_test (foo TEXT, bar INT)")
     writeExecutionFailure: writeFile(path=exec_error_file)
     writeExecutionSuccess: writeFile(path=success_file)
 

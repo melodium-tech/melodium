@@ -6,6 +6,10 @@ use async_std::sync::{Arc as AsyncArc, RwLock as AsyncRwLock};
 use core::time::Duration;
 use melodium_core::{common::executive::ResultStatus, *};
 use melodium_macro::{check, mel_model, mel_package, mel_treatment};
+use sqlx::any::{AnyArguments, AnyRow};
+use sqlx::postgres::any::AnyTypeInfoKind;
+use sqlx::query::Query;
+use sqlx::Any;
 use sqlx::{any::AnyPoolOptions, AnyPool, Column, QueryBuilder, Row};
 use std::{
     collections::HashMap,
@@ -23,6 +27,91 @@ fn postgres_bind_replace(mut sql_to_bind: String, bind_symbol: &str) -> String {
     }
 
     sql_to_bind
+}
+
+fn bind_value<'q>(
+    query: Query<'q, Any, AnyArguments<'q>>,
+    value: &Value,
+) -> Query<'q, Any, AnyArguments<'q>> {
+    match value {
+        Value::Void(_) => query.bind(None::<bool>),
+        Value::I8(n) => query.bind(*n as i16),
+        Value::I16(n) => query.bind(*n),
+        Value::I32(n) => query.bind(*n as i32),
+        Value::I64(n) => query.bind(*n as i64),
+        Value::I128(n) => query.bind(*n as f64),
+        Value::U8(n) => query.bind(*n as i16),
+        Value::U16(n) => query.bind(*n as i32),
+        Value::U32(n) => query.bind(*n as i64),
+        Value::U64(n) => query.bind(*n as f64),
+        Value::U128(n) => query.bind(*n as f64),
+        Value::F32(n) => query.bind(*n),
+        Value::F64(n) => query.bind(*n),
+        Value::Bool(b) => query.bind(*b),
+        Value::Byte(n) => query.bind(vec![*n]),
+        Value::Char(c) => query.bind(c.to_string()),
+        Value::String(s) => query.bind(s.clone()),
+        Value::Vec(_) => query.bind(None::<bool>),
+        Value::Option(o) => match o {
+            None => query.bind(None::<bool>),
+            Some(v) => bind_value(query, v),
+        },
+        Value::Data(d) => {
+            if value
+                .datatype()
+                .implements(&melodium_core::common::descriptor::DataTrait::ToString)
+            {
+                query.bind(d.to_string())
+            } else {
+                query.bind(None::<bool>)
+            }
+        }
+    }
+}
+
+fn get_row_as_map(row: &AnyRow) -> Map {
+    let mut map = HashMap::with_capacity(row.len());
+    for column in row.columns() {
+        map.insert(
+            column.name().to_string(),
+            match column.type_info().kind() {
+                AnyTypeInfoKind::Null => Value::Option(None),
+                AnyTypeInfoKind::Bool => row
+                    .try_get::<bool, _>(column.ordinal())
+                    .map(|b| Value::Bool(b))
+                    .unwrap_or_else(|_| Value::Option(None)),
+                AnyTypeInfoKind::SmallInt => row
+                    .try_get::<i16, _>(column.ordinal())
+                    .map(|n| Value::I16(n))
+                    .unwrap_or_else(|_| Value::Option(None)),
+                AnyTypeInfoKind::Integer => row
+                    .try_get::<i32, _>(column.ordinal())
+                    .map(|n| Value::I32(n))
+                    .unwrap_or_else(|_| Value::Option(None)),
+                AnyTypeInfoKind::BigInt => row
+                    .try_get::<i64, _>(column.ordinal())
+                    .map(|n| Value::I64(n))
+                    .unwrap_or_else(|_| Value::Option(None)),
+                AnyTypeInfoKind::Real => row
+                    .try_get::<f32, _>(column.ordinal())
+                    .map(|n| Value::F32(n))
+                    .unwrap_or_else(|_| Value::Option(None)),
+                AnyTypeInfoKind::Double => row
+                    .try_get::<f64, _>(column.ordinal())
+                    .map(|n| Value::F64(n))
+                    .unwrap_or_else(|_| Value::Option(None)),
+                AnyTypeInfoKind::Text => row
+                    .try_get::<String, _>(column.ordinal())
+                    .map(|s| Value::String(s))
+                    .unwrap_or_else(|_| Value::Option(None)),
+                AnyTypeInfoKind::Blob => row
+                    .try_get::<Vec<u8>, _>(column.ordinal())
+                    .map(|d| Value::Vec(d.into_iter().map(|v| Value::Byte(v)).collect()))
+                    .unwrap_or_else(|_| Value::Option(None)),
+            },
+        );
+    }
+    Map::new_with(map)
 }
 
 #[derive(Debug)]
@@ -169,16 +258,11 @@ pub async fn execute(sql: string, bindings: Vec<string>, bind_symbol: string) {
                 let mut query = sqlx::query(&sql);
 
                 for binding in &bindings {
-                    query = query.bind(
-                        bind.map
-                            .get(binding)
-                            .filter(|val| {
-                                val.datatype().implements(
-                                    &melodium_core::common::descriptor::DataTrait::ToString,
-                                )
-                            })
-                            .map(|val| melodium_core::DataTrait::to_string(val)),
-                    );
+                    if let Some(val) = bind.map.get(binding) {
+                        query = bind_value(query, val);
+                    } else {
+                        query = query.bind(None::<bool>);
+                    }
                 }
 
                 match query.execute(&*pool).await {
@@ -256,16 +340,11 @@ pub async fn execute_batch(
 
             for b in full_batch {
                 for binding in &bindings {
-                    query = query.bind(
-                        b.map
-                            .get(binding)
-                            .filter(|val| {
-                                val.datatype().implements(
-                                    &melodium_core::common::descriptor::DataTrait::ToString,
-                                )
-                            })
-                            .map(|val| melodium_core::DataTrait::to_string(val)),
-                    );
+                    if let Some(val) = b.map.get(binding) {
+                        query = bind_value(query, val);
+                    } else {
+                        query = query.bind(None::<bool>);
+                    }
                 }
             }
 
@@ -310,36 +389,21 @@ pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
                 let mut query = sqlx::query(&sql);
 
                 for binding in &bindings {
-                    query = query.bind(
-                        bind.map
-                            .get(binding)
-                            .filter(|val| {
-                                val.datatype().implements(
-                                    &melodium_core::common::descriptor::DataTrait::ToString,
-                                )
-                            })
-                            .map(|val| melodium_core::DataTrait::to_string(val)),
-                    );
+                    if let Some(val) = bind.map.get(binding) {
+                        query = bind_value(query, val);
+                    } else {
+                        query = query.bind(None::<bool>);
+                    }
                 }
 
                 let mut stream = query.fetch(&*pool);
                 while let Some(row) = stream.next().await {
                     match row {
                         Ok(row) => {
-                            let mut map = HashMap::with_capacity(row.len());
-                            for column in row.columns() {
-                                match row.try_get::<string, _>(column.ordinal()) {
-                                    Ok(val) => {
-                                        map.insert(column.name().to_string(), Value::String(val));
-                                    }
-                                    Err(_) => {}
-                                }
-                            }
+                            let map = get_row_as_map(&row);
                             check!(
-                                data.send_one(Value::Data(
-                                    Arc::new(Map::new_with(map)) as Arc<dyn Data>
-                                ))
-                                .await
+                                data.send_one(Value::Data(Arc::new(map) as Arc<dyn Data>))
+                                    .await
                             )
                         }
                         Err(error) => {
@@ -415,16 +479,11 @@ pub async fn fetch_batch(
 
             for b in full_batch {
                 for binding in &bindings {
-                    query = query.bind(
-                        b.map
-                            .get(binding)
-                            .filter(|val| {
-                                val.datatype().implements(
-                                    &melodium_core::common::descriptor::DataTrait::ToString,
-                                )
-                            })
-                            .map(|val| melodium_core::DataTrait::to_string(val)),
-                    );
+                    if let Some(val) = b.map.get(binding) {
+                        query = bind_value(query, val);
+                    } else {
+                        query = query.bind(None::<bool>);
+                    }
                 }
             }
 
@@ -432,17 +491,10 @@ pub async fn fetch_batch(
             'result: while let Some(row) = stream.next().await {
                 match row {
                     Ok(row) => {
-                        let mut map = HashMap::with_capacity(row.len());
-                        for column in row.columns() {
-                            match row.try_get::<string, _>(column.ordinal()) {
-                                Ok(val) => {
-                                    map.insert(column.name().to_string(), Value::String(val));
-                                }
-                                Err(_) => {}
-                            }
-                        }
+                        let map = get_row_as_map(&row);
+
                         let _ = data
-                            .send_one(Value::Data(Arc::new(Map::new_with(map)) as Arc<dyn Data>))
+                            .send_one(Value::Data(Arc::new(map) as Arc<dyn Data>))
                             .await;
                     }
                     Err(error) => {
