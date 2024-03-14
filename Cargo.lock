@@ -2745,6 +2745,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "process-mel"
+version = "0.7.1"
+dependencies = [
+ "async-std",
+ "futures",
+ "melodium-core",
+ "melodium-macro",
+ "std-mel",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
