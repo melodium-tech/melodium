@@ -1,6 +1,6 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    Context, DescribedType, Function, Generic, Identifier, Parameterized, Variability,
+    Context, DataType, DescribedType, Function, Generic, Identifier, Parameterized, Variability,
 };
 use melodium_common::executive::Value as ExecutiveValue;
 use std::collections::HashMap;
@@ -96,12 +96,14 @@ impl Value {
                 }
             }
             Value::Array(array) => {
-                if let DescribedType::Vec(inner_type) = described_type {
+                if let Some(DataType::Vec(inner_type)) =
+                    described_type.to_datatype(&parent_generics.read().unwrap())
+                {
                     let mut result = LogicResult::new_success(());
                     let mut variability = Variability::Const;
                     for val in array {
                         if let Some(var) = result.merge_degrade_failure(val.check(
-                            &inner_type,
+                            &DescribedType::from(&*inner_type),
                             scope_descriptor,
                             scope_generics,
                             called_id,
