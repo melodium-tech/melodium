@@ -1,9 +1,10 @@
+use crate::building::builder::get_value;
 use crate::building::Builder as BuilderTrait;
 use crate::building::{
     BuildId, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
     DynamicBuildResult, GenesisEnvironment, StaticBuildResult,
 };
-use crate::design::{Model, Value};
+use crate::design::Model;
 use crate::error::LogicResult;
 use crate::world::World;
 use core::fmt::Debug;
@@ -42,24 +43,8 @@ impl BuilderTrait for Builder {
 
         // Assigning explicit data
         for (_, parameter) in self.design.parameters.iter() {
-            let data = match &parameter.value {
-                Value::Raw(data) => data,
-                Value::Variable(name) => {
-                    if let Some(data) = environment.get_variable(&name) {
-                        data
-                    } else {
-                        descriptor
-                            .parameters()
-                            .get(name)
-                            .unwrap()
-                            .default()
-                            .as_ref()
-                            .unwrap()
-                    }
-                }
-                // Not possible in model to use context, should have been catcher by designed, aborting
-                _ => panic!("Impossible data recoverage"),
-            };
+            let data =
+                get_value(&parameter.value, environment, None).expect("Impossible data recoverage");
 
             remastered_environment.add_variable(&parameter.name, data.clone());
         }

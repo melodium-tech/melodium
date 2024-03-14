@@ -281,7 +281,23 @@ impl Value {
         described_type: &DescribedType,
         collection: &Collection,
     ) -> ScriptResult<ValueDesigner> {
-        match &self.content {
+        Self::build_designed_value(
+            &self.content,
+            designer,
+            described_type,
+            collection,
+            self.text.get_positionned_string(),
+        )
+    }
+
+    fn build_designed_value(
+        content: &ValueContent,
+        designer: &ParameterDesigner,
+        described_type: &DescribedType,
+        collection: &Collection,
+        positioned_string: &PositionnedString,
+    ) -> ScriptResult<ValueDesigner> {
+        match content {
             ValueContent::Name(decl_param) => {
                 ScriptResult::new_success(ValueDesigner::Variable(decl_param.name.clone()))
             }
@@ -314,7 +330,7 @@ impl Value {
                 } else {
                     ScriptResult::new_failure(ScriptError::undeclared_context(
                         155,
-                        self.text.get_positionned_string().clone(),
+                        positioned_string.clone(),
                     ))
                 }
             }
@@ -349,7 +365,7 @@ impl Value {
                             result = result.and_degrade_failure(ScriptResult::new_failure(
                                 ScriptError::missing_function_generic(
                                     171,
-                                    self.text.get_positionned_string().clone(),
+                                    positioned_string.clone(),
                                     i,
                                 ),
                             ));
@@ -379,7 +395,7 @@ impl Value {
                             result = result.and_degrade_failure(ScriptResult::new_failure(
                                 ScriptError::missing_function_parameter(
                                     156,
-                                    self.text.get_positionned_string().clone(),
+                                    positioned_string.clone(),
                                     i,
                                 ),
                             ));
@@ -396,20 +412,60 @@ impl Value {
                 } else {
                     ScriptResult::new_failure(ScriptError::unimported_element(
                         157,
-                        self.text.get_positionned_string().clone(),
+                        positioned_string.clone(),
                     ))
                 }
             }
-            _ => described_type
+            ValueContent::Array(array) => {
+                if let DescribedType::Vec(inner_type) = described_type {
+                    let mut vector = Vec::with_capacity(array.len());
+                    for val in array {
+                        let val = Self::build_designed_value(
+                            val,
+                            designer,
+                            &inner_type,
+                            collection,
+                            positioned_string,
+                        );
+                        if val.is_failure() {
+                            return val;
+                        } else {
+                            match val {
+                                melodium_common::descriptor::Status::Success {
+                                    success,
+                                    errors: _,
+                                } => vector.push(success),
+                                melodium_common::descriptor::Status::Failure {
+                                    failure: _,
+                                    errors: _,
+                                } => unreachable!(),
+                            }
+                        }
+                    }
+                    ScriptResult::new_success(ValueDesigner::Array(vector))
+                } else {
+                    ScriptResult::new_failure(ScriptError::invalid_type(
+                        182,
+                        positioned_string.clone(),
+                    ))
+                }
+            }
+            value => described_type
                 .to_datatype(&HashMap::new())
-                .map(|datatype| {
-                    self.make_executive_value(&datatype)
-                        .and_then(|val| ScriptResult::new_success(ValueDesigner::Raw(val)))
+                .map(|datatype| match value.make_executive_value(&datatype) {
+                    Ok(val) => ScriptResult::new_success(ValueDesigner::Raw(val)),
+                    Err(err) => {
+                        ScriptResult::new_failure(ScriptError::executive_restitution_failed(
+                            183,
+                            positioned_string.clone(),
+                            err,
+                        ))
+                    }
                 })
                 .unwrap_or_else(|| {
                     ScriptResult::new_failure(ScriptError::invalid_type(
                         109,
-                        self.text.get_positionned_string().clone(),
+                        positioned_string.clone(),
                     ))
                 }),
         }

@@ -72,11 +72,10 @@ treatment writeFile(path: string)
 treatment insertRows[sql: SqlPool](number: u128, exec_error_file: string, success_file: string)
   input trigger: Block<void>
 {
-    /*generate<Map>(data=|map([
+    generate<Map>(data=|map([
         |entry<string>("foo", "La réponse"),
         |entry<u64>("bar", 42)
-    ]))*/
-    generate<Map>(data=|insert<u64>(|insert<string>(|map([]), "foo", "La réponse"), "bar", 42))
+    ]))
     emit<u128>(value=number)
     executeBatch[pool=sql](
         base = "INSERT INTO table_test (foo, bar) VALUES ",
