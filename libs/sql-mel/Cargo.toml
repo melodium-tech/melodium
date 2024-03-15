@@ -1,0 +1,41 @@
+[package]
+name = "sql-mel"
+version = "0.7.1"
+authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
+rust-version = "1.60"
+edition = "2021"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "Mélodium SQL library"
+keywords = ["dataflow","parallelization","scalability","async","signal"]
+categories = ["compilers", "science", "concurrency", "asynchronous"]
+
+[lib]
+crate-type = ["lib", "cdylib"]
+name = "sql_mel"
+
+[dependencies]
+async-std = {version="~1.12", features=["unstable"]}
+melodium-core = { path = "../../melodium-core", version = "0.7.1" }
+melodium-macro = { path = "../../melodium-macro", version = "0.7.1" }
+std-mel = { path = "../std-mel", version = "0.7.1" }
+
+[features]
+mock = []
+plugin = []
+real = []
+
+[target.'cfg(not(any(target_env = "msvc", target_vendor = "apple")))'.dependencies.sqlx]
+version = "0.7.4"
+features = ["runtime-async-std", "postgres", "mysql", "tls-rustls"]
+
+[target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.sqlx]
+version = "0.7.4"
+features = ["runtime-async-std", "postgres", "mysql", "tls-native-tls"]
+
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -7,4 +7,5 @@ members = [
     "http_client",
     "http_javascript",
     "regex",
+    "sql",
 ]

@@ -15,7 +15,6 @@ pub struct FunctionInstanciation {
     scope_descriptor: Weak<dyn Parameterized>,
     scope_generics: Arc<RwLock<HashMap<String, DescribedType>>>,
     scope_id: Identifier,
-    parameter_name: String,
     generics: Arc<RwLock<HashMap<String, DescribedType>>>,
     design_reference: Option<Arc<dyn Reference>>,
 }
@@ -26,7 +25,6 @@ impl FunctionInstanciation {
         scope_descriptor: &Arc<dyn Parameterized>,
         scope_generics: &Arc<RwLock<HashMap<String, DescribedType>>>,
         scope_id: Identifier,
-        parameter_name: &str,
         generics: Arc<RwLock<HashMap<String, DescribedType>>>,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
@@ -35,7 +33,6 @@ impl FunctionInstanciation {
             scope_descriptor: Arc::downgrade(scope_descriptor),
             scope_generics: Arc::clone(scope_generics),
             scope_id,
-            parameter_name: parameter_name.to_string(),
             generics,
             design_reference,
         }
@@ -51,7 +48,8 @@ impl FunctionInstanciation {
     ) -> LogicResult<(Variability, DescribedType)> {
         let descriptor = self.descriptor();
 
-        let mut result = LogicResult::new_success(Variability::Const);
+        let mut result = LogicResult::new_success(());
+        let mut variability = Variability::Const;
 
         if descriptor.parameters().len() != parameters.len() {
             result
@@ -66,143 +64,23 @@ impl FunctionInstanciation {
 
         for i in 0..usize::min(descriptor.parameters().len(), parameters.len()) {
             let param_descriptor = &descriptor.parameters()[i];
-            match &parameters[i] {
-                Value::Raw(data) => {
-                    if !param_descriptor
-                        .described_type()
-                        .is_datatype(&data.datatype(), &self.generics.read().unwrap())
-                    {
-                        result.errors_mut().push(LogicError::unmatching_datatype(
-                            16,
-                            self.scope_id.clone(),
-                            descriptor.identifier().clone(),
-                            param_descriptor.name().to_string(),
-                            parameters[i].clone(),
-                            param_descriptor.described_type().clone(),
-                            data.datatype().into(),
-                            self.design_reference.clone(),
-                        ));
-                    }
-                }
-                Value::Variable(name) => {
-                    if let Some(scope_variable) = self
-                        .scope_descriptor
-                        .upgrade()
-                        .unwrap()
-                        .parameters()
-                        .get(name)
-                    {
-                        if *scope_variable.variability() != Variability::Const {
-                            result
-                                .success_mut()
-                                .map(|variability| *variability = Variability::Var);
-                        }
-
-                        if !param_descriptor.described_type().is_compatible(
-                            &self.generics.read().unwrap(),
-                            scope_variable.described_type(),
-                            &self.scope_generics.read().unwrap(),
-                        ) {
-                            result.errors_mut().push(LogicError::unmatching_datatype(
-                                17,
-                                self.scope_id.clone(),
-                                descriptor.identifier().clone(),
-                                param_descriptor.name().to_string(),
-                                parameters[i].clone(),
-                                param_descriptor.described_type().clone(),
-                                scope_variable.described_type().clone(),
-                                self.design_reference.clone(),
-                            ));
-                        }
-                    } else {
-                        result.errors_mut().push(LogicError::unexisting_variable(
-                            7,
-                            self.scope_id.clone(),
-                            self.parameter_name.to_string(),
-                            name.to_string(),
-                            self.design_reference.clone(),
-                        ));
-                    }
-                }
-                Value::Context(context, name) => {
-                    result
-                        .success_mut()
-                        .map(|variability| *variability = Variability::Var);
-
-                    if let Some(context_variable_datatype) = context.values().get(name) {
-                        if !param_descriptor
-                            .described_type()
-                            .is_datatype(context_variable_datatype, &self.generics.read().unwrap())
-                        {
-                            result.errors_mut().push(LogicError::unmatching_datatype(
-                                18,
-                                self.scope_id.clone(),
-                                descriptor.identifier().clone(),
-                                param_descriptor.name().to_string(),
-                                parameters[i].clone(),
-                                param_descriptor.described_type().clone(),
-                                context_variable_datatype.into(),
-                                self.design_reference.clone(),
-                            ));
-                        }
-                    } else {
-                        result
-                            .errors_mut()
-                            .push(LogicError::unexisting_context_variable(
-                                9,
-                                self.scope_id.clone(),
-                                self.parameter_name.clone(),
-                                context.identifier().clone(),
-                                name.clone(),
-                                self.design_reference.clone(),
-                            ));
-                    }
-                }
-                Value::Function(descriptor, generics, parameters) => {
-                    let function_instanciation = FunctionInstanciation::new(
-                        descriptor,
-                        &self.scope_descriptor.upgrade().unwrap(),
-                        &self.scope_generics,
-                        self.scope_id.clone(),
-                        &self.parameter_name,
-                        Arc::new(RwLock::new(generics.clone())),
-                        self.design_reference.clone(),
-                    );
-
-                    result = result.clone().and_degrade_failure(
-                        function_instanciation
-                            .check_function_return(parameters)
-                            .and_then(|(sub_variability, sub_return_type)| {
-                                if !param_descriptor.described_type().is_compatible(
-                                    &self.generics.read().unwrap(),
-                                    &sub_return_type,
-                                    &HashMap::new(),
-                                ) {
-                                    LogicResult::new_failure(LogicError::unmatching_datatype(
-                                        214,
-                                        self.scope_id.clone(),
-                                        descriptor.identifier().clone(),
-                                        param_descriptor.name().to_string(),
-                                        parameters[i].clone(),
-                                        param_descriptor.described_type().clone(),
-                                        sub_return_type,
-                                        self.design_reference.clone(),
-                                    ))
-                                } else if sub_variability != Variability::Const {
-                                    LogicResult::new_success(Variability::Var)
-                                } else {
-                                    // The unwrap_or default value has no importance as if none the whole result will be turned into failure anyway.
-                                    LogicResult::new_success(
-                                        result.success().cloned().unwrap_or(Variability::Const),
-                                    )
-                                }
-                            }),
-                    );
+            if let Some(var) = result.merge_degrade_failure(parameters[i].check(
+                param_descriptor.described_type(),
+                &self.scope_descriptor.upgrade().unwrap(),
+                &self.scope_generics,
+                descriptor.identifier(),
+                &self.generics,
+                param_descriptor.name(),
+                *param_descriptor.variability(),
+                &self.design_reference,
+            )) {
+                if var == Variability::Var {
+                    variability = Variability::Var;
                 }
             }
         }
 
-        result.and_then(|variability| {
+        result.and_then(|_| {
             if let Some(described_type) = descriptor
                 .return_type()
                 .as_defined(&self.generics.read().unwrap())

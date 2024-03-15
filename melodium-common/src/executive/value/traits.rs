@@ -193,6 +193,21 @@ impl DataTrait for Value {
 
     fn to_string(&self) -> String {
         match self {
+            Value::Void(_val) => String::new(),
+            Value::I8(val) => val.to_string(),
+            Value::I16(val) => val.to_string(),
+            Value::I32(val) => val.to_string(),
+            Value::I64(val) => val.to_string(),
+            Value::I128(val) => val.to_string(),
+            Value::U8(val) => val.to_string(),
+            Value::U16(val) => val.to_string(),
+            Value::U32(val) => val.to_string(),
+            Value::U64(val) => val.to_string(),
+            Value::U128(val) => val.to_string(),
+            Value::F32(val) => val.to_string(),
+            Value::F64(val) => val.to_string(),
+            Value::Bool(val) => val.to_string(),
+            Value::Byte(val) => hex::encode([*val]),
             Value::Char(val) => val.to_string(),
             Value::String(val) => val.clone(),
             Value::Data(obj) => obj.to_string(),
@@ -618,6 +633,21 @@ impl DataTrait for Value {
 
     fn try_to_string(&self) -> Option<String> {
         match self {
+            Value::Void(_val) => Some(String::new()),
+            Value::I8(val) => Some(val.to_string()),
+            Value::I16(val) => Some(val.to_string()),
+            Value::I32(val) => Some(val.to_string()),
+            Value::I64(val) => Some(val.to_string()),
+            Value::I128(val) => Some(val.to_string()),
+            Value::U8(val) => Some(val.to_string()),
+            Value::U16(val) => Some(val.to_string()),
+            Value::U32(val) => Some(val.to_string()),
+            Value::U64(val) => Some(val.to_string()),
+            Value::U128(val) => Some(val.to_string()),
+            Value::F32(val) => Some(val.to_string()),
+            Value::F64(val) => Some(val.to_string()),
+            Value::Bool(val) => Some(val.to_string()),
+            Value::Byte(val) => Some(hex::encode([*val])),
             Value::Char(val) => Some(val.to_string()),
             Value::String(val) => Some(val.clone()),
             Value::Data(obj) => obj.try_to_string(),

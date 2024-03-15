@@ -97,6 +97,31 @@ pub async fn trigger() {
     // implementation of treatments.
 }
 
+/// Check a blocking value.
+///
+/// When `value` block is received, `check` is emitted.
+///
+/// ```mermaid
+/// graph LR
+///     T("check()")
+///     B["〈🟨〉"] -->|value| T
+///         
+///     T -->|check| S["〈🟦〉"]
+///     
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    generic T ()
+    input value Block<T>
+    output check Block<void>
+)]
+pub async fn check() {
+    if let Ok(_) = value.recv_one().await {
+        let _ = check.send_one(().into()).await;
+    }
+}
+
 /// Emit a blocking value.
 ///
 /// When `trigger` is enabled, `value` is emitted as block.

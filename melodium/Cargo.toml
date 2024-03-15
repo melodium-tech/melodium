@@ -39,6 +39,7 @@ http-mel = { path = "../libs/http-mel", version = "0.7.1", optional = true }
 javascript-mel = { path = "../libs/javascript-mel", version = "0.7.1", optional = true }
 json-mel = { path = "../libs/json-mel", version = "0.7.1", optional = true }
 regex-mel = { path = "../libs/regex-mel", version = "0.7.1", optional = true }
+sql-mel = { path = "../libs/sql-mel", version = "0.7.1", optional = true }
 
 [features]
 default = ["cli", "standard-edition"]
@@ -49,7 +50,8 @@ network = ["http-mel", "melodium-loader/network"]
 fs = ["fs-mel", "melodium-loader/filesystem"]
 text = ["encoding-mel", "regex-mel"]
 javascript = ["javascript-mel", "json-mel"]
-standard-edition = ["jeu", "doc", "fs", "network", "text", "javascript"]
+sql = ["sql-mel"]
+standard-edition = ["jeu", "doc", "fs", "network", "text", "javascript", "sql"]
 
 [package.metadata.docs.rs]
 all-features = true

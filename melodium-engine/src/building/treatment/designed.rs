@@ -1,16 +1,17 @@
+use crate::building::builder::get_value;
 use crate::building::Builder as BuilderTrait;
 use crate::building::{
     BuildId, CheckBuild, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
     DynamicBuildResult, FeedingInputs, GenesisEnvironment, StaticBuildResult,
 };
-use crate::design::{Connection, Treatment, Value, IO};
+use crate::design::{Connection, Treatment, IO};
 use crate::error::{LogicError, LogicResult};
 use crate::world::World;
 use core::fmt::Debug;
 use melodium_common::descriptor::{
     DescribedType, Identified, Parameterized, Status, Treatment as TreatmentDescriptor,
 };
-use melodium_common::executive::{Model, TrackId, Value as ExecutiveValue};
+use melodium_common::executive::{Model, TrackId};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Weak};
 
@@ -83,79 +84,6 @@ impl Builder {
             building_inputs: RwLock::new(HashMap::new()),
         }
     }
-
-    /*fn get_const_value(value: &Value, genesis_environment: &GenesisEnvironment) -> ExecutiveValue {
-        match value {
-            Value::Raw(data) => data.clone(),
-            Value::Variable(name) => genesis_environment.get_variable(&name).unwrap().clone(),
-            Value::Function(descriptor, _generics, params) => {
-                let executive_values = params
-                    .iter()
-                    .map(|v| Self::get_const_value(v, genesis_environment))
-                    .collect();
-
-                descriptor.function()(executive_values)
-            }
-            // Not possible in constant situation to use context, should have been catched by designer, aborting
-            _ => panic!("Impossible data recoverage"),
-        }
-    }*/
-
-    fn get_value(
-        value: &Value,
-        genesis_environment: &GenesisEnvironment,
-        contextual_environment: Option<&ContextualEnvironment>,
-    ) -> Option<ExecutiveValue> {
-        match value {
-            Value::Raw(data) => Some(data.clone()),
-            Value::Variable(name) => {
-                if let Some(data) = contextual_environment
-                    .map(|ce| ce.get_variable(&name))
-                    .flatten()
-                {
-                    Some(data.clone())
-                } else {
-                    genesis_environment.get_variable(&name).cloned()
-                }
-            }
-            Value::Context(context, entry) => contextual_environment
-                .map(|ce| ce.get_context(context.name()).map(|c| c.get_value(entry)))
-                .flatten(),
-            Value::Function(descriptor, generics, params) => {
-                let generics = generics
-                    .iter()
-                    .map(|(name, generic)| {
-                        (
-                            name.clone(),
-                            if generic.contains_generic() {
-                                match generic {
-                                    DescribedType::Generic(generic) => genesis_environment
-                                        .get_generic(&generic.name)
-                                        .unwrap()
-                                        .clone(),
-                                    _ => panic!("Impossible generic recoverage"),
-                                }
-                            } else {
-                                generic.to_datatype(&HashMap::new()).unwrap()
-                            },
-                        )
-                    })
-                    .collect();
-                let mut executive_values = Vec::with_capacity(descriptor.parameters().len());
-                for parameter in params {
-                    if let Some(value) =
-                        Self::get_value(parameter, genesis_environment, contextual_environment)
-                    {
-                        executive_values.push(value);
-                    } else {
-                        return None;
-                    }
-                }
-
-                Some(descriptor.function()(generics, executive_values))
-            }
-        }
-    }
 }
 
 impl BuilderTrait for Builder {
@@ -193,9 +121,8 @@ impl BuilderTrait for Builder {
             let mut remastered_environment = GenesisEnvironment::new();
 
             for (name, parameter) in &model_instanciation.parameters {
-                let data =
-                    Self::get_value(&parameter.value, &build_sample.genesis_environment, None)
-                        .expect("Impossible model parameter recoverage");
+                let data = get_value(&parameter.value, &build_sample.genesis_environment, None)
+                    .expect("Impossible model parameter recoverage");
 
                 remastered_environment.add_variable(&name, data);
             }
@@ -280,7 +207,7 @@ impl BuilderTrait for Builder {
             // Setup parameters
             for (name, parameter) in &treatment.parameters {
                 if let Some(data) =
-                    Self::get_value(&parameter.value, &build_sample.genesis_environment, None)
+                    get_value(&parameter.value, &build_sample.genesis_environment, None)
                 {
                     remastered_environment.add_variable(&name, data);
                 }
@@ -464,7 +391,7 @@ impl BuilderTrait for Builder {
 
             // Setup parameters
             for (name, parameter) in &treatment.parameters {
-                let data = Self::get_value(
+                let data = get_value(
                     &parameter.value,
                     &build_sample.genesis_environment,
                     Some(&environment),
@@ -591,7 +518,7 @@ impl BuilderTrait for Builder {
 
                 // Setup parameters
                 for (name, parameter) in &next_treatment.parameters {
-                    let data = Self::get_value(
+                    let data = get_value(
                         &parameter.value,
                         &build_sample.genesis_environment,
                         Some(environment),

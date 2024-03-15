@@ -6,6 +6,14 @@ use std::collections::BTreeMap;
 pub fn value(value: &Value, names: &BTreeMap<Identifier, String>) -> String {
     match value {
         Value::Raw(val) => val.to_string(),
+        Value::Array(array) => format!(
+            "[{}]",
+            array
+                .iter()
+                .map(|val| self::value(val, names))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         Value::Variable(var) => var.clone(),
         Value::Context(context, entry) => {
             format!(

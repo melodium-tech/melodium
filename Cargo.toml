@@ -7,6 +7,7 @@ members = [
     "libs/javascript-mel",
     "libs/json-mel",
     "libs/regex-mel",
+    "libs/sql-mel",
     "libs/std-mel",
     "melodium",
     "melodium-common",

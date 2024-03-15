@@ -1,0 +1,98 @@
+#!/usr/bin/env melodium
+#! name = sql_test
+#! version = 0.7.1
+#! require = std:0.7.1
+#! require = sql:0.7.1
+#! require = fs:0.7.1
+
+use std/engine/util::startup
+use std/flow::emit
+use fs/file::write
+use sql::SqlPool
+use sql::failure
+use sql::executeRaw
+use sql::executeBatch
+use std/flow::trigger
+use std/flow::stream
+use std/flow::check
+use std/conv::toString
+use std/text/convert/string::toUtf8
+use std/flow::generate
+use std/data::Map
+use std/data::|map
+use std/data::|entry
+use std/data::|insert
+
+treatment main(const server_url: string, conn_error_file: string, exec_error_file: string, success_file: string)
+  model sql: SqlPool(url=server_url, min_connections=1)
+{
+    
+    startup()
+    failure[sql_pool=sql]()
+    writeConnectionFailure: writeFile(path=conn_error_file)
+    executeRaw[pool=sql](sql="CREATE TABLE table_test (foo TEXT, bar INT)")
+    writeExecutionFailure: writeFile(path=exec_error_file)
+    writeExecutionSuccess: writeFile(path=success_file)
+
+    streamAffected: stream<u64>()
+    affectedAsString: toString<u64>()
+    affectedAsUtf8: toUtf8()
+
+    startup.trigger -> executeRaw.trigger,affected -> streamAffected.block,stream -> affectedAsString.value,into -> affectedAsUtf8.text,encoded -> writeExecutionSuccess.data
+
+
+    streamConnectionFailure: stream<string>()
+    connectionFailureAsUtf8: toUtf8()
+
+    failure.failure -> streamConnectionFailure.block,stream -> connectionFailureAsUtf8.text,encoded -> writeConnectionFailure.data
+
+    streamExecutionFailure: stream<string>()
+    executionFailureAsUtf8: toUtf8()
+
+    executeRaw.failure -> streamExecutionFailure.block,stream -> executionFailureAsUtf8.text,encoded -> writeExecutionFailure.data
+
+
+    insertRows[sql=sql](number=8, exec_error_file=exec_error_file, success_file=success_file)
+    check<u64>()
+    executeRaw.affected -> check.value,check -> insertRows.trigger
+    
+}
+
+treatment writeFile(path: string)
+  input data: Stream<byte>
+{
+    emit<string>(value=path)
+    trigger<byte>()
+    write()
+
+    Self.data -> trigger.stream,start -> emit.trigger,emit -> write.path
+    Self.data ----------------------------------------------> write.data
+}
+
+treatment insertRows[sql: SqlPool](number: u128, exec_error_file: string, success_file: string)
+  input trigger: Block<void>
+{
+    generate<Map>(data=|map([
+        |entry<string>("foo", "La réponse"),
+        |entry<u64>("bar", 42)
+    ]))
+    emit<u128>(value=number)
+    executeBatch[pool=sql](
+        base = "INSERT INTO table_test (foo, bar) VALUES ",
+        batch = "(?, ?)",
+        bindings = ["foo", "bar"]
+    )
+
+    Self.trigger -> emit.trigger,emit -> generate.length,stream -> executeBatch.bind
+
+    writeExecutionFailure: writeFile(path=exec_error_file)
+    writeExecutionSuccess: writeFile(path=success_file)
+
+    affectedAsString: toString<u64>()
+    affectedAsUtf8: toUtf8()
+    executeBatch.affected -> affectedAsString.value,into -> affectedAsUtf8.text,encoded -> writeExecutionSuccess.data
+
+    executionFailureAsUtf8: toUtf8()
+    executeBatch.failure -> executionFailureAsUtf8.text,encoded -> writeExecutionFailure.data
+
+}
