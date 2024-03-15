@@ -13,11 +13,12 @@ use std/data::|map
 use fs/file::write
 use process::Environment
 use process::spawn
+use std/ops/option::|wrap
 
-treatment main()
+treatment main(/*const work: Option<string> = "."*/)
   model env: Environment(
         env=|map([]),
-        working_dir=_
+        working_dir=|wrap<string>(".")
     )
 {
 

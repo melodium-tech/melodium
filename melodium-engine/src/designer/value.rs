@@ -244,7 +244,7 @@ impl Value {
                     if !described_type.is_compatible(
                         &parent_generics.read().unwrap(),
                         &sub_return_type,
-                        &scope_generics.read().unwrap(),
+                        &generics,
                     ) {
                         result = result.and_degrade_failure(LogicResult::new_failure(
                             LogicError::unmatching_datatype(
