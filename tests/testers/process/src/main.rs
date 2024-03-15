@@ -13,8 +13,8 @@ fn main() {
     match melodium.wait() {
         Ok(status) if status.success() => match std::fs::metadata(FILENAME) {
             Ok(metadata) => {
-                if metadata.len() != EXPECTED_CONTENT.len() {
-                    eprintln!("File size is not {EXPECTED_SIZE} bytes");
+                if metadata.len() as usize != EXPECTED_CONTENT.len() {
+                    eprintln!("File size is not {} bytes", EXPECTED_CONTENT.len());
                     exit(1);
                 }
 
