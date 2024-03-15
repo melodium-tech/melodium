@@ -282,6 +282,61 @@ pub async fn execute(sql: string, bindings: Vec<string>, bind_symbol: string) {
 }
 
 #[mel_treatment(
+    input bind Stream<Map>
+    output affected Stream<u64>
+    output failure Stream<string>
+    default bind_symbol "?"
+    default stop_on_failure true
+    model pool SqlPool
+)]
+pub async fn execute_each(
+    sql: string,
+    bindings: Vec<string>,
+    bind_symbol: string,
+    stop_on_failure: bool,
+) {
+    match SqlPoolModel::into(pool).inner().pool().await {
+        Ok(pool) => {
+            while let Ok(bind) = bind.recv_one().await.map(|val| {
+                GetData::<Arc<dyn Data>>::try_data(val)
+                    .unwrap()
+                    .downcast_arc::<Map>()
+                    .unwrap()
+            }) {
+                let sql = match pool.connect_options().database_url.scheme() {
+                    "postgres" => postgres_bind_replace(sql.clone(), &bind_symbol),
+                    _ => sql.clone(),
+                };
+                let mut query = sqlx::query(&sql);
+
+                for binding in &bindings {
+                    if let Some(val) = bind.map.get(binding) {
+                        query = bind_value(query, val);
+                    } else {
+                        query = query.bind(None::<bool>);
+                    }
+                }
+
+                match query.execute(&*pool).await {
+                    Ok(result) => {
+                        let _ = affected.send_one(Value::U64(result.rows_affected())).await;
+                    }
+                    Err(error) => {
+                        let _ = failure.send_one(error.to_string().into()).await;
+                        if stop_on_failure {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        Err(error) => {
+            let _ = failure.send_one(error.to_string().into()).await;
+        }
+    }
+}
+
+#[mel_treatment(
     default separator ", "
     default stop_on_failure true
     default bind_limit 65535
