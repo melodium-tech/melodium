@@ -242,7 +242,7 @@ impl Value {
                     .merge_degrade_failure(function_instanciation.check_function_return(parameters))
                 {
                     if !described_type.is_compatible(
-                        &scope_generics.read().unwrap(),
+                        &parent_generics.read().unwrap(),
                         &sub_return_type,
                         &generics,
                     ) {
