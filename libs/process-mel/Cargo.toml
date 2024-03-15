@@ -17,7 +17,7 @@ crate-type = ["lib", "cdylib"]
 name = "process_mel"
 
 [dependencies]
-async-std = "~1.12"
+async-std = { version = "~1.12", features = ["unstable"] }
 futures = "~0.3.28"
 melodium-core = { path = "../../melodium-core", version = "0.7.1" }
 melodium-macro = { path = "../../melodium-macro", version = "0.7.1" }
