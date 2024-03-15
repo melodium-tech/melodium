@@ -15,10 +15,10 @@ use process::Environment
 use process::spawn
 use std/ops/option::|wrap
 
-treatment main(/*const work: Option<string> = "."*/)
+treatment main(const work: Option<string> = _)
   model env: Environment(
         env=|map([]),
-        working_dir=|wrap<string>(".")
+        working_dir=work
     )
 {
 
