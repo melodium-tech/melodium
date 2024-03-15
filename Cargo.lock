@@ -2140,6 +2140,7 @@ dependencies = [
  "melodium-engine",
  "melodium-lang",
  "melodium-loader",
+ "process-mel",
  "regex-mel",
  "sql-mel",
  "std-mel",

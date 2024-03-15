@@ -14,7 +14,7 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 
 [lib]
 crate-type = ["lib", "cdylib"]
-name = "fs_mel"
+name = "process_mel"
 
 [dependencies]
 async-std = "~1.12"
