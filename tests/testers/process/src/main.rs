@@ -1,34 +1,35 @@
 use std::process::{exit, Command};
 
-const FILENAME: &str = "output_number_regex";
-const INPUT_STRING: &str = "reyzerytnvz_ruty,àrûthtyjyjjy$$ù        🟦0123456 % 🚀 ";
-const EXPECTED_CONTENT: &str = "0123456";
+const FILENAME: &str = "replaced.txt";
+const EXPECTED_CONTENT: &str = "This is bar!";
 
 fn main() {
     let mut melodium = Command::new("melodium")
         .arg("run")
-        .arg("regex.mel")
-        .arg("--file")
-        .arg(&format!(r#""{FILENAME}""#))
-        .arg("--text")
-        .arg(&format!(r#""{INPUT_STRING}""#))
+        .arg("process.mel")
         .spawn()
         .expect("failed to launch Mélodium executable");
 
     match melodium.wait() {
         Ok(status) if status.success() => match std::fs::metadata(FILENAME) {
-            Ok(_metadata) => match std::fs::read_to_string(FILENAME) {
-                Ok(contents) => {
-                    if contents != EXPECTED_CONTENT {
-                        eprintln!("Invalid result content");
-                        exit(1);
-                    }
-                }
-                Err(err) => {
-                    eprintln!("Error reading file: {err}");
+            Ok(metadata) => {
+                if metadata.len() != EXPECTED_CONTENT.len() {
+                    eprintln!("File size is not {EXPECTED_SIZE} bytes");
                     exit(1);
                 }
-            },
+
+                match std::fs::read_to_string(FILENAME) {
+                    Ok(content) if content.as_str() != EXPECTED_CONTENT => {
+                        eprintln!("File don't contain expected content");
+                        exit(1);
+                    }
+                    Err(err) => {
+                        eprintln!("Error reading file: {err}");
+                        exit(1);
+                    }
+                    Ok(_) => {}
+                }
+            }
             Err(err) => {
                 eprintln!("Error retrieving metadata: {err}");
                 exit(1);

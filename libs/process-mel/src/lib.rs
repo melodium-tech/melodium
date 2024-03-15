@@ -1,9 +1,9 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
-use async_std::io::ReadExt;
-use async_std::io::WriteExt;
+use async_std::io::BufReader;
 use async_std::process::Command;
+use futures::{AsyncReadExt, AsyncWriteExt};
 use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_package, mel_treatment};
 use std::collections::HashMap;
@@ -146,25 +146,36 @@ pub async fn spawn(command: string) {
             Ok(mut child) => {
                 let _ = started.send_one(().into()).await;
 
+                let child_stdin = child.stdin.take();
+                let child_stdout = child.stdout.take();
+                let child_stderr = child.stderr.take();
+
                 let write_stdin = async {
-                    if let Some(ref mut child_stdin) = child.stdin {
+                    if let Some(mut child_stdin) = child_stdin {
                         while let Ok(data) = stdin
                             .recv_many()
                             .await
                             .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
                         {
-                            check!(child_stdin.write_all(&data).await)
+                            check!(child_stdin.write_all(&data).await);
+                            check!(child_stdin.flush().await);
                         }
+
+                        let _ = child_stdin.close().await;
                     } else {
                         let _ = stdin.close();
                     }
                 };
 
                 let read_stdout = async {
-                    if let Some(ref mut child_stdout) = child.stdout {
+                    if let Some(child_stdout) = child_stdout {
+                        let mut child_stdout = BufReader::new(child_stdout);
                         let mut buffer = [0; 2usize.pow(20)];
 
                         while let Ok(n) = child_stdout.read(&mut buffer[..]).await {
+                            if n == 0 {
+                                break;
+                            }
                             check!(
                                 stdout
                                     .send_many(TransmissionValue::Byte(
@@ -179,10 +190,14 @@ pub async fn spawn(command: string) {
                 };
 
                 let read_stderr = async {
-                    if let Some(ref mut child_stderr) = child.stderr {
+                    if let Some(child_stderr) = child_stderr {
+                        let mut child_stderr = BufReader::new(child_stderr);
                         let mut buffer = [0; 2usize.pow(20)];
 
                         while let Ok(n) = child_stderr.read(&mut buffer[..]).await {
+                            if n == 0 {
+                                break;
+                            }
                             check!(
                                 stderr
                                     .send_many(TransmissionValue::Byte(
@@ -192,21 +207,23 @@ pub async fn spawn(command: string) {
                             )
                         }
                     } else {
-                        let _ = stdout.close().await;
+                        let _ = stderr.close().await;
                     }
                 };
 
-                let _ = futures::join!(write_stdin, read_stdout, read_stderr);
+                let status = async {
+                    match child.status().await {
+                        Ok(status) => {
+                            let _ = success.send_one(status.success().into()).await;
+                            let _ = ended.send_one(status.code().into()).await;
+                        }
+                        Err(err) => {
+                            let _ = failure.send_one(err.to_string().into()).await;
+                        }
+                    }
+                };
 
-                match child.status().await {
-                    Ok(status) => {
-                        let _ = success.send_one(status.success().into()).await;
-                        let _ = ended.send_one(status.code().into()).await;
-                    }
-                    Err(err) => {
-                        let _ = failure.send_one(err.to_string().into()).await;
-                    }
-                }
+                let _ = futures::join!(status, write_stdin, read_stdout, read_stderr);
             }
             Err(err) => {
                 let _ = failure.send_one(err.to_string().into()).await;
