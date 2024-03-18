@@ -17,20 +17,18 @@ fn main() {
 
     match melodium.wait() {
         Ok(status) if status.success() => match std::fs::metadata(FILENAME) {
-            Ok(_metadata) => {
-                match std::fs::read_to_string(FILENAME) {
-                    Ok(contents) => {
-                        if contents != EXPECTED_CONTENT {
-                            eprintln!("Invalid result content");
-                            exit(1);
-                        }
-                    }
-                    Err(err) => {
-                        eprintln!("Error reading file: {err}");
+            Ok(_metadata) => match std::fs::read_to_string(FILENAME) {
+                Ok(contents) => {
+                    if contents != EXPECTED_CONTENT {
+                        eprintln!("Invalid result content");
                         exit(1);
                     }
                 }
-            }
+                Err(err) => {
+                    eprintln!("Error reading file: {err}");
+                    exit(1);
+                }
+            },
             Err(err) => {
                 eprintln!("Error retrieving metadata: {err}");
                 exit(1);

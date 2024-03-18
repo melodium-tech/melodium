@@ -12,6 +12,7 @@ encoding-mel
 regex-mel
 json-mel
 fs-mel
+process-mel
 http-mel
 sql-mel
 javascript-mel

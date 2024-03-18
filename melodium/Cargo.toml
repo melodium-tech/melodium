@@ -38,6 +38,7 @@ fs-mel = { path = "../libs/fs-mel", version = "0.7.1", optional = true }
 http-mel = { path = "../libs/http-mel", version = "0.7.1", optional = true }
 javascript-mel = { path = "../libs/javascript-mel", version = "0.7.1", optional = true }
 json-mel = { path = "../libs/json-mel", version = "0.7.1", optional = true }
+process-mel = { path = "../libs/process-mel", version = "0.7.1", optional = true }
 regex-mel = { path = "../libs/regex-mel", version = "0.7.1", optional = true }
 sql-mel = { path = "../libs/sql-mel", version = "0.7.1", optional = true }
 
@@ -47,7 +48,7 @@ cli = ["clap", "colored"]
 jeu = ["melodium-loader/jeu"]
 doc = ["melodium-doc", "melodium-engine/doc", "melodium-core/doc"]
 network = ["http-mel", "melodium-loader/network"]
-fs = ["fs-mel", "melodium-loader/filesystem"]
+fs = ["fs-mel", "process-mel", "melodium-loader/filesystem"]
 text = ["encoding-mel", "regex-mel"]
 javascript = ["javascript-mel", "json-mel"]
 sql = ["sql-mel"]
