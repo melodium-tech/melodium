@@ -82,11 +82,9 @@ impl JavaScriptEngine {
 ///
 /// For every incoming `value`, `code` is executed as-is within `engine`.
 /// Inside the `code` part the incoming value is reffered as globally-accessible `value` variable.
-/// `value` **must** be valid JSON data, in order to be turned into proper JS object.
 /// `code` can return any JS object convertible into JSON data.
 ///
-/// If `value` is not proper JSON data, `code` not actually processable JavaScript code, or its return value not convertible into JSON, an empty `result` and `is_valid` `false` value are send.
-/// In all other cases, `result` contains JSON string and `is_valid` is `true`.
+/// If `code` not actually processable JavaScript code, or its return value not convertible into JSON, a none `result` value is send.
 #[mel_treatment(
     model engine JavaScriptEngine
     input value Stream<Json>
@@ -133,17 +131,6 @@ pub async fn process(#[mel(content(javascript))] code: string) {
                 }
             }
         }
-        /*match serde_json::from_str::<Value>(&value) {
-                    Ok(value) => {
-
-                    }
-                    Err(_err) => {
-                        check!(result.send_one("".to_string().into()).await);
-                        let _ = is_valid.send_one(false.into()).await;
-                    }
-                }
-            }
-        }*/
     }
 }
 

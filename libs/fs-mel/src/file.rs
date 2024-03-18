@@ -8,13 +8,13 @@ use melodium_macro::{check, mel_treatment};
 /// The content of the file given through `path` is streamed through `data`.
 /// Once file is totally read, `success` is emitted.
 ///
-/// If any reading failure happens, `failure` is emitted and `message` contains text of the related text of error(s).
+/// If any reading failure happens, `failure` is emitted and `error` contains text of the related text of error(s).
 #[mel_treatment(
     input path Block<string>
     output data Stream<byte>
     output success Block<void>
     output failure Block<void>
-    output message Stream<string>
+    output error Stream<string>
 )]
 pub async fn read() {
     if let Ok(path) = path
@@ -39,7 +39,7 @@ pub async fn read() {
                         }
                         Err(err) => {
                             let _ = failure.send_one(().into()).await;
-                            let _ = message.send_one(err.to_string().into()).await;
+                            let _ = error.send_one(err.to_string().into()).await;
                             fail = true;
                             break;
                         }
@@ -51,7 +51,7 @@ pub async fn read() {
             }
             Err(err) => {
                 let _ = failure.send_one(().into()).await;
-                let _ = message.send_one(err.to_string().into()).await;
+                let _ = error.send_one(err.to_string().into()).await;
             }
         }
     } else {
@@ -69,7 +69,7 @@ pub async fn read() {
 ///
 /// The amount of written bytes is sent through `amount`. There is no guarantee about its increment, as an undefined number of bytes may be written at once.
 ///
-/// `success` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `message` contains the related text of error(s).
+/// `success` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `error` contains the related text of error(s).
 #[mel_treatment(
     default append false
     default create true
@@ -78,7 +78,7 @@ pub async fn read() {
     input data Stream<byte>
     output success Block<void>
     output failure Block<void>
-    output message Stream<string>
+    output error Stream<string>
     output amount Stream<u128>
 )]
 pub async fn write(append: bool, create: bool, new: bool) {
@@ -110,7 +110,7 @@ pub async fn write(append: bool, create: bool, new: bool) {
                         }
                         Err(err) => {
                             let _ = failure.send_one(().into()).await;
-                            let _ = message.send_one(err.to_string().into()).await;
+                            let _ = error.send_one(err.to_string().into()).await;
                             fail = true;
                             break;
                         }
@@ -122,7 +122,7 @@ pub async fn write(append: bool, create: bool, new: bool) {
             }
             Err(err) => {
                 let _ = failure.send_one(().into()).await;
-                let _ = message.send_one(err.to_string().into()).await;
+                let _ = error.send_one(err.to_string().into()).await;
             }
         }
     } else {

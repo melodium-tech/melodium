@@ -11,13 +11,13 @@ use melodium_macro::{check, mel_treatment};
 /// the directory already exists; when `false`, only the final directory in the path is created, and errors are emitted
 /// if a parent is missing, or the final directory already exists.
 ///
-/// If creation error happens, `failure` is emitted and `message` contains text of the related text of error(s).
+/// If creation error happens, `failure` is emitted and `error` contains text of the related text of error(s).
 #[mel_treatment(
     default recursive true
     input path Block<string>
     output success Block<void>
     output failure Block<void>
-    output message Stream<string>
+    output error Block<string>
 )]
 pub async fn create(recursive: bool) {
     if let Ok(path) = path
@@ -34,7 +34,7 @@ pub async fn create(recursive: bool) {
                 let _ = success.send_one(().into()).await;
             }
             Err(err) => {
-                let _ = message.send_one(err.to_string().into()).await;
+                let _ = error.send_one(err.to_string().into()).await;
                 let _ = failure.send_one(().into()).await;
             }
         }
@@ -51,15 +51,14 @@ pub async fn create(recursive: bool) {
 /// - `recursive`: set wether subdirectories must be scanned or not,
 /// - `follow_links`: set if symbolic links must be followed or not.
 ///
-/// If any scan error happens, `failure` is emitted and `message` contains text of the related text of error(s).
+/// When a scan error happen, it is send through `error` stream.
 #[mel_treatment(
     default recursive false
     default follow_links true
     input path Block<string>
     output entries Stream<string>
     output success Block<void>
-    output failure Block<void>
-    output message Stream<string>
+    output error Stream<string>
 )]
 pub async fn scan(recursive: bool, follow_links: bool) {
     if let Ok(path) = path
@@ -98,13 +97,10 @@ pub async fn scan(recursive: bool, follow_links: bool) {
                         .await
                 ),
                 Err(err) => {
-                    let _ = message.send_one(err.to_string().into()).await;
-                    let _ = failure.send_one(().into()).await;
+                    let _ = error.send_one(err.to_string().into()).await;
                 }
             }
         }
         let _ = success.send_one(().into()).await;
-    } else {
-        let _ = failure.send_one(().into()).await;
     }
 }
