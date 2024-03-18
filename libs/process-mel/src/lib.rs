@@ -170,7 +170,7 @@ pub async fn spawn(command: string) {
                 let read_stdout = async {
                     if let Some(child_stdout) = child_stdout {
                         let mut child_stdout = BufReader::new(child_stdout);
-                        let mut buffer = [0; 2usize.pow(20)];
+                        let mut buffer = vec![0; 2usize.pow(20)];
 
                         while let Ok(n) = child_stdout.read(&mut buffer[..]).await {
                             if n == 0 {
@@ -182,7 +182,7 @@ pub async fn spawn(command: string) {
                                         buffer[..n].iter().cloned().collect()
                                     ))
                                     .await
-                            )
+                            );
                         }
                     } else {
                         let _ = stdout.close().await;
@@ -192,7 +192,7 @@ pub async fn spawn(command: string) {
                 let read_stderr = async {
                     if let Some(child_stderr) = child_stderr {
                         let mut child_stderr = BufReader::new(child_stderr);
-                        let mut buffer = [0; 2usize.pow(20)];
+                        let mut buffer = vec![0; 2usize.pow(20)];
 
                         while let Ok(n) = child_stderr.read(&mut buffer[..]).await {
                             if n == 0 {
@@ -204,7 +204,7 @@ pub async fn spawn(command: string) {
                                         buffer[..n].iter().cloned().collect()
                                     ))
                                     .await
-                            )
+                            );
                         }
                     } else {
                         let _ = stderr.close().await;

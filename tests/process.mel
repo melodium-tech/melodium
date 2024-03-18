@@ -36,4 +36,16 @@ treatment main(const work: Option<string> = _)
     file: write()
     startup.trigger -> emitText.trigger,emit -> streamText.block,stream -> toUtf8.text,encoded -> spawn.stdin,stdout -> file.data
     startup.trigger ---------------------------------------------------------------------> emitFilename.trigger,emit -> file.path    
+
+    emitErrorFilename: emit<string>(value="./error.txt")
+    fileError: write()
+    spawn.stderr -----------------------------------------------> fileError.data
+    startup.trigger -----> emitErrorFilename.trigger,emit ------> fileError.path  
+
+    streamFailure: stream<string>()
+    failureToUtf8: toUtf8()
+    emitFailureFilename: emit<string>(value="./failure.txt")
+    fileFailure: write()
+    spawn.failure -----------------> streamFailure.block,stream -> failureToUtf8.text,encoded -> fileFailure.data
+    startup.trigger ---------------> emitFailureFilename.trigger,emit -------------------------> fileFailure.path  
 }
