@@ -11,9 +11,8 @@ use std/flow::stream
 use std/ops/option::unwrap
 use std/data::Map
 use std/data::get
-use std/text/convert/string::toUtf8
 use regex::capture
-use fs/file::write
+use fs/util::writeText
 
 treatment main(text: string, file: string) {
     
@@ -24,11 +23,8 @@ treatment main(text: string, file: string) {
     unwrapMap: unwrap<Map>()
     get<string>(key="number")
     unwrapString: unwrap<string>()
-    toUtf8()
-    filename: emit<string>(value=file)
-    write()
+    writeText(path=file)
 
-    startup.trigger -> filename.trigger,emit -> write.path
-    startup.trigger -> emit.trigger,emit -> stream.block,stream -> capture.text,captured -> unwrapMap.option,value -> get.map,value -> unwrapString.option,value -> toUtf8.text,encoded -> write.data
+    startup.trigger -> emit.trigger,emit -> stream.block,stream -> capture.text,captured -> unwrapMap.option,value -> get.map,value -> unwrapString.option,value -> writeText.text
     
 }

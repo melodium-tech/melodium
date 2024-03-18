@@ -22,6 +22,7 @@ async-walkdir = "0.2.0"
 futures = "~0.3.28"
 melodium-core = { path = "../../melodium-core", version = "0.7.1" }
 melodium-macro = { path = "../../melodium-macro", version = "0.7.1" }
+std-mel = { path = "../std-mel", version = "0.7.1" }
 
 [features]
 mock = []

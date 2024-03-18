@@ -10,7 +10,7 @@ use std/flow::count
 use std/conv::toBytes
 use std/flow/vec::flatten
 use std/flow::emit
-use fs/file::write
+use fs/util::write
 
 treatment main() {
     
@@ -26,10 +26,8 @@ treatment main() {
     
     generate.stream -> count.stream,count -> toBytes.value,data -> flatten.vector
     
-    emit<string>(value="./fs_try.data")
-    write()
+    write(path="./fs_try.data")
     
-    startup.trigger -> emit.trigger,emit -> write.path
     flatten.value -> write.data
     
 }
