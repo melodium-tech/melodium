@@ -126,13 +126,20 @@ impl Node for Use {
                 _ => {
                     // "Non-local" case
 
-                    self.identifier = Some(IdentifierRequirement::new(
-                        versions.get(&self.path.root()).cloned().unwrap_or_default(),
-                        self.path.path().clone(),
-                        &self.element,
-                    ));
-
-                    ScriptResult::new_success(())
+                    if let Some(version_req) = versions.get(&self.path.root()).cloned() {
+                        self.identifier = Some(IdentifierRequirement::new(
+                            version_req,
+                            self.path.path().clone(),
+                            &self.element,
+                        ));
+                        ScriptResult::new_success(())
+                    } else {
+                        ScriptResult::new_failure(ScriptError::unexisting_dependency(
+                            184,
+                            self.text.element.clone(),
+                            self.path.root(),
+                        ))
+                    }
                 }
             }
         }

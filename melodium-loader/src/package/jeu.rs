@@ -269,9 +269,10 @@ impl PackageTrait for JeuPackage {
         let mut result = LoadingResult::new_success(());
         if let Some(identifiers) = result.merge_degrade_failure(self.all_identifiers(loader)) {
             for identifier in &identifiers {
-                if collection.get(&identifier.into()).is_none() {
+                let identifier_requirement = identifier.into();
+                if collection.get(&identifier_requirement).is_none() {
                     if let Some(specific_collection) =
-                        result.merge_degrade_failure(self.element(loader, &identifier))
+                        result.merge_degrade_failure(self.element(loader, &identifier_requirement))
                     {
                         for identifier in &specific_collection.identifiers() {
                             collection.insert(
@@ -301,9 +302,13 @@ impl PackageTrait for JeuPackage {
         LoadingResult::new_success(identifiers)
     }
 
-    fn element(&self, loader: &Loader, identifier: &Identifier) -> LoadingResult<Collection> {
+    fn element(
+        &self,
+        loader: &Loader,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Collection> {
         let mut result = LoadingResult::new_success(Collection::new());
-        let designation = Self::designation(identifier);
+        let designation = Self::designation(&identifier_requirement.to_identifier());
 
         if let Some(content) = self.contents.get(&designation) {
             if let Ok(_guard) = content.try_lock() {
@@ -322,12 +327,12 @@ impl PackageTrait for JeuPackage {
                 result = result.and_degrade_failure(LoadingResult::new_success(collection));
             } else {
                 result = result.and_degrade_failure(LoadingResult::new_failure(
-                    LoadingError::circular_reference(234, identifier.into()),
+                    LoadingError::circular_reference(234, identifier_requirement.clone()),
                 ));
             }
         } else {
             result = result.and_degrade_failure(LoadingResult::new_failure(
-                LoadingError::not_found(235, identifier.to_string()),
+                LoadingError::not_found(235, identifier_requirement.to_string()),
             ));
         }
 

@@ -28,22 +28,22 @@ pub async fn composition() {
         let mut parents = VecDeque::with_capacity(paths.len());
         for path in paths {
             let path = PathBuf::from(path);
-            extensions.push_back(
-                Value::Option(path.extension()
-                    .map(|s| Box::new(Value::from(s.to_string_lossy().to_string())))),
-            );
-            file_names.push_back(
-                Value::Option(path.file_name()
-                    .map(|s| Box::new(Value::from(s.to_string_lossy().to_string())))),
-            );
-            file_stems.push_back(
-                Value::Option(path.file_stem()
-                    .map(|s| Box::new(Value::from(s.to_string_lossy().to_string())))),
-            );
-            parents.push_back(
-                Value::Option(path.parent()
-                    .map(|s| Box::new(Value::from(s.to_string_lossy().to_string()))))
-            );
+            extensions.push_back(Value::Option(
+                path.extension()
+                    .map(|s| Box::new(Value::from(s.to_string_lossy().to_string()))),
+            ));
+            file_names.push_back(Value::Option(
+                path.file_name()
+                    .map(|s| Box::new(Value::from(s.to_string_lossy().to_string()))),
+            ));
+            file_stems.push_back(Value::Option(
+                path.file_stem()
+                    .map(|s| Box::new(Value::from(s.to_string_lossy().to_string()))),
+            ));
+            parents.push_back(Value::Option(
+                path.parent()
+                    .map(|s| Box::new(Value::from(s.to_string_lossy().to_string()))),
+            ));
         }
         if let (Err(_), Err(_), Err(_), Err(_)) = futures::join!(
             extension.send_many(TransmissionValue::Other(extensions)),
@@ -122,9 +122,9 @@ pub async fn meta() {
 /// Gives file path extension.
 ///
 /// Return the part of the name after last `.`, or none if there is no extension.
-/// 
+///
 /// The extension is:
-/// 
+///
 /// - none, if there is no file name
 /// - none, if there is no embedded `.`
 /// - none, if the file name begins with `.` and has no other `.`s within
@@ -139,7 +139,7 @@ pub fn extension(path: string) -> Option<string> {
 /// Gives file name.
 ///
 /// Return the full name of the file (`bin` for `/usr/bin/`, `bar.txt` for `foo/bar.txt`, `etc` for `etc/./`, empty for `/`).
-/// 
+///
 /// If the path is a normal file, this is the file name. If it's the path of a directory, this is the directory name.
 ///
 /// Returns none if the path terminates in `..`.
@@ -153,7 +153,7 @@ pub fn file_name(path: string) -> Option<string> {
 /// Gives file stem.
 ///
 /// Return the part of the name before last `.`, or full name if starting with `.` with none in, or not containing any `.` at all.
-/// 
+///
 /// The stem is:
 ///
 /// - none, if there is no file name
@@ -170,7 +170,7 @@ pub fn file_stem(path: string) -> Option<string> {
 /// Gives parent path.
 ///
 /// Return the path up to the parent of the designated component (`/usr` for `/usr/bin`, none for `/`).
-/// 
+///
 /// Returns none if the path terminates in a root or prefix.
 #[mel_function]
 pub fn parent(path: string) -> Option<string> {

@@ -1,4 +1,4 @@
-use fs/file::write as fullWrite
+use root/file::write as fullWrite
 use std/flow::emit
 use std/flow::trigger
 use std/text/convert/string::toUtf8

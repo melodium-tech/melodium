@@ -221,9 +221,10 @@ impl PackageTrait for FsPackage {
         let mut result = LoadingResult::new_success(());
         if let Some(identifiers) = result.merge_degrade_failure(self.all_identifiers(loader)) {
             for identifier in &identifiers {
-                if collection.get(&identifier.into()).is_none() {
+                let identifier_requirement = identifier.into();
+                if collection.get(&identifier_requirement).is_none() {
                     if let Some(specific_collection) =
-                        result.merge_degrade_failure(self.element(loader, &identifier))
+                        result.merge_degrade_failure(self.element(loader, &identifier_requirement))
                     {
                         for identifier in &specific_collection.identifiers() {
                             collection.insert(
@@ -264,9 +265,13 @@ impl PackageTrait for FsPackage {
         LoadingResult::new_success(identifiers)
     }
 
-    fn element(&self, loader: &Loader, identifier: &Identifier) -> LoadingResult<Collection> {
+    fn element(
+        &self,
+        loader: &Loader,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Collection> {
         let mut result = LoadingResult::new_success(Collection::new());
-        let designation = Self::designation(identifier);
+        let designation = Self::designation(&identifier_requirement.to_identifier());
         if let None = result.merge_degrade_failure(self.insure_content(&designation)) {
             return result;
         }
@@ -289,12 +294,12 @@ impl PackageTrait for FsPackage {
                 result = result.and_degrade_failure(LoadingResult::new_success(collection));
             } else {
                 result.merge_degrade_failure::<()>(LoadingResult::new_failure(
-                    LoadingError::circular_reference(173, identifier.into()),
+                    LoadingError::circular_reference(173, identifier_requirement.clone()),
                 ));
             }
         } else {
             result.merge_degrade_failure::<()>(LoadingResult::new_failure(
-                LoadingError::not_found(174, identifier.to_string()),
+                LoadingError::not_found(174, identifier_requirement.to_string()),
             ));
         }
 

@@ -1,17 +1,17 @@
-use http/method::HttpMethod
-use http/method::|delete
-use http/method::|get
-use http/method::|head
-use http/method::|options
-use http/method::|patch
-use http/method::|post
-use http/method::|put
-use http/method::|trace
-use http/client::HttpClient
-use http/status::HttpStatus
+use root/method::HttpMethod
+use root/method::|delete
+use root/method::|get
+use root/method::|head
+use root/method::|options
+use root/method::|patch
+use root/method::|post
+use root/method::|put
+use root/method::|trace
+use root/client::HttpClient
+use root/status::HttpStatus
 use std/data::Map
-use http/client::request
-use http/client::requestWithBody
+use root/client::request
+use root/client::requestWithBody
 
 /** Performs HTTP DELETE operation.
 

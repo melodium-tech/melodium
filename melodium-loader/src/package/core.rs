@@ -267,16 +267,20 @@ impl PackageTrait for CorePackage {
         })
     }
 
-    fn element(&self, loader: &Loader, identifier: &Identifier) -> LoadingResult<Collection> {
+    fn element(
+        &self,
+        loader: &Loader,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Collection> {
         let mut result = LoadingResult::new_success(Collection::new());
 
         if let Some(collection) = result.merge_degrade_failure(self.embedded_collection(loader)) {
-            if collection.get(&identifier.into()).is_some() {
+            if collection.get(identifier_requirement).is_some() {
                 return result.and_degrade_failure(LoadingResult::new_success(collection));
             }
         }
 
-        let designation = Self::designation(&identifier.into());
+        let designation = Self::designation(identifier_requirement);
 
         if let None = result.merge_degrade_failure(self.insure_content(&designation)) {
             return result;
@@ -300,12 +304,12 @@ impl PackageTrait for CorePackage {
                 result = result.and_degrade_failure(LoadingResult::new_success(collection));
             } else {
                 result.merge_degrade_failure::<()>(LoadingResult::new_failure(
-                    LoadingError::circular_reference(164, identifier.into()),
+                    LoadingError::circular_reference(164, identifier_requirement.clone()),
                 ));
             }
         } else {
             result.merge_degrade_failure::<()>(LoadingResult::new_failure(
-                LoadingError::not_found(165, identifier.to_string()),
+                LoadingError::not_found(165, identifier_requirement.to_string()),
             ));
         }
 

@@ -159,7 +159,7 @@ impl Loader {
                 .get_package(&identifier_requirement.package_requirement()),
         ) {
             package
-                .element(self, &identifier_requirement.to_identifier())
+                .element(self, &identifier_requirement)
                 .and_then(|additions| {
                     self.add_collection(additions);
                     result.and_degrade_failure(LoadingResult::new_success(
