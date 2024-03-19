@@ -24,10 +24,12 @@ fn test_download(url: &str, file: &str, log: &str) {
     match melodium.wait() {
         Ok(status) if status.success() => match std::fs::metadata(file) {
             Ok(metadata) => {
-                let failure = std::fs::read_to_string(log).unwrap();
-                if !failure.is_empty() {
-                    eprintln!("Download failure: {failure}");
-                    exit(1);
+                match std::fs::read_to_string(log) {
+                    Ok(content) if !content.is_empty() => {
+                        eprintln!("Download log: {content}");
+                        exit(1);
+                    }
+                    _ => {}
                 }
 
                 if metadata.len() == 0 {
@@ -37,6 +39,13 @@ fn test_download(url: &str, file: &str, log: &str) {
             }
             Err(err) => {
                 eprintln!("Error retrieving metadata for '{file}': {err}");
+                match std::fs::read_to_string(log) {
+                    Ok(content) if !content.is_empty() => {
+                        eprintln!("Download log: {content}");
+                        exit(1);
+                    }
+                    _ => {}
+                }
                 exit(1);
             }
         },
