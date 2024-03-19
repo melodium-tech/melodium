@@ -2,9 +2,9 @@
 //!
 //! The main type of this module is [ScriptError], which handles most of the management, combined with kind of errors detailed with [ScriptErrorKind].
 
-use crate::text::word::Kind;
-use crate::text::word::Word;
+use crate::text::Kind;
 use crate::text::PositionnedString;
+use crate::text::Word;
 
 use melodium_common::descriptor::Status;
 use melodium_engine::LogicError;
@@ -149,6 +149,10 @@ pub enum ScriptErrorKind {
     InvalidTrait {
         text: PositionnedString,
     },
+    UnexistingDependency {
+        text: PositionnedString,
+        root: String,
+    },
     /// The error comes from logic.
     Logic {
         error: LogicError,
@@ -233,6 +237,7 @@ impl Display for ScriptErrorKind {
             ScriptErrorKind::MissingTreatmentGeneric { text } => write!(f, "at line {} position {} for treatment '{}' generic is missing", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::InvalidGeneric { text } => write!(f, "at line {} position {} '{}' is not a valid generic name", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::InvalidTrait { text } => write!(f, "at line {} position {} '{}' is not a valid trait", text.position.line_number, text.position.line_position, text.string),
+            ScriptErrorKind::UnexistingDependency { text, root } => write!(f, "at line {} position {} '{root}' is not a dependency", text.position.line_number, text.position.line_position),
             ScriptErrorKind::Logic { error } => {
                 if let Some(ps) = error
                     .design_reference
@@ -533,6 +538,13 @@ impl ScriptError {
         Self {
             id,
             kind: ScriptErrorKind::InvalidTrait { text },
+        }
+    }
+
+    pub fn unexisting_dependency(id: u32, text: PositionnedString, root: String) -> Self {
+        Self {
+            id,
+            kind: ScriptErrorKind::UnexistingDependency { text, root },
         }
     }
 

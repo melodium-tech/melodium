@@ -1,6 +1,6 @@
 [package]
 name = "melodium-engine"
-version = "0.7.1"
+version = "0.8.0-rc1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.60"
 edition = "2018"
@@ -16,7 +16,7 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 name = "melodium_engine"
 
 [dependencies]
-melodium-common = { path = "../melodium-common", version = "0.7.1" }
+melodium-common = { path = "../melodium-common", version = "=0.8.0-rc1" }
 async-std = "1.12"
 async-trait = "0.1.71"
 downcast-rs = "1.2.0"

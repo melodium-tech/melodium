@@ -3,7 +3,8 @@ use crate::Loader;
 use crate::{content::Content, PackageInfo};
 use core::iter::FromIterator;
 use melodium_common::descriptor::{
-    Collection, Identifier, LoadingError, LoadingResult, PackageRequirement, VersionReq,
+    Collection, Identifier, IdentifierRequirement, LoadingError, LoadingResult, PackageRequirement,
+    VersionReq,
 };
 use semver::Version;
 use std::{collections::HashMap, sync::Arc};
@@ -184,7 +185,11 @@ impl PackageTrait for RawPackage {
         )
     }
 
-    fn element(&self, loader: &Loader, _identifier: &Identifier) -> LoadingResult<Collection> {
+    fn element(
+        &self,
+        loader: &Loader,
+        _identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Collection> {
         self.full_collection(loader)
     }
 

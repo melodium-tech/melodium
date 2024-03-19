@@ -1,6 +1,8 @@
 use crate::Loader;
 use core::fmt::Debug;
-use melodium_common::descriptor::{Collection, Identifier, LoadingResult, PackageRequirement};
+use melodium_common::descriptor::{
+    Collection, Identifier, IdentifierRequirement, LoadingResult, PackageRequirement,
+};
 use semver::Version;
 use std::{collections::HashMap, sync::Arc};
 
@@ -94,14 +96,18 @@ impl PackageTrait for Package {
         }
     }
 
-    fn element(&self, loader: &Loader, identifier: &Identifier) -> LoadingResult<Collection> {
+    fn element(
+        &self,
+        loader: &Loader,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Collection> {
         match self {
-            Package::Core(pkg) => pkg.element(loader, identifier),
-            Package::Raw(pkg) => pkg.element(loader, identifier),
+            Package::Core(pkg) => pkg.element(loader, identifier_requirement),
+            Package::Raw(pkg) => pkg.element(loader, identifier_requirement),
             #[cfg(feature = "filesystem")]
-            Package::Fs(pkg) => pkg.element(loader, identifier),
+            Package::Fs(pkg) => pkg.element(loader, identifier_requirement),
             #[cfg(feature = "jeu")]
-            Package::Jeu(pkg) => pkg.element(loader, identifier),
+            Package::Jeu(pkg) => pkg.element(loader, identifier_requirement),
         }
     }
 
@@ -150,7 +156,11 @@ pub trait PackageTrait: Debug + PackageInfo {
      * This function fits for most of the usages, and is the most optimized one for getting functionnal stuff.
      * It loads and build all but only the required elements within the package, wether built-in or to-build elements.
      */
-    fn element(&self, loader: &Loader, identifier: &Identifier) -> LoadingResult<Collection>;
+    fn element(
+        &self,
+        loader: &Loader,
+        identifier_requirement: &IdentifierRequirement,
+    ) -> LoadingResult<Collection>;
     /**
      * Make the final build of all elements that depends on this package within the given collection.
      *

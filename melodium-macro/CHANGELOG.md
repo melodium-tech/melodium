@@ -1,7 +1,7 @@
 
 # Changelog
 
-## [Unreleased]
+## [v0.8.0]
 
 - Adding custom data types management.
 - Adding generics management.

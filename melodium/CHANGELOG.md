@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.8.0]
 
 - Adding direct entrypoint call through CLI.
 - Adding custom data types management.

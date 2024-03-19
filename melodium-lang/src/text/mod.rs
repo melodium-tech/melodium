@@ -5,21 +5,21 @@
 //! All the parsing and extraction heavily relies on the submodule [word](word).
 //!
 
-pub mod annotation;
-pub mod common;
-pub mod connection;
-pub mod function;
-pub mod generic;
-pub mod instanciation;
-pub mod model;
-pub mod parameter;
-pub mod requirement;
-pub mod script;
-pub mod treatment;
-pub mod r#type;
-pub mod r#use;
-pub mod value;
-pub mod word;
+mod annotation;
+mod common;
+mod connection;
+mod function;
+mod generic;
+mod instanciation;
+mod model;
+mod parameter;
+mod requirement;
+mod script;
+mod treatment;
+mod r#type;
+mod r#use;
+mod value;
+mod word;
 
 pub use annotation::{Annotation, CommentsAnnotations};
 pub use connection::Connection;
@@ -34,5 +34,4 @@ pub use requirement::Requirement;
 pub use script::Script;
 pub use treatment::Treatment;
 pub use value::Value;
-pub use word::Position;
-pub use word::PositionnedString;
+pub use word::*;

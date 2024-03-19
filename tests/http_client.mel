@@ -1,12 +1,12 @@
 #!/usr/bin/env melodium
 #! name = http_client
-#! version = 0.7.1
-#! require = http:0.7.1 std:0.7.1 fs:0.7.1
+#! version = 0.8.0
+#! require = http:=0.8.0-rc1 std:=0.8.0-rc1 fs:=0.8.0-rc1
 
 use http/client/util::get
-use std/flow::emit
 use std/engine/util::startup
-use fs/file::write
+use fs/util::write
+use fs/util::writeText
 use std/text/convert/string::toUtf8
 use std/flow::stream
 use std/data::Map
@@ -15,20 +15,15 @@ use std/data::|map
 treatment main(url: string, file: string, log: string)
 {
     startup()
-    filename: emit<string>(value=file)
     get(url=url)
-    write()
+    write(path=file)
 
     startup.trigger -> get.trigger
-    startup.trigger -> filename.trigger,emit -> write.path
 
-    log_name: emit<string>(value=log)
-    log: write()
-    startup.trigger -> log_name.trigger,emit -> log.path
-    toUtf8()
+    log: writeText(path=log)
     stream<string>()
 
-    get.data -> write.data
-    get.failure -> stream.block,stream -> toUtf8.text,encoded -> log.data
+    get.data ---------------------------> write.data
+    get.failure -> stream.block,stream ---> log.text
 }
 

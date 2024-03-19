@@ -4,18 +4,18 @@
 //! The concrete implementations are provided by engine, utilities, or core implementation from other Mélodium crates, and not aimed to be brought by user.
 //!
 
-pub mod context;
-pub mod data;
-pub mod data_traits;
-pub mod future;
-pub mod input;
-pub mod model;
-pub mod output;
-pub mod result_status;
-pub mod transmission;
-pub mod treatment;
-pub mod value;
-pub mod world;
+mod context;
+mod data;
+mod data_traits;
+mod future;
+mod input;
+mod model;
+mod output;
+mod result_status;
+mod transmission;
+mod treatment;
+mod value;
+mod world;
 
 pub use context::Context;
 pub use data::Data;

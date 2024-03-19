@@ -8,7 +8,7 @@ use melodium_common::{
 };
 use melodium_lang::{
     semantic::{NoneDeclarativeElement, Value as SemanticValue},
-    text::{word::get_words, Value as TextValue},
+    text::{get_words, Value as TextValue},
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -481,7 +481,7 @@ fn parse_args(
                         std::process::exit(1);
                     }
                 };
-                words.push(melodium_lang::text::word::Word::default());
+                words.push(melodium_lang::text::Word::default());
 
                 let value = match TextValue::build_from_first_item(
                     &mut words.windows(2),
