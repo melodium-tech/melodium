@@ -1,9 +1,9 @@
-pub mod context;
-pub mod data;
-pub mod function;
-pub mod model;
-pub mod source;
-pub mod treatment;
+mod context;
+mod data;
+mod function;
+mod model;
+mod source;
+mod treatment;
 
 pub use context::Context;
 pub use data::Data;

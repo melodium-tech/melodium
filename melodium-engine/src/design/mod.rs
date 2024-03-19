@@ -1,9 +1,9 @@
-pub mod connection;
-pub mod model;
-pub mod model_instanciation;
-pub mod parameter;
-pub mod treatment;
-pub mod treatment_instanciation;
+mod connection;
+mod model;
+mod model_instanciation;
+mod parameter;
+mod treatment;
+mod treatment_instanciation;
 
 pub use super::designer::Value;
 pub use connection::{Connection, IO};

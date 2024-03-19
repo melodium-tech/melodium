@@ -1,6 +1,6 @@
 mod blind_output;
-pub mod input;
-pub mod output;
+mod input;
+mod output;
 mod outputs;
 
 pub use blind_output::BlindOutput;

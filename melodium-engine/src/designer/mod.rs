@@ -1,14 +1,14 @@
-pub mod connection;
-pub mod function_instanciation;
-pub mod generic_instanciation;
-pub mod model;
-pub mod model_instanciation;
-pub mod parameter;
-pub mod reference;
-pub mod scope;
-pub mod treatment;
-pub mod treatment_instanciation;
-pub mod value;
+mod connection;
+mod function_instanciation;
+mod generic_instanciation;
+mod model;
+mod model_instanciation;
+mod parameter;
+mod reference;
+mod scope;
+mod treatment;
+mod treatment_instanciation;
+mod value;
 
 pub use connection::{Connection, IO};
 pub use function_instanciation::FunctionInstanciation;

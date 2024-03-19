@@ -3,32 +3,32 @@
 //! The traits and types present here bring informations about all the components present into Mélodium environment.
 //!
 
-pub mod attribuable;
-pub mod buildable;
-pub mod collection;
-pub mod context;
-pub mod data;
-pub mod data_trait;
-pub mod data_type;
-pub mod described_type;
-pub mod documented;
-pub mod flow;
-pub mod function;
-pub mod generic;
-pub mod identified;
-pub mod identifier;
-pub mod identifier_requirement;
-pub mod input;
-pub mod loader;
-pub mod model;
-pub mod output;
-pub mod package;
-pub mod package_requirement;
-pub mod parameter;
-pub mod parameterized;
-pub mod status;
-pub mod treatment;
-pub mod variability;
+mod attribuable;
+mod buildable;
+mod collection;
+mod context;
+mod data;
+mod data_trait;
+mod data_type;
+mod described_type;
+mod documented;
+mod flow;
+mod function;
+mod generic;
+mod identified;
+mod identifier;
+mod identifier_requirement;
+mod input;
+mod loader;
+mod model;
+mod output;
+mod package;
+mod package_requirement;
+mod parameter;
+mod parameterized;
+mod status;
+mod treatment;
+mod variability;
 
 pub use attribuable::{Attribuable, Attribute, Attributes};
 pub use buildable::{Buildable, ModelBuildMode, TreatmentBuildMode};

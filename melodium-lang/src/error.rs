@@ -2,9 +2,9 @@
 //!
 //! The main type of this module is [ScriptError], which handles most of the management, combined with kind of errors detailed with [ScriptErrorKind].
 
-use crate::text::word::Kind;
-use crate::text::word::Word;
+use crate::text::Kind;
 use crate::text::PositionnedString;
+use crate::text::Word;
 
 use melodium_common::descriptor::Status;
 use melodium_engine::LogicError;

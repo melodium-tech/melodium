@@ -1,8 +1,8 @@
 //! Provides restitution of Mélodium scripts from collection of elements.
 
-pub mod area;
-pub mod model;
-pub mod treatment;
+mod area;
+mod model;
+mod treatment;
 mod value;
 
 pub use area::Area;

@@ -1,5 +1,5 @@
-pub mod model;
-pub mod treatment;
+mod model;
+mod treatment;
 
 pub use model::Model;
 pub use treatment::Treatment;
