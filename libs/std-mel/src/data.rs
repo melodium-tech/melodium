@@ -49,6 +49,23 @@ pub fn entry(key: string, value: T) -> Map {
     Map { map }
 }
 
+/// Create maps with one entry
+///
+/// For every `value` coming through the stream, send a mono-entry map.
+#[mel_treatment(
+    generic T ()
+    input value Stream<T>
+    output map Stream<Map>
+)]
+pub async fn entry(key: string) {
+    while let Ok(value) = value.recv_one().await {
+        let mut new_map = HashMap::new();
+        new_map.insert(key.clone(), value);
+        let new_map = Map { map: new_map };
+        check!(map.send_one(Value::Data(Arc::new(new_map))).await)
+    }
+}
+
 /// Get a map entry
 #[mel_function(
     generic T ()
@@ -86,6 +103,31 @@ pub async fn get(key: string) {
 pub fn insert(mut map: Map, key: string, value: T) -> Map {
     map.map.insert(key, value);
     map
+}
+
+/// Create maps with one entry
+///
+/// For every `value` coming through the stream, insert it into the `base` map.
+#[mel_treatment(
+    generic T ()
+    input base Stream<Map>
+    input value Stream<T>
+    output map Stream<Map>
+)]
+pub async fn insert(key: string) {
+    while let (Ok(base), Ok(value)) = (
+        base.recv_one().await.map(|val| {
+            GetData::<Arc<dyn Data>>::try_data(val)
+                .unwrap()
+                .downcast_arc::<Map>()
+                .unwrap()
+        }),
+        value.recv_one().await,
+    ) {
+        let mut new_map = Arc::unwrap_or_clone(base);
+        new_map.map.insert(key.clone(), value);
+        check!(map.send_one(Value::Data(Arc::new(new_map))).await)
+    }
 }
 
 #[mel_data(
