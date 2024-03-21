@@ -7,6 +7,7 @@ use melodium_core::{common::executive::ResultStatus, *};
 use melodium_macro::{mel_context, mel_model, mel_treatment};
 use ringbuf::SharedRb;
 use routefinder::RouteSpec;
+use routefinder::Segment;
 use std::sync::Arc;
 use std::{
     collections::HashMap,
@@ -29,12 +30,14 @@ pub const SERVER: &str = concat!("http-mel/", env!("CARGO_PKG_VERSION"));
 /// - `id`: identifier of connection, it is an arbitrary number that uniquely identifies a HTTP connection to a server.
 /// - `route`: the route used by the request.
 /// - `path`: the path called by the request.
+/// - `parameters`: the parameters from the route.
 /// - `method`: the HTTP method used by the request.
 #[mel_context]
 pub struct HttpRequest {
     pub id: u128,
     pub route: string,
     pub path: string,
+    pub parameters: Map,
     pub method: HttpMethod,
 }
 
@@ -156,6 +159,21 @@ impl HttpServer {
                             id: id.as_u128(),
                             route: conn.route().map(|r| r.to_string()).unwrap_or_default(),
                             path: conn.path().to_string(),
+                            parameters: Map::new_with(
+                                route
+                                    .segments()
+                                    .iter()
+                                    .filter_map(|seg| {
+                                        if let Segment::Param(param) = seg {
+                                            conn.param(param).map(|v| {
+                                                (param.to_string(), Value::String(v.to_string()))
+                                            })
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect(),
+                            ),
                             method: (*method).clone(),
                         };
 
