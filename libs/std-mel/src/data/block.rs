@@ -1,8 +1,8 @@
-use melodium_core::{executive::*, *};
-use melodium_macro::{check, mel_data, mel_function, mel_treatment};
+use super::*;
+use melodium_core::*;
+use melodium_macro::mel_treatment;
 use std::collections::HashMap;
 use std::sync::Arc;
-use super::*;
 
 /// Create maps with one entry
 ///
@@ -17,7 +17,7 @@ pub async fn entry(key: string) {
         let mut new_map = HashMap::new();
         new_map.insert(key.clone(), value);
         let new_map = Map { map: new_map };
-        check!(map.send_one(Value::Data(Arc::new(new_map))).await)
+        let _ = map.send_one(Value::Data(Arc::new(new_map))).await;
     }
 }
 
@@ -36,7 +36,7 @@ pub async fn get(key: string) {
             .downcast_arc::<Map>()
             .unwrap()
     }) {
-        check!(value.send_one(map.map.get(&key).cloned().into()).await)
+        let _ = value.send_one(map.map.get(&key).cloned().into()).await;
     }
 }
 
@@ -61,6 +61,6 @@ pub async fn insert(key: string) {
     ) {
         let mut new_map = Arc::unwrap_or_clone(base);
         new_map.map.insert(key.clone(), value);
-        check!(map.send_one(Value::Data(Arc::new(new_map))).await)
+        let _ = map.send_one(Value::Data(Arc::new(new_map))).await;
     }
 }

@@ -3,6 +3,8 @@ use melodium_macro::{check, mel_data, mel_function, mel_treatment};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+pub mod block;
+
 #[mel_data(
     traits (PartialEquality Serialize Display)
 )]
