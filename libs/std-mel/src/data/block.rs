@@ -1,5 +1,4 @@
 use super::*;
-use melodium_core::*;
 use melodium_macro::mel_treatment;
 use std::collections::HashMap;
 use std::sync::Arc;
