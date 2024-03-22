@@ -54,6 +54,14 @@ case "$ZIP_FORMAT" in
         ( cd "$TMP_DIR" ; zip -r "melodium-${VERSION}_${TARGET}.zip" "$DIR_NAME" )
         mv "$TMP_DIR/melodium-${VERSION}_${TARGET}.zip" .
         ;;
+    "sh")
+        tar --create --xz --file installer_files.tar.xz --directory "$TMP_DIR" "$DIR_NAME"
+        echo "#!/usr/bin/env bash" > "melodium-${VERSION}_${TARGET}.sh"
+        echo "FULL_NAME=\"melodium-${VERSION}\"" >> "melodium-${VERSION}_${TARGET}.sh"
+        cat $(pwd)/.gitlab/ci/installer.sh >> "melodium-${VERSION}_${TARGET}.sh"
+        cat installer_files.tar.xz >> "melodium-${VERSION}_${TARGET}.sh"
+        rm installer_files.tar.xz
+        ;;
 esac
 
 rm -rf "$TMP_DIR"

@@ -45,6 +45,50 @@ packaging:installers:deb:
     reports:
       dotenv: variables.env
 
+# packaging:installers:sh:
+#   stage: packaging
+#   image: debian:bullseye
+#   extends:
+#     - .build-release
+#   needs:
+#     - build:release:aarch64-apple-darwin
+#     - build:release:aarch64-unknown-linux-gnu
+#     - build:release:aarch64-unknown-linux-musl
+#     - build:release:i686-unknown-linux-gnu
+#     - build:release:i686-unknown-linux-musl
+#     - build:release:x86_64-apple-darwin
+#     - build:release:x86_64-unknown-linux-gnu
+#     - build:release:x86_64-unknown-linux-musl
+#   script:
+#     - cargo install cargo-deb
+#     # Debian packages are built using cargo-deb (because cargo-bundle makes desktop entries we don't want)
+#     - cargo deb --package melodium --no-build --no-strip --target aarch64-unknown-linux-gnu
+#     - cargo deb --package melodium --no-build --no-strip --target aarch64-unknown-linux-musl
+#     - cargo deb --package melodium --no-build --no-strip --target i686-unknown-linux-gnu
+#     - cargo deb --package melodium --no-build --no-strip --target i686-unknown-linux-musl
+#     - cargo deb --package melodium --no-build --no-strip --target x86_64-unknown-linux-gnu
+#     - cargo deb --package melodium --no-build --no-strip --target x86_64-unknown-linux-musl
+#     - mkdir gnu musl
+#     - mv target/*-gnu/debian/*.deb gnu/
+#     - mv target/*-musl/debian/*.deb musl/
+#     - cd gnu
+#     - sha256sum *.deb > SHA256SUMS
+#     - cd ../musl
+#     - sha256sum *.deb > SHA256SUMS
+#     - cd ..
+#     - VERSION=${CI_COMMIT_TAG}
+#     - VERSION=${VERSION:-$CI_COMMIT_SHORT_SHA}
+#     - VERSION=$(echo $VERSION | sed 's/^v//')
+#     - echo "VERSION=$VERSION" >> variables.env
+#   artifacts:
+#     name: "packaging-installers-deb-$CI_COMMIT_SHORT_SHA"
+#     paths:
+#       - gnu/
+#       - musl/
+#     expire_in: 1 day
+#     reports:
+#       dotenv: variables.env
+
 packaging:zips:
   stage: packaging
   image: debian:bullseye
