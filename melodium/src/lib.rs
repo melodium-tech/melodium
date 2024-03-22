@@ -1,8 +1,8 @@
 //! Mélodium main library and binary
 //!
 //! Please refer to the [Mélodium Project](https://melodium.tech/),
-//! [Mélodium Book](https://doc.melodium.tech/book/),
-//! or [Mélodium Documentation](https://doc.melodium.tech/latest/) for usage.
+//! [Mélodium Book](https://doc.melodium.tech/book/en/),
+//! or [Mélodium Documentation](https://doc.melodium.tech/latest/en/) for usage.
 //!
 //! Please refer to the [crates.io page](https://crates.io/crates/melodium) or
 //! [project repository](https://gitlab.com/melodium/melodium) for compilation or development information.

@@ -67,7 +67,7 @@ release:gitlab:
           url: "https://repo.melodium.tech/zips/$VERSION/"
           link_type: other
         - name: Reference
-          url: "https://doc.melodium.tech/$VERSION/"
+          url: "https://doc.melodium.tech/$VERSION/en/"
           link_type: other
 
 release:publish:zips:
