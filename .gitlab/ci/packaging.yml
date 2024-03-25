@@ -89,6 +89,36 @@ packaging:installers:sh:
     reports:
       dotenv: variables.env
 
+packaging:installers:msi:
+  stage: packaging
+  extends:
+    - .build-release
+    - .builder:windows:x86_64-pc-windows-msvc
+  needs:
+    - build:release:aarch64-pc-windows-msvc
+    - build:release:i686-pc-windows-gnu
+    - build:release:i686-pc-windows-msvc
+    - build:release:x86_64-pc-windows-gnu
+    - build:release:x86_64-pc-windows-msvc
+  script:
+    - Invoke-WebRequest -Uri https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -UseBasicParsing -OutFile wix311-binaries.zip
+    - Expand-Archive -Path wix311-binaries.zip -DestinationPath wix-binaries
+    - cargo install cargo-wix
+    - cargo wix --package melodium --no-build --bin-path "wix-binaries/" --target aarch64-pc-windows-msvc --output melodium_aarch64-pc-windows-msvc.msi ".gitlab/ci/wix/main.wxs"
+    - cargo wix --package melodium --no-build --bin-path "wix-binaries/" --target i686-pc-windows-gnu --output melodium_i686-pc-windows-gnu.msi ".gitlab/ci/wix/main.wxs"
+    - cargo wix --package melodium --no-build --bin-path "wix-binaries/" --target i686-pc-windows-msvc --output melodium_i686-pc-windows-msvc.msi ".gitlab/ci/wix/main.wxs"
+    - cargo wix --package melodium --no-build --bin-path "wix-binaries/" --target x86_64-pc-windows-gnu --output melodium_x86_64-pc-windows-gnu.msi ".gitlab/ci/wix/main.wxs"
+    - cargo wix --package melodium --no-build --bin-path "wix-binaries/" --target x86_64-pc-windows-msvc --output melodium_x86_64-pc-windows-msvc.msi ".gitlab/ci/wix/main.wxs"
+  artifacts:
+    name: "packaging-installers-msi-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - melodium_aarch64-pc-windows-msvc.msi
+      - melodium_i686-pc-windows-gnu.msi
+      - melodium_i686-pc-windows-msvc.msi
+      - melodium_x86_64-pc-windows-gnu.msi
+      - melodium_x86_64-pc-windows-msvc.msi
+    expire_in: 1 day
+
 packaging:zips:
   stage: packaging
   image: debian:bullseye

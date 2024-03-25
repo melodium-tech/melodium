@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+    <Product Name='Mélodium' Manufacturer='Mélodium SAS'
+        Id='055166e2-2d8f-447d-b2fc-2ce756e02637' 
+        UpgradeCode='ea0ccee4-8037-48b8-91f8-5cd744249b55'
+        Language='1033' Codepage='65001' Version='1.0.0'>
+        <Package Id='*' Keywords='Installer' Description="Mélodium Installer"
+            Comments='Mélodium Engine for Windows' Manufacturer='Mélodium SAS'
+            InstallerVersion='100' Languages='1033' Compressed='yes' SummaryCodepage='65001' />
+        <Directory Id='TARGETDIR' Name='SourceDir'>
+            <Directory Id='ProgramFilesFolder' Name='PFiles'>
+                <Directory Id='Melodium' Name='Mélodium'>
+                    <Directory Id='INSTALLDIR' Name='melodium'>
+                        <Component Id='MainExecutable' Guid='1413d1df-3259-4974-9d26-d7cc910ae707'>
+                            <File Id='MelodiumEXE' Name='melodium.exe' DiskId='1' Source='melodium.exe' KeyPath='yes'>
+                            </File>
+                            <ProgId Id='melodium.mel' Description='Mélodium Script File'>
+                                <Extension Id='mel' ContentType='text/melodium'>
+                                    <Verb Id='open' Command='Open' TargetFile='MelodiumEXE' Argument='"%1"' />
+                                </Extension>
+                            </ProgId>
+                            <ProgId Id='melodium.jeu' Description='Mélodium Jeu File'>
+                                <Extension Id='jeu' ContentType='application/melodium'>
+                                    <Verb Id='open' Command='Open' TargetFile='MelodiumEXE' Argument='"%1"' />
+                                </Extension>
+                            </ProgId>
+                            <Environment 
+                                Id="PATH" 
+                                Name="PATH" 
+                                Value="[INSTALLDIR]" 
+                                Permanent="yes" 
+                                Part="last" 
+                                Action="set" 
+                                System="yes" />
+                        </Component>
+                        <Component Id='Readme' Guid='2aedcd28-a50d-487d-bb56-7a25055a66b6'>
+                            <File Id='Readme' Name='README.md' DiskId='1' Source='README.md' KeyPath='yes'>
+                            </File>
+                        </Component>
+                        <Component Id='Changelog' Guid='44b48e38-3775-484e-bc51-1d27e05272e9'>
+                            <File Id='Changelog' Name='CHANGELOG.md' DiskId='1' Source='CHANGELOG.md' KeyPath='yes'>
+                            </File>
+                        </Component>
+                        <Component Id='License' Guid='313ed816-2749-460b-93b1-9d6afd2080c8'>
+                            <File Id='License' Name='LICENSE' DiskId='1' Source='LICENSE' KeyPath='yes'>
+                            </File>
+                        </Component>
+                    </Directory>
+                </Directory>
+            </Directory>
+        </Directory>
+    </Product>
+</Wix>
