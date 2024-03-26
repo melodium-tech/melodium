@@ -104,11 +104,11 @@ packaging:installers:msi:
     - Invoke-WebRequest -Uri https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -UseBasicParsing -OutFile wix311-binaries.zip
     - Expand-Archive -Path wix311-binaries.zip -DestinationPath wix-binaries
     - cargo install cargo-wix
-    - cargo wix --package melodium --no-build --bin-path "wix-binaries/" --target aarch64-pc-windows-msvc --output melodium_aarch64-pc-windows-msvc.msi ".gitlab/ci/wix/main.wxs"
-    - cargo wix --package melodium --no-build --bin-path "wix-binaries/" --target i686-pc-windows-gnu --output melodium_i686-pc-windows-gnu.msi ".gitlab/ci/wix/main.wxs"
-    - cargo wix --package melodium --no-build --bin-path "wix-binaries/" --target i686-pc-windows-msvc --output melodium_i686-pc-windows-msvc.msi ".gitlab/ci/wix/main.wxs"
-    - cargo wix --package melodium --no-build --bin-path "wix-binaries/" --target x86_64-pc-windows-gnu --output melodium_x86_64-pc-windows-gnu.msi ".gitlab/ci/wix/main.wxs"
-    - cargo wix --package melodium --no-build --bin-path "wix-binaries/" --target x86_64-pc-windows-msvc --output melodium_x86_64-pc-windows-msvc.msi ".gitlab/ci/wix/main.wxs"
+    - cargo wix --package melodium --no-build --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target aarch64-pc-windows-msvc --output melodium_aarch64-pc-windows-msvc.msi 
+    - cargo wix --package melodium --no-build --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target i686-pc-windows-gnu --output melodium_i686-pc-windows-gnu.msi 
+    - cargo wix --package melodium --no-build --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target i686-pc-windows-msvc --output melodium_i686-pc-windows-msvc.msi 
+    - cargo wix --package melodium --no-build --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target x86_64-pc-windows-gnu --output melodium_x86_64-pc-windows-gnu.msi 
+    - cargo wix --package melodium --no-build --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target x86_64-pc-windows-msvc --output melodium_x86_64-pc-windows-msvc.msi 
   artifacts:
     name: "packaging-installers-msi-$CI_COMMIT_SHORT_SHA"
     paths:
