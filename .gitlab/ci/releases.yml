@@ -90,6 +90,33 @@ release:publish:zips:
     - mv melodium-* SHA256SUMS "$VERSION/"
     - SSHPASS="$ZIP_RELEASE_PUBLISH_PASSWORD" sshpass -e rsync -a "$VERSION" "$ZIP_RELEASE_PUBLISH_USER@$ZIP_RELEASE_PUBLISH_SERVER:$ZIP_RELEASE_PUBLISH_DIRECTORY"
 
+release:publish:installers:
+  stage: release
+  image: debian:bullseye
+  rules:
+    - if: ( $CI_COMMIT_TAG )
+  variables:
+    GIT_STRATEGY: none
+  needs:
+    - job: packaging:installers:sh
+      artifacts: true
+    - job: packaging:installers:msi
+      artifacts: true
+  before_script:
+    - apt-get update
+    - apt-get install -y rsync sshpass
+  script:
+    - mkdir ~/.ssh
+    - ssh-keyscan "$INSTALLERS_RELEASE_PUBLISH_SERVER" >> ~/.ssh/known_hosts
+    - mv melodium_aarch64-pc-windows-msvc.msi melodium-${VERSION}_aarch64-pc-windows-msvc.msi
+    - mv melodium_i686-pc-windows-gnu.msi melodium-${VERSION}_i686-pc-windows-gnu.msi
+    - mv melodium_i686-pc-windows-msvc.msi melodium-${VERSION}_i686-pc-windows-msvc.msi
+    - mv melodium_x86_64-pc-windows-gnu.msi melodium-${VERSION}_x86_64-pc-windows-gnu.msi
+    - mv melodium_x86_64-pc-windows-msvc.msi melodium-${VERSION}_x86_64-pc-windows-msvc.msi
+    - mkdir "$VERSION"
+    - mv melodium-* SHA256SUMS "$VERSION/"
+    - SSHPASS="$INSTALLERS_RELEASE_PUBLISH_PASSWORD" sshpass -e rsync -a "$VERSION" "$INSTALLERS_RELEASE_PUBLISH_USER@$INSTALLERS_RELEASE_PUBLISH_SERVER:$INSTALLERS_RELEASE_PUBLISH_DIRECTORY"
+
 release:publish:deb:
   stage: release
   image: debian:bullseye
