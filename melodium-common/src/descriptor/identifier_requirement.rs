@@ -90,6 +90,12 @@ impl From<&Identifier> for IdentifierRequirement {
     }
 }
 
+impl From<Identifier> for IdentifierRequirement {
+    fn from(value: Identifier) -> Self {
+        Self::from(&value)
+    }
+}
+
 impl Display for IdentifierRequirement {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         let mut string = self.path.join("/");
