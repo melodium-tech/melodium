@@ -236,19 +236,20 @@ impl Area {
 
     fn is_owned(path: &Path, collection: &Arc<Collection>, id: &Identifier) -> bool {
         if id.path() == path.path() {
-            match collection.get(&id.into()).unwrap() {
-                Entry::Context(_) => false,
-                Entry::Function(_) => false,
-                Entry::Model(model) => match model.build_mode() {
+            match collection.get(&id.into()) {
+                Some(Entry::Context(_)) => false,
+                Some(Entry::Function(_)) => false,
+                Some(Entry::Model(model)) => match model.build_mode() {
                     ModelBuildMode::Compiled(_) => false,
                     ModelBuildMode::Designed() => true,
                 },
-                Entry::Data(_) => false,
-                Entry::Treatment(treatment) => match treatment.build_mode() {
+                Some(Entry::Data(_)) => false,
+                Some(Entry::Treatment(treatment)) => match treatment.build_mode() {
                     TreatmentBuildMode::Compiled(_, _) => false,
                     TreatmentBuildMode::Source(_) => false,
                     TreatmentBuildMode::Designed() => true,
                 },
+                None => false,
             }
         } else {
             false
