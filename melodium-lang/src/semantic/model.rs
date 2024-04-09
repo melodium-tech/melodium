@@ -285,6 +285,20 @@ impl AssignativeElement for Model {
 }
 
 impl Node for Model {
+    fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
+        let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();
+
+        self.parameters
+            .iter()
+            .for_each(|p| children.push(Arc::clone(&p) as Arc<RwLock<dyn Node>>));
+
+        self.assignations
+            .iter()
+            .for_each(|a| children.push(Arc::clone(&a) as Arc<RwLock<dyn Node>>));
+
+        children
+    }
+
     fn make_references(
         &mut self,
         path: &Path,
