@@ -1,9 +1,9 @@
 #!/usr/bin/env melodium
 #! name = sql_test
 #! version = 0.8.0
-#! require = std:0.8.0-rc1
-#! require = sql:0.8.0-rc1
-#! require = fs:0.8.0-rc1
+#! require = std:0.8.0-rc2
+#! require = sql:0.8.0-rc2
+#! require = fs:0.8.0-rc2
 
 use std/engine/util::startup
 use std/flow::emit
