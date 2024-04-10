@@ -101,8 +101,8 @@ packaging:installers:msi:
     - build:release:x86_64-pc-windows-gnu
     - build:release:x86_64-pc-windows-msvc
   script:
-    - Invoke-WebRequest -Uri https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -UseBasicParsing -OutFile wix311-binaries.zip
-    - Expand-Archive -Path wix311-binaries.zip -DestinationPath wix-binaries
+    - Invoke-WebRequest -Uri https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip -UseBasicParsing -OutFile wix314-binaries.zip
+    - Expand-Archive -Path wix314-binaries.zip -DestinationPath wix-binaries
     - cargo install cargo-wix
     - cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target aarch64-pc-windows-msvc --output melodium_aarch64-pc-windows-msvc.msi --install-version 0.8.0
     - cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target i686-pc-windows-gnu --output melodium_i686-pc-windows-gnu.msi --install-version 0.8.0
