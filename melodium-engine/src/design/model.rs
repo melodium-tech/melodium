@@ -1,7 +1,7 @@
 use super::Parameter;
 use crate::descriptor::Model as ModelDescriptor;
 use core::fmt::Debug;
-use melodium_common::descriptor::{Identified, Identifier, Parameterized};
+use melodium_common::descriptor::{Identified, Identifier, Model as _, Parameterized};
 use std::collections::HashMap;
 use std::sync::Weak;
 
@@ -36,6 +36,9 @@ impl Model {
     pub fn uses(&self) -> Vec<Identifier> {
         let descriptor = self.descriptor.upgrade().unwrap();
         let mut uses = vec![descriptor.identifier().clone()];
+        if let Some(base) = descriptor.base_model() {
+            uses.push(base.identifier().clone());
+        }
         uses.extend(descriptor.parameters().iter().filter_map(|(_, param)| {
             param
                 .described_type()

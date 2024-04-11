@@ -13,7 +13,9 @@ pub struct Model {
 
 impl Model {
     pub fn new(design: ModelDesign) -> Self {
-        let uses = design.uses();
+        let mut uses = design.uses();
+
+        uses.retain(|id| id != design.descriptor.upgrade().unwrap().identifier());
 
         Self { design, uses }
     }
@@ -63,14 +65,20 @@ impl Model {
                 .sorted_by_key(|(k, _)| *k)
                 .map(|(_, param)| {
                     format!(
-                        "{attributes}{param}",
+                        "{attributes}{name}: {param}{default}",
                         attributes = param
                             .attributes()
                             .iter()
                             .map(|(name, attribute)| format!("#[{name}({attribute})] "))
                             .collect::<Vec<_>>()
                             .join(""),
+                        name = param.name(),
                         param = describe_type(param.described_type(), names),
+                        default = param
+                            .default()
+                            .as_ref()
+                            .map(|v| format!(" = {}", value(&v.into(), names)))
+                            .unwrap_or_default()
                     )
                 })
                 .collect::<Vec<_>>()

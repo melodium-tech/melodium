@@ -15,47 +15,86 @@ release:gitlab:
     description: 'melodium/CHANGELOG.md'
     assets:
       links:
-        - name: Windows ARM 64 bits (arm64, MSVC compiler)
+        - name: Windows ARM 64 bits (arm64, MSVC compiler) – Zip archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_aarch64-pc-windows-msvc.zip"
           link_type: package
-        - name: Windows 32 bits (i686, MSVC compiler)
+        - name: Windows ARM 64 bits (arm64, MSVC compiler) – MSI installer
+          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_aarch64-pc-windows-msvc.msi"
+          link_type: package
+        - name: Windows 32 bits (i686, MSVC compiler) – Zip archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-msvc.zip"
           link_type: package
-        - name: Windows 32 bits (i686, GNU compiler)
+        - name: Windows 32 bits (i686, MSVC compiler) – MSI installer
+          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_i686-pc-windows-msvc.msi"
+          link_type: package
+        - name: Windows 32 bits (i686, GNU compiler) – Zip archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-gnu.zip"
           link_type: package
-        - name: Windows 64 bits (x86_64, MSVC compiler)
+        - name: Windows 32 bits (i686, GNU compiler) – MSI installer
+          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_i686-pc-windows-gnu.msi"
+          link_type: package
+        - name: Windows 64 bits (x86_64, MSVC compiler) – Zip archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-pc-windows-msvc.zip"
           link_type: package
-        - name: Windows 64 bits (x86_64, GNU compiler)
+        - name: Windows 64 bits (x86_64, MSVC compiler) – MSI installer
+          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_x86_64-pc-windows-msvc.msi"
+          link_type: package
+        - name: Windows 64 bits (x86_64, GNU compiler) – Zip archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-pc-windows-gnu.zip"
           link_type: package
-        - name: MacOS ARM 64 bits (arm64)
+        - name: Windows 64 bits (x86_64, GNU compiler) – MSI installer
+          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_x86_64-pc-windows-gnu.msi"
+          link_type: package
+        - name: MacOS ARM 64 bits (arm64) – TGZ archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_aarch64-apple-darwin.tar.gz"
+          link_type: package
+        - name: MacOS ARM 64 bits (arm64) – Shell installer
+          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_aarch64-apple-darwin.sh"
           link_type: package
         # - name: MacOS 32 bits (i686)
         #   url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-apple-darwin.tar.gz"
         #   link_type: package
-        - name: MacOS 64 bits (x86_64)
+        - name: MacOS 64 bits (x86_64) – TGZ archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-apple-darwin.tar.gz"
           link_type: package
-        - name: Linux ARM 64 bits (arm64, musl)
+        - name: MacOS 64 bits (x86_64) – Shell installer
+          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_x86_64-apple-darwin.sh"
+          link_type: package
+        - name: Linux ARM 64 bits (arm64, musl) – TGZ archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_aarch64-unknown-linux-musl.tar.gz"
           link_type: package
-        - name: Linux ARM 64 bits (arm64, glibc)
+        - name: Linux ARM 64 bits (arm64, musl) – Shell installer
+          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_aarch64-unknown-linux-musl.sh"
+          link_type: package
+        - name: Linux ARM 64 bits (arm64, glibc) – TGZ archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_aarch64-unknown-linux-gnu.tar.gz"
           link_type: package
-        - name: Linux 32 bits (i686, musl)
+        - name: Linux ARM 64 bits (arm64, glibc) – Shell installer
+          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_aarch64-unknown-linux-gnu.sh"
+          link_type: package
+        - name: Linux 32 bits (i686, musl) – TGZ archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-unknown-linux-musl.tar.gz"
           link_type: package
-        - name: Linux 32 bits (i686, glibc)
+        - name: Linux 32 bits (i686, musl) – Shell installer
+          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_i686-unknown-linux-musl.sh"
+          link_type: package
+        - name: Linux 32 bits (i686, glibc) – TGZ archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-unknown-linux-gnu.tar.gz"
           link_type: package
-        - name: Linux 64 bits (x86_64, musl)
+        - name: Linux 32 bits (i686, glibc) – Shell installer
+          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_i686-unknown-linux-gnu.sh"
+          link_type: package
+        - name: Linux 64 bits (x86_64, musl) – TGZ archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-unknown-linux-musl.tar.gz"
           link_type: package
-        - name: Linux 64 bits (x86_64, glibc)
+        - name: Linux 64 bits (x86_64, musl) – Shell installer
+          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_x86_64-unknown-linux-musl.sh"
+          link_type: package
+        - name: Linux 64 bits (x86_64, glibc) – TGZ archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-unknown-linux-gnu.tar.gz"
+          link_type: package
+        - name: Linux 64 bits (x86_64, glibc) – Shell installer
+          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_x86_64-unknown-linux-gnu.sh"
           link_type: package
         - name: crates.io
           url: "https://crates.io/crates/melodium/$VERSION"
@@ -67,7 +106,7 @@ release:gitlab:
           url: "https://repo.melodium.tech/zips/$VERSION/"
           link_type: other
         - name: Reference
-          url: "https://doc.melodium.tech/$VERSION/"
+          url: "https://doc.melodium.tech/$VERSION/en/"
           link_type: other
 
 release:publish:zips:
@@ -89,6 +128,33 @@ release:publish:zips:
     - mkdir "$VERSION"
     - mv melodium-* SHA256SUMS "$VERSION/"
     - SSHPASS="$ZIP_RELEASE_PUBLISH_PASSWORD" sshpass -e rsync -a "$VERSION" "$ZIP_RELEASE_PUBLISH_USER@$ZIP_RELEASE_PUBLISH_SERVER:$ZIP_RELEASE_PUBLISH_DIRECTORY"
+
+release:publish:installers:
+  stage: release
+  image: debian:bullseye
+  rules:
+    - if: ( $CI_COMMIT_TAG )
+  variables:
+    GIT_STRATEGY: none
+  needs:
+    - job: packaging:installers:sh
+      artifacts: true
+    - job: packaging:installers:msi
+      artifacts: true
+  before_script:
+    - apt-get update
+    - apt-get install -y rsync sshpass
+  script:
+    - mkdir ~/.ssh
+    - ssh-keyscan "$INSTALLERS_RELEASE_PUBLISH_SERVER" >> ~/.ssh/known_hosts
+    - mv melodium_aarch64-pc-windows-msvc.msi melodium-${VERSION}_aarch64-pc-windows-msvc.msi
+    - mv melodium_i686-pc-windows-gnu.msi melodium-${VERSION}_i686-pc-windows-gnu.msi
+    - mv melodium_i686-pc-windows-msvc.msi melodium-${VERSION}_i686-pc-windows-msvc.msi
+    - mv melodium_x86_64-pc-windows-gnu.msi melodium-${VERSION}_x86_64-pc-windows-gnu.msi
+    - mv melodium_x86_64-pc-windows-msvc.msi melodium-${VERSION}_x86_64-pc-windows-msvc.msi
+    - mkdir "$VERSION"
+    - mv melodium-* SHA256SUMS "$VERSION/"
+    - SSHPASS="$INSTALLERS_RELEASE_PUBLISH_PASSWORD" sshpass -e rsync -a "$VERSION" "$INSTALLERS_RELEASE_PUBLISH_USER@$INSTALLERS_RELEASE_PUBLISH_SERVER:$INSTALLERS_RELEASE_PUBLISH_DIRECTORY"
 
 release:publish:deb:
   stage: release

@@ -489,6 +489,7 @@ impl Node for Value {
         let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();
 
         if let ValueContent::Function(f) = &self.content {
+            children.push(Arc::clone(f) as Arc<RwLock<dyn Node>>);
             children.extend(f.read().unwrap().children());
         }
 

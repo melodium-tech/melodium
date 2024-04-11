@@ -7,9 +7,9 @@ Mélodium is a dataflow-oriented language, focusing on treatments applied on dat
 
 Mélodium is a tool and language for manipulation of large amount of data, using the definition of treatments that applies on data through connections, with a track approach that makes any script higly scalable and implicitly parallelizable.
 
-For more exhaustive explanations, please refer to [the Mélodium Language book](https://doc.melodium.tech/book/).
+For more exhaustive explanations, please refer to [the Mélodium Language book](https://doc.melodium.tech/book/en/).
 
-Mélodium is _under development_ and continously being defined and improved. Released documentation is available on [docs.rs](https://docs.rs/melodium/latest/melodium/) and standard reference on [melodium.tech](https://doc.melodium.tech/latest/).
+Mélodium is _under development_ and continously being defined and improved. Released documentation is available on [docs.rs](https://docs.rs/melodium/latest/melodium/) and standard reference on [melodium.tech](https://doc.melodium.tech/latest/en/).
 
 ## Run and execute
 

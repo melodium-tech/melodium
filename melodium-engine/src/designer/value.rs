@@ -327,3 +327,15 @@ impl Display for Value {
         }
     }
 }
+
+impl From<ExecutiveValue> for Value {
+    fn from(value: ExecutiveValue) -> Self {
+        Value::Raw(value)
+    }
+}
+
+impl From<&ExecutiveValue> for Value {
+    fn from(value: &ExecutiveValue) -> Self {
+        Value::Raw(value.clone())
+    }
+}

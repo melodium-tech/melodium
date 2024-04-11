@@ -102,7 +102,21 @@ impl DescribedType {
         }
     }
 
+    pub fn final_type_mut(&mut self) -> &mut DescribedType {
+        match self {
+            DescribedType::Vec(inner) | DescribedType::Option(inner) => inner,
+            other => other,
+        }
+    }
+
     pub fn data(&self) -> Option<&Arc<dyn Data>> {
+        match self {
+            DescribedType::Data(data) => Some(data),
+            _ => None,
+        }
+    }
+
+    pub fn data_mut(&mut self) -> Option<&mut Arc<dyn Data>> {
         match self {
             DescribedType::Data(data) => Some(data),
             _ => None,

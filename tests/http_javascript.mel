@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = http_javascript
 #! version = 0.8.0
-#! require = http:0.8.0-rc1 std:0.8.0-rc1 javascript:0.8.0-rc1 encoding:0.8.0-rc1 json:0.8.0-rc1
+#! require = http:0.8.0-rc2 std:0.8.0-rc2 javascript:0.8.0-rc2 encoding:0.8.0-rc2 json:0.8.0-rc2
 
 use http/server::HttpServer
 use http/server::connection
@@ -12,7 +12,7 @@ use http/method::|post
 use std/flow::emit
 use std/flow::trigger
 use std/ops/option::unwrapOr
-use std/ops/option::ignore
+use std/ops/option::unwrap
 use std/conv::toString
 use std/data::Map
 use std/data::|map
@@ -40,11 +40,11 @@ treatment main()
     
     decode()
     toJson()
-    ignore<Json>()
+    unwrap<Json>()
     js_function()
     encode()
     
-    connection.data -> decode.data,text -> toJson.text,json -> ignore.option,value -> js_function.data,data -> encode.text,data -> connection.data
+    connection.data -> decode.data,text -> toJson.text,json -> unwrap.option,value -> js_function.data,data -> encode.text,data -> connection.data
 }
 
 model JsEngine(): JavaScriptEngine {

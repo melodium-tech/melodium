@@ -45,6 +45,80 @@ packaging:installers:deb:
     reports:
       dotenv: variables.env
 
+packaging:installers:sh:
+  stage: packaging
+  image: debian:bullseye
+  extends:
+    - .build-release
+  needs:
+    - build:release:aarch64-apple-darwin
+    - build:release:aarch64-unknown-linux-gnu
+    - build:release:aarch64-unknown-linux-musl
+    - build:release:i686-unknown-linux-gnu
+    - build:release:i686-unknown-linux-musl
+    - build:release:x86_64-apple-darwin
+    - build:release:x86_64-unknown-linux-gnu
+    - build:release:x86_64-unknown-linux-musl
+  script:
+    - export VERSION=${CI_COMMIT_TAG}
+    - export VERSION=${VERSION:-$CI_COMMIT_SHORT_SHA}
+    - export VERSION=$(echo $VERSION | sed 's/^v//')
+    - .gitlab/ci/package.sh -t aarch64-apple-darwin -v $VERSION -e melodium -z sh
+    - .gitlab/ci/package.sh -t aarch64-unknown-linux-gnu -v $VERSION -e melodium -z sh
+    - .gitlab/ci/package.sh -t aarch64-unknown-linux-musl -v $VERSION -e melodium -z sh
+    - .gitlab/ci/package.sh -t i686-unknown-linux-gnu -v $VERSION -e melodium -z sh
+    - .gitlab/ci/package.sh -t i686-unknown-linux-musl -v $VERSION -e melodium -z sh
+    - .gitlab/ci/package.sh -t x86_64-apple-darwin -v $VERSION -e melodium -z sh
+    - .gitlab/ci/package.sh -t x86_64-unknown-linux-gnu -v $VERSION -e melodium -z sh
+    - .gitlab/ci/package.sh -t x86_64-unknown-linux-musl -v $VERSION -e melodium -z sh
+    - sha256sum *.sh > SHA256SUMS
+    - echo "VERSION=$VERSION" >> variables.env
+  artifacts:
+    name: "packaging-sh-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - SHA256SUMS
+      - melodium-*_aarch64-apple-darwin.sh
+      - melodium-*_aarch64-unknown-linux-gnu.sh
+      - melodium-*_aarch64-unknown-linux-musl.sh
+      - melodium-*_i686-unknown-linux-gnu.sh
+      - melodium-*_i686-unknown-linux-musl.sh
+      - melodium-*_x86_64-apple-darwin.sh
+      - melodium-*_x86_64-unknown-linux-gnu.sh
+      - melodium-*_x86_64-unknown-linux-musl.sh
+    expire_in: 1 day
+    reports:
+      dotenv: variables.env
+
+packaging:installers:msi:
+  stage: packaging
+  extends:
+    - .build-release
+    - .builder:windows:x86_64-pc-windows-msvc
+  needs:
+    - build:release:aarch64-pc-windows-msvc
+    - build:release:i686-pc-windows-gnu
+    - build:release:i686-pc-windows-msvc
+    - build:release:x86_64-pc-windows-gnu
+    - build:release:x86_64-pc-windows-msvc
+  script:
+    - Invoke-WebRequest -Uri https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip -UseBasicParsing -OutFile wix314-binaries.zip
+    - Expand-Archive -Path wix314-binaries.zip -DestinationPath wix-binaries
+    - cargo install cargo-wix
+    - cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target aarch64-pc-windows-msvc --output melodium_aarch64-pc-windows-msvc.msi --install-version 0.8.0
+    - cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target i686-pc-windows-gnu --output melodium_i686-pc-windows-gnu.msi --install-version 0.8.0
+    - cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target i686-pc-windows-msvc --output melodium_i686-pc-windows-msvc.msi --install-version 0.8.0
+    - cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target x86_64-pc-windows-gnu --output melodium_x86_64-pc-windows-gnu.msi --install-version 0.8.0
+    - cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target x86_64-pc-windows-msvc --output melodium_x86_64-pc-windows-msvc.msi --install-version 0.8.0
+  artifacts:
+    name: "packaging-installers-msi-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - melodium_aarch64-pc-windows-msvc.msi
+      - melodium_i686-pc-windows-gnu.msi
+      - melodium_i686-pc-windows-msvc.msi
+      - melodium_x86_64-pc-windows-gnu.msi
+      - melodium_x86_64-pc-windows-msvc.msi
+    expire_in: 1 day
+
 packaging:zips:
   stage: packaging
   image: debian:bullseye

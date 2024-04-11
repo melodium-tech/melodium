@@ -125,6 +125,11 @@ pub enum LogicErrorKind {
         scope: Identifier,
         claimed: IdentifierRequirement,
     },
+    /// The data type is not existing within current available data types.
+    UnexistingData {
+        scope: Identifier,
+        claimed: IdentifierRequirement,
+    },
     /// The model is not declared here.
     UndeclaredModel { scope: Identifier, model: String },
     /// The model name is already declared.
@@ -283,6 +288,7 @@ impl Display for LogicErrorKind {
             LogicErrorKind::UnexistingModel { scope: _, claimed } => write!(f, "Model '{claimed}' does not exist"),
             LogicErrorKind::UnexistingContext { scope: _, claimed } => write!(f, "Context '{claimed}' does not exist"),
             LogicErrorKind::UnexistingFunction{ scope: _, claimed } => write!(f, "Function '{claimed}' does not exist"),
+            LogicErrorKind::UnexistingData{ scope: _, claimed } => write!(f, "Data type '{claimed}' does not exist"),
             LogicErrorKind::UndeclaredModel { scope, model } => write!(f, "Model '{model}' is not declared in '{scope}'"),
             LogicErrorKind::AlreadyDeclaredModel { scope, model } => write!(f, "Model '{model}' is already declared in '{scope}'"),
             LogicErrorKind::UndeclaredTreatment { scope, treatment } => write!(f, "Treatment '{treatment}' is not declared in '{scope}'"),
@@ -697,6 +703,20 @@ impl LogicError {
             id,
             design_reference,
             kind: LogicErrorKind::UnexistingFunction { scope, claimed },
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::UnexistingData`] kind.
+    pub fn unexisting_data(
+        id: u32,
+        scope: Identifier,
+        claimed: IdentifierRequirement,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> Self {
+        Self {
+            id,
+            design_reference,
+            kind: LogicErrorKind::UnexistingData { scope, claimed },
         }
     }
 

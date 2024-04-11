@@ -1,6 +1,6 @@
 [package]
 name = "regex-mel"
-version = "0.8.0-rc1"
+version = "0.8.0-rc2"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.60"
 edition = "2021"
@@ -18,9 +18,9 @@ name = "regex_mel"
 
 [dependencies]
 futures = "~0.3.28"
-melodium-core = { path = "../../melodium-core", version = "=0.8.0-rc1" }
-melodium-macro = { path = "../../melodium-macro", version = "=0.8.0-rc1" }
-std-mel = { path = "../std-mel", version = "=0.8.0-rc1" }
+melodium-core = { path = "../../melodium-core", version = "=0.8.0-rc2" }
+melodium-macro = { path = "../../melodium-macro", version = "=0.8.0-rc2" }
+std-mel = { path = "../std-mel", version = "=0.8.0-rc2" }
 regex = "1.9.1"
 
 [features]

@@ -1,3 +1,4 @@
+use super::generic_instanciation::import_design_described_type;
 use super::{Connection, GenericInstanciation, Parameter, Reference, Scope, Treatment, Value, IO};
 use crate::design::TreatmentInstanciation as TreatmentInstanciationDesign;
 use crate::error::{LogicError, LogicResult};
@@ -72,6 +73,23 @@ impl TreatmentInstanciation {
         replace: &HashMap<Identifier, Identifier>,
     ) -> LogicResult<()> {
         let mut result = LogicResult::new_success(());
+
+        for (name, described_type) in &design.generics {
+            let mut described_type = described_type.clone();
+            let described_type_result = import_design_described_type(
+                &mut described_type,
+                collection,
+                replace,
+                &self.host_id,
+                &self.design_reference,
+            );
+
+            if described_type_result.is_success() {
+                result.merge_degrade_failure(self.set_generic(name.clone(), described_type));
+            }
+
+            result.merge_degrade_failure(described_type_result);
+        }
 
         for (name, parameter_design) in &design.parameters {
             if let Some(parameter) = result
