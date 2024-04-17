@@ -31,11 +31,11 @@ impl Model {
     pub fn implementation(&self, names: &BTreeMap<Identifier, String>) -> String {
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
-        let mut implementation = if descriptor.documentation().is_empty() {
+        let mut implementation = if descriptor.documentation().trim().is_empty() {
             String::new()
         } else {
             format!(
-                "/**{}*/\n",
+                "/**\n{}\n*/\n",
                 descriptor
                     .documentation()
                     .lines()
