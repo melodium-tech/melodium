@@ -151,8 +151,12 @@ impl Treatment {
                 implementation.push_str(")]\n");
             }
             implementation.push_str("  input ");
+            implementation.push_str(input.name());
+            implementation.push_str(": ");
+            implementation.push_str(&input.flow().to_string());
+            implementation.push_str("<");
             implementation.push_str(&describe_type(input.described_type(), names));
-            implementation.push_str("\n");
+            implementation.push_str(">\n");
         }
 
         for (_, output) in descriptor.outputs().iter().sorted_by_key(|(k, _)| *k) {
@@ -164,8 +168,12 @@ impl Treatment {
                 implementation.push_str(")]\n");
             }
             implementation.push_str("  output ");
+            implementation.push_str(output.name());
+            implementation.push_str(": ");
+            implementation.push_str(&output.flow().to_string());
+            implementation.push_str("<");
             implementation.push_str(&describe_type(output.described_type(), names));
-            implementation.push_str("\n");
+            implementation.push_str(">\n");
         }
 
         for (_, model) in self
