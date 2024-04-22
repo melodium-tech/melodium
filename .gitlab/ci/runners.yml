@@ -16,9 +16,7 @@
 
 .runner:windows:x86_64:
   tags:
-    - shared-windows
-    - windows
-    - windows-1809
+    - saas-windows-medium-amd64
   before_script:
     - choco install sed -y
 

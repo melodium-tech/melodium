@@ -7,9 +7,7 @@
 
 .host:windows:
   tags:
-    - shared-windows
-    - windows
-    - windows-1809
+    - saas-windows-medium-amd64
 
 .cache:cargo:
   variables:
