@@ -54,6 +54,9 @@ javascript = ["javascript-mel", "json-mel"]
 sql = ["sql-mel"]
 standard-edition = ["jeu", "doc", "fs", "network", "text", "javascript", "sql"]
 
+[target.wasm32-unknown-unknown.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
