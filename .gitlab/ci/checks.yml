@@ -133,3 +133,12 @@ build:check:aarch64-pc-windows-msvc:
     - .check-builds
     - .builder:linux:aarch64-pc-windows-msvc
     - .check
+
+build:check:wasm32-unknown-unknown:
+  stage: build
+  extends:
+    - .check-builds
+    - .builder:linux:wasm32-unknown-unknown
+  script:
+    - cargo check --package melodium --locked --no-default-features
+    - cargo check --package melodium --locked --no-default-features --features jeu,doc,text,javascript
