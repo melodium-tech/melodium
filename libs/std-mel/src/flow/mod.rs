@@ -1,3 +1,4 @@
+use futures::{pin_mut, select, FutureExt};
 use melodium_core::common::executive::{GetData, Value};
 use melodium_macro::{check, mel_treatment};
 use std::collections::VecDeque;
@@ -173,6 +174,57 @@ pub async fn stream() {
 
 /// Merge two streams.
 ///
+/// The two streams are merged without predictible order.
+///
+/// ℹ️ Merge continues as long as `a` or `b` continues too, while the other can be ended.
+///
+/// ```mermaid
+/// graph LR
+///     T("merge()")
+///     A["… 🟦 🟫 …"] -->|a| T
+///     B["… 🟧 🟪 🟨 …"] -->|b| T
+///     
+///
+///     T -->|value| V["… 🟦 🟧 🟪 🟫 🟨 …"]
+///
+///     style V fill:#ffff,stroke:#ffff
+///     style O fill:#ffff,stroke:#ffff
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    generic T ()
+    input a Stream<T>
+    input b Stream<T>
+    output value Stream<T>
+)]
+pub async fn merge() {
+    let xa = async {
+        while let Ok(a) = (&a).recv_many().await {
+            check!(value.send_many(a).await);
+        }
+    }
+    .fuse();
+    let xb = async {
+        while let Ok(b) = (&b).recv_many().await {
+            check!(value.send_many(b).await);
+        }
+    }
+    .fuse();
+
+    pin_mut!(xa, xb);
+
+    loop {
+        select! {
+            () = xa => {},
+            () = xb => {},
+            complete => break,
+        };
+    }
+}
+
+/// Arrange two streams as one.
+///
 /// The two streams are merged using the `select` stream:
 /// - when `true`, value from `a` is used;
 /// - when `false`, value from `b` is used.
@@ -205,7 +257,7 @@ pub async fn stream() {
     input select Stream<bool>
     output value Stream<T>
 )]
-pub async fn merge() {
+pub async fn arrange() {
     while let Ok(select) = select
         .recv_one()
         .await
