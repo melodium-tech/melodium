@@ -58,14 +58,15 @@ impl JavaScriptEngine {
             model.get_code(),
         );
 
-        async_std::task::block_on(async {
-            *self.engine.write().await = Some(engine);
+        async_std::task::block_on(async move {
+            *model.inner().engine.write().await = Some(engine);
         });
     }
 
     fn shutdown(&self) {
-        async_std::task::block_on(async {
-            if let Some(engine) = self.engine.write().await.as_ref() {
+        let model = self.model.upgrade().unwrap();
+        async_std::task::block_on(async move {
+            if let Some(engine) = model.inner().engine.write().await.as_ref() {
                 engine.stop();
             }
         });
