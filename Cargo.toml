@@ -27,3 +27,8 @@ exclude = [
 
 [profile.release]
 strip = true
+
+# Fix for sql-mel causing issue for x86_64-pc-windows-gnu target in debug mode:
+# `/usr/bin/x86_64-w64-mingw32-ld: error: export ordinal too large`
+[profile.dev.package.sql-mel]
+codegen-units=1
