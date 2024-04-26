@@ -114,7 +114,8 @@ impl Treatment {
                 .sorted_by_key(|(k, _)| *k)
                 .map(|(_, param)| {
                     format!(
-                        "{attributes}{name}: {param}{default}",
+                        "{variability} {attributes}{name}: {param}{default}",
+                        variability = param.variability(),
                         attributes = param
                             .attributes()
                             .iter()

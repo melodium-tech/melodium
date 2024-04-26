@@ -605,7 +605,7 @@ pub async fn flock() {
 /// Emit one block.
 ///
 /// Take first block coming among `a` or `b` and emit it in `value`, ignoring the remaining one.
-/// 
+///
 /// ℹ️ No priority between blocks can be assumed if they are ready at same moment.
 ///
 /// ```mermaid
@@ -628,14 +628,8 @@ pub async fn flock() {
     output value Block<T>
 )]
 pub async fn one() {
-    let xa = async {
-        (&a).recv_one().await.ok()
-    }
-    .fuse();
-    let xb = async {
-        (&b).recv_one().await.ok()
-    }
-    .fuse();
+    let xa = async { (&a).recv_one().await.ok() }.fuse();
+    let xb = async { (&b).recv_one().await.ok() }.fuse();
 
     pin_mut!(xa, xb);
 

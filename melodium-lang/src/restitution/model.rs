@@ -65,7 +65,7 @@ impl Model {
                 .sorted_by_key(|(k, _)| *k)
                 .map(|(_, param)| {
                     format!(
-                        "{attributes}{name}: {param}{default}",
+                        "const {attributes}{name}: {param}{default}",
                         attributes = param
                             .attributes()
                             .iter()
