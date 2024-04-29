@@ -176,7 +176,24 @@ impl Area {
         for (id, name) in &self.uses_names {
             if needs.contains(id) {
                 result.push_str("use ");
-                result.push_str(&id.without_version().to_string());
+                result.push_str(if id.root() == &self.path.root() {
+                    "root"
+                } else {
+                    id.root()
+                });
+                if id.path().len() > 1 {
+                    result.push_str("/");
+                }
+                result.push_str(
+                    &id.path()
+                        .iter()
+                        .skip(1)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join("/"),
+                );
+                result.push_str("::");
+                result.push_str(id.name());
                 if name != id.name() {
                     result.push_str(" as ");
                     result.push_str(name);

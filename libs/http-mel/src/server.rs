@@ -68,6 +68,7 @@ type AsyncProducerOutgoing =
         param method HttpMethod none
         param route string none
     ) (
+        started Block<void>
         headers Block<Map>
         data Stream<byte>
         failure Block<string>
@@ -221,6 +222,7 @@ impl HttpServer {
                                 http_request,
                                 &params,
                                 Some(Box::new(move |mut outputs| {
+                                    let started = outputs.get("started");
                                     let headers = outputs.get("headers");
                                     let data = outputs.get("data");
                                     let failure = outputs.get("failure");
@@ -229,6 +231,8 @@ impl HttpServer {
                                         if let Some(occured_failure) = occured_failure {
                                             let _ = failure.send_one(occured_failure.into()).await;
                                         } else {
+                                            let _ = started.send_one(().into()).await;
+                                            started.close().await;
                                             let _ = headers
                                                 .send_one(Value::Data(Arc::new(Map::new_with(
                                                     incoming_headers,

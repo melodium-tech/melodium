@@ -1,9 +1,9 @@
 #!/usr/bin/env melodium
 #! name = regex_test
 #! version = 0.8.0
-#! require = std:0.8.0-rc2
-#! require = regex:0.8.0-rc2
-#! require = fs:0.8.0-rc2
+#! require = std:0.8.0-rc3
+#! require = regex:0.8.0-rc3
+#! require = fs:0.8.0-rc3
 
 use std/engine/util::startup
 use std/flow::emit

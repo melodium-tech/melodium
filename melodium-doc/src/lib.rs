@@ -350,8 +350,21 @@ impl Documentation {
         };
 
         let call = format!(
-            "{name}({params})",
+            "{name}{generics}({params})",
             name = function.identifier().name(),
+            generics = if !function.generics().is_empty() {
+                format!(
+                    "<{}>",
+                    function
+                        .generics()
+                        .iter()
+                        .map(|g| format!("{}", g.name))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            } else {
+                String::new()
+            },
             params = function
                 .parameters()
                 .iter()

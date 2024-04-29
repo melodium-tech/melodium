@@ -32,11 +32,11 @@ impl Treatment {
     pub fn implementation(&self, names: &BTreeMap<Identifier, String>) -> String {
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
-        let mut implementation = if descriptor.documentation().is_empty() {
+        let mut implementation = if descriptor.documentation().trim().is_empty() {
             String::new()
         } else {
             format!(
-                "/**{}*/\n",
+                "/**\n{}\n*/\n",
                 descriptor
                     .documentation()
                     .lines()
@@ -114,7 +114,8 @@ impl Treatment {
                 .sorted_by_key(|(k, _)| *k)
                 .map(|(_, param)| {
                     format!(
-                        "{attributes}{name}: {param}{default}",
+                        "{variability} {attributes}{name}: {param}{default}",
+                        variability = param.variability(),
                         attributes = param
                             .attributes()
                             .iter()
@@ -151,8 +152,12 @@ impl Treatment {
                 implementation.push_str(")]\n");
             }
             implementation.push_str("  input ");
+            implementation.push_str(input.name());
+            implementation.push_str(": ");
+            implementation.push_str(&input.flow().to_string());
+            implementation.push_str("<");
             implementation.push_str(&describe_type(input.described_type(), names));
-            implementation.push_str("\n");
+            implementation.push_str(">\n");
         }
 
         for (_, output) in descriptor.outputs().iter().sorted_by_key(|(k, _)| *k) {
@@ -164,8 +169,12 @@ impl Treatment {
                 implementation.push_str(")]\n");
             }
             implementation.push_str("  output ");
+            implementation.push_str(output.name());
+            implementation.push_str(": ");
+            implementation.push_str(&output.flow().to_string());
+            implementation.push_str("<");
             implementation.push_str(&describe_type(output.described_type(), names));
-            implementation.push_str("\n");
+            implementation.push_str(">\n");
         }
 
         for (_, model) in self

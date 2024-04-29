@@ -31,11 +31,11 @@ impl Model {
     pub fn implementation(&self, names: &BTreeMap<Identifier, String>) -> String {
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
-        let mut implementation = if descriptor.documentation().is_empty() {
+        let mut implementation = if descriptor.documentation().trim().is_empty() {
             String::new()
         } else {
             format!(
-                "/**{}*/\n",
+                "/**\n{}\n*/\n",
                 descriptor
                     .documentation()
                     .lines()
@@ -65,7 +65,7 @@ impl Model {
                 .sorted_by_key(|(k, _)| *k)
                 .map(|(_, param)| {
                     format!(
-                        "{attributes}{name}: {param}{default}",
+                        "const {attributes}{name}: {param}{default}",
                         attributes = param
                             .attributes()
                             .iter()

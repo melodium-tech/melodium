@@ -13,11 +13,11 @@ The writing behavior is set up by the parameters:
 - `new`: the file is required to being new, if a file already exists at that path then the writing fails.
 
 The amount of written bytes is sent through `amount`. There is no guarantee about its increment, as an undefined number of bytes may be written at once.
-`success` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `error` contains the related text of error(s).
+`finished` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `error` contains the related text of error(s).
 */
 treatment write(path: string, append: bool = false, create: bool = true, new: bool = false)
   input data: Stream<byte>
-  output success: Block<void>
+  output finished: Block<void>
   output failure: Block<void>
   output error: Stream<string>
   output amount: Stream<u128>
@@ -30,10 +30,10 @@ treatment write(path: string, append: bool = false, create: bool = true, new: bo
     Self.data -> triggerData.stream,start -> emitFilename.trigger,emit -> fullWrite.path
     Self.data ----------------------------------------------------------> fullWrite.data
 
-    fullWrite.success -> Self.success
-    fullWrite.failure -> Self.failure
-    fullWrite.error ---> Self.error
-    fullWrite.amount --> Self.amount
+    fullWrite.finished -> Self.finished
+    fullWrite.failure --> Self.failure
+    fullWrite.error ----> Self.error
+    fullWrite.amount ---> Self.amount
 }
 
 /**
@@ -46,11 +46,11 @@ The writing behavior is set up by the parameters:
 - `new`: the file is required to being new, if a file already exists at that path then the writing fails.
 
 The amount of written bytes is sent through `amount`. There is no guarantee about its increment, as an undefined number of bytes may be written at once.
-`success` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `error` contains the related text of error(s).
+`finished` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `error` contains the related text of error(s).
 */
 treatment writeText(path: string, append: bool = false, create: bool = true, new: bool = false)
   input text: Stream<string>
-  output success: Block<void>
+  output finished: Block<void>
   output failure: Block<void>
   output error: Stream<string>
   output amount: Stream<u128>
@@ -60,9 +60,9 @@ treatment writeText(path: string, append: bool = false, create: bool = true, new
 
     Self.text -> toUtf8.text,encoded -> write.data
 
-    write.success -> Self.success
-    write.failure -> Self.failure
-    write.error ---> Self.error
-    write.amount --> Self.amount
+    write.finished -> Self.finished
+    write.failure --> Self.failure
+    write.error ----> Self.error
+    write.amount ---> Self.amount
 }
 

@@ -6,13 +6,15 @@ use melodium_macro::{check, mel_treatment};
 /// Read one file.
 ///
 /// The content of the file given through `path` is streamed through `data`.
-/// Once file is totally read, `success` is emitted.
+/// When file is reached and opened, `reached` is emitted.
+/// Once file is totally and succesfully read, `finished` is emitted.
 ///
 /// If any reading failure happens, `failure` is emitted and `error` contains text of the related text of error(s).
 #[mel_treatment(
     input path Block<string>
     output data Stream<byte>
-    output success Block<void>
+    output reached Block<void>
+    output finished Block<void>
     output failure Block<void>
     output error Stream<string>
 )]
@@ -25,6 +27,8 @@ pub async fn read() {
         let file = OpenOptions::new().read(true).open(path).await;
         match file {
             Ok(mut file) => {
+                let _ = reached.send_one(().into()).await;
+                reached.close().await;
                 let mut vec = vec![0; 2usize.pow(20)];
                 let mut fail = false;
                 loop {
@@ -46,7 +50,7 @@ pub async fn read() {
                     }
                 }
                 if !fail {
-                    let _ = success.send_one(().into()).await;
+                    let _ = finished.send_one(().into()).await;
                 }
             }
             Err(err) => {
@@ -69,14 +73,14 @@ pub async fn read() {
 ///
 /// The amount of written bytes is sent through `amount`. There is no guarantee about its increment, as an undefined number of bytes may be written at once.
 ///
-/// `success` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `error` contains the related text of error(s).
+/// `finished` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `error` contains the related text of error(s).
 #[mel_treatment(
     default append false
     default create true
     default new false
     input path Block<string>
     input data Stream<byte>
-    output success Block<void>
+    output finished Block<void>
     output failure Block<void>
     output error Stream<string>
     output amount Stream<u128>
@@ -117,7 +121,7 @@ pub async fn write(append: bool, create: bool, new: bool) {
                     }
                 }
                 if !fail {
-                    let _ = success.send_one(().into()).await;
+                    let _ = finished.send_one(().into()).await;
                 }
             }
             Err(err) => {

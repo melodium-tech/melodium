@@ -1,6 +1,6 @@
 [package]
 name = "melodium-macro"
-version = "0.8.0-rc2"
+version = "0.8.0-rc3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.60"
 edition = "2018"

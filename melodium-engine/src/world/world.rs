@@ -372,23 +372,27 @@ impl Engine for World {
     }
 
     fn live(&self) {
-        let continuum = async move {
-            let mut continuous = Vec::with_capacity(self.continuous_tasks_receiver.len());
+        let me = self.auto_reference.upgrade().unwrap();
+        let continuum = {
+            let me = Arc::clone(&me);
+            async move {
+                let mut continuous = Vec::with_capacity(me.continuous_tasks_receiver.len());
 
-            while let Ok(c) = self.continuous_tasks_receiver.recv().await {
-                continuous.push(c);
+                while let Ok(c) = me.continuous_tasks_receiver.recv().await {
+                    continuous.push(c);
+                }
+
+                let model_futures = join_all(continuous.iter_mut());
+
+                model_futures.await;
+
+                me.continous_ended.store(true, Ordering::Relaxed);
             }
-
-            let model_futures = join_all(continuous.iter_mut());
-
-            model_futures.await;
-
-            self.continous_ended.store(true, Ordering::Relaxed);
         };
 
         self.continuous_tasks_sender.close();
 
-        block_on(join(continuum, self.run_tracks()));
+        block_on(join(continuum, async move { me.run_tracks().await }));
     }
 
     /*
@@ -412,8 +416,9 @@ impl Engine for World {
 #[async_trait]
 impl ExecutiveWorld for World {
     fn add_continuous_task(&self, task: ContinuousFuture) {
-        block_on(async {
-            let _ = self.continuous_tasks_sender.send(task).await;
+        let me = self.auto_reference.upgrade().unwrap();
+        block_on(async move {
+            let _ = me.continuous_tasks_sender.send(task).await;
         });
     }
 

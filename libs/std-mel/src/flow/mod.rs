@@ -1,3 +1,4 @@
+use futures::{pin_mut, select, FutureExt};
 use melodium_core::common::executive::{GetData, Value};
 use melodium_macro::{check, mel_treatment};
 use std::collections::VecDeque;
@@ -173,6 +174,56 @@ pub async fn stream() {
 
 /// Merge two streams.
 ///
+/// The two streams are merged without predictible order.
+///
+/// ℹ️ Merge continues as long as `a` or `b` continues too, while the other can be ended.
+///
+/// ```mermaid
+/// graph LR
+///     T("merge()")
+///     A["… 🟦 🟫 …"] -->|a| T
+///     B["… 🟧 🟪 🟨 …"] -->|b| T
+///     
+///
+///     T -->|value| V["… 🟦 🟧 🟪 🟫 🟨 …"]
+///
+///     style V fill:#ffff,stroke:#ffff
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    generic T ()
+    input a Stream<T>
+    input b Stream<T>
+    output value Stream<T>
+)]
+pub async fn merge() {
+    let xa = async {
+        while let Ok(a) = (&a).recv_many().await {
+            check!(value.send_many(a).await);
+        }
+    }
+    .fuse();
+    let xb = async {
+        while let Ok(b) = (&b).recv_many().await {
+            check!(value.send_many(b).await);
+        }
+    }
+    .fuse();
+
+    pin_mut!(xa, xb);
+
+    loop {
+        select! {
+            () = xa => {},
+            () = xb => {},
+            complete => break,
+        };
+    }
+}
+
+/// Arrange two streams as one.
+///
 /// The two streams are merged using the `select` stream:
 /// - when `true`, value from `a` is used;
 /// - when `false`, value from `b` is used.
@@ -185,7 +236,7 @@ pub async fn stream() {
 ///
 /// ```mermaid
 /// graph LR
-///     T("merge()")
+///     T("arrange()")
 ///     A["… 🟦 🟫 …"] -->|a| T
 ///     B["… 🟧 🟪 🟨 …"] -->|b| T
 ///     O["… 🟩 🟥 🟥 🟩 🟥 …"] -->|select|T
@@ -205,7 +256,7 @@ pub async fn stream() {
     input select Stream<bool>
     output value Stream<T>
 )]
-pub async fn merge() {
+pub async fn arrange() {
     while let Ok(select) = select
         .recv_one()
         .await
@@ -447,6 +498,151 @@ pub async fn generate_indefinitely(data: T) {
                 transmission.push(data.clone());
             }
             check!(stream.send_many(transmission).await);
+        }
+    }
+}
+
+/// Insert a block into a stream.
+///
+/// `block` is inserted into `stream` when it comes and everything is streamed to `output`.
+///
+/// ℹ️ No assumption on block insertion position in stream can be made.
+///
+/// ```mermaid
+/// graph LR
+///     T("insert()")
+///     A["… 🟦 🟦 🟦 🟦 …"] -->|stream| T
+///     B["〈🟧〉"] -->|block| T
+///     
+///
+///     T -->|output| V["… 🟦 🟧 🟦 🟦 🟦 …"]
+///
+///     style V fill:#ffff,stroke:#ffff
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    generic T ()
+    input stream Stream<T>
+    input block Block<T>
+    output output Stream<T>
+)]
+pub async fn insert() {
+    let streaming = async {
+        while let Ok(values) = (&stream).recv_many().await {
+            check!(output.send_many(values).await);
+        }
+    }
+    .fuse();
+    let insert_block = async {
+        if let Ok(val) = (&block).recv_one().await {
+            let _ = output.send_one(val).await;
+        }
+    }
+    .fuse();
+
+    pin_mut!(streaming, insert_block);
+
+    loop {
+        select! {
+            () = streaming => {},
+            () = insert_block => {},
+            complete => break,
+        };
+    }
+}
+
+/// Merge two incoming blocks as a stream.
+///
+/// Each block is taken when it arrives and send through `stream`.
+///
+/// ℹ️ No priority on blocks order in stream can be assumed.
+///
+/// ```mermaid
+/// graph LR
+///     T("flock()")
+///     A["〈🟦〉"] -->|a| T
+///     B["〈🟧〉"] -->|b| T
+///     
+///
+///     T -->|stream| V["🟧 🟦"]
+///
+///     style V fill:#ffff,stroke:#ffff
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    generic T ()
+    input a Block<T>
+    input b Block<T>
+    output stream Stream<T>
+)]
+pub async fn flock() {
+    let xa = async {
+        if let Ok(a) = (&a).recv_one().await {
+            let _ = stream.send_one(a).await;
+        }
+    }
+    .fuse();
+    let xb = async {
+        if let Ok(b) = (&b).recv_one().await {
+            let _ = stream.send_one(b).await;
+        }
+    }
+    .fuse();
+
+    pin_mut!(xa, xb);
+
+    loop {
+        select! {
+            () = xa => {},
+            () = xb => {},
+            complete => break,
+        };
+    }
+}
+
+/// Emit one block.
+///
+/// Take first block coming among `a` or `b` and emit it in `value`, ignoring the remaining one.
+///
+/// ℹ️ No priority between blocks can be assumed if they are ready at same moment.
+///
+/// ```mermaid
+/// graph LR
+///     T("one()")
+///     A["…"] -->|a| T
+///     B["〈🟧〉"] -->|b| T
+///     
+///
+///     T -->|value| V["〈🟧〉"]
+///
+///     style V fill:#ffff,stroke:#ffff
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    generic T ()
+    input a Block<T>
+    input b Block<T>
+    output value Block<T>
+)]
+pub async fn one() {
+    let xa = async { (&a).recv_one().await.ok() }.fuse();
+    let xb = async { (&b).recv_one().await.ok() }.fuse();
+
+    pin_mut!(xa, xb);
+
+    loop {
+        let val = select! {
+            val = xa => val,
+            val = xb => val,
+            complete => break,
+        };
+
+        if let Some(val) = val {
+            let _ = value.send_one(val).await;
+            break;
         }
     }
 }
