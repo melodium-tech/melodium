@@ -192,6 +192,8 @@ impl Area {
                         .collect::<Vec<_>>()
                         .join("/"),
                 );
+                result.push_str("::");
+                result.push_str(id.name());
                 if name != id.name() {
                     result.push_str(" as ");
                     result.push_str(name);
