@@ -29,6 +29,7 @@ treatment connection[http_server: HttpServer](const method: HttpMethod, const ro
   input status: Block<HttpStatus>
   input headers: Block<Map>
   input data: Stream<byte>
+  output started: Block<void>
   output headers: Block<Map>
   output data: Stream<byte>
   output failure: Block<string>
@@ -36,6 +37,7 @@ treatment connection[http_server: HttpServer](const method: HttpMethod, const ro
     incoming[http_server=http_server](method=method, route=route)
     outgoing[http_server=http_server](id=@HttpRequest[id])
 
+    incoming.started -> Self.started
     incoming.headers -> Self.headers
     incoming.data -> Self.data
     incoming.failure -> Self.failure

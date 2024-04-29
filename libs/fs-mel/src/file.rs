@@ -28,7 +28,7 @@ pub async fn read() {
         match file {
             Ok(mut file) => {
                 let _ = reached.send_one(().into()).await;
-                let _ = reached.close().await;
+                reached.close().await;
                 let mut vec = vec![0; 2usize.pow(20)];
                 let mut fail = false;
                 loop {
