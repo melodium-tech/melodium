@@ -8,7 +8,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::{LogicError, LogicResult};
 
-use super::{FunctionInstanciation, Reference};
+use super::{FunctionInstanciation, GenericInstanciation, Reference};
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -226,17 +226,22 @@ impl Value {
                 result.and(LogicResult::new_success(Variability::Var))
             }
             Value::Function(descriptor, generics, parameters) => {
-                let function_instanciation = FunctionInstanciation::new(
+                let mut function_instanciation = FunctionInstanciation::new(
                     descriptor,
                     &scope_descriptor,
                     &scope_generics,
                     scope_descriptor.identifier().clone(),
-                    Arc::new(RwLock::new(generics.clone())),
                     design_reference.clone(),
                 );
 
                 let mut result = LogicResult::new_success(());
                 let mut variability = Variability::Var;
+
+                for (generic_name, r#type) in generics {
+                    result.merge_degrade_failure(
+                        function_instanciation.set_generic(generic_name.clone(), r#type.clone()),
+                    );
+                }
 
                 if let Some((sub_variability, sub_return_type)) = result
                     .merge_degrade_failure(function_instanciation.check_function_return(parameters))

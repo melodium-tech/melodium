@@ -11,6 +11,8 @@ use fs/file::write
 use std/engine/util::startup
 use std/conv::toBytes
 use std/flow/vec::flatten
+use std/ops/num::isPositive
+use std/conv::saturatingToI64
 
 /*
     This script is not supposed to do anything at this point, only to be parsed.
@@ -53,4 +55,16 @@ treatment write_file()
   write()
 
   emit.emit -> stream.block,stream -> toBytes.value,data -> flatten.vector,value -> write.data
+}
+
+treatment unusedDemonstration<N: Signed + SaturatingToI64>()
+  input  floating_point_value: Stream<N>
+  output integer_value: Stream<i64>
+  output is_positive: Stream<bool>
+{
+    isPositive<N>()
+    saturatingToI64<N>()
+
+    Self.floating_point_value ------> isPositive.value,positive --> Self.is_positive
+    Self.floating_point_value -> saturatingToI64.value,into ------> Self.integer_value
 }

@@ -457,22 +457,33 @@ impl GenericInstanciation for TreatmentInstanciation {
             .iter()
             .find(|gen| gen.name == generic_name)
         {
-            let unimplemented: Vec<DataTrait> = generic
-                .traits
-                .iter()
-                .filter(|tr| !r#type.implements(tr))
-                .map(|dt| *dt)
-                .collect();
-            if unimplemented.is_empty() {
-                self.generics.write().unwrap().insert(generic_name, r#type);
-                LogicResult::new_success(())
+            if let Some(r#type) = r#type.as_defined(&self.host_generics.read().unwrap()) {
+                let unimplemented: Vec<DataTrait> = generic
+                    .traits
+                    .iter()
+                    .filter(|tr| !r#type.implements(tr))
+                    .map(|dt| *dt)
+                    .collect();
+                if unimplemented.is_empty() {
+                    self.generics.write().unwrap().insert(generic_name, r#type);
+                    LogicResult::new_success(())
+                } else {
+                    LogicResult::new_failure(LogicError::unsatisfied_traits(
+                        223,
+                        self.host_id.clone(),
+                        descriptor.identifier().clone(),
+                        r#type,
+                        unimplemented,
+                        self.design_reference.clone(),
+                    ))
+                }
             } else {
-                LogicResult::new_failure(LogicError::unsatisfied_traits(
-                    223,
+                LogicResult::new_failure(LogicError::unexisting_generic(
+                    228,
                     self.host_id.clone(),
                     descriptor.identifier().clone(),
+                    generic_name,
                     r#type,
-                    unimplemented,
                     self.design_reference.clone(),
                 ))
             }

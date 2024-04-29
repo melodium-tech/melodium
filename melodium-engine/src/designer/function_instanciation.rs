@@ -25,7 +25,6 @@ impl FunctionInstanciation {
         scope_descriptor: &Arc<dyn Parameterized>,
         scope_generics: &Arc<RwLock<HashMap<String, DescribedType>>>,
         scope_id: Identifier,
-        generics: Arc<RwLock<HashMap<String, DescribedType>>>,
         design_reference: Option<Arc<dyn Reference>>,
     ) -> Self {
         Self {
@@ -33,7 +32,9 @@ impl FunctionInstanciation {
             scope_descriptor: Arc::downgrade(scope_descriptor),
             scope_generics: Arc::clone(scope_generics),
             scope_id,
-            generics,
+            generics: Arc::new(RwLock::new(HashMap::with_capacity(
+                descriptor.generics().len(),
+            ))),
             design_reference,
         }
     }
@@ -111,22 +112,33 @@ impl GenericInstanciation for FunctionInstanciation {
             .iter()
             .find(|gen| gen.name == generic_name)
         {
-            let unimplemented: Vec<DataTrait> = generic
-                .traits
-                .iter()
-                .filter(|tr| !r#type.implements(tr))
-                .map(|dt| *dt)
-                .collect();
-            if unimplemented.is_empty() {
-                self.generics.write().unwrap().insert(generic_name, r#type);
-                LogicResult::new_success(())
+            if let Some(r#type) = r#type.as_defined(&self.scope_generics.read().unwrap()) {
+                let unimplemented: Vec<DataTrait> = generic
+                    .traits
+                    .iter()
+                    .filter(|tr| !r#type.implements(tr))
+                    .map(|dt| *dt)
+                    .collect();
+                if unimplemented.is_empty() {
+                    self.generics.write().unwrap().insert(generic_name, r#type);
+                    LogicResult::new_success(())
+                } else {
+                    LogicResult::new_failure(LogicError::unsatisfied_traits(
+                        222,
+                        self.scope_id.clone(),
+                        descriptor.identifier().clone(),
+                        r#type,
+                        unimplemented,
+                        self.design_reference.clone(),
+                    ))
+                }
             } else {
-                LogicResult::new_failure(LogicError::unsatisfied_traits(
-                    222,
+                LogicResult::new_failure(LogicError::unexisting_generic(
+                    229,
                     self.scope_id.clone(),
                     descriptor.identifier().clone(),
+                    generic_name,
                     r#type,
-                    unimplemented,
                     self.design_reference.clone(),
                 ))
             }
