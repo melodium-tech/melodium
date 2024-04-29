@@ -181,6 +181,9 @@ impl Area {
                 } else {
                     id.root()
                 });
+                if id.path().len() > 1 {
+                    result.push_str("/");
+                }
                 result.push_str(
                     &id.path()
                         .iter()
