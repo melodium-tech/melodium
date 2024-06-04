@@ -2259,6 +2259,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "melodium-sharing"
+version = "0.8.0"
+dependencies = [
+ "melodium-common",
+ "melodium-engine",
+ "serde",
+]
+
+[[package]]
 name = "memchr"
 version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -20,6 +20,7 @@ members = [
     "melodium-loader",
     "melodium-macro",
     "melodium-repository",
+    "melodium-sharing",
     ]
 exclude = [
     "tests/*"

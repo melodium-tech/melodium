@@ -1,0 +1,23 @@
+[package]
+name = "melodium-sharing"
+version = "0.8.0"
+authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
+rust-version = "1.60"
+edition = "2021"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "Mélodium language parsing and semantic analyser"
+keywords = ["dataflow","parallelization","scalability","async","signal"]
+categories = ["compilers", "science", "concurrency", "asynchronous"]
+publish = false
+
+[lib]
+name = "melodium_sharing"
+
+[dependencies]
+melodium-common = { path = "../melodium-common", version = "0.8.0" }
+melodium-engine = { path = "../melodium-engine", version = "0.8.0" }
+serde = { version = "1.0", features = ["derive"] }
+
