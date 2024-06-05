@@ -41,7 +41,11 @@ impl TryInto<CommonParameter> for &Parameter {
             &self.name,
             (&self.variability).into(),
             (&self.described_type).try_into()?,
-            self.default.as_ref().map(|v| v.into()),
+            if let Some(val) = &self.default {
+                Some(val.try_into()?)
+            } else {
+                None
+            },
             (&self.attributes).into(),
         ))
     }

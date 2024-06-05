@@ -1,4 +1,4 @@
-use super::{Data, Generic, DataType};
+use super::{Data, DataType, Generic};
 use core::fmt::Display;
 use melodium_common::descriptor::{
     Collection, DescribedType as CommonDescribedType, Entry as CommonEntry,
@@ -129,7 +129,9 @@ impl From<&CommonDescribedType> for DescribedType {
             CommonDescribedType::Option(dt) => DescribedType::Option(Box::new(dt.as_ref().into())),
 
             CommonDescribedType::Data(data) => DescribedType::Data(data.as_ref().as_ref().into()),
-            CommonDescribedType::Generic(generic) => DescribedType::Generic(generic.as_ref().into()),
+            CommonDescribedType::Generic(generic) => {
+                DescribedType::Generic(generic.as_ref().into())
+            }
         }
     }
 }
@@ -234,10 +236,12 @@ impl TryInto<CommonDescribedType> for &DescribedType {
             DescribedType::Char => Ok(CommonDescribedType::Char),
             DescribedType::String => Ok(CommonDescribedType::String),
 
-            DescribedType::Vec(dt) => Ok(CommonDescribedType::Vec(Box::new(dt.as_ref().try_into()?))),
-            DescribedType::Option(dt) => {
-                Ok(CommonDescribedType::Option(Box::new(dt.as_ref().try_into()?)))
+            DescribedType::Vec(dt) => {
+                Ok(CommonDescribedType::Vec(Box::new(dt.as_ref().try_into()?)))
             }
+            DescribedType::Option(dt) => Ok(CommonDescribedType::Option(Box::new(
+                dt.as_ref().try_into()?,
+            ))),
             DescribedType::Data(_) => Err(()),
 
             DescribedType::Generic(generic) => {
