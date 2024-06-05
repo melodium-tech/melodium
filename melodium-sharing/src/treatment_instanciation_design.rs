@@ -3,7 +3,7 @@ use melodium_engine::design::TreatmentInstanciation;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TreatmentInstanciationDesign {
     pub generics: BTreeMap<String, DescribedType>,
     pub models: BTreeMap<String, String>,

@@ -3,7 +3,7 @@ use melodium_engine::design::ModelInstanciation;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ModelInstanciationDesign {
     pub parameters: BTreeMap<String, Value>,
     pub attributes: Attributes,

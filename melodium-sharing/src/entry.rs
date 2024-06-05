@@ -29,8 +29,8 @@ impl From<&CommonEntry> for Entry {
             CommonEntry::Context(element) => Self::Context((&**element).into()),
             CommonEntry::Data(element) => Self::Data((&**element).into()),
             CommonEntry::Function(element) => Self::Function((&**element).into()),
-            CommonEntry::Model(element) => Self::Model((&**element).into()),
-            CommonEntry::Treatment(element) => Self::Treatment((&**element).into()),
+            CommonEntry::Model(element) => Self::Model(element.into()),
+            CommonEntry::Treatment(element) => Self::Treatment(element.into()),
         }
     }
 }

@@ -1,7 +1,8 @@
-use super::{Attributes, Generic, Identifier, ImplementationKind, Input, Output, Parameter};
+use super::{Attributes, Generic, Identifier, Input, Output, Parameter, TreatmentDesign};
 use melodium_common::descriptor::Treatment as CommonTreatment;
+use melodium_engine::descriptor::Treatment as DesignedTreatment;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Treatment {
@@ -9,7 +10,7 @@ pub struct Treatment {
     pub documentation: String,
     pub generics: BTreeMap<String, Generic>,
     pub parameters: BTreeMap<String, Parameter>,
-    pub implementation_kind: ImplementationKind,
+    pub implementation_kind: TreatmentImplementationKind,
     pub inputs: BTreeMap<String, Input>,
     pub outputs: BTreeMap<String, Output>,
     pub models: BTreeMap<String, Identifier>,
@@ -17,8 +18,8 @@ pub struct Treatment {
     pub attributes: Attributes,
 }
 
-impl From<&dyn CommonTreatment> for Treatment {
-    fn from(value: &dyn CommonTreatment) -> Self {
+impl From<&Arc<dyn CommonTreatment>> for Treatment {
+    fn from(value: &Arc<dyn CommonTreatment>) -> Self {
         Self {
             identifier: Identifier::from(value.identifier()),
             documentation: value.documentation().to_string(),
@@ -33,14 +34,20 @@ impl From<&dyn CommonTreatment> for Treatment {
                 .map(|(name, param)| (name.clone(), Parameter::from(param)))
                 .collect(),
             implementation_kind: match value.build_mode() {
-                melodium_common::descriptor::TreatmentBuildMode::Compiled(_, _) => {
-                    ImplementationKind::Compiled
-                }
-                melodium_common::descriptor::TreatmentBuildMode::Source(_) => {
-                    ImplementationKind::Compiled
+                melodium_common::descriptor::TreatmentBuildMode::Compiled(_, _)
+                | melodium_common::descriptor::TreatmentBuildMode::Source(_) => {
+                    TreatmentImplementationKind::Compiled
                 }
                 melodium_common::descriptor::TreatmentBuildMode::Designed() => {
-                    ImplementationKind::Designed
+                    TreatmentImplementationKind::Designed(
+                        value
+                            .clone()
+                            .downcast_arc::<DesignedTreatment>()
+                            .unwrap()
+                            .design()
+                            .success()
+                            .map(|design| design.as_ref().into()),
+                    )
                 }
             },
             inputs: value
@@ -66,4 +73,10 @@ impl From<&dyn CommonTreatment> for Treatment {
             attributes: value.attributes().into(),
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum TreatmentImplementationKind {
+    Compiled,
+    Designed(Option<TreatmentDesign>),
 }

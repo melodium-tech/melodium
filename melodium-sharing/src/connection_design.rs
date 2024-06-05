@@ -2,7 +2,7 @@ use crate::Attributes;
 use melodium_engine::design::{Connection, IO};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum IoDesign {
     Sequence(),
     Treatment(String),
@@ -17,7 +17,7 @@ impl From<&IO> for IoDesign {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ConnectionDesign {
     pub output_treatment: IoDesign,
     pub output_name: String,
