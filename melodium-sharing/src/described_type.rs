@@ -1,9 +1,10 @@
-use super::{Data, DataType, Generic};
+use super::{Data, DataType, Generic, SharingError, SharingResult};
 use core::fmt::Display;
 use melodium_common::descriptor::{
     Collection, DescribedType as CommonDescribedType, Entry as CommonEntry,
     Identifier as CommonIdentifier,
 };
+use melodium_engine::LogicError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -41,54 +42,79 @@ pub enum DescribedType {
 }
 
 impl DescribedType {
-    pub fn to_described_type(&self, collection: &Collection) -> Option<CommonDescribedType> {
+    pub fn to_described_type(
+        &self,
+        collection: &Collection,
+        scope: &CommonIdentifier,
+    ) -> SharingResult<CommonDescribedType> {
         match self {
-            DescribedType::Void => Some(CommonDescribedType::Void),
+            DescribedType::Void => SharingResult::new_success(CommonDescribedType::Void),
 
-            DescribedType::I8 => Some(CommonDescribedType::I8),
-            DescribedType::I16 => Some(CommonDescribedType::I16),
-            DescribedType::I32 => Some(CommonDescribedType::I32),
-            DescribedType::I64 => Some(CommonDescribedType::I64),
-            DescribedType::I128 => Some(CommonDescribedType::I128),
+            DescribedType::I8 => SharingResult::new_success(CommonDescribedType::I8),
+            DescribedType::I16 => SharingResult::new_success(CommonDescribedType::I16),
+            DescribedType::I32 => SharingResult::new_success(CommonDescribedType::I32),
+            DescribedType::I64 => SharingResult::new_success(CommonDescribedType::I64),
+            DescribedType::I128 => SharingResult::new_success(CommonDescribedType::I128),
 
-            DescribedType::U8 => Some(CommonDescribedType::U8),
-            DescribedType::U16 => Some(CommonDescribedType::U16),
-            DescribedType::U32 => Some(CommonDescribedType::U32),
-            DescribedType::U64 => Some(CommonDescribedType::U64),
-            DescribedType::U128 => Some(CommonDescribedType::U128),
+            DescribedType::U8 => SharingResult::new_success(CommonDescribedType::U8),
+            DescribedType::U16 => SharingResult::new_success(CommonDescribedType::U16),
+            DescribedType::U32 => SharingResult::new_success(CommonDescribedType::U32),
+            DescribedType::U64 => SharingResult::new_success(CommonDescribedType::U64),
+            DescribedType::U128 => SharingResult::new_success(CommonDescribedType::U128),
 
-            DescribedType::F32 => Some(CommonDescribedType::F32),
-            DescribedType::F64 => Some(CommonDescribedType::F64),
+            DescribedType::F32 => SharingResult::new_success(CommonDescribedType::F32),
+            DescribedType::F64 => SharingResult::new_success(CommonDescribedType::F64),
 
-            DescribedType::Bool => Some(CommonDescribedType::Bool),
-            DescribedType::Byte => Some(CommonDescribedType::Byte),
+            DescribedType::Bool => SharingResult::new_success(CommonDescribedType::Bool),
+            DescribedType::Byte => SharingResult::new_success(CommonDescribedType::Byte),
 
-            DescribedType::Char => Some(CommonDescribedType::Char),
-            DescribedType::String => Some(CommonDescribedType::String),
+            DescribedType::Char => SharingResult::new_success(CommonDescribedType::Char),
+            DescribedType::String => SharingResult::new_success(CommonDescribedType::String),
 
-            DescribedType::Vec(dt) => Some(CommonDescribedType::Vec(Box::new(
-                dt.as_ref().to_described_type(collection)?,
-            ))),
-            DescribedType::Option(dt) => Some(CommonDescribedType::Option(Box::new(
-                dt.as_ref().to_described_type(collection)?,
-            ))),
-            DescribedType::Data(data) => collection
-                .get(
-                    &TryInto::<CommonIdentifier>::try_into(&data.identifier)
-                        .ok()?
-                        .into(),
-                )
-                .map(|entry| {
-                    if let CommonEntry::Data(data) = entry {
-                        Some(CommonDescribedType::Data(Box::new(Arc::clone(data))))
+            DescribedType::Vec(dt) => {
+                SharingResult::new_success(CommonDescribedType::Vec(Box::new({
+                    let result = dt.as_ref().to_described_type(collection, scope);
+                    if let Some(subtype) = result.success() {
+                        subtype.clone()
                     } else {
-                        None
+                        return result;
                     }
-                })
-                .flatten(),
+                })))
+            }
+            DescribedType::Option(dt) => {
+                SharingResult::new_success(CommonDescribedType::Option(Box::new({
+                    let result = dt.as_ref().to_described_type(collection, scope);
+                    if let Some(subtype) = result.success() {
+                        subtype.clone()
+                    } else {
+                        return result;
+                    }
+                })))
+            }
+            DescribedType::Data(data) => {
+                let identifier: CommonIdentifier =
+                    if let Ok(identifier) = (&data.identifier).try_into() {
+                        identifier
+                    } else {
+                        return SharingResult::new_failure(SharingError::invalid_identifier(
+                            5,
+                            data.identifier.clone(),
+                        ));
+                    };
+                if let Some(CommonEntry::Data(data)) = collection.get(&(&identifier).into()) {
+                    SharingResult::new_success(CommonDescribedType::Data(Box::new(Arc::clone(
+                        data,
+                    ))))
+                } else {
+                    return SharingResult::new_failure(
+                        LogicError::unexisting_data(231, scope.clone(), identifier.into(), None)
+                            .into(),
+                    );
+                }
+            }
 
             DescribedType::Generic(generic) => {
-                Some(CommonDescribedType::Generic(Box::new(generic.into())))
+                SharingResult::new_success(CommonDescribedType::Generic(Box::new(generic.into())))
             }
         }
     }

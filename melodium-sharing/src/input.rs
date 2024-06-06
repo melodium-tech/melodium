@@ -1,5 +1,7 @@
-use super::{Attributes, DescribedType, Flow};
-use melodium_common::descriptor::{Attribuable, Collection, Input as CommonInput};
+use super::{Attributes, DescribedType, Flow, SharingResult};
+use melodium_common::descriptor::{
+    Attribuable, Collection, Identifier as CommonIdentifier, Input as CommonInput,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -11,13 +13,21 @@ pub struct Input {
 }
 
 impl Input {
-    pub fn to_input(&self, collection: &Collection) -> Option<CommonInput> {
-        Some(CommonInput::new(
-            &self.name,
-            (&self.described_type).to_described_type(collection)?,
-            (&self.flow).into(),
-            (&self.attributes).into(),
-        ))
+    pub fn to_input(
+        &self,
+        collection: &Collection,
+        scope: &CommonIdentifier,
+    ) -> SharingResult<CommonInput> {
+        self.described_type
+            .to_described_type(collection, scope)
+            .and_then(|described_type| {
+                SharingResult::new_success(CommonInput::new(
+                    &self.name,
+                    described_type,
+                    (&self.flow).into(),
+                    (&self.attributes).into(),
+                ))
+            })
     }
 }
 

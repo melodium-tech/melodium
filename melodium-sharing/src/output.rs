@@ -1,5 +1,9 @@
+use crate::SharingResult;
+
 use super::{Attributes, DescribedType, Flow};
-use melodium_common::descriptor::{Attribuable, Collection, Output as CommonOutput};
+use melodium_common::descriptor::{
+    Attribuable, Collection, Identifier as CommonIdentifier, Output as CommonOutput,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -11,13 +15,21 @@ pub struct Output {
 }
 
 impl Output {
-    pub fn to_output(&self, collection: &Collection) -> Option<CommonOutput> {
-        Some(CommonOutput::new(
-            &self.name,
-            (&self.described_type).to_described_type(collection)?,
-            (&self.flow).into(),
-            (&self.attributes).into(),
-        ))
+    pub fn to_output(
+        &self,
+        collection: &Collection,
+        scope: &CommonIdentifier,
+    ) -> SharingResult<CommonOutput> {
+        self.described_type
+            .to_described_type(collection, scope)
+            .and_then(|described_type| {
+                SharingResult::new_success(CommonOutput::new(
+                    &self.name,
+                    described_type,
+                    (&self.flow).into(),
+                    (&self.attributes).into(),
+                ))
+            })
     }
 }
 

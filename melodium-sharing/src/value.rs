@@ -1,9 +1,15 @@
-use crate::{DescribedType, Identifier};
+use crate::{DescribedType, Identifier, SharingError, SharingResult};
 use ciborium::{cbor, Value as DataValue};
-use melodium_common::{descriptor::Collection, executive::Value as CommonValue};
-use melodium_engine::design::Value as DesignedValue;
+use melodium_common::{
+    descriptor::{Collection, Entry as CommonEntry, Identifier as CommonIdentifier},
+    executive::Value as CommonValue,
+};
+use melodium_engine::{design::Value as DesignedValue, LogicError};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Value {
@@ -12,6 +18,103 @@ pub enum Value {
     Variable(String),
     Context(Identifier, String),
     Function(Identifier, BTreeMap<String, DescribedType>, Vec<Value>),
+}
+
+impl Value {
+    pub fn to_value(
+        &self,
+        collection: &Collection,
+        scope: &CommonIdentifier,
+    ) -> SharingResult<DesignedValue> {
+        match self {
+            Value::Raw(val) => {
+                if let Ok(value) = val.try_into() {
+                    SharingResult::new_success(DesignedValue::Raw(value))
+                } else {
+                    SharingResult::new_failure(SharingError::data_serialization_error(8))
+                }
+            }
+            Value::Array(arr) => {
+                let mut result = SharingResult::new_success(());
+                let mut vec = Vec::with_capacity(arr.len());
+                for val in arr {
+                    if let Some(val) = result.merge_degrade_failure(val.to_value(collection, scope))
+                    {
+                        vec.push(val);
+                    }
+                }
+                result.and_then(|_| SharingResult::new_success(DesignedValue::Array(vec)))
+            }
+            Value::Variable(var) => {
+                SharingResult::new_success(DesignedValue::Variable(var.clone()))
+            }
+            Value::Context(context, name) => {
+                let context: CommonIdentifier = if let Ok(identifier) = context.try_into() {
+                    identifier
+                } else {
+                    return SharingResult::new_failure(SharingError::invalid_identifier(
+                        9,
+                        context.clone(),
+                    ));
+                };
+                if let Some(CommonEntry::Context(context)) = collection.get(&(&context).into()) {
+                    SharingResult::new_success(DesignedValue::Context(
+                        Arc::clone(context),
+                        name.clone(),
+                    ))
+                } else {
+                    SharingResult::new_failure(
+                        LogicError::unexisting_context(232, scope.clone(), context.into(), None)
+                            .into(),
+                    )
+                }
+            }
+            Value::Function(function, generics, parameters) => {
+                let function: CommonIdentifier = if let Ok(identifier) = function.try_into() {
+                    identifier
+                } else {
+                    return SharingResult::new_failure(SharingError::invalid_identifier(
+                        10,
+                        function.clone(),
+                    ));
+                };
+                if let Some(CommonEntry::Function(function)) = collection.get(&(&function).into()) {
+                    let mut result = SharingResult::new_success(());
+
+                    let mut map_generics = HashMap::with_capacity(generics.len());
+                    for (name, gen) in generics {
+                        if let Some(gen) =
+                            result.merge_degrade_failure(gen.to_described_type(collection, scope))
+                        {
+                            map_generics.insert(name.clone(), gen);
+                        }
+                    }
+
+                    let mut vec_params = Vec::with_capacity(parameters.len());
+                    for param in parameters {
+                        if let Some(val) =
+                            result.merge_degrade_failure(param.to_value(collection, scope))
+                        {
+                            vec_params.push(val);
+                        }
+                    }
+
+                    result.and_then(|_| {
+                        SharingResult::new_success(DesignedValue::Function(
+                            Arc::clone(function),
+                            map_generics,
+                            vec_params,
+                        ))
+                    })
+                } else {
+                    SharingResult::new_failure(
+                        LogicError::unexisting_function(233, scope.clone(), function.into(), None)
+                            .into(),
+                    )
+                }
+            }
+        }
+    }
 }
 
 impl From<&DesignedValue> for Value {

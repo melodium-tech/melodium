@@ -1,5 +1,7 @@
-use super::{Attributes, DescribedType, RawValue, Variability};
-use melodium_common::descriptor::{Attribuable, Parameter as CommonParameter};
+use super::{Attributes, DescribedType, RawValue, SharingResult, Variability};
+use melodium_common::descriptor::{
+    Attribuable, Collection, Identifier as CommonIdentifier, Parameter as CommonParameter,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -9,6 +11,34 @@ pub struct Parameter {
     pub described_type: DescribedType,
     pub default: Option<RawValue>,
     pub attributes: Attributes,
+}
+
+impl Parameter {
+    pub fn to_parameter(
+        &self,
+        collection: &Collection,
+        scope: &CommonIdentifier,
+    ) -> SharingResult<CommonParameter> {
+        self.described_type
+            .to_described_type(collection, scope)
+            .and_then(|described_type| {
+                let default = if let Some(val) = &self.default {
+                    // TODO change when #81
+                    Some(val.try_into().ok())
+                } else {
+                    None
+                }
+                .flatten();
+
+                SharingResult::new_success(CommonParameter::new(
+                    &self.name,
+                    (&self.variability).into(),
+                    described_type,
+                    default,
+                    (&self.attributes).into(),
+                ))
+            })
+    }
 }
 
 impl From<&CommonParameter> for Parameter {

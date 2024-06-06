@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 pub type Attribute = String;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Attributes(BTreeMap<String, Attribute>);
+pub struct Attributes(pub BTreeMap<String, Attribute>);
 
 impl Attributes {
     pub fn new() -> Self {
