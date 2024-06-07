@@ -17,6 +17,15 @@ impl From<&IO> for IoDesign {
     }
 }
 
+impl Into<IO> for &IoDesign {
+    fn into(self) -> IO {
+        match self {
+            IoDesign::Sequence() => IO::Sequence(),
+            IoDesign::Treatment(name) => IO::Treatment(name.clone()),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ConnectionDesign {
     pub output_treatment: IoDesign,
@@ -36,6 +45,18 @@ impl From<&Connection> for ConnectionDesign {
             input_treatment: (&value.input_treatment).into(),
             input_name: value.input_name.clone(),
             attributes: (&value.attributes).into(),
+        }
+    }
+}
+
+impl Into<Connection> for &ConnectionDesign {
+    fn into(self) -> Connection {
+        Connection {
+            output_treatment: (&self.output_treatment).into(),
+            output_name: self.output_name.clone(),
+            input_treatment: (&self.input_treatment).into(),
+            input_name: self.input_name.clone(),
+            attributes: (&self.attributes).into(),
         }
     }
 }

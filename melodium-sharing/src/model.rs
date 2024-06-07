@@ -75,7 +75,7 @@ impl Model {
             if let Some(parameter) =
                 result.merge_degrade_failure(param.to_parameter(collection, &identifier))
             {
-                descriptor.add_parameter(parameter)
+                descriptor.add_parameter(parameter);
             }
         }
 
