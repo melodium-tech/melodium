@@ -2,8 +2,8 @@ use crate::package::PackageTrait as Package;
 use crate::package_manager::{PackageManager, PackageManagerConfiguration};
 use crate::{LoadingConfig, PackageInfo};
 use melodium_common::descriptor::{
-    Collection, Context, Entry, Function, Identifier, IdentifierRequirement, Loader as LoaderTrait,
-    LoadingError, LoadingResult, Model, PackageRequirement, Treatment,
+    Collection, Context, Entry, Function, Identified, Identifier, IdentifierRequirement,
+    Loader as LoaderTrait, LoadingError, LoadingResult, Model, PackageRequirement, Treatment,
 };
 use melodium_repository::network::NetworkRepositoryConfiguration;
 use melodium_repository::{Repository, RepositoryConfig};
@@ -97,7 +97,7 @@ impl Loader {
         identifier_requirement: &IdentifierRequirement,
     ) -> LoadingResult<Identifier> {
         self.get_with_load(identifier_requirement)
-            .and_then(|entry| LoadingResult::new_success(entry.identifier()))
+            .and_then(|entry| LoadingResult::new_success(entry.identifier().clone()))
     }
 
     /**

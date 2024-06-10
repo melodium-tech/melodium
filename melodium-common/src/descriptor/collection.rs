@@ -1,4 +1,7 @@
-use super::{Context, Data, Function, Identifier, IdentifierRequirement, Model, Treatment};
+use super::{
+    Attribuable, Attributes, Context, Data, Function, Identified, Identifier,
+    IdentifierRequirement, Model, Treatment,
+};
 use std::cmp::Ordering;
 use std::collections::{btree_map, BTreeMap};
 use std::slice::Iter;
@@ -13,14 +16,46 @@ pub enum Entry {
     Treatment(Arc<dyn Treatment>),
 }
 
-impl Entry {
-    pub fn identifier(&self) -> Identifier {
+impl Attribuable for Entry {
+    fn attributes(&self) -> &Attributes {
         match self {
-            Entry::Context(c) => c.identifier().clone(),
-            Entry::Function(f) => f.identifier().clone(),
-            Entry::Model(m) => m.identifier().clone(),
-            Entry::Data(d) => d.identifier().clone(),
-            Entry::Treatment(t) => t.identifier().clone(),
+            Entry::Context(c) => c.attributes(),
+            Entry::Function(f) => f.attributes(),
+            Entry::Model(m) => m.attributes(),
+            Entry::Data(d) => d.attributes(),
+            Entry::Treatment(t) => t.attributes(),
+        }
+    }
+}
+
+impl Identified for Entry {
+    fn identifier(&self) -> &Identifier {
+        match self {
+            Entry::Context(c) => c.identifier(),
+            Entry::Function(f) => f.identifier(),
+            Entry::Model(m) => m.identifier(),
+            Entry::Data(d) => d.identifier(),
+            Entry::Treatment(t) => t.identifier(),
+        }
+    }
+
+    fn make_use(&self, identifier: &Identifier) -> bool {
+        match self {
+            Entry::Context(c) => c.make_use(identifier),
+            Entry::Function(f) => f.make_use(identifier),
+            Entry::Model(m) => m.make_use(identifier),
+            Entry::Data(d) => d.make_use(identifier),
+            Entry::Treatment(t) => t.make_use(identifier),
+        }
+    }
+
+    fn uses(&self) -> Vec<Identifier> {
+        match self {
+            Entry::Context(c) => c.uses(),
+            Entry::Function(f) => f.uses(),
+            Entry::Model(m) => m.uses(),
+            Entry::Data(d) => d.uses(),
+            Entry::Treatment(t) => t.uses(),
         }
     }
 }

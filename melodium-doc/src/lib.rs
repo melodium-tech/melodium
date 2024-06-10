@@ -3,8 +3,8 @@
 
 use itertools::Itertools;
 use melodium_common::descriptor::{
-    Collection, CollectionTree, Context, Data, DescribedType, Entry, Flow, Function, Identifier,
-    Input, Model, Output, Parameter, Treatment,
+    Collection, CollectionTree, Context, Data, DescribedType, Entry, Flow, Function, Identified,
+    Identifier, Input, Model, Output, Parameter, Treatment,
 };
 use std::collections::HashMap;
 use std::error::Error;
