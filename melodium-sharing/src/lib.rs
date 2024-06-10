@@ -25,6 +25,7 @@ mod value;
 mod variability;
 
 pub use attribute::{Attribute, Attributes};
+pub use collection::{Collection, Element};
 pub use connection_design::{ConnectionDesign, IoDesign};
 pub use context::Context;
 pub use data::Data;

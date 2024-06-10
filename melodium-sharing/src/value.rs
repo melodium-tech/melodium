@@ -169,9 +169,9 @@ pub enum RawValue {
 }
 
 impl RawValue {
-    pub fn to_value(&self, collection: &Collection) -> Option<CommonValue> {
+    pub fn to_value(&self, _collection: &Collection) -> Option<CommonValue> {
         match self {
-            RawValue::Data(identifier, value) => {
+            RawValue::Data(_identifier, _value) => {
                 // TODO Manage data deserialization #81
                 None
             }

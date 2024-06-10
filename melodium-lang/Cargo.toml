@@ -20,7 +20,7 @@ melodium-common = { path = "../melodium-common", version = "0.8.0" }
 melodium-engine = { path = "../melodium-engine", version = "0.8.0" }
 convert_case = { version = "0.6", optional = true }
 hex = "0.4"
-itertools = { version = "0.11.0", optional = true }
+itertools = { version = "0.13.0", optional = true }
 lazy_static = "1.4"
 regex = "1.9"
 

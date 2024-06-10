@@ -19,6 +19,7 @@ name = "melodium_sharing"
 [dependencies]
 melodium-common = { path = "../melodium-common", version = "0.8.0" }
 melodium-engine = { path = "../melodium-engine", version = "0.8.0" }
+itertools = "0.13.0"
 serde = { version = "1.0", features = ["derive"] }
 ciborium = "0.2.2"
 
