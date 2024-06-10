@@ -74,6 +74,37 @@ impl Identified for Function {
     fn identifier(&self) -> &Identifier {
         &self.identifier
     }
+
+    fn make_use(&self, identifier: &Identifier) -> bool {
+        self.return_type
+            .final_type()
+            .data()
+            .map(|data| data.identifier() == identifier || data.make_use(identifier))
+            .unwrap_or(false)
+            || self.parameters.iter().any(|param| {
+                param
+                    .described_type()
+                    .final_type()
+                    .data()
+                    .map(|data| data.identifier() == identifier || data.make_use(identifier))
+                    .unwrap_or(false)
+            })
+    }
+
+    fn uses(&self) -> Vec<Identifier> {
+        let mut uses = Vec::new();
+        if let Some(data) = self.return_type.final_type().data() {
+            uses.push(data.identifier().clone());
+            uses.extend(data.uses());
+        }
+        for param in &self.parameters {
+            if let Some(data) = param.described_type().final_type().data() {
+                uses.push(data.identifier().clone());
+                uses.extend(data.uses());
+            }
+        }
+        uses
+    }
 }
 
 impl Documented for Function {

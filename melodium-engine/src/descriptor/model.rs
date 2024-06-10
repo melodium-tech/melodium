@@ -199,6 +199,50 @@ impl Identified for Model {
     fn identifier(&self) -> &Identifier {
         &self.identifier
     }
+
+    fn make_use(&self, identifier: &Identifier) -> bool {
+        self.base_model.identifier() == identifier
+            || self.base_model.make_use(identifier)
+            || self.parameters.values().any(|parameter| {
+                parameter
+                    .described_type()
+                    .final_type()
+                    .data()
+                    .map(|data| data.identifier() == identifier || data.make_use(identifier))
+                    .unwrap_or(false)
+            })
+            || self
+                .design
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|design| design.make_use(identifier))
+                .unwrap_or(false)
+            || self
+                .designer
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|designer| designer.read().unwrap().make_use(identifier))
+                .unwrap_or(false)
+    }
+
+    fn uses(&self) -> Vec<Identifier> {
+        let mut uses = vec![self.base_model.identifier().clone()];
+        self.parameters.values().for_each(|parameter| {
+            if let Some(data) = parameter.described_type().final_type().data() {
+                uses.push(data.identifier().clone());
+                uses.extend(data.uses());
+            }
+        });
+        if let Some(design) = self.design.lock().unwrap().as_ref() {
+            uses.extend(design.uses());
+        }
+        if let Some(designer) = self.designer.lock().unwrap().as_ref() {
+            uses.extend(designer.read().unwrap().uses());
+        }
+        uses
+    }
 }
 
 impl Documented for Model {
@@ -234,32 +278,6 @@ impl Generics for Model {
 impl Buildable<ModelBuildMode> for Model {
     fn build_mode(&self) -> ModelBuildMode {
         ModelBuildMode::Designed()
-    }
-
-    fn make_use(&self, identifier: &Identifier) -> bool {
-        self.base_model.identifier() == identifier
-            || self.parameters.values().any(|parameter| {
-                parameter
-                    .described_type()
-                    .final_type()
-                    .data()
-                    .map(|data| data.identifier() == identifier)
-                    .unwrap_or(false)
-            })
-            || self
-                .design
-                .lock()
-                .unwrap()
-                .as_ref()
-                .map(|design| design.make_use(identifier))
-                .unwrap_or(false)
-            || self
-                .designer
-                .lock()
-                .unwrap()
-                .as_ref()
-                .map(|designer| designer.read().unwrap().make_use(identifier))
-                .unwrap_or(false)
     }
 }
 

@@ -1,4 +1,5 @@
 mod attribute;
+mod collection;
 mod connection_design;
 mod context;
 mod data;

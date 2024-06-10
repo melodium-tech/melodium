@@ -1,7 +1,7 @@
 use core::fmt::{Display, Formatter, Result};
 use melodium_common::descriptor::{
-    Attribuable, Attributes, Context as ContextDescriptor, DataType, Documented, Identified,
-    Identifier,
+    Attribuable, Attributes, Context as ContextDescriptor, DataType, DescribedType, Documented,
+    Identified, Identifier,
 };
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -66,6 +66,30 @@ impl Documented for Context {
 impl Identified for Context {
     fn identifier(&self) -> &Identifier {
         &self.identifier
+    }
+
+    fn make_use(&self, identifier: &Identifier) -> bool {
+        self.values.values().any(|val| {
+            DescribedType::from(val)
+                .final_type()
+                .data()
+                .map(|data| data.identifier() == identifier || data.make_use(identifier))
+                .unwrap_or(false)
+        })
+    }
+
+    fn uses(&self) -> Vec<Identifier> {
+        self.values
+            .values()
+            .filter_map(|val| {
+                DescribedType::from(val).final_type().data().map(|data| {
+                    let mut uses = vec![data.identifier().clone()];
+                    uses.extend(data.uses());
+                    uses
+                })
+            })
+            .flatten()
+            .collect()
     }
 }
 

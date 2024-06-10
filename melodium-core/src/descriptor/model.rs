@@ -57,6 +57,38 @@ impl Identified for Model {
     fn identifier(&self) -> &Identifier {
         &self.identifier
     }
+
+    fn make_use(&self, identifier: &Identifier) -> bool {
+        self.parameters.values().any(|parameter| {
+            parameter
+                .described_type()
+                .final_type()
+                .data()
+                .map(|data| data.identifier() == identifier || data.make_use(identifier))
+                .unwrap_or(false)
+        }) || self.sources.iter().any(|(_, contextes)| {
+            contextes
+                .iter()
+                .any(|context| context.identifier() == identifier)
+        })
+    }
+
+    fn uses(&self) -> Vec<Identifier> {
+        let mut uses = Vec::new();
+        self.parameters.values().for_each(|parameter| {
+            if let Some(data) = parameter.described_type().final_type().data() {
+                uses.push(data.identifier().clone());
+                uses.extend(data.uses());
+            }
+        });
+        self.sources.values().for_each(|contexts| {
+            for context in contexts {
+                uses.push(context.identifier().clone());
+                uses.extend(context.uses());
+            }
+        });
+        uses
+    }
 }
 
 impl Documented for Model {
@@ -92,14 +124,6 @@ impl Generics for Model {
 impl Buildable<ModelBuildMode> for Model {
     fn build_mode(&self) -> ModelBuildMode {
         ModelBuildMode::Compiled(self.build_fn)
-    }
-
-    fn make_use(&self, identifier: &Identifier) -> bool {
-        self.sources.iter().any(|(_, contextes)| {
-            contextes
-                .iter()
-                .any(|context| context.identifier() == identifier)
-        })
     }
 }
 
