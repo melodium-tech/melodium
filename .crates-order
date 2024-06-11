@@ -6,6 +6,7 @@ melodium-engine
 melodium-lang
 melodium-repository
 melodium-loader
+melodium-sharing
 melodium-doc
 std-mel
 encoding-mel

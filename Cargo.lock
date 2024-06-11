@@ -2225,6 +2225,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "melodium-distributed"
+version = "0.8.0"
+dependencies = [
+ "async-std",
+ "ciborium",
+ "melodium-common",
+ "melodium-engine",
+ "melodium-loader",
+ "melodium-sharing",
+ "serde",
+]
+
+[[package]]
 name = "melodium-doc"
 version = "0.8.0"
 dependencies = [
