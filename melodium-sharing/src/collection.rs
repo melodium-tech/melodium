@@ -1,4 +1,4 @@
-use crate::{Context, Data, Function, Model, Treatment};
+use crate::{Context, Data, Function, Identifier, Model, Treatment};
 use itertools::Itertools;
 use melodium_common::descriptor::{
     Collection as CommonCollection, Entry, Identified, Identifier as CommonIdentifier,
@@ -13,6 +13,28 @@ pub enum Element {
     Function(Function),
     Model(Model),
     Treatment(Treatment),
+}
+
+impl Element {
+    pub fn identifier(&self) -> &Identifier {
+        match self {
+            Element::Context(c) => &c.identifier,
+            Element::Data(d) => &d.identifier,
+            Element::Function(f) => &f.identifier,
+            Element::Model(m) => &m.identifier,
+            Element::Treatment(t) => &t.identifier,
+        }
+    }
+
+    pub fn is_compiled(&self) -> bool {
+        match self {
+            Element::Context(_) => true,
+            Element::Data(_) => true,
+            Element::Function(_) => true,
+            Element::Model(m) => m.implementation_kind.is_compiled(),
+            Element::Treatment(t) => t.implementation_kind.is_compiled(),
+        }
+    }
 }
 
 impl From<&Entry> for Element {
