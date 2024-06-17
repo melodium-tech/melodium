@@ -12,6 +12,7 @@ use melodium_common::descriptor::{
 };
 use melodium_engine::descriptor::{Model, Treatment};
 use melodium_loader::Loader;
+use melodium_sharing::{SharingError, SharingResult};
 use messages::{ConfirmDistribution, Message};
 use protocol::Protocol;
 
@@ -56,7 +57,7 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
                     loader.load(&identifier.into()),
                 ));
             } else {
-                todo!()
+                result = result.and_degrade_failure(DistributionResult::from(SharingResult::new_failure(SharingError::invalid_identifier(18, element.identifier().clone()))));
             }
         }
     }
@@ -67,7 +68,7 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
 
     let mut collection = loader.collection().clone();
 
-    // Proceed to design of the rest
+    // Proceed descriptor build
     for element in distributed_collection.elements() {
         if !element.is_compiled() {
             match element {
@@ -94,10 +95,25 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
         }
     }
 
-    // Design
-    // m.make_design(collection)
+    let collection = Arc::new(collection);
+
+    // Proceed to design
+    for element in distributed_collection.elements() {
+        if !element.is_compiled() {
+            match element {
+                melodium_sharing::Element::Model(m) => {
+                    result = result.and_degrade_failure(DistributionResult::from(m.make_design(&collection)));
+                }
+                melodium_sharing::Element::Treatment(t) => {
+                    result = result.and_degrade_failure(DistributionResult::from(t.make_design(&collection)));
+                }
+                _ => {}
+            }
+        }
+    }
 
     // Give it to engine
+    let engine = melodium_engine::new_engine(collection);
 
     // Manage engine calls to entrypoint
 }

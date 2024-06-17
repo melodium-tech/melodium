@@ -1,4 +1,4 @@
-use crate::building::Builder as BuilderTrait;
+use crate::building::{Builder as BuilderTrait, HostTreatment};
 use crate::building::{
     BuildId, CheckBuild, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
     DynamicBuildResult, FeedingInputs, GenesisEnvironment, StaticBuildResult,
@@ -14,7 +14,7 @@ use std::sync::{Arc, RwLock, Weak};
 #[derive(Debug)]
 struct BuildSample {
     genesis_environment: GenesisEnvironment,
-    host_treatment: Option<Arc<dyn TreatmentDescriptor>>,
+    host_treatment: HostTreatment,
     host_build_id: Option<BuildId>,
     check: Arc<RwLock<CheckBuild>>,
     label: String,
@@ -22,7 +22,7 @@ struct BuildSample {
 
 impl BuildSample {
     pub fn new(
-        host_treatment: &Option<Arc<dyn TreatmentDescriptor>>,
+        host_treatment: &HostTreatment,
         host_build: &Option<BuildId>,
         label: &str,
         environment: &GenesisEnvironment,
@@ -73,7 +73,7 @@ impl Builder {
 impl BuilderTrait for Builder {
     fn static_build(
         &self,
-        host_treatment: Option<Arc<dyn TreatmentDescriptor>>,
+        host_treatment: HostTreatment,
         host_build: Option<BuildId>,
         label: String,
         environment: &GenesisEnvironment,

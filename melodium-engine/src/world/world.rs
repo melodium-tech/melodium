@@ -2,7 +2,7 @@ use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
 use crate::building::{
     model::get_builder as get_builder_model, treatment::get_builder as get_builder_treatment,
     BuildId, Builder, CheckEnvironment, ContextualEnvironment, GenesisEnvironment,
-    StaticBuildResult,
+    StaticBuildResult,FeedingInputs
 };
 use crate::engine::Engine;
 use crate::error::{LogicError, LogicErrors, LogicResult};
@@ -35,7 +35,9 @@ pub struct World {
     builders: RwLock<HashMap<Identifier, Arc<dyn Builder>>>,
 
     errors: RwLock<LogicErrors>,
+    main_id: RwLock<Option<Identifier>>,
     main_build_id: RwLock<BuildId>,
+    main_tracks: RwLock<HashMap<TrackId, FeedingInputs>>,
 
     continuous_tasks_sender: Sender<ContinuousFuture>,
     continuous_tasks_receiver: Receiver<ContinuousFuture>,
@@ -73,7 +75,9 @@ impl World {
             sources: RwLock::new(HashMap::new()),
             builders: RwLock::new(HashMap::new()),
             errors: RwLock::new(Vec::new()),
+            main_id: RwLock::new(None),
             main_build_id: RwLock::new(0),
+            main_tracks: RwLock::new(HashMap::new()),
             continuous_tasks_sender,
             continuous_tasks_receiver,
             tracks_counter: Mutex::new(0),
@@ -128,6 +132,19 @@ impl World {
         let model = self.models.read().unwrap()[model_id].clone();
 
         model.invoke_source(name, params);
+    }
+
+    pub fn direct(&self, id: &TrackId) -> LogicResult<FeedingInputs> {
+        let possible_build_result;
+        {
+            possible_build_result = self.main_tracks.read().unwrap().get(id).map(|feeding_inputs| feeding_inputs.clone());
+        }
+
+        if let Some(dbr) = possible_build_result {
+            LogicResult::new_success(dbr)
+        } else {
+            LogicResult::new_failure(LogicError::no_direct_track(242, id.clone()))
+        }
     }
 
     pub fn builder(&self, identifier: &Identifier) -> LogicResult<Arc<dyn Builder>> {
@@ -241,6 +258,7 @@ impl World {
     }
 }
 
+#[async_trait]
 impl Engine for World {
     fn collection(&self) -> Arc<Collection> {
         Arc::clone(&self.collection)
@@ -248,6 +266,12 @@ impl Engine for World {
 
     fn genesis(&self, entry: &Identifier, mut params: HashMap<String, Value>) -> LogicResult<()> {
         let mut gen_env = GenesisEnvironment::new();
+
+        {
+            if self.main_id.read().unwrap().is_some() {
+                return LogicResult::new_success(())
+            }
+        }
 
         if let Some(CollectionEntry::Treatment(descriptor)) = self.collection.get(&entry.into()) {
             for (name, param) in descriptor.parameters() {
@@ -351,6 +375,9 @@ impl Engine for World {
 
         if result.is_success() {
             if result.errors().is_empty() {
+                {
+                    self.main_id.write().unwrap().replace(entry.clone());
+                }
                 self.models
                     .read()
                     .unwrap()
@@ -371,7 +398,11 @@ impl Engine for World {
         self.errors.read().unwrap().clone()
     }
 
-    fn live(&self) {
+    fn new_input(&self) -> Box<dyn ExecutiveInput> {
+        Box::new(Self::new_input(self))
+    }
+
+    async fn live(&self) {
         let me = self.auto_reference.upgrade().unwrap();
         let continuum = {
             let me = Arc::clone(&me);
@@ -392,7 +423,70 @@ impl Engine for World {
 
         self.continuous_tasks_sender.close();
 
-        block_on(join(continuum, async move { me.run_tracks().await }));
+        join(continuum, async move { me.run_tracks().await }).await;
+    }
+
+    async fn instanciate(&self, inputs: HashMap<String, Box<dyn ExecutiveInput>>, callback: Option<TrackCreationCallback>) {
+        let main_id;
+        let main_build_id;
+        {
+            if let Some(identifier) = self.main_id.read().unwrap().as_ref() {
+                main_id = identifier.clone();
+                main_build_id = *self.main_build_id.read().unwrap();
+            } else {
+                return;
+            }
+        }
+
+        let track_id;
+        {
+            let mut counter = self.tracks_counter.lock().await;
+            track_id = *counter;
+            *counter = track_id + 1;
+        }
+
+        let mut track_futures: Vec<TrackFuture> = Vec::new();
+        let mut outputs: HashMap<String, Output> = HashMap::new();
+        {
+
+
+            let contextual_environment = ContextualEnvironment::new(track_id);
+            
+
+            let build_result = self
+                        .builder(&main_id)
+                        .success()
+                        .unwrap()
+                        .dynamic_build(main_build_id, &contextual_environment)
+                        .unwrap();
+
+                    track_futures.extend(build_result.prepared_futures);
+
+                    for (input_name, mut input_transmitters) in build_result.feeding_inputs {
+                        match outputs.entry(input_name) {
+                            Entry::Vacant(e) => {
+                                let e = e.insert(Output::from(input_transmitters.pop().unwrap()));
+                                e.add_transmission(&input_transmitters);
+                            }
+                            Entry::Occupied(e) => {
+                                e.get().add_transmission(&input_transmitters);
+                            }
+                        }
+                    }
+        }
+
+        let super_futures = if let Some(callback) = callback {
+            callback(Box::new(Outputs::new(outputs)))
+        } else {
+            Vec::new()
+        };
+
+        track_futures.extend(super_futures);
+
+        let info_track = InfoTrack::new(track_id, None, 0);
+        let execution_track = ExecutionTrack::new(track_id, 0, join_all(track_futures));
+        self.tracks_info.lock().await.insert(track_id, info_track);
+        let _ = self.tracks_sender.send(execution_track).await;
     }
 
     /*

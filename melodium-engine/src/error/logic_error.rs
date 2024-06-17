@@ -6,9 +6,9 @@ use core::fmt::{Debug, Display};
 use std::string::ToString;
 use std::sync::Arc;
 
-use melodium_common::descriptor::{
+use melodium_common::{descriptor::{
     DataTrait, DescribedType, Flow, Identifier, IdentifierRequirement, Status,
-};
+}, executive::TrackId};
 
 use crate::{building::CheckStep, design::Value, designer::Reference};
 
@@ -31,6 +31,8 @@ pub enum LogicErrorKind {
     LaunchExpectTreatment { wrong_identifier: Identifier },
     /// A parameter with wrong or missing value was given for launch.
     LaunchWrongParameter { parameter: String },
+    /// No direct track exist for id.
+    NoDirectTrack { id: TrackId },
     /// The referenced variable for value doesn't exist.
     UnexistingVariable {
         identifier: Identifier,
@@ -260,6 +262,7 @@ impl Display for LogicErrorKind {
             LogicErrorKind::UnavailableDesign { identifier } => write!(f, "Unavailable design for '{identifier}'"),
             LogicErrorKind::LaunchExpectTreatment { wrong_identifier } => write!(f, "Launch must be done using a treatment, '{wrong_identifier}' is not one"),
             LogicErrorKind::LaunchWrongParameter { parameter } => write!(f, "Parameter '{parameter}' has no valid value for launch"),
+            LogicErrorKind::NoDirectTrack { id } => write!(f, "No directly instancied track exist for id {id}"),
             LogicErrorKind::UnexistingVariable {identifier,
                 parameter,
                 variable,} => write!(f, "Referenced '{variable}' variable for '{parameter}' parameter doesn't exist in '{identifier}'"),
@@ -409,6 +412,14 @@ impl LogicError {
             id,
             design_reference: None,
             kind: LogicErrorKind::LaunchWrongParameter { parameter },
+        }
+    }
+
+    pub fn no_direct_track(id: u32, track_id: TrackId) -> Self {
+        Self {
+            id,
+            design_reference: None,
+            kind: LogicErrorKind::NoDirectTrack { id: track_id },
         }
     }
 

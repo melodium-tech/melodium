@@ -1,4 +1,4 @@
-use crate::building::Builder as BuilderTrait;
+use crate::building::{Builder as BuilderTrait, HostTreatment};
 use crate::building::{
     BuildId, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
     DynamicBuildResult, GenesisEnvironment, StaticBuildResult,
@@ -28,7 +28,7 @@ impl Builder {
 impl BuilderTrait for Builder {
     fn static_build(
         &self,
-        _host_treatment: Option<Arc<dyn Treatment>>,
+        _host_treatment: HostTreatment,
         _host_build: Option<BuildId>,
         _label: String,
         environment: &GenesisEnvironment,
