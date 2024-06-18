@@ -2182,6 +2182,7 @@ dependencies = [
 name = "melodium"
 version = "0.8.0"
 dependencies = [
+ "async-std",
  "clap",
  "colored",
  "encoding-mel",

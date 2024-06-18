@@ -22,6 +22,7 @@ name = "melodium"
 required-features = ["cli"]
 
 [dependencies]
+async-std = "1.12"
 clap = { version = "4.0.32", features = ["cargo", "derive", "string"], optional = true }
 colored = { version = "2.0.2", optional = true }
 melodium-common = { path = "../melodium-common", version = "0.8.0" }

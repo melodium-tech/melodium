@@ -10,6 +10,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
+use async_std::task::block_on;
 use melodium_common::{
     descriptor::{Collection, Identifier, LoadingError, LoadingResult, Package},
     executive::Value,
@@ -180,7 +181,7 @@ pub fn launch(
 ) -> LogicResult<()> {
     let engine = melodium_engine::new_engine(collection);
     engine.genesis(&identifier, parameters).and_then(|_| {
-        engine.live();
+        block_on(engine.live());
         engine.end();
         LogicResult::new_success(())
     })
