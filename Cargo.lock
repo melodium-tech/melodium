@@ -2231,6 +2231,7 @@ version = "0.8.0"
 dependencies = [
  "async-std",
  "ciborium",
+ "futures",
  "melodium-common",
  "melodium-engine",
  "melodium-loader",

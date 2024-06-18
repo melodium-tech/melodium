@@ -2,18 +2,19 @@ mod error;
 mod messages;
 mod protocol;
 
-use std::sync::Arc;
+use std::{collections::VecDeque, sync::Arc};
 
 pub use error::{DistributionError, DistributionResult};
 
 use async_std::net::{SocketAddr, TcpListener};
-use melodium_common::descriptor::{
-    Entry, Identifier, Model as CommonModel, Treatment as CommonTreatment, Version,
+use melodium_common::{
+    descriptor::{Entry, Identifier, Model as CommonModel, Treatment as CommonTreatment, Version},
+    executive::{ResultStatus, TransmissionValue, Value},
 };
 use melodium_engine::descriptor::{Model, Treatment};
 use melodium_loader::Loader;
 use melodium_sharing::{SharingError, SharingResult};
-use messages::{ConfirmDistribution, Message};
+use messages::{ConfirmDistribution, InputData, Message, OutputData};
 use protocol::Protocol;
 
 static VERSION: Version = Version::new(0, 1, 0);
@@ -22,7 +23,7 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
     let listener = TcpListener::bind(bind).await.unwrap();
     let (stream, _addr) = listener.accept().await.unwrap();
 
-    let protocol = Protocol::new(stream);
+    let protocol = Arc::new(Protocol::new(stream));
 
     match protocol.recv_message().await {
         Ok(Message::AskDistribution(ask)) => {
@@ -120,7 +121,108 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
     }
 
     // Give it to engine
+    let parameters = parameters
+        .into_iter()
+        .map(|(name, val)| (name, val.to_value(&collection).unwrap()))
+        .collect();
     let engine = melodium_engine::new_engine(collection);
+    if let Err(fail) = engine
+        .genesis(&entrypoint.try_into().unwrap(), parameters)
+        .as_result()
+    {
+        protocol
+            .send_message(Message::LaunchStatus(messages::LaunchStatus::Failure(
+                fail.to_string(),
+            )))
+            .await
+            .unwrap();
+    }
 
-    // Manage engine calls to entrypoint
+    protocol
+        .send_message(Message::LaunchStatus(messages::LaunchStatus::Ok))
+        .await
+        .unwrap();
+
+    let live = {
+        let engine = Arc::clone(&engine);
+        let protocol = Arc::clone(&protocol);
+        async move {
+            engine.live().await;
+            let _ = protocol.send_message(Message::Ended).await;
+        }
+    };
+    let run = {
+        let engine = Arc::clone(&engine);
+        let protocol = Arc::clone(&protocol);
+        async move {
+            engine
+                .instanciate(Some(Box::new(move |entry_outputs, entry_inputs| {
+                    let mut inputs_management = Vec::new();
+                    for (name, input) in entry_inputs {
+                        let protocol = Arc::clone(&protocol);
+                        let listener = async move {
+                            while let Ok(data) = input.recv_many().await {
+                                if protocol
+                                    .send_message(Message::OutputData(OutputData {
+                                        name: name.clone(),
+                                        data: Into::<VecDeque<Value>>::into(data)
+                                            .into_iter()
+                                            .map(|val| val.into())
+                                            .collect(),
+                                    }))
+                                    .await
+                                    .is_err()
+                                {
+                                    input.close();
+                                    break;
+                                }
+                            }
+                        };
+                        inputs_management.push(Box::new(Box::pin(listener)));
+                    }
+
+                    let protocol_management = async move {
+                        loop {
+                            match protocol.recv_message().await {
+                                Ok(Message::InputData(InputData { name, data })) => {
+                                    if let Some(output) = entry_outputs.get(&name) {
+                                        let _ = output
+                                            .send_many(TransmissionValue::Other(
+                                                data.into_iter()
+                                                    .map(|val| val.try_into().unwrap())
+                                                    .collect::<VecDeque<Value>>(),
+                                            ))
+                                            .await;
+                                    }
+                                }
+                                Ok(Message::Ended) => {
+                                    for (_, output) in &entry_outputs {
+                                        output.close().await;
+                                    }
+                                    break;
+                                }
+                                Err(_) => {
+                                    break;
+                                }
+                                _ => {
+                                    break;
+                                }
+                            }
+                        }
+                    };
+
+                    vec![Box::new(Box::pin(async move {
+                        futures::join!(
+                            protocol_management,
+                            futures::future::join_all(inputs_management)
+                        );
+
+                        ResultStatus::Ok
+                    }))]
+                })))
+                .await;
+        }
+    };
+
+    futures::join!(live, run);
 }

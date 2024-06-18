@@ -409,10 +409,6 @@ impl Engine for World {
         self.errors.read().unwrap().clone()
     }
 
-    fn new_input(&self) -> Box<dyn ExecutiveInput> {
-        Box::new(Self::new_input(self))
-    }
-
     async fn live(&self) {
         let me = self.auto_reference.upgrade().unwrap();
         let continuum = {
