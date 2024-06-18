@@ -2,7 +2,7 @@ use crate::error::{LogicErrors, LogicResult};
 use async_trait::async_trait;
 use melodium_common::{
     descriptor::{Collection, Identifier},
-    executive::{Input, TrackCreationCallback, Value},
+    executive::{DirectCreationCallback, Input, Value},
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -13,6 +13,6 @@ pub trait Engine: Send + Sync {
     fn errors(&self) -> LogicErrors;
     fn new_input(&self) -> Box<dyn Input>;
     async fn live(&self);
-    async fn instanciate(&self, inputs: HashMap<String, Box<dyn Input>>, callback: Option<TrackCreationCallback>);
+    async fn instanciate(&self, callback: Option<DirectCreationCallback>);
     fn end(&self);
 }

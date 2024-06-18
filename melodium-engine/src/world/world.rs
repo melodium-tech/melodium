@@ -1,8 +1,9 @@
 use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
+use crate::building::HostTreatment;
 use crate::building::{
     model::get_builder as get_builder_model, treatment::get_builder as get_builder_treatment,
-    BuildId, Builder, CheckEnvironment, ContextualEnvironment, GenesisEnvironment,
-    StaticBuildResult,FeedingInputs
+    BuildId, Builder, CheckEnvironment, ContextualEnvironment, FeedingInputs, GenesisEnvironment,
+    StaticBuildResult,
 };
 use crate::engine::Engine;
 use crate::error::{LogicError, LogicErrors, LogicResult};
@@ -14,10 +15,13 @@ use async_trait::async_trait;
 use core::fmt::Debug;
 use futures::future::{join, join_all};
 use futures::stream::{FuturesUnordered, StreamExt};
-use melodium_common::descriptor::{Collection, Entry as CollectionEntry, Identified, Identifier};
+use melodium_common::descriptor::{
+    Collection, Entry as CollectionEntry, Identified, Identifier, Treatment,
+};
 use melodium_common::executive::{
-    Context as ExecutiveContext, ContinuousFuture, Input as ExecutiveInput, Model, ModelId,
-    ResultStatus, TrackCreationCallback, TrackFuture, TrackId, Value, World as ExecutiveWorld,
+    Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback, Input as ExecutiveInput,
+    Model, ModelId, Output as ExecutiveOutput, ResultStatus, TrackCreationCallback, TrackFuture,
+    TrackId, Value, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
@@ -35,6 +39,7 @@ pub struct World {
     builders: RwLock<HashMap<Identifier, Arc<dyn Builder>>>,
 
     errors: RwLock<LogicErrors>,
+    main: RwLock<Option<Arc<dyn Treatment>>>,
     main_id: RwLock<Option<Identifier>>,
     main_build_id: RwLock<BuildId>,
     main_tracks: RwLock<HashMap<TrackId, FeedingInputs>>,
@@ -75,6 +80,7 @@ impl World {
             sources: RwLock::new(HashMap::new()),
             builders: RwLock::new(HashMap::new()),
             errors: RwLock::new(Vec::new()),
+            main: RwLock::new(None),
             main_id: RwLock::new(None),
             main_build_id: RwLock::new(0),
             main_tracks: RwLock::new(HashMap::new()),
@@ -137,7 +143,12 @@ impl World {
     pub fn direct(&self, id: &TrackId) -> LogicResult<FeedingInputs> {
         let possible_build_result;
         {
-            possible_build_result = self.main_tracks.read().unwrap().get(id).map(|feeding_inputs| feeding_inputs.clone());
+            possible_build_result = self
+                .main_tracks
+                .read()
+                .unwrap()
+                .get(id)
+                .map(|feeding_inputs| feeding_inputs.clone());
         }
 
         if let Some(dbr) = possible_build_result {
@@ -269,7 +280,7 @@ impl Engine for World {
 
         {
             if self.main_id.read().unwrap().is_some() {
-                return LogicResult::new_success(())
+                return LogicResult::new_success(());
             }
         }
 
@@ -299,9 +310,9 @@ impl Engine for World {
             ));
         }
 
-        let result = self
-            .builder(entry)
-            .and_then(|builder| builder.static_build(None, None, "main".to_string(), &gen_env));
+        let result = self.builder(entry).and_then(|builder| {
+            builder.static_build(HostTreatment::Direct, None, "main".to_string(), &gen_env)
+        });
         if let Some(failure) = result.failure() {
             let mut errors = self.errors.write().unwrap();
             errors.append(&mut result.errors().clone());
@@ -426,11 +437,16 @@ impl Engine for World {
         join(continuum, async move { me.run_tracks().await }).await;
     }
 
-    async fn instanciate(&self, inputs: HashMap<String, Box<dyn ExecutiveInput>>, callback: Option<TrackCreationCallback>) {
+    async fn instanciate(&self, callback: Option<DirectCreationCallback>) {
+        let main;
         let main_id;
         let main_build_id;
         {
-            if let Some(identifier) = self.main_id.read().unwrap().as_ref() {
+            if let (Some(descriptor), Some(identifier)) = (
+                self.main.read().unwrap().as_ref(),
+                self.main_id.read().unwrap().as_ref(),
+            ) {
+                main = Arc::clone(descriptor);
                 main_id = identifier.clone();
                 main_build_id = *self.main_build_id.read().unwrap();
             } else {
@@ -445,38 +461,56 @@ impl Engine for World {
             *counter = track_id + 1;
         }
 
+        let mut inputs = HashMap::new();
+        for (name, _) in main.inputs() {
+            let input = self.new_input();
+            inputs.insert(name.clone(), input);
+        }
+        self.main_tracks.write().unwrap().insert(
+            track_id,
+            inputs
+                .iter()
+                .map(|(name, input)| (name.clone(), vec![input.clone()]))
+                .collect(),
+        );
+
         let mut track_futures: Vec<TrackFuture> = Vec::new();
         let mut outputs: HashMap<String, Output> = HashMap::new();
         {
-
-
             let contextual_environment = ContextualEnvironment::new(track_id);
-            
 
             let build_result = self
-                        .builder(&main_id)
-                        .success()
-                        .unwrap()
-                        .dynamic_build(main_build_id, &contextual_environment)
-                        .unwrap();
+                .builder(&main_id)
+                .success()
+                .unwrap()
+                .dynamic_build(main_build_id, &contextual_environment)
+                .unwrap();
 
-                    track_futures.extend(build_result.prepared_futures);
+            track_futures.extend(build_result.prepared_futures);
 
-                    for (input_name, mut input_transmitters) in build_result.feeding_inputs {
-                        match outputs.entry(input_name) {
-                            Entry::Vacant(e) => {
-                                let e = e.insert(Output::from(input_transmitters.pop().unwrap()));
-                                e.add_transmission(&input_transmitters);
-                            }
-                            Entry::Occupied(e) => {
-                                e.get().add_transmission(&input_transmitters);
-                            }
-                        }
+            for (input_name, mut input_transmitters) in build_result.feeding_inputs {
+                match outputs.entry(input_name) {
+                    Entry::Vacant(e) => {
+                        let e = e.insert(Output::from(input_transmitters.pop().unwrap()));
+                        e.add_transmission(&input_transmitters);
                     }
+                    Entry::Occupied(e) => {
+                        e.get().add_transmission(&input_transmitters);
+                    }
+                }
+            }
         }
 
         let super_futures = if let Some(callback) = callback {
-            callback(Box::new(Outputs::new(outputs)))
+            let outputs = outputs
+                .into_iter()
+                .map(|(name, output)| (name, Box::new(output) as Box<dyn ExecutiveOutput>))
+                .collect();
+            let inputs = inputs
+                .into_iter()
+                .map(|(name, input)| (name, Box::new(input) as Box<dyn ExecutiveInput>))
+                .collect();
+            callback(outputs, inputs)
         } else {
             Vec::new()
         };

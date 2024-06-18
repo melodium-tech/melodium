@@ -57,7 +57,12 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
                     loader.load(&identifier.into()),
                 ));
             } else {
-                result = result.and_degrade_failure(DistributionResult::from(SharingResult::new_failure(SharingError::invalid_identifier(18, element.identifier().clone()))));
+                result = result.and_degrade_failure(DistributionResult::from(
+                    SharingResult::new_failure(SharingError::invalid_identifier(
+                        18,
+                        element.identifier().clone(),
+                    )),
+                ));
             }
         }
     }
@@ -102,10 +107,12 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
         if !element.is_compiled() {
             match element {
                 melodium_sharing::Element::Model(m) => {
-                    result = result.and_degrade_failure(DistributionResult::from(m.make_design(&collection)));
+                    result = result
+                        .and_degrade_failure(DistributionResult::from(m.make_design(&collection)));
                 }
                 melodium_sharing::Element::Treatment(t) => {
-                    result = result.and_degrade_failure(DistributionResult::from(t.make_design(&collection)));
+                    result = result
+                        .and_degrade_failure(DistributionResult::from(t.make_design(&collection)));
                 }
                 _ => {}
             }

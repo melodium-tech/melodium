@@ -39,6 +39,16 @@ impl<S, F, E> Status<S, F, E> {
         }
     }
 
+    pub fn to_success(self) -> Option<S> {
+        match self {
+            Status::Success { success, errors: _ } => Some(success),
+            Status::Failure {
+                failure: _,
+                errors: _,
+            } => None,
+        }
+    }
+
     pub fn is_success(&self) -> bool {
         match self {
             Status::Success {
@@ -63,6 +73,16 @@ impl<S, F, E> Status<S, F, E> {
     }
 
     pub fn failure_mut(&mut self) -> Option<&mut F> {
+        match self {
+            Status::Success {
+                success: _,
+                errors: _,
+            } => None,
+            Status::Failure { failure, errors: _ } => Some(failure),
+        }
+    }
+
+    pub fn to_failure(self) -> Option<F> {
         match self {
             Status::Success {
                 success: _,

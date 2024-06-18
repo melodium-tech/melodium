@@ -29,4 +29,4 @@ pub use result_status::ResultStatus;
 pub use transmission::{RecvResult, SendResult, TransmissionError, TransmissionValue};
 pub use treatment::Treatment;
 pub use value::{GetData, Value};
-pub use world::{TrackCreationCallback, TrackId, World};
+pub use world::{DirectCreationCallback, TrackCreationCallback, TrackId, World};

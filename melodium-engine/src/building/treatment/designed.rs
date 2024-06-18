@@ -1,9 +1,9 @@
 use crate::building::builder::get_value;
-use crate::building::Builder as BuilderTrait;
 use crate::building::{
     BuildId, CheckBuild, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
     DynamicBuildResult, FeedingInputs, GenesisEnvironment, StaticBuildResult,
 };
+use crate::building::{Builder as BuilderTrait, HostTreatment};
 use crate::design::{Connection, Treatment, IO};
 use crate::error::{LogicError, LogicResult};
 use crate::world::World;
@@ -18,7 +18,7 @@ use std::sync::{Arc, RwLock, Weak};
 #[derive(Debug)]
 struct BuildSample {
     genesis_environment: GenesisEnvironment,
-    host_treatment: Option<Arc<dyn TreatmentDescriptor>>,
+    host_treatment: HostTreatment,
     host_build_id: Option<BuildId>,
     check: Arc<RwLock<CheckBuild>>,
     label: String,
@@ -35,7 +35,7 @@ struct BuildSample {
 
 impl BuildSample {
     pub fn new(
-        host_treatment: &Option<Arc<dyn TreatmentDescriptor>>,
+        host_treatment: &HostTreatment,
         host_build: &Option<BuildId>,
         label: &str,
         environment: &GenesisEnvironment,
@@ -45,10 +45,7 @@ impl BuildSample {
             host_treatment: host_treatment.clone(),
             host_build_id: host_build.clone(),
             check: Arc::new(RwLock::new(CheckBuild::new(
-                host_treatment
-                    .as_ref()
-                    .map(|descriptor| descriptor.identifier())
-                    .cloned(),
+                host_treatment.host_id().cloned(),
                 label,
             ))),
             label: label.to_string(),
@@ -89,7 +86,7 @@ impl Builder {
 impl BuilderTrait for Builder {
     fn static_build(
         &self,
-        host_treatment: Option<Arc<dyn TreatmentDescriptor>>,
+        host_treatment: HostTreatment,
         host_build: Option<BuildId>,
         label: String,
         environment: &GenesisEnvironment,
@@ -138,7 +135,9 @@ impl BuilderTrait for Builder {
                 .success()
                 .unwrap()
                 .static_build(
-                    Some(Arc::clone(&descriptor) as Arc<dyn TreatmentDescriptor>),
+                    HostTreatment::Treatment(
+                        Arc::clone(&descriptor) as Arc<dyn TreatmentDescriptor>
+                    ),
                     Some(idx),
                     instanciation_name.to_string(),
                     &remastered_environment,
@@ -218,7 +217,9 @@ impl BuilderTrait for Builder {
                     .builder(treatment_descriptor.identifier())
                     .and_then(|builder| {
                         builder.static_build(
-                            Some(Arc::clone(&descriptor) as Arc<dyn TreatmentDescriptor>),
+                            HostTreatment::Treatment(
+                                Arc::clone(&descriptor) as Arc<dyn TreatmentDescriptor>
+                            ),
                             Some(idx),
                             treatment_name.to_string(),
                             &remastered_environment,
@@ -442,31 +443,46 @@ impl BuilderTrait for Builder {
 
         // If there are some direct connections, call the give_next host method
         if !build_sample.direct_connections.is_empty() {
-            let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
-            let host_build = world
-                .builder(host_descriptor.identifier())
-                .success()
-                .unwrap()
-                .give_next(
-                    build_sample.host_build_id.unwrap(),
-                    build_sample.label.to_string(),
-                    &environment.base_on(),
-                )
-                .unwrap();
+            match &build_sample.host_treatment {
+                HostTreatment::Treatment(host_descriptor) => {
+                    let host_build = world
+                        .builder(host_descriptor.identifier())
+                        .success()
+                        .unwrap()
+                        .give_next(
+                            build_sample.host_build_id.unwrap(),
+                            build_sample.label.to_string(),
+                            &environment.base_on(),
+                        )
+                        .unwrap();
 
-            for direct_connection in &build_sample.direct_connections {
-                if let Some(transmitters) =
-                    host_build.feeding_inputs.get(&direct_connection.input_name)
-                {
-                    result
-                        .feeding_inputs
-                        .entry(direct_connection.output_name.clone())
-                        .or_default()
-                        .extend(transmitters.clone());
+                    for direct_connection in &build_sample.direct_connections {
+                        if let Some(transmitters) =
+                            host_build.feeding_inputs.get(&direct_connection.input_name)
+                        {
+                            result
+                                .feeding_inputs
+                                .entry(direct_connection.output_name.clone())
+                                .or_default()
+                                .extend(transmitters.clone());
+                        }
+                    }
+                    result.prepared_futures.extend(host_build.prepared_futures);
+                }
+                HostTreatment::Direct => {
+                    let direct_inputs = world.direct(&environment.track_id()).to_success().unwrap();
+                    for direct_connection in &build_sample.direct_connections {
+                        if let Some(transmitters) = direct_inputs.get(&direct_connection.input_name)
+                        {
+                            result
+                                .feeding_inputs
+                                .entry(direct_connection.output_name.clone())
+                                .or_default()
+                                .extend(transmitters.clone());
+                        }
+                    }
                 }
             }
-
-            result.prepared_futures.extend(host_build.prepared_futures);
         }
 
         self.building_inputs.write().unwrap().insert(
@@ -573,31 +589,46 @@ impl BuilderTrait for Builder {
 
         // If the claiming treatment is connected to Self as output, call the give_next host method
         if let Some(last_connections) = build_sample.last_connections.get(&asking_treatment_tuple) {
-            let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
-            let host_build = world
-                .builder(host_descriptor.identifier())
-                .success()
-                .unwrap()
-                .give_next(
-                    build_sample.host_build_id.unwrap(),
-                    build_sample.label.to_string(),
-                    &environment.base_on(),
-                )
-                .unwrap();
+            match &build_sample.host_treatment {
+                HostTreatment::Treatment(host_descriptor) => {
+                    let host_build = world
+                        .builder(host_descriptor.identifier())
+                        .success()
+                        .unwrap()
+                        .give_next(
+                            build_sample.host_build_id.unwrap(),
+                            build_sample.label.to_string(),
+                            &environment.base_on(),
+                        )
+                        .unwrap();
 
-            for last_connection in last_connections {
-                if let Some(transmitters) =
-                    host_build.feeding_inputs.get(&last_connection.input_name)
-                {
-                    result
-                        .feeding_inputs
-                        .entry(last_connection.output_name.clone())
-                        .or_default()
-                        .extend(transmitters.clone());
+                    for last_connection in last_connections {
+                        if let Some(transmitters) =
+                            host_build.feeding_inputs.get(&last_connection.input_name)
+                        {
+                            result
+                                .feeding_inputs
+                                .entry(last_connection.output_name.clone())
+                                .or_default()
+                                .extend(transmitters.clone());
+                        }
+                    }
+
+                    result.prepared_futures.extend(host_build.prepared_futures);
+                }
+                HostTreatment::Direct => {
+                    let direct_inputs = world.direct(&environment.track_id()).to_success().unwrap();
+                    for last_connection in last_connections {
+                        if let Some(transmitters) = direct_inputs.get(&last_connection.input_name) {
+                            result
+                                .feeding_inputs
+                                .entry(last_connection.output_name.clone())
+                                .or_default()
+                                .extend(transmitters.clone());
+                        }
+                    }
                 }
             }
-
-            result.prepared_futures.extend(host_build.prepared_futures);
         }
 
         Some(result)
@@ -786,24 +817,29 @@ impl BuilderTrait for Builder {
             if let Some(last_connections) =
                 build_sample.last_connections.get(&asking_treatment_tuple)
             {
-                let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
-                let host_check_build = world
-                    .builder(host_descriptor.identifier())
-                    .success()
-                    .unwrap()
-                    .check_give_next(
-                        build_sample.host_build_id.unwrap(),
-                        build_sample.label.to_string(),
-                        environment.clone(),
-                        previous_steps.clone(),
-                    )
-                    .unwrap();
+                match &build_sample.host_treatment {
+                    HostTreatment::Treatment(host_descriptor) => {
+                        let host_check_build = world
+                            .builder(host_descriptor.identifier())
+                            .success()
+                            .unwrap()
+                            .check_give_next(
+                                build_sample.host_build_id.unwrap(),
+                                build_sample.label.to_string(),
+                                environment.clone(),
+                                previous_steps.clone(),
+                            )
+                            .unwrap();
 
-                for last_connection in last_connections {
-                    let mut borrowed_checked_build = host_check_build.build.write().unwrap();
-                    borrowed_checked_build
-                        .fed_inputs
-                        .insert(last_connection.input_name.clone(), true);
+                        for last_connection in last_connections {
+                            let mut borrowed_checked_build =
+                                host_check_build.build.write().unwrap();
+                            borrowed_checked_build
+                                .fed_inputs
+                                .insert(last_connection.input_name.clone(), true);
+                        }
+                    }
+                    HostTreatment::Direct => {}
                 }
             }
         }

@@ -6,9 +6,10 @@ use core::fmt::{Debug, Display};
 use std::string::ToString;
 use std::sync::Arc;
 
-use melodium_common::{descriptor::{
-    DataTrait, DescribedType, Flow, Identifier, IdentifierRequirement, Status,
-}, executive::TrackId};
+use melodium_common::{
+    descriptor::{DataTrait, DescribedType, Flow, Identifier, IdentifierRequirement, Status},
+    executive::TrackId,
+};
 
 use crate::{building::CheckStep, design::Value, designer::Reference};
 
