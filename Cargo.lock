@@ -1173,6 +1173,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "distrib-mel"
+version = "0.8.0"
+dependencies = [
+ "async-std",
+ "melodium-core",
+ "melodium-distributed",
+ "melodium-macro",
+ "melodium-sharing",
+ "std-mel",
+]
+
+[[package]]
 name = "dotenvy"
 version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"

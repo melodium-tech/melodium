@@ -1,7 +1,7 @@
 use crate::messages::Message;
 use async_std::io::{BufReader, BufWriter, Read, ReadExt, Write, WriteExt};
-use async_std::net::{SocketAddr, TcpListener, TcpStream};
 use async_std::sync::Mutex;
+use core::fmt::Display;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -12,18 +12,39 @@ pub enum Error {
     Serialization(ciborium::ser::Error<std::io::Error>),
 }
 
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::Io(err) => write!(f, "{err}"),
+            Error::Deserialization(err) => write!(f, "{err}"),
+            Error::Serialization(err) => write!(f, "{err}"),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::Io(err) => Some(err),
+            Error::Deserialization(err) => Some(err),
+            Error::Serialization(err) => Some(err),
+        }
+    }
+}
+
 impl From<async_std::io::Error> for Error {
     fn from(value: async_std::io::Error) -> Self {
         Error::Io(value)
     }
 }
 
-pub struct Protocol<R: Read + Write + Unpin> {
+#[derive(Debug)]
+pub struct Protocol<R: Read + Write + Unpin + Send> {
     reader: Mutex<BufReader<R>>,
     writer: Mutex<BufWriter<R>>,
 }
 
-impl<R: Read + Write + Clone + Unpin> Protocol<R> {
+impl<R: Read + Write + Clone + Unpin + Send> Protocol<R> {
     pub fn new(rw: R) -> Self {
         Self {
             reader: Mutex::new(BufReader::new(rw.clone())),

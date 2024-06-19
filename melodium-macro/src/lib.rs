@@ -1825,6 +1825,10 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                     &self.model
                 }
 
+                pub fn world(&self) -> &std::sync::Arc<dyn melodium_core::common::executive::World> {
+                    &self.world
+                }
+
                 pub fn id(&self) -> Option<melodium_core::common::executive::ModelId> {
                     *self.id.lock().unwrap()
                 }

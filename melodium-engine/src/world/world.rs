@@ -539,6 +539,10 @@ impl Engine for World {
 
 #[async_trait]
 impl ExecutiveWorld for World {
+    fn collection(&self) -> Arc<Collection> {
+        Arc::clone(&self.collection)
+    }
+
     fn add_continuous_task(&self, task: ContinuousFuture) {
         let me = self.auto_reference.upgrade().unwrap();
         block_on(async move {

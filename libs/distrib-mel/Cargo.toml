@@ -1,0 +1,34 @@
+[package]
+name = "distrib-mel"
+version = "0.8.0"
+authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
+rust-version = "1.60"
+edition = "2021"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "Mélodium distribution library"
+keywords = ["dataflow","parallelization","scalability","async","signal"]
+categories = ["compilers", "science", "concurrency", "asynchronous"]
+
+[lib]
+crate-type = ["lib", "cdylib"]
+name = "distrib_mel"
+
+[dependencies]
+melodium-core = { path = "../../melodium-core", version = "0.8.0" }
+melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }
+melodium-sharing = { path = "../../melodium-sharing", version = "0.8.0" }
+melodium-distributed = { path = "../../melodium-distributed", version = "0.8.0" }
+std-mel = { path = "../std-mel", version = "0.8.0" }
+async-std = "1.12"
+
+[features]
+mock = []
+plugin = []
+real = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

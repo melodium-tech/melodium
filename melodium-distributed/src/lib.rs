@@ -2,11 +2,18 @@ mod error;
 mod messages;
 mod protocol;
 
-use std::{collections::VecDeque, sync::Arc};
-
 pub use error::{DistributionError, DistributionResult};
+pub use messages::*;
+pub use protocol::{Error, Protocol};
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::Arc,
+};
 
-use async_std::net::{SocketAddr, TcpListener};
+use async_std::{
+    net::{SocketAddr, TcpListener},
+    sync::RwLock as AsyncRwLock,
+};
 use melodium_common::{
     descriptor::{Entry, Identifier, Model as CommonModel, Treatment as CommonTreatment, Version},
     executive::{ResultStatus, TransmissionValue, Value},
@@ -14,10 +21,8 @@ use melodium_common::{
 use melodium_engine::descriptor::{Model, Treatment};
 use melodium_loader::Loader;
 use melodium_sharing::{SharingError, SharingResult};
-use messages::{ConfirmDistribution, InputData, Message, OutputData};
-use protocol::Protocol;
 
-static VERSION: Version = Version::new(0, 1, 0);
+pub static VERSION: Version = Version::new(0, 1, 0);
 
 pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) {
     let listener = TcpListener::bind(bind).await.unwrap();
@@ -155,72 +160,134 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
         let engine = Arc::clone(&engine);
         let protocol = Arc::clone(&protocol);
         async move {
-            engine
-                .instanciate(Some(Box::new(move |entry_outputs, entry_inputs| {
-                    let mut inputs_management = Vec::new();
-                    for (name, input) in entry_inputs {
+            let tracks_entry_outputs = Arc::new(AsyncRwLock::new(HashMap::new()));
+            let tracks_entry_inputs = Arc::new(AsyncRwLock::new(HashMap::new()));
+            loop {
+                match protocol.recv_message().await {
+                    Ok(Message::Instanciate(instanciate)) => {
                         let protocol = Arc::clone(&protocol);
-                        let listener = async move {
-                            while let Ok(data) = input.recv_many().await {
-                                if protocol
-                                    .send_message(Message::OutputData(OutputData {
-                                        name: name.clone(),
-                                        data: Into::<VecDeque<Value>>::into(data)
-                                            .into_iter()
-                                            .map(|val| val.into())
-                                            .collect(),
-                                    }))
-                                    .await
-                                    .is_err()
-                                {
-                                    input.close();
-                                    break;
+                        let tracks_entry_outputs = Arc::clone(&tracks_entry_outputs);
+                        let tracks_entry_inputs = Arc::clone(&tracks_entry_inputs);
+                        let track_id = instanciate.id;
+                        engine
+                            .instanciate(Some(Box::new(move |entry_outputs, entry_inputs| {
+                                let mut inputs_management = Vec::new();
+                                let mut inputs_storage = HashMap::new();
+                                for (name, input) in entry_inputs {
+                                    let protocol = Arc::clone(&protocol);
+                                    let input = Arc::new(input);
+                                    inputs_storage.insert(name.clone(), Arc::clone(&input));
+                                    let listener = async move {
+                                        while let Ok(data) = input.recv_many().await {
+                                            if protocol
+                                                .send_message(Message::OutputData(OutputData {
+                                                    id: track_id,
+                                                    name: name.clone(),
+                                                    data: Into::<VecDeque<Value>>::into(data)
+                                                        .into_iter()
+                                                        .map(|val| val.into())
+                                                        .collect(),
+                                                }))
+                                                .await
+                                                .is_err()
+                                            {
+                                                input.close();
+                                                break;
+                                            }
+                                        }
+                                        let _ = protocol
+                                            .send_message(Message::CloseOutput(CloseOutput {
+                                                id: track_id,
+                                                name: name.clone(),
+                                            }))
+                                            .await;
+                                    };
+                                    inputs_management.push(Box::new(Box::pin(listener)));
                                 }
-                            }
-                        };
-                        inputs_management.push(Box::new(Box::pin(listener)));
-                    }
 
-                    let protocol_management = async move {
-                        loop {
-                            match protocol.recv_message().await {
-                                Ok(Message::InputData(InputData { name, data })) => {
-                                    if let Some(output) = entry_outputs.get(&name) {
-                                        let _ = output
-                                            .send_many(TransmissionValue::Other(
-                                                data.into_iter()
-                                                    .map(|val| val.try_into().unwrap())
-                                                    .collect::<VecDeque<Value>>(),
-                                            ))
+                                let protocol = Arc::clone(&protocol);
+                                vec![Box::new(Box::pin(async move {
+                                    {
+                                        tracks_entry_inputs
+                                            .write()
+                                            .await
+                                            .insert(track_id, inputs_storage);
+
+                                        tracks_entry_outputs
+                                            .write()
+                                            .await
+                                            .insert(track_id, entry_outputs);
+                                    }
+
+                                    let _ = protocol
+                                        .send_message(Message::InstanciateStatus(
+                                            InstanciateStatus::Ok { id: track_id },
+                                        ))
+                                        .await;
+
+                                    futures::future::join_all(inputs_management).await;
+
+                                    ResultStatus::Ok
+                                }))]
+                            })))
+                            .await
+                    }
+                    Ok(Message::InputData(input_data)) => {
+                        if let Some(outputs) = tracks_entry_outputs.read().await.get(&input_data.id)
+                        {
+                            if let Some(output) = outputs.get(&input_data.name) {
+                                match output
+                                    .send_many(TransmissionValue::Other(
+                                        input_data
+                                            .data
+                                            .into_iter()
+                                            .map(|val| val.try_into().unwrap())
+                                            .collect::<VecDeque<Value>>(),
+                                    ))
+                                    .await
+                                {
+                                    Ok(_) => {}
+                                    Err(_) => {
+                                        let _ = protocol
+                                            .send_message(Message::CloseInput(CloseInput {
+                                                id: input_data.id,
+                                                name: input_data.name.clone(),
+                                            }))
                                             .await;
                                     }
                                 }
-                                Ok(Message::Ended) => {
-                                    for (_, output) in &entry_outputs {
-                                        output.close().await;
-                                    }
-                                    break;
-                                }
-                                Err(_) => {
-                                    break;
-                                }
-                                _ => {
-                                    break;
-                                }
                             }
                         }
-                    };
-
-                    vec![Box::new(Box::pin(async move {
-                        futures::join!(
-                            protocol_management,
-                            futures::future::join_all(inputs_management)
-                        );
-
-                        ResultStatus::Ok
-                    }))]
-                })))
-                .await;
+                    }
+                    Ok(Message::CloseInput(close_input)) => {
+                        if let Some(outputs) =
+                            tracks_entry_outputs.read().await.get(&close_input.id)
+                        {
+                            if let Some(output) = outputs.get(&close_input.name) {
+                                output.close().await;
+                            }
+                        }
+                    }
+                    Ok(Message::CloseOutput(close_output)) => {
+                        if let Some(inputs) = tracks_entry_inputs.read().await.get(&close_output.id)
+                        {
+                            if let Some(input) = inputs.get(&close_output.name) {
+                                input.close();
+                            }
+                        }
+                    }
+                    Ok(Message::Ended) => {
+                        for (_, outputs) in tracks_entry_outputs.read().await.iter() {
+                            for (_, output) in outputs {
+                                output.close().await;
+                            }
+                        }
+                        break;
+                    }
+                    Ok(_) => {}
+                    Err(_) => break,
+                }
+            }
         }
     };
 
