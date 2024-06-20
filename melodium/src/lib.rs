@@ -200,6 +200,8 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
     let mut packages = Vec::new();
     packages.push(std_mel::__mel_package::package());
 
+    #[cfg(feature = "distrib-mel")]
+    packages.push(distrib_mel::__mel_package::package());
     #[cfg(feature = "encoding-mel")]
     packages.push(encoding_mel::__mel_package::package());
     #[cfg(feature = "fs-mel")]

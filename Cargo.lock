@@ -2197,6 +2197,7 @@ dependencies = [
  "async-std",
  "clap",
  "colored",
+ "distrib-mel",
  "encoding-mel",
  "fs-mel",
  "getrandom 0.2.12",
