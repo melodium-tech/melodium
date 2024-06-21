@@ -78,6 +78,23 @@ struct Info {
     name: String,
 }
 
+#[cfg(feature = "distributed")]
+#[derive(clap::Args)]
+/// Makes engine available for distribution
+struct Dist {
+    #[clap(short, long)]
+    /// IP to listen on.
+    ip: String,
+    #[clap(short, long)]
+    /// Port to listen on.
+    port: u16,
+}
+
+#[cfg(not(feature = "distributed"))]
+#[derive(clap::Args)]
+/// [Not available in this release] Makes engine available for distribution
+struct Dist {}
+
 #[derive(Subcommand)]
 /// Manage `.jeu` package files
 
@@ -151,6 +168,7 @@ enum Commands {
     Run(Run),
     Check(Check),
     Info(Info),
+    Dist(Dist),
     #[clap(subcommand)]
     Jeu(Jeu),
     Doc(Doc),
@@ -176,6 +194,10 @@ pub fn main() {
             Commands::Run(args) => run(args),
             Commands::Check(args) => check(args),
             Commands::Info(args) => info(args),
+            #[cfg(feature = "distributed")]
+            Commands::Dist(args) => dist(args),
+            #[cfg(not(feature = "distributed"))]
+            Commands::Dist(_) => {}
             #[cfg(feature = "doc")]
             Commands::Doc(args) => doc(args),
             #[cfg(not(feature = "doc"))]
@@ -360,6 +382,24 @@ fn info(args: Info) {
     } else {
         std::process::exit(1);
     }
+}
+
+#[cfg(feature = "distributed")]
+fn dist(args: Dist) {
+    use core::str::FromStr;
+    use std::net::{IpAddr, SocketAddr};
+
+    use melodium_common::descriptor::Version;
+
+    let loader = melodium_loader::Loader::new(core_config());
+
+    let bind = SocketAddr::new(IpAddr::from_str(&args.ip).unwrap(), args.port);
+
+    async_std::task::block_on(melodium_distributed::launch_listen(
+        bind,
+        &Version::parse(melodium::VERSION).unwrap(),
+        loader,
+    ));
 }
 
 #[cfg(feature = "doc")]

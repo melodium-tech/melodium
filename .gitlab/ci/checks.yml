@@ -11,6 +11,8 @@ include:
     - cargo check --package melodium-core --locked --features doc
     - cargo check --package melodium-lang --locked
     - cargo check --package melodium-lang --locked --features restitution
+    - cargo check --package melodium-sharing --locked
+    - cargo check --package melodium-distributed --locked
     - cargo check --package melodium-doc --locked
     - cargo check --package melodium-engine --locked
     - cargo check --package melodium-engine --locked --features doc
@@ -27,10 +29,11 @@ include:
     - cargo check --package melodium-loader --locked --no-default-features --features network,jeu,script
     - cargo check --package melodium-loader --locked --no-default-features --features filesystem,network,jeu,script
     - cargo check --package melodium --locked --no-default-features --features cli
+    - cargo check --package melodium --locked --no-default-features --features cli,distributed
     - cargo check --package melodium --locked --no-default-features --features cli,jeu
-    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs
-    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network
-    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,text,javascript
+    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,distributed
+    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,distributed
+    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,text,javascript,distributed
     - cargo check --package melodium --locked --no-default-features
     - cargo check --package melodium --locked
 

@@ -2206,6 +2206,7 @@ dependencies = [
  "json-mel",
  "melodium-common",
  "melodium-core",
+ "melodium-distributed",
  "melodium-doc",
  "melodium-engine",
  "melodium-lang",
