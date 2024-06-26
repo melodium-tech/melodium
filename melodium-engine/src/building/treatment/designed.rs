@@ -759,7 +759,11 @@ impl BuilderTrait for Builder {
 
         let mut treatment_build_results: HashMap<String, CheckBuildResult> = HashMap::new();
 
-        if errors.is_empty() {
+        // Return checked build result
+        let mut all_builds = Vec::new();
+        let mut all_errors = errors;
+
+        if all_errors.is_empty() {
             // Get the treatments connected right after the given label in the reffered build
             // Call their check_dynamic_build
 
@@ -791,7 +795,11 @@ impl BuilderTrait for Builder {
                         )
                         .unwrap();
 
-                    treatment_build_results.insert(next_treatment_name.to_string(), check_result);
+                    treatment_build_results
+                        .insert(next_treatment_name.to_string(), check_result.clone());
+
+                    all_builds.extend(check_result.checked_builds);
+                    all_errors.extend(check_result.errors);
                 }
             }
 
@@ -831,6 +839,9 @@ impl BuilderTrait for Builder {
                             )
                             .unwrap();
 
+                        all_builds.extend(host_check_build.checked_builds);
+                        all_errors.extend(host_check_build.errors);
+
                         for last_connection in last_connections {
                             let mut borrowed_checked_build =
                                 host_check_build.build.write().unwrap();
@@ -844,13 +855,6 @@ impl BuilderTrait for Builder {
             }
         }
 
-        // Return checked build result
-        let mut all_builds = Vec::new();
-        let mut all_errors = errors;
-        for (_, build_result) in treatment_build_results {
-            all_builds.extend(build_result.checked_builds);
-            all_errors.extend(build_result.errors);
-        }
         all_builds.push(Arc::clone(&check_build));
 
         // Return checked build result

@@ -460,6 +460,7 @@ impl DistributionEngine {
 
 #[mel_treatment(
     model distributor DistributionEngine
+    input trigger Block<void>
 )]
 pub async fn start(params: Map) {
     let model = DistributionEngineModel::into(distributor);
@@ -467,7 +468,9 @@ pub async fn start(params: Map) {
 
     let params = params.map.clone();
 
-    distributor.start(params).await;
+    if let Ok(_) = trigger.recv_one().await {
+        distributor.start(params).await;
+    }
 }
 
 #[mel_treatment(

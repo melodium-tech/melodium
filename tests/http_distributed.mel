@@ -1,0 +1,118 @@
+#!/usr/bin/env melodium
+#! name = http_distributed
+#! version = 0.8.0
+#! require = http:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0 distrib:0.8.0
+
+use http/server::HttpServer
+use http/server::connection
+use http/method::HttpMethod
+use http/status::|ok
+use http/status::HttpStatus
+use http/method::|post
+use std/flow::emit
+use std/flow::trigger
+use std/ops/option::unwrapOr
+use std/ops/option::unwrap
+use std/conv::toString
+use std/data::Map
+use std/data::|map
+use std/engine/util::startup
+use encoding::decode
+use encoding::encode
+use javascript::JavaScriptEngine
+use javascript::process
+use json::toJson
+use json::Json
+use json/value::|null
+
+treatment main(const distrib_host: string, const distrib_port: u16)
+  model server: HttpServer(
+    host="localhost",
+    port=62333
+  )
+{
+    startup()
+    distributedExec(host=distrib_host, port=distrib_port)
+    startup.trigger -> distributedExec.start
+
+    connection[http_server=server](method=|post(), route="/hello")
+    status: emit<HttpStatus>(value=|ok())
+    headers: emit<Map>(value=|map([]))
+    trigger<byte>()
+    
+    connection.data -> trigger.stream,start --> status.trigger,emit -> connection.status
+                       trigger.start --------> headers.trigger,emit -> connection.headers
+    
+    
+    
+    connection.data -> distributedExec.data,data -> connection.data // Problème car est construit à la suite du startup, qui construit distribExec
+}
+
+model JsEngine(): JavaScriptEngine {
+    code = "function greet(someone) {
+    return {
+        response: `Hello ${someone}!`,
+        ps: \"Thanks for contacting me :D\"}
+    }"
+}
+
+treatment js_function()
+  model JsEngine: JsEngine()
+  input data: Stream<byte>
+  output data: Stream<byte>
+{
+    process[engine=JsEngine](code="greet(value)")
+
+    decode()
+    toJson()
+    unwrap<Json>()
+    encode()
+    unwrapOr<Json>(default=|null())
+    toString<Json>()
+    
+    Self.data -> decode.data,text -> toJson.text,json -> unwrap.option,value -> process.value,result -> unwrapOr.option,value -> toString.value,into -> encode.text,data -> Self.data
+}
+
+use distrib::DistributionEngine
+use distrib::distribute
+use distrib::ready
+use distrib::start
+use distrib::sendStream
+use distrib::recvStream
+
+treatment distributedExec(const host: string, const port: u16)
+  model distributor: DistributionEngine(host=host, port=port, treatment="http_distributed::js_function", version="0.8.0")
+  input start: Block<void>
+  output ready: Block<void>
+  input data: Stream<byte>
+  output data: Stream<byte>
+{
+  start[distributor=distributor](params=|map([]))
+  ready[distribution_engine=distributor]()
+
+  Self.start -> start.trigger
+  ready.trigger -> Self.ready
+
+  distributedJs[distributor=distributor]()
+
+  Self.data -> distributedJs.data,data -> Self.data
+}
+
+treatment distributedJs[distributor: DistributionEngine]()
+  input data: Stream<byte>
+  output data: Stream<byte>
+{
+  trigger<byte>()
+  distribute[distributor=distributor](params=|map([]))
+
+  Self.data -> trigger.stream,start -> distribute.trigger
+
+  sendStream<byte>[distributor=distributor](name="data")
+  recvStream<byte>[distributor=distributor](name="data")
+
+  distribute.distribution_id -> sendStream.distribution_id
+  distribute.distribution_id -> recvStream.distribution_id
+
+  Self.data -> sendStream.data
+  recvStream.data -> Self.data
+}
