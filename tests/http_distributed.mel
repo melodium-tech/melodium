@@ -26,14 +26,16 @@ use json::Json
 use json/value::|null
 
 treatment main(const distrib_host: string, const distrib_port: u16)
+  model distributor: DistributionEngine(host=distrib_host, port=distrib_port, treatment="http_distributed::js_function", version="0.8.0")
   model server: HttpServer(
     host="localhost",
     port=62333
   )
 {
     startup()
-    distributedExec(host=distrib_host, port=distrib_port)
-    startup.trigger -> distributedExec.start
+    start[distributor=distributor](params=|map([]))
+    distributedJs[distributor=distributor]()
+    startup.trigger -> start.trigger
 
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())
@@ -45,7 +47,7 @@ treatment main(const distrib_host: string, const distrib_port: u16)
     
     
     
-    connection.data -> distributedExec.data,data -> connection.data // Problème car est construit à la suite du startup, qui construit distribExec
+    connection.data -> distributedJs.data,data -> connection.data
 }
 
 model JsEngine(): JavaScriptEngine {
@@ -79,24 +81,6 @@ use distrib::ready
 use distrib::start
 use distrib::sendStream
 use distrib::recvStream
-
-treatment distributedExec(const host: string, const port: u16)
-  model distributor: DistributionEngine(host=host, port=port, treatment="http_distributed::js_function", version="0.8.0")
-  input start: Block<void>
-  output ready: Block<void>
-  input data: Stream<byte>
-  output data: Stream<byte>
-{
-  start[distributor=distributor](params=|map([]))
-  ready[distribution_engine=distributor]()
-
-  Self.start -> start.trigger
-  ready.trigger -> Self.ready
-
-  distributedJs[distributor=distributor]()
-
-  Self.data -> distributedJs.data,data -> Self.data
-}
 
 treatment distributedJs[distributor: DistributionEngine]()
   input data: Stream<byte>
