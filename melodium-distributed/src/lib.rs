@@ -131,6 +131,7 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
         .map(|(name, val)| (name, val.to_value(&collection).unwrap()))
         .collect();
     let engine = melodium_engine::new_engine(collection);
+    engine.set_auto_end(false);
     if let Err(fail) = engine
         .genesis(&entrypoint.try_into().unwrap(), parameters)
         .as_result()
@@ -282,10 +283,14 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
                                 output.close().await;
                             }
                         }
+                        engine.end();
                         break;
                     }
                     Ok(_) => {}
-                    Err(_) => break,
+                    Err(_) => {
+                        engine.end();
+                        break;
+                    }
                 }
             }
         }

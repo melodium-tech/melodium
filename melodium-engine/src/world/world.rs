@@ -13,7 +13,7 @@ use async_std::sync::Mutex;
 use async_std::task::block_on;
 use async_trait::async_trait;
 use core::fmt::Debug;
-use futures::future::{join, join_all};
+use futures::future::join;
 use futures::stream::{FuturesUnordered, StreamExt};
 use melodium_common::descriptor::{
     Collection, Entry as CollectionEntry, Identified, Identifier, Treatment,
@@ -52,6 +52,7 @@ pub struct World {
     tracks_sender: Sender<ExecutionTrack>,
     tracks_receiver: Receiver<ExecutionTrack>,
 
+    close_at_continuous_end: AtomicBool,
     continous_ended: AtomicBool,
     closing: AtomicBool,
 }
@@ -90,6 +91,7 @@ impl World {
             tracks_info: Mutex::new(HashMap::new()),
             tracks_sender,
             tracks_receiver,
+            close_at_continuous_end: AtomicBool::new(true),
             continous_ended: AtomicBool::new(false),
             closing: AtomicBool::new(false),
         })
@@ -214,20 +216,16 @@ impl World {
     async fn run_tracks(&self) {
         let mut futures = FuturesUnordered::new();
 
-        async fn track_future(track: ExecutionTrack) -> TrackResult {
-            let non_ok: Vec<ResultStatus> = track
-                .future
-                .await
-                .iter()
-                .filter_map(
-                    // The `_ =>` is unreachable for now, but will ResultStatus will be complexified.
-                    #[allow(unreachable_patterns)]
-                    |r| match r {
-                        ResultStatus::Ok => None,
-                        _ => Some(r.clone()),
-                    },
-                )
-                .collect();
+        async fn track_future(mut track: ExecutionTrack) -> TrackResult {
+            let mut non_ok: Vec<ResultStatus> = Vec::new();
+            while let Some(r) = track.future.next().await {
+                // The `_ =>` is unreachable for now, but will ResultStatus will be complexified.
+                #[allow(unreachable_patterns)]
+                match r {
+                    ResultStatus::Ok => {}
+                    _ => non_ok.push(r.clone()),
+                }
+            }
 
             if non_ok.is_empty() {
                 TrackResult::AllOk(track.id)
@@ -263,7 +261,10 @@ impl World {
     }
 
     fn check_closing(&self) {
-        if self.continous_ended.load(Ordering::Relaxed) && self.tracks_receiver.len() == 0 {
+        if self.auto_end()
+            && self.continous_ended.load(Ordering::Relaxed)
+            && self.tracks_receiver.len() == 0
+        {
             self.end();
         }
     }
@@ -284,7 +285,9 @@ impl Engine for World {
             }
         }
 
-        if let Some(CollectionEntry::Treatment(descriptor)) = self.collection.get(&entry.into()) {
+        let descriptor = if let Some(CollectionEntry::Treatment(descriptor)) =
+            self.collection.get(&entry.into())
+        {
             for (name, param) in descriptor.parameters() {
                 if let Some(value) = params.remove(name).filter(|val| {
                     param
@@ -303,12 +306,13 @@ impl Engine for World {
                     ));
                 }
             }
+            Arc::clone(descriptor)
         } else {
             return LogicResult::new_failure(LogicError::launch_expect_treatment(
                 224,
                 entry.clone(),
             ));
-        }
+        };
 
         let result = self.builder(entry).and_then(|builder| {
             builder.static_build(HostTreatment::Direct, None, "main".to_string(), &gen_env)
@@ -387,6 +391,7 @@ impl Engine for World {
         if result.is_success() {
             if result.errors().is_empty() {
                 {
+                    self.main.write().unwrap().replace(descriptor);
                     self.main_id.write().unwrap().replace(entry.clone());
                 }
                 self.models
@@ -409,20 +414,27 @@ impl Engine for World {
         self.errors.read().unwrap().clone()
     }
 
+    fn set_auto_end(&self, auto_end: bool) {
+        self.close_at_continuous_end
+            .store(auto_end, Ordering::Relaxed);
+    }
+
+    fn auto_end(&self) -> bool {
+        self.close_at_continuous_end.load(Ordering::Relaxed)
+    }
+
     async fn live(&self) {
         let me = self.auto_reference.upgrade().unwrap();
         let continuum = {
             let me = Arc::clone(&me);
             async move {
-                let mut continuous = Vec::with_capacity(me.continuous_tasks_receiver.len());
+                let mut continuous = FuturesUnordered::new();
 
                 while let Ok(c) = me.continuous_tasks_receiver.recv().await {
                     continuous.push(c);
                 }
 
-                let model_futures = join_all(continuous.iter_mut());
-
-                model_futures.await;
+                while let Some(_) = continuous.next().await {}
 
                 me.continous_ended.store(true, Ordering::Relaxed);
             }
@@ -514,7 +526,7 @@ impl Engine for World {
         track_futures.extend(super_futures);
 
         let info_track = InfoTrack::new(track_id, None, 0);
-        let execution_track = ExecutionTrack::new(track_id, 0, join_all(track_futures));
+        let execution_track = ExecutionTrack::new(track_id, 0, track_futures.into_iter().collect());
         self.tracks_info.lock().await.insert(track_id, info_track);
         let _ = self.tracks_sender.send(execution_track).await;
     }
@@ -629,7 +641,8 @@ impl ExecutiveWorld for World {
         };
 
         let info_track = InfoTrack::new(track_id, parent_track, ancestry);
-        let execution_track = ExecutionTrack::new(track_id, ancestry, join_all(track_futures));
+        let execution_track =
+            ExecutionTrack::new(track_id, ancestry, track_futures.into_iter().collect());
         self.tracks_info.lock().await.insert(track_id, info_track);
         let _ = self.tracks_sender.send(execution_track).await;
     }

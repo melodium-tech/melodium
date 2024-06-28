@@ -75,6 +75,7 @@ impl<R: Read + Write + Clone + Unpin + Send> Protocol<R> {
             Ok(()) => {
                 writer.write_all(&(data.len() as u32).to_be_bytes()).await?;
                 writer.write_all(&data).await?;
+                writer.flush().await?;
                 Ok(())
             }
             Err(err) => Err(Error::Serialization(err)),

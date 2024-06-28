@@ -14,7 +14,7 @@ test:rust:unit_tests:
     - cargo test --locked --verbose
 
 variables:
-  TESTS: complex_call fs generics http_client http_javascript process regex sql
+  TESTS: complex_call fs generics http_client http_javascript process regex sql http_distributed
 
 testers:rust:x86_64-unknown-linux-gnu:
   stage: test

@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = http_distributed
 #! version = 0.8.0
-#! require = http:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0 distrib:0.8.0
+#! require = http:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0 distrib:0.8.0 fs:0.8.0
 
 use http/server::HttpServer
 use http/server::connection
@@ -11,6 +11,7 @@ use http/status::HttpStatus
 use http/method::|post
 use std/flow::emit
 use std/flow::trigger
+use std/flow::stream
 use std/ops/option::unwrapOr
 use std/ops/option::unwrap
 use std/conv::toString
@@ -24,6 +25,7 @@ use javascript::process
 use json::toJson
 use json::Json
 use json/value::|null
+use fs/util::writeText
 
 treatment main(const distrib_host: string, const distrib_port: u16)
   model distributor: DistributionEngine(host=distrib_host, port=distrib_port, treatment="http_distributed::js_function", version="0.8.0")
@@ -36,6 +38,17 @@ treatment main(const distrib_host: string, const distrib_port: u16)
     start[distributor=distributor](params=|map([]))
     distributedJs[distributor=distributor]()
     startup.trigger -> start.trigger
+
+    emitOk: emit<string>(value="ok")
+    streamOk: stream<string>()
+    writeOk: writeText(path = "ok.log")
+    ready[distribution_engine=distributor]()
+    writeFailure: writeText(path = "failure.log")
+    streamFailure: stream<string>()
+    distribution_failure[distribution_engine=distributor]()
+
+    distribution_failure.failure -> streamFailure.block,stream -> writeFailure.text
+    ready.trigger -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
 
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())
@@ -81,6 +94,7 @@ use distrib::ready
 use distrib::start
 use distrib::sendStream
 use distrib::recvStream
+use distrib::distribution_failure
 
 treatment distributedJs[distributor: DistributionEngine]()
   input data: Stream<byte>

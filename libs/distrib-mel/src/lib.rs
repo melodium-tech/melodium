@@ -73,7 +73,14 @@ impl DistributionEngine {
         let model = self.model.upgrade().unwrap();
 
         let entrypoint = match Identifier::from_str(&model.get_treatment()) {
-            Ok(id) => id,
+            Ok(id) => match Version::from_str(&model.get_version()) {
+                Ok(version) => id.with_version(&version),
+                Err(err) => {
+                    self.distribution_failure(format!("'{err}' is not a valid version"))
+                        .await;
+                    return;
+                }
+            },
             Err(err) => {
                 self.distribution_failure(format!("'{err}' is not a valid identifier"))
                     .await;
@@ -159,7 +166,21 @@ impl DistributionEngine {
                     Ok(Message::LaunchStatus(status)) => match status {
                         melodium_distributed::LaunchStatus::Ok => {
                             *protocol_lock = Some(AsyncArc::new(protocol));
-                            model.new_ready(None, &HashMap::new(), None).await;
+                            model
+                                .new_ready(
+                                    None,
+                                    &HashMap::new(),
+                                    Some(Box::new(move |mut outputs| {
+                                        let trigger = outputs.get("trigger");
+
+                                        vec![Box::new(Box::pin(async move {
+                                            let _ = trigger.send_one(().into()).await;
+                                            trigger.close().await;
+                                            ResultStatus::Ok
+                                        }))]
+                                    })),
+                                )
+                                .await;
                             self.protocol_barrier.wait().await;
                         }
                         melodium_distributed::LaunchStatus::Failure(err) => {
@@ -312,7 +333,7 @@ impl DistributionEngine {
             .map(|track| track.inputs_receivers.get(name))
             .flatten()
         {
-            while let Ok(data) = data_recv.recv().await {
+            while let Ok(data) = data_recv.try_recv() {
                 if let Some(protocol) = self.protocol.read().await.as_ref() {
                     let _ = protocol
                         .send_message(Message::InputData(InputData {
@@ -603,6 +624,7 @@ pub async fn send_stream(name: string) {
                 }
                 distributor.send_data(&distribution_id, &name).await;
             }
+
             if voluntary_close {
                 distributor.close_input(&distribution_id, &name).await;
             }

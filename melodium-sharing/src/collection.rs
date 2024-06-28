@@ -85,6 +85,8 @@ impl Collection {
             }
         }
 
+        identifiers.push_back(entrypoint.clone());
+
         let elements = identifiers
             .iter()
             .unique()

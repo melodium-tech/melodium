@@ -135,6 +135,7 @@ impl Model {
                     None,
                 ))
             })
+            .and_then(|()| SharingResult::from(descriptor.commit_design()))
     }
 }
 

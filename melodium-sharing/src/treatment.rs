@@ -195,6 +195,7 @@ impl Treatment {
                     None,
                 ))
             })
+            .and_then(|()| SharingResult::from(descriptor.commit_design()))
     }
 }
 
