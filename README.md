@@ -45,7 +45,8 @@ The CI/CD runs on GitLab, and is configured to respond to main variables:
 - `TEST`: when set to `true` this will build debug versions of Mélodium and testers for all supported platforms and test them[^1];
 - `BUILD_DEBUG`: when set to `true` this will build debug versions of Mélodium for all supported platforms (implied when using `TEST`);
 - `BUILD_RELEASE`: when set to `true` this will build release versions of Mélodium for all supported platforms;
-- `BUILD_PACKAGES`: when set to `true` this will build the release webassembly version of every `lib/` crate.
+- `BUILD_PACKAGES`: when set to `true` this will build the release webassembly version of every `lib/` crate;
+- `BUILD_CONTAINERS`: when set to `true` this will build the container images of Mélodium and push it to internal container registry.
 
 As example, to run checks or tests on a specific pushed commit:
 - `git push -o ci.variable="CHECK=true"`

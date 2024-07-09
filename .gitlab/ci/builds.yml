@@ -200,7 +200,7 @@ build:release:x86_64-unknown-linux-gnu:
 build:release:x86_64-unknown-linux-musl:
   stage: build
   extends:
-    - .build-release
+    - .build-release-or-containers
     - .builder:linux:x86_64-unknown-linux-musl
   script:
     - cargo build --package melodium --locked --release 
@@ -226,7 +226,7 @@ build:release:i686-unknown-linux-gnu:
 build:release:i686-unknown-linux-musl:
   stage: build
   extends:
-    - .build-release
+    - .build-release-or-containers
     - .builder:linux:i686-unknown-linux-musl
   script:
    - cargo build --package melodium --locked --release 
@@ -252,7 +252,7 @@ build:release:aarch64-unknown-linux-gnu:
 build:release:aarch64-unknown-linux-musl:
   stage: build
   extends:
-    - .build-release
+    - .build-release-or-containers
     - .builder:linux:aarch64-unknown-linux-musl
   script:
    - cargo build --package melodium --locked --release 
