@@ -1,7 +1,7 @@
 use crate::method::*;
 use crate::status::*;
 use async_ringbuf::{AsyncHeapRb, AsyncProducer, AsyncRb};
-use async_std::sync::{Arc as AsyncArc, RwLock as AsyncRwLock};
+use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
 use core::{fmt::Debug, mem::MaybeUninit};
 use melodium_core::{common::executive::ResultStatus, *};
 use melodium_macro::{mel_context, mel_model, mel_treatment};
@@ -82,6 +82,7 @@ type AsyncProducerOutgoing =
 )]
 pub struct HttpServer {
     model: Weak<HttpServerModel>,
+    launch_barrier: AsyncArc<AsyncBarrier>,
     routes: RwLock<Vec<(Arc<HttpMethod>, String)>>,
     status: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerStatus>>>,
     headers: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerHeaders>>>,
@@ -103,6 +104,7 @@ impl HttpServer {
     pub fn new(model: Weak<HttpServerModel>) -> Self {
         Self {
             model,
+            launch_barrier: AsyncArc::new(AsyncBarrier::new(2)),
             routes: RwLock::new(Vec::new()),
             status: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
             headers: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
@@ -125,6 +127,8 @@ impl HttpServer {
 
     async fn continuous(&self) {
         let model = self.model.upgrade().unwrap();
+
+        self.launch_barrier.wait().await;
 
         let routes = self.routes.read().unwrap().clone();
 
@@ -330,6 +334,19 @@ impl HttpServer {
 
     fn shutdown(&self) {
         self.shutdown.stop();
+    }
+}
+
+#[mel_treatment(
+    model http_server HttpServer
+    input trigger Block<void>
+)]
+pub async fn start() {
+    let model = HttpServerModel::into(http_server);
+    let http_server = model.inner();
+
+    if let Ok(_) = trigger.recv_one().await {
+        http_server.launch_barrier.wait().await;
     }
 }
 

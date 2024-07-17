@@ -4,6 +4,7 @@
 #! require = http:0.8.0 net:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0
 
 use http/server::HttpServer
+use http/server::start
 use http/server::connection
 use http/method::HttpMethod
 use http/status::|ok
@@ -11,6 +12,7 @@ use http/status::HttpStatus
 use http/method::|post
 use net/ip::|localhost_ipv4
 use net/ip::|from_ipv4
+use std/engine/util::startup
 use std/flow::emit
 use std/flow::trigger
 use std/ops/option::unwrapOr
@@ -32,6 +34,11 @@ treatment main()
     port=62333
   )
 {
+    startup()
+    start[http_server=server]()
+
+    startup.trigger -> start.trigger
+
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())
     headers: emit<Map>(value=|map([]))
