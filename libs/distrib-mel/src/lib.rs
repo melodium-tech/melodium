@@ -2,7 +2,7 @@
 #![doc = include_str!("../README.md")]
 
 use async_std::channel::{unbounded, Receiver, Sender};
-use async_std::net::{IpAddr, SocketAddr, TcpStream};
+use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
 use common::descriptor::{Entry, Treatment};
 use common::{
@@ -11,6 +11,7 @@ use common::{
 };
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
+use distant_mel::*;
 use melodium_core::*;
 use melodium_distributed::{
     AskDistribution, CloseInput, CloseOutput, InputData, Instanciate, InstanciateStatus,
@@ -37,8 +38,6 @@ struct Track {
 
 #[derive(Debug)]
 #[mel_model(
-    param host string none
-    param port u16 none
     param treatment string none
     param version string none
     source ready () () (
@@ -69,7 +68,7 @@ impl DistributionEngine {
         }
     }
 
-    pub async fn start(&self, params: HashMap<String, Value>) {
+    pub async fn start(&self, access: &distant_mel::api::Access, params: HashMap<String, Value>) {
         let model = self.model.upgrade().unwrap();
 
         let entrypoint = match Identifier::from_str(&model.get_treatment()) {
@@ -91,13 +90,7 @@ impl DistributionEngine {
         let mut protocol_lock = self.protocol.write().await;
 
         if protocol_lock.is_none() {
-            let addrs = match IpAddr::from_str(&model.get_host()) {
-                Ok(addr) => SocketAddr::new(addr, model.get_port()),
-                Err(err) => {
-                    self.distribution_failure(err.to_string()).await;
-                    return;
-                }
-            };
+            let addrs = SocketAddr::new(access.address_v4.into(), access.port);
 
             let protocol = match TcpStream::connect(addrs).await {
                 Ok(stream) => Protocol::new(stream),
@@ -481,7 +474,7 @@ impl DistributionEngine {
 
 #[mel_treatment(
     model distributor DistributionEngine
-    input trigger Block<void>
+    input access Block<Access>
 )]
 pub async fn start(params: Map) {
     let model = DistributionEngineModel::into(distributor);
@@ -489,8 +482,13 @@ pub async fn start(params: Map) {
 
     let params = params.map.clone();
 
-    if let Ok(_) = trigger.recv_one().await {
-        distributor.start(params).await;
+    if let Ok(access) = access.recv_one().await.map(|val| {
+        GetData::<Arc<dyn Data>>::try_data(val)
+            .unwrap()
+            .downcast_arc::<Access>()
+            .unwrap()
+    }) {
+        distributor.start(&access.0, params).await;
     }
 }
 

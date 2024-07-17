@@ -1,0 +1,124 @@
+#!/usr/bin/env melodium
+#! name = http_distributed
+#! version = 0.8.0
+#! require = http:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0 distant:0.8.0 distrib:0.8.0 fs:0.8.0
+
+use http/server::HttpServer
+use http/server::connection
+use http/method::HttpMethod
+use http/status::|ok
+use http/status::HttpStatus
+use http/method::|post
+use std/flow::emit
+use std/flow::trigger
+use std/flow::stream
+use std/ops/option::unwrapOr
+use std/ops/option::unwrap
+use std/conv::toString
+use std/data::Map
+use std/data::|map
+use std/engine/util::startup
+use encoding::decode
+use encoding::encode
+use javascript::JavaScriptEngine
+use javascript::process
+use json::toJson
+use json::Json
+use json/value::|null
+use fs/util::writeText
+use distant::DistantEngine
+use distant::distant
+
+treatment main(const distant: string)
+  model distant: DistantEngine(address=distant)
+  model distributor: DistributionEngine(treatment="http_distributed::js_function", version="0.8.0")
+  model server: HttpServer(
+    host="localhost",
+    port=62333
+  )
+{
+    startup()
+    distant(max_duration=600, memory=28000000, cpu=1000)
+    start[distributor=distributor](params=|map([]))
+    distributedJs[distributor=distributor]()
+    startup.trigger -> distant.trigger,access -> start.access
+
+    writeDistantFailure: writeText(path = "distant_failure.log")
+    streamDistantFailure: stream<string>()
+    distant.failure -> streamDistantFailure.block,stream -> writeDistantFailure.text
+
+    emitOk: emit<string>(value="ok")
+    streamOk: stream<string>()
+    writeOk: writeText(path = "ok.log")
+    ready[distribution_engine=distributor]()
+    writeDistribFailure: writeText(path = "distrib_failure.log")
+    streamDistribFailure: stream<string>()
+    distribution_failure[distribution_engine=distributor]()
+
+    distribution_failure.failure -> streamDistribFailure.block,stream -> writeDistribFailure.text
+    ready.trigger -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
+
+    connection[http_server=server](method=|post(), route="/hello")
+    status: emit<HttpStatus>(value=|ok())
+    headers: emit<Map>(value=|map([]))
+    trigger<byte>()
+    
+    connection.data -> trigger.stream,start --> status.trigger,emit -> connection.status
+                       trigger.start --------> headers.trigger,emit -> connection.headers
+    
+    
+    
+    connection.data -> distributedJs.data,data -> connection.data
+}
+
+model JsEngine(): JavaScriptEngine {
+    code = "function greet(someone) {
+    return {
+        response: `Hello ${someone}!`,
+        ps: \"Thanks for contacting me :D\"}
+    }"
+}
+
+treatment js_function()
+  model JsEngine: JsEngine()
+  input data: Stream<byte>
+  output data: Stream<byte>
+{
+    process[engine=JsEngine](code="greet(value)")
+
+    decode()
+    toJson()
+    unwrap<Json>()
+    encode()
+    unwrapOr<Json>(default=|null())
+    toString<Json>()
+    
+    Self.data -> decode.data,text -> toJson.text,json -> unwrap.option,value -> process.value,result -> unwrapOr.option,value -> toString.value,into -> encode.text,data -> Self.data
+}
+
+use distrib::DistributionEngine
+use distrib::distribute
+use distrib::ready
+use distrib::start
+use distrib::sendStream
+use distrib::recvStream
+use distrib::distribution_failure
+
+treatment distributedJs[distributor: DistributionEngine]()
+  input data: Stream<byte>
+  output data: Stream<byte>
+{
+  trigger<byte>()
+  distribute[distributor=distributor](params=|map([]))
+
+  Self.data -> trigger.stream,start -> distribute.trigger
+
+  sendStream<byte>[distributor=distributor](name="data")
+  recvStream<byte>[distributor=distributor](name="data")
+
+  distribute.distribution_id -> sendStream.distribution_id
+  distribute.distribution_id -> recvStream.distribution_id
+
+  Self.data -> sendStream.data
+  recvStream.data -> Self.data
+}

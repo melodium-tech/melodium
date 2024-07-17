@@ -18,5 +18,6 @@ process-mel
 http-mel
 sql-mel
 javascript-mel
+distant-mel
 distrib-mel
 melodium

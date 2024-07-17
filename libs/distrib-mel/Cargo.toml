@@ -22,6 +22,7 @@ melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }
 melodium-sharing = { path = "../../melodium-sharing", version = "0.8.0" }
 melodium-distributed = { path = "../../melodium-distributed", version = "0.8.0" }
 std-mel = { path = "../std-mel", version = "0.8.0" }
+distant-mel = { path = "../distant-mel", version = "0.8.0" }
 async-std = {version="1.12", features=["unstable"]}
 
 [features]

@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "libs/distant-mel",
     "libs/distrib-mel",
     "libs/encoding-mel",
     "libs/fs-mel",
