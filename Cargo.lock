@@ -2213,6 +2213,7 @@ dependencies = [
  "async-std",
  "clap",
  "colored",
+ "distant-mel",
  "distrib-mel",
  "encoding-mel",
  "fs-mel",
