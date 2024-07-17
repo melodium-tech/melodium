@@ -5,6 +5,7 @@ use async_std::sync::{Arc as AsyncArc, RwLock as AsyncRwLock};
 use core::{fmt::Debug, mem::MaybeUninit};
 use melodium_core::{common::executive::ResultStatus, *};
 use melodium_macro::{mel_context, mel_model, mel_treatment};
+use net_mel::ip::*;
 use ringbuf::SharedRb;
 use routefinder::RouteSpec;
 use routefinder::Segment;
@@ -62,7 +63,7 @@ type AsyncProducerOutgoing =
 /// ⚠️ Use `HttpServer` with `connection` treatment, as using `incoming` source and `outgoing` treatment directly should be done carefully.
 ///
 #[mel_model(
-    param host string none
+    param host Ip none
     param port u16 none
     source incoming (HttpRequest) (
         param method HttpMethod none
@@ -302,7 +303,7 @@ impl HttpServer {
             .without_signals()
             .with_stopper(self.shutdown.clone())
             .with_port(model.get_port())
-            .with_host(&model.get_host())
+            .with_host(&model.get_host().0.to_string())
             .run_async(router)
             .await
     }
