@@ -1719,6 +1719,7 @@ dependencies = [
  "futures",
  "melodium-core",
  "melodium-macro",
+ "net-mel",
  "ringbuf",
  "routefinder",
  "serde",

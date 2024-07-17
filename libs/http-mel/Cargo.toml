@@ -22,6 +22,7 @@ futures = "0.3"
 melodium-core = { path = "../../melodium-core", version = "0.8.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }
 std-mel = { path = "../std-mel", version = "0.8.0" }
+net-mel = { path = "../net-mel", version = "0.8.0" }
 serde = "1.0.185"
 trillium = { version = "0.2", features = ["serde"] }
 trillium-router = "0.3"
