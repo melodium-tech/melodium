@@ -1,5 +1,5 @@
-use melodium_macro::{check, mel_function, mel_treatment, mel_data};
 use melodium_core::{executive::*, *};
+use melodium_macro::{check, mel_data, mel_function, mel_treatment};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -30,6 +30,12 @@ impl Display for Ipv4 {
     }
 }
 
+/// Creates new IPv4.
+#[mel_function]
+pub fn ipv4(a: u8, b: u8, c: u8, d: u8) -> Ipv4 {
+    Ipv4(std::net::Ipv4Addr::new(a, b, c, d))
+}
+
 /// Parse string into IPv4.
 #[mel_function]
 pub fn to_ipv4(text: string) -> Option<Ipv4> {
@@ -49,7 +55,18 @@ pub async fn to_ipv4() {
         .await
         .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
     {
-        check!(ipv4.send_many(TransmissionValue::Other(text.iter().map(|t| Value::Option(std::net::Ipv4Addr::from_str(t).ok().map(|ip| Box::new(Value::Data(Arc::new(Ipv4(ip))))))).collect())).await)
+        check!(
+            ipv4.send_many(TransmissionValue::Other(
+                text.iter()
+                    .map(|t| Value::Option(
+                        std::net::Ipv4Addr::from_str(t)
+                            .ok()
+                            .map(|ip| Box::new(Value::Data(Arc::new(Ipv4(ip)))))
+                    ))
+                    .collect()
+            ))
+            .await
+        )
     }
 }
 
@@ -86,6 +103,12 @@ impl Display for Ipv6 {
     }
 }
 
+/// Creates new IPv6.
+#[mel_function]
+pub fn ipv6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16) -> Ipv6 {
+    Ipv6(std::net::Ipv6Addr::new(a, b, c, d, e, f, g, h))
+}
+
 /// Parse string into IPv6.
 #[mel_function]
 pub fn to_ipv6(text: string) -> Option<Ipv6> {
@@ -105,7 +128,18 @@ pub async fn to_ipv6() {
         .await
         .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
     {
-        check!(ipv6.send_many(TransmissionValue::Other(text.iter().map(|t| Value::Option(std::net::Ipv6Addr::from_str(t).ok().map(|ip| Box::new(Value::Data(Arc::new(Ipv6(ip))))))).collect())).await)
+        check!(
+            ipv6.send_many(TransmissionValue::Other(
+                text.iter()
+                    .map(|t| Value::Option(
+                        std::net::Ipv6Addr::from_str(t)
+                            .ok()
+                            .map(|ip| Box::new(Value::Data(Arc::new(Ipv6(ip)))))
+                    ))
+                    .collect()
+            ))
+            .await
+        )
     }
 }
 
