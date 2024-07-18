@@ -397,7 +397,7 @@ test:melodium:x86_64-pc-windows-gnu:
       $OK = 0
       Foreach ($TEST in $TESTS) {
         echo Running $TEST
-        & ./testers/target/x86_64-pc-windows-gnu/release/$TEST.exe
+        & ./testers/target/x86_64-pc-windows-gnu/debug/$TEST.exe
         If ( $? ) {
           echo $TEST OK
         }
@@ -484,7 +484,7 @@ test:melodium:i686-pc-windows-gnu:
       $OK = 0
       Foreach ($TEST in $TESTS) {
         echo Running $TEST
-        & ./testers/target/i686-pc-windows-gnu/release/$TEST.exe
+        & ./testers/target/i686-pc-windows-gnu/debug/$TEST.exe
         If ( $? ) {
           echo $TEST OK
         }
