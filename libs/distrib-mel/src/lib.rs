@@ -43,7 +43,7 @@ struct Track {
     source ready () () (
         trigger Block<void>
     )
-    source distribution_failure () () (
+    source distributionFailure () () (
         failure Block<string>
     )
     continuous (continuous)
@@ -455,7 +455,7 @@ impl DistributionEngine {
         self.model
             .upgrade()
             .unwrap()
-            .new_distribution_failure(
+            .new_distributionFailure(
                 None,
                 &HashMap::new(),
                 Some(Box::new(move |mut outputs| {

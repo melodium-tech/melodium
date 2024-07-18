@@ -8,7 +8,7 @@ use melodium_core::*;
 use melodium_macro::{mel_data, mel_model, mel_package, mel_treatment};
 use std::{
     collections::HashMap,
-    sync::{Arc, Weak},
+    sync::{Arc, RwLock, Weak},
 };
 use trillium_async_std::ClientConfig;
 use trillium_client::{Client, KnownHeaderName};
@@ -24,31 +24,41 @@ pub const USER_AGENT: &str = concat!("distant-mel/", env!("CARGO_PKG_VERSION"));
 #[mel_model(
     param address string none
     param key string none
+    initialize initialize
 )]
 pub struct DistantEngine {
     model: Weak<DistantEngineModel>,
-    client: Client,
+    client: RwLock<Option<Arc<Client>>>,
 }
 
 impl DistantEngine {
     fn new(model: Weak<DistantEngineModel>) -> Self {
-        let config = TlsConfig::default().with_tcp_config(ClientConfig::new().with_nodelay(true));
-
-        let client = Client::new(config)
-            .with_default_pool()
-            .with_default_header(KnownHeaderName::UserAgent, USER_AGENT);
-
-        Self { model, client }
+        Self {
+            model,
+            client: RwLock::new(None),
+        }
     }
 
-    pub async fn start(&self, start: Start) -> Result<Distributed, String> {
+    pub fn initialize(&self) {
         let model = self.model.upgrade().unwrap();
 
         let address = model.get_address();
 
-        let connection = self
-            .client
-            .post(address)
+        let config = TlsConfig::default().with_tcp_config(ClientConfig::new().with_nodelay(true));
+
+        let client = Client::new(config)
+            .with_base(address)
+            .with_default_pool()
+            .with_default_header(KnownHeaderName::UserAgent, USER_AGENT);
+
+        self.client.write().unwrap().replace(Arc::new(client));
+    }
+
+    pub async fn start(&self, start: Start) -> Result<Distributed, String> {
+        let client = Arc::clone(self.client.read().unwrap().as_ref().unwrap());
+
+        let connection = client
+            .post("/start")
             .with_header(KnownHeaderName::ContentType, "application/json")
             .with_body(serde_json::to_string(&start).unwrap())
             .await

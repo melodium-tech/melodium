@@ -29,8 +29,8 @@ use fs/util::writeText
 use distant::DistantEngine
 use distant::distant
 
-treatment main(const distant: string)
-  model distant: DistantEngine(address=distant)
+treatment main(const distant: string, const key: string)
+  model distant: DistantEngine(address=distant, key=key)
   model distributor: DistributionEngine(treatment="http_distributed::js_function", version="0.8.0")
   model server: HttpServer(
     host="localhost",
@@ -38,7 +38,7 @@ treatment main(const distant: string)
   )
 {
     startup()
-    distant(max_duration=600, memory=28000000, cpu=1000)
+    distant[distant_engine=distant](max_duration=600, memory=28000000, cpu=1000)
     start[distributor=distributor](params=|map([]))
     distributedJs[distributor=distributor]()
     startup.trigger -> distant.trigger,access -> start.access
