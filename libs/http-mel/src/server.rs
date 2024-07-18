@@ -1,7 +1,10 @@
 use crate::method::*;
 use crate::status::*;
 use async_ringbuf::{AsyncHeapRb, AsyncProducer, AsyncRb};
-use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
+use async_std::{
+    net::TcpListener,
+    sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock},
+};
 use core::{fmt::Debug, mem::MaybeUninit};
 use melodium_core::{common::executive::ResultStatus, *};
 use melodium_macro::{mel_context, mel_model, mel_treatment};
@@ -58,7 +61,7 @@ type AsyncProducerOutgoing =
 /// `HttpServer` aims to be used with `connection` treatment.
 /// Every time a new HTTP request matching a configured route comes, a new track is created with `@HttpRequest` context.
 ///
-/// ℹ️ If server binding fails, `failed_binding` is emitted.
+/// ℹ️ If server binding fails, `failedBinding` is emitted.
 ///
 /// ⚠️ Use `HttpServer` with `connection` treatment, as using `incoming` source and `outgoing` treatment directly should be done carefully.
 ///
@@ -74,7 +77,7 @@ type AsyncProducerOutgoing =
         data Stream<byte>
         failure Block<string>
     )
-    source failed_binding () () (
+    source failedBinding () () (
         failure Block<string>
     )
     continuous (continuous)
@@ -303,13 +306,32 @@ impl HttpServer {
             }
         }
 
-        trillium_async_std::config()
-            .without_signals()
-            .with_stopper(self.shutdown.clone())
-            .with_port(model.get_port())
-            .with_host(&model.get_host().0.to_string())
-            .run_async(router)
-            .await
+        match TcpListener::bind((model.get_host().0, model.get_port())).await {
+            Ok(listener) => {
+                trillium_async_std::config()
+                    .without_signals()
+                    .with_stopper(self.shutdown.clone())
+                    .with_prebound_server(listener)
+                    .run_async(router)
+                    .await
+            }
+            Err(err) => {
+                model
+                    .new_failedBinding(
+                        None,
+                        &HashMap::new(),
+                        Some(Box::new(move |mut outputs| {
+                            let failure = outputs.get("failure");
+                            vec![Box::new(Box::pin(async move {
+                                let _ = failure.send_one(err.to_string().into()).await;
+                                failure.close().await;
+                                ResultStatus::Ok
+                            }))]
+                        })),
+                    )
+                    .await
+            }
+        }
     }
 
     fn invoke_source(&self, source: &str, params: HashMap<String, Value>) {
