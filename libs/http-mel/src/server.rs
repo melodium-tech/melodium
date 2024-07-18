@@ -1,10 +1,14 @@
 use crate::method::*;
 use crate::status::*;
 use async_ringbuf::{AsyncHeapRb, AsyncProducer, AsyncRb};
-use async_std::sync::{Arc as AsyncArc, RwLock as AsyncRwLock};
+use async_std::{
+    net::TcpListener,
+    sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock},
+};
 use core::{fmt::Debug, mem::MaybeUninit};
 use melodium_core::{common::executive::ResultStatus, *};
 use melodium_macro::{mel_context, mel_model, mel_treatment};
+use net_mel::ip::*;
 use ringbuf::SharedRb;
 use routefinder::RouteSpec;
 use routefinder::Segment;
@@ -57,12 +61,12 @@ type AsyncProducerOutgoing =
 /// `HttpServer` aims to be used with `connection` treatment.
 /// Every time a new HTTP request matching a configured route comes, a new track is created with `@HttpRequest` context.
 ///
-/// ℹ️ If server binding fails, `failed_binding` is emitted.
+/// ℹ️ If server binding fails, `failedBinding` is emitted.
 ///
 /// ⚠️ Use `HttpServer` with `connection` treatment, as using `incoming` source and `outgoing` treatment directly should be done carefully.
 ///
 #[mel_model(
-    param host string none
+    param host Ip none
     param port u16 none
     source incoming (HttpRequest) (
         param method HttpMethod none
@@ -73,7 +77,7 @@ type AsyncProducerOutgoing =
         data Stream<byte>
         failure Block<string>
     )
-    source failed_binding () () (
+    source failedBinding () () (
         failure Block<string>
     )
     continuous (continuous)
@@ -81,6 +85,7 @@ type AsyncProducerOutgoing =
 )]
 pub struct HttpServer {
     model: Weak<HttpServerModel>,
+    launch_barrier: AsyncArc<AsyncBarrier>,
     routes: RwLock<Vec<(Arc<HttpMethod>, String)>>,
     status: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerStatus>>>,
     headers: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerHeaders>>>,
@@ -102,6 +107,7 @@ impl HttpServer {
     pub fn new(model: Weak<HttpServerModel>) -> Self {
         Self {
             model,
+            launch_barrier: AsyncArc::new(AsyncBarrier::new(2)),
             routes: RwLock::new(Vec::new()),
             status: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
             headers: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
@@ -124,6 +130,8 @@ impl HttpServer {
 
     async fn continuous(&self) {
         let model = self.model.upgrade().unwrap();
+
+        self.launch_barrier.wait().await;
 
         let routes = self.routes.read().unwrap().clone();
 
@@ -298,13 +306,32 @@ impl HttpServer {
             }
         }
 
-        trillium_async_std::config()
-            .without_signals()
-            .with_stopper(self.shutdown.clone())
-            .with_port(model.get_port())
-            .with_host(&model.get_host())
-            .run_async(router)
-            .await
+        match TcpListener::bind((model.get_host().0, model.get_port())).await {
+            Ok(listener) => {
+                trillium_async_std::config()
+                    .without_signals()
+                    .with_stopper(self.shutdown.clone())
+                    .with_prebound_server(listener)
+                    .run_async(router)
+                    .await
+            }
+            Err(err) => {
+                model
+                    .new_failedBinding(
+                        None,
+                        &HashMap::new(),
+                        Some(Box::new(move |mut outputs| {
+                            let failure = outputs.get("failure");
+                            vec![Box::new(Box::pin(async move {
+                                let _ = failure.send_one(err.to_string().into()).await;
+                                failure.close().await;
+                                ResultStatus::Ok
+                            }))]
+                        })),
+                    )
+                    .await
+            }
+        }
     }
 
     fn invoke_source(&self, source: &str, params: HashMap<String, Value>) {
@@ -329,6 +356,19 @@ impl HttpServer {
 
     fn shutdown(&self) {
         self.shutdown.stop();
+    }
+}
+
+#[mel_treatment(
+    model http_server HttpServer
+    input trigger Block<void>
+)]
+pub async fn start() {
+    let model = HttpServerModel::into(http_server);
+    let http_server = model.inner();
+
+    if let Ok(_) = trigger.recv_one().await {
+        http_server.launch_barrier.wait().await;
     }
 }
 

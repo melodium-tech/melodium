@@ -1,11 +1,19 @@
 
 # Mélodium
 
-Mélodium is a dataflow-oriented language, focusing on treatments applied on data, allowing high scalability and massive parallelization safely.
+Mélodium is a stream-oriented language, focusing on events and treatments, enabling strong scalability and parallelization safely.
 
-## Introduction
+## Description
 
-Mélodium is a tool and language for manipulation of large amount of data, using the definition of treatments that applies on data through connections, with a track approach that makes any script higly scalable and implicitly parallelizable.
+Mélodium is a tool and language for data stream manipulation, event reaction, building software shared across different machines.  
+This is accomplished using the concept of treatments that applies on data, with a track approach that makes any program scalable, implicitly parallelizable, and asynchronous.
+
+Fitting uses cases are, among others:
+- managing many small requests;
+- optimizing execution schedule;
+- managing large amount of data coming as stream or chunked;
+- dealing with limited resources;
+- sharing program load across different machines.
 
 For more exhaustive explanations, please refer to [the Mélodium Language book](https://doc.melodium.tech/book/en/).
 
