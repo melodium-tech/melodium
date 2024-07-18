@@ -44,7 +44,7 @@ treatment main(const distrib_port: u16)
     emitAccess: emit<Access>(value=|new_access(|localhost_ipv4(), |localhost_ipv6(), distrib_port, ""))
     start[distributor=distributor](params=|map([]))
     distributedJs[distributor=distributor]()
-    startup.trigger -> emitAccess.trigger,value -> start.access
+    startup.trigger -> emitAccess.trigger,emit -> start.access
 
     emitOk: emit<string>(value="ok")
     streamOk: stream<string>()
@@ -59,7 +59,7 @@ treatment main(const distrib_port: u16)
 
 
     startHttp[http_server=server]()
-    read.trigger -> startHttp.trigger
+    ready.trigger -> startHttp.trigger
 
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())
