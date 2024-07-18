@@ -94,7 +94,7 @@ use distrib::ready
 use distrib::start
 use distrib::sendStream
 use distrib::recvStream
-use distrib::distribution_failure
+use distrib::distributionFailure
 
 treatment distributedJs[distributor: DistributionEngine]()
   input data: Stream<byte>
