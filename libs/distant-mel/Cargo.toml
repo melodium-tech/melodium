@@ -19,6 +19,7 @@ name = "distant_mel"
 [dependencies]
 melodium-core = { path = "../../melodium-core", version = "0.8.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }
+net-mel = { path = "../net-mel", version = "0.8.0" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 uuid = { version = "1.5.0", features = ["serde", "v4", "fast-rng"] }

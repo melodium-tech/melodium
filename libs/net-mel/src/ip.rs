@@ -323,6 +323,12 @@ pub fn localhost_ipv4() -> Ipv4 {
     Ipv4(std::net::Ipv4Addr::LOCALHOST)
 }
 
+/// Return IPv4 unspecified.
+#[mel_function]
+pub fn unspecified_ipv4() -> Ipv4 {
+    Ipv4(std::net::Ipv4Addr::UNSPECIFIED)
+}
+
 /// IPv6 data.
 ///
 /// `Ipv6` data type contains a valid IP v6.
@@ -394,4 +400,10 @@ pub async fn to_ipv6() {
 #[mel_function]
 pub fn localhost_ipv6() -> Ipv6 {
     Ipv6(std::net::Ipv6Addr::LOCALHOST)
+}
+
+/// Return IPv6 unspecified.
+#[mel_function]
+pub fn unspecified_ipv6() -> Ipv6 {
+    Ipv6(std::net::Ipv6Addr::UNSPECIFIED)
 }

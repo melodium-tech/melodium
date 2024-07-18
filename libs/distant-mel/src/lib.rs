@@ -4,8 +4,10 @@
 pub mod api;
 
 use api::*;
+use core::str::FromStr;
 use melodium_core::*;
-use melodium_macro::{mel_data, mel_model, mel_package, mel_treatment};
+use melodium_macro::{mel_data, mel_function, mel_model, mel_package, mel_treatment};
+use net_mel::ip::*;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock, Weak},
@@ -83,6 +85,16 @@ impl DistantEngine {
 #[mel_data]
 #[derive(Debug, Serialize)]
 pub struct Access(pub api::Access);
+
+#[mel_function]
+pub fn new_access(ipv4: Ipv4, ipv6: Ipv6, port: u16, key: string) -> Access {
+    Access(api::Access {
+        address_v4: ipv4.0,
+        address_v6: ipv6.0,
+        port,
+        key: Uuid::from_str(&key).unwrap_or_default(),
+    })
+}
 
 #[mel_treatment(
     model distant_engine DistantEngine

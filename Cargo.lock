@@ -1178,6 +1178,7 @@ version = "0.8.0"
 dependencies = [
  "melodium-core",
  "melodium-macro",
+ "net-mel",
  "serde",
  "serde_json",
  "trillium-async-std",

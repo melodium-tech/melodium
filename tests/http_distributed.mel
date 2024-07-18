@@ -1,14 +1,20 @@
 #!/usr/bin/env melodium
 #! name = http_distributed
 #! version = 0.8.0
-#! require = http:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0 distrib:0.8.0 fs:0.8.0
+#! require = http:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0 distrib:0.8.0 distant:0.8.0 fs:0.8.0 net:0.8.0
 
 use http/server::HttpServer
+use http/server::start as startHttp
 use http/server::connection
 use http/method::HttpMethod
 use http/status::|ok
 use http/status::HttpStatus
 use http/method::|post
+use net/ip::|localhost_ipv4
+use net/ip::|localhost_ipv6
+use net/ip::|from_ipv4
+use distant::Access
+use distant::|new_access
 use std/flow::emit
 use std/flow::trigger
 use std/flow::stream
@@ -27,17 +33,18 @@ use json::Json
 use json/value::|null
 use fs/util::writeText
 
-treatment main(const distrib_host: string, const distrib_port: u16)
-  model distributor: DistributionEngine(host=distrib_host, port=distrib_port, treatment="http_distributed::js_function", version="0.8.0")
+treatment main(const distrib_port: u16)
+  model distributor: DistributionEngine(treatment="http_distributed::js_function", version="0.8.0")
   model server: HttpServer(
-    host="localhost",
-    port=62333
+    host=|from_ipv4(|localhost_ipv4()),
+    port=8080
   )
 {
     startup()
+    emitAccess: emit<Access>(value=|new_access(|localhost_ipv4(), |localhost_ipv6(), distrib_port, ""))
     start[distributor=distributor](params=|map([]))
     distributedJs[distributor=distributor]()
-    startup.trigger -> start.trigger
+    startup.trigger -> emitAccess.trigger,value -> start.access
 
     emitOk: emit<string>(value="ok")
     streamOk: stream<string>()
@@ -45,10 +52,14 @@ treatment main(const distrib_host: string, const distrib_port: u16)
     ready[distribution_engine=distributor]()
     writeFailure: writeText(path = "failure.log")
     streamFailure: stream<string>()
-    distribution_failure[distribution_engine=distributor]()
+    distributionFailure[distribution_engine=distributor]()
 
-    distribution_failure.failure -> streamFailure.block,stream -> writeFailure.text
+    distributionFailure.failure -> streamFailure.block,stream -> writeFailure.text
     ready.trigger -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
+
+
+    startHttp[http_server=server]()
+    read.trigger -> startHttp.trigger
 
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())

@@ -8,16 +8,14 @@ fn main() {
         .arg("--ip")
         .arg("127.0.0.1")
         .arg("--port")
-        .arg("8080")
+        .arg("34888")
         .spawn()
         .expect("failed to launch Mélodium executable");
     let mut melodium = Command::new("melodium")
         .arg("run")
         .arg("http_distributed.mel")
-        .arg("--distrib_host")
-        .arg("\"127.0.0.1\"")
         .arg("--distrib_port")
-        .arg("8080")
+        .arg("34888")
         .spawn()
         .expect("failed to launch Mélodium executable");
 
