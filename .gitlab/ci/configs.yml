@@ -29,6 +29,11 @@
       allow_failure: true
     - if: ( $CI_COMMIT_TAG )
 
+.build-debug-only:
+  rules:
+    - if: $BUILD_DEBUG == "true"
+      allow_failure: true
+
 .build-testers:
   needs: []
   rules:
