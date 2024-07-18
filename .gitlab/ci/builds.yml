@@ -122,7 +122,7 @@ build:debug:aarch64-apple-darwin:
 build:debug:x86_64-pc-windows-gnu:
   stage: build
   extends:
-    - .build-debug-or-test
+    - .build-debug
     - .builder:linux:x86_64-pc-windows-gnu
   script:
     - cargo build --package melodium --locked
@@ -148,7 +148,7 @@ build:debug:x86_64-pc-windows-msvc:
 build:debug:i686-pc-windows-gnu:
   stage: build
   extends:
-    - .build-debug-or-test
+    - .build-debug
     - .builder:linux:i686-pc-windows-gnu
   script:
     - cargo build --package melodium --locked
@@ -304,7 +304,7 @@ build:release:aarch64-apple-darwin:
 build:release:x86_64-pc-windows-gnu:
   stage: build
   extends:
-    - .build-release
+    - .build-release-or-test
     - .builder:linux:x86_64-pc-windows-gnu
   script:
     - cargo build --package melodium --locked --release 
@@ -330,7 +330,7 @@ build:release:x86_64-pc-windows-msvc:
 build:release:i686-pc-windows-gnu:
   stage: build
   extends:
-    - .build-release
+    - .build-release-or-test
     - .builder:linux:i686-pc-windows-gnu
   script:
     - cargo build --package melodium --locked --release 
