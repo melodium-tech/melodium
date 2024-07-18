@@ -187,7 +187,7 @@ build:debug:aarch64-pc-windows-msvc:
 build:release:x86_64-unknown-linux-gnu:
   stage: build
   extends:
-    - .build-release
+    - .build-release-or-test
     - .builder:linux:x86_64-unknown-linux-gnu
   script:
     - cargo build --package melodium --locked --release 
@@ -213,7 +213,7 @@ build:release:x86_64-unknown-linux-musl:
 build:release:i686-unknown-linux-gnu:
   stage: build
   extends:
-    - .build-release
+    - .build-release-or-test
     - .builder:linux:i686-unknown-linux-gnu
   script:
     - cargo build --package melodium --locked --release 

@@ -387,17 +387,17 @@ test:melodium:x86_64-pc-windows-gnu:
     - .runner:windows:x86_64
     - .service:postgresql
   needs:
-    - build:debug:x86_64-pc-windows-gnu
+    - build:release:x86_64-pc-windows-gnu
     - testers:rust:x86_64-pc-windows-gnu
   script:
-    - $Env:Path="$CI_PROJECT_DIR/target/x86_64-pc-windows-gnu/debug;$Env:Path"
+    - $Env:Path="$CI_PROJECT_DIR/target/x86_64-pc-windows-gnu/release;$Env:Path"
     - cd tests/
     - $TESTS = $TESTS.Split(" ")
     - |
       $OK = 0
       Foreach ($TEST in $TESTS) {
         echo Running $TEST
-        & ./testers/target/x86_64-pc-windows-gnu/debug/$TEST.exe
+        & ./testers/target/x86_64-pc-windows-gnu/release/$TEST.exe
         If ( $? ) {
           echo $TEST OK
         }
@@ -474,17 +474,17 @@ test:melodium:i686-pc-windows-gnu:
     - .runner:windows:x86_64
     - .service:postgresql
   needs:
-    - build:debug:i686-pc-windows-gnu
+    - build:release:i686-pc-windows-gnu
     - testers:rust:i686-pc-windows-gnu
   script:
-    - $Env:Path="$CI_PROJECT_DIR/target/i686-pc-windows-gnu/debug;$Env:Path"
+    - $Env:Path="$CI_PROJECT_DIR/target/i686-pc-windows-gnu/release;$Env:Path"
     - cd tests/
     - $TESTS = $TESTS.Split(" ")
     - |
       $OK = 0
       Foreach ($TEST in $TESTS) {
         echo Running $TEST
-        & ./testers/target/i686-pc-windows-gnu/debug/$TEST.exe
+        & ./testers/target/i686-pc-windows-gnu/release/$TEST.exe
         If ( $? ) {
           echo $TEST OK
         }
