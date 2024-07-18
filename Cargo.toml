@@ -6,6 +6,7 @@ members = [
     "libs/http-mel",
     "libs/javascript-mel",
     "libs/json-mel",
+    "libs/net-mel",
     "libs/process-mel",
     "libs/regex-mel",
     "libs/sql-mel",

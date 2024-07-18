@@ -1719,6 +1719,7 @@ dependencies = [
  "futures",
  "melodium-core",
  "melodium-macro",
+ "net-mel",
  "ringbuf",
  "routefinder",
  "serde",
@@ -2144,6 +2145,7 @@ dependencies = [
  "melodium-engine",
  "melodium-lang",
  "melodium-loader",
+ "net-mel",
  "process-mel",
  "regex-mel",
  "sql-mel",
@@ -2301,6 +2303,17 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "tempfile",
+]
+
+[[package]]
+name = "net-mel"
+version = "0.8.0"
+dependencies = [
+ "futures",
+ "melodium-core",
+ "melodium-macro",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
