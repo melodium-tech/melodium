@@ -1,17 +1,21 @@
 #!/usr/bin/env melodium
 #! name = http_distributed
 #! version = 0.8.0
-#! require = http:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0 distant:0.8.0 distrib:0.8.0 fs:0.8.0
+#! require = http:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0 distant:0.8.0 distrib:0.8.0 fs:0.8.0 net:0.8.0
 
 use http/server::HttpServer
+use http/server::start as startHttp
 use http/server::connection
 use http/method::HttpMethod
 use http/status::|ok
 use http/status::HttpStatus
 use http/method::|post
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
 use std/flow::emit
 use std/flow::trigger
 use std/flow::stream
+use std/flow::check
 use std/ops/option::unwrapOr
 use std/ops/option::unwrap
 use std/conv::toString
@@ -28,13 +32,14 @@ use json/value::|null
 use fs/util::writeText
 use distant::DistantEngine
 use distant::distant
+use distant::Access
 
 treatment main(const distant: string, const key: string)
   model distant: DistantEngine(address=distant, key=key)
   model distributor: DistributionEngine(treatment="http_distributed::js_function", version="0.8.0")
   model server: HttpServer(
-    host="localhost",
-    port=62333
+    host=|from_ipv4(|localhost_ipv4()),
+    port=8080
   )
 {
     startup()
@@ -53,10 +58,14 @@ treatment main(const distant: string, const key: string)
     ready[distribution_engine=distributor]()
     writeDistribFailure: writeText(path = "distrib_failure.log")
     streamDistribFailure: stream<string>()
-    distribution_failure[distribution_engine=distributor]()
+    distributionFailure[distribution_engine=distributor]()
 
-    distribution_failure.failure -> streamDistribFailure.block,stream -> writeDistribFailure.text
+    distributionFailure.failure -> streamDistribFailure.block,stream -> writeDistribFailure.text
     ready.trigger -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
+
+    startHttp[http_server=server]()
+    check<Access>()
+    distant.access -> check.value,check -> startHttp.trigger
 
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())
@@ -102,7 +111,7 @@ use distrib::ready
 use distrib::start
 use distrib::sendStream
 use distrib::recvStream
-use distrib::distribution_failure
+use distrib::distributionFailure
 
 treatment distributedJs[distributor: DistributionEngine]()
   input data: Stream<byte>

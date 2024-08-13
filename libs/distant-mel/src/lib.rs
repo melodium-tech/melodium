@@ -107,7 +107,7 @@ pub async fn distant(max_duration: u32, memory: u64, cpu: u16) {
     let distant = model.inner();
 
     let start = Start {
-        key: Uuid::new_v4(),
+        key: Uuid::default(),
         edition: "registry.gitlab.com/melodium/melodium-private-developments:scratch".to_string(),
         max_duration,
         memory,
