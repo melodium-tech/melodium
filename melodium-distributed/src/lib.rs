@@ -23,6 +23,7 @@ use melodium_loader::Loader;
 use melodium_sharing::{SharingError, SharingResult};
 
 pub static VERSION: Version = Version::new(0, 1, 0);
+pub const ROOT_CERTIFICATE: &[u8; 2094] = include_bytes!("../melodium-ca.pem");
 
 pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) {
     let listener = TcpListener::bind(bind).await.unwrap();

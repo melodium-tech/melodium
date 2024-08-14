@@ -24,6 +24,10 @@ use std::{
     sync::{Arc, Weak},
 };
 use std_mel::data::*;
+#[cfg(all(not(target_os = "windows"), not(target_vendor = "apple")))]
+use async_tls::client::TlsStream;
+#[cfg(any(target_env = "msvc", target_vendor = "apple"))]
+use async_native_tls::TlsStream;
 
 #[derive(Debug)]
 struct Track {
@@ -51,7 +55,7 @@ struct Track {
 )]
 pub struct DistributionEngine {
     model: Weak<DistributionEngineModel>,
-    protocol: AsyncRwLock<Option<AsyncArc<Protocol<TcpStream>>>>,
+    protocol: AsyncRwLock<Option<AsyncArc<Protocol<TlsStream<TcpStream>>>>>,
     treatment: AsyncRwLock<Option<Arc<dyn Treatment>>>,
     tracks: AsyncRwLock<HashMap<u64, Track>>,
     protocol_barrier: AsyncBarrier,
@@ -659,6 +663,16 @@ pub async fn send_block(name: string) {
             }
         }
     }
+}
+
+#[cfg(all(not(target_os = "windows"), not(target_vendor = "apple")))]
+fn tls_stream() -> Protocol<TlsStream<TcpStream>> {
+    
+}
+
+#[cfg(any(target_env = "msvc", target_vendor = "apple"))]
+fn tls_stream() -> Protocol<TlsStream<TcpStream>> {
+
 }
 
 mel_package!();

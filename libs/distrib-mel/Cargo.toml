@@ -30,6 +30,29 @@ mock = []
 plugin = []
 real = []
 
+[target.'cfg(all(not(target_os = "windows"), not(target_vendor = "apple")))'.dependencies.async-tls]
+version = "0.13"
+default-features = false
+features = ["client"]
+
+[target.'cfg(all(target_os = "windows", target_env = "gnu"))'.dependencies.async-tls]
+version = "0.13"
+default-features = false
+features = ["client"]
+
+[target.'cfg(all(not(target_os = "windows"), not(target_vendor = "apple")))'.dependencies.rustls]
+version = "0.23"
+default-features = false
+features = ["std", "ring", "zlib"]
+
+[target.'cfg(all(target_os = "windows", target_env = "gnu"))'.dependencies.rustls]
+version = "0.23"
+default-features = false
+features = ["std", "ring", "zlib"]
+
+[target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.async-native-tls]
+version = "0.5"
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
