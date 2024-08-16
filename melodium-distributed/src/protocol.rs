@@ -1,6 +1,7 @@
 use crate::messages::Message;
-use async_std::io::{BufReader, BufWriter, Read, ReadExt, Write, WriteExt};
+use async_std::io::{BufReader, BufWriter, Read, Write, WriteExt};
 use async_std::sync::Mutex;
+use futures::io::{ReadHalf, WriteHalf, AsyncReadExt};
 use core::fmt::Display;
 
 type Result<T> = std::result::Result<T, Error>;
@@ -40,15 +41,16 @@ impl From<async_std::io::Error> for Error {
 
 #[derive(Debug)]
 pub struct Protocol<R: Read + Write + Unpin + Send> {
-    reader: Mutex<BufReader<R>>,
-    writer: Mutex<BufWriter<R>>,
+    reader: Mutex<BufReader<ReadHalf<R>>>,
+    writer: Mutex<BufWriter<WriteHalf<R>>>,
 }
 
-impl<R: Read + Write + Clone + Unpin + Send> Protocol<R> {
+impl<R: Read + Write + Unpin + Send> Protocol<R> {
     pub fn new(rw: R) -> Self {
+        let (read, write) = rw.split();
         Self {
-            reader: Mutex::new(BufReader::new(rw.clone())),
-            writer: Mutex::new(BufWriter::new(rw)),
+            reader: Mutex::new(BufReader::new(read)),
+            writer: Mutex::new(BufWriter::new(write)),
         }
     }
 

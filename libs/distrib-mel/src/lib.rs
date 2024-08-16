@@ -4,6 +4,7 @@
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
+use async_std::io::{Read, Write};
 use common::descriptor::{Entry, Treatment};
 use common::{
     descriptor::{Identifier, Version},
@@ -25,7 +26,7 @@ use std::{
 };
 use std_mel::data::*;
 #[cfg(all(not(target_os = "windows"), not(target_vendor = "apple")))]
-use async_tls::client::TlsStream;
+use futures_rustls::client::TlsStream;
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
 use async_native_tls::TlsStream;
 
@@ -97,7 +98,13 @@ impl DistributionEngine {
             let addrs = SocketAddr::new(access.address_v4.into(), access.port);
 
             let protocol = match TcpStream::connect(addrs).await {
-                Ok(stream) => Protocol::new(stream),
+                Ok(stream) => match tls_stream(access.address_v4.into(), stream).await {
+                    Ok(protocol) => protocol,
+                    Err(err) => {
+                        self.distribution_failure(err.to_string()).await;
+                    return;
+                    }
+                },
                 Err(err) => {
                     self.distribution_failure(err.to_string()).await;
                     return;
@@ -666,8 +673,19 @@ pub async fn send_block(name: string) {
 }
 
 #[cfg(all(not(target_os = "windows"), not(target_vendor = "apple")))]
-fn tls_stream() -> Protocol<TlsStream<TcpStream>> {
-    
+async fn tls_stream<IO>(ip: std::net::IpAddr, stream: IO) -> std::io::Result<Protocol<TlsStream<IO>>>
+where IO: Read + Write + Unpin + Send {
+    use futures_rustls::TlsConnector;
+    use futures_rustls::rustls::{pki_types::{CertificateDer, ServerName}, version::TLS13, RootCertStore, ClientConfig};
+
+    let mut root_store = RootCertStore::empty();
+    let truc = root_store.add_parsable_certificates([CertificateDer::from(melodium_distributed::ROOT_CERTIFICATE.as_slice())]);
+    eprintln!("Certifs: {truc:?}");
+    let config = ClientConfig::builder_with_protocol_versions(&[&TLS13]).with_root_certificates(root_store).with_no_client_auth();
+
+    let connector = TlsConnector::from(std::sync::Arc::new(config));
+
+    Ok(Protocol::new(connector.connect(ServerName::IpAddress(ip.into()), stream).await?))
 }
 
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]

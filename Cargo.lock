@@ -436,21 +436,8 @@ dependencies = [
  "futures-core",
  "futures-io",
  "rustls 0.18.1",
- "webpki 0.21.4",
+ "webpki",
  "webpki-roots 0.20.0",
-]
-
-[[package]]
-name = "async-tls"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2ae3c9eba89d472a0e4fe1dea433df78fbbe63d2b764addaf2ba3a6bde89a5e"
-dependencies = [
- "futures-core",
- "futures-io",
- "rustls 0.21.10",
- "rustls-pemfile 1.0.4",
- "webpki-roots 0.22.6",
 ]
 
 [[package]]
@@ -1207,13 +1194,12 @@ version = "0.8.0"
 dependencies = [
  "async-native-tls 0.5.0",
  "async-std",
- "async-tls 0.13.0",
  "distant-mel",
+ "futures-rustls 0.26.0",
  "melodium-core",
  "melodium-distributed",
  "melodium-macro",
  "melodium-sharing",
- "rustls 0.23.12",
  "std-mel",
 ]
 
@@ -1575,6 +1561,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures-rustls"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8f2f12607f92c69b12ed746fabf9ca4f5c482cba46679c1a75b874ed7c26adb"
+dependencies = [
+ "futures-io",
+ "rustls 0.23.12",
+ "rustls-pki-types",
+]
+
+[[package]]
 name = "futures-sink"
 version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1787,7 +1784,7 @@ dependencies = [
  "async-h1",
  "async-native-tls 0.3.3",
  "async-std",
- "async-tls 0.10.0",
+ "async-tls",
  "async-trait",
  "cfg-if",
  "dashmap",
@@ -3174,7 +3171,7 @@ dependencies = [
  "log",
  "ring 0.16.20",
  "sct 0.6.1",
- "webpki 0.21.4",
+ "webpki",
 ]
 
 [[package]]
@@ -3183,7 +3180,6 @@ version = "0.21.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9d5a6813c0759e4609cd494e8e725babae6a2ca7b62a5536a13daaec6fcb7ba"
 dependencies = [
- "log",
  "ring 0.17.8",
  "rustls-webpki 0.101.7",
  "sct 0.7.1",
@@ -3214,7 +3210,6 @@ dependencies = [
  "rustls-webpki 0.102.6",
  "subtle",
  "zeroize",
- "zlib-rs",
 ]
 
 [[package]]
@@ -4316,7 +4311,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab16b64a5502f3d09869f6c6d3ce6400a5322dadee30f380649234dcd2527e85"
 dependencies = [
- "futures-rustls",
+ "futures-rustls 0.25.1",
  "log",
  "rustls 0.22.2",
  "rustls-native-certs",
@@ -4585,31 +4580,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "webpki"
-version = "0.22.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed63aea5ce73d0ff405984102c42de94fc55a6b75765d621c65262469b3c9b53"
-dependencies = [
- "ring 0.17.8",
- "untrusted 0.9.0",
-]
-
-[[package]]
 name = "webpki-roots"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f20dea7535251981a9670857150d571846545088359b28e4951d350bdaf179f"
 dependencies = [
- "webpki 0.21.4",
-]
-
-[[package]]
-name = "webpki-roots"
-version = "0.22.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6c71e40d7d2c34a5106301fb632274ca37242cd0c9d3e64dbece371a40a2d87"
-dependencies = [
- "webpki 0.22.4",
+ "webpki",
 ]
 
 [[package]]
@@ -4923,9 +4899,3 @@ dependencies = [
  "quote",
  "syn 2.0.49",
 ]
-
-[[package]]
-name = "zlib-rs"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e942bb8453553ee59b701f977d5331a512f8dd07906153bbe050cb9bb58a4811"
