@@ -1,8 +1,8 @@
 use crate::messages::Message;
 use async_std::io::{BufReader, BufWriter, Read, Write, WriteExt};
 use async_std::sync::Mutex;
-use futures::io::{ReadHalf, WriteHalf, AsyncReadExt};
 use core::fmt::Display;
+use futures::io::{AsyncReadExt, ReadHalf, WriteHalf};
 
 type Result<T> = std::result::Result<T, Error>;
 

@@ -1,10 +1,12 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
+#[cfg(any(target_env = "msvc", target_vendor = "apple"))]
+use async_native_tls::TlsStream;
 use async_std::channel::{unbounded, Receiver, Sender};
+use async_std::io::{Read, Write};
 use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
-use async_std::io::{Read, Write};
 use common::descriptor::{Entry, Treatment};
 use common::{
     descriptor::{Identifier, Version},
@@ -13,6 +15,11 @@ use common::{
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use distant_mel::*;
+#[cfg(any(
+    all(not(target_os = "windows"), not(target_vendor = "apple")),
+    all(target_os = "windows", target_env = "gnu")
+))]
+use futures_rustls::client::TlsStream;
 use melodium_core::*;
 use melodium_distributed::{
     AskDistribution, CloseInput, CloseOutput, InputData, Instanciate, InstanciateStatus,
@@ -25,10 +32,6 @@ use std::{
     sync::{Arc, Weak},
 };
 use std_mel::data::*;
-#[cfg(all(not(target_os = "windows"), not(target_vendor = "apple")))]
-use futures_rustls::client::TlsStream;
-#[cfg(any(target_env = "msvc", target_vendor = "apple"))]
-use async_native_tls::TlsStream;
 
 #[derive(Debug)]
 struct Track {
@@ -102,7 +105,7 @@ impl DistributionEngine {
                     Ok(protocol) => protocol,
                     Err(err) => {
                         self.distribution_failure(err.to_string()).await;
-                    return;
+                        return;
                     }
                 },
                 Err(err) => {
@@ -672,30 +675,65 @@ pub async fn send_block(name: string) {
     }
 }
 
-#[cfg(all(not(target_os = "windows"), not(target_vendor = "apple")))]
-async fn tls_stream<IO>(ip: std::net::IpAddr, stream: IO) -> std::io::Result<Protocol<TlsStream<IO>>>
-where IO: Read + Write + Unpin + Send {
+#[cfg(any(
+    all(not(target_os = "windows"), not(target_vendor = "apple")),
+    all(target_os = "windows", target_env = "gnu")
+))]
+async fn tls_stream<IO>(
+    ip: std::net::IpAddr,
+    stream: IO,
+) -> std::io::Result<Protocol<TlsStream<IO>>>
+where
+    IO: Read + Write + Unpin + Send,
+{
+    use futures_rustls::rustls::{
+        pki_types::{CertificateDer, ServerName},
+        version::TLS13,
+        ClientConfig, RootCertStore,
+    };
     use futures_rustls::TlsConnector;
-    use futures_rustls::rustls::{pki_types::{CertificateDer, ServerName}, version::TLS13, RootCertStore, ClientConfig};
 
     let mut root_store = RootCertStore::empty();
-    let truc = root_store.add_parsable_certificates([CertificateDer::from(melodium_distributed::ROOT_CERTIFICATE.as_slice())]);
+    let truc = root_store.add_parsable_certificates([CertificateDer::from(
+        melodium_distributed::ROOT_CERTIFICATE.as_slice(),
+    )]);
     eprintln!("Certifs: {truc:?}");
-    let config = ClientConfig::builder_with_protocol_versions(&[&TLS13]).with_root_certificates(root_store).with_no_client_auth();
+    let config = ClientConfig::builder_with_protocol_versions(&[&TLS13])
+        .with_root_certificates(root_store)
+        .with_no_client_auth();
 
     let connector = TlsConnector::from(std::sync::Arc::new(config));
 
-    Ok(Protocol::new(connector.connect(ServerName::IpAddress(ip.into()), stream).await?))
+    Ok(Protocol::new(
+        connector
+            .connect(ServerName::IpAddress(ip.into()), stream)
+            .await?,
+    ))
 }
 
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
-async fn tls_stream<IO>(ip: std::net::IpAddr, stream: IO) -> std::io::Result<Protocol<TlsStream<IO>>>
-where IO: Read + Write + Unpin + Send {
-    use async_native_tls::{TlsConnector, Protocol, Certificate};
-    use std::io::{ErrorKind, Error};
+async fn tls_stream<IO>(
+    ip: std::net::IpAddr,
+    stream: IO,
+) -> std::io::Result<Protocol<TlsStream<IO>>>
+where
+    IO: Read + Write + Unpin + Send,
+{
+    use async_native_tls::{Certificate, Protocol, TlsConnector};
+    use std::io::{Error, ErrorKind};
 
-    TlsConnector::new().min_protocol_version(Some(Protocol::Tlsv12)).add_root_certificate(Certificate::from_pem(melodium_distributed::ROOT_CERTIFICATE.as_slice()).map_err(|err| Error::new(ErrorKind::Other, err))?)
-    .connect(ip.to_string(), stream).await
+    match TlsConnector::new()
+        .min_protocol_version(Some(Protocol::Tlsv12))
+        .add_root_certificate(
+            Certificate::from_pem(melodium_distributed::ROOT_CERTIFICATE.as_slice())
+                .map_err(|err| Error::new(ErrorKind::Other, err))?,
+        )
+        .connect(ip.to_string(), stream)
+        .await
+    {
+        Ok(stream) => Ok(Protocol::new(stream)),
+        Err(err) => Err(err.into()),
+    }
 }
 
 mel_package!();

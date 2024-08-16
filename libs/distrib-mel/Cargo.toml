@@ -30,12 +30,7 @@ mock = []
 plugin = []
 real = []
 
-[target.'cfg(all(not(target_os = "windows"), not(target_vendor = "apple")))'.dependencies.futures-rustls]
-version = "0.26"
-default-features = false
-features = ["ring"]
-
-[target.'cfg(all(target_os = "windows", target_env = "gnu"))'.dependencies.futures-rustls]
+[target.'cfg(any(all(not(target_os = "windows"), not(target_vendor = "apple")), all(target_os = "windows", target_env = "gnu")))'.dependencies.futures-rustls]
 version = "0.26"
 default-features = false
 features = ["ring"]
