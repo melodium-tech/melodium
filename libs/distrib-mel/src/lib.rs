@@ -689,8 +689,13 @@ where IO: Read + Write + Unpin + Send {
 }
 
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
-fn tls_stream() -> Protocol<TlsStream<TcpStream>> {
+async fn tls_stream<IO>(ip: std::net::IpAddr, stream: IO) -> std::io::Result<Protocol<TlsStream<IO>>>
+where IO: Read + Write + Unpin + Send {
+    use async_native_tls::{TlsConnector, Protocol, Certificate};
+    use std::io::{ErrorKind, Error};
 
+    TlsConnector::new().min_protocol_version(Some(Protocol::Tlsv12)).add_root_certificate(Certificate::from_pem(melodium_distributed::ROOT_CERTIFICATE.as_slice()).map_err(|err| Error::new(ErrorKind::Other, err))?)
+    .connect(ip.to_string(), stream).await
 }
 
 mel_package!();
