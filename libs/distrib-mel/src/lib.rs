@@ -732,7 +732,7 @@ where
         .await
     {
         Ok(stream) => Ok(Protocol::new(stream)),
-        Err(err) => Err(err.into()),
+        Err(err) => Err(Error::new(ErrorKind::Other, err)),
     }
 }
 
