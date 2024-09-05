@@ -257,7 +257,7 @@ fn run(args: Run) {
 
         let params = parse_args(entry_name, treatment, arguments);
 
-        let launch = launch(collection, &identifier, params);
+        let launch = async_std::task::block_on(launch(collection, &identifier, params));
         if let Some(failure) = launch.failure() {
             eprintln!("{}: {failure}", "failure".bold().red());
         }
