@@ -40,12 +40,12 @@ impl From<async_std::io::Error> for Error {
 }
 
 #[derive(Debug)]
-pub struct Protocol<R: Read + Write + Unpin + Send> {
+pub struct Protocol<R: Read + Write + Unpin> {
     reader: Mutex<BufReader<ReadHalf<R>>>,
     writer: Mutex<BufWriter<WriteHalf<R>>>,
 }
 
-impl<R: Read + Write + Unpin + Send> Protocol<R> {
+impl<R: Read + Write + Unpin> Protocol<R> {
     pub fn new(rw: R) -> Self {
         let (read, write) = rw.split();
         Self {
