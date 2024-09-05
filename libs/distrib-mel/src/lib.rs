@@ -694,10 +694,9 @@ where
     use futures_rustls::TlsConnector;
 
     let mut root_store = RootCertStore::empty();
-    let truc = root_store.add_parsable_certificates([CertificateDer::from(
+    root_store.add_parsable_certificates([CertificateDer::from(
         melodium_distributed::ROOT_CERTIFICATE.as_slice(),
     )]);
-    eprintln!("Certifs: {truc:?}");
     let config = ClientConfig::builder_with_protocol_versions(&[&TLS13])
         .with_root_certificates(root_store)
         .with_no_client_auth();
@@ -719,11 +718,11 @@ async fn tls_stream<IO>(
 where
     IO: Read + Write + Unpin + Send,
 {
-    use async_native_tls::{Certificate, Protocol, TlsConnector};
+    use async_native_tls::{Certificate, Protocol as NativeTlsProtocol, TlsConnector};
     use std::io::{Error, ErrorKind};
 
     match TlsConnector::new()
-        .min_protocol_version(Some(Protocol::Tlsv12))
+        .min_protocol_version(Some(NativeTlsProtocol::Tlsv12))
         .add_root_certificate(
             Certificate::from_pem(melodium_distributed::ROOT_CERTIFICATE.as_slice())
                 .map_err(|err| Error::new(ErrorKind::Other, err))?,
