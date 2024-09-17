@@ -2276,9 +2276,11 @@ dependencies = [
 name = "melodium-distributed"
 version = "0.8.0"
 dependencies = [
+ "async-native-tls 0.5.0",
  "async-std",
  "ciborium",
  "futures",
+ "futures-rustls 0.26.0",
  "melodium-common",
  "melodium-engine",
  "melodium-loader",
