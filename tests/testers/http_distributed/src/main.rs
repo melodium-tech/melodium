@@ -35,7 +35,7 @@ fn main() {
     let _ = melodium.kill();
     let _ = melodium_distrib.kill();
 
-    eprintln!("failure.log: {}", std::fs::read_to_string("failure.log"));
+    eprintln!("failure.log: {}", std::fs::read_to_string("failure.log").unwrap_or("Rien".to_string()));
 
     if let Some(resp) = response {
         if resp.status() == 200 {
