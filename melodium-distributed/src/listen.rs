@@ -33,7 +33,7 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
     let listener = TcpListener::bind(bind).await.unwrap();
     let (stream, _addr) = listener.accept().await.unwrap();
 
-    let acceptor = acceptor().unwrap();
+    let acceptor = acceptor().await.unwrap();
 
     let stream = acceptor.accept(stream).await.unwrap();
 
@@ -312,7 +312,7 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
     all(not(target_os = "windows"), not(target_vendor = "apple")),
     all(target_os = "windows", target_env = "gnu")
 ))]
-fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
+async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
     use futures_rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 
     Ok(TlsAcceptor::from(Arc::new(
@@ -334,6 +334,6 @@ fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
 }
 
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
-fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
-    TlsAcceptor::new(LOCALHOST_CHAIN.as_slice(), "lyoko")?
+async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
+    TlsAcceptor::new(LOCALHOST_CHAIN.as_slice(), "lyoko").await?
 }
