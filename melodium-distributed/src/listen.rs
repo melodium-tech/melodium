@@ -335,5 +335,27 @@ async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
 
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
 async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
+    #[cfg(target_os = "windows")]
+    {
+        let store = schannel::cert_store::PfxImportOptions::new()
+            .password(pass)
+            .import(buf)?;
+        let mut identity = None;
+
+        for cert in store.certs() {
+            eprintln!("Cert: {cert}");
+            if cert
+                .private_key()
+                .silent(true)
+                .compare_key(true)
+                .acquire()
+                .is_ok()
+            {
+                identity = Some(cert);
+                break;
+            }
+        }
+        eprintln!("Identity: {identity}");
+    }
     Ok(TlsAcceptor::new(LOCALHOST_CHAIN.as_slice(), "lyoko").await?)
 }

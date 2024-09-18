@@ -34,3 +34,6 @@ features = ["ring"]
 [target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.async-native-tls]
 version = "0.5"
 
+[target.'cfg(target_os = "windows")'.dependencies]
+schannel = {version = "0.1.15"}
+

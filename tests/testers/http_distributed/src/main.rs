@@ -22,7 +22,7 @@ fn main() {
     let mut response = None;
 
     for trial in 0..3 {
-        sleep(Duration::from_millis(200));
+        sleep(Duration::from_millis(500));
         match ureq::post("http://localhost:8080/hello")
             .set("Content-Type", "text/plain")
             .send_bytes(r#""Pingouin""#.as_bytes())
@@ -34,6 +34,8 @@ fn main() {
 
     let _ = melodium.kill();
     let _ = melodium_distrib.kill();
+
+    eprintln!("failure.log: {}", std::fs::read_to_string("failure.log"));
 
     if let Some(resp) = response {
         if resp.status() == 200 {
