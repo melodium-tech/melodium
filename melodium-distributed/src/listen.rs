@@ -26,7 +26,8 @@ use std::{
 
 pub const INTERMEDIATE_CERTIFICATE: &[u8; 1678] = include_bytes!("../melodium-ica.der");
 pub const LOCALHOST_CERTIFICATE: &[u8; 1339] = include_bytes!("../melodium-localhost.der");
-pub const LOCALHOST_KEY: &[u8; 2349] = include_bytes!("../melodium-localhost.key.der");
+pub const LOCALHOST_KEY: &[u8; 2350] = include_bytes!("../melodium-localhost.key.der");
+pub const LOCALHOST_CHAIN: &[u8; 4101] = include_bytes!("../melodium-localhost.pfx");
 
 pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) {
     let listener = TcpListener::bind(bind).await.unwrap();
@@ -333,4 +334,6 @@ fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
 }
 
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
-fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {}
+fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
+    TlsAcceptor::new(LOCALHOST_CHAIN.as_slice(), "lyoko")?
+}
