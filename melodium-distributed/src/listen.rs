@@ -25,9 +25,9 @@ use std::{
 };
 
 pub const INTERMEDIATE_CERTIFICATE: &[u8; 1678] = include_bytes!("../melodium-ica.der");
-pub const LOCALHOST_CERTIFICATE: &[u8; 1339] = include_bytes!("../melodium-localhost.der");
-pub const LOCALHOST_KEY: &[u8; 2350] = include_bytes!("../melodium-localhost.key.der");
-pub const LOCALHOST_CHAIN: &[u8; 4101] = include_bytes!("../melodium-localhost.pfx");
+pub const LOCALHOST_CERTIFICATE: &[u8; 1722] = include_bytes!("../melodium-localhost.der");
+pub const LOCALHOST_KEY: &[u8; 2376] = include_bytes!("../melodium-localhost.key.der");
+pub const LOCALHOST_CHAIN: &[u8; 4485] = include_bytes!("../melodium-localhost.pfx");
 
 pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) {
     let listener = TcpListener::bind(bind).await.unwrap();
@@ -322,9 +322,9 @@ async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
         .with_no_client_auth()
         .with_single_cert(
             vec![
-                CertificateDer::from(crate::ROOT_CERTIFICATE.as_slice()),
-                CertificateDer::from(INTERMEDIATE_CERTIFICATE.as_slice()),
                 CertificateDer::from(LOCALHOST_CERTIFICATE.as_slice()),
+                CertificateDer::from(INTERMEDIATE_CERTIFICATE.as_slice()),
+                CertificateDer::from(crate::ROOT_CERTIFICATE.as_slice()),
             ],
             futures_rustls::pki_types::PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
                 LOCALHOST_KEY.as_slice(),
@@ -335,5 +335,5 @@ async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
 
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
 async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
-    TlsAcceptor::new(LOCALHOST_CHAIN.as_slice(), "lyoko").await?
+    Ok(TlsAcceptor::new(LOCALHOST_CHAIN.as_slice(), "lyoko").await?)
 }

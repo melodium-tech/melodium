@@ -702,7 +702,6 @@ where
         .with_no_client_auth();
 
     let connector = TlsConnector::from(std::sync::Arc::new(config));
-
     Ok(Protocol::new(
         connector
             .connect(ServerName::IpAddress(ip.into()), stream)
