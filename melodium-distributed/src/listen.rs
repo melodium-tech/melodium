@@ -27,7 +27,7 @@ use std::{
 pub const INTERMEDIATE_CERTIFICATE: &[u8; 1678] = include_bytes!("../melodium-ica.der");
 pub const LOCALHOST_CERTIFICATE: &[u8; 1722] = include_bytes!("../melodium-localhost.der");
 pub const LOCALHOST_KEY: &[u8; 2376] = include_bytes!("../melodium-localhost.key.der");
-pub const LOCALHOST_CHAIN: &[u8; 4485] = include_bytes!("../melodium-localhost.pfx");
+pub const LOCALHOST_CHAIN: &[u8; 6205] = include_bytes!("../melodium-localhost.pfx");
 
 pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) {
     let listener = TcpListener::bind(bind).await.unwrap();
