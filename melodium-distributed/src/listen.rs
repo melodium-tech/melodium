@@ -338,12 +338,12 @@ async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
     #[cfg(target_os = "windows")]
     {
         let store = schannel::cert_store::PfxImportOptions::new()
-            .password(pass)
-            .import(buf)?;
+            .password("lyoko")
+            .import(LOCALHOST_CHAIN.as_slice())?;
         let mut identity = None;
 
         for cert in store.certs() {
-            eprintln!("Cert: {cert}");
+            eprintln!("Cert: {cert:?}");
             if cert
                 .private_key()
                 .silent(true)
@@ -355,7 +355,7 @@ async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
                 break;
             }
         }
-        eprintln!("Identity: {identity}");
+        eprintln!("Identity: {identity:?}");
     }
     Ok(TlsAcceptor::new(LOCALHOST_CHAIN.as_slice(), "lyoko").await?)
 }
