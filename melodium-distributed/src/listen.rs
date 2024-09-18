@@ -337,7 +337,7 @@ async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
 async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
     let identity = native_tls::Identity::from_pkcs8(
         include_bytes!("../melodium-chain.pem").as_slice(),
-        include_bytes!("../melodium-localhost.key").as_slice(),
+        include_bytes!("../melodium-localhost.key.pem").as_slice(),
     )?;
     let acceptor = native_tls::TlsAcceptor::new(identity)?;
     Ok(TlsAcceptor::from(acceptor))
