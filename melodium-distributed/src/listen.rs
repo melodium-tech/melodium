@@ -1,21 +1,17 @@
 use crate::error::DistributionResult;
-use crate::{messages::*, messages, VERSION};
 use crate::protocol::Protocol;
-use std::{
-    collections::{HashMap, VecDeque},
-    sync::Arc,
-};
-#[cfg(any(
-    all(not(target_os = "windows"), not(target_vendor = "apple")),
-    all(target_os = "windows", target_env = "gnu")
-))]
-use futures_rustls::TlsAcceptor;
+use crate::{messages, messages::*, VERSION};
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
 use async_native_tls::TlsAcceptor;
 use async_std::{
     net::{SocketAddr, TcpListener},
     sync::RwLock as AsyncRwLock,
 };
+#[cfg(any(
+    all(not(target_os = "windows"), not(target_vendor = "apple")),
+    all(target_os = "windows", target_env = "gnu")
+))]
+use futures_rustls::TlsAcceptor;
 use melodium_common::{
     descriptor::{Entry, Identifier, Model as CommonModel, Treatment as CommonTreatment, Version},
     executive::{ResultStatus, TransmissionValue, Value},
@@ -23,10 +19,14 @@ use melodium_common::{
 use melodium_engine::descriptor::{Model, Treatment};
 use melodium_loader::Loader;
 use melodium_sharing::{SharingError, SharingResult};
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::Arc,
+};
 
-pub const INTERMEDIATE_CERTIFICATE: &[u8; 2329] = include_bytes!("../melodium-ica.pem");
-pub const LOCALHOST_CERTIFICATE: &[u8; 1870] = include_bytes!("../melodium-localhost.pem");
-pub const LOCALHOST_KEY: &[u8; 3243] = include_bytes!("../melodium-localhost.key");
+pub const INTERMEDIATE_CERTIFICATE: &[u8; 1678] = include_bytes!("../melodium-ica.der");
+pub const LOCALHOST_CERTIFICATE: &[u8; 1339] = include_bytes!("../melodium-localhost.der");
+pub const LOCALHOST_KEY: &[u8; 2349] = include_bytes!("../melodium-localhost.key.der");
 
 pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) {
     let listener = TcpListener::bind(bind).await.unwrap();
@@ -314,16 +314,23 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
 fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
     use futures_rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 
-    Ok(TlsAcceptor::from(Arc::new(futures_rustls::rustls::ServerConfig::builder_with_protocol_versions(&[&futures_rustls::rustls::version::TLS13]).with_no_client_auth().with_single_cert(vec![CertificateDer::from(
-        crate::ROOT_CERTIFICATE.as_slice(),
-    ),CertificateDer::from(
-        INTERMEDIATE_CERTIFICATE.as_slice(),
-    ),CertificateDer::from(
-        LOCALHOST_CERTIFICATE.as_slice(),
-    )], futures_rustls::pki_types::PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(LOCALHOST_KEY.as_slice())))?)))
+    Ok(TlsAcceptor::from(Arc::new(
+        futures_rustls::rustls::ServerConfig::builder_with_protocol_versions(&[
+            &futures_rustls::rustls::version::TLS13,
+        ])
+        .with_no_client_auth()
+        .with_single_cert(
+            vec![
+                CertificateDer::from(crate::ROOT_CERTIFICATE.as_slice()),
+                CertificateDer::from(INTERMEDIATE_CERTIFICATE.as_slice()),
+                CertificateDer::from(LOCALHOST_CERTIFICATE.as_slice()),
+            ],
+            futures_rustls::pki_types::PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
+                LOCALHOST_KEY.as_slice(),
+            )),
+        )?,
+    )))
 }
 
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
-fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
-
-}
+fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {}
