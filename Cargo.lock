@@ -2285,7 +2285,7 @@ dependencies = [
  "melodium-engine",
  "melodium-loader",
  "melodium-sharing",
- "schannel",
+ "native-tls",
  "serde",
 ]
 

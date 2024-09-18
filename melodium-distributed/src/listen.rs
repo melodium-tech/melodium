@@ -335,27 +335,11 @@ async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
 
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
 async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
-    #[cfg(target_os = "windows")]
-    {
-        let store = schannel::cert_store::PfxImportOptions::new()
-            .password("lyoko")
-            .import(LOCALHOST_CHAIN.as_slice())?;
-        let mut identity = None;
-
-        for cert in store.certs() {
-            eprintln!("Cert: {cert:?}");
-            if cert
-                .private_key()
-                .silent(true)
-                .compare_key(true)
-                .acquire()
-                .is_ok()
-            {
-                identity = Some(cert);
-                break;
-            }
-        }
-        eprintln!("Identity: {identity:?}");
-    }
-    Ok(TlsAcceptor::new(LOCALHOST_CHAIN.as_slice(), "lyoko").await?)
+    let identity = native_tls::Identity::from_pkcs8(
+        include_bytes!("../melodium-chain.pem").as_slice(),
+        include_bytes!("../melodium-localhost.key").as_slice(),
+    )?;
+    let acceptor = native_tls::TlsAcceptor::new(identity)?;
+    Ok(TlsAcceptor::from(acceptor))
+    //Ok(TlsAcceptor::new(LOCALHOST_CHAIN.as_slice(), "lyoko").await?)
 }
