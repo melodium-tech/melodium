@@ -723,7 +723,7 @@ where
     match TlsConnector::new()
         .min_protocol_version(Some(NativeTlsProtocol::Tlsv12))
         .add_root_certificate(
-            Certificate::from_der(melodium_distributed::ROOT_CERTIFICATE.as_slice())
+            Certificate::from_pem(melodium_distributed::ROOT_CERTIFICATE_PEM.as_slice())
                 .map_err(|err| Error::new(ErrorKind::Other, err))?,
         )
         .connect(ip.to_string(), stream)
