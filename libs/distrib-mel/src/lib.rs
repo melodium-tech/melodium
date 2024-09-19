@@ -694,9 +694,7 @@ where
     use futures_rustls::TlsConnector;
 
     let mut root_store = RootCertStore::empty();
-    root_store.add_parsable_certificates([CertificateDer::from(
-        melodium_distributed::ROOT_CERTIFICATE.as_slice(),
-    )]);
+    root_store.add_parsable_certificates(rustls_pemfile::certs(&mut melodium_distributed::ROOT_CERTIFICATE.as_slice()).filter_map(|cert| cert.ok()));
     let config = ClientConfig::builder_with_protocol_versions(&[&TLS13])
         .with_root_certificates(root_store)
         .with_no_client_auth();
@@ -723,7 +721,7 @@ where
     match TlsConnector::new()
         .min_protocol_version(Some(NativeTlsProtocol::Tlsv12))
         .add_root_certificate(
-            Certificate::from_pem(melodium_distributed::ROOT_CERTIFICATE_PEM.as_slice())
+            Certificate::from_pem(melodium_distributed::ROOT_CERTIFICATE.as_slice())
                 .map_err(|err| Error::new(ErrorKind::Other, err))?,
         )
         .connect(ip.to_string(), stream)
