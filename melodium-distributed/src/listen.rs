@@ -315,20 +315,23 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
 async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
     use futures_rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
 
+    let certs = rustls_pemfile::certs(&mut include_bytes!("../melodium-chain.pem").as_slice()).filter_map(|res| res.ok()).collect();
+    let key = rustls_pemfile::pkcs8_private_keys(&mut include_bytes!("../melodium-localhost.key.pem").as_slice()).next().unwrap()?;
+
     Ok(TlsAcceptor::from(Arc::new(
         futures_rustls::rustls::ServerConfig::builder_with_protocol_versions(&[
             &futures_rustls::rustls::version::TLS13,
         ])
         .with_no_client_auth()
-        .with_single_cert(
-            vec![
+        .with_single_cert(certs
+            /*vec![
                 CertificateDer::from(LOCALHOST_CERTIFICATE.as_slice()),
                 CertificateDer::from(INTERMEDIATE_CERTIFICATE.as_slice()),
                 CertificateDer::from(crate::ROOT_CERTIFICATE.as_slice()),
-            ],
-            futures_rustls::pki_types::PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
+            ]*/,
+            futures_rustls::pki_types::PrivateKeyDer::Pkcs8(key/*PrivatePkcs8KeyDer::from(
                 LOCALHOST_KEY.as_slice(),
-            )),
+            )*/),
         )?,
     )))
 }
