@@ -395,7 +395,7 @@ fn dist(args: Dist) {
 
     let bind = SocketAddr::new(IpAddr::from_str(&args.ip).unwrap(), args.port);
 
-    async_std::task::block_on(melodium_distributed::launch_listen(
+    async_std::task::block_on(melodium_distributed::launch_listen_localcert(
         bind,
         &Version::parse(melodium::VERSION).unwrap(),
         loader,

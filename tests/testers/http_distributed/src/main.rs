@@ -3,6 +3,11 @@ use std::thread::sleep;
 use std::time::Duration;
 
 fn main() {
+    if env::var("CI").is_ok() && cfg!(target_env = "msvc") {
+        // On CI for Windows MSVC, for now, we skip tests involving TLS because schannel is not able to register custom certificates.
+        exit(0);
+    }
+
     let mut melodium_distrib = Command::new("melodium")
         .arg("dist")
         .arg("--ip")

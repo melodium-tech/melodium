@@ -4,6 +4,7 @@ use crate::{messages, messages::*, VERSION};
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
 use async_native_tls::TlsAcceptor;
 use async_std::{
+    io::{Read, Write},
     net::{SocketAddr, TcpListener},
     sync::RwLock as AsyncRwLock,
 };
@@ -24,19 +25,49 @@ use std::{
     sync::Arc,
 };
 
-pub const INTERMEDIATE_CERTIFICATE: &[u8; 1678] = include_bytes!("../melodium-ica.der");
-pub const LOCALHOST_CERTIFICATE: &[u8; 1722] = include_bytes!("../melodium-localhost.der");
-pub const LOCALHOST_KEY: &[u8; 2376] = include_bytes!("../melodium-localhost.key.der");
-pub const LOCALHOST_CHAIN: &[u8; 7757] = include_bytes!("../melodium-localhost.pfx");
+const CERTIFICATE_CHAIN: &[u8; 4715] = include_bytes!("../melodium-chain.pem");
+const LOCALHOST_KEY: &[u8; 3272] = include_bytes!("../melodium-localhost.key.pem");
 
-pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) {
+pub async fn launch_listen(
+    bind: SocketAddr,
+    certificate_chain: &[u8],
+    key: &[u8],
+    version: &Version,
+    loader: Loader,
+) {
     let listener = TcpListener::bind(bind).await.unwrap();
     let (stream, _addr) = listener.accept().await.unwrap();
 
-    let acceptor = acceptor().await.unwrap();
+    let acceptor = acceptor(certificate_chain, key).unwrap();
 
     let stream = acceptor.accept(stream).await.unwrap();
 
+    launch_listen_stream(stream, version, loader).await
+}
+
+pub async fn launch_listen_localcert(bind: SocketAddr, version: &Version, loader: Loader) {
+    launch_listen(
+        bind,
+        CERTIFICATE_CHAIN.as_slice(),
+        LOCALHOST_KEY.as_slice(),
+        version,
+        loader,
+    )
+    .await
+}
+
+pub async fn launch_listen_unsecure(bind: SocketAddr, version: &Version, loader: Loader) {
+    let listener = TcpListener::bind(bind).await.unwrap();
+    let (stream, _addr) = listener.accept().await.unwrap();
+
+    launch_listen_stream(stream, version, loader).await
+}
+
+async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
+    stream: S,
+    version: &Version,
+    loader: Loader,
+) {
     let protocol = Arc::new(Protocol::new(stream));
 
     match protocol.recv_message().await {
@@ -312,37 +343,32 @@ pub async fn launch_listen(bind: SocketAddr, version: &Version, loader: Loader) 
     all(not(target_os = "windows"), not(target_vendor = "apple")),
     all(target_os = "windows", target_env = "gnu")
 ))]
-async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
-    use futures_rustls::pki_types::{CertificateDer, PrivatePkcs8KeyDer};
-
-    let certs = rustls_pemfile::certs(&mut include_bytes!("../melodium-chain.pem").as_slice()).filter_map(|res| res.ok()).collect();
-    let key = rustls_pemfile::pkcs8_private_keys(&mut include_bytes!("../melodium-localhost.key.pem").as_slice()).next().unwrap()?;
+fn acceptor(
+    mut certificate_chain: &[u8],
+    mut key: &[u8],
+) -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
+    let certs = rustls_pemfile::certs(&mut certificate_chain)
+        .filter_map(|res| res.ok())
+        .collect();
+    let key = rustls_pemfile::pkcs8_private_keys(&mut key)
+        .next()
+        .unwrap()?;
 
     Ok(TlsAcceptor::from(Arc::new(
         futures_rustls::rustls::ServerConfig::builder_with_protocol_versions(&[
             &futures_rustls::rustls::version::TLS13,
         ])
         .with_no_client_auth()
-        .with_single_cert(certs
-            /*vec![
-                CertificateDer::from(LOCALHOST_CERTIFICATE.as_slice()),
-                CertificateDer::from(INTERMEDIATE_CERTIFICATE.as_slice()),
-                CertificateDer::from(crate::ROOT_CERTIFICATE.as_slice()),
-            ]*/,
-            futures_rustls::pki_types::PrivateKeyDer::Pkcs8(key/*PrivatePkcs8KeyDer::from(
-                LOCALHOST_KEY.as_slice(),
-            )*/),
-        )?,
+        .with_single_cert(certs, futures_rustls::pki_types::PrivateKeyDer::Pkcs8(key))?,
     )))
 }
 
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
-async fn acceptor() -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
-    let identity = native_tls::Identity::from_pkcs8(
-        include_bytes!("../melodium-chain.pem").as_slice(),
-        include_bytes!("../melodium-localhost.key.pem").as_slice(),
-    )?;
+fn acceptor(
+    certificate_chain: &[u8],
+    key: &[u8],
+) -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
+    let identity = native_tls::Identity::from_pkcs8(certificate_chain, key)?;
     let acceptor = native_tls::TlsAcceptor::new(identity)?;
     Ok(TlsAcceptor::from(acceptor))
-    //Ok(TlsAcceptor::new(LOCALHOST_CHAIN.as_slice(), "lyoko").await?)
 }

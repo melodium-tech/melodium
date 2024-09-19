@@ -687,14 +687,15 @@ where
     IO: Read + Write + Unpin + Send,
 {
     use futures_rustls::rustls::{
-        pki_types::{CertificateDer, ServerName},
-        version::TLS13,
-        ClientConfig, RootCertStore,
+        pki_types::ServerName, version::TLS13, ClientConfig, RootCertStore,
     };
     use futures_rustls::TlsConnector;
 
     let mut root_store = RootCertStore::empty();
-    root_store.add_parsable_certificates(rustls_pemfile::certs(&mut melodium_distributed::ROOT_CERTIFICATE.as_slice()).filter_map(|cert| cert.ok()));
+    root_store.add_parsable_certificates(
+        rustls_pemfile::certs(&mut melodium_distributed::ROOT_CERTIFICATE.as_slice())
+            .filter_map(|cert| cert.ok()),
+    );
     let config = ClientConfig::builder_with_protocol_versions(&[&TLS13])
         .with_root_certificates(root_store)
         .with_no_client_auth();
