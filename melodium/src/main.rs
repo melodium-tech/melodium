@@ -10,9 +10,9 @@ use melodium_lang::{
     semantic::{NoneDeclarativeElement, Value as SemanticValue},
     text::{get_words, Value as TextValue},
 };
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::{collections::HashMap, sync::RwLock};
+use std::{net::IpAddr, path::PathBuf};
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -84,10 +84,19 @@ struct Info {
 struct Dist {
     #[clap(short, long)]
     /// IP to listen on.
-    ip: String,
+    ip: Option<IpAddr>,
     #[clap(short, long)]
     /// Port to listen on.
     port: u16,
+    #[clap(short, long)]
+    /// Certificate chain to use for TLS encryption (PEM format).
+    certificate: Option<String>,
+    /// Key to use for TLS encryption (PKCS8 PEM format).
+    #[clap(short, long)]
+    key: Option<String>,
+    /// Listen localhost, using embedded certificate.
+    #[clap(long, action)]
+    localhost: bool,
 }
 
 #[cfg(not(feature = "distributed"))]
@@ -386,20 +395,57 @@ fn info(args: Info) {
 
 #[cfg(feature = "distributed")]
 fn dist(args: Dist) {
-    use core::str::FromStr;
-    use std::net::{IpAddr, SocketAddr};
-
     use melodium_common::descriptor::Version;
+    use std::net::{Ipv4Addr, SocketAddr};
 
     let loader = melodium_loader::Loader::new(core_config());
 
-    let bind = SocketAddr::new(IpAddr::from_str(&args.ip).unwrap(), args.port);
-
-    async_std::task::block_on(melodium_distributed::launch_listen_localcert(
-        bind,
-        &Version::parse(melodium::VERSION).unwrap(),
-        loader,
-    ));
+    if args.localhost {
+        match (args.certificate, args.key) {
+            (None, None) => {
+                async_std::task::block_on(melodium_distributed::launch_listen_localcert(
+                    SocketAddr::new(Ipv4Addr::LOCALHOST.into(), args.port),
+                    &Version::parse(melodium::VERSION).unwrap(),
+                    loader,
+                ))
+            }
+            (Some(certificate), Some(key)) => {
+                async_std::task::block_on(melodium_distributed::launch_listen(
+                    SocketAddr::new(Ipv4Addr::LOCALHOST.into(), args.port),
+                    certificate.as_bytes(),
+                    key.as_bytes(),
+                    &Version::parse(melodium::VERSION).unwrap(),
+                    loader,
+                ))
+            }
+            (_, _) => {
+                eprintln!(
+                    "{}: certificate and key must be specified together",
+                    "error".bold().red()
+                );
+                return;
+            }
+        }
+    } else {
+        match (args.ip, args.certificate, args.key) {
+            (Some(ip), Some(certificate), Some(key)) => {
+                async_std::task::block_on(melodium_distributed::launch_listen(
+                    SocketAddr::new(ip, args.port),
+                    certificate.as_bytes(),
+                    key.as_bytes(),
+                    &Version::parse(melodium::VERSION).unwrap(),
+                    loader,
+                ))
+            }
+            (_, _, _) => {
+                eprintln!(
+                    "{}: ip address to bind on, certificate, and key must be specified together",
+                    "error".bold().red()
+                );
+                return;
+            }
+        }
+    }
 }
 
 #[cfg(feature = "doc")]
