@@ -10,8 +10,7 @@ fn main() {
 
     let mut melodium_distrib = Command::new("melodium")
         .arg("dist")
-        .arg("--ip")
-        .arg("127.0.0.1")
+        .arg("--localhost")
         .arg("--port")
         .arg("28014")
         .spawn()
