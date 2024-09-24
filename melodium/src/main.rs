@@ -88,11 +88,11 @@ struct Dist {
     #[clap(short, long)]
     /// Port to listen on.
     port: u16,
-    #[clap(short, long)]
+    #[clap(short, long, allow_hyphen_values = true)]
     /// Certificate chain to use for TLS encryption (PEM format).
     certificate: Option<String>,
     /// Key to use for TLS encryption (PKCS8 PEM format).
-    #[clap(short, long)]
+    #[clap(short, long, allow_hyphen_values = true)]
     key: Option<String>,
     /// Listen localhost, using embedded certificate.
     #[clap(long, action)]
