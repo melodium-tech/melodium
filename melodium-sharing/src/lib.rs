@@ -39,7 +39,7 @@ pub use function::Function;
 pub use generic::Generic;
 pub use identifier::Identifier;
 pub use input::Input;
-pub use model::Model;
+pub use model::{Model, ModelImplementationKind};
 pub use model_design::ModelDesign;
 pub use model_instanciation_design::ModelInstanciationDesign;
 pub use output::Output;
