@@ -36,7 +36,7 @@ default-features = false
 features = ["ring"]
 
 [target.'cfg(any(all(not(target_os = "windows"), not(target_vendor = "apple")), all(target_os = "windows", target_env = "gnu")))'.dependencies.rustls-pemfile]
-version = "2.1.3"
+version = "^2"
 
 [target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.async-native-tls]
 version = "0.5"
