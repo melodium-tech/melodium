@@ -410,10 +410,30 @@ fn dist(args: Dist) {
                 ))
             }
             (Some(certificate), Some(key)) => {
+                let cert_content = match std::fs::read(&certificate) {
+                    Ok(cert) => cert,
+                    Err(err) => {
+                        eprintln!(
+                            "{}: '{certificate}': {err}",
+                            "error".bold().red()
+                        );
+                        return;
+                    }
+                };
+                let key_content = match std::fs::read(&key) {
+                    Ok(key) => key,
+                    Err(err) => {
+                        eprintln!(
+                            "{}: '{key}': {err}",
+                            "error".bold().red()
+                        );
+                        return;
+                    }
+                };
                 async_std::task::block_on(melodium_distributed::launch_listen(
                     SocketAddr::new(Ipv4Addr::LOCALHOST.into(), args.port),
-                    certificate.as_bytes(),
-                    key.as_bytes(),
+                    &cert_content,
+                    &key_content,
                     &Version::parse(melodium::VERSION).unwrap(),
                     loader,
                 ))
@@ -429,10 +449,30 @@ fn dist(args: Dist) {
     } else {
         match (args.ip, args.certificate, args.key) {
             (Some(ip), Some(certificate), Some(key)) => {
+                let cert_content = match std::fs::read(&certificate) {
+                    Ok(cert) => cert,
+                    Err(err) => {
+                        eprintln!(
+                            "{}: '{certificate}': {err}",
+                            "error".bold().red()
+                        );
+                        return;
+                    }
+                };
+                let key_content = match std::fs::read(&key) {
+                    Ok(key) => key,
+                    Err(err) => {
+                        eprintln!(
+                            "{}: '{key}': {err}",
+                            "error".bold().red()
+                        );
+                        return;
+                    }
+                };
                 async_std::task::block_on(melodium_distributed::launch_listen(
                     SocketAddr::new(ip, args.port),
-                    certificate.as_bytes(),
-                    key.as_bytes(),
+                    &cert_content,
+                    &key_content,
                     &Version::parse(melodium::VERSION).unwrap(),
                     loader,
                 ))
