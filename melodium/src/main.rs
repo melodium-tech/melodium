@@ -97,6 +97,12 @@ struct Dist {
     /// Listen localhost, using embedded certificate.
     #[clap(long, action)]
     localhost: bool,
+    /// Time (in seconds) to wait for a distant engine to connect.
+    #[clap(long, default_value = None)]
+    wait: Option<u64>,
+    /// Maximal duration (in seconds) for work to be made.
+    #[clap(long, default_value = None)]
+    duration: Option<u64>,
 }
 
 #[cfg(not(feature = "distributed"))]
@@ -395,6 +401,7 @@ fn info(args: Info) {
 
 #[cfg(feature = "distributed")]
 fn dist(args: Dist) {
+    use core::time::Duration;
     use melodium_common::descriptor::Version;
     use std::net::{Ipv4Addr, SocketAddr};
 
@@ -407,26 +414,22 @@ fn dist(args: Dist) {
                     SocketAddr::new(Ipv4Addr::LOCALHOST.into(), args.port),
                     &Version::parse(melodium::VERSION).unwrap(),
                     loader,
+                    args.wait.map(|secs| Duration::from_secs(secs)),
+                    args.duration.map(|secs| Duration::from_secs(secs)),
                 ))
             }
             (Some(certificate), Some(key)) => {
                 let cert_content = match std::fs::read(&certificate) {
                     Ok(cert) => cert,
                     Err(err) => {
-                        eprintln!(
-                            "{}: '{certificate}': {err}",
-                            "error".bold().red()
-                        );
+                        eprintln!("{}: '{certificate}': {err}", "error".bold().red());
                         return;
                     }
                 };
                 let key_content = match std::fs::read(&key) {
                     Ok(key) => key,
                     Err(err) => {
-                        eprintln!(
-                            "{}: '{key}': {err}",
-                            "error".bold().red()
-                        );
+                        eprintln!("{}: '{key}': {err}", "error".bold().red());
                         return;
                     }
                 };
@@ -436,6 +439,8 @@ fn dist(args: Dist) {
                     &key_content,
                     &Version::parse(melodium::VERSION).unwrap(),
                     loader,
+                    args.wait.map(|secs| Duration::from_secs(secs)),
+                    args.duration.map(|secs| Duration::from_secs(secs)),
                 ))
             }
             (_, _) => {
@@ -452,20 +457,14 @@ fn dist(args: Dist) {
                 let cert_content = match std::fs::read(&certificate) {
                     Ok(cert) => cert,
                     Err(err) => {
-                        eprintln!(
-                            "{}: '{certificate}': {err}",
-                            "error".bold().red()
-                        );
+                        eprintln!("{}: '{certificate}': {err}", "error".bold().red());
                         return;
                     }
                 };
                 let key_content = match std::fs::read(&key) {
                     Ok(key) => key,
                     Err(err) => {
-                        eprintln!(
-                            "{}: '{key}': {err}",
-                            "error".bold().red()
-                        );
+                        eprintln!("{}: '{key}': {err}", "error".bold().red());
                         return;
                     }
                 };
@@ -475,6 +474,8 @@ fn dist(args: Dist) {
                     &key_content,
                     &Version::parse(melodium::VERSION).unwrap(),
                     loader,
+                    args.wait.map(|secs| Duration::from_secs(secs)),
+                    args.duration.map(|secs| Duration::from_secs(secs)),
                 ))
             }
             (_, _, _) => {

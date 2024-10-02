@@ -4,10 +4,12 @@ use crate::{messages, messages::*, VERSION};
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
 use async_native_tls::TlsAcceptor;
 use async_std::{
+    future::timeout,
     io::{Read, Write},
     net::{SocketAddr, TcpListener},
     sync::RwLock as AsyncRwLock,
 };
+use core::time::Duration;
 #[cfg(any(
     all(not(target_os = "windows"), not(target_vendor = "apple")),
     all(target_os = "windows", target_env = "gnu")
@@ -34,39 +36,81 @@ pub async fn launch_listen(
     key: &[u8],
     version: &Version,
     loader: Loader,
+    wait_for: Option<Duration>,
+    max_duration: Option<Duration>,
 ) {
-    let listener = TcpListener::bind(bind).await.unwrap();
-    let (stream, _addr) = listener.accept().await.unwrap();
-
     let acceptor = acceptor(certificate_chain, key).unwrap();
+    let listener = TcpListener::bind(bind).await.unwrap();
 
-    let stream = acceptor.accept(stream).await.unwrap();
+    let accept_stream = async {
+        let (stream, _addr) = listener.accept().await.unwrap();
 
-    launch_listen_stream(stream, version, loader).await
+        acceptor.accept(stream).await.unwrap()
+    };
+
+    let stream = if let Some(wait_for) = wait_for {
+        match timeout(wait_for, accept_stream).await {
+            Ok(stream) => stream,
+            Err(_) => return,
+        }
+    } else {
+        accept_stream.await
+    };
+
+    launch_listen_stream(stream, version, loader, max_duration).await
 }
 
-pub async fn launch_listen_localcert(bind: SocketAddr, version: &Version, loader: Loader) {
+pub async fn launch_listen_localcert(
+    bind: SocketAddr,
+    version: &Version,
+    loader: Loader,
+    wait_for: Option<Duration>,
+    max_duration: Option<Duration>,
+) {
     launch_listen(
         bind,
         CERTIFICATE_CHAIN.as_slice(),
         LOCALHOST_KEY.as_slice(),
         version,
         loader,
+        wait_for,
+        max_duration,
     )
     .await
 }
 
-pub async fn launch_listen_unsecure(bind: SocketAddr, version: &Version, loader: Loader) {
+pub async fn launch_listen_unsecure(
+    bind: SocketAddr,
+    version: &Version,
+    loader: Loader,
+    wait_for: Option<Duration>,
+    max_duration: Option<Duration>,
+) {
     let listener = TcpListener::bind(bind).await.unwrap();
-    let (stream, _addr) = listener.accept().await.unwrap();
 
-    launch_listen_stream(stream, version, loader).await
+    let accept_stream = async {
+        let (stream, _addr) = listener.accept().await.unwrap();
+
+        stream
+    };
+
+    let stream = if let Some(wait_for) = wait_for {
+        match timeout(wait_for, accept_stream).await {
+            Ok(stream) => stream,
+            Err(_) => return,
+        }
+    } else {
+        accept_stream.await
+    };
+
+    launch_listen_stream(stream, version, loader, max_duration).await
 }
 
 async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     stream: S,
     version: &Version,
     loader: Loader,
+    max_duration: Option<Duration>,
 ) {
     let protocol = Arc::new(Protocol::new(stream));
 
@@ -189,6 +233,15 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         .await
         .unwrap();
 
+    let limit = {
+        let engine = Arc::clone(&engine);
+        async move {
+            if let Some(max_duration) = max_duration {
+                async_std::task::sleep(max_duration).await;
+                engine.end();
+            }
+        }
+    };
     let live = {
         let engine = Arc::clone(&engine);
         let protocol = Arc::clone(&protocol);
@@ -336,7 +389,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         }
     };
 
-    futures::join!(live, run);
+    futures::join!(limit, live, run);
 }
 
 #[cfg(any(
