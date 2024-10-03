@@ -3,13 +3,16 @@ use crate::protocol::Protocol;
 use crate::{messages, messages::*, VERSION};
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
 use async_native_tls::TlsAcceptor;
+use async_std::sync::Barrier;
 use async_std::{
     future::timeout,
     io::{Read, Write},
     net::{SocketAddr, TcpListener},
     sync::RwLock as AsyncRwLock,
 };
+use core::sync::atomic::AtomicBool;
 use core::time::Duration;
+use futures::FutureExt;
 #[cfg(any(
     all(not(target_os = "windows"), not(target_vendor = "apple")),
     all(target_os = "windows", target_env = "gnu")
@@ -233,12 +236,29 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         .await
         .unwrap();
 
+    let barrier = Arc::new(Barrier::new(2));
+    let expired = Arc::new(AtomicBool::new(false));
     let limit = {
         let engine = Arc::clone(&engine);
+        let barrier = Arc::clone(&barrier);
+        let expired = Arc::clone(&expired);
         async move {
             if let Some(max_duration) = max_duration {
-                async_std::task::sleep(max_duration).await;
+                futures::future::select_all([
+                    async {
+                        barrier.wait().await;
+                    }
+                    .boxed(),
+                    async {
+                        async_std::task::sleep(max_duration).await;
+                        expired.store(true, core::sync::atomic::Ordering::Relaxed);
+                    }
+                    .boxed(),
+                ])
+                .await;
                 engine.end();
+            } else {
+                barrier.wait().await;
             }
         }
     };
@@ -248,6 +268,9 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         async move {
             engine.live().await;
             let _ = protocol.send_message(Message::Ended).await;
+            if !expired.load(core::sync::atomic::Ordering::Relaxed) {
+                barrier.wait().await;
+            }
         }
     };
     let run = {
