@@ -94,6 +94,12 @@ struct Dist {
     /// Key to use for TLS encryption (PKCS8 PEM format).
     #[clap(short, long, allow_hyphen_values = true)]
     key: Option<String>,
+    /// Key expected to authenticate remote engine.
+    #[clap(short, long)]
+    recv_key: uuid::Uuid,
+    /// Key to authenticate with remote engine.
+    #[clap(short, long)]
+    send_key: uuid::Uuid,
     /// Listen localhost, using embedded certificate.
     #[clap(long, action)]
     localhost: bool,
@@ -413,6 +419,8 @@ fn dist(args: Dist) {
                 async_std::task::block_on(melodium_distributed::launch_listen_localcert(
                     SocketAddr::new(Ipv4Addr::LOCALHOST.into(), args.port),
                     &Version::parse(melodium::VERSION).unwrap(),
+                    args.recv_key,
+                    args.send_key,
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
@@ -438,6 +446,8 @@ fn dist(args: Dist) {
                     &cert_content,
                     &key_content,
                     &Version::parse(melodium::VERSION).unwrap(),
+                    args.recv_key,
+                    args.send_key,
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
@@ -473,6 +483,8 @@ fn dist(args: Dist) {
                     &cert_content,
                     &key_content,
                     &Version::parse(melodium::VERSION).unwrap(),
+                    args.recv_key,
+                    args.send_key,
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),

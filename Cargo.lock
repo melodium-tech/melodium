@@ -2255,6 +2255,7 @@ dependencies = [
  "regex-mel",
  "sql-mel",
  "std-mel",
+ "uuid",
 ]
 
 [[package]]
@@ -2295,6 +2296,7 @@ dependencies = [
  "native-tls",
  "rustls-pemfile 2.1.3",
  "serde",
+ "uuid",
 ]
 
 [[package]]

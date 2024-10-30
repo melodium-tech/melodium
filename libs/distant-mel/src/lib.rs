@@ -45,24 +45,26 @@ impl DistantEngine {
         let model = self.model.upgrade().unwrap();
 
         let address = model.get_address();
+        let key = model.get_key();
 
         let config = TlsConfig::default().with_tcp_config(ClientConfig::new().with_nodelay(true));
 
         let client = Client::new(config)
             .with_base(address)
             .with_default_pool()
-            .with_default_header(KnownHeaderName::UserAgent, USER_AGENT);
+            .with_default_header(KnownHeaderName::UserAgent, USER_AGENT)
+            .with_default_header(KnownHeaderName::Authorization, format!("Bearer {key}"));
 
         self.client.write().unwrap().replace(Arc::new(client));
     }
 
-    pub async fn start(&self, start: Start) -> Result<Distributed, String> {
+    pub async fn start(&self, request: Request) -> Result<Response, String> {
         let client = Arc::clone(self.client.read().unwrap().as_ref().unwrap());
 
         let connection = client
-            .post("/start")
+            .post("/execution/job/start")
             .with_header(KnownHeaderName::ContentType, "application/json")
-            .with_body(serde_json::to_string(&start).unwrap())
+            .with_body(serde_json::to_string(&request).unwrap())
             .await
             .map_err(|err| err.to_string())?;
 
@@ -84,15 +86,21 @@ impl DistantEngine {
 
 #[mel_data]
 #[derive(Debug, Serialize)]
-pub struct Access(pub api::Access);
+pub struct Access(pub api::CommonAccess);
 
 #[mel_function]
-pub fn new_access(ipv4: Ipv4, ipv6: Ipv6, port: u16, key: string) -> Access {
-    Access(api::Access {
-        address_v4: ipv4.0,
-        address_v6: ipv6.0,
+pub fn new_access(
+    ipv4: Ipv4,
+    ipv6: Ipv6,
+    port: u16,
+    remote_key: string,
+    self_key: string,
+) -> Access {
+    Access(api::CommonAccess {
+        addresses: vec![ipv6.0.into(), ipv4.0.into()],
         port,
-        key: Uuid::from_str(&key).unwrap_or_default(),
+        remote_key: Uuid::from_str(&remote_key).unwrap_or_default(),
+        self_key: Uuid::from_str(&self_key).unwrap_or_default(),
     })
 }
 
@@ -100,35 +108,49 @@ pub fn new_access(ipv4: Ipv4, ipv6: Ipv6, port: u16, key: string) -> Access {
     model distant_engine DistantEngine
     input trigger Block<void>
     output access Block<Access>
-    output failure Block<string>
+    output failure Block<Vec<string>>
 )]
-pub async fn distant(max_duration: u32, memory: u64, cpu: u16) {
+pub async fn distant(max_duration: u32, memory: u32, cpu: u32, storage: u32) {
     let model = DistantEngineModel::into(distant_engine);
     let distant = model.inner();
 
-    let start = Start {
-        key: Uuid::default(),
+    let key = Uuid::new_v4();
+    let start = Request {
         edition: "registry.gitlab.com/melodium/melodium-private-developments:scratch".to_string(),
         max_duration,
         memory,
         cpu,
-        mode: StartMode::Distribution {},
+        mode: ModeRequest::Distribute { key: key.clone() },
+        config: None,
+        id: None,
+        client_id: None,
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        storage,
+        arch: None,
+        volumes: vec![],
+        containers: vec![],
     };
 
     match distant.start(start).await {
         Ok(distrib) => match distrib {
-            Distributed::Success(access_info) => {
+            Response::Started(Some(access_info)) => {
                 let _ = access
-                    .send_one(Value::Data(Arc::new(Access(access_info))))
+                    .send_one(Value::Data(Arc::new(Access(CommonAccess {
+                        addresses: access_info.addresses,
+                        port: access_info.port,
+                        remote_key: access_info.key,
+                        self_key: key,
+                    }))))
                     .await;
             }
-            Distributed::Failure(err) => {
-                let _ = failure.send_one(err.into()).await;
+            Response::Started(None) => {}
+            Response::Error(errs) => {
+                let _ = failure.send_many(errs.into()).await;
             }
         },
 
         Err(err) => {
-            let _ = failure.send_one(err.into()).await;
+            let _ = failure.send_one(vec![err].into()).await;
         }
     }
 }

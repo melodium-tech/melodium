@@ -2,6 +2,7 @@ use melodium_common::descriptor::Version;
 use melodium_sharing::{Collection, Identifier, RawValue};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Message {
@@ -22,6 +23,7 @@ pub enum Message {
 pub struct AskDistribution {
     pub melodium_version: Version,
     pub distribution_version: Version,
+    pub key: Uuid,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -29,6 +31,7 @@ pub struct ConfirmDistribution {
     pub accept: bool,
     pub melodium_version: Version,
     pub distribution_version: Version,
+    pub key: Uuid,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -234,6 +234,8 @@ release:publish:containers:
   script:
     - export BUILDAH_FORMAT=docker
     - manifest=melodium:scratch
+    - version=$(target/x86_64-unknown-linux-musl/release/melodium --version | cut -d " " -f2)
+
     # ARM64
     - container=$(buildah from --platform "linux/arm64" scratch)
     - buildah copy ${container} target/aarch64-unknown-linux-musl/release/melodium /
@@ -252,4 +254,4 @@ release:publish:containers:
 
     - buildah images --all
     - buildah manifest inspect $manifest
-    - buildah manifest push --all ${manifest} docker://$CI_REGISTRY_IMAGE:scratch
+    - buildah manifest push --all ${manifest} docker://$CI_REGISTRY_IMAGE:scratch-${version}

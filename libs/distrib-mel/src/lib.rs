@@ -76,7 +76,11 @@ impl DistributionEngine {
         }
     }
 
-    pub async fn start(&self, access: &distant_mel::api::Access, params: HashMap<String, Value>) {
+    pub async fn start(
+        &self,
+        access: &distant_mel::api::CommonAccess,
+        params: HashMap<String, Value>,
+    ) {
         let model = self.model.upgrade().unwrap();
 
         let entrypoint = match Identifier::from_str(&model.get_treatment()) {
@@ -98,122 +102,148 @@ impl DistributionEngine {
         let mut protocol_lock = self.protocol.write().await;
 
         if protocol_lock.is_none() {
-            let addrs = SocketAddr::new(access.address_v4.into(), access.port);
+            let mut protocol = None;
+            let mut error_message = None;
 
-            let protocol = match TcpStream::connect(addrs).await {
-                Ok(stream) => match tls_stream(access.address_v4.into(), stream).await {
-                    Ok(protocol) => protocol,
+            for ipaddr in access.addresses.iter() {
+                let addrs = SocketAddr::new(*ipaddr, access.port);
+
+                match TcpStream::connect(addrs).await {
+                    Ok(stream) => match tls_stream(*ipaddr, stream).await {
+                        Ok(prot) => {
+                            protocol = Some(prot);
+                            break;
+                        }
+                        Err(err) => {
+                            error_message = Some(err.to_string());
+                            continue;
+                        }
+                    },
+                    Err(err) => {
+                        error_message = Some(err.to_string());
+                        continue;
+                    }
+                };
+            }
+
+            if let Some(protocol) = protocol {
+                match protocol
+                    .send_message(Message::AskDistribution(AskDistribution {
+                        melodium_version: Version::parse(env!("CARGO_PKG_VERSION")).unwrap(),
+                        distribution_version: melodium_distributed::VERSION.clone(),
+                        key: access.remote_key,
+                    }))
+                    .await
+                {
+                    Ok(_) => {
+                        match protocol.recv_message().await {
+                            Ok(Message::ConfirmDistribution(confirm)) => {
+                                if !confirm.accept {
+                                    self.distribution_failure(format!("Cannot distribute, remote engine version is {} with protocol version {}, while local engine version is {} with protocol version {}.", confirm.melodium_version, confirm.distribution_version, env!("CARGO_PKG_VERSION"), melodium_distributed::VERSION)).await;
+                                    return;
+                                }
+                                if confirm.key != access.self_key {
+                                    self.distribution_failure("Cannot distribute, remote engine did not provided valid key.".to_string()).await;
+                                    return;
+                                }
+                            }
+                            Ok(_) => {
+                                self.distribution_failure(
+                                    "Unexpected response message".to_string(),
+                                )
+                                .await;
+                                return;
+                            }
+                            Err(err) => {
+                                self.distribution_failure(err.to_string()).await;
+                                return;
+                            }
+                        }
+                    }
                     Err(err) => {
                         self.distribution_failure(err.to_string()).await;
                         return;
                     }
-                },
-                Err(err) => {
-                    self.distribution_failure(err.to_string()).await;
-                    return;
                 }
-            };
 
-            match protocol
-                .send_message(Message::AskDistribution(AskDistribution {
-                    melodium_version: Version::parse(env!("CARGO_PKG_VERSION")).unwrap(),
-                    distribution_version: melodium_distributed::VERSION.clone(),
-                }))
-                .await
-            {
-                Ok(_) => match protocol.recv_message().await {
-                    Ok(Message::ConfirmDistribution(confirm)) => {
-                        if !confirm.accept {
-                            self.distribution_failure(format!("Cannot distribute, remote engine version is {} with protocol version {}, while local engine version is {} with protocol version {}.", confirm.melodium_version, confirm.distribution_version, env!("CARGO_PKG_VERSION"), melodium_distributed::VERSION)).await;
-                            return;
-                        }
-                    }
-                    Ok(_) => {
-                        self.distribution_failure("Unexpected response message".to_string())
+                let treatment = match model.world().collection().get(&(&entrypoint).into()) {
+                    Some(Entry::Treatment(treatment)) => Arc::clone(treatment),
+                    _ => {
+                        self.distribution_failure("No treatment found".to_string())
                             .await;
                         return;
                     }
-                    Err(err) => {
-                        self.distribution_failure(err.to_string()).await;
-                        return;
-                    }
-                },
-                Err(err) => {
-                    self.distribution_failure(err.to_string()).await;
-                    return;
-                }
-            }
+                };
 
-            let treatment = match model.world().collection().get(&(&entrypoint).into()) {
-                Some(Entry::Treatment(treatment)) => Arc::clone(treatment),
-                _ => {
-                    self.distribution_failure("No treatment found".to_string())
-                        .await;
-                    return;
-                }
-            };
+                *self.treatment.write().await = Some(treatment);
 
-            *self.treatment.write().await = Some(treatment);
+                let shared_collection =
+                    Collection::from_entrypoint(&model.world().collection(), &entrypoint);
 
-            let shared_collection =
-                Collection::from_entrypoint(&model.world().collection(), &entrypoint);
+                match protocol
+                    .send_message(Message::LoadAndLaunch(LoadAndLaunch {
+                        collection: shared_collection,
+                        entrypoint: (&entrypoint).into(),
+                        parameters: params
+                            .into_iter()
+                            .map(|(name, value)| (name, value.into()))
+                            .collect(),
+                    }))
+                    .await
+                {
+                    Ok(_) => match protocol.recv_message().await {
+                        Ok(Message::LaunchStatus(status)) => match status {
+                            melodium_distributed::LaunchStatus::Ok => {
+                                *protocol_lock = Some(AsyncArc::new(protocol));
+                                model
+                                    .new_ready(
+                                        None,
+                                        &HashMap::new(),
+                                        Some(Box::new(move |mut outputs| {
+                                            let trigger = outputs.get("trigger");
 
-            match protocol
-                .send_message(Message::LoadAndLaunch(LoadAndLaunch {
-                    collection: shared_collection,
-                    entrypoint: (&entrypoint).into(),
-                    parameters: params
-                        .into_iter()
-                        .map(|(name, value)| (name, value.into()))
-                        .collect(),
-                }))
-                .await
-            {
-                Ok(_) => match protocol.recv_message().await {
-                    Ok(Message::LaunchStatus(status)) => match status {
-                        melodium_distributed::LaunchStatus::Ok => {
-                            *protocol_lock = Some(AsyncArc::new(protocol));
-                            model
-                                .new_ready(
-                                    None,
-                                    &HashMap::new(),
-                                    Some(Box::new(move |mut outputs| {
-                                        let trigger = outputs.get("trigger");
-
-                                        vec![Box::new(Box::pin(async move {
-                                            let _ = trigger.send_one(().into()).await;
-                                            trigger.close().await;
-                                            ResultStatus::Ok
-                                        }))]
-                                    })),
+                                            vec![Box::new(Box::pin(async move {
+                                                let _ = trigger.send_one(().into()).await;
+                                                trigger.close().await;
+                                                ResultStatus::Ok
+                                            }))]
+                                        })),
+                                    )
+                                    .await;
+                                self.protocol_barrier.wait().await;
+                            }
+                            melodium_distributed::LaunchStatus::Failure(err) => {
+                                self.distribution_failure(err.to_string()).await;
+                                return;
+                            }
+                            _ => {
+                                self.distribution_failure(
+                                    "Unexpected response message".to_string(),
                                 )
                                 .await;
-                            self.protocol_barrier.wait().await;
-                        }
-                        melodium_distributed::LaunchStatus::Failure(err) => {
-                            self.distribution_failure(err.to_string()).await;
-                            return;
-                        }
-                        _ => {
+                                return;
+                            }
+                        },
+                        Ok(_) => {
                             self.distribution_failure("Unexpected response message".to_string())
                                 .await;
                             return;
                         }
+                        Err(err) => {
+                            self.distribution_failure(err.to_string()).await;
+                            return;
+                        }
                     },
-                    Ok(_) => {
-                        self.distribution_failure("Unexpected response message".to_string())
-                            .await;
-                        return;
-                    }
                     Err(err) => {
                         self.distribution_failure(err.to_string()).await;
                         return;
                     }
-                },
-                Err(err) => {
-                    self.distribution_failure(err.to_string()).await;
-                    return;
                 }
+            } else if let Some(err) = error_message {
+                self.distribution_failure(err).await;
+            } else {
+                self.distribution_failure("No IP address provided".to_string())
+                    .await;
             }
         }
     }

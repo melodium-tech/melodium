@@ -29,6 +29,7 @@ use std::{
     collections::{HashMap, VecDeque},
     sync::Arc,
 };
+use uuid::Uuid;
 
 const CERTIFICATE_CHAIN: &[u8; 4715] = include_bytes!("../melodium-chain.pem");
 const LOCALHOST_KEY: &[u8; 3272] = include_bytes!("../melodium-localhost.key.pem");
@@ -38,6 +39,8 @@ pub async fn launch_listen(
     certificate_chain: &[u8],
     key: &[u8],
     version: &Version,
+    expect_key: Uuid,
+    emit_key: Uuid,
     loader: Loader,
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
@@ -60,12 +63,14 @@ pub async fn launch_listen(
         accept_stream.await
     };
 
-    launch_listen_stream(stream, version, loader, max_duration).await
+    launch_listen_stream(stream, version, expect_key, emit_key, loader, max_duration).await
 }
 
 pub async fn launch_listen_localcert(
     bind: SocketAddr,
     version: &Version,
+    expect_key: Uuid,
+    emit_key: Uuid,
     loader: Loader,
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
@@ -75,6 +80,8 @@ pub async fn launch_listen_localcert(
         CERTIFICATE_CHAIN.as_slice(),
         LOCALHOST_KEY.as_slice(),
         version,
+        expect_key,
+        emit_key,
         loader,
         wait_for,
         max_duration,
@@ -85,6 +92,8 @@ pub async fn launch_listen_localcert(
 pub async fn launch_listen_unsecure(
     bind: SocketAddr,
     version: &Version,
+    expect_key: Uuid,
+    emit_key: Uuid,
     loader: Loader,
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
@@ -106,12 +115,14 @@ pub async fn launch_listen_unsecure(
         accept_stream.await
     };
 
-    launch_listen_stream(stream, version, loader, max_duration).await
+    launch_listen_stream(stream, version, expect_key, emit_key, loader, max_duration).await
 }
 
 async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     stream: S,
     version: &Version,
+    expect_key: Uuid,
+    emit_key: Uuid,
     loader: Loader,
     max_duration: Option<Duration>,
 ) {
@@ -119,11 +130,14 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
 
     match protocol.recv_message().await {
         Ok(Message::AskDistribution(ask)) => {
-            let accept = &ask.melodium_version == version && ask.distribution_version == VERSION;
+            let accept = &ask.melodium_version == version
+                && ask.distribution_version == VERSION
+                && ask.key == expect_key;
             protocol
                 .send_message(Message::ConfirmDistribution(ConfirmDistribution {
                     melodium_version: version.clone(),
                     distribution_version: VERSION.clone(),
+                    key: emit_key,
                     accept,
                 }))
                 .await
