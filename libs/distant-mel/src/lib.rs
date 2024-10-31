@@ -116,7 +116,7 @@ pub async fn distant(max_duration: u32, memory: u32, cpu: u32, storage: u32) {
 
     let key = Uuid::new_v4();
     let start = Request {
-        edition: "registry.gitlab.com/melodium/melodium-private-developments:scratch".to_string(),
+        edition: "scratch".to_string(),
         max_duration,
         memory,
         cpu,
@@ -145,7 +145,7 @@ pub async fn distant(max_duration: u32, memory: u32, cpu: u32, storage: u32) {
             }
             Response::Started(None) => {}
             Response::Error(errs) => {
-                let _ = failure.send_many(errs.into()).await;
+                let _ = failure.send_one(errs.into()).await;
             }
         },
 

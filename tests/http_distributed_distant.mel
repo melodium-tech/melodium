@@ -16,6 +16,7 @@ use std/flow::emit
 use std/flow::trigger
 use std/flow::stream
 use std/flow::check
+use std/flow/vec::flatten
 use std/ops/option::unwrapOr
 use std/ops/option::unwrap
 use std/conv::toString
@@ -43,14 +44,15 @@ treatment main(const distant: string, const key: string)
   )
 {
     startup()
-    distant[distant_engine=distant](max_duration=600, memory=28000000, cpu=1000)
+    distant[distant_engine=distant](max_duration=600, memory=280, cpu=1000, storage=256)
     start[distributor=distributor](params=|map([]))
     distributedJs[distributor=distributor]()
     startup.trigger -> distant.trigger,access -> start.access
 
     writeDistantFailure: writeText(path = "distant_failure.log")
-    streamDistantFailure: stream<string>()
-    distant.failure -> streamDistantFailure.block,stream -> writeDistantFailure.text
+    streamDistantFailure: stream<Vec<string>>()
+    flatten<string>()
+    distant.failure -> streamDistantFailure.block,stream -> flatten.vector,value -> writeDistantFailure.text
 
     emitOk: emit<string>(value="ok")
     streamOk: stream<string>()
