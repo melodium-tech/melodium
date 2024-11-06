@@ -2259,6 +2259,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "melodium-certs"
+version = "0.8.0"
+
+[[package]]
 name = "melodium-common"
 version = "0.8.0"
 dependencies = [

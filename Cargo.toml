@@ -14,6 +14,7 @@ members = [
     "libs/sql-mel",
     "libs/std-mel",
     "melodium",
+    "melodium-certs",
     "melodium-common",
     "melodium-core",
     "melodium-distributed",

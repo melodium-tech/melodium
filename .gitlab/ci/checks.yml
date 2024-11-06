@@ -5,6 +5,7 @@ include:
 
 .check:
   script:
+    - cargo check --package melodium-certs --locked
     - cargo check --package melodium-common --locked
     - cargo check --package melodium-macro --locked
     - cargo check --package melodium-core --locked
