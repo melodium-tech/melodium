@@ -17,6 +17,7 @@ crate-type = ["lib", "cdylib"]
 name = "distrib_mel"
 
 [dependencies]
+melodium-certs = { path = "../../melodium-certs", version = "0.8.0" }
 melodium-core = { path = "../../melodium-core", version = "0.8.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }
 melodium-sharing = { path = "../../melodium-sharing", version = "0.8.0" }

@@ -1202,6 +1202,7 @@ dependencies = [
  "async-std",
  "distant-mel",
  "futures-rustls 0.26.0",
+ "melodium-certs",
  "melodium-core",
  "melodium-distributed",
  "melodium-macro",
