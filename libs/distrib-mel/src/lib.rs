@@ -26,7 +26,7 @@ use melodium_distributed::{
     LoadAndLaunch, Message, Protocol,
 };
 use melodium_macro::{mel_model, mel_package, mel_treatment};
-use melodium_sharing::{Collection, RawValue};
+use melodium_share::{Collection, RawValue};
 use std::{
     collections::HashMap,
     sync::{Arc, Weak},

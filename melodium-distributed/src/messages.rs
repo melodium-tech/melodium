@@ -1,5 +1,5 @@
 use melodium_common::descriptor::Version;
-use melodium_sharing::{Collection, Identifier, RawValue};
+use melodium_share::{Collection, Identifier, RawValue};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;

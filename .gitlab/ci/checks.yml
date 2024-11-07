@@ -12,7 +12,7 @@ include:
     - cargo check --package melodium-core --locked --features doc
     - cargo check --package melodium-lang --locked
     - cargo check --package melodium-lang --locked --features restitution
-    - cargo check --package melodium-sharing --locked
+    - cargo check --package melodium-share --locked
     - cargo check --package melodium-distributed --locked
     - cargo check --package melodium-doc --locked
     - cargo check --package melodium-engine --locked

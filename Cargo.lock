@@ -1206,7 +1206,7 @@ dependencies = [
  "melodium-core",
  "melodium-distributed",
  "melodium-macro",
- "melodium-sharing",
+ "melodium-share",
  "rustls-pemfile 2.1.3",
  "std-mel",
 ]
@@ -2297,7 +2297,7 @@ dependencies = [
  "melodium-common",
  "melodium-engine",
  "melodium-loader",
- "melodium-sharing",
+ "melodium-share",
  "native-tls",
  "rustls-pemfile 2.1.3",
  "serde",
@@ -2391,7 +2391,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "melodium-sharing"
+name = "melodium-share"
 version = "0.8.0"
 dependencies = [
  "ciborium",

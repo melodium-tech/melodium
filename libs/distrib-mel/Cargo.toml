@@ -20,7 +20,7 @@ name = "distrib_mel"
 melodium-certs = { path = "../../melodium-certs", version = "0.8.0" }
 melodium-core = { path = "../../melodium-core", version = "0.8.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }
-melodium-sharing = { path = "../../melodium-sharing", version = "0.8.0" }
+melodium-share = { path = "../../melodium-share", version = "0.8.0" }
 melodium-distributed = { path = "../../melodium-distributed", version = "0.8.0" }
 std-mel = { path = "../std-mel", version = "0.8.0" }
 distant-mel = { path = "../distant-mel", version = "0.8.0" }

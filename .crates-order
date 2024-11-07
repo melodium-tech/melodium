@@ -7,7 +7,7 @@ melodium-engine
 melodium-lang
 melodium-repository
 melodium-loader
-melodium-sharing
+melodium-share
 melodium-distributed
 melodium-doc
 std-mel

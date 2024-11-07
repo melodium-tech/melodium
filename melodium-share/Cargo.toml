@@ -1,5 +1,5 @@
 [package]
-name = "melodium-sharing"
+name = "melodium-share"
 version = "0.8.0"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.60"
@@ -14,7 +14,7 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 publish = false
 
 [lib]
-name = "melodium_sharing"
+name = "melodium_share"
 
 [dependencies]
 melodium-common = { path = "../melodium-common", version = "0.8.0" }

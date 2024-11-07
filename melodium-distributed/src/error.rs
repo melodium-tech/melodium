@@ -1,5 +1,5 @@
 use melodium_common::descriptor::{LoadingError, Status};
-use melodium_sharing::SharingError;
+use melodium_share::SharingError;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 

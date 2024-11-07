@@ -24,7 +24,7 @@ use melodium_common::{
 };
 use melodium_engine::descriptor::{Model, Treatment};
 use melodium_loader::Loader;
-use melodium_sharing::{SharingError, SharingResult};
+use melodium_share::{SharingError, SharingResult};
 use std::{
     collections::{HashMap, VecDeque},
     sync::Arc,
@@ -184,7 +184,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     for element in distributed_collection.elements() {
         if !element.is_compiled() {
             match element {
-                melodium_sharing::Element::Model(m) => {
+                melodium_share::Element::Model(m) => {
                     let model: Option<Arc<Model>> = result.merge_degrade_failure(
                         DistributionResult::from(m.make_descriptor(&collection)),
                     );
@@ -192,7 +192,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                         collection.insert(Entry::Model(Arc::clone(&model) as Arc<dyn CommonModel>));
                     }
                 }
-                melodium_sharing::Element::Treatment(t) => {
+                melodium_share::Element::Treatment(t) => {
                     let treatment: Option<Arc<Treatment>> = result.merge_degrade_failure(
                         DistributionResult::from(t.make_descriptor(&collection)),
                     );
@@ -213,11 +213,11 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     for element in distributed_collection.elements() {
         if !element.is_compiled() {
             match element {
-                melodium_sharing::Element::Model(m) => {
+                melodium_share::Element::Model(m) => {
                     result = result
                         .and_degrade_failure(DistributionResult::from(m.make_design(&collection)));
                 }
-                melodium_sharing::Element::Treatment(t) => {
+                melodium_share::Element::Treatment(t) => {
                     result = result
                         .and_degrade_failure(DistributionResult::from(t.make_design(&collection)));
                 }
