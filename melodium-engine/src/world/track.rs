@@ -41,5 +41,6 @@ impl ExecutionTrack {
 
 pub enum TrackResult {
     AllOk(TrackId),
+    #[allow(dead_code)]
     NotAllOk(TrackId, Vec<ResultStatus>),
 }
