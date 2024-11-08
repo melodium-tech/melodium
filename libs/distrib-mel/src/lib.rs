@@ -14,7 +14,6 @@ use common::{
 };
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
-use distant_mel::*;
 #[cfg(any(
     all(not(target_os = "windows"), not(target_vendor = "apple")),
     all(target_os = "windows", target_env = "gnu")
@@ -32,6 +31,7 @@ use std::{
     sync::{Arc, Weak},
 };
 use std_mel::data::*;
+use work_mel::*;
 
 #[derive(Debug)]
 struct Track {
@@ -78,7 +78,7 @@ impl DistributionEngine {
 
     pub async fn start(
         &self,
-        access: &distant_mel::api::CommonAccess,
+        access: &work_mel::api::CommonAccess,
         params: HashMap<String, Value>,
     ) {
         let model = self.model.upgrade().unwrap();

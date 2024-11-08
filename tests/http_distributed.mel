@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = http_distributed
 #! version = 0.8.0
-#! require = http:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0 distrib:0.8.0 distant:0.8.0 fs:0.8.0 net:0.8.0
+#! require = http:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0 distrib:0.8.0 work:0.8.0 fs:0.8.0 net:0.8.0
 
 use http/server::HttpServer
 use http/server::start as startHttp
@@ -13,8 +13,8 @@ use http/method::|post
 use net/ip::|localhost_ipv4
 use net/ip::|localhost_ipv6
 use net/ip::|from_ipv4
-use distant::Access
-use distant::|new_access
+use work::Access
+use work::|new_access
 use std/flow::emit
 use std/flow::trigger
 use std/flow::stream

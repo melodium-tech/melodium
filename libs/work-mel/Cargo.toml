@@ -1,5 +1,5 @@
 [package]
-name = "distant-mel"
+name = "work-mel"
 version = "0.8.0"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.60"
@@ -14,7 +14,7 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 
 [lib]
 crate-type = ["lib", "cdylib"]
-name = "distant_mel"
+name = "work_mel"
 
 [dependencies]
 melodium-core = { path = "../../melodium-core", version = "0.8.0" }

@@ -1,5 +1,5 @@
 
-# Mélodium distant library
+# Mélodium work library
 
 This library provides distant work abilities to the Mélodium environment.
 

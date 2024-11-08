@@ -20,7 +20,7 @@ use trillium_native_tls::NativeTlsConfig as TlsConfig;
 use trillium_rustls::RustlsConfig as TlsConfig;
 use uuid::Uuid;
 
-pub const USER_AGENT: &str = concat!("distant-mel/", env!("CARGO_PKG_VERSION"));
+pub const USER_AGENT: &str = concat!("work-mel/", env!("CARGO_PKG_VERSION"));
 
 #[derive(Debug)]
 #[mel_model(

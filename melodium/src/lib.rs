@@ -202,8 +202,6 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
     let mut packages = Vec::new();
     packages.push(std_mel::__mel_package::package());
 
-    #[cfg(feature = "distant-mel")]
-    packages.push(distant_mel::__mel_package::package());
     #[cfg(feature = "distrib-mel")]
     packages.push(distrib_mel::__mel_package::package());
     #[cfg(feature = "encoding-mel")]
@@ -224,6 +222,8 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
     packages.push(regex_mel::__mel_package::package());
     #[cfg(feature = "sql-mel")]
     packages.push(sql_mel::__mel_package::package());
+    #[cfg(feature = "work-mel")]
+    packages.push(work_mel::__mel_package::package());
 
     packages
 }

@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "libs/distant-mel",
     "libs/distrib-mel",
     "libs/encoding-mel",
     "libs/fs-mel",
@@ -13,6 +12,7 @@ members = [
     "libs/regex-mel",
     "libs/sql-mel",
     "libs/std-mel",
+    "libs/work-mel",
     "melodium",
     "melodium-certs",
     "melodium-common",
