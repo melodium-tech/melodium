@@ -17,7 +17,7 @@ members = [
     "melodium-certs",
     "melodium-common",
     "melodium-core",
-    "melodium-distributed",
+    "melodium-distribution",
     "melodium-doc",
     "melodium-engine",
     "melodium-lang",

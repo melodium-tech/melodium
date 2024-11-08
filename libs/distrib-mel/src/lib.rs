@@ -21,7 +21,7 @@ use distant_mel::*;
 ))]
 use futures_rustls::client::TlsStream;
 use melodium_core::*;
-use melodium_distributed::{
+use melodium_distribution::{
     AskDistribution, CloseInput, CloseOutput, InputData, Instanciate, InstanciateStatus,
     LoadAndLaunch, Message, Protocol,
 };
@@ -130,7 +130,7 @@ impl DistributionEngine {
                 match protocol
                     .send_message(Message::AskDistribution(AskDistribution {
                         melodium_version: Version::parse(env!("CARGO_PKG_VERSION")).unwrap(),
-                        distribution_version: melodium_distributed::VERSION.clone(),
+                        distribution_version: melodium_distribution::VERSION.clone(),
                         key: access.remote_key,
                     }))
                     .await
@@ -139,7 +139,7 @@ impl DistributionEngine {
                         match protocol.recv_message().await {
                             Ok(Message::ConfirmDistribution(confirm)) => {
                                 if !confirm.accept {
-                                    self.distribution_failure(format!("Cannot distribute, remote engine version is {} with protocol version {}, while local engine version is {} with protocol version {}.", confirm.melodium_version, confirm.distribution_version, env!("CARGO_PKG_VERSION"), melodium_distributed::VERSION)).await;
+                                    self.distribution_failure(format!("Cannot distribute, remote engine version is {} with protocol version {}, while local engine version is {} with protocol version {}.", confirm.melodium_version, confirm.distribution_version, env!("CARGO_PKG_VERSION"), melodium_distribution::VERSION)).await;
                                     return;
                                 }
                                 if confirm.key != access.self_key {
@@ -193,7 +193,7 @@ impl DistributionEngine {
                 {
                     Ok(_) => match protocol.recv_message().await {
                         Ok(Message::LaunchStatus(status)) => match status {
-                            melodium_distributed::LaunchStatus::Ok => {
+                            melodium_distribution::LaunchStatus::Ok => {
                                 *protocol_lock = Some(AsyncArc::new(protocol));
                                 model
                                     .new_ready(
@@ -212,7 +212,7 @@ impl DistributionEngine {
                                     .await;
                                 self.protocol_barrier.wait().await;
                             }
-                            melodium_distributed::LaunchStatus::Failure(err) => {
+                            melodium_distribution::LaunchStatus::Failure(err) => {
                                 self.distribution_failure(err.to_string()).await;
                                 return;
                             }

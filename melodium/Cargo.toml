@@ -30,7 +30,7 @@ melodium-core = { path = "../melodium-core", version = "0.8.0", optional = true 
 melodium-engine = { path = "../melodium-engine", version = "0.8.0" }
 melodium-lang = { path = "../melodium-lang", version = "0.8.0" }
 melodium-loader = { path = "../melodium-loader", version = "0.8.0" }
-melodium-distributed = { path = "../melodium-distributed", version = "0.8.0", optional = true  }
+melodium-distribution = { path = "../melodium-distribution", version = "0.8.0", optional = true  }
 melodium-doc = { path = "../melodium-doc", version = "0.8.0", optional = true }
 uuid = { version = "1.5.0", features = ["serde"], optional = true }
 
@@ -52,14 +52,14 @@ sql-mel = { path = "../libs/sql-mel", version = "0.8.0", optional = true }
 default = ["cli", "standard-edition"]
 cli = ["clap", "colored"]
 jeu = ["melodium-loader/jeu"]
-distributed = ["melodium-distributed", "distrib-mel", "distant-mel", "uuid"]
+distribution = ["melodium-distribution", "distrib-mel", "distant-mel", "uuid"]
 doc = ["melodium-doc", "melodium-engine/doc", "melodium-core/doc"]
 network = ["net-mel", "http-mel", "melodium-loader/network"]
 fs = ["fs-mel", "process-mel", "melodium-loader/filesystem"]
 text = ["encoding-mel", "regex-mel"]
 javascript = ["javascript-mel", "json-mel"]
 sql = ["sql-mel"]
-standard-edition = ["jeu", "doc", "distributed", "fs", "network", "text", "javascript", "sql"]
+standard-edition = ["jeu", "doc", "distribution", "fs", "network", "text", "javascript", "sql"]
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.2", features = ["js"] }

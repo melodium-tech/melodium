@@ -8,7 +8,7 @@ melodium-lang
 melodium-repository
 melodium-loader
 melodium-share
-melodium-distributed
+melodium-distribution
 melodium-doc
 std-mel
 encoding-mel

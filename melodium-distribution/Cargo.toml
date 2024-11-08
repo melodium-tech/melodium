@@ -1,5 +1,5 @@
 [package]
-name = "melodium-distributed"
+name = "melodium-distribution"
 version = "0.8.0"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.60"
@@ -14,7 +14,7 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 publish = false
 
 [lib]
-name = "melodium_distributed"
+name = "melodium_distribution"
 
 [dependencies]
 melodium-common = { path = "../melodium-common", version = "0.8.0" }

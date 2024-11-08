@@ -78,7 +78,7 @@ struct Info {
     name: String,
 }
 
-#[cfg(feature = "distributed")]
+#[cfg(feature = "distribution")]
 #[derive(clap::Args)]
 /// Makes engine available for distribution
 struct Dist {
@@ -111,7 +111,7 @@ struct Dist {
     duration: Option<u64>,
 }
 
-#[cfg(not(feature = "distributed"))]
+#[cfg(not(feature = "distribution"))]
 #[derive(clap::Args)]
 /// [Not available in this release] Makes engine available for distribution
 struct Dist {}
@@ -215,9 +215,9 @@ pub fn main() {
             Commands::Run(args) => run(args),
             Commands::Check(args) => check(args),
             Commands::Info(args) => info(args),
-            #[cfg(feature = "distributed")]
+            #[cfg(feature = "distribution")]
             Commands::Dist(args) => dist(args),
-            #[cfg(not(feature = "distributed"))]
+            #[cfg(not(feature = "distribution"))]
             Commands::Dist(_) => {}
             #[cfg(feature = "doc")]
             Commands::Doc(args) => doc(args),
@@ -405,7 +405,7 @@ fn info(args: Info) {
     }
 }
 
-#[cfg(feature = "distributed")]
+#[cfg(feature = "distribution")]
 fn dist(args: Dist) {
     use core::time::Duration;
     use melodium_common::descriptor::Version;
@@ -416,7 +416,7 @@ fn dist(args: Dist) {
     if args.localhost {
         match (args.certificate, args.key) {
             (None, None) => {
-                async_std::task::block_on(melodium_distributed::launch_listen_localcert(
+                async_std::task::block_on(melodium_distribution::launch_listen_localcert(
                     SocketAddr::new(Ipv4Addr::LOCALHOST.into(), args.port),
                     &Version::parse(melodium::VERSION).unwrap(),
                     args.recv_key,
@@ -441,7 +441,7 @@ fn dist(args: Dist) {
                         return;
                     }
                 };
-                async_std::task::block_on(melodium_distributed::launch_listen(
+                async_std::task::block_on(melodium_distribution::launch_listen(
                     SocketAddr::new(Ipv4Addr::LOCALHOST.into(), args.port),
                     &cert_content,
                     &key_content,
@@ -478,7 +478,7 @@ fn dist(args: Dist) {
                         return;
                     }
                 };
-                async_std::task::block_on(melodium_distributed::launch_listen(
+                async_std::task::block_on(melodium_distribution::launch_listen(
                     SocketAddr::new(ip, args.port),
                     &cert_content,
                     &key_content,
