@@ -3,6 +3,7 @@ use melodium_common::descriptor::Entry as CommonEntry;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Entry {
     Context(Context),
     Data(Data),

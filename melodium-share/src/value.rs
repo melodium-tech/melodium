@@ -12,6 +12,7 @@ use std::{
 };
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Value {
     Raw(RawValue),
     Array(Vec<Value>),
@@ -139,6 +140,7 @@ impl From<&DesignedValue> for Value {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RawValue {
     Void(()),
 

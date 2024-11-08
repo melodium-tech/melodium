@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Element {
     Context(Context),
     Data(Data),

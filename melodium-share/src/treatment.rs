@@ -257,6 +257,7 @@ impl From<&Arc<dyn CommonTreatment>> for Treatment {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum TreatmentImplementationKind {
     Compiled,
     Designed(Option<TreatmentDesign>),

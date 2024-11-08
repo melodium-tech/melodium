@@ -3,6 +3,7 @@ use melodium_engine::design::{Connection, IO};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum IoDesign {
     Sequence(),
     Treatment(String),

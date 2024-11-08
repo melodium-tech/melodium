@@ -2,6 +2,7 @@ use melodium_common::descriptor::Flow as CommonFlow;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Flow {
     Block,
     Stream,
