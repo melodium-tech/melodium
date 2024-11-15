@@ -25,9 +25,9 @@ fn main() {
         .arg("--distrib_port")
         .arg("28014")
         .arg("--remote_key")
-        .arg("d0bf1006-a851-50eb-b32b-5f443d642ce6")
+        .arg("\"d0bf1006-a851-50eb-b32b-5f443d642ce6\"")
         .arg("--self_key")
-        .arg("9a1bed00-1051-565e-b418-f3b32462620d")
+        .arg("\"9a1bed00-1051-565e-b418-f3b32462620d\"")
         .spawn()
         .expect("failed to launch Mélodium executable");
 
