@@ -63,7 +63,7 @@ As example, to run checks or tests on a specific pushed commit:
 
 `CHECK` and `TEST` are considered `true` for every commit on `master` branch, and _everything_ is considered `true` for tagged commits.
 
-[^1]: while build is made for all supported platforms, tests are only processed on some platorms where GitLab CI have matching native runners, such as Linux x86_64 (testing i686 and x86_64 versions, GNU and MUSL), Windows x86_64 (testing i686 and x86_64 versions, GNU and MSVC), and Mac OS ARM64 (testing arm64 version).
+[^1]: while build is made for all supported platforms, tests are only processed on some platorms where GitLab CI have matching native runners, such as Linux aarch64 and x86_64 (testing aarch64, i686 and x86_64 versions, GNU and MUSL), Windows x86_64 (testing i686 and x86_64 versions, GNU and MSVC), and Mac OS ARM64 (testing arm64 version).
 
 ## Licence
 
