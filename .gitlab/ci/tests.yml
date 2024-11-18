@@ -224,6 +224,10 @@ test:melodium:aarch64-unknown-linux-gnu:
   script:
     - export PATH="$CI_PROJECT_DIR/target/aarch64-unknown-linux-gnu/debug:$PATH"
     - cd tests/
+    # Trying direct call…
+    - testers/target/aarch64-unknown-linux-gnu/debug/fs
+    - testers/target/aarch64-unknown-linux-gnu/debug/complex_call
+    # …to check if executables can run
     - |
       OK=0
       for TEST in $TESTS 
