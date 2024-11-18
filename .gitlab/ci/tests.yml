@@ -76,10 +76,11 @@ testers:rust:aarch64-unknown-linux-gnu:
   stage: test
   extends:
     - .build-testers
-    - .builder:linux:aarch64-unknown-linux-gnu
+    - .builder:linux:aarch64-unknown-linux-musl
   script:
     - cd tests/testers
     - cargo build --locked
+    - mv target/aarch64-unknown-linux-musl target/aarch64-unknown-linux-gnu
     - ls target/aarch64-unknown-linux-gnu/debug
   artifacts:
     paths:
