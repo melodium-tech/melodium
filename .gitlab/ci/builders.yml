@@ -103,18 +103,19 @@
   extends:
     - .host:debian
     - .cache:cargo
+  tags:
+    - saas-linux-medium-arm64
   before_script:
-   - dpkg --add-architecture arm64
    - apt-get update
-   - apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev:arm64
-   - ln -s /usr/aarch64-linux-gnu/lib/libgcc_s.so.1 /usr/aarch64-linux-gnu/lib/libgcc_s.so
-   - rustup target add aarch64-unknown-linux-gnu
+   - apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev
+   #- ln -s /usr/aarch64-linux-gnu/lib/libgcc_s.so.1 /usr/aarch64-linux-gnu/lib/libgcc_s.so
+   #- rustup target add aarch64-unknown-linux-gnu
    - export PATH="$CARGO_HOME/bin:$PATH"
-   - export PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config
-   - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld
-   - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_AR=aarch64-linux-gnu-gcc-ar
-   - export TARGET_CC=aarch64-linux-gnu-gcc
-   - export TARGET_AR=aarch64-linux-gnu-gcc-ar
+   #- export PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config
+   #- export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld
+   #- export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_AR=aarch64-linux-gnu-gcc-ar
+   #- export TARGET_CC=aarch64-linux-gnu-gcc
+   #- export TARGET_AR=aarch64-linux-gnu-gcc-ar
    - export CARGO_BUILD_TARGET=aarch64-unknown-linux-gnu
    - rustc --version
    - cargo --version
