@@ -1436,10 +1436,12 @@ name = "fs-mel"
 version = "0.8.0"
 dependencies = [
  "async-std",
+ "async-trait",
  "async-walkdir",
  "futures",
  "melodium-core",
  "melodium-macro",
+ "serde",
  "std-mel",
 ]
 
