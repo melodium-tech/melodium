@@ -18,10 +18,12 @@ name = "process_mel"
 
 [dependencies]
 async-std = { version = "~1.12", features = ["unstable"] }
+async-trait = "~0.1.71"
 futures = "~0.3.28"
 melodium-core = { path = "../../melodium-core", version = "0.8.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }
 std-mel = { path = "../std-mel", version = "0.8.0" }
+serde = "1.0.185"
 
 [features]
 mock = []

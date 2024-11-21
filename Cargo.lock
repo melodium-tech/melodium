@@ -2892,9 +2892,11 @@ name = "process-mel"
 version = "0.8.0"
 dependencies = [
  "async-std",
+ "async-trait",
  "futures",
  "melodium-core",
  "melodium-macro",
+ "serde",
  "std-mel",
 ]
 

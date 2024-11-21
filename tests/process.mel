@@ -11,22 +11,15 @@ use std/text/convert/string::toUtf8
 use std/flow::emit
 use std/data::|map
 use fs/file::write
-use process::Environment
-use process::spawn
+use process/command::|command
+use process/local::spawn
 use std/ops/option::|wrap
 
 treatment main(const work: Option<string> = _)
-  model env: Environment(
-        env=|map([]),
-        working_dir=work
-    )
 {
-
-    spawn[env=env](command="sed")
-    emitArgs: emit<Vec<string>>(value=["-e", "s/foo/bar/g"])
+    spawn(command=|command("sed", ["-e", "s/foo/bar/g"]))
     startup()
     
-    startup.trigger -> emitArgs.trigger,emit -> spawn.args
     startup.trigger --------------------------> spawn.launch
 
     emitText: emit<string>(value="This is foo!")
