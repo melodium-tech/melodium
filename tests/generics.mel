@@ -8,6 +8,8 @@ use std/flow::emit
 use std/flow::trigger
 use std/flow::stream
 use fs/file::write
+use fs/local::|local_filesystem
+use fs/filesystem::FileSystem
 use std/engine/util::startup
 use std/conv::toBytes
 use std/flow/vec::flatten
@@ -32,7 +34,6 @@ treatment make_stream<T: Vec>(var my_value: T, var something: string)
 {
   startup()
   emit<T>(value = my_value)
-  nothing: emit<string>(value = something)
   stream<T>()
 
   startup.trigger -> emit.trigger,emit -> stream.block,stream -> Self.values
@@ -46,9 +47,12 @@ treatment write_file()
   Self.trigger -> emit.trigger
 
   emit_filename: emit<string>(value="something.txt")
-  Self.trigger -> emit_filename.trigger
+  emit_filesystem: emit<FileSystem>(value=|local_filesystem())
+  Self.trigger --------> emit_filename.trigger
+  Self.trigger -> emit_emit_filesystem.trigger
 
-  emit_filename.emit -> write.path
+  emit_filename.emit ---> write.path
+  emit_filesystem.emit -> write.filesystem
 
   toBytes<string>()
   flatten<byte>()

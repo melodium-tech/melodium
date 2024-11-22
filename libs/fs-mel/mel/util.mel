@@ -1,9 +1,9 @@
 use root/file::write as fullWrite
-use root/local::FileSystem
+use root/filesystem::FileSystem
 use root/local::|local_filesystem
 use std/flow::emit
 use std/flow::trigger
-use std/ops/option::unwrap
+use std/ops/option/block::unwrap
 use std/text/convert/string::toUtf8
 
 /**
