@@ -49,7 +49,7 @@ treatment write_file()
   emit_filename: emit<string>(value="something.txt")
   emit_filesystem: emit<FileSystem>(value=|local_filesystem())
   Self.trigger --------> emit_filename.trigger
-  Self.trigger -> emit_emit_filesystem.trigger
+  Self.trigger -> emit_filesystem.trigger
 
   emit_filename.emit ---> write.path
   emit_filesystem.emit -> write.filesystem

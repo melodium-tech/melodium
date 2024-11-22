@@ -63,7 +63,7 @@ treatment count_writer(var output_file: string)
     stream<u128>()
     write()
     emit<string>(value=output_file)
-    emitFS<FileSystem>(value=|local_filesystem())
+    emitFS: emit<FileSystem>(value=|local_filesystem())
     toBytes<u128>()
     flatten<byte>()
 
