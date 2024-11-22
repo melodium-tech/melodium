@@ -369,22 +369,6 @@ impl Engine for World {
             }
         }
 
-        // Check that all inputs are satisfied.
-        for rc_check_build in builds {
-            let borrowed_check_build = rc_check_build.read().unwrap();
-            for (input_name, input_satisfied) in &borrowed_check_build.fed_inputs {
-                if !input_satisfied {
-                    result.errors_mut().push(LogicError::unsatisfied_input(
-                        59,
-                        borrowed_check_build.host_id.clone(),
-                        borrowed_check_build.label.clone(),
-                        input_name.clone(),
-                        None,
-                    ));
-                }
-            }
-        }
-
         let mut borrowed_errors = self.errors.write().unwrap();
         borrowed_errors.extend(result.errors().clone());
 
