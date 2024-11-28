@@ -66,6 +66,15 @@ pub enum Arch {
     #[serde(other, deserialize_with = "ignore_contents")]
     Unknown,
 }
+impl std::fmt::Display for Arch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Arch::Amd64 => write!(f, "amd64"),
+            Arch::Arm64 => write!(f, "arm64"),
+            _ => write!(f, "unknown"),
+        }
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Volume {

@@ -4804,9 +4804,11 @@ dependencies = [
 name = "work-mel"
 version = "0.8.0"
 dependencies = [
+ "fs-mel",
  "melodium-core",
  "melodium-macro",
  "net-mel",
+ "process-mel",
  "serde",
  "serde_json",
  "trillium-async-std",

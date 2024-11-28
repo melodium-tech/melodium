@@ -1480,6 +1480,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
     let module_name: proc_macro2::TokenStream = format!("__mel_treatment_{name}").parse().unwrap();
 
     let expanded = quote! {
+        #[allow(non_snake_case)]
         pub mod #module_name {
             use super::*;
 

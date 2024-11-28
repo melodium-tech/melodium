@@ -17,9 +17,11 @@ crate-type = ["lib", "cdylib"]
 name = "work_mel"
 
 [dependencies]
+fs-mel = { path = "../fs-mel", version = "0.8.0" }
 melodium-core = { path = "../../melodium-core", version = "0.8.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }
 net-mel = { path = "../net-mel", version = "0.8.0" }
+process-mel = { path = "../process-mel", version = "0.8.0" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 uuid = { version = "1.5.0", features = ["serde", "v4", "fast-rng"] }

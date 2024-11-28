@@ -31,7 +31,7 @@ use std::{
     sync::{Arc, Weak},
 };
 use std_mel::data::*;
-use work_mel::*;
+use work_mel::access::*;
 
 #[derive(Debug)]
 struct Track {
