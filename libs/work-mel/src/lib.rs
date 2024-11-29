@@ -6,6 +6,9 @@ pub mod api;
 pub mod distant;
 pub mod resources;
 
+#[cfg(feature = "kubernetes")]
+mod kube;
+
 use melodium_macro::mel_package;
 
 pub(crate) const USER_AGENT: &str = concat!("work-mel/", env!("CARGO_PKG_VERSION"));

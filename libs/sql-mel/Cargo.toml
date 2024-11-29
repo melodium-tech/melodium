@@ -17,7 +17,7 @@ crate-type = ["lib", "cdylib"]
 name = "sql_mel"
 
 [dependencies]
-async-std = {version="~1.12", features=["unstable"]}
+async-std = {version="1.12", features=["unstable"]}
 melodium-core = { path = "../../melodium-core", version = "0.8.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }
 std-mel = { path = "../std-mel", version = "0.8.0" }
