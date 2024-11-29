@@ -57,7 +57,7 @@ pub enum ModeRequest {
     Distribute { key: Uuid },
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum Arch {

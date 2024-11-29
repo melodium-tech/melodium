@@ -99,7 +99,7 @@ pub async fn distant(
 
     let key = Uuid::new_v4();
     let start = api::Request {
-        edition: "scratch".to_string(),
+        edition: edition.unwrap_or_else(|| "scratch".to_string()),
         max_duration,
         memory,
         cpu,
@@ -109,9 +109,9 @@ pub async fn distant(
         client_id: None,
         version: env!("CARGO_PKG_VERSION").to_string(),
         storage,
-        arch: None,
-        volumes: vec![],
-        containers: vec![],
+        arch: arch.map(|arch| arch.0),
+        volumes: volumes.into_iter().map(|vol| vol.0.clone()).collect(),
+        containers: containers.into_iter().map(|cont| cont.0.clone()).collect(),
     };
 
     match distant.start(start).await {
