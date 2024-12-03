@@ -8,9 +8,18 @@ use process_mel::{command::Command, environment::Environment, exec::ExecutorEngi
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 
-struct KubeExecutor {
+pub struct KubeExecutor {
     client: Client,
     container: String,
+}
+
+impl KubeExecutor {
+    pub async fn try_new(container: String) -> Option<KubeExecutor> {
+        Client::try_default()
+            .await
+            .map(|client| Self { client, container })
+            .ok()
+    }
 }
 
 #[async_trait]
@@ -275,6 +284,9 @@ impl ExecutorEngine for KubeExecutor {
 
 impl Debug for KubeExecutor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("KubeExecutor").field("client", &"").finish()
+        f.debug_struct("KubeExecutor")
+            .field("container", &self.container)
+            .field("client", &"")
+            .finish()
     }
 }

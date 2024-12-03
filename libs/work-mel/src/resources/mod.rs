@@ -14,9 +14,28 @@ use process_mel::exec::*;
 )]
 pub async fn getExecutor(name: string) {
     if let Ok(_) = trigger.recv_one().await {
+        #[cfg(not(feature = "kubernetes"))]
         let _ = failure
             .send_one("No executor available".to_string().into())
             .await;
+
+        #[cfg(feature = "kubernetes")]
+        {
+            if let Some(kube_exec) = crate::kube::KubeExecutor::try_new(name).await {
+                let _ = executor
+                    .send_one(
+                        (std::sync::Arc::new(Executor {
+                            executor: std::sync::Arc::new(kube_exec),
+                        }) as std::sync::Arc<dyn Data>)
+                            .into(),
+                    )
+                    .await;
+            } else {
+                let _ = failure
+                    .send_one("No kubernetes executor available".to_string().into())
+                    .await;
+            }
+        }
     }
 }
 
