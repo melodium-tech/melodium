@@ -1,3 +1,4 @@
+use root/file::read as fullRead
 use root/file::write as fullWrite
 use root/filesystem::FileSystem
 use root/local::|local_filesystem
@@ -72,3 +73,26 @@ treatment writeText(path: string, append: bool = false, create: bool = true, new
     write.amount ---> Self.amount
 }
 
+treatment read(path: string)
+  input  trigger: Block<void>
+  output data: Stream<byte>
+  output finished: Block<void>
+  output failure: Block<void>
+  output error: Stream<string>
+  output reached: Block<void>
+{
+    emitFilename: emit<string>(value=path)
+    emitFileSystem: emit<Option<FileSystem>>(value=|local_filesystem())
+    unwrapFileSystem: unwrap<FileSystem>()
+
+    fullRead()
+
+    Self.trigger -> emitFilename.trigger,emit ------------------------------------> fullRead.path
+    Self.trigger -> emitFileSystem.trigger,emit -> unwrapFileSystem.option,value -> fullRead.filesystem
+
+    fullRead.data ------> Self.data
+    fullRead.finished --> Self.finished
+    fullRead.failure ---> Self.failure
+    fullRead.error -----> Self.error
+    fullRead.reached ---> Self.reached
+}
