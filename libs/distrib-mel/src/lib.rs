@@ -476,6 +476,7 @@ impl DistributionEngine {
                         break;
                     }
                 }
+                eprintln!("Distributed work finished")
             }
         }
     }

@@ -99,6 +99,7 @@ pub async fn spawn(command: Command, environment: Option<Environment>) {
                 &stderr,
             )
             .await;
+        eprintln!("Spawn finished")
     } else {
         eprintln!("Spawn aborted")
     }

@@ -179,6 +179,7 @@ impl ExecutorEngine for KubeExecutor {
             .await
         {
             Ok(mut process) => {
+                eprintln!("Kube spawn success");
                 if let (
                     Some(status_waiter),
                     Some(mut process_stdin),
@@ -276,6 +277,7 @@ impl ExecutorEngine for KubeExecutor {
                 }
             }
             Err(err) => {
+                eprintln!("Kube spawn error: {err}");
                 let _ = failure.send_one(err.to_string().into()).await;
             }
         }
