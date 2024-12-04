@@ -372,6 +372,7 @@ impl DistributionEngine {
         {
             while let Ok(data) = data_recv.try_recv() {
                 if let Some(protocol) = self.protocol.read().await.as_ref() {
+                    eprintln!("Sending data on {name}");
                     let _ = protocol
                         .send_message(Message::InputData(InputData {
                             id: *distribution_id,
@@ -379,12 +380,14 @@ impl DistributionEngine {
                             data: data.into(),
                         }))
                         .await;
+                    eprintln!("Data sent on {name}");
                 }
             }
         }
     }
 
     pub async fn close_input(&self, distribution_id: &u64, name: &String) {
+        eprintln!("Closing input {name} from internal");
         if let Some(protocol) = self.protocol.read().await.as_ref() {
             let _ = protocol
                 .send_message(Message::CloseInput(CloseInput {
@@ -417,6 +420,7 @@ impl DistributionEngine {
                         }
                     }
                     Ok(Message::CloseInput(close_input)) => {
+                        eprintln!("Closing input {} from remote", close_input.name);
                         if let Some(input) = self
                             .tracks
                             .read()
@@ -437,7 +441,9 @@ impl DistributionEngine {
                             .map(|track| track.outputs_senders.get(&output_data.name))
                             .flatten()
                         {
+                            eprintln!("Receiving data on {}", output_data.name);
                             if output.send(output_data.data).await.is_err() {
+                                eprintln!("Closing output {} from internal", output_data.name);
                                 let _ = protocol
                                     .send_message(Message::CloseOutput(CloseOutput {
                                         id: output_data.id,
@@ -448,6 +454,7 @@ impl DistributionEngine {
                         }
                     }
                     Ok(Message::CloseOutput(close_output)) => {
+                        eprintln!("Closing output {} from remote", close_output.name);
                         if let Some(output) = self
                             .tracks
                             .read()

@@ -74,6 +74,7 @@ pub async fn exec(command: Command, environment: Option<Environment>) {
     output failure Block<string>
 )]
 pub async fn spawn(command: Command, environment: Option<Environment>) {
+    eprintln!("Spawn awaiting");
     if let (Ok(executor), Ok(_)) = (
         executor.recv_one().await.map(|val| {
             GetData::<Arc<dyn Data>>::try_data(val)
@@ -83,6 +84,7 @@ pub async fn spawn(command: Command, environment: Option<Environment>) {
         }),
         launch.recv_one().await,
     ) {
+        eprintln!("Spawn try");
         executor
             .executor
             .spawn(
@@ -97,5 +99,7 @@ pub async fn spawn(command: Command, environment: Option<Environment>) {
                 &stderr,
             )
             .await;
+    } else {
+        eprintln!("Spawn aborted")
     }
 }
