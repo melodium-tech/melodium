@@ -248,6 +248,14 @@ impl DistributionEngine {
         }
     }
 
+    pub async fn stop(&self) {
+        if let Some(protocol) = self.protocol.read().await.as_ref() {
+            let _ = protocol
+                .send_message(Message::Ended)
+                .await;
+        }
+    }
+
     pub async fn distribute(
         &self,
         params: HashMap<String, Value>,
@@ -542,6 +550,17 @@ pub async fn start(params: Map) {
     }) {
         distributor.start(&access.0, params).await;
     }
+}
+
+#[mel_treatment(
+    model distributor DistributionEngine
+    input trigger Block<void>
+)]
+pub async fn stop() {
+    let model = DistributionEngineModel::into(distributor);
+    let distributor = model.inner();
+
+    distributor.stop().await;
 }
 
 #[mel_treatment(
