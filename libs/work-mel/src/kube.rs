@@ -128,7 +128,7 @@ impl ExecutorEngine for KubeExecutor {
         stdout: &Box<dyn Output>,
         stderr: &Box<dyn Output>,
     ) {
-        let pod: Api<Pod> = Api::all(self.client.clone());
+        let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
 
         let mut pod_name_api = String::new();
         let mut container_name_api = String::new();
