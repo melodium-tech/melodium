@@ -130,6 +130,64 @@ impl ExecutorEngine for KubeExecutor {
     ) {
         let pod: Api<Pod> = Api::all(self.client.clone());
 
+        let mut pod_name_api = String::new();
+        let mut container_name_api = String::new();
+
+        if let (Some(pod_name), Some(_containers), Some(init_containers)) = match pod
+            .list(&kube::api::ListParams {
+                label_selector: Some(format!(
+                    "batch.kubernetes.io/job-name={}",
+                    std::env::var("JOB_NAME").unwrap_or_else(|_| {
+                        eprintln!("No JOB_ENV var");
+                        "".to_string()
+                    })
+                )),
+                ..Default::default()
+            })
+            .await
+        {
+            Ok(pods) => {
+                if let Some(pod) = pods.into_iter().find(|pod| {
+                    pod.status
+                        .as_ref()
+                        .map(|status| {
+                            status
+                                .phase
+                                .as_ref()
+                                .map(|phase| phase == "Running")
+                                .unwrap_or(false)
+                        })
+                        .unwrap_or(false)
+                }) {
+                    (
+                        pod.metadata.name.clone(),
+                        pod.spec.as_ref().map(|spec| spec.containers.clone()),
+                        pod.spec
+                            .as_ref()
+                            .map(|spec| spec.init_containers.clone())
+                            .flatten(),
+                    )
+                } else {
+                    eprintln!("No pod found");
+                    (None, None, None)
+                }
+            }
+            Err(err) => {
+                eprintln!("Error: {err}");
+                (None, None, None)
+            }
+        } {
+            pod_name_api = pod_name.clone();
+
+            for container in &init_containers {
+                if container.name.contains(&self.container) {
+                    container_name_api = container.name.clone();
+                }
+            }
+        }
+
+        eprintln!("Pod name: {pod_name_api}\nContainer name: {container_name_api}");
+
         let mut full_command = if let Some(environment) = environment {
             let mut env_command = vec!["/usr/bin/env".to_string()];
 
@@ -168,10 +226,10 @@ impl ExecutorEngine for KubeExecutor {
 
         match pod
             .exec(
-                "testcommand",
+                &pod_name_api,
                 full_command,
                 &AttachParams::default()
-                    .container(self.container.clone())
+                    .container(container_name_api.clone())
                     .stdin(true)
                     .stdout(true)
                     .stderr(true),
