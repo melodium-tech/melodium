@@ -47,9 +47,29 @@ pub async fn getExecutor(name: string) {
 )]
 pub async fn getFileSystem(name: string) {
     if let Ok(_) = trigger.recv_one().await {
+        #[cfg(not(feature = "kubernetes"))]
         let _ = failure
             .send_one("No filesystem available".to_string().into())
             .await;
+
+        #[cfg(feature = "kubernetes")]
+        {
+            match crate::kube::KubeFileSystem::try_new(name).await {
+                Ok(kube_fs) => {
+                    let _ = filesystem
+                        .send_one(
+                            (std::sync::Arc::new(FileSystem {
+                                filesystem: std::sync::Arc::new(kube_fs),
+                            }) as std::sync::Arc<dyn Data>)
+                                .into(),
+                        )
+                        .await;
+                }
+                Err(err) => {
+                    let _ = failure.send_one(err.into()).await;
+                }
+            }
+        }
     }
 }
 

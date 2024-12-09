@@ -5325,6 +5325,7 @@ version = "0.8.0"
 dependencies = [
  "async-std",
  "async-trait",
+ "async-walkdir",
  "fs-mel",
  "k8s-openapi",
  "kube",

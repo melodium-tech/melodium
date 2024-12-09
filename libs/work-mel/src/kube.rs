@@ -1,5 +1,13 @@
+use async_std::{
+    fs::{self, OpenOptions},
+    io::{ReadExt, WriteExt},
+    path::{Path, PathBuf},
+    stream::StreamExt,
+};
 use async_trait::async_trait;
+use async_walkdir::{Filtering, WalkDir};
 use core::fmt::Debug;
+use fs_mel::filesystem::FileSystemEngine;
 use k8s_openapi::api::core::v1::Pod;
 use kube::{api::AttachParams, Api, Client};
 use melodium_core::common::executive::*;
@@ -59,7 +67,7 @@ impl ExecutorEngine for KubeExecutor {
         success: &Box<dyn Output>,
         failure: &Box<dyn Output>,
     ) {
-        let pod: Api<Pod> = Api::all(self.client.clone());
+        let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
 
         let mut full_command = if let Some(environment) = environment {
             let mut env_command = vec!["/usr/bin/env".to_string()];
@@ -323,5 +331,259 @@ impl Debug for KubeExecutor {
             .field("container_full_name", &self.container_full_name)
             .field("client", &"")
             .finish()
+    }
+}
+
+#[derive(Debug)]
+pub struct KubeFileSystem {
+    #[allow(unused)]
+    volume: String,
+    path: PathBuf,
+}
+
+impl KubeFileSystem {
+    pub async fn try_new(volume: String) -> Result<KubeFileSystem, String> {
+        if Ok(true)
+            != std::env::var("MELODIUM_JOB_VOLUMES")
+                .map(|var| var.split(",").any(|var_volume| var_volume == volume))
+        {
+            return Err(format!("No volume '{volume}' listed as available"));
+        }
+
+        if let Ok(path) = std::env::var(format!("MELODIUM_JOB_VOLUME_{volume}")) {
+            Ok(Self {
+                volume,
+                path: path.into(),
+            })
+        } else {
+            return Err(format!("No volume '{volume}' available"));
+        }
+    }
+
+    async fn full_path(&self, path: &Path) -> async_std::io::Result<PathBuf> {
+        let full_path = self.path.join(path).canonicalize().await?;
+
+        if full_path.starts_with(&self.path) {
+            Ok(full_path)
+        } else {
+            Err(async_std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "file not found",
+            ))
+        }
+    }
+}
+
+#[async_trait]
+impl FileSystemEngine for KubeFileSystem {
+    async fn read_file(
+        &self,
+        path: &str,
+        data: &Box<dyn Output>,
+        reached: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        failure: &Box<dyn Output>,
+        error: &Box<dyn Output>,
+    ) {
+        let path = match self
+            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
+            .await
+        {
+            Ok(path) => path,
+            Err(err) => {
+                let _ = failure.send_one(().into()).await;
+                let _ = error.send_one(err.to_string().into()).await;
+                return;
+            }
+        };
+
+        let file = OpenOptions::new().read(true).open(path).await;
+        match file {
+            Ok(mut file) => {
+                let _ = reached.send_one(().into()).await;
+                reached.close().await;
+                let mut vec = vec![0; 2usize.pow(20)];
+                let mut fail = false;
+                loop {
+                    match file.read(&mut vec).await {
+                        Ok(n) if n > 0 => {
+                            vec.truncate(n);
+                            check!(data.send_many(TransmissionValue::Byte(vec.into())).await);
+                            vec = vec![0; 2usize.pow(20)];
+                        }
+                        Ok(_) => {
+                            break;
+                        }
+                        Err(err) => {
+                            let _ = failure.send_one(().into()).await;
+                            let _ = error.send_one(err.to_string().into()).await;
+                            fail = true;
+                            break;
+                        }
+                    }
+                }
+                if !fail {
+                    let _ = finished.send_one(().into()).await;
+                }
+            }
+            Err(err) => {
+                let _ = failure.send_one(().into()).await;
+                let _ = error.send_one(err.to_string().into()).await;
+            }
+        }
+    }
+    async fn write_file(
+        &self,
+        path: &str,
+        append: bool,
+        create: bool,
+        new: bool,
+        data: &Box<dyn Input>,
+        amount: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        failure: &Box<dyn Output>,
+        error: &Box<dyn Output>,
+    ) {
+        let path = match self
+            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
+            .await
+        {
+            Ok(path) => path,
+            Err(err) => {
+                let _ = failure.send_one(().into()).await;
+                let _ = error.send_one(err.to_string().into()).await;
+                return;
+            }
+        };
+
+        let file = OpenOptions::new()
+            .write(true)
+            .append(append)
+            .create(create)
+            .create_new(new)
+            .open(path)
+            .await;
+        match file {
+            Ok(mut file) => {
+                let mut written_amount = 0u128;
+                let mut fail = false;
+                while let Ok(data) = data
+                    .recv_many()
+                    .await
+                    .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
+                {
+                    match file.write_all(&data).await {
+                        Ok(_) => {
+                            written_amount += data.len() as u128;
+                            let _ = amount.send_one(written_amount.into()).await;
+                        }
+                        Err(err) => {
+                            let _ = failure.send_one(().into()).await;
+                            let _ = error.send_one(err.to_string().into()).await;
+                            fail = true;
+                            break;
+                        }
+                    }
+                }
+                if !fail {
+                    let _ = finished.send_one(().into()).await;
+                }
+            }
+            Err(err) => {
+                let _ = failure.send_one(().into()).await;
+                let _ = error.send_one(err.to_string().into()).await;
+            }
+        }
+    }
+    async fn create_dir(
+        &self,
+        path: &str,
+        recursive: bool,
+        success: &Box<dyn Output>,
+        failure: &Box<dyn Output>,
+        error: &Box<dyn Output>,
+    ) {
+        let path = match self
+            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
+            .await
+        {
+            Ok(path) => path,
+            Err(err) => {
+                let _ = failure.send_one(().into()).await;
+                let _ = error.send_one(err.to_string().into()).await;
+                return;
+            }
+        };
+
+        match if recursive {
+            fs::create_dir_all(path).await
+        } else {
+            fs::create_dir(path).await
+        } {
+            Ok(()) => {
+                let _ = success.send_one(().into()).await;
+            }
+            Err(err) => {
+                let _ = error.send_one(err.to_string().into()).await;
+                let _ = failure.send_one(().into()).await;
+            }
+        }
+    }
+    async fn scan_dir(
+        &self,
+        path: &str,
+        recursive: bool,
+        follow_links: bool,
+        entries: &Box<dyn Output>,
+        success: &Box<dyn Output>,
+        error: &Box<dyn Output>,
+    ) {
+        let path = match self
+            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
+            .await
+        {
+            Ok(path) => path,
+            Err(err) => {
+                let _ = error.send_one(err.to_string().into()).await;
+                return;
+            }
+        };
+
+        let mut dir_entries = WalkDir::new(path).filter(move |entry| async move {
+            match entry.file_type().await {
+                Ok(file_type) => {
+                    if file_type.is_dir() {
+                        if recursive {
+                            Filtering::Continue
+                        } else {
+                            Filtering::IgnoreDir
+                        }
+                    } else if file_type.is_symlink() {
+                        if follow_links {
+                            Filtering::Continue
+                        } else {
+                            Filtering::IgnoreDir
+                        }
+                    } else {
+                        Filtering::Continue
+                    }
+                }
+                Err(_) => Filtering::Continue,
+            }
+        });
+
+        while let Some(entry) = dir_entries.next().await {
+            match entry {
+                Ok(entry) => check!(
+                    entries
+                        .send_one(entry.path().to_string_lossy().to_string().into())
+                        .await
+                ),
+                Err(err) => {
+                    let _ = error.send_one(err.to_string().into()).await;
+                }
+            }
+        }
+        let _ = success.send_one(().into()).await;
     }
 }
