@@ -10,15 +10,41 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 
 pub struct KubeExecutor {
     client: Client,
+    pod: String,
     container: String,
+    container_full_name: String,
 }
 
 impl KubeExecutor {
-    pub async fn try_new(container: String) -> Option<KubeExecutor> {
-        Client::try_default()
-            .await
-            .map(|client| Self { client, container })
-            .ok()
+    pub async fn try_new(container: String) -> Result<KubeExecutor, String> {
+        if Ok(true)
+            != std::env::var("MELODIUM_JOB_CONTAINERS").map(|var| {
+                var.split(",")
+                    .any(|var_container| var_container == container)
+            })
+        {
+            return Err(format!("No container '{container}' listed as available"));
+        }
+
+        if let Ok(container_full_name) =
+            std::env::var(format!("MELODIUM_JOB_CONTAINER_{container}"))
+        {
+            if let Ok(pod) = std::env::var("MELODIUM_POD_NAME") {
+                Client::try_default()
+                    .await
+                    .map(|client| Self {
+                        client,
+                        pod,
+                        container,
+                        container_full_name,
+                    })
+                    .map_err(|_| "No kubernetes access available".to_string())
+            } else {
+                return Err(format!("No pod name available"));
+            }
+        } else {
+            return Err(format!("No container '{container}' available"));
+        }
     }
 }
 
@@ -73,9 +99,9 @@ impl ExecutorEngine for KubeExecutor {
 
         match pod
             .exec(
-                "testcommand",
+                &self.pod,
                 full_command,
-                &AttachParams::default().container(self.container.clone()),
+                &AttachParams::default().container(self.container_full_name.clone()),
             )
             .await
         {
@@ -130,63 +156,10 @@ impl ExecutorEngine for KubeExecutor {
     ) {
         let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
 
-        let mut pod_name_api = String::new();
-        let mut container_name_api = String::new();
-
-        if let (Some(pod_name), Some(_containers), Some(init_containers)) = match pod
-            .list(&kube::api::ListParams {
-                label_selector: Some(format!(
-                    "batch.kubernetes.io/job-name={}",
-                    std::env::var("JOB_NAME").unwrap_or_else(|_| {
-                        eprintln!("No JOB_ENV var");
-                        "".to_string()
-                    })
-                )),
-                ..Default::default()
-            })
-            .await
-        {
-            Ok(pods) => {
-                if let Some(pod) = pods.into_iter().find(|pod| {
-                    pod.status
-                        .as_ref()
-                        .map(|status| {
-                            status
-                                .phase
-                                .as_ref()
-                                .map(|phase| phase == "Running")
-                                .unwrap_or(false)
-                        })
-                        .unwrap_or(false)
-                }) {
-                    (
-                        pod.metadata.name.clone(),
-                        pod.spec.as_ref().map(|spec| spec.containers.clone()),
-                        pod.spec
-                            .as_ref()
-                            .map(|spec| spec.init_containers.clone())
-                            .flatten(),
-                    )
-                } else {
-                    eprintln!("No pod found");
-                    (None, None, None)
-                }
-            }
-            Err(err) => {
-                eprintln!("Error: {err}");
-                (None, None, None)
-            }
-        } {
-            pod_name_api = pod_name.clone();
-
-            for container in &init_containers {
-                if container.name.contains(&self.container) {
-                    container_name_api = container.name.clone();
-                }
-            }
-        }
-
-        eprintln!("Pod name: {pod_name_api}\nContainer name: {container_name_api}");
+        eprintln!(
+            "Pod name: {}\nContainer name: {}",
+            self.pod, self.container_full_name
+        );
 
         let mut full_command = if let Some(environment) = environment {
             let mut env_command = vec!["/usr/bin/env".to_string()];
@@ -226,10 +199,10 @@ impl ExecutorEngine for KubeExecutor {
 
         match pod
             .exec(
-                &pod_name_api,
+                &self.pod,
                 full_command,
                 &AttachParams::default()
-                    .container(container_name_api.clone())
+                    .container(self.container_full_name.clone())
                     .stdin(true)
                     .stdout(true)
                     .stderr(true),
@@ -345,7 +318,9 @@ impl ExecutorEngine for KubeExecutor {
 impl Debug for KubeExecutor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("KubeExecutor")
+            .field("pod", &self.pod)
             .field("container", &self.container)
+            .field("container_full_name", &self.container_full_name)
             .field("client", &"")
             .finish()
     }

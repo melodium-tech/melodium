@@ -21,19 +21,20 @@ pub async fn getExecutor(name: string) {
 
         #[cfg(feature = "kubernetes")]
         {
-            if let Some(kube_exec) = crate::kube::KubeExecutor::try_new(name).await {
-                let _ = executor
-                    .send_one(
-                        (std::sync::Arc::new(Executor {
-                            executor: std::sync::Arc::new(kube_exec),
-                        }) as std::sync::Arc<dyn Data>)
-                            .into(),
-                    )
-                    .await;
-            } else {
-                let _ = failure
-                    .send_one("No kubernetes executor available".to_string().into())
-                    .await;
+            match crate::kube::KubeExecutor::try_new(name).await {
+                Ok(kube_exec) => {
+                    let _ = executor
+                        .send_one(
+                            (std::sync::Arc::new(Executor {
+                                executor: std::sync::Arc::new(kube_exec),
+                            }) as std::sync::Arc<dyn Data>)
+                                .into(),
+                        )
+                        .await;
+                }
+                Err(err) => {
+                    let _ = failure.send_one(err.into()).await;
+                }
             }
         }
     }
