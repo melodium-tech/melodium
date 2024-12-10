@@ -33,6 +33,7 @@ pub async fn getExecutor(name: string) {
                         .await;
                 }
                 Err(err) => {
+                    eprintln!("Error getting executor: {err}");
                     let _ = failure.send_one(err.into()).await;
                 }
             }
@@ -91,7 +92,7 @@ pub fn container(
     Container(api::Container {
         name,
         image,
-        pull_secret: pull_secret.unwrap_or_default(),
+        pull_secret: pull_secret.unwrap_or_else(|| "{}".to_string()),
         memory,
         cpu,
         storage,
