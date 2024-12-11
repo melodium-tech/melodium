@@ -34,6 +34,16 @@ impl KubeExecutor {
             return Err(format!("No container '{container}' listed as available"));
         }
 
+        while let Some(element) = WalkDir::new("/var/run/secrets/kubernetes.io/serviceaccount")
+            .next()
+            .await
+        {
+            match element {
+                Ok(entry) => eprintln!("Entry: {entry:#?}"),
+                Err(err) => eprintln!("Entry error: {err}"),
+            }
+        }
+
         if let Ok(container_full_name) =
             std::env::var(format!("MELODIUM_JOB_CONTAINER_{container}"))
         {
@@ -46,7 +56,7 @@ impl KubeExecutor {
                         container,
                         container_full_name,
                     })
-                    .map_err(|_| "No kubernetes access available".to_string())
+                    .map_err(|err| format!("No kubernetes access available: {err}"))
             } else {
                 return Err(format!("No pod name available"));
             }
