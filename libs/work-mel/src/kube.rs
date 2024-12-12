@@ -9,7 +9,7 @@ use async_walkdir::{Filtering, WalkDir};
 use core::fmt::Debug;
 use fs_mel::filesystem::FileSystemEngine;
 use k8s_openapi::api::core::v1::Pod;
-use kube::{api::AttachParams, Api, Client, Config};
+use kube::{api::AttachParams, Api, Client};
 use melodium_core::common::executive::*;
 use melodium_macro::check;
 use process_mel::{command::Command, environment::Environment, exec::ExecutorEngine};
@@ -48,17 +48,15 @@ impl KubeExecutor {
             std::env::var(format!("MELODIUM_JOB_CONTAINER_{container}"))
         {
             if let Ok(pod) = std::env::var("MELODIUM_POD_NAME") {
-                match Config::incluster() {
-                    Ok(config) => Client::try_from(config)
-                        .map(|client| Self {
-                            client,
-                            pod,
-                            container,
-                            container_full_name,
-                        })
-                        .map_err(|err| format!("No kubernetes access available: {err}")),
-                    Err(err) => Err(format!("No kubernetes config available: {err}")),
-                }
+                Client::try_default()
+                    .await
+                    .map(|client| Self {
+                        client,
+                        pod,
+                        container,
+                        container_full_name,
+                    })
+                    .map_err(|err| format!("No kubernetes access available: {err}"))
             } else {
                 return Err(format!("No pod name available"));
             }
