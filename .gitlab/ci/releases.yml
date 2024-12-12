@@ -237,17 +237,17 @@ release:publish:containers:
     - version=$(target/x86_64-unknown-linux-musl/release/melodium --version | cut -d " " -f2)
 
     # ARM64
-    - container=$(buildah from --platform "linux/arm64" alpine:latest)
+    - container=$(buildah from --platform "linux/arm64" scratch)
     - buildah copy ${container} target/aarch64-unknown-linux-musl/release/melodium /
     - buildah config --entrypoint '["/melodium"]' --env MELODIUM_HOME=/.melodium ${container}
     - buildah commit --manifest ${manifest} ${container} melodium-aarch64-unknown-linux-musl
     # 386
-    - container=$(buildah from --platform "linux/386" alpine:latest)
+    - container=$(buildah from --platform "linux/386" scratch)
     - buildah copy ${container} target/i686-unknown-linux-musl/release/melodium /
     - buildah config --entrypoint '["/melodium"]' --env MELODIUM_HOME=/.melodium ${container}
     - buildah commit --manifest ${manifest} ${container} melodium-i686-unknown-linux-musl
     # AMD64
-    - container=$(buildah from --platform "linux/amd64" alpine:latest)
+    - container=$(buildah from --platform "linux/amd64" scratch)
     - buildah copy ${container} target/x86_64-unknown-linux-musl/release/melodium /
     - buildah config --entrypoint '["/melodium"]' --env MELODIUM_HOME=/.melodium ${container}
     - buildah commit --manifest ${manifest} ${container} melodium-x86_64-unknown-linux-musl

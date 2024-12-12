@@ -34,7 +34,7 @@ impl KubeExecutor {
             return Err(format!("No container '{container}' listed as available"));
         }
 
-        while let Some(element) = WalkDir::new("/var/run/secrets/kubernetes.io/serviceaccount")
+        /*while let Some(element) = WalkDir::new("/var/run/secrets/kubernetes.io/serviceaccount")
             .next()
             .await
         {
@@ -42,7 +42,7 @@ impl KubeExecutor {
                 Ok(entry) => eprintln!("Entry: {entry:#?}"),
                 Err(err) => eprintln!("Entry error: {err}"),
             }
-        }
+        }*/
 
         if let Ok(container_full_name) =
             std::env::var(format!("MELODIUM_JOB_CONTAINER_{container}"))
