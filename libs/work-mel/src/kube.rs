@@ -460,6 +460,7 @@ impl FileSystemEngine for KubeFileSystem {
         {
             Ok(path) => path,
             Err(err) => {
+                eprintln!("Error writing file at path: {err}");
                 let _ = failure.send_one(().into()).await;
                 let _ = error.send_one(err.to_string().into()).await;
                 return;
@@ -488,6 +489,7 @@ impl FileSystemEngine for KubeFileSystem {
                             let _ = amount.send_one(written_amount.into()).await;
                         }
                         Err(err) => {
+                            eprintln!("Error writing file: {err}");
                             let _ = failure.send_one(().into()).await;
                             let _ = error.send_one(err.to_string().into()).await;
                             fail = true;
@@ -500,6 +502,7 @@ impl FileSystemEngine for KubeFileSystem {
                 }
             }
             Err(err) => {
+                eprintln!("Error writing file at opening: {err}");
                 let _ = failure.send_one(().into()).await;
                 let _ = error.send_one(err.to_string().into()).await;
             }
