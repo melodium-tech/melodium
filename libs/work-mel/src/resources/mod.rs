@@ -67,6 +67,7 @@ pub async fn getFileSystem(name: string) {
                         .await;
                 }
                 Err(err) => {
+                    eprintln!("Error getting filesystem: {err}");
                     let _ = failure.send_one(err.into()).await;
                 }
             }
