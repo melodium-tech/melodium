@@ -371,7 +371,7 @@ impl KubeFileSystem {
     }
 
     async fn full_path(&self, path: &Path) -> async_std::io::Result<PathBuf> {
-        let full_path = self.path.join(path).canonicalize().await?;
+        let full_path = self.path.join(path);
 
         if full_path.starts_with(&self.path) {
             Ok(full_path)
