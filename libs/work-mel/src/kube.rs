@@ -34,16 +34,6 @@ impl KubeExecutor {
             return Err(format!("No container '{container}' listed as available"));
         }
 
-        /*while let Some(element) = WalkDir::new("/var/run/secrets/kubernetes.io/serviceaccount")
-            .next()
-            .await
-        {
-            match element {
-                Ok(entry) => eprintln!("Entry: {entry:#?}"),
-                Err(err) => eprintln!("Entry error: {err}"),
-            }
-        }*/
-
         if let Ok(container_full_name) =
             std::env::var(format!("MELODIUM_JOB_CONTAINER_{container}"))
         {
@@ -174,11 +164,6 @@ impl ExecutorEngine for KubeExecutor {
     ) {
         let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
 
-        eprintln!(
-            "Pod name: {}\nContainer name: {}",
-            self.pod, self.container_full_name
-        );
-
         let mut full_command = if let Some(environment) = environment {
             let mut env_command = vec!["/usr/bin/env".to_string()];
 
@@ -228,7 +213,6 @@ impl ExecutorEngine for KubeExecutor {
             .await
         {
             Ok(mut process) => {
-                eprintln!("Kube spawn success");
                 if let (
                     Some(status_waiter),
                     Some(mut process_stdin),
@@ -326,7 +310,6 @@ impl ExecutorEngine for KubeExecutor {
                 }
             }
             Err(err) => {
-                eprintln!("Kube spawn error: {err}");
                 let _ = failure.send_one(err.to_string().into()).await;
             }
         }
@@ -460,7 +443,6 @@ impl FileSystemEngine for KubeFileSystem {
         {
             Ok(path) => path,
             Err(err) => {
-                eprintln!("Error writing file at path: {err}");
                 let _ = failure.send_one(().into()).await;
                 let _ = error.send_one(err.to_string().into()).await;
                 return;
@@ -489,7 +471,6 @@ impl FileSystemEngine for KubeFileSystem {
                             let _ = amount.send_one(written_amount.into()).await;
                         }
                         Err(err) => {
-                            eprintln!("Error writing file: {err}");
                             let _ = failure.send_one(().into()).await;
                             let _ = error.send_one(err.to_string().into()).await;
                             fail = true;
@@ -502,7 +483,6 @@ impl FileSystemEngine for KubeFileSystem {
                 }
             }
             Err(err) => {
-                eprintln!("Error writing file at opening: {err}");
                 let _ = failure.send_one(().into()).await;
                 let _ = error.send_one(err.to_string().into()).await;
             }

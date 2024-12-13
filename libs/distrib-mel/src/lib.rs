@@ -109,12 +109,10 @@ impl DistributionEngine {
             for ipaddr in access.addresses.iter() {
                 let addrs = SocketAddr::new(*ipaddr, access.port);
 
-                eprintln!("Trying connection to {ipaddr}");
                 match TcpStream::connect(addrs).await {
                     Ok(stream) => match tls_stream(*ipaddr, stream).await {
                         Ok(prot) => {
                             protocol = Some(prot);
-                            eprintln!("Connected!");
                             break;
                         }
                         Err(err) => {
@@ -183,7 +181,6 @@ impl DistributionEngine {
                 let shared_collection =
                     Collection::from_entrypoint(&model.world().collection(), &entrypoint);
 
-                eprintln!("Awaiting LoadAndLaunch");
                 match protocol
                     .send_message(Message::LoadAndLaunch(LoadAndLaunch {
                         collection: shared_collection,
@@ -198,7 +195,6 @@ impl DistributionEngine {
                     Ok(_) => match protocol.recv_message().await {
                         Ok(Message::LaunchStatus(status)) => match status {
                             melodium_distribution::LaunchStatus::Ok => {
-                                eprintln!("LoadAndLaunch succeed");
                                 *protocol_lock = Some(AsyncArc::new(protocol));
                                 model
                                     .new_ready(
@@ -307,8 +303,6 @@ impl DistributionEngine {
 
                 tracks.insert(id, track);
 
-                eprintln!("Instanciating track {id}");
-
                 if protocol
                     .send_message(Message::Instanciate(Instanciate {
                         id: id,
@@ -320,7 +314,6 @@ impl DistributionEngine {
                     .await
                     .is_ok()
                 {
-                    eprintln!("Instanciation succeed");
                     Some((id, instanciation_barrier, instanciation_barrier_validated))
                 } else {
                     tracks.remove(&id);
@@ -390,7 +383,6 @@ impl DistributionEngine {
         {
             while let Ok(data) = data_recv.try_recv() {
                 if let Some(protocol) = self.protocol.read().await.as_ref() {
-                    eprintln!("Sending data on {name}");
                     let _ = protocol
                         .send_message(Message::InputData(InputData {
                             id: *distribution_id,
@@ -398,14 +390,12 @@ impl DistributionEngine {
                             data: data.into(),
                         }))
                         .await;
-                    eprintln!("Data sent on {name}");
                 }
             }
         }
     }
 
     pub async fn close_input(&self, distribution_id: &u64, name: &String) {
-        eprintln!("Closing input {name} from internal");
         if let Some(protocol) = self.protocol.read().await.as_ref() {
             let _ = protocol
                 .send_message(Message::CloseInput(CloseInput {
@@ -417,29 +407,20 @@ impl DistributionEngine {
     }
 
     async fn continuous(&self) {
-        eprintln!("Start protocol await");
         self.protocol_barrier.wait().await;
-        eprintln!("Protocol awaited");
 
         if let Some(protocol) = self.protocol.read().await.as_ref() {
             loop {
-                eprintln!("Awaiting protocol message…");
-                match {
-                    let msg = protocol.recv_message().await;
-                    eprintln!("Protocol message: {msg:?}");
-                    msg
-                } {
+                match protocol.recv_message().await {
                     Ok(Message::InstanciateStatus(instanciate_status)) => {
                         match instanciate_status {
                             InstanciateStatus::Ok { id } => {
-                                eprintln!("Instanciation ok for {id}");
                                 if let Some(track) = self.tracks.read().await.get(&id) {
                                     track.instancied.store(true, Ordering::Relaxed);
                                     track.instanciation_barrier.wait().await;
                                 }
                             }
-                            InstanciateStatus::Failure { id, message } => {
-                                eprintln!("Instanciation failed for {id}: {message}");
+                            InstanciateStatus::Failure { id, message: _ } => {
                                 if let Some(track) = self.tracks.read().await.get(&id) {
                                     track.instanciation_barrier.wait().await;
                                 }
@@ -447,7 +428,6 @@ impl DistributionEngine {
                         }
                     }
                     Ok(Message::CloseInput(close_input)) => {
-                        eprintln!("Closing input {} from remote", close_input.name);
                         if let Some(input) = self
                             .tracks
                             .read()
@@ -468,9 +448,7 @@ impl DistributionEngine {
                             .map(|track| track.outputs_senders.get(&output_data.name))
                             .flatten()
                         {
-                            eprintln!("Receiving data on {}", output_data.name);
                             if output.send(output_data.data).await.is_err() {
-                                eprintln!("Closing output {} from internal", output_data.name);
                                 let _ = protocol
                                     .send_message(Message::CloseOutput(CloseOutput {
                                         id: output_data.id,
@@ -481,7 +459,6 @@ impl DistributionEngine {
                         }
                     }
                     Ok(Message::CloseOutput(close_output)) => {
-                        eprintln!("Closing output {} from remote", close_output.name);
                         if let Some(output) = self
                             .tracks
                             .read()
@@ -504,12 +481,10 @@ impl DistributionEngine {
                     }
                 }
             }
-            eprintln!("Distributed work finished")
         }
     }
 
     async fn close_all(&self) {
-        eprintln!("Closing all");
         for (_, track) in self.tracks.read().await.iter() {
             track.inputs_receivers.iter().for_each(|(_, recv)| {
                 recv.close();
@@ -527,7 +502,6 @@ impl DistributionEngine {
                     .store(true, Ordering::Relaxed);
             }
         }
-        eprintln!("Everything closed");
     }
 
     fn shutdown(&self) {
@@ -542,7 +516,6 @@ impl DistributionEngine {
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 
     async fn distribution_failure(&self, message: String) {
-        eprintln!("DistributionFailure: {message}");
         self.model
             .upgrade()
             .unwrap()
@@ -592,7 +565,6 @@ pub async fn stop() {
     let distributor = model.inner();
 
     if let Ok(_) = trigger.recv_one().await {
-        eprintln!("Stopping distribution");
         distributor.stop().await;
     }
 }
@@ -610,16 +582,11 @@ pub async fn distribute(params: Map) {
 
     if let Ok(_) = trigger.recv_one().await {
         if let Some((id, barrier, validation)) = distributor.distribute(params).await {
-            eprintln!("Distribution process");
             if !validation.load(Ordering::Relaxed) {
                 barrier.wait().await;
                 validation.store(true, Ordering::Relaxed);
-                eprintln!("Await done");
                 if distributor.is_ok(&id).await {
-                    eprintln!("Distribution id {id} ok");
                     let _ = distribution_id.send_one(id.into()).await;
-                } else {
-                    eprintln!("Distribution id {id} in error");
                 }
             }
         }

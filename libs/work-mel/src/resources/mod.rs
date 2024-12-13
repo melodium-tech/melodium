@@ -33,7 +33,6 @@ pub async fn getExecutor(name: string) {
                         .await;
                 }
                 Err(err) => {
-                    eprintln!("Error getting executor: {err}");
                     let _ = failure.send_one(err.into()).await;
                 }
             }
@@ -67,7 +66,6 @@ pub async fn getFileSystem(name: string) {
                         .await;
                 }
                 Err(err) => {
-                    eprintln!("Error getting filesystem: {err}");
                     let _ = failure.send_one(err.into()).await;
                 }
             }
