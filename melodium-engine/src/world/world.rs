@@ -421,6 +421,28 @@ impl Engine for World {
                 while let Some(_) = continuous.next().await {}
 
                 me.continous_ended.store(true, Ordering::Relaxed);
+
+                // Inserting one last pseudo-track to make run_tracks check one more time,
+                // might be removed once new way of running track is implemented.
+                {
+                    let track_id;
+                    {
+                        let mut counter = self.tracks_counter.lock().await;
+                        track_id = *counter;
+                        *counter = track_id + 1;
+                    }
+
+                    let info_track = InfoTrack::new(track_id, None, 0);
+                    let execution_track = ExecutionTrack::new(
+                        track_id,
+                        0,
+                        vec![Box::new(Box::pin(async { ResultStatus::Ok })) as TrackFuture]
+                            .into_iter()
+                            .collect(),
+                    );
+                    self.tracks_info.lock().await.insert(track_id, info_track);
+                    let _ = self.tracks_sender.send(execution_track).await;
+                }
             }
         };
 
