@@ -57,7 +57,7 @@ impl DistantEngine {
 
         let connection = client
             .post("/execution/job/start")
-            .with_header(KnownHeaderName::ContentType, "application/json")
+            .with_request_header(KnownHeaderName::ContentType, "application/json")
             .with_body(serde_json::to_string(&request).unwrap())
             .await
             .map_err(|err| err.to_string())?;

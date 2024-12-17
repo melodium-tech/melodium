@@ -28,11 +28,11 @@ plugin = []
 real = []
 
 [target.'cfg(not(any(target_env = "msvc", target_vendor = "apple")))'.dependencies.sqlx]
-version = "0.7.4"
+version = "0.8"
 features = ["runtime-async-std", "postgres", "mysql", "tls-rustls"]
 
 [target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.sqlx]
-version = "0.7.4"
+version = "0.8"
 features = ["runtime-async-std", "postgres", "mysql", "tls-native-tls"]
 
 
