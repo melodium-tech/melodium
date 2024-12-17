@@ -74,8 +74,8 @@ treatment insertRows[sql: SqlPool](number: u128, exec_error_file: string, succes
 
     Self.trigger -> emit.trigger,emit -> generate.length,stream -> executeBatch.bind
 
-    writeExecutionFailure: write(path=exec_error_file)
-    writeExecutionSuccess: write(path=success_file)
+    writeExecutionFailure: writeFile(path=exec_error_file)
+    writeExecutionSuccess: writeFile(path=success_file)
 
     affectedAsString: toString<u64>()
     affectedAsUtf8: toUtf8()
