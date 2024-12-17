@@ -114,20 +114,6 @@ testers:rust:x86_64-apple-darwin:
       - tests/testers/target/x86_64-apple-darwin/debug
     expire_in: 1 hour
 
-# testers:rust:i686-apple-darwin:
-#   stage: test
-#   extends:
-#     - .build-testers
-#     - .builder:linux:i686-apple-darwin
-#   script:
-#    - cd tests/testers
-#    - xargo build --target i686-apple-darwin
-#    - ls target/i686-apple-darwin/debug
-#   artifacts:
-#     paths:
-#       - tests/testers/target/i686-apple-darwin/debug
-#     expire_in: 1 hour
-
 testers:rust:aarch64-apple-darwin:
   stage: test
   extends:

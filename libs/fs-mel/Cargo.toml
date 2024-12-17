@@ -2,7 +2,7 @@
 name = "fs-mel"
 version = "0.8.0"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
-rust-version = "1.60"
+rust-version = "1.83"
 edition = "2021"
 license = "EUPL-1.2"
 homepage = "https://melodium.tech"
@@ -17,11 +17,13 @@ crate-type = ["lib", "cdylib"]
 name = "fs_mel"
 
 [dependencies]
-async-std = "~1.12"
-async-walkdir = "0.2.0"
-futures = "~0.3.28"
+async-std = "1.12"
+async-trait = "0.1.71"
+async-walkdir = "2.0"
+futures = "0.3.28"
 melodium-core = { path = "../../melodium-core", version = "0.8.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }
+serde = "1.0.185"
 std-mel = { path = "../std-mel", version = "0.8.0" }
 
 [features]

@@ -2,7 +2,7 @@
 name = "distrib-mel"
 version = "0.8.0"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
-rust-version = "1.60"
+rust-version = "1.83"
 edition = "2021"
 license = "EUPL-1.2"
 homepage = "https://melodium.tech"

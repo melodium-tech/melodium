@@ -1,0 +1,112 @@
+#!/usr/bin/env melodium
+#! name = command_distributed
+#! version = 0.8.0
+#! require = std:0.8.0 work:0.8.0 distrib:0.8.0 process:0.8.0 fs:0.8.0
+
+use std/flow::emit
+use std/flow::trigger
+use std/flow::stream
+use std/flow::check
+use std/flow/vec::flatten
+use std/ops/option::unwrapOr
+use std/ops/option::unwrap
+use std/conv::toString
+use std/data::Map
+use std/data::|map
+use std/engine/util::startup
+use work/distant::DistantEngine
+use work/distant::distant
+use work/access::Access
+use work/resources::getExecutor
+use work/resources::getFileSystem
+use work/resources::|container
+use work/resources::|volume
+use work/resources::|mount
+use work/resources/arch::|amd64
+use work/resources/arch::|arm64
+use process/exec::spawn
+use process/command::|command
+use fs/util::writeText
+use fs/util::write
+use fs/util::read
+use fs/file::write as writeFs
+
+treatment main(const distant: string, const key: string, var input_data: string, var output_data: string)
+  model distant: DistantEngine(address=distant, key=key)
+  model distributor: DistributionEngine(treatment="command_distributed::command", version="0.8.0")
+{
+    startup()
+    distant[distant_engine=distant](max_duration=600, memory=280, cpu=1000, storage=256, edition=_, volumes=[|volume("sharedfolder", 50)], arch=_, containers=[|container("ubuntu", 1000, 1000, 3000, |arm64(), [|mount("sharedfolder", "/mnt/the_shared_folder")], "ubuntu:jammy", _)])
+    start[distributor=distributor](params=|map([]))
+    stop[distributor=distributor]()
+    distributedCommand[distributor=distributor]()
+    startup.trigger -> distant.trigger,access -> start.access
+
+    writeDistantFailure: writeText(path = "distant_failure.log")
+    streamDistantFailure: stream<Vec<string>>()
+    flatten<string>()
+    distant.failure -> streamDistantFailure.block,stream -> flatten.vector,value -> writeDistantFailure.text
+
+    emitOk: emit<string>(value="ok")
+    streamOk: stream<string>()
+    writeOk: writeText(path = "ok.log")
+    ready[distribution_engine=distributor]()
+    writeDistribFailure: writeText(path = "distrib_failure.log")
+    streamDistribFailure: stream<string>()
+    distributionFailure[distribution_engine=distributor]()
+
+    distributionFailure.failure -> streamDistribFailure.block,stream -> writeDistribFailure.text
+    ready.trigger -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
+
+    read(path=input_data)
+    write(path=output_data)
+
+    ready.trigger -> read.trigger,data -> distributedCommand.data,data -> write.data,finished -> stop.trigger
+}
+
+treatment command()
+  input data:  Stream<byte>
+  output data: Stream<byte>
+{
+    trigger<byte>()
+    getExecutor(name = "ubuntu")
+    spawn(command = |command("head", ["--bytes", "1024", "-"]), environment = _)
+    getFileSystem(name = "sharedfolder")
+    emit<string>(value = "shared.data")
+    writeFs()
+
+    Self.data -> trigger.stream,start -> getExecutor.trigger,executor -> spawn.executor
+                 trigger.start ----------------------------------------> spawn.launch
+                 trigger.start ---> getFileSystem.trigger,filesystem --> writeFs.filesystem
+                 trigger.start ---> emit.trigger,emit -----------------> writeFs.path
+    Self.data ---------------------------------------------------------> spawn.stdin,stdout -> Self.data
+    Self.data ---------------------------------------------------------> writeFs.data
+}
+
+use distrib::DistributionEngine
+use distrib::distribute
+use distrib::ready
+use distrib::start
+use distrib::stop
+use distrib::sendStream
+use distrib::recvStream
+use distrib::distributionFailure
+
+treatment distributedCommand[distributor: DistributionEngine]()
+  input data: Stream<byte>
+  output data: Stream<byte>
+{
+  trigger<byte>()
+  distribute[distributor=distributor](params=|map([]))
+
+  Self.data -> trigger.stream,start -> distribute.trigger
+
+  sendStream<byte>[distributor=distributor](name="data")
+  recvStream<byte>[distributor=distributor](name="data")
+
+  distribute.distribution_id -> sendStream.distribution_id
+  distribute.distribution_id -> recvStream.distribution_id
+
+  Self.data -> sendStream.data
+  recvStream.data -> Self.data
+}

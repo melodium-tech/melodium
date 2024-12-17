@@ -1,7 +1,7 @@
-use async_std::fs::OpenOptions;
-use async_std::io::{ReadExt, WriteExt};
+use crate::filesystem::*;
 use melodium_core::*;
-use melodium_macro::{check, mel_treatment};
+use melodium_macro::mel_treatment;
+use std::sync::Arc;
 
 /// Read one file.
 ///
@@ -12,6 +12,7 @@ use melodium_macro::{check, mel_treatment};
 /// If any reading failure happens, `failure` is emitted and `error` contains text of the related text of error(s).
 #[mel_treatment(
     input path Block<string>
+    input filesystem Block<FileSystem>
     output data Stream<byte>
     output reached Block<void>
     output finished Block<void>
@@ -19,47 +20,21 @@ use melodium_macro::{check, mel_treatment};
     output error Stream<string>
 )]
 pub async fn read() {
-    if let Ok(path) = path
-        .recv_one()
-        .await
-        .map(|val| GetData::<string>::try_data(val).unwrap())
-    {
-        let file = OpenOptions::new().read(true).open(path).await;
-        match file {
-            Ok(mut file) => {
-                let _ = reached.send_one(().into()).await;
-                reached.close().await;
-                let mut vec = vec![0; 2usize.pow(20)];
-                let mut fail = false;
-                loop {
-                    match file.read(&mut vec).await {
-                        Ok(n) if n > 0 => {
-                            vec.truncate(n);
-                            check!(data.send_many(TransmissionValue::Byte(vec.into())).await);
-                            vec = vec![0; 2usize.pow(20)];
-                        }
-                        Ok(_) => {
-                            break;
-                        }
-                        Err(err) => {
-                            let _ = failure.send_one(().into()).await;
-                            let _ = error.send_one(err.to_string().into()).await;
-                            fail = true;
-                            break;
-                        }
-                    }
-                }
-                if !fail {
-                    let _ = finished.send_one(().into()).await;
-                }
-            }
-            Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
-            }
-        }
-    } else {
-        let _ = failure.send_one(().into()).await;
+    if let (Ok(filesystem), Ok(path)) = (
+        filesystem.recv_one().await.map(|val| {
+            GetData::<Arc<dyn Data>>::try_data(val)
+                .unwrap()
+                .downcast_arc::<FileSystem>()
+                .unwrap()
+        }),
+        path.recv_one()
+            .await
+            .map(|val| GetData::<string>::try_data(val).unwrap()),
+    ) {
+        filesystem
+            .filesystem
+            .read_file(&path, &data, &reached, &finished, &failure, &error)
+            .await
     }
 }
 
@@ -79,6 +54,7 @@ pub async fn read() {
     default create true
     default new false
     input path Block<string>
+    input filesystem Block<FileSystem>
     input data Stream<byte>
     output finished Block<void>
     output failure Block<void>
@@ -86,50 +62,22 @@ pub async fn read() {
     output amount Stream<u128>
 )]
 pub async fn write(append: bool, create: bool, new: bool) {
-    if let Ok(path) = path
-        .recv_one()
-        .await
-        .map(|val| GetData::<string>::try_data(val).unwrap())
-    {
-        let file = OpenOptions::new()
-            .write(true)
-            .append(append)
-            .create(create)
-            .create_new(new)
-            .open(path)
-            .await;
-        match file {
-            Ok(mut file) => {
-                let mut written_amount = 0u128;
-                let mut fail = false;
-                while let Ok(data) = data
-                    .recv_many()
-                    .await
-                    .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
-                {
-                    match file.write_all(&data).await {
-                        Ok(_) => {
-                            written_amount += data.len() as u128;
-                            let _ = amount.send_one(written_amount.into()).await;
-                        }
-                        Err(err) => {
-                            let _ = failure.send_one(().into()).await;
-                            let _ = error.send_one(err.to_string().into()).await;
-                            fail = true;
-                            break;
-                        }
-                    }
-                }
-                if !fail {
-                    let _ = finished.send_one(().into()).await;
-                }
-            }
-            Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
-            }
-        }
-    } else {
-        let _ = failure.send_one(().into()).await;
+    if let (Ok(filesystem), Ok(path)) = (
+        filesystem.recv_one().await.map(|val| {
+            GetData::<Arc<dyn Data>>::try_data(val)
+                .unwrap()
+                .downcast_arc::<FileSystem>()
+                .unwrap()
+        }),
+        path.recv_one()
+            .await
+            .map(|val| GetData::<string>::try_data(val).unwrap()),
+    ) {
+        filesystem
+            .filesystem
+            .write_file(
+                &path, append, create, new, &data, &amount, &finished, &failure, &error,
+            )
+            .await
     }
 }

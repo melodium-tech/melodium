@@ -11,10 +11,9 @@ use http/status::|ok
 use http/status::HttpStatus
 use http/method::|post
 use net/ip::|localhost_ipv4
-use net/ip::|localhost_ipv6
 use net/ip::|from_ipv4
-use work::Access
-use work::|new_access
+use work/access::Access
+use work/access::|new_access
 use std/flow::emit
 use std/flow::trigger
 use std/flow::stream
@@ -41,7 +40,7 @@ treatment main(const distrib_port: u16, var remote_key: string, var self_key: st
   )
 {
     startup()
-    emitAccess: emit<Access>(value=|new_access(|localhost_ipv4(), |localhost_ipv6(), distrib_port, remote_key, self_key))
+    emitAccess: emit<Access>(value=|new_access([|from_ipv4(|localhost_ipv4())], distrib_port, remote_key, self_key))
     start[distributor=distributor](params=|map([]))
     distributedJs[distributor=distributor]()
     startup.trigger -> emitAccess.trigger,emit -> start.access

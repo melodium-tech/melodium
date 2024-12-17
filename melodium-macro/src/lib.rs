@@ -213,18 +213,28 @@ fn into_rust_value(ty: &Vec<String>, lit: &str) -> String {
 }
 
 fn into_mel_value_call(ty: &Vec<String>, inner_param: String) -> String {
-    match ty.last().unwrap().as_str() {
-            "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
-                | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" | "Vec" | "Option"
-                 => format!(
-                    "melodium_core::common::executive::GetData::<{}>::try_data({inner_param}).unwrap()",
-                    into_rust_type(ty, false)
+    fn apply_ops(mut iter: &mut Iter<String>) -> String {
+        if let Some(step) = iter.next() {
+            match step.as_str() {
+                "byte" | "bool" | "void" | "char" | "string" | "f32" | "f64" | "u8" | "u16"
+                | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" => "".to_string(),
+                "Vec" => format!(
+                    ".into_iter().map(|v| v{}).collect::<Vec<_>>()",
+                    apply_ops(&mut iter)
                 ),
-            _ => format!(
-                "melodium_core::common::executive::GetData::<{}>::try_data({inner_param}).unwrap().downcast_arc().unwrap()",
-                into_rust_type(ty, true)
-            ),
+                "Option" => format!(".map(|v| v{})", apply_ops(&mut iter)),
+                _ => ".downcast_arc().unwrap()".to_string(),
+            }
+        } else {
+            "".to_string()
         }
+    }
+
+    format!(
+        "melodium_core::common::executive::GetData::<{}>::try_data({inner_param}).unwrap(){}",
+        into_rust_type(ty, true),
+        apply_ops(&mut ty.iter()),
+    )
 }
 
 fn convert_to_mel_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) -> String {
@@ -1470,6 +1480,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
     let module_name: proc_macro2::TokenStream = format!("__mel_treatment_{name}").parse().unwrap();
 
     let expanded = quote! {
+        #[allow(non_snake_case)]
         pub mod #module_name {
             use super::*;
 
@@ -1757,6 +1768,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
         .unwrap();
 
     let expanded = quote! {
+        #[allow(non_snake_case)]
         pub mod #module_name {
 
             use super::*;
@@ -2171,6 +2183,7 @@ pub fn mel_data(attr: TokenStream, item: TokenStream) -> TokenStream {
     let name: proc_macro2::TokenStream = name.parse().unwrap();
     let module_name: proc_macro2::TokenStream = format!("__mel_data_{name}").parse().unwrap();
     let expanded = quote! {
+        #[allow(non_snake_case)]
         pub mod #module_name {
             use super::*;
 

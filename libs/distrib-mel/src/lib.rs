@@ -31,12 +31,13 @@ use std::{
     sync::{Arc, Weak},
 };
 use std_mel::data::*;
-use work_mel::*;
+use work_mel::access::*;
 
 #[derive(Debug)]
 struct Track {
     pub instancied: AtomicBool,
     pub instanciation_barrier: AsyncArc<AsyncBarrier>,
+    pub instanciation_barrier_validated: AsyncArc<AtomicBool>,
     pub inputs_senders: HashMap<String, Sender<Vec<RawValue>>>,
     pub inputs_receivers: HashMap<String, Receiver<Vec<RawValue>>>,
     pub outputs_senders: HashMap<String, Sender<Vec<RawValue>>>,
@@ -248,10 +249,16 @@ impl DistributionEngine {
         }
     }
 
+    pub async fn stop(&self) {
+        if let Some(protocol) = self.protocol.read().await.as_ref() {
+            let _ = protocol.send_message(Message::Ended).await;
+        }
+    }
+
     pub async fn distribute(
         &self,
         params: HashMap<String, Value>,
-    ) -> Option<(u64, AsyncArc<AsyncBarrier>)> {
+    ) -> Option<(u64, AsyncArc<AsyncBarrier>, AsyncArc<AtomicBool>)> {
         if let Some(protocol) = self.protocol.read().await.as_ref() {
             let mut tracks = self.tracks.write().await;
 
@@ -259,6 +266,7 @@ impl DistributionEngine {
 
             if let Some(treatment) = self.treatment.read().await.as_ref() {
                 let instanciation_barrier = AsyncArc::new(AsyncBarrier::new(2));
+                let instanciation_barrier_validated = AsyncArc::new(false.into());
 
                 let mut inputs_senders = HashMap::new();
                 let mut inputs_receivers = HashMap::new();
@@ -283,6 +291,9 @@ impl DistributionEngine {
                 let track = Track {
                     instancied: false.into(),
                     instanciation_barrier: AsyncArc::clone(&instanciation_barrier),
+                    instanciation_barrier_validated: AsyncArc::clone(
+                        &instanciation_barrier_validated,
+                    ),
                     inputs_senders,
                     inputs_receivers,
                     outputs_senders,
@@ -303,7 +314,7 @@ impl DistributionEngine {
                     .await
                     .is_ok()
                 {
-                    Some((id, instanciation_barrier))
+                    Some((id, instanciation_barrier, instanciation_barrier_validated))
                 } else {
                     tracks.remove(&id);
                     None
@@ -474,14 +485,23 @@ impl DistributionEngine {
     }
 
     async fn close_all(&self) {
-        self.tracks.read().await.iter().for_each(|(_, track)| {
+        for (_, track) in self.tracks.read().await.iter() {
             track.inputs_receivers.iter().for_each(|(_, recv)| {
                 recv.close();
             });
             track.outputs_senders.iter().for_each(|(_, send)| {
                 send.close();
             });
-        });
+            if !track
+                .instanciation_barrier_validated
+                .load(Ordering::Relaxed)
+            {
+                track.instanciation_barrier.wait().await;
+                track
+                    .instanciation_barrier_validated
+                    .store(true, Ordering::Relaxed);
+            }
+        }
     }
 
     fn shutdown(&self) {
@@ -539,6 +559,19 @@ pub async fn start(params: Map) {
 #[mel_treatment(
     model distributor DistributionEngine
     input trigger Block<void>
+)]
+pub async fn stop() {
+    let model = DistributionEngineModel::into(distributor);
+    let distributor = model.inner();
+
+    if let Ok(_) = trigger.recv_one().await {
+        distributor.stop().await;
+    }
+}
+
+#[mel_treatment(
+    model distributor DistributionEngine
+    input trigger Block<void>
     output distribution_id Block<u64>
 )]
 pub async fn distribute(params: Map) {
@@ -548,10 +581,13 @@ pub async fn distribute(params: Map) {
     let params = params.map.clone();
 
     if let Ok(_) = trigger.recv_one().await {
-        if let Some((id, barrier)) = distributor.distribute(params).await {
-            barrier.wait().await;
-            if distributor.is_ok(&id).await {
-                let _ = distribution_id.send_one(id.into()).await;
+        if let Some((id, barrier, validation)) = distributor.distribute(params).await {
+            if !validation.load(Ordering::Relaxed) {
+                barrier.wait().await;
+                validation.store(true, Ordering::Relaxed);
+                if distributor.is_ok(&id).await {
+                    let _ = distribution_id.send_one(id.into()).await;
+                }
             }
         }
     }

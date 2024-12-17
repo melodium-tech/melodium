@@ -87,15 +87,6 @@ build:check:x86_64-apple-darwin:
     - .builder:linux:x86_64-apple-darwin
     - .check
 
-# Deactivated because require xargo build and so on… too much for just checks.
-# If other checks passes, we should be good here.
-# build:check:i686-apple-darwin:
-#   stage: build
-#   extends:
-#     - .check-builds
-#     - .builder:linux:i686-apple-darwin
-#     - .check
-
 build:check:aarch64-apple-darwin:
   stage: build
   extends:

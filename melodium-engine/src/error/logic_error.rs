@@ -196,6 +196,12 @@ pub enum LogicErrorKind {
         treatment: String,
         input: String,
     },
+    /// The treatment input is overloaded
+    OverloadedInput {
+        scope: Identifier,
+        treatment: String,
+        input: String,
+    },
     /// A constant is required but the value assigned is variable
     ConstRequiredVarProvided {
         scope: Identifier,
@@ -305,6 +311,7 @@ impl Display for LogicErrorKind {
             LogicErrorKind::UnsetModel { scope, called, parametric_model } => write!(f, "No model assigned to '{parametric_model}' of '{called}' in '{scope}'"),
             LogicErrorKind::AlreadyIncludedBuildStep { treatment , cause_step,check_steps}  => write!(f, "Treatment '{treatment}' is referring to same instanciation of itself, causing infinite connection loop ({cause_step} already present in {})", check_steps.iter().map(|cs| cs.to_string()).collect::<Vec<_>>().join(", ")),
             LogicErrorKind::UnsatisfiedInput { scope, treatment, input } => if let Some(id) = scope {write!(f, "Input '{input}' of '{treatment}' is not satisfied in '{id}'")} else {write!(f, "Entrypoint have input '{input}' that must be satisfied")},
+            LogicErrorKind::OverloadedInput { scope, treatment, input } => write!(f, "Input '{input}' of '{treatment}' is overloaded in '{scope}'"),
             LogicErrorKind::ConstRequiredVarProvided { scope, called, parameter, variable } => write!(f, "Parameter '{parameter}' of '{called}' is constant but provided '{variable}' is variable in '{scope}'"),
             LogicErrorKind::ConstRequiredContextProvided { scope, called, parameter, context, entry: _ } => write!(f, "Parameter '{parameter}' of '{called}' is constant but context '{context}' is provided in '{scope}', contexts are implicitly variable"),
             LogicErrorKind::ModelInstanciationConstOnly { scope, called, name, parameter } => write!(f, "Variable provided for parameter '{parameter}' of model '{name}' from type '{called}' in '{scope}', model instanciations can only get constants"),
@@ -941,6 +948,25 @@ impl LogicError {
             id,
             design_reference,
             kind: LogicErrorKind::UnsatisfiedInput {
+                scope,
+                treatment,
+                input,
+            },
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::OverloadedInput`] kind.
+    pub fn overloaded_input(
+        id: u32,
+        scope: Identifier,
+        treatment: String,
+        input: String,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> Self {
+        Self {
+            id,
+            design_reference,
+            kind: LogicErrorKind::OverloadedInput {
                 scope,
                 treatment,
                 input,
