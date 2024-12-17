@@ -17,7 +17,7 @@ crate-type = ["lib", "cdylib"]
 name = "http_mel"
 
 [dependencies]
-async-std = {version="~1.12", features=["unstable"]}
+async-std = {version="1.12", features=["unstable"]}
 futures = "0.3"
 melodium-core = { path = "../../melodium-core", version = "0.8.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }

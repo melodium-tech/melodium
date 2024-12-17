@@ -7,7 +7,7 @@
 
 use std/engine/util::startup
 use std/flow::emit
-use fs/util::write
+use fs/util::write as writeFile
 use sql::SqlPool
 use sql::failure
 use sql::executeRaw
