@@ -35,7 +35,7 @@ tokio = { version = "1", features = ["macros", "io-util"], optional = true}
 k8s-openapi = { version = "0.21.0", features = ["v1_29"], optional = true }
 
 [features]
-default = ["kubernetes"]
+default = []
 mock = []
 plugin = []
 real = []
