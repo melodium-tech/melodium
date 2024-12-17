@@ -14,7 +14,7 @@ use std/engine/util::startup
 use std/conv::toBytes
 use std/flow/vec::flatten
 use std/ops/num::isPositive
-use std/ops/option::unwrap
+use std/ops/option/block::unwrap
 use std/conv::saturatingToI64
 
 /*
@@ -48,8 +48,8 @@ treatment write_file()
   Self.trigger -> emit.trigger
 
   emit_filename: emit<string>(value="something.txt")
-  emit_filesystem: emit<FileSystem>(value=|local_filesystem())
-  unwrap_filesystem<FileSystem>()
+  emit_filesystem: emit<Option<FileSystem>>(value=|local_filesystem())
+  unwrap_filesystem: unwrap<FileSystem>()
   Self.trigger --------> emit_filename.trigger
   Self.trigger -> emit_filesystem.trigger
 
