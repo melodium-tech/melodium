@@ -13,8 +13,8 @@ use http/method::|post
 use net/ip::|localhost_ipv4
 use net/ip::|localhost_ipv6
 use net/ip::|from_ipv4
-use work::Access
-use work::|new_access
+use work/access::Access
+use work/access::|new_access
 use std/flow::emit
 use std/flow::trigger
 use std/flow::stream

@@ -18,7 +18,10 @@ use work/distant::DistantEngine
 use work/distant::distant
 use work/access::Access
 use work/resources::getExecutor
+use work/resources::getFileSystem
 use work/resources::|container
+use work/resources::|volume
+use work/resources::|mount
 use work/resources/arch::|amd64
 use work/resources/arch::|arm64
 use process/exec::spawn
@@ -26,13 +29,14 @@ use process/command::|command
 use fs/util::writeText
 use fs/util::write
 use fs/util::read
+use fs/file::write as writeFs
 
 treatment main(const distant: string, const key: string, var input_data: string, var output_data: string)
   model distant: DistantEngine(address=distant, key=key)
   model distributor: DistributionEngine(treatment="command_distributed::command", version="0.8.0")
 {
     startup()
-    distant[distant_engine=distant](max_duration=600, memory=280, cpu=1000, storage=256, edition=_, volumes=[], arch=_, containers=[|container("ubuntu", 1000, 1000, 3000, |arm64(), [], "ubuntu:jammy", _)])
+    distant[distant_engine=distant](max_duration=600, memory=280, cpu=1000, storage=256, edition=_, volumes=[|volume("sharedfolder", 50)], arch=_, containers=[|container("ubuntu", 1000, 1000, 3000, |arm64(), [|mount("sharedfolder", "/mnt/the_shared_folder")], "ubuntu:jammy", _)])
     start[distributor=distributor](params=|map([]))
     stop[distributor=distributor]()
     distributedCommand[distributor=distributor]()
@@ -67,10 +71,16 @@ treatment command()
     trigger<byte>()
     getExecutor(name = "ubuntu")
     spawn(command = |command("head", ["--bytes", "1024", "-"]), environment = _)
+    getFileSystem(name = "sharedfolder")
+    emit<string>(value = "shared.data")
+    writeFs()
 
     Self.data -> trigger.stream,start -> getExecutor.trigger,executor -> spawn.executor
                  trigger.start ----------------------------------------> spawn.launch
+                 trigger.start ---> getFileSystem.trigger,filesystem --> writeFs.filesystem
+                 trigger.start ---> emit.trigger,emit -----------------> writeFs.path
     Self.data ---------------------------------------------------------> spawn.stdin,stdout -> Self.data
+    Self.data ---------------------------------------------------------> writeFs.data
 }
 
 use distrib::DistributionEngine
