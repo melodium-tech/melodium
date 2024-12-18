@@ -283,6 +283,91 @@ impl Identified for Treatment {
     fn identifier(&self) -> &Identifier {
         &self.identifier
     }
+
+    fn make_use(&self, identifier: &Identifier) -> bool {
+        self.models
+            .iter()
+            .any(|(_, model)| model.identifier() == identifier || model.make_use(identifier))
+            || self
+                .contexts
+                .values()
+                .any(|context| context.identifier() == identifier || context.make_use(identifier))
+            || self.inputs.values().any(|input| {
+                input
+                    .described_type()
+                    .final_type()
+                    .data()
+                    .map(|data| data.identifier() == identifier || data.make_use(identifier))
+                    .unwrap_or(false)
+            })
+            || self.outputs.values().any(|output| {
+                output
+                    .described_type()
+                    .final_type()
+                    .data()
+                    .map(|data| data.identifier() == identifier || data.make_use(identifier))
+                    .unwrap_or(false)
+            })
+            || self.parameters.values().any(|parameter| {
+                parameter
+                    .described_type()
+                    .final_type()
+                    .data()
+                    .map(|data| data.identifier() == identifier || data.make_use(identifier))
+                    .unwrap_or(false)
+            })
+            || self
+                .design
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|design| design.make_use(identifier))
+                .unwrap_or(false)
+            || self
+                .designer
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|designer| designer.read().unwrap().make_use(identifier))
+                .unwrap_or(false)
+    }
+
+    fn uses(&self) -> Vec<Identifier> {
+        let mut uses = Vec::new();
+        self.models.values().for_each(|model| {
+            uses.push(model.identifier().clone());
+            uses.extend(model.uses());
+        });
+        self.contexts.values().for_each(|context| {
+            uses.push(context.identifier().clone());
+            uses.extend(context.uses());
+        });
+        self.inputs.values().for_each(|input| {
+            if let Some(data) = input.described_type().final_type().data() {
+                uses.push(data.identifier().clone());
+                uses.extend(data.uses());
+            }
+        });
+        self.outputs.values().for_each(|output| {
+            if let Some(data) = output.described_type().final_type().data() {
+                uses.push(data.identifier().clone());
+                uses.extend(data.uses());
+            }
+        });
+        self.parameters.values().for_each(|parameter| {
+            if let Some(data) = parameter.described_type().final_type().data() {
+                uses.push(data.identifier().clone());
+                uses.extend(data.uses());
+            }
+        });
+        if let Some(design) = self.design.lock().unwrap().as_ref() {
+            uses.extend(design.uses());
+        }
+        if let Some(designer) = self.designer.lock().unwrap().as_ref() {
+            uses.extend(designer.read().unwrap().uses());
+        }
+        uses
+    }
 }
 
 impl Documented for Treatment {
@@ -311,38 +396,6 @@ impl Parameterized for Treatment {
 impl Buildable<TreatmentBuildMode> for Treatment {
     fn build_mode(&self) -> TreatmentBuildMode {
         TreatmentBuildMode::Designed()
-    }
-
-    fn make_use(&self, identifier: &Identifier) -> bool {
-        self.models
-            .iter()
-            .any(|(_, model)| model.identifier() == identifier)
-            || self
-                .contexts
-                .values()
-                .any(|context| context.identifier() == identifier)
-            || self.parameters.values().any(|parameter| {
-                parameter
-                    .described_type()
-                    .final_type()
-                    .data()
-                    .map(|data| data.identifier() == identifier)
-                    .unwrap_or(false)
-            })
-            || self
-                .design
-                .lock()
-                .unwrap()
-                .as_ref()
-                .map(|design| design.make_use(identifier))
-                .unwrap_or(false)
-            || self
-                .designer
-                .lock()
-                .unwrap()
-                .as_ref()
-                .map(|designer| designer.read().unwrap().make_use(identifier))
-                .unwrap_or(false)
     }
 }
 

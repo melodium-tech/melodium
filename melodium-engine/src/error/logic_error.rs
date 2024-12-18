@@ -6,8 +6,9 @@ use core::fmt::{Debug, Display};
 use std::string::ToString;
 use std::sync::Arc;
 
-use melodium_common::descriptor::{
-    DataTrait, DescribedType, Flow, Identifier, IdentifierRequirement, Status,
+use melodium_common::{
+    descriptor::{DataTrait, DescribedType, Flow, Identifier, IdentifierRequirement, Status},
+    executive::TrackId,
 };
 
 use crate::{building::CheckStep, design::Value, designer::Reference};
@@ -31,6 +32,8 @@ pub enum LogicErrorKind {
     LaunchExpectTreatment { wrong_identifier: Identifier },
     /// A parameter with wrong or missing value was given for launch.
     LaunchWrongParameter { parameter: String },
+    /// No direct track exist for id.
+    NoDirectTrack { id: TrackId },
     /// The referenced variable for value doesn't exist.
     UnexistingVariable {
         identifier: Identifier,
@@ -193,6 +196,12 @@ pub enum LogicErrorKind {
         treatment: String,
         input: String,
     },
+    /// The treatment input is overloaded
+    OverloadedInput {
+        scope: Identifier,
+        treatment: String,
+        input: String,
+    },
     /// A constant is required but the value assigned is variable
     ConstRequiredVarProvided {
         scope: Identifier,
@@ -260,6 +269,7 @@ impl Display for LogicErrorKind {
             LogicErrorKind::UnavailableDesign { identifier } => write!(f, "Unavailable design for '{identifier}'"),
             LogicErrorKind::LaunchExpectTreatment { wrong_identifier } => write!(f, "Launch must be done using a treatment, '{wrong_identifier}' is not one"),
             LogicErrorKind::LaunchWrongParameter { parameter } => write!(f, "Parameter '{parameter}' has no valid value for launch"),
+            LogicErrorKind::NoDirectTrack { id } => write!(f, "No directly instancied track exist for id {id}"),
             LogicErrorKind::UnexistingVariable {identifier,
                 parameter,
                 variable,} => write!(f, "Referenced '{variable}' variable for '{parameter}' parameter doesn't exist in '{identifier}'"),
@@ -301,6 +311,7 @@ impl Display for LogicErrorKind {
             LogicErrorKind::UnsetModel { scope, called, parametric_model } => write!(f, "No model assigned to '{parametric_model}' of '{called}' in '{scope}'"),
             LogicErrorKind::AlreadyIncludedBuildStep { treatment , cause_step,check_steps}  => write!(f, "Treatment '{treatment}' is referring to same instanciation of itself, causing infinite connection loop ({cause_step} already present in {})", check_steps.iter().map(|cs| cs.to_string()).collect::<Vec<_>>().join(", ")),
             LogicErrorKind::UnsatisfiedInput { scope, treatment, input } => if let Some(id) = scope {write!(f, "Input '{input}' of '{treatment}' is not satisfied in '{id}'")} else {write!(f, "Entrypoint have input '{input}' that must be satisfied")},
+            LogicErrorKind::OverloadedInput { scope, treatment, input } => write!(f, "Input '{input}' of '{treatment}' is overloaded in '{scope}'"),
             LogicErrorKind::ConstRequiredVarProvided { scope, called, parameter, variable } => write!(f, "Parameter '{parameter}' of '{called}' is constant but provided '{variable}' is variable in '{scope}'"),
             LogicErrorKind::ConstRequiredContextProvided { scope, called, parameter, context, entry: _ } => write!(f, "Parameter '{parameter}' of '{called}' is constant but context '{context}' is provided in '{scope}', contexts are implicitly variable"),
             LogicErrorKind::ModelInstanciationConstOnly { scope, called, name, parameter } => write!(f, "Variable provided for parameter '{parameter}' of model '{name}' from type '{called}' in '{scope}', model instanciations can only get constants"),
@@ -409,6 +420,14 @@ impl LogicError {
             id,
             design_reference: None,
             kind: LogicErrorKind::LaunchWrongParameter { parameter },
+        }
+    }
+
+    pub fn no_direct_track(id: u32, track_id: TrackId) -> Self {
+        Self {
+            id,
+            design_reference: None,
+            kind: LogicErrorKind::NoDirectTrack { id: track_id },
         }
     }
 
@@ -929,6 +948,25 @@ impl LogicError {
             id,
             design_reference,
             kind: LogicErrorKind::UnsatisfiedInput {
+                scope,
+                treatment,
+                input,
+            },
+        }
+    }
+
+    /// Generates a new error with [`LogicErrorKind::OverloadedInput`] kind.
+    pub fn overloaded_input(
+        id: u32,
+        scope: Identifier,
+        treatment: String,
+        input: String,
+        design_reference: Option<Arc<dyn Reference>>,
+    ) -> Self {
+        Self {
+            id,
+            design_reference,
+            kind: LogicErrorKind::OverloadedInput {
                 scope,
                 treatment,
                 input,

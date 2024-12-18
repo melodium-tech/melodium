@@ -214,3 +214,69 @@ release:publish:packages:
     - mv repo "$VERSION"
     - SSHPASS="$PACKAGES_REPO_RELEASE_PUBLISH_PASSWORD" sshpass -e rsync -a "$VERSION" "$PACKAGES_REPO_RELEASE_PUBLISH_USER@$PACKAGES_REPO_RELEASE_PUBLISH_SERVER:$PACKAGES_REPO_RELEASE_PUBLISH_DIRECTORY"
 
+release:publish:containers:
+  stage: release
+  image: 
+      name: quay.io/buildah/stable:v1
+  extends:
+    - .build-containers
+  variables:
+    GIT_STRATEGY: none
+  needs:
+    - job: build:release:x86_64-unknown-linux-musl
+      artifacts: true
+    - job: build:release:i686-unknown-linux-musl
+      artifacts: true
+    - job: build:release:aarch64-unknown-linux-musl
+      artifacts: true
+  before_script:
+    - buildah login --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - export BUILDAH_FORMAT=docker
+    # scratch
+    - manifest=melodium:scratch
+    - version=$(target/x86_64-unknown-linux-musl/release/melodium --version | cut -d " " -f2)
+
+    # ARM64
+    - container=$(buildah from --platform "linux/arm64" scratch)
+    - buildah copy ${container} target/aarch64-unknown-linux-musl/release/melodium /
+    - buildah config --entrypoint '["/melodium"]' --env MELODIUM_HOME=/.melodium ${container}
+    - buildah commit --manifest ${manifest} ${container} melodium-aarch64-unknown-linux-musl
+    # 386
+    - container=$(buildah from --platform "linux/386" scratch)
+    - buildah copy ${container} target/i686-unknown-linux-musl/release/melodium /
+    - buildah config --entrypoint '["/melodium"]' --env MELODIUM_HOME=/.melodium ${container}
+    - buildah commit --manifest ${manifest} ${container} melodium-i686-unknown-linux-musl
+    # AMD64
+    - container=$(buildah from --platform "linux/amd64" scratch)
+    - buildah copy ${container} target/x86_64-unknown-linux-musl/release/melodium /
+    - buildah config --entrypoint '["/melodium"]' --env MELODIUM_HOME=/.melodium ${container}
+    - buildah commit --manifest ${manifest} ${container} melodium-x86_64-unknown-linux-musl
+
+    - buildah images --all
+    - buildah manifest inspect $manifest
+    - buildah manifest push --all ${manifest} docker://$CI_REGISTRY_IMAGE:scratch-${version}
+
+    # alpine
+    - manifest=melodium:alpine
+    - version=$(target/x86_64-unknown-linux-musl/release/melodium --version | cut -d " " -f2)
+
+    # ARM64
+    - container=$(buildah from --platform "linux/arm64" alpine:latest)
+    - buildah copy ${container} target/aarch64-unknown-linux-musl/release/melodium /
+    - buildah config --entrypoint '["/melodium"]' --env MELODIUM_HOME=/.melodium ${container}
+    - buildah commit --manifest ${manifest} ${container} melodium-aarch64-unknown-linux-musl
+    # 386
+    - container=$(buildah from --platform "linux/386" alpine:latest)
+    - buildah copy ${container} target/i686-unknown-linux-musl/release/melodium /
+    - buildah config --entrypoint '["/melodium"]' --env MELODIUM_HOME=/.melodium ${container}
+    - buildah commit --manifest ${manifest} ${container} melodium-i686-unknown-linux-musl
+    # AMD64
+    - container=$(buildah from --platform "linux/amd64" alpine:latest)
+    - buildah copy ${container} target/x86_64-unknown-linux-musl/release/melodium /
+    - buildah config --entrypoint '["/melodium"]' --env MELODIUM_HOME=/.melodium ${container}
+    - buildah commit --manifest ${manifest} ${container} melodium-x86_64-unknown-linux-musl
+
+    - buildah images --all
+    - buildah manifest inspect $manifest
+    - buildah manifest push --all ${manifest} docker://$CI_REGISTRY_IMAGE:alpine-${version}

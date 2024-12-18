@@ -914,6 +914,45 @@ impl Treatment {
         // TODO Maybe should we check if no circular
         // references in connections there
 
+        // Checking all inputs are satisfied.
+        for (treatment_name, arc_treatment) in &self.treatments {
+            let treatment = arc_treatment.read().unwrap();
+            for (input_name, _) in treatment.descriptor().inputs() {
+                let mut satisfaction = 0;
+                for connection in &self.connections {
+                    if let IO::Treatment(treatment_ref) = &connection.input_treatment {
+                        if Arc::<_>::downgrade(&arc_treatment).ptr_eq(treatment_ref)
+                            && input_name == &connection.input_name
+                        {
+                            satisfaction += 1;
+                        }
+                    }
+                }
+
+                if satisfaction == 0 {
+                    result = result.and_degrade_failure(LogicResult::new_failure(
+                        LogicError::unsatisfied_input(
+                            243,
+                            Some(self.descriptor().identifier().clone()),
+                            treatment_name.clone(),
+                            input_name.clone(),
+                            self.design_reference.clone(),
+                        ),
+                    ));
+                } else if satisfaction > 1 {
+                    result = result.and_degrade_failure(LogicResult::new_failure(
+                        LogicError::overloaded_input(
+                            244,
+                            self.descriptor().identifier().clone(),
+                            treatment_name.clone(),
+                            input_name.clone(),
+                            self.design_reference.clone(),
+                        ),
+                    ));
+                }
+            }
+        }
+
         // Counting number of outputs connected to self outputs.
         let mut outputs_satisfaction = self
             .descriptor()
@@ -960,6 +999,13 @@ impl Treatment {
             .success()
             .map(|design| design.make_use(identifier))
             .unwrap_or(false)
+    }
+
+    pub fn uses(&self) -> Vec<Identifier> {
+        self.unvalidated_design()
+            .success()
+            .map(|design| design.uses())
+            .unwrap_or_default()
     }
 
     pub fn unvalidated_design(&self) -> LogicResult<TreatmentDesign> {

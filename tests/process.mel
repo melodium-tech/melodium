@@ -10,42 +10,29 @@ use std/flow::stream
 use std/text/convert/string::toUtf8
 use std/flow::emit
 use std/data::|map
-use fs/file::write
-use process::Environment
-use process::spawn
+use fs/util::write
+use process/command::|command
+use process/local::spawn
 use std/ops/option::|wrap
 
 treatment main(const work: Option<string> = _)
-  model env: Environment(
-        env=|map([]),
-        working_dir=work
-    )
 {
-
-    spawn[env=env](command="sed")
-    emitArgs: emit<Vec<string>>(value=["-e", "s/foo/bar/g"])
+    spawn(command=|command("sed", ["-e", "s/foo/bar/g"]))
     startup()
     
-    startup.trigger -> emitArgs.trigger,emit -> spawn.args
-    startup.trigger --------------------------> spawn.launch
+    startup.trigger ------> spawn.launch
 
     emitText: emit<string>(value="This is foo!")
     streamText: stream<string>()
     toUtf8()
-    emitFilename: emit<string>(value="./replaced.txt")
-    file: write()
+    file: write(path="./replaced.txt")
     startup.trigger -> emitText.trigger,emit -> streamText.block,stream -> toUtf8.text,encoded -> spawn.stdin,stdout -> file.data
-    startup.trigger ---------------------------------------------------------------------> emitFilename.trigger,emit -> file.path    
 
-    emitErrorFilename: emit<string>(value="./error.txt")
-    fileError: write()
-    spawn.stderr -----------------------------------------------> fileError.data
-    startup.trigger -----> emitErrorFilename.trigger,emit ------> fileError.path  
+    fileError: write(path="./error.txt")
+    spawn.stderr --> fileError.data
 
     streamFailure: stream<string>()
     failureToUtf8: toUtf8()
-    emitFailureFilename: emit<string>(value="./failure.txt")
-    fileFailure: write()
-    spawn.failure -----------------> streamFailure.block,stream -> failureToUtf8.text,encoded -> fileFailure.data
-    startup.trigger ---------------> emitFailureFilename.trigger,emit -------------------------> fileFailure.path  
+    fileFailure: write(path="./failure.txt")
+    spawn.failure -> streamFailure.block,stream -> failureToUtf8.text,encoded -> fileFailure.data
 }

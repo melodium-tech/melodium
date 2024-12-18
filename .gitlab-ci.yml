@@ -8,7 +8,7 @@ include:
   - local: /.gitlab/ci/releases.yml
 
 variables:
-  PACKAGES: encoding fs http javascript json net process regex sql std 
+  PACKAGES: work distrib encoding fs http javascript json net process regex sql std 
 
 workflow:
   rules:

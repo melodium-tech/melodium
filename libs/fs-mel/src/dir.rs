@@ -1,8 +1,7 @@
-use async_std::fs;
-use async_std::stream::StreamExt;
-use async_walkdir::{Filtering, WalkDir};
+use crate::filesystem::*;
 use melodium_core::*;
-use melodium_macro::{check, mel_treatment};
+use melodium_macro::mel_treatment;
+use std::sync::Arc;
 
 /// Create directory.
 ///
@@ -15,31 +14,27 @@ use melodium_macro::{check, mel_treatment};
 #[mel_treatment(
     default recursive true
     input path Block<string>
+    input filesystem Block<FileSystem>
     output success Block<void>
     output failure Block<void>
     output error Block<string>
 )]
 pub async fn create(recursive: bool) {
-    if let Ok(path) = path
-        .recv_one()
-        .await
-        .map(|val| GetData::<string>::try_data(val).unwrap())
-    {
-        match if recursive {
-            fs::create_dir_all(path).await
-        } else {
-            fs::create_dir(path).await
-        } {
-            Ok(()) => {
-                let _ = success.send_one(().into()).await;
-            }
-            Err(err) => {
-                let _ = error.send_one(err.to_string().into()).await;
-                let _ = failure.send_one(().into()).await;
-            }
-        }
-    } else {
-        let _ = failure.send_one(().into()).await;
+    if let (Ok(filesystem), Ok(path)) = (
+        filesystem.recv_one().await.map(|val| {
+            GetData::<Arc<dyn Data>>::try_data(val)
+                .unwrap()
+                .downcast_arc::<FileSystem>()
+                .unwrap()
+        }),
+        path.recv_one()
+            .await
+            .map(|val| GetData::<string>::try_data(val).unwrap()),
+    ) {
+        filesystem
+            .filesystem
+            .create_dir(&path, recursive, &success, &failure, &error)
+            .await
     }
 }
 
@@ -56,51 +51,26 @@ pub async fn create(recursive: bool) {
     default recursive false
     default follow_links true
     input path Block<string>
+    input filesystem Block<FileSystem>
     output entries Stream<string>
     output success Block<void>
     output error Stream<string>
 )]
 pub async fn scan(recursive: bool, follow_links: bool) {
-    if let Ok(path) = path
-        .recv_one()
-        .await
-        .map(|val| GetData::<string>::try_data(val).unwrap())
-    {
-        let mut dir_entries = WalkDir::new(path).filter(move |entry| async move {
-            match entry.file_type().await {
-                Ok(file_type) => {
-                    if file_type.is_dir() {
-                        if recursive {
-                            Filtering::Continue
-                        } else {
-                            Filtering::IgnoreDir
-                        }
-                    } else if file_type.is_symlink() {
-                        if follow_links {
-                            Filtering::Continue
-                        } else {
-                            Filtering::IgnoreDir
-                        }
-                    } else {
-                        Filtering::Continue
-                    }
-                }
-                Err(_) => Filtering::Continue,
-            }
-        });
-
-        while let Some(entry) = dir_entries.next().await {
-            match entry {
-                Ok(entry) => check!(
-                    entries
-                        .send_one(entry.path().to_string_lossy().to_string().into())
-                        .await
-                ),
-                Err(err) => {
-                    let _ = error.send_one(err.to_string().into()).await;
-                }
-            }
-        }
-        let _ = success.send_one(().into()).await;
+    if let (Ok(filesystem), Ok(path)) = (
+        filesystem.recv_one().await.map(|val| {
+            GetData::<Arc<dyn Data>>::try_data(val)
+                .unwrap()
+                .downcast_arc::<FileSystem>()
+                .unwrap()
+        }),
+        path.recv_one()
+            .await
+            .map(|val| GetData::<string>::try_data(val).unwrap()),
+    ) {
+        filesystem
+            .filesystem
+            .scan_dir(&path, recursive, follow_links, &entries, &success, &error)
+            .await
     }
 }

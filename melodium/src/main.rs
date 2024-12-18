@@ -10,9 +10,9 @@ use melodium_lang::{
     semantic::{NoneDeclarativeElement, Value as SemanticValue},
     text::{get_words, Value as TextValue},
 };
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::{collections::HashMap, sync::RwLock};
+use std::{net::IpAddr, path::PathBuf};
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -77,6 +77,44 @@ struct Info {
     /// Program file, can be either `.mel` or `.jeu` file.
     name: String,
 }
+
+#[cfg(feature = "distribution")]
+#[derive(clap::Args)]
+/// Makes engine available for distribution
+struct Dist {
+    #[clap(short, long)]
+    /// IP to listen on.
+    ip: Option<IpAddr>,
+    #[clap(short, long)]
+    /// Port to listen on.
+    port: u16,
+    #[clap(short, long, allow_hyphen_values = true)]
+    /// Certificate chain to use for TLS encryption (PEM format).
+    certificate: Option<String>,
+    /// Key to use for TLS encryption (PKCS8 PEM format).
+    #[clap(short, long, allow_hyphen_values = true)]
+    key: Option<String>,
+    /// Key expected to authenticate remote engine.
+    #[clap(short, long)]
+    recv_key: uuid::Uuid,
+    /// Key to authenticate with remote engine.
+    #[clap(short, long)]
+    send_key: uuid::Uuid,
+    /// Listen localhost, using embedded certificate.
+    #[clap(long, action)]
+    localhost: bool,
+    /// Time (in seconds) to wait for a distant engine to connect.
+    #[clap(long, default_value = None)]
+    wait: Option<u64>,
+    /// Maximal duration (in seconds) for work to be made.
+    #[clap(long, default_value = None)]
+    duration: Option<u64>,
+}
+
+#[cfg(not(feature = "distribution"))]
+#[derive(clap::Args)]
+/// [Not available in this release] Makes engine available for distribution
+struct Dist {}
 
 #[derive(Subcommand)]
 /// Manage `.jeu` package files
@@ -151,6 +189,7 @@ enum Commands {
     Run(Run),
     Check(Check),
     Info(Info),
+    Dist(Dist),
     #[clap(subcommand)]
     Jeu(Jeu),
     Doc(Doc),
@@ -176,6 +215,10 @@ pub fn main() {
             Commands::Run(args) => run(args),
             Commands::Check(args) => check(args),
             Commands::Info(args) => info(args),
+            #[cfg(feature = "distribution")]
+            Commands::Dist(args) => dist(args),
+            #[cfg(not(feature = "distribution"))]
+            Commands::Dist(_) => {}
             #[cfg(feature = "doc")]
             Commands::Doc(args) => doc(args),
             #[cfg(not(feature = "doc"))]
@@ -235,7 +278,7 @@ fn run(args: Run) {
 
         let params = parse_args(entry_name, treatment, arguments);
 
-        let launch = launch(collection, &identifier, params);
+        let launch = async_std::task::block_on(launch(collection, &identifier, params));
         if let Some(failure) = launch.failure() {
             eprintln!("{}: {failure}", "failure".bold().red());
         }
@@ -359,6 +402,102 @@ fn info(args: Info) {
         let _ = cmd.print_long_help();
     } else {
         std::process::exit(1);
+    }
+}
+
+#[cfg(feature = "distribution")]
+fn dist(args: Dist) {
+    use core::time::Duration;
+    use melodium_common::descriptor::Version;
+    use std::net::{Ipv4Addr, SocketAddr};
+
+    let loader = melodium_loader::Loader::new(core_config());
+
+    if args.localhost {
+        match (args.certificate, args.key) {
+            (None, None) => {
+                async_std::task::block_on(melodium_distribution::launch_listen_localcert(
+                    SocketAddr::new(Ipv4Addr::LOCALHOST.into(), args.port),
+                    &Version::parse(melodium::VERSION).unwrap(),
+                    args.recv_key,
+                    args.send_key,
+                    loader,
+                    args.wait.map(|secs| Duration::from_secs(secs)),
+                    args.duration.map(|secs| Duration::from_secs(secs)),
+                ))
+            }
+            (Some(certificate), Some(key)) => {
+                let cert_content = match std::fs::read(&certificate) {
+                    Ok(cert) => cert,
+                    Err(err) => {
+                        eprintln!("{}: '{certificate}': {err}", "error".bold().red());
+                        return;
+                    }
+                };
+                let key_content = match std::fs::read(&key) {
+                    Ok(key) => key,
+                    Err(err) => {
+                        eprintln!("{}: '{key}': {err}", "error".bold().red());
+                        return;
+                    }
+                };
+                async_std::task::block_on(melodium_distribution::launch_listen(
+                    SocketAddr::new(Ipv4Addr::LOCALHOST.into(), args.port),
+                    &cert_content,
+                    &key_content,
+                    &Version::parse(melodium::VERSION).unwrap(),
+                    args.recv_key,
+                    args.send_key,
+                    loader,
+                    args.wait.map(|secs| Duration::from_secs(secs)),
+                    args.duration.map(|secs| Duration::from_secs(secs)),
+                ))
+            }
+            (_, _) => {
+                eprintln!(
+                    "{}: certificate and key must be specified together",
+                    "error".bold().red()
+                );
+                return;
+            }
+        }
+    } else {
+        match (args.ip, args.certificate, args.key) {
+            (Some(ip), Some(certificate), Some(key)) => {
+                let cert_content = match std::fs::read(&certificate) {
+                    Ok(cert) => cert,
+                    Err(err) => {
+                        eprintln!("{}: '{certificate}': {err}", "error".bold().red());
+                        return;
+                    }
+                };
+                let key_content = match std::fs::read(&key) {
+                    Ok(key) => key,
+                    Err(err) => {
+                        eprintln!("{}: '{key}': {err}", "error".bold().red());
+                        return;
+                    }
+                };
+                async_std::task::block_on(melodium_distribution::launch_listen(
+                    SocketAddr::new(ip, args.port),
+                    &cert_content,
+                    &key_content,
+                    &Version::parse(melodium::VERSION).unwrap(),
+                    args.recv_key,
+                    args.send_key,
+                    loader,
+                    args.wait.map(|secs| Duration::from_secs(secs)),
+                    args.duration.map(|secs| Duration::from_secs(secs)),
+                ))
+            }
+            (_, _, _) => {
+                eprintln!(
+                    "{}: ip address to bind on, certificate, and key must be specified together",
+                    "error".bold().red()
+                );
+                return;
+            }
+        }
     }
 }
 

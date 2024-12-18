@@ -1,19 +1,16 @@
 use super::{
     BuildId, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
-    DynamicBuildResult, GenesisEnvironment, StaticBuildResult,
+    DynamicBuildResult, GenesisEnvironment, HostTreatment, StaticBuildResult,
 };
 use crate::{design::Value, error::LogicResult};
 use core::fmt::Debug;
-use melodium_common::{
-    descriptor::{DescribedType, Treatment},
-    executive::Value as ExecutiveValue,
-};
-use std::{collections::HashMap, sync::Arc};
+use melodium_common::{descriptor::DescribedType, executive::Value as ExecutiveValue};
+use std::collections::HashMap;
 
 pub trait Builder: Debug + Send + Sync {
     fn static_build(
         &self,
-        host_treatment: Option<Arc<dyn Treatment>>,
+        host_treatment: HostTreatment,
         host_build: Option<BuildId>,
         label: String,
         environment: &GenesisEnvironment,

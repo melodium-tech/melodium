@@ -2,7 +2,7 @@
 name = "javascript-mel"
 version = "0.8.0"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
-rust-version = "1.60"
+rust-version = "1.83"
 edition = "2021"
 license = "EUPL-1.2"
 homepage = "https://melodium.tech"
@@ -17,8 +17,8 @@ crate-type = ["lib", "cdylib"]
 name = "javascript_mel"
 
 [dependencies]
-async-std = "~1.12"
-boa_engine = { version = "0.17.0" }
+async-std = "1.12"
+boa_engine = { version = "0.20" }
 melodium-core = { path = "../../melodium-core", version = "0.8.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }
 json-mel = { path = "../json-mel", version = "0.8.0" }

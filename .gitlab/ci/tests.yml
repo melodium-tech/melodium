@@ -14,7 +14,7 @@ test:rust:unit_tests:
     - cargo test --locked --verbose
 
 variables:
-  TESTS: complex_call fs generics http_client http_javascript process regex sql
+  TESTS: complex_call fs generics http_client http_javascript process regex sql http_distributed
 
 testers:rust:x86_64-unknown-linux-gnu:
   stage: test
@@ -114,20 +114,6 @@ testers:rust:x86_64-apple-darwin:
       - tests/testers/target/x86_64-apple-darwin/debug
     expire_in: 1 hour
 
-# testers:rust:i686-apple-darwin:
-#   stage: test
-#   extends:
-#     - .build-testers
-#     - .builder:linux:i686-apple-darwin
-#   script:
-#    - cd tests/testers
-#    - xargo build --target i686-apple-darwin
-#    - ls target/i686-apple-darwin/debug
-#   artifacts:
-#     paths:
-#       - tests/testers/target/i686-apple-darwin/debug
-#     expire_in: 1 hour
-
 testers:rust:aarch64-apple-darwin:
   stage: test
   extends:
@@ -211,6 +197,60 @@ testers:rust:aarch64-pc-windows-msvc:
     paths:
       - tests/testers/target/aarch64-pc-windows-msvc/debug
     expire_in: 1 hour
+
+test:melodium:aarch64-unknown-linux-gnu:
+  stage: test
+  extends: 
+    - .run-tests
+    - .runner:debian:aarch64
+    - .service:postgresql
+  needs:
+    - build:debug:aarch64-unknown-linux-gnu
+    - testers:rust:aarch64-unknown-linux-gnu
+  script:
+    - export PATH="$CI_PROJECT_DIR/target/aarch64-unknown-linux-gnu/debug:$PATH"
+    - cd tests/
+    - |
+      OK=0
+      for TEST in $TESTS 
+      do
+        echo Running $TEST
+        if testers/target/aarch64-unknown-linux-gnu/debug/$TEST
+        then
+          echo $TEST OK
+        else
+          OK=1
+          echo $TEST failed
+        fi
+      done
+      exit $OK
+
+test:melodium:aarch64-unknown-linux-musl:
+  stage: test
+  extends: 
+    - .run-tests
+    - .runner:alpine:aarch64
+    - .service:postgresql
+  needs:
+    - build:debug:aarch64-unknown-linux-musl
+    - testers:rust:aarch64-unknown-linux-musl
+  script:
+    - export PATH="$CI_PROJECT_DIR/target/aarch64-unknown-linux-musl/debug:$PATH"
+    - cd tests/
+    - |
+      OK=0
+      for TEST in $TESTS 
+      do
+        echo Running $TEST
+        if testers/target/aarch64-unknown-linux-musl/debug/$TEST
+        then
+          echo $TEST OK
+        else
+          OK=1
+          echo $TEST failed
+        fi
+      done
+      exit $OK
 
 test:melodium:x86_64-unknown-linux-gnu:
   stage: test
@@ -387,10 +427,10 @@ test:melodium:x86_64-pc-windows-gnu:
     - .runner:windows:x86_64
     - .service:postgresql
   needs:
-    - build:debug:x86_64-pc-windows-gnu
+    - build:release:x86_64-pc-windows-gnu
     - testers:rust:x86_64-pc-windows-gnu
   script:
-    - $Env:Path="$CI_PROJECT_DIR/target/x86_64-pc-windows-gnu/debug;$Env:Path"
+    - $Env:Path="$CI_PROJECT_DIR/target/x86_64-pc-windows-gnu/release;$Env:Path"
     - cd tests/
     - $TESTS = $TESTS.Split(" ")
     - |
@@ -474,10 +514,10 @@ test:melodium:i686-pc-windows-gnu:
     - .runner:windows:x86_64
     - .service:postgresql
   needs:
-    - build:debug:i686-pc-windows-gnu
+    - build:release:i686-pc-windows-gnu
     - testers:rust:i686-pc-windows-gnu
   script:
-    - $Env:Path="$CI_PROJECT_DIR/target/i686-pc-windows-gnu/debug;$Env:Path"
+    - $Env:Path="$CI_PROJECT_DIR/target/i686-pc-windows-gnu/release;$Env:Path"
     - cd tests/
     - $TESTS = $TESTS.Split(" ")
     - |

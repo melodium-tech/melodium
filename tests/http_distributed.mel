@@ -1,0 +1,126 @@
+#!/usr/bin/env melodium
+#! name = http_distributed
+#! version = 0.8.0
+#! require = http:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0 distrib:0.8.0 work:0.8.0 fs:0.8.0 net:0.8.0
+
+use http/server::HttpServer
+use http/server::start as startHttp
+use http/server::connection
+use http/method::HttpMethod
+use http/status::|ok
+use http/status::HttpStatus
+use http/method::|post
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use work/access::Access
+use work/access::|new_access
+use std/flow::emit
+use std/flow::trigger
+use std/flow::stream
+use std/ops/option::unwrapOr
+use std/ops/option::unwrap
+use std/conv::toString
+use std/data::Map
+use std/data::|map
+use std/engine/util::startup
+use encoding::decode
+use encoding::encode
+use javascript::JavaScriptEngine
+use javascript::process
+use json::toJson
+use json::Json
+use json/value::|null
+use fs/util::writeText
+
+treatment main(const distrib_port: u16, var remote_key: string, var self_key: string)
+  model distributor: DistributionEngine(treatment="http_distributed::js_function", version="0.8.0")
+  model server: HttpServer(
+    host=|from_ipv4(|localhost_ipv4()),
+    port=8080
+  )
+{
+    startup()
+    emitAccess: emit<Access>(value=|new_access([|from_ipv4(|localhost_ipv4())], distrib_port, remote_key, self_key))
+    start[distributor=distributor](params=|map([]))
+    distributedJs[distributor=distributor]()
+    startup.trigger -> emitAccess.trigger,emit -> start.access
+
+    emitOk: emit<string>(value="ok")
+    streamOk: stream<string>()
+    writeOk: writeText(path = "ok.log")
+    ready[distribution_engine=distributor]()
+    writeFailure: writeText(path = "failure.log")
+    streamFailure: stream<string>()
+    distributionFailure[distribution_engine=distributor]()
+
+    distributionFailure.failure -> streamFailure.block,stream -> writeFailure.text
+    ready.trigger -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
+
+
+    startHttp[http_server=server]()
+    ready.trigger -> startHttp.trigger
+
+    connection[http_server=server](method=|post(), route="/hello")
+    status: emit<HttpStatus>(value=|ok())
+    headers: emit<Map>(value=|map([]))
+    trigger<byte>()
+    
+    connection.data -> trigger.stream,start --> status.trigger,emit -> connection.status
+                       trigger.start --------> headers.trigger,emit -> connection.headers
+    
+    
+    
+    connection.data -> distributedJs.data,data -> connection.data
+}
+
+model JsEngine(): JavaScriptEngine {
+    code = "function greet(someone) {
+    return {
+        response: `Hello ${someone}!`,
+        ps: \"Thanks for contacting me :D\"}
+    }"
+}
+
+treatment js_function()
+  model JsEngine: JsEngine()
+  input data: Stream<byte>
+  output data: Stream<byte>
+{
+    process[engine=JsEngine](code="greet(value)")
+
+    decode()
+    toJson()
+    unwrap<Json>()
+    encode()
+    unwrapOr<Json>(default=|null())
+    toString<Json>()
+    
+    Self.data -> decode.data,text -> toJson.text,json -> unwrap.option,value -> process.value,result -> unwrapOr.option,value -> toString.value,into -> encode.text,data -> Self.data
+}
+
+use distrib::DistributionEngine
+use distrib::distribute
+use distrib::ready
+use distrib::start
+use distrib::sendStream
+use distrib::recvStream
+use distrib::distributionFailure
+
+treatment distributedJs[distributor: DistributionEngine]()
+  input data: Stream<byte>
+  output data: Stream<byte>
+{
+  trigger<byte>()
+  distribute[distributor=distributor](params=|map([]))
+
+  Self.data -> trigger.stream,start -> distribute.trigger
+
+  sendStream<byte>[distributor=distributor](name="data")
+  recvStream<byte>[distributor=distributor](name="data")
+
+  distribute.distribution_id -> sendStream.distribution_id
+  distribute.distribution_id -> recvStream.distribution_id
+
+  Self.data -> sendStream.data
+  recvStream.data -> Self.data
+}

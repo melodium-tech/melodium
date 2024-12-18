@@ -1,14 +1,14 @@
 use crate::building::builder::get_value;
-use crate::building::Builder as BuilderTrait;
 use crate::building::{
     BuildId, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
     DynamicBuildResult, GenesisEnvironment, StaticBuildResult,
 };
+use crate::building::{Builder as BuilderTrait, HostTreatment};
 use crate::design::Model;
 use crate::error::LogicResult;
 use crate::world::World;
 use core::fmt::Debug;
-use melodium_common::descriptor::{Model as ModelDescriptor, Parameterized, Treatment};
+use melodium_common::descriptor::{Model as ModelDescriptor, Parameterized};
 use std::sync::{Arc, Weak};
 
 #[derive(Debug)]
@@ -26,7 +26,7 @@ impl Builder {
 impl BuilderTrait for Builder {
     fn static_build(
         &self,
-        host_treatment: Option<Arc<dyn Treatment>>,
+        host_treatment: HostTreatment,
         host_build: Option<BuildId>,
         label: String,
         environment: &GenesisEnvironment,

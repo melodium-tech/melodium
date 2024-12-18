@@ -3,7 +3,7 @@
 # Builders follows syntax [host os]/[target triple]
 
 .host:debian:
-  image: rust:1.76-bullseye
+  image: rust:1.83-bullseye
 
 .host:windows:
   tags:
@@ -11,6 +11,7 @@
 
 .cache:cargo:
   variables:
+    CARGO_INCREMENTAL: 0
     CARGO_HOME: $CI_PROJECT_DIR/.cargo
   cache:
     - key: cargo-$CI_JOB_NAME_SLUG
@@ -20,6 +21,7 @@
 
 .cache:cargo-osxcross:
   variables:
+    CARGO_INCREMENTAL: 0
     CARGO_HOME: $CI_PROJECT_DIR/.cargo
   cache:
     - key: cargo-osxcross-$CI_JOB_NAME_SLUG
@@ -30,6 +32,7 @@
 
 .cache:cargo-xwin:
   variables:
+    CARGO_INCREMENTAL: 0
     CARGO_HOME: $CI_PROJECT_DIR/.cargo
   cache:
     - key: cargo-xwin-$CI_JOB_NAME
@@ -100,18 +103,19 @@
   extends:
     - .host:debian
     - .cache:cargo
+  tags:
+    - saas-linux-medium-arm64
   before_script:
-   - dpkg --add-architecture arm64
    - apt-get update
-   - apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev:arm64
-   - ln -s /usr/aarch64-linux-gnu/lib/libgcc_s.so.1 /usr/aarch64-linux-gnu/lib/libgcc_s.so
-   - rustup target add aarch64-unknown-linux-gnu
+   - apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev
+   #- ln -s /usr/aarch64-linux-gnu/lib/libgcc_s.so.1 /usr/aarch64-linux-gnu/lib/libgcc_s.so
+   #- rustup target add aarch64-unknown-linux-gnu
    - export PATH="$CARGO_HOME/bin:$PATH"
-   - export PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config
-   - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld
-   - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_AR=aarch64-linux-gnu-gcc-ar
-   - export TARGET_CC=aarch64-linux-gnu-gcc
-   - export TARGET_AR=aarch64-linux-gnu-gcc-ar
+   #- export PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config
+   #- export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/aarch64-linux-gnu/bin/ld
+   #- export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_AR=aarch64-linux-gnu-gcc-ar
+   #- export TARGET_CC=aarch64-linux-gnu-gcc
+   #- export TARGET_AR=aarch64-linux-gnu-gcc-ar
    - export CARGO_BUILD_TARGET=aarch64-unknown-linux-gnu
    - rustc --version
    - cargo --version
@@ -176,42 +180,6 @@
     - export TARGET_CC=x86_64-apple-darwin16-cc
     - export TARGET_AR=x86_64-apple-darwin16-ar
     - export CARGO_BUILD_TARGET=x86_64-apple-darwin
-    - rustc --version
-    - cargo --version
-
-.builder:linux:i686-apple-darwin:
-  extends:
-    - .host:debian
-    - .cache:cargo-osxcross
-  before_script:
-    - apt-get update
-    - apt-get install -y clang gcc g++ cmake zlib1g-dev libmpc-dev libmpfr-dev libgmp-dev
-    - rustup default nightly
-    - export PATH="$CARGO_HOME/bin:$PATH"
-    - |
-      if [ ! -f $CARGO_HOME/bin/xargo ]
-      then
-        cargo install xargo
-      fi
-    - rustup component add rust-src
-    - |
-      if [ ! -d $CI_PROJECT_DIR/osxcross ]
-      then
-        base="$PWD"
-        git clone https://github.com/tpoechtrager/osxcross
-        cd osxcross
-        wget -nc https://s3.dockerproject.org/darwin/v2/MacOSX10.11.sdk.tar.xz
-        mv MacOSX10.11.sdk.tar.xz tarballs/
-        UNATTENDED=yes OSX_VERSION_MIN=10.7 ./build.sh
-        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/i386-apple-darwin15-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
-        cd "$base"
-      fi
-    - export PATH="$CI_PROJECT_DIR/osxcross/target/bin:$PATH"
-    - export CARGO_TARGET_I686_APPLE_DARWIN_LINKER=i386-apple-darwin15-clang
-    - export CARGO_TARGET_I686_APPLE_DARWIN_AR=i386-apple-darwin15-ar
-    - export TARGET_CC=i386-apple-darwin15-cc
-    - export TARGET_AR=i386-apple-darwin15-ar
-    - export CARGO_BUILD_TARGET=i686-apple-darwin
     - rustc --version
     - cargo --version
 

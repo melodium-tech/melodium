@@ -486,13 +486,23 @@ impl Node for Value {
     }
 
     fn children(&self) -> Vec<Arc<RwLock<dyn Node>>> {
-        let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();
-
-        if let ValueContent::Function(f) = &self.content {
-            children.push(Arc::clone(f) as Arc<RwLock<dyn Node>>);
-            children.extend(f.read().unwrap().children());
+        fn children_from_value_content(value: &ValueContent) -> Vec<Arc<RwLock<dyn Node>>> {
+            let mut children: Vec<Arc<RwLock<dyn Node>>> = Vec::new();
+            match value {
+                ValueContent::Array(a) => {
+                    for v in a {
+                        children.extend(children_from_value_content(v));
+                    }
+                }
+                ValueContent::Function(f) => {
+                    children.push(Arc::clone(f) as Arc<RwLock<dyn Node>>);
+                    children.extend(f.read().unwrap().children());
+                }
+                _ => {}
+            }
+            children
         }
 
-        children
+        children_from_value_content(&self.content)
     }
 }

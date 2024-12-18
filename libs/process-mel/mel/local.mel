@@ -1,0 +1,57 @@
+use std/flow::emit
+use std/ops/option/block::unwrap
+use root/command::Command
+use root/environment::Environment
+use root/exec::Executor
+use root/local::|local_executor
+use root/exec::exec as coreExec
+use root/exec::spawn as coreSpawn
+
+treatment exec(command: Command, environment: Option<Environment> = _)
+  input  launch:  Block<void>
+  output started: Block<void>
+  output ended:   Block<Option<i32>>
+  output success: Block<bool>
+  output failure: Block<string>
+{
+    emitExecutor: emit<Option<Executor>>(value = |local_executor())
+    unwrapExecutor: unwrap<Executor>()
+
+    coreExec(command = command, environment = environment)
+
+    Self.launch -> emitExecutor.trigger,emit -> unwrapExecutor.option,value -> coreExec.executor
+    Self.launch -------------------------------------------------------------> coreExec.launch
+
+    coreExec.started -> Self.started
+    coreExec.ended ---> Self.ended
+    coreExec.success -> Self.success
+    coreExec.failure -> Self.failure
+}
+
+treatment spawn(command: Command, environment: Option<Environment> = _)
+  input  launch:  Block<void>
+  input  stdin:   Stream<byte>
+  output stdout:  Stream<byte>
+  output stderr:  Stream<byte>
+  output started: Block<void>
+  output ended:   Block<Option<i32>>
+  output success: Block<bool>
+  output failure: Block<string>
+{
+    emitExecutor: emit<Option<Executor>>(value = |local_executor())
+    unwrapExecutor: unwrap<Executor>()
+
+    coreSpawn(command = command, environment = environment)
+
+    Self.launch -> emitExecutor.trigger,emit -> unwrapExecutor.option,value -> coreSpawn.executor
+    Self.launch -------------------------------------------------------------> coreSpawn.launch
+
+    Self.stdin --------> coreSpawn.stdin
+    coreSpawn.stdout --> Self.stdout
+    coreSpawn.stderr --> Self.stderr
+
+    coreSpawn.started -> Self.started
+    coreSpawn.ended ---> Self.ended
+    coreSpawn.success -> Self.success
+    coreSpawn.failure -> Self.failure
+}

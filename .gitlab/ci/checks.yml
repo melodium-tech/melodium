@@ -5,12 +5,15 @@ include:
 
 .check:
   script:
+    - cargo check --package melodium-certs --locked
     - cargo check --package melodium-common --locked
     - cargo check --package melodium-macro --locked
     - cargo check --package melodium-core --locked
     - cargo check --package melodium-core --locked --features doc
     - cargo check --package melodium-lang --locked
     - cargo check --package melodium-lang --locked --features restitution
+    - cargo check --package melodium-share --locked
+    - cargo check --package melodium-distribution --locked
     - cargo check --package melodium-doc --locked
     - cargo check --package melodium-engine --locked
     - cargo check --package melodium-engine --locked --features doc
@@ -27,10 +30,11 @@ include:
     - cargo check --package melodium-loader --locked --no-default-features --features network,jeu,script
     - cargo check --package melodium-loader --locked --no-default-features --features filesystem,network,jeu,script
     - cargo check --package melodium --locked --no-default-features --features cli
+    - cargo check --package melodium --locked --no-default-features --features cli,distribution
     - cargo check --package melodium --locked --no-default-features --features cli,jeu
-    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs
-    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network
-    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,text,javascript
+    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,distribution
+    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,distribution
+    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,text,javascript,distribution
     - cargo check --package melodium --locked --no-default-features
     - cargo check --package melodium --locked
 
@@ -82,15 +86,6 @@ build:check:x86_64-apple-darwin:
     - .check-builds
     - .builder:linux:x86_64-apple-darwin
     - .check
-
-# Deactivated because require xargo build and so on… too much for just checks.
-# If other checks passes, we should be good here.
-# build:check:i686-apple-darwin:
-#   stage: build
-#   extends:
-#     - .check-builds
-#     - .builder:linux:i686-apple-darwin
-#     - .check
 
 build:check:aarch64-apple-darwin:
   stage: build

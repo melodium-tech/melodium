@@ -42,6 +42,14 @@ impl Identified for Data {
     fn identifier(&self) -> &Identifier {
         &self.identifier
     }
+
+    fn make_use(&self, _identifier: &Identifier) -> bool {
+        false
+    }
+
+    fn uses(&self) -> Vec<Identifier> {
+        vec![]
+    }
 }
 
 impl Documented for Data {
