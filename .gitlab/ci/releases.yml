@@ -223,11 +223,11 @@ release:publish:containers:
   variables:
     GIT_STRATEGY: none
   needs:
-    - job: build:release:x86_64-unknown-linux-musl
+    - job: build:release:x86_64-unknown-linux-musl:container
       artifacts: true
-    - job: build:release:i686-unknown-linux-musl
+    - job: build:release:i686-unknown-linux-musl:container
       artifacts: true
-    - job: build:release:aarch64-unknown-linux-musl
+    - job: build:release:aarch64-unknown-linux-musl:container
       artifacts: true
   before_script:
     - buildah login --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
