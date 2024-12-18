@@ -60,6 +60,7 @@ text = ["encoding-mel", "regex-mel"]
 javascript = ["javascript-mel", "json-mel"]
 sql = ["sql-mel"]
 standard-edition = ["jeu", "doc", "distribution", "fs", "network", "text", "javascript", "sql"]
+container-edition = ["standard-edition", "work-mel/kubernetes"]
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.2", features = ["js"] }

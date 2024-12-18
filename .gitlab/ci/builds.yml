@@ -187,10 +187,23 @@ build:release:x86_64-unknown-linux-gnu:
 build:release:x86_64-unknown-linux-musl:
   stage: build
   extends:
-    - .build-release-or-containers
+    - .build-release
     - .builder:linux:x86_64-unknown-linux-musl
   script:
     - cargo build --package melodium --locked --release 
+    - ls target/x86_64-unknown-linux-musl/release
+  artifacts:
+    paths:
+      - target/x86_64-unknown-linux-musl/release/melodium
+    expire_in: 1 hour
+
+build:release:x86_64-unknown-linux-musl:container:
+  stage: build
+  extends:
+    - .build-containers
+    - .builder:linux:x86_64-unknown-linux-musl
+  script:
+    - cargo build --package melodium --features container-edition --locked --release 
     - ls target/x86_64-unknown-linux-musl/release
   artifacts:
     paths:
@@ -213,10 +226,23 @@ build:release:i686-unknown-linux-gnu:
 build:release:i686-unknown-linux-musl:
   stage: build
   extends:
-    - .build-release-or-containers
+    - .build-release
     - .builder:linux:i686-unknown-linux-musl
   script:
    - cargo build --package melodium --locked --release 
+   - ls target/i686-unknown-linux-musl/release
+  artifacts:
+    paths:
+      - target/i686-unknown-linux-musl/release/melodium
+    expire_in: 1 hour
+
+build:release:i686-unknown-linux-musl:container:
+  stage: build
+  extends:
+    - .build-containers
+    - .builder:linux:i686-unknown-linux-musl
+  script:
+   - cargo build --package melodium --features container-edition --locked --release 
    - ls target/i686-unknown-linux-musl/release
   artifacts:
     paths:
@@ -239,10 +265,23 @@ build:release:aarch64-unknown-linux-gnu:
 build:release:aarch64-unknown-linux-musl:
   stage: build
   extends:
-    - .build-release-or-containers
+    - .build-release
     - .builder:linux:aarch64-unknown-linux-musl
   script:
    - cargo build --package melodium --locked --release 
+   - ls target/aarch64-unknown-linux-musl/release
+  artifacts:
+    paths:
+      - target/aarch64-unknown-linux-musl/release/melodium
+    expire_in: 1 hour
+
+build:release:aarch64-unknown-linux-musl:container:
+  stage: build
+  extends:
+    - .build-containers
+    - .builder:linux:aarch64-unknown-linux-musl
+  script:
+   - cargo build --package melodium --features container-edition --locked --release 
    - ls target/aarch64-unknown-linux-musl/release
   artifacts:
     paths:
