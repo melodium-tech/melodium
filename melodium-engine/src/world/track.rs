@@ -1,4 +1,4 @@
-use futures::future::JoinAll;
+use futures::stream::FuturesUnordered;
 use melodium_common::executive::{ResultStatus, TrackFuture, TrackId};
 
 // We don't use id nor parent_id for now, but might be useful for reporting implementations.
@@ -26,11 +26,11 @@ impl InfoTrack {
 pub struct ExecutionTrack {
     pub id: TrackId,
     pub ancestry_level: u64,
-    pub future: JoinAll<TrackFuture>,
+    pub future: FuturesUnordered<TrackFuture>,
 }
 
 impl ExecutionTrack {
-    pub fn new(id: TrackId, ancestry_level: u64, future: JoinAll<TrackFuture>) -> Self {
+    pub fn new(id: TrackId, ancestry_level: u64, future: FuturesUnordered<TrackFuture>) -> Self {
         Self {
             id,
             ancestry_level,
@@ -41,5 +41,6 @@ impl ExecutionTrack {
 
 pub enum TrackResult {
     AllOk(TrackId),
+    #[allow(dead_code)]
     NotAllOk(TrackId, Vec<ResultStatus>),
 }

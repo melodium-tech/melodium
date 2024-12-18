@@ -1,5 +1,5 @@
 use async_std::channel::{unbounded, Receiver, Sender};
-use boa_engine::{Context, JsValue, Source};
+use boa_engine::{Context, JsString, JsValue, Source};
 use serde_json::Value;
 use std::sync::Mutex;
 use std::thread::JoinHandle;
@@ -71,11 +71,12 @@ impl Engine {
                 Ok(value) => {
                     let _ = context
                         .global_object()
-                        .delete_property_or_throw("value", &mut context);
-                    let _ =
-                        context
-                            .global_object()
-                            .create_data_property("value", value, &mut context);
+                        .delete_property_or_throw::<JsString>("value".into(), &mut context);
+                    let _ = context.global_object().create_data_property::<JsString, _>(
+                        "value".into(),
+                        value,
+                        &mut context,
+                    );
 
                     let result = context.eval(Source::from_bytes(code.as_bytes()));
 

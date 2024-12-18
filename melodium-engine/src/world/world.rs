@@ -1,7 +1,8 @@
 use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
+use crate::building::HostTreatment;
 use crate::building::{
     model::get_builder as get_builder_model, treatment::get_builder as get_builder_treatment,
-    BuildId, Builder, CheckEnvironment, ContextualEnvironment, GenesisEnvironment,
+    BuildId, Builder, CheckEnvironment, ContextualEnvironment, FeedingInputs, GenesisEnvironment,
     StaticBuildResult,
 };
 use crate::engine::Engine;
@@ -12,12 +13,15 @@ use async_std::sync::Mutex;
 use async_std::task::block_on;
 use async_trait::async_trait;
 use core::fmt::Debug;
-use futures::future::{join, join_all};
+use futures::future::join;
 use futures::stream::{FuturesUnordered, StreamExt};
-use melodium_common::descriptor::{Collection, Entry as CollectionEntry, Identified, Identifier};
+use melodium_common::descriptor::{
+    Collection, Entry as CollectionEntry, Identified, Identifier, Treatment,
+};
 use melodium_common::executive::{
-    Context as ExecutiveContext, ContinuousFuture, Input as ExecutiveInput, Model, ModelId,
-    ResultStatus, TrackCreationCallback, TrackFuture, TrackId, Value, World as ExecutiveWorld,
+    Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback, Input as ExecutiveInput,
+    Model, ModelId, Output as ExecutiveOutput, ResultStatus, TrackCreationCallback, TrackFuture,
+    TrackId, Value, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
@@ -35,7 +39,10 @@ pub struct World {
     builders: RwLock<HashMap<Identifier, Arc<dyn Builder>>>,
 
     errors: RwLock<LogicErrors>,
+    main: RwLock<Option<Arc<dyn Treatment>>>,
+    main_id: RwLock<Option<Identifier>>,
     main_build_id: RwLock<BuildId>,
+    main_tracks: RwLock<HashMap<TrackId, FeedingInputs>>,
 
     continuous_tasks_sender: Sender<ContinuousFuture>,
     continuous_tasks_receiver: Receiver<ContinuousFuture>,
@@ -45,6 +52,7 @@ pub struct World {
     tracks_sender: Sender<ExecutionTrack>,
     tracks_receiver: Receiver<ExecutionTrack>,
 
+    close_at_continuous_end: AtomicBool,
     continous_ended: AtomicBool,
     closing: AtomicBool,
 }
@@ -73,13 +81,17 @@ impl World {
             sources: RwLock::new(HashMap::new()),
             builders: RwLock::new(HashMap::new()),
             errors: RwLock::new(Vec::new()),
+            main: RwLock::new(None),
+            main_id: RwLock::new(None),
             main_build_id: RwLock::new(0),
+            main_tracks: RwLock::new(HashMap::new()),
             continuous_tasks_sender,
             continuous_tasks_receiver,
             tracks_counter: Mutex::new(0),
             tracks_info: Mutex::new(HashMap::new()),
             tracks_sender,
             tracks_receiver,
+            close_at_continuous_end: AtomicBool::new(true),
             continous_ended: AtomicBool::new(false),
             closing: AtomicBool::new(false),
         })
@@ -128,6 +140,24 @@ impl World {
         let model = self.models.read().unwrap()[model_id].clone();
 
         model.invoke_source(name, params);
+    }
+
+    pub fn direct(&self, id: &TrackId) -> LogicResult<FeedingInputs> {
+        let possible_build_result;
+        {
+            possible_build_result = self
+                .main_tracks
+                .read()
+                .unwrap()
+                .get(id)
+                .map(|feeding_inputs| feeding_inputs.clone());
+        }
+
+        if let Some(dbr) = possible_build_result {
+            LogicResult::new_success(dbr)
+        } else {
+            LogicResult::new_failure(LogicError::no_direct_track(242, id.clone()))
+        }
     }
 
     pub fn builder(&self, identifier: &Identifier) -> LogicResult<Arc<dyn Builder>> {
@@ -186,20 +216,16 @@ impl World {
     async fn run_tracks(&self) {
         let mut futures = FuturesUnordered::new();
 
-        async fn track_future(track: ExecutionTrack) -> TrackResult {
-            let non_ok: Vec<ResultStatus> = track
-                .future
-                .await
-                .iter()
-                .filter_map(
-                    // The `_ =>` is unreachable for now, but will ResultStatus will be complexified.
-                    #[allow(unreachable_patterns)]
-                    |r| match r {
-                        ResultStatus::Ok => None,
-                        _ => Some(r.clone()),
-                    },
-                )
-                .collect();
+        async fn track_future(mut track: ExecutionTrack) -> TrackResult {
+            let mut non_ok: Vec<ResultStatus> = Vec::new();
+            while let Some(r) = track.future.next().await {
+                // The `_ =>` is unreachable for now, but will ResultStatus will be complexified.
+                #[allow(unreachable_patterns)]
+                match r {
+                    ResultStatus::Ok => {}
+                    _ => non_ok.push(r.clone()),
+                }
+            }
 
             if non_ok.is_empty() {
                 TrackResult::AllOk(track.id)
@@ -235,12 +261,16 @@ impl World {
     }
 
     fn check_closing(&self) {
-        if self.continous_ended.load(Ordering::Relaxed) && self.tracks_receiver.len() == 0 {
+        if self.auto_end()
+            && self.continous_ended.load(Ordering::Relaxed)
+            && self.tracks_receiver.len() == 0
+        {
             self.end();
         }
     }
 }
 
+#[async_trait]
 impl Engine for World {
     fn collection(&self) -> Arc<Collection> {
         Arc::clone(&self.collection)
@@ -249,7 +279,15 @@ impl Engine for World {
     fn genesis(&self, entry: &Identifier, mut params: HashMap<String, Value>) -> LogicResult<()> {
         let mut gen_env = GenesisEnvironment::new();
 
-        if let Some(CollectionEntry::Treatment(descriptor)) = self.collection.get(&entry.into()) {
+        {
+            if self.main_id.read().unwrap().is_some() {
+                return LogicResult::new_success(());
+            }
+        }
+
+        let descriptor = if let Some(CollectionEntry::Treatment(descriptor)) =
+            self.collection.get(&entry.into())
+        {
             for (name, param) in descriptor.parameters() {
                 if let Some(value) = params.remove(name).filter(|val| {
                     param
@@ -268,16 +306,17 @@ impl Engine for World {
                     ));
                 }
             }
+            Arc::clone(descriptor)
         } else {
             return LogicResult::new_failure(LogicError::launch_expect_treatment(
                 224,
                 entry.clone(),
             ));
-        }
+        };
 
-        let result = self
-            .builder(entry)
-            .and_then(|builder| builder.static_build(None, None, "main".to_string(), &gen_env));
+        let result = self.builder(entry).and_then(|builder| {
+            builder.static_build(HostTreatment::Direct, None, "main".to_string(), &gen_env)
+        });
         if let Some(failure) = result.failure() {
             let mut errors = self.errors.write().unwrap();
             errors.append(&mut result.errors().clone());
@@ -330,27 +369,15 @@ impl Engine for World {
             }
         }
 
-        // Check that all inputs are satisfied.
-        for rc_check_build in builds {
-            let borrowed_check_build = rc_check_build.read().unwrap();
-            for (input_name, input_satisfied) in &borrowed_check_build.fed_inputs {
-                if !input_satisfied {
-                    result.errors_mut().push(LogicError::unsatisfied_input(
-                        59,
-                        borrowed_check_build.host_id.clone(),
-                        borrowed_check_build.label.clone(),
-                        input_name.clone(),
-                        None,
-                    ));
-                }
-            }
-        }
-
         let mut borrowed_errors = self.errors.write().unwrap();
         borrowed_errors.extend(result.errors().clone());
 
         if result.is_success() {
             if result.errors().is_empty() {
+                {
+                    self.main.write().unwrap().replace(descriptor);
+                    self.main_id.write().unwrap().replace(entry.clone());
+                }
                 self.models
                     .read()
                     .unwrap()
@@ -371,28 +398,143 @@ impl Engine for World {
         self.errors.read().unwrap().clone()
     }
 
-    fn live(&self) {
+    fn set_auto_end(&self, auto_end: bool) {
+        self.close_at_continuous_end
+            .store(auto_end, Ordering::Relaxed);
+    }
+
+    fn auto_end(&self) -> bool {
+        self.close_at_continuous_end.load(Ordering::Relaxed)
+    }
+
+    async fn live(&self) {
         let me = self.auto_reference.upgrade().unwrap();
         let continuum = {
             let me = Arc::clone(&me);
             async move {
-                let mut continuous = Vec::with_capacity(me.continuous_tasks_receiver.len());
+                let mut continuous = FuturesUnordered::new();
 
                 while let Ok(c) = me.continuous_tasks_receiver.recv().await {
                     continuous.push(c);
                 }
 
-                let model_futures = join_all(continuous.iter_mut());
-
-                model_futures.await;
+                while let Some(_) = continuous.next().await {}
 
                 me.continous_ended.store(true, Ordering::Relaxed);
+
+                // Inserting one last pseudo-track to make run_tracks check one more time,
+                // might be removed once new way of running track is implemented.
+                {
+                    let track_id;
+                    {
+                        let mut counter = self.tracks_counter.lock().await;
+                        track_id = *counter;
+                        *counter = track_id + 1;
+                    }
+
+                    let info_track = InfoTrack::new(track_id, None, 0);
+                    let execution_track = ExecutionTrack::new(
+                        track_id,
+                        0,
+                        vec![Box::new(Box::pin(async { ResultStatus::Ok })) as TrackFuture]
+                            .into_iter()
+                            .collect(),
+                    );
+                    self.tracks_info.lock().await.insert(track_id, info_track);
+                    let _ = self.tracks_sender.send(execution_track).await;
+                }
             }
         };
 
         self.continuous_tasks_sender.close();
 
-        block_on(join(continuum, async move { me.run_tracks().await }));
+        join(continuum, async move { me.run_tracks().await }).await;
+    }
+
+    async fn instanciate(&self, callback: Option<DirectCreationCallback>) {
+        let main;
+        let main_id;
+        let main_build_id;
+        {
+            if let (Some(descriptor), Some(identifier)) = (
+                self.main.read().unwrap().as_ref(),
+                self.main_id.read().unwrap().as_ref(),
+            ) {
+                main = Arc::clone(descriptor);
+                main_id = identifier.clone();
+                main_build_id = *self.main_build_id.read().unwrap();
+            } else {
+                return;
+            }
+        }
+
+        let track_id;
+        {
+            let mut counter = self.tracks_counter.lock().await;
+            track_id = *counter;
+            *counter = track_id + 1;
+        }
+
+        let mut inputs = HashMap::new();
+        for (name, _) in main.inputs() {
+            let input = self.new_input();
+            inputs.insert(name.clone(), input);
+        }
+        self.main_tracks.write().unwrap().insert(
+            track_id,
+            inputs
+                .iter()
+                .map(|(name, input)| (name.clone(), vec![input.clone()]))
+                .collect(),
+        );
+
+        let mut track_futures: Vec<TrackFuture> = Vec::new();
+        let mut outputs: HashMap<String, Output> = HashMap::new();
+        {
+            let contextual_environment = ContextualEnvironment::new(track_id);
+
+            let build_result = self
+                .builder(&main_id)
+                .success()
+                .unwrap()
+                .dynamic_build(main_build_id, &contextual_environment)
+                .unwrap();
+
+            track_futures.extend(build_result.prepared_futures);
+
+            for (input_name, mut input_transmitters) in build_result.feeding_inputs {
+                match outputs.entry(input_name) {
+                    Entry::Vacant(e) => {
+                        let e = e.insert(Output::from(input_transmitters.pop().unwrap()));
+                        e.add_transmission(&input_transmitters);
+                    }
+                    Entry::Occupied(e) => {
+                        e.get().add_transmission(&input_transmitters);
+                    }
+                }
+            }
+        }
+
+        let super_futures = if let Some(callback) = callback {
+            let outputs = outputs
+                .into_iter()
+                .map(|(name, output)| (name, Box::new(output) as Box<dyn ExecutiveOutput>))
+                .collect();
+            let inputs = inputs
+                .into_iter()
+                .map(|(name, input)| (name, Box::new(input) as Box<dyn ExecutiveInput>))
+                .collect();
+            callback(outputs, inputs)
+        } else {
+            Vec::new()
+        };
+
+        track_futures.extend(super_futures);
+
+        let info_track = InfoTrack::new(track_id, None, 0);
+        let execution_track = ExecutionTrack::new(track_id, 0, track_futures.into_iter().collect());
+        self.tracks_info.lock().await.insert(track_id, info_track);
+        let _ = self.tracks_sender.send(execution_track).await;
     }
 
     /*
@@ -415,6 +557,10 @@ impl Engine for World {
 
 #[async_trait]
 impl ExecutiveWorld for World {
+    fn collection(&self) -> Arc<Collection> {
+        Arc::clone(&self.collection)
+    }
+
     fn add_continuous_task(&self, task: ContinuousFuture) {
         let me = self.auto_reference.upgrade().unwrap();
         block_on(async move {
@@ -501,7 +647,8 @@ impl ExecutiveWorld for World {
         };
 
         let info_track = InfoTrack::new(track_id, parent_track, ancestry);
-        let execution_track = ExecutionTrack::new(track_id, ancestry, join_all(track_futures));
+        let execution_track =
+            ExecutionTrack::new(track_id, ancestry, track_futures.into_iter().collect());
         self.tracks_info.lock().await.insert(track_id, info_track);
         let _ = self.tracks_sender.send(execution_track).await;
     }

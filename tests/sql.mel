@@ -7,7 +7,7 @@
 
 use std/engine/util::startup
 use std/flow::emit
-use fs/file::write
+use fs/util::write as writeFile
 use sql::SqlPool
 use sql::failure
 use sql::executeRaw
@@ -56,17 +56,6 @@ treatment main(const server_url: string, conn_error_file: string, exec_error_fil
     check<u64>()
     executeRaw.affected -> check.value,check -> insertRows.trigger
     
-}
-
-treatment writeFile(path: string)
-  input data: Stream<byte>
-{
-    emit<string>(value=path)
-    trigger<byte>()
-    write()
-
-    Self.data -> trigger.stream,start -> emit.trigger,emit -> write.path
-    Self.data ----------------------------------------------> write.data
 }
 
 treatment insertRows[sql: SqlPool](number: u128, exec_error_file: string, success_file: string)

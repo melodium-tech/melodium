@@ -1,5 +1,18 @@
 
 
+.runner:alpine:aarch64:
+  tags:
+    - saas-linux-medium-arm64
+  image: alpine:3.18
+
+.runner:debian:aarch64:
+  tags:
+    - saas-linux-medium-arm64
+  image: debian:bullseye
+  before_script:
+    - apt-get update 
+    - apt-get install -y ca-certificates
+
 .runner:alpine:x86_64:
   image: alpine:3.18
 

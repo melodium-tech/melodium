@@ -200,6 +200,13 @@ impl Model {
             .unwrap_or(false)
     }
 
+    pub fn uses(&self) -> Vec<Identifier> {
+        self.unvalidated_design()
+            .success()
+            .map(|design| design.uses())
+            .unwrap_or_default()
+    }
+
     pub fn unvalidated_design(&self) -> LogicResult<ModelDesign> {
         let result = LogicResult::new_success(());
 

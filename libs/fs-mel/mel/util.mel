@@ -1,6 +1,10 @@
+use root/file::read as fullRead
 use root/file::write as fullWrite
+use root/filesystem::FileSystem
+use root/local::|local_filesystem
 use std/flow::emit
 use std/flow::trigger
+use std/ops/option/block::unwrap
 use std/text/convert/string::toUtf8
 
 /**
@@ -24,11 +28,14 @@ treatment write(path: string, append: bool = false, create: bool = true, new: bo
 {
     triggerData: trigger<byte>()
     emitFilename: emit<string>(value=path)
+    emitFileSystem: emit<Option<FileSystem>>(value=|local_filesystem())
+    unwrapFileSystem: unwrap<FileSystem>()
 
     fullWrite(append=append, create=create, new=new)
 
-    Self.data -> triggerData.stream,start -> emitFilename.trigger,emit -> fullWrite.path
-    Self.data ----------------------------------------------------------> fullWrite.data
+    Self.data -> triggerData.stream,start ---> emitFilename.trigger,emit ----------------------------------> fullWrite.path
+                 triggerData.start --------> emitFileSystem.trigger,emit -> unwrapFileSystem.option,value -> fullWrite.filesystem
+    Self.data ---------------------------------------------------------------------------------------------> fullWrite.data
 
     fullWrite.finished -> Self.finished
     fullWrite.failure --> Self.failure
@@ -66,3 +73,26 @@ treatment writeText(path: string, append: bool = false, create: bool = true, new
     write.amount ---> Self.amount
 }
 
+treatment read(path: string)
+  input  trigger: Block<void>
+  output data: Stream<byte>
+  output finished: Block<void>
+  output failure: Block<void>
+  output error: Stream<string>
+  output reached: Block<void>
+{
+    emitFilename: emit<string>(value=path)
+    emitFileSystem: emit<Option<FileSystem>>(value=|local_filesystem())
+    unwrapFileSystem: unwrap<FileSystem>()
+
+    fullRead()
+
+    Self.trigger -> emitFilename.trigger,emit ------------------------------------> fullRead.path
+    Self.trigger -> emitFileSystem.trigger,emit -> unwrapFileSystem.option,value -> fullRead.filesystem
+
+    fullRead.data ------> Self.data
+    fullRead.finished --> Self.finished
+    fullRead.failure ---> Self.failure
+    fullRead.error -----> Self.error
+    fullRead.reached ---> Self.reached
+}

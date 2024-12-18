@@ -2,7 +2,7 @@
 name = "melodium-doc"
 version = "0.8.0"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
-rust-version = "1.60"
+rust-version = "1.83"
 edition = "2018"
 license = "EUPL-1.2"
 homepage = "https://melodium.tech"
@@ -17,7 +17,7 @@ name = "melodium_doc"
 
 [dependencies]
 melodium-common = { path = "../melodium-common", version = "0.8.0" }
-itertools = "0.11.0"
+itertools = "0.13.0"
 
 [package.metadata.docs.rs]
 all-features = true

@@ -1,8 +1,8 @@
-use crate::building::Builder as BuilderTrait;
 use crate::building::{
     BuildId, CheckBuild, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
     DynamicBuildResult, FeedingInputs, GenesisEnvironment, StaticBuildResult,
 };
+use crate::building::{Builder as BuilderTrait, HostTreatment};
 use crate::error::{LogicError, LogicResult};
 use crate::world::World;
 use core::fmt::Debug;
@@ -14,7 +14,7 @@ use std::sync::{Arc, RwLock, Weak};
 #[derive(Debug)]
 struct BuildSample {
     genesis_environment: GenesisEnvironment,
-    host_treatment: Option<Arc<dyn TreatmentDescriptor>>,
+    host_treatment: HostTreatment,
     host_build_id: Option<BuildId>,
     check: Arc<RwLock<CheckBuild>>,
     label: String,
@@ -22,7 +22,7 @@ struct BuildSample {
 
 impl BuildSample {
     pub fn new(
-        host_treatment: &Option<Arc<dyn TreatmentDescriptor>>,
+        host_treatment: &HostTreatment,
         host_build: &Option<BuildId>,
         label: &str,
         environment: &GenesisEnvironment,
@@ -32,10 +32,7 @@ impl BuildSample {
             host_treatment: host_treatment.clone(),
             host_build_id: host_build.clone(),
             check: Arc::new(RwLock::new(CheckBuild::new(
-                host_treatment
-                    .as_ref()
-                    .map(|descriptor| descriptor.identifier())
-                    .cloned(),
+                host_treatment.host_id().cloned(),
                 label,
             ))),
             label: label.to_string(),
@@ -73,7 +70,7 @@ impl Builder {
 impl BuilderTrait for Builder {
     fn static_build(
         &self,
-        host_treatment: Option<Arc<dyn TreatmentDescriptor>>,
+        host_treatment: HostTreatment,
         host_build: Option<BuildId>,
         label: String,
         environment: &GenesisEnvironment,
@@ -153,40 +150,67 @@ impl BuilderTrait for Builder {
             treatment.set_parameter(name, value.clone());
         }
 
-        let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
-        let host_build = world
-            .builder(host_descriptor.identifier())
-            .success()
-            .unwrap()
-            .give_next(
-                build_sample.host_build_id.unwrap(),
-                build_sample.label.to_string(),
-                &environment.base_on(),
-            )
-            .unwrap();
+        match &build_sample.host_treatment {
+            HostTreatment::Treatment(host_descriptor) => {
+                let host_build = world
+                    .builder(host_descriptor.identifier())
+                    .success()
+                    .unwrap()
+                    .give_next(
+                        build_sample.host_build_id.unwrap(),
+                        build_sample.label.to_string(),
+                        &environment.base_on(),
+                    )
+                    .unwrap();
 
-        let mut inputs = HashMap::new();
-        for (name, _) in descriptor.inputs() {
-            let input = world.new_input();
-            treatment.assign_input(name, Box::new(input.clone()));
-            inputs.insert(name.clone(), input);
-        }
-        for (name, _) in descriptor.outputs() {
-            let output = world.new_output();
-            if let Some(inputs) = host_build.feeding_inputs.get(name) {
-                output.add_transmission(inputs);
+                let mut inputs = HashMap::new();
+                for (name, _) in descriptor.inputs() {
+                    let input = world.new_input();
+                    treatment.assign_input(name, Box::new(input.clone()));
+                    inputs.insert(name.clone(), input);
+                }
+                for (name, _) in descriptor.outputs() {
+                    let output = world.new_output();
+                    if let Some(inputs) = host_build.feeding_inputs.get(name) {
+                        output.add_transmission(inputs);
+                    }
+                    treatment.assign_output(name, Box::new(output));
+                }
+
+                result.feeding_inputs = inputs
+                    .iter()
+                    .map(|(name, input)| (name.to_string(), vec![input.clone()]))
+                    .collect();
+
+                let prepared_futures = treatment.prepare();
+                result.prepared_futures.extend(prepared_futures);
+                result.prepared_futures.extend(host_build.prepared_futures);
             }
-            treatment.assign_output(name, Box::new(output));
+            HostTreatment::Direct => {
+                let direct_inputs = world.direct(&environment.track_id()).to_success().unwrap();
+
+                let mut inputs = HashMap::new();
+                for (name, _) in descriptor.inputs() {
+                    let input = world.new_input();
+                    treatment.assign_input(name, Box::new(input.clone()));
+                    inputs.insert(name.clone(), input);
+                }
+                for (name, _) in descriptor.outputs() {
+                    let output = world.new_output();
+                    if let Some(inputs) = direct_inputs.get(name) {
+                        output.add_transmission(inputs);
+                    }
+                    treatment.assign_output(name, Box::new(output));
+                }
+
+                result.feeding_inputs = inputs
+                    .iter()
+                    .map(|(name, input)| (name.to_string(), vec![input.clone()]))
+                    .collect();
+
+                result.prepared_futures.extend(treatment.prepare());
+            }
         }
-
-        result.feeding_inputs = inputs
-            .iter()
-            .map(|(name, input)| (name.to_string(), vec![input.clone()]))
-            .collect();
-
-        let prepared_futures = treatment.prepare();
-        result.prepared_futures.extend(prepared_futures);
-        result.prepared_futures.extend(host_build.prepared_futures);
 
         self.building_inputs.write().unwrap().insert(
             (build, environment.track_id()),
@@ -239,23 +263,27 @@ impl BuilderTrait for Builder {
 
         let mut all_builds = Vec::new();
         if errors.is_empty() {
-            let host_descriptor = build_sample.host_treatment.as_ref().unwrap();
-            let build_result = world
-                .builder(host_descriptor.identifier())
-                .success()
-                .unwrap()
-                .check_give_next(
-                    build_sample.host_build_id.unwrap(),
-                    build_sample.label.to_string(),
-                    environment.clone(),
-                    current_previous_steps,
-                )
-                .unwrap();
+            match &build_sample.host_treatment {
+                HostTreatment::Treatment(host_descriptor) => {
+                    let build_result = world
+                        .builder(host_descriptor.identifier())
+                        .success()
+                        .unwrap()
+                        .check_give_next(
+                            build_sample.host_build_id.unwrap(),
+                            build_sample.label.to_string(),
+                            environment.clone(),
+                            current_previous_steps,
+                        )
+                        .unwrap();
 
-            all_builds.extend(build_result.checked_builds);
+                    all_builds.extend(build_result.checked_builds);
+
+                    errors.extend(build_result.errors);
+                }
+                HostTreatment::Direct => {}
+            }
             all_builds.push(Arc::clone(&build_sample.check));
-
-            errors.extend(build_result.errors);
         }
 
         // Return checked build result

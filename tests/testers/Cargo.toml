@@ -5,6 +5,7 @@ members = [
     "fs",
     "generics",
     "http_client",
+    "http_distributed",
     "http_javascript",
     "process",
     "regex",

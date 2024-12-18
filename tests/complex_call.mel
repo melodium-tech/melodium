@@ -1,5 +1,5 @@
 #!/usr/bin/env melodium
-#! name = fs_test
+#! name = complex_call
 #! version = 0.8.0
 #! require = std:0.8.0
 #! require = fs:0.8.0
@@ -12,9 +12,12 @@ use std/flow::count
 use std/flow::stream
 use std/flow::trigger
 use fs/file::write
+use fs/local::|local_filesystem
+use fs/filesystem::FileSystem
 use std/conv::toBytes
 use std/flow/vec::flatten
 use std/ops/num::|add
+use std/ops/option/block::unwrap
 
 treatment main(const content: string = "this is some text", var generate: u128 = 873, const output: string) {
     startup()
@@ -61,10 +64,13 @@ treatment count_writer(var output_file: string)
     stream<u128>()
     write()
     emit<string>(value=output_file)
+    emitFS: emit<Option<FileSystem>>(value=|local_filesystem())
+    unwrap<FileSystem>()
     toBytes<u128>()
     flatten<byte>()
 
     Self.text -> count.stream,count -> trigger.stream,last -> stream.block,stream -> toBytes.value,data -> flatten.vector,value -> write.data
-    trigger.end -> emit.trigger,emit -> write.path
+    trigger.end -> emit.trigger,emit ---> write.path
+    trigger.end -> emitFS.trigger,emit -> unwrap.option,value -> write.filesystem
 }
 

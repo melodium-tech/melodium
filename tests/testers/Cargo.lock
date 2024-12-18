@@ -34,6 +34,13 @@ name = "http_client"
 version = "0.1.0"
 
 [[package]]
+name = "http_distributed"
+version = "0.1.0"
+dependencies = [
+ "ureq",
+]
+
+[[package]]
 name = "http_javascript"
 version = "0.1.0"
 dependencies = [

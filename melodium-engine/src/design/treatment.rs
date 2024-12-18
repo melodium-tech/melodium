@@ -49,7 +49,7 @@ impl Treatment {
 
     pub fn uses(&self) -> Vec<Identifier> {
         let descriptor = self.descriptor.upgrade().unwrap();
-        let mut uses = vec![descriptor.identifier().clone()];
+        let mut uses = vec![];
         uses.extend(
             descriptor
                 .contexts()

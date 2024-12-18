@@ -1,12 +1,11 @@
-use crate::building::Builder as BuilderTrait;
 use crate::building::{
     BuildId, CheckBuildResult, CheckEnvironment, CheckStep, ContextualEnvironment,
     DynamicBuildResult, GenesisEnvironment, StaticBuildResult,
 };
+use crate::building::{Builder as BuilderTrait, HostTreatment};
 use crate::error::LogicResult;
 use crate::world::World;
 use core::fmt::Debug;
-use melodium_common::descriptor::Treatment;
 use melodium_common::executive::{Model, World as ExecutiveWorld};
 use std::sync::{Arc, Weak};
 
@@ -28,7 +27,7 @@ impl Builder {
 impl BuilderTrait for Builder {
     fn static_build(
         &self,
-        _host_treatment: Option<Arc<dyn Treatment>>,
+        _host_treatment: HostTreatment,
         _host_build: Option<BuildId>,
         _label: String,
         environment: &GenesisEnvironment,

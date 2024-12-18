@@ -2,7 +2,7 @@
 name = "melodium-engine"
 version = "0.8.0"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
-rust-version = "1.60"
+rust-version = "1.83"
 edition = "2018"
 license = "EUPL-1.2"
 homepage = "https://melodium.tech"
@@ -20,7 +20,7 @@ melodium-common = { path = "../melodium-common", version = "0.8.0" }
 async-std = "1.12"
 async-trait = "0.1.71"
 downcast-rs = "1.2.0"
-futures = "~0.3.28"
+futures = "0.3.28"
 lazy_static = "1.4"
 
 [features]

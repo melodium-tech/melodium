@@ -60,6 +60,49 @@ impl Identified for Source {
     fn identifier(&self) -> &Identifier {
         &self.identifier
     }
+
+    fn make_use(&self, identifier: &Identifier) -> bool {
+        self.models
+            .iter()
+            .any(|(_, model)| model.identifier() == identifier || model.make_use(identifier))
+            || self.outputs.values().any(|output| {
+                output
+                    .described_type()
+                    .final_type()
+                    .data()
+                    .map(|data| data.identifier() == identifier || data.make_use(identifier))
+                    .unwrap_or(false)
+            })
+            || self.parameters.values().any(|parameter| {
+                parameter
+                    .described_type()
+                    .final_type()
+                    .data()
+                    .map(|data| data.identifier() == identifier || data.make_use(identifier))
+                    .unwrap_or(false)
+            })
+    }
+
+    fn uses(&self) -> Vec<Identifier> {
+        let mut uses = Vec::new();
+        self.models.values().for_each(|model| {
+            uses.push(model.identifier().clone());
+            uses.extend(model.uses());
+        });
+        self.outputs.values().for_each(|output| {
+            if let Some(data) = output.described_type().final_type().data() {
+                uses.push(data.identifier().clone());
+                uses.extend(data.uses());
+            }
+        });
+        self.parameters.values().for_each(|parameter| {
+            if let Some(data) = parameter.described_type().final_type().data() {
+                uses.push(data.identifier().clone());
+                uses.extend(data.uses());
+            }
+        });
+        uses
+    }
 }
 
 impl Documented for Source {
@@ -88,12 +131,6 @@ impl Parameterized for Source {
 impl Buildable<TreatmentBuildMode> for Source {
     fn build_mode(&self) -> TreatmentBuildMode {
         TreatmentBuildMode::Source(self.auto_reference.clone())
-    }
-
-    fn make_use(&self, identifier: &Identifier) -> bool {
-        self.models
-            .iter()
-            .any(|(_, model)| model.identifier() == identifier)
     }
 }
 
