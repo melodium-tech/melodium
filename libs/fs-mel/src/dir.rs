@@ -41,20 +41,25 @@ pub async fn create(recursive: bool) {
 /// Scan dir contents.
 ///
 /// Each entry of the dir is streamed through `entries`.
-/// Once dir is totally scanned, `success` is emitted.  
+/// When directory is totally scanned `finished` is emitted,
+/// if without failure `completed` is emitted,
+/// and if failure occurs `failed` is emitted.
+///
 /// The scanning behavior is set up by the parameters:
 /// - `recursive`: set wether subdirectories must be scanned or not,
 /// - `follow_links`: set if symbolic links must be followed or not.
 ///
-/// When a scan error happen, it is send through `error` stream.
+/// When scan errors happen, these are sent through `error` stream.
 #[mel_treatment(
     default recursive false
     default follow_links true
     input path Block<string>
     input filesystem Block<FileSystem>
     output entries Stream<string>
-    output success Block<void>
-    output error Stream<string>
+    output completed Block<void>
+    output failed Block<void>
+    output finished Block<void>
+    output errors Stream<string>
 )]
 pub async fn scan(recursive: bool, follow_links: bool) {
     if let (Ok(filesystem), Ok(path)) = (
@@ -70,7 +75,16 @@ pub async fn scan(recursive: bool, follow_links: bool) {
     ) {
         filesystem
             .filesystem
-            .scan_dir(&path, recursive, follow_links, &entries, &success, &error)
+            .scan_dir(
+                &path,
+                recursive,
+                follow_links,
+                &entries,
+                &completed,
+                &failed,
+                &finished,
+                &errors,
+            )
             .await
     }
 }

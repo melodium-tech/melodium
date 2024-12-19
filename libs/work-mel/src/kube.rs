@@ -63,9 +63,11 @@ impl ExecutorEngine for KubeExecutor {
         command: Arc<Command>,
         environment: Option<Arc<Environment>>,
         started: &Box<dyn Output>,
-        ended: &Box<dyn Output>,
-        success: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
+        error: &Box<dyn Output>,
+        exit: &Box<dyn Output>,
     ) {
         let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
 
@@ -120,11 +122,12 @@ impl ExecutorEngine for KubeExecutor {
                     if let Some(status) = status_waiter.await {
                         match status.status.as_ref().map(|s| s.as_str()) {
                             Some("Success") => {
-                                let _ = success.send_one((status.code == Some(0)).into()).await;
-                                let _ = ended.send_one(status.code.into()).await;
+                                let _ = completed.send_one(().into()).await;
+                                let _ = exit.send_one(status.code.into()).await;
                             }
                             _ => {
-                                let _ = failure
+                                let _ = failed.send_one(().into()).await;
+                                let _ = error
                                     .send_one(
                                         status
                                             .reason
@@ -135,29 +138,35 @@ impl ExecutorEngine for KubeExecutor {
                             }
                         }
                     } else {
-                        let _ = failure
+                        let _ = failed.send_one(().into()).await;
+                        let _ = error
                             .send_one("No output status provided".to_string().into())
                             .await;
                     }
                 } else {
-                    let _ = failure
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error
                         .send_one("Unable to take status waiter".to_string().into())
                         .await;
                 }
             }
             Err(err) => {
-                let _ = failure.send_one(err.to_string().into()).await;
+                let _ = failed.send_one(().into()).await;
+                let _ = error.send_one(err.to_string().into()).await;
             }
         }
+        let _ = finished.send_one(().into()).await;
     }
     async fn spawn(
         &self,
         command: Arc<Command>,
         environment: Option<Arc<Environment>>,
         started: &Box<dyn Output>,
-        ended: &Box<dyn Output>,
-        success: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
+        error: &Box<dyn Output>,
+        exit: &Box<dyn Output>,
         stdin: &Box<dyn Input>,
         stdout: &Box<dyn Output>,
         stderr: &Box<dyn Output>,
@@ -277,11 +286,12 @@ impl ExecutorEngine for KubeExecutor {
                         if let Some(status) = status_waiter.await {
                             match status.status.as_ref().map(|s| s.as_str()) {
                                 Some("Success") => {
-                                    let _ = success.send_one((status.code == Some(0)).into()).await;
-                                    let _ = ended.send_one(status.code.into()).await;
+                                    let _ = completed.send_one(().into()).await;
+                                    let _ = exit.send_one(status.code.into()).await;
                                 }
                                 _ => {
-                                    let _ = failure
+                                    let _ = failed.send_one(().into()).await;
+                                    let _ = error
                                         .send_one(
                                             status
                                                 .reason
@@ -292,7 +302,8 @@ impl ExecutorEngine for KubeExecutor {
                                 }
                             }
                         } else {
-                            let _ = failure
+                            let _ = failed.send_one(().into()).await;
+                            let _ = error
                                 .send_one("No output status provided".to_string().into())
                                 .await;
                         }
@@ -300,7 +311,8 @@ impl ExecutorEngine for KubeExecutor {
 
                     tokio::join!(write_stdin, read_stdout, read_stderr, status_waiter);
                 } else {
-                    let _ = failure
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error
                         .send_one(
                             "Unable to take status waiter and process I/O"
                                 .to_string()
@@ -310,9 +322,11 @@ impl ExecutorEngine for KubeExecutor {
                 }
             }
             Err(err) => {
-                let _ = failure.send_one(err.to_string().into()).await;
+                let _ = failed.send_one(().into()).await;
+                let _ = error.send_one(err.to_string().into()).await;
             }
         }
+        let _ = finished.send_one(().into()).await;
     }
 }
 
@@ -374,9 +388,10 @@ impl FileSystemEngine for KubeFileSystem {
         path: &str,
         data: &Box<dyn Output>,
         reached: &Box<dyn Output>,
-        finished: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
         failure: &Box<dyn Output>,
-        error: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        errors: &Box<dyn Output>,
     ) {
         let path = match self
             .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
@@ -385,7 +400,8 @@ impl FileSystemEngine for KubeFileSystem {
             Ok(path) => path,
             Err(err) => {
                 let _ = failure.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                let _ = errors.send_one(err.to_string().into()).await;
+                let _ = finished.send_one(().into()).await;
                 return;
             }
         };
@@ -409,21 +425,22 @@ impl FileSystemEngine for KubeFileSystem {
                         }
                         Err(err) => {
                             let _ = failure.send_one(().into()).await;
-                            let _ = error.send_one(err.to_string().into()).await;
+                            let _ = errors.send_one(err.to_string().into()).await;
                             fail = true;
                             break;
                         }
                     }
                 }
                 if !fail {
-                    let _ = finished.send_one(().into()).await;
+                    let _ = completed.send_one(().into()).await;
                 }
             }
             Err(err) => {
                 let _ = failure.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                let _ = errors.send_one(err.to_string().into()).await;
             }
         }
+        let _ = finished.send_one(().into()).await;
     }
     async fn write_file(
         &self,
@@ -433,9 +450,10 @@ impl FileSystemEngine for KubeFileSystem {
         new: bool,
         data: &Box<dyn Input>,
         amount: &Box<dyn Output>,
-        finished: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
         failure: &Box<dyn Output>,
-        error: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        errors: &Box<dyn Output>,
     ) {
         let path = match self
             .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
@@ -444,7 +462,8 @@ impl FileSystemEngine for KubeFileSystem {
             Ok(path) => path,
             Err(err) => {
                 let _ = failure.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                let _ = errors.send_one(err.to_string().into()).await;
+                let _ = finished.send_one(().into()).await;
                 return;
             }
         };
@@ -472,21 +491,22 @@ impl FileSystemEngine for KubeFileSystem {
                         }
                         Err(err) => {
                             let _ = failure.send_one(().into()).await;
-                            let _ = error.send_one(err.to_string().into()).await;
+                            let _ = errors.send_one(err.to_string().into()).await;
                             fail = true;
                             break;
                         }
                     }
                 }
                 if !fail {
-                    let _ = finished.send_one(().into()).await;
+                    let _ = completed.send_one(().into()).await;
                 }
             }
             Err(err) => {
                 let _ = failure.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                let _ = errors.send_one(err.to_string().into()).await;
             }
         }
+        let _ = finished.send_one(().into()).await;
     }
     async fn create_dir(
         &self,
@@ -528,8 +548,10 @@ impl FileSystemEngine for KubeFileSystem {
         recursive: bool,
         follow_links: bool,
         entries: &Box<dyn Output>,
-        success: &Box<dyn Output>,
-        error: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failure: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        errors: &Box<dyn Output>,
     ) {
         let path = match self
             .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
@@ -537,7 +559,8 @@ impl FileSystemEngine for KubeFileSystem {
         {
             Ok(path) => path,
             Err(err) => {
-                let _ = error.send_one(err.to_string().into()).await;
+                let _ = failure.send_one(().into()).await;
+                let _ = errors.send_one(err.to_string().into()).await;
                 return;
             }
         };
@@ -565,6 +588,7 @@ impl FileSystemEngine for KubeFileSystem {
             }
         });
 
+        let mut success = true;
         while let Some(entry) = dir_entries.next().await {
             match entry {
                 Ok(entry) => check!(
@@ -573,10 +597,16 @@ impl FileSystemEngine for KubeFileSystem {
                         .await
                 ),
                 Err(err) => {
-                    let _ = error.send_one(err.to_string().into()).await;
+                    success = false;
+                    let _ = errors.send_one(err.to_string().into()).await;
                 }
             }
         }
-        let _ = success.send_one(().into()).await;
+        let _ = finished.send_one(().into()).await;
+        if success {
+            let _ = completed.send_one(().into()).await;
+        } else {
+            let _ = failure.send_one(().into()).await;
+        }
     }
 }

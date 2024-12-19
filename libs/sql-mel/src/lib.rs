@@ -123,7 +123,8 @@ fn get_row_as_map(row: &AnyRow) -> Map {
     param idle_timeout Option<u64> 600000
     param max_lifetime Option<u64> 1800000
     source failure () () (
-        failure Block<string>
+        failed Block<void>
+        error Block<string>
     )
     initialize initialize
     continuous (continuous)
@@ -175,18 +176,21 @@ impl SqlPool {
     }
 
     async fn continuous(&self) {
-        if let Some(error) = self.error.read().await.as_ref() {
+        if let Some(err) = self.error.read().await.as_ref() {
             let model = self.model.upgrade().unwrap();
-            let error = error.to_string();
+            let err = err.to_string();
             model
                 .new_failure(
                     None,
                     &HashMap::new(),
                     Some(Box::new(move |mut outputs| {
-                        let failure = outputs.get("failure");
+                        let failed = outputs.get("failed");
+                        let error = outputs.get("error");
                         vec![Box::new(Box::pin(async move {
-                            let _ = failure.send_one(Value::String(error)).await;
-                            failure.close().await;
+                            let _ = failed.send_one(().into()).await;
+                            let _ = error.send_one(Value::String(err)).await;
+                            failed.close().await;
+                            error.close().await;
                             ResultStatus::Ok
                         }))]
                     })),
@@ -216,29 +220,39 @@ impl SqlPool {
 #[mel_treatment(
     input trigger Block<void>
     output affected Block<u64>
-    output failure Block<string>
+    output finished Block<void>
+    output completed Block<void>
+    output failed Block<void>
+    output error Block<string>
     model pool SqlPool
 )]
 pub async fn execute_raw(sql: string) {
     match SqlPoolModel::into(pool).inner().pool().await {
         Ok(pool) => match sqlx::raw_sql(&sql).execute(&*pool).await {
             Ok(result) => {
+                let _ = completed.send_one(().into()).await;
                 let _ = affected.send_one(Value::U64(result.rows_affected())).await;
             }
-            Err(error) => {
-                let _ = failure.send_one(error.to_string().into()).await;
+            Err(err) => {
+                let _ = failed.send_one(().into()).await;
+                let _ = error.send_one(err.to_string().into()).await;
             }
         },
-        Err(error) => {
-            let _ = failure.send_one(error.to_string().into()).await;
+        Err(err) => {
+            let _ = failed.send_one(().into()).await;
+            let _ = error.send_one(err.to_string().into()).await;
         }
     }
+    let _ = finished.send_one(().into()).await;
 }
 
 #[mel_treatment(
     input bind Block<Map>
     output affected Block<u64>
-    output failure Block<string>
+    output finished Block<void>
+    output completed Block<void>
+    output failed Block<void>
+    output error Block<string>
     default bind_symbol "?"
     model pool SqlPool
 )]
@@ -267,24 +281,31 @@ pub async fn execute(sql: string, bindings: Vec<string>, bind_symbol: string) {
 
                 match query.execute(&*pool).await {
                     Ok(result) => {
+                        let _ = completed.send_one(().into()).await;
                         let _ = affected.send_one(Value::U64(result.rows_affected())).await;
                     }
-                    Err(error) => {
-                        let _ = failure.send_one(error.to_string().into()).await;
+                    Err(err) => {
+                        let _ = failed.send_one(().into()).await;
+                        let _ = error.send_one(err.to_string().into()).await;
                     }
                 }
             }
-            Err(error) => {
-                let _ = failure.send_one(error.to_string().into()).await;
+            Err(err) => {
+                let _ = failed.send_one(().into()).await;
+                let _ = error.send_one(err.to_string().into()).await;
             }
         }
+        let _ = finished.send_one(().into()).await;
     }
 }
 
 #[mel_treatment(
     input bind Stream<Map>
     output affected Stream<u64>
-    output failure Stream<string>
+    output finished Block<void>
+    output completed Block<void>
+    output failed Block<void>
+    output errors Stream<string>
     default bind_symbol "?"
     default stop_on_failure true
     model pool SqlPool
@@ -297,6 +318,7 @@ pub async fn execute_each(
 ) {
     match SqlPoolModel::into(pool).inner().pool().await {
         Ok(pool) => {
+            let mut success = true;
             while let Ok(bind) = bind.recv_one().await.map(|val| {
                 GetData::<Arc<dyn Data>>::try_data(val)
                     .unwrap()
@@ -322,16 +344,25 @@ pub async fn execute_each(
                         let _ = affected.send_one(Value::U64(result.rows_affected())).await;
                     }
                     Err(error) => {
-                        let _ = failure.send_one(error.to_string().into()).await;
+                        success = false;
+                        let _ = errors.send_one(error.to_string().into()).await;
                         if stop_on_failure {
                             break;
                         }
                     }
                 }
             }
+            if success {
+                let _ = completed.send_one(().into()).await;
+            } else {
+                let _ = failed.send_one(().into()).await;
+            }
+            let _ = finished.send_one(().into()).await;
         }
         Err(error) => {
-            let _ = failure.send_one(error.to_string().into()).await;
+            let _ = failed.send_one(().into()).await;
+            let _ = errors.send_one(error.to_string().into()).await;
+            let _ = finished.send_one(().into()).await;
         }
     }
 }
@@ -343,7 +374,10 @@ pub async fn execute_each(
     default bind_symbol "?"
     input bind Stream<Map>
     output affected Stream<u64>
-    output failure Stream<string>
+    output finished Block<void>
+    output completed Block<void>
+    output failed Block<void>
+    output errors Stream<string>
     model pool SqlPool
 )]
 pub async fn execute_batch(
@@ -359,64 +393,76 @@ pub async fn execute_batch(
     let batch_max = limit / bindings.len() as u64;
 
     match SqlPoolModel::into(pool).inner().pool().await {
-        Ok(pool) => 'main: loop {
-            let mut query_builder = QueryBuilder::new(base.as_str());
+        Ok(pool) => {
+            let mut success = true;
+            'main: loop {
+                let mut query_builder = QueryBuilder::new(base.as_str());
 
-            let mut full_batch = Vec::with_capacity(batch_max as usize);
-            for _ in 0..batch_max {
-                if let Ok(bind) = bind.recv_one().await.map(|val| {
-                    GetData::<Arc<dyn Data>>::try_data(val)
-                        .unwrap()
-                        .downcast_arc::<Map>()
-                        .unwrap()
-                }) {
-                    full_batch.push(bind);
-                } else {
+                let mut full_batch = Vec::with_capacity(batch_max as usize);
+                for _ in 0..batch_max {
+                    if let Ok(bind) = bind.recv_one().await.map(|val| {
+                        GetData::<Arc<dyn Data>>::try_data(val)
+                            .unwrap()
+                            .downcast_arc::<Map>()
+                            .unwrap()
+                    }) {
+                        full_batch.push(bind);
+                    } else {
+                        break;
+                    }
+                }
+
+                if full_batch.is_empty() {
                     break;
                 }
-            }
 
-            if full_batch.is_empty() {
-                break;
-            }
+                let mut query = query_builder
+                    .push({
+                        let batch = std::iter::repeat(batch.as_str())
+                            .take(full_batch.len())
+                            .collect::<Vec<_>>()
+                            .join(&separator);
+                        match pool.connect_options().database_url.scheme() {
+                            "postgres" => postgres_bind_replace(batch, &bind_symbol),
+                            _ => batch,
+                        }
+                    })
+                    .build();
 
-            let mut query = query_builder
-                .push({
-                    let batch = std::iter::repeat(batch.as_str())
-                        .take(full_batch.len())
-                        .collect::<Vec<_>>()
-                        .join(&separator);
-                    match pool.connect_options().database_url.scheme() {
-                        "postgres" => postgres_bind_replace(batch, &bind_symbol),
-                        _ => batch,
-                    }
-                })
-                .build();
-
-            for b in full_batch {
-                for binding in &bindings {
-                    if let Some(val) = b.map.get(binding) {
-                        query = bind_value(query, val);
-                    } else {
-                        query = query.bind(None::<bool>);
+                for b in full_batch {
+                    for binding in &bindings {
+                        if let Some(val) = b.map.get(binding) {
+                            query = bind_value(query, val);
+                        } else {
+                            query = query.bind(None::<bool>);
+                        }
                     }
                 }
-            }
 
-            match query.execute(&*pool).await {
-                Ok(result) => {
-                    let _ = affected.send_one(Value::U64(result.rows_affected())).await;
-                }
-                Err(error) => {
-                    let _ = failure.send_one(error.to_string().into()).await;
-                    if stop_on_failure {
-                        break 'main;
+                match query.execute(&*pool).await {
+                    Ok(result) => {
+                        let _ = affected.send_one(Value::U64(result.rows_affected())).await;
+                    }
+                    Err(error) => {
+                        success = false;
+                        let _ = errors.send_one(error.to_string().into()).await;
+                        if stop_on_failure {
+                            break 'main;
+                        }
                     }
                 }
             }
-        },
+            if success {
+                let _ = completed.send_one(().into()).await;
+            } else {
+                let _ = failed.send_one(().into()).await;
+            }
+            let _ = finished.send_one(().into()).await;
+        }
         Err(error) => {
-            let _ = failure.send_one(error.to_string().into()).await;
+            let _ = failed.send_one(().into()).await;
+            let _ = errors.send_one(error.to_string().into()).await;
+            let _ = finished.send_one(().into()).await;
         }
     }
 }
@@ -424,7 +470,10 @@ pub async fn execute_batch(
 #[mel_treatment(
     input bind Block<Map>
     output data Stream<Map>
-    output failure Block<string>
+    output finished Block<void>
+    output completed Block<void>
+    output failed Block<void>
+    output errors Stream<string>
     default bind_symbol "?"
     model pool SqlPool
 )]
@@ -452,6 +501,7 @@ pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
                 }
 
                 let mut stream = query.fetch(&*pool);
+                let mut success = true;
                 while let Some(row) = stream.next().await {
                     match row {
                         Ok(row) => {
@@ -462,16 +512,24 @@ pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
                             )
                         }
                         Err(error) => {
-                            let _ = failure.send_one(error.to_string().into()).await;
+                            success = false;
+                            let _ = errors.send_one(error.to_string().into()).await;
                             break;
                         }
                     }
                 }
+                if success {
+                    let _ = completed.send_one(().into()).await;
+                } else {
+                    let _ = failed.send_one(().into()).await;
+                }
             }
             Err(error) => {
-                let _ = failure.send_one(error.to_string().into()).await;
+                let _ = failed.send_one(().into()).await;
+                let _ = errors.send_one(error.to_string().into()).await;
             }
         }
+        let _ = finished.send_one(().into()).await;
     }
 }
 
@@ -482,7 +540,10 @@ pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
     default bind_symbol "?"
     input bind Stream<Map>
     output data Stream<Map>
-    output failure Stream<string>
+    output finished Block<void>
+    output completed Block<void>
+    output failed Block<void>
+    output errors Stream<string>
     model pool SqlPool
 )]
 pub async fn fetch_batch(
@@ -498,73 +559,85 @@ pub async fn fetch_batch(
     let batch_max = limit / bindings.len() as u64;
 
     match SqlPoolModel::into(pool).inner().pool().await {
-        Ok(pool) => 'main: loop {
-            let mut query_builder = QueryBuilder::new(base.as_str());
+        Ok(pool) => {
+            let mut success = true;
+            'main: loop {
+                let mut query_builder = QueryBuilder::new(base.as_str());
 
-            let mut full_batch = Vec::with_capacity(batch_max as usize);
-            for _ in 0..batch_max {
-                if let Ok(bind) = bind.recv_one().await.map(|val| {
-                    GetData::<Arc<dyn Data>>::try_data(val)
-                        .unwrap()
-                        .downcast_arc::<Map>()
-                        .unwrap()
-                }) {
-                    full_batch.push(bind);
-                } else {
+                let mut full_batch = Vec::with_capacity(batch_max as usize);
+                for _ in 0..batch_max {
+                    if let Ok(bind) = bind.recv_one().await.map(|val| {
+                        GetData::<Arc<dyn Data>>::try_data(val)
+                            .unwrap()
+                            .downcast_arc::<Map>()
+                            .unwrap()
+                    }) {
+                        full_batch.push(bind);
+                    } else {
+                        break;
+                    }
+                }
+
+                if full_batch.is_empty() {
                     break;
                 }
-            }
 
-            if full_batch.is_empty() {
-                break;
-            }
+                let mut query = query_builder
+                    .push({
+                        let batch = std::iter::repeat(batch.as_str())
+                            .take(full_batch.len())
+                            .collect::<Vec<_>>()
+                            .join(&separator);
+                        match pool.connect_options().database_url.scheme() {
+                            "postgres" => postgres_bind_replace(batch, &bind_symbol),
+                            _ => batch,
+                        }
+                    })
+                    .build();
 
-            let mut query = query_builder
-                .push({
-                    let batch = std::iter::repeat(batch.as_str())
-                        .take(full_batch.len())
-                        .collect::<Vec<_>>()
-                        .join(&separator);
-                    match pool.connect_options().database_url.scheme() {
-                        "postgres" => postgres_bind_replace(batch, &bind_symbol),
-                        _ => batch,
-                    }
-                })
-                .build();
-
-            for b in full_batch {
-                for binding in &bindings {
-                    if let Some(val) = b.map.get(binding) {
-                        query = bind_value(query, val);
-                    } else {
-                        query = query.bind(None::<bool>);
+                for b in full_batch {
+                    for binding in &bindings {
+                        if let Some(val) = b.map.get(binding) {
+                            query = bind_value(query, val);
+                        } else {
+                            query = query.bind(None::<bool>);
+                        }
                     }
                 }
-            }
 
-            let mut stream = query.fetch(&*pool);
-            'result: while let Some(row) = stream.next().await {
-                match row {
-                    Ok(row) => {
-                        let map = get_row_as_map(&row);
+                let mut stream = query.fetch(&*pool);
+                'result: while let Some(row) = stream.next().await {
+                    match row {
+                        Ok(row) => {
+                            let map = get_row_as_map(&row);
 
-                        let _ = data
-                            .send_one(Value::Data(Arc::new(map) as Arc<dyn Data>))
-                            .await;
-                    }
-                    Err(error) => {
-                        let _ = failure.send_one(error.to_string().into()).await;
-                        if stop_on_failure {
-                            break 'main;
-                        } else {
-                            break 'result;
+                            let _ = data
+                                .send_one(Value::Data(Arc::new(map) as Arc<dyn Data>))
+                                .await;
+                        }
+                        Err(error) => {
+                            success = false;
+                            let _ = errors.send_one(error.to_string().into()).await;
+                            if stop_on_failure {
+                                break 'main;
+                            } else {
+                                break 'result;
+                            }
                         }
                     }
                 }
             }
-        },
+            if success {
+                let _ = completed.send_one(().into()).await;
+            } else {
+                let _ = failed.send_one(().into()).await;
+            }
+            let _ = finished.send_one(().into()).await;
+        }
         Err(error) => {
-            let _ = failure.send_one(error.to_string().into()).await;
+            let _ = failed.send_one(().into()).await;
+            let _ = errors.send_one(error.to_string().into()).await;
+            let _ = finished.send_one(().into()).await;
         }
     }
 }

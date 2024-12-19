@@ -17,13 +17,15 @@ The writing behavior is set up by the parameters:
 - `new`: the file is required to being new, if a file already exists at that path then the writing fails.
 
 The amount of written bytes is sent through `amount`. There is no guarantee about its increment, as an undefined number of bytes may be written at once.
-`finished` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `error` contains the related text of error(s).
-*/
+
+`completed` is emitted when successful writting is finished. `failed` is emitted if an error occurs, and `errors` contains the related text of error(s).
+`finished` is emitted at the end, regardless of the writing status.*/
 treatment write(path: string, append: bool = false, create: bool = true, new: bool = false)
   input data: Stream<byte>
+  output completed: Block<void>
+  output failed: Block<void>
   output finished: Block<void>
-  output failure: Block<void>
-  output error: Stream<string>
+  output errors: Stream<string>
   output amount: Stream<u128>
 {
     triggerData: trigger<byte>()
@@ -37,10 +39,11 @@ treatment write(path: string, append: bool = false, create: bool = true, new: bo
                  triggerData.start --------> emitFileSystem.trigger,emit -> unwrapFileSystem.option,value -> fullWrite.filesystem
     Self.data ---------------------------------------------------------------------------------------------> fullWrite.data
 
-    fullWrite.finished -> Self.finished
-    fullWrite.failure --> Self.failure
-    fullWrite.error ----> Self.error
-    fullWrite.amount ---> Self.amount
+    fullWrite.completed -> Self.completed
+    fullWrite.failed ----> Self.failed
+    fullWrite.finished --> Self.finished
+    fullWrite.errors ----> Self.errors
+    fullWrite.amount ----> Self.amount
 }
 
 /**
@@ -53,13 +56,14 @@ The writing behavior is set up by the parameters:
 - `new`: the file is required to being new, if a file already exists at that path then the writing fails.
 
 The amount of written bytes is sent through `amount`. There is no guarantee about its increment, as an undefined number of bytes may be written at once.
-`finished` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `error` contains the related text of error(s).
+`finished` is emitted when successful writting is finished. `failed` is emitted if an error occurs, and `error` contains the related text of error(s).
 */
 treatment writeText(path: string, append: bool = false, create: bool = true, new: bool = false)
   input text: Stream<string>
+  output completed: Block<void>
+  output failed: Block<void>
   output finished: Block<void>
-  output failure: Block<void>
-  output error: Stream<string>
+  output errors: Stream<string>
   output amount: Stream<u128>
 {
     write(path=path, append=append, create=create, new=new)
@@ -67,19 +71,21 @@ treatment writeText(path: string, append: bool = false, create: bool = true, new
 
     Self.text -> toUtf8.text,encoded -> write.data
 
-    write.finished -> Self.finished
-    write.failure --> Self.failure
-    write.error ----> Self.error
-    write.amount ---> Self.amount
+    write.completed -> Self.completed
+    write.finished --> Self.finished
+    write.failed ----> Self.failed
+    write.errors ----> Self.errors
+    write.amount ----> Self.amount
 }
 
 treatment read(path: string)
   input  trigger: Block<void>
   output data: Stream<byte>
-  output finished: Block<void>
-  output failure: Block<void>
-  output error: Stream<string>
   output reached: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output errors: Stream<string>
 {
     emitFilename: emit<string>(value=path)
     emitFileSystem: emit<Option<FileSystem>>(value=|local_filesystem())
@@ -91,8 +97,9 @@ treatment read(path: string)
     Self.trigger -> emitFileSystem.trigger,emit -> unwrapFileSystem.option,value -> fullRead.filesystem
 
     fullRead.data ------> Self.data
-    fullRead.finished --> Self.finished
-    fullRead.failure ---> Self.failure
-    fullRead.error -----> Self.error
     fullRead.reached ---> Self.reached
+    fullRead.completed -> Self.completed
+    fullRead.finished --> Self.finished
+    fullRead.failed ----> Self.failed
+    fullRead.errors ----> Self.errors
 }

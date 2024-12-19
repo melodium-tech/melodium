@@ -8,11 +8,12 @@ use root/exec::exec as coreExec
 use root/exec::spawn as coreSpawn
 
 treatment exec(command: Command, environment: Option<Environment> = _)
-  input  launch:  Block<void>
-  output started: Block<void>
-  output ended:   Block<Option<i32>>
-  output success: Block<bool>
-  output failure: Block<string>
+  input  launch:    Block<void>
+  output finished:  Block<void>
+  output completed: Block<void>
+  output failed:    Block<void>
+  output error:     Block<string>
+  output exit:      Block<Option<i32>>
 {
     emitExecutor: emit<Option<Executor>>(value = |local_executor())
     unwrapExecutor: unwrap<Executor>()
@@ -22,21 +23,25 @@ treatment exec(command: Command, environment: Option<Environment> = _)
     Self.launch -> emitExecutor.trigger,emit -> unwrapExecutor.option,value -> coreExec.executor
     Self.launch -------------------------------------------------------------> coreExec.launch
 
-    coreExec.started -> Self.started
-    coreExec.ended ---> Self.ended
-    coreExec.success -> Self.success
-    coreExec.failure -> Self.failure
+    coreExec.started ----> Self.started
+    coreExec.finished ---> Self.finished
+    coreExec.completed --> Self.completed
+    coreExec.failed -----> Self.failed
+    coreExec.error ------> Self.error
+    coreExec.exit -------> Self.exit
 }
 
 treatment spawn(command: Command, environment: Option<Environment> = _)
-  input  launch:  Block<void>
-  input  stdin:   Stream<byte>
-  output stdout:  Stream<byte>
-  output stderr:  Stream<byte>
-  output started: Block<void>
-  output ended:   Block<Option<i32>>
-  output success: Block<bool>
-  output failure: Block<string>
+  input  launch:    Block<void>
+  input  stdin:     Stream<byte>
+  output stdout:    Stream<byte>
+  output stderr:    Stream<byte>
+  output started:   Block<void>
+  output finished:  Block<void>
+  output completed: Block<void>
+  output failed:    Block<void>
+  output error:     Block<string>
+  output exit:      Block<Option<i32>>
 {
     emitExecutor: emit<Option<Executor>>(value = |local_executor())
     unwrapExecutor: unwrap<Executor>()
@@ -50,8 +55,10 @@ treatment spawn(command: Command, environment: Option<Environment> = _)
     coreSpawn.stdout --> Self.stdout
     coreSpawn.stderr --> Self.stderr
 
-    coreSpawn.started -> Self.started
-    coreSpawn.ended ---> Self.ended
-    coreSpawn.success -> Self.success
-    coreSpawn.failure -> Self.failure
+    coreSpawn.started ----> Self.started
+    coreSpawn.finished ---> Self.finished
+    coreSpawn.completed --> Self.completed
+    coreSpawn.failed -----> Self.failed
+    coreSpawn.error ------> Self.error
+    coreSpawn.exit -------> Self.exit
 }

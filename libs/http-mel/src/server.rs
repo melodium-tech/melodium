@@ -75,10 +75,14 @@ type AsyncProducerOutgoing =
         started Block<void>
         headers Block<Map>
         data Stream<byte>
-        failure Block<string>
+        finished Block<void>
+        completed Block<void>
+        failed Block<void>
+        error Block<string>
     )
     source failedBinding () () (
-        failure Block<string>
+        failed Block<void>
+        error Block<string>
     )
     continuous (continuous)
     shutdown shutdown
@@ -233,11 +237,15 @@ impl HttpServer {
                                     let started = outputs.get("started");
                                     let headers = outputs.get("headers");
                                     let data = outputs.get("data");
-                                    let failure = outputs.get("failure");
+                                    let completed = outputs.get("completed");
+                                    let failed = outputs.get("failed");
+                                    let finished = outputs.get("finished");
+                                    let error = outputs.get("error");
 
                                     vec![Box::new(Box::pin(async move {
                                         if let Some(occured_failure) = occured_failure {
-                                            let _ = failure.send_one(occured_failure.into()).await;
+                                            let _ = failed.send_one(().into()).await;
+                                            let _ = error.send_one(occured_failure.into()).await;
                                         } else {
                                             let _ = started.send_one(().into()).await;
                                             started.close().await;
@@ -251,11 +259,16 @@ impl HttpServer {
                                             let _ = data
                                                 .send_many(TransmissionValue::Byte(content.into()))
                                                 .await;
+                                            let _ = completed.send_one(().into()).await;
                                         }
+                                        let _ = finished.send_one(().into()).await;
 
                                         headers.close().await;
                                         data.close().await;
-                                        failure.close().await;
+                                        completed.close().await;
+                                        finished.close().await;
+                                        failed.close().await;
+                                        error.close().await;
                                         ResultStatus::Ok
                                     }))]
                                 })),
@@ -321,10 +334,13 @@ impl HttpServer {
                         None,
                         &HashMap::new(),
                         Some(Box::new(move |mut outputs| {
-                            let failure = outputs.get("failure");
+                            let error = outputs.get("error");
+                            let failed = outputs.get("failed");
                             vec![Box::new(Box::pin(async move {
-                                let _ = failure.send_one(err.to_string().into()).await;
-                                failure.close().await;
+                                let _ = failed.send_one(().into()).await;
+                                let _ = error.send_one(err.to_string().into()).await;
+                                failed.close().await;
+                                error.close().await;
                                 ResultStatus::Ok
                             }))]
                         })),

@@ -53,7 +53,8 @@ struct Track {
         trigger Block<void>
     )
     source distributionFailure () () (
-        failure Block<string>
+        failed Block<void>
+        error Block<string>
     )
     continuous (continuous)
     shutdown shutdown
@@ -523,11 +524,14 @@ impl DistributionEngine {
                 None,
                 &HashMap::new(),
                 Some(Box::new(move |mut outputs| {
-                    let failure = outputs.get("failure");
+                    let failed = outputs.get("failed");
+                    let error = outputs.get("error");
 
                     vec![Box::new(Box::pin(async move {
-                        let _ = failure.send_one(message.into()).await;
-                        failure.close().await;
+                        let _ = failed.send_one(().into()).await;
+                        let _ = error.send_one(message.into()).await;
+                        failed.close().await;
+                        error.close().await;
                         ResultStatus::Ok
                     }))]
                 })),

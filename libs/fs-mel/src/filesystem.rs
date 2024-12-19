@@ -11,9 +11,10 @@ pub trait FileSystemEngine: Debug + Send + Sync {
         path: &str,
         data: &Box<dyn Output>,
         reached: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
         finished: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
-        error: &Box<dyn Output>,
+        errors: &Box<dyn Output>,
     );
     async fn write_file(
         &self,
@@ -23,16 +24,17 @@ pub trait FileSystemEngine: Debug + Send + Sync {
         new: bool,
         data: &Box<dyn Input>,
         amount: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
         finished: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
-        error: &Box<dyn Output>,
+        errors: &Box<dyn Output>,
     );
     async fn create_dir(
         &self,
         path: &str,
         recursive: bool,
         success: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
         error: &Box<dyn Output>,
     );
     async fn scan_dir(
@@ -41,8 +43,10 @@ pub trait FileSystemEngine: Debug + Send + Sync {
         recursive: bool,
         follow_links: bool,
         entries: &Box<dyn Output>,
-        success: &Box<dyn Output>,
-        error: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        errors: &Box<dyn Output>,
     );
 }
 

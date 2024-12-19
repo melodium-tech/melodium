@@ -78,11 +78,38 @@ impl DistantEngine {
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
+/// Request for a distant worker.
+///
+/// Send a request to get a distant Mélodium worker, on which program distribution can be done.
+///
+/// - `access` is emitted once worker is accessible.
+/// - `failed` is emitted if the worker request cannot be satisfied.
+/// - `errors` stream the error messages that can occurs.
+///
+/// The request is based on given parameters:
+///
+/// - `cpu`: CPU amount requested for the worker, in millicores (`1000` means one full CPU, `500` half of it);
+/// - `memory`: memory requested for the worker, in megabytes;
+/// - `storage`: filesystem storage requested for the worker, in megabytes;
+/// - `max_duration`: maximum duration for which the worker will be effective, in seconds;
+///
+/// - `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
+/// - `edition`: Mélodium edition the worker must rely on (see on the Mélodium Services documentation to get the full list, can be none if nothing specific is required);
+///
+/// - `containers`: list of containers to instanciate alongside Mélodium engine;
+/// - `volumes`: list of filesystem volumes that can be shared between the Mélodium engine and containers.
+///
+/// It should be noted that the CPU and memory requirements for the Mélodium engine and possible containers are cumulative.
+/// Also, multiple different architecture cannot be requested for the same worker, so containers in the same request all have to use the same architecture.
+/// Finally, the cumuled size of all volumes must be equal or less than the Mélodium engine storage value,
+/// and each container must have storage values at least equal to the sum of the volumes mounted inside them.
+///
 #[mel_treatment(
     model distant_engine DistantEngine
     input trigger Block<void>
     output access Block<Access>
-    output failure Block<Vec<string>>
+    output failed Block<void>
+    output errors Stream<string>
 )]
 pub async fn distant(
     max_duration: u32,
@@ -128,12 +155,14 @@ pub async fn distant(
             }
             api::Response::Started(None) => {}
             api::Response::Error(errs) => {
-                let _ = failure.send_one(errs.into()).await;
+                let _ = failed.send_one(().into()).await;
+                let _ = errors.send_many(errs.into()).await;
             }
         },
 
         Err(err) => {
-            let _ = failure.send_one(vec![err].into()).await;
+            let _ = failed.send_one(().into()).await;
+            let _ = errors.send_many(vec![err].into()).await;
         }
     }
 }

@@ -85,14 +85,20 @@ impl HttpClient {
 /// - `status`: HTTP status response.
 /// - `res_headers`: the headers contained in the response.
 /// - `data`: data received as response, corresponding to the HTTP body.
-/// - `failure`: emitted if the request failed technically, containing the failure message.
+/// - `completed`: emitted when the incoming request finished successfully.
+/// - `failed`: emitted if the incoming request failed technically.
+/// - `error`: message containing error when request failed technically.
+/// - `finished`: emitted when the incoming request finished, regardless of state.
 #[mel_treatment(
     model client HttpClient
     input url Block<string>
     input req_headers Block<Map>
     output res_headers Block<Map>
     output data Stream<byte>
-    output failure Block<string>
+    output completed Block<void>
+    output failed Block<void>
+    output finished Block<void>
+    output error Block<string>
     output status Block<HttpStatus>
 )]
 pub async fn request(method: HttpMethod) {
@@ -164,8 +170,12 @@ pub async fn request(method: HttpMethod) {
                             let (prod, mut cons) = data_buf.split();
 
                             let response_body = conn.response_body();
-                            let _ =
-                                futures::join!(async_std::io::copy(response_body, prod), async {
+                            let _ = futures::join!(
+                                async {
+                                    let _ = async_std::io::copy(response_body, prod).await;
+                                    let _ = completed.send_one(().into()).await;
+                                },
+                                async {
                                     loop {
                                         let mut size = 2usize.pow(20);
                                         let mut recv_data = vec![0; size];
@@ -187,17 +197,21 @@ pub async fn request(method: HttpMethod) {
                                             break;
                                         }
                                     }
-                                });
+                                }
+                            );
                         }
                     }
                     Err(err) => {
-                        let _ = failure.send_one(err.to_string().into()).await;
+                        let _ = failed.send_one(().into()).await;
+                        let _ = error.send_one(err.to_string().into()).await;
                     }
                 },
                 Err(err) => {
-                    let _ = failure.send_one(err.to_string().into()).await;
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error.send_one(err.to_string().into()).await;
                 }
             }
+            let _ = finished.send_one(().into()).await;
         }
     }
 }
@@ -214,7 +228,10 @@ pub async fn request(method: HttpMethod) {
 /// - `status`: HTTP status response.
 /// - `res_headers`: the headers contained in the response.
 /// - `data`: data received as response, corresponding to the HTTP body.
-/// - `failure`: emitted if the request failed technically, containing the failure message.
+/// - `completed`: emitted when the request finished successfully.
+/// - `failed`: emitted if the request failed technically.
+/// - `error`: message containing error when request failed technically.
+/// - `finished`: emitted when the request finished, regardless of state.
 #[mel_treatment(
     model client HttpClient
     input url Block<string>
@@ -222,7 +239,10 @@ pub async fn request(method: HttpMethod) {
     input body Stream<byte>
     output data Stream<byte>
     output res_headers Block<Map>
-    output failure Block<string>
+    output completed Block<void>
+    output failed Block<void>
+    output finished Block<void>
+    output error Block<string>
     output status Block<HttpStatus>
 )]
 pub async fn request_with_body(method: HttpMethod) {
@@ -314,7 +334,10 @@ pub async fn request_with_body(method: HttpMethod) {
 
                                 let response_body = conn.response_body();
                                 let _ = futures::join!(
-                                    async_std::io::copy(response_body, out_prod),
+                                    async {
+                                        let _ = async_std::io::copy(response_body, out_prod).await;
+                                        let _ = completed.send_one(().into()).await;
+                                    },
                                     async {
                                         loop {
                                             let mut size = 2usize.pow(20);
@@ -341,14 +364,17 @@ pub async fn request_with_body(method: HttpMethod) {
                             }
                         }
                         (_, Err(err)) => {
-                            let _ = failure.send_one(err.to_string().into()).await;
+                            let _ = failed.send_one(().into()).await;
+                            let _ = error.send_one(err.to_string().into()).await;
                         }
                     }
                 }
                 Err(err) => {
-                    let _ = failure.send_one(err.to_string().into()).await;
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error.send_one(err.to_string().into()).await;
                 }
             }
+            let _ = finished.send_one(().into()).await;
         }
     }
 }

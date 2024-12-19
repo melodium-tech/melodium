@@ -19,9 +19,10 @@ impl FileSystemEngine for LocalFileSystemEngine {
         path: &str,
         data: &Box<dyn Output>,
         reached: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
         finished: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
-        error: &Box<dyn Output>,
+        errors: &Box<dyn Output>,
     ) {
         let file = OpenOptions::new().read(true).open(path).await;
         match file {
@@ -41,22 +42,23 @@ impl FileSystemEngine for LocalFileSystemEngine {
                             break;
                         }
                         Err(err) => {
-                            let _ = failure.send_one(().into()).await;
-                            let _ = error.send_one(err.to_string().into()).await;
+                            let _ = failed.send_one(().into()).await;
+                            let _ = errors.send_one(err.to_string().into()).await;
                             fail = true;
                             break;
                         }
                     }
                 }
                 if !fail {
-                    let _ = finished.send_one(().into()).await;
+                    let _ = completed.send_one(().into()).await;
                 }
             }
             Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                let _ = failed.send_one(().into()).await;
+                let _ = errors.send_one(err.to_string().into()).await;
             }
         }
+        let _ = finished.send_one(().into()).await;
     }
     async fn write_file(
         &self,
@@ -66,9 +68,10 @@ impl FileSystemEngine for LocalFileSystemEngine {
         new: bool,
         data: &Box<dyn Input>,
         amount: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
         finished: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
-        error: &Box<dyn Output>,
+        errors: &Box<dyn Output>,
     ) {
         let file = OpenOptions::new()
             .write(true)
@@ -92,29 +95,30 @@ impl FileSystemEngine for LocalFileSystemEngine {
                             let _ = amount.send_one(written_amount.into()).await;
                         }
                         Err(err) => {
-                            let _ = failure.send_one(().into()).await;
-                            let _ = error.send_one(err.to_string().into()).await;
+                            let _ = failed.send_one(().into()).await;
+                            let _ = errors.send_one(err.to_string().into()).await;
                             fail = true;
                             break;
                         }
                     }
                 }
                 if !fail {
-                    let _ = finished.send_one(().into()).await;
+                    let _ = completed.send_one(().into()).await;
                 }
             }
             Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                let _ = failed.send_one(().into()).await;
+                let _ = errors.send_one(err.to_string().into()).await;
             }
         }
+        let _ = finished.send_one(().into()).await;
     }
     async fn create_dir(
         &self,
         path: &str,
         recursive: bool,
         success: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
         error: &Box<dyn Output>,
     ) {
         match if recursive {
@@ -127,7 +131,7 @@ impl FileSystemEngine for LocalFileSystemEngine {
             }
             Err(err) => {
                 let _ = error.send_one(err.to_string().into()).await;
-                let _ = failure.send_one(().into()).await;
+                let _ = failed.send_one(().into()).await;
             }
         }
     }
@@ -137,8 +141,10 @@ impl FileSystemEngine for LocalFileSystemEngine {
         recursive: bool,
         follow_links: bool,
         entries: &Box<dyn Output>,
-        success: &Box<dyn Output>,
-        error: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        errors: &Box<dyn Output>,
     ) {
         let mut dir_entries = WalkDir::new(path).filter(move |entry| async move {
             match entry.file_type().await {
@@ -163,6 +169,7 @@ impl FileSystemEngine for LocalFileSystemEngine {
             }
         });
 
+        let mut success = true;
         while let Some(entry) = dir_entries.next().await {
             match entry {
                 Ok(entry) => check!(
@@ -171,11 +178,17 @@ impl FileSystemEngine for LocalFileSystemEngine {
                         .await
                 ),
                 Err(err) => {
-                    let _ = error.send_one(err.to_string().into()).await;
+                    success = false;
+                    let _ = errors.send_one(err.to_string().into()).await;
                 }
             }
         }
-        let _ = success.send_one(().into()).await;
+        let _ = finished.send_one(().into()).await;
+        if success {
+            let _ = completed.send_one(().into()).await;
+        } else {
+            let _ = failed.send_one(().into()).await;
+        }
     }
 }
 

@@ -18,9 +18,11 @@ impl ExecutorEngine for LocalExecutorEngine {
         command: Arc<Command>,
         environment: Option<Arc<Environment>>,
         started: &Box<dyn Output>,
-        ended: &Box<dyn Output>,
-        success: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
+        error: &Box<dyn Output>,
+        exit: &Box<dyn Output>,
     ) {
         let mut process_command = ProcessCommand::new(&command.command);
 
@@ -73,18 +75,21 @@ impl ExecutorEngine for LocalExecutorEngine {
                 let _ = started.send_one(().into()).await;
                 match child.status().await {
                     Ok(status) => {
-                        let _ = success.send_one(status.success().into()).await;
-                        let _ = ended.send_one(status.code().into()).await;
+                        let _ = completed.send_one(().into()).await;
+                        let _ = exit.send_one(status.code().into()).await;
                     }
                     Err(err) => {
-                        let _ = failure.send_one(err.to_string().into()).await;
+                        let _ = failed.send_one(().into()).await;
+                        let _ = error.send_one(err.to_string().into()).await;
                     }
                 }
             }
             Err(err) => {
-                let _ = failure.send_one(err.to_string().into()).await;
+                let _ = failed.send_one(().into()).await;
+                let _ = error.send_one(err.to_string().into()).await;
             }
         }
+        let _ = finished.send_one(().into()).await;
     }
 
     async fn spawn(
@@ -92,9 +97,11 @@ impl ExecutorEngine for LocalExecutorEngine {
         command: Arc<Command>,
         environment: Option<Arc<Environment>>,
         started: &Box<dyn Output>,
-        ended: &Box<dyn Output>,
-        success: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
+        error: &Box<dyn Output>,
+        exit: &Box<dyn Output>,
         stdin: &Box<dyn Input>,
         stdout: &Box<dyn Output>,
         stderr: &Box<dyn Output>,
@@ -217,11 +224,12 @@ impl ExecutorEngine for LocalExecutorEngine {
                 let status = async {
                     match child.status().await {
                         Ok(status) => {
-                            let _ = success.send_one(status.success().into()).await;
-                            let _ = ended.send_one(status.code().into()).await;
+                            let _ = completed.send_one(().into()).await;
+                            let _ = exit.send_one(status.code().into()).await;
                         }
                         Err(err) => {
-                            let _ = failure.send_one(err.to_string().into()).await;
+                            let _ = failed.send_one(().into()).await;
+                            let _ = error.send_one(err.to_string().into()).await;
                         }
                     }
                 };
@@ -229,9 +237,11 @@ impl ExecutorEngine for LocalExecutorEngine {
                 let _ = futures::join!(status, write_stdin, read_stdout, read_stderr);
             }
             Err(err) => {
-                let _ = failure.send_one(err.to_string().into()).await;
+                let _ = failed.send_one(().into()).await;
+                let _ = error.send_one(err.to_string().into()).await;
             }
         }
+        let _ = finished.send_one(().into()).await;
     }
 }
 

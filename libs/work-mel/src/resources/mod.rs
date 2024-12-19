@@ -10,14 +10,18 @@ use process_mel::exec::*;
 #[mel_treatment(
     input trigger Block<void>
     output executor Block<Executor>
-    output failure Block<string>
+    output error Block<string>
+    output failed Block<void>
 )]
 pub async fn getExecutor(name: string) {
     if let Ok(_) = trigger.recv_one().await {
         #[cfg(not(feature = "kubernetes"))]
-        let _ = failure
-            .send_one("No executor available".to_string().into())
-            .await;
+        {
+            let _ = failed.send_one(().into()).await;
+            let _ = error
+                .send_one("No executor available".to_string().into())
+                .await;
+        }
 
         #[cfg(feature = "kubernetes")]
         {
@@ -33,7 +37,8 @@ pub async fn getExecutor(name: string) {
                         .await;
                 }
                 Err(err) => {
-                    let _ = failure.send_one(err.into()).await;
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error.send_one(err.into()).await;
                 }
             }
         }
@@ -43,14 +48,18 @@ pub async fn getExecutor(name: string) {
 #[mel_treatment(
     input trigger Block<void>
     output filesystem Block<FileSystem>
-    output failure Block<string>
+    output error Block<string>
+    output failed Block<void>
 )]
 pub async fn getFileSystem(name: string) {
     if let Ok(_) = trigger.recv_one().await {
         #[cfg(not(feature = "kubernetes"))]
-        let _ = failure
-            .send_one("No filesystem available".to_string().into())
-            .await;
+        {
+            let _ = failed.send_one(().into()).await;
+            let _ = error
+                .send_one("No filesystem available".to_string().into())
+                .await;
+        }
 
         #[cfg(feature = "kubernetes")]
         {
@@ -66,7 +75,8 @@ pub async fn getFileSystem(name: string) {
                         .await;
                 }
                 Err(err) => {
-                    let _ = failure.send_one(err.into()).await;
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error.send_one(err.into()).await;
                 }
             }
         }
