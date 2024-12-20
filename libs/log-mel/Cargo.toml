@@ -1,0 +1,36 @@
+[package]
+name = "log-mel"
+version = "0.8.0"
+authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
+rust-version = "1.83"
+edition = "2021"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "Mélodium logging library"
+keywords = ["dataflow","parallelization","scalability","async","signal"]
+categories = ["compilers", "science", "concurrency", "asynchronous"]
+
+[lib]
+crate-type = ["lib", "cdylib"]
+name = "log_mel"
+
+[dependencies]
+async-std = "1.12"
+chrono = { version = "0.4", default-features = false, features = ["now", "serde"] }
+colored = { version = "2.0.2" }
+futures = "0.3.28"
+melodium-core = { path = "../../melodium-core", version = "0.8.0" }
+melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }
+serde = "1.0.185"
+std-mel = { path = "../std-mel", version = "0.8.0" }
+
+[features]
+mock = []
+plugin = []
+real = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

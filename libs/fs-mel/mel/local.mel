@@ -149,7 +149,7 @@ treatment readTextLocal(path: string)
     Self.trigger -> emitFilename.trigger,emit ------------------------------------> read.path
     Self.trigger -> emitFileSystem.trigger,emit -> unwrapFileSystem.option,value -> read.filesystem
 
-    read.data -> fromUtf8.encoded.text -> Self.text
+    read.data -> fromUtf8.encoded,text -> Self.text
 
     read.reached ---> Self.reached
     read.completed -> Self.completed

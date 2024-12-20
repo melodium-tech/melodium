@@ -6,7 +6,6 @@ use std/flow::emit
 use std/flow::trigger
 use std/text/convert/string::fromUtf8
 use std/text/convert/string::toUtf8
-use fs/filesystem::FileSystem
 
 /*
 Read one file as text.
@@ -38,7 +37,7 @@ treatment readText(path: string)
     Self.trigger -> emitFilename.trigger,emit -> read.path
     Self.filesystem ---------------------------> read.filesystem
 
-    read.data -> fromUtf8.encoded.text -> Self.text
+    read.data -> fromUtf8.encoded,text -> Self.text
 
     read.reached ---> Self.reached
     read.completed -> Self.completed
@@ -46,7 +45,6 @@ treatment readText(path: string)
     read.failed ----> Self.failed
     read.errors ----> Self.errors
 }
-
 
 /**
 Write text in one file.
@@ -70,6 +68,7 @@ treatment writeText(path: string, append: bool = false, create: bool = true, new
   output amount: Stream<u128>
 {
     triggerData: trigger<byte>()
+    emitFilename: emit<string>(value=path)
     write(append=append, create=create, new=new)
     toUtf8()
 

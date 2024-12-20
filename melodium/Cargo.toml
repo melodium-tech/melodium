@@ -42,6 +42,7 @@ fs-mel = { path = "../libs/fs-mel", version = "0.8.0", optional = true }
 http-mel = { path = "../libs/http-mel", version = "0.8.0", optional = true }
 javascript-mel = { path = "../libs/javascript-mel", version = "0.8.0", optional = true }
 json-mel = { path = "../libs/json-mel", version = "0.8.0", optional = true }
+log-mel = { path = "../libs/log-mel", version = "0.8.0", optional = true }
 net-mel = { path = "../libs/net-mel", version = "0.8.0", optional = true }
 process-mel = { path = "../libs/process-mel", version = "0.8.0", optional = true }
 regex-mel = { path = "../libs/regex-mel", version = "0.8.0", optional = true }
@@ -56,10 +57,11 @@ distribution = ["melodium-distribution", "distrib-mel", "work-mel", "uuid"]
 doc = ["melodium-doc", "melodium-engine/doc", "melodium-core/doc"]
 network = ["net-mel", "http-mel", "melodium-loader/network"]
 fs = ["fs-mel", "process-mel", "melodium-loader/filesystem"]
+log = ["log-mel"]
 text = ["encoding-mel", "regex-mel"]
 javascript = ["javascript-mel", "json-mel"]
 sql = ["sql-mel"]
-standard-edition = ["jeu", "doc", "distribution", "fs", "network", "text", "javascript", "sql"]
+standard-edition = ["jeu", "doc", "distribution", "fs", "log", "network", "text", "javascript", "sql"]
 container-edition = ["standard-edition", "work-mel/kubernetes"]
 
 [target.wasm32-unknown-unknown.dependencies]

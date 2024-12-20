@@ -17,6 +17,7 @@ json-mel
 fs-mel
 process-mel
 http-mel
+log-mel
 sql-mel
 javascript-mel
 work-mel

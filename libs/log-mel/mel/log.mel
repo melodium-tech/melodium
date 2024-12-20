@@ -1,0 +1,43 @@
+use root/logger::Logger
+use root/logger::|debug
+use root/logger::|error
+use root/logger::|info
+use root/logger::|trace
+use root/logger::|warning
+use root/logger::logBlock
+use root/logger::logStream
+use root/logger::logDataBlock
+use root/logger::logDataStream
+
+treatment logError[logger: Logger](label: string = "error")
+  input message: Block<string>
+{
+    logBlock[logger=logger](level = |error(), label = label)
+
+    Self.message -> logBlock.message
+}
+
+treatment logErrors[logger: Logger](label: string = "error")
+  input message: Block<string>
+{
+    logStream[logger=logger](level = |error(), label = label)
+
+    Self.messages -> logStream.messages
+}
+
+treatment logDataError<D: Display>[logger: Logger](label: string = "error")
+  input data: Block<D>
+{
+    logDataBlock<D>[logger=logger](level = |error(), label = label)
+
+    Self.data -> logDataBlock.display
+}
+
+treatment logDataErrors<D: Display>[logger: Logger](label: string = "error")
+  input data: Stream<D>
+{
+    logDataStream<D>[logger=logger](level = |error(), label = label)
+
+    Self.data -> logDataStream.display
+}
+
