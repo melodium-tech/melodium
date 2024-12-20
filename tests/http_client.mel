@@ -24,6 +24,6 @@ treatment main(url: string, file: string, log: string)
     stream<string>()
 
     get.data ---------------------------> write.data
-    get.failure -> stream.block,stream ---> log.text
+    get.error -> stream.block,stream ---> log.text
 }
 

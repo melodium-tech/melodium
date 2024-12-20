@@ -53,7 +53,7 @@ treatment main(const distrib_port: u16, var remote_key: string, var self_key: st
     streamFailure: stream<string>()
     distributionFailure[distribution_engine=distributor]()
 
-    distributionFailure.failure -> streamFailure.block,stream -> writeFailure.text
+    distributionFailure.error -> streamFailure.block,stream --> writeFailure.text
     ready.trigger -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
 
 

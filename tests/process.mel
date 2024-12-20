@@ -34,5 +34,5 @@ treatment main(const work: Option<string> = _)
     streamFailure: stream<string>()
     failureToUtf8: toUtf8()
     fileFailure: write(path="./failure.txt")
-    spawn.failure -> streamFailure.block,stream -> failureToUtf8.text,encoded -> fileFailure.data
+    spawn.error -> streamFailure.block,stream -> failureToUtf8.text,encoded -> fileFailure.data
 }

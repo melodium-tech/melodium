@@ -52,7 +52,7 @@ treatment main(const distant: string, const key: string)
     writeDistantFailure: writeText(path = "distant_failure.log")
     streamDistantFailure: stream<Vec<string>>()
     flatten<string>()
-    distant.failure -> streamDistantFailure.block,stream -> flatten.vector,value -> writeDistantFailure.text
+    distant.error -> streamDistantFailure.block,stream -> flatten.vector,value -> writeDistantFailure.text
 
     emitOk: emit<string>(value="ok")
     streamOk: stream<string>()
@@ -62,7 +62,7 @@ treatment main(const distant: string, const key: string)
     streamDistribFailure: stream<string>()
     distributionFailure[distribution_engine=distributor]()
 
-    distributionFailure.failure -> streamDistribFailure.block,stream -> writeDistribFailure.text
+    distributionFailure.error -> streamDistribFailure.block,stream -> writeDistribFailure.text
     ready.trigger -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
 
     startHttp[http_server=server]()

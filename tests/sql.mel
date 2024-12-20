@@ -44,12 +44,12 @@ treatment main(const server_url: string, conn_error_file: string, exec_error_fil
     streamConnectionFailure: stream<string>()
     connectionFailureAsUtf8: toUtf8()
 
-    failure.failure -> streamConnectionFailure.block,stream -> connectionFailureAsUtf8.text,encoded -> writeConnectionFailure.data
+    failure.error -> streamConnectionFailure.block,stream -> connectionFailureAsUtf8.text,encoded -> writeConnectionFailure.data
 
     streamExecutionFailure: stream<string>()
     executionFailureAsUtf8: toUtf8()
 
-    executeRaw.failure -> streamExecutionFailure.block,stream -> executionFailureAsUtf8.text,encoded -> writeExecutionFailure.data
+    executeRaw.error -> streamExecutionFailure.block,stream -> executionFailureAsUtf8.text,encoded -> writeExecutionFailure.data
 
 
     insertRows[sql=sql](number=8, exec_error_file=exec_error_file, success_file=success_file)
@@ -82,6 +82,6 @@ treatment insertRows[sql: SqlPool](number: u128, exec_error_file: string, succes
     executeBatch.affected -> affectedAsString.value,into -> affectedAsUtf8.text,encoded -> writeExecutionSuccess.data
 
     executionFailureAsUtf8: toUtf8()
-    executeBatch.failure -> executionFailureAsUtf8.text,encoded -> writeExecutionFailure.data
+    executeBatch.failed -> executionFailureAsUtf8.text,encoded -> writeExecutionFailure.data
 
 }
