@@ -30,7 +30,7 @@ use javascript::process
 use json::toJson
 use json::Json
 use json/value::|null
-use fs/util::writeText
+use fs/local::writeTextLocal
 use work::DistantEngine
 use work::distant
 use work::Access
@@ -49,16 +49,16 @@ treatment main(const distant: string, const key: string)
     distributedJs[distributor=distributor]()
     startup.trigger -> distant.trigger,access -> start.access
 
-    writeDistantFailure: writeText(path = "distant_failure.log")
+    writeDistantFailure: writeTextLocal(path = "distant_failure.log")
     streamDistantFailure: stream<Vec<string>>()
     flatten<string>()
     distant.error -> streamDistantFailure.block,stream -> flatten.vector,value -> writeDistantFailure.text
 
     emitOk: emit<string>(value="ok")
     streamOk: stream<string>()
-    writeOk: writeText(path = "ok.log")
+    writeOk: writeTextLocal(path = "ok.log")
     ready[distribution_engine=distributor]()
-    writeDistribFailure: writeText(path = "distrib_failure.log")
+    writeDistribFailure: writeTextLocal(path = "distrib_failure.log")
     streamDistribFailure: stream<string>()
     distributionFailure[distribution_engine=distributor]()
 

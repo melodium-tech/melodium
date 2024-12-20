@@ -5,8 +5,8 @@
 
 use http/client/util::get
 use std/engine/util::startup
-use fs/util::write
-use fs/util::writeText
+use fs/local::writeLocal
+use fs/local::writeTextLocal
 use std/text/convert/string::toUtf8
 use std/flow::stream
 use std/data::Map
@@ -16,14 +16,14 @@ treatment main(url: string, file: string, log: string)
 {
     startup()
     get(url=url)
-    write(path=file)
+    writeLocal(path=file)
 
     startup.trigger -> get.trigger
 
-    log: writeText(path=log)
+    log: writeTextLocal(path=log)
     stream<string>()
 
-    get.data ---------------------------> write.data
+    get.data ---------------------------> writeLocal.data
     get.error -> stream.block,stream ---> log.text
 }
 

@@ -7,7 +7,7 @@
 
 use std/engine/util::startup
 use std/flow::emit
-use fs/util::write as writeFile
+use fs/local::writeLocal
 use sql::SqlPool
 use sql::failure
 use sql::executeRaw
@@ -29,10 +29,10 @@ treatment main(const server_url: string, conn_error_file: string, exec_error_fil
     
     startup()
     failure[sql_pool=sql]()
-    writeConnectionFailure: writeFile(path=conn_error_file)
+    writeConnectionFailure: writeLocal(path=conn_error_file)
     executeRaw[pool=sql](sql="CREATE TABLE table_test (foo TEXT, bar INT)")
-    writeExecutionFailure: writeFile(path=exec_error_file)
-    writeExecutionSuccess: writeFile(path=success_file)
+    writeExecutionFailure: writeLocal(path=exec_error_file)
+    writeExecutionSuccess: writeLocal(path=success_file)
 
     streamAffected: stream<u64>()
     affectedAsString: toString<u64>()
@@ -74,14 +74,14 @@ treatment insertRows[sql: SqlPool](number: u128, exec_error_file: string, succes
 
     Self.trigger -> emit.trigger,emit -> generate.length,stream -> executeBatch.bind
 
-    writeExecutionFailure: writeFile(path=exec_error_file)
-    writeExecutionSuccess: writeFile(path=success_file)
+    writeExecutionFailure: writeLocal(path=exec_error_file)
+    writeExecutionSuccess: writeLocal(path=success_file)
 
     affectedAsString: toString<u64>()
     affectedAsUtf8: toUtf8()
     executeBatch.affected -> affectedAsString.value,into -> affectedAsUtf8.text,encoded -> writeExecutionSuccess.data
 
     executionFailureAsUtf8: toUtf8()
-    executeBatch.failed -> executionFailureAsUtf8.text,encoded -> writeExecutionFailure.data
+    executeBatch.errors -> executionFailureAsUtf8.text,encoded -> writeExecutionFailure.data
 
 }

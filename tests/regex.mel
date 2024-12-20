@@ -12,7 +12,7 @@ use std/ops/option::unwrap
 use std/data::Map
 use std/data::get
 use regex::capture
-use fs/util::writeText
+use fs/local::writeTextLocal
 
 treatment main(text: string, file: string) {
     
@@ -23,8 +23,8 @@ treatment main(text: string, file: string) {
     unwrapMap: unwrap<Map>()
     get<string>(key="number")
     unwrapString: unwrap<string>()
-    writeText(path=file)
+    writeTextLocal(path=file)
 
-    startup.trigger -> emit.trigger,emit -> stream.block,stream -> capture.text,captured -> unwrapMap.option,value -> get.map,value -> unwrapString.option,value -> writeText.text
+    startup.trigger -> emit.trigger,emit -> stream.block,stream -> capture.text,captured -> unwrapMap.option,value -> get.map,value -> unwrapString.option,value -> writeTextLocal.text
     
 }

@@ -9,6 +9,7 @@ use root/exec::spawn as coreSpawn
 
 treatment exec(command: Command, environment: Option<Environment> = _)
   input  launch:    Block<void>
+  output started:   Block<void>
   output finished:  Block<void>
   output completed: Block<void>
   output failed:    Block<void>

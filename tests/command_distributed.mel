@@ -23,9 +23,9 @@ use work/resources/arch::|amd64
 use work/resources/arch::|arm64
 use process/exec::spawn
 use process/command::|command
-use fs/util::writeText
-use fs/util::write
-use fs/util::read
+use fs/local::writeTextLocal
+use fs/local::writeLocal
+use fs/local::readLocal
 
 treatment main(const distant: string, const key: string, var input_data: string, var output_data: string)
   model distant: DistantEngine(address=distant, key=key)
@@ -38,26 +38,26 @@ treatment main(const distant: string, const key: string, var input_data: string,
     distributedCommand[distributor=distributor]()
     startup.trigger -> distant.trigger,access -> start.access
 
-    writeDistantFailure: writeText(path = "distant_failure.log")
+    writeDistantFailure: writeTextLocal(path = "distant_failure.log")
     streamDistantFailure: stream<Vec<string>>()
     flatten<string>()
     distant.failure -> streamDistantFailure.block,stream -> flatten.vector,value -> writeDistantFailure.text
 
     emitOk: emit<string>(value="ok")
     streamOk: stream<string>()
-    writeOk: writeText(path = "ok.log")
+    writeOk: writeTextLocal(path = "ok.log")
     ready[distribution_engine=distributor]()
-    writeDistribFailure: writeText(path = "distrib_failure.log")
+    writeDistribFailure: writeTextLocal(path = "distrib_failure.log")
     streamDistribFailure: stream<string>()
     distributionFailure[distribution_engine=distributor]()
 
     distributionFailure.failure -> streamDistribFailure.block,stream -> writeDistribFailure.text
     ready.trigger -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
 
-    read(path=input_data)
-    write(path=output_data)
+    readLocal(path=input_data)
+    writeLocal(path=output_data)
 
-    ready.trigger -> read.trigger,data -> distributedCommand.data,data -> write.data,finished -> stop.trigger
+    ready.trigger -> readLocal.trigger,data -> distributedCommand.data,data -> writeLocal.data,finished -> stop.trigger
 }
 
 treatment command()

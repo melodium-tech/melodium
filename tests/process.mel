@@ -10,7 +10,7 @@ use std/flow::stream
 use std/text/convert/string::toUtf8
 use std/flow::emit
 use std/data::|map
-use fs/util::write
+use fs/local::writeLocal
 use process/command::|command
 use process/local::spawn
 use std/ops/option::|wrap
@@ -25,14 +25,14 @@ treatment main(const work: Option<string> = _)
     emitText: emit<string>(value="This is foo!")
     streamText: stream<string>()
     toUtf8()
-    file: write(path="./replaced.txt")
+    file: writeLocal(path="./replaced.txt")
     startup.trigger -> emitText.trigger,emit -> streamText.block,stream -> toUtf8.text,encoded -> spawn.stdin,stdout -> file.data
 
-    fileError: write(path="./error.txt")
+    fileError: writeLocal(path="./error.txt")
     spawn.stderr --> fileError.data
 
     streamFailure: stream<string>()
     failureToUtf8: toUtf8()
-    fileFailure: write(path="./failure.txt")
+    fileFailure: writeLocal(path="./failure.txt")
     spawn.error -> streamFailure.block,stream -> failureToUtf8.text,encoded -> fileFailure.data
 }
