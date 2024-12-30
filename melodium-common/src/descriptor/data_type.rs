@@ -1123,7 +1123,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
-                DataType::Data(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Binary => match self {
                 DataType::Undetermined => false,
@@ -1925,6 +1925,7 @@ impl DataType {
             DataType::F32 => Value::F32(f32::MIN),
             DataType::F64 => Value::F64(f64::MIN),
             DataType::Byte => Value::Byte(u8::MIN),
+            DataType::Data(data) => data.bounded_min(),
             _ => panic!("Bounded not supported for {}", self),
         }
     }
@@ -1944,6 +1945,7 @@ impl DataType {
             DataType::F32 => Value::F32(f32::MAX),
             DataType::F64 => Value::F64(f64::MAX),
             DataType::Byte => Value::Byte(u8::MAX),
+            DataType::Data(data) => data.bounded_max(),
             _ => panic!("Bounded not supported for {}", self),
         }
     }
@@ -1952,6 +1954,7 @@ impl DataType {
         match self {
             DataType::F32 => Value::F32(f32::INFINITY),
             DataType::F64 => Value::F64(f64::INFINITY),
+            DataType::Data(data) => data.float_infinity(),
             _ => panic!("Float not supported for {}", self),
         }
     }
@@ -1960,6 +1963,7 @@ impl DataType {
         match self {
             DataType::F32 => Value::F32(f32::NEG_INFINITY),
             DataType::F64 => Value::F64(f64::NEG_INFINITY),
+            DataType::Data(data) => data.float_neg_infinity(),
             _ => panic!("Float not supported for {}", self),
         }
     }
@@ -1968,6 +1972,7 @@ impl DataType {
         match self {
             DataType::F32 => Value::F32(f32::NAN),
             DataType::F64 => Value::F64(f64::NAN),
+            DataType::Data(data) => data.float_nan(),
             _ => panic!("Float not supported for {}", self),
         }
     }

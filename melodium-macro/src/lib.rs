@@ -2135,6 +2135,89 @@ pub fn mel_data(attr: TokenStream, item: TokenStream) -> TokenStream {
             } else {
                 "None".parse().unwrap()
             };
+        let (bounded_min, bounded_max): (proc_macro2::TokenStream, proc_macro2::TokenStream) =
+            if traits.iter().any(|tr| tr.as_str() == "Bounded") {
+                let function_min: proc_macro2::TokenStream =
+                    format!("{name}_bounded_min", name = name.to_case(Case::Snake))
+                        .parse()
+                        .unwrap();
+                let function_max: proc_macro2::TokenStream =
+                    format!("{name}_bounded_min", name = name.to_case(Case::Snake))
+                        .parse()
+                        .unwrap();
+                (
+                    quote! {
+                        Some(Box::new(|| {
+                            let obj = #function_min();
+                            Ok(melodium_core::common::executive::Value::Data(
+                                std::sync::Arc::new(obj)
+                            ))
+                        }))
+                    },
+                    quote! {
+                        Some(Box::new(|| {
+                            let obj = #function_max();
+                            Ok(melodium_core::common::executive::Value::Data(
+                                std::sync::Arc::new(obj)
+                            ))
+                        }))
+                    },
+                )
+            } else {
+                ("None".parse().unwrap(), "None".parse().unwrap())
+            };
+        let (float_infinity, float_neg_infinity, float_nan): (
+            proc_macro2::TokenStream,
+            proc_macro2::TokenStream,
+            proc_macro2::TokenStream,
+        ) = if traits.iter().any(|tr| tr.as_str() == "Float") {
+            let function_infinity: proc_macro2::TokenStream =
+                format!("{name}_float_infinity", name = name.to_case(Case::Snake))
+                    .parse()
+                    .unwrap();
+            let function_neg_infinity: proc_macro2::TokenStream = format!(
+                "{name}_float_neg_infinity",
+                name = name.to_case(Case::Snake)
+            )
+            .parse()
+            .unwrap();
+            let function_nan: proc_macro2::TokenStream =
+                format!("{name}_float_nan", name = name.to_case(Case::Snake))
+                    .parse()
+                    .unwrap();
+            (
+                quote! {
+                    Some(Box::new(|| {
+                        let obj = #function_infinity();
+                        Ok(melodium_core::common::executive::Value::Data(
+                            std::sync::Arc::new(obj)
+                        ))
+                    }))
+                },
+                quote! {
+                    Some(Box::new(|| {
+                        let obj = #function_neg_infinity();
+                        Ok(melodium_core::common::executive::Value::Data(
+                            std::sync::Arc::new(obj)
+                        ))
+                    }))
+                },
+                quote! {
+                    Some(Box::new(|| {
+                        let obj = #function_nan();
+                        Ok(melodium_core::common::executive::Value::Data(
+                            std::sync::Arc::new(obj)
+                        ))
+                    }))
+                },
+            )
+        } else {
+            (
+                "None".parse().unwrap(),
+                "None".parse().unwrap(),
+                "None".parse().unwrap(),
+            )
+        };
 
         let traits: proc_macro2::TokenStream = traits
             .iter()
@@ -2154,6 +2237,11 @@ pub fn mel_data(attr: TokenStream, item: TokenStream) -> TokenStream {
                         attrs
                     },
                     vec![#traits],
+                    #bounded_min,
+                    #bounded_max,
+                    #float_infinity,
+                    #float_neg_infinity,
+                    #float_nan,
                     #deserialize_trait
                 )
         };
