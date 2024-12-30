@@ -1,16 +1,27 @@
-use core::fmt::{Display, Formatter};
+use core::fmt::{Debug, Display, Formatter};
 use melodium_common::descriptor::{
     Attribuable, Attributes, Data as DataDescriptor, DataTrait, Documented, Identified, Identifier,
 };
+use serde::de::Error;
 use std::sync::Arc;
 
-#[derive(Debug)]
+pub type FnDeserialize = Box<
+    dyn Fn(
+            &mut dyn erased_serde::Deserializer,
+        ) -> Result<melodium_common::executive::Value, erased_serde::Error>
+        + Sync
+        + Send,
+>;
+
 pub struct Data {
     identifier: Identifier,
     #[cfg(feature = "doc")]
     documentation: String,
     attributes: Attributes,
     implements: Vec<DataTrait>,
+
+    // Deserialize trait function
+    deserialize: Option<FnDeserialize>,
 }
 
 impl Data {
@@ -19,6 +30,7 @@ impl Data {
         documentation: String,
         attributes: Attributes,
         implements: Vec<DataTrait>,
+        deserialize: Option<FnDeserialize>,
     ) -> Arc<Self> {
         #[cfg(not(feature = "doc"))]
         let _ = documentation;
@@ -28,6 +40,7 @@ impl Data {
             documentation,
             attributes,
             implements,
+            deserialize,
         })
     }
 }
@@ -76,5 +89,38 @@ impl Display for Data {
 impl DataDescriptor for Data {
     fn implements(&self) -> &[DataTrait] {
         &self.implements
+    }
+
+    fn deserialize(
+        &self,
+        deserializer: &mut dyn erased_serde::Deserializer,
+    ) -> Result<melodium_common::executive::Value, erased_serde::Error> {
+        self.deserialize
+            .as_ref()
+            .map(|func| func(deserializer))
+            .unwrap_or_else(|| {
+                Err(erased_serde::Error::custom(format!(
+                    "Deserialize not implemeted by {}",
+                    self.identifier
+                )))
+            })
+    }
+}
+
+impl Debug for Data {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Data")
+            .field("identifier", &self.identifier)
+            .field("attributes", &self.attributes)
+            .field("implements", &self.implements)
+            .field(
+                "deserialize",
+                if self.deserialize.is_some() {
+                    &"implemented"
+                } else {
+                    &"none"
+                },
+            )
+            .finish()
     }
 }

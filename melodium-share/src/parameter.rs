@@ -24,7 +24,7 @@ impl Parameter {
             .and_then(|described_type| {
                 let default = if let Some(val) = &self.default {
                     // TODO change when #81
-                    Some(val.try_into().ok())
+                    Some(val.to_value(collection))
                 } else {
                     None
                 }

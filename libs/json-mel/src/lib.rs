@@ -14,8 +14,8 @@ pub mod value;
 /// ℹ️ The traits `ToString` and `TryToString` have different behavior for conversion:
 /// - `ToString`, as infaillible, will give the literal JSON object string;
 /// - `TryToString`, as faillible, will give the internal string _if JSON object is only a string_, and none in the other cases.
-#[mel_data(traits(ToString TryToString TryToBool TryToI64 TryToU64 TryToF64 Display))]
-#[derive(Debug, Clone, Serialize)]
+#[mel_data(traits(ToString TryToString TryToBool TryToI64 TryToU64 TryToF64 Display Deserialize))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Json(pub serde_json::Value);
 
 impl ToString for Json {

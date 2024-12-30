@@ -2121,6 +2121,21 @@ pub fn mel_data(attr: TokenStream, item: TokenStream) -> TokenStream {
             .parse()
             .unwrap();
 
+        let deserialize_trait: proc_macro2::TokenStream =
+            if traits.iter().any(|tr| tr.as_str() == "Deserialize") {
+                let name: proc_macro2::TokenStream = name.parse().unwrap();
+                quote! {
+                    Some(Box::new(|deserializer| {
+                        let obj: #name = melodium_core::erased_deserialize(deserializer)?;
+                        Ok(melodium_core::common::executive::Value::Data(
+                            std::sync::Arc::new(obj)
+                        ))
+                    }))
+                }
+            } else {
+                "None".parse().unwrap()
+            };
+
         let traits: proc_macro2::TokenStream = traits
             .iter()
             .map(|name| format!(r#"melodium_core::common::descriptor::DataTrait::{name}"#))
@@ -2139,6 +2154,7 @@ pub fn mel_data(attr: TokenStream, item: TokenStream) -> TokenStream {
                         attrs
                     },
                     vec![#traits],
+                    #deserialize_trait
                 )
         };
     }

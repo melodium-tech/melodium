@@ -613,12 +613,13 @@ pub async fn recv_stream(name: string) {
     {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
+        let collection = distributor.model.upgrade().unwrap().world().collection();
 
         if let Some(receiver) = distributor.get_output(&distribution_id, &name).await {
             while let Ok(recv_data) = receiver.recv().await {
                 let recv_data: Vec<_> = recv_data
                     .into_iter()
-                    .map(|v| TryInto::<Value>::try_into(v))
+                    .map(|v| v.to_value(&collection))
                     .collect();
                 if recv_data
                     .iter()
@@ -658,11 +659,12 @@ pub async fn recv_block(name: string) {
     {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
+        let collection = distributor.model.upgrade().unwrap().world().collection();
 
         if let Some(receiver) = distributor.get_output(&distribution_id, &name).await {
             while let Ok(recv_data) = receiver.recv().await {
                 if let Some(value) = recv_data.first() {
-                    if let Ok(value) = TryInto::<Value>::try_into(value) {
+                    if let Some(value) = value.to_value(&collection) {
                         if value.datatype() == datatype {
                             let _ = data.send_one(value).await;
                         }
