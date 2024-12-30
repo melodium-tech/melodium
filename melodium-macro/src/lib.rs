@@ -2142,24 +2142,24 @@ pub fn mel_data(attr: TokenStream, item: TokenStream) -> TokenStream {
                         .parse()
                         .unwrap();
                 let function_max: proc_macro2::TokenStream =
-                    format!("{name}_bounded_min", name = name.to_case(Case::Snake))
+                    format!("{name}_bounded_max", name = name.to_case(Case::Snake))
                         .parse()
                         .unwrap();
                 (
                     quote! {
                         Some(Box::new(|| {
                             let obj = #function_min();
-                            Ok(melodium_core::common::executive::Value::Data(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(obj)
-                            ))
+                            )
                         }))
                     },
                     quote! {
                         Some(Box::new(|| {
                             let obj = #function_max();
-                            Ok(melodium_core::common::executive::Value::Data(
+                            melodium_core::common::executive::Value::Data(
                                 std::sync::Arc::new(obj)
-                            ))
+                            )
                         }))
                     },
                 )
@@ -2189,25 +2189,25 @@ pub fn mel_data(attr: TokenStream, item: TokenStream) -> TokenStream {
                 quote! {
                     Some(Box::new(|| {
                         let obj = #function_infinity();
-                        Ok(melodium_core::common::executive::Value::Data(
+                        melodium_core::common::executive::Value::Data(
                             std::sync::Arc::new(obj)
-                        ))
+                        )
                     }))
                 },
                 quote! {
                     Some(Box::new(|| {
                         let obj = #function_neg_infinity();
-                        Ok(melodium_core::common::executive::Value::Data(
+                        melodium_core::common::executive::Value::Data(
                             std::sync::Arc::new(obj)
-                        ))
+                        )
                     }))
                 },
                 quote! {
                     Some(Box::new(|| {
                         let obj = #function_nan();
-                        Ok(melodium_core::common::executive::Value::Data(
+                        melodium_core::common::executive::Value::Data(
                             std::sync::Arc::new(obj)
-                        ))
+                        )
                     }))
                 },
             )
