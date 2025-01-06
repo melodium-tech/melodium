@@ -2510,11 +2510,11 @@ dependencies = [
  "async-std",
  "chrono",
  "colored",
+ "fs-mel",
  "futures",
  "melodium-core",
  "melodium-macro",
  "serde",
- "std-mel",
 ]
 
 [[package]]
