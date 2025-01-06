@@ -21,10 +21,10 @@ async-std = "1.12"
 chrono = { version = "0.4", default-features = false, features = ["now", "serde"] }
 colored = { version = "2.0.2" }
 futures = "0.3.28"
+fs-mel = { path = "../fs-mel", version = "0.8.0" }
 melodium-core = { path = "../../melodium-core", version = "0.8.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }
 serde = "1.0.185"
-std-mel = { path = "../std-mel", version = "0.8.0" }
 
 [features]
 mock = []
