@@ -18,13 +18,25 @@ pub enum LogLevel {
 }
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
-#[mel_data(traits())]
+#[mel_data(traits(Serialize Deserialize Bounded))]
 pub struct Level {
     pub level: LogLevel,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[mel_data(traits())]
+fn level_bounded_min() -> Level {
+    Level {
+        level: LogLevel::Trace,
+    }
+}
+
+fn level_bounded_max() -> Level {
+    Level {
+        level: LogLevel::Error,
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[mel_data(traits(Serialize Deserialize))]
 pub struct Log {
     pub timestamp: DateTime<Utc>,
     pub level: LogLevel,

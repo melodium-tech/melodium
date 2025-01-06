@@ -1,5 +1,5 @@
 use crate::{DescribedType, Identifier, SharingError, SharingResult};
-use ciborium::{cbor, Value as DataValue};
+use cbor4ii::core::utils::SliceReader;
 use melodium_common::{
     descriptor::{Collection, Entry as CommonEntry, Identifier as CommonIdentifier},
     executive::Value as CommonValue,
@@ -167,15 +167,36 @@ pub enum RawValue {
     Vec(Vec<RawValue>),
     Option(Option<Box<RawValue>>),
 
-    Data(Identifier, Option<DataValue>),
+    Data(Identifier, Option<Vec<u8>>),
 }
 
 impl RawValue {
-    pub fn to_value(&self, _collection: &Collection) -> Option<CommonValue> {
+    pub fn to_value(&self, collection: &Collection) -> Option<CommonValue> {
         match self {
-            RawValue::Data(_identifier, _value) => {
-                // TODO Manage data deserialization #81
-                None
+            RawValue::Data(identifier, value) => {
+                if let Ok(identifier) =
+                    <&Identifier as TryInto<CommonIdentifier>>::try_into(identifier)
+                {
+                    match (collection.get(&(&identifier).into()), value) {
+                        (Some(CommonEntry::Data(data)), Some(value)) => {
+                            //let mut value = value.clone();
+                            //let deserializer = cbor4ii::serde::Deserializer::new(&mut value);
+
+                            let slice_reader = SliceReader::new(value.as_slice());
+
+                            let mut deserializer_cbor =
+                                cbor4ii::serde::Deserializer::new(slice_reader);
+                            let mut erased_deserializer = Box::new(
+                                <dyn erased_serde::Deserializer>::erase(&mut deserializer_cbor),
+                            );
+
+                            data.deserialize(&mut erased_deserializer).ok()
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
             }
             other => other.try_into().ok(),
         }
@@ -205,7 +226,8 @@ impl From<CommonValue> for RawValue {
             CommonValue::Vec(v) => RawValue::Vec(v.into_iter().map(|v| v.into()).collect()),
             CommonValue::Option(v) => RawValue::Option(v.map(|v| Box::new((*v).into()))),
             CommonValue::Data(d) => {
-                RawValue::Data(d.descriptor().identifier().into(), cbor!(d).ok())
+                let data = cbor4ii::serde::to_vec(Vec::new(), &d).ok();
+                RawValue::Data(d.descriptor().identifier().into(), data)
             }
         }
     }
@@ -236,7 +258,8 @@ impl From<&CommonValue> for RawValue {
                 RawValue::Option(v.as_ref().map(|v| Box::new(v.as_ref().into())))
             }
             CommonValue::Data(d) => {
-                RawValue::Data(d.descriptor().identifier().into(), cbor!(d).ok())
+                let data = cbor4ii::serde::to_vec(Vec::new(), &d).ok();
+                RawValue::Data(d.descriptor().identifier().into(), data)
             }
         }
     }

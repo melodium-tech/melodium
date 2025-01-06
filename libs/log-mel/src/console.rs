@@ -1,6 +1,5 @@
 use crate::logger::*;
-use colored::Colorize;
-use melodium_core::{common::executive::*, *};
+use colored::Colorize;use melodium_core::{common::executive::*, *};
 use melodium_macro::mel_treatment;
 use std::sync::Arc;
 
