@@ -2,10 +2,10 @@ use std::process::{exit, Command};
 
 fn main() {
     // Without TLS
-    test_download("http://neverssl.com/", "neverssl.html", "neverssl.log");
+    test_download("http://testing.melodium.tech/no-tls.txt", "no-tls.txt", "no-tls.log");
     // With TLS
-    test_download("https://google.fr/", "google_withtls.html", "glg.log");
-    test_download("https://melodium.tech/", "melodium_withtls.html", "tls.log");
+    test_download("https://testing.melodium.tech/tls.txt", "tls.txt", "tls.log");
+    test_download("https://melodium.tech/", "melodium_withtls.html", "melodium_withtls.log");
 }
 
 fn test_download(url: &str, file: &str, log: &str) {

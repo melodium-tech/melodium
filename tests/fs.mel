@@ -28,6 +28,6 @@ treatment main() {
     
     writeLocal(path="./fs_try.data")
     
-    flatten.value -> write.data
+    flatten.value -> writeLocal.data
     
 }
