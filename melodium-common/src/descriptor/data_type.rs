@@ -1,7 +1,7 @@
-use crate::executive::Value;
-
 use super::{Data, DataTrait};
+use crate::executive::Value;
 use core::fmt::{Display, Formatter, Result};
+use erased_serde::Deserializer;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
@@ -1123,7 +1123,7 @@ impl DataType {
                 DataType::String => false,
                 DataType::Vec(_) => false,
                 DataType::Option(_) => false,
-                DataType::Data(_) => false,
+                DataType::Data(obj) => obj.implements().iter().any(|dt| dt == data_trait),
             },
             DataTrait::Binary => match self {
                 DataType::Undetermined => false,
@@ -1925,6 +1925,7 @@ impl DataType {
             DataType::F32 => Value::F32(f32::MIN),
             DataType::F64 => Value::F64(f64::MIN),
             DataType::Byte => Value::Byte(u8::MIN),
+            DataType::Data(data) => data.bounded_min(),
             _ => panic!("Bounded not supported for {}", self),
         }
     }
@@ -1944,6 +1945,7 @@ impl DataType {
             DataType::F32 => Value::F32(f32::MAX),
             DataType::F64 => Value::F64(f64::MAX),
             DataType::Byte => Value::Byte(u8::MAX),
+            DataType::Data(data) => data.bounded_max(),
             _ => panic!("Bounded not supported for {}", self),
         }
     }
@@ -1952,6 +1954,7 @@ impl DataType {
         match self {
             DataType::F32 => Value::F32(f32::INFINITY),
             DataType::F64 => Value::F64(f64::INFINITY),
+            DataType::Data(data) => data.float_infinity(),
             _ => panic!("Float not supported for {}", self),
         }
     }
@@ -1960,6 +1963,7 @@ impl DataType {
         match self {
             DataType::F32 => Value::F32(f32::NEG_INFINITY),
             DataType::F64 => Value::F64(f64::NEG_INFINITY),
+            DataType::Data(data) => data.float_neg_infinity(),
             _ => panic!("Float not supported for {}", self),
         }
     }
@@ -1968,8 +1972,47 @@ impl DataType {
         match self {
             DataType::F32 => Value::F32(f32::NAN),
             DataType::F64 => Value::F64(f64::NAN),
+            DataType::Data(data) => data.float_nan(),
             _ => panic!("Float not supported for {}", self),
         }
+    }
+
+    pub fn deserialize(
+        &self,
+        deserializer: &mut dyn Deserializer,
+    ) -> std::result::Result<Value, erased_serde::Error> {
+        Ok(match self {
+            DataType::Void => Value::Void(erased_serde::deserialize(deserializer)?),
+            DataType::I8 => Value::I8(erased_serde::deserialize(deserializer)?),
+            DataType::I16 => Value::I16(erased_serde::deserialize(deserializer)?),
+            DataType::I32 => Value::I32(erased_serde::deserialize(deserializer)?),
+            DataType::I64 => Value::I64(erased_serde::deserialize(deserializer)?),
+            DataType::I128 => Value::I128(erased_serde::deserialize(deserializer)?),
+            DataType::U8 => Value::U8(erased_serde::deserialize(deserializer)?),
+            DataType::U16 => Value::U16(erased_serde::deserialize(deserializer)?),
+            DataType::U32 => Value::U32(erased_serde::deserialize(deserializer)?),
+            DataType::U64 => Value::U64(erased_serde::deserialize(deserializer)?),
+            DataType::U128 => Value::U128(erased_serde::deserialize(deserializer)?),
+            DataType::F32 => Value::F32(erased_serde::deserialize(deserializer)?),
+            DataType::F64 => Value::F64(erased_serde::deserialize(deserializer)?),
+            DataType::Bool => Value::Bool(erased_serde::deserialize(deserializer)?),
+            DataType::Byte => Value::Byte(erased_serde::deserialize(deserializer)?),
+            DataType::Char => Value::Char(erased_serde::deserialize(deserializer)?),
+            DataType::String => Value::String(erased_serde::deserialize(deserializer)?),
+            DataType::Vec(data_type) => Value::Vec(
+                (0..)
+                    .map_while(|_| data_type.deserialize(deserializer).ok())
+                    .collect(),
+            ),
+            DataType::Option(data_type) => {
+                Value::Option(match data_type.deserialize(deserializer) {
+                    Ok(value) => Some(Box::new(value)),
+                    Err(_error) => None,
+                })
+            }
+            DataType::Data(data) => data.deserialize(deserializer)?,
+            _ => panic!("Deserialize not supported for {}", self),
+        })
     }
 }
 

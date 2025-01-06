@@ -3,7 +3,8 @@
 #![doc = include_str!("../README.md")]
 
 pub use erased_serde::{
-    Error as ErasedSerdeError, Serialize as ErasedSerialize, Serializer as ErasedSerializer,
+    deserialize as erased_deserialize, Error as ErasedSerdeError, Serialize as ErasedSerialize,
+    Serializer as ErasedSerializer,
 };
 pub use melodium_common as common;
 pub use once_cell::sync::Lazy;
