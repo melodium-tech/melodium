@@ -1,6 +1,6 @@
 [package]
 name = "melodium-repository"
-version = "0.8.0"
+version = "0.9.0-pre.1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2018"
@@ -22,7 +22,7 @@ required-features = [ "cargo" ]
 doc = false
 
 [dependencies]
-melodium-common = { path = "../melodium-common", version = "0.8.0" }
+melodium-common = { path = "../melodium-common", version = "=0.9.0-pre.1" }
 async-std = { version = "1.12", optional = true }
 cargo_author = "1.0.6"
 cargo_metadata = { version = "0.19", optional = true }
