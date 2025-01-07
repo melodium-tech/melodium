@@ -9,12 +9,13 @@ use crate::engine::Engine;
 use crate::error::{LogicError, LogicErrors, LogicResult};
 use crate::transmission::{Input, Output, Outputs};
 use async_std::channel::{unbounded, Receiver, Sender};
-use async_std::sync::Mutex;
+use async_std::sync::{Barrier, Mutex};
 use async_std::task::block_on;
 use async_trait::async_trait;
 use core::fmt::Debug;
 use futures::future::join;
 use futures::stream::{FuturesUnordered, StreamExt};
+use futures::{pin_mut, select, FutureExt};
 use melodium_common::descriptor::{
     Collection, Entry as CollectionEntry, Identified, Identifier, Treatment,
 };
@@ -54,6 +55,7 @@ pub struct World {
 
     close_at_continuous_end: AtomicBool,
     continous_ended: AtomicBool,
+    continous_ended_barrier: Barrier,
     closing: AtomicBool,
 }
 
@@ -93,6 +95,7 @@ impl World {
             tracks_receiver,
             close_at_continuous_end: AtomicBool::new(true),
             continous_ended: AtomicBool::new(false),
+            continous_ended_barrier: Barrier::new(2),
             closing: AtomicBool::new(false),
         })
     }
@@ -216,10 +219,14 @@ impl World {
     async fn run_tracks(&self) {
         let mut futures = FuturesUnordered::new();
 
+        let mut tracks_receiver = self.tracks_receiver.clone();
+        let continous_ended_barrier = self.continous_ended_barrier.wait().fuse();
+        pin_mut!(continous_ended_barrier);
+
         async fn track_future(mut track: ExecutionTrack) -> TrackResult {
             let mut non_ok: Vec<ResultStatus> = Vec::new();
             while let Some(r) = track.future.next().await {
-                // The `_ =>` is unreachable for now, but will ResultStatus will be complexified.
+                // The `_ =>` is unreachable for now, but will when ResultStatus will be complexified.
                 #[allow(unreachable_patterns)]
                 match r {
                     ResultStatus::Ok => {}
@@ -234,38 +241,36 @@ impl World {
             }
         }
 
-        while !self.closing.load(Ordering::Relaxed) {
-            if !self.tracks_receiver.is_empty() {
-                while let Ok(track) = self.tracks_receiver.try_recv() {
-                    futures.push(track_future(track));
-                }
-            } else if futures.is_empty() {
-                self.check_closing();
-
-                if let Ok(track) = self.tracks_receiver.recv().await {
-                    futures.push(track_future(track));
-                }
-            }
-
-            while let Some(result) = futures.next().await {
-                match result {
-                    TrackResult::AllOk(id) => {
-                        self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
+        loop {
+            select! {
+                received_track = tracks_receiver.select_next_some() => {
+                    futures.push(track_future(received_track));
+                },
+                result = futures.select_next_some() => {
+                    match result {
+                        TrackResult::AllOk(id) => {
+                            self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
+                        }
+                        TrackResult::NotAllOk(id, _) => {
+                            self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
+                        }
                     }
-                    TrackResult::NotAllOk(id, _) => {
-                        self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
-                    }
-                }
+                    self.check_closing().await;
+                },
+                _result = continous_ended_barrier => {
+                    self.check_closing().await;
+                },
+                complete => break,
             }
         }
     }
 
-    fn check_closing(&self) {
+    async fn check_closing(&self) {
         if self.auto_end()
             && self.continous_ended.load(Ordering::Relaxed)
             && self.tracks_receiver.len() == 0
         {
-            self.end();
+            self.end().await;
         }
     }
 }
@@ -421,28 +426,7 @@ impl Engine for World {
                 while let Some(_) = continuous.next().await {}
 
                 me.continous_ended.store(true, Ordering::Relaxed);
-
-                // Inserting one last pseudo-track to make run_tracks check one more time,
-                // might be removed once new way of running track is implemented.
-                {
-                    let track_id;
-                    {
-                        let mut counter = self.tracks_counter.lock().await;
-                        track_id = *counter;
-                        *counter = track_id + 1;
-                    }
-
-                    let info_track = InfoTrack::new(track_id, None, 0);
-                    let execution_track = ExecutionTrack::new(
-                        track_id,
-                        0,
-                        vec![Box::new(Box::pin(async { ResultStatus::Ok })) as TrackFuture]
-                            .into_iter()
-                            .collect(),
-                    );
-                    self.tracks_info.lock().await.insert(track_id, info_track);
-                    let _ = self.tracks_sender.send(execution_track).await;
-                }
+                me.continous_ended_barrier.wait().await;
             }
         };
 
@@ -542,16 +526,16 @@ impl Engine for World {
         Probably prepare a distinction between "closing", that ends the program and let all stored tracks to finish (even create new ones?),
         and termination, that jut allows already running tracks to finish and ends models.
     */
-    fn end(&self) {
+    async fn end(&self) {
         if !self.closing.load(Ordering::Relaxed) {
             self.models
                 .read()
                 .unwrap()
                 .iter()
                 .for_each(|m| m.shutdown());
+            self.tracks_sender.close();
+            self.closing.store(true, Ordering::Relaxed);
         }
-        self.tracks_sender.close();
-        self.closing.store(true, Ordering::Relaxed);
     }
 }
 
