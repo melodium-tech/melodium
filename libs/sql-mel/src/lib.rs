@@ -122,18 +122,22 @@ fn get_row_as_map(row: &AnyRow) -> Map {
     param acquire_timeout u64 10000
     param idle_timeout Option<u64> 600000
     param max_lifetime Option<u64> 1800000
+    source connected () () (
+        trigger Block<void>
+    )
     source failure () () (
         failed Block<void>
         error Block<string>
     )
+    source closed () () (
+        trigger Block<void>
+    )
     initialize initialize
-    continuous (continuous)
     shutdown shutdown
 )]
 pub struct SqlPool {
     model: Weak<SqlPoolModel>,
     pool: AsyncRwLock<Option<AsyncArc<AnyPool>>>,
-    error: AsyncRwLock<Option<sqlx::Error>>,
 }
 
 impl SqlPool {
@@ -141,62 +145,98 @@ impl SqlPool {
         Self {
             model,
             pool: AsyncRwLock::new(None),
-            error: AsyncRwLock::new(None),
         }
     }
 
     fn initialize(&self) {
         sqlx::any::install_default_drivers();
+    }
 
+    pub async fn connect(&self) {
         let model = self.model.upgrade().unwrap();
 
-        match AnyPoolOptions::new()
-            .max_connections(model.get_max_connections())
-            .min_connections(model.get_min_connections())
-            .acquire_timeout(Duration::from_millis(model.get_acquire_timeout()))
-            .idle_timeout(
-                model
-                    .get_idle_timeout()
-                    .map(|millis| Duration::from_millis(millis)),
-            )
-            .max_lifetime(
-                model
-                    .get_max_lifetime()
-                    .map(|millis| Duration::from_millis(millis)),
-            )
-            .connect_lazy(&model.get_url())
-        {
-            Ok(pool) => async_std::task::block_on(async {
-                *self.pool.write().await = Some(AsyncArc::new(pool));
-            }),
-            Err(error) => async_std::task::block_on(async {
-                *self.error.write().await = Some(error);
-            }),
+        let mut pool_lock = self.pool.write().await;
+        if pool_lock.is_none() {
+            match AnyPoolOptions::new()
+                .max_connections(model.get_max_connections())
+                .min_connections(model.get_min_connections())
+                .acquire_timeout(Duration::from_millis(model.get_acquire_timeout()))
+                .idle_timeout(
+                    model
+                        .get_idle_timeout()
+                        .map(|millis| Duration::from_millis(millis)),
+                )
+                .max_lifetime(
+                    model
+                        .get_max_lifetime()
+                        .map(|millis| Duration::from_millis(millis)),
+                )
+                .connect_lazy(&model.get_url())
+            {
+                Ok(pool) => {
+                    *pool_lock = Some(AsyncArc::new(pool));
+                    model
+                        .new_connected(
+                            None,
+                            &HashMap::new(),
+                            Some(Box::new(move |mut outputs| {
+                                let trigger = outputs.get("trigger");
+                                vec![Box::new(Box::pin(async move {
+                                    let _ = trigger.send_one(().into()).await;
+                                    trigger.close().await;
+                                    ResultStatus::Ok
+                                }))]
+                            })),
+                        )
+                        .await;
+                }
+                Err(error) => {
+                    let err = error.to_string();
+                    model
+                        .new_failure(
+                            None,
+                            &HashMap::new(),
+                            Some(Box::new(move |mut outputs| {
+                                let failed = outputs.get("failed");
+                                let error = outputs.get("error");
+                                vec![Box::new(Box::pin(async move {
+                                    let _ = failed.send_one(().into()).await;
+                                    let _ = error.send_one(Value::String(err)).await;
+                                    failed.close().await;
+                                    error.close().await;
+                                    ResultStatus::Ok
+                                }))]
+                            })),
+                        )
+                        .await;
+                }
+            }
         }
     }
 
-    async fn continuous(&self) {
-        if let Some(err) = self.error.read().await.as_ref() {
-            let model = self.model.upgrade().unwrap();
-            let err = err.to_string();
+    pub async fn close(&self) {
+        let model = self.model.upgrade().unwrap();
+
+        let mut pool_lock = self.pool.write().await;
+        if let Some(pool) = pool_lock.as_ref() {
+            pool.close().await;
+
             model
-                .new_failure(
+                .new_closed(
                     None,
                     &HashMap::new(),
                     Some(Box::new(move |mut outputs| {
-                        let failed = outputs.get("failed");
-                        let error = outputs.get("error");
+                        let trigger = outputs.get("trigger");
                         vec![Box::new(Box::pin(async move {
-                            let _ = failed.send_one(().into()).await;
-                            let _ = error.send_one(Value::String(err)).await;
-                            failed.close().await;
-                            error.close().await;
+                            let _ = trigger.send_one(().into()).await;
+                            trigger.close().await;
                             ResultStatus::Ok
                         }))]
                     })),
                 )
                 .await;
         }
+        *pool_lock = None;
     }
 
     fn shutdown(&self) {
@@ -218,16 +258,42 @@ impl SqlPool {
 }
 
 #[mel_treatment(
+    model sql_pool SqlPool
+    input trigger Block<void>
+)]
+pub async fn connect() {
+    let model = SqlPoolModel::into(sql_pool);
+    let sql_pool = model.inner();
+
+    if let Ok(_) = trigger.recv_one().await {
+        sql_pool.connect().await;
+    }
+}
+
+#[mel_treatment(
+    model sql_pool SqlPool
+    input trigger Block<void>
+)]
+pub async fn close() {
+    let model = SqlPoolModel::into(sql_pool);
+    let sql_pool = model.inner();
+
+    if let Ok(_) = trigger.recv_one().await {
+        sql_pool.close().await;
+    }
+}
+
+#[mel_treatment(
     input trigger Block<void>
     output affected Block<u64>
     output finished Block<void>
     output completed Block<void>
     output failed Block<void>
     output error Block<string>
-    model pool SqlPool
+    model sql_pool SqlPool
 )]
 pub async fn execute_raw(sql: string) {
-    match SqlPoolModel::into(pool).inner().pool().await {
+    match SqlPoolModel::into(sql_pool).inner().pool().await {
         Ok(pool) => match sqlx::raw_sql(&sql).execute(&*pool).await {
             Ok(result) => {
                 let _ = completed.send_one(().into()).await;
@@ -254,7 +320,7 @@ pub async fn execute_raw(sql: string) {
     output failed Block<void>
     output error Block<string>
     default bind_symbol "?"
-    model pool SqlPool
+    model sql_pool SqlPool
 )]
 pub async fn execute(sql: string, bindings: Vec<string>, bind_symbol: string) {
     if let Ok(bind) = bind.recv_one().await.map(|val| {
@@ -263,7 +329,7 @@ pub async fn execute(sql: string, bindings: Vec<string>, bind_symbol: string) {
             .downcast_arc::<Map>()
             .unwrap()
     }) {
-        match SqlPoolModel::into(pool).inner().pool().await {
+        match SqlPoolModel::into(sql_pool).inner().pool().await {
             Ok(pool) => {
                 let sql = match pool.connect_options().database_url.scheme() {
                     "postgres" => postgres_bind_replace(sql, &bind_symbol),
@@ -308,7 +374,7 @@ pub async fn execute(sql: string, bindings: Vec<string>, bind_symbol: string) {
     output errors Stream<string>
     default bind_symbol "?"
     default stop_on_failure true
-    model pool SqlPool
+    model sql_pool SqlPool
 )]
 pub async fn execute_each(
     sql: string,
@@ -316,7 +382,7 @@ pub async fn execute_each(
     bind_symbol: string,
     stop_on_failure: bool,
 ) {
-    match SqlPoolModel::into(pool).inner().pool().await {
+    match SqlPoolModel::into(sql_pool).inner().pool().await {
         Ok(pool) => {
             let mut success = true;
             while let Ok(bind) = bind.recv_one().await.map(|val| {
@@ -378,7 +444,7 @@ pub async fn execute_each(
     output completed Block<void>
     output failed Block<void>
     output errors Stream<string>
-    model pool SqlPool
+    model sql_pool SqlPool
 )]
 pub async fn execute_batch(
     base: string,
@@ -392,7 +458,7 @@ pub async fn execute_batch(
     let limit = bind_limit.min(65535);
     let batch_max = limit / bindings.len() as u64;
 
-    match SqlPoolModel::into(pool).inner().pool().await {
+    match SqlPoolModel::into(sql_pool).inner().pool().await {
         Ok(pool) => {
             let mut success = true;
             'main: loop {
@@ -475,7 +541,7 @@ pub async fn execute_batch(
     output failed Block<void>
     output errors Stream<string>
     default bind_symbol "?"
-    model pool SqlPool
+    model sql_pool SqlPool
 )]
 pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
     if let Ok(bind) = bind.recv_one().await.map(|val| {
@@ -484,7 +550,7 @@ pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
             .downcast_arc::<Map>()
             .unwrap()
     }) {
-        match SqlPoolModel::into(pool).inner().pool().await {
+        match SqlPoolModel::into(sql_pool).inner().pool().await {
             Ok(pool) => {
                 let sql = match pool.connect_options().database_url.scheme() {
                     "postgres" => postgres_bind_replace(sql, &bind_symbol),
@@ -544,7 +610,7 @@ pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
     output completed Block<void>
     output failed Block<void>
     output errors Stream<string>
-    model pool SqlPool
+    model sql_pool SqlPool
 )]
 pub async fn fetch_batch(
     base: string,
@@ -558,7 +624,7 @@ pub async fn fetch_batch(
     let limit = bind_limit.min(65535);
     let batch_max = limit / bindings.len() as u64;
 
-    match SqlPoolModel::into(pool).inner().pool().await {
+    match SqlPoolModel::into(sql_pool).inner().pool().await {
         Ok(pool) => {
             let mut success = true;
             'main: loop {

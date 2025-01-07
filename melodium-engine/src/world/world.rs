@@ -259,6 +259,7 @@ impl World {
                             self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
                         }
                     }
+                    self.check_closing().await;
                 },
                 _result = continous_ended_barrier => {
                     self.check_closing().await;
