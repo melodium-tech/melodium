@@ -57,7 +57,6 @@ pub struct World {
     continous_ended: AtomicBool,
     continous_ended_barrier: Barrier,
     closing: AtomicBool,
-    closing_barrier: Barrier,
 }
 
 impl Debug for World {
@@ -98,7 +97,6 @@ impl World {
             continous_ended: AtomicBool::new(false),
             continous_ended_barrier: Barrier::new(2),
             closing: AtomicBool::new(false),
-            closing_barrier: Barrier::new(2),
         })
     }
 
@@ -222,15 +220,13 @@ impl World {
         let mut futures = FuturesUnordered::new();
 
         let mut tracks_receiver = self.tracks_receiver.clone();
-        let closing_barrier = self.closing_barrier.wait().fuse();
-        pin_mut!(closing_barrier);
         let continous_ended_barrier = self.continous_ended_barrier.wait().fuse();
         pin_mut!(continous_ended_barrier);
 
         async fn track_future(mut track: ExecutionTrack) -> TrackResult {
             let mut non_ok: Vec<ResultStatus> = Vec::new();
             while let Some(r) = track.future.next().await {
-                // The `_ =>` is unreachable for now, but will ResultStatus will be complexified.
+                // The `_ =>` is unreachable for now, but will when ResultStatus will be complexified.
                 #[allow(unreachable_patterns)]
                 match r {
                     ResultStatus::Ok => {}
@@ -264,7 +260,6 @@ impl World {
                 _result = continous_ended_barrier => {
                     self.check_closing().await;
                 },
-                _result = closing_barrier => {},
                 complete => break,
             }
         }
@@ -540,7 +535,6 @@ impl Engine for World {
                 .for_each(|m| m.shutdown());
             self.tracks_sender.close();
             self.closing.store(true, Ordering::Relaxed);
-            self.closing_barrier.wait().await;
         }
     }
 }
