@@ -270,7 +270,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     .boxed(),
                 ])
                 .await;
-                engine.end();
+                engine.end().await;
             } else {
                 barrier.wait().await;
             }
@@ -413,12 +413,12 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                 output.close().await;
                             }
                         }
-                        engine.end();
+                        engine.end().await;
                         break;
                     }
                     Ok(_) => {}
                     Err(_) => {
-                        engine.end();
+                        engine.end().await;
                         break;
                     }
                 }

@@ -10,6 +10,8 @@ use std/flow::emit
 use fs/local::writeLocal
 use sql::SqlPool
 use sql::failure
+use sql::connect
+use sql::connected
 use sql::executeRaw
 use sql::executeBatch
 use std/flow::trigger
@@ -28,9 +30,11 @@ treatment main(const server_url: string, conn_error_file: string, exec_error_fil
 {
     
     startup()
+    connect[sql_pool=sql]()
+    connected[sql_pool=sql]()
     failure[sql_pool=sql]()
     writeConnectionFailure: writeLocal(path=conn_error_file)
-    executeRaw[pool=sql](sql="CREATE TABLE table_test (foo TEXT, bar INT)")
+    executeRaw[sql_pool=sql](sql="CREATE TABLE table_test (foo TEXT, bar INT)")
     writeExecutionFailure: writeLocal(path=exec_error_file)
     writeExecutionSuccess: writeLocal(path=success_file)
 
@@ -38,7 +42,8 @@ treatment main(const server_url: string, conn_error_file: string, exec_error_fil
     affectedAsString: toString<u64>()
     affectedAsUtf8: toUtf8()
 
-    startup.trigger -> executeRaw.trigger,affected -> streamAffected.block,stream -> affectedAsString.value,into -> affectedAsUtf8.text,encoded -> writeExecutionSuccess.data
+    startup.trigger -> connect.trigger
+    connected.trigger -> executeRaw.trigger,affected -> streamAffected.block,stream -> affectedAsString.value,into -> affectedAsUtf8.text,encoded -> writeExecutionSuccess.data
 
 
     streamConnectionFailure: stream<string>()
@@ -66,7 +71,7 @@ treatment insertRows[sql: SqlPool](number: u128, exec_error_file: string, succes
         |entry<u64>("bar", 42)
     ]))
     emit<u128>(value=number)
-    executeBatch[pool=sql](
+    executeBatch[sql_pool=sql](
         base = "INSERT INTO table_test (foo, bar) VALUES ",
         batch = "(?, ?)",
         bindings = ["foo", "bar"]

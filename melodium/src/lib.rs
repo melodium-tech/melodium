@@ -184,7 +184,7 @@ pub async fn launch(
         return result;
     } else {
         engine.live().await;
-        engine.end();
+        engine.end().await;
         LogicResult::new_success(())
     }
 }

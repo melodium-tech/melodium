@@ -15,5 +15,5 @@ pub trait Engine: Send + Sync {
     fn auto_end(&self) -> bool;
     async fn live(&self);
     async fn instanciate(&self, callback: Option<DirectCreationCallback>);
-    fn end(&self);
+    async fn end(&self);
 }
