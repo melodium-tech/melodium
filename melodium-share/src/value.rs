@@ -179,9 +179,6 @@ impl RawValue {
                 {
                     match (collection.get(&(&identifier).into()), value) {
                         (Some(CommonEntry::Data(data)), Some(value)) => {
-                            //let mut value = value.clone();
-                            //let deserializer = cbor4ii::serde::Deserializer::new(&mut value);
-
                             let slice_reader = SliceReader::new(value.as_slice());
 
                             let mut deserializer_cbor =
