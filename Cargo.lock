@@ -2534,6 +2534,7 @@ dependencies = [
  "async-std",
  "clap",
  "colored",
+ "convert_case",
  "distrib-mel",
  "encoding-mel",
  "fs-mel",

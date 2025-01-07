@@ -78,6 +78,26 @@ struct Info {
     name: String,
 }
 
+#[cfg(feature = "fs")]
+#[derive(clap::Args)]
+/// Creates a new program
+struct New {
+    #[clap(short, long, allow_hyphen_values = true, default_value = "0.1.0")]
+    /// Program version.
+    version: String,
+    #[clap(short, long, allow_hyphen_values = true)]
+    /// Path where create new program, if a `.mel` file name is specified, a standalone file program is created, defaults to program name.
+    path: Option<String>,
+    #[clap(value_parser, allow_hyphen_values = true)]
+    /// Program name.
+    name: String,
+}
+
+#[cfg(not(feature = "fs"))]
+#[derive(clap::Args)]
+/// [Not available in this release] Creates a new program
+struct New {}
+
 #[cfg(feature = "distribution")]
 #[derive(clap::Args)]
 /// Makes engine available for distribution
@@ -189,6 +209,7 @@ enum Commands {
     Run(Run),
     Check(Check),
     Info(Info),
+    New(New),
     Dist(Dist),
     #[clap(subcommand)]
     Jeu(Jeu),
@@ -215,6 +236,10 @@ pub fn main() {
             Commands::Run(args) => run(args),
             Commands::Check(args) => check(args),
             Commands::Info(args) => info(args),
+            #[cfg(feature = "fs")]
+            Commands::New(args) => new(args),
+            #[cfg(not(feature = "fs"))]
+            Commands::New(_) => {}
             #[cfg(feature = "distribution")]
             Commands::Dist(args) => dist(args),
             #[cfg(not(feature = "distribution"))]
@@ -402,6 +427,92 @@ fn info(args: Info) {
         let _ = cmd.print_long_help();
     } else {
         std::process::exit(1);
+    }
+}
+
+#[cfg(feature = "fs")]
+fn new(args: New) {
+    use convert_case::{Case, Casing};
+    use melodium_common::descriptor::{PackageRequirement, Version, VersionReq};
+    use std::str::FromStr;
+
+    let melodium_version = Version::parse(VERSION).unwrap();
+
+    let program_version = match Version::parse(&args.version) {
+        Ok(version) => version,
+        Err(err) => {
+            eprintln!("{}: {err}", "error".bold().red());
+            std::process::exit(1);
+        }
+    };
+
+    let path = match PathBuf::from_str(args.path.as_ref().unwrap_or(&args.name)) {
+        Ok(path) => path,
+        Err(err) => {
+            eprintln!("{}: {err}", "error".bold().red());
+            std::process::exit(1);
+        }
+    };
+
+    let program_name = args.name.to_case(Case::Snake);
+
+    if path.extension().map(|ext| ext == "mel").unwrap_or(false) {
+        // Standalone file
+        let contents = format!("#!/usr/bin/env melodium\n#! name = {program_name}\n#! version = {program_version}\n#! require = std:{}\n\ntreatment main()\n{{\n    \n}}\n\n",
+        if melodium_version.pre.is_empty() {
+            melodium_version.to_string()
+        } else {
+            format!("={melodium_version}")
+        });
+
+        if let Err(err) = std::fs::write(&path, contents) {
+            eprintln!("{}: {err}", "error".bold().red());
+            std::process::exit(1);
+        }
+
+        println!(
+            "{}: program '{program_name}' created in standalone file '{path}'",
+            "success".bold().green(),
+            path = path.to_string_lossy()
+        )
+    } else {
+        // Project tree
+        let contents = melodium_loader::Compo {
+            name: program_name.clone(),
+            version: program_version,
+            requirements: vec![PackageRequirement {
+                package: "std".into(),
+                version_requirement: VersionReq::parse(&if melodium_version.pre.is_empty() {
+                    melodium_version.to_string()
+                } else {
+                    format!("={melodium_version}")
+                })
+                .unwrap(),
+            }],
+            entrypoints: HashMap::new(),
+        }
+        .restitute();
+
+        match std::fs::create_dir_all(&path) {
+            Ok(_) => {
+                let mut compo_path = path.clone();
+                compo_path.push("Compo.toml");
+                if let Err(err) = std::fs::write(compo_path, contents) {
+                    eprintln!("{}: {err}", "error".bold().red());
+                    std::process::exit(1);
+                }
+
+                println!(
+                    "{}: program '{program_name}' created in '{path}'",
+                    "success".bold().green(),
+                    path = path.to_string_lossy()
+                )
+            }
+            Err(err) => {
+                eprintln!("{}: {err}", "error".bold().red());
+                std::process::exit(1);
+            }
+        }
     }
 }
 

@@ -94,15 +94,14 @@ impl FsPackage {
         let path = if designation == PathBuf::from(LIB_ROOT_FILENAME) {
             self.name.clone()
         } else {
-
-        
-        format!(
-            "{}/{}",
-            self.name,
-            designation.as_os_str().to_string_lossy()
-        )};
-        let result_content = Content::new(&path
-            ,
+            format!(
+                "{}/{}",
+                self.name,
+                designation.as_os_str().to_string_lossy()
+            )
+        };
+        let result_content = Content::new(
+            &path,
             &raw,
             self.version(),
             &self
