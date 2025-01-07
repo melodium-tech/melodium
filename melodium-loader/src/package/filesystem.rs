@@ -1,7 +1,7 @@
 use crate::compo::Compo;
 use crate::content::Content;
 use crate::package::package::PackageTrait;
-use crate::{Loader, PackageInfo};
+use crate::{Loader, PackageInfo, LIB_ROOT_FILENAME};
 use glob::{glob_with, MatchOptions};
 use melodium_common::descriptor::{
     Collection, Identifier, IdentifierRequirement, LoadingError, LoadingResult, PackageRequirement,
@@ -91,12 +91,18 @@ impl FsPackage {
             }
         };
 
-        let result_content = Content::new(
-            &format!(
-                "{}/{}",
-                self.name,
-                designation.as_os_str().to_string_lossy()
-            ),
+        let path = if designation == PathBuf::from(LIB_ROOT_FILENAME) {
+            self.name.clone()
+        } else {
+
+        
+        format!(
+            "{}/{}",
+            self.name,
+            designation.as_os_str().to_string_lossy()
+        )};
+        let result_content = Content::new(&path
+            ,
             &raw,
             self.version(),
             &self
@@ -172,16 +178,20 @@ impl FsPackage {
     }
 
     fn designation(identifier: &Identifier) -> PathBuf {
-        PathBuf::from(format!(
-            "{}.mel",
-            identifier
-                .path()
-                .clone()
-                .into_iter()
-                .skip(1)
-                .collect::<Vec<_>>()
-                .join("/")
-        ))
+        if identifier.path().len() == 1 {
+            PathBuf::from(LIB_ROOT_FILENAME)
+        } else {
+            PathBuf::from(format!(
+                "{}.mel",
+                identifier
+                    .path()
+                    .clone()
+                    .into_iter()
+                    .skip(1)
+                    .collect::<Vec<_>>()
+                    .join("/")
+            ))
+        }
     }
 
     pub fn path(&self) -> &Path {

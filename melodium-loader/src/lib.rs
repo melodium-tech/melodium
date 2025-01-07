@@ -9,6 +9,7 @@ mod package;
 mod package_manager;
 
 pub const TRIPLE: &str = env!("TARGET");
+pub const LIB_ROOT_FILENAME: &str = "lib-root.mel";
 
 pub use compo::Compo;
 pub use loader::Loader;
