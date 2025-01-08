@@ -1,5 +1,6 @@
 use crate::logger::*;
-use colored::Colorize;use melodium_core::{common::executive::*, *};
+use colored::Colorize;
+use melodium_core::{common::executive::*, *};
 use melodium_macro::mel_treatment;
 use std::sync::Arc;
 
@@ -21,29 +22,90 @@ pub async fn console(timestamp: bool) {
         }) {
             match log.level {
                 LogLevel::Error => {
-                    println!("{}: {}: {}", "error".bold().red(), log.label, log.message)
+                    if timestamp {
+                        println!(
+                            "[{}] {}: {}: {}",
+                            log.timestamp
+                                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                            "error".bold().red(),
+                            log.label,
+                            log.message
+                        )
+                    } else {
+                        println!("{}: {}: {}", "error".bold().red(), log.label, log.message)
+                    }
                 }
-                LogLevel::Warning => println!(
-                    "{}: {}: {}",
-                    "warning".bold().yellow(),
-                    log.label,
-                    log.message
-                ),
+                LogLevel::Warning => {
+                    if timestamp {
+                        println!(
+                            "[{}] {}: {}: {}",
+                            log.timestamp
+                                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                            "warning".bold().yellow(),
+                            log.label,
+                            log.message
+                        )
+                    } else {
+                        println!(
+                            "{}: {}: {}",
+                            "warning".bold().yellow(),
+                            log.label,
+                            log.message
+                        )
+                    }
+                }
                 LogLevel::Info => {
-                    println!("{}: {}: {}", "info".bold().blue(), log.label, log.message)
+                    if timestamp {
+                        println!(
+                            "[{}] {}: {}: {}",
+                            log.timestamp
+                                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                            "info".bold().blue(),
+                            log.label,
+                            log.message
+                        )
+                    } else {
+                        println!("{}: {}: {}", "info".bold().blue(), log.label, log.message)
+                    }
                 }
-                LogLevel::Debug => println!(
-                    "{}: {}: {}",
-                    "debug".bold().purple(),
-                    log.label,
-                    log.message
-                ),
-                LogLevel::Trace => println!(
-                    "{}: {}: {}",
-                    "trace".bold().dimmed(),
-                    log.label,
-                    log.message
-                ),
+                LogLevel::Debug => {
+                    if timestamp {
+                        println!(
+                            "[{}] {}: {}: {}",
+                            log.timestamp
+                                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                            "debug".bold().purple(),
+                            log.label,
+                            log.message
+                        )
+                    } else {
+                        println!(
+                            "{}: {}: {}",
+                            "debug".bold().purple(),
+                            log.label,
+                            log.message
+                        )
+                    }
+                }
+                LogLevel::Trace => {
+                    if timestamp {
+                        println!(
+                            "[{}] {}: {}: {}",
+                            log.timestamp
+                                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                            "trace".bold().dimmed(),
+                            log.label,
+                            log.message
+                        )
+                    } else {
+                        println!(
+                            "{}: {}: {}",
+                            "trace".bold().dimmed(),
+                            log.label,
+                            log.message
+                        )
+                    }
+                }
             }
         }
     }
