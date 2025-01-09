@@ -5,6 +5,7 @@ pub mod bin;
 pub mod float;
 pub mod num;
 pub mod option;
+pub mod vec;
 
 /// Return whether `a` is equal to `b`
 #[mel_function(

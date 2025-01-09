@@ -9,6 +9,38 @@ use root/logger::logStream
 use root/logger::logDataBlock
 use root/logger::logDataStream
 
+treatment logDebug[logger: Logger](label: string = "debug")
+  input message: Block<string>
+{
+    logBlock[logger=logger](level = |debug(), label = label)
+
+    Self.message -> logBlock.message
+}
+
+treatment logDebugs[logger: Logger](label: string = "debug")
+  input message: Block<string>
+{
+    logStream[logger=logger](level = |debug(), label = label)
+
+    Self.messages -> logStream.messages
+}
+
+treatment logDataDebug<D: Display>[logger: Logger](label: string = "debug")
+  input data: Block<D>
+{
+    logDataBlock<D>[logger=logger](level = |debug(), label = label)
+
+    Self.data -> logDataBlock.display
+}
+
+treatment logDataDebugs<D: Display>[logger: Logger](label: string = "debug")
+  input data: Stream<D>
+{
+    logDataStream<D>[logger=logger](level = |debug(), label = label)
+
+    Self.data -> logDataStream.display
+}
+
 treatment logError[logger: Logger](label: string = "error")
   input message: Block<string>
 {
@@ -41,3 +73,98 @@ treatment logDataErrors<D: Display>[logger: Logger](label: string = "error")
     Self.data -> logDataStream.display
 }
 
+treatment logInfo[logger: Logger](label: string = "info")
+  input message: Block<string>
+{
+    logBlock[logger=logger](level = |info(), label = label)
+
+    Self.message -> logBlock.message
+}
+
+treatment logInfos[logger: Logger](label: string = "info")
+  input message: Block<string>
+{
+    logStream[logger=logger](level = |info(), label = label)
+
+    Self.messages -> logStream.messages
+}
+
+treatment logDataInfo<D: Display>[logger: Logger](label: string = "info")
+  input data: Block<D>
+{
+    logDataBlock<D>[logger=logger](level = |info(), label = label)
+
+    Self.data -> logDataBlock.display
+}
+
+treatment logDataInfos<D: Display>[logger: Logger](label: string = "info")
+  input data: Stream<D>
+{
+    logDataStream<D>[logger=logger](level = |info(), label = label)
+
+    Self.data -> logDataStream.display
+}
+
+treatment logTrace[logger: Logger](label: string = "trace")
+  input message: Block<string>
+{
+    logBlock[logger=logger](level = |trace(), label = label)
+
+    Self.message -> logBlock.message
+}
+
+treatment logTraces[logger: Logger](label: string = "trace")
+  input message: Block<string>
+{
+    logStream[logger=logger](level = |trace(), label = label)
+
+    Self.messages -> logStream.messages
+}
+
+treatment logDataTrace<D: Display>[logger: Logger](label: string = "trace")
+  input data: Block<D>
+{
+    logDataBlock<D>[logger=logger](level = |trace(), label = label)
+
+    Self.data -> logDataBlock.display
+}
+
+treatment logDataTraces<D: Display>[logger: Logger](label: string = "trace")
+  input data: Stream<D>
+{
+    logDataStream<D>[logger=logger](level = |trace(), label = label)
+
+    Self.data -> logDataStream.display
+}
+
+treatment logWarning[logger: Logger](label: string = "warning")
+  input message: Block<string>
+{
+    logBlock[logger=logger](level = |warning(), label = label)
+
+    Self.message -> logBlock.message
+}
+
+treatment logWarnings[logger: Logger](label: string = "warning")
+  input message: Block<string>
+{
+    logStream[logger=logger](level = |warning(), label = label)
+
+    Self.messages -> logStream.messages
+}
+
+treatment logDataWarning<D: Display>[logger: Logger](label: string = "warning")
+  input data: Block<D>
+{
+    logDataBlock<D>[logger=logger](level = |warning(), label = label)
+
+    Self.data -> logDataBlock.display
+}
+
+treatment logDataWarnings<D: Display>[logger: Logger](label: string = "warning")
+  input data: Stream<D>
+{
+    logDataStream<D>[logger=logger](level = |warning(), label = label)
+
+    Self.data -> logDataStream.display
+}

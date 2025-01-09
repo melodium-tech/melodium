@@ -32,6 +32,30 @@ pub trait ExecutorEngine: Debug + Send + Sync {
         stdout: &Box<dyn Output>,
         stderr: &Box<dyn Output>,
     );
+    async fn exec_list(
+        &self,
+        commands: Vec<Arc<Command>>,
+        environment: Option<Arc<Environment>>,
+        started: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
+        error: &Box<dyn Output>,
+        exits: &Box<dyn Output>,
+    );
+    async fn spawn_list(
+        &self,
+        commands: Vec<Arc<Command>>,
+        environment: Option<Arc<Environment>>,
+        started: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
+        error: &Box<dyn Output>,
+        exits: &Box<dyn Output>,
+        stdout: &Box<dyn Output>,
+        stderr: &Box<dyn Output>,
+    );
 }
 
 /// Provides execution engine for external commands.
@@ -137,6 +161,103 @@ pub async fn spawn(command: Command, environment: Option<Environment>) {
                 &error,
                 &exit,
                 &stdin,
+                &stdout,
+                &stderr,
+            )
+            .await;
+    }
+}
+
+/// Executes a list of commands.
+///
+/// Takes an `Executor` on which `commands` will be run with the optionnal `environment`.
+///
+/// When the execution finishes, `finished` is emitted, regardless of the execution or commands status.
+/// `completed` is emitted if all the commands executions went right from executor perspective
+/// (the commands themselves may have failed in their own logic),
+/// and `exits` contains the return code of each of the commands. `failed` is emitted if the executor
+/// is not able to launch a command, and `error` contains the associated error message.
+#[mel_treatment(
+    input executor Block<Executor>
+    input launch Block<void>
+    output started Block<void>
+    output finished Block<void>
+    output completed Block<void>
+    output failed Block<void>
+    output error Block<string>
+    output exits Stream<Option<i32>>
+)]
+pub async fn exec_list(commands: Vec<Command>, environment: Option<Environment>) {
+    if let (Ok(executor), Ok(_)) = (
+        executor.recv_one().await.map(|val| {
+            GetData::<Arc<dyn Data>>::try_data(val)
+                .unwrap()
+                .downcast_arc::<Executor>()
+                .unwrap()
+        }),
+        launch.recv_one().await,
+    ) {
+        executor
+            .executor
+            .exec_list(
+                commands,
+                environment,
+                &started,
+                &finished,
+                &completed,
+                &failed,
+                &error,
+                &exits,
+            )
+            .await;
+    }
+}
+
+/// Spawn a list of commands and provides outputs of the processes.
+///
+/// Takes an `Executor` on which `commands` will be spawned with the optionnal `environment`.
+///
+/// `stdout` corresponds to standard outputs of the related process,
+/// and `stderr` to the standard error output.
+///
+/// When the execution finishes, `finished` is emitted, regardless of the execution or commands status.
+/// `completed` is emitted if all the commands executions went right from executor perspective
+/// (the commands themselves may have failed in their own logic),
+/// and `exits` contains the return code of the commands. `failed` is emitted if the executor
+/// is not able to launch a command, and `error` contains the associated error message.
+#[mel_treatment(
+    input executor Block<Executor>
+    input launch Block<void>
+    output started Block<void>
+    output stdout Stream<byte>
+    output stderr Stream<byte>
+    output finished Block<void>
+    output completed Block<void>
+    output failed Block<void>
+    output error Block<string>
+    output exits Stream<Option<i32>>
+)]
+pub async fn spawn_list(commands: Vec<Command>, environment: Option<Environment>) {
+    if let (Ok(executor), Ok(_)) = (
+        executor.recv_one().await.map(|val| {
+            GetData::<Arc<dyn Data>>::try_data(val)
+                .unwrap()
+                .downcast_arc::<Executor>()
+                .unwrap()
+        }),
+        launch.recv_one().await,
+    ) {
+        executor
+            .executor
+            .spawn_list(
+                commands,
+                environment,
+                &started,
+                &finished,
+                &completed,
+                &failed,
+                &error,
+                &exits,
                 &stdout,
                 &stderr,
             )

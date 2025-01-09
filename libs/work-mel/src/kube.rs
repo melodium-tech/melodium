@@ -328,6 +328,285 @@ impl ExecutorEngine for KubeExecutor {
         }
         let _ = finished.send_one(().into()).await;
     }
+    async fn exec_list(
+        &self,
+        commands: Vec<Arc<Command>>,
+        environment: Option<Arc<Environment>>,
+        started: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
+        error: &Box<dyn Output>,
+        exits: &Box<dyn Output>,
+    ) {
+        let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
+
+        let mut success = true;
+        for command in commands {
+            let mut full_command = if let Some(environment) = environment.as_ref() {
+                let mut env_command = vec!["/usr/bin/env".to_string()];
+
+                if environment.clear_env {
+                    env_command.push("--ignore-environment".to_string());
+                }
+
+                if let Some(dir) = &environment.working_directory {
+                    env_command.push(format!("--chdir={dir}"));
+                }
+
+                for (name, val) in &environment.variables.map {
+                    env_command.push(format!(
+                        "{name}={}",
+                        if val
+                            .datatype()
+                            .implements(&melodium_core::common::descriptor::DataTrait::ToString)
+                        {
+                            melodium_core::DataTrait::to_string(val)
+                        } else {
+                            "".to_string()
+                        }
+                    ));
+                }
+
+                env_command.push("--split-string".to_string());
+
+                env_command.push(command.command.clone());
+
+                env_command
+            } else {
+                vec![command.command.clone()]
+            };
+
+            full_command.extend(command.arguments.clone());
+
+            match pod
+                .exec(
+                    &self.pod,
+                    full_command,
+                    &AttachParams::default().container(self.container_full_name.clone()),
+                )
+                .await
+            {
+                Ok(mut process) => {
+                    if let Some(status_waiter) = process.take_status() {
+                        let _ = started.send_one(().into()).await;
+
+                        if let Some(status) = status_waiter.await {
+                            match status.status.as_ref().map(|s| s.as_str()) {
+                                Some("Success") => {
+                                    let _ = exits.send_one(status.code.into()).await;
+                                }
+                                _ => {
+                                    success = false;
+                                    let _ = failed.send_one(().into()).await;
+                                    let _ = error
+                                        .send_one(
+                                            status
+                                                .reason
+                                                .unwrap_or_else(|| "No reason provided".to_string())
+                                                .into(),
+                                        )
+                                        .await;
+                                    break;
+                                }
+                            }
+                        } else {
+                            success = false;
+                            let _ = failed.send_one(().into()).await;
+                            let _ = error
+                                .send_one("No output status provided".to_string().into())
+                                .await;
+                            break;
+                        }
+                    } else {
+                        success = false;
+                        let _ = failed.send_one(().into()).await;
+                        let _ = error
+                            .send_one("Unable to take status waiter".to_string().into())
+                            .await;
+                        break;
+                    }
+                }
+                Err(err) => {
+                    success = false;
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error.send_one(err.to_string().into()).await;
+                    break;
+                }
+            }
+        }
+        if success {
+            let _ = completed.send_one(().into()).await;
+        }
+        let _ = finished.send_one(().into()).await;
+    }
+    async fn spawn_list(
+        &self,
+        commands: Vec<Arc<Command>>,
+        environment: Option<Arc<Environment>>,
+        started: &Box<dyn Output>,
+        finished: &Box<dyn Output>,
+        completed: &Box<dyn Output>,
+        failed: &Box<dyn Output>,
+        error: &Box<dyn Output>,
+        exits: &Box<dyn Output>,
+        stdout: &Box<dyn Output>,
+        stderr: &Box<dyn Output>,
+    ) {
+        let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
+
+        let mut success = true;
+        for command in commands {
+            if !success {
+                break;
+            }
+            let mut full_command = if let Some(environment) = environment.as_ref() {
+                let mut env_command = vec!["/usr/bin/env".to_string()];
+
+                if environment.clear_env {
+                    env_command.push("--ignore-environment".to_string());
+                }
+
+                if let Some(dir) = &environment.working_directory {
+                    env_command.push(format!("--chdir={dir}"));
+                }
+
+                for (name, val) in &environment.variables.map {
+                    env_command.push(format!(
+                        "{name}={}",
+                        if val
+                            .datatype()
+                            .implements(&melodium_core::common::descriptor::DataTrait::ToString)
+                        {
+                            melodium_core::DataTrait::to_string(val)
+                        } else {
+                            "".to_string()
+                        }
+                    ));
+                }
+
+                env_command.push("--split-string".to_string());
+
+                env_command.push(command.command.clone());
+
+                env_command
+            } else {
+                vec![command.command.clone()]
+            };
+
+            full_command.extend(command.arguments.clone());
+
+            match pod
+                .exec(
+                    &self.pod,
+                    full_command,
+                    &AttachParams::default()
+                        .container(self.container_full_name.clone())
+                        .stdin(false)
+                        .stdout(true)
+                        .stderr(true),
+                )
+                .await
+            {
+                Ok(mut process) => {
+                    if let (Some(status_waiter), Some(process_stdout), Some(process_stderr)) =
+                        (process.take_status(), process.stdout(), process.stderr())
+                    {
+                        let _ = started.send_one(().into()).await;
+
+                        let read_stdout = async {
+                            let mut process_stdout = BufReader::new(process_stdout);
+                            let mut buffer = vec![0; 2usize.pow(20)];
+
+                            while let Ok(n) = process_stdout.read(&mut buffer[..]).await {
+                                if n == 0 {
+                                    break;
+                                }
+                                check!(
+                                    stdout
+                                        .send_many(TransmissionValue::Byte(
+                                            buffer[..n].iter().cloned().collect()
+                                        ))
+                                        .await
+                                );
+                            }
+                        };
+
+                        let read_stderr = async {
+                            let mut process_stderr = BufReader::new(process_stderr);
+                            let mut buffer = vec![0; 2usize.pow(20)];
+
+                            while let Ok(n) = process_stderr.read(&mut buffer[..]).await {
+                                if n == 0 {
+                                    break;
+                                }
+                                check!(
+                                    stderr
+                                        .send_many(TransmissionValue::Byte(
+                                            buffer[..n].iter().cloned().collect()
+                                        ))
+                                        .await
+                                );
+                            }
+                        };
+
+                        let status_waiter = async {
+                            if let Some(status) = status_waiter.await {
+                                match status.status.as_ref().map(|s| s.as_str()) {
+                                    Some("Success") => {
+                                        let _ = exits.send_one(status.code.into()).await;
+                                    }
+                                    _ => {
+                                        success = false;
+                                        let _ = failed.send_one(().into()).await;
+                                        let _ = error
+                                            .send_one(
+                                                status
+                                                    .reason
+                                                    .unwrap_or_else(|| {
+                                                        "No reason provided".to_string()
+                                                    })
+                                                    .into(),
+                                            )
+                                            .await;
+                                    }
+                                }
+                            } else {
+                                success = false;
+                                let _ = failed.send_one(().into()).await;
+                                let _ = error
+                                    .send_one("No output status provided".to_string().into())
+                                    .await;
+                            }
+                        };
+
+                        tokio::join!(read_stdout, read_stderr, status_waiter);
+                    } else {
+                        success = false;
+                        let _ = failed.send_one(().into()).await;
+                        let _ = error
+                            .send_one(
+                                "Unable to take status waiter and process I/O"
+                                    .to_string()
+                                    .into(),
+                            )
+                            .await;
+                        break;
+                    }
+                }
+                Err(err) => {
+                    success = false;
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error.send_one(err.to_string().into()).await;
+                    break;
+                }
+            }
+        }
+        if success {
+            let _ = completed.send_one(().into()).await;
+        }
+        let _ = finished.send_one(().into()).await;
+    }
 }
 
 impl Debug for KubeExecutor {

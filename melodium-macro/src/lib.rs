@@ -252,7 +252,7 @@ fn convert_to_mel_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) ->
                 "Vec" => {
                     let deeper = conv_value(iter, generics);
                     conv = format!(
-                        "value.into_iter().map(|value| {deeper}).collect::<Vec<_>>().into()"
+                        "melodium_core::Value::Vec(value.into_iter().map(|value| {deeper}).collect())"
                     )
                 }
                 "Option" => {

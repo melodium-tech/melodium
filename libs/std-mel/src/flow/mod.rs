@@ -51,7 +51,7 @@ pub async fn chain() {
 /// ```mermaid
 /// graph LR
 ///     T("trigger()")
-///     B["🟥 … 🟨 🟨 🟨 🟨 🟨 🟨 … 🟩"] -->|stream| T
+///     B["🟥 … 🟨 🟨 🟨 🟨 🟨 🟨 … 🟩"] -->|stream| T
 ///     
 ///     T -->|start| S["〈🟦〉"]
 ///     T -->|first| F["〈🟩〉"]
@@ -361,6 +361,42 @@ pub async fn filter() {
     }
 }
 
+/// Filter a block according to `bool` value.
+///
+/// ℹ️ If `select` is never received nothing is emitted.
+///  
+/// ```mermaid
+/// graph LR
+///     T("filterBlock()")
+///     V["〈🟦〉"] -->|value| T
+///     D["〈🟩〉"] -->|select|T
+///     
+///     T -->|accepted| A["〈🟦〉"]
+///     T -->|rejected| R[" "]
+///
+///     style V fill:#ffff,stroke:#ffff
+///     style D fill:#ffff,stroke:#ffff
+///     style A fill:#ffff,stroke:#ffff
+///     style R fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    generic T ()
+    input value Block<T>
+    input select Block<bool>
+    output accepted Block<T>
+    output rejected Block<T>
+)]
+pub async fn filterBlock() {
+    if let (Ok(value), Ok(select)) = futures::join!(value.recv_one(), select.recv_one()) {
+        let select = GetData::<bool>::try_data(select).unwrap();
+        if select {
+            let _ = accepted.send_one(value).await;
+        } else {
+            let _ = rejected.send_one(value).await;
+        }
+    }
+}
+
 /// Fit a stream into a pattern.
 ///
 /// ℹ️ If some remaining values doesn't fit into the pattern, they are trashed.
@@ -643,6 +679,88 @@ pub async fn one() {
         if let Some(val) = val {
             let _ = value.send_one(val).await;
             break;
+        }
+    }
+}
+
+/// Never send any value.
+///
+/// No value is ever sent on `closed` output, which is immediately closed.
+///
+#[mel_treatment(
+    generic T ()
+    output closed Stream<T>
+)]
+pub async fn close() {
+    // Nothing to do
+}
+
+/// Consume stream indefinitely.
+///
+/// Input `stream` is consumed indefinitely until it becomes closed by previous treatment.
+///
+#[mel_treatment(
+    generic T ()
+    input stream Stream<T>
+)]
+pub async fn consume() {
+    while let Ok(_) = stream.recv_many().await {
+        // Nothing to do.
+    }
+}
+
+/// Pass stream under condition.
+///
+/// If `if` is `true`, pass the stream, else closes it.
+///
+#[mel_treatment(
+    generic T ()
+    input stream Stream<T>
+    output passed Stream<T>
+)]
+pub async fn pass(cond: bool) {
+    if cond {
+        while let Ok(data) = stream.recv_many().await {
+            check!(passed.send_many(data).await)
+        }
+    }
+}
+
+/// Pass block under condition.
+///
+/// If `if` is `true`, pass the block, else nothing.
+///
+#[mel_treatment(
+    generic T ()
+    input block Block<T>
+    output passed Block<T>
+)]
+pub async fn passBlock(cond: bool) {
+    if cond {
+        while let Ok(data) = block.recv_one().await {
+            check!(passed.send_one(data).await)
+        }
+    }
+}
+
+/// Barrier stream under condition.
+///
+/// Awaits `leverage` to let stream pass if it is `true`, else closes the stream.
+///
+#[mel_treatment(
+    generic T ()
+    input leverage Block<bool>
+    input stream Stream<T>
+    output passed Stream<T>
+)]
+pub async fn barrier() {
+    if let Ok(true) = leverage
+        .recv_one()
+        .await
+        .map(|val| GetData::<bool>::try_data(val).unwrap())
+    {
+        while let Ok(data) = stream.recv_many().await {
+            check!(passed.send_many(data).await)
         }
     }
 }
