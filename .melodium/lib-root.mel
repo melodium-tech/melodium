@@ -1,0 +1,41 @@
+use std/flow::emit
+use std/ops/option/block::unwrap
+use std/engine/util::startup
+use process/command::Command
+use process/environment::Environment
+use process/exec::Executor
+use process/local::|local_executor
+use process/command::|command
+use process/command::|raw_commands
+use log/logger::Logger
+use log/logger::logs
+use log/console::console
+use log/log::logInfoMessage
+use root/builders::step
+
+treatment main()
+  model logger: Logger()
+{
+
+    startup()
+    localExec: emit<Option<Executor>>(value=|local_executor())
+    unwrapExec: unwrap<Executor>()
+    startup.trigger -> localExec.trigger,emit -> unwrapExec.option,value -> step.executor
+
+    allLogs: logs[logger=logger]()
+    logConsole: console(timestamp=true)
+    logs.all -> logConsole.logs
+
+    step[logger=logger](commands=[
+        |command("rustc", ["--version"]),
+        |command("cargo", ["--version"]),
+        |command("cargo", ["build", "--package", "melodium"])
+    ])
+
+    logInfoMessage[logger=logger](label="success", message="Compilation done")
+    logErrorMessage[logger=logger](label="failure", message="Compilation failed")
+
+    startup.trigger -> step.trigger,completed -> logInfoMessage.trigger
+                       step.failure -----------> logErrorMessage.trigger
+}
+

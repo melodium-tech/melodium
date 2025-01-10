@@ -107,7 +107,7 @@ pub fn insert(mut map: Map, key: string, value: T) -> Map {
     map
 }
 
-/// Create maps with one entry
+/// Insert entry in map
 ///
 /// For every `value` coming through the stream, insert it into the `base` map.
 #[mel_treatment(

@@ -8,6 +8,16 @@ use root/logger::logBlock
 use root/logger::logStream
 use root/logger::logDataBlock
 use root/logger::logDataStream
+use std/flow::emit
+
+treatment logDebugMessage[logger: Logger](label: string = "debug", message: string)
+  input trigger: Block<void>
+{
+    emit<string>(value=message)
+    logBlock[logger=logger](level = |debug(), label = label)
+
+    Self.trigger -> emit.trigger,emit -> logBlock.message
+}
 
 treatment logDebug[logger: Logger](label: string = "debug")
   input message: Block<string>
@@ -39,6 +49,15 @@ treatment logDataDebugs<D: Display>[logger: Logger](label: string = "debug")
     logDataStream<D>[logger=logger](level = |debug(), label = label)
 
     Self.data -> logDataStream.display
+}
+
+treatment logErrorMessage[logger: Logger](label: string = "error", message: string)
+  input trigger: Block<void>
+{
+    emit<string>(value=message)
+    logBlock[logger=logger](level = |error(), label = label)
+
+    Self.trigger -> emit.trigger,emit -> logBlock.message
 }
 
 treatment logError[logger: Logger](label: string = "error")
@@ -73,6 +92,15 @@ treatment logDataErrors<D: Display>[logger: Logger](label: string = "error")
     Self.data -> logDataStream.display
 }
 
+treatment logInfoMessage[logger: Logger](label: string = "info", message: string)
+  input trigger: Block<void>
+{
+    emit<string>(value=message)
+    logBlock[logger=logger](level = |info(), label = label)
+
+    Self.trigger -> emit.trigger,emit -> logBlock.message
+}
+
 treatment logInfo[logger: Logger](label: string = "info")
   input message: Block<string>
 {
@@ -105,6 +133,15 @@ treatment logDataInfos<D: Display>[logger: Logger](label: string = "info")
     Self.data -> logDataStream.display
 }
 
+treatment logTraceMessage[logger: Logger](label: string = "trace", message: string)
+  input trigger: Block<void>
+{
+    emit<string>(value=message)
+    logBlock[logger=logger](level = |trace(), label = label)
+
+    Self.trigger -> emit.trigger,emit -> logBlock.message
+}
+
 treatment logTrace[logger: Logger](label: string = "trace")
   input message: Block<string>
 {
@@ -135,6 +172,15 @@ treatment logDataTraces<D: Display>[logger: Logger](label: string = "trace")
     logDataStream<D>[logger=logger](level = |trace(), label = label)
 
     Self.data -> logDataStream.display
+}
+
+treatment logWarningMessage[logger: Logger](label: string = "warning", message: string)
+  input trigger: Block<void>
+{
+    emit<string>(value=message)
+    logBlock[logger=logger](level = |warning(), label = label)
+
+    Self.trigger -> emit.trigger,emit -> logBlock.message
 }
 
 treatment logWarning[logger: Logger](label: string = "warning")

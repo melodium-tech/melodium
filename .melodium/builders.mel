@@ -1,0 +1,77 @@
+/*use std/flow::passBlock
+use std/ops/vec/block::concat
+
+treatment appendStepsIf(var list: Vec<string>, var contains: string, var commands: Vec<string>, var variables: Map)
+  input commands: Stream<string>
+  input variables: Block<Map>
+  output commands: Stream<string>
+  output variables: Block<Map>
+{
+    concat<string>()
+}*/
+
+use process/command::Command
+use process/environment::Environment
+use process/environment::mapEnvironment
+use process/exec::Executor
+use process/exec::spawn
+use std/flow::emit
+use std/flow::stream
+use std/flow/vec::flatten
+use std/ops/option::map
+use std/ops/option::reduce
+use std/text/convert/string::fromUtf8
+use std/text/compose::rescale
+
+treatment step[logger: Logger](var name: string, var environment_variables: Option<Map> = _, var commands: Vec<Command>)
+  input executor: Block<Executor>
+  input trigger: Block<void>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+{
+    emitCommands: emit<Vec<Command>>(value=commands)
+    streamCommands: stream<Vec<Command>>()
+    flattenCommands: flatten<Command>()
+
+    Self.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector
+
+    emitEnvVars: emit<Option<Map>>(value=environment_variables)
+    mapEnv: map<Map>()
+    mapEnvironment(working_directory = _, clear_env = false)
+    reduceEnv: reduce<Environment>()
+
+    Self.trigger -> emitEnvVars.trigger,emit -> mapEnv.option,none -----------------------------------> reduceEnv.none
+                                                mapEnv.value -> mapEnvironment.variables,environment -> reduceEnv.value
+
+    spawn()
+
+    Self.executor ---------> spawn.executor
+    reduceEnv.option ------> spawn.environment
+    flattenCommands.value -> spawn.commands
+
+    logSpawnListErr: logError[logger=logger](label=name)
+    logSpawnListErrsString: ioToString()
+    logSpawnListErrs: logErrors[logger=logger](label=name)
+    logSpawnListInfosString: ioToString()
+    logSpawnListInfos: logInfos[logger=logger](label=name)
+    spawn.error --> logSpawnListErr.message
+    spawn.stderr -> logSpawnListErrsString.stdio,lines -> logSpawnListErrs.messages
+    spawn.stdout -> logSpawnListInfosString.stdio,lines -> logSpawnListInfos.messages
+
+    spawn.started ---> Self.started
+    spawn.finished --> Self.finished
+    spawn.failed ----> Self.failed
+    spawn.completed -> Self.completed
+}
+
+treatment ioToString()
+  input  stdio: Stream<byte>
+  output lines: Stream<string>
+{
+    fromUtf8()
+    rescale(delimiter="\n")
+
+    Self.stdio -> fromUtf8.encoded,text -> rescale.unscaled,scaled -> Self.lines
+}

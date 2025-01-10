@@ -85,7 +85,7 @@
    - dpkg --add-architecture i386
    - apt-get update
    - apt-get install -y gcc-multilib
-   - wget http://musl.cc/i686-linux-musl-cross.tgz
+   - wget https://musl.cc/i686-linux-musl-cross.tgz
    - tar --extract --gzip --file i686-linux-musl-cross.tgz --directory /usr/local
    - ln -s /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc_s.so.1 /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc.so
    - rustup target add i686-unknown-linux-musl

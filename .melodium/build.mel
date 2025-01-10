@@ -1,0 +1,75 @@
+/*use process/exec::Executor
+use process/exec::spawnList
+use process/exec::spawn
+use process/command::Command
+use process/command::|command
+use process/command::|raw_commands
+use log/logger::Logger
+use log/log::logError
+use log/log::logErrors
+use log/log::logInfos
+use std/ops/option::|unwrap_or
+use std/text/convert/string::fromUtf8
+use std/text/compose::rescale
+use std/flow::one
+
+treatment ioToString()
+  input  stdio: Stream<byte>
+  output lines: Stream<string>
+{
+    fromUtf8()
+    rescale(delimiter="\n")
+
+    Self.stdio -> fromUtf8.encoded,text -> rescale.unscaled,scaled -> Self.lines
+}
+
+treatment build[logger: Logger](var target: string)
+  input executor:   Block<Executor>
+  input launch:     Block<void>
+  output completed: Block<void>
+  output failed:    Block<void>
+  output finished:  Block<void>
+{
+    spawnList(commands=|unwrap_or<Vec<Command>>(|raw_commands([
+        "rustc --version",
+        "cargo --version"
+    ]), [|command("test", [])]))
+    spawn(command=|command("cargo", ["build", "--package", "melodium", "--target", target]))
+
+    Self.executor -> spawnList.executor
+    Self.launch ---> spawnList.launch
+
+    oneFailed: one<void>()
+    oneFailed.value -> Self.failed
+
+    oneFinished: one<void>()
+    oneFinished.value -> Self.finished
+
+    spawnList.failed -> oneFailed.a
+    spawn.failed -----> oneFailed.b
+
+    spawnList.finished -> oneFinished.a
+    spawn.finished -----> oneFinished.b
+
+    Self.executor -------> spawn.executor
+    spawnList.completed -> spawn.launch,completed -> Self.completed
+
+    logSpawnListErr: logError[logger=logger]()
+    logSpawnListErrsString: ioToString()
+    logSpawnListErrs: logErrors[logger=logger]()
+    logSpawnListInfosString: ioToString()
+    logSpawnListInfos: logInfos[logger=logger]()
+    spawnList.error --> logSpawnListErr.message
+    spawnList.stderr -> logSpawnListErrsString.stdio,lines -> logSpawnListErrs.messages
+    spawnList.stdout -> logSpawnListInfosString.stdio,lines -> logSpawnListInfos.messages
+
+    spawnListErr: logError[logger=logger]()
+    spawnListErrsString: ioToString()
+    spawnListErrs: logErrors[logger=logger]()
+    spawnListInfosString: ioToString()
+    spawnListInfos: logInfos[logger=logger]()
+    spawn.error --> spawnListErr.message
+    spawn.stderr -> spawnListErrsString.stdio,lines -> spawnListErrs.messages
+    spawn.stdout -> spawnListInfosString.stdio,lines -> spawnListInfos.messages
+}
+*/

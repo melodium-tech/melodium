@@ -2,9 +2,7 @@ use crate::{command::*, environment::*, exec::*};
 use async_std::io::BufReader;
 use async_std::process::Command as ProcessCommand;
 use async_trait::async_trait;
-use common::executive::{Input, Output};
 use futures::{AsyncReadExt, AsyncWriteExt};
-use melodium_core::*;
 use melodium_macro::{check, mel_function};
 use std::{fmt::Debug, process::Stdio, sync::Arc};
 
@@ -15,14 +13,14 @@ struct LocalExecutorEngine {}
 impl ExecutorEngine for LocalExecutorEngine {
     async fn exec(
         &self,
-        command: Arc<Command>,
-        environment: Option<Arc<Environment>>,
-        started: &Box<dyn Output>,
-        finished: &Box<dyn Output>,
-        completed: &Box<dyn Output>,
-        failed: &Box<dyn Output>,
-        error: &Box<dyn Output>,
-        exit: &Box<dyn Output>,
+        command: &Command,
+        environment: Option<&Environment>,
+        started: OnceTriggerCall<'async_trait>,
+        finished: OnceTriggerCall<'async_trait>,
+        completed: OnceTriggerCall<'async_trait>,
+        failed: OnceTriggerCall<'async_trait>,
+        error: OnceMessageCall<'async_trait>,
+        exit: OnceCodeCall<'async_trait>,
     ) {
         let mut process_command = ProcessCommand::new(&command.command);
 
@@ -44,6 +42,7 @@ impl ExecutorEngine for LocalExecutorEngine {
 
         process_command.envs(
             environment
+                .as_ref()
                 .map(|env| {
                     env.variables
                         .map
@@ -72,39 +71,42 @@ impl ExecutorEngine for LocalExecutorEngine {
 
         match process_command.spawn() {
             Ok(mut child) => {
-                let _ = started.send_one(().into()).await;
+                started().await;
                 match child.status().await {
                     Ok(status) => {
-                        let _ = completed.send_one(().into()).await;
-                        let _ = exit.send_one(status.code().into()).await;
+                        completed().await;
+                        exit(status.code()).await;
                     }
                     Err(err) => {
-                        let _ = failed.send_one(().into()).await;
-                        let _ = error.send_one(err.to_string().into()).await;
+                        failed().await;
+                        error(err.to_string()).await;
                     }
                 }
             }
             Err(err) => {
-                let _ = failed.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                failed().await;
+                error(err.to_string()).await;
             }
         }
-        let _ = finished.send_one(().into()).await;
+        finished().await;
     }
 
     async fn spawn(
         &self,
-        command: Arc<Command>,
-        environment: Option<Arc<Environment>>,
-        started: &Box<dyn Output>,
-        finished: &Box<dyn Output>,
-        completed: &Box<dyn Output>,
-        failed: &Box<dyn Output>,
-        error: &Box<dyn Output>,
-        exit: &Box<dyn Output>,
-        stdin: &Box<dyn Input>,
-        stdout: &Box<dyn Output>,
-        stderr: &Box<dyn Output>,
+        command: &Command,
+        environment: Option<&Environment>,
+        started: OnceTriggerCall<'async_trait>,
+        finished: OnceTriggerCall<'async_trait>,
+        completed: OnceTriggerCall<'async_trait>,
+        failed: OnceTriggerCall<'async_trait>,
+        error: OnceMessageCall<'async_trait>,
+        exit: OnceCodeCall<'async_trait>,
+        stdin: InDataCall<'async_trait>,
+        stdinclose: OnceTriggerCall<'async_trait>,
+        stdout: OutDataCall<'async_trait>,
+        stdoutclose: OnceTriggerCall<'async_trait>,
+        stderr: OutDataCall<'async_trait>,
+        stderrclose: OnceTriggerCall<'async_trait>,
     ) {
         let mut process_command = ProcessCommand::new(&command.command);
 
@@ -154,7 +156,7 @@ impl ExecutorEngine for LocalExecutorEngine {
 
         match process_command.spawn() {
             Ok(mut child) => {
-                let _ = started.send_one(().into()).await;
+                started().await;
 
                 let child_stdin = child.stdin.take();
                 let child_stdout = child.stdout.take();
@@ -162,18 +164,14 @@ impl ExecutorEngine for LocalExecutorEngine {
 
                 let write_stdin = async {
                     if let Some(mut child_stdin) = child_stdin {
-                        while let Ok(data) = stdin
-                            .recv_many()
-                            .await
-                            .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
-                        {
+                        while let Ok(data) = stdin().await {
                             check!(child_stdin.write_all(&data).await);
                             check!(child_stdin.flush().await);
                         }
 
                         let _ = child_stdin.close().await;
                     } else {
-                        let _ = stdin.close();
+                        stdinclose().await;
                     }
                 };
 
@@ -186,16 +184,10 @@ impl ExecutorEngine for LocalExecutorEngine {
                             if n == 0 {
                                 break;
                             }
-                            check!(
-                                stdout
-                                    .send_many(TransmissionValue::Byte(
-                                        buffer[..n].iter().cloned().collect()
-                                    ))
-                                    .await
-                            );
+                            check!(stdout(buffer[..n].iter().cloned().collect()).await);
                         }
                     } else {
-                        let _ = stdout.close().await;
+                        stdoutclose().await;
                     }
                 };
 
@@ -208,28 +200,22 @@ impl ExecutorEngine for LocalExecutorEngine {
                             if n == 0 {
                                 break;
                             }
-                            check!(
-                                stderr
-                                    .send_many(TransmissionValue::Byte(
-                                        buffer[..n].iter().cloned().collect()
-                                    ))
-                                    .await
-                            );
+                            check!(stderr(buffer[..n].iter().cloned().collect()).await);
                         }
                     } else {
-                        let _ = stderr.close().await;
+                        stderrclose().await;
                     }
                 };
 
                 let status = async {
                     match child.status().await {
                         Ok(status) => {
-                            let _ = completed.send_one(().into()).await;
-                            let _ = exit.send_one(status.code().into()).await;
+                            completed().await;
+                            exit(status.code()).await;
                         }
                         Err(err) => {
-                            let _ = failed.send_one(().into()).await;
-                            let _ = error.send_one(err.to_string().into()).await;
+                            failed().await;
+                            error(err.to_string()).await;
                         }
                     }
                 };
@@ -237,245 +223,134 @@ impl ExecutorEngine for LocalExecutorEngine {
                 let _ = futures::join!(status, write_stdin, read_stdout, read_stderr);
             }
             Err(err) => {
-                let _ = failed.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                failed().await;
+                error(err.to_string()).await;
             }
         }
-        let _ = finished.send_one(().into()).await;
+        finished().await;
     }
 
-    async fn exec_list(
+    async fn spawn_out(
         &self,
-        commands: Vec<Arc<Command>>,
-        environment: Option<Arc<Environment>>,
-        started: &Box<dyn Output>,
-        finished: &Box<dyn Output>,
-        completed: &Box<dyn Output>,
-        failed: &Box<dyn Output>,
-        error: &Box<dyn Output>,
-        exits: &Box<dyn Output>,
+        command: &Command,
+        environment: Option<&Environment>,
+        started: OnceTriggerCall<'async_trait>,
+        finished: OnceTriggerCall<'async_trait>,
+        completed: OnceTriggerCall<'async_trait>,
+        failed: OnceTriggerCall<'async_trait>,
+        error: OnceMessageCall<'async_trait>,
+        exit: OnceCodeCall<'async_trait>,
+        stdout: OutDataCall<'async_trait>,
+        stdoutclose: OnceTriggerCall<'async_trait>,
+        stderr: OutDataCall<'async_trait>,
+        stderrclose: OnceTriggerCall<'async_trait>,
     ) {
-        let mut success = true;
-        for command in commands {
-            let mut process_command = ProcessCommand::new(&command.command);
+        let mut process_command = ProcessCommand::new(&command.command);
 
-            if environment
-                .as_ref()
-                .map(|env| env.clear_env)
-                .unwrap_or(false)
-            {
-                process_command.env_clear();
-            }
+        if environment
+            .as_ref()
+            .map(|env| env.clear_env)
+            .unwrap_or(false)
+        {
+            process_command.env_clear();
+        }
 
-            if let Some(working_dir) = environment
-                .as_ref()
-                .map(|env| env.working_directory.as_ref())
-                .flatten()
-            {
-                process_command.current_dir(working_dir);
-            }
+        if let Some(working_dir) = environment
+            .as_ref()
+            .map(|env| env.working_directory.as_ref())
+            .flatten()
+        {
+            process_command.current_dir(working_dir);
+        }
 
-            process_command.envs(
-                environment
-                    .as_ref()
-                    .map(|env| {
-                        env.variables
-                            .map
-                            .iter()
-                            .map(|(k, v)| {
-                                if v.datatype().implements(
-                                    &melodium_core::common::descriptor::DataTrait::ToString,
-                                ) {
-                                    (k.clone(), melodium_core::DataTrait::to_string(v))
-                                } else {
-                                    (k.clone(), "".to_string())
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .unwrap_or_default(),
-            );
+        process_command.envs(
+            environment
+                .map(|env| {
+                    env.variables
+                        .map
+                        .iter()
+                        .map(|(k, v)| {
+                            if v.datatype()
+                                .implements(&melodium_core::common::descriptor::DataTrait::ToString)
+                            {
+                                (k.clone(), melodium_core::DataTrait::to_string(v))
+                            } else {
+                                (k.clone(), "".to_string())
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default(),
+        );
 
-            process_command.args(command.arguments.iter());
+        process_command.args(command.arguments.iter());
 
-            process_command.stdin(Stdio::null());
-            process_command.stdout(Stdio::null());
-            process_command.stderr(Stdio::null());
+        process_command.stdin(Stdio::null());
+        process_command.stdout(Stdio::piped());
+        process_command.stderr(Stdio::piped());
 
-            process_command.kill_on_drop(true);
+        process_command.kill_on_drop(true);
 
-            match process_command.spawn() {
-                Ok(mut child) => {
-                    let _ = started.send_one(().into()).await;
+        match process_command.spawn() {
+            Ok(mut child) => {
+                started().await;
+
+                let child_stdout = child.stdout.take();
+                let child_stderr = child.stderr.take();
+
+                let read_stdout = async {
+                    if let Some(child_stdout) = child_stdout {
+                        let mut child_stdout = BufReader::new(child_stdout);
+                        let mut buffer = vec![0; 2usize.pow(20)];
+
+                        while let Ok(n) = child_stdout.read(&mut buffer[..]).await {
+                            if n == 0 {
+                                break;
+                            }
+                            check!(stdout(buffer[..n].iter().cloned().collect()).await);
+                        }
+                    } else {
+                        stdoutclose().await;
+                    }
+                };
+
+                let read_stderr = async {
+                    if let Some(child_stderr) = child_stderr {
+                        let mut child_stderr = BufReader::new(child_stderr);
+                        let mut buffer = vec![0; 2usize.pow(20)];
+
+                        while let Ok(n) = child_stderr.read(&mut buffer[..]).await {
+                            if n == 0 {
+                                break;
+                            }
+                            check!(stderr(buffer[..n].iter().cloned().collect()).await);
+                        }
+                    } else {
+                        stderrclose().await;
+                    }
+                };
+
+                let status = async {
                     match child.status().await {
                         Ok(status) => {
-                            let _ = exits.send_one(status.code().into()).await;
+                            completed().await;
+                            exit(status.code()).await;
                         }
                         Err(err) => {
-                            success = false;
-                            let _ = failed.send_one(().into()).await;
-                            let _ = error.send_one(err.to_string().into()).await;
-                            break;
+                            failed().await;
+                            error(err.to_string()).await;
                         }
                     }
-                }
-                Err(err) => {
-                    success = false;
-                    let _ = failed.send_one(().into()).await;
-                    let _ = error.send_one(err.to_string().into()).await;
-                    break;
-                }
+                };
+
+                let _ = futures::join!(status, read_stdout, read_stderr);
+            }
+            Err(err) => {
+                failed().await;
+                error(err.to_string()).await;
             }
         }
-        if success {
-            let _ = completed.send_one(().into()).await;
-        }
-        let _ = finished.send_one(().into()).await;
-    }
-
-    async fn spawn_list(
-        &self,
-        commands: Vec<Arc<Command>>,
-        environment: Option<Arc<Environment>>,
-        started: &Box<dyn Output>,
-        finished: &Box<dyn Output>,
-        completed: &Box<dyn Output>,
-        failed: &Box<dyn Output>,
-        error: &Box<dyn Output>,
-        exits: &Box<dyn Output>,
-        stdout: &Box<dyn Output>,
-        stderr: &Box<dyn Output>,
-    ) {
-        let mut success = true;
-        for command in commands {
-            if !success {
-                break;
-            }
-            let mut process_command = ProcessCommand::new(&command.command);
-
-            if environment
-                .as_ref()
-                .map(|env| env.clear_env)
-                .unwrap_or(false)
-            {
-                process_command.env_clear();
-            }
-
-            if let Some(working_dir) = environment
-                .as_ref()
-                .map(|env| env.working_directory.as_ref())
-                .flatten()
-            {
-                process_command.current_dir(working_dir);
-            }
-
-            process_command.envs(
-                environment
-                    .as_ref()
-                    .map(|env| {
-                        env.variables
-                            .map
-                            .iter()
-                            .map(|(k, v)| {
-                                if v.datatype().implements(
-                                    &melodium_core::common::descriptor::DataTrait::ToString,
-                                ) {
-                                    (k.clone(), melodium_core::DataTrait::to_string(v))
-                                } else {
-                                    (k.clone(), "".to_string())
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .unwrap_or_default(),
-            );
-
-            process_command.args(command.arguments.iter());
-
-            process_command.stdin(Stdio::null());
-            process_command.stdout(Stdio::piped());
-            process_command.stderr(Stdio::piped());
-
-            process_command.kill_on_drop(true);
-
-            match process_command.spawn() {
-                Ok(mut child) => {
-                    let _ = started.send_one(().into()).await;
-
-                    let child_stdout = child.stdout.take();
-                    let child_stderr = child.stderr.take();
-
-                    let read_stdout = async {
-                        if let Some(child_stdout) = child_stdout {
-                            let mut child_stdout = BufReader::new(child_stdout);
-                            let mut buffer = vec![0; 2usize.pow(20)];
-
-                            while let Ok(n) = child_stdout.read(&mut buffer[..]).await {
-                                if n == 0 {
-                                    break;
-                                }
-                                check!(
-                                    stdout
-                                        .send_many(TransmissionValue::Byte(
-                                            buffer[..n].iter().cloned().collect()
-                                        ))
-                                        .await
-                                );
-                            }
-                        } else {
-                            let _ = stdout.close().await;
-                        }
-                    };
-
-                    let read_stderr = async {
-                        if let Some(child_stderr) = child_stderr {
-                            let mut child_stderr = BufReader::new(child_stderr);
-                            let mut buffer = vec![0; 2usize.pow(20)];
-
-                            while let Ok(n) = child_stderr.read(&mut buffer[..]).await {
-                                if n == 0 {
-                                    break;
-                                }
-                                check!(
-                                    stderr
-                                        .send_many(TransmissionValue::Byte(
-                                            buffer[..n].iter().cloned().collect()
-                                        ))
-                                        .await
-                                );
-                            }
-                        } else {
-                            let _ = stderr.close().await;
-                        }
-                    };
-
-                    let status = async {
-                        match child.status().await {
-                            Ok(status) => {
-                                let _ = exits.send_one(status.code().into()).await;
-                            }
-                            Err(err) => {
-                                success = false;
-                                let _ = failed.send_one(().into()).await;
-                                let _ = error.send_one(err.to_string().into()).await;
-                            }
-                        }
-                    };
-
-                    let _ = futures::join!(status, read_stdout, read_stderr);
-                }
-                Err(err) => {
-                    success = false;
-                    let _ = failed.send_one(().into()).await;
-                    let _ = error.send_one(err.to_string().into()).await;
-                    break;
-                }
-            }
-        }
-        if success {
-            let _ = completed.send_one(().into()).await;
-        }
-        let _ = finished.send_one(().into()).await;
+        finished().await;
     }
 }
 

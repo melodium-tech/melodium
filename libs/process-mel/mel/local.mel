@@ -4,10 +4,10 @@ use root/command::Command
 use root/environment::Environment
 use root/exec::Executor
 use root/local::|local_executor
-use root/exec::exec as coreExec
-use root/exec::spawn as coreSpawn
+use root/exec::execOnce as generalExecOnce
+use root/exec::spawnOnce as generalSpawnOnce
 
-treatment exec(command: Command, environment: Option<Environment> = _)
+treatment execOnce(command: Command, environment: Option<Environment> = _)
   input  launch:    Block<void>
   output started:   Block<void>
   output finished:  Block<void>
@@ -19,20 +19,20 @@ treatment exec(command: Command, environment: Option<Environment> = _)
     emitExecutor: emit<Option<Executor>>(value = |local_executor())
     unwrapExecutor: unwrap<Executor>()
 
-    coreExec(command = command, environment = environment)
+    generalExecOnce(command = command, environment = environment)
 
-    Self.launch -> emitExecutor.trigger,emit -> unwrapExecutor.option,value -> coreExec.executor
-    Self.launch -------------------------------------------------------------> coreExec.launch
+    Self.launch -> emitExecutor.trigger,emit -> unwrapExecutor.option,value -> generalExecOnce.executor
+    Self.launch -------------------------------------------------------------> generalExecOnce.launch
 
-    coreExec.started ----> Self.started
-    coreExec.finished ---> Self.finished
-    coreExec.completed --> Self.completed
-    coreExec.failed -----> Self.failed
-    coreExec.error ------> Self.error
-    coreExec.exit -------> Self.exit
+    generalExecOnce.started ----> Self.started
+    generalExecOnce.finished ---> Self.finished
+    generalExecOnce.completed --> Self.completed
+    generalExecOnce.failed -----> Self.failed
+    generalExecOnce.error ------> Self.error
+    generalExecOnce.exit -------> Self.exit
 }
 
-treatment spawn(command: Command, environment: Option<Environment> = _)
+treatment spawnOnce(command: Command, environment: Option<Environment> = _)
   input  launch:    Block<void>
   input  stdin:     Stream<byte>
   output stdout:    Stream<byte>
@@ -47,19 +47,19 @@ treatment spawn(command: Command, environment: Option<Environment> = _)
     emitExecutor: emit<Option<Executor>>(value = |local_executor())
     unwrapExecutor: unwrap<Executor>()
 
-    coreSpawn(command = command, environment = environment)
+    generalSpawnOnce(command = command, environment = environment)
 
-    Self.launch -> emitExecutor.trigger,emit -> unwrapExecutor.option,value -> coreSpawn.executor
-    Self.launch -------------------------------------------------------------> coreSpawn.launch
+    Self.launch -> emitExecutor.trigger,emit -> unwrapExecutor.option,value -> generalSpawnOnce.executor
+    Self.launch -------------------------------------------------------------> generalSpawnOnce.launch
 
-    Self.stdin --------> coreSpawn.stdin
-    coreSpawn.stdout --> Self.stdout
-    coreSpawn.stderr --> Self.stderr
+    Self.stdin --------> generalSpawnOnce.stdin
+    generalSpawnOnce.stdout --> Self.stdout
+    generalSpawnOnce.stderr --> Self.stderr
 
-    coreSpawn.started ----> Self.started
-    coreSpawn.finished ---> Self.finished
-    coreSpawn.completed --> Self.completed
-    coreSpawn.failed -----> Self.failed
-    coreSpawn.error ------> Self.error
-    coreSpawn.exit -------> Self.exit
+    generalSpawnOnce.started ----> Self.started
+    generalSpawnOnce.finished ---> Self.finished
+    generalSpawnOnce.completed --> Self.completed
+    generalSpawnOnce.failed -----> Self.failed
+    generalSpawnOnce.error ------> Self.error
+    generalSpawnOnce.exit -------> Self.exit
 }
