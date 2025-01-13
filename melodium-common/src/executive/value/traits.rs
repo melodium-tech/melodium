@@ -2842,8 +2842,8 @@ impl core::fmt::Display for Value {
             Value::F64(v) => write!(f, "{}", v),
             Value::Bool(v) => write!(f, "{}", v),
             Value::Byte(v) => write!(f, "0x{}", hex::encode([*v])),
-            Value::Char(v) => write!(f, "'{}'", v),
-            Value::String(v) => write!(f, "\"{}\"", v.replace('"', "\\\"")),
+            Value::Char(v) => write!(f, "'{}'", escape8259::escape(v.to_string())),
+            Value::String(v) => write!(f, "\"{}\"", escape8259::escape(v)),
             Value::Option(v) => {
                 if let Some(v) = v {
                     write!(f, "{v}")

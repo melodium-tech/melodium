@@ -69,10 +69,13 @@ impl Loader {
      * This function _does not_ load any package content on its own, see [Self::load], [Self::load_all] or the functions of [LoaderTrait]
      * to get elements required loaded.
      */
-    pub fn load_package(&self, requirement: &PackageRequirement) -> LoadingResult<()> {
+    pub fn load_package(
+        &self,
+        requirement: &PackageRequirement,
+    ) -> LoadingResult<Arc<dyn PackageInfo>> {
         self.package_manager
             .get_package(requirement)
-            .and(LoadingResult::new_success(()))
+            .and_then(|pkg| LoadingResult::new_success(Arc::clone(&pkg) as Arc<dyn PackageInfo>))
     }
 
     /**

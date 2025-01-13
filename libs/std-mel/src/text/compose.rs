@@ -38,10 +38,14 @@ pub async fn rescale(delimiter: string) {
         for split in splits {
             previous.push_str(split);
             if previous.ends_with(&delimiter) {
-                check!('main, scaled.send_one(previous.into()).await);
+                let sendable = previous;
                 previous = String::new();
+                check!('main, scaled.send_one(sendable.into()).await);
             }
         }
+    }
+    if !previous.is_empty() {
+        let _ = scaled.send_one(previous.into()).await;
     }
 }
 

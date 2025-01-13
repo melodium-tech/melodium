@@ -118,20 +118,21 @@ impl Value {
             return ScriptResult::new_failure(ScriptError::invalid_string(147, s.clone()));
         }
 
-        let string = string
-            .unwrap()
-            .replace(r#"\""#, r#"""#)
-            .replace(r#"\\"#, r#"\"#);
-
-        ScriptResult::new_success(ValueContent::String(string))
+        match escape8259::unescape(string.unwrap()) {
+            Ok(string) => ScriptResult::new_success(ValueContent::String(string)),
+            Err(_err) => ScriptResult::new_failure(ScriptError::invalid_string(185, s.clone())),
+        }
     }
 
     fn parse_character(c: &PositionnedString) -> ScriptResult<ValueContent> {
         if let Some(character) = c.string.strip_prefix('\'') {
             if let Some(character) = character.strip_suffix('\'') {
-                ScriptResult::new_success(ValueContent::Character(
-                    character.chars().next().unwrap(),
-                ))
+                match escape8259::unescape(character) {
+                    Ok(char) if char.len() == 1 => ScriptResult::new_success(
+                        ValueContent::Character(char.chars().next().unwrap()),
+                    ),
+                    _ => ScriptResult::new_failure(ScriptError::invalid_character(186, c.clone())),
+                }
             } else {
                 ScriptResult::new_failure(ScriptError::invalid_character(148, c.clone()))
             }

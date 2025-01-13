@@ -28,7 +28,7 @@ treatment logDebug[logger: Logger](label: string = "debug")
 }
 
 treatment logDebugs[logger: Logger](label: string = "debug")
-  input message: Block<string>
+  input messages: Stream<string>
 {
     logStream[logger=logger](level = |debug(), label = label)
 
@@ -69,7 +69,7 @@ treatment logError[logger: Logger](label: string = "error")
 }
 
 treatment logErrors[logger: Logger](label: string = "error")
-  input message: Block<string>
+  input messages: Stream<string>
 {
     logStream[logger=logger](level = |error(), label = label)
 
@@ -110,7 +110,7 @@ treatment logInfo[logger: Logger](label: string = "info")
 }
 
 treatment logInfos[logger: Logger](label: string = "info")
-  input message: Block<string>
+  input messages: Stream<string>
 {
     logStream[logger=logger](level = |info(), label = label)
 
@@ -151,7 +151,7 @@ treatment logTrace[logger: Logger](label: string = "trace")
 }
 
 treatment logTraces[logger: Logger](label: string = "trace")
-  input message: Block<string>
+  input messages: Stream<string>
 {
     logStream[logger=logger](level = |trace(), label = label)
 
@@ -192,7 +192,7 @@ treatment logWarning[logger: Logger](label: string = "warning")
 }
 
 treatment logWarnings[logger: Logger](label: string = "warning")
-  input message: Block<string>
+  input messages: Stream<string>
 {
     logStream[logger=logger](level = |warning(), label = label)
 

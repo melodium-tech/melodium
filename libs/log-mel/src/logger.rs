@@ -175,7 +175,7 @@ pub async fn log_data_stream(level: Level, label: string) {
 
 #[mel_treatment(
     model logger Logger
-    input display Stream<D>
+    input display Block<D>
     generic D (Display)
 )]
 pub async fn log_data_block(level: Level, label: string) {

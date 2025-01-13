@@ -325,7 +325,7 @@ fn check(args: Check) {
 }
 
 fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
-    let mut config = LoadingConfig {
+    let config = LoadingConfig {
         core_packages: Vec::new(),
         search_locations: args
             .path
@@ -335,18 +335,7 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
         raw_elements: Vec::new(),
     };
 
-    let file = if let Some(file) = args.file.as_ref().map(|f| PathBuf::from(f)) {
-        if file.is_file() {
-            Some(file)
-        } else if file.is_dir() {
-            config.search_locations.push(file);
-            None
-        } else {
-            None
-        }
-    } else {
-        None
-    };
+    let file = args.file.as_ref().map(|f| PathBuf::from(f));
 
     let result = match (
         args.prog_cmd.as_ref().filter(|arg| !arg.starts_with('-')),

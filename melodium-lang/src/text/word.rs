@@ -599,7 +599,7 @@ fn manage_string(text: &str) -> KindCheck {
 
 fn manage_char(text: &str) -> KindCheck {
     lazy_static! {
-        static ref REGEX_CHAR: Regex = Regex::new(r##"^'(?:.)'"##).unwrap();
+        static ref REGEX_CHAR: Regex = Regex::new(r##"^'(?:[^'\]|\.)+'"##).unwrap();
     }
     if text.starts_with('\'') {
         let mat = REGEX_CHAR.find(text);

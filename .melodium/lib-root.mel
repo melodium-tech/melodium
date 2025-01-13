@@ -11,6 +11,7 @@ use log/logger::Logger
 use log/logger::logs
 use log/console::console
 use log/log::logInfoMessage
+use log/log::logErrorMessage
 use root/builders::step
 
 treatment main()
@@ -24,9 +25,10 @@ treatment main()
 
     allLogs: logs[logger=logger]()
     logConsole: console(timestamp=true)
-    logs.all -> logConsole.logs
+    allLogs.all -> logConsole.logs
 
-    step[logger=logger](commands=[
+    step[logger=logger](name="build",
+    commands=[
         |command("rustc", ["--version"]),
         |command("cargo", ["--version"]),
         |command("cargo", ["build", "--package", "melodium"])
@@ -36,6 +38,6 @@ treatment main()
     logErrorMessage[logger=logger](label="failure", message="Compilation failed")
 
     startup.trigger -> step.trigger,completed -> logInfoMessage.trigger
-                       step.failure -----------> logErrorMessage.trigger
+                       step.failed -----------> logErrorMessage.trigger
 }
 

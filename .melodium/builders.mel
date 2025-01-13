@@ -18,10 +18,16 @@ use process/exec::spawn
 use std/flow::emit
 use std/flow::stream
 use std/flow/vec::flatten
-use std/ops/option::map
-use std/ops/option::reduce
+use std/ops/option/block::map
+use std/ops/option/block::reduce
 use std/text/convert/string::fromUtf8
 use std/text/compose::rescale
+use std/text/compose::trim
+use std/data::Map
+use log/log::logInfos
+use log/log::logErrors
+use log/log::logError
+use log/logger::Logger
 
 treatment step[logger: Logger](var name: string, var environment_variables: Option<Map> = _, var commands: Vec<Command>)
   input executor: Block<Executor>
@@ -72,6 +78,7 @@ treatment ioToString()
 {
     fromUtf8()
     rescale(delimiter="\n")
+    trim()
 
-    Self.stdio -> fromUtf8.encoded,text -> rescale.unscaled,scaled -> Self.lines
+    Self.stdio -> fromUtf8.encoded,text -> rescale.unscaled,scaled -> trim.text,trimmed -> Self.lines
 }

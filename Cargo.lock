@@ -1322,6 +1322,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "escape8259"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5692dd7b5a1978a5aeb0ce83b7655c58ca8efdcb79d21036ea249da95afec2c6"
+
+[[package]]
 name = "etcetera"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2571,6 +2577,7 @@ dependencies = [
  "async-trait",
  "downcast-rs",
  "erased-serde",
+ "escape8259",
  "hex",
  "semver 1.0.24",
  "serde",
@@ -2630,6 +2637,7 @@ name = "melodium-lang"
 version = "0.9.0-pre.1"
 dependencies = [
  "convert_case",
+ "escape8259",
  "hex",
  "itertools",
  "lazy_static",
