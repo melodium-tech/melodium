@@ -1,5 +1,5 @@
 use crate::filesystem::*;
-use async_std::fs::{self, OpenOptions};
+use async_std::fs::{self, DirBuilder, OpenOptions};
 use async_std::stream::StreamExt;
 use async_trait::async_trait;
 use async_walkdir::{Filtering, WalkDir};
@@ -7,6 +7,7 @@ use common::executive::{Input, Output};
 use futures::{AsyncReadExt, AsyncWriteExt};
 use melodium_core::*;
 use melodium_macro::{check, mel_function};
+use std::path::{Path, PathBuf};
 use std::{fmt::Debug, sync::Arc};
 
 #[derive(Debug)]
@@ -73,6 +74,16 @@ impl FileSystemEngine for LocalFileSystemEngine {
         finished: &Box<dyn Output>,
         errors: &Box<dyn Output>,
     ) {
+        let path = PathBuf::from(path);
+        if let Err(err) = DirBuilder::new()
+            .recursive(true)
+            .create(path.parent().unwrap_or(Path::new("")))
+            .await
+        {
+            let _ = failed.send_one(().into()).await;
+            let _ = errors.send_one(err.to_string().into()).await;
+            let _ = finished.send_one(().into()).await;
+        }
         let file = OpenOptions::new()
             .write(true)
             .append(append)

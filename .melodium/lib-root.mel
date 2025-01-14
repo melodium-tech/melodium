@@ -7,27 +7,53 @@ use process/exec::Executor
 use process/local::|local_executor
 use process/command::|command
 use process/command::|raw_commands
+use fs/filesystem::FileSystem
+use fs/local::|local_filesystem
+use fs/local::writeLocal
 use log/logger::Logger
 use log/logger::logs
 use log/console::console
+use log/log::logErrors
 use log/log::logInfoMessage
 use log/log::logErrorMessage
-use root/builders::step
+use root/build::buildMelodium
 
 treatment main()
   model logger: Logger()
 {
-
     startup()
+
     localExec: emit<Option<Executor>>(value=|local_executor())
-    unwrapExec: unwrap<Executor>()
-    startup.trigger -> localExec.trigger,emit -> unwrapExec.option,value -> step.executor
+    executor: unwrap<Executor>()
+    startup.trigger -> localExec.trigger,emit -> executor.option//,value -> step.executor
+
+    localFileSystem: emit<Option<FileSystem>>(value=|local_filesystem())
+    filesystem: unwrap<FileSystem>()
+    startup.trigger -> localFileSystem.trigger,emit -> filesystem.option//,value -> step.executor
 
     allLogs: logs[logger=logger]()
     logConsole: console(timestamp=true)
     allLogs.all -> logConsole.logs
 
-    step[logger=logger](name="build",
+    buildLinuxAmd64Gnu: buildMelodium[logger=logger](target="x86_64-unknown-linux-gnu")
+    writeAmd64Gnu: writeLocal(path="/tmp/melodium/x86_64-unknown-linux-gnu-melodium")
+    writeAmd64GnuErrs: logErrors[logger=logger](label="file")
+
+    executor.value ---> buildLinuxAmd64Gnu.executor
+    filesystem.value -> buildLinuxAmd64Gnu.filesystem
+    startup.trigger --> buildLinuxAmd64Gnu.trigger
+    buildLinuxAmd64Gnu.file -> writeAmd64Gnu.data,errors -> writeAmd64GnuErrs.messages
+
+    buildLinuxAmd64Musl: buildMelodium[logger=logger](target="x86_64-unknown-linux-musl")
+    writeAmd64Musl: writeLocal(path="/tmp/melodium/x86_64-unknown-linux-musl-melodium")
+    writeAmd64MuslErrs: logErrors[logger=logger](label="file")
+
+    executor.value ---> buildLinuxAmd64Musl.executor
+    filesystem.value -> buildLinuxAmd64Musl.filesystem
+    startup.trigger --> buildLinuxAmd64Musl.trigger
+    buildLinuxAmd64Musl.file -> writeAmd64Musl.data,errors -> writeAmd64MuslErrs.messages
+
+    /*step[logger=logger](name="build",
     commands=[
         |command("rustc", ["--version"]),
         |command("cargo", ["--version"]),
@@ -38,6 +64,6 @@ treatment main()
     logErrorMessage[logger=logger](label="failure", message="Compilation failed")
 
     startup.trigger -> step.trigger,completed -> logInfoMessage.trigger
-                       step.failed -----------> logErrorMessage.trigger
+                       step.failed -----------> logErrorMessage.trigger*/
 }
 

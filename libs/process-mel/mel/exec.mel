@@ -1,4 +1,5 @@
 use root/exec::Executor
+use root/environment::Environment
 use root/command::Command
 use root/exec::execOne
 use root/exec::spawnOne

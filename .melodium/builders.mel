@@ -16,6 +16,7 @@ use process/environment::mapEnvironment
 use process/exec::Executor
 use process/exec::spawn
 use std/flow::emit
+use std/flow::one
 use std/flow::stream
 use std/flow/vec::flatten
 use std/ops/option/block::map
@@ -28,8 +29,69 @@ use log/log::logInfos
 use log/log::logErrors
 use log/log::logError
 use log/logger::Logger
+use fs/file::read
+use fs/filesystem::FileSystem
 
-treatment step[logger: Logger](var name: string, var environment_variables: Option<Map> = _, var commands: Vec<Command>)
+treatment stepFileResult[logger: Logger](var label: string, var environment_variables: Option<Map> = _, var commands: Vec<Command>, var file: string)
+  input executor: Block<Executor>
+  input filesystem: Block<FileSystem>
+  input trigger: Block<void>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+  output data: Stream<byte>
+{
+    step[logger=logger](label=label, environment_variables=environment_variables, commands=commands)
+
+    Self.executor -> step.executor
+    Self.trigger --> step.trigger,started -> Self.started
+
+    readWithLog[logger=logger](label=label, file=file)
+
+    Self.filesystem -> readWithLog.filesystem
+    step.completed --> readWithLog.trigger
+
+    oneFailed: one<void>()
+    step.failed --------> oneFailed.a,value -> Self.failed
+    readWithLog.failed -> oneFailed.b
+
+    oneFinished: one<void>()
+    step.failed ----------> oneFinished.a,value -> Self.finished
+    readWithLog.finished -> oneFinished.b
+
+    readWithLog.completed -> Self.completed
+    readWithLog.data ------> Self.data
+}
+
+treatment readWithLog[logger: Logger](var label: string, var file: string)
+  input filesystem: Block<FileSystem>
+  input trigger: Block<void>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+  output data: Stream<byte>
+{
+    emitFilename: emit<string>(value=file)
+    read()
+
+    Self.filesystem ---------------------------> read.filesystem
+    Self.trigger -> emitFilename.trigger,emit -> read.path
+
+    logErrs: logErrors[logger=logger](label=label)
+
+    read.errors -> logErrs.messages
+
+    read.reached ---> Self.started
+    read.finished --> Self.finished
+    read.failed ----> Self.failed
+    read.completed -> Self.completed
+
+    read.data ------> Self.data
+}
+
+treatment step[logger: Logger](var label: string, var environment_variables: Option<Map> = _, var commands: Vec<Command>)
   input executor: Block<Executor>
   input trigger: Block<void>
   output started: Block<void>
@@ -57,14 +119,14 @@ treatment step[logger: Logger](var name: string, var environment_variables: Opti
     reduceEnv.option ------> spawn.environment
     flattenCommands.value -> spawn.commands
 
-    logSpawnListErr: logError[logger=logger](label=name)
-    logSpawnListErrsString: ioToString()
-    logSpawnListErrs: logErrors[logger=logger](label=name)
-    logSpawnListInfosString: ioToString()
-    logSpawnListInfos: logInfos[logger=logger](label=name)
-    spawn.error --> logSpawnListErr.message
-    spawn.stderr -> logSpawnListErrsString.stdio,lines -> logSpawnListErrs.messages
-    spawn.stdout -> logSpawnListInfosString.stdio,lines -> logSpawnListInfos.messages
+    logSpawnErr: logError[logger=logger](label=label)
+    logSpawnErrsString: ioToString()
+    logSpawnErrs: logErrors[logger=logger](label=label)
+    logSpawnInfosString: ioToString()
+    logSpawnInfos: logInfos[logger=logger](label=label)
+    spawn.error --> logSpawnErr.message
+    spawn.stderr -> logSpawnErrsString.stdio,lines -> logSpawnErrs.messages
+    spawn.stdout -> logSpawnInfosString.stdio,lines -> logSpawnInfos.messages
 
     spawn.started ---> Self.started
     spawn.finished --> Self.finished
@@ -82,3 +144,4 @@ treatment ioToString()
 
     Self.stdio -> fromUtf8.encoded,text -> rescale.unscaled,scaled -> trimEnd.text,trimmed -> Self.lines
 }
+

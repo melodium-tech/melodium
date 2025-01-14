@@ -3,6 +3,35 @@ pub mod char;
 use melodium_core::*;
 use melodium_macro::{check, mel_function, mel_treatment};
 
+#[mel_function]
+pub fn contains(text: string, substring: string) -> bool {
+    text.contains(&substring)
+}
+
+#[mel_treatment(
+    input text Stream<string>
+    output contains Stream<bool>
+)]
+pub async fn contains(substring: string) {
+    while let Ok(values) = text
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
+        check!(
+            contains
+                .send_many(
+                    values
+                        .iter()
+                        .map(|val| val.contains(&substring))
+                        .collect::<VecDeque<bool>>()
+                        .into()
+                )
+                .await
+        )
+    }
+}
+
 /// Tells if strings exactly matches a pattern.
 #[mel_treatment(
     input text Stream<string>

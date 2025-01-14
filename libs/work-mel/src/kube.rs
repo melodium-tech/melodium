@@ -1,5 +1,5 @@
 use async_std::{
-    fs::{self, OpenOptions},
+    fs::{self, DirBuilder, OpenOptions},
     io::{ReadExt, WriteExt},
     path::{Path, PathBuf},
     stream::StreamExt,
@@ -569,6 +569,16 @@ impl FileSystemEngine for KubeFileSystem {
                 return;
             }
         };
+
+        if let Err(err) = DirBuilder::new()
+            .recursive(true)
+            .create(path.parent().unwrap_or(Path::new("")))
+            .await
+        {
+            let _ = failure.send_one(().into()).await;
+            let _ = errors.send_one(err.to_string().into()).await;
+            let _ = finished.send_one(().into()).await;
+        }
 
         let file = OpenOptions::new()
             .write(true)
