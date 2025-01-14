@@ -143,6 +143,65 @@ pub fn trim(text: string) -> string {
     text.trim().to_string()
 }
 
+/// Trim end of streamed strings.
+///
+/// Stream strings with trailing whitespace removed.
+/// _Whitespace_ is defined according to the terms of the Unicode Derived Core Property `White_Space`, which includes newlines.
+#[mel_treatment(
+    input text Stream<string>
+    output trimmed Stream<string>
+)]
+pub async fn trim_end() {
+    while let Ok(mut text) = text
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
+        text.iter_mut().for_each(|t| *t = t.trim_end().to_string());
+
+        check!(trimmed.send_many(text.into()).await);
+    }
+}
+
+/// Trim end of string.
+///
+/// Return string with trailing whitespace removed.
+/// _Whitespace_ is defined according to the terms of the Unicode Derived Core Property `White_Space`, which includes newlines.
+#[mel_function]
+pub fn trim_end(text: string) -> string {
+    text.trim_end().to_string()
+}
+
+/// Trim start of streamed strings.
+///
+/// Stream strings with leading whitespace removed.
+/// _Whitespace_ is defined according to the terms of the Unicode Derived Core Property `White_Space`, which includes newlines.
+#[mel_treatment(
+    input text Stream<string>
+    output trimmed Stream<string>
+)]
+pub async fn trim_start() {
+    while let Ok(mut text) = text
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
+        text.iter_mut()
+            .for_each(|t| *t = t.trim_start().to_string());
+
+        check!(trimmed.send_many(text.into()).await);
+    }
+}
+
+/// Trim start of string.
+///
+/// Return string with trailing whitespace removed.
+/// _Whitespace_ is defined according to the terms of the Unicode Derived Core Property `White_Space`, which includes newlines.
+#[mel_function]
+pub fn trim_start(text: string) -> string {
+    text.trim_start().to_string()
+}
+
 /// Format string.
 ///
 /// Return string formatted with given entries.

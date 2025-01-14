@@ -22,7 +22,7 @@ use std/ops/option/block::map
 use std/ops/option/block::reduce
 use std/text/convert/string::fromUtf8
 use std/text/compose::rescale
-use std/text/compose::trim
+use std/text/compose::trimEnd
 use std/data::Map
 use log/log::logInfos
 use log/log::logErrors
@@ -78,7 +78,7 @@ treatment ioToString()
 {
     fromUtf8()
     rescale(delimiter="\n")
-    trim()
+    trimEnd()
 
-    Self.stdio -> fromUtf8.encoded,text -> rescale.unscaled,scaled -> trim.text,trimmed -> Self.lines
+    Self.stdio -> fromUtf8.encoded,text -> rescale.unscaled,scaled -> trimEnd.text,trimmed -> Self.lines
 }
