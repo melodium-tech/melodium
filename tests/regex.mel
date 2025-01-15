@@ -19,7 +19,7 @@ treatment main(text: string, file: string) {
     startup()
     emit<string>(value=text)
     stream<string>()
-    capture(regex="(?<number>\d+)")
+    capture(regex="(?<number>\\d+)")
     unwrapMap: unwrap<Map>()
     get<string>(key="number")
     unwrapString: unwrap<string>()

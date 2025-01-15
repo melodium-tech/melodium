@@ -12,12 +12,12 @@ use std/flow::emit
 use std/data::|map
 use fs/local::writeLocal
 use process/command::|command
-use process/local::spawn
+use process/local::spawnOnce
 use std/ops/option::|wrap
 
 treatment main(const work: Option<string> = _)
 {
-    spawn(command=|command("sed", ["-e", "s/foo/bar/g"]))
+    spawn: spawnOnce(command=|command("sed", ["-e", "s/foo/bar/g"]))
     startup()
     
     startup.trigger ------> spawn.launch

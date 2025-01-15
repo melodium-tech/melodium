@@ -48,7 +48,7 @@ treatment write_file()
   Self.trigger -> emit.trigger
 
   emit_filename: emit<string>(value="something.txt")
-  emit_filesystem: emit<Option<FileSystem>>(value=|local_filesystem())
+  emit_filesystem: emit<Option<FileSystem>>(value=|local_filesystem(_))
   unwrap_filesystem: unwrap<FileSystem>()
   Self.trigger --------> emit_filename.trigger
   Self.trigger -> emit_filesystem.trigger

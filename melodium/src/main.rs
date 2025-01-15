@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::{collections::HashMap, sync::RwLock};
 use std::{net::IpAddr, path::PathBuf};
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[clap(author, version, about)]
 struct Cli {
     #[clap(value_parser)]
@@ -29,7 +29,7 @@ struct Cli {
     command: Option<Commands>,
 }
 
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Run given program, with optionnal arguments
 struct Run {
     #[clap(long)]
@@ -50,7 +50,7 @@ struct Run {
     prog_args: Vec<String>,
 }
 
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Check given program
 struct Check {
     #[clap(long)]
@@ -67,7 +67,7 @@ struct Check {
     prog_cmd: Option<String>,
 }
 
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Give information about program or package
 struct Info {
     #[clap(long)]
@@ -79,7 +79,7 @@ struct Info {
 }
 
 #[cfg(feature = "fs")]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Creates a new program
 struct New {
     #[clap(short, long, allow_hyphen_values = true, default_value = "0.1.0")]
@@ -94,12 +94,12 @@ struct New {
 }
 
 #[cfg(not(feature = "fs"))]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// [Not available in this release] Creates a new program
 struct New {}
 
 #[cfg(feature = "distribution")]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Makes engine available for distribution
 struct Dist {
     #[clap(short, long)]
@@ -132,11 +132,11 @@ struct Dist {
 }
 
 #[cfg(not(feature = "distribution"))]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// [Not available in this release] Makes engine available for distribution
 struct Dist {}
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 /// Manage `.jeu` package files
 
 enum Jeu {
@@ -145,7 +145,7 @@ enum Jeu {
 }
 
 #[cfg(all(feature = "jeu", feature = "fs"))]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Build a `.jeu` file from package on located in input directory
 struct JeuBuild {
     #[clap(value_parser)]
@@ -157,7 +157,7 @@ struct JeuBuild {
 }
 
 #[cfg(all(feature = "jeu", feature = "fs"))]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Extract a `.jeu` file into designated directory
 struct JeuExtract {
     #[clap(value_parser)]
@@ -169,17 +169,17 @@ struct JeuExtract {
 }
 
 #[cfg(not(all(feature = "jeu", feature = "fs")))]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// [Not available in this release] Build a `.jeu` file from package on located in input directory
 struct JeuBuild {}
 
 #[cfg(not(all(feature = "jeu", feature = "fs")))]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// [Not available in this release] Extract a `.jeu` file into designated directory
 struct JeuExtract {}
 
 #[cfg(feature = "doc")]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Generates documentation
 struct Doc {
     #[clap(long)]
@@ -200,11 +200,11 @@ struct Doc {
 }
 
 #[cfg(not(feature = "doc"))]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// [Not available in this release] Generates documentation
 struct Doc {}
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 enum Commands {
     Run(Run),
     Check(Check),

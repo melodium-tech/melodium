@@ -165,14 +165,19 @@ impl Loader {
                 .element(self, &identifier_requirement)
                 .and_then(|additions| {
                     self.add_collection(additions);
-                    result.and_degrade_failure(LoadingResult::new_success(
-                        self.collection
-                            .read()
-                            .unwrap()
-                            .get(identifier_requirement)
-                            .unwrap()
-                            .clone(),
-                    ))
+                    if let Some(element) = self
+                        .collection
+                        .read()
+                        .unwrap()
+                        .get(identifier_requirement)
+                        .cloned()
+                    {
+                        result.and_degrade_failure(LoadingResult::new_success(element))
+                    } else {
+                        result.and_degrade_failure(LoadingResult::new_failure(
+                            LoadingError::not_found(249, identifier_requirement.to_string()),
+                        ))
+                    }
                 })
         } else {
             result.and_degrade_failure(LoadingResult::new_failure(LoadingError::no_package(

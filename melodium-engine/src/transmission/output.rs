@@ -115,7 +115,7 @@ impl Output {
                     _ => {
                         let senders = Arc::clone(&self.senders.lock().unwrap());
 
-                        let all_senders_not_full = senders.iter().any(|sender| sender.is_full());
+                        let all_senders_not_full = !senders.iter().any(|sender| sender.is_full());
 
                         if all_senders_not_full {
                             let transmissions = FuturesUnordered::new();
