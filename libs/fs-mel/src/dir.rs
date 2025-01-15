@@ -33,7 +33,25 @@ pub async fn create(recursive: bool) {
     ) {
         filesystem
             .filesystem
-            .create_dir(&path, recursive, &success, &failure, &error)
+            .create_dir(
+                &path,
+                recursive,
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = success.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = failure.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|msg: String| {
+                    Box::pin(async {
+                        let _ = error.send_one(msg.into()).await;
+                    })
+                }),
+            )
             .await
     }
 }
@@ -79,11 +97,27 @@ pub async fn scan(recursive: bool, follow_links: bool) {
                 &path,
                 recursive,
                 follow_links,
-                &entries,
-                &completed,
-                &failed,
-                &finished,
-                &errors,
+                Box::new(|path: String| {
+                    Box::pin(async { entries.send_one(path.into()).await.map_err(|_| ()) })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = completed.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = failed.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = finished.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|msg: String| {
+                    Box::pin(async { errors.send_one(msg.into()).await.map_err(|_| ()) })
+                }),
             )
             .await
     }

@@ -37,7 +37,42 @@ pub async fn read() {
         filesystem
             .filesystem
             .read_file(
-                &path, &data, &reached, &completed, &failed, &finished, &errors,
+                &path,
+                Box::new(|content: VecDeque<u8>| {
+                    Box::pin(async {
+                        data.send_many(TransmissionValue::Byte(content))
+                            .await
+                            .map_err(|_| ())
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = reached.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        reached.close().await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = completed.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = failed.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = finished.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|msg: String| {
+                    Box::pin(async { errors.send_one(msg.into()).await.map_err(|_| ()) })
+                }),
             )
             .await
     }
@@ -83,7 +118,42 @@ pub async fn write(append: bool, create: bool, new: bool) {
         filesystem
             .filesystem
             .write_file(
-                &path, append, create, new, &data, &amount, &completed, &failed, &finished, &errors,
+                &path,
+                append,
+                create,
+                new,
+                Box::new(|| {
+                    Box::pin(async {
+                        data.recv_many()
+                            .await
+                            .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
+                            .map_err(|_| ())
+                    })
+                }),
+                Box::new(|amt: u128| {
+                    Box::pin({
+                        let amount = &amount;
+                        async move { amount.send_one(amt.into()).await.map_err(|_| ()) }
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = completed.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = failed.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = finished.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|msg: String| {
+                    Box::pin(async { errors.send_one(msg.into()).await.map_err(|_| ()) })
+                }),
             )
             .await
     }

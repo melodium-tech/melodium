@@ -7,10 +7,9 @@ use async_std::{
 use async_trait::async_trait;
 use async_walkdir::{Filtering, WalkDir};
 use core::fmt::Debug;
-use fs_mel::filesystem::FileSystemEngine;
+use fs_mel::filesystem::{self, FileSystemEngine};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{api::AttachParams, Api, Client};
-use melodium_core::common::executive::*;
 use melodium_macro::check;
 use process_mel::{command::Command, environment::Environment, exec::*};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
@@ -488,12 +487,13 @@ impl FileSystemEngine for KubeFileSystem {
     async fn read_file(
         &self,
         path: &str,
-        data: &Box<dyn Output>,
-        reached: &Box<dyn Output>,
-        completed: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
-        finished: &Box<dyn Output>,
-        errors: &Box<dyn Output>,
+        data: filesystem::OutDataCall<'async_trait>,
+        reached: filesystem::OnceTriggerCall<'async_trait>,
+        reachedclose: filesystem::OnceTriggerCall<'async_trait>,
+        completed: filesystem::OnceTriggerCall<'async_trait>,
+        failed: filesystem::OnceTriggerCall<'async_trait>,
+        finished: filesystem::OnceTriggerCall<'async_trait>,
+        errors: filesystem::OutMessageCall<'async_trait>,
     ) {
         let path = match self
             .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
@@ -501,9 +501,9 @@ impl FileSystemEngine for KubeFileSystem {
         {
             Ok(path) => path,
             Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = errors.send_one(err.to_string().into()).await;
-                let _ = finished.send_one(().into()).await;
+                failed().await;
+                let _ = errors(err.to_string()).await;
+                finished().await;
                 return;
             }
         };
@@ -511,38 +511,38 @@ impl FileSystemEngine for KubeFileSystem {
         let file = OpenOptions::new().read(true).open(path).await;
         match file {
             Ok(mut file) => {
-                let _ = reached.send_one(().into()).await;
-                reached.close().await;
+                reached().await;
+                reachedclose().await;
                 let mut vec = vec![0; 2usize.pow(20)];
                 let mut fail = false;
                 loop {
                     match file.read(&mut vec).await {
                         Ok(n) if n > 0 => {
                             vec.truncate(n);
-                            check!(data.send_many(TransmissionValue::Byte(vec.into())).await);
+                            check!(data(vec.into()).await);
                             vec = vec![0; 2usize.pow(20)];
                         }
                         Ok(_) => {
                             break;
                         }
                         Err(err) => {
-                            let _ = failure.send_one(().into()).await;
-                            let _ = errors.send_one(err.to_string().into()).await;
+                            failed().await;
+                            let _ = errors(err.to_string()).await;
                             fail = true;
                             break;
                         }
                     }
                 }
                 if !fail {
-                    let _ = completed.send_one(().into()).await;
+                    completed().await;
                 }
             }
             Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = errors.send_one(err.to_string().into()).await;
+                failed().await;
+                let _ = errors(err.to_string()).await;
             }
         }
-        let _ = finished.send_one(().into()).await;
+        finished().await;
     }
     async fn write_file(
         &self,
@@ -550,12 +550,12 @@ impl FileSystemEngine for KubeFileSystem {
         append: bool,
         create: bool,
         new: bool,
-        data: &Box<dyn Input>,
-        amount: &Box<dyn Output>,
-        completed: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
-        finished: &Box<dyn Output>,
-        errors: &Box<dyn Output>,
+        data: filesystem::InDataCall<'async_trait>,
+        amount: filesystem::OutU128Call<'async_trait>,
+        completed: filesystem::OnceTriggerCall<'async_trait>,
+        failed: filesystem::OnceTriggerCall<'async_trait>,
+        finished: filesystem::OnceTriggerCall<'async_trait>,
+        errors: filesystem::OutMessageCall<'async_trait>,
     ) {
         let path = match self
             .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
@@ -563,9 +563,9 @@ impl FileSystemEngine for KubeFileSystem {
         {
             Ok(path) => path,
             Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = errors.send_one(err.to_string().into()).await;
-                let _ = finished.send_one(().into()).await;
+                failed().await;
+                let _ = errors(err.to_string()).await;
+                finished().await;
                 return;
             }
         };
@@ -575,58 +575,54 @@ impl FileSystemEngine for KubeFileSystem {
             .create(path.parent().unwrap_or(Path::new("")))
             .await
         {
-            let _ = failure.send_one(().into()).await;
-            let _ = errors.send_one(err.to_string().into()).await;
-            let _ = finished.send_one(().into()).await;
-        }
-
-        let file = OpenOptions::new()
-            .write(true)
-            .append(append)
-            .create(create)
-            .create_new(new)
-            .open(path)
-            .await;
-        match file {
-            Ok(mut file) => {
-                let mut written_amount = 0u128;
-                let mut fail = false;
-                while let Ok(data) = data
-                    .recv_many()
-                    .await
-                    .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
-                {
-                    match file.write_all(&data).await {
-                        Ok(_) => {
-                            written_amount += data.len() as u128;
-                            let _ = amount.send_one(written_amount.into()).await;
-                        }
-                        Err(err) => {
-                            let _ = failure.send_one(().into()).await;
-                            let _ = errors.send_one(err.to_string().into()).await;
-                            fail = true;
-                            break;
+            failed().await;
+            let _ = errors(err.to_string()).await;
+            finished().await;
+        } else {
+            let file = OpenOptions::new()
+                .write(true)
+                .append(append)
+                .create(create)
+                .create_new(new)
+                .open(path)
+                .await;
+            match file {
+                Ok(mut file) => {
+                    let mut written_amount = 0u128;
+                    let mut fail = false;
+                    while let Ok(data) = data().await {
+                        match file.write_all(&data).await {
+                            Ok(_) => {
+                                written_amount += data.len() as u128;
+                                let _ = amount(written_amount).await;
+                            }
+                            Err(err) => {
+                                failed().await;
+                                let _ = errors(err.to_string()).await;
+                                fail = true;
+                                break;
+                            }
                         }
                     }
+                    if !fail {
+                        completed().await;
+                    }
                 }
-                if !fail {
-                    let _ = completed.send_one(().into()).await;
+                Err(err) => {
+                    failed().await;
+                    let _ = errors(err.to_string()).await;
                 }
             }
-            Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = errors.send_one(err.to_string().into()).await;
-            }
+            finished().await;
         }
-        let _ = finished.send_one(().into()).await;
     }
     async fn create_dir(
         &self,
         path: &str,
         recursive: bool,
-        success: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
-        error: &Box<dyn Output>,
+        success: filesystem::OnceTriggerCall<'async_trait>,
+        failed: filesystem::OnceTriggerCall<'async_trait>,
+        error: filesystem::OnceMessageCall<'async_trait>,
     ) {
         let path = match self
             .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
@@ -634,8 +630,8 @@ impl FileSystemEngine for KubeFileSystem {
         {
             Ok(path) => path,
             Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                failed().await;
+                error(err.to_string()).await;
                 return;
             }
         };
@@ -646,11 +642,11 @@ impl FileSystemEngine for KubeFileSystem {
             fs::create_dir(path).await
         } {
             Ok(()) => {
-                let _ = success.send_one(().into()).await;
+                success().await;
             }
             Err(err) => {
-                let _ = error.send_one(err.to_string().into()).await;
-                let _ = failure.send_one(().into()).await;
+                error(err.to_string()).await;
+                failed().await;
             }
         }
     }
@@ -659,11 +655,11 @@ impl FileSystemEngine for KubeFileSystem {
         path: &str,
         recursive: bool,
         follow_links: bool,
-        entries: &Box<dyn Output>,
-        completed: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
-        finished: &Box<dyn Output>,
-        errors: &Box<dyn Output>,
+        entries: filesystem::OutMessageCall<'async_trait>,
+        completed: filesystem::OnceTriggerCall<'async_trait>,
+        failed: filesystem::OnceTriggerCall<'async_trait>,
+        finished: filesystem::OnceTriggerCall<'async_trait>,
+        errors: filesystem::OutMessageCall<'async_trait>,
     ) {
         let path = match self
             .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
@@ -671,8 +667,8 @@ impl FileSystemEngine for KubeFileSystem {
         {
             Ok(path) => path,
             Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = errors.send_one(err.to_string().into()).await;
+                failed().await;
+                let _ = errors(err.to_string()).await;
                 return;
             }
         };
@@ -703,22 +699,18 @@ impl FileSystemEngine for KubeFileSystem {
         let mut success = true;
         while let Some(entry) = dir_entries.next().await {
             match entry {
-                Ok(entry) => check!(
-                    entries
-                        .send_one(entry.path().to_string_lossy().to_string().into())
-                        .await
-                ),
+                Ok(entry) => check!(entries(entry.path().to_string_lossy().to_string()).await),
                 Err(err) => {
                     success = false;
-                    let _ = errors.send_one(err.to_string().into()).await;
+                    let _ = errors(err.to_string()).await;
                 }
             }
         }
-        let _ = finished.send_one(().into()).await;
+        finished().await;
         if success {
-            let _ = completed.send_one(().into()).await;
+            completed().await;
         } else {
-            let _ = failure.send_one(().into()).await;
+            failed().await;
         }
     }
 }
