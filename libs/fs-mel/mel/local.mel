@@ -32,7 +32,7 @@ treatment writeLocal(path: string, append: bool = false, create: bool = true, ne
 {
     triggerData: trigger<byte>()
     emitFilename: emit<string>(value=path)
-    emitFileSystem: emit<Option<FileSystem>>(value=|local_filesystem())
+    emitFileSystem: emit<Option<FileSystem>>(value=|local_filesystem(_))
     unwrapFileSystem: unwrap<FileSystem>()
 
     write(append=append, create=create, new=new)
@@ -102,7 +102,7 @@ treatment readLocal(path: string)
   output errors: Stream<string>
 {
     emitFilename: emit<string>(value=path)
-    emitFileSystem: emit<Option<FileSystem>>(value=|local_filesystem())
+    emitFileSystem: emit<Option<FileSystem>>(value=|local_filesystem(_))
     unwrapFileSystem: unwrap<FileSystem>()
 
     read()
@@ -140,7 +140,7 @@ treatment readTextLocal(path: string)
   output errors: Stream<string>
 {
     emitFilename: emit<string>(value=path)
-    emitFileSystem: emit<Option<FileSystem>>(value=|local_filesystem())
+    emitFileSystem: emit<Option<FileSystem>>(value=|local_filesystem(_))
     unwrapFileSystem: unwrap<FileSystem>()
 
     read()

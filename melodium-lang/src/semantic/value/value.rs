@@ -10,6 +10,7 @@ use crate::path::Path;
 use crate::text::PositionnedString;
 use crate::text::Value as TextValue;
 use crate::ScriptResult;
+use descape::UnescapeExt;
 use melodium_common::descriptor::Collection;
 use melodium_common::descriptor::DescribedType;
 use melodium_common::descriptor::VersionReq;
@@ -118,8 +119,8 @@ impl Value {
             return ScriptResult::new_failure(ScriptError::invalid_string(147, s.clone()));
         }
 
-        match escape8259::unescape(string.unwrap()) {
-            Ok(string) => ScriptResult::new_success(ValueContent::String(string)),
+        match string.unwrap().to_unescaped() {
+            Ok(string) => ScriptResult::new_success(ValueContent::String(string.to_string())),
             Err(_err) => ScriptResult::new_failure(ScriptError::invalid_string(185, s.clone())),
         }
     }
@@ -127,7 +128,7 @@ impl Value {
     fn parse_character(c: &PositionnedString) -> ScriptResult<ValueContent> {
         if let Some(character) = c.string.strip_prefix('\'') {
             if let Some(character) = character.strip_suffix('\'') {
-                match escape8259::unescape(character) {
+                match character.to_unescaped() {
                     Ok(char) if char.len() == 1 => ScriptResult::new_success(
                         ValueContent::Character(char.chars().next().unwrap()),
                     ),
