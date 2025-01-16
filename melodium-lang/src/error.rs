@@ -76,6 +76,10 @@ pub enum ScriptErrorKind {
     DefaultForbidden {
         text: PositionnedString,
     },
+    DefaultForbiddenForGenerics {
+        text: PositionnedString,
+        generic: String,
+    },
     ConstDeclarationOnly {
         text: PositionnedString,
     },
@@ -214,6 +218,7 @@ impl Display for ScriptErrorKind {
             ScriptErrorKind::MissingType { text } => write!(f, "at line {} position {} type for '{}' is missing", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::MissingValue { text } => write!(f, "at line {} position {} value for '{}' is missing", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::DefaultForbidden { text } => write!(f, "at line {} position {} '{}' cannot have default value", text.position.line_number, text.position.line_position, text.string),
+            ScriptErrorKind::DefaultForbiddenForGenerics { text , generic} => write!(f, "at line {} position {} '{}' cannot have default value because '{}' is treated as generic", text.position.line_number, text.position.line_position, text.string, generic),
             ScriptErrorKind::ConstDeclarationOnly { text } => write!(f, "at line {} position {} '{}' cannot be otherwise than 'const'", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::FlowForbidden { text } => write!(f, "at line {} position {} '{}' cannot have flow specification", text.position.line_number, text.position.line_position, text.string),
             ScriptErrorKind::StructureForbidden { text } => write!(f, "at line {} position {} '{}' cannot have structure specification", text.position.line_number, text.position.line_position, text.string),
@@ -373,6 +378,17 @@ impl ScriptError {
         Self {
             id,
             kind: ScriptErrorKind::DefaultForbidden { text },
+        }
+    }
+
+    pub fn default_forbidden_for_generics(
+        id: u32,
+        text: PositionnedString,
+        generic: String,
+    ) -> Self {
+        Self {
+            id,
+            kind: ScriptErrorKind::DefaultForbiddenForGenerics { text, generic },
         }
     }
 

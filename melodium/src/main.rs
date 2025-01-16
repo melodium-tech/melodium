@@ -10,8 +10,8 @@ use melodium_lang::{
     semantic::{NoneDeclarativeElement, Value as SemanticValue},
     text::{get_words, Value as TextValue},
 };
-use std::sync::Arc;
 use std::{collections::HashMap, sync::RwLock};
+use std::{collections::HashSet, sync::Arc};
 use std::{net::IpAddr, path::PathBuf};
 
 #[derive(Parser, Debug)]
@@ -820,17 +820,26 @@ fn extract_jeu(args: JeuExtract) {
 }
 
 fn print_result<T>(result: &LoadingResult<T>) {
+    let mut printed = HashSet::new();
     match result {
         Status::Success { success: _, errors } => {
-            errors
-                .iter()
-                .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
+            errors.iter().for_each(|err| {
+                let err_msg = err.to_string();
+                if printed.insert(err_msg.clone()) {
+                    eprintln!("{}: {err_msg}", "error".bold().red())
+                }
+            });
         }
         Status::Failure { failure, errors } => {
-            eprintln!("{}: {failure}", "failure".bold().red());
-            errors
-                .iter()
-                .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
+            let failure_msg = failure.to_string();
+            eprintln!("{}: {failure_msg}", "failure".bold().red());
+            printed.insert(failure_msg);
+            errors.iter().for_each(|err| {
+                let err_msg = err.to_string();
+                if printed.insert(err_msg.clone()) {
+                    eprintln!("{}: {err_msg}", "error".bold().red())
+                }
+            });
         }
     }
 }
