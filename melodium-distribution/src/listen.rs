@@ -174,8 +174,13 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         }
     }
 
-    if result.is_failure() {
-        todo!()
+    if let Err(fail) = result.as_result() {
+        protocol
+            .send_message(Message::LaunchStatus(messages::LaunchStatus::Failure(
+                fail.to_string(),
+            )))
+            .await
+            .unwrap();
     }
 
     let mut collection = loader.collection().clone();

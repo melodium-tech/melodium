@@ -81,17 +81,7 @@ impl ExecutorEngine for KubeExecutor {
             }
 
             for (name, val) in &environment.variables.map {
-                env_command.push(format!(
-                    "{name}={}",
-                    if val
-                        .datatype()
-                        .implements(&melodium_core::common::descriptor::DataTrait::ToString)
-                    {
-                        melodium_core::DataTrait::to_string(val)
-                    } else {
-                        "".to_string()
-                    }
-                ));
+                env_command.push(format!("{name}={val}"));
             }
 
             env_command.push("--split-string".to_string());
@@ -180,17 +170,7 @@ impl ExecutorEngine for KubeExecutor {
             }
 
             for (name, val) in &environment.variables.map {
-                env_command.push(format!(
-                    "{name}={}",
-                    if val
-                        .datatype()
-                        .implements(&melodium_core::common::descriptor::DataTrait::ToString)
-                    {
-                        melodium_core::DataTrait::to_string(val)
-                    } else {
-                        "".to_string()
-                    }
-                ));
+                env_command.push(format!("{name}={val}"));
             }
 
             env_command.push("--split-string".to_string());
@@ -327,17 +307,7 @@ impl ExecutorEngine for KubeExecutor {
             }
 
             for (name, val) in &environment.variables.map {
-                env_command.push(format!(
-                    "{name}={}",
-                    if val
-                        .datatype()
-                        .implements(&melodium_core::common::descriptor::DataTrait::ToString)
-                    {
-                        melodium_core::DataTrait::to_string(val)
-                    } else {
-                        "".to_string()
-                    }
-                ));
+                env_command.push(format!("{name}={val}"));
             }
 
             env_command.push("--split-string".to_string());

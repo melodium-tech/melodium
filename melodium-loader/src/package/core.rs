@@ -55,9 +55,10 @@ impl CorePackage {
                     })
                 }
             }
-            None => {
-                LoadingResult::new_failure(LoadingError::not_found(159, designation.to_string()))
-            }
+            None => LoadingResult::new_failure(LoadingError::not_found(
+                159,
+                designation.trim_end_matches(".mel").to_string(),
+            )),
         }
     }
 

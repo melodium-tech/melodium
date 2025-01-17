@@ -1,11 +1,11 @@
 use melodium_core::*;
 use melodium_macro::{mel_data, mel_function};
 
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Serialize, Deserialize)]
-#[mel_data]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Serialize, Deserialize)]
+#[mel_data(traits(Serialize Deserialize PartialEquality PartialOrder Equality Order))]
 pub struct Command {
-    pub command: string,
-    pub arguments: Vec<string>,
+    pub command: String,
+    pub arguments: Vec<String>,
 }
 
 #[mel_function]

@@ -40,26 +40,9 @@ impl ExecutorEngine for LocalExecutorEngine {
             process_command.current_dir(working_dir);
         }
 
-        process_command.envs(
-            environment
-                .as_ref()
-                .map(|env| {
-                    env.variables
-                        .map
-                        .iter()
-                        .map(|(k, v)| {
-                            if v.datatype()
-                                .implements(&melodium_core::common::descriptor::DataTrait::ToString)
-                            {
-                                (k.clone(), melodium_core::DataTrait::to_string(v))
-                            } else {
-                                (k.clone(), "".to_string())
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default(),
-        );
+        if let Some(environment) = environment.as_ref() {
+            process_command.envs(&environment.variables.map);
+        }
 
         process_command.args(command.arguments.iter());
 
@@ -126,25 +109,9 @@ impl ExecutorEngine for LocalExecutorEngine {
             process_command.current_dir(working_dir);
         }
 
-        process_command.envs(
-            environment
-                .map(|env| {
-                    env.variables
-                        .map
-                        .iter()
-                        .map(|(k, v)| {
-                            if v.datatype()
-                                .implements(&melodium_core::common::descriptor::DataTrait::ToString)
-                            {
-                                (k.clone(), melodium_core::DataTrait::to_string(v))
-                            } else {
-                                (k.clone(), "".to_string())
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default(),
-        );
+        if let Some(environment) = environment.as_ref() {
+            process_command.envs(&environment.variables.map);
+        }
 
         process_command.args(command.arguments.iter());
 
@@ -263,25 +230,9 @@ impl ExecutorEngine for LocalExecutorEngine {
             process_command.current_dir(working_dir);
         }
 
-        process_command.envs(
-            environment
-                .map(|env| {
-                    env.variables
-                        .map
-                        .iter()
-                        .map(|(k, v)| {
-                            if v.datatype()
-                                .implements(&melodium_core::common::descriptor::DataTrait::ToString)
-                            {
-                                (k.clone(), melodium_core::DataTrait::to_string(v))
-                            } else {
-                                (k.clone(), "".to_string())
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default(),
-        );
+        if let Some(environment) = environment.as_ref() {
+            process_command.envs(&environment.variables.map);
+        }
 
         process_command.args(command.arguments.iter());
 
