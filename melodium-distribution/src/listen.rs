@@ -236,7 +236,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         .into_iter()
         .map(|(name, val)| (name, val.to_value(&collection).unwrap()))
         .collect();
-    let engine = melodium_engine::new_engine(collection);
+    let engine = melodium_engine::new_engine(Arc::clone(&collection));
     engine.set_auto_end(false);
     if let Err(fail) = engine
         .genesis(&entrypoint.try_into().unwrap(), parameters)
@@ -295,27 +295,53 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     let run = {
         let engine = Arc::clone(&engine);
         let protocol = Arc::clone(&protocol);
+        let collection = Arc::clone(&collection);
         async move {
             let tracks_entry_outputs = Arc::new(AsyncRwLock::new(HashMap::new()));
             let tracks_entry_inputs = Arc::new(AsyncRwLock::new(HashMap::new()));
-            loop {
+            'protocol: loop {
                 match protocol.recv_message().await {
                     Ok(Message::Instanciate(instanciate)) => {
                         let protocol = Arc::clone(&protocol);
                         let tracks_entry_outputs = Arc::clone(&tracks_entry_outputs);
                         let tracks_entry_inputs = Arc::clone(&tracks_entry_inputs);
                         let track_id = instanciate.id;
-                        engine
-                            .instanciate(Some(Box::new(move |entry_outputs, entry_inputs| {
-                                let mut inputs_management = Vec::new();
-                                let mut inputs_storage = HashMap::new();
-                                for (name, input) in entry_inputs {
+
+                        let mut parameters = HashMap::new();
+                        for (name, param) in instanciate.parameters {
+                            if let Some(value) = param.to_value(&collection) {
+                                parameters.insert(name, value);
+                            } else {
+                                let _ = protocol
+                                    .send_message(Message::InstanciateStatus(
+                                        InstanciateStatus::Failure {
+                                            id: track_id,
+                                            message: format!(
+                                                "Parameter '{name}' does not contains valid value"
+                                            ),
+                                        },
+                                    ))
+                                    .await;
+                                continue 'protocol;
+                            }
+                        }
+
+                        if let Err(failure) = engine
+                            .instanciate(
+                                parameters,
+                                Some(Box::new({
                                     let protocol = Arc::clone(&protocol);
-                                    let input = Arc::new(input);
-                                    inputs_storage.insert(name.clone(), Arc::clone(&input));
-                                    let listener = async move {
-                                        while let Ok(data) = input.recv_many().await {
-                                            if protocol
+                                    move |entry_outputs, entry_inputs| {
+                                        let mut inputs_management = Vec::new();
+                                        let mut inputs_storage = HashMap::new();
+                                        for (name, input) in entry_inputs {
+                                            let protocol = Arc::clone(&protocol);
+                                            let input = Arc::new(input);
+                                            inputs_storage.insert(name.clone(), Arc::clone(&input));
+                                            let listener =
+                                                async move {
+                                                    while let Ok(data) = input.recv_many().await {
+                                                        if protocol
                                                 .send_message(Message::OutputData(OutputData {
                                                     id: track_id,
                                                     name: name.clone(),
@@ -330,43 +356,58 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                                 input.close();
                                                 break;
                                             }
+                                                    }
+                                                    let _ = protocol
+                                                        .send_message(Message::CloseOutput(
+                                                            CloseOutput {
+                                                                id: track_id,
+                                                                name: name.clone(),
+                                                            },
+                                                        ))
+                                                        .await;
+                                                };
+                                            inputs_management.push(Box::new(Box::pin(listener)));
                                         }
-                                        let _ = protocol
-                                            .send_message(Message::CloseOutput(CloseOutput {
-                                                id: track_id,
-                                                name: name.clone(),
-                                            }))
-                                            .await;
-                                    };
-                                    inputs_management.push(Box::new(Box::pin(listener)));
-                                }
 
-                                let protocol = Arc::clone(&protocol);
-                                vec![Box::new(Box::pin(async move {
-                                    {
-                                        tracks_entry_inputs
-                                            .write()
-                                            .await
-                                            .insert(track_id, inputs_storage);
+                                        let protocol = Arc::clone(&protocol);
+                                        vec![Box::new(Box::pin(async move {
+                                            {
+                                                tracks_entry_inputs
+                                                    .write()
+                                                    .await
+                                                    .insert(track_id, inputs_storage);
 
-                                        tracks_entry_outputs
-                                            .write()
-                                            .await
-                                            .insert(track_id, entry_outputs);
+                                                tracks_entry_outputs
+                                                    .write()
+                                                    .await
+                                                    .insert(track_id, entry_outputs);
+                                            }
+
+                                            let _ = protocol
+                                                .send_message(Message::InstanciateStatus(
+                                                    InstanciateStatus::Ok { id: track_id },
+                                                ))
+                                                .await;
+
+                                            futures::future::join_all(inputs_management).await;
+
+                                            ResultStatus::Ok
+                                        }))]
                                     }
-
-                                    let _ = protocol
-                                        .send_message(Message::InstanciateStatus(
-                                            InstanciateStatus::Ok { id: track_id },
-                                        ))
-                                        .await;
-
-                                    futures::future::join_all(inputs_management).await;
-
-                                    ResultStatus::Ok
-                                }))]
-                            })))
+                                })),
+                            )
                             .await
+                            .as_result()
+                        {
+                            let _ = protocol
+                                .send_message(Message::InstanciateStatus(
+                                    InstanciateStatus::Failure {
+                                        id: track_id,
+                                        message: failure.to_string(),
+                                    },
+                                ))
+                                .await;
+                        }
                     }
                     Ok(Message::InputData(input_data)) => {
                         if let Some(outputs) = tracks_entry_outputs.read().await.get(&input_data.id)

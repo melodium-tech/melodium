@@ -43,6 +43,7 @@ pub struct World {
     main: RwLock<Option<Arc<dyn Treatment>>>,
     main_id: RwLock<Option<Identifier>>,
     main_build_id: RwLock<BuildId>,
+    main_gen_env: RwLock<Option<GenesisEnvironment>>,
     main_tracks: RwLock<HashMap<TrackId, FeedingInputs>>,
 
     continuous_tasks_sender: Sender<ContinuousFuture>,
@@ -86,6 +87,7 @@ impl World {
             main: RwLock::new(None),
             main_id: RwLock::new(None),
             main_build_id: RwLock::new(0),
+            main_gen_env: RwLock::new(None),
             main_tracks: RwLock::new(HashMap::new()),
             continuous_tasks_sender,
             continuous_tasks_receiver,
@@ -293,6 +295,7 @@ impl Engine for World {
         let descriptor = if let Some(CollectionEntry::Treatment(descriptor)) =
             self.collection.get(&entry.into())
         {
+            let absolute_launch = descriptor.inputs().len() > 0 || descriptor.outputs().len() > 0;
             for (name, param) in descriptor.parameters() {
                 if let Some(value) = params.remove(name).filter(|val| {
                     param
@@ -303,6 +306,8 @@ impl Engine for World {
                 }) {
                     gen_env.add_variable(name, value);
                 } else if param.default().is_some() {
+                    continue;
+                } else if !absolute_launch {
                     continue;
                 } else {
                     return LogicResult::new_failure(LogicError::launch_wrong_parameter(
@@ -315,7 +320,7 @@ impl Engine for World {
         } else {
             return LogicResult::new_failure(LogicError::launch_expect_treatment(
                 224,
-                entry.clone(),
+                Some(entry.clone()),
             ));
         };
 
@@ -382,6 +387,7 @@ impl Engine for World {
                 {
                     self.main.write().unwrap().replace(descriptor);
                     self.main_id.write().unwrap().replace(entry.clone());
+                    self.main_gen_env.write().unwrap().replace(gen_env);
                 }
                 self.models
                     .read()
@@ -435,20 +441,27 @@ impl Engine for World {
         join(continuum, async move { me.run_tracks().await }).await;
     }
 
-    async fn instanciate(&self, callback: Option<DirectCreationCallback>) {
+    async fn instanciate(
+        &self,
+        mut params: HashMap<String, Value>,
+        callback: Option<DirectCreationCallback>,
+    ) -> LogicResult<()> {
         let main;
         let main_id;
         let main_build_id;
+        let main_gen_env;
         {
-            if let (Some(descriptor), Some(identifier)) = (
+            if let (Some(descriptor), Some(identifier), Some(gen_env)) = (
                 self.main.read().unwrap().as_ref(),
                 self.main_id.read().unwrap().as_ref(),
+                self.main_gen_env.read().unwrap().as_ref(),
             ) {
                 main = Arc::clone(descriptor);
                 main_id = identifier.clone();
                 main_build_id = *self.main_build_id.read().unwrap();
+                main_gen_env = gen_env.clone();
             } else {
-                return;
+                return LogicResult::new_failure(LogicError::launch_expect_treatment(231, None));
             }
         }
 
@@ -457,6 +470,39 @@ impl Engine for World {
             let mut counter = self.tracks_counter.lock().await;
             track_id = *counter;
             *counter = track_id + 1;
+        }
+
+        let mut contextual_environment = ContextualEnvironment::new(track_id);
+
+        for (name, param) in main.parameters() {
+            if let Some(value) = params.remove(name).filter(|val| {
+                param
+                    .described_type()
+                    .to_datatype(&HashMap::new())
+                    .map(|dt| dt == val.datatype())
+                    .unwrap_or(false)
+            }) {
+                contextual_environment.add_variable(name, value);
+            } else if let Some(value) = main_gen_env
+                .get_variable(name)
+                .filter(|val| {
+                    param
+                        .described_type()
+                        .to_datatype(&HashMap::new())
+                        .map(|dt| dt == val.datatype())
+                        .unwrap_or(false)
+                })
+                .cloned()
+            {
+                contextual_environment.add_variable(name, value);
+            } else if param.default().is_some() {
+                continue;
+            } else {
+                return LogicResult::new_failure(LogicError::launch_wrong_parameter(
+                    230,
+                    name.clone(),
+                ));
+            }
         }
 
         let mut inputs = HashMap::new();
@@ -475,8 +521,6 @@ impl Engine for World {
         let mut track_futures: Vec<TrackFuture> = Vec::new();
         let mut outputs: HashMap<String, Output> = HashMap::new();
         {
-            let contextual_environment = ContextualEnvironment::new(track_id);
-
             let build_result = self
                 .builder(&main_id)
                 .success()
@@ -519,6 +563,8 @@ impl Engine for World {
         let execution_track = ExecutionTrack::new(track_id, 0, track_futures.into_iter().collect());
         self.tracks_info.lock().await.insert(track_id, info_track);
         let _ = self.tracks_sender.send(execution_track).await;
+
+        LogicResult::new_success(())
     }
 
     /*

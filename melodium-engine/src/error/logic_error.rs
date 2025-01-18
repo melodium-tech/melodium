@@ -29,7 +29,9 @@ pub enum LogicErrorKind {
     /// No design available.
     UnavailableDesign { identifier: Identifier },
     /// The launch must be done using a treatment.
-    LaunchExpectTreatment { wrong_identifier: Identifier },
+    LaunchExpectTreatment {
+        wrong_identifier: Option<Identifier>,
+    },
     /// A parameter with wrong or missing value was given for launch.
     LaunchWrongParameter { parameter: String },
     /// No direct track exist for id.
@@ -277,7 +279,10 @@ impl Display for LogicErrorKind {
             LogicErrorKind::ErroneousDesign {identifier} => write!(f, "Design for '{identifier}' contains errors and cannot be commited"),
             LogicErrorKind::ErroneousChecks => write!(f, "Building coherency checks found errors, build cannot be made"),
             LogicErrorKind::UnavailableDesign { identifier } => write!(f, "Unavailable design for '{identifier}'"),
-            LogicErrorKind::LaunchExpectTreatment { wrong_identifier } => write!(f, "Launch must be done using a treatment, '{wrong_identifier}' is not one"),
+            LogicErrorKind::LaunchExpectTreatment { wrong_identifier } => if let Some(id) = wrong_identifier {
+                write!(f, "Launch must be done using a treatment, '{id}' is not one") } else {
+                    write!(f, "Launch must be done using a treatment, but no valid identifier is provided")
+                },
             LogicErrorKind::LaunchWrongParameter { parameter } => write!(f, "Parameter '{parameter}' has no valid value for launch"),
             LogicErrorKind::NoDirectTrack { id } => write!(f, "No directly instancied track exist for id {id}"),
             LogicErrorKind::UnexistingVariable {identifier,
@@ -417,7 +422,7 @@ impl LogicError {
     }
 
     /// Generates a new error with [`LogicErrorKind::LaunchExpectTreatment`] kind.
-    pub fn launch_expect_treatment(id: u32, wrong_identifier: Identifier) -> Self {
+    pub fn launch_expect_treatment(id: u32, wrong_identifier: Option<Identifier>) -> Self {
         Self {
             id,
             design_reference: None,
