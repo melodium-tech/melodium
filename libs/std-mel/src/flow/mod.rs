@@ -674,7 +674,6 @@ pub async fn one() {
             val = xa => val,
             val = xb => val,
             complete => break,
-            default => {eprintln!("One waiting…");continue},
         };
 
         if let Some(val) = val {
@@ -682,8 +681,6 @@ pub async fn one() {
             break;
         }
     }
-
-    eprintln!("One finished");
 }
 
 /// Never send any value.

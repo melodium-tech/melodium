@@ -32,8 +32,6 @@ impl Engine {
                 Some(Box::new(|mut outputs| {
                     let trigger = outputs.get("trigger");
 
-                    eprintln!("Invoking ready here!");
-
                     vec![Box::new(Box::pin(Self::ready(trigger)))]
                 })),
             )

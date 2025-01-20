@@ -45,8 +45,6 @@ use work/resources::Volume
 use work/resources::getExecutor
 use distrib::DistributionEngine
 use distrib::distribute
-use distrib::distributionFailure
-use distrib::ready
 use distrib::start
 use distrib::stop
 use distrib::recvBlock
@@ -128,7 +126,6 @@ treatment distantStep[distant_engine: DistantEngine, logger: Logger](var executo
     distant.errors -> logDistantErrs.messages
 
     start[distributor=distribution_engine](params=|map([]))
-    ready[distribution_engine=distribution_engine]()
     stop[distributor=distribution_engine]()
 
     distribute[distributor=distribution_engine](params=|map([
@@ -137,16 +134,15 @@ treatment distantStep[distant_engine: DistantEngine, logger: Logger](var executo
       |entry<Option<StringMap>>("environment_variables", environment_variables),
       |entry<Vec<Command>>("commands", [])
     ]))
-    distributionFailure[distribution_engine=distribution_engine]()
     logDistribErr: logError[logger=logger](label=label)
 
     distant.access -> start.access
-    ready.trigger --> distribute.trigger
-    distributionFailure.error --> logDistribErr.message
+    start.ready --> distribute.trigger
+    start.error --> logDistribErr.message
 
     distantOrDistribFailed: one<void>()
     distant.failed -------------> distantOrDistribFailed.a,value -> distOrStepFailed.a
-    distributionFailure.failed -> distantOrDistribFailed.b,value -> distFailedOrStepFinished.a
+    start.failed ---------------> distantOrDistribFailed.b,value -> distFailedOrStepFinished.a
 
     trigger: sendBlock<void>[distributor=distribution_engine](name="trigger")
     started: recvBlock<void>[distributor=distribution_engine](name="started")

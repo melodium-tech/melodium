@@ -167,5 +167,4 @@ pub async fn distant(
             }
         }
     }
-    eprintln!("Distant finished");
 }

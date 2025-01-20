@@ -50,13 +50,6 @@ struct Track {
 #[mel_model(
     param treatment string none
     param version string none
-    source ready () () (
-        trigger Block<void>
-    )
-    source distributionFailure () () (
-        failed Block<void>
-        error Block<string>
-    )
     continuous (continuous)
     shutdown shutdown
 )]
@@ -93,9 +86,9 @@ impl DistributionEngine {
         &self,
         access: &work_mel::api::CommonAccess,
         params: HashMap<String, Value>,
-    ) {
+    ) -> Result<(), String> {
         if self.started_once.swap(true, Ordering::Relaxed) {
-            return;
+            return Ok(());
         }
 
         let model = self.model.upgrade().unwrap();
@@ -104,15 +97,11 @@ impl DistributionEngine {
             Ok(id) => match Version::from_str(&model.get_version()) {
                 Ok(version) => id.with_version(&version),
                 Err(err) => {
-                    self.distribution_failure(format!("'{err}' is not a valid version"))
-                        .await;
-                    return;
+                    return Err(format!("'{err}' is not a valid version"));
                 }
             },
             Err(err) => {
-                self.distribution_failure(format!("'{err}' is not a valid identifier"))
-                    .await;
-                return;
+                return Err(format!("'{err}' is not a valid identifier"));
             }
         };
 
@@ -156,39 +145,29 @@ impl DistributionEngine {
                         match protocol.recv_message().await {
                             Ok(Message::ConfirmDistribution(confirm)) => {
                                 if !confirm.accept {
-                                    self.distribution_failure(format!("Cannot distribute, remote engine version is {} with protocol version {}, while local engine version is {} with protocol version {}.", confirm.melodium_version, confirm.distribution_version, env!("CARGO_PKG_VERSION"), melodium_distribution::VERSION)).await;
-                                    return;
+                                    return Err(format!("Cannot distribute, remote engine version is {} with protocol version {}, while local engine version is {} with protocol version {}.", confirm.melodium_version, confirm.distribution_version, env!("CARGO_PKG_VERSION"), melodium_distribution::VERSION));
                                 }
                                 if confirm.key != access.self_key {
-                                    self.distribution_failure("Cannot distribute, remote engine did not provided valid key.".to_string()).await;
-                                    return;
+                                    return Err("Cannot distribute, remote engine did not provided valid key.".to_string());
                                 }
                             }
                             Ok(_) => {
-                                self.distribution_failure(
-                                    "Unexpected response message".to_string(),
-                                )
-                                .await;
-                                return;
+                                return Err("Unexpected response message".to_string());
                             }
                             Err(err) => {
-                                self.distribution_failure(err.to_string()).await;
-                                return;
+                                return Err(err.to_string());
                             }
                         }
                     }
                     Err(err) => {
-                        self.distribution_failure(err.to_string()).await;
-                        return;
+                        return Err(err.to_string());
                     }
                 }
 
                 let treatment = match model.world().collection().get(&(&entrypoint).into()) {
                     Some(Entry::Treatment(treatment)) => Arc::clone(treatment),
                     _ => {
-                        self.distribution_failure("No treatment found".to_string())
-                            .await;
-                        return;
+                        return Err("No treatment found".to_string());
                     }
                 };
 
@@ -212,63 +191,35 @@ impl DistributionEngine {
                         Ok(Message::LaunchStatus(status)) => match status {
                             melodium_distribution::LaunchStatus::Ok => {
                                 *protocol_lock = Some(AsyncArc::new(protocol));
-                                model
-                                    .new_ready(
-                                        None,
-                                        &HashMap::new(),
-                                        Some(Box::new(move |mut outputs| {
-
-                                            eprintln!("New ready");
-                                            let trigger = outputs.get("trigger");
-
-                                            eprintln!("Trigger output taken");
-
-                                            vec![Box::new(Box::pin(async move {
-                                                eprintln!("Sending ready trigger");
-                                                let _ = trigger.send_one(().into()).await;
-                                                eprintln!("Sending ready done");
-                                                trigger.close().await;
-                                                eprintln!("Sending ready closed");
-                                                ResultStatus::Ok
-                                            }))]
-                                        })),
-                                    )
-                                    .await;
                                 self.protocol_barrier.wait().await;
+                                Ok(())
                             }
                             melodium_distribution::LaunchStatus::Failure(err) => {
-                                self.distribution_failure(err.to_string()).await;
-                                return;
+                                return Err(err.to_string());
                             }
                             _ => {
-                                self.distribution_failure(
-                                    "Unexpected response message".to_string(),
-                                )
-                                .await;
-                                return;
+                                return Err("Unexpected response message".to_string());
                             }
                         },
                         Ok(_) => {
-                            self.distribution_failure("Unexpected response message".to_string())
-                                .await;
-                            return;
+                            return Err("Unexpected response message".to_string());
                         }
                         Err(err) => {
-                            self.distribution_failure(err.to_string()).await;
-                            return;
+                            return Err(err.to_string());
                         }
                     },
                     Err(err) => {
-                        self.distribution_failure(err.to_string()).await;
-                        return;
+                        return Err(err.to_string());
                     }
                 }
             } else if let Some(err) = error_message {
-                self.distribution_failure(err).await;
+                Err(err)
             } else {
-                self.distribution_failure("No IP address provided".to_string())
-                    .await;
+                Err("No IP address provided".to_string())
             }
+        }
+        else {
+            Ok(())
         }
     }
 
@@ -330,8 +281,6 @@ impl DistributionEngine {
                     .into_iter()
                     .map(|(name, value)| (name, value.into()))
                     .collect();
-
-                eprintln!("{params:#?}");
 
                 if protocol
                     .send_message(Message::Instanciate(Instanciate {
@@ -454,7 +403,6 @@ impl DistributionEngine {
                     break;
                 },
                 () = fusing_barrier => {
-                    eprintln!("Fused");
                     return;
                 }
             }
@@ -565,35 +513,14 @@ impl DistributionEngine {
     }
 
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
-
-    async fn distribution_failure(&self, message: String) {
-        self.model
-            .upgrade()
-            .unwrap()
-            .new_distributionFailure(
-                None,
-                &HashMap::new(),
-                Some(Box::new(move |mut outputs| {
-                    let failed = outputs.get("failed");
-                    let error = outputs.get("error");
-
-                    vec![Box::new(Box::pin(async move {
-                        let _ = failed.send_one(().into()).await;
-                        let _ = error.send_one(message.into()).await;
-                        failed.close().await;
-                        error.close().await;
-                        eprintln!("Distribution failure finished");
-                        ResultStatus::Ok
-                    }))]
-                })),
-            )
-            .await;
-    }
 }
 
 #[mel_treatment(
     model distributor DistributionEngine
     input access Block<Access>
+    output ready Block<void>
+    output failed Block<void>
+    output error Block<string>
 )]
 pub async fn start(params: Map) {
     let model = DistributionEngineModel::into(distributor);
@@ -607,13 +534,18 @@ pub async fn start(params: Map) {
             .downcast_arc::<Access>()
             .unwrap()
     }) {
-        distributor.start(&access.0, params).await;
+        match distributor.start(&access.0, params).await {
+            Ok(_) => {
+                let _ = ready.send_one(().into()).await;
+            },
+            Err(err) => {
+                let _ = failed.send_one(().into()).await;
+                let _ = error.send_one(err.into()).await;
+            }
+        }
     } else {
-        eprintln!("Fusing");
         distributor.fuse().await;
     }
-
-    eprintln!("Start ended");
 }
 
 #[mel_treatment(
@@ -641,9 +573,7 @@ pub async fn distribute(params: Map) {
     let params = params.map.clone();
 
     if let Ok(_) = trigger.recv_one().await {
-        eprintln!("Distribute…");
         if let Some((id, barrier, validation)) = distributor.distribute(params).await {
-            eprintln!("Distribution being made");
             if !validation.load(Ordering::Relaxed) {
                 barrier.wait().await;
                 validation.store(true, Ordering::Relaxed);
