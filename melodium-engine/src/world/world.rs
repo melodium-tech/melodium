@@ -511,13 +511,16 @@ impl Engine for World {
             let input = self.new_input();
             inputs.insert(name.clone(), input);
         }
-        self.main_tracks.write().unwrap().insert(
-            track_id,
-            inputs
-                .iter()
-                .map(|(name, input)| (name.clone(), vec![input.clone()]))
-                .collect(),
-        );
+        {
+            eprintln!("Creating track '{track_id}'");
+            self.main_tracks.write().unwrap().insert(
+                track_id,
+                inputs
+                    .iter()
+                    .map(|(name, input)| (name.clone(), vec![input.clone()]))
+                    .collect(),
+            );
+        }
 
         let mut track_futures: Vec<TrackFuture> = Vec::new();
         let mut outputs: HashMap<String, Output> = HashMap::new();
