@@ -245,6 +245,13 @@ impl BuilderTrait for Builder {
             match &connection.output_treatment {
                 IO::Sequence() => match &connection.input_treatment {
                     IO::Treatment(treatment_name) => {
+                        build_sample
+                            .check
+                            .write()
+                            .unwrap()
+                            .fed_inputs
+                            .insert(connection.output_name.clone(), false);
+
                         build_sample.root_treatments_build_ids.push((
                             treatment_name.to_string(),
                             *build_sample
@@ -696,6 +703,19 @@ impl BuilderTrait for Builder {
 
                 treatment_build_results.insert(treatment_name.to_string(), check_result);
             }
+
+            for root_connection in &build_sample.root_connections {
+                let treatment_name = match &root_connection.input_treatment {
+                    IO::Treatment(t) => t.clone(),
+                    _ => panic!("Root connection to (input) treatment expected"),
+                };
+
+                let treatment_build_result = treatment_build_results.get(&treatment_name).unwrap();
+                let mut borrowed_checked_build = treatment_build_result.build.write().unwrap();
+                borrowed_checked_build
+                    .fed_inputs
+                    .insert(root_connection.input_name.clone(), true);
+            }
         }
 
         let mut all_builds = Vec::new();
@@ -783,8 +803,26 @@ impl BuilderTrait for Builder {
                 }
             }
 
+            if let Some(next_connections) =
+                build_sample.next_connections.get(&asking_treatment_tuple)
+            {
+                for next_connection in next_connections {
+                    let treatment_name = match &next_connection.input_treatment {
+                        IO::Treatment(t) => t.clone(),
+                        _ => panic!("Connection to treatment expected"),
+                    };
+
+                    let treatment_build_result =
+                        treatment_build_results.get(&treatment_name).unwrap();
+                    let mut borrowed_checked_build = treatment_build_result.build.write().unwrap();
+                    borrowed_checked_build
+                        .fed_inputs
+                        .insert(next_connection.input_name.clone(), true);
+                }
+            }
+
             // If the claiming treatment is connected to Self as output, call the check_give_next host method
-            if let Some(_last_connections) =
+            if let Some(last_connections) =
                 build_sample.last_connections.get(&asking_treatment_tuple)
             {
                 match &build_sample.host_treatment {
@@ -803,6 +841,14 @@ impl BuilderTrait for Builder {
 
                         all_builds.extend(host_check_build.checked_builds);
                         all_errors.extend(host_check_build.errors);
+
+                        for last_connection in last_connections {
+                            let mut borrowed_checked_build =
+                                host_check_build.build.write().unwrap();
+                            borrowed_checked_build
+                                .fed_inputs
+                                .insert(last_connection.input_name.clone(), true);
+                        }
                     }
                     HostTreatment::Direct => {}
                 }
