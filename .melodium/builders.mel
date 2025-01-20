@@ -127,10 +127,11 @@ treatment distantStep[distant_engine: DistantEngine, logger: Logger](var executo
 
     start[distributor=distribution_engine](params=|map([]))
     stop[distributor=distribution_engine]()
+    logStartDistribErr: logError[logger=logger](label=label)
 
     distribute[distributor=distribution_engine](params=|map([
-      |entry<string>("executor_name", "executor_name"),
-      |entry<string>("label", "distant_job"),
+      |entry<string>("executor_name", executor_name),
+      |entry<string>("label", label),
       |entry<Option<StringMap>>("environment_variables", environment_variables),
       |entry<Vec<Command>>("commands", [])
     ]))
@@ -138,7 +139,8 @@ treatment distantStep[distant_engine: DistantEngine, logger: Logger](var executo
 
     distant.access -> start.access
     start.ready --> distribute.trigger
-    start.error --> logDistribErr.message
+    start.error --> logStartDistribErr.message
+    distribute.error -> logDistribErr.message
 
     distantOrDistribFailed: one<void>()
     distant.failed -------------> distantOrDistribFailed.a,value -> distOrStepFailed.a
@@ -169,7 +171,7 @@ treatment distantStep[distant_engine: DistantEngine, logger: Logger](var executo
     started.data ---> Self.started
     completed.data -> Self.completed
 
-    finished.data --> stop.trigger
+    distFailedOrStepFinished.value --> stop.trigger
 }
 
 treatment stepOnExecutor(var executor_name: string, var label: string, var environment_variables: Option<StringMap> = _, var commands: Vec<Command>)

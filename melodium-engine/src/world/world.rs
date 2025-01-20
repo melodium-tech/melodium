@@ -295,7 +295,8 @@ impl Engine for World {
         let descriptor = if let Some(CollectionEntry::Treatment(descriptor)) =
             self.collection.get(&entry.into())
         {
-            let absolute_launch = descriptor.inputs().len() > 0 || descriptor.outputs().len() > 0;
+            let non_absolute_launch =
+                descriptor.inputs().len() > 0 || descriptor.outputs().len() > 0;
             for (name, param) in descriptor.parameters() {
                 if let Some(value) = params.remove(name).filter(|val| {
                     param
@@ -307,7 +308,7 @@ impl Engine for World {
                     gen_env.add_variable(name, value);
                 } else if param.default().is_some() {
                     continue;
-                } else if !absolute_launch {
+                } else if non_absolute_launch {
                     continue;
                 } else {
                     return LogicResult::new_failure(LogicError::launch_wrong_parameter(

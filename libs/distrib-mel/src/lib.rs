@@ -11,7 +11,6 @@ use common::descriptor::{Entry, Treatment};
 use common::descriptor::{Identifier, Version};
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
-use futures::{pin_mut, select, FutureExt};
 #[cfg(any(
     all(not(target_os = "windows"), not(target_vendor = "apple")),
     all(target_os = "windows", target_env = "gnu")
@@ -56,7 +55,6 @@ pub struct DistributionEngine {
     treatment: AsyncRwLock<Option<Arc<dyn Treatment>>>,
     tracks: AsyncRwLock<HashMap<u64, Track>>,
     protocol_barrier: AsyncBarrier,
-    fusing_barrier: AsyncBarrier,
     started_once: AtomicBool,
 }
 
@@ -68,14 +66,13 @@ impl DistributionEngine {
             treatment: AsyncRwLock::new(None),
             tracks: AsyncRwLock::new(HashMap::new()),
             protocol_barrier: AsyncBarrier::new(2),
-            fusing_barrier: AsyncBarrier::new(2),
             started_once: AtomicBool::new(false),
         }
     }
 
     pub async fn fuse(&self) {
-        if !self.started_once.load(Ordering::Relaxed) {
-            self.fusing_barrier.wait().await;
+        if self.started_once.load(Ordering::Relaxed) {
+            self.protocol_barrier.wait().await;
         }
     }
 
@@ -382,27 +379,7 @@ impl DistributionEngine {
     }
 
     async fn continuous(&self) {
-        let protocol_barrier = async {
-            self.protocol_barrier.wait().await;
-        }
-        .fuse();
-        let fusing_barrier = async {
-            self.fusing_barrier.wait().await;
-        }
-        .fuse();
-
-        pin_mut!(protocol_barrier, fusing_barrier);
-
-        loop {
-            select! {
-                () = protocol_barrier => {
-                    break;
-                },
-                () = fusing_barrier => {
-                    return;
-                }
-            }
-        }
+        self.protocol_barrier.wait().await;
 
         if let Some(protocol) = self.protocol.read().await.as_ref() {
             loop {
@@ -537,6 +514,7 @@ pub async fn start(params: Map) {
             Err(err) => {
                 let _ = failed.send_one(().into()).await;
                 let _ = error.send_one(err.into()).await;
+                distributor.fuse().await;
             }
         }
     } else {
@@ -561,6 +539,8 @@ pub async fn stop() {
     model distributor DistributionEngine
     input trigger Block<void>
     output distribution_id Block<u64>
+    output failed Block<void>
+    output error Block<string>
 )]
 pub async fn distribute(params: Map) {
     let model = DistributionEngineModel::into(distributor);
@@ -575,8 +555,18 @@ pub async fn distribute(params: Map) {
                 validation.store(true, Ordering::Relaxed);
                 if distributor.is_ok(&id).await {
                     let _ = distribution_id.send_one(id.into()).await;
+                } else {
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error
+                        .send_one("Instanciation failed".to_string().into())
+                        .await;
                 }
             }
+        } else {
+            let _ = failed.send_one(().into()).await;
+            let _ = error
+                .send_one("Distribution failed".to_string().into())
+                .await;
         }
     }
 }
