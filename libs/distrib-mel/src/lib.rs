@@ -8,10 +8,7 @@ use async_std::io::{Read, Write};
 use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
 use common::descriptor::{Entry, Treatment};
-use common::{
-    descriptor::{Identifier, Version},
-    executive::ResultStatus,
-};
+use common::descriptor::{Identifier, Version};
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use futures::{pin_mut, select, FutureExt};
@@ -217,8 +214,7 @@ impl DistributionEngine {
             } else {
                 Err("No IP address provided".to_string())
             }
-        }
-        else {
+        } else {
             Ok(())
         }
     }
@@ -537,7 +533,7 @@ pub async fn start(params: Map) {
         match distributor.start(&access.0, params).await {
             Ok(_) => {
                 let _ = ready.send_one(().into()).await;
-            },
+            }
             Err(err) => {
                 let _ = failed.send_one(().into()).await;
                 let _ = error.send_one(err.into()).await;

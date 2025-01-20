@@ -160,7 +160,7 @@ pub async fn distant(
                     let _ = errors.send_many(errs.into()).await;
                 }
             },
-    
+
             Err(err) => {
                 let _ = failed.send_one(().into()).await;
                 let _ = errors.send_many(vec![err].into()).await;
