@@ -674,6 +674,7 @@ pub async fn one() {
             val = xa => val,
             val = xb => val,
             complete => break,
+            default => {eprintln!("One waiting…");continue},
         };
 
         if let Some(val) = val {
@@ -681,6 +682,8 @@ pub async fn one() {
             break;
         }
     }
+
+    eprintln!("One finished");
 }
 
 /// Never send any value.
@@ -737,8 +740,8 @@ pub async fn pass(cond: bool) {
 )]
 pub async fn passBlock(cond: bool) {
     if cond {
-        while let Ok(data) = block.recv_one().await {
-            check!(passed.send_one(data).await)
+        if let Ok(data) = block.recv_one().await {
+            let _ = passed.send_one(data).await;
         }
     }
 }

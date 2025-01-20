@@ -109,4 +109,5 @@ pub async fn console(timestamp: bool) {
             }
         }
     }
+    eprintln!("Console finished");
 }

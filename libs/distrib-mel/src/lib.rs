@@ -217,11 +217,18 @@ impl DistributionEngine {
                                         None,
                                         &HashMap::new(),
                                         Some(Box::new(move |mut outputs| {
+
+                                            eprintln!("New ready");
                                             let trigger = outputs.get("trigger");
 
+                                            eprintln!("Trigger output taken");
+
                                             vec![Box::new(Box::pin(async move {
+                                                eprintln!("Sending ready trigger");
                                                 let _ = trigger.send_one(().into()).await;
+                                                eprintln!("Sending ready done");
                                                 trigger.close().await;
+                                                eprintln!("Sending ready closed");
                                                 ResultStatus::Ok
                                             }))]
                                         })),
@@ -447,6 +454,7 @@ impl DistributionEngine {
                     break;
                 },
                 () = fusing_barrier => {
+                    eprintln!("Fused");
                     return;
                 }
             }
@@ -574,6 +582,7 @@ impl DistributionEngine {
                         let _ = error.send_one(message.into()).await;
                         failed.close().await;
                         error.close().await;
+                        eprintln!("Distribution failure finished");
                         ResultStatus::Ok
                     }))]
                 })),
@@ -600,8 +609,11 @@ pub async fn start(params: Map) {
     }) {
         distributor.start(&access.0, params).await;
     } else {
+        eprintln!("Fusing");
         distributor.fuse().await;
     }
+
+    eprintln!("Start ended");
 }
 
 #[mel_treatment(
@@ -629,7 +641,9 @@ pub async fn distribute(params: Map) {
     let params = params.map.clone();
 
     if let Ok(_) = trigger.recv_one().await {
+        eprintln!("Distribute…");
         if let Some((id, barrier, validation)) = distributor.distribute(params).await {
+            eprintln!("Distribution being made");
             if !validation.load(Ordering::Relaxed) {
                 barrier.wait().await;
                 validation.store(true, Ordering::Relaxed);

@@ -1,19 +1,48 @@
 
 use root/builders::stepFileResult
+use root/builders::distantStep
 use fs/file::read
 use fs/filesystem::FileSystem
 use process/exec::Executor
+use process/command::Command
 use process/command::|command
 use log/logger::Logger
 use log/log::logInfoMessage
 use log/log::logErrorMessage
+use std/data/string_map::StringMap
 use std/data::|entry
+use std/flow::passBlock
 use std/text/compose::|format
 use std/ops::|condition
 use std/ops/option::|unwrap_or
+use std/ops/vec::|concat
 use std/text/compare::|contains
+use work/distant::DistantEngine
+use work/resources::|container
+use work/resources::|mount
+use work/resources::|volume
+use work/resources/arch::|arm64
 
-treatment buildMelodium[logger: Logger](var target: string)
+/*treatment buildMelodiumForX86_64LinuxGnu[logger: Logger](var exec: bool, var distant: bool = false)
+  input executor: Block<Executor>
+  input filesystem: Block<FileSystem>
+  input trigger: Block<void>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+  output file: Stream<byte>
+{
+    buildMelodium[logger=logger](
+      build=build,
+      target="x86_64-unknown-linux-gnu",
+      pre_commands=[]
+    )
+
+
+}*/
+
+treatment buildMelodium[logger: Logger](var build: bool, var target: string, var environment_variables: Option<StringMap> = _, var pre_commands: Vec<Command>)
   input executor: Block<Executor>
   input filesystem: Block<FileSystem>
   input trigger: Block<void>
@@ -25,27 +54,78 @@ treatment buildMelodium[logger: Logger](var target: string)
 {
     build: stepFileResult[logger=logger](
       label=|unwrap_or<string>(|format("build:{target}", |entry<string>("target", target)), "build"),
-      commands=[
+      environment_variables=environment_variables,
+      commands=|concat<Command>(pre_commands, [
           |command("rustc", ["--version"]),
           |command("cargo", ["--version"]),
           |command("cargo", ["build", "--package", "melodium", "--target", target])
-      ],
+      ]),
       file=|condition<string>(|contains(target, "windows"), |unwrap_or<string>(|format("target/{target}/debug/melodium.exe", |entry<string>("target", target)), "target/melodium.exe"), |unwrap_or<string>(|format("target/{target}/debug/melodium", |entry<string>("target", target)), "target/melodium"))
     )
 
-    logInfoMessage[logger=logger](label="success", message=|unwrap_or<string>(|format("Build {target} completed", |entry<string>("target", target)), "Build `unknown target` completed"))
-    logErrorMessage[logger=logger](label="failure", message=|unwrap_or<string>(|format("Build {target} failed", |entry<string>("target", target)), "Build `unknown target` failed"))
+    passTrigger: passBlock<void>(cond=build)
+
+    logTriggered: logInfoMessage[logger=logger](label="trigger", message=|unwrap_or<string>(|format("Build {target} triggered", |entry<string>("target", target)), "Build `unknown target` triggered"))
+    logCompleted: logInfoMessage[logger=logger](label="success", message=|unwrap_or<string>(|format("Build {target} completed", |entry<string>("target", target)), "Build `unknown target` completed"))
+    logFailed:    logErrorMessage[logger=logger](label="failure", message=|unwrap_or<string>(|format("Build {target} failed", |entry<string>("target", target)), "Build `unknown target` failed"))
 
     Self.executor ---> build.executor
     Self.filesystem -> build.filesystem
-    Self.trigger ----> build.trigger
+    Self.trigger ----> passTrigger.block,passed -> build.trigger
+                       passTrigger.passed -------> logTriggered.trigger
 
-    build.failed ----> logErrorMessage.trigger
-    build.completed -> logInfoMessage.trigger
+    build.failed ----> logFailed.trigger
+    build.completed -> logCompleted.trigger
 
     build.started ---> Self.started
     build.finished --> Self.finished
     build.failed ----> Self.failed
     build.completed -> Self.completed
     build.data ------> Self.file
+}
+
+treatment buildMelodiumDistant[distant_engine: DistantEngine, logger: Logger](var build: bool, var target: string, var environment_variables: Option<StringMap> = _, var pre_commands: Vec<Command>)
+  input trigger: Block<void>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+{
+    build: distantStep[distant_engine=distant_engine, logger=logger](
+      executor_name="compiler",
+      arch=_,
+      containers=[
+        |container("compiler", 1000, 1, 500, |arm64(), [], "rust:bullseye", _)
+      ],
+      cpu=1,
+      memory=1000,
+      max_duration=600,
+      storage=1000,
+      volumes=[],
+
+      label=|unwrap_or<string>(|format("build:{target}", |entry<string>("target", target)), "build"),
+      environment_variables=environment_variables,
+      commands=|concat<Command>(pre_commands, [
+          |command("rustc", ["--version"]),
+          |command("cargo", ["--version"])/*,
+          |command("cargo", ["build", "--package", "melodium", "--target", target])*/
+      ])
+    )
+
+    passTrigger: passBlock<void>(cond=build)
+
+    logTriggered: logInfoMessage[logger=logger](label="trigger", message=|unwrap_or<string>(|format("Build {target} triggered", |entry<string>("target", target)), "Build `unknown target` triggered"))
+    logCompleted: logInfoMessage[logger=logger](label="success", message=|unwrap_or<string>(|format("Build {target} completed", |entry<string>("target", target)), "Build `unknown target` completed"))
+    logFailed:    logErrorMessage[logger=logger](label="failure", message=|unwrap_or<string>(|format("Build {target} failed", |entry<string>("target", target)), "Build `unknown target` failed"))
+
+    Self.trigger ----> passTrigger.block,passed -> build.trigger
+                       passTrigger.passed -------> logTriggered.trigger
+
+    build.failed ----> logFailed.trigger
+    build.completed -> logCompleted.trigger
+
+    build.started ---> Self.started
+    build.finished --> Self.finished
+    build.failed ----> Self.failed
+    build.completed -> Self.completed
 }

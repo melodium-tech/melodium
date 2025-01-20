@@ -22,7 +22,7 @@ name = "melodium"
 required-features = ["cli"]
 
 [dependencies]
-async-std = "1.12"
+async-std = "1.13"
 clap = { version = "4.0.32", features = ["cargo", "derive", "string"], optional = true }
 colored = { version = "2.0.2", optional = true }
 convert_case = "0.6"

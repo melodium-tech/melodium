@@ -15,6 +15,7 @@ use process/environment::Environment
 use process/environment::mapEnvironment
 use process/exec::Executor
 use process/exec::spawn
+use std/flow::check
 use std/flow::emit
 use std/flow::one
 use std/flow::stream
@@ -24,15 +25,36 @@ use std/ops/option/block::reduce
 use std/text/convert/string::fromUtf8
 use std/text/compose::rescale
 use std/text/compose::trimEnd
-use std/data::Map
+//use std/data::Map
+use std/data/string_map::StringMap
+use std/data::|map
+use std/data::|entry
 use log/log::logInfos
 use log/log::logErrors
 use log/log::logError
+use log/logger::Log
 use log/logger::Logger
+use log/logger::logs
 use fs/file::read
 use fs/filesystem::FileSystem
+use work/distant::DistantEngine
+use work/distant::distant
+use work/resources/arch::Arch
+use work/resources::Container
+use work/resources::Volume
+use work/resources::getExecutor
+use distrib::DistributionEngine
+use distrib::distribute
+use distrib::distributionFailure
+use distrib::ready
+use distrib::start
+use distrib::stop
+use distrib::recvBlock
+use distrib::recvStream
+use distrib::sendBlock
+use distrib::sendStream
 
-treatment stepFileResult[logger: Logger](var label: string, var environment_variables: Option<Map> = _, var commands: Vec<Command>, var file: string)
+treatment stepFileResult[logger: Logger](var label: string, var environment_variables: Option<StringMap> = _, var commands: Vec<Command>, var file: string)
   input executor: Block<Executor>
   input filesystem: Block<FileSystem>
   input trigger: Block<void>
@@ -91,7 +113,100 @@ treatment readWithLog[logger: Logger](var label: string, var file: string)
     read.data ------> Self.data
 }
 
-treatment step[logger: Logger](var label: string, var environment_variables: Option<Map> = _, var commands: Vec<Command>)
+treatment distantStep[distant_engine: DistantEngine, logger: Logger](var executor_name: string, var label: string, var environment_variables: Option<StringMap> = _, var commands: Vec<Command>, var arch: Option<Arch>, var containers: Vec<Container>, var cpu: u32, var memory: u32, var edition: Option<string> = _, var max_duration: u32, var storage: u32, var volumes: Vec<Volume>)
+  input  trigger: Block<void>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+  model distribution_engine: DistributionEngine(treatment="melodium_ci/builders::stepOnExecutor", version="0.1.0")
+{
+    distant[distant_engine=distant_engine](arch=arch, containers=containers, cpu=cpu, edition=edition, max_duration=max_duration, memory=memory, storage=storage, volumes=volumes)
+    logDistantErrs: logErrors[logger=logger](label=label)
+
+    Self.trigger ---> distant.trigger
+    distant.errors -> logDistantErrs.messages
+
+    start[distributor=distribution_engine](params=|map([]))
+    ready[distribution_engine=distribution_engine]()
+    stop[distributor=distribution_engine]()
+
+    distribute[distributor=distribution_engine](params=|map([
+      |entry<string>("executor_name", "executor_name"),
+      |entry<string>("label", "distant_job"),
+      |entry<Option<StringMap>>("environment_variables", environment_variables),
+      |entry<Vec<Command>>("commands", [])
+    ]))
+    distributionFailure[distribution_engine=distribution_engine]()
+    logDistribErr: logError[logger=logger](label=label)
+
+    distant.access -> start.access
+    ready.trigger --> distribute.trigger
+    distributionFailure.error --> logDistribErr.message
+
+    distantOrDistribFailed: one<void>()
+    distant.failed -------------> distantOrDistribFailed.a,value -> distOrStepFailed.a
+    distributionFailure.failed -> distantOrDistribFailed.b,value -> distFailedOrStepFinished.a
+
+    trigger: sendBlock<void>[distributor=distribution_engine](name="trigger")
+    started: recvBlock<void>[distributor=distribution_engine](name="started")
+    finished: recvBlock<void>[distributor=distribution_engine](name="finished")
+    failed: recvBlock<void>[distributor=distribution_engine](name="failed")
+    completed: recvBlock<void>[distributor=distribution_engine](name="completed")
+
+    checkDistrib: check<u64>()
+
+    distribute.distribution_id -> trigger.distribution_id
+    distribute.distribution_id -> checkDistrib.value,check -> trigger.data
+    distribute.distribution_id -> started.distribution_id
+    distribute.distribution_id -> finished.distribution_id
+    distribute.distribution_id -> failed.distribution_id
+    distribute.distribution_id -> completed.distribution_id
+
+    distOrStepFailed: one<void>()
+    failed.data -> distOrStepFailed.b
+    distOrStepFailed.value -> Self.failed
+
+    distFailedOrStepFinished: one<void>()
+    finished.data -> distFailedOrStepFinished.b,value -> Self.finished
+
+    started.data ---> Self.started
+    completed.data -> Self.completed
+
+    finished.data --> stop.trigger
+}
+
+treatment stepOnExecutor(var executor_name: string, var label: string, var environment_variables: Option<StringMap> = _, var commands: Vec<Command>)
+  input trigger: Block<void>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+  output logs: Stream<Log>
+  model  logger: Logger()
+{
+    getExecutor(name=executor_name)
+    step[logger=logger](label=label, environment_variables=environment_variables, commands=commands)
+
+    oneFailed: one<void>()
+    getExecutor.failed -> oneFailed.a,value -> Self.failed
+
+    logExecutorErr: logError[logger=logger](label=label)
+    getExecutor.error -> logExecutorErr.message
+
+    Self.trigger -> getExecutor.trigger,executor -> step.executor
+    Self.trigger ---------------------------------> step.trigger
+
+    step.started ---> Self.started
+    step.finished --> Self.finished
+    step.failed ----> oneFailed.b
+    step.completed -> Self.completed
+
+    logs[logger=logger]()
+    logs.all -> Self.logs
+}
+
+treatment step[logger: Logger](var label: string, var environment_variables: Option<StringMap> = _, var commands: Vec<Command>)
   input executor: Block<Executor>
   input trigger: Block<void>
   output started: Block<void>
@@ -105,8 +220,8 @@ treatment step[logger: Logger](var label: string, var environment_variables: Opt
 
     Self.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector
 
-    emitEnvVars: emit<Option<Map>>(value=environment_variables)
-    mapEnv: map<Map>()
+    emitEnvVars: emit<Option<StringMap>>(value=environment_variables)
+    mapEnv: map<StringMap>()
     mapEnvironment(working_directory = _, clear_env = false)
     reduceEnv: reduce<Environment>()
 

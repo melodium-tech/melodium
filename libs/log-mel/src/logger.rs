@@ -89,6 +89,7 @@ impl Logger {
                         }
 
                         all.close().await;
+                        eprintln!("No more logs");
                         ResultStatus::Ok
                     }))]
                 })),

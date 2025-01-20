@@ -246,9 +246,11 @@ impl World {
         loop {
             select! {
                 received_track = tracks_receiver.select_next_some() => {
+                    eprintln!("tracks_receiver.select_next_some()");
                     futures.push(track_future(received_track));
                 },
                 result = futures.select_next_some() => {
+                    eprintln!("futures.select_next_some()");
                     match result {
                         TrackResult::AllOk(id) => {
                             self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
@@ -260,11 +262,13 @@ impl World {
                     self.check_closing().await;
                 },
                 _result = continous_ended_barrier => {
+                    eprintln!("continous_ended_barrier");
                     self.check_closing().await;
                 },
                 complete => break,
             }
         }
+        eprintln!("Run tracks finished");
     }
 
     async fn check_closing(&self) {
@@ -581,6 +585,7 @@ impl Engine for World {
                 .for_each(|m| m.shutdown());
             self.tracks_sender.close();
             self.closing.store(true, Ordering::Relaxed);
+            eprintln!("Ended");
         }
     }
 }
@@ -662,6 +667,8 @@ impl ExecutiveWorld for World {
             Vec::new()
         };
 
+        eprintln!("Model futures: {}", model_futures.len());
+
         track_futures.extend(model_futures);
 
         let ancestry = if let Some(parent) = parent_track {
@@ -675,6 +682,8 @@ impl ExecutiveWorld for World {
         } else {
             0
         };
+
+        eprintln!("Creating track based on {source}");
 
         let info_track = InfoTrack::new(track_id, parent_track, ancestry);
         let execution_track =

@@ -17,7 +17,7 @@ name = "melodium_engine"
 
 [dependencies]
 melodium-common = { path = "../melodium-common", version = "=0.9.0-pre.1" }
-async-std = { version = "1.12", features = ["unstable"] }
+async-std = { version = "1.13", features = ["unstable"] }
 async-trait = "0.1.71"
 downcast-rs = "1.2.0"
 futures = "0.3.28"

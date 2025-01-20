@@ -17,7 +17,7 @@ crate-type = ["lib", "cdylib"]
 name = "fs_mel"
 
 [dependencies]
-async-std = "1.12"
+async-std = "1.13"
 async-trait = "0.1.71"
 async-walkdir = "2.0"
 futures = "0.3.28"

@@ -16,26 +16,34 @@ use log/console::console
 use log/log::logErrors
 use log/log::logInfoMessage
 use log/log::logErrorMessage
+use work/distant::DistantEngine
 use root/build::buildMelodium
+use root/build::buildMelodiumDistant
 
-treatment main()
+treatment main(work_path: Option<string> = _, build_local: bool = false)
   model logger: Logger()
+  model distant_engine: DistantEngine(address="https://api-staging.melodium.tech/0.1", key="GfI84jhasy8dT5u1/2B4anBUb1d5pmaJNVBLoOmJvuZk5pHlV9J4HNsYFMgYqK7YGsGKPYab+RP7mvPHXHMmMg")
 {
     startup()
 
-    localExec: emit<Option<Executor>>(value=|local_executor())
+    /*localExec: emit<Option<Executor>>(value=|local_executor())
     executor: unwrap<Executor>()
     startup.trigger -> localExec.trigger,emit -> executor.option//,value -> step.executor
 
-    localFileSystem: emit<Option<FileSystem>>(value=|local_filesystem())
+    localFileSystem: emit<Option<FileSystem>>(value=|local_filesystem(work_path))
     filesystem: unwrap<FileSystem>()
     startup.trigger -> localFileSystem.trigger,emit -> filesystem.option//,value -> step.executor
+    */
 
     allLogs: logs[logger=logger]()
     logConsole: console(timestamp=true)
     allLogs.all -> logConsole.logs
 
-    buildLinuxAmd64Gnu: buildMelodium[logger=logger](target="x86_64-unknown-linux-gnu")
+    buildLinuxAmd64Musl: buildMelodiumDistant[distant_engine=distant_engine, logger=logger](target="x86_64-unknown-linux-musl", build=true, pre_commands=[])
+    startup.trigger --> buildLinuxAmd64Musl.trigger
+
+    /*
+    buildLinuxAmd64Gnu: buildMelodium[logger=logger](target="x86_64-unknown-linux-gnu", build=true, pre_commands=[])
     writeAmd64Gnu: writeLocal(path="/tmp/melodium/x86_64-unknown-linux-gnu-melodium")
     writeAmd64GnuErrs: logErrors[logger=logger](label="file")
 
@@ -44,7 +52,7 @@ treatment main()
     startup.trigger --> buildLinuxAmd64Gnu.trigger
     buildLinuxAmd64Gnu.file -> writeAmd64Gnu.data,errors -> writeAmd64GnuErrs.messages
 
-    buildLinuxAmd64Musl: buildMelodium[logger=logger](target="x86_64-unknown-linux-musl")
+    buildLinuxAmd64Musl: buildMelodium[logger=logger](target="x86_64-unknown-linux-musl", build=true, pre_commands=[])
     writeAmd64Musl: writeLocal(path="/tmp/melodium/x86_64-unknown-linux-musl-melodium")
     writeAmd64MuslErrs: logErrors[logger=logger](label="file")
 
@@ -52,6 +60,7 @@ treatment main()
     filesystem.value -> buildLinuxAmd64Musl.filesystem
     startup.trigger --> buildLinuxAmd64Musl.trigger
     buildLinuxAmd64Musl.file -> writeAmd64Musl.data,errors -> writeAmd64MuslErrs.messages
+    */
 
     /*step[logger=logger](name="build",
     commands=[
