@@ -48,17 +48,15 @@ treatment main(const distrib_port: u16, var remote_key: string, var self_key: st
     emitOk: emit<string>(value="ok")
     streamOk: stream<string>()
     writeOk: writeTextLocal(path = "ok.log")
-    ready[distribution_engine=distributor]()
     writeFailure: writeTextLocal(path = "failure.log")
     streamFailure: stream<string>()
-    distributionFailure[distribution_engine=distributor]()
 
-    distributionFailure.error -> streamFailure.block,stream --> writeFailure.text
-    ready.trigger -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
+    start.error -> streamFailure.block,stream --> writeFailure.text
+    start.ready -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
 
 
     startHttp[http_server=server]()
-    ready.trigger -> startHttp.trigger
+    start.ready -> startHttp.trigger
 
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())
@@ -100,11 +98,9 @@ treatment js_function()
 
 use distrib::DistributionEngine
 use distrib::distribute
-use distrib::ready
 use distrib::start
 use distrib::sendStream
 use distrib::recvStream
-use distrib::distributionFailure
 
 treatment distributedJs[distributor: DistributionEngine]()
   input data: Stream<byte>

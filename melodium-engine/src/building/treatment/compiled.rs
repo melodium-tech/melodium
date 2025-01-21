@@ -182,7 +182,7 @@ impl BuilderTrait for Builder {
                     .map(|(name, input)| (name.to_string(), vec![input.clone()]))
                     .collect();
 
-                let prepared_futures = treatment.prepare();
+                let prepared_futures = treatment.prepare(environment.track_id());
                 result.prepared_futures.extend(prepared_futures);
                 result.prepared_futures.extend(host_build.prepared_futures);
             }
@@ -208,7 +208,7 @@ impl BuilderTrait for Builder {
                     .map(|(name, input)| (name.to_string(), vec![input.clone()]))
                     .collect();
 
-                result.prepared_futures.extend(treatment.prepare());
+                result.prepared_futures.extend(treatment.prepare(environment.track_id()));
             }
         }
 

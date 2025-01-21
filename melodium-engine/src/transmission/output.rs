@@ -173,6 +173,7 @@ impl ExecutiveOutput for Output {
         }
         self.check_send(false).await
     }
+
     async fn send_one(&self, data: Value) -> SendResult {
         {
             let mut lock = self.buffer.lock().await;

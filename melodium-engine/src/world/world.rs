@@ -148,7 +148,7 @@ impl World {
     }
 
     pub fn direct(&self, id: &TrackId) -> LogicResult<FeedingInputs> {
-        let possible_build_result;
+        /*let possible_build_result;
         {
             possible_build_result = self
                 .main_tracks
@@ -162,7 +162,15 @@ impl World {
             LogicResult::new_success(dbr)
         } else {
             LogicResult::new_failure(LogicError::no_direct_track(242, id.clone()))
-        }
+        }*/
+        LogicResult::new_success(
+            self.main_tracks
+                .read()
+                .unwrap()
+                .get(id)
+                .map(|feeding_inputs| feeding_inputs.clone())
+                .unwrap_or_default(),
+        )
     }
 
     pub fn builder(&self, identifier: &Identifier) -> LogicResult<Arc<dyn Builder>> {
@@ -336,7 +344,9 @@ impl Engine for World {
         }
 
         match result.success().unwrap() {
-            StaticBuildResult::Build(b) => *self.main_build_id.write().unwrap() = *b,
+            StaticBuildResult::Build(b) => {
+                *self.main_build_id.write().unwrap() = *b
+            }
             _ => panic!("Cannot make a genesis with something else than a treatment"),
         };
 
@@ -507,12 +517,11 @@ impl Engine for World {
         }
 
         let mut inputs = HashMap::new();
-        for (name, _) in main.inputs() {
+        for (name, _) in main.outputs() {
             let input = self.new_input();
             inputs.insert(name.clone(), input);
         }
         {
-            eprintln!("Creating track '{track_id}'");
             self.main_tracks.write().unwrap().insert(
                 track_id,
                 inputs
@@ -535,7 +544,7 @@ impl Engine for World {
             track_futures.extend(build_result.prepared_futures);
 
             for (input_name, mut input_transmitters) in build_result.feeding_inputs {
-                match outputs.entry(input_name) {
+                match outputs.entry(input_name.clone()) {
                     Entry::Vacant(e) => {
                         let e = e.insert(Output::from(input_transmitters.pop().unwrap()));
                         e.add_transmission(&input_transmitters);

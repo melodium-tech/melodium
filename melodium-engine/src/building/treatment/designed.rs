@@ -610,7 +610,6 @@ impl BuilderTrait for Builder {
                     result.prepared_futures.extend(host_build.prepared_futures);
                 }
                 HostTreatment::Direct => {
-                    eprintln!("Getting track '{}'", environment.track_id());
                     let direct_inputs = world.direct(&environment.track_id()).to_success().unwrap();
                     for last_connection in last_connections {
                         if let Some(transmitters) = direct_inputs.get(&last_connection.input_name) {

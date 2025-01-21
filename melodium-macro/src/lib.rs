@@ -1456,7 +1456,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let body = treatment.block;
 
         prepare_implementation = quote! {
-            fn prepare(&self) -> Vec<melodium_core::common::executive::TrackFuture> {
+            fn prepare(&self, track_id: usize) -> Vec<melodium_core::common::executive::TrackFuture> {
 
                 #generics;
                 #parameters;
