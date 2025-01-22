@@ -453,16 +453,22 @@ pub async fn spawn() {
                     environment.as_deref(),
                     Box::new(|| {
                         Box::pin(async {
+                            eprintln!("Call: started");
                             if first {
                                 let _ = started.send_one(().into()).await;
                                 first = false;
                             }
                         })
                     }),
-                    Box::new(|| Box::pin(async {})),
-                    Box::new(|| Box::pin(async {})),
+                    Box::new(|| Box::pin(async {
+                        eprintln!("Call: finished");
+                    })),
+                    Box::new(|| Box::pin(async {
+                        eprintln!("Call: completed");
+                    })),
                     Box::new(|| {
                         Box::pin(async {
+                            eprintln!("Call: failed");
                             success = false;
                         })
                     }),
@@ -490,7 +496,9 @@ pub async fn spawn() {
                                 .map_err(|_| ())
                         })
                     }),
-                    Box::new(|| Box::pin(async {})),
+                    Box::new(|| Box::pin(async {
+                        eprintln!("Call: stdoutclose");
+                    })),
                     Box::new(|data: VecDeque<u8>| {
                         Box::pin(async {
                             eprintln!("Spawn stderr: {}", String::from_utf8(data.clone().into()).unwrap_or_else(|_| "Not UTF8".to_string()));
@@ -500,7 +508,9 @@ pub async fn spawn() {
                                 .map_err(|_| ())
                         })
                     }),
-                    Box::new(|| Box::pin(async {})),
+                    Box::new(|| Box::pin(async {
+                        eprintln!("Call: stderrclose");
+                    })),
                 )
                 .await;
             if !success {

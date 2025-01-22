@@ -365,6 +365,7 @@ impl ExecutorEngine for KubeExecutor {
 
                     let status_waiter = async {
                         if let Some(status) = status_waiter.await {
+                            eprintln!("Status: {status:?}");
                             match status.status.as_ref().map(|s| s.as_str()) {
                                 Some("Success") => {
                                     completed().await;
@@ -381,6 +382,7 @@ impl ExecutorEngine for KubeExecutor {
                                 }
                             }
                         } else {
+                            eprintln!("No status");
                             failed().await;
                             error("No output status provided".to_string()).await;
                         }
