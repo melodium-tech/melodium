@@ -344,9 +344,7 @@ impl Engine for World {
         }
 
         match result.success().unwrap() {
-            StaticBuildResult::Build(b) => {
-                *self.main_build_id.write().unwrap() = *b
-            }
+            StaticBuildResult::Build(b) => *self.main_build_id.write().unwrap() = *b,
             _ => panic!("Cannot make a genesis with something else than a treatment"),
         };
 

@@ -764,3 +764,35 @@ pub async fn barrier() {
         }
     }
 }
+
+/// Pass stream until cut signal.
+///
+/// Let stream pass until `cut` signal si received.
+///
+#[mel_treatment(
+    generic T ()
+    input cut Block<void>
+    input stream Stream<T>
+    output passed Stream<T>
+)]
+pub async fn cut() {
+    let cut = async { cut.recv_one().await.is_ok() }.fuse();
+    let pass = async {
+        while let Ok(values) = stream.recv_many().await {
+            check!(passed.send_many(values).await)
+        }
+    }
+    .fuse();
+
+    pin_mut!(cut, pass);
+
+    loop {
+        select! {
+            () = pass => break,
+            do_cut = cut => if do_cut {
+                break
+            },
+            complete => break,
+        }
+    }
+}

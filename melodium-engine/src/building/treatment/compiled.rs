@@ -208,7 +208,9 @@ impl BuilderTrait for Builder {
                     .map(|(name, input)| (name.to_string(), vec![input.clone()]))
                     .collect();
 
-                result.prepared_futures.extend(treatment.prepare(environment.track_id()));
+                result
+                    .prepared_futures
+                    .extend(treatment.prepare(environment.track_id()));
             }
         }
 
