@@ -36,6 +36,7 @@ use log/log::logError
 use log/logger::Log
 use log/logger::Logger
 use log/logger::trackLogs
+use log/logger::logs
 use log/logger::injectStreamLog
 use fs/file::read
 use fs/filesystem::FileSystem
@@ -126,11 +127,11 @@ treatment distantStep[distant_engine: DistantEngine, logger: Logger](var executo
   output completed: Block<void>
   model distribution_engine: DistributionEngine(treatment="melodium_ci/builders::stepOnExecutor", version="0.1.0")
 {
-    /*distant[distant_engine=distant_engine](arch=arch, containers=containers, cpu=cpu, edition=edition, max_duration=max_duration, memory=memory, storage=storage, volumes=volumes)
+    distant[distant_engine=distant_engine](arch=arch, containers=containers, cpu=cpu, edition=edition, max_duration=max_duration, memory=memory, storage=storage, volumes=volumes)
     logDistantErrs: logErrors[logger=logger](label=label)
 
     Self.trigger ---> distant.trigger
-    distant.errors -> logDistantErrs.messages*/
+    distant.errors -> logDistantErrs.messages
 
     start[distributor=distribution_engine](params=|map([
       |entry<string>("executor_name", executor_name),
@@ -150,17 +151,17 @@ treatment distantStep[distant_engine: DistantEngine, logger: Logger](var executo
     logDistribErr: logError[logger=logger](label=label)
     injectStreamLog[logger=logger]()
 
-    //distant.access -> start.access
+    distant.access -> start.access
 
-    emitAccess: emit<Access>(value=|new_access([|from_ipv4(|localhost_ipv4())], 8079, "d0bf1006-a851-50eb-b32b-5f443d642ce6", "9a1bed00-1051-565e-b418-f3b32462620d"))
-    Self.trigger -> emitAccess.trigger,emit -> start.access
+    /*emitAccess: emit<Access>(value=|new_access([|from_ipv4(|localhost_ipv4())], 8079, "d0bf1006-a851-50eb-b32b-5f443d642ce6", "9a1bed00-1051-565e-b418-f3b32462620d"))
+    Self.trigger -> emitAccess.trigger,emit -> start.access*/
 
     start.ready --> distribute.trigger
     start.error --> logStartDistribErr.message
     distribute.error -> logDistribErr.message
 
     distantOrDistribFailed: one<void>()
-    /*distant*/start.failed -------------> distantOrDistribFailed.a,value -> distOrStepFailed.a
+    distant.failed -------------> distantOrDistribFailed.a,value -> distOrStepFailed.a
     start.failed ---------------> distantOrDistribFailed.b,value -> distFailedOrStepFinished.a
 
     trigger: sendBlock<void>[distributor=distribution_engine](name="trigger")

@@ -107,7 +107,7 @@ treatment buildMelodiumDistant[distant_engine: DistantEngine, logger: Logger](va
       environment_variables=environment_variables,
       commands=|concat<Command>(pre_commands, [
           |command("rustc", ["--version"]),
-          |command("cargo", ["--version"])/*,
+          |command("cargo", ["--version"]) /*,
           |command("cargo", ["build", "--package", "melodium", "--target", target])*/
       ])
     )

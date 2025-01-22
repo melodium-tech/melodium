@@ -1,5 +1,8 @@
 use std/flow::emit
 use std/ops/option/block::unwrap
+use std/ops/option::|wrap
+use std/data/string_map::|entry
+use std/data/string_map::StringMap
 use std/engine/util::startup
 use process/command::Command
 use process/environment::Environment
@@ -39,7 +42,7 @@ treatment main(work_path: Option<string> = _, build_local: bool = false)
     logConsole: console(timestamp=true)
     allLogs.all -> logConsole.logs
 
-    buildLinuxAmd64Musl: buildMelodiumDistant[distant_engine=distant_engine, logger=logger](target="x86_64-unknown-linux-musl", build=true, pre_commands=[])
+    buildLinuxAmd64Musl: buildMelodiumDistant[distant_engine=distant_engine, logger=logger](target="x86_64-unknown-linux-musl", build=true, pre_commands=[], environment_variables=|wrap<StringMap>(|entry("CHECK", "ok")))
     startup.trigger --> buildLinuxAmd64Musl.trigger
 
     /*
