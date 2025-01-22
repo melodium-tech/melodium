@@ -195,6 +195,17 @@ impl RawValue {
                     None
                 }
             }
+            RawValue::Vec(v) => Some({
+                let mut vec = Vec::with_capacity(v.len());
+                for val in v {
+                    vec.push(val.to_value(collection)?);
+                }
+                CommonValue::Vec(vec)
+            }),
+            RawValue::Option(option) => Some(match option {
+                None => CommonValue::Option(None),
+                Some(value) => CommonValue::Option(Some(Box::new(value.to_value(collection)?))),
+            }),
             other => other.try_into().ok(),
         }
     }
