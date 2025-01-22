@@ -460,12 +460,16 @@ pub async fn spawn() {
                             }
                         })
                     }),
-                    Box::new(|| Box::pin(async {
-                        eprintln!("Call: finished");
-                    })),
-                    Box::new(|| Box::pin(async {
-                        eprintln!("Call: completed");
-                    })),
+                    Box::new(|| {
+                        Box::pin(async {
+                            eprintln!("Call: finished");
+                        })
+                    }),
+                    Box::new(|| {
+                        Box::pin(async {
+                            eprintln!("Call: completed");
+                        })
+                    }),
                     Box::new(|| {
                         Box::pin(async {
                             eprintln!("Call: failed");
@@ -489,28 +493,40 @@ pub async fn spawn() {
                     }),
                     Box::new(|data: VecDeque<u8>| {
                         Box::pin(async {
-                            eprintln!("Spawn stdout: {}", String::from_utf8(data.clone().into()).unwrap_or_else(|_| "Not UTF8".to_string()));
+                            eprintln!(
+                                "Spawn stdout: {}",
+                                String::from_utf8(data.clone().into())
+                                    .unwrap_or_else(|_| "Not UTF8".to_string())
+                            );
                             stdout
                                 .send_many(TransmissionValue::Byte(data))
                                 .await
                                 .map_err(|_| ())
                         })
                     }),
-                    Box::new(|| Box::pin(async {
-                        eprintln!("Call: stdoutclose");
-                    })),
+                    Box::new(|| {
+                        Box::pin(async {
+                            eprintln!("Call: stdoutclose");
+                        })
+                    }),
                     Box::new(|data: VecDeque<u8>| {
                         Box::pin(async {
-                            eprintln!("Spawn stderr: {}", String::from_utf8(data.clone().into()).unwrap_or_else(|_| "Not UTF8".to_string()));
+                            eprintln!(
+                                "Spawn stderr: {}",
+                                String::from_utf8(data.clone().into())
+                                    .unwrap_or_else(|_| "Not UTF8".to_string())
+                            );
                             stderr
                                 .send_many(TransmissionValue::Byte(data))
                                 .await
                                 .map_err(|_| ())
                         })
                     }),
-                    Box::new(|| Box::pin(async {
-                        eprintln!("Call: stderrclose");
-                    })),
+                    Box::new(|| {
+                        Box::pin(async {
+                            eprintln!("Call: stderrclose");
+                        })
+                    }),
                 )
                 .await;
             if !success {

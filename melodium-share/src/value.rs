@@ -29,7 +29,7 @@ impl Value {
     ) -> SharingResult<DesignedValue> {
         match self {
             Value::Raw(val) => {
-                if let Ok(value) = val.try_into() {
+                if let Some(value) = val.to_value(collection) {
                     SharingResult::new_success(DesignedValue::Raw(value))
                 } else {
                     SharingResult::new_failure(SharingError::data_serialization_error(8))
