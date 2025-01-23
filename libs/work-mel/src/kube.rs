@@ -72,19 +72,21 @@ impl ExecutorEngine for KubeExecutor {
         let mut full_command = if let Some(environment) = environment {
             let mut env_command = vec!["/usr/bin/env".to_string()];
 
-            if environment.clear_env {
-                env_command.push("--ignore-environment".to_string());
-            }
-
             if let Some(dir) = &environment.working_directory {
                 env_command.push(format!("--chdir={dir}"));
             }
 
+            env_command.push("--split-string".to_string());
+
+            if environment.clear_env {
+                env_command.push("--ignore-environment".to_string());
+            }
+
+            env_command.push("-".to_string());
+
             for (name, val) in &environment.variables.map {
                 env_command.push(format!("{name}={val}"));
             }
-
-            env_command.push("--split-string".to_string());
 
             env_command.push(command.command.clone());
 
@@ -111,7 +113,20 @@ impl ExecutorEngine for KubeExecutor {
                         match status.status.as_ref().map(|s| s.as_str()) {
                             Some("Success") => {
                                 completed().await;
-                                exit(status.code).await;
+                                if let Some(causes) = status.details.map(|d| d.causes).flatten() {
+                                    let code = causes
+                                        .iter()
+                                        .filter(|cause| cause.reason.as_deref() == Some("ExitCode"))
+                                        .map(|cause| {
+                                            cause.message.as_ref().map(|msg| msg.parse().ok())
+                                        })
+                                        .next()
+                                        .flatten()
+                                        .flatten();
+                                    exit(code).await;
+                                } else {
+                                    exit(None).await;
+                                }
                             }
                             _ => {
                                 failed().await;
@@ -161,19 +176,21 @@ impl ExecutorEngine for KubeExecutor {
         let mut full_command = if let Some(environment) = environment {
             let mut env_command = vec!["/usr/bin/env".to_string()];
 
-            if environment.clear_env {
-                env_command.push("--ignore-environment".to_string());
-            }
-
             if let Some(dir) = &environment.working_directory {
                 env_command.push(format!("--chdir={dir}"));
             }
 
+            env_command.push("--split-string".to_string());
+
+            if environment.clear_env {
+                env_command.push("--ignore-environment".to_string());
+            }
+
+            env_command.push("-".to_string());
+
             for (name, val) in &environment.variables.map {
                 env_command.push(format!("{name}={val}"));
             }
-
-            env_command.push("--split-string".to_string());
 
             env_command.push(command.command.clone());
 
@@ -246,7 +263,23 @@ impl ExecutorEngine for KubeExecutor {
                             match status.status.as_ref().map(|s| s.as_str()) {
                                 Some("Success") => {
                                     completed().await;
-                                    exit(status.code).await;
+                                    if let Some(causes) = status.details.map(|d| d.causes).flatten()
+                                    {
+                                        let code = causes
+                                            .iter()
+                                            .filter(|cause| {
+                                                cause.reason.as_deref() == Some("ExitCode")
+                                            })
+                                            .map(|cause| {
+                                                cause.message.as_ref().map(|msg| msg.parse().ok())
+                                            })
+                                            .next()
+                                            .flatten()
+                                            .flatten();
+                                        exit(code).await;
+                                    } else {
+                                        exit(None).await;
+                                    }
                                 }
                                 _ => {
                                     failed().await;
@@ -298,19 +331,21 @@ impl ExecutorEngine for KubeExecutor {
         let mut full_command = if let Some(environment) = environment {
             let mut env_command = vec!["/usr/bin/env".to_string()];
 
-            if environment.clear_env {
-                env_command.push("--ignore-environment".to_string());
-            }
-
             if let Some(dir) = &environment.working_directory {
                 env_command.push(format!("--chdir={dir}"));
             }
 
+            env_command.push("--split-string".to_string());
+
+            if environment.clear_env {
+                env_command.push("--ignore-environment".to_string());
+            }
+
+            env_command.push("-".to_string());
+
             for (name, val) in &environment.variables.map {
                 env_command.push(format!("{name}={val}"));
             }
-
-            env_command.push("--split-string".to_string());
 
             env_command.push(command.command.clone());
 
@@ -379,7 +414,23 @@ impl ExecutorEngine for KubeExecutor {
                             match status.status.as_ref().map(|s| s.as_str()) {
                                 Some("Success") => {
                                     completed().await;
-                                    exit(status.code).await;
+                                    if let Some(causes) = status.details.map(|d| d.causes).flatten()
+                                    {
+                                        let code = causes
+                                            .iter()
+                                            .filter(|cause| {
+                                                cause.reason.as_deref() == Some("ExitCode")
+                                            })
+                                            .map(|cause| {
+                                                cause.message.as_ref().map(|msg| msg.parse().ok())
+                                            })
+                                            .next()
+                                            .flatten()
+                                            .flatten();
+                                        exit(code).await;
+                                    } else {
+                                        exit(None).await;
+                                    }
                                 }
                                 _ => {
                                     failed().await;

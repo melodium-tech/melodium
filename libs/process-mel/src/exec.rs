@@ -446,6 +446,7 @@ pub async fn spawn() {
                 .downcast_arc::<Command>()
                 .unwrap()
         }) {
+            // Maybe no command sent?
             executor
                 .executor
                 .spawn_out(
