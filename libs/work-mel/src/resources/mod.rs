@@ -8,13 +8,18 @@ use melodium_macro::{mel_data, mel_function, mel_treatment};
 use process_mel::exec::*;
 
 #[mel_treatment(
-    input trigger Block<void>
+    input name Block<string>
     output executor Block<Executor>
     output error Block<string>
     output failed Block<void>
 )]
-pub async fn getExecutor(name: string) {
-    if let Ok(_) = trigger.recv_one().await {
+pub async fn getExecutor() {
+    #[allow(unused)]
+    if let Ok(name) = name
+        .recv_one()
+        .await
+        .map(|val| GetData::<String>::try_data(val).unwrap())
+    {
         #[cfg(not(feature = "kubernetes"))]
         {
             let _ = failed.send_one(().into()).await;
@@ -46,13 +51,18 @@ pub async fn getExecutor(name: string) {
 }
 
 #[mel_treatment(
-    input trigger Block<void>
+    input name Block<string>
     output filesystem Block<FileSystem>
     output error Block<string>
     output failed Block<void>
 )]
-pub async fn getFileSystem(name: string) {
-    if let Ok(_) = trigger.recv_one().await {
+pub async fn getFileSystem() {
+    #[allow(unused)]
+    if let Ok(name) = name
+        .recv_one()
+        .await
+        .map(|val| GetData::<String>::try_data(val).unwrap())
+    {
         #[cfg(not(feature = "kubernetes"))]
         {
             let _ = failed.send_one(().into()).await;

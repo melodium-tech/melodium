@@ -372,39 +372,28 @@ impl ExecutorEngine for KubeExecutor {
                         let mut process_stdout = BufReader::new(process_stdout);
                         let mut buffer = vec![0; 2usize.pow(20)];
 
-                        eprintln!("read_stdout start");
-
                         while let Ok(n) = process_stdout.read(&mut buffer[..]).await {
-                            eprintln!("read_stdout while");
                             if n == 0 {
                                 break;
                             }
                             check!(stdout(buffer[..n].iter().cloned().collect()).await);
                         }
-
-                        eprintln!("read_stdout stop");
                     };
 
                     let read_stderr = async {
                         let mut process_stderr = BufReader::new(process_stderr);
                         let mut buffer = vec![0; 2usize.pow(20)];
 
-                        eprintln!("read_stderr start");
-
                         while let Ok(n) = process_stderr.read(&mut buffer[..]).await {
-                            eprintln!("read_stderr while");
                             if n == 0 {
                                 break;
                             }
                             check!(stderr(buffer[..n].iter().cloned().collect()).await);
                         }
-
-                        eprintln!("read_stderr stop");
                     };
 
                     let status_waiter = async {
                         if let Some(status) = status_waiter.await {
-                            eprintln!("Status: {status:?}");
                             match status.status.as_ref().map(|s| s.as_str()) {
                                 Some("Success") => {
                                     completed().await;
@@ -437,15 +426,12 @@ impl ExecutorEngine for KubeExecutor {
                                 }
                             }
                         } else {
-                            eprintln!("No status");
                             failed().await;
                             error("No output status provided".to_string()).await;
                         }
                     };
 
-                    eprintln!("Tokio join");
                     tokio::join!(read_stdout, read_stderr, status_waiter);
-                    eprintln!("Tokio join finished");
                 } else {
                     failed().await;
                     error("Unable to take status waiter and process I/O".to_string()).await;

@@ -198,8 +198,9 @@ treatment distantStep[distant_engine: DistantEngine, logger: Logger](var executo
 use std/flow::close
 use log/console::console
 
-treatment stepOnExecutor(var executor_name: string, var label: string, var environment_variables: Option<StringMap> = _, var commands: Vec<Command>)
+treatment stepOnExecutor(var label: string, var environment_variables: Option<StringMap> = _, var commands: Vec<Command>)
   input trigger: Block<void>
+  input executor_name: Block<string>
   output started: Block<void>
   output finished: Block<void>
   output failed: Block<void>
@@ -207,7 +208,7 @@ treatment stepOnExecutor(var executor_name: string, var label: string, var envir
   output logs: Stream<Log>
   model  logger: Logger()
 {
-    getExecutor(name=executor_name)
+    getExecutor()
     step[logger=logger](label=label, environment_variables=environment_variables, commands=commands)
 
     oneFailed: one<void>()
@@ -219,8 +220,8 @@ treatment stepOnExecutor(var executor_name: string, var label: string, var envir
     logExecutorErr: logError[logger=logger](label=label)
     getExecutor.error -> logExecutorErr.message
 
-    Self.trigger -> getExecutor.trigger,executor -> step.executor
-    Self.trigger ---------------------------------> step.trigger
+    Self.executor_name -> getExecutor.name,executor -> step.executor
+    Self.trigger ------------------------------------> step.trigger
 
     step.started ---> Self.started
     step.finished -> oneFailedOrFinished.b,value --> Self.finished
@@ -233,7 +234,7 @@ treatment stepOnExecutor(var executor_name: string, var label: string, var envir
 
     trackLogs[logger=logger]()
     Self.trigger -> trackLogs.trigger,logs -> Self.logs
-    oneFailedOrFinished.value -> trackLogs.stop
+    oneFailedOrFinished.value --------------> trackLogs.stop
     //close<Log>()
     //close.closed -> Self.logs
 }

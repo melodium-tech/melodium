@@ -420,7 +420,6 @@ pub async fn spawn_one() {
     output exit Stream<Option<i32>>
 )]
 pub async fn spawn() {
-    eprintln!("Spawn start");
     if let (Ok(executor), Ok(environment)) = (
         executor.recv_one().await.map(|val| {
             GetData::<Arc<dyn Data>>::try_data(val)
@@ -446,7 +445,6 @@ pub async fn spawn() {
                 .downcast_arc::<Command>()
                 .unwrap()
         }) {
-            // Maybe no command sent?
             executor
                 .executor
                 .spawn_out(
@@ -454,32 +452,21 @@ pub async fn spawn() {
                     environment.as_deref(),
                     Box::new(|| {
                         Box::pin(async {
-                            eprintln!("Call: started");
                             if first {
                                 let _ = started.send_one(().into()).await;
                                 first = false;
                             }
                         })
                     }),
+                    Box::new(|| Box::pin(async {})),
+                    Box::new(|| Box::pin(async {})),
                     Box::new(|| {
                         Box::pin(async {
-                            eprintln!("Call: finished");
-                        })
-                    }),
-                    Box::new(|| {
-                        Box::pin(async {
-                            eprintln!("Call: completed");
-                        })
-                    }),
-                    Box::new(|| {
-                        Box::pin(async {
-                            eprintln!("Call: failed");
                             success = false;
                         })
                     }),
                     Box::new(|msg: String| {
                         Box::pin(async {
-                            eprintln!("Spawn err: {msg}");
                             let _ = error.send_one(msg.into()).await;
                         })
                     }),
@@ -487,47 +474,28 @@ pub async fn spawn() {
                         Box::pin({
                             let exit = &exit;
                             async move {
-                                eprintln!("Spawn exit: {code:?}");
                                 let _ = exit.send_one(code.into()).await;
                             }
                         })
                     }),
                     Box::new(|data: VecDeque<u8>| {
                         Box::pin(async {
-                            eprintln!(
-                                "Spawn stdout: {}",
-                                String::from_utf8(data.clone().into())
-                                    .unwrap_or_else(|_| "Not UTF8".to_string())
-                            );
                             stdout
                                 .send_many(TransmissionValue::Byte(data))
                                 .await
                                 .map_err(|_| ())
                         })
                     }),
-                    Box::new(|| {
-                        Box::pin(async {
-                            eprintln!("Call: stdoutclose");
-                        })
-                    }),
+                    Box::new(|| Box::pin(async {})),
                     Box::new(|data: VecDeque<u8>| {
                         Box::pin(async {
-                            eprintln!(
-                                "Spawn stderr: {}",
-                                String::from_utf8(data.clone().into())
-                                    .unwrap_or_else(|_| "Not UTF8".to_string())
-                            );
                             stderr
                                 .send_many(TransmissionValue::Byte(data))
                                 .await
                                 .map_err(|_| ())
                         })
                     }),
-                    Box::new(|| {
-                        Box::pin(async {
-                            eprintln!("Call: stderrclose");
-                        })
-                    }),
+                    Box::new(|| Box::pin(async {})),
                 )
                 .await;
             if !success {
@@ -535,14 +503,10 @@ pub async fn spawn() {
             }
         }
         if success {
-            eprintln!("Spawn completed");
             let _ = completed.send_one(().into()).await;
         } else {
-            eprintln!("Spawn failed");
             let _ = failed.send_one(().into()).await;
         }
-        eprintln!("Spawn finished");
         let _ = finished.send_one(().into()).await;
     }
-    eprintln!("Spawn end");
 }
