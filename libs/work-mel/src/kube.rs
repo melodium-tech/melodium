@@ -82,8 +82,6 @@ impl ExecutorEngine for KubeExecutor {
                 env_command.push("--ignore-environment".to_string());
             }
 
-            env_command.push("-".to_string());
-
             for (name, val) in &environment.variables.map {
                 env_command.push(format!("{name}={val}"));
             }
@@ -185,8 +183,6 @@ impl ExecutorEngine for KubeExecutor {
             if environment.clear_env {
                 env_command.push("--ignore-environment".to_string());
             }
-
-            env_command.push("-".to_string());
 
             for (name, val) in &environment.variables.map {
                 env_command.push(format!("{name}={val}"));
@@ -340,8 +336,6 @@ impl ExecutorEngine for KubeExecutor {
             if environment.clear_env {
                 env_command.push("--ignore-environment".to_string());
             }
-
-            env_command.push("-".to_string());
 
             for (name, val) in &environment.variables.map {
                 env_command.push(format!("{name}={val}"));
