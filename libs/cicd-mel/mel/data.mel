@@ -1,0 +1,15 @@
+use std/text/convert/string::fromUtf8
+use std/text/compose::rescale
+use std/text/compose::trimEnd
+
+treatment ioToString()
+  input  stdio: Stream<byte>
+  output lines: Stream<string>
+{
+    fromUtf8()
+    rescale(delimiter="\n")
+    trimEnd()
+
+    Self.stdio -> fromUtf8.encoded,text -> rescale.unscaled,scaled -> trimEnd.text,trimmed -> Self.lines
+}
+

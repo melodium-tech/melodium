@@ -1,0 +1,36 @@
+[package]
+name = "cicd-mel"
+version = "0.9.0-pre.1"
+authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
+rust-version = "1.83"
+edition = "2021"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "Mélodium CI/CD library"
+keywords = ["dataflow","parallelization","scalability","async","signal"]
+categories = ["compilers", "science", "concurrency", "asynchronous"]
+
+[lib]
+crate-type = ["lib", "cdylib"]
+name = "cicd_mel"
+
+[dependencies]
+melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.1" }
+melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.1" }
+std-mel = { path = "../std-mel", version = "=0.9.0-pre.1" }
+log-mel = { path = "../log-mel", version = "=0.9.0-pre.1" }
+process-mel = { path = "../process-mel", version = "=0.9.0-pre.1" }
+fs-mel = { path = "../fs-mel", version = "=0.9.0-pre.1" }
+work-mel = { path = "../work-mel", version = "=0.9.0-pre.1" }
+distrib-mel = { path = "../distrib-mel", version = "=0.9.0-pre.1" }
+
+[features]
+mock = []
+plugin = []
+real = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

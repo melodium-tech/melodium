@@ -897,6 +897,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "cicd-mel"
+version = "0.9.0-pre.1"
+dependencies = [
+ "distrib-mel",
+ "fs-mel",
+ "log-mel",
+ "melodium-core",
+ "melodium-macro",
+ "process-mel",
+ "std-mel",
+ "work-mel",
+]
+
+[[package]]
 name = "cipher"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2539,6 +2553,7 @@ name = "melodium"
 version = "0.9.0-pre.1"
 dependencies = [
  "async-std",
+ "cicd-mel",
  "clap",
  "colored",
  "convert_case",

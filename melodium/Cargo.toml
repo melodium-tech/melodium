@@ -37,6 +37,7 @@ uuid = { version = "1.5.0", features = ["serde"], optional = true }
 
 std-mel = { path = "../libs/std-mel", version = "=0.9.0-pre.1" }
 
+cicd-mel = { path = "../libs/cicd-mel", version = "=0.9.0-pre.1", optional = true }
 distrib-mel = { path = "../libs/distrib-mel", version = "=0.9.0-pre.1", optional = true }
 encoding-mel = { path = "../libs/encoding-mel", version = "=0.9.0-pre.1", optional = true }
 fs-mel = { path = "../libs/fs-mel", version = "=0.9.0-pre.1", optional = true }
@@ -54,6 +55,7 @@ work-mel = { path = "../libs/work-mel", version = "=0.9.0-pre.1", optional = tru
 default = ["cli", "standard-edition"]
 cli = ["clap", "colored"]
 jeu = ["melodium-loader/jeu"]
+cicd = ["distribution", "fs", "network", "cicd-mel"]
 distribution = ["melodium-distribution", "distrib-mel", "work-mel", "uuid"]
 doc = ["melodium-doc", "melodium-engine/doc", "melodium-core/doc"]
 network = ["net-mel", "http-mel", "melodium-loader/network"]
@@ -62,7 +64,7 @@ log = ["log-mel"]
 text = ["encoding-mel", "regex-mel"]
 javascript = ["javascript-mel", "json-mel"]
 sql = ["sql-mel"]
-standard-edition = ["jeu", "doc", "distribution", "fs", "log", "network", "text", "javascript", "sql"]
+standard-edition = ["jeu", "doc", "cicd", "distribution", "fs", "log", "network", "text", "javascript", "sql"]
 container-edition = ["standard-edition", "work-mel/kubernetes"]
 
 [target.wasm32-unknown-unknown.dependencies]
