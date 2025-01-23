@@ -796,3 +796,24 @@ pub async fn cut() {
         }
     }
 }
+
+/// Await blocks.
+///
+/// Wait for two blocks and send `awaited` once both are received.
+///
+/// ℹ️ If one block is never received, `awaited` is never emitted.
+#[mel_treatment(
+    generic T ()
+    input a Block<T>
+    input b Block<T>
+    output awaited Block<void>
+)]
+pub async fn waitBlock() {
+    let (a, b) = futures::join!(async { a.recv_one().await.is_ok() }, async {
+        b.recv_one().await.is_ok()
+    });
+
+    if a && b {
+        let _ = awaited.send_one(().into()).await;
+    }
+}

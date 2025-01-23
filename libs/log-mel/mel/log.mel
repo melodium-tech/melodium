@@ -12,205 +12,230 @@ use std/flow::emit
 
 treatment logDebugMessage[logger: Logger](label: string = "debug", message: string)
   input trigger: Block<void>
+  output ended: Block<void>
 {
     emit<string>(value=message)
     logBlock[logger=logger](level = |debug(), label = label)
 
-    Self.trigger -> emit.trigger,emit -> logBlock.message
+    Self.trigger -> emit.trigger,emit -> logBlock.message,ended -> Self.ended
 }
 
 treatment logDebug[logger: Logger](label: string = "debug")
   input message: Block<string>
+  output ended: Block<void>
 {
     logBlock[logger=logger](level = |debug(), label = label)
 
-    Self.message -> logBlock.message
+    Self.message -> logBlock.message,ended -> Self.ended
 }
 
 treatment logDebugs[logger: Logger](label: string = "debug")
   input messages: Stream<string>
+  output ended: Block<void>
 {
     logStream[logger=logger](level = |debug(), label = label)
 
-    Self.messages -> logStream.messages
+    Self.messages -> logStream.messages,ended -> Self.ended
 }
 
 treatment logDataDebug<D: Display>[logger: Logger](label: string = "debug")
   input data: Block<D>
+  output ended: Block<void>
 {
     logDataBlock<D>[logger=logger](level = |debug(), label = label)
 
-    Self.data -> logDataBlock.display
+    Self.data -> logDataBlock.display,ended -> Self.ended
 }
 
 treatment logDataDebugs<D: Display>[logger: Logger](label: string = "debug")
   input data: Stream<D>
+  output ended: Block<void>
 {
     logDataStream<D>[logger=logger](level = |debug(), label = label)
 
-    Self.data -> logDataStream.display
+    Self.data -> logDataStream.display,ended -> Self.ended
 }
 
 treatment logErrorMessage[logger: Logger](label: string = "error", message: string)
   input trigger: Block<void>
+  output ended: Block<void>
 {
     emit<string>(value=message)
     logBlock[logger=logger](level = |error(), label = label)
 
-    Self.trigger -> emit.trigger,emit -> logBlock.message
+    Self.trigger -> emit.trigger,emit -> logBlock.message,ended -> Self.ended
 }
 
 treatment logError[logger: Logger](label: string = "error")
   input message: Block<string>
+  output ended: Block<void>
 {
     logBlock[logger=logger](level = |error(), label = label)
 
-    Self.message -> logBlock.message
+    Self.message -> logBlock.message,ended -> Self.ended
 }
 
 treatment logErrors[logger: Logger](label: string = "error")
   input messages: Stream<string>
+  output ended: Block<void>
 {
     logStream[logger=logger](level = |error(), label = label)
 
-    Self.messages -> logStream.messages
+    Self.messages -> logStream.messages,ended -> Self.ended
 }
 
 treatment logDataError<D: Display>[logger: Logger](label: string = "error")
   input data: Block<D>
+  output ended: Block<void>
 {
     logDataBlock<D>[logger=logger](level = |error(), label = label)
 
-    Self.data -> logDataBlock.display
+    Self.data -> logDataBlock.display,ended -> Self.ended
 }
 
 treatment logDataErrors<D: Display>[logger: Logger](label: string = "error")
   input data: Stream<D>
+  output ended: Block<void>
 {
     logDataStream<D>[logger=logger](level = |error(), label = label)
 
-    Self.data -> logDataStream.display
+    Self.data -> logDataStream.display,ended -> Self.ended
 }
 
 treatment logInfoMessage[logger: Logger](label: string = "info", message: string)
   input trigger: Block<void>
+  output ended: Block<void>
 {
     emit<string>(value=message)
     logBlock[logger=logger](level = |info(), label = label)
 
-    Self.trigger -> emit.trigger,emit -> logBlock.message
+    Self.trigger -> emit.trigger,emit -> logBlock.message,ended -> Self.ended
 }
 
 treatment logInfo[logger: Logger](label: string = "info")
   input message: Block<string>
+  output ended: Block<void>
 {
     logBlock[logger=logger](level = |info(), label = label)
 
-    Self.message -> logBlock.message
+    Self.message -> logBlock.message,ended -> Self.ended
 }
 
 treatment logInfos[logger: Logger](label: string = "info")
   input messages: Stream<string>
+  output ended: Block<void>
 {
     logStream[logger=logger](level = |info(), label = label)
 
-    Self.messages -> logStream.messages
+    Self.messages -> logStream.messages,ended -> Self.ended
 }
 
 treatment logDataInfo<D: Display>[logger: Logger](label: string = "info")
   input data: Block<D>
+  output ended: Block<void>
 {
     logDataBlock<D>[logger=logger](level = |info(), label = label)
 
-    Self.data -> logDataBlock.display
+    Self.data -> logDataBlock.display,ended -> Self.ended
 }
 
 treatment logDataInfos<D: Display>[logger: Logger](label: string = "info")
   input data: Stream<D>
+  output ended: Block<void>
 {
     logDataStream<D>[logger=logger](level = |info(), label = label)
 
-    Self.data -> logDataStream.display
+    Self.data -> logDataStream.display,ended -> Self.ended
 }
 
 treatment logTraceMessage[logger: Logger](label: string = "trace", message: string)
   input trigger: Block<void>
+  output ended: Block<void>
 {
     emit<string>(value=message)
     logBlock[logger=logger](level = |trace(), label = label)
 
-    Self.trigger -> emit.trigger,emit -> logBlock.message
+    Self.trigger -> emit.trigger,emit -> logBlock.message,ended -> Self.ended
 }
 
 treatment logTrace[logger: Logger](label: string = "trace")
   input message: Block<string>
+  output ended: Block<void>
 {
     logBlock[logger=logger](level = |trace(), label = label)
 
-    Self.message -> logBlock.message
+    Self.message -> logBlock.message,ended -> Self.ended
 }
 
 treatment logTraces[logger: Logger](label: string = "trace")
   input messages: Stream<string>
+  output ended: Block<void>
 {
     logStream[logger=logger](level = |trace(), label = label)
 
-    Self.messages -> logStream.messages
+    Self.messages -> logStream.messages,ended -> Self.ended
 }
 
 treatment logDataTrace<D: Display>[logger: Logger](label: string = "trace")
   input data: Block<D>
+  output ended: Block<void>
 {
     logDataBlock<D>[logger=logger](level = |trace(), label = label)
 
-    Self.data -> logDataBlock.display
+    Self.data -> logDataBlock.display,ended -> Self.ended
 }
 
 treatment logDataTraces<D: Display>[logger: Logger](label: string = "trace")
   input data: Stream<D>
+  output ended: Block<void>
 {
     logDataStream<D>[logger=logger](level = |trace(), label = label)
 
-    Self.data -> logDataStream.display
+    Self.data -> logDataStream.display,ended -> Self.ended
 }
 
 treatment logWarningMessage[logger: Logger](label: string = "warning", message: string)
   input trigger: Block<void>
+  output ended: Block<void>
 {
     emit<string>(value=message)
     logBlock[logger=logger](level = |warning(), label = label)
 
-    Self.trigger -> emit.trigger,emit -> logBlock.message
+    Self.trigger -> emit.trigger,emit -> logBlock.message,ended -> Self.ended
 }
 
 treatment logWarning[logger: Logger](label: string = "warning")
   input message: Block<string>
+  output ended: Block<void>
 {
     logBlock[logger=logger](level = |warning(), label = label)
 
-    Self.message -> logBlock.message
+    Self.message -> logBlock.message,ended -> Self.ended
 }
 
 treatment logWarnings[logger: Logger](label: string = "warning")
   input messages: Stream<string>
+  output ended: Block<void>
 {
     logStream[logger=logger](level = |warning(), label = label)
 
-    Self.messages -> logStream.messages
+    Self.messages -> logStream.messages,ended -> Self.ended
 }
 
 treatment logDataWarning<D: Display>[logger: Logger](label: string = "warning")
   input data: Block<D>
+  output ended: Block<void>
 {
     logDataBlock<D>[logger=logger](level = |warning(), label = label)
 
-    Self.data -> logDataBlock.display
+    Self.data -> logDataBlock.display,ended -> Self.ended
 }
 
 treatment logDataWarnings<D: Display>[logger: Logger](label: string = "warning")
   input data: Stream<D>
+  output ended: Block<void>
 {
     logDataStream<D>[logger=logger](level = |warning(), label = label)
 
-    Self.data -> logDataStream.display
+    Self.data -> logDataStream.display,ended -> Self.ended
 }

@@ -224,7 +224,7 @@ impl Logger {
     input stop Block<void>
     output logs Stream<Log>
 )]
-pub async fn trackLogs() {
+pub async fn track_logs() {
     let logger = LoggerModel::into(logger);
 
     if let Ok(_) = trigger.recv_one().await {
@@ -282,6 +282,7 @@ pub async fn inject_block_log() {
 #[mel_treatment(
     model logger Logger
     input messages Stream<string>
+    output ended Block<void>
 )]
 pub async fn log_stream(level: Level, label: string) {
     let senders = LoggerModel::into(logger).inner().senders(track_id).await;
@@ -302,11 +303,13 @@ pub async fn log_stream(level: Level, label: string) {
                 .await
         )
     }
+    let _ = ended.send_one(().into()).await;
 }
 
 #[mel_treatment(
     model logger Logger
     input message Block<string>
+    output ended Block<void>
 )]
 pub async fn log_block(level: Level, label: string) {
     let senders = LoggerModel::into(logger).inner().senders(track_id).await;
@@ -325,11 +328,13 @@ pub async fn log_block(level: Level, label: string) {
             }))
             .await;
     }
+    let _ = ended.send_one(().into()).await;
 }
 
 #[mel_treatment(
     model logger Logger
     input display Stream<D>
+    output ended Block<void>
     generic D (Display)
 )]
 pub async fn log_data_stream(level: Level, label: string) {
@@ -347,11 +352,13 @@ pub async fn log_data_stream(level: Level, label: string) {
                 .await
         )
     }
+    let _ = ended.send_one(().into()).await;
 }
 
 #[mel_treatment(
     model logger Logger
     input display Block<D>
+    output ended Block<void>
     generic D (Display)
 )]
 pub async fn log_data_block(level: Level, label: string) {
@@ -367,6 +374,7 @@ pub async fn log_data_block(level: Level, label: string) {
             }))
             .await;
     }
+    let _ = ended.send_one(().into()).await;
 }
 
 #[mel_function]

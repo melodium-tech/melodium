@@ -95,7 +95,7 @@ treatment buildMelodiumDistant[distant_engine: DistantEngine, logger: Logger](va
       executor_name="compiler",
       arch=_,
       containers=[
-        |container("compiler", 1000, 1, 500, |arm64(), [], "rust:bullseye", _)
+        |container("compiler", 12000, 3, 15000, |arm64(), [], "rust:bullseye", _)
       ],
       cpu=1,
       memory=1000,
@@ -107,7 +107,10 @@ treatment buildMelodiumDistant[distant_engine: DistantEngine, logger: Logger](va
       environment_variables=environment_variables,
       commands=|concat<Command>(pre_commands, [
           |command("rustc", ["--version"]),
-          |command("cargo", ["--version"]) /*,
+          |command("cargo", ["--version"]),|command("printenv", [])
+          /*|command("git", ["clone", "https://gitlab.com/melodium/melodium.git", "cloned"]),
+          |command("bash", ["-c", "mv cloned/* ."]),
+          |command("cargo", ["build", "--package", "melodium"])*//*,
           |command("cargo", ["build", "--package", "melodium", "--target", target])*/
       ])
     )

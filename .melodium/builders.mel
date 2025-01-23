@@ -19,6 +19,7 @@ use std/flow::check
 use std/flow::emit
 use std/flow::one
 use std/flow::stream
+use std/flow::waitBlock
 use std/flow::cut
 use std/flow/vec::flatten
 use std/ops/option/block::map
@@ -137,7 +138,7 @@ treatment distantStep[distant_engine: DistantEngine, logger: Logger](var executo
       |entry<string>("executor_name", executor_name),
       |entry<string>("label", label),
       |entry<Option<StringMap>>("environment_variables", environment_variables),
-      |entry<Vec<Command>>("commands", [])
+      |entry<Vec<Command>>("commands", commands)
     ]))
     stop[distributor=distribution_engine]()
     logStartDistribErr: logError[logger=logger](label=label)
@@ -274,10 +275,17 @@ treatment step[logger: Logger](var label: string, var environment_variables: Opt
     spawn.stderr -> logSpawnErrsString.stdio,lines -> logSpawnErrs.messages
     spawn.stdout -> logSpawnInfosString.stdio,lines -> logSpawnInfos.messages
 
-    spawn.started ---> Self.started
-    spawn.finished --> Self.finished
-    spawn.failed ----> Self.failed
-    spawn.completed -> Self.completed
+    waitAllMessages: waitBlock<void>()
+    waitSpawnFinishedAndAllMessages: waitBlock<void>()
+
+    logSpawnErrs.ended --> waitAllMessages.a
+    logSpawnInfos.ended -> waitAllMessages.b,awaited -> waitSpawnFinishedAndAllMessages.a
+    spawn.finished -----------------------------------> waitSpawnFinishedAndAllMessages.b
+
+    spawn.started ----------------------------> Self.started
+    waitSpawnFinishedAndAllMessages.awaited --> Self.finished
+    spawn.failed -----------------------------> Self.failed
+    spawn.completed --------------------------> Self.completed
 }
 
 treatment ioToString()
