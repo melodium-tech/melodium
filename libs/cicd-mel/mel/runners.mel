@@ -1,0 +1,50 @@
+use std/flow::one
+use std/data::|entry
+use log/logger::Logger
+use log/log::logErrors
+use log/log::logError
+use distrib::DistributionEngine
+use distrib::start
+use distrib::stop
+use work/distant::DistantEngine
+use work/distant::distant
+use work/resources/arch::Arch
+use work/resources::Container
+use work/resources::Volume
+
+model CicdDistributionEngine: DistributionEngine() {
+    treatment = "cicd/steps::step"
+    version = "0.9.0-pre.1"
+}
+
+treatment runner[distant_engine: DistantEngine, cicd_engine: CicdDistributionEngine, logger: Logger](name: string, cpu: u32, memory: u32, storage: u32, edition: Option<string> = _, arch: Option<Arch> = _, max_duration: u32 = 3600, volumes: Vec<Volume> = [], containers: Vec<Container> = [])
+  input trigger: Block<void>
+  output stop:   Block<void>
+  output ready:  Block<void>
+  output failed: Block<void>
+{
+    distant[distant_engine=distant_engine](cpu=cpu, memory=memory, storage=storage, edition=edition, arch=arch, max_duration=max_duration, volumes=volumes, containers=containers)
+
+    logDistantErrors: logErrors[logger=logger](label=name)
+    distant.errors -> logDistantErrors.messages
+
+    start[distributor=cicd_engine](params=|entry<string>("label", "name"))
+    logStartError: logError[logger=logger](label=name)
+    start.error -> logStartError.message
+
+    stop[distributor=cicd_engine]()
+    oneStop.value -> stop.trigger
+
+    oneFailed: one<void>()
+    distant.failed -> oneFailed.a
+    start.failed ---> oneFailed.b
+
+    oneStop: one<void>()
+    Self.stop -------> oneStop.a
+    oneFailed.value -> oneStop.b
+
+    Self.trigger -> distant.trigger,access -> start.access,ready -> Self.ready
+
+    oneFailed.value -> Self.failed
+}
+

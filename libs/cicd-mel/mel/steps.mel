@@ -1,20 +1,15 @@
 use process/command::Command
 use process/environment::Environment
-use process/environment::mapEnvironment
+use process/environment::|environment
 use process/exec::Executor
 use process/exec::spawn
-use std/flow::check
+use std/data/string_map::|map
 use std/flow::emit
 use std/flow::one
 use std/flow::stream
 use std/flow::waitBlock
-use std/flow::cut
 use std/flow/vec::flatten
-use std/ops/option/block::map
-use std/ops/option/block::reduce
-use std/data/string_map::StringMap
-use std/data::|map
-use std/data::|entry
+use std/ops/option::|unwrap_or
 use log/log::logInfos
 use log/log::logErrors
 use log/log::logError
@@ -23,42 +18,94 @@ use log/logger::Logger
 use log/logger::trackLogs
 use log/logger::logs
 use log/logger::injectStreamLog
-use fs/file::read
-use fs/filesystem::FileSystem
 use work/distant::DistantEngine
 use work/distant::distant
-use work/resources/arch::Arch
-use work/resources::Container
-use work/resources::Volume
 use work/resources::getExecutor
+use distrib::sendBlock
+use distrib::sendStream
+use distrib::recvBlock
+use distrib::recvStream
+use root/runners::CicdDistributionEngine
 
-treatment step[logger: Logger](var label: string, var environment_variables: Option<StringMap> = _, var commands: Vec<Command>)
-  input executor: Block<Executor>
+treatment stepOn[distributor: CicdDistributionEngine, logger: Logger](val executor_name: string, var environment: Option<Environment>, var commands: Vec<Command>)
   input trigger: Block<void>
   output started: Block<void>
   output finished: Block<void>
   output failed: Block<void>
   output completed: Block<void>
 {
+    distribute[distributor=distributor]()
+
+    Self.trigger -> distribute.trigger
+
+    logDistribErr: logError[logger=logger](label="distribution")
+    distribute.error -> logDistribErr.message
+
+    distribOrStepFailed: one<void>()
+    distribute.failed -> distribOrStepFailed.a
+
+    sendExecutorName: sendBlock<string>(name="executor_name")
+    sendEnvironment: sendBlock<Environment>(name="environment")
+    sendCommands: sendStream<Command>(name="commands")
+
+    recvStarted: recvBlock<void>(name="started")
+    recvFinished: recvBlock<void>(name="finished")
+    recvFailed: recvBlock<void>(name="failed")
+    recvCompleted: recvBlock<void>(name="completed")
+    recvLogs: recvStream<Log>(name="logs")
+
+    distribute.distribution_id -> sendExecutorName.distribution_id
+    distribute.distribution_id -> sendEnvironment.distribution_id
+    distribute.distribution_id -> sendCommands.distribution_id
+    distribute.distribution_id -> recvStarted.distribution_id
+    distribute.distribution_id -> recvFinished.distribution_id
+    distribute.distribution_id -> recvFailed.distribution_id
+    distribute.distribution_id -> recvCompleted.distribution_id
+    distribute.distribution_id -> recvLogs.distribution_id
+
+    emitExecutorName: emit<string>(value=executor_name)
+    emitEnvironment: emit<Environment>(value=|unwrap_or(environment, |environment(|map([]), _, false)))
     emitCommands: emit<Vec<Command>>(value=commands)
     streamCommands: stream<Vec<Command>>()
     flattenCommands: flatten<Command>()
 
-    Self.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector
+    Self.trigger -> emitExecutorName.trigger,emit -> sendExecutorName.data
+    Self.trigger -> emitEnvironment.trigger,emit --> sendEnvironment.data
+    Self.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector,value -> sendCommands.data
 
-    emitEnvVars: emit<Option<StringMap>>(value=environment_variables)
-    mapEnv: map<StringMap>()
-    mapEnvironment(working_directory = _, clear_env = false)
-    reduceEnv: reduce<Environment>()
+    injectStreamLog[logger=logger]()
+    recvLogs.data -> injectStreamLog.logs
 
-    Self.trigger -> emitEnvVars.trigger,emit -> mapEnv.option,none -----------------------------------> reduceEnv.none
-                                                mapEnv.value -> mapEnvironment.variables,environment -> reduceEnv.value
+    recvStarted.data -> Self.started
+    recvFinished.data -> Self.finished
+    recvFailed.data -> distribOrStepFailed.b,value -> Self.failed
+    recvCompleted.data -> Self.completed
+}
 
+treatment step(var label: string)
+  input executor_name: Block<string>
+  input environment: Block<Environment>
+  input commands: Stream<Command>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+  output logs: Stream<Log>
+  model  logger: Logger()
+{
+    getExecutor()
     spawn()
 
     Self.executor ---------> spawn.executor
-    reduceEnv.option ------> spawn.environment
-    flattenCommands.value -> spawn.commands
+    Self.environment ------> spawn.environment
+    Self.commands ---------> spawn.commands
+
+    executorOrSpawnFailed: one<void>()
+    getExecutor.failed -> executorOrSpawnFailed.a
+    spawn.failed -------> executorOrSpawnFailed.b
+
+    logExecutorErr: logError[logger=logger](label=label)
+    getExecutor.error -> logExecutorErr.message
 
     logSpawnErr: logError[logger=logger](label=label)
     logSpawnErrsString: ioToString()
@@ -78,6 +125,10 @@ treatment step[logger: Logger](var label: string, var environment_variables: Opt
 
     spawn.started ----------------------------> Self.started
     waitSpawnFinishedAndAllMessages.awaited --> Self.finished
-    spawn.failed -----------------------------> Self.failed
+    executorOrSpawnFailed.value --------------> Self.failed
     spawn.completed --------------------------> Self.completed
+
+    trackLogs[logger=logger]()
+    Self.trigger -> trackLogs.trigger,logs --> Self.logs
+    waitSpawnFinishedAndAllMessages.awaited -> trackLogs.stop
 }
