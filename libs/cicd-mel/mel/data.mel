@@ -1,6 +1,12 @@
+use fs/file::read
+use log/logger::Logger
+use log/log::logErrors
+use log/log::logError
+use std/flow::one
 use std/text/convert/string::fromUtf8
 use std/text/compose::rescale
-use std/text/compose::trimEnd
+use std/text/compose::trimEn
+use work/resources::getFileSystem
 
 treatment ioToString()
   input  stdio: Stream<byte>
@@ -13,3 +19,38 @@ treatment ioToString()
     Self.stdio -> fromUtf8.encoded,text -> rescale.unscaled,scaled -> trimEnd.text,trimmed -> Self.lines
 }
 
+treatment readFile[logger: Logger](var label: string)
+  input filesystem_name: Block<string>
+  input file_path: Block<string>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+  output data: Stream<byte>
+{
+    getFileSystem()
+    read()
+
+    Self.filesystem_name -> getFileSystem.name,filesystem -> read.filesystem
+    Self.file_path ----------------------------------------> read.path
+
+    logFsErr: logError[logger=logger](label=label)
+    logReadErrs: logErrors[logger=logger](label=label)
+    getFileSystem.error -> logFsErr.message
+    read.errors ---------> logReadErrs.messages
+
+    oneFailed: one<void>()
+    getFileSystem.failed -> oneFailed.a
+    read.failed ----------> oneFailed.b
+
+    oneFailedOrFinished: one<void>()
+    oneFailed.value -> oneFailedOrFinished.a
+    read.finished ---> oneFailedOrFinished.b
+
+    read.reached --------------> Self.started
+    read.completed ------------> Self.completed
+    oneFailed.value -----------> Self.failed
+    oneFailedOrFinished.value -> Self.finished
+
+    read.data -> Self.data
+}

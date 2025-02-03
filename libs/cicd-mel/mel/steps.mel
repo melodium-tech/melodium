@@ -6,6 +6,7 @@ use std/data/string_map::|map
 use std/flow::emit
 use std/flow::one
 use std/flow::stream
+use std/flow::trigger
 use std/flow::waitBlock
 use std/flow/vec::flatten
 use log/log::logInfos
@@ -24,6 +25,7 @@ use distrib::sendBlock
 use distrib::sendStream
 use distrib::recvBlock
 use distrib::recvStream
+use root/data::readFile
 use root/data::ioToString
 use root/runners::CicdDistributionEngine
 
@@ -90,10 +92,13 @@ treatment step(var label: string)
   input executor_name: Block<string>
   input environment: Block<Option<Environment>>
   input commands: Stream<Command>
+  input filesystem_name: Block<string>
+  input file_path: Block<string>
   output started: Block<void>
   output finished: Block<void>
   output failed: Block<void>
   output completed: Block<void>
+  output data: Stream<byte>
   output logs: Stream<Log>
   model  logger: Logger()
 {
@@ -135,4 +140,49 @@ treatment step(var label: string)
     trackLogs[logger=logger]()
     Self.trigger_logs -> trackLogs.trigger,logs --> Self.logs
     waitSpawnFinishedAndAllMessages.awaited -> trackLogs.stop
+}
+
+treatment spawnCommands(var label: string)
+  input executor_name: Block<string>
+  input environment: Block<Option<Environment>>
+  input commands: Stream<Command>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+{
+    getExecutor()
+    spawn()
+
+    Self.executor_name -> getExecutor.name,executor -> spawn.executor
+    Self.environment --------------------------------> spawn.environment
+    Self.commands -----------------------------------> spawn.commands
+
+    executorOrSpawnFailed: one<void>()
+    getExecutor.failed -> executorOrSpawnFailed.a
+    spawn.failed -------> executorOrSpawnFailed.b
+
+    logExecutorErr: logError[logger=logger](label=label)
+    getExecutor.error -> logExecutorErr.message
+
+    logSpawnErr: logError[logger=logger](label=label)
+    logSpawnErrsString: ioToString()
+    logSpawnErrs: logErrors[logger=logger](label=label)
+    logSpawnInfosString: ioToString()
+    logSpawnInfos: logInfos[logger=logger](label=label)
+    spawn.error --> logSpawnErr.message
+    spawn.stderr -> logSpawnErrsString.stdio,lines -> logSpawnErrs.messages
+    spawn.stdout -> logSpawnInfosString.stdio,lines -> logSpawnInfos.messages
+
+    waitAllMessages: waitBlock<void>()
+    waitSpawnFinishedAndAllMessages: waitBlock<void>()
+
+    logSpawnErrs.ended --> waitAllMessages.a
+    logSpawnInfos.ended -> waitAllMessages.b,awaited -> waitSpawnFinishedAndAllMessages.a
+    spawn.finished -----------------------------------> waitSpawnFinishedAndAllMessages.b
+
+    spawn.started ----------------------------> Self.started
+    waitSpawnFinishedAndAllMessages.awaited --> Self.finished
+    executorOrSpawnFailed.value --------------> Self.failed
+    spawn.completed --------------------------> Self.completed
 }
