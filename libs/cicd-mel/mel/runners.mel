@@ -12,12 +12,17 @@ use work/resources/arch::Arch
 use work/resources::Container
 use work/resources::Volume
 
+model CicdDistantEngine: DistantEngine(key: string, address: string = "https://api-staging.melodium.tech/0.1") {
+    address = address
+    key = key
+}
+
 model CicdDistributionEngine: DistributionEngine() {
     treatment = "cicd/steps::step"
     version = "0.9.0-pre.1"
 }
 
-treatment runner[distant_engine: DistantEngine, cicd_engine: CicdDistributionEngine, logger: Logger](name: string, cpu: u32, memory: u32, storage: u32, edition: Option<string> = _, arch: Option<Arch> = _, max_duration: u32 = 3600, volumes: Vec<Volume> = [], containers: Vec<Container> = [])
+treatment runner[distant_engine: CicdDistantEngine, cicd_engine: CicdDistributionEngine, logger: Logger](name: string, cpu: u32, memory: u32, storage: u32, edition: Option<string> = _, arch: Option<Arch> = _, max_duration: u32 = 3600, volumes: Vec<Volume> = [], containers: Vec<Container> = [])
   input trigger: Block<void>
   output stop:   Block<void>
   output ready:  Block<void>
@@ -28,7 +33,7 @@ treatment runner[distant_engine: DistantEngine, cicd_engine: CicdDistributionEng
     logDistantErrors: logErrors[logger=logger](label=name)
     distant.errors -> logDistantErrors.messages
 
-    start[distributor=cicd_engine](params=|entry<string>("label", "name"))
+    start[distributor=cicd_engine](params=|entry<string>("label", name))
     logStartError: logError[logger=logger](label=name)
     start.error -> logStartError.message
 
