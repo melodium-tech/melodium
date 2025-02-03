@@ -9,6 +9,7 @@ process = "=0.9.0-pre.1"
 work = "=0.9.0-pre.1"
 distrib = "=0.9.0-pre.1"
 net = "=0.9.0-pre.1"
+cicd = "=0.9.0-pre.1"
 
 [entrypoints]
 main = "melodium_ci::main"
