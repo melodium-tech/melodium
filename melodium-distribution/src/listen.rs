@@ -295,7 +295,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     let run = {
         let engine = Arc::clone(&engine);
         let protocol = Arc::clone(&protocol);
-        let _collection = Arc::clone(&collection);
+        let collection = Arc::clone(&collection);
         async move {
             let tracks_entry_outputs = Arc::new(AsyncRwLock::new(HashMap::new()));
             let tracks_entry_inputs = Arc::new(AsyncRwLock::new(HashMap::new()));
@@ -393,7 +393,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                         input_data
                                             .data
                                             .into_iter()
-                                            .map(|val| val.try_into().unwrap())
+                                            .map(|val| val.to_value(&collection).unwrap())
                                             .collect::<VecDeque<Value>>(),
                                     ))
                                     .await
