@@ -222,10 +222,7 @@ impl DistributionEngine {
         }
     }
 
-    pub async fn distribute(
-        &self,
-        params: HashMap<String, Value>,
-    ) -> Option<(u64, AsyncArc<AsyncBarrier>, AsyncArc<AtomicBool>)> {
+    pub async fn distribute(&self) -> Option<(u64, AsyncArc<AsyncBarrier>, AsyncArc<AtomicBool>)> {
         if let Some(protocol) = self.protocol.read().await.as_ref() {
             let mut tracks = self.tracks.write().await;
 
@@ -270,19 +267,8 @@ impl DistributionEngine {
 
                 tracks.insert(id, track);
 
-                let params = params
-                    .into_iter()
-                    .map(|(name, value)| (name, value.into()))
-                    .collect();
-
                 if protocol
-                    .send_message(Message::Instanciate(Instanciate {
-                        id: id,
-                        parameters: params, /*params
-                                            .into_iter()
-                                            .map(|(name, value)| (name, value.into()))
-                                            .collect()*/
-                    }))
+                    .send_message(Message::Instanciate(Instanciate { id: id }))
                     .await
                     .is_ok()
                 {
@@ -542,14 +528,12 @@ pub async fn stop() {
     output failed Block<void>
     output error Block<string>
 )]
-pub async fn distribute(params: Map) {
+pub async fn distribute() {
     let model = DistributionEngineModel::into(distributor);
     let distributor = model.inner();
 
-    let params = params.map.clone();
-
     if let Ok(_) = trigger.recv_one().await {
-        if let Some((id, barrier, validation)) = distributor.distribute(params).await {
+        if let Some((id, barrier, validation)) = distributor.distribute().await {
             if !validation.load(Ordering::Relaxed) {
                 barrier.wait().await;
                 validation.store(true, Ordering::Relaxed);

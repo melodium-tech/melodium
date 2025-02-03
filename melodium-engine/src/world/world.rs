@@ -450,25 +450,18 @@ impl Engine for World {
         join(continuum, async move { me.run_tracks().await }).await;
     }
 
-    async fn instanciate(
-        &self,
-        mut params: HashMap<String, Value>,
-        callback: Option<DirectCreationCallback>,
-    ) -> LogicResult<()> {
+    async fn instanciate(&self, callback: Option<DirectCreationCallback>) -> LogicResult<()> {
         let main;
         let main_id;
         let main_build_id;
-        let main_gen_env;
         {
-            if let (Some(descriptor), Some(identifier), Some(gen_env)) = (
+            if let (Some(descriptor), Some(identifier)) = (
                 self.main.read().unwrap().as_ref(),
                 self.main_id.read().unwrap().as_ref(),
-                self.main_gen_env.read().unwrap().as_ref(),
             ) {
                 main = Arc::clone(descriptor);
                 main_id = identifier.clone();
                 main_build_id = *self.main_build_id.read().unwrap();
-                main_gen_env = gen_env.clone();
             } else {
                 return LogicResult::new_failure(LogicError::launch_expect_treatment(231, None));
             }
@@ -481,38 +474,7 @@ impl Engine for World {
             *counter = track_id + 1;
         }
 
-        let mut contextual_environment = ContextualEnvironment::new(track_id);
-
-        for (name, param) in main.parameters() {
-            if let Some(value) = params.remove(name).filter(|val| {
-                param
-                    .described_type()
-                    .to_datatype(&HashMap::new())
-                    .map(|dt| dt == val.datatype())
-                    .unwrap_or(false)
-            }) {
-                contextual_environment.add_variable(name, value);
-            } else if let Some(value) = main_gen_env
-                .get_variable(name)
-                .filter(|val| {
-                    param
-                        .described_type()
-                        .to_datatype(&HashMap::new())
-                        .map(|dt| dt == val.datatype())
-                        .unwrap_or(false)
-                })
-                .cloned()
-            {
-                contextual_environment.add_variable(name, value);
-            } else if param.default().is_some() {
-                continue;
-            } else {
-                return LogicResult::new_failure(LogicError::launch_wrong_parameter(
-                    230,
-                    name.clone(),
-                ));
-            }
-        }
+        let contextual_environment = ContextualEnvironment::new(track_id);
 
         let mut inputs = HashMap::new();
         for (name, _) in main.outputs() {
