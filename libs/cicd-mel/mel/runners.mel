@@ -12,12 +12,12 @@ use work/resources/arch::Arch
 use work/resources::Container
 use work/resources::Volume
 
-model CicdDistantEngine: DistantEngine(key: string, address: string = "https://api-staging.melodium.tech/0.1") {
+model CicdDistantEngine(key: string, address: string = "https://api-staging.melodium.tech/0.1"): DistantEngine {
     address = address
     key = key
 }
 
-model CicdDistributionEngine: DistributionEngine() {
+model CicdDistributionEngine(): DistributionEngine {
     treatment = "cicd/steps::step"
     version = "0.9.0-pre.1"
 }

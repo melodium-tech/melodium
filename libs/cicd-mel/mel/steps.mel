@@ -21,13 +21,15 @@ use log/logger::injectStreamLog
 use work/distant::DistantEngine
 use work/distant::distant
 use work/resources::getExecutor
+use distrib::distribute
 use distrib::sendBlock
 use distrib::sendStream
 use distrib::recvBlock
 use distrib::recvStream
+use root/data::ioToString
 use root/runners::CicdDistributionEngine
 
-treatment stepOn[distributor: CicdDistributionEngine, logger: Logger](val executor_name: string, var environment: Option<Environment>, var commands: Vec<Command>)
+treatment stepOn[distributor: CicdDistributionEngine, logger: Logger](var executor_name: string, var environment: Option<Environment>, var commands: Vec<Command>)
   input trigger: Block<void>
   output started: Block<void>
   output finished: Block<void>
