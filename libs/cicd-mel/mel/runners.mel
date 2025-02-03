@@ -24,7 +24,6 @@ model CicdDistributionEngine(): DistributionEngine {
 
 treatment runner[distant_engine: CicdDistantEngine, cicd_engine: CicdDistributionEngine, logger: Logger](name: string, cpu: u32, memory: u32, storage: u32, edition: Option<string> = _, arch: Option<Arch> = _, max_duration: u32 = 3600, volumes: Vec<Volume> = [], containers: Vec<Container> = [])
   input trigger: Block<void>
-  input stop:    Block<void>
   output ready:  Block<void>
   output failed: Block<void>
 {
@@ -37,19 +36,21 @@ treatment runner[distant_engine: CicdDistantEngine, cicd_engine: CicdDistributio
     logStartError: logError[logger=logger](label=name)
     start.error -> logStartError.message
 
-    stop[distributor=cicd_engine]()
-    oneStop.value -> stop.trigger
+    stopOnFailure: stop[distributor=cicd_engine]()
+    oneFailed.value -> stopOnFailure.trigger
 
     oneFailed: one<void>()
     distant.failed -> oneFailed.a
     start.failed ---> oneFailed.b
-
-    oneStop: one<void>()
-    Self.stop -------> oneStop.a
-    oneFailed.value -> oneStop.b
 
     Self.trigger -> distant.trigger,access -> start.access,ready -> Self.ready
 
     oneFailed.value -> Self.failed
 }
 
+treatment stopRunner[cicd_engine: CicdDistributionEngine]()
+  input trigger: Block<void>
+{
+  stop[distributor=cicd_engine]()
+  Self.trigger -> stop.trigger
+}

@@ -31,20 +31,25 @@ impl BuilderTrait for Builder {
         label: String,
         environment: &GenesisEnvironment,
     ) -> LogicResult<StaticBuildResult> {
+        let mut environment = environment.clone();
         let mut remastered_environment = GenesisEnvironment::new();
         let descriptor = self.design.descriptor.upgrade().unwrap();
 
-        // We do assign default values (will be replaced if some other explicitly assigned)
-        for (_, declared_parameter) in descriptor.parameters() {
-            if let Some(data) = declared_parameter.default() {
-                remastered_environment.add_variable(declared_parameter.name(), data.clone());
+        // Assigning missing default values
+        for (name, parameter) in descriptor
+            .parameters()
+            .iter()
+            .filter(|(_, p)| p.default().is_some())
+        {
+            if !environment.variables().contains_key(name) {
+                environment.add_variable(name, parameter.default().as_ref().unwrap().clone());
             }
         }
 
         // Assigning explicit data
         for (_, parameter) in self.design.parameters.iter() {
-            let data =
-                get_value(&parameter.value, environment, None).expect("Impossible data recoverage");
+            let data = get_value(&parameter.value, &environment, None)
+                .expect("Impossible data recoverage");
 
             remastered_environment.add_variable(&parameter.name, data.clone());
         }
