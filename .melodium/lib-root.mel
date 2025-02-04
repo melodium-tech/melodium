@@ -15,6 +15,7 @@ use fs/local::|local_filesystem
 use fs/local::writeLocal
 use log/logger::Logger
 use log/logger::logs
+use log/logger::stop
 use log/console::console
 use log/log::logErrors
 use log/log::logInfoMessage
@@ -27,6 +28,8 @@ use cicd/runners::stopRunner
 use cicd/steps::stepOn
 use work/resources::|container
 use work/resources/arch::|arm64
+use work/resources::|volume
+use work/resources::|mount
 use process/command::|command
 
 treatment main(const key: string = "GfI84jhasy8dT5u1/2B4anBUb1d5pmaJNVBLoOmJvuZk5pHlV9J4HNsYFMgYqK7YGsGKPYab+RP7mvPHXHMmMg")
@@ -37,19 +40,30 @@ treatment main(const key: string = "GfI84jhasy8dT5u1/2B4anBUb1d5pmaJNVBLoOmJvuZk
     startup()
 
     allLogs: logs[logger=logger]()
+    stopLogs: stop[logger=logger]()
     logConsole: console(timestamp=true)
     allLogs.all -> logConsole.logs
 
-    runnerArm64Musl: runner[distant_engine=cicd, cicd_engine=distrib, logger=logger](name="arm64-musl", cpu=1, memory=500, storage=5000, containers=[|container("rust", 8000, 2, 5000, |arm64(), [], "rust:bullseye", _)])
+    runnerArm64Musl: runner[distant_engine=cicd, cicd_engine=distrib, logger=logger](name="arm64-musl", cpu=1, memory=500, storage=1000, volumes=[|volume("exchange", 500)], containers=[|container("rust", 8000, 2, 5000, |arm64(), [|mount("exchange", "/mounted/exchange")], "rust:bullseye", _)])
     stepArm64Musl: stepOn[distributor=distrib, logger=logger](executor_name="rust", commands=[
       |command("rustc", ["--version"]),
       |command("cargo", ["--version"]),
       |command("git", ["clone", "https://gitlab.com/melodium/melodium.git", "cloned"]),
       |command("bash", ["-c", "mv cloned/* ."]),
-      |command("cargo", ["build", "--package", "melodium"])
-    ])
+      |command("cargo", ["build", "--package", "melodium", "--release"]),
+      |command("mv", ["target/release/melodium", "/mounted/exchange/melodium"]),
+      |command("/mounted/exchange/melodium", ["--help"])
+    ],
+    out_filesystem="exchange", out_file="melodium"
+    )
+    logInfoMessage[logger=logger](message="Step finished")
     stopRunner[cicd_engine=distrib]()
 
     startup.trigger -> runnerArm64Musl.trigger,ready -> stepArm64Musl.trigger,finished -> stopRunner.trigger
+    stepArm64Musl.finished -> stopLogs.trigger
+    stepArm64Musl.finished -> logInfoMessage.trigger
+
+    writeLocal(path="/tmp/melodium")
+    stepArm64Musl.data -> writeLocal.data
 }
 
