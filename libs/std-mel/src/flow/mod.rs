@@ -78,9 +78,13 @@ pub async fn trigger() {
     if let Ok(mut values) = stream.recv_many().await {
         let _ = start.send_one(().into()).await;
         if let Some(val) = values.pop_front() {
-            let _ = first.send_one(val).await;
+            let _ = first.send_one(val.clone()).await;
+            last_value = Some(val);
         }
-        last_value = Into::<VecDeque<Value>>::into(values).pop_back();
+        if let Some(val) = Into::<VecDeque<Value>>::into(values).pop_back() {
+            last_value = Some(val);
+        }
+
         let _ = futures::join!(start.close(), first.close());
     }
 

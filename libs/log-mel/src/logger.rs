@@ -187,6 +187,10 @@ impl Logger {
         let _ = self.tracks.lock().await.remove(&track_id);
     }
 
+    pub fn close_common(&self) {
+        self.receiver.close();
+    }
+
     pub async fn continuous(&self) {
         let model = self.model.upgrade().unwrap();
         let receiver = self.receiver.clone();
@@ -200,12 +204,10 @@ impl Logger {
 
                     vec![Box::new(Box::pin(async move {
                         while let Ok(log) = receiver.recv().await {
-                            eprintln!("Sending log");
                             check!(all.send_one(Value::Data(log)).await)
                         }
 
                         all.close().await;
-                        eprintln!("Log finished");
                         ResultStatus::Ok
                     }))]
                 })),
@@ -217,6 +219,18 @@ impl Logger {
 
     fn shutdown(&self) {
         self.receiver.close();
+    }
+}
+
+#[mel_treatment(
+    model logger Logger
+    input trigger Block<void>
+)]
+pub async fn stop() {
+    let logger = LoggerModel::into(logger);
+
+    if let Ok(_) = trigger.recv_one().await {
+        logger.inner().close_common();
     }
 }
 

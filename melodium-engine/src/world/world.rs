@@ -254,11 +254,9 @@ impl World {
         loop {
             select! {
                 received_track = tracks_receiver.select_next_some() => {
-                    eprintln!("Track added");
                     futures.push(track_future(received_track));
                 },
                 result = futures.select_next_some() => {
-                    eprintln!("Track finished");
                     match result {
                         TrackResult::AllOk(id) => {
                             self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
@@ -270,7 +268,6 @@ impl World {
                     self.check_closing().await;
                 },
                 _result = continous_ended_barrier => {
-                    eprintln!("Continuous finished");
                     self.check_closing().await;
                 },
                 complete => break,
@@ -438,13 +435,10 @@ impl Engine for World {
                 let mut continuous = FuturesUnordered::new();
 
                 while let Ok(c) = me.continuous_tasks_receiver.recv().await {
-                    eprintln!("Continuous added");
                     continuous.push(c);
                 }
 
-                while let Some(_) = continuous.next().await {
-                    eprintln!("Continuous ended");
-                }
+                while let Some(_) = continuous.next().await {}
 
                 me.continous_ended.store(true, Ordering::Relaxed);
                 me.continous_ended_barrier.wait().await;
