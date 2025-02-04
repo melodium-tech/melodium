@@ -200,10 +200,12 @@ impl Logger {
 
                     vec![Box::new(Box::pin(async move {
                         while let Ok(log) = receiver.recv().await {
+                            eprintln!("Sending log");
                             check!(all.send_one(Value::Data(log)).await)
                         }
 
                         all.close().await;
+                        eprintln!("Log finished");
                         ResultStatus::Ok
                     }))]
                 })),

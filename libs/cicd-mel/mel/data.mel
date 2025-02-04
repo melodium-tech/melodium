@@ -5,7 +5,7 @@ use log/log::logError
 use std/flow::one
 use std/text/convert/string::fromUtf8
 use std/text/compose::rescale
-use std/text/compose::trimEn
+use std/text/compose::trimEnd
 use work/resources::getFileSystem
 
 treatment ioToString()

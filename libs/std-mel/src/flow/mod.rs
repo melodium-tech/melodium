@@ -123,6 +123,31 @@ pub async fn check() {
     }
 }
 
+/// Uncheck a blocking value.
+///
+/// When `value` block stream is closed without receiving anything, `uncheck` is emitted.
+///
+/// ```mermaid
+/// graph LR
+///     T("uncheck()")
+///     B["〈🟨〉"] -->|value| T
+///         
+///     T -->|uncheck| S["〈🟦〉"]
+///     
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    generic T ()
+    input value Block<T>
+    output uncheck Block<void>
+)]
+pub async fn uncheck() {
+    if let Err(_) = value.recv_one().await {
+        let _ = uncheck.send_one(().into()).await;
+    }
+}
+
 /// Emit a blocking value.
 ///
 /// When `trigger` is enabled, `value` is emitted as block.
@@ -793,6 +818,42 @@ pub async fn cut() {
                 break
             },
             complete => break,
+        }
+    }
+}
+
+/// Release stream once signal is received.
+///
+/// Awaits `leverage` to let stream pass, else closes the stream.
+///
+#[mel_treatment(
+    generic T ()
+    input leverage Block<void>
+    input data Stream<T>
+    output released Stream<T>
+)]
+pub async fn release() {
+    if let Ok(_) = leverage.recv_one().await {
+        while let Ok(data) = data.recv_many().await {
+            check!(released.send_many(data).await)
+        }
+    }
+}
+
+/// Release block once signal is received.
+///
+/// Awaits `leverage` to let block pass, else closes the flow.
+///
+#[mel_treatment(
+    generic T ()
+    input leverage Block<void>
+    input data Block<T>
+    output released Block<T>
+)]
+pub async fn releaseBlock() {
+    if let Ok(_) = leverage.recv_one().await {
+        if let Ok(data) = data.recv_one().await {
+            let _ = released.send_one(data).await;
         }
     }
 }
