@@ -1,6 +1,8 @@
 use std/flow::one
+use std/flow::passBlock
 use std/data::|entry
 use log/logger::Logger
+use log/logger::stop as stopLogs
 use log/log::logErrors
 use log/log::logError
 use distrib::DistributionEngine
@@ -22,7 +24,7 @@ model CicdDistributionEngine(): DistributionEngine {
     version = "0.9.0-pre.1"
 }
 
-treatment runner[distant_engine: CicdDistantEngine, cicd_engine: CicdDistributionEngine, logger: Logger](name: string, cpu: u32, memory: u32, storage: u32, edition: Option<string> = _, arch: Option<Arch> = _, max_duration: u32 = 3600, volumes: Vec<Volume> = [], containers: Vec<Container> = [])
+treatment runner[distant_engine: CicdDistantEngine, cicd_engine: CicdDistributionEngine, logger: Logger](name: string, cpu: u32, memory: u32, storage: u32, edition: Option<string> = _, arch: Option<Arch> = _, max_duration: u32 = 3600, volumes: Vec<Volume> = [], containers: Vec<Container> = [], var stop_on_failure: bool = true)
   input trigger: Block<void>
   output ready:  Block<void>
   output failed: Block<void>
@@ -39,6 +41,10 @@ treatment runner[distant_engine: CicdDistantEngine, cicd_engine: CicdDistributio
     stopOnFailure: stop[distributor=cicd_engine]()
     oneFailed.value -> stopOnFailure.trigger
 
+    stopCi[logger=logger]()
+    passStop: passBlock<void>(cond=stop_on_failure)
+    oneFailed.value -> passStop.block,passed -> stopCi.trigger
+
     oneFailed: one<void>()
     distant.failed -> oneFailed.a
     start.failed ---> oneFailed.b
@@ -53,4 +59,11 @@ treatment stopRunner[cicd_engine: CicdDistributionEngine]()
 {
   stop[distributor=cicd_engine]()
   Self.trigger -> stop.trigger
+}
+
+treatment stopCi[logger: Logger]()
+  input trigger: Block<void>
+{
+  stopLogs[logger=logger]()
+  Self.trigger -> stopLogs.trigger
 }

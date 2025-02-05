@@ -17,6 +17,7 @@ use std/ops/option/block::unwrap
 use log/log::logInfos
 use log/log::logErrors
 use log/log::logError
+use log/log::logErrorMessage
 use log/logger::Log
 use log/logger::Logger
 use log/logger::trackLogs
@@ -105,6 +106,9 @@ treatment stepOn[distributor: CicdDistributionEngine, logger: Logger](var execut
     stopRunner[cicd_engine=distributor]()
     passStop: passBlock<void>(cond=stop_on_failure)
     distribOrStepFailed.value -> passStop.block,passed -> stopRunner.trigger
+
+    logStepFailed: logErrorMessage[logger=logger](message="Step failed")
+    distribOrStepFailed.value -> logStepFailed.trigger
 
     recvStarted.data -> Self.started
     recvFinished.data -> Self.finished

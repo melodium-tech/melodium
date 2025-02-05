@@ -17,6 +17,7 @@ pub enum Message {
     OutputData(OutputData),
     CloseOutput(CloseOutput),
     Ended,
+    Probe,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

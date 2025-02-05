@@ -11,6 +11,8 @@ use common::descriptor::{Entry, Treatment};
 use common::descriptor::{Identifier, Version};
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
+use core::time::Duration;
+use futures::{pin_mut, select, FutureExt};
 #[cfg(any(
     all(not(target_os = "windows"), not(target_vendor = "apple")),
     all(target_os = "windows", target_env = "gnu")
@@ -219,6 +221,10 @@ impl DistributionEngine {
     pub async fn stop(&self) {
         if let Some(protocol) = self.protocol.read().await.as_ref() {
             let _ = protocol.send_message(Message::Ended).await;
+        } else if !self.started_once.load(Ordering::Relaxed) {
+            self.protocol_barrier.wait().await;
+        } else {
+            self.fuse().await;
         }
     }
 
@@ -365,81 +371,112 @@ impl DistributionEngine {
     }
 
     async fn continuous(&self) {
+        eprintln!("Awaiting distribution");
         self.protocol_barrier.wait().await;
 
-        if let Some(protocol) = self.protocol.read().await.as_ref() {
-            loop {
-                match protocol.recv_message().await {
-                    Ok(Message::InstanciateStatus(instanciate_status)) => {
-                        match instanciate_status {
-                            InstanciateStatus::Ok { id } => {
-                                if let Some(track) = self.tracks.read().await.get(&id) {
-                                    track.instancied.store(true, Ordering::Relaxed);
-                                    track.instanciation_barrier.wait().await;
+        let exec = async {
+            if let Some(protocol) = self.protocol.read().await.as_ref() {
+                loop {
+                    match protocol.recv_message().await {
+                        Ok(Message::InstanciateStatus(instanciate_status)) => {
+                            match instanciate_status {
+                                InstanciateStatus::Ok { id } => {
+                                    if let Some(track) = self.tracks.read().await.get(&id) {
+                                        track.instancied.store(true, Ordering::Relaxed);
+                                        track.instanciation_barrier.wait().await;
+                                    }
+                                }
+                                InstanciateStatus::Failure { id, message: _ } => {
+                                    if let Some(track) = self.tracks.read().await.get(&id) {
+                                        track.instanciation_barrier.wait().await;
+                                    }
                                 }
                             }
-                            InstanciateStatus::Failure { id, message: _ } => {
-                                if let Some(track) = self.tracks.read().await.get(&id) {
-                                    track.instanciation_barrier.wait().await;
+                        }
+                        Ok(Message::CloseInput(close_input)) => {
+                            if let Some(input) = self
+                                .tracks
+                                .read()
+                                .await
+                                .get(&close_input.id)
+                                .map(|track| track.inputs_receivers.get(&close_input.name))
+                                .flatten()
+                            {
+                                input.close();
+                            }
+                        }
+                        Ok(Message::OutputData(output_data)) => {
+                            if let Some(output) = self
+                                .tracks
+                                .read()
+                                .await
+                                .get(&output_data.id)
+                                .map(|track| track.outputs_senders.get(&output_data.name))
+                                .flatten()
+                            {
+                                if output.send(output_data.data).await.is_err() {
+                                    let _ = protocol
+                                        .send_message(Message::CloseOutput(CloseOutput {
+                                            id: output_data.id,
+                                            name: output_data.name.clone(),
+                                        }))
+                                        .await;
                                 }
                             }
                         }
-                    }
-                    Ok(Message::CloseInput(close_input)) => {
-                        if let Some(input) = self
-                            .tracks
-                            .read()
-                            .await
-                            .get(&close_input.id)
-                            .map(|track| track.inputs_receivers.get(&close_input.name))
-                            .flatten()
-                        {
-                            input.close();
-                        }
-                    }
-                    Ok(Message::OutputData(output_data)) => {
-                        if let Some(output) = self
-                            .tracks
-                            .read()
-                            .await
-                            .get(&output_data.id)
-                            .map(|track| track.outputs_senders.get(&output_data.name))
-                            .flatten()
-                        {
-                            if output.send(output_data.data).await.is_err() {
-                                let _ = protocol
-                                    .send_message(Message::CloseOutput(CloseOutput {
-                                        id: output_data.id,
-                                        name: output_data.name.clone(),
-                                    }))
-                                    .await;
+                        Ok(Message::CloseOutput(close_output)) => {
+                            if let Some(output) = self
+                                .tracks
+                                .read()
+                                .await
+                                .get(&close_output.id)
+                                .map(|track| track.outputs_senders.get(&close_output.name))
+                                .flatten()
+                            {
+                                output.close();
                             }
                         }
-                    }
-                    Ok(Message::CloseOutput(close_output)) => {
-                        if let Some(output) = self
-                            .tracks
-                            .read()
-                            .await
-                            .get(&close_output.id)
-                            .map(|track| track.outputs_senders.get(&close_output.name))
-                            .flatten()
-                        {
-                            output.close();
+                        Ok(Message::Ended) => {
+                            eprintln!("Ending distribution");
+                            self.close_all().await;
+                            break;
+                        }
+                        Ok(Message::Probe) => {}
+                        Ok(_) => {}
+                        Err(_) => {
+                            eprintln!("Error on distribution");
+                            self.close_all().await;
+                            break;
                         }
                     }
-                    Ok(Message::Ended) => {
-                        self.close_all().await;
-                        break;
-                    }
-                    Ok(_) => {}
-                    Err(_) => {
-                        self.close_all().await;
+                }
+            }
+        }
+        .fuse();
+
+        let probe = async {
+            if let Some(protocol) = self.protocol.read().await.as_ref() {
+                loop {
+                    async_std::task::sleep(Duration::from_secs(10)).await;
+                    if protocol.send_message(Message::Probe).await.is_err() {
                         break;
                     }
                 }
             }
         }
+        .fuse();
+
+        pin_mut!(exec, probe);
+
+        loop {
+            select! {
+                () = exec => { break }
+                () = probe => { break }
+                complete => break,
+            }
+        }
+
+        eprintln!("Finishing distribution");
     }
 
     async fn close_all(&self) {
@@ -517,6 +554,7 @@ pub async fn stop() {
     let distributor = model.inner();
 
     if let Ok(_) = trigger.recv_one().await {
+        eprintln!("Triggering distrib stop");
         distributor.stop().await;
     }
 }
