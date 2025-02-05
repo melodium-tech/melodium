@@ -7,6 +7,7 @@ use std/flow::emit
 use std/flow::flock
 use std/flow::uncheck
 use std/flow::one
+use std/flow::passBlock
 use std/flow::stream
 use std/flow::trigger
 use std/flow::releaseBlock
@@ -32,8 +33,9 @@ use distrib::recvStream
 use root/data::readFile
 use root/data::ioToString
 use root/runners::CicdDistributionEngine
+use root/runners::stopRunner
 
-treatment stepOn[distributor: CicdDistributionEngine, logger: Logger](var executor_name: string, var environment: Option<Environment> = _, var commands: Vec<Command>, var out_filesystem: Option<string> = _, var out_file: Option<string> = _ )
+treatment stepOn[distributor: CicdDistributionEngine, logger: Logger](var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
   input trigger: Block<void>
   output started: Block<void>
   output finished: Block<void>
@@ -78,7 +80,8 @@ treatment stepOn[distributor: CicdDistributionEngine, logger: Logger](var execut
     distribute.distribution_id -> recvData.distribution_id
     distribute.distribution_id -> recvLogs.distribution_id
 
-    emitExecutorName: emit<string>(value=executor_name)
+    emitExecutorName: emit<Option<string>>(value=executor_name)
+    unwrapExecutorName: unwrap<string>()
     emitEnvironment: emit<Option<Environment>>(value=environment)
     emitCommands: emit<Vec<Command>>(value=commands)
     streamCommands: stream<Vec<Command>>()
@@ -90,7 +93,7 @@ treatment stepOn[distributor: CicdDistributionEngine, logger: Logger](var execut
     unwrapFileName: unwrap<string>()
 
     Self.trigger -> sendTriggerLogs.data
-    Self.trigger -> emitExecutorName.trigger,emit -> sendExecutorName.data
+    Self.trigger -> emitExecutorName.trigger,emit -> unwrapExecutorName.option,value -> sendExecutorName.data
     Self.trigger -> emitEnvironment.trigger,emit --> sendEnvironment.data
     Self.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector,value -> sendCommands.data
     Self.trigger -> emitFilesystemName.trigger,emit -> unwrapFilesystemName.option,value -> sendOutFilesystemName.data
@@ -98,6 +101,10 @@ treatment stepOn[distributor: CicdDistributionEngine, logger: Logger](var execut
 
     injectStreamLog[logger=logger]()
     recvLogs.data -> injectStreamLog.logs
+
+    stopRunner[cicd_engine=distributor]()
+    passStop: passBlock<void>(cond=stop_on_failure)
+    distribOrStepFailed.value -> passStop.block,passed -> stopRunner.trigger
 
     recvStarted.data -> Self.started
     recvFinished.data -> Self.finished
@@ -128,11 +135,12 @@ treatment step(var label: string)
     Self.commands ------> spawnCommands.commands
 
     readFile[logger=logger](label=label)
+    uncheckSpawnCommandsFailed: uncheck<void>()
     releaseFsName: releaseBlock<string>()
 
-    Self.out_filesystem_name -> releaseFsName.data,released -> readFile.filesystem_name
-    Self.out_file_name -------------------------------------> readFile.file_path
-    spawnCommands.completed -> releaseFsName.leverage
+    Self.out_filesystem_name -> releaseFsName.data,released ----------> readFile.filesystem_name
+    Self.out_file_name -----------------------------------------------> readFile.file_path
+    spawnCommands.failed -> uncheckSpawnCommandsFailed.value,uncheck -> releaseFsName.leverage
 
     spawnOrReadFileFailed: one<void>()
     spawnCommands.failed -> spawnOrReadFileFailed.a

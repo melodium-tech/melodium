@@ -445,6 +445,14 @@ impl Value {
                         }
                     }
                     ScriptResult::new_success(ValueDesigner::Array(vector))
+                } else if let DescribedType::Option(inner_type) = described_type {
+                    Self::build_designed_value(
+                        content,
+                        designer,
+                        inner_type,
+                        collection,
+                        positioned_string,
+                    )
                 } else {
                     ScriptResult::new_failure(ScriptError::invalid_type(
                         182,
