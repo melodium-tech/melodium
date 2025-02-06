@@ -21,7 +21,7 @@ pub struct Access {
 pub struct Request {
     pub config: Option<RequestConfig>,
     pub id: Option<Uuid>,
-    pub client_id: Option<Uuid>,
+    pub organization_id: Option<Uuid>,
     pub edition: String,
     pub version: String,
     pub mode: ModeRequest,

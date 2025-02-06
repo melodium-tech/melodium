@@ -55,6 +55,7 @@ impl DistantEngine {
     pub async fn start(&self, request: api::Request) -> Result<api::Response, String> {
         let client = Arc::clone(self.client.read().unwrap().as_ref().unwrap());
 
+        eprintln!("Start request");
         let connection = client
             .post("/execution/job/start")
             .with_request_header(KnownHeaderName::ContentType, "application/json")
@@ -133,7 +134,7 @@ pub async fn distant(
         mode: api::ModeRequest::Distribute { key: key.clone() },
         config: None,
         id: None,
-        client_id: None,
+        organization_id: None,
         version: env!("CARGO_PKG_VERSION").to_string(),
         storage,
         arch: arch.map(|arch| arch.0),
@@ -143,23 +144,26 @@ pub async fn distant(
 
     if let Ok(_) = trigger.recv_one().await {
         match distant.start(start).await {
-            Ok(distrib) => match distrib {
-                api::Response::Started(Some(access_info)) => {
-                    let _ = access
-                        .send_one(Value::Data(Arc::new(Access(api::CommonAccess {
-                            addresses: access_info.addresses,
-                            port: access_info.port,
-                            remote_key: access_info.key,
-                            self_key: key,
-                        }))))
-                        .await;
+            Ok(distrib) => {
+                eprintln!("Distant started");
+                match distrib {
+                    api::Response::Started(Some(access_info)) => {
+                        let _ = access
+                            .send_one(Value::Data(Arc::new(Access(api::CommonAccess {
+                                addresses: access_info.addresses,
+                                port: access_info.port,
+                                remote_key: access_info.key,
+                                self_key: key,
+                            }))))
+                            .await;
+                    }
+                    api::Response::Started(None) => {}
+                    api::Response::Error(errs) => {
+                        let _ = failed.send_one(().into()).await;
+                        let _ = errors.send_many(errs.into()).await;
+                    }
                 }
-                api::Response::Started(None) => {}
-                api::Response::Error(errs) => {
-                    let _ = failed.send_one(().into()).await;
-                    let _ = errors.send_many(errs.into()).await;
-                }
-            },
+            }
 
             Err(err) => {
                 let _ = failed.send_one(().into()).await;

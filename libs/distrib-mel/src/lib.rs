@@ -373,6 +373,7 @@ impl DistributionEngine {
     async fn continuous(&self) {
         eprintln!("Awaiting distribution");
         self.protocol_barrier.wait().await;
+        eprintln!("Starting distribution");
 
         let exec = async {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
