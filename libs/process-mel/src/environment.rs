@@ -7,7 +7,7 @@ use std_mel::data::string_map::*;
 static VAR_REGEX: OnceLock<Regex> = OnceLock::new();
 
 pub fn environment_variable_regex() -> &'static Regex {
-    VAR_REGEX.get_or_init(|| Regex::new(r#"\${([a-zA-Z_][0-9a-zA-Z_]*)}"#).unwrap())
+    VAR_REGEX.get_or_init(|| Regex::new(r#"\$\{([a-zA-Z_][0-9a-zA-Z_]*)\}"#).unwrap())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
