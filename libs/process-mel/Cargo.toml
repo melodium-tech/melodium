@@ -22,6 +22,7 @@ async-trait = "0.1.71"
 futures = "0.3.28"
 melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.1" }
 melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.1" }
+regex = "1.9.1"
 std-mel = { path = "../std-mel", version = "=0.9.0-pre.1" }
 serde = "1.0.185"
 shlex = "1.3"

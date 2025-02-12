@@ -4,10 +4,42 @@ use async_std::process::Command as ProcessCommand;
 use async_trait::async_trait;
 use futures::{AsyncReadExt, AsyncWriteExt};
 use melodium_macro::{check, mel_function};
+use regex::{Captures, Replacer};
 use std::{fmt::Debug, process::Stdio, sync::Arc};
+
+struct VarReplacer;
+
+impl Replacer for VarReplacer {
+    fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
+        *dst = std::env::var(&caps[1]).unwrap_or_default();
+    }
+}
 
 #[derive(Debug)]
 struct LocalExecutorEngine {}
+
+impl LocalExecutorEngine {
+    fn manage_env(process_command: &mut ProcessCommand, env: &Environment) {
+        if env.clear_env {
+            process_command.env_clear();
+        }
+
+        if let Some(working_dir) = env.working_directory.as_ref() {
+            process_command.current_dir(working_dir);
+        }
+
+        if env.expand_variables {
+            let regex = environment_variable_regex();
+
+            for (name, content) in env.variables.map.iter() {
+                let expanded = regex.replace_all(content, VarReplacer).to_string();
+                process_command.env(name, expanded);
+            }
+        } else {
+            process_command.envs(&env.variables.map);
+        }
+    }
+}
 
 #[async_trait]
 impl ExecutorEngine for LocalExecutorEngine {
@@ -24,24 +56,8 @@ impl ExecutorEngine for LocalExecutorEngine {
     ) {
         let mut process_command = ProcessCommand::new(&command.command);
 
-        if environment
-            .as_ref()
-            .map(|env| env.clear_env)
-            .unwrap_or(false)
-        {
-            process_command.env_clear();
-        }
-
-        if let Some(working_dir) = environment
-            .as_ref()
-            .map(|env| env.working_directory.as_ref())
-            .flatten()
-        {
-            process_command.current_dir(working_dir);
-        }
-
         if let Some(environment) = environment.as_ref() {
-            process_command.envs(&environment.variables.map);
+            LocalExecutorEngine::manage_env(&mut process_command, environment);
         }
 
         process_command.args(command.arguments.iter());
@@ -93,24 +109,8 @@ impl ExecutorEngine for LocalExecutorEngine {
     ) {
         let mut process_command = ProcessCommand::new(&command.command);
 
-        if environment
-            .as_ref()
-            .map(|env| env.clear_env)
-            .unwrap_or(false)
-        {
-            process_command.env_clear();
-        }
-
-        if let Some(working_dir) = environment
-            .as_ref()
-            .map(|env| env.working_directory.as_ref())
-            .flatten()
-        {
-            process_command.current_dir(working_dir);
-        }
-
         if let Some(environment) = environment.as_ref() {
-            process_command.envs(&environment.variables.map);
+            LocalExecutorEngine::manage_env(&mut process_command, environment);
         }
 
         process_command.args(command.arguments.iter());
@@ -214,24 +214,8 @@ impl ExecutorEngine for LocalExecutorEngine {
     ) {
         let mut process_command = ProcessCommand::new(&command.command);
 
-        if environment
-            .as_ref()
-            .map(|env| env.clear_env)
-            .unwrap_or(false)
-        {
-            process_command.env_clear();
-        }
-
-        if let Some(working_dir) = environment
-            .as_ref()
-            .map(|env| env.working_directory.as_ref())
-            .flatten()
-        {
-            process_command.current_dir(working_dir);
-        }
-
         if let Some(environment) = environment.as_ref() {
-            process_command.envs(&environment.variables.map);
+            LocalExecutorEngine::manage_env(&mut process_command, environment);
         }
 
         process_command.args(command.arguments.iter());

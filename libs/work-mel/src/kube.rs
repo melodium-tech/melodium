@@ -11,7 +11,13 @@ use fs_mel::filesystem::{self, FileSystemEngine};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{api::AttachParams, Api, Client};
 use melodium_macro::check;
-use process_mel::{command::Command, environment::Environment, exec::*};
+use process_mel::{
+    command::Command,
+    environment::{environment_variable_regex, Environment},
+    exec::*,
+};
+use regex::{Captures, Replacer};
+use std::collections::{HashMap, HashSet};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 
 pub struct KubeExecutor {
@@ -52,6 +58,109 @@ impl KubeExecutor {
             return Err(format!("No container '{container}' available"));
         }
     }
+
+    async fn manage_variable_substitution(
+        &self,
+        variables: &HashMap<String, String>,
+    ) -> HashMap<String, String> {
+        let names = Self::get_used_variables(variables);
+
+        let environment_variables = self.get_environment_variables(names).await;
+
+        struct VarReplacer<'a> {
+            variables: &'a HashMap<String, String>,
+        }
+
+        impl Replacer for VarReplacer<'_> {
+            fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
+                *dst = self
+                    .variables
+                    .get(&caps[1].to_string())
+                    .map(|str| str.clone())
+                    .unwrap_or_default();
+            }
+        }
+
+        let regex = environment_variable_regex();
+        let mut substitued_variables = HashMap::new();
+        for (name, content) in variables.iter() {
+            let expanded = regex
+                .replace_all(
+                    content,
+                    VarReplacer {
+                        variables: &environment_variables,
+                    },
+                )
+                .to_string();
+            substitued_variables.insert(name.clone(), expanded);
+        }
+
+        substitued_variables
+    }
+
+    async fn get_environment_variables(&self, keys: Vec<String>) -> HashMap<String, String> {
+        let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
+
+        let mut map = HashMap::new();
+
+        for key in keys {
+            let var_command = vec![
+                "/usr/bin/env".to_string(),
+                "--split-string".to_string(),
+                "sh".to_string(),
+                format!("echo ${key}"),
+            ];
+
+            match pod
+                .exec(
+                    &self.pod,
+                    var_command,
+                    &AttachParams::default()
+                        .stdin(false)
+                        .stdout(true)
+                        .stderr(false)
+                        .container(self.container_full_name.clone()),
+                )
+                .await
+            {
+                Ok(mut process) => {
+                    if let Some(process_stdout) = process.stdout() {
+                        let read_stdout = async {
+                            let mut process_stdout = BufReader::new(process_stdout);
+
+                            let mut content = String::new();
+                            match process_stdout.read_to_string(&mut content).await {
+                                Ok(_) => content,
+                                Err(_) => String::new(),
+                            }
+                        };
+
+                        let variable = read_stdout.await;
+                        map.insert(key, variable);
+                    }
+                }
+                Err(_err) => {}
+            }
+        }
+
+        map
+    }
+
+    fn get_used_variables(map: &HashMap<String, String>) -> Vec<String> {
+        let mut set = HashSet::new();
+
+        for (_, var) in map {
+            let regex = environment_variable_regex();
+            for capture in regex.captures_iter(var) {
+                if let Some(name) = capture.get(1) {
+                    let name = name.as_str().to_string();
+                    set.insert(name);
+                }
+            }
+        }
+
+        set.into_iter().collect()
+    }
 }
 
 #[async_trait]
@@ -82,8 +191,17 @@ impl ExecutorEngine for KubeExecutor {
                 env_command.push("--ignore-environment".to_string());
             }
 
-            for (name, val) in &environment.variables.map {
-                env_command.push(format!("{name}={val}"));
+            if environment.expand_variables {
+                let variables = self
+                    .manage_variable_substitution(&environment.variables.map)
+                    .await;
+                for (name, val) in variables {
+                    env_command.push(format!("{name}={val}"));
+                }
+            } else {
+                for (name, val) in &environment.variables.map {
+                    env_command.push(format!("{name}={val}"));
+                }
             }
 
             env_command.push(command.command.clone());
@@ -184,8 +302,17 @@ impl ExecutorEngine for KubeExecutor {
                 env_command.push("--ignore-environment".to_string());
             }
 
-            for (name, val) in &environment.variables.map {
-                env_command.push(format!("{name}={val}"));
+            if environment.expand_variables {
+                let variables = self
+                    .manage_variable_substitution(&environment.variables.map)
+                    .await;
+                for (name, val) in variables {
+                    env_command.push(format!("{name}={val}"));
+                }
+            } else {
+                for (name, val) in &environment.variables.map {
+                    env_command.push(format!("{name}={val}"));
+                }
             }
 
             env_command.push(command.command.clone());
@@ -337,8 +464,17 @@ impl ExecutorEngine for KubeExecutor {
                 env_command.push("--ignore-environment".to_string());
             }
 
-            for (name, val) in &environment.variables.map {
-                env_command.push(format!("{name}={val}"));
+            if environment.expand_variables {
+                let variables = self
+                    .manage_variable_substitution(&environment.variables.map)
+                    .await;
+                for (name, val) in variables {
+                    env_command.push(format!("{name}={val}"));
+                }
+            } else {
+                for (name, val) in &environment.variables.map {
+                    env_command.push(format!("{name}={val}"));
+                }
             }
 
             env_command.push(command.command.clone());
