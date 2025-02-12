@@ -1,0 +1,28 @@
+use log/logger::Logger
+use cicd/runners::CicdDistantEngine
+use cicd/runners::CicdDistributionEngine
+use cicd/runners::runner
+use cicd/steps::stepOn
+use work/resources::|container
+use work/resources/arch::Arch
+use work/resources::|volume
+use work/resources::|mount
+
+treatment runnerBuild[cicd_distant: CicdDistantEngine, cicd_distribution: CicdDistributionEngine, logger: Logger](name: string, on: Arch)
+  input trigger: Block<void>
+  output ready:  Block<void>
+{
+    runner[
+        distant_engine=cicd_distant,
+        cicd_engine=cicd_distribution,
+        logger=logger
+    ](
+        name=name,
+        cpu=1,
+        memory=500,
+        storage=1300,
+        volumes=[|volume("compilation-result", 1000)],
+        containers=[|container("rust", 4000, 2, 5000, on, [|mount("compilation-result", "/mounted/result")], "rust:bullseye", _)]
+    )
+    Self.trigger -> runner.trigger,ready -> Self.ready
+}

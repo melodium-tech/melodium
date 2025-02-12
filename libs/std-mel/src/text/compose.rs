@@ -1,4 +1,4 @@
-use crate::data::*;
+use crate::data::string_map::*;
 use melodium_core::*;
 use melodium_macro::{check, mel_function, mel_treatment};
 
@@ -207,21 +207,21 @@ pub fn trim_start(text: string) -> string {
 /// Return string formatted with given entries.
 /// Format string is expected to contains braced placeholders, like: `"Hello {name}!"`.
 ///
-/// If a formatting error happens, like missing key of incorrect format string, _none_ is returned.
-///
-/// ⚠️ All entries values must implements `ToString` trait, entries that does not will be ignored.
+/// If a formatting error happens, like missing key of incorrect format string, an empty string is returned.
 #[mel_function]
-pub fn format(format: string, entries: Map) -> Option<string> {
-    let format_map = entries
-        .map
-        .into_iter()
-        .filter(|(_, val)| {
-            val.datatype()
-                .implements(&melodium_core::common::descriptor::DataTrait::ToString)
-        })
-        .map(|(name, val)| (name, melodium_core::DataTrait::to_string(&val)))
-        .collect();
-    strfmt::strfmt(&format, &format_map).ok()
+pub fn format(format: string, entries: StringMap) -> string {
+    strfmt::strfmt(&format, &entries.map).unwrap_or_default()
+}
+
+/// Checked format string.
+///
+/// Return string formatted with given entries.
+/// Format string is expected to contains braced placeholders, like: `"Hello {name}!"`.
+///
+/// If a formatting error happens, like missing key of incorrect format string, _none_ is returned.
+#[mel_function]
+pub fn checked_format(format: string, entries: StringMap) -> Option<string> {
+    strfmt::strfmt(&format, &entries.map).ok()
 }
 
 /// Format stream.
@@ -229,12 +229,10 @@ pub fn format(format: string, entries: Map) -> Option<string> {
 /// Stream string formatted with given entries.
 /// Format string is expected to contains braced placeholders, like: `"Hello {name}!"`.
 ///
-/// If a formatting error happens, like missing key of incorrect format string, _none_ is sent.
-///
-/// ⚠️ All entries values must implements `ToString` trait, entries that does not will be ignored.
+/// If a formatting error happens, like missing key of incorrect format string, an empty string is sent.
 #[mel_treatment(
-    input entries Stream<Map>
-    output formatted Stream<Option<string>>
+    input entries Stream<StringMap>
+    output formatted Stream<string>
 )]
 pub async fn format(format: string) {
     while let Ok(maps) = entries
@@ -247,22 +245,47 @@ pub async fn format(format: string) {
             .map(|map| {
                 GetData::<std::sync::Arc<dyn Data>>::try_data(map)
                     .unwrap()
-                    .downcast_arc::<Map>()
+                    .downcast_arc::<StringMap>()
+                    .unwrap()
+            })
+            .map(|map| strfmt::strfmt(&format, &map.map).unwrap_or_default())
+            .collect::<VecDeque<_>>();
+
+        check!(
+            formatted
+                .send_many(TransmissionValue::String(formatted_str))
+                .await
+        );
+    }
+}
+
+/// Format stream.
+///
+/// Stream string formatted with given entries.
+/// Format string is expected to contains braced placeholders, like: `"Hello {name}!"`.
+///
+/// If a formatting error happens, like missing key of incorrect format string, _none_ is sent.
+#[mel_treatment(
+    input entries Stream<StringMap>
+    output formatted Stream<Option<string>>
+)]
+pub async fn checked_format(format: string) {
+    while let Ok(maps) = entries
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<Value>>::try_into(values).unwrap())
+    {
+        let formatted_str = maps
+            .into_iter()
+            .map(|map| {
+                GetData::<std::sync::Arc<dyn Data>>::try_data(map)
+                    .unwrap()
+                    .downcast_arc::<StringMap>()
                     .unwrap()
             })
             .map(|map| {
-                map.map
-                    .iter()
-                    .filter(|(_, val)| {
-                        val.datatype()
-                            .implements(&melodium_core::common::descriptor::DataTrait::ToString)
-                    })
-                    .map(|(name, val)| (name.clone(), melodium_core::DataTrait::to_string(val)))
-                    .collect::<std::collections::HashMap<String, String>>()
-            })
-            .map(|map| {
                 Value::Option(
-                    strfmt::strfmt(&format, &map)
+                    strfmt::strfmt(&format, &map.map)
                         .map(|formatted| Box::new(Value::String(formatted)))
                         .ok(),
                 )

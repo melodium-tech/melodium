@@ -1,0 +1,14 @@
+name = "melodium_ci"
+version = "0.1.0"
+
+[dependencies]
+std = "=0.9.0-pre.1"
+log = "=0.9.0-pre.1"
+fs = "=0.9.0-pre.1"
+process = "=0.9.0-pre.1"
+work = "=0.9.0-pre.1"
+distrib = "=0.9.0-pre.1"
+net = "=0.9.0-pre.1"
+
+[entrypoints]
+main = "melodium_ci::main"

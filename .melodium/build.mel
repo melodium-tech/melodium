@@ -1,0 +1,56 @@
+use log/logger::Logger
+use std/data/string_map::StringMap
+use std/ops/vec::|concat
+use std/ops::|condition
+use std/ops/option::|wrap
+use std/text/compose::|format
+use std/data/string_map::|entry
+use process/command::Command
+use process/command::|command
+use process/environment::Environment
+use process/environment::|environment
+use cicd/runners::CicdDistantEngine
+use cicd/runners::CicdDistributionEngine
+use cicd/runners::runner
+use cicd/runners::stopRunner
+use cicd/steps::stepOn
+use work/resources/arch::Arch
+use root/builder::runnerBuild
+
+treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target: string, release: bool, on: Arch, pre_steps: Vec<Command> = [], environment_variables: StringMap)
+  model cicd_distribution: CicdDistributionEngine()
+  input trigger: Block<void>
+  output data:   Stream<byte>
+{
+    runnerBuild[cicd_distant=cicd_distant, cicd_distribution=cicd_distribution, logger=logger](
+        name=target,
+        on=on
+    )
+    preSteps: stepOn[distributor=cicd_distribution, logger=logger](
+        executor_name="rust",
+        commands=|concat<Command>([
+            |command("mkdir", ["--parents", "/work"])
+        ], pre_steps)
+    )
+    gitClone: stepOn[distributor=cicd_distribution, logger=logger](
+        executor_name="rust",
+        environment=|wrap<Environment>(|environment(environment_variables, "/work", true, false)),
+        commands=[
+            |command("git", ["clone", "https://gitlab.com/melodium/melodium.git"])
+        ]
+    )
+    compilation: stepOn[distributor=cicd_distribution, logger=logger](
+        executor_name="rust",
+        environment=|wrap<Environment>(|environment(environment_variables, "/work/melodium", true, false)),
+        commands=[
+            |command("rustc", ["--version"]),
+            |command("cargo", ["--version"]),
+            |command("cargo", ["build", "--package", "melodium", "--target", target, |condition<string>(release, "--release", "")]),
+            |command("mv", [|format("target/{target}/release/melodium", |entry("target", target)), "/mounted/result/melodium"])
+        ],
+        out_filesystem="compilation-result",
+        out_file="melodium"
+    )
+
+    Self.trigger -> runnerBuild.trigger,ready -> preSteps.trigger,completed -> gitClone.trigger,completed -> compilation.trigger,data -> Self.data
+}

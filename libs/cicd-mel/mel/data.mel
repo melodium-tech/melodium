@@ -1,4 +1,5 @@
 use fs/file::read
+use fs/file::write
 use log/logger::Logger
 use log/log::logErrors
 use log/log::logError
@@ -17,6 +18,39 @@ treatment ioToString()
     trimEnd()
 
     Self.stdio -> fromUtf8.encoded,text -> rescale.unscaled,scaled -> trimEnd.text,trimmed -> Self.lines
+}
+
+treatment writeFile[logger: Logger](var label: string)
+  input filesystem_name: Block<string>
+  input file_path: Block<string>
+  input data: Stream<byte>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+{
+    getFileSystem()
+    write()
+
+    Self.filesystem_name -> getFileSystem.name,filesystem -> write.filesystem
+    Self.file_path ----------------------------------------> write.path
+    Self.data ---------------------------------------------> write.data
+
+    logFsErr: logError[logger=logger](label=label)
+    logWriteErrs: logErrors[logger=logger](label=label)
+    getFileSystem.error -> logFsErr.message
+    write.errors --------> logWriteErrs.messages
+
+    oneFailed: one<void>()
+    getFileSystem.failed -> oneFailed.a
+    write.failed ---------> oneFailed.b
+
+    oneFailedOrFinished: one<void>()
+    oneFailed.value -> oneFailedOrFinished.a
+    write.finished --> oneFailedOrFinished.b
+
+    write.completed -----------> Self.completed
+    oneFailed.value -----------> Self.failed
+    oneFailedOrFinished.value -> Self.finished
 }
 
 treatment readFile[logger: Logger](var label: string)

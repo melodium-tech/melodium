@@ -22,48 +22,34 @@ use log/log::logInfoMessage
 use log/log::logErrorMessage
 
 use cicd/runners::CicdDistantEngine
-use cicd/runners::CicdDistributionEngine
 use cicd/runners::runner
 use cicd/runners::stopRunner
 use cicd/steps::stepOn
 use work/resources::|container
 use work/resources/arch::|arm64
+use work/resources/arch::|amd64
 use work/resources::|volume
 use work/resources::|mount
 use process/command::|command
+use root/build::buildMelodium
 
-treatment main(const key: string = "GfI84jhasy8dT5u1/2B4anBUb1d5pmaJNVBLoOmJvuZk5pHlV9J4HNsYFMgYqK7YGsGKPYab+RP7mvPHXHMmMg")
+use std/data/string_map::|map
+
+treatment main(const key: string)
   model logger: Logger()
   model cicd: CicdDistantEngine(key=key)
-  model distrib: CicdDistributionEngine()
 {
     startup()
 
     allLogs: logs[logger=logger]()
-    stopLogs: stop[logger=logger]()
     logConsole: console(timestamp=true)
     allLogs.all -> logConsole.logs
 
-    runnerArm64Musl: runner[distant_engine=cicd, cicd_engine=distrib, logger=logger](name="arm64-musl", cpu=1, memory=500, storage=1000, volumes=[|volume("exchange", 500)], containers=[|container("rust", 8000, 2, 5000, |arm64(), [|mount("exchange", "/mounted/exchange")], "rust:bullseye", _)])
-    stepArm64Musl: stepOn[distributor=distrib, logger=logger](executor_name="rust", commands=[
-      |command("rustc", ["--version"]),
-      |command("cargo", ["--version"]),
-      |command("git", ["clone", "https://gitlab.com/melodium/melodium.git", "cloned"]),
-      |command("bash", ["-c", "mv cloned/* ."]),
-      |command("cargo", ["build", "--package", "melodium", "--release"]),
-      |command("mv", ["target/release/melodium", "/mounted/exchange/melodium"]),
-      |command("/mounted/exchange/melodium", ["--help"])
-    ],
-    out_filesystem="exchange", out_file="melodium"
-    )
-    logInfoMessage[logger=logger](message="Step finished")
-    stopRunner[cicd_engine=distrib]()
+    buildMelodium[cicd_distant=cicd, logger=logger](target="x86_64-unknown-linux-gnu", release=true, on=|amd64(), environment_variables=|map([]))
 
-    startup.trigger -> runnerArm64Musl.trigger,ready -> stepArm64Musl.trigger,finished -> stopRunner.trigger
-    stepArm64Musl.finished -> stopLogs.trigger
-    stepArm64Musl.finished -> logInfoMessage.trigger
+    startup.trigger -> buildMelodium.trigger
 
-    writeLocal(path="/tmp/melodium")
-    stepArm64Musl.data -> writeLocal.data
+    writeLocal(path="/tmp/melodium_amd64")
+    buildMelodium.data -> writeLocal.data
 }
 
