@@ -106,7 +106,6 @@ impl KubeExecutor {
         for key in keys {
             let var_command = vec![
                 "/usr/bin/env".to_string(),
-                "--null".to_string(),
                 "--split-string".to_string(),
                 "sh".to_string(),
                 "-c".to_string(),
@@ -133,6 +132,7 @@ impl KubeExecutor {
                             let mut content = String::new();
                             match process_stdout.read_to_string(&mut content).await {
                                 Ok(s) => {
+                                    content.pop();
                                     eprintln!("key {key}: {s} bytes read, content: {content}");
                                     content
                                 }
