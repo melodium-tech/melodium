@@ -4,6 +4,7 @@ use std/flow::passBlock
 use std/ops/vec::|concat
 use std/ops::|condition
 use std/ops/option::|wrap
+use std/text/compare::|contains
 use std/text/compose::|format
 use std/data/string_map::|entry
 use std/data/string_map::|map
@@ -33,15 +34,16 @@ treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target:
         executor_name="rust",
         commands=|concat<Command>([
             |command("mkdir", ["--verbose", "--parents", "/work"])
-        ], pre_commands)
+        ], pre_commands),
+        stop_on_failure=false
     )
     gitClone: stepOn[distributor=cicd_distribution, logger=logger](
         executor_name="rust",
         environment=|wrap<Environment>(|environment(environment_variables, "/work", true, false)),
         commands=[
-            |command("echo", ["Hey"])
-            //|command("git", ["clone", "https://gitlab.com/melodium/melodium.git"])
-        ]
+            |command("git", ["clone", "https://gitlab.com/melodium/melodium.git"])
+        ],
+        stop_on_failure=false
     )
     compilation: stepOn[distributor=cicd_distribution, logger=logger](
         executor_name="rust",
@@ -50,10 +52,51 @@ treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target:
             |command("rustc", ["--version"]),
             |command("cargo", ["--version"]),
             |command("cargo", ["build", "--package", "melodium", "--target", target, |condition<string>(release, "--release", "")]),
-            |command("mv", [|format("target/{target}/{kind}/melodium", |map([|entry("target", target),|entry("kind", |condition<string>(release, "release", "debug"))])), "/mounted/result/melodium"])
+            |command("mv", [|format("target/{target}/{kind}/melodium{ext}", |map([|entry("target", target),|entry("kind", |condition<string>(release, "release", "debug")),|entry("ext", |condition<string>(|contains(target, "windows"), ".exe", ""))])), "/mounted/result/melodium"])
         ],
         out_filesystem="compilation-result",
-        out_file="melodium"
+        out_file="melodium",
+        stop_on_failure=false
+    )
+
+    Self.trigger -> doBuild.block,passed -> runnerBuild.trigger,ready -> preSteps.trigger,completed -> gitClone.trigger,completed -> compilation.trigger,data -> Self.data
+}
+
+treatment buildTester[cicd_distant: CicdDistantEngine, logger: Logger](target: string, build: bool, on: Arch)
+  model cicd_distribution: CicdDistributionEngine()
+  input trigger: Block<void>
+  output data:   Stream<byte>
+{
+    doBuild: passBlock<void>(cond=build)
+    runnerBuild[cicd_distant=cicd_distant, cicd_distribution=cicd_distribution, logger=logger](
+        name=|format("tester-{target}", |entry("target", target)),
+        on=on
+    )
+    preSteps: stepOn[distributor=cicd_distribution, logger=logger](
+        executor_name="rust",
+        commands=[
+            |command("mkdir", ["--verbose", "--parents", "/work"])
+        ]
+    )
+    gitClone: stepOn[distributor=cicd_distribution, logger=logger](
+        executor_name="rust",
+        environment=|wrap<Environment>(|environment(|map([]), "/work", true, false)),
+        commands=[
+            |command("git", ["clone", "https://gitlab.com/melodium/melodium.git"])
+        ]
+    )
+    compilation: stepOn[distributor=cicd_distribution, logger=logger](
+        executor_name="rust",
+        environment=|wrap<Environment>(|environment(|map([]), "/work/melodium/test/testers", true, false)),
+        commands=[
+            |command("rustc", ["--version"]),
+            |command("cargo", ["--version"]),
+            |command("cargo", ["build", "--target", target]),
+            |command("find", [|format("target/{target}/", |entry("target", target)), "-maxdepth", "1", "-type", "f", "-executable", "-exec", "tar", "--verbose", "--xz", "--append", "--file", "target.tar", "{}", ";"]),
+            |command("mv", ["target.tar", "/mounted/result/target.tar"])
+        ],
+        out_filesystem="compilation-result",
+        out_file="target.tar"
     )
 
     Self.trigger -> doBuild.block,passed -> runnerBuild.trigger,ready -> preSteps.trigger,completed -> gitClone.trigger,completed -> compilation.trigger,data -> Self.data
