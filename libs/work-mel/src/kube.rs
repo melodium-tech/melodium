@@ -130,8 +130,14 @@ impl KubeExecutor {
 
                             let mut content = String::new();
                             match process_stdout.read_to_string(&mut content).await {
-                                Ok(_) => content,
-                                Err(_) => String::new(),
+                                Ok(s) => {
+                                    eprintln!("key {key}: {s} bytes read, content: {content}");
+                                    content
+                                }
+                                Err(e) => {
+                                    eprintln!("key {key}: error '{e}'");
+                                    String::new()
+                                }
                             }
                         };
 
