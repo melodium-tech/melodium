@@ -1,39 +1,25 @@
-use std/flow::emit
-use std/ops/option/block::unwrap
-use std/ops/option::|wrap
-use std/data/string_map::|entry
-use std/data/string_map::StringMap
-use std/engine/util::startup
-use process/command::Command
-use process/environment::Environment
-use process/exec::Executor
-use process/local::|local_executor
-//use process/command::|command
-use process/command::|raw_commands
-use fs/filesystem::FileSystem
-use fs/local::|local_filesystem
+use cicd/runners::CicdDistantEngine
+use cicd/runners::runner
+use cicd/runners::stopRunner
+use cicd/steps::stepOn
 use fs/local::writeLocal
 use log/logger::Logger
 use log/logger::logs
 use log/logger::stop
 use log/console::console
-use log/log::logErrors
-use log/log::logInfoMessage
-use log/log::logErrorMessage
-
-use cicd/runners::CicdDistantEngine
-use cicd/runners::runner
-use cicd/runners::stopRunner
-use cicd/steps::stepOn
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/engine/util::startup
+use std/ops/vec::|contains
 use work/resources::|container
 use work/resources/arch::|arm64
 use work/resources/arch::|amd64
 use work/resources::|volume
 use work/resources::|mount
 use process/command::|command
+use process/command::|raw_command
+use process/command::|raw_commands
 use root/build::buildMelodium
-
-use std/data/string_map::|map
 
 treatment main(const key: string)
   model logger: Logger()
@@ -45,11 +31,392 @@ treatment main(const key: string)
     logConsole: console(timestamp=true)
     allLogs.all -> logConsole.logs
 
-    buildMelodium[cicd_distant=cicd, logger=logger](target="x86_64-unknown-linux-gnu", release=true, on=|amd64(), environment_variables=|map([]))
+    builds[cicd=cicd, logger=logger](targets=[
+      //"x86_64-unknown-linux-gnu",
+      //"x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-gnu"
+      //"aarch64-unknown-linux-musl"
+    ])
+    writeBinaries()
 
-    startup.trigger -> buildMelodium.trigger
+    startup.trigger -> builds.trigger
 
-    writeLocal(path="/tmp/melodium_amd64")
-    buildMelodium.data -> writeLocal.data
+    builds.binReleaseX86_64UnknownLinuxGnu -> writeBinaries.binReleaseX86_64UnknownLinuxGnu
+    builds.binReleaseX86_64UnknownLinuxMusl -> writeBinaries.binReleaseX86_64UnknownLinuxMusl
+    builds.binReleaseAarch64UnknownLinuxGnu -> writeBinaries.binReleaseAarch64UnknownLinuxGnu
+    builds.binReleaseAarch64UnknownLinuxMusl -> writeBinaries.binReleaseAarch64UnknownLinuxMusl
+    builds.binReleaseI686UnknownLinuxGnu -> writeBinaries.binReleaseI686UnknownLinuxGnu
+    builds.binReleaseI686UnknownLinuxMusl -> writeBinaries.binReleaseI686UnknownLinuxMusl
+    builds.binReleaseWasm32UnknownUnknown -> writeBinaries.binReleaseWasm32UnknownUnknown
+    builds.binReleaseX86_64AppleDarwin -> writeBinaries.binReleaseX86_64AppleDarwin
+    builds.binReleaseAarch64AppleDarwin -> writeBinaries.binReleaseAarch64AppleDarwin
+    builds.binReleaseX86_64PcWindowsGnu -> writeBinaries.binReleaseX86_64PcWindowsGnu
+    builds.binReleaseX86_64PcWindowsMsvc -> writeBinaries.binReleaseX86_64PcWindowsMsvc
+    builds.binReleaseI686PcWindowsGnu -> writeBinaries.binReleaseI686PcWindowsGnu
+    builds.binReleaseI686PcWindowsMsvc -> writeBinaries.binReleaseI686PcWindowsMsvc
+    builds.binReleaseAarch64PcWindowsMsvc -> writeBinaries.binReleaseAarch64PcWindowsMsvc
 }
 
+treatment writeBinaries()
+  input binReleaseX86_64UnknownLinuxGnu: Stream<byte>
+  input binReleaseX86_64UnknownLinuxMusl: Stream<byte>
+  input binReleaseAarch64UnknownLinuxGnu: Stream<byte>
+  input binReleaseAarch64UnknownLinuxMusl: Stream<byte>
+  input binReleaseI686UnknownLinuxGnu: Stream<byte>
+  input binReleaseI686UnknownLinuxMusl: Stream<byte>
+  input binReleaseWasm32UnknownUnknown: Stream<byte>
+  input binReleaseX86_64AppleDarwin: Stream<byte>
+  input binReleaseAarch64AppleDarwin: Stream<byte>
+  input binReleaseX86_64PcWindowsGnu: Stream<byte>
+  input binReleaseX86_64PcWindowsMsvc: Stream<byte>
+  input binReleaseI686PcWindowsGnu: Stream<byte>
+  input binReleaseI686PcWindowsMsvc: Stream<byte>
+  input binReleaseAarch64PcWindowsMsvc: Stream<byte>
+{
+    writeX86_64UnknownLinuxGnu: writeLocal(path="/tmp/melodium/x86_64-unknown-linux-gnu/melodium")
+    writeX86_64UnknownLinuxMusl: writeLocal(path="/tmp/melodium/x86_64-unknown-linux-musl/melodium")
+    writeAarch64UnknownLinuxGnu: writeLocal(path="/tmp/melodium/aarch64-unknown-linux-gnu/melodium")
+    writeAarch64UnknownLinuxMusl: writeLocal(path="/tmp/melodium/aarch64-unknown-linux-musl/melodium")
+    writeI686UnknownLinuxGnu: writeLocal(path="/tmp/melodium/i686-unknown-linux-gnu/melodium")
+    writeI686UnknownLinuxMusl: writeLocal(path="/tmp/melodium/i686-unknown-linux-musl/melodium")
+    writeWasm32UnknownUnknown: writeLocal(path="/tmp/melodium/wasm32-unknown-unknown/melodium")
+    writeX86_64AppleDarwin: writeLocal(path="/tmp/melodium/x86_64-apple-darwin/melodium")
+    writeAarch64AppleDarwin: writeLocal(path="/tmp/melodium/aarch64-apple-darwin/melodium")
+    writeX86_64PcWindowsGnu: writeLocal(path="/tmp/melodium/x86_64-pc-windows-gnu/melodium.exe")
+    writeX86_64PcWindowsMsvc: writeLocal(path="/tmp/melodium/x86_64-pc-windows-msvc/melodium.exe")
+    writeI686PcWindowsGnu: writeLocal(path="/tmp/melodium/i686-pc-windows-gnu/melodium.exe")
+    writeI686PcWindowsMsvc: writeLocal(path="/tmp/melodium/i686-pc-windows-msvc/melodium.exe")
+    writeAarch64PcWindowsMsvc: writeLocal(path="/tmp/melodium/aarch64-pc-windows-msvc/melodium.exe")
+
+    Self.binReleaseX86_64UnknownLinuxGnu -> writeX86_64UnknownLinuxGnu.data
+    Self.binReleaseX86_64UnknownLinuxMusl -> writeX86_64UnknownLinuxMusl.data
+    Self.binReleaseAarch64UnknownLinuxGnu -> writeAarch64UnknownLinuxGnu.data
+    Self.binReleaseAarch64UnknownLinuxMusl -> writeAarch64UnknownLinuxMusl.data
+    Self.binReleaseI686UnknownLinuxGnu -> writeI686UnknownLinuxGnu.data
+    Self.binReleaseI686UnknownLinuxMusl -> writeI686UnknownLinuxMusl.data
+    Self.binReleaseWasm32UnknownUnknown -> writeWasm32UnknownUnknown.data
+    Self.binReleaseX86_64AppleDarwin -> writeX86_64AppleDarwin.data
+    Self.binReleaseAarch64AppleDarwin -> writeAarch64AppleDarwin.data
+    Self.binReleaseX86_64PcWindowsGnu -> writeX86_64PcWindowsGnu.data
+    Self.binReleaseX86_64PcWindowsMsvc -> writeX86_64PcWindowsMsvc.data
+    Self.binReleaseI686PcWindowsGnu -> writeI686PcWindowsGnu.data
+    Self.binReleaseI686PcWindowsMsvc -> writeI686PcWindowsMsvc.data
+    Self.binReleaseAarch64PcWindowsMsvc -> writeAarch64PcWindowsMsvc.data
+}
+
+treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
+  input trigger: Block<void>
+  output binReleaseX86_64UnknownLinuxGnu: Stream<byte>
+  output binReleaseX86_64UnknownLinuxMusl: Stream<byte>
+  output binReleaseAarch64UnknownLinuxGnu: Stream<byte>
+  output binReleaseAarch64UnknownLinuxMusl: Stream<byte>
+  output binReleaseI686UnknownLinuxGnu: Stream<byte>
+  output binReleaseI686UnknownLinuxMusl: Stream<byte>
+  output binReleaseWasm32UnknownUnknown: Stream<byte>
+  output binReleaseX86_64AppleDarwin: Stream<byte>
+  output binReleaseAarch64AppleDarwin: Stream<byte>
+  output binReleaseX86_64PcWindowsGnu: Stream<byte>
+  output binReleaseX86_64PcWindowsMsvc: Stream<byte>
+  output binReleaseI686PcWindowsGnu: Stream<byte>
+  output binReleaseI686PcWindowsMsvc: Stream<byte>
+  output binReleaseAarch64PcWindowsMsvc: Stream<byte>
+{
+    releaseX86_64UnknownLinuxGnu: buildMelodium[cicd_distant=cicd, logger=logger]
+      (
+        build=|contains<string>(targets, "x86_64-unknown-linux-gnu"),
+        target="x86_64-unknown-linux-gnu",
+        release=true,
+        on=|amd64(),
+        environment_variables=|map([])
+      )
+    Self.trigger -> releaseX86_64UnknownLinuxGnu.trigger,data -> Self.binReleaseX86_64UnknownLinuxGnu
+    
+    releaseX86_64UnknownLinuxMusl: buildMelodium[cicd_distant=cicd, logger=logger]
+      (
+        build=|contains<string>(targets, "x86_64-unknown-linux-musl"),
+        target="x86_64-unknown-linux-musl",
+        release=true,
+        on=|amd64(), 
+        environment_variables=|map([]),
+        pre_commands=|raw_commands([
+          "apt-get update",
+          "apt-get install -y musl-tools",
+          "rustup target add x86_64-unknown-linux-musl"
+        ])
+      )
+    Self.trigger -> releaseX86_64UnknownLinuxMusl.trigger,data -> Self.binReleaseX86_64UnknownLinuxMusl
+
+    releaseI686UnknownLinuxGnu: buildMelodium[cicd_distant=cicd, logger=logger]
+      (
+        build=|contains<string>(targets, "i686-unknown-linux-gnu"),
+        target="i686-unknown-linux-gnu",
+        release=true,
+        on=|amd64(), 
+        environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
+          |entry("PKG_CONFIG", "/usr/bin/i686-linux-gnu-pkg-config")
+        ]),
+        pre_commands=|raw_commands([
+          "dpkg --add-architecture i386",
+          "apt-get update",
+          "apt-get install -y gcc-multilib",
+          "rustup target add i686-unknown-linux-gnu"
+        ])
+      )
+    Self.trigger -> releaseI686UnknownLinuxGnu.trigger,data -> Self.binReleaseI686UnknownLinuxGnu
+    
+    releaseI686UnknownLinuxMusl: buildMelodium[cicd_distant=cicd, logger=logger]
+      (
+        build=|contains<string>(targets, "i686-unknown-linux-musl"),
+        target="i686-unknown-linux-musl",
+        release=true,
+        on=|amd64(), 
+        environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
+          |entry("PKG_CONFIG", "/usr/bin/i686-linux-gnu-pkg-config"),
+          |entry("CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_LINKER", "/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-ld"),
+          |entry("CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_AR", "/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-ar"),
+          |entry("TARGET_CC", "/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-gcc"),
+          |entry("TARGET_AR", "/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-gcc-ar")
+        ]),
+        pre_commands=|raw_commands([
+          "dpkg --add-architecture i386",
+          "apt-get update",
+          "apt-get install -y gcc-multilib",
+          "wget https://musl.cc/i686-linux-musl-cross.tgz",
+          "tar --extract --gzip --file i686-linux-musl-cross.tgz --directory /usr/local",
+          "ln -s /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc_s.so.1 /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc.so",
+          "rustup target add i686-unknown-linux-musl"
+        ])
+      )
+    Self.trigger -> releaseI686UnknownLinuxMusl.trigger,data -> Self.binReleaseI686UnknownLinuxMusl
+
+    releaseAarch64UnknownLinuxGnu: buildMelodium[cicd_distant=cicd, logger=logger]
+      (
+        build=|contains<string>(targets, "aarch64-unknown-linux-gnu"),
+        target="aarch64-unknown-linux-gnu",
+        release=true,
+        on=|arm64(), 
+        environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}")
+        ]),
+        pre_commands=|raw_commands([
+          "apt-get update",
+          "apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev"
+        ])
+      )
+    Self.trigger -> releaseAarch64UnknownLinuxGnu.trigger,data -> Self.binReleaseAarch64UnknownLinuxGnu
+    
+    releaseAarch64UnknownLinuxMusl: buildMelodium[cicd_distant=cicd, logger=logger]
+      (
+        build=|contains<string>(targets, "aarch64-unknown-linux-musl"),
+        target="aarch64-unknown-linux-musl",
+        release=true,
+        on=|amd64(), 
+        environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
+          |entry("PKG_CONFIG", "/usr/bin/aarch64-linux-gnu-pkg-config"),
+          |entry("CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER", "/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-ld"),
+          |entry("CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_AR", "/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-ar"),
+          |entry("LD_LIBRARY_PATH", "/usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/:${LD_LIBRARY_PATH}"),
+          |entry("TARGET_CC", "/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc"),
+          |entry("TARGET_AR", "/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc-ar")
+        ]),
+        pre_commands=|raw_commands([
+          "dpkg --add-architecture arm64",
+          "apt-get update",
+          "apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross musl-tools libc-dev:arm64",
+          "wget https://musl.cc/aarch64-linux-musl-cross.tgz",
+          "tar --extract --gzip --file aarch64-linux-musl-cross.tgz --directory /usr/local",
+          "ln -s /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc_s.so.1 /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc.so",
+          "rustup target add aarch64-unknown-linux-musl"
+        ])
+      )
+    Self.trigger -> releaseAarch64UnknownLinuxMusl.trigger,data -> Self.binReleaseAarch64UnknownLinuxMusl
+    
+    releaseWasm32UnknownUnknown: buildMelodium[cicd_distant=cicd, logger=logger]
+      (
+        build=|contains<string>(targets, "wasm32-unknown-unknown"),
+        target="wasm32-unknown-unknown",
+        release=true,
+        on=|amd64(), 
+        environment_variables=|map([]),
+        pre_commands=|raw_commands([
+          "rustup target add wasm32-unknown-unknown"
+        ])
+      )
+    Self.trigger -> releaseWasm32UnknownUnknown.trigger,data -> Self.binReleaseWasm32UnknownUnknown
+    
+    releaseX86_64AppleDarwin: buildMelodium[cicd_distant=cicd, logger=logger]
+      (
+        build=|contains<string>(targets, "x86_64-apple-darwin"),
+        target="x86_64-apple-darwin",
+        release=true,
+        on=|amd64(), 
+        environment_variables=|map([
+          |entry("PATH", "${PWD}/osxcross/target/bin:${CARGO_HOME}/bin:${PATH}"),
+          |entry("CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER", "x86_64-apple-darwin16-clang"),
+          |entry("CARGO_TARGET_X86_64_APPLE_DARWIN_AR", "x86_64-apple-darwin16-ar"),
+          |entry("TARGET_CC", "x86_64-apple-darwin16-cc"),
+          |entry("TARGET_AR", "x86_64-apple-darwin16-ar")
+        ]),
+        pre_commands=[
+          |command("apt-get", ["update"]),
+          |command("apt-get", ["install", "-y", "clang", "gcc", "g++", "cmake", "zlib1g-dev", "libmpc-dev", "libmpfr-dev", "libgmp-dev"]),
+          |command("rustup", ["target", "add", "x86_64-apple-darwin"]),
+          |command("bash", ["-c", "
+            if [ ! -d $PWD/osxcross ]
+            then
+              base=\"$PWD\"
+              git clone https://github.com/tpoechtrager/osxcross
+              cd osxcross
+              wget -nc https://github.com/joseluisq/macosx-sdks/releases/download/10.12/MacOSX10.12.sdk.tar.xz
+              mv MacOSX10.12.sdk.tar.xz tarballs/
+              UNATTENDED=yes OSX_VERSION_MIN=10.12 ./build.sh
+              ln -s \"$PWD/osxcross/target/bin/x86_64-apple-darwin16-strip\" \"$CI_PROJECT_DIR/osxcross/target/bin/strip\"
+              cd \"$base\"
+            fi"])
+        ]
+      )
+    Self.trigger -> releaseX86_64AppleDarwin.trigger,data -> Self.binReleaseX86_64AppleDarwin
+    
+    releaseAarch64AppleDarwin: buildMelodium[cicd_distant=cicd, logger=logger]
+      (
+        build=|contains<string>(targets, "aarch64-apple-darwin"),
+        target="aarch64-apple-darwin",
+        release=true,
+        on=|amd64(), 
+        environment_variables=|map([
+          |entry("PATH", "${PWD}/osxcross/target/bin:${CARGO_HOME}/bin:${PATH}"),
+          |entry("CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER", "aarch64-apple-darwin20.4-clang"),
+          |entry("CARGO_TARGET_AARCH64_APPLE_DARWIN_AR", "aarch64-apple-darwin20.4-ar"),
+          |entry("TARGET_CC", "aarch64-apple-darwin20.4-cc"),
+          |entry("TARGET_AR", "aarch64-apple-darwin20.4-ar")
+        ]),
+        pre_commands=[
+          |command("apt-get", ["update"]),
+          |command("apt-get", ["install", "-y", "clang", "gcc", "g++", "cmake", "zlib1g-dev", "libmpc-dev", "libmpfr-dev", "libgmp-dev"]),
+          |command("rustup", ["target", "add", "x86_64-apple-darwin"]),
+          |command("bash", ["-c", "
+            if [ ! -d $PWD/osxcross ]
+            then
+              base=\"$PWD\"
+              git clone https://github.com/tpoechtrager/osxcross
+              cd osxcross
+              wget -nc https://storage.googleapis.com/ory.sh/build-assets/MacOSX11.3.sdk.tar.xz
+              mv MacOSX11.3.sdk.tar.xz tarballs/
+              UNATTENDED=yes OSX_VERSION_MIN=11.3 ./build.sh
+              ln -s \"$PWD/osxcross/target/bin/aarch64-apple-darwin20.4-strip\" \"$PWD/osxcross/target/bin/strip\"
+              cd \"$base\"
+            fi"])
+        ]
+      )
+    Self.trigger -> releaseAarch64AppleDarwin.trigger,data -> Self.binReleaseAarch64AppleDarwin
+    
+    releaseX86_64PcWindowsGnu: buildMelodium[cicd_distant=cicd, logger=logger]
+      (
+        build=|contains<string>(targets, "x86_64-pc-windows-gnu"),
+        target="x86_64-pc-windows-gnu",
+        release=true,
+        on=|amd64(), 
+        environment_variables=|map([]),
+        pre_commands=|raw_commands([
+          "apt-get update",
+          "apt-get install -y mingw-w64",
+          "rustup target add x86_64-pc-windows-gnu"
+        ])
+      )
+    Self.trigger -> releaseX86_64PcWindowsGnu.trigger,data -> Self.binReleaseX86_64PcWindowsGnu
+    
+    releaseX86_64PcWindowsMsvc: buildMelodium[cicd_distant=cicd, logger=logger]
+      (
+        build=|contains<string>(targets, "x86_64-pc-windows-msvc"),
+        target="x86_64-pc-windows-msvc",
+        release=true,
+        on=|amd64(), 
+        environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
+          |entry("CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS", "-Ctarget-feature=+crt-static -Lnative=${PWD}/.xwin/crt/lib/x86_64 -Lnative=${PWD}/.xwin/sdk/lib/um/x86_64 -Lnative=${PWD}/.xwin/sdk/lib/ucrt/x86_64"),
+          |entry("CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER", "lld")
+        ]),
+        pre_commands=[
+          |command("apt-get", ["update"]),
+          |command("apt-get", ["install", "-y", "lld"]),
+          |command("rustup", ["target", "add", "x86_64-pc-windows-msvc"]),
+          |command("bash", ["-c", "
+            if [ ! -f .cargo/bin/xwin ]
+            then
+              cargo install xwin --locked
+              xwin --accept-license --manifest-version 16 --arch x86_64 --cache-dir ./.xwin-cache splat --output $PWD/.xwin
+            fi"])
+        ]
+      )
+    Self.trigger -> releaseX86_64PcWindowsMsvc.trigger,data -> Self.binReleaseX86_64PcWindowsMsvc
+    
+    releaseI686PcWindowsGnu: buildMelodium[cicd_distant=cicd, logger=logger]
+      (
+        build=|contains<string>(targets, "i686-pc-windows-gnu"),
+        target="i686-pc-windows-gnu",
+        release=true,
+        on=|amd64(), 
+        environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}")
+        ]),
+        pre_commands=|raw_commands([
+          "apt-get update",
+          "apt-get install -y mingw-w64",
+          "rustup target add i686-pc-windows-gnu"
+        ])
+      )
+    Self.trigger -> releaseI686PcWindowsGnu.trigger,data -> Self.binReleaseI686PcWindowsGnu
+    
+    releaseI686PcWindowsMsvc: buildMelodium[cicd_distant=cicd, logger=logger]
+      (
+        build=|contains<string>(targets, "i686-pc-windows-msvc"),
+        target="i686-pc-windows-msvc",
+        release=true,
+        on=|amd64(), 
+        environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
+          |entry("CARGO_TARGET_I686_PC_WINDOWS_MSVC_RUSTFLAGS", "-Ctarget-feature=+crt-static -Lnative=${PWD}/.xwin/crt/lib/x86 -Lnative=${PWD}/.xwin/sdk/lib/um/x86 -Lnative=${PWD}/.xwin/sdk/lib/ucrt/x86"),
+          |entry("CARGO_TARGET_I686_PC_WINDOWS_MSVC_LINKER", "lld")
+        ]),
+        pre_commands=[
+          |command("apt-get", ["update"]),
+          |command("apt-get", ["install", "-y", "lld"]),
+          |command("rustup", ["target", "add", "x86_64-pc-windows-msvc"]),
+          |command("bash", ["-c", "
+            if [ ! -f .cargo/bin/xwin ]
+            then
+              cargo install xwin --locked
+              xwin --accept-license --manifest-version 16 --arch x86 --cache-dir ./.xwin-cache splat --output $PWD/.xwin
+            fi"])
+        ]
+      )
+    Self.trigger -> releaseI686PcWindowsMsvc.trigger,data -> Self.binReleaseI686PcWindowsMsvc
+    
+    releaseAarch64PcWindowsMsvc: buildMelodium[cicd_distant=cicd, logger=logger]
+      (
+        build=|contains<string>(targets, "aarch64-pc-windows-msvc"),
+        target="aarch64-pc-windows-msvc",
+        release=true,
+        on=|amd64(), 
+        environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
+          |entry("CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_RUSTFLAGS", "-Ctarget-feature=+crt-static -Lnative=${PWD}/.xwin/crt/lib/aarch64 -Lnative=${PWD}/.xwin/sdk/lib/um/aarch64 -Lnative=${PWD}/.xwin/sdk/lib/ucrt/aarch64"),
+          |entry("CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER", "lld")
+        ]),
+        pre_commands=[
+          |command("apt-get", ["update"]),
+          |command("apt-get", ["install", "-y", "lld"]),
+          |command("rustup", ["target", "add", "aarch64-pc-windows-msvc"]),
+          |command("bash", ["-c", "
+            if [ ! -f .cargo/bin/xwin ]
+            then
+              cargo install xwin --locked
+              xwin --accept-license --manifest-version 16 --arch aarch64 --cache-dir ./.xwin-cache splat --output $PWD/.xwin
+            fi"])
+        ]
+      )
+    Self.trigger -> releaseAarch64PcWindowsMsvc.trigger,data -> Self.binReleaseAarch64PcWindowsMsvc
+}

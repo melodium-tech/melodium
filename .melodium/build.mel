@@ -1,10 +1,12 @@
 use log/logger::Logger
 use std/data/string_map::StringMap
+use std/flow::passBlock
 use std/ops/vec::|concat
 use std/ops::|condition
 use std/ops/option::|wrap
 use std/text/compose::|format
 use std/data/string_map::|entry
+use std/data/string_map::|map
 use process/command::Command
 use process/command::|command
 use process/environment::Environment
@@ -17,11 +19,12 @@ use cicd/steps::stepOn
 use work/resources/arch::Arch
 use root/builder::runnerBuild
 
-treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target: string, release: bool, on: Arch, pre_steps: Vec<Command> = [], environment_variables: StringMap)
+treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target: string, build: bool, release: bool, on: Arch, pre_commands: Vec<Command> = [], environment_variables: StringMap)
   model cicd_distribution: CicdDistributionEngine()
   input trigger: Block<void>
   output data:   Stream<byte>
 {
+    doBuild: passBlock<void>(cond=build)
     runnerBuild[cicd_distant=cicd_distant, cicd_distribution=cicd_distribution, logger=logger](
         name=target,
         on=on
@@ -29,14 +32,15 @@ treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target:
     preSteps: stepOn[distributor=cicd_distribution, logger=logger](
         executor_name="rust",
         commands=|concat<Command>([
-            |command("mkdir", ["--parents", "/work"])
-        ], pre_steps)
+            |command("mkdir", ["--verbose", "--parents", "/work"])
+        ], pre_commands)
     )
     gitClone: stepOn[distributor=cicd_distribution, logger=logger](
         executor_name="rust",
         environment=|wrap<Environment>(|environment(environment_variables, "/work", true, false)),
         commands=[
-            |command("git", ["clone", "https://gitlab.com/melodium/melodium.git"])
+            |command("echo", ["Hey"])
+            //|command("git", ["clone", "https://gitlab.com/melodium/melodium.git"])
         ]
     )
     compilation: stepOn[distributor=cicd_distribution, logger=logger](
@@ -46,11 +50,11 @@ treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target:
             |command("rustc", ["--version"]),
             |command("cargo", ["--version"]),
             |command("cargo", ["build", "--package", "melodium", "--target", target, |condition<string>(release, "--release", "")]),
-            |command("mv", [|format("target/{target}/release/melodium", |entry("target", target)), "/mounted/result/melodium"])
+            |command("mv", [|format("target/{target}/{kind}/melodium", |map([|entry("target", target),|entry("kind", |condition<string>(release, "release", "debug"))])), "/mounted/result/melodium"])
         ],
         out_filesystem="compilation-result",
         out_file="melodium"
     )
 
-    Self.trigger -> runnerBuild.trigger,ready -> preSteps.trigger,completed -> gitClone.trigger,completed -> compilation.trigger,data -> Self.data
+    Self.trigger -> doBuild.block,passed -> runnerBuild.trigger,ready -> preSteps.trigger,completed -> gitClone.trigger,completed -> compilation.trigger,data -> Self.data
 }
