@@ -371,9 +371,7 @@ impl DistributionEngine {
     }
 
     async fn continuous(&self) {
-        eprintln!("Awaiting distribution");
         self.protocol_barrier.wait().await;
-        eprintln!("Starting distribution");
 
         let exec = async {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
@@ -438,14 +436,12 @@ impl DistributionEngine {
                             }
                         }
                         Ok(Message::Ended) => {
-                            eprintln!("Ending distribution");
                             self.close_all().await;
                             break;
                         }
                         Ok(Message::Probe) => {}
                         Ok(_) => {}
                         Err(_) => {
-                            eprintln!("Error on distribution");
                             self.close_all().await;
                             break;
                         }
@@ -476,8 +472,6 @@ impl DistributionEngine {
                 complete => break,
             }
         }
-
-        eprintln!("Finishing distribution");
     }
 
     async fn close_all(&self) {
@@ -555,7 +549,6 @@ pub async fn stop() {
     let distributor = model.inner();
 
     if let Ok(_) = trigger.recv_one().await {
-        eprintln!("Triggering distrib stop");
         distributor.stop().await;
     }
 }

@@ -22,7 +22,25 @@ pub fn raw_command(line: string) -> Option<Command> {
 }
 
 #[mel_function]
-pub fn raw_commands(lines: Vec<string>) -> Option<Vec<Command>> {
+pub fn raw_commands(lines: Vec<string>) -> Vec<Command> {
+    let mut commands = vec![];
+    for line in lines {
+        if let Some(splitted) = shlex::split(&line) {
+            if let Some(command) = splitted.first().cloned() {
+                let arguments = splitted.into_iter().skip(1).collect();
+                commands.push(Command { command, arguments });
+            } else {
+                return Vec::new();
+            }
+        } else {
+            return Vec::new();
+        }
+    }
+    commands
+}
+
+#[mel_function]
+pub fn checked_raw_commands(lines: Vec<string>) -> Option<Vec<Command>> {
     let mut commands = vec![];
     for line in lines {
         let splitted = shlex::split(&line)?;
