@@ -108,6 +108,7 @@ impl KubeExecutor {
                 "/usr/bin/env".to_string(),
                 "--split-string".to_string(),
                 "sh".to_string(),
+                "-c".to_string(),
                 format!("echo ${key}"),
             ];
 
