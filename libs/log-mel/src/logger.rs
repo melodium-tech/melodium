@@ -3,7 +3,10 @@ use async_std::{
     sync::Mutex,
 };
 use chrono::{DateTime, Utc};
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    fmt::Display,
+    sync::atomic::{AtomicBool, Ordering},
+};
 use melodium_core::{common::executive::*, *};
 use melodium_macro::{check, mel_data, mel_function, mel_model, mel_treatment};
 use serde::{Deserialize, Serialize};
@@ -12,7 +15,7 @@ use std::{
     sync::{Arc, Weak},
 };
 
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LogLevel {
     Error,
     Warning,
@@ -21,8 +24,20 @@ pub enum LogLevel {
     Trace,
 }
 
-#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
-#[mel_data(traits(Serialize Deserialize Bounded))]
+impl Display for LogLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LogLevel::Error => write!(f, "error"),
+            LogLevel::Warning => write!(f, "warning"),
+            LogLevel::Info => write!(f, "info"),
+            LogLevel::Debug => write!(f, "debug"),
+            LogLevel::Trace => write!(f, "trace"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[mel_data(traits(Serialize Deserialize Bounded PartialEquality Equality PartialOrder Order))]
 pub struct Level {
     pub level: LogLevel,
 }
@@ -40,12 +55,25 @@ fn level_bounded_max() -> Level {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[mel_data(traits(Serialize Deserialize))]
+#[mel_data(traits(Serialize Deserialize ToString))]
 pub struct Log {
     pub timestamp: DateTime<Utc>,
     pub level: LogLevel,
     pub label: String,
     pub message: String,
+}
+
+impl melodium_core::executive::ToString for Log {
+    fn to_string(&self) -> String {
+        format!(
+            "[{}] {}: {}: {}",
+            self.timestamp
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            self.level,
+            self.label,
+            self.message
+        )
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -391,6 +419,35 @@ pub async fn log_data_block(level: Level, label: string) {
             .await;
     }
     let _ = ended.send_one(().into()).await;
+}
+
+#[mel_treatment(
+    input logs Stream<Log>
+    output filtered Stream<Log>
+)]
+pub async fn filter_logs(levels: Vec<Level>, labels: Vec<string>) {
+    let levels = levels.into_iter().map(|lvl| lvl.level).collect::<Vec<_>>();
+
+    while let Ok(logs) = logs
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        check!(
+            filtered
+                .send_many(TransmissionValue::Other(
+                    logs.into_iter()
+                        .map(|log| GetData::<Arc<dyn Data>>::try_data(log)
+                            .unwrap()
+                            .downcast_arc::<Log>()
+                            .unwrap())
+                        .filter(|log| levels.contains(&log.level) && labels.contains(&log.label))
+                        .map(|log| Value::Data(log))
+                        .collect()
+                ))
+                .await
+        )
+    }
 }
 
 #[mel_function]

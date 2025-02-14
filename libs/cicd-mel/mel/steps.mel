@@ -15,8 +15,7 @@ use std/flow::releaseBlock
 use std/flow::waitBlock
 use std/flow/vec::flatten
 use std/ops/option/block::unwrap
-use log/log::logInfos
-use log/log::logErrors
+use log/log::logDebugs
 use log/log::logError
 use log/log::logErrorMessage
 use log/logger::Log
@@ -268,9 +267,9 @@ treatment spawnCommands[logger: Logger](var label: string)
 
     logSpawnErr: logError[logger=logger](label=label)
     logSpawnErrsString: ioToString()
-    logSpawnErrs: logErrors[logger=logger](label=label)
+    logSpawnErrs: logDebugs[logger=logger](label=label)
     logSpawnInfosString: ioToString()
-    logSpawnInfos: logInfos[logger=logger](label=label)
+    logSpawnInfos: logDebugs[logger=logger](label=label)
     spawn.error --> logSpawnErr.message
     spawn.stderr -> logSpawnErrsString.stdio,lines -> logSpawnErrs.messages
     spawn.stdout -> logSpawnInfosString.stdio,lines -> logSpawnInfos.messages
