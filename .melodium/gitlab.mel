@@ -1,6 +1,7 @@
 use http/client/util::post
 use std/data::Map
 use std/data::|entry
+use std/data::|map
 use std/text/compose::|format
 use std/data/string_map::|entry as |string_entry
 use std/data/string_map::|map as |string_map
@@ -14,11 +15,15 @@ use json/value::|null
 use std/ops/option::|unwrap_or
 use std/ops/option::|wrap
 
+
 treatment postGitlab(token: string, project_id: string, sha: string, state: string, ref: string, pipeline: string, name: string, description: string)
     input trigger: Block<void>
 {
     post(
-        headers=|wrap<Map>(|entry<string>("PRIVATE-TOKEN", token)),
+        headers=|wrap<Map>(|map([
+            |entry<string>("PRIVATE-TOKEN", token),
+            |entry<string>("Content-Type", "application/json")
+        ])),
         url=|format("https://gitlab.com/api/v4/projects/{project_id}/statuses/{sha}",
                 |string_map([
                     |string_entry("project_id", project_id),

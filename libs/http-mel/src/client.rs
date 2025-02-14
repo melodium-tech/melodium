@@ -119,7 +119,7 @@ pub async fn request(method: HttpMethod) {
                 .map(|base_url| base_url.join(&url))
                 .unwrap_or_else(|| Url::parse(&url))
             {
-                Ok(_) => match {
+                Ok(url) => match {
                     let mut conn = client.build_conn(method.0, url);
                     for (name, content) in &req_headers.map {
                         let header_name = HeaderName::from(name.as_str());
@@ -263,7 +263,7 @@ pub async fn request_with_body(method: HttpMethod) {
                 .map(|base_url| base_url.join(&url))
                 .unwrap_or_else(|| Url::parse(&url))
             {
-                Ok(_) => {
+                Ok(url) => {
                     let in_body_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
                     let (mut in_prod, in_cons) = in_body_buf.split();
 
@@ -300,6 +300,7 @@ pub async fn request_with_body(method: HttpMethod) {
                                 break;
                             }
                         }
+                        in_prod.close();
                     };
 
                     match futures::join!(body_transmission, conn_doing) {
