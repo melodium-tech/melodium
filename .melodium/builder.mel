@@ -8,7 +8,7 @@ use work/resources/arch::Arch
 use work/resources::|volume
 use work/resources::|mount
 
-treatment runnerBuild[cicd_distant: CicdDistantEngine, cicd_distribution: CicdDistributionEngine, logger: Logger](name: string, on: Arch)
+treatment runnerBuild[cicd_distant: CicdDistantEngine, cicd_distribution: CicdDistributionEngine, logger: Logger](name: string, on: Arch, rust_memory: u32 = 4000, rust_storage: u32 = 5000)
   input trigger: Block<void>
   output ready:  Block<void>
 {
@@ -22,7 +22,7 @@ treatment runnerBuild[cicd_distant: CicdDistantEngine, cicd_distribution: CicdDi
         memory=500,
         storage=1300,
         volumes=[|volume("compilation-result", 1000)],
-        containers=[|container("rust", 4000, 2, 5000, on, [|mount("compilation-result", "/mounted/result")], "rust:bullseye", _)],
+        containers=[|container("rust", rust_memory, 2, rust_storage, on, [|mount("compilation-result", "/mounted/result")], "rust:bullseye", _)],
         stop_on_failure=false
     )
     Self.trigger -> runner.trigger,ready -> Self.ready

@@ -20,7 +20,7 @@ use cicd/steps::stepOn
 use work/resources/arch::Arch
 use root/builder::runnerBuild
 
-treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target: string, build: bool, release: bool, on: Arch, pre_commands: Vec<Command> = [], environment_variables: StringMap)
+treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target: string, build: bool, release: bool, on: Arch, pre_commands: Vec<Command> = [], environment_variables: StringMap, rust_memory: u32 = 4000, rust_storage: u32 = 5000)
   model cicd_distribution: CicdDistributionEngine()
   input trigger: Block<void>
   output data:   Stream<byte>
@@ -28,7 +28,9 @@ treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target:
     doBuild: passBlock<void>(cond=build)
     runnerBuild[cicd_distant=cicd_distant, cicd_distribution=cicd_distribution, logger=logger](
         name=target,
-        on=on
+        on=on,
+        rust_memory=rust_memory,
+        rust_storage=rust_storage
     )
     preSteps: stepOn[distributor=cicd_distribution, logger=logger](
         executor_name="rust",

@@ -11,5 +11,9 @@ distrib = "=0.9.0-pre.1"
 net = "=0.9.0-pre.1"
 cicd = "=0.9.0-pre.1"
 
+http = "=0.9.0-pre.1"
+json = "=0.9.0-pre.1"
+
 [entrypoints]
 main = "melodium_ci::main"
+main_gitlab = "melodium_ci::mainGitlab"
