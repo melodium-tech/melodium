@@ -1,0 +1,57 @@
+use http/client/util::post
+use std/data::Map
+use std/data::|entry
+use std/data::|map
+use std/text/compose::|format
+use std/data/string_map::|entry as |string_entry
+use std/data/string_map::|map as |string_map
+use std/flow::emit
+use std/flow::stream
+use std/conv::toString
+use std/text/convert/string::toUtf8
+use json::|to_json
+use json::Json
+use json/value::|null
+use std/ops/option::|unwrap_or
+use std/ops/option::|wrap
+
+
+treatment postGithubState(token: string, owner_id: string, project_id: string, sha: string, state: string, name: string, description: string)
+    input trigger: Block<void>
+{
+    post(
+        headers=|wrap<Map>(|map([
+            |entry<string>("Accept", "application/vnd.github+json"),
+            |entry<string>("Authorization", |format("Bearer {token}", |string_entry("token", token))),
+            |entry<string>("Content-Type", "application/json"),
+            |entry<string>("X-GitHub-Api-Version", "2022-11-28")
+        ])),
+        url=|format("https://api.github.com/repos/{owner_id}/{project_id}/statuses/{sha}",
+                |string_map([
+                    |string_entry("owner_id", owner_id),
+                    |string_entry("project_id", project_id),
+                    |string_entry("sha", sha)
+                ])
+        )
+    )
+
+    emit<Json>(value=|unwrap_or<Json>(|to_json(
+        |format(
+            "{{
+                \"state\": \"{state}\",
+                \"context\": \"{name}\",
+                \"description\": \"{description}\"
+            }}",
+            |string_map([
+                    |string_entry("state", state),
+                    |string_entry("name", name),
+                    |string_entry("description", description)
+                ])
+        )
+    ), |null()))
+    stream<Json>()
+    toString<Json>()
+    toUtf8()
+
+    Self.trigger -> emit.trigger,emit -> stream.block,stream -> toString.value,into -> toUtf8.text,encoded -> post.data
+}

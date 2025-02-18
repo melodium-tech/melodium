@@ -3,4 +3,6 @@
 
 use melodium_macro::mel_package;
 
+pub mod services;
+
 mel_package!();

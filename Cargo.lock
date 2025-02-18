@@ -902,10 +902,13 @@ version = "0.9.0-pre.1"
 dependencies = [
  "distrib-mel",
  "fs-mel",
+ "http-mel",
+ "json-mel",
  "log-mel",
  "melodium-core",
  "melodium-macro",
  "process-mel",
+ "serde",
  "std-mel",
  "work-mel",
 ]
