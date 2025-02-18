@@ -7,6 +7,10 @@ use log/logger::Logger
 use log/logger::logs
 use log/logger::stop
 use log/console::console
+use std/flow/concentrate::Concentrator
+use std/flow/concentrate::concentrateBlock
+use std/flow/concentrate::concentrated
+use std/flow::trigger
 use std/data/string_map::|entry
 use std/data/string_map::|map
 use std/engine/util::startup
@@ -86,6 +90,7 @@ treatment main(const key: string, repository_url: string, ci_token: string, proj
 }
 
 treatment writeBinaries()
+  model concentrator: Concentrator()
   input binReleaseX86_64UnknownLinuxGnu: Stream<byte>
   input binReleaseX86_64UnknownLinuxMusl: Stream<byte>
   input binReleaseAarch64UnknownLinuxGnu: Stream<byte>
@@ -100,6 +105,7 @@ treatment writeBinaries()
   input binReleaseI686PcWindowsGnu: Stream<byte>
   input binReleaseI686PcWindowsMsvc: Stream<byte>
   input binReleaseAarch64PcWindowsMsvc: Stream<byte>
+  output allFinished: Block<void>
 {
     writeX86_64UnknownLinuxGnu: writeLocal(path="/results/melodium/x86_64-unknown-linux-gnu/melodium")
     writeX86_64UnknownLinuxMusl: writeLocal(path="/results/melodium/x86_64-unknown-linux-musl/melodium")
@@ -116,20 +122,39 @@ treatment writeBinaries()
     writeI686PcWindowsMsvc: writeLocal(path="/results/melodium/i686-pc-windows-msvc/melodium.exe")
     writeAarch64PcWindowsMsvc: writeLocal(path="/results/melodium/aarch64-pc-windows-msvc/melodium.exe")
 
-    Self.binReleaseX86_64UnknownLinuxGnu -> writeX86_64UnknownLinuxGnu.data
-    Self.binReleaseX86_64UnknownLinuxMusl -> writeX86_64UnknownLinuxMusl.data
-    Self.binReleaseAarch64UnknownLinuxGnu -> writeAarch64UnknownLinuxGnu.data
-    Self.binReleaseAarch64UnknownLinuxMusl -> writeAarch64UnknownLinuxMusl.data
-    Self.binReleaseI686UnknownLinuxGnu -> writeI686UnknownLinuxGnu.data
-    Self.binReleaseI686UnknownLinuxMusl -> writeI686UnknownLinuxMusl.data
-    Self.binReleaseWasm32UnknownUnknown -> writeWasm32UnknownUnknown.data
-    Self.binReleaseX86_64AppleDarwin -> writeX86_64AppleDarwin.data
-    Self.binReleaseAarch64AppleDarwin -> writeAarch64AppleDarwin.data
-    Self.binReleaseX86_64PcWindowsGnu -> writeX86_64PcWindowsGnu.data
-    Self.binReleaseX86_64PcWindowsMsvc -> writeX86_64PcWindowsMsvc.data
-    Self.binReleaseI686PcWindowsGnu -> writeI686PcWindowsGnu.data
-    Self.binReleaseI686PcWindowsMsvc -> writeI686PcWindowsMsvc.data
-    Self.binReleaseAarch64PcWindowsMsvc -> writeAarch64PcWindowsMsvc.data
+    concentrateX86_64UnknownLinuxGnu: concentrateBlock<void>[concentrator=concentrator]()
+    concentrateX86_64UnknownLinuxMusl: concentrateBlock<void>[concentrator=concentrator]()
+    concentrateAarch64UnknownLinuxGnu: concentrateBlock<void>[concentrator=concentrator]()
+    concentrateAarch64UnknownLinuxMusl: concentrateBlock<void>[concentrator=concentrator]()
+    concentrateI686UnknownLinuxGnu: concentrateBlock<void>[concentrator=concentrator]()
+    concentrateI686UnknownLinuxMusl: concentrateBlock<void>[concentrator=concentrator]()
+    concentrateWasm32UnknownUnknown: concentrateBlock<void>[concentrator=concentrator]()
+    concentrateX86_64AppleDarwin: concentrateBlock<void>[concentrator=concentrator]()
+    concentrateAarch64AppleDarwin: concentrateBlock<void>[concentrator=concentrator]()
+    concentrateX86_64PcWindowsGnu: concentrateBlock<void>[concentrator=concentrator]()
+    concentrateX86_64PcWindowsMsvc: concentrateBlock<void>[concentrator=concentrator]()
+    concentrateI686PcWindowsGnu: concentrateBlock<void>[concentrator=concentrator]()
+    concentrateI686PcWindowsMsvc: concentrateBlock<void>[concentrator=concentrator]()
+    concentrateAarch64PcWindowsMsvc: concentrateBlock<void>[concentrator=concentrator]()
+
+    Self.binReleaseX86_64UnknownLinuxGnu -> writeX86_64UnknownLinuxGnu.data,finished -> concentrateX86_64UnknownLinuxGnu.data
+    Self.binReleaseX86_64UnknownLinuxMusl -> writeX86_64UnknownLinuxMusl.data,finished -> concentrateX86_64UnknownLinuxMusl.data
+    Self.binReleaseAarch64UnknownLinuxGnu -> writeAarch64UnknownLinuxGnu.data,finished -> concentrateAarch64UnknownLinuxGnu.data
+    Self.binReleaseAarch64UnknownLinuxMusl -> writeAarch64UnknownLinuxMusl.data,finished -> concentrateAarch64UnknownLinuxMusl.data
+    Self.binReleaseI686UnknownLinuxGnu -> writeI686UnknownLinuxGnu.data,finished -> concentrateI686UnknownLinuxGnu.data
+    Self.binReleaseI686UnknownLinuxMusl -> writeI686UnknownLinuxMusl.data,finished -> concentrateI686UnknownLinuxMusl.data
+    Self.binReleaseWasm32UnknownUnknown -> writeWasm32UnknownUnknown.data,finished -> concentrateWasm32UnknownUnknown.data
+    Self.binReleaseX86_64AppleDarwin -> writeX86_64AppleDarwin.data,finished -> concentrateX86_64AppleDarwin.data
+    Self.binReleaseAarch64AppleDarwin -> writeAarch64AppleDarwin.data,finished -> concentrateAarch64AppleDarwin.data
+    Self.binReleaseX86_64PcWindowsGnu -> writeX86_64PcWindowsGnu.data,finished -> concentrateX86_64PcWindowsGnu.data
+    Self.binReleaseX86_64PcWindowsMsvc -> writeX86_64PcWindowsMsvc.data,finished -> concentrateX86_64PcWindowsMsvc.data
+    Self.binReleaseI686PcWindowsGnu -> writeI686PcWindowsGnu.data,finished -> concentrateI686PcWindowsGnu.data
+    Self.binReleaseI686PcWindowsMsvc -> writeI686PcWindowsMsvc.data,finished -> concentrateI686PcWindowsMsvc.data
+    Self.binReleaseAarch64PcWindowsMsvc -> writeAarch64PcWindowsMsvc.data,finished -> concentrateAarch64PcWindowsMsvc.data
+
+    concentrated<void>[concentrator=concentrator]()
+    trigger<void>()
+    concentrated.data -> trigger.stream,end -> Self.allFinished
 }
 
 treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, repository_url: string, gitlab_token: string, project_id: string, sha: string, ref: string, pipeline: string)

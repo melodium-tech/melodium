@@ -27,7 +27,7 @@ treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target:
   output data:   Stream<byte>
 {
     doBuild: passBlock<void>(cond=build)
-    setGitlabState(root_url="https://gitlab.com/api/v4", token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, name=|format("Build target {target}", |entry("target", target)), description="Building Mélodium on Mélodium-managed CI")
+    setGitlabState[logger=logger](root_url="https://gitlab.com/api/v4", token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, name=|format("Build target {target}", |entry("target", target)), description="Building Mélodium on Mélodium-managed CI")
     runnerBuild[cicd_distant=cicd_distant, cicd_distribution=cicd_distribution, logger=logger](
         name=target,
         on=on,

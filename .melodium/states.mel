@@ -6,8 +6,9 @@ use cicd/services/gitlab::|success
 use cicd/services/gitlab::|failed
 use cicd/services/gitlab::|skipped
 use cicd/services/gitlab::|canceled
+use log/logger::Logger
 
-treatment setGitlabState(root_url: string, token: string, project_id: string, sha: string, ref: string, pipeline: string, name: string, description: string)
+treatment setGitlabState[logger: Logger](root_url: string, token: string, project_id: string, sha: string, ref: string, pipeline: string, name: string, description: string)
   input pending: Block<void>
   input running: Block<void>
   input success: Block<void>
@@ -15,7 +16,7 @@ treatment setGitlabState(root_url: string, token: string, project_id: string, sh
   //input skipped: Block<void>
   //input canceled: Block<void>
 {
-    pending: postGitlabState(
+    pending: postGitlabState[logger=logger](
         root_url=root_url,
         token=token,
         project_id=project_id,
@@ -26,7 +27,7 @@ treatment setGitlabState(root_url: string, token: string, project_id: string, sh
         description=description,
         state=|pending()
     )
-    running: postGitlabState(
+    running: postGitlabState[logger=logger](
         root_url=root_url,
         token=token,
         project_id=project_id,
@@ -37,7 +38,7 @@ treatment setGitlabState(root_url: string, token: string, project_id: string, sh
         description=description,
         state=|running()
     )
-    success: postGitlabState(
+    success: postGitlabState[logger=logger](
         root_url=root_url,
         token=token,
         project_id=project_id,
@@ -48,7 +49,7 @@ treatment setGitlabState(root_url: string, token: string, project_id: string, sh
         description=description,
         state=|success()
     )
-    failed: postGitlabState(
+    failed: postGitlabState[logger=logger](
         root_url=root_url,
         token=token,
         project_id=project_id,
@@ -59,7 +60,7 @@ treatment setGitlabState(root_url: string, token: string, project_id: string, sh
         description=description,
         state=|failed()
     )
-    /*skipped: postGitlabState(
+    /*skipped: postGitlabState[logger=logger](
         root_url=root_url,
         token=token,
         project_id=project_id,
@@ -70,7 +71,7 @@ treatment setGitlabState(root_url: string, token: string, project_id: string, sh
         description=description,
         state=|skipped()
     )
-    canceled: postGitlabState(
+    canceled: postGitlabState[logger=logger](
         root_url=root_url,
         token=token,
         project_id=project_id,
