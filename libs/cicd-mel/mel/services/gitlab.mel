@@ -16,9 +16,10 @@ use json/value::|null
 use std/ops/option::|unwrap_or
 use std/ops/option::|wrap
 use local::StepState
+use log/logger::Logger
+use log/log::logError
 
-
-treatment postGitlabState(root_url: string, token: string, project_id: string, sha: string, state: StepState, ref: string, pipeline: string, name: string, description: string)
+treatment postGitlabState[logger: Logger](root_url: string, token: string, project_id: string, sha: string, state: StepState, ref: string, pipeline: string, name: string, description: string)
     input trigger: Block<void>
 {
     post(
@@ -34,6 +35,8 @@ treatment postGitlabState(root_url: string, token: string, project_id: string, s
                 ])
         )
     )
+    logError[logger=logger](label="GitLab API")
+    post.error -> logError.message
 
     emit<Json>(value=|unwrap_or<Json>(|to_json(
         |format(
