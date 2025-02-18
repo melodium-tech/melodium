@@ -29,7 +29,9 @@ melodium:melodium_gitlab:
   needs: []
   rules:
     - if: '$MELODIUM == "true"'
-  image: registry.gitlab.com/melodium/melodium:alpine-0.9.0-pre.1
+  image:
+    name: registry.gitlab.com/melodium/melodium:alpine-0.9.0-pre.1
+    entrypoint: [""]
   variables:
     MELODIUM_HOME: /melodium_home
   script:
