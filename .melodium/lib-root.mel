@@ -21,7 +21,8 @@ use process/command::|raw_command
 use process/command::|raw_commands
 use root/build::buildMelodium
 use root/logging::writeLogs
-use local/gitlab::postGitlab
+
+/*use local/gitlab::postGitlab
 
 treatment mainGitlab(token: string, project_id: string, sha: string, ref: string, pipeline: string)
   //model logger: Logger()
@@ -32,9 +33,9 @@ treatment mainGitlab(token: string, project_id: string, sha: string, ref: string
     postGitlab(token=token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, state="success", name="Mélodium GitLab try", description="Trial of Mélodium post to GitLab")
 
   startup.trigger -> postGitlab.trigger
-}
+}*/
 
-treatment main(const key: string)
+treatment main(const key: string, repository_url: string, ci_token: string, project_id: string, sha: string, ref: string, pipeline: string)
   model logger: Logger()
   model cicd: CicdDistantEngine(key=key)
 {
@@ -47,7 +48,7 @@ treatment main(const key: string)
     allLogs.all -> writeLogs.logs
 
     builds[cicd=cicd, logger=logger](targets=[
-      /*"x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-gnu",
       "x86_64-unknown-linux-musl",
       "aarch64-unknown-linux-gnu",
       "aarch64-unknown-linux-musl",
@@ -55,13 +56,15 @@ treatment main(const key: string)
       "i686-unknown-linux-musl",
       "wasm32-unknown-unknown",
       "x86_64-apple-darwin",
-      "aarch64-apple-darwin",*/
+      "aarch64-apple-darwin",
       "x86_64-pc-windows-gnu",
       "x86_64-pc-windows-msvc",
-      /*"i686-pc-windows-gnu",
-      "i686-pc-windows-msvc",*/
+      "i686-pc-windows-gnu",
+      "i686-pc-windows-msvc",
       "aarch64-pc-windows-msvc"
-    ])
+    ],
+      repository_url=repository_url, gitlab_token=ci_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
+    )
     writeBinaries()
 
     startup.trigger -> builds.trigger
@@ -98,20 +101,20 @@ treatment writeBinaries()
   input binReleaseI686PcWindowsMsvc: Stream<byte>
   input binReleaseAarch64PcWindowsMsvc: Stream<byte>
 {
-    writeX86_64UnknownLinuxGnu: writeLocal(path="/tmp/melodium/x86_64-unknown-linux-gnu/melodium")
-    writeX86_64UnknownLinuxMusl: writeLocal(path="/tmp/melodium/x86_64-unknown-linux-musl/melodium")
-    writeAarch64UnknownLinuxGnu: writeLocal(path="/tmp/melodium/aarch64-unknown-linux-gnu/melodium")
-    writeAarch64UnknownLinuxMusl: writeLocal(path="/tmp/melodium/aarch64-unknown-linux-musl/melodium")
-    writeI686UnknownLinuxGnu: writeLocal(path="/tmp/melodium/i686-unknown-linux-gnu/melodium")
-    writeI686UnknownLinuxMusl: writeLocal(path="/tmp/melodium/i686-unknown-linux-musl/melodium")
-    writeWasm32UnknownUnknown: writeLocal(path="/tmp/melodium/wasm32-unknown-unknown/melodium")
-    writeX86_64AppleDarwin: writeLocal(path="/tmp/melodium/x86_64-apple-darwin/melodium")
-    writeAarch64AppleDarwin: writeLocal(path="/tmp/melodium/aarch64-apple-darwin/melodium")
-    writeX86_64PcWindowsGnu: writeLocal(path="/tmp/melodium/x86_64-pc-windows-gnu/melodium.exe")
-    writeX86_64PcWindowsMsvc: writeLocal(path="/tmp/melodium/x86_64-pc-windows-msvc/melodium.exe")
-    writeI686PcWindowsGnu: writeLocal(path="/tmp/melodium/i686-pc-windows-gnu/melodium.exe")
-    writeI686PcWindowsMsvc: writeLocal(path="/tmp/melodium/i686-pc-windows-msvc/melodium.exe")
-    writeAarch64PcWindowsMsvc: writeLocal(path="/tmp/melodium/aarch64-pc-windows-msvc/melodium.exe")
+    writeX86_64UnknownLinuxGnu: writeLocal(path="/results/melodium/x86_64-unknown-linux-gnu/melodium")
+    writeX86_64UnknownLinuxMusl: writeLocal(path="/results/melodium/x86_64-unknown-linux-musl/melodium")
+    writeAarch64UnknownLinuxGnu: writeLocal(path="/results/melodium/aarch64-unknown-linux-gnu/melodium")
+    writeAarch64UnknownLinuxMusl: writeLocal(path="/results/melodium/aarch64-unknown-linux-musl/melodium")
+    writeI686UnknownLinuxGnu: writeLocal(path="/results/melodium/i686-unknown-linux-gnu/melodium")
+    writeI686UnknownLinuxMusl: writeLocal(path="/results/melodium/i686-unknown-linux-musl/melodium")
+    writeWasm32UnknownUnknown: writeLocal(path="/results/melodium/wasm32-unknown-unknown/melodium")
+    writeX86_64AppleDarwin: writeLocal(path="/results/melodium/x86_64-apple-darwin/melodium")
+    writeAarch64AppleDarwin: writeLocal(path="/results/melodium/aarch64-apple-darwin/melodium")
+    writeX86_64PcWindowsGnu: writeLocal(path="/results/melodium/x86_64-pc-windows-gnu/melodium.exe")
+    writeX86_64PcWindowsMsvc: writeLocal(path="/results/melodium/x86_64-pc-windows-msvc/melodium.exe")
+    writeI686PcWindowsGnu: writeLocal(path="/results/melodium/i686-pc-windows-gnu/melodium.exe")
+    writeI686PcWindowsMsvc: writeLocal(path="/results/melodium/i686-pc-windows-msvc/melodium.exe")
+    writeAarch64PcWindowsMsvc: writeLocal(path="/results/melodium/aarch64-pc-windows-msvc/melodium.exe")
 
     Self.binReleaseX86_64UnknownLinuxGnu -> writeX86_64UnknownLinuxGnu.data
     Self.binReleaseX86_64UnknownLinuxMusl -> writeX86_64UnknownLinuxMusl.data
@@ -129,7 +132,7 @@ treatment writeBinaries()
     Self.binReleaseAarch64PcWindowsMsvc -> writeAarch64PcWindowsMsvc.data
 }
 
-treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
+treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, repository_url: string, gitlab_token: string, project_id: string, sha: string, ref: string, pipeline: string)
   input trigger: Block<void>
   output binReleaseX86_64UnknownLinuxGnu: Stream<byte>
   output binReleaseX86_64UnknownLinuxMusl: Stream<byte>
@@ -152,7 +155,8 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
         target="x86_64-unknown-linux-gnu",
         release=true,
         on=|amd64(),
-        environment_variables=|map([])
+        environment_variables=|map([]),
+        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
       )
     Self.trigger -> releaseX86_64UnknownLinuxGnu.trigger,data -> Self.binReleaseX86_64UnknownLinuxGnu
     
@@ -167,7 +171,8 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
           "apt-get update",
           "apt-get install -y musl-tools",
           "rustup target add x86_64-unknown-linux-musl"
-        ])
+        ]),
+        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
       )
     Self.trigger -> releaseX86_64UnknownLinuxMusl.trigger,data -> Self.binReleaseX86_64UnknownLinuxMusl
 
@@ -186,7 +191,8 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
           "apt-get update",
           "apt-get install -y gcc-multilib",
           "rustup target add i686-unknown-linux-gnu"
-        ])
+        ]),
+        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
       )
     Self.trigger -> releaseI686UnknownLinuxGnu.trigger,data -> Self.binReleaseI686UnknownLinuxGnu
     
@@ -212,7 +218,8 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
           "tar --extract --gzip --file i686-linux-musl-cross.tgz --directory /usr/local",
           "ln -s /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc_s.so.1 /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc.so",
           "rustup target add i686-unknown-linux-musl"
-        ])
+        ]),
+        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
       )
     Self.trigger -> releaseI686UnknownLinuxMusl.trigger,data -> Self.binReleaseI686UnknownLinuxMusl
 
@@ -228,7 +235,8 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
         pre_commands=|raw_commands([
           "apt-get update",
           "apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev"
-        ])
+        ]),
+        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
       )
     Self.trigger -> releaseAarch64UnknownLinuxGnu.trigger,data -> Self.binReleaseAarch64UnknownLinuxGnu
     
@@ -255,7 +263,8 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
           "tar --extract --gzip --file aarch64-linux-musl-cross.tgz --directory /usr/local",
           "ln -s /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc_s.so.1 /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc.so",
           "rustup target add aarch64-unknown-linux-musl"
-        ])
+        ]),
+        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
       )
     Self.trigger -> releaseAarch64UnknownLinuxMusl.trigger,data -> Self.binReleaseAarch64UnknownLinuxMusl
     
@@ -268,7 +277,8 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
         environment_variables=|map([]),
         pre_commands=|raw_commands([
           "rustup target add wasm32-unknown-unknown"
-        ])
+        ]),
+        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
       )
     Self.trigger -> releaseWasm32UnknownUnknown.trigger,data -> Self.binReleaseWasm32UnknownUnknown
     
@@ -304,7 +314,8 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
               ln -s \"/osxcross/target/bin/x86_64-apple-darwin16-strip\" \"/osxcross/target/bin/strip\"
               cd \"$base\"
             fi"])
-        ]
+        ],
+        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
       )
     Self.trigger -> releaseX86_64AppleDarwin.trigger,data -> Self.binReleaseX86_64AppleDarwin
     
@@ -340,7 +351,8 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
               ln -s \"/osxcross/target/bin/aarch64-apple-darwin20.4-strip\" \"/osxcross/target/bin/strip\"
               cd \"$base\"
             fi"])
-        ]
+        ],
+        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
       )
     Self.trigger -> releaseAarch64AppleDarwin.trigger,data -> Self.binReleaseAarch64AppleDarwin
     
@@ -356,7 +368,8 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
           "apt-get update",
           "apt-get install -y mingw-w64",
           "rustup target add x86_64-pc-windows-gnu"
-        ])
+        ]),
+        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
       )
     Self.trigger -> releaseX86_64PcWindowsGnu.trigger,data -> Self.binReleaseX86_64PcWindowsGnu
     
@@ -382,7 +395,8 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
               cargo install xwin --locked
               xwin --accept-license --manifest-version 16 --arch x86_64 --cache-dir ./.xwin-cache splat --output $PWD/.xwin
             fi"])
-        ]
+        ],
+        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
       )
     Self.trigger -> releaseX86_64PcWindowsMsvc.trigger,data -> Self.binReleaseX86_64PcWindowsMsvc
     
@@ -400,7 +414,8 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
           "apt-get update",
           "apt-get install -y mingw-w64",
           "rustup target add i686-pc-windows-gnu"
-        ])
+        ]),
+        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
       )
     Self.trigger -> releaseI686PcWindowsGnu.trigger,data -> Self.binReleaseI686PcWindowsGnu
     
@@ -426,7 +441,8 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
               cargo install xwin --locked
               xwin --accept-license --manifest-version 16 --arch x86 --cache-dir ./.xwin-cache splat --output $PWD/.xwin
             fi"])
-        ]
+        ],
+        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
       )
     Self.trigger -> releaseI686PcWindowsMsvc.trigger,data -> Self.binReleaseI686PcWindowsMsvc
     
@@ -452,7 +468,8 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>)
               cargo install xwin --locked
               xwin --accept-license --manifest-version 16 --arch aarch64 --cache-dir ./.xwin-cache splat --output $PWD/.xwin
             fi"])
-        ]
+        ],
+        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline
       )
     Self.trigger -> releaseAarch64PcWindowsMsvc.trigger,data -> Self.binReleaseAarch64PcWindowsMsvc
 }

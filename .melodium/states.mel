@@ -1,0 +1,91 @@
+use cicd/services/gitlab::postGitlabState
+use cicd/services/gitlab::StepState
+use cicd/services/gitlab::|pending
+use cicd/services/gitlab::|running
+use cicd/services/gitlab::|success
+use cicd/services/gitlab::|failed
+use cicd/services/gitlab::|skipped
+use cicd/services/gitlab::|canceled
+
+treatment setGitlabState(root_url: string, token: string, project_id: string, sha: string, ref: string, pipeline: string, name: string, description: string)
+  input pending: Block<void>
+  input running: Block<void>
+  input success: Block<void>
+  input failed:  Block<void>
+  //input skipped: Block<void>
+  //input canceled: Block<void>
+{
+    pending: postGitlabState(
+        root_url=root_url,
+        token=token,
+        project_id=project_id,
+        sha=sha,
+        ref=ref,
+        pipeline=pipeline,
+        name=name,
+        description=description,
+        state=|pending()
+    )
+    running: postGitlabState(
+        root_url=root_url,
+        token=token,
+        project_id=project_id,
+        sha=sha,
+        ref=ref,
+        pipeline=pipeline,
+        name=name,
+        description=description,
+        state=|running()
+    )
+    success: postGitlabState(
+        root_url=root_url,
+        token=token,
+        project_id=project_id,
+        sha=sha,
+        ref=ref,
+        pipeline=pipeline,
+        name=name,
+        description=description,
+        state=|success()
+    )
+    failed: postGitlabState(
+        root_url=root_url,
+        token=token,
+        project_id=project_id,
+        sha=sha,
+        ref=ref,
+        pipeline=pipeline,
+        name=name,
+        description=description,
+        state=|failed()
+    )
+    /*skipped: postGitlabState(
+        root_url=root_url,
+        token=token,
+        project_id=project_id,
+        sha=sha,
+        ref=ref,
+        pipeline=pipeline,
+        name=name,
+        description=description,
+        state=|skipped()
+    )
+    canceled: postGitlabState(
+        root_url=root_url,
+        token=token,
+        project_id=project_id,
+        sha=sha,
+        ref=ref,
+        pipeline=pipeline,
+        name=name,
+        description=description,
+        state=|canceled()
+    )*/
+
+    Self.pending -> pending.trigger
+    Self.running -> running.trigger
+    Self.success -> success.trigger
+    Self.failed -> failed.trigger
+    //Self.skipped -> skipped.trigger
+    //Self.canceled -> canceled.trigger
+}
