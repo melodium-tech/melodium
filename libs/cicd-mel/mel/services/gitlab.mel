@@ -10,6 +10,7 @@ use std/flow::stream
 use std/conv::toString
 use std/conv::|to_string
 use std/text/convert/string::toUtf8
+use std/text/convert/string::fromUtf8
 use json::|to_json
 use json::Json
 use json/value::|null
@@ -18,6 +19,7 @@ use std/ops/option::|wrap
 use local::StepState
 use log/logger::Logger
 use log/log::logError
+use log/log::logInfos
 
 treatment postGitlabState[logger: Logger](root_url: string, token: string, project_id: string, sha: string, state: StepState, ref: string, pipeline: string, name: string, description: string)
     input trigger: Block<void>
@@ -35,6 +37,8 @@ treatment postGitlabState[logger: Logger](root_url: string, token: string, proje
                 ])
         )
     )
+    logInfos[logger=logger](label="GitLab API")
+    post.data -> fromUtf8.encoded,text -> logInfos.message
     logError[logger=logger](label="GitLab API")
     post.error -> logError.message
 
