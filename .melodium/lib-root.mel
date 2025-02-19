@@ -46,6 +46,7 @@ treatment main(const key: string, repository_url: string, ci_token: string, proj
     startup()
 
     allLogs: logs[logger=logger]()
+    stopLogs: stop[logger=logger]()
     logConsole: console(timestamp=true)
     writeLogs()
     allLogs.all -> logConsole.logs
@@ -87,6 +88,8 @@ treatment main(const key: string, repository_url: string, ci_token: string, proj
     builds.binReleaseI686PcWindowsGnu -> writeBinaries.binReleaseI686PcWindowsGnu
     builds.binReleaseI686PcWindowsMsvc -> writeBinaries.binReleaseI686PcWindowsMsvc
     builds.binReleaseAarch64PcWindowsMsvc -> writeBinaries.binReleaseAarch64PcWindowsMsvc
+
+    writeBinaries.allFinished -> stopLogs.trigger
 }
 
 treatment writeBinaries()
