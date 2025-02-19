@@ -4,22 +4,18 @@ use melodium_macro::{mel_data, mel_function};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum State {
     Pending,
-    Running,
     Success,
-    Failed,
-    Canceled,
-    Skipped,
+    Failure,
+    Error,
 }
 
 impl std::fmt::Display for State {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             State::Pending => write!(f, "pending"),
-            State::Running => write!(f, "running"),
             State::Success => write!(f, "success"),
-            State::Failed => write!(f, "failed"),
-            State::Canceled => write!(f, "canceled"),
-            State::Skipped => write!(f, "skipped"),
+            State::Failure => write!(f, "failure"),
+            State::Error => write!(f, "error"),
         }
     }
 }
@@ -46,29 +42,17 @@ impl Display for StepState {
 pub fn pending() -> StepState {
     StepState(State::Pending)
 }
-
-#[mel_function]
-pub fn running() -> StepState {
-    StepState(State::Running)
-}
-
 #[mel_function]
 pub fn success() -> StepState {
     StepState(State::Success)
 }
 
 #[mel_function]
-pub fn failed() -> StepState {
-    StepState(State::Failed)
+pub fn failure() -> StepState {
+    StepState(State::Failure)
 }
 
 #[mel_function]
-pub fn canceled() -> StepState {
-    StepState(State::Canceled)
+pub fn error() -> StepState {
+    StepState(State::Error)
 }
-
-#[mel_function]
-pub fn skipped() -> StepState {
-    StepState(State::Skipped)
-}
-

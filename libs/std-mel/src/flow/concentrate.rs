@@ -139,11 +139,14 @@ pub async fn concentrate() {
 
     let data_type = T;
 
+    eprint!("Taking sender… ");
     if let Some(sender) = concentrator.track_sender(track_id, data_type).await {
+        eprintln!("Sender taken");
         while let Ok(value) = data.recv_one().await {
             check!(sender.send(value).await)
         }
     }
+    eprintln!("Send end");
 }
 
 #[mel_treatment(
@@ -157,16 +160,20 @@ pub async fn concentrateBlock() {
 
     let data_type = T;
 
+    eprint!("Taking sender… ");
     if let Some(sender) = concentrator.track_sender(track_id, data_type).await {
+        eprintln!("Sender taken");
         if let Ok(value) = data.recv_one().await {
             let _ = sender.send(value).await;
         }
     }
+    eprintln!("Send end");
 }
 
 #[mel_treatment(
     model concentrator Concentrator
     generic T ()
+    input trigger Block<T>
     output data Stream<T>
 )]
 pub async fn concentrated() {
@@ -175,9 +182,15 @@ pub async fn concentrated() {
 
     let data_type = T;
 
-    if let Some(receiver) = concentrator.track_receiver(track_id, data_type).await {
-        while let Ok(value) = receiver.recv().await {
-            check!(data.send_one(value).await)
+    eprint!("Taking receiver… ");
+    if let Ok(_) = trigger.recv_one().await {
+        if let Some(receiver) = concentrator.track_receiver(track_id, data_type).await {
+            eprintln!("Receiver take");
+            while let Ok(value) = receiver.recv().await {
+                check!(data.send_one(value).await)
+            }
         }
     }
+    
+    eprintln!("Receiver end");
 }
