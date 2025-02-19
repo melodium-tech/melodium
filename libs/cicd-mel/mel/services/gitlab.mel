@@ -38,7 +38,8 @@ treatment postGitlabState[logger: Logger](root_url: string, token: string, proje
         )
     )
     logInfos[logger=logger](label="GitLab API")
-    post.data -> fromUtf8.encoded,text -> logInfos.message
+    fromUtf8()
+    post.data -> fromUtf8.encoded,text -> logInfos.messages
     logError[logger=logger](label="GitLab API")
     post.error -> logError.message
 
