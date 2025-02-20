@@ -68,7 +68,7 @@ treatment stepOn[distributor: CicdDistributionEngine, logger: Logger](var execut
     closeData: close<byte>()
 
     Self.trigger -> stepOnWithInput.trigger
-    closeData.closed -> stepOnWithInput.data
+    Self.trigger -> closeData.trigger,closed -> stepOnWithInput.data
     stepOnWithInput.started ---> Self.started
     stepOnWithInput.finished --> Self.finished
     stepOnWithInput.failed ----> Self.failed

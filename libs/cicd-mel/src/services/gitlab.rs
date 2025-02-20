@@ -71,4 +71,3 @@ pub fn canceled() -> StepState {
 pub fn skipped() -> StepState {
     StepState(State::Skipped)
 }
-

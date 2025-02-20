@@ -1429,6 +1429,13 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let pre_inputs: proc_macro2::TokenStream = inputs.iter().map(|(name, _)| {
             format!(r#"let {name} = std::mem::replace(&mut *self.r#{name}.lock().unwrap(), None).unwrap()"#)
         }).collect::<Vec<_>>().join(";").parse().unwrap();
+        let borrow_inputs: proc_macro2::TokenStream = inputs
+            .iter()
+            .map(|(name, _)| format!(r#"let {name} = &{name}"#))
+            .collect::<Vec<_>>()
+            .join(";")
+            .parse()
+            .unwrap();
         let post_inputs: proc_macro2::TokenStream = inputs
             .iter()
             .map(|(name, _)| format!(r#"{name}.close()"#))
@@ -1439,6 +1446,13 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let pre_outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, _)| {
             format!(r#"let {name} = std::mem::replace(&mut *self.r#{name}.lock().unwrap(), None).unwrap()"#)
         }).collect::<Vec<_>>().join(";").parse().unwrap();
+        let borrow_outputs: proc_macro2::TokenStream = outputs
+            .iter()
+            .map(|(name, _)| format!(r#"let {name} = &{name}"#))
+            .collect::<Vec<_>>()
+            .join(";")
+            .parse()
+            .unwrap();
         let post_outputs: proc_macro2::TokenStream = outputs
             .iter()
             .map(|(name, _)| format!(r#"{name}.close().await"#))
@@ -1466,7 +1480,12 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 vec![Box::new(Box::pin(async move {
 
-                    #body
+                    let exec = || {
+                        #borrow_inputs;
+                        #borrow_outputs;
+                        async move #body
+                    };
+                    exec().await;
 
                     #post_inputs;
                     #post_outputs;

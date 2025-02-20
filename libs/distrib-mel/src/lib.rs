@@ -336,7 +336,7 @@ impl DistributionEngine {
             .flatten()
     }
 
-    pub async fn send_data(&self, distribution_id: &u64, name: &String) {
+    pub async fn send_data(&self, distribution_id: &u64, name: &String) -> Result<(), ()> {
         if let Some(data_recv) = self
             .tracks
             .read()
@@ -347,15 +347,23 @@ impl DistributionEngine {
         {
             while let Ok(data) = data_recv.try_recv() {
                 if let Some(protocol) = self.protocol.read().await.as_ref() {
-                    let _ = protocol
+                    if let Err(_) = protocol
                         .send_message(Message::InputData(InputData {
                             id: *distribution_id,
                             name: name.clone(),
                             data: data.into(),
                         }))
-                        .await;
+                        .await
+                    {
+                        return Err(());
+                    }
+                } else {
+                    return Err(());
                 }
             }
+            return Ok(());
+        } else {
+            return Err(());
         }
     }
 
@@ -472,6 +480,8 @@ impl DistributionEngine {
                 complete => break,
             }
         }
+
+        self.close_all().await;
     }
 
     async fn close_all(&self) {
@@ -536,7 +546,7 @@ pub async fn start(params: Map) {
             }
         }
     } else {
-        distributor.fuse().await;
+        distributor.stop().await;
     }
 }
 
@@ -696,7 +706,15 @@ pub async fn send_stream(name: string) {
                     voluntary_close = false;
                     break;
                 }
-                distributor.send_data(&distribution_id, &name).await;
+
+                if distributor
+                    .send_data(&distribution_id, &name)
+                    .await
+                    .is_err()
+                {
+                    voluntary_close = false;
+                    break;
+                }
             }
 
             if voluntary_close {
@@ -727,7 +745,13 @@ pub async fn send_block(name: string) {
                 if sender.send(vec![data.into()]).await.is_err() {
                     voluntary_close = false;
                 } else {
-                    distributor.send_data(&distribution_id, &name).await;
+                    if distributor
+                        .send_data(&distribution_id, &name)
+                        .await
+                        .is_err()
+                    {
+                        voluntary_close = false;
+                    }
                 }
             }
             if voluntary_close {

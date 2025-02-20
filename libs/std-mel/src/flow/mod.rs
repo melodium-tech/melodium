@@ -719,6 +719,7 @@ pub async fn one() {
 ///
 #[mel_treatment(
     generic T ()
+    input trigger Block<void>
     output closed Stream<T>
 )]
 pub async fn close() {

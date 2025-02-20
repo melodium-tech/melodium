@@ -215,8 +215,11 @@ impl Logger {
         let _ = self.tracks.lock().await.remove(&track_id);
     }
 
-    pub fn close_common(&self) {
+    pub async fn close_common(&self) {
         self.receiver.close();
+        self.tracks.lock().await.iter().for_each(|(_, trackentry)| {
+            trackentry.track_receiver.close();
+        });
     }
 
     pub async fn continuous(&self) {
@@ -258,7 +261,7 @@ pub async fn stop() {
     let logger = LoggerModel::into(logger);
 
     if let Ok(_) = trigger.recv_one().await {
-        logger.inner().close_common();
+        logger.inner().close_common().await;
     }
 }
 

@@ -132,14 +132,11 @@ impl KubeExecutor {
                             let mut content = String::new();
                             match process_stdout.read_to_string(&mut content).await {
                                 Ok(s) => {
+                                    // Removing '\n'
                                     content.pop();
-                                    eprintln!("key {key}: {s} bytes read, content: {content}");
                                     content
                                 }
-                                Err(e) => {
-                                    eprintln!("key {key}: error '{e}'");
-                                    String::new()
-                                }
+                                Err(e) => String::new(),
                             }
                         };
 
@@ -220,8 +217,6 @@ impl ExecutorEngine for KubeExecutor {
         };
 
         full_command.extend(command.arguments.clone());
-
-        eprintln!("{full_command:?}");
 
         match pod
             .exec(
@@ -333,8 +328,6 @@ impl ExecutorEngine for KubeExecutor {
         };
 
         full_command.extend(command.arguments.clone());
-
-        eprintln!("{full_command:?}");
 
         match pod
             .exec(
@@ -497,8 +490,6 @@ impl ExecutorEngine for KubeExecutor {
         };
 
         full_command.extend(command.arguments.clone());
-
-        eprintln!("{full_command:?}");
 
         match pod
             .exec(
