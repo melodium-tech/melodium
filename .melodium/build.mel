@@ -60,14 +60,17 @@ treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target:
         ],
         out_filesystem="compilation-result",
         out_file="melodium",
-        stop_on_failure=false
+        stop_on_failure=true
     )
+
+    stopRunner[cicd_engine=cicd_distribution]()
 
     Self.trigger -> doBuild.block,passed -> runnerBuild.trigger,ready -> preSteps.trigger,completed -> gitClone.trigger,completed -> compilation.trigger,data -> Self.data
     doBuild.passed -> setGitlabState.pending
     runnerBuild.ready -> setGitlabState.running
     compilation.completed -> setGitlabState.success
     compilation.failed -> setGitlabState.failed
+    compilation.finished -> stopRunner.trigger
 }
 
 treatment buildTester[cicd_distant: CicdDistantEngine, logger: Logger](target: string, build: bool, on: Arch)

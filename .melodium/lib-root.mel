@@ -73,6 +73,7 @@ treatment main(const key: string, repository_url: string, ci_token: string, proj
     writeBinaries()
 
     startup.trigger -> builds.trigger
+    startup.trigger -> writeBinaries.trigger
 
     builds.binReleaseX86_64UnknownLinuxGnu -> writeBinaries.binReleaseX86_64UnknownLinuxGnu
     builds.binReleaseX86_64UnknownLinuxMusl -> writeBinaries.binReleaseX86_64UnknownLinuxMusl
@@ -94,6 +95,7 @@ treatment main(const key: string, repository_url: string, ci_token: string, proj
 
 treatment writeBinaries()
   model concentrator: Concentrator()
+  input trigger: Block<void>
   input binReleaseX86_64UnknownLinuxGnu: Stream<byte>
   input binReleaseX86_64UnknownLinuxMusl: Stream<byte>
   input binReleaseAarch64UnknownLinuxGnu: Stream<byte>
@@ -157,7 +159,7 @@ treatment writeBinaries()
 
     concentrated<void>[concentrator=concentrator]()
     trigger<void>()
-    concentrated.data -> trigger.stream,end -> Self.allFinished
+    Self.trigger -> concentrated.trigger,data -> trigger.stream,end -> Self.allFinished
 }
 
 treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, repository_url: string, gitlab_token: string, project_id: string, sha: string, ref: string, pipeline: string)
