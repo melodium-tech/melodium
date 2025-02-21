@@ -4,9 +4,11 @@ on: workflow_dispatch
 
 jobs:
   melodium_github:
-    runs-on: registry.gitlab.com/melodium/melodium:alpine-0.9.0-pre.1
-    env:
-      MELODIUM_HOME: /melodium_home
+    runs-on: ubuntu-latest
+    container:
+      image: registry.gitlab.com/melodium/melodium:alpine-0.9.0-pre.1
+      env:
+        MELODIUM_HOME: /melodium_home
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
