@@ -1,14 +1,19 @@
 use cicd/services/gitlab::postGitlabState
-use cicd/services/gitlab::StepState
-use cicd/services/gitlab::|pending
-use cicd/services/gitlab::|running
-use cicd/services/gitlab::|success
-use cicd/services/gitlab::|failed
-use cicd/services/gitlab::|skipped
-use cicd/services/gitlab::|canceled
+use cicd/services/gitlab::|pending as |gitlab_pending
+use cicd/services/gitlab::|running as |gitlab_running
+use cicd/services/gitlab::|success as |gitlab_success
+use cicd/services/gitlab::|failed as |gitlab_failed
+use cicd/services/gitlab::|skipped as |gitlab_skipped
+use cicd/services/gitlab::|canceled as |gitlab_canceled
+use cicd/services/github::postGithubState
+use cicd/services/github::|pending as |github_pending
+use cicd/services/github::|success as |github_success
+use cicd/services/github::|failure as |github_failure
+use cicd/services/github::|error as |github_error
 use log/logger::Logger
+use std/flow::passBlock
 
-treatment setGitlabState[logger: Logger](root_url: string, token: string, project_id: string, sha: string, ref: string, pipeline: string, name: string, description: string)
+treatment setServiceState[logger: Logger](gitlab_root_url: string, token: string, project_id: string, owner_id: string, sha: string, ref: string, pipeline: string, name: string, description: string, on_github: bool, on_gitlab: bool)
   input pending: Block<void>
   input running: Block<void>
   input success: Block<void>
@@ -16,8 +21,9 @@ treatment setGitlabState[logger: Logger](root_url: string, token: string, projec
   //input skipped: Block<void>
   //input canceled: Block<void>
 {
-    pending: postGitlabState[logger=logger](
-        root_url=root_url,
+    passPendingGitlab: passBlock<void>(cond=on_gitlab)
+    pendingGitlab: postGitlabState[logger=logger](
+        root_url=gitlab_root_url,
         token=token,
         project_id=project_id,
         sha=sha,
@@ -25,10 +31,11 @@ treatment setGitlabState[logger: Logger](root_url: string, token: string, projec
         pipeline=pipeline,
         name=name,
         description=description,
-        state=|pending()
+        state=|gitlab_pending()
     )
-    running: postGitlabState[logger=logger](
-        root_url=root_url,
+    passRunningGitlab: passBlock<void>(cond=on_gitlab)
+    runningGitlab: postGitlabState[logger=logger](
+        root_url=gitlab_root_url,
         token=token,
         project_id=project_id,
         sha=sha,
@@ -36,10 +43,11 @@ treatment setGitlabState[logger: Logger](root_url: string, token: string, projec
         pipeline=pipeline,
         name=name,
         description=description,
-        state=|running()
+        state=|gitlab_running()
     )
-    success: postGitlabState[logger=logger](
-        root_url=root_url,
+    passSuccessGitlab: passBlock<void>(cond=on_gitlab)
+    successGitlab: postGitlabState[logger=logger](
+        root_url=gitlab_root_url,
         token=token,
         project_id=project_id,
         sha=sha,
@@ -47,10 +55,11 @@ treatment setGitlabState[logger: Logger](root_url: string, token: string, projec
         pipeline=pipeline,
         name=name,
         description=description,
-        state=|success()
+        state=|gitlab_success()
     )
-    failed: postGitlabState[logger=logger](
-        root_url=root_url,
+    passFailedGitlab: passBlock<void>(cond=on_gitlab)
+    failedGitlab: postGitlabState[logger=logger](
+        root_url=gitlab_root_url,
         token=token,
         project_id=project_id,
         sha=sha,
@@ -58,10 +67,12 @@ treatment setGitlabState[logger: Logger](root_url: string, token: string, projec
         pipeline=pipeline,
         name=name,
         description=description,
-        state=|failed()
+        state=|gitlab_failed()
     )
-    /*skipped: postGitlabState[logger=logger](
-        root_url=root_url,
+    /*
+    passFailedGitlab: passBlock<void>(cond=on_gitlab)
+    skippedGitlab: postGitlabState[logger=logger](
+        root_url=gitlab_root_url,
         token=token,
         project_id=project_id,
         sha=sha,
@@ -69,10 +80,11 @@ treatment setGitlabState[logger: Logger](root_url: string, token: string, projec
         pipeline=pipeline,
         name=name,
         description=description,
-        state=|skipped()
+        state=|gitlab_skipped()
     )
-    canceled: postGitlabState[logger=logger](
-        root_url=root_url,
+    passCanceledGitlab: passBlock<void>(cond=on_gitlab)
+    canceledGitlab: postGitlabState[logger=logger](
+        root_url=gitlab_root_url,
         token=token,
         project_id=project_id,
         sha=sha,
@@ -80,13 +92,59 @@ treatment setGitlabState[logger: Logger](root_url: string, token: string, projec
         pipeline=pipeline,
         name=name,
         description=description,
-        state=|canceled()
+        state=|gitlab_canceled()
     )*/
 
-    Self.pending -> pending.trigger
-    Self.running -> running.trigger
-    Self.success -> success.trigger
-    Self.failed -> failed.trigger
+    passPendingGithub: passBlock<void>(cond=on_github)
+    pendingGithub: postGithubState[logger=logger](
+        token=token,
+        owner_id=owner_id,
+        project_id=project_id,
+        sha=sha,
+        name=name,
+        description=description,
+        state=|github_pending()
+    )
+    passSuccessGithub: passBlock<void>(cond=on_github)
+    successGithub: postGithubState[logger=logger](
+        token=token,
+        owner_id=owner_id,
+        project_id=project_id,
+        sha=sha,
+        name=name,
+        description=description,
+        state=|github_success()
+    )
+    /*
+    passFailureGithub: passBlock<void>(cond=on_github)
+    failureGithub: postGithubState[logger=logger](
+        token=token,
+        owner_id=owner_id,
+        project_id=project_id,
+        sha=sha,
+        name=name,
+        description=description,
+        state=|github_failure()
+    )*/
+    passErrorGithub: passBlock<void>(cond=on_github)
+    errorGithub: postGithubState[logger=logger](
+        token=token,
+        owner_id=owner_id,
+        project_id=project_id,
+        sha=sha,
+        name=name,
+        description=description,
+        state=|github_error()
+    )
+
+
+    Self.pending -> passPendingGitlab.block,passed -> pendingGitlab.trigger
+    Self.running -> passRunningGitlab.block,passed  -> runningGitlab.trigger
+    Self.success -> passSuccessGitlab.block,passed  -> successGitlab.trigger
+    Self.failed -> passFailedGitlab.block,passed  -> failedGitlab.trigger
+    Self.pending -> passPendingGithub.block,passed  -> pendingGithub.trigger
+    Self.success -> passSuccessGithub.block,passed  -> successGithub.trigger
+    Self.failed -> passErrorGithub.block,passed  -> errorGithub.trigger
     //Self.skipped -> skipped.trigger
     //Self.canceled -> canceled.trigger
 }

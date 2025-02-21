@@ -8,15 +8,20 @@ use std/data/string_map::|map as |string_map
 use std/flow::emit
 use std/flow::stream
 use std/conv::toString
+use std/conv::|to_string
 use std/text/convert/string::toUtf8
+use std/text/convert/string::fromUtf8
 use json::|to_json
 use json::Json
 use json/value::|null
 use std/ops/option::|unwrap_or
 use std/ops/option::|wrap
+use local::StepState
+use log/logger::Logger
+use log/log::logError
+use log/log::logInfos
 
-
-treatment postGithubState(token: string, owner_id: string, project_id: string, sha: string, state: string, name: string, description: string)
+treatment postGithubState[logger: Logger](token: string, owner_id: string, project_id: string, sha: string, state: StepState, name: string, description: string)
     input trigger: Block<void>
 {
     post(
@@ -34,6 +39,11 @@ treatment postGithubState(token: string, owner_id: string, project_id: string, s
                 ])
         )
     )
+    logInfos[logger=logger](label="GitHub API")
+    fromUtf8()
+    post.data -> fromUtf8.encoded,text -> logInfos.messages
+    logError[logger=logger](label="GitHub API")
+    post.error -> logError.message
 
     emit<Json>(value=|unwrap_or<Json>(|to_json(
         |format(
@@ -43,7 +53,7 @@ treatment postGithubState(token: string, owner_id: string, project_id: string, s
                 \"description\": \"{description}\"
             }}",
             |string_map([
-                    |string_entry("state", state),
+                    |string_entry("state", |to_string<StepState>(state)),
                     |string_entry("name", name),
                     |string_entry("description", description)
                 ])

@@ -8,26 +8,28 @@ use log/logger::|warning
 use log/logger::|error
 use std/conv::toString
 use std/text/compose::format
+use std/text/compose::|format
 use std/data/string_map::entry
+use std/data/string_map::|entry
 
-treatment writeLogs()
+treatment writeLogs(out_directory: string)
   input logs: Stream<Log>
 {
-    writeAllLog(file="/tmp/results/log/full")
-    writeX86_64UnknownLinuxGnu: writeLog(label="x86_64-unknown-linux-gnu", file="/tmp/results/log/x86_64-unknown-linux-gnu")
-    writeX86_64UnknownLinuxMusl: writeLog(label="x86_64-unknown-linux-musl", file="/tmp/results/log/x86_64-unknown-linux-musl")
-    writeAarch64UnknownLinuxGnu: writeLog(label="aarch64-unknown-linux-gnu", file="/tmp/results/log/aarch64-unknown-linux-gnu")
-    writeAarch64UnknownLinuxMusl: writeLog(label="aarch64-unknown-linux-musl", file="/tmp/results/log/aarch64-unknown-linux-musl")
-    writeI686UnknownLinuxGnu: writeLog(label="i686-unknown-linux-gnu", file="/tmp/results/log/i686-unknown-linux-gnu")
-    writeI686UnknownLinuxMusl: writeLog(label="i686-unknown-linux-musl", file="/tmp/results/log/i686-unknown-linux-musl")
-    writeWasm32UnknownUnknown: writeLog(label="wasm32-unknown-unknown", file="/tmp/results/log/wasm32-unknown-unknown")
-    writeX86_64AppleDarwin: writeLog(label="x86_64-apple-darwin", file="/tmp/results/log/x86_64-apple-darwin")
-    writeAarch64AppleDarwin: writeLog(label="aarch64-apple-darwin", file="/tmp/results/log/aarch64-apple-darwin")
-    writeX86_64PcWindowsGnu: writeLog(label="x86_64-pc-windows-gnu", file="/tmp/results/log/x86_64-pc-windows-gnu")
-    writeX86_64PcWindowsMsvc: writeLog(label="x86_64-pc-windows-msvc", file="/tmp/results/log/x86_64-pc-windows-msvc")
-    writeI686PcWindowsGnu: writeLog(label="i686-pc-windows-gnu", file="/tmp/results/log/i686-pc-windows-gnu")
-    writeI686PcWindowsMsvc: writeLog(label="i686-pc-windows-msvc", file="/tmp/results/log/i686-pc-windows-msvc")
-    writeAarch64PcWindowsMsvc: writeLog(label="aarch64-pc-windows-msvc", file="/tmp/results/log/aarch64-pc-windows-msvc")
+    writeAllLog(file=|format("{dir}/log/full", |entry("dir", out_directory)))
+    writeX86_64UnknownLinuxGnu: writeLog(label="x86_64-unknown-linux-gnu", file=|format("{dir}/log/x86_64-unknown-linux-gnu", |entry("dir", out_directory)))
+    writeX86_64UnknownLinuxMusl: writeLog(label="x86_64-unknown-linux-musl", file=|format("{dir}/log/x86_64-unknown-linux-musl", |entry("dir", out_directory)))
+    writeAarch64UnknownLinuxGnu: writeLog(label="aarch64-unknown-linux-gnu", file=|format("{dir}/log/aarch64-unknown-linux-gnu", |entry("dir", out_directory)))
+    writeAarch64UnknownLinuxMusl: writeLog(label="aarch64-unknown-linux-musl", file=|format("{dir}/log/aarch64-unknown-linux-musl", |entry("dir", out_directory)))
+    writeI686UnknownLinuxGnu: writeLog(label="i686-unknown-linux-gnu", file=|format("{dir}/log/i686-unknown-linux-gnu", |entry("dir", out_directory)))
+    writeI686UnknownLinuxMusl: writeLog(label="i686-unknown-linux-musl", file=|format("{dir}/log/i686-unknown-linux-musl", |entry("dir", out_directory)))
+    writeWasm32UnknownUnknown: writeLog(label="wasm32-unknown-unknown", file=|format("{dir}/log/wasm32-unknown-unknown", |entry("dir", out_directory)))
+    writeX86_64AppleDarwin: writeLog(label="x86_64-apple-darwin", file=|format("{dir}/log/x86_64-apple-darwin", |entry("dir", out_directory)))
+    writeAarch64AppleDarwin: writeLog(label="aarch64-apple-darwin", file=|format("{dir}/log/aarch64-apple-darwin", |entry("dir", out_directory)))
+    writeX86_64PcWindowsGnu: writeLog(label="x86_64-pc-windows-gnu", file=|format("{dir}/log/x86_64-pc-windows-gnu", |entry("dir", out_directory)))
+    writeX86_64PcWindowsMsvc: writeLog(label="x86_64-pc-windows-msvc", file=|format("{dir}/log/x86_64-pc-windows-msvc", |entry("dir", out_directory)))
+    writeI686PcWindowsGnu: writeLog(label="i686-pc-windows-gnu", file=|format("{dir}/log/i686-pc-windows-gnu", |entry("dir", out_directory)))
+    writeI686PcWindowsMsvc: writeLog(label="i686-pc-windows-msvc", file=|format("{dir}/log/i686-pc-windows-msvc", |entry("dir", out_directory)))
+    writeAarch64PcWindowsMsvc: writeLog(label="aarch64-pc-windows-msvc", file=|format("{dir}/log/aarch64-pc-windows-msvc", |entry("dir", out_directory)))
 
     Self.logs -> writeAllLog.logs
     Self.logs -> writeX86_64UnknownLinuxGnu.logs

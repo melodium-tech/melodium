@@ -1,0 +1,12 @@
+name: Mélodium CI on GitHub
+
+on: workflow_dispatch
+
+jobs:
+  melodium_github:
+    runs-on: registry.gitlab.com/melodium/melodium:alpine-0.9.0-pre.1
+    env:
+      MELODIUM_HOME: /melodium_home
+    steps:
+      - name: Mélodium CI
+        run: /melodium run .melodium/Compo.toml main --key "\"$MELODIUM_SERVICE_KEY\"" --repository_url \"${{ github.repositoryUrl }}\" --ci_token \"${{ github.token }}\" --project_id \"${{ github.repository_id }}\" --owner_id \"${{ github.repository_owner_id }}\" --sha \"${{ github.sha }}\"

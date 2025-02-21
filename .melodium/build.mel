@@ -19,15 +19,15 @@ use cicd/runners::stopRunner
 use cicd/steps::stepOn
 use work/resources/arch::Arch
 use root/builder::runnerBuild
-use root/states::setGitlabState
+use root/states::setServiceState
 
-treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target: string, build: bool, release: bool, on: Arch, pre_commands: Vec<Command> = [], environment_variables: StringMap, repository_url: string, gitlab_token: string, pipeline: string, project_id: string, sha: string, ref: string, rust_memory: u32 = 4000, rust_storage: u32 = 5000)
+treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target: string, build: bool, release: bool, on: Arch, pre_commands: Vec<Command> = [], environment_variables: StringMap, repository_url: string, gitlab_token: string, pipeline: string, project_id: string, owner_id: string, sha: string, ref: string, rust_memory: u32 = 4000, rust_storage: u32 = 5000, on_github: bool = false, on_gitlab: bool = false)
   model cicd_distribution: CicdDistributionEngine()
   input trigger: Block<void>
   output data:   Stream<byte>
 {
     doBuild: passBlock<void>(cond=build)
-    setGitlabState[logger=logger](root_url="https://gitlab.com/api/v4", token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, name=|format("Build target {target}", |entry("target", target)), description="Building Mélodium on Mélodium-managed CI")
+    setServiceState[logger=logger](gitlab_root_url="https://gitlab.com/api/v4", token=gitlab_token, project_id=project_id, owner_id=owner_id, sha=sha, ref=ref, pipeline=pipeline, name=|format("Build target {target}", |entry("target", target)), description="Building Mélodium on Mélodium-managed CI", on_github=on_github, on_gitlab=on_gitlab)
     runnerBuild[cicd_distant=cicd_distant, cicd_distribution=cicd_distribution, logger=logger](
         name=target,
         on=on,
@@ -66,10 +66,10 @@ treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target:
     stopRunner[cicd_engine=cicd_distribution]()
 
     Self.trigger -> doBuild.block,passed -> runnerBuild.trigger,ready -> preSteps.trigger,completed -> gitClone.trigger,completed -> compilation.trigger,data -> Self.data
-    doBuild.passed -> setGitlabState.pending
-    runnerBuild.ready -> setGitlabState.running
-    compilation.completed -> setGitlabState.success
-    compilation.failed -> setGitlabState.failed
+    doBuild.passed -> setServiceState.pending
+    runnerBuild.ready -> setServiceState.running
+    compilation.completed -> setServiceState.success
+    compilation.failed -> setServiceState.failed
     compilation.finished -> stopRunner.trigger
 }
 
