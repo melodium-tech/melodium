@@ -5,6 +5,7 @@ use log/logger::Logger
 use log/logger::stop as stopLogs
 use log/log::logErrors
 use log/log::logError
+use log/log::logErrorMessage
 use distrib::DistributionEngine
 use distrib::start
 use distrib::stop
@@ -40,6 +41,9 @@ treatment runner[distant_engine: CicdDistantEngine, cicd_engine: CicdDistributio
 
     stopOnFailure: stop[distributor=cicd_engine]()
     oneFailed.value -> stopOnFailure.trigger
+
+    logErrorMessage[logger=logger](label="Distant error", message="Distant failed")
+    oneFailed.value -> logErrorMessage.trigger
 
     stopCi[logger=logger]()
     passStop: passBlock<void>(cond=stop_on_failure)

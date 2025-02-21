@@ -6,7 +6,9 @@ use async_native_tls::TlsStream;
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::io::{Read, Write};
 use async_std::net::{SocketAddr, TcpStream};
-use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
+use async_std::sync::{
+    Arc as AsyncArc, Barrier as AsyncBarrier, Mutex as AsyncMutex, RwLock as AsyncRwLock,
+};
 use common::descriptor::{Entry, Treatment};
 use common::descriptor::{Identifier, Version};
 use core::str::FromStr;
@@ -56,7 +58,7 @@ pub struct DistributionEngine {
     protocol: AsyncRwLock<Option<AsyncArc<Protocol<TlsStream<TcpStream>>>>>,
     treatment: AsyncRwLock<Option<Arc<dyn Treatment>>>,
     tracks: AsyncRwLock<HashMap<u64, Track>>,
-    protocol_barrier: AsyncBarrier,
+    protocol_barrier: AsyncMutex<(bool, Option<AsyncArc<AsyncBarrier>>)>,
     started_once: AtomicBool,
 }
 
@@ -67,14 +69,29 @@ impl DistributionEngine {
             protocol: AsyncRwLock::new(None),
             treatment: AsyncRwLock::new(None),
             tracks: AsyncRwLock::new(HashMap::new()),
-            protocol_barrier: AsyncBarrier::new(2),
+            protocol_barrier: AsyncMutex::new((false, Some(AsyncArc::new(AsyncBarrier::new(2))))),
             started_once: AtomicBool::new(false),
+        }
+    }
+
+    pub async fn protocol_barrier(&self) {
+        let barrier = {
+            let mut lock = self.protocol_barrier.lock().await;
+            if lock.0 {
+                lock.1.take()
+            } else {
+                lock.0 = true;
+                lock.1.as_ref().map(|barrier| AsyncArc::clone(barrier))
+            }
+        };
+        if let Some(barrier) = barrier {
+            barrier.wait().await;
         }
     }
 
     pub async fn fuse(&self) {
         if self.started_once.load(Ordering::Relaxed) {
-            self.protocol_barrier.wait().await;
+            self.protocol_barrier().await;
         }
     }
 
@@ -187,7 +204,7 @@ impl DistributionEngine {
                         Ok(Message::LaunchStatus(status)) => match status {
                             melodium_distribution::LaunchStatus::Ok => {
                                 *protocol_lock = Some(AsyncArc::new(protocol));
-                                self.protocol_barrier.wait().await;
+                                self.protocol_barrier().await;
                                 Ok(())
                             }
                             melodium_distribution::LaunchStatus::Failure(err) => {
@@ -222,7 +239,7 @@ impl DistributionEngine {
         if let Some(protocol) = self.protocol.read().await.as_ref() {
             let _ = protocol.send_message(Message::Ended).await;
         } else if !self.started_once.load(Ordering::Relaxed) {
-            self.protocol_barrier.wait().await;
+            self.protocol_barrier().await;
         } else {
             self.fuse().await;
         }
@@ -379,7 +396,7 @@ impl DistributionEngine {
     }
 
     async fn continuous(&self) {
-        self.protocol_barrier.wait().await;
+        self.protocol_barrier().await;
 
         let exec = async {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
