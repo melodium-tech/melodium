@@ -7,6 +7,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: registry.gitlab.com/melodium/melodium:alpine-0.9.0-pre.1
+      credentials:
+        username: user
+        password: ${{ secrets.GITLAB_REGISTRY_TOKEN }}
       env:
         MELODIUM_HOME: /melodium_home
     steps:
