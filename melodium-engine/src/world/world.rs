@@ -2,8 +2,8 @@ use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
 use crate::building::HostTreatment;
 use crate::building::{
     model::get_builder as get_builder_model, treatment::get_builder as get_builder_treatment,
-    BuildId, Builder, CheckEnvironment, ContextualEnvironment, FeedingInputs, GenesisEnvironment,
-    StaticBuildResult,
+    BuildId, Builder, /*CheckEnvironment,*/ ContextualEnvironment, FeedingInputs,
+    GenesisEnvironment, StaticBuildResult,
 };
 use crate::engine::Engine;
 use crate::error::{LogicError, LogicErrors, LogicResult};
@@ -292,8 +292,6 @@ impl Engine for World {
     }
 
     fn genesis(&self, entry: &Identifier, mut params: HashMap<String, Value>) -> LogicResult<()> {
-        let start = std::time::Instant::now();
-        eprintln!("Genesis {:?}", start.elapsed());
         let mut gen_env = GenesisEnvironment::new();
 
         {
@@ -335,12 +333,9 @@ impl Engine for World {
             ));
         };
 
-        eprintln!("Descriptors {:?}", start.elapsed());
-
         let result = self.builder(entry).and_then(|builder| {
             builder.static_build(HostTreatment::Direct, None, "main".to_string(), &gen_env)
         });
-        eprintln!("Static build {:?}", start.elapsed());
         if let Some(failure) = result.failure() {
             let mut errors = self.errors.write().unwrap();
             errors.append(&mut result.errors().clone());
@@ -391,26 +386,23 @@ impl Engine for World {
                     );
                 }
             }
-        }
-        eprintln!("Checks {:?}", start.elapsed());*/
+        }*/
 
         let mut borrowed_errors = self.errors.write().unwrap();
         borrowed_errors.extend(result.errors().clone());
 
-        let res = if result.is_success() {
+        if result.is_success() {
             if result.errors().is_empty() {
                 {
                     self.main.write().unwrap().replace(descriptor);
                     self.main_id.write().unwrap().replace(entry.clone());
                     self.main_gen_env.write().unwrap().replace(gen_env);
                 }
-                eprintln!("Before initialize {:?}", start.elapsed());
                 self.models
                     .read()
                     .unwrap()
                     .iter()
                     .for_each(|m| m.initialize());
-                eprintln!("After initialize {:?}", start.elapsed());
                 Ok(()).into()
             } else {
                 result.and(LogicResult::new_failure(LogicError::erroneous_checks(
@@ -419,9 +411,7 @@ impl Engine for World {
             }
         } else {
             result
-        };
-        eprintln!("Genesis done {:?}", start.elapsed());
-        res
+        }
     }
 
     fn errors(&self) -> LogicErrors {
