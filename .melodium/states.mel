@@ -13,7 +13,7 @@ use cicd/services/github::|error as |github_error
 use log/logger::Logger
 use std/flow::passBlock
 
-treatment setServiceState[logger: Logger](gitlab_root_url: string, token: string, project_id: string, owner_id: string, sha: string, ref: string, pipeline: string, name: string, description: string, on_github: bool, on_gitlab: bool)
+treatment setServiceState[logger: Logger](gitlab_root_url: string, token: string, project_id: string, sha: string, ref: string, pipeline: string, name: string, description: string, on_github: bool, on_gitlab: bool)
   input pending: Block<void>
   input running: Block<void>
   input success: Block<void>
@@ -98,8 +98,7 @@ treatment setServiceState[logger: Logger](gitlab_root_url: string, token: string
     passPendingGithub: passBlock<void>(cond=on_github)
     pendingGithub: postGithubState[logger=logger](
         token=token,
-        owner_id=owner_id,
-        project_id=project_id,
+        project=project_id,
         sha=sha,
         name=name,
         description=description,
@@ -108,8 +107,7 @@ treatment setServiceState[logger: Logger](gitlab_root_url: string, token: string
     passSuccessGithub: passBlock<void>(cond=on_github)
     successGithub: postGithubState[logger=logger](
         token=token,
-        owner_id=owner_id,
-        project_id=project_id,
+        project=project_id,
         sha=sha,
         name=name,
         description=description,
@@ -119,8 +117,7 @@ treatment setServiceState[logger: Logger](gitlab_root_url: string, token: string
     passFailureGithub: passBlock<void>(cond=on_github)
     failureGithub: postGithubState[logger=logger](
         token=token,
-        owner_id=owner_id,
-        project_id=project_id,
+        project=project_id,
         sha=sha,
         name=name,
         description=description,
@@ -129,8 +126,7 @@ treatment setServiceState[logger: Logger](gitlab_root_url: string, token: string
     passErrorGithub: passBlock<void>(cond=on_github)
     errorGithub: postGithubState[logger=logger](
         token=token,
-        owner_id=owner_id,
-        project_id=project_id,
+        project=project_id,
         sha=sha,
         name=name,
         description=description,
