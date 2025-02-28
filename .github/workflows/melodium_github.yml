@@ -5,6 +5,8 @@ on: workflow_dispatch
 jobs:
   melodium_github:
     runs-on: ubuntu-latest
+    permissions:
+      statuses: write
     container:
       image: registry.gitlab.com/melodium/melodium:alpine-0.9.0-pre.1
       credentials:
