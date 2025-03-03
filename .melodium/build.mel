@@ -45,6 +45,7 @@ treatment buildMelodium[cicd_distant: CicdDistantEngine, logger: Logger](target:
         executor_name="rust",
         environment=|wrap<Environment>(|environment(environment_variables, "/work", true, false)),
         commands=[
+            |command("git", ["config", "--global", "url.\"https://\".insteadOf", "git://"]),
             |command("git", ["clone", repository_url, "melodium"])
         ],
         stop_on_failure=false
