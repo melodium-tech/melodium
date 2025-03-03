@@ -448,11 +448,13 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         }
     };
     let probe = {
+        let engine = Arc::clone(&engine);
         let protocol = Arc::clone(&protocol);
         async move {
             loop {
                 async_std::task::sleep(Duration::from_secs(10)).await;
                 if protocol.send_message(Message::Probe).await.is_err() {
+                    engine.end().await;
                     break;
                 }
             }
