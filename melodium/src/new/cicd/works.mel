@@ -3,8 +3,14 @@ use cicd/runners::CicdRunnerEngine
 use cicd/runners::setupRunner
 use cicd/runners::stopRunner
 use cicd/steps::stepOn
+use cicd/steps::stepOnWithInput
+use log/logger::Logger
 use process/command::|command
 use process/command::|raw_commands
+use process/environment::Environment
+use process/environment::|environment
+use std/data/string_map::|map
+use std/ops/option::|wrap
 use work/resources::|container
 use work/resources/arch::|amd64
 use work/resources::|volume
@@ -20,7 +26,7 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](repository_clone_url: 
         runner=runner,
         logger=logger
     ](
-        name=name,
+        name="build",
         cpu=1,
         memory=500,
         storage=1000,
@@ -29,17 +35,19 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](repository_clone_url: 
     )
     gitClone: stepOn[runner=runner, logger=logger](
         executor_name="ubuntu",
-        environment=|wrap<Environment>(|environment([], "/working_directory", false, false)),
+        environment=|wrap<Environment>(|environment(|map([]), "/root", false, false)),
         commands=[
+            |command("apt-get", ["update"]),
+            |command("apt-get", ["install", "-y", "git"]),
             |command("git", ["config", "--global", "url.https://.insteadOf", "git://"]),
-            |command("git", ["clone", "--branch", repository_clone_ref, "--depth", "1", repository_url, "project"])
+            |command("git", ["clone", "--branch", repository_clone_ref, "--depth", "1", repository_clone_url, "project"])
         ]
     )
     makeList: stepOn[runner=runner, logger=logger](
         executor_name="ubuntu",
-        environment=|wrap<Environment>(|environment([], "/working_directory/project", false, false)),
+        environment=|wrap<Environment>(|environment(|map([]), "/root/project", false, false)),
         commands=|raw_commands([
-            "bash -c \"ls -l --almost-all | tee files-list.txt\"",
+            "sh -c \"ls -l --almost-all | tee files-list.txt\"",
             "mv files-list.txt /mounted/result/"
         ]),
         out_filesystem="build-result",
@@ -62,7 +70,7 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger]()
         runner=runner,
         logger=logger
     ](
-        name=name,
+        name="test",
         cpu=1,
         memory=500,
         storage=1000,
@@ -74,11 +82,13 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger]()
         in_filesystem="tested-data",
         in_file="list.txt",
         commands=[
-            |command("test", ["-s", "/mounted/data/list.txt"])
+            |command("test", ["-s", "/mounted/data/list.txt"]),
+            |command("cat", ["/mounted/data/list.txt"])
         ]
     )
     stopRunner[runner=runner]()
 
     Self.trigger -> setupRunner.trigger,ready -> makeTest.trigger
     Self.data ---------------------------------> makeTest.data,finished -> stopRunner.trigger
+                                                 makeTest.finished ------> Self.finished
 }

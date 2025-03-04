@@ -27,5 +27,5 @@ treatment main(const dispatch_api_key: string, output_directory: string, reposit
     test[cicd=cicd, logger=logger]()
 
     startup.trigger -> build.trigger,data -> test.data
-    startup.trigger -----------------------> test.trigger
+    startup.trigger -----------------------> test.trigger,finished -> stopLogs.trigger
 }

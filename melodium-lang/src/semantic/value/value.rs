@@ -214,7 +214,15 @@ impl Value {
                 } else {
                     let ps = match &self.text {
                         TextValue::Name(ps) => ps.clone(),
-                        _ => PositionnedString::default(),
+                        TextValue::Void(ps) => ps.clone(),
+                        TextValue::Boolean(ps) => ps.clone(),
+                        TextValue::Number(ps) => ps.clone(),
+                        TextValue::String(ps) => ps.clone(),
+                        TextValue::Character(ps) => ps.clone(),
+                        TextValue::Byte(ps) => ps.clone(),
+                        TextValue::Array(ps, _) => ps.clone(),
+                        TextValue::ContextReference((ps, _)) => ps.clone(),
+                        TextValue::Function(function) => function.name.clone(),
                     };
                     return ScriptResult::new_failure(ScriptError::undeclared_parameter(152, ps));
                 }

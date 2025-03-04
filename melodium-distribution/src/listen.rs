@@ -265,7 +265,9 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             if let Some(max_duration) = max_duration {
                 futures::future::select_all([
                     async {
+                        eprintln!("Awaiting barrier (0)");
                         barrier.wait().await;
+                        eprintln!("Awaited barrier (0)");
                     }
                     .boxed(),
                     async {
@@ -275,10 +277,15 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     .boxed(),
                 ])
                 .await;
+                eprintln!("Ending engine (1)");
                 engine.end().await;
+                eprintln!("Ended engine (1)");
             } else {
+                eprintln!("Awaiting barrier (1)");
                 barrier.wait().await;
+                eprintln!("Awaited barrier (1)");
             }
+            eprintln!("limit finished");
         }
     };
     let live = {
@@ -288,8 +295,11 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             engine.live().await;
             let _ = protocol.send_message(Message::Ended).await;
             if !expired.load(core::sync::atomic::Ordering::Relaxed) {
+                eprintln!("Awaiting barrier (2)");
                 barrier.wait().await;
+                eprintln!("Awaited barrier (2)");
             }
+            eprintln!("live finished");
         }
     };
     let run = {
@@ -434,17 +444,23 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                 output.close().await;
                             }
                         }
+                        eprintln!("Ending engine (2)");
                         engine.end().await;
+                        eprintln!("Ended engine (2)");
                         break;
                     }
                     Ok(Message::Probe) => {}
                     Ok(_) => {}
-                    Err(_) => {
+                    Err(err) => {
+                        eprintln!("Error in protocol: {err}");
+                        eprintln!("Ending engine (3)");
                         engine.end().await;
+                        eprintln!("Ended engine (3)");
                         break;
                     }
                 }
             }
+            eprintln!("run finished");
         }
     };
     let probe = {
@@ -454,10 +470,14 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             loop {
                 async_std::task::sleep(Duration::from_secs(10)).await;
                 if protocol.send_message(Message::Probe).await.is_err() {
+                    eprintln!("Error when probing");
+                    eprintln!("Ending engine (4)");
                     engine.end().await;
+                    eprintln!("Ended engine (4)");
                     break;
                 }
             }
+            eprintln!("probe finished");
         }
     };
 
