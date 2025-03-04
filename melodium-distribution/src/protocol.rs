@@ -70,14 +70,20 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
     }
 
     pub async fn send_message(&self, message: Message) -> Result<()> {
+        eprintln!("Awaiting lock writer");
         let mut writer = self.writer.lock().await;
+        eprintln!("Awaited lock writer");
 
         let mut data = Vec::new();
         match ciborium::into_writer(&message, &mut data) {
             Ok(()) => {
+                eprintln!("writing_all len");
                 writer.write_all(&(data.len() as u32).to_be_bytes()).await?;
+                eprintln!("writing_all data");
                 writer.write_all(&data).await?;
+                eprintln!("flushing");
                 writer.flush().await?;
+                eprintln!("flushed");
                 Ok(())
             }
             Err(err) => Err(Error::Serialization(err)),

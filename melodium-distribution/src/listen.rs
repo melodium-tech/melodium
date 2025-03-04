@@ -469,8 +469,11 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         async move {
             loop {
                 async_std::task::sleep(Duration::from_secs(10)).await;
-                if protocol.send_message(Message::Probe).await.is_err() {
-                    eprintln!("Error when probing");
+                eprintln!("Probing");
+                if let Err(err) = protocol.send_message(Message::Probe).await
+                /*.is_err()*/
+                {
+                    eprintln!("Error when probing: {err}");
                     eprintln!("Ending engine (4)");
                     engine.end().await;
                     eprintln!("Ended engine (4)");
