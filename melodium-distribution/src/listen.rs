@@ -460,6 +460,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     }
                 }
             }
+            protocol.close().await;
             eprintln!("run finished");
         }
     };

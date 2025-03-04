@@ -1,8 +1,10 @@
 use crate::messages::Message;
-use async_std::io::{BufReader, BufWriter, Read, Write, WriteExt};
+use async_std::io::{BufReader, BufWriter, Read, Write};
 use async_std::sync::Mutex;
 use core::fmt::Display;
+use core::sync::atomic::AtomicBool;
 use futures::io::{AsyncReadExt, ReadHalf, WriteHalf};
+use futures::AsyncWriteExt;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -41,6 +43,7 @@ impl From<async_std::io::Error> for Error {
 
 #[derive(Debug)]
 pub struct Protocol<R: Read + Write + Unpin + Send> {
+    closed: AtomicBool,
     reader: Mutex<BufReader<ReadHalf<R>>>,
     writer: Mutex<BufWriter<WriteHalf<R>>>,
 }
@@ -49,12 +52,28 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
     pub fn new(rw: R) -> Self {
         let (read, write) = rw.split();
         Self {
+            closed: AtomicBool::new(false),
             reader: Mutex::new(BufReader::new(read)),
             writer: Mutex::new(BufWriter::new(write)),
         }
     }
 
+    pub async fn close(&self) {
+        //let mut reader = self.reader.lock().await;
+        let mut writer = self.writer.lock().await;
+        //reader.close().await;
+        let _ = writer.close().await;
+        self.closed
+            .store(true, core::sync::atomic::Ordering::Relaxed);
+    }
+
     pub async fn recv_message(&self) -> Result<Message> {
+        if self.closed.load(core::sync::atomic::Ordering::Relaxed) {
+            return Err(Error::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "closed",
+            )));
+        }
         let mut reader = self.reader.lock().await;
         let mut expected_size: [u8; 4] = [0; 4];
         reader.read_exact(&mut expected_size).await?;
@@ -70,6 +89,12 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
     }
 
     pub async fn send_message(&self, message: Message) -> Result<()> {
+        if self.closed.load(core::sync::atomic::Ordering::Relaxed) {
+            return Err(Error::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "closed",
+            )));
+        }
         eprintln!("Awaiting lock writer");
         let mut writer = self.writer.lock().await;
         eprintln!("Awaited lock writer");

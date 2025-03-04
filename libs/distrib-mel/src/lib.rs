@@ -238,6 +238,7 @@ impl DistributionEngine {
     pub async fn stop(&self) {
         if let Some(protocol) = self.protocol.read().await.as_ref() {
             let _ = protocol.send_message(Message::Ended).await;
+            protocol.close().await;
         } else if !self.started_once.load(Ordering::Relaxed) {
             self.protocol_barrier().await;
         } else {
@@ -472,6 +473,7 @@ impl DistributionEngine {
                         }
                     }
                 }
+                protocol.close().await;
             }
         }
         .fuse();
@@ -484,6 +486,7 @@ impl DistributionEngine {
                         break;
                     }
                 }
+                protocol.close().await;
             }
         }
         .fuse();
