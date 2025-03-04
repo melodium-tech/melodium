@@ -1,0 +1,34 @@
+use fs/local::writeTextLocal
+use root/logger::Log
+use root/logger::filterLogs
+use root/logger::|debug
+use root/logger::|info
+use root/logger::|trace
+use root/logger::|warning
+use root/logger::|error
+use std/conv::toString
+use std/text/compose::format
+use std/data/string_map::entry
+
+treatment writeLogs(label: string, file: string)
+  input logs: Stream<Log>
+{
+    filterLogs(levels=[|debug(), |info(), |trace(), |warning(), |error()], labels=[label])
+    toString<Log>()
+    entry(key="log")
+    format(format="{log}\n")
+    writeTextLocal(path=file)
+
+    Self.logs -> filterLogs.logs,filtered -> toString.value,into -> entry.value,map -> format.entries,formatted -> writeTextLocal.text
+}
+
+treatment writeAllLogs(file: string)
+  input logs: Stream<Log>
+{
+    toString<Log>()
+    entry(key="log")
+    format(format="{log}\n")
+    writeTextLocal(path=file)
+
+    Self.logs -> toString.value,into -> entry.value,map -> format.entries,formatted -> writeTextLocal.text
+}

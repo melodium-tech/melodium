@@ -1,5 +1,4 @@
-use cicd/runners::CicdDistantEngine
-use cicd/runners::runner
+use cicd/runners::CicdDispatchEngine
 use cicd/runners::stopRunner
 use cicd/steps::stepOn
 use fs/local::writeLocal
@@ -27,9 +26,9 @@ use process/command::|raw_commands
 use root/build::buildMelodium
 use root/logging::writeLogs
 
-treatment main(const key: string, out_directory: string, repository_url: string, ci_token: string, project_id: string, sha: string, ref: string = "", pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
+treatment main(const key: string, out_directory: string, repository_url: string, ci_token: string, project: string, sha: string, ref: string = "", pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
   model logger: Logger()
-  model cicd: CicdDistantEngine(key=key)
+  model cicd: CicdDispatchEngine(key=key)
 {
     startup()
 
@@ -56,7 +55,7 @@ treatment main(const key: string, out_directory: string, repository_url: string,
       "i686-pc-windows-msvc",
       "aarch64-pc-windows-msvc"
     ],
-      repository_url=repository_url, gitlab_token=ci_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+      repository_url=repository_url, gitlab_token=ci_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
     )
     writeBinaries(out_directory=out_directory)
 
@@ -150,7 +149,7 @@ treatment writeBinaries(out_directory: string)
     Self.trigger -> concentrated.trigger,data -> trigger.stream,end -> Self.allFinished
 }
 
-treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, repository_url: string, gitlab_token: string, project_id: string, sha: string, ref: string, pipeline: string, on_github: bool = false, on_gitlab: bool = false)
+treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, repository_url: string, gitlab_token: string, project: string, sha: string, ref: string, pipeline: string, on_github: bool = false, on_gitlab: bool = false)
   input trigger: Block<void>
   output binReleaseX86_64UnknownLinuxGnu: Stream<byte>
   output binReleaseX86_64UnknownLinuxMusl: Stream<byte>
@@ -167,18 +166,18 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, 
   output binReleaseI686PcWindowsMsvc: Stream<byte>
   output binReleaseAarch64PcWindowsMsvc: Stream<byte>
 {
-    releaseX86_64UnknownLinuxGnu: buildMelodium[cicd_distant=cicd, logger=logger]
+    releaseX86_64UnknownLinuxGnu: buildMelodium[cicd=cicd, logger=logger]
       (
         build=|contains<string>(targets, "x86_64-unknown-linux-gnu"),
         target="x86_64-unknown-linux-gnu",
         release=true,
         on=|amd64(),
         environment_variables=|map([]),
-        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+        repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -> releaseX86_64UnknownLinuxGnu.trigger,data -> Self.binReleaseX86_64UnknownLinuxGnu
     
-    releaseX86_64UnknownLinuxMusl: buildMelodium[cicd_distant=cicd, logger=logger]
+    releaseX86_64UnknownLinuxMusl: buildMelodium[cicd=cicd, logger=logger]
       (
         build=|contains<string>(targets, "x86_64-unknown-linux-musl"),
         target="x86_64-unknown-linux-musl",
@@ -190,11 +189,11 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, 
           "apt-get install -y musl-tools",
           "rustup target add x86_64-unknown-linux-musl"
         ]),
-        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+        repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -> releaseX86_64UnknownLinuxMusl.trigger,data -> Self.binReleaseX86_64UnknownLinuxMusl
 
-    releaseI686UnknownLinuxGnu: buildMelodium[cicd_distant=cicd, logger=logger]
+    releaseI686UnknownLinuxGnu: buildMelodium[cicd=cicd, logger=logger]
       (
         build=|contains<string>(targets, "i686-unknown-linux-gnu"),
         target="i686-unknown-linux-gnu",
@@ -210,11 +209,11 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, 
           "apt-get install -y gcc-multilib",
           "rustup target add i686-unknown-linux-gnu"
         ]),
-        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+        repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -> releaseI686UnknownLinuxGnu.trigger,data -> Self.binReleaseI686UnknownLinuxGnu
     
-    releaseI686UnknownLinuxMusl: buildMelodium[cicd_distant=cicd, logger=logger]
+    releaseI686UnknownLinuxMusl: buildMelodium[cicd=cicd, logger=logger]
       (
         build=|contains<string>(targets, "i686-unknown-linux-musl"),
         target="i686-unknown-linux-musl",
@@ -237,11 +236,11 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, 
           "ln -s /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc_s.so.1 /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc.so",
           "rustup target add i686-unknown-linux-musl"
         ]),
-        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+        repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -> releaseI686UnknownLinuxMusl.trigger,data -> Self.binReleaseI686UnknownLinuxMusl
 
-    releaseAarch64UnknownLinuxGnu: buildMelodium[cicd_distant=cicd, logger=logger]
+    releaseAarch64UnknownLinuxGnu: buildMelodium[cicd=cicd, logger=logger]
       (
         build=|contains<string>(targets, "aarch64-unknown-linux-gnu"),
         target="aarch64-unknown-linux-gnu",
@@ -254,11 +253,11 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, 
           "apt-get update",
           "apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev"
         ]),
-        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+        repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -> releaseAarch64UnknownLinuxGnu.trigger,data -> Self.binReleaseAarch64UnknownLinuxGnu
     
-    releaseAarch64UnknownLinuxMusl: buildMelodium[cicd_distant=cicd, logger=logger]
+    releaseAarch64UnknownLinuxMusl: buildMelodium[cicd=cicd, logger=logger]
       (
         build=|contains<string>(targets, "aarch64-unknown-linux-musl"),
         target="aarch64-unknown-linux-musl",
@@ -282,11 +281,11 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, 
           "ln -s /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc_s.so.1 /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc.so",
           "rustup target add aarch64-unknown-linux-musl"
         ]),
-        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+        repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -> releaseAarch64UnknownLinuxMusl.trigger,data -> Self.binReleaseAarch64UnknownLinuxMusl
     
-    releaseWasm32UnknownUnknown: buildMelodium[cicd_distant=cicd, logger=logger]
+    releaseWasm32UnknownUnknown: buildMelodium[cicd=cicd, logger=logger]
       (
         build=|contains<string>(targets, "wasm32-unknown-unknown"),
         target="wasm32-unknown-unknown",
@@ -296,11 +295,11 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, 
         pre_commands=|raw_commands([
           "rustup target add wasm32-unknown-unknown"
         ]),
-        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+        repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -> releaseWasm32UnknownUnknown.trigger,data -> Self.binReleaseWasm32UnknownUnknown
     
-    releaseX86_64AppleDarwin: buildMelodium[cicd_distant=cicd, logger=logger]
+    releaseX86_64AppleDarwin: buildMelodium[cicd=cicd, logger=logger]
       (
         build=|contains<string>(targets, "x86_64-apple-darwin"),
         target="x86_64-apple-darwin",
@@ -335,11 +334,11 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, 
               cd \"$base\"
             fi"])
         ],
-        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+        repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -> releaseX86_64AppleDarwin.trigger,data -> Self.binReleaseX86_64AppleDarwin
     
-    releaseAarch64AppleDarwin: buildMelodium[cicd_distant=cicd, logger=logger]
+    releaseAarch64AppleDarwin: buildMelodium[cicd=cicd, logger=logger]
       (
         build=|contains<string>(targets, "aarch64-apple-darwin"),
         target="aarch64-apple-darwin",
@@ -373,11 +372,11 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, 
               cd \"$base\"
             fi"])
         ],
-        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+        repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -> releaseAarch64AppleDarwin.trigger,data -> Self.binReleaseAarch64AppleDarwin
     
-    releaseX86_64PcWindowsGnu: buildMelodium[cicd_distant=cicd, logger=logger]
+    releaseX86_64PcWindowsGnu: buildMelodium[cicd=cicd, logger=logger]
       (
         build=|contains<string>(targets, "x86_64-pc-windows-gnu"),
         target="x86_64-pc-windows-gnu",
@@ -390,11 +389,11 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, 
           "apt-get install -y mingw-w64",
           "rustup target add x86_64-pc-windows-gnu"
         ]),
-        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+        repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -> releaseX86_64PcWindowsGnu.trigger,data -> Self.binReleaseX86_64PcWindowsGnu
     
-    releaseX86_64PcWindowsMsvc: buildMelodium[cicd_distant=cicd, logger=logger]
+    releaseX86_64PcWindowsMsvc: buildMelodium[cicd=cicd, logger=logger]
       (
         build=|contains<string>(targets, "x86_64-pc-windows-msvc"),
         target="x86_64-pc-windows-msvc",
@@ -417,11 +416,11 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, 
               xwin --accept-license --manifest-version 16 --arch x86_64 --cache-dir ./.xwin-cache splat --output $PWD/.xwin
             fi"])
         ],
-        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+        repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -> releaseX86_64PcWindowsMsvc.trigger,data -> Self.binReleaseX86_64PcWindowsMsvc
     
-    releaseI686PcWindowsGnu: buildMelodium[cicd_distant=cicd, logger=logger]
+    releaseI686PcWindowsGnu: buildMelodium[cicd=cicd, logger=logger]
       (
         build=|contains<string>(targets, "i686-pc-windows-gnu"),
         target="i686-pc-windows-gnu",
@@ -436,11 +435,11 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, 
           "apt-get install -y mingw-w64",
           "rustup target add i686-pc-windows-gnu"
         ]),
-        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+        repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -> releaseI686PcWindowsGnu.trigger,data -> Self.binReleaseI686PcWindowsGnu
     
-    releaseI686PcWindowsMsvc: buildMelodium[cicd_distant=cicd, logger=logger]
+    releaseI686PcWindowsMsvc: buildMelodium[cicd=cicd, logger=logger]
       (
         build=|contains<string>(targets, "i686-pc-windows-msvc"),
         target="i686-pc-windows-msvc",
@@ -463,11 +462,11 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, 
               xwin --accept-license --manifest-version 16 --arch x86 --cache-dir ./.xwin-cache splat --output $PWD/.xwin
             fi"])
         ],
-        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+        repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -> releaseI686PcWindowsMsvc.trigger,data -> Self.binReleaseI686PcWindowsMsvc
     
-    releaseAarch64PcWindowsMsvc: buildMelodium[cicd_distant=cicd, logger=logger]
+    releaseAarch64PcWindowsMsvc: buildMelodium[cicd=cicd, logger=logger]
       (
         build=|contains<string>(targets, "aarch64-pc-windows-msvc"),
         target="aarch64-pc-windows-msvc",
@@ -490,7 +489,7 @@ treatment builds[logger: Logger, cicd: CicdDistantEngine](targets: Vec<string>, 
               xwin --accept-license --manifest-version 16 --arch aarch64 --cache-dir ./.xwin-cache splat --output $PWD/.xwin
             fi"])
         ],
-        repository_url=repository_url, gitlab_token=gitlab_token, project_id=project_id, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+        repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -> releaseAarch64PcWindowsMsvc.trigger,data -> Self.binReleaseAarch64PcWindowsMsvc
 }

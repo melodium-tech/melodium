@@ -35,7 +35,7 @@ use distrib::recvStream
 use root/data::readFile
 use root/data::writeFile
 use root/data::ioToString
-use root/runners::CicdDistributionEngine
+use root/runners::CicdRunnerEngine
 use root/runners::stopRunner
 
 treatment terminate[logger: Logger]()
@@ -49,7 +49,7 @@ treatment terminate[logger: Logger]()
     Self.trigger --------------------------> one.b
 }
 
-treatment stepOn[distributor: CicdDistributionEngine, logger: Logger](var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
+treatment stepOn[runner: CicdRunnerEngine, logger: Logger](var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
   input trigger: Block<void>
   output started: Block<void>
   output finished: Block<void>
@@ -57,7 +57,7 @@ treatment stepOn[distributor: CicdDistributionEngine, logger: Logger](var execut
   output completed: Block<void>
   output data: Stream<byte>
 {
-    stepOnWithInput[distributor=distributor, logger=logger](
+    stepOnWithInput[runner=runner, logger=logger](
       executor_name=executor_name,
       environment=environment,
       commands=commands,
@@ -76,7 +76,7 @@ treatment stepOn[distributor: CicdDistributionEngine, logger: Logger](var execut
     stepOnWithInput.data ------> Self.data
 }
 
-treatment stepOnWithInput[distributor: CicdDistributionEngine, logger: Logger](var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
+treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
   input trigger: Block<void>
   input data: Stream<byte>
   output started: Block<void>
@@ -85,7 +85,7 @@ treatment stepOnWithInput[distributor: CicdDistributionEngine, logger: Logger](v
   output completed: Block<void>
   output data: Stream<byte>
 {
-    distribute[distributor=distributor]()
+    distribute[distributor=runner]()
 
     Self.trigger -> distribute.trigger
 
@@ -95,22 +95,22 @@ treatment stepOnWithInput[distributor: CicdDistributionEngine, logger: Logger](v
     distribOrStepFailed: one<void>()
     distribute.failed -> distribOrStepFailed.a
 
-    sendTriggerLogs: sendBlock<void>[distributor=distributor](name="trigger_logs")
-    sendInFilesystemName: sendBlock<string>[distributor=distributor](name="in_filesystem_name")
-    sendInFileName: sendBlock<string>[distributor=distributor](name="in_file_name")
-    sendData: sendStream<byte>[distributor=distributor](name="data")
-    sendExecutorName: sendBlock<string>[distributor=distributor](name="executor_name")
-    sendEnvironment: sendBlock<Option<Environment>>[distributor=distributor](name="environment")
-    sendCommands: sendStream<Command>[distributor=distributor](name="commands")
-    sendOutFilesystemName: sendBlock<string>[distributor=distributor](name="out_filesystem_name")
-    sendOutFileName: sendBlock<string>[distributor=distributor](name="out_file_name")
+    sendTriggerLogs: sendBlock<void>[distributor=runner](name="trigger_logs")
+    sendInFilesystemName: sendBlock<string>[distributor=runner](name="in_filesystem_name")
+    sendInFileName: sendBlock<string>[distributor=runner](name="in_file_name")
+    sendData: sendStream<byte>[distributor=runner](name="data")
+    sendExecutorName: sendBlock<string>[distributor=runner](name="executor_name")
+    sendEnvironment: sendBlock<Option<Environment>>[distributor=runner](name="environment")
+    sendCommands: sendStream<Command>[distributor=runner](name="commands")
+    sendOutFilesystemName: sendBlock<string>[distributor=runner](name="out_filesystem_name")
+    sendOutFileName: sendBlock<string>[distributor=runner](name="out_file_name")
 
-    recvStarted: recvBlock<void>[distributor=distributor](name="started")
-    recvFinished: recvBlock<void>[distributor=distributor](name="finished")
-    recvFailed: recvBlock<void>[distributor=distributor](name="failed")
-    recvCompleted: recvBlock<void>[distributor=distributor](name="completed")
-    recvData: recvStream<byte>[distributor=distributor](name="data")
-    recvLogs: recvStream<Log>[distributor=distributor](name="logs")
+    recvStarted: recvBlock<void>[distributor=runner](name="started")
+    recvFinished: recvBlock<void>[distributor=runner](name="finished")
+    recvFailed: recvBlock<void>[distributor=runner](name="failed")
+    recvCompleted: recvBlock<void>[distributor=runner](name="completed")
+    recvData: recvStream<byte>[distributor=runner](name="data")
+    recvLogs: recvStream<Log>[distributor=runner](name="logs")
 
     distribute.distribution_id -> sendTriggerLogs.distribution_id
     distribute.distribution_id -> sendInFilesystemName.distribution_id
@@ -158,7 +158,7 @@ treatment stepOnWithInput[distributor: CicdDistributionEngine, logger: Logger](v
     injectStreamLog[logger=logger]()
     recvLogs.data -> injectStreamLog.logs
 
-    stopRunner[cicd_engine=distributor]()
+    stopRunner[runner=runner]()
     passStop: passBlock<void>(cond=stop_on_failure)
     distribOrStepFailed.value -> passStop.block,passed -> stopRunner.trigger
 

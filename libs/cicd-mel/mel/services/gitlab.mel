@@ -21,7 +21,7 @@ use log/logger::Logger
 use log/log::logError
 use log/log::logInfos
 
-treatment postGitlabState[logger: Logger](root_url: string, token: string, project_id: string, sha: string, state: StepState, ref: string, pipeline: string, name: string, description: string)
+treatment postGitlabState[logger: Logger](root_url: string, token: string, project: string, sha: string, state: StepState, ref: string, pipeline: string, name: string, description: string)
     input trigger: Block<void>
 {
     post(
@@ -32,7 +32,7 @@ treatment postGitlabState[logger: Logger](root_url: string, token: string, proje
         url=|format("{root_url}/projects/{project_id}/statuses/{sha}",
                 |string_map([
                     |string_entry("root_url", root_url),
-                    |string_entry("project_id", project_id),
+                    |string_entry("project_id", project),
                     |string_entry("sha", sha)
                 ])
         )

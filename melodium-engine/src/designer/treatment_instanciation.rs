@@ -258,7 +258,7 @@ impl TreatmentInstanciation {
                 11,
                 self.host_id.clone(),
                 self.descriptor().identifier().clone(),
-                self.name.clone(),
+                name.to_string(),
                 design_reference.clone(),
             ));
         }
@@ -299,7 +299,7 @@ impl TreatmentInstanciation {
                         203,
                         borrowed_host.identifier().clone(),
                         descriptor.identifier().clone(),
-                        self.name.clone(),
+                        name.clone(),
                         self.design_reference.clone(),
                     ));
                 }

@@ -88,6 +88,9 @@ struct New {
     #[clap(short, long, allow_hyphen_values = true)]
     /// Path where create new program, if a `.mel` file name is specified, a standalone file program is created, defaults to program name.
     path: Option<String>,
+    #[clap(short, long, default_value_t, value_enum)]
+    /// Template to use for new project.
+    template: melodium::new::Template,
     #[clap(value_parser, allow_hyphen_values = true)]
     /// Program name.
     name: String,
@@ -422,10 +425,8 @@ fn info(args: Info) {
 #[cfg(feature = "fs")]
 fn new(args: New) {
     use convert_case::{Case, Casing};
-    use melodium_common::descriptor::{PackageRequirement, Version, VersionReq};
+    use melodium_common::descriptor::Version;
     use std::str::FromStr;
-
-    let melodium_version = Version::parse(VERSION).unwrap();
 
     let program_version = match Version::parse(&args.version) {
         Ok(version) => version,
@@ -445,8 +446,12 @@ fn new(args: New) {
 
     let program_name = args.name.to_case(Case::Snake);
 
-    if path.extension().map(|ext| ext == "mel").unwrap_or(false) {
+    if args.template == melodium::new::Template::Raw
+        && path.extension().map(|ext| ext == "mel").unwrap_or(false)
+    {
         // Standalone file
+        let melodium_version = Version::parse(VERSION).unwrap();
+
         let contents = format!("#!/usr/bin/env melodium\n#! name = {program_name}\n#! version = {program_version}\n#! require = std:{}\n\ntreatment main()\n{{\n    \n}}\n\n",
         if melodium_version.pre.is_empty() {
             melodium_version.to_string()
@@ -466,29 +471,17 @@ fn new(args: New) {
         )
     } else {
         // Project tree
-        let contents = melodium_loader::Compo {
-            name: program_name.clone(),
-            version: program_version,
-            requirements: vec![PackageRequirement {
-                package: "std".into(),
-                version_requirement: VersionReq::parse(&if melodium_version.pre.is_empty() {
-                    melodium_version.to_string()
-                } else {
-                    format!("={melodium_version}")
-                })
-                .unwrap(),
-            }],
-            entrypoints: HashMap::new(),
-        }
-        .restitute();
+        let project_tree = melodium::new::template(args.template, &program_name, &program_version);
 
         match std::fs::create_dir_all(&path) {
             Ok(_) => {
-                let mut compo_path = path.clone();
-                compo_path.push("Compo.toml");
-                if let Err(err) = std::fs::write(compo_path, contents) {
-                    eprintln!("{}: {err}", "error".bold().red());
-                    std::process::exit(1);
+                for (filename, content) in project_tree {
+                    let mut full_path = path.clone();
+                    full_path.push(filename);
+                    if let Err(err) = std::fs::write(full_path, content) {
+                        eprintln!("{}: {err}", "error".bold().red());
+                        std::process::exit(1);
+                    }
                 }
 
                 println!(

@@ -24,6 +24,9 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+#[cfg(feature = "fs")]
+pub mod new;
+
 pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 pub const TARGET: &'static str = env!("TARGET");
 pub const TARGET_FEATURES: &'static str = env!("TARGET_FEATURE");
