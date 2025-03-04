@@ -482,7 +482,10 @@ impl DistributionEngine {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
                 loop {
                     async_std::task::sleep(Duration::from_secs(10)).await;
-                    if protocol.send_message(Message::Probe).await.is_err() {
+                    if let Err(err) = protocol.send_message(Message::Probe).await
+                    /*.is_err()*/
+                    {
+                        eprintln!("Error when probing: {err}");
                         break;
                     }
                 }

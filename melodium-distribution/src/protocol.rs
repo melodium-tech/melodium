@@ -59,12 +59,15 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
     }
 
     pub async fn close(&self) {
-        //let mut reader = self.reader.lock().await;
-        let mut writer = self.writer.lock().await;
-        //reader.close().await;
-        let _ = writer.close().await;
-        self.closed
-            .store(true, core::sync::atomic::Ordering::Relaxed);
+        if !self.closed.load(core::sync::atomic::Ordering::Relaxed) {
+            //let mut reader = self.reader.lock().await;
+            let _ = self.send_message(Message::Ended).await;
+            let mut writer = self.writer.lock().await;
+            //reader.close().await;
+            let _ = writer.close().await;
+            self.closed
+                .store(true, core::sync::atomic::Ordering::Relaxed);
+        }
     }
 
     pub async fn recv_message(&self) -> Result<Message> {
