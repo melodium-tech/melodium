@@ -437,6 +437,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                         {
                             if let Some(input) = inputs.get(&close_output.name) {
                                 input.close();
+                                eprintln!("Input closed");
                             }
                         }
                     }
@@ -461,6 +462,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                         break;
                     }
                 }
+                eprintln!("New loop");
             }
             protocol.close().await;
             eprintln!("run finished {:?}", std::time::SystemTime::now());
