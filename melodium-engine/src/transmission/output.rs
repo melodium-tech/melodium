@@ -56,17 +56,19 @@ impl Output {
                 match self.count_receivers.load(Ordering::Relaxed) {
                     0 => Err(TransmissionError::NoReceiver),
                     1 => {
+                        eprintln!("Exactly 1 receiver");
                         let senders = Arc::clone(&self.senders.lock().unwrap());
                         if let Some(sender) = senders.first() {
                             match sender.send(data).await {
-                                Ok(_) => Ok(()),
-                                Err(_) => Err(TransmissionError::EverythingClosed),
+                                Ok(_) => {eprintln!("Sent and done");Ok(())},
+                                Err(_) => {eprintln!("Receiver closed");Err(TransmissionError::EverythingClosed)},
                             }
                         } else {
                             Err(TransmissionError::NoReceiver)
                         }
                     }
-                    _ => {
+                    x => {
+                        eprintln!("Multiple receivers: {x}");
                         let senders = Arc::clone(&self.senders.lock().unwrap());
 
                         let transmissions = FuturesUnordered::new();
@@ -74,20 +76,26 @@ impl Output {
                             let transmission = {
                                 let data = &data;
                                 async move {
-                                    match sender.send(data.clone()).await {
+                                    eprintln!("Sending for a receiver");
+                                    let res = match sender.send(data.clone()).await {
                                         Ok(_) => true,
                                         Err(_) => false,
-                                    }
+                                    };
+                                    eprintln!("Sent for a receiver ({res})");
+                                    res
                                 }
                             };
                             transmissions.push(transmission);
                         }
 
                         let statuses: Vec<_> = transmissions.collect().await;
+                        eprintln!("Everything sent");
 
                         if let Some(_) = statuses.iter().find(|s| **s) {
+                            eprintln!("Not all closed");
                             Ok(())
                         } else {
+                            eprintln!("Everything closed");
                             Err(TransmissionError::EverythingClosed)
                         }
                     }
