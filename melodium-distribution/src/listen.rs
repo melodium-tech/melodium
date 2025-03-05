@@ -293,7 +293,9 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let protocol = Arc::clone(&protocol);
         async move {
             engine.live().await;
+            eprintln!("Live ended");
             let _ = protocol.send_message(Message::Ended).await;
+            protocol.close().await;
             if !expired.load(core::sync::atomic::Ordering::Relaxed) {
                 eprintln!("Awaiting barrier (2)");
                 barrier.wait().await;
@@ -310,7 +312,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             let tracks_entry_outputs = Arc::new(AsyncRwLock::new(HashMap::new()));
             let tracks_entry_inputs = Arc::new(AsyncRwLock::new(HashMap::new()));
             loop {
-                match protocol.recv_message().await {
+                match {eprintln!("Awaiting msg");let msg = protocol.recv_message().await; eprintln!("Msg received: {msg:?}"); msg} {
                     Ok(Message::Instanciate(instanciate)) => {
                         let protocol = Arc::clone(&protocol);
                         let tracks_entry_outputs = Arc::clone(&tracks_entry_outputs);
@@ -481,6 +483,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     break;
                 }
             }
+            protocol.close().await;
             eprintln!("probe finished {:?}", std::time::SystemTime::now());
         }
     };
