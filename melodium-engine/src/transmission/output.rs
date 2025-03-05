@@ -60,8 +60,14 @@ impl Output {
                         let senders = Arc::clone(&self.senders.lock().unwrap());
                         if let Some(sender) = senders.first() {
                             match sender.send(data).await {
-                                Ok(_) => {eprintln!("Sent and done");Ok(())},
-                                Err(_) => {eprintln!("Receiver closed");Err(TransmissionError::EverythingClosed)},
+                                Ok(_) => {
+                                    eprintln!("Sent and done");
+                                    Ok(())
+                                }
+                                Err(_) => {
+                                    eprintln!("Receiver closed");
+                                    Err(TransmissionError::EverythingClosed)
+                                }
                             }
                         } else {
                             eprintln!("No receiver");

@@ -84,8 +84,15 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
         }
         let mut reader = self.reader.lock().await;
         let mut expected_size: [u8; 4] = [0; 4];
-        eprintln!("Awaiting receiving message {:?}", std::time::SystemTime::now());
-        timeout(Duration::from_secs(TIMEOUT), reader.read_exact(&mut expected_size)).await?;
+        eprintln!(
+            "Awaiting receiving message {:?}",
+            std::time::SystemTime::now()
+        );
+        timeout(
+            Duration::from_secs(TIMEOUT),
+            reader.read_exact(&mut expected_size),
+        )
+        .await?;
         let expected_size = u32::from_be_bytes(expected_size) as usize;
 
         let mut data = vec![0u8; expected_size];
