@@ -439,12 +439,14 @@ pub async fn spawn() {
     ) {
         let mut first = true;
         let mut success = true;
+        eprintln!("Reading commands");
         while let Ok(command) = commands.recv_one().await.map(|val| {
             GetData::<Arc<dyn Data>>::try_data(val)
                 .unwrap()
                 .downcast_arc::<Command>()
                 .unwrap()
         }) {
+            eprintln!("commands iteration ({command:?})");
             executor
                 .executor
                 .spawn_out(
@@ -498,6 +500,7 @@ pub async fn spawn() {
                     Box::new(|| Box::pin(async {})),
                 )
                 .await;
+            eprintln!("commands iteration done");
             if !success {
                 break;
             }
@@ -507,6 +510,7 @@ pub async fn spawn() {
         } else {
             let _ = failed.send_one(().into()).await;
         }
+        eprintln!("spawn finished");
         let _ = finished.send_one(().into()).await;
     }
 }
