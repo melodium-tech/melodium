@@ -166,10 +166,11 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var in_files
     logStepFailed: logErrorMessage[logger=logger](message="Step failed")
     distribOrStepFailed.value -> logStepFailed.trigger
 
+    streamFinished: stream<void>()
     triggerAllFinished: trigger<void>()
 
     recvStarted.data -> Self.started
-    recvFinished.data -> triggerAllFinished.stream,end -> Self.finished
+    recvFinished.data -> streamFinished.block,stream -> triggerAllFinished.stream,end -> Self.finished
     recvFailed.data -> distribOrStepFailed.b,value -> Self.failed
     recvCompleted.data -> Self.completed
     recvData.data -> Self.data
