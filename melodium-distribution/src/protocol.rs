@@ -1,12 +1,15 @@
 use crate::messages::Message;
-use async_std::io::{BufReader, BufWriter, Read, Write};
+use async_std::io::{timeout, BufReader, BufWriter, Read, Write};
 use async_std::sync::Mutex;
 use core::fmt::Display;
 use core::sync::atomic::AtomicBool;
+use core::time::Duration;
 use futures::io::{AsyncReadExt, ReadHalf, WriteHalf};
 use futures::AsyncWriteExt;
 
 type Result<T> = std::result::Result<T, Error>;
+
+const TIMEOUT: u64 = 20;
 
 #[derive(Debug)]
 pub enum Error {
@@ -82,11 +85,11 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
         let mut reader = self.reader.lock().await;
         let mut expected_size: [u8; 4] = [0; 4];
         eprintln!("Awaiting receiving message {:?}", std::time::SystemTime::now());
-        reader.read_exact(&mut expected_size).await?;
+        timeout(Duration::from_secs(TIMEOUT), reader.read_exact(&mut expected_size)).await?;
         let expected_size = u32::from_be_bytes(expected_size) as usize;
 
         let mut data = vec![0u8; expected_size];
-        reader.read_exact(&mut data).await?;
+        timeout(Duration::from_secs(TIMEOUT), reader.read_exact(&mut data)).await?;
 
         match ciborium::de::from_reader(data.as_slice()) {
             Ok(message) => Ok(message),
