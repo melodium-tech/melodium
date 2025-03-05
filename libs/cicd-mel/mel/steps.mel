@@ -38,6 +38,7 @@ use root/data::ioToString
 use root/runners::CicdRunnerEngine
 use root/runners::stopRunner
 
+/*
 treatment terminate[logger: Logger]()
   input trigger: Block<void>
 {
@@ -47,7 +48,7 @@ treatment terminate[logger: Logger]()
 
     Self.trigger -> uncheck.value,uncheck -> one.a,value -> stop.trigger
     Self.trigger --------------------------> one.b
-}
+}*/
 
 treatment stepOn[runner: CicdRunnerEngine, logger: Logger](var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
   input trigger: Block<void>
@@ -165,8 +166,10 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var in_files
     logStepFailed: logErrorMessage[logger=logger](message="Step failed")
     distribOrStepFailed.value -> logStepFailed.trigger
 
+    triggerAllFinished: trigger<void>()
+
     recvStarted.data -> Self.started
-    recvFinished.data -> Self.finished
+    recvFinished.data -> triggerAllFinished.stream,end -> Self.finished
     recvFailed.data -> distribOrStepFailed.b,value -> Self.failed
     recvCompleted.data -> Self.completed
     recvData.data -> Self.data

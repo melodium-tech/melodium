@@ -424,11 +424,15 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                         }
                     }
                     Ok(Message::CloseInput(close_input)) => {
+                        eprintln!("Closing input 1");
                         if let Some(outputs) =
                             tracks_entry_outputs.read().await.get(&close_input.id)
                         {
+                            eprintln!("Closing input 2");
                             if let Some(output) = outputs.get(&close_input.name) {
+                                eprintln!("Closing input 3");
                                 output.close().await;
+                                eprintln!("Closing input 4");
                             }
                         }
                     }
@@ -437,7 +441,6 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                         {
                             if let Some(input) = inputs.get(&close_output.name) {
                                 input.close();
-                                eprintln!("Input closed");
                             }
                         }
                     }
