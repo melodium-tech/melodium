@@ -267,7 +267,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     async {
                         eprintln!("Awaiting barrier (0)");
                         barrier.wait().await;
-                        eprintln!("Awaited barrier (0)");
+                        eprintln!("Awaited barrier (0) {:?}", std::time::SystemTime::now());
                     }
                     .boxed(),
                     async {
@@ -279,13 +279,13 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                 .await;
                 eprintln!("Ending engine (1)");
                 engine.end().await;
-                eprintln!("Ended engine (1)");
+                eprintln!("Ended engine (1) {:?}", std::time::SystemTime::now());
             } else {
                 eprintln!("Awaiting barrier (1)");
                 barrier.wait().await;
-                eprintln!("Awaited barrier (1)");
+                eprintln!("Awaited barrier (1) {:?}", std::time::SystemTime::now());
             }
-            eprintln!("limit finished");
+            eprintln!("limit finished {:?}", std::time::SystemTime::now());
         }
     };
     let live = {
@@ -297,9 +297,9 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             if !expired.load(core::sync::atomic::Ordering::Relaxed) {
                 eprintln!("Awaiting barrier (2)");
                 barrier.wait().await;
-                eprintln!("Awaited barrier (2)");
+                eprintln!("Awaited barrier (2) {:?}", std::time::SystemTime::now());
             }
-            eprintln!("live finished");
+            eprintln!("live finished {:?}", std::time::SystemTime::now());
         }
     };
     let run = {
@@ -446,7 +446,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                         }
                         eprintln!("Ending engine (2)");
                         engine.end().await;
-                        eprintln!("Ended engine (2)");
+                        eprintln!("Ended engine (2) {:?}", std::time::SystemTime::now());
                         break;
                     }
                     Ok(Message::Probe) => {}
@@ -455,13 +455,13 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                         eprintln!("Error in protocol: {err}");
                         eprintln!("Ending engine (3)");
                         engine.end().await;
-                        eprintln!("Ended engine (3)");
+                        eprintln!("Ended engine (3) {:?}", std::time::SystemTime::now());
                         break;
                     }
                 }
             }
             protocol.close().await;
-            eprintln!("run finished");
+            eprintln!("run finished {:?}", std::time::SystemTime::now());
         }
     };
     let probe = {
@@ -470,7 +470,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         async move {
             loop {
                 async_std::task::sleep(Duration::from_secs(10)).await;
-                eprintln!("Probing");
+                eprintln!("Probing {:?}", std::time::SystemTime::now());
                 if let Err(err) = protocol.send_message(Message::Probe).await
                 /*.is_err()*/
                 {
@@ -481,7 +481,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     break;
                 }
             }
-            eprintln!("probe finished");
+            eprintln!("probe finished {:?}", std::time::SystemTime::now());
         }
     };
 

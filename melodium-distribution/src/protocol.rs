@@ -60,6 +60,7 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
 
     pub async fn close(&self) {
         if !self.closed.load(core::sync::atomic::Ordering::Relaxed) {
+            eprintln!("Closing protocol… {:?}", std::time::SystemTime::now());
             //let mut reader = self.reader.lock().await;
             let _ = self.send_message(Message::Ended).await;
             let mut writer = self.writer.lock().await;
@@ -67,6 +68,7 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
             let _ = writer.close().await;
             self.closed
                 .store(true, core::sync::atomic::Ordering::Relaxed);
+            eprintln!("Protocol closed {:?}", std::time::SystemTime::now());
         }
     }
 
@@ -79,6 +81,7 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
         }
         let mut reader = self.reader.lock().await;
         let mut expected_size: [u8; 4] = [0; 4];
+        eprintln!("Awaiting receiving message {:?}", std::time::SystemTime::now());
         reader.read_exact(&mut expected_size).await?;
         let expected_size = u32::from_be_bytes(expected_size) as usize;
 
@@ -100,7 +103,7 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
         }
         eprintln!("Awaiting lock writer");
         let mut writer = self.writer.lock().await;
-        eprintln!("Awaited lock writer");
+        eprintln!("Awaited lock writer {:?}", std::time::SystemTime::now());
 
         let mut data = Vec::new();
         match ciborium::into_writer(&message, &mut data) {
