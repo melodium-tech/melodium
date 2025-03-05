@@ -199,6 +199,8 @@ build:release:x86_64-unknown-linux-musl:
 
 build:release:x86_64-unknown-linux-musl:container:
   stage: build
+  tags:
+    - saas-linux-medium-amd64
   extends:
     - .build-containers
     - .builder:linux:x86_64-unknown-linux-musl
@@ -238,6 +240,8 @@ build:release:i686-unknown-linux-musl:
 
 build:release:i686-unknown-linux-musl:container:
   stage: build
+  tags:
+    - saas-linux-medium-amd64
   extends:
     - .build-containers
     - .builder:linux:i686-unknown-linux-musl
@@ -277,6 +281,8 @@ build:release:aarch64-unknown-linux-musl:
 
 build:release:aarch64-unknown-linux-musl:container:
   stage: build
+  tags:
+    - saas-linux-medium-amd64
   extends:
     - .build-containers
     - .builder:linux:aarch64-unknown-linux-musl
