@@ -64,6 +64,7 @@ impl Output {
                                 Err(_) => {eprintln!("Receiver closed");Err(TransmissionError::EverythingClosed)},
                             }
                         } else {
+                            eprintln!("No receiver");
                             Err(TransmissionError::NoReceiver)
                         }
                     }
