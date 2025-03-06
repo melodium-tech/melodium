@@ -63,15 +63,12 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
 
     pub async fn close(&self) {
         if !self.closed.load(core::sync::atomic::Ordering::Relaxed) {
-            eprintln!("Closing protocol… {:?}", std::time::SystemTime::now());
-            //let mut reader = self.reader.lock().await;
             let _ = self.send_message(Message::Ended).await;
+            // Currently only writer can be closed (reader rely on timeout)
             let mut writer = self.writer.lock().await;
-            //reader.close().await;
             let _ = writer.close().await;
             self.closed
                 .store(true, core::sync::atomic::Ordering::Relaxed);
-            eprintln!("Protocol closed {:?}", std::time::SystemTime::now());
         }
     }
 
@@ -84,10 +81,6 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
         }
         let mut reader = self.reader.lock().await;
         let mut expected_size: [u8; 4] = [0; 4];
-        eprintln!(
-            "Awaiting receiving message {:?}",
-            std::time::SystemTime::now()
-        );
         timeout(
             Duration::from_secs(TIMEOUT),
             reader.read_exact(&mut expected_size),
@@ -111,20 +104,14 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
                 "closed",
             )));
         }
-        eprintln!("Awaiting lock writer");
         let mut writer = self.writer.lock().await;
-        eprintln!("Awaited lock writer {:?}", std::time::SystemTime::now());
 
         let mut data = Vec::new();
         match ciborium::into_writer(&message, &mut data) {
             Ok(()) => {
-                eprintln!("writing_all len");
                 writer.write_all(&(data.len() as u32).to_be_bytes()).await?;
-                eprintln!("writing_all data");
                 writer.write_all(&data).await?;
-                eprintln!("flushing");
                 writer.flush().await?;
-                eprintln!("flushed");
                 Ok(())
             }
             Err(err) => Err(Error::Serialization(err)),
