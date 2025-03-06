@@ -1,14 +1,9 @@
 use cicd/runners::CicdDispatchEngine
+use cicd/logging::manageLogs
 use local/works::build
 use local/works::test
-use log/file::writeAllLogs
 use log/logger::Logger
-use log/logger::logs
-use log/logger::stop
-use log/console::console
 use std/engine/util::startup
-use std/text/compose::|format
-use std/data/string_map::|entry
 
 treatment main(const dispatch_api_key: string, output_directory: string, repository_clone_url: string, repository_clone_ref: string, repository_clone_sha: string = "", ci_service_token: string = "", ci_service_project: string = "", ci_service_ref: string = "", ci_service_pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
   model logger: Logger()
@@ -16,16 +11,11 @@ treatment main(const dispatch_api_key: string, output_directory: string, reposit
 {
     startup()
 
-    allLogs: logs[logger=logger]()
-    stopLogs: stop[logger=logger]()
-    logConsole: console(timestamp=true)
-    writeAllLogs(file=|format("{output_directory}/full.log", |entry("output_directory", output_directory)))
-    allLogs.all -> logConsole.logs
-    allLogs.all -> writeAllLogs.logs
+    manageLogs[logger=logger](output_directory=output_directory)
 
     build[cicd=cicd, logger=logger](repository_clone_url=repository_clone_url, repository_clone_ref=repository_clone_ref)
     test[cicd=cicd, logger=logger]()
 
     startup.trigger -> build.trigger,data -> test.data
-    startup.trigger -----------------------> test.trigger,finished -> stopLogs.trigger
+    startup.trigger -----------------------> test.trigger,finished -> manageLogs.stop
 }
