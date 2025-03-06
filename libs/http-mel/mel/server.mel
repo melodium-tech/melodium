@@ -4,7 +4,7 @@ use root/server::incoming
 use root/server::outgoing
 use root/method::HttpMethod
 use root/status::HttpStatus
-use std/data::Map
+use std/data/string_map::StringMap
 
 /**
 Connection on HTTP server.
@@ -28,10 +28,10 @@ Inputs:
 treatment connection[http_server: HttpServer](const method: HttpMethod, const route: string)
   require @HttpRequest
   input status: Block<HttpStatus>
-  input headers: Block<Map>
+  input headers: Block<StringMap>
   input data: Stream<byte>
   output started: Block<void>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output data: Stream<byte>
   output failed: Block<void>
   output error: Block<string>

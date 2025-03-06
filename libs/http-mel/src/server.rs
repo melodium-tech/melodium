@@ -17,7 +17,7 @@ use std::{
     collections::HashMap,
     sync::{RwLock, Weak},
 };
-use std_mel::data::*;
+use std_mel::data::string_map::*;
 use trillium::HeaderName;
 use trillium::HeaderValue;
 use trillium::KnownHeaderName;
@@ -41,14 +41,16 @@ pub struct HttpRequest {
     pub id: u128,
     pub route: string,
     pub path: string,
-    pub parameters: Map,
+    pub parameters: StringMap,
     pub method: HttpMethod,
 }
 
 type AsyncProducerStatus =
     AsyncProducer<Status, Arc<AsyncRb<Status, SharedRb<Status, Vec<MaybeUninit<Status>>>>>>;
-type AsyncProducerHeaders =
-    AsyncProducer<Map, Arc<AsyncRb<Map, SharedRb<Map, Vec<MaybeUninit<Map>>>>>>;
+type AsyncProducerHeaders = AsyncProducer<
+    StringMap,
+    Arc<AsyncRb<StringMap, SharedRb<StringMap, Vec<MaybeUninit<StringMap>>>>>,
+>;
 type AsyncProducerOutgoing =
     AsyncProducer<u8, Arc<AsyncRb<u8, SharedRb<u8, Vec<MaybeUninit<u8>>>>>>;
 
@@ -73,7 +75,7 @@ type AsyncProducerOutgoing =
         param route string none
     ) (
         started Block<void>
-        headers Block<Map>
+        headers Block<StringMap>
         data Stream<byte>
         finished Block<void>
         completed Block<void>
@@ -172,15 +174,14 @@ impl HttpServer {
                             id: id.as_u128(),
                             route: conn.route().map(|r| r.to_string()).unwrap_or_default(),
                             path: conn.path().to_string(),
-                            parameters: Map::new_with(
+                            parameters: StringMap::new_with(
                                 route
                                     .segments()
                                     .iter()
                                     .filter_map(|seg| {
                                         if let Segment::Param(param) = seg {
-                                            conn.param(param).map(|v| {
-                                                (param.to_string(), Value::String(v.to_string()))
-                                            })
+                                            conn.param(param)
+                                                .map(|v| (param.to_string(), v.to_string()))
                                         } else {
                                             None
                                         }
@@ -202,7 +203,7 @@ impl HttpServer {
 
                         let status_buf = AsyncHeapRb::<Status>::new(1);
                         let (status_prod, mut status_cons) = status_buf.split();
-                        let headers_buf = AsyncHeapRb::<Map>::new(1);
+                        let headers_buf = AsyncHeapRb::<StringMap>::new(1);
                         let (headers_prod, mut headers_cons) = headers_buf.split();
                         let outgoing_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
                         let (prod, cons) = outgoing_buf.split();
@@ -215,9 +216,9 @@ impl HttpServer {
                             .request_headers()
                             .iter()
                             .filter_map(|(name, value)| {
-                                value.as_str().map(|value| {
-                                    (name.to_string(), Value::String(value.to_string()))
-                                })
+                                value
+                                    .as_str()
+                                    .map(|value| (name.to_string(), value.to_string()))
                             })
                             .collect();
 
@@ -250,10 +251,10 @@ impl HttpServer {
                                             let _ = started.send_one(().into()).await;
                                             started.close().await;
                                             let _ = headers
-                                                .send_one(Value::Data(Arc::new(Map::new_with(
-                                                    incoming_headers,
+                                                .send_one(Value::Data(
+                                                    Arc::new(StringMap::new_with(incoming_headers))
+                                                        as Arc<dyn Data>,
                                                 ))
-                                                    as Arc<dyn Data>))
                                                 .await;
                                             headers.close().await;
                                             let _ = data
@@ -283,15 +284,9 @@ impl HttpServer {
                                 .insert(KnownHeaderName::Server, SERVER);
 
                             for (name, content) in &headers.map {
-                                let header_name = HeaderName::from(name.as_str());
-                                if header_name.is_valid()
-                                    && content.datatype().implements(
-                                        &melodium_core::common::descriptor::DataTrait::ToString,
-                                    )
-                                {
-                                    let header_content = HeaderValue::from(
-                                        melodium_core::DataTrait::to_string(content),
-                                    );
+                                let header_name = HeaderName::from(name.to_string());
+                                if header_name.is_valid() {
+                                    let header_content = HeaderValue::from(content.clone());
                                     if header_content.is_valid() {
                                         conn.response_headers_mut()
                                             .insert(header_name.to_owned(), header_content);
@@ -390,7 +385,7 @@ pub async fn start() {
 
 #[mel_treatment(
     input status Block<HttpStatus>
-    input headers Block<Map>
+    input headers Block<StringMap>
     input data Stream<byte>
     model http_server HttpServer
 )]
@@ -430,7 +425,7 @@ pub async fn outgoing(id: u128) {
             headers.recv_one().await.map(|val| {
                 GetData::<Arc<dyn Data>>::try_data(val)
                     .unwrap()
-                    .downcast_arc::<Map>()
+                    .downcast_arc::<StringMap>()
                     .unwrap()
             }),
         ) {

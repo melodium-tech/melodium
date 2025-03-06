@@ -9,7 +9,7 @@ use root/method::|put
 use root/method::|trace
 use root/client::HttpClient
 use root/status::HttpStatus
-use std/data::Map
+use std/data/string_map::StringMap
 use root/client::request
 use root/client::requestWithBody
 
@@ -36,9 +36,9 @@ use root/client::requestWithBody
 */
 treatment delete[client: HttpClient]()
   input url: Block<string>
-  input headers: Block<Map>
+  input headers: Block<StringMap>
   output data: Stream<byte>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
@@ -82,9 +82,9 @@ treatment delete[client: HttpClient]()
 */
 treatment get[client: HttpClient]()
   input url: Block<string>
-  input headers: Block<Map>
+  input headers: Block<StringMap>
   output data: Stream<byte>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
@@ -127,8 +127,8 @@ treatment get[client: HttpClient]()
 */
 treatment head[client: HttpClient]()
   input url: Block<string>
-  input headers: Block<Map>
-  output headers: Block<Map>
+  input headers: Block<StringMap>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
@@ -171,9 +171,9 @@ treatment head[client: HttpClient]()
 */
 treatment options[client: HttpClient]()
   input url: Block<string>
-  input headers: Block<Map>
+  input headers: Block<StringMap>
   output data: Stream<byte>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
@@ -217,9 +217,9 @@ treatment options[client: HttpClient]()
 */
 treatment patch[client: HttpClient]()
   input url: Block<string>
-  input headers: Block<Map>
+  input headers: Block<StringMap>
   input data: Stream<byte>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
@@ -264,10 +264,10 @@ treatment patch[client: HttpClient]()
 */
 treatment post[client: HttpClient]()
   input url: Block<string>
-  input headers: Block<Map>
+  input headers: Block<StringMap>
   input data: Stream<byte>
   output data: Stream<byte>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
@@ -312,9 +312,9 @@ treatment post[client: HttpClient]()
 */
 treatment put[client: HttpClient]()
   input url: Block<string>
-  input headers: Block<Map>
+  input headers: Block<StringMap>
   input data: Stream<byte>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
@@ -357,8 +357,8 @@ treatment put[client: HttpClient]()
 */
 treatment trace[client: HttpClient]()
   input url: Block<string>
-  input headers: Block<Map>
-  output headers: Block<Map>
+  input headers: Block<StringMap>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>

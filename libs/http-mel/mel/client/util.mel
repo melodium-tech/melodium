@@ -1,5 +1,5 @@
-use std/data::Map
-use std/data::|map
+use std/data/string_map::StringMap
+use std/data/string_map::|map
 use std/flow::emit
 use std/flow::trigger
 use std/ops/option::|unwrap_or
@@ -37,14 +37,14 @@ use root/client::trace as fullTrace
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/DELETE).
 */
-treatment delete(url: string, headers: Option<Map> = _)
+treatment delete(url: string, headers: Option<StringMap> = _)
   model client: HttpClient(
     base_url = _,
     headers = |map([])
   )
   input trigger: Block<void>
   output data: Stream<byte>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
@@ -54,7 +54,7 @@ treatment delete(url: string, headers: Option<Map> = _)
     fullDelete[client=client]()
 
     url: emit<string>(value=url)
-    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+    headers: emit<StringMap>(value=|unwrap_or<StringMap>(headers, |map([])))
 
     Self.trigger -----> url.trigger,emit -> fullDelete.url
     Self.trigger -> headers.trigger,emit -> fullDelete.headers
@@ -91,14 +91,14 @@ treatment delete(url: string, headers: Option<Map> = _)
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/GET).
 */
-treatment get(url: string, headers: Option<Map> = _)
+treatment get(url: string, headers: Option<StringMap> = _)
   model client: HttpClient(
     base_url = _,
     headers = |map([])
   )
   input trigger: Block<void>
   output data: Stream<byte>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
@@ -108,7 +108,7 @@ treatment get(url: string, headers: Option<Map> = _)
     fullGet[client=client]()
 
     url: emit<string>(value=url)
-    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+    headers: emit<StringMap>(value=|unwrap_or<StringMap>(headers, |map([])))
 
     Self.trigger -----> url.trigger,emit -> fullGet.url
     Self.trigger -> headers.trigger,emit -> fullGet.headers
@@ -144,13 +144,13 @@ treatment get(url: string, headers: Option<Map> = _)
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/HEAD).
 */
-treatment head(url: string, headers: Option<Map> = _)
+treatment head(url: string, headers: Option<StringMap> = _)
   model client: HttpClient(
     base_url = _,
     headers = |map([])
   )
   input trigger: Block<void>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
@@ -160,7 +160,7 @@ treatment head(url: string, headers: Option<Map> = _)
     fullHead[client=client]()
 
     url: emit<string>(value=url)
-    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+    headers: emit<StringMap>(value=|unwrap_or<StringMap>(headers, |map([])))
 
     Self.trigger -----> url.trigger,emit -> fullHead.url
     Self.trigger -> headers.trigger,emit -> fullHead.headers
@@ -196,14 +196,14 @@ treatment head(url: string, headers: Option<Map> = _)
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/OPTIONS).
 */
-treatment options(url: string, headers: Option<Map> = _)
+treatment options(url: string, headers: Option<StringMap> = _)
   model client: HttpClient(
     base_url = _,
     headers = |map([])
   )
   input trigger: Block<void>
   output data: Stream<byte>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
@@ -213,7 +213,7 @@ treatment options(url: string, headers: Option<Map> = _)
     fullOptions[client=client]()
 
     url: emit<string>(value=url)
-    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+    headers: emit<StringMap>(value=|unwrap_or<StringMap>(headers, |map([])))
 
     Self.trigger -----> url.trigger,emit -> fullOptions.url
     Self.trigger -> headers.trigger,emit -> fullOptions.headers
@@ -249,13 +249,13 @@ treatment options(url: string, headers: Option<Map> = _)
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/PATCH).
 */
-treatment patch(url: string, headers: Option<Map> = _)
+treatment patch(url: string, headers: Option<StringMap> = _)
   model client: HttpClient(
     base_url = _,
     headers = |map([])
   )
   input data: Stream<byte>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
@@ -266,7 +266,7 @@ treatment patch(url: string, headers: Option<Map> = _)
 
     trigger<byte>()
     url: emit<string>(value=url)
-    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+    headers: emit<StringMap>(value=|unwrap_or<StringMap>(headers, |map([])))
 
     Self.data -> trigger.stream,start -----> url.trigger,emit -> fullPatch.url
                  trigger.start --------> headers.trigger,emit -> fullPatch.headers
@@ -303,13 +303,13 @@ treatment patch(url: string, headers: Option<Map> = _)
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/POST).
 */
-treatment post(url: string, headers: Option<Map> = _)
+treatment post(url: string, headers: Option<StringMap> = _)
   model client: HttpClient(
     base_url = _,
     headers = |map([])
   )
   input data: Stream<byte>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output data: Stream<byte>
   output completed: Block<void>
   output failed: Block<void>
@@ -321,7 +321,7 @@ treatment post(url: string, headers: Option<Map> = _)
 
     trigger<byte>()
     url: emit<string>(value=url)
-    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+    headers: emit<StringMap>(value=|unwrap_or<StringMap>(headers, |map([])))
 
     Self.data -> trigger.stream,start -----> url.trigger,emit -> fullPost.url
                  trigger.start --------> headers.trigger,emit -> fullPost.headers
@@ -359,13 +359,13 @@ treatment post(url: string, headers: Option<Map> = _)
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/PUT).
 */
-treatment put(url: string, headers: Option<Map> = _)
+treatment put(url: string, headers: Option<StringMap> = _)
   model client: HttpClient(
     base_url = _,
     headers = |map([])
   )
   input data: Stream<byte>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
@@ -376,7 +376,7 @@ treatment put(url: string, headers: Option<Map> = _)
 
     trigger<byte>()
     url: emit<string>(value=url)
-    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+    headers: emit<StringMap>(value=|unwrap_or<StringMap>(headers, |map([])))
 
     Self.data -> trigger.stream,start -----> url.trigger,emit -> fullPut.url
                  trigger.start --------> headers.trigger,emit -> fullPut.headers
@@ -412,13 +412,13 @@ treatment put(url: string, headers: Option<Map> = _)
     
     Also see [MDN documentation](https://developer.mozilla.org/docs/Web/HTTP/Methods/TRACE).
 */
-treatment trace(url: string, headers: Option<Map> = _)
+treatment trace(url: string, headers: Option<StringMap> = _)
   model client: HttpClient(
     base_url = _,
     headers = |map([])
   )
   input trigger: Block<void>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
@@ -428,7 +428,7 @@ treatment trace(url: string, headers: Option<Map> = _)
     fullTrace[client=client]()
 
     url: emit<string>(value=url)
-    headers: emit<Map>(value=|unwrap_or<Map>(headers, |map([])))
+    headers: emit<StringMap>(value=|unwrap_or<StringMap>(headers, |map([])))
 
     Self.trigger -----> url.trigger,emit -> fullTrace.url
     Self.trigger -> headers.trigger,emit -> fullTrace.headers
