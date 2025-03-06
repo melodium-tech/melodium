@@ -22,7 +22,7 @@ use std/ops/option::unwrap
 use std/conv::toString
 use std/data/string_map::StringMap
 use std/data/string_map::|map as |string_map
-use std/data/amp::|map
+use std/data/map::|map
 use std/engine/util::startup
 use encoding::decode
 use encoding::encode

@@ -22,8 +22,9 @@ treatment main(text: string, file: string) {
     capture(regex="(?<number>\\d+)")
     unwrapStringMap: unwrap<StringMap>()
     get(key="number")
+    unwrapString: unwrap<string>()
     writeTextLocal(path=file)
 
-    startup.trigger -> emit.trigger,emit -> stream.block,stream -> capture.text,captured -> unwrapStringMap.option,value -> get.map,value -> writeTextLocal.text
+    startup.trigger -> emit.trigger,emit -> stream.block,stream -> capture.text,captured -> unwrapStringMap.option,value -> get.map,value -> unwrapString.option,value -> writeTextLocal.text
     
 }
