@@ -23,19 +23,19 @@ pub struct FsPackage {
 }
 
 impl FsPackage {
-    pub fn new(path: &Path) -> LoadingResult<Self> {
-        let location = match metadata(path) {
+    pub fn new<P: AsRef<Path>>(path: P) -> LoadingResult<Self> {
+        let location = match metadata(path.as_ref()) {
             Ok(location) => location,
             Err(_) => {
                 return LoadingResult::new_failure(LoadingError::no_package(
                     176,
-                    PackageRequirement::new(&path.to_string_lossy(), &VersionReq::STAR),
+                    PackageRequirement::new(&path.as_ref().to_string_lossy(), &VersionReq::STAR),
                 ))
             }
         };
 
         if location.is_dir() {
-            let mut composition_path = path.to_path_buf();
+            let mut composition_path = path.as_ref().to_path_buf();
             composition_path.push("Compo.toml");
 
             let composition = match read_to_string(&composition_path) {
@@ -43,7 +43,10 @@ impl FsPackage {
                 Err(_) => {
                     return LoadingResult::new_failure(LoadingError::no_package(
                         177,
-                        PackageRequirement::new(&path.to_string_lossy(), &VersionReq::STAR),
+                        PackageRequirement::new(
+                            &path.as_ref().to_string_lossy(),
+                            &VersionReq::STAR,
+                        ),
                     ))
                 }
             };
@@ -51,7 +54,7 @@ impl FsPackage {
             let mut result = LoadingResult::new_success(());
             if let Some(composition) = result.merge_degrade_failure(Compo::parse(&composition)) {
                 result.and(LoadingResult::new_success(Self {
-                    path: path.to_path_buf(),
+                    path: path.as_ref().to_path_buf(),
                     name: composition.name.clone(),
                     entrypoints: composition.entrypoints,
                     version: composition.version,
@@ -62,14 +65,17 @@ impl FsPackage {
                 return result.and_degrade_failure(LoadingResult::new_failure(
                     LoadingError::no_package(
                         182,
-                        PackageRequirement::new(&path.to_string_lossy(), &VersionReq::STAR),
+                        PackageRequirement::new(
+                            &path.as_ref().to_string_lossy(),
+                            &VersionReq::STAR,
+                        ),
                     ),
                 ));
             }
         } else {
             return LoadingResult::new_failure(LoadingError::no_package(
                 183,
-                PackageRequirement::new(&path.to_string_lossy(), &VersionReq::STAR),
+                PackageRequirement::new(&path.as_ref().to_string_lossy(), &VersionReq::STAR),
             ));
         }
     }
