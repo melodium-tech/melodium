@@ -6,7 +6,7 @@ use melodium_macro::{check, mel_function, mel_package, mel_treatment};
 use regex::Regex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std_mel::data::*;
+use std_mel::data::map::*;
 
 /// Matches stream of strings against a regex.
 ///

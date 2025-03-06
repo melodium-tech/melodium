@@ -31,7 +31,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, Weak},
 };
-use std_mel::data::*;
+use std_mel::data::map::*;
 use work_mel::access::*;
 
 #[derive(Debug)]

@@ -15,7 +15,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, Weak},
 };
-use std_mel::data::*;
+use std_mel::data::map::*;
 
 fn postgres_bind_replace(mut sql_to_bind: String, bind_symbol: &str) -> String {
     let bind_num = sql_to_bind.matches(bind_symbol).count();
