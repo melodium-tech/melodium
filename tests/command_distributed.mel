@@ -11,8 +11,7 @@ use std/flow/vec::flatten
 use std/ops/option::unwrapOr
 use std/ops/option::unwrap
 use std/conv::toString
-use std/data::Map
-use std/data::|map
+use std/data/map::|map
 use std/engine/util::startup
 use work/distant::DistantEngine
 use work/distant::distant

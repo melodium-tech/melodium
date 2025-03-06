@@ -20,10 +20,10 @@ use std/flow::check
 use std/conv::toString
 use std/text/convert/string::toUtf8
 use std/flow::generate
-use std/data::Map
-use std/data::|map
-use std/data::|entry
-use std/data::|insert
+use std/data/map::Map
+use std/data/map::|map
+use std/data/map::|entry
+use std/data/map::|insert
 
 treatment main(const server_url: string, conn_error_file: string, exec_error_file: string, success_file: string)
   model sql: SqlPool(url=server_url, min_connections=1)

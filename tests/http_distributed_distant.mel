@@ -20,8 +20,8 @@ use std/flow/vec::flatten
 use std/ops/option::unwrapOr
 use std/ops/option::unwrap
 use std/conv::toString
-use std/data::Map
-use std/data::|map
+use std/data/string_map::StringMap
+use std/data/string_map::|map
 use std/engine/util::startup
 use encoding::decode
 use encoding::encode
@@ -71,7 +71,7 @@ treatment main(const distant: string, const key: string)
 
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())
-    headers: emit<Map>(value=|map([]))
+    headers: emit<StringMap>(value=|map([]))
     trigger<byte>()
     
     connection.data -> trigger.stream,start --> status.trigger,emit -> connection.status

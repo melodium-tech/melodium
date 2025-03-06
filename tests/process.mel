@@ -9,7 +9,6 @@ use std/engine/util::startup
 use std/flow::stream
 use std/text/convert/string::toUtf8
 use std/flow::emit
-use std/data::|map
 use fs/local::writeLocal
 use process/command::|command
 use process/local::spawnOnce

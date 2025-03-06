@@ -20,8 +20,9 @@ use std/flow::stream
 use std/ops/option::unwrapOr
 use std/ops/option::unwrap
 use std/conv::toString
-use std/data::Map
-use std/data::|map
+use std/data/string_map::StringMap
+use std/data/string_map::|map as |string_map
+use std/data/amp::|map
 use std/engine/util::startup
 use encoding::decode
 use encoding::encode
@@ -60,7 +61,7 @@ treatment main(const distrib_port: u16, var remote_key: string, var self_key: st
 
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())
-    headers: emit<Map>(value=|map([]))
+    headers: emit<StringMap>(value=|string_map([]))
     trigger<byte>()
     
     connection.data -> trigger.stream,start --> status.trigger,emit -> connection.status

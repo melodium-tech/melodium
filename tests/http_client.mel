@@ -9,8 +9,6 @@ use fs/local::writeLocal
 use fs/local::writeTextLocal
 use std/text/convert/string::toUtf8
 use std/flow::stream
-use std/data::Map
-use std/data::|map
 
 treatment main(url: string, file: string, log: string)
 {

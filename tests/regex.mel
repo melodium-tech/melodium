@@ -9,8 +9,8 @@ use std/engine/util::startup
 use std/flow::emit
 use std/flow::stream
 use std/ops/option::unwrap
-use std/data::Map
-use std/data::get
+use std/data/string_map::StringMap
+use std/data/string_map::get
 use regex::capture
 use fs/local::writeTextLocal
 
@@ -20,11 +20,10 @@ treatment main(text: string, file: string) {
     emit<string>(value=text)
     stream<string>()
     capture(regex="(?<number>\\d+)")
-    unwrapMap: unwrap<Map>()
-    get<string>(key="number")
-    unwrapString: unwrap<string>()
+    unwrapStringMap: unwrap<StringMap>()
+    get(key="number")
     writeTextLocal(path=file)
 
-    startup.trigger -> emit.trigger,emit -> stream.block,stream -> capture.text,captured -> unwrapMap.option,value -> get.map,value -> unwrapString.option,value -> writeTextLocal.text
+    startup.trigger -> emit.trigger,emit -> stream.block,stream -> capture.text,captured -> unwrapStringMap.option,value -> get.map,value -> writeTextLocal.text
     
 }
