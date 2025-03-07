@@ -108,7 +108,7 @@ treatment distributedJs[distributor: DistributionEngine]()
   output data: Stream<byte>
 {
   trigger<byte>()
-  distribute[distributor=distributor](params=|map([]))
+  distribute[distributor=distributor]()
 
   Self.data -> trigger.stream,start -> distribute.trigger
 
