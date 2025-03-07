@@ -1,1 +1,2 @@
+core.autocrlf = false
 .gitlab/* -linguist-detectable
