@@ -1,6 +1,6 @@
 use std/flow::one
 use std/flow::passBlock
-use std/data::|entry
+use std/data/map::|entry
 use log/logger::Logger
 use log/logger::stop as stopLogs
 use log/log::logErrors
