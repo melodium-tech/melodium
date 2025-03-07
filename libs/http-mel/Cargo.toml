@@ -33,23 +33,25 @@ async-ringbuf = "0.1"
 routefinder = "0.5"
 uuid = { version = "1.7", features = ["v4", "fast-rng"] }
 
+trillium-rustls = { version = "0.8", default-features = false, features = ["ring", "client"] }
+
 [features]
 mock = []
 plugin = []
 real = []
 
-[target.'cfg(all(not(target_os = "windows"), not(target_vendor = "apple")))'.dependencies.trillium-rustls]
-version = "0.8"
-default-features = false
-features = ["ring", "client"]
+# [target.'cfg(all(not(target_os = "windows"), not(target_vendor = "apple")))'.dependencies.trillium-rustls]
+# version = "0.8"
+# default-features = false
+# features = ["ring", "client"]
 
-[target.'cfg(all(target_os = "windows", target_env = "gnu"))'.dependencies.trillium-rustls]
-version = "0.8"
-default-features = false
-features = ["ring", "client"]
+# [target.'cfg(all(target_os = "windows", target_env = "gnu"))'.dependencies.trillium-rustls]
+# version = "0.8"
+# default-features = false
+# features = ["ring", "client"]
 
-[target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.trillium-native-tls]
-version = "0.4"
+# [target.'cfg(any(target_env = "msvc", target_vendor = "apple"))'.dependencies.trillium-native-tls]
+# version = "0.4"
 
 [package.metadata.docs.rs]
 all-features = true
