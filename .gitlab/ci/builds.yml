@@ -123,7 +123,7 @@ build:debug:x86_64-pc-windows-msvc:
   stage: build
   extends:
     - .build-debug
-    - .builder:linux:x86_64-pc-windows-msvc
+    - .builder:windows:x86_64-pc-windows-msvc
   script:
     - cargo build --package melodium --locked
     - ls target/x86_64-pc-windows-msvc/debug
@@ -149,7 +149,7 @@ build:debug:i686-pc-windows-msvc:
   stage: build
   extends:
     - .build-debug
-    - .builder:linux:i686-pc-windows-msvc
+    - .builder:windows:i686-pc-windows-msvc
   script:
     - cargo build --package melodium --locked
     - ls target/i686-pc-windows-msvc/debug
@@ -162,7 +162,7 @@ build:debug:aarch64-pc-windows-msvc:
   stage: build
   extends:
     - .build-debug
-    - .builder:linux:aarch64-pc-windows-msvc
+    - .builder:windows:aarch64-pc-windows-msvc
   script:
     - cargo build --package melodium --locked
     - ls target/aarch64-pc-windows-msvc/debug
