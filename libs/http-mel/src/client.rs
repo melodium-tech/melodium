@@ -13,9 +13,9 @@ use trillium::KnownHeaderName;
 use trillium_async_std::ClientConfig;
 use trillium_client::Url;
 use trillium_client::{Body, Client};
-#[cfg(any(target_env = "msvc", target_vendor = "apple"))]
+/*#[cfg(any(target_env = "msvc", target_vendor = "apple"))]
 use trillium_native_tls::NativeTlsConfig as TlsConfig;
-#[cfg(all(not(target_env = "msvc"), not(target_vendor = "apple")))]
+#[cfg(all(not(target_env = "msvc"), not(target_vendor = "apple")))]*/
 use trillium_rustls::RustlsConfig as TlsConfig;
 
 pub const USER_AGENT: &str = concat!("http-mel/", env!("CARGO_PKG_VERSION"));
