@@ -1,6 +1,8 @@
 use log/logger::Logger
 use std/data/string_map::StringMap
 use std/flow::passBlock
+use std/flow::flock
+use std/flow::trigger
 use std/ops/vec::|concat
 use std/ops::|condition
 use std/ops/option::|wrap
@@ -20,12 +22,14 @@ use work/resources/arch::Arch
 use root/builder::runnerBuild
 use root/states::setServiceState
 
-treatment buildMelodium[cicd: CicdDispatchEngine, logger: Logger](target: string, build: bool, release: bool, on: Arch, pre_commands: Vec<Command> = [], environment_variables: StringMap, repository_url: string, gitlab_token: string, pipeline: string, project: string, sha: string, ref: string, rust_memory: u32 = 4000, rust_storage: u32 = 5000, on_github: bool = false, on_gitlab: bool = false)
+treatment buildMelodium[cicd: CicdDispatchEngine, logger: Logger](target: string, build: bool, build_testers: bool = false, release: bool, on: Arch, pre_commands: Vec<Command> = [], environment_variables: StringMap, repository_url: string, gitlab_token: string, pipeline: string, project: string, sha: string, ref: string, rust_memory: u32 = 4000, rust_storage: u32 = 5000, on_github: bool = false, on_gitlab: bool = false)
   model runner: CicdRunnerEngine()
-  input trigger: Block<void>
-  output data:   Stream<byte>
+  input trigger:  Block<void>
+  output binary:  Stream<byte>
+  output testers: Stream<byte>
 {
     doBuild: passBlock<void>(cond=build)
+    doBuildTesters: passBlock<void>(cond=build_testers)
     setServiceState[logger=logger](gitlab_root_url="https://gitlab.com/api/v4", token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, name=|format("Build target {target}", |entry("target", target)), description="Building Mélodium on Mélodium-managed CI", on_github=on_github, on_gitlab=on_gitlab)
     runnerBuild[cicd=cicd, runner=runner, logger=logger](
         name=target,
@@ -62,15 +66,29 @@ treatment buildMelodium[cicd: CicdDispatchEngine, logger: Logger](target: string
         out_file="melodium",
         stop_on_failure=true
     )
-
+    testersCompilation: stepOn[runner=runner, logger=logger](
+        executor_name="rust",
+        environment=|wrap<Environment>(|environment(environment_variables, "/work/melodium/test/testers", true, false)),
+        commands=[
+            |command("cargo", ["build", "--target", target]),
+            |command("find", [|format("target/{target}/", |entry("target", target)), "-maxdepth", "1", "-type", "f", "-executable", "-exec", "tar", "--verbose", "--gzip", "--append", "--file", "testers.tar.gz", "{}", ";"]),
+            |command("mv", ["testers.tar.gz", "/mounted/result/testers.tar.gz"])
+        ],
+        out_filesystem="compilation-result",
+        out_file="testers.tar.gz"
+    )
+    flockCompilations: flock<void>()
+    triggerFinishedCompilations: trigger<void>()
     stopRunner[runner=runner]()
 
-    Self.trigger -> doBuild.block,passed -> runnerBuild.trigger,ready -> preSteps.trigger,completed -> gitClone.trigger,completed -> compilation.trigger,data -> Self.data
+    Self.trigger -> doBuild.block,passed -> runnerBuild.trigger,ready -> preSteps.trigger,completed -> gitClone.trigger,completed -> compilation.trigger,data -> Self.binary
+    gitClone.completed -> doBuildTesters.block,passed -> testersCompilation.trigger,data -> Self.testers
     doBuild.passed -> setServiceState.pending
     runnerBuild.ready -> setServiceState.running
     compilation.completed -> setServiceState.success
     compilation.failed -> setServiceState.failed
-    compilation.finished -> stopRunner.trigger
+    compilation.finished -> flockCompilations.a,stream -> triggerFinishedCompilations.stream,end -> stopRunner.trigger
+    testersCompilation.finished -> flockCompilations.b
 }
 /*
 treatment buildTester[cicd_distant: CicdDispatchEngine, logger: Logger](target: string, build: bool, on: Arch)

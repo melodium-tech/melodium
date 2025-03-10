@@ -1,0 +1,195 @@
+use cicd/runners::CicdDispatchEngine
+use cicd/runners::CicdRunnerEngine
+use cicd/runners::setupRunner
+use cicd/runners::stopRunner
+use cicd/steps::stepOn
+use cicd/steps::stepOnWithInput
+use log/logger::Logger
+use process/command::|command
+use process/command::|raw_commands
+use process/environment::Environment
+use process/environment::|environment
+use std/text/compose::|format
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/ops/bin::|and
+use std/ops/option::|wrap
+use std/flow::passBlock
+use std/flow::waitBlock
+use std/ops/vec::|contains
+use work/resources::|container
+use work/resources/arch::Arch
+use work/resources/arch::|amd64
+use work/resources/arch::|arm64
+use work/resources::|volume
+use work/resources::|mount
+
+treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch, target: string, test_image: string)
+  model runner: CicdRunnerEngine()
+  input trigger: Block<void>
+  input testers: Stream<byte>
+  input binary:  Stream<byte>
+  output finished: Block<void>
+{
+    doTest: passBlock<void>(cond=test)
+    setupRunner[
+        dispatcher=cicd,
+        runner=runner,
+        logger=logger
+    ](
+        name=|format("test:{target}", |entry("target", target)),
+        cpu=1,
+        memory=500,
+        storage=1000,
+        volumes=[|volume("binaries", 500)],
+        containers=[
+            |container("testers", 500, 1, 5000, arch, [|mount("binaries", "/mounted/binaries")], test_image, _),
+            |container("postgresql", 1000, 1, 5000, arch, [], "postgres:16", _)
+        ]
+    )
+    launchPostgre: stepOn[runner=runner, logger=logger](
+        executor_name="postgresql",
+        environment=|wrap<Environment>(|environment(|map([
+            |entry("POSTGRES_DB", "test_db"),
+            |entry("POSTGRES_USER", "test_user"),
+            |entry("POSTGRES_PASSWORD", "test_pAs$w0rÐ"),
+            |entry("POSTGRES_HOST", "postgres"),
+            |entry("POSTGRES_HOST_AUTH_METHOD", "trust")
+        ]), _, false, false)),
+        commands=[
+            |command("bash", ["-c", "postgres & disown"])
+        ]
+    )
+    installMelodium: stepOnWithInput[runner=runner, logger=logger](
+        executor_name="testers",
+        in_filesystem="binaries",
+        in_file="melodium",
+        commands=[
+            |command("mv", ["/mounted/binaries/melodium", "/usr/local/bin/melodium"]),
+            |command("chmod", ["+x", "/usr/local/bin/melodium"])
+        ]
+    )
+    makeTests: stepOnWithInput[runner=runner, logger=logger](
+        executor_name="testers",
+        in_filesystem="binaries",
+        in_file="testers.tar.gz",
+        commands=[
+            |command("tar", ["--extract", "--gzip", "--file", "/mounted/binaries/testers.tar.gz"]),
+            |command("./complex_call", []),
+            |command("./fs", []),
+            |command("./generics", []),
+            |command("./http_client", []),
+            |command("./http_javascript", []),
+            |command("./process", []),
+            |command("./regex", []),
+            |command("./sql", []),
+            |command("./http_distributed", [])
+        ]
+    )
+    stopRunner[runner=runner]()
+
+    waitPostgreAndMelodium: waitBlock<void>()
+
+    Self.trigger -> doTest.block,passed -> setupRunner.trigger,ready -> launchPostgre.trigger,finished ---> waitPostgreAndMelodium.a,awaited -> makeTests.trigger,finished -> Self.finished
+                                           setupRunner.ready ---------> installMelodium.trigger,finished -> waitPostgreAndMelodium.b            makeTests.finished ---------> stopRunner.trigger
+    Self.binary ------------------------------------------------------> installMelodium.data
+    Self.testers -----------------------------------------------------> makeTests.data
+}
+
+treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, gitlab_token: string, project: string, sha: string, ref: string, pipeline: string, test: bool, on_github: bool = false, on_gitlab: bool = false)
+  input trigger: Block<void>
+  input binReleaseX86_64UnknownLinuxGnu: Stream<byte>
+  input binReleaseX86_64UnknownLinuxMusl: Stream<byte>
+  input binReleaseAarch64UnknownLinuxGnu: Stream<byte>
+  input binReleaseAarch64UnknownLinuxMusl: Stream<byte>
+  input binReleaseI686UnknownLinuxGnu: Stream<byte>
+  input binReleaseI686UnknownLinuxMusl: Stream<byte>
+  input binReleaseWasm32UnknownUnknown: Stream<byte>
+  input binReleaseX86_64AppleDarwin: Stream<byte>
+  input binReleaseAarch64AppleDarwin: Stream<byte>
+  input binReleaseX86_64PcWindowsGnu: Stream<byte>
+  input binReleaseX86_64PcWindowsMsvc: Stream<byte>
+  input binReleaseI686PcWindowsGnu: Stream<byte>
+  input binReleaseI686PcWindowsMsvc: Stream<byte>
+  input binReleaseAarch64PcWindowsMsvc: Stream<byte>
+  input binTestersX86_64UnknownLinuxGnu: Stream<byte>
+  input binTestersX86_64UnknownLinuxMusl: Stream<byte>
+  input binTestersAarch64UnknownLinuxGnu: Stream<byte>
+  input binTestersAarch64UnknownLinuxMusl: Stream<byte>
+  input binTestersI686UnknownLinuxGnu: Stream<byte>
+  input binTestersI686UnknownLinuxMusl: Stream<byte>
+  input binTestersWasm32UnknownUnknown: Stream<byte>
+  input binTestersX86_64AppleDarwin: Stream<byte>
+  input binTestersAarch64AppleDarwin: Stream<byte>
+  input binTestersX86_64PcWindowsGnu: Stream<byte>
+  input binTestersX86_64PcWindowsMsvc: Stream<byte>
+  input binTestersI686PcWindowsGnu: Stream<byte>
+  input binTestersI686PcWindowsMsvc: Stream<byte>
+  input binTestersAarch64PcWindowsMsvc: Stream<byte>
+{
+    testX86_64UnknownLinuxGnu: test[cicd=cicd, logger=logger]
+      (
+        test=|and<bool>(test, |contains<string>(targets, "x86_64-unknown-linux-gnu")),
+        target="x86_64-unknown-linux-gnu",
+        arch=|amd64(),
+        test_image="ubuntu:bookworm"
+      )
+    Self.trigger -------------------------> testX86_64UnknownLinuxGnu.trigger
+    Self.binReleaseX86_64UnknownLinuxGnu -> testX86_64UnknownLinuxGnu.binary
+    Self.binTestersX86_64UnknownLinuxGnu -> testX86_64UnknownLinuxGnu.testers
+
+    testX86_64UnknownLinuxMusl: test[cicd=cicd, logger=logger]
+      (
+        test=|contains<string>(targets, "x86_64-unknown-linux-musl"),
+        target="x86_64-unknown-linux-musl",
+        arch=|amd64(),
+        test_image="alpine:3"
+      )
+    Self.trigger --------------------------> testX86_64UnknownLinuxMusl.trigger
+    Self.binReleaseX86_64UnknownLinuxMusl -> testX86_64UnknownLinuxMusl.binary
+    Self.binTestersX86_64UnknownLinuxMusl -> testX86_64UnknownLinuxMusl.testers
+
+    testAarch64UnknownLinuxGnu: test[cicd=cicd, logger=logger]
+      (
+        test=|and<bool>(test, |contains<string>(targets, "aarch64-unknown-linux-gnu")),
+        target="aarch64-unknown-linux-gnu",
+        arch=|arm64(),
+        test_image="ubuntu:bookworm"
+      )
+    Self.trigger --------------------------> testAarch64UnknownLinuxGnu.trigger
+    Self.binReleaseAarch64UnknownLinuxGnu -> testAarch64UnknownLinuxGnu.binary
+    Self.binTestersAarch64UnknownLinuxGnu -> testAarch64UnknownLinuxGnu.testers
+
+    testAarch64UnknownLinuxMusl: test[cicd=cicd, logger=logger]
+      (
+        test=|and<bool>(test, |contains<string>(targets, "aarch64-unknown-linux-musl")),
+        target="aarch64-unknown-linux-musl",
+        arch=|arm64(),
+        test_image="alpine:3"
+      )
+    Self.trigger --------------------------> testAarch64UnknownLinuxMusl.trigger
+    Self.binReleaseAarch64UnknownLinuxMusl -> testAarch64UnknownLinuxMusl.binary
+    Self.binTestersAarch64UnknownLinuxMusl -> testAarch64UnknownLinuxMusl.testers
+
+    testI686UnknownLinuxGnu: test[cicd=cicd, logger=logger]
+      (
+        test=|and<bool>(test, |contains<string>(targets, "i686-unknown-linux-gnu")),
+        target="i686-unknown-linux-gnu",
+        arch=|amd64(),
+        test_image="ubuntu:bookworm"
+      )
+    Self.trigger -----------------------> testI686UnknownLinuxGnu.trigger
+    Self.binReleaseI686UnknownLinuxGnu -> testI686UnknownLinuxGnu.binary
+    Self.binTestersI686UnknownLinuxGnu -> testI686UnknownLinuxGnu.testers
+
+    testI686UnknownLinuxMusl: test[cicd=cicd, logger=logger]
+      (
+        test=|and<bool>(test, |contains<string>(targets, "i686-unknown-linux-musl")),
+        target="i686-unknown-linux-musl",
+        arch=|amd64(),
+        test_image="alpine:3"
+      )
+    Self.trigger ------------------------> testI686UnknownLinuxMusl.trigger
+    Self.binReleaseI686UnknownLinuxMusl -> testI686UnknownLinuxMusl.binary
+    Self.binTestersI686UnknownLinuxMusl -> testI686UnknownLinuxMusl.testers
+}
