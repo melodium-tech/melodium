@@ -1,7 +1,7 @@
 use http/client/util::post
 use std/data/string_map::StringMap
 use std/data/string_map::|entry
-use std/data/string_map:::|map
+use std/data/string_map::|map
 use std/text/compose::|format
 use std/flow::emit
 use std/flow::stream
