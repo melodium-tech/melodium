@@ -34,7 +34,7 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
   output finished: Block<void>
 {
     doTest: passBlock<void>(cond=test)
-    setServiceState[logger=logger](gitlab_root_url="https://gitlab.com/api/v4", token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, name=|format("Test target {target}", |entry("target", target)), description=|format("Test Mélodium on Mélodium-managed CI (test: {do})", |entry("do", |to_string<bool>(test))), on_github=on_github, on_gitlab=on_gitlab)
+    setServiceState[logger=logger](report=test, gitlab_root_url="https://gitlab.com/api/v4", token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, name=|format("Test target {target}", |entry("target", target)), description=|format("Test Mélodium on Mélodium-managed CI (test: {do})", |entry("do", |to_string<bool>(test))), on_github=on_github, on_gitlab=on_gitlab)
     setupRunner[
         dispatcher=cicd,
         runner=runner,
@@ -48,7 +48,8 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
         containers=[
             |container("testers", 500, 1, 5000, arch, [|mount("binaries", "/mounted/binaries")], test_image, _),
             |container("postgresql", 1000, 1, 5000, arch, [], "postgres:16", _)
-        ]
+        ],
+        stop_on_failure=false
     )
     launchPostgre: stepOn[runner=runner, logger=logger](
         executor_name="postgresql",
