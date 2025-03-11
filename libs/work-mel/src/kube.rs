@@ -73,11 +73,13 @@ impl KubeExecutor {
 
         impl Replacer for VarReplacer<'_> {
             fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
-                *dst = self
-                    .variables
-                    .get(&caps[1].to_string())
-                    .map(|str| str.clone())
-                    .unwrap_or_default();
+                dst.push_str(
+                    self.variables
+                        .get(&caps[1].to_string())
+                        .map(|str| str.clone())
+                        .unwrap_or_default()
+                        .as_str(),
+                );
             }
         }
 
@@ -131,12 +133,12 @@ impl KubeExecutor {
 
                             let mut content = String::new();
                             match process_stdout.read_to_string(&mut content).await {
-                                Ok(s) => {
+                                Ok(_s) => {
                                     // Removing '\n'
                                     content.pop();
                                     content
                                 }
-                                Err(e) => String::new(),
+                                Err(_e) => String::new(),
                             }
                         };
 

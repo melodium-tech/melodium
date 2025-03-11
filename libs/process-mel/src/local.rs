@@ -11,7 +11,7 @@ struct VarReplacer;
 
 impl Replacer for VarReplacer {
     fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
-        *dst = std::env::var(&caps[1]).unwrap_or_default();
+        dst.push_str(std::env::var(&caps[1]).unwrap_or_default().as_str());
     }
 }
 
