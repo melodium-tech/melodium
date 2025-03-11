@@ -218,6 +218,8 @@ impl ExecutorEngine for KubeExecutor {
 
         full_command.extend(command.arguments.clone());
 
+        eprintln!("Running command '{full_command:?}'");
+
         match pod
             .exec(
                 &self.pod,
@@ -328,6 +330,8 @@ impl ExecutorEngine for KubeExecutor {
         };
 
         full_command.extend(command.arguments.clone());
+
+        eprintln!("Running command '{full_command:?}'");
 
         match pod
             .exec(
@@ -490,6 +494,8 @@ impl ExecutorEngine for KubeExecutor {
         };
 
         full_command.extend(command.arguments.clone());
+
+        eprintln!("Running command '{full_command:?}'");
 
         match pod
             .exec(
