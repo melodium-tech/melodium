@@ -379,7 +379,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
         rust_memory=6000,
         rust_storage=25000,
         environment_variables=|map([
-          |entry("PATH", "/osxcross/target/bin:${CARGO_HOME}/bin:${PATH}"),
+          |entry("PATH", "${CARGO_HOME}/bin:/osxcross/target/bin:${PATH}"),
           |entry("CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER", "x86_64-apple-darwin16-clang"),
           |entry("CARGO_TARGET_X86_64_APPLE_DARWIN_AR", "x86_64-apple-darwin16-ar"),
           |entry("TARGET_CC", "x86_64-apple-darwin16-cc"),
@@ -421,7 +421,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
         rust_memory=6000,
         rust_storage=25000,
         environment_variables=|map([
-          |entry("PATH", "/osxcross/target/bin:${CARGO_HOME}/bin:${PATH}"),
+          |entry("PATH", "${CARGO_HOME}/bin:/osxcross/target/bin:${PATH}"),
           |entry("CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER", "aarch64-apple-darwin20.4-clang"),
           |entry("CARGO_TARGET_AARCH64_APPLE_DARWIN_AR", "aarch64-apple-darwin20.4-ar"),
           |entry("TARGET_CC", "aarch64-apple-darwin20.4-cc"),
@@ -492,7 +492,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
             if [ ! -f .cargo/bin/xwin ]
             then
               cargo install xwin --locked
-              xwin --accept-license --manifest-version 16 --arch x86_64 --cache-dir /.xwin-cache splat --output /.xwin
+              xwin --accept-license --log-level info --manifest-version 16 --arch x86_64 --cache-dir /.xwin-cache splat --output /.xwin
             fi"])
         ],
         repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
@@ -542,7 +542,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
             if [ ! -f .cargo/bin/xwin ]
             then
               cargo install xwin --locked
-              xwin --accept-license --manifest-version 16 --arch x86 --cache-dir /.xwin-cache splat --output /.xwin
+              xwin --accept-license --log-level info --manifest-version 16 --arch x86 --cache-dir /.xwin-cache splat --output /.xwin
             fi"])
         ],
         repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
@@ -571,7 +571,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
             if [ ! -f .cargo/bin/xwin ]
             then
               cargo install xwin --locked
-              xwin --accept-license --manifest-version 16 --arch aarch64 --cache-dir /.xwin-cache splat --output /.xwin
+              xwin --accept-license --log-level info --manifest-version 16 --arch aarch64 --cache-dir /.xwin-cache splat --output /.xwin
             fi"])
         ],
         repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
