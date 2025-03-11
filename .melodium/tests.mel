@@ -150,7 +150,7 @@ treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, 
 
     testX86_64UnknownLinuxMusl: test[cicd=cicd, logger=logger]
       (
-        test=|contains<string>(targets, "x86_64-unknown-linux-musl"),
+        test=|and<bool>(test, |contains<string>(targets, "x86_64-unknown-linux-musl")),
         target="x86_64-unknown-linux-musl",
         arch=|amd64(),
         test_image="alpine:3",
