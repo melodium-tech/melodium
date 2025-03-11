@@ -47,7 +47,7 @@ treatment main(const key: string, out_directory: string, repository_url: string,
       "aarch64-unknown-linux-musl",
       "i686-unknown-linux-gnu",
       "i686-unknown-linux-musl",
-      "wasm32-unknown-unknown",
+      //"wasm32-unknown-unknown",
       "x86_64-apple-darwin",
       "aarch64-apple-darwin",
       "x86_64-pc-windows-gnu",
@@ -387,7 +387,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
         ]),
         pre_commands=[
           |command("apt-get", ["update"]),
-          |command("apt-get", ["install", "-y", "clang", "gcc", "g++", "cmake", "zlib1g-dev", "libmpc-dev", "libmpfr-dev", "libgmp-dev"]),
+          |command("apt-get", ["install", "-y", "clang", "gcc", "g++", "cmake", "zlib1g-dev", "libmpc-dev", "libmpfr-dev", "libgmp-dev", "tree"]),
           |command("rustup", ["target", "add", "x86_64-apple-darwin"]),
           |command("bash", ["-c", "
             if [ ! -d /osxcross ]
@@ -402,6 +402,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
               mv MacOSX10.12.sdk.tar.xz tarballs/
               UNATTENDED=yes OSX_VERSION_MIN=10.12 ./build.sh
               ln -s \"/osxcross/target/bin/x86_64-apple-darwin16-strip\" \"/osxcross/target/bin/strip\"
+              tree target/
               cd \"$base\"
             fi"])
         ],
@@ -438,6 +439,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
               wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-611675b.tar.gz
               tar --extract --gzip --file osxcross-611675b.tar.gz
               mv osxcross-master osxcross
+              cd osxcross
               wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX11.3.sdk.tar.xz
               mv MacOSX11.3.sdk.tar.xz tarballs/
               UNATTENDED=yes OSX_VERSION_MIN=11.3 ./build.sh
@@ -479,7 +481,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
         rust_storage=15000,
         environment_variables=|map([
           |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
-          |entry("CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS", "-Ctarget-feature=+crt-static -Lnative=${PWD}/.xwin/crt/lib/x86_64 -Lnative=${PWD}/.xwin/sdk/lib/um/x86_64 -Lnative=${PWD}/.xwin/sdk/lib/ucrt/x86_64"),
+          |entry("CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS", "-Ctarget-feature=+crt-static -Lnative=/.xwin/crt/lib/x86_64 -Lnative=/.xwin/sdk/lib/um/x86_64 -Lnative=/.xwin/sdk/lib/ucrt/x86_64"),
           |entry("CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER", "lld")
         ]),
         pre_commands=[
@@ -490,7 +492,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
             if [ ! -f .cargo/bin/xwin ]
             then
               cargo install xwin --locked
-              xwin --accept-license --manifest-version 16 --arch x86_64 --cache-dir ./.xwin-cache splat --output $PWD/.xwin
+              xwin --accept-license --manifest-version 16 --arch x86_64 --cache-dir /.xwin-cache splat --output /.xwin
             fi"])
         ],
         repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
@@ -529,7 +531,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
         rust_storage=15000,
         environment_variables=|map([
           |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
-          |entry("CARGO_TARGET_I686_PC_WINDOWS_MSVC_RUSTFLAGS", "-Ctarget-feature=+crt-static -Lnative=${PWD}/.xwin/crt/lib/x86 -Lnative=${PWD}/.xwin/sdk/lib/um/x86 -Lnative=${PWD}/.xwin/sdk/lib/ucrt/x86"),
+          |entry("CARGO_TARGET_I686_PC_WINDOWS_MSVC_RUSTFLAGS", "-Ctarget-feature=+crt-static -Lnative=/.xwin/crt/lib/x86 -Lnative=/.xwin/sdk/lib/um/x86 -Lnative=/.xwin/sdk/lib/ucrt/x86"),
           |entry("CARGO_TARGET_I686_PC_WINDOWS_MSVC_LINKER", "lld")
         ]),
         pre_commands=[
@@ -540,7 +542,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
             if [ ! -f .cargo/bin/xwin ]
             then
               cargo install xwin --locked
-              xwin --accept-license --manifest-version 16 --arch x86 --cache-dir ./.xwin-cache splat --output $PWD/.xwin
+              xwin --accept-license --manifest-version 16 --arch x86 --cache-dir /.xwin-cache splat --output /.xwin
             fi"])
         ],
         repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
@@ -558,7 +560,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
         rust_storage=15000,
         environment_variables=|map([
           |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
-          |entry("CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_RUSTFLAGS", "-Ctarget-feature=+crt-static -Lnative=${PWD}/.xwin/crt/lib/aarch64 -Lnative=${PWD}/.xwin/sdk/lib/um/aarch64 -Lnative=${PWD}/.xwin/sdk/lib/ucrt/aarch64"),
+          |entry("CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_RUSTFLAGS", "-Ctarget-feature=+crt-static -Lnative=/.xwin/crt/lib/aarch64 -Lnative=/.xwin/sdk/lib/um/aarch64 -Lnative=/.xwin/sdk/lib/ucrt/aarch64"),
           |entry("CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER", "lld")
         ]),
         pre_commands=[
@@ -569,7 +571,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
             if [ ! -f .cargo/bin/xwin ]
             then
               cargo install xwin --locked
-              xwin --accept-license --manifest-version 16 --arch aarch64 --cache-dir ./.xwin-cache splat --output $PWD/.xwin
+              xwin --accept-license --manifest-version 16 --arch aarch64 --cache-dir /.xwin-cache splat --output /.xwin
             fi"])
         ],
         repository_url=repository_url, gitlab_token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
