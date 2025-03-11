@@ -10,6 +10,7 @@ use process/command::|raw_commands
 use process/environment::Environment
 use process/environment::|environment
 use std/text/compose::|format
+use std/conv::|to_string
 use std/data/string_map::|entry
 use std/data/string_map::|map
 use std/ops/bin::|and
@@ -33,7 +34,7 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
   output finished: Block<void>
 {
     doTest: passBlock<void>(cond=test)
-    setServiceState[logger=logger](gitlab_root_url="https://gitlab.com/api/v4", token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, name=|format("Test target {target}", |entry("target", target)), description="Test Mélodium on Mélodium-managed CI", on_github=on_github, on_gitlab=on_gitlab)
+    setServiceState[logger=logger](gitlab_root_url="https://gitlab.com/api/v4", token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, name=|format("Test target {target}", |entry("target", target)), description=|format("Test Mélodium on Mélodium-managed CI (test: {do})", |entry("do", |to_string<bool>(test))), on_github=on_github, on_gitlab=on_gitlab)
     setupRunner[
         dispatcher=cicd,
         runner=runner,
