@@ -23,8 +23,9 @@ use work/resources/arch::|amd64
 use work/resources/arch::|arm64
 use work/resources::|volume
 use work/resources::|mount
+use root/states::setServiceState
 
-treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch, target: string, test_image: string)
+treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch, target: string, test_image: string, report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
   model runner: CicdRunnerEngine()
   input trigger: Block<void>
   input testers: Stream<byte>
@@ -32,6 +33,7 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
   output finished: Block<void>
 {
     doTest: passBlock<void>(cond=test)
+    setServiceState[logger=logger](gitlab_root_url="https://gitlab.com/api/v4", token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, name=|format("Test target {target}", |entry("target", target)), description="Test Mélodium on Mélodium-managed CI", on_github=on_github, on_gitlab=on_gitlab)
     setupRunner[
         dispatcher=cicd,
         runner=runner,
@@ -94,9 +96,14 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
                                            setupRunner.ready ---------> installMelodium.trigger,finished -> waitPostgreAndMelodium.b            makeTests.finished ---------> stopRunner.trigger
     Self.binary ------------------------------------------------------> installMelodium.data
     Self.testers -----------------------------------------------------> makeTests.data
+
+    doTest.passed -> setServiceState.pending
+    waitPostgreAndMelodium.awaited -> setServiceState.running
+    makeTests.completed -> setServiceState.success
+    makeTests.failed -> setServiceState.failed
 }
 
-treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, gitlab_token: string, project: string, sha: string, ref: string, pipeline: string, test: bool, on_github: bool = false, on_gitlab: bool = false)
+treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, report_service_token: string, project: string, sha: string, ref: string, pipeline: string, test: bool, on_github: bool = false, on_gitlab: bool = false)
   input trigger: Block<void>
   input binReleaseX86_64UnknownLinuxGnu: Stream<byte>
   input binReleaseX86_64UnknownLinuxMusl: Stream<byte>
@@ -132,7 +139,8 @@ treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, 
         test=|and<bool>(test, |contains<string>(targets, "x86_64-unknown-linux-gnu")),
         target="x86_64-unknown-linux-gnu",
         arch=|amd64(),
-        test_image="ubuntu:bookworm"
+        test_image="ubuntu:bookworm",
+        report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -------------------------> testX86_64UnknownLinuxGnu.trigger
     Self.binReleaseX86_64UnknownLinuxGnu -> testX86_64UnknownLinuxGnu.binary
@@ -143,7 +151,8 @@ treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, 
         test=|contains<string>(targets, "x86_64-unknown-linux-musl"),
         target="x86_64-unknown-linux-musl",
         arch=|amd64(),
-        test_image="alpine:3"
+        test_image="alpine:3",
+        report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger --------------------------> testX86_64UnknownLinuxMusl.trigger
     Self.binReleaseX86_64UnknownLinuxMusl -> testX86_64UnknownLinuxMusl.binary
@@ -154,7 +163,8 @@ treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, 
         test=|and<bool>(test, |contains<string>(targets, "aarch64-unknown-linux-gnu")),
         target="aarch64-unknown-linux-gnu",
         arch=|arm64(),
-        test_image="ubuntu:bookworm"
+        test_image="ubuntu:bookworm",
+        report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger --------------------------> testAarch64UnknownLinuxGnu.trigger
     Self.binReleaseAarch64UnknownLinuxGnu -> testAarch64UnknownLinuxGnu.binary
@@ -165,7 +175,8 @@ treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, 
         test=|and<bool>(test, |contains<string>(targets, "aarch64-unknown-linux-musl")),
         target="aarch64-unknown-linux-musl",
         arch=|arm64(),
-        test_image="alpine:3"
+        test_image="alpine:3",
+        report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger --------------------------> testAarch64UnknownLinuxMusl.trigger
     Self.binReleaseAarch64UnknownLinuxMusl -> testAarch64UnknownLinuxMusl.binary
@@ -176,7 +187,8 @@ treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, 
         test=|and<bool>(test, |contains<string>(targets, "i686-unknown-linux-gnu")),
         target="i686-unknown-linux-gnu",
         arch=|amd64(),
-        test_image="ubuntu:bookworm"
+        test_image="ubuntu:bookworm",
+        report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger -----------------------> testI686UnknownLinuxGnu.trigger
     Self.binReleaseI686UnknownLinuxGnu -> testI686UnknownLinuxGnu.binary
@@ -187,7 +199,8 @@ treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, 
         test=|and<bool>(test, |contains<string>(targets, "i686-unknown-linux-musl")),
         target="i686-unknown-linux-musl",
         arch=|amd64(),
-        test_image="alpine:3"
+        test_image="alpine:3",
+        report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
     Self.trigger ------------------------> testI686UnknownLinuxMusl.trigger
     Self.binReleaseI686UnknownLinuxMusl -> testI686UnknownLinuxMusl.binary

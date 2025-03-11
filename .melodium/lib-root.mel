@@ -67,7 +67,7 @@ treatment main(const key: string, out_directory: string, repository_url: string,
       "i686-unknown-linux-gnu",
       "i686-unknown-linux-musl"
     ],
-      gitlab_token=ci_token, project=project, sha=sha, ref=ref, test=test, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
+      report_service_token=ci_token, project=project, sha=sha, ref=ref, test=test, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
     )
 
     startup.trigger -> builds.trigger
