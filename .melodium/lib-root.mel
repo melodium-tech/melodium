@@ -387,7 +387,7 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
         ]),
         pre_commands=[
           |command("apt-get", ["update"]),
-          |command("apt-get", ["install", "-y", "clang", "gcc", "g++", "cmake", "zlib1g-dev", "libmpc-dev", "libmpfr-dev", "libgmp-dev", "tree"]),
+          |command("apt-get", ["install", "-y", "clang", "gcc", "g++", "cmake", "zlib1g-dev", "libmpc-dev", "libmpfr-dev", "libgmp-dev"]),
           |command("rustup", ["target", "add", "x86_64-apple-darwin"]),
           |command("bash", ["-c", "
             if [ ! -d /osxcross ]
@@ -402,7 +402,6 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
               mv MacOSX10.12.sdk.tar.xz tarballs/
               UNATTENDED=yes OSX_VERSION_MIN=10.12 ./build.sh
               ln -s \"/osxcross/target/bin/x86_64-apple-darwin16-strip\" \"/osxcross/target/bin/strip\"
-              tree target/
               cd \"$base\"
             fi"])
         ],
