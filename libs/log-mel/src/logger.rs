@@ -136,6 +136,7 @@ impl TrackLog {
 
 #[derive(Debug)]
 #[mel_model(
+    param auto_close bool false
     source logs () () (
         all Stream<Log>
     )
@@ -212,7 +213,14 @@ impl Logger {
     }
 
     pub async fn remove_track(&self, track_id: usize) {
-        let _ = self.tracks.lock().await.remove(&track_id);
+        let close = {
+            let mut tracks = self.tracks.lock().await;
+            let _ = tracks.remove(&track_id);
+            tracks.len() == 0 && self.model.upgrade().unwrap().get_auto_close()
+        };
+        if close {
+            self.close_common().await;
+        }
     }
 
     pub async fn close_common(&self) {
