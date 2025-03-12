@@ -28,13 +28,13 @@ use root/tests::tests
 use root/logging::writeLogs
 
 treatment main(const key: string, out_directory: string, repository_url: string, ci_token: string, project: string, sha: string, test: bool = false, ref: string = "", pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
-  model logger: Logger(auto_close=true)
+  model logger: Logger()
   model cicd: CicdDispatchEngine(key=key)
 {
     startup()
 
     allLogs: logs[logger=logger]()
-    //stopLogs: stop[logger=logger]()
+    stopLogs: stop[logger=logger]()
     logConsole: console(timestamp=true)
     writeLogs(out_directory=out_directory)
     allLogs.all -> logConsole.logs
@@ -118,7 +118,7 @@ treatment main(const key: string, out_directory: string, repository_url: string,
     builds.binTestersI686PcWindowsMsvc -> tests.binTestersI686PcWindowsMsvc
     builds.binTestersAarch64PcWindowsMsvc -> tests.binTestersAarch64PcWindowsMsvc
 
-    //writeBinaries.allFinished -> stopLogs.trigger
+    writeBinaries.allFinished -> stopLogs.trigger
 }
 
 treatment writeBinaries(out_directory: string)
