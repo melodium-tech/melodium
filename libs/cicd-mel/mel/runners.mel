@@ -42,7 +42,7 @@ treatment setupRunner[dispatcher: CicdDispatchEngine, runner: CicdRunnerEngine, 
     stopOnFailure: stop[distributor=runner]()
     oneFailed.value -> stopOnFailure.trigger
 
-    logErrorMessage[logger=logger](label="Distant error", message="Distant failed")
+    logErrorMessage[logger=logger](label=name, message="Dispatch failed")
     oneFailed.value -> logErrorMessage.trigger
 
     oneFailed: one<void>()

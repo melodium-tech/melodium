@@ -4,6 +4,7 @@ use std/data/string_map::|entry
 use std/data/string_map::|map
 use std/text/compose::|format
 use std/flow::emit
+use std/flow::pass
 use std/flow::stream
 use std/conv::toString
 use std/conv::|to_string
@@ -19,7 +20,7 @@ use log/logger::Logger
 use log/log::logError
 use log/log::logInfos
 
-treatment postGitlabState[logger: Logger](root_url: string, token: string, project: string, sha: string, state: StepState, ref: string, pipeline: string, name: string, description: string)
+treatment postGitlabState[logger: Logger](root_url: string, token: string, project: string, sha: string, state: StepState, ref: string, pipeline: string, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>
 {
     post(
@@ -35,9 +36,10 @@ treatment postGitlabState[logger: Logger](root_url: string, token: string, proje
                 ])
         )
     )
+    passInfos: pass<byte>(cond=log_response)
     logInfos[logger=logger](label="GitLab API")
     fromUtf8()
-    post.data -> fromUtf8.encoded,text -> logInfos.messages
+    post.data -> passInfos.stream,passed -> fromUtf8.encoded,text -> logInfos.messages
     logError[logger=logger](label="GitLab API")
     post.error -> logError.message
 

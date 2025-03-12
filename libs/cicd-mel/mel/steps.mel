@@ -38,7 +38,7 @@ use root/data::ioToString
 use root/runners::CicdRunnerEngine
 use root/runners::stopRunner
 
-treatment stepOn[runner: CicdRunnerEngine, logger: Logger](var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
+treatment stepOn[runner: CicdRunnerEngine, logger: Logger](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
   input trigger: Block<void>
   output started: Block<void>
   output finished: Block<void>
@@ -65,7 +65,7 @@ treatment stepOn[runner: CicdRunnerEngine, logger: Logger](var executor_name: Op
     stepOnWithInput.data ------> Self.data
 }
 
-treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
+treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
   input trigger: Block<void>
   input data: Stream<byte>
   output started: Block<void>
@@ -78,7 +78,7 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var in_files
 
     Self.trigger -> distribute.trigger
 
-    logDistribErr: logError[logger=logger](label="distribution")
+    logDistribErr: logError[logger=logger](label=name)
     distribute.error -> logDistribErr.message
 
     distribOrStepFailed: one<void>()
@@ -151,7 +151,7 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var in_files
     passStop: passBlock<void>(cond=stop_on_failure)
     distribOrStepFailed.value -> passStop.block,passed -> stopRunner.trigger
 
-    logStepFailed: logErrorMessage[logger=logger](message="Step failed")
+    logStepFailed: logErrorMessage[logger=logger](label=name, message="Step failed")
     distribOrStepFailed.value -> logStepFailed.trigger
 
     streamFinished: stream<void>()
