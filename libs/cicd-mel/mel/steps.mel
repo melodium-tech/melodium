@@ -47,6 +47,7 @@ treatment stepOn[runner: CicdRunnerEngine, logger: Logger](var name: string, var
   output data: Stream<byte>
 {
     stepOnWithInput[runner=runner, logger=logger](
+      name=name,
       executor_name=executor_name,
       environment=environment,
       commands=commands,

@@ -38,6 +38,7 @@ treatment buildMelodium[cicd: CicdDispatchEngine, logger: Logger](target: string
         rust_storage=rust_storage
     )
     preSteps: stepOn[runner=runner, logger=logger](
+        name=|format("{target} pre steps", |entry("target", target)),
         executor_name="rust",
         commands=|concat<Command>([
             |command("mkdir", ["--verbose", "--parents", "/work"])
@@ -45,6 +46,7 @@ treatment buildMelodium[cicd: CicdDispatchEngine, logger: Logger](target: string
         stop_on_failure=false
     )
     gitClone: stepOn[runner=runner, logger=logger](
+        name=|format("{target} git clone", |entry("target", target)),
         executor_name="rust",
         environment=|wrap<Environment>(|environment(environment_variables, "/work", true, false)),
         commands=[
@@ -54,6 +56,7 @@ treatment buildMelodium[cicd: CicdDispatchEngine, logger: Logger](target: string
         stop_on_failure=false
     )
     compilation: stepOn[runner=runner, logger=logger](
+        name=|format("{target} compilation", |entry("target", target)),
         executor_name="rust",
         environment=|wrap<Environment>(|environment(environment_variables, "/work/melodium", true, false)),
         commands=[
@@ -67,6 +70,7 @@ treatment buildMelodium[cicd: CicdDispatchEngine, logger: Logger](target: string
         stop_on_failure=true
     )
     testersCompilation: stepOn[runner=runner, logger=logger](
+        name=|format("{target} testers compilation", |entry("target", target)),
         executor_name="rust",
         environment=|wrap<Environment>(|environment(environment_variables, "/work/melodium/test/testers", true, false)),
         commands=[

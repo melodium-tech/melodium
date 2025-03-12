@@ -52,6 +52,7 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
         stop_on_failure=false
     )
     launchPostgre: stepOn[runner=runner, logger=logger](
+        name=|format("{target} test postgresql launch", |entry("target", target)),
         executor_name="postgresql",
         environment=|wrap<Environment>(|environment(|map([
             |entry("POSTGRES_DB", "test_db"),
@@ -65,6 +66,7 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
         ]
     )
     installMelodium: stepOnWithInput[runner=runner, logger=logger](
+        name=|format("{target} test Mélodium install", |entry("target", target)),
         executor_name="testers",
         in_filesystem="binaries",
         in_file="melodium",
@@ -74,6 +76,7 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
         ]
     )
     makeTests: stepOnWithInput[runner=runner, logger=logger](
+        name=|format("{target} tests", |entry("target", target)),
         executor_name="testers",
         in_filesystem="binaries",
         in_file="testers.tar.gz",
