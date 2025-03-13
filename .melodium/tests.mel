@@ -94,7 +94,7 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
         in_filesystem="binaries",
         in_file="testers.tar.gz",
         commands=[
-            |command("tar", ["--extract", "--gzip", "--file", "/mounted/binaries/testers.tar.gz"]),
+            |command("tar", ["--verbose", "--extract", "--gzip", "--file", "/mounted/binaries/testers.tar.gz"]),
             |command("./complex_call", []),
             |command("./fs", []),
             |command("./generics", []),
@@ -117,8 +117,8 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
     triggerFailure: trigger<void>()
     Self.trigger -> concentratedFailure.trigger,data -> triggerFailure.stream,start -> setServiceState.failed
 
-    Self.trigger -> doTest.block,passed -> setupRunner.trigger,ready -> launchPostgre.trigger,finished ---> waitPostgreAndMelodium.a,awaited -> makeTests.trigger,finished -> Self.finished
-                                           setupRunner.ready ---------> installMelodium.trigger,finished -> waitPostgreAndMelodium.b            makeTests.finished ---------> stopRunner.trigger
+    Self.trigger -> doTest.block,passed -> setupRunner.trigger,ready -> launchPostgre.trigger,completed ---> waitPostgreAndMelodium.a,awaited -> makeTests.trigger,finished -> Self.finished
+                                           setupRunner.ready ---------> installMelodium.trigger,completed -> waitPostgreAndMelodium.b            makeTests.finished ---------> stopRunner.trigger
     Self.binary ------------------------------------------------------> installMelodium.data
     Self.testers -----------------------------------------------------> makeTests.data
 
