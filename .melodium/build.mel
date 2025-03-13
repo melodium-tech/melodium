@@ -72,7 +72,7 @@ treatment buildMelodium[cicd: CicdDispatchEngine, logger: Logger](target: string
     testersCompilation: stepOn[runner=runner, logger=logger](
         name=|format("{target} testers compilation", |entry("target", target)),
         executor_name="rust",
-        environment=|wrap<Environment>(|environment(environment_variables, "/work/melodium/test/testers", true, false)),
+        environment=|wrap<Environment>(|environment(environment_variables, "/work/melodium/tests/testers", true, false)),
         commands=[
             |command("cargo", ["build", "--target", target]),
             |command("find", [|format("target/{target}/", |entry("target", target)), "-maxdepth", "1", "-type", "f", "-executable", "-exec", "tar", "--verbose", "--gzip", "--append", "--file", "testers.tar.gz", "{}", ";"]),
