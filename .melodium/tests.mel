@@ -15,6 +15,9 @@ use std/data/string_map::|entry
 use std/data/string_map::|map
 use std/ops/bin::|and
 use std/ops/option::|wrap
+use std/flow/concentrate::Concentrator
+use std/flow/concentrate::concentrateBlock
+use std/flow/concentrate::concentrated
 use std/flow::flock
 use std/flow::passBlock
 use std/flow::trigger
@@ -30,6 +33,7 @@ use root/states::setServiceState
 
 treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch, target: string, test_image: string, report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
   model runner: CicdRunnerEngine()
+  model failureConcentrator: Concentrator()
   input trigger: Block<void>
   input testers: Stream<byte>
   input binary:  Stream<byte>
@@ -49,13 +53,15 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
         volumes=[|volume("binaries", 500)],
         containers=[
             |container("testers", 500, 1, 5000, arch, [|mount("binaries", "/mounted/binaries")], test_image, _),
-            |container("postgresql", 1000, 1, 5000, arch, [], "postgres:16", _)
+            |container("postgres", 1000, 1, 5000, arch, [], "postgres:16", _)
         ],
         stop_on_failure=false
     )
+    setupRunnerFail: concentrateBlock<void>[concentrator=failureConcentrator]()
+    setupRunner.failed -> setupRunnerFail.data
     launchPostgre: stepOn[runner=runner, logger=logger](
         name=|format("{target} test postgresql launch", |entry("target", target)),
-        executor_name="postgresql",
+        executor_name="postgres",
         environment=|wrap<Environment>(|environment(|map([
             |entry("POSTGRES_DB", "test_db"),
             |entry("POSTGRES_USER", "test_user"),
@@ -67,6 +73,8 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
             |command("bash", ["-c", "postgres & disown"])
         ]
     )
+    launchPostgreFail: concentrateBlock<void>[concentrator=failureConcentrator]()
+    launchPostgre.failed -> launchPostgreFail.data
     installMelodium: stepOnWithInput[runner=runner, logger=logger](
         name=|format("{target} test Mélodium install", |entry("target", target)),
         executor_name="testers",
@@ -77,6 +85,8 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
             |command("chmod", ["+x", "/usr/local/bin/melodium"])
         ]
     )
+    installMelodiumFail: concentrateBlock<void>[concentrator=failureConcentrator]()
+    installMelodium.failed -> installMelodiumFail.data
     makeTests: stepOnWithInput[runner=runner, logger=logger](
         name=|format("{target} tests", |entry("target", target)),
         executor_name="testers",
@@ -95,9 +105,16 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
             |command("./http_distributed", [])
         ]
     )
+    makeTestsFail: concentrateBlock<void>[concentrator=failureConcentrator]()
+    makeTests.failed -> makeTestsFail.data
+
     stopRunner[runner=runner]()
 
     waitPostgreAndMelodium: waitBlock<void>()
+
+    concentratedFailure: concentrated<void>[concentrator=failureConcentrator]()
+    triggerFailure: trigger<void>()
+    Self.trigger -> concentratedFailure.trigger,data -> triggerFailure.stream,start -> setServiceState.failed
 
     Self.trigger -> doTest.block,passed -> setupRunner.trigger,ready -> launchPostgre.trigger,finished ---> waitPostgreAndMelodium.a,awaited -> makeTests.trigger,finished -> Self.finished
                                            setupRunner.ready ---------> installMelodium.trigger,finished -> waitPostgreAndMelodium.b            makeTests.finished ---------> stopRunner.trigger
@@ -107,7 +124,6 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
     doTest.passed -> setServiceState.pending
     waitPostgreAndMelodium.awaited -> setServiceState.running
     makeTests.completed -> setServiceState.success
-    makeTests.failed -> setServiceState.failed
 }
 
 treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, report_service_token: string, project: string, sha: string, ref: string, pipeline: string, test: bool, on_github: bool = false, on_gitlab: bool = false)
