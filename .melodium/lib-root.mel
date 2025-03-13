@@ -226,7 +226,7 @@ treatment ciX86_64[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: 
       build_on=|amd64(),
       build_environment_variables=|map([]),
       test_on=|amd64(),
-      test_image="ubuntu:bookworm"
+      test_image="ubuntu:noble"
     )
     Self.trigger -> ciArch.trigger,finished -> Self.finished
 }
