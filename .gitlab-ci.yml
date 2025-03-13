@@ -35,7 +35,7 @@ melodium:melodium_gitlab:
   variables:
     MELODIUM_HOME: /melodium_home
   script:
-    - /melodium run .melodium/Compo.toml main --on_gitlab=true --test=false --out_directory="\"$CI_PROJECT_DIR/results\"" --key "\"$MELODIUM_SERVICE_KEY\"" --repository_url "\"$CI_REPOSITORY_URL\"" --ci_token "\"$API_TOKEN\"" --project "\"$CI_PROJECT_ID\"" --sha "\"$CI_COMMIT_SHA\"" --ref "\"$CI_COMMIT_REF_NAME\"" --pipeline "\"$CI_PIPELINE_ID\""
+    - /melodium run .melodium/Compo.toml main --on_gitlab=true --test=true --out_directory="\"$CI_PROJECT_DIR/results\"" --key "\"$MELODIUM_SERVICE_KEY\"" --repository_url "\"$CI_REPOSITORY_URL\"" --ci_token "\"$API_TOKEN\"" --project "\"$CI_PROJECT_ID\"" --sha "\"$CI_COMMIT_SHA\"" --ref "\"$CI_COMMIT_REF_NAME\"" --pipeline "\"$CI_PIPELINE_ID\""
   artifacts:
     paths:
       - $CI_PROJECT_DIR/results

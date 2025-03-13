@@ -16,6 +16,7 @@ use std/data/string_map::|map
 use std/ops/bin::|and
 use std/ops/option::|wrap
 use std/flow::passBlock
+use std/flow::trigger
 use std/flow::waitBlock
 use std/ops/vec::|contains
 use work/resources::|container
@@ -147,7 +148,9 @@ treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, 
         test_image="ubuntu:bookworm",
         report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
-    Self.trigger -------------------------> testX86_64UnknownLinuxGnu.trigger
+    triggerX86_64UnknownLinuxGnu: trigger<byte>()
+    //Self.trigger -------------------------> testX86_64UnknownLinuxGnu.trigger
+    Self.binTestersX86_64UnknownLinuxGnu -> triggerX86_64UnknownLinuxGnu.stream,start -> testX86_64UnknownLinuxGnu.trigger
     Self.binReleaseX86_64UnknownLinuxGnu -> testX86_64UnknownLinuxGnu.binary
     Self.binTestersX86_64UnknownLinuxGnu -> testX86_64UnknownLinuxGnu.testers
 
@@ -159,7 +162,9 @@ treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, 
         test_image="alpine:3",
         report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
-    Self.trigger --------------------------> testX86_64UnknownLinuxMusl.trigger
+    triggerX86_64UnknownLinuxMusl: trigger<byte>()
+    //Self.trigger --------------------------> testX86_64UnknownLinuxMusl.trigger
+    Self.binTestersX86_64UnknownLinuxMusl -> triggerX86_64UnknownLinuxMusl.stream,start -> testX86_64UnknownLinuxMusl.trigger
     Self.binReleaseX86_64UnknownLinuxMusl -> testX86_64UnknownLinuxMusl.binary
     Self.binTestersX86_64UnknownLinuxMusl -> testX86_64UnknownLinuxMusl.testers
 
@@ -171,7 +176,9 @@ treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, 
         test_image="ubuntu:bookworm",
         report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
-    Self.trigger --------------------------> testAarch64UnknownLinuxGnu.trigger
+    triggerAarch64UnknownLinuxGnu: trigger<byte>()
+    //Self.trigger --------------------------> testAarch64UnknownLinuxGnu.trigger
+    Self.binTestersAarch64UnknownLinuxGnu -> triggerAarch64UnknownLinuxGnu.stream,start -> testAarch64UnknownLinuxGnu.trigger
     Self.binReleaseAarch64UnknownLinuxGnu -> testAarch64UnknownLinuxGnu.binary
     Self.binTestersAarch64UnknownLinuxGnu -> testAarch64UnknownLinuxGnu.testers
 
@@ -183,7 +190,9 @@ treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, 
         test_image="alpine:3",
         report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
-    Self.trigger --------------------------> testAarch64UnknownLinuxMusl.trigger
+    triggerAarch64UnknownLinuxMusl: trigger<byte>()
+    //Self.trigger --------------------------> testAarch64UnknownLinuxMusl.trigger
+    Self.binTestersAarch64UnknownLinuxMusl -> triggerAarch64UnknownLinuxMusl.stream,start -> testAarch64UnknownLinuxMusl.trigger
     Self.binReleaseAarch64UnknownLinuxMusl -> testAarch64UnknownLinuxMusl.binary
     Self.binTestersAarch64UnknownLinuxMusl -> testAarch64UnknownLinuxMusl.testers
 
@@ -195,7 +204,9 @@ treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, 
         test_image="ubuntu:bookworm",
         report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
-    Self.trigger -----------------------> testI686UnknownLinuxGnu.trigger
+    triggerI686UnknownLinuxGnu: trigger<byte>()
+    //Self.trigger -----------------------> testI686UnknownLinuxGnu.trigger
+    Self.binTestersI686UnknownLinuxGnu -> triggerI686UnknownLinuxGnu.stream,start -> testI686UnknownLinuxGnu.trigger
     Self.binReleaseI686UnknownLinuxGnu -> testI686UnknownLinuxGnu.binary
     Self.binTestersI686UnknownLinuxGnu -> testI686UnknownLinuxGnu.testers
 
@@ -207,7 +218,9 @@ treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, 
         test_image="alpine:3",
         report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
       )
-    Self.trigger ------------------------> testI686UnknownLinuxMusl.trigger
+    triggerI686UnknownLinuxMusl: trigger<byte>()
+    //Self.trigger ------------------------> testI686UnknownLinuxMusl.trigger
+    Self.binTestersI686UnknownLinuxMusl -> triggerI686UnknownLinuxMusl.stream,start -> testI686UnknownLinuxMusl.trigger
     Self.binReleaseI686UnknownLinuxMusl -> testI686UnknownLinuxMusl.binary
     Self.binTestersI686UnknownLinuxMusl -> testI686UnknownLinuxMusl.testers
 }
