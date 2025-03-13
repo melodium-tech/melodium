@@ -71,7 +71,8 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
         ]), _, false, false)),
         commands=[
             //|command("bash", ["-c", "sudo -u postgres postgres & disown"])
-            |command("docker-entrypoint.sh", [])
+            |command("docker-entrypoint.sh", []),
+            |command("echo", ["PostgreSQL launched"])
         ]
     )
     launchPostgreFail: concentrateBlock<void>[concentrator=failureConcentrator]()
@@ -95,14 +96,23 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
         in_file="testers.tar.gz",
         commands=[
             |command("tar", ["--verbose", "--extract", "--gzip", "--file", "/mounted/binaries/testers.tar.gz"]),
+            |command("echo", ["complex_call"]),
             |command("./complex_call", []),
+            |command("echo", ["fs"]),
             |command("./fs", []),
+            |command("echo", ["generics"]),
             |command("./generics", []),
+            |command("echo", ["http_client"]),
             |command("./http_client", []),
+            |command("echo", ["http_javascript"]),
             |command("./http_javascript", []),
+            |command("echo", ["process"]),
             |command("./process", []),
+            |command("echo", ["regex"]),
             |command("./regex", []),
+            |command("echo", ["sql"]),
             |command("./sql", []),
+            |command("echo", ["http_distributed"]),
             |command("./http_distributed", [])
         ]
     )
