@@ -70,7 +70,8 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
             |entry("POSTGRES_HOST_AUTH_METHOD", "trust")
         ]), _, false, false)),
         commands=[
-            |command("bash", ["-c", "sudo -u postgres postgres & disown"])
+            //|command("bash", ["-c", "sudo -u postgres postgres & disown"])
+            |command("docker-entrypoint.sh", [])
         ]
     )
     launchPostgreFail: concentrateBlock<void>[concentrator=failureConcentrator]()
