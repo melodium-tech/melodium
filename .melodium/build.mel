@@ -63,7 +63,7 @@ treatment buildMelodium[cicd: CicdDispatchEngine, logger: Logger](target: string
             |command("rustc", ["--version"]),
             |command("cargo", ["--version"]),
             |command("cargo", ["build", "--package", "melodium", "--target", target, |condition<string>(release, "--release", "")]),
-            |command("mv", [|format("target/{target}/{kind}/melodium{ext}", |map([|entry("target", target),|entry("kind", |condition<string>(release, "release", "debug")),|entry("ext", |condition<string>(|contains(target, "windows"), ".exe", ""))])), "/mounted/result/melodium"])
+            |command("mv", [|format("target/{target}/{kind}/melodium{ext}", |map([|entry("target", target), |entry("kind", |condition<string>(release, "release", "debug")),|entry("ext", |condition<string>(|contains(target, "windows"), ".exe", ""))])), "/mounted/result/melodium"])
         ],
         out_filesystem="compilation-result",
         out_file="melodium",
@@ -75,7 +75,8 @@ treatment buildMelodium[cicd: CicdDispatchEngine, logger: Logger](target: string
         environment=|wrap<Environment>(|environment(environment_variables, "/work/melodium/tests/testers", true, false)),
         commands=[
             |command("cargo", ["build", "--target", target]),
-            |command("find", [|format("target/{target}/", |entry("target", target)), "-maxdepth", "1", "-type", "f", "-executable", "-exec", "tar", "--verbose", "--gzip", "--append", "--file", "testers.tar.gz", "{}", ";"]),
+            |command("find", [|format("target/{target}/debug/", |entry("target", target)), "-maxdepth", "1", "-type", "f", "-executable", "-execdir", "tar", "--verbose", "--append", "--file", "/work/melodium/tests/testers/testers.tar", "{}", ";"]),
+            |command("gzip", ["testers.tar"]),
             |command("mv", ["testers.tar.gz", "/mounted/result/testers.tar.gz"])
         ],
         out_filesystem="compilation-result",
