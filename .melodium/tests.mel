@@ -15,6 +15,7 @@ use std/data/string_map::|entry
 use std/data/string_map::|map
 use std/ops/bin::|and
 use std/ops/option::|wrap
+use std/flow::flock
 use std/flow::passBlock
 use std/flow::trigger
 use std/flow::waitBlock

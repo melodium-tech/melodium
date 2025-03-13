@@ -22,6 +22,81 @@ use work/resources/arch::Arch
 use root/builder::runnerBuild
 use root/states::setServiceState
 
+
+treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build: bool, build_testers: bool = false, release: bool, on: Arch, pre_commands: Vec<Command> = [], environment_variables: StringMap, repository_url: string, gitlab_token: string, pipeline: string, project: string, sha: string, ref: string, rust_memory: u32 = 4000, rust_storage: u32 = 5000, on_github: bool = false, on_gitlab: bool = false)
+  model runner: CicdRunnerEngine()
+  input trigger:  Block<void>
+  output binary:  Stream<byte>
+  output testers: Stream<byte>
+{
+    doBuild: passBlock<void>(cond=build)
+    doBuildTesters: passBlock<void>(cond=build_testers)
+    setServiceState[logger=logger](report=build, gitlab_root_url="https://gitlab.com/api/v4", token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, name=|format("Build target {target}", |entry("target", target)), description="Building Mélodium on Mélodium-managed CI", on_github=on_github, on_gitlab=on_gitlab)
+    runnerBuild[cicd=cicd, runner=runner, logger=logger](
+        name=target,
+        on=on,
+        rust_memory=rust_memory,
+        rust_storage=rust_storage
+    )
+    preSteps: stepOn[runner=runner, logger=logger](
+        name=|format("{target} pre steps", |entry("target", target)),
+        executor_name="rust",
+        commands=|concat<Command>([
+            |command("mkdir", ["--verbose", "--parents", "/work"])
+        ], pre_commands),
+        stop_on_failure=false
+    )
+    gitClone: stepOn[runner=runner, logger=logger](
+        name=|format("{target} git clone", |entry("target", target)),
+        executor_name="rust",
+        environment=|wrap<Environment>(|environment(environment_variables, "/work", true, false)),
+        commands=[
+            |command("git", ["config", "--global", "url.https://.insteadOf", "git://"]),
+            |command("git", ["clone", "--branch", ref, "--depth", "1", "--shallow-submodules", repository_url, "melodium"])
+        ],
+        stop_on_failure=false
+    )
+    compilation: stepOn[runner=runner, logger=logger](
+        name=|format("{target} compilation", |entry("target", target)),
+        executor_name="rust",
+        environment=|wrap<Environment>(|environment(environment_variables, "/work/melodium", true, false)),
+        commands=[
+            |command("rustc", ["--version"]),
+            |command("cargo", ["--version"]),
+            |command("cargo", ["build", "--package", "melodium", "--target", target, |condition<string>(release, "--release", "")]),
+            |command("mv", [|format("target/{target}/{kind}/melodium{ext}", |map([|entry("target", target), |entry("kind", |condition<string>(release, "release", "debug")),|entry("ext", |condition<string>(|contains(target, "windows"), ".exe", ""))])), "/mounted/result/melodium"])
+        ],
+        out_filesystem="compilation-result",
+        out_file="melodium",
+        stop_on_failure=true
+    )
+    testersCompilation: stepOn[runner=runner, logger=logger](
+        name=|format("{target} testers compilation", |entry("target", target)),
+        executor_name="rust",
+        environment=|wrap<Environment>(|environment(environment_variables, "/work/melodium/tests/testers", true, false)),
+        commands=[
+            |command("cargo", ["build", "--target", target]),
+            |command("find", [|format("target/{target}/debug/", |entry("target", target)), "-maxdepth", "1", "-type", "f", "-executable", "-execdir", "tar", "--verbose", "--append", "--file", "/work/melodium/tests/testers/testers.tar", "{}", ";"]),
+            |command("gzip", ["testers.tar"]),
+            |command("mv", ["testers.tar.gz", "/mounted/result/testers.tar.gz"])
+        ],
+        out_filesystem="compilation-result",
+        out_file="testers.tar.gz"
+    )
+    flockCompilations: flock<void>()
+    triggerFinishedCompilations: trigger<void>()
+    stopRunner[runner=runner]()
+
+    Self.trigger -> doBuild.block,passed -> runnerBuild.trigger,ready -> preSteps.trigger,completed -> gitClone.trigger,completed -> compilation.trigger,data -> Self.binary
+    gitClone.completed -> doBuildTesters.block,passed -> testersCompilation.trigger,data -> Self.testers
+    doBuild.passed -> setServiceState.pending
+    runnerBuild.ready -> setServiceState.running
+    compilation.completed -> setServiceState.success
+    compilation.failed -> setServiceState.failed
+    compilation.finished -> flockCompilations.a,stream -> triggerFinishedCompilations.stream,end -> stopRunner.trigger
+    testersCompilation.finished -> flockCompilations.b
+}
+
 treatment buildMelodium[cicd: CicdDispatchEngine, logger: Logger](target: string, build: bool, build_testers: bool = false, release: bool, on: Arch, pre_commands: Vec<Command> = [], environment_variables: StringMap, repository_url: string, gitlab_token: string, pipeline: string, project: string, sha: string, ref: string, rust_memory: u32 = 4000, rust_storage: u32 = 5000, on_github: bool = false, on_gitlab: bool = false)
   model runner: CicdRunnerEngine()
   input trigger:  Block<void>
