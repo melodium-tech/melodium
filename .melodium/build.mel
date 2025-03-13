@@ -22,7 +22,6 @@ use work/resources/arch::Arch
 use root/builder::runnerBuild
 use root/states::setServiceState
 
-
 treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build: bool, build_testers: bool = false, release: bool, on: Arch, pre_commands: Vec<Command> = [], environment_variables: StringMap, repository_url: string, gitlab_token: string, pipeline: string, project: string, sha: string, ref: string, rust_memory: u32 = 4000, rust_storage: u32 = 5000, on_github: bool = false, on_gitlab: bool = false)
   model runner: CicdRunnerEngine()
   input trigger:  Block<void>
@@ -76,6 +75,7 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build:
         environment=|wrap<Environment>(|environment(environment_variables, "/work/melodium/tests/testers", true, false)),
         commands=[
             |command("cargo", ["build", "--target", target]),
+            |command("find", ["../", "-maxdepth", "1", "-type", "f", "-name", "*.mel", "-execdir", "tar", "--verbose", "--append", "--file", "/work/melodium/tests/testers/testers.tar", "{}", ";"]),
             |command("find", [|format("target/{target}/debug/", |entry("target", target)), "-maxdepth", "1", "-type", "f", "-executable", "-execdir", "tar", "--verbose", "--append", "--file", "/work/melodium/tests/testers/testers.tar", "{}", ";"]),
             |command("gzip", ["testers.tar"]),
             |command("mv", ["testers.tar.gz", "/mounted/result/testers.tar.gz"])
