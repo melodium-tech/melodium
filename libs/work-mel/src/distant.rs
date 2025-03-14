@@ -84,7 +84,7 @@ impl DistantEngine {
                                 .await
                                 .map_err(|err| err.to_string())?;
                             match connection.status() {
-                                Some(Status::Continue) => {
+                                Some(Status::Accepted) => {
                                     async_std::task::sleep(Duration::from_secs(5)).await;
                                 }
                                 Some(Status::Ok) => {
