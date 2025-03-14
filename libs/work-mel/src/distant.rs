@@ -88,14 +88,14 @@ impl DistantEngine {
                                     async_std::task::sleep(Duration::from_secs(5)).await;
                                 }
                                 Some(Status::Ok) => {
-                                    return serde_json::from_str(
+                                    return Ok(serde_json::from_str(
                                         &connection
                                             .response_body()
                                             .read_string()
                                             .await
                                             .map_err(|err| err.to_string())?,
                                     )
-                                    .map_err(|err| err.to_string())?
+                                    .map_err(|err| err.to_string())?)
                                 }
                                 Some(code) => return Err(format!("API responded {code}")),
                                 None => return Err("Invalid response from API".to_string()),
