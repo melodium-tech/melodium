@@ -2,13 +2,16 @@ use crate::access::*;
 use crate::api;
 use crate::resources::arch::*;
 use crate::resources::*;
+use core::time::Duration;
 use melodium_core::*;
 use melodium_macro::{mel_model, mel_treatment};
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock, Weak},
 };
+use trillium_async_std::async_std;
 use trillium_async_std::ClientConfig;
+use trillium_client::Status;
 use trillium_client::{Client, KnownHeaderName};
 #[cfg(any(target_env = "msvc", target_vendor = "apple"))]
 use trillium_native_tls::NativeTlsConfig as TlsConfig;
@@ -52,7 +55,7 @@ impl DistantEngine {
         self.client.write().unwrap().replace(Arc::new(client));
     }
 
-    pub async fn start(&self, request: api::Request) -> Result<api::Response, String> {
+    pub async fn start(&self, request: api::Request) -> Result<api::DistributionResponse, String> {
         let client = Arc::clone(self.client.read().unwrap().as_ref().unwrap());
 
         let connection = client
@@ -63,14 +66,45 @@ impl DistantEngine {
             .map_err(|err| err.to_string())?;
 
         match connection.success() {
-            Ok(mut connection) => serde_json::from_str(
-                &connection
-                    .response_body()
-                    .read_string()
-                    .await
-                    .map_err(|err| err.to_string())?,
-            )
-            .map_err(|err| err.to_string()),
+            Ok(mut connection) => {
+                match serde_json::from_str::<api::Response>(
+                    &connection
+                        .response_body()
+                        .read_string()
+                        .await
+                        .map_err(|err| err.to_string())?,
+                )
+                .map_err(|err| err.to_string())?
+                {
+                    api::Response::Ok(id) => {
+                        async_std::task::sleep(Duration::from_secs(1)).await;
+                        loop {
+                            let mut connection = client
+                                .get(format!("/execution/job/{id}/access"))
+                                .await
+                                .map_err(|err| err.to_string())?;
+                            match connection.status() {
+                                Some(Status::Continue) => {
+                                    async_std::task::sleep(Duration::from_secs(5)).await;
+                                }
+                                Some(Status::Ok) => {
+                                    return serde_json::from_str(
+                                        &connection
+                                            .response_body()
+                                            .read_string()
+                                            .await
+                                            .map_err(|err| err.to_string())?,
+                                    )
+                                    .map_err(|err| err.to_string())?
+                                }
+                                Some(code) => return Err(format!("API responded {code}")),
+                                None => return Err("Invalid response from API".to_string()),
+                            }
+                        }
+                    }
+                    api::Response::Error(err) => Ok(api::DistributionResponse::Error(err)),
+                }
+            }
             Err(status) => Err(status.to_string()),
         }
     }
@@ -144,7 +178,7 @@ pub async fn distant(
     if let Ok(_) = trigger.recv_one().await {
         match distant.start(start).await {
             Ok(distrib) => match distrib {
-                api::Response::Started(Some(access_info)) => {
+                api::DistributionResponse::Started(Some(access_info)) => {
                     let _ = access
                         .send_one(Value::Data(Arc::new(Access(api::CommonAccess {
                             addresses: access_info.addresses,
@@ -154,8 +188,8 @@ pub async fn distant(
                         }))))
                         .await;
                 }
-                api::Response::Started(None) => {}
-                api::Response::Error(errs) => {
+                api::DistributionResponse::Started(None) => {}
+                api::DistributionResponse::Error(errs) => {
                     let _ = failed.send_one(().into()).await;
                     let _ = errors.send_many(errs.into()).await;
                 }

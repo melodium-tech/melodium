@@ -12,6 +12,7 @@ pub struct CommonAccess {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Access {
+    pub id: Uuid,
     pub addresses: Vec<IpAddr>,
     pub port: u16,
     pub key: Uuid,
@@ -103,6 +104,13 @@ pub struct VolumeMount {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Response {
+    Ok(Uuid),
+    Error(Vec<String>),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DistributionResponse {
     Started(Option<Access>),
     Error(Vec<String>),
 }
