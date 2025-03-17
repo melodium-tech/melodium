@@ -97,23 +97,23 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
         commands=[
             |command("tar", ["--verbose", "--extract", "--gzip", "--file", "/mounted/binaries/testers.tar.gz"]),
             |command("echo", ["complex_call"]),
-            |command("./complex_call", []),
+            |command("bash", ["-c", "./complex_call"]),
             |command("echo", ["fs"]),
-            |command("./fs", []),
+            |command("bash", ["-c", "./fs"]),
             |command("echo", ["generics"]),
-            |command("./generics", []),
+            |command("bash", ["-c", "./generics"]),
             |command("echo", ["http_client"]),
-            |command("./http_client", []),
+            |command("bash", ["-c", "./http_client"]),
             |command("echo", ["http_javascript"]),
-            |command("./http_javascript", []),
+            |command("bash", ["-c", "./http_javascript"]),
             |command("echo", ["process"]),
-            |command("./process", []),
+            |command("bash", ["-c", "./process"]),
             |command("echo", ["regex"]),
-            |command("./regex", []),
+            |command("bash", ["-c", "./regex"]),
             //|command("echo", ["sql"]),
-            //|command("./sql", []),
+            //|command("bash", ["-c", "./sql"]),
             |command("echo", ["http_distributed"]),
-            |command("./http_distributed", [])
+            |command("bash", ["-c", "./http_distributed"])
         ]
     )
     makeTestsFail: concentrateBlock<void>[concentrator=failureConcentrator]()
