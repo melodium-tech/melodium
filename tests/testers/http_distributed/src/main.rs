@@ -39,7 +39,7 @@ fn main() {
 
     for trial in 0..3 {
         sleep(Duration::from_millis(500));
-        match ureq::post("http://localhost:8080/hello")
+        match ureq::post("http://localhost:28015/hello")
             .config()
             .timeout_global(Some(Duration::from_secs(1)))
             .build()
