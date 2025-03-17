@@ -1,4 +1,4 @@
-use std::process::{exit, Command};
+use std::process::{exit, Command, Stdio};
 
 const FILENAME: &str = "fs_try.data";
 const EXPECTED_SIZE: u64 = 128000 * 16;
@@ -7,6 +7,8 @@ fn main() {
     let mut melodium = Command::new("melodium")
         .arg("run")
         .arg("fs.mel")
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .spawn()
         .expect("failed to launch Mélodium executable");
 

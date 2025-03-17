@@ -1,4 +1,4 @@
-use std::process::{exit, Command};
+use std::process::{exit, Command, Stdio};
 
 fn main() {
     // Without TLS
@@ -18,6 +18,8 @@ fn test_download(url: &str, file: &str, log: &str) {
         .arg(&format!(r#""{file}""#))
         .arg("--log")
         .arg(&format!(r#""{log}""#))
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .spawn()
         .expect("failed to launch Mélodium executable");
 

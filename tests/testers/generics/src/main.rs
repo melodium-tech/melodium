@@ -1,4 +1,4 @@
-use std::process::{exit, Command};
+use std::process::{exit, Command, Stdio};
 
 const FILENAME: &str = "something.txt";
 const EXPECTED_SIZE: u64 = 6;
@@ -8,6 +8,8 @@ fn main() {
     let mut melodium = Command::new("melodium")
         .arg("run")
         .arg("generics.mel")
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .spawn()
         .expect("failed to launch Mélodium executable");
 

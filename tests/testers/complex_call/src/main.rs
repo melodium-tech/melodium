@@ -1,4 +1,4 @@
-use std::process::{exit, Command};
+use std::process::{exit, Command, Stdio};
 
 const FILENAME: &str = "output_count";
 const EXPECTED_SIZE: u64 = 16;
@@ -12,6 +12,8 @@ fn main() {
         .arg("complex_call.mel")
         .arg("--output")
         .arg(r#""./output_count""#)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .spawn()
         .expect("failed to launch Mélodium executable");
 

@@ -1,5 +1,5 @@
 use std::env;
-use std::process::{exit, Command};
+use std::process::{exit, Command, Stdio};
 
 const CONN_ERROR_FILENAME: &str = "connection_error";
 const EXEC_ERROR_FILENAME: &str = "execution_error";
@@ -29,6 +29,8 @@ fn main() {
         .arg(&format!(r#""{EXEC_ERROR_FILENAME}""#))
         .arg("--success_file")
         .arg(&format!(r#""{SUCCESS_FILENAME}""#))
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .spawn()
         .expect("failed to launch Mélodium executable");
 

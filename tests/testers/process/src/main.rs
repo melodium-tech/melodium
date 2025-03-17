@@ -1,4 +1,4 @@
-use std::process::{exit, Command};
+use std::process::{exit, Command, Stdio};
 
 const FILENAME: &str = "replaced.txt";
 const EXPECTED_CONTENT: &str = "This is bar!";
@@ -9,6 +9,8 @@ fn main() {
     let mut melodium = Command::new("melodium")
         .arg("run")
         .arg("process.mel")
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .spawn()
         .expect("failed to launch Mélodium executable");
 

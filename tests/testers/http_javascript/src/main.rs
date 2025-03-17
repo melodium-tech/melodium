@@ -1,4 +1,4 @@
-use std::process::{exit, Command};
+use std::process::{exit, Command, Stdio};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -6,6 +6,8 @@ fn main() {
     let mut melodium = Command::new("melodium")
         .arg("run")
         .arg("http_javascript.mel")
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .spawn()
         .expect("failed to launch Mélodium executable");
 

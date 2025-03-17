@@ -1,4 +1,4 @@
-use std::process::{exit, Command};
+use std::process::{exit, Command, Stdio};
 
 const FILENAME: &str = "output_number_regex";
 const INPUT_STRING: &str = "reyzerytnvz_ruty,àrûthtyjyjjy$$ù        🟦0123456 % 🚀 ";
@@ -12,6 +12,8 @@ fn main() {
         .arg(&format!(r#""{FILENAME}""#))
         .arg("--text")
         .arg(&format!(r#""{INPUT_STRING}""#))
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .spawn()
         .expect("failed to launch Mélodium executable");
 
