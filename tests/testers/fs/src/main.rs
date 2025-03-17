@@ -7,12 +7,21 @@ fn main() {
     let mut melodium = Command::new("melodium")
         .arg("run")
         .arg("fs.mel")
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("failed to launch Mélodium executable");
 
-    match melodium.wait() {
+    let output = melodium.wait_with_output();
+    println!(
+        "{}",
+        String::from_utf8_lossy(&output.as_ref().unwrap().stdout)
+    );
+    println!(
+        "{}",
+        String::from_utf8_lossy(&output.as_ref().unwrap().stderr)
+    );
+    match output.map(|o| o.status) {
         Ok(status) if status.success() => match std::fs::metadata(FILENAME) {
             Ok(metadata) => {
                 if metadata.len() != EXPECTED_SIZE {

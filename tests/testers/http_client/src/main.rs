@@ -2,10 +2,22 @@ use std::process::{exit, Command, Stdio};
 
 fn main() {
     // Without TLS
-    test_download("http://testing.melodium.tech/no-tls.txt", "no-tls.txt", "no-tls.log");
+    test_download(
+        "http://testing.melodium.tech/no-tls.txt",
+        "no-tls.txt",
+        "no-tls.log",
+    );
     // With TLS
-    test_download("https://testing.melodium.tech/tls.txt", "tls.txt", "tls.log");
-    test_download("https://melodium.tech/", "melodium_withtls.html", "melodium_withtls.log");
+    test_download(
+        "https://testing.melodium.tech/tls.txt",
+        "tls.txt",
+        "tls.log",
+    );
+    test_download(
+        "https://melodium.tech/",
+        "melodium_withtls.html",
+        "melodium_withtls.log",
+    );
 }
 
 fn test_download(url: &str, file: &str, log: &str) {
@@ -18,12 +30,21 @@ fn test_download(url: &str, file: &str, log: &str) {
         .arg(&format!(r#""{file}""#))
         .arg("--log")
         .arg(&format!(r#""{log}""#))
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("failed to launch Mélodium executable");
 
-    match melodium.wait() {
+    let output = melodium.wait_with_output();
+    println!(
+        "{}",
+        String::from_utf8_lossy(&output.as_ref().unwrap().stdout)
+    );
+    println!(
+        "{}",
+        String::from_utf8_lossy(&output.as_ref().unwrap().stderr)
+    );
+    match output.map(|o| o.status) {
         Ok(status) if status.success() => match std::fs::metadata(file) {
             Ok(metadata) => {
                 match std::fs::read_to_string(log) {

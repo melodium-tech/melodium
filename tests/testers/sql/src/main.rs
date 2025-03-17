@@ -29,12 +29,21 @@ fn main() {
         .arg(&format!(r#""{EXEC_ERROR_FILENAME}""#))
         .arg("--success_file")
         .arg(&format!(r#""{SUCCESS_FILENAME}""#))
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("failed to launch Mélodium executable");
 
-    match melodium.wait() {
+    let output = melodium.wait_with_output();
+    println!(
+        "{}",
+        String::from_utf8_lossy(&output.as_ref().unwrap().stdout)
+    );
+    println!(
+        "{}",
+        String::from_utf8_lossy(&output.as_ref().unwrap().stderr)
+    );
+    match output.map(|o| o.status) {
         Ok(status) if status.success() => {
             if let Ok(error_contents) = std::fs::read_to_string(CONN_ERROR_FILENAME) {
                 if !error_contents.is_empty() {

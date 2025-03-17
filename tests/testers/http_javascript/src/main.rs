@@ -6,8 +6,8 @@ fn main() {
     let mut melodium = Command::new("melodium")
         .arg("run")
         .arg("http_javascript.mel")
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("failed to launch Mélodium executable");
 

@@ -17,8 +17,8 @@ fn main() {
         .arg("d0bf1006-a851-50eb-b32b-5f443d642ce6")
         .arg("--send-key")
         .arg("9a1bed00-1051-565e-b418-f3b32462620d")
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("failed to launch Mélodium executable");
     let mut melodium = Command::new("melodium")
@@ -30,8 +30,8 @@ fn main() {
         .arg("\"d0bf1006-a851-50eb-b32b-5f443d642ce6\"")
         .arg("--self_key")
         .arg("\"9a1bed00-1051-565e-b418-f3b32462620d\"")
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("failed to launch Mélodium executable");
 
@@ -51,7 +51,10 @@ fn main() {
     let _ = melodium.kill();
     let _ = melodium_distrib.kill();
 
-    eprintln!("failure.log: {}", std::fs::read_to_string("failure.log").unwrap_or("Rien".to_string()));
+    eprintln!(
+        "failure.log: {}",
+        std::fs::read_to_string("failure.log").unwrap_or("Rien".to_string())
+    );
 
     if let Some(resp) = response {
         if resp.status() == 200 {
