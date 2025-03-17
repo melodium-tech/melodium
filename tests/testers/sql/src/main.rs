@@ -1,5 +1,5 @@
 use std::env;
-use std::process::{exit, Command, Stdio};
+use std::process::{exit, Command};
 
 const CONN_ERROR_FILENAME: &str = "connection_error";
 const EXEC_ERROR_FILENAME: &str = "execution_error";
@@ -29,21 +29,10 @@ fn main() {
         .arg(&format!(r#""{EXEC_ERROR_FILENAME}""#))
         .arg("--success_file")
         .arg(&format!(r#""{SUCCESS_FILENAME}""#))
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
         .spawn()
         .expect("failed to launch Mélodium executable");
 
-    let output = melodium.wait_with_output();
-    println!(
-        "{}",
-        String::from_utf8_lossy(&output.as_ref().unwrap().stdout)
-    );
-    println!(
-        "{}",
-        String::from_utf8_lossy(&output.as_ref().unwrap().stderr)
-    );
-    match output.map(|o| o.status) {
+    match melodium.wait() {
         Ok(status) if status.success() => {
             if let Ok(error_contents) = std::fs::read_to_string(CONN_ERROR_FILENAME) {
                 if !error_contents.is_empty() {

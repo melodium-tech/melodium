@@ -1,4 +1,4 @@
-use std::process::{exit, Command, Stdio};
+use std::process::{exit, Command};
 
 const FILENAME: &str = "output_count";
 const EXPECTED_SIZE: u64 = 16;
@@ -12,21 +12,10 @@ fn main() {
         .arg("complex_call.mel")
         .arg("--output")
         .arg(r#""./output_count""#)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
         .spawn()
         .expect("failed to launch Mélodium executable");
 
-    let output = melodium.wait_with_output();
-    println!(
-        "{}",
-        String::from_utf8_lossy(&output.as_ref().unwrap().stdout)
-    );
-    println!(
-        "{}",
-        String::from_utf8_lossy(&output.as_ref().unwrap().stderr)
-    );
-    match output.map(|o| o.status) {
+    match melodium.wait() {
         Ok(status) if status.success() => match std::fs::metadata(FILENAME) {
             Ok(metadata) => {
                 if metadata.len() != EXPECTED_SIZE {

@@ -1,4 +1,4 @@
-use std::process::{exit, Command, Stdio};
+use std::process::{exit, Command};
 
 fn main() {
     // Without TLS
@@ -30,21 +30,10 @@ fn test_download(url: &str, file: &str, log: &str) {
         .arg(&format!(r#""{file}""#))
         .arg("--log")
         .arg(&format!(r#""{log}""#))
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
         .spawn()
         .expect("failed to launch Mélodium executable");
 
-    let output = melodium.wait_with_output();
-    println!(
-        "{}",
-        String::from_utf8_lossy(&output.as_ref().unwrap().stdout)
-    );
-    println!(
-        "{}",
-        String::from_utf8_lossy(&output.as_ref().unwrap().stderr)
-    );
-    match output.map(|o| o.status) {
+    match melodium.wait() {
         Ok(status) if status.success() => match std::fs::metadata(file) {
             Ok(metadata) => {
                 match std::fs::read_to_string(log) {
