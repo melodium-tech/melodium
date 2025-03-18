@@ -32,6 +32,9 @@ fn main() {
         .spawn()
         .expect("failed to launch Mélodium executable");
 
+    println!("Launching SQL (stdout)");
+    eprintln!("Launching SQL (stderr)");
+
     let exit_code = match melodium.wait() {
         Ok(status) => {
             if let Ok(error_contents) = std::fs::read_to_string(CONN_ERROR_FILENAME) {
