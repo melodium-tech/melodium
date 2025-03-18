@@ -110,8 +110,8 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
             |command("./process", []),
             |command("echo", ["regex"]),
             |command("./regex", []),
-            //|command("echo", ["sql"]),
-            //|command("./sql", []),
+            |command("echo", ["sql"]),
+            |command("./sql", []),
             |command("echo", ["http_distributed"]),
             |command("./http_distributed", [])
         ]
