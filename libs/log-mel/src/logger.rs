@@ -1,12 +1,13 @@
 use async_std::{
     channel::{bounded, unbounded, Receiver, Sender},
-    sync::Mutex,
+    sync::{Barrier, Mutex},
 };
 use chrono::{DateTime, Utc};
 use core::{
     fmt::Display,
     sync::atomic::{AtomicBool, Ordering},
 };
+use futures::{pin_mut, select, FutureExt};
 use melodium_core::{common::executive::*, *};
 use melodium_macro::{check, mel_data, mel_function, mel_model, mel_treatment};
 use serde::{Deserialize, Serialize};
@@ -147,16 +148,23 @@ pub struct Logger {
     sender: Sender<Arc<Log>>,
     receiver: Receiver<Arc<Log>>,
     tracks: Mutex<HashMap<usize, TrackLogEntry>>,
+    inner_stop_barrier: Arc<Barrier>,
+    common_stop_barrier: Mutex<Option<Arc<Barrier>>>,
+    immediate_stop: Arc<AtomicBool>,
 }
 
 impl Logger {
     pub fn new(model: Weak<LoggerModel>) -> Self {
         let (sender, receiver) = unbounded();
+        let barrier = Arc::new(Barrier::new(2));
         Self {
             model,
             sender,
             receiver,
             tracks: Mutex::new(HashMap::new()),
+            inner_stop_barrier: Arc::clone(&barrier),
+            common_stop_barrier: Mutex::new(Some(barrier)),
+            immediate_stop: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -216,16 +224,21 @@ impl Logger {
         let _ = tracks.remove(&track_id);
     }
 
-    pub async fn close_common(&self) {
-        self.receiver.close();
-        self.tracks.lock().await.iter().for_each(|(_, trackentry)| {
-            trackentry.track_receiver.close();
-        });
+    pub async fn close_common(&self, immediate: bool) {
+        if let Some(barrier) = self.common_stop_barrier.lock().await.as_ref() {
+            self.immediate_stop.store(immediate, Ordering::Relaxed);
+            barrier.wait().await;
+            self.tracks.lock().await.iter().for_each(|(_, trackentry)| {
+                trackentry.track_receiver.close();
+            });
+        }
     }
 
     pub async fn continuous(&self) {
         let model = self.model.upgrade().unwrap();
         let receiver = self.receiver.clone();
+        let inner_stop_barrier = Arc::clone(&self.inner_stop_barrier);
+        let immediate_stop = Arc::clone(&self.immediate_stop);
 
         model
             .new_logs(
@@ -233,10 +246,33 @@ impl Logger {
                 &HashMap::new(),
                 Some(Box::new(move |mut outputs| {
                     let all = outputs.get("all");
-
                     vec![Box::new(Box::pin(async move {
-                        while let Ok(log) = receiver.recv().await {
-                            check!(all.send_one(Value::Data(log)).await)
+                        let recv = async {receiver.recv().await}.fuse();
+                        let barrier = inner_stop_barrier.wait().fuse();
+
+                        pin_mut!(recv, barrier);
+
+                        loop {
+                            select! {
+                                log = recv => {
+                                    match log {
+                                        Ok(log) => check!(all.send_one(Value::Data(log)).await),
+                                        Err(_) => break,
+                                    }
+                                }
+                                _ = barrier => {
+                                    if !immediate_stop.load(Ordering::Relaxed) {
+                                        loop {
+                                            match receiver.try_recv() {
+                                                Ok(log) => check!(all.send_one(Value::Data(log)).await),
+                                                Err(_) => break,
+                                            }
+                                        }
+                                    }
+                                    receiver.close();
+                                }
+                                complete => break,
+                            }
                         }
 
                         all.close().await;
@@ -256,13 +292,14 @@ impl Logger {
 
 #[mel_treatment(
     model logger Logger
+    default immediate false
     input trigger Block<void>
 )]
-pub async fn stop() {
+pub async fn stop(immediate: bool) {
     let logger = LoggerModel::into(logger);
 
     if let Ok(_) = trigger.recv_one().await {
-        logger.inner().close_common().await;
+        logger.inner().close_common(immediate).await;
     }
 }
 
