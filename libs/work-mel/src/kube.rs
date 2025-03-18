@@ -108,7 +108,6 @@ impl KubeExecutor {
         for key in keys {
             let var_command = vec![
                 "/usr/bin/env".to_string(),
-                "--split-string".to_string(),
                 "sh".to_string(),
                 "-c".to_string(),
                 format!("echo ${key}"),
@@ -191,8 +190,6 @@ impl ExecutorEngine for KubeExecutor {
             if let Some(dir) = &environment.working_directory {
                 env_command.push(format!("--chdir={dir}"));
             }
-
-            env_command.push("--split-string".to_string());
 
             if environment.clear_env {
                 env_command.push("--ignore-environment".to_string());
@@ -304,8 +301,6 @@ impl ExecutorEngine for KubeExecutor {
             if let Some(dir) = &environment.working_directory {
                 env_command.push(format!("--chdir={dir}"));
             }
-
-            env_command.push("--split-string".to_string());
 
             if environment.clear_env {
                 env_command.push("--ignore-environment".to_string());
@@ -468,8 +463,6 @@ impl ExecutorEngine for KubeExecutor {
             if let Some(dir) = &environment.working_directory {
                 env_command.push(format!("--chdir={dir}"));
             }
-
-            env_command.push("--split-string".to_string());
 
             if environment.clear_env {
                 env_command.push("--ignore-environment".to_string());
