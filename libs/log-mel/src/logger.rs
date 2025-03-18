@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use core::{
     fmt::Display,
     sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
 };
 use futures::{pin_mut, select, FutureExt};
 use melodium_core::{common::executive::*, *};
@@ -225,7 +226,8 @@ impl Logger {
     }
 
     pub async fn close_common(&self, immediate: bool) {
-        if let Some(barrier) = self.common_stop_barrier.lock().await.as_ref() {
+        let barrier = { self.common_stop_barrier.lock().await.take() };
+        if let Some(barrier) = barrier {
             self.immediate_stop.store(immediate, Ordering::Relaxed);
             barrier.wait().await;
             self.tracks.lock().await.iter().for_each(|(_, trackentry)| {
@@ -261,10 +263,21 @@ impl Logger {
                                 () = recv_finish => break,
                                 _ = barrier => {
                                     if !immediate_stop.load(Ordering::Relaxed) {
+                                        let mut iteration = 0;
                                         loop {
                                             match receiver.try_recv() {
-                                                Ok(log) => check!(all.send_one(Value::Data(log)).await),
-                                                Err(_) => break,
+                                                Ok(log) => {
+                                                    iteration = 0;
+                                                    check!(all.send_one(Value::Data(log)).await)
+                                                },
+                                                Err(_) => {
+                                                    if iteration < 5 {
+                                                        async_std::task::sleep(Duration::from_millis(10)).await;
+                                                        iteration += 1;
+                                                    } else {
+                                                        break
+                                                    }
+                                                },
                                             }
                                         }
                                     }
