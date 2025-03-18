@@ -482,10 +482,13 @@ impl DistributionEngine {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
                 loop {
                     async_std::task::sleep(Duration::from_secs(10)).await;
+                    eprintln!("Probing");
                     if protocol.send_message(Message::Probe).await.is_err() {
                         break;
                     }
+                    eprintln!("Probe OK");
                 }
+                eprintln!("Probe KO");
                 protocol.close().await;
             }
         }
