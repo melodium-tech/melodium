@@ -247,19 +247,18 @@ impl Logger {
                 Some(Box::new(move |mut outputs| {
                     let all = outputs.get("all");
                     vec![Box::new(Box::pin(async move {
-                        let recv = async {receiver.recv().await}.fuse();
+                        let recv_finish = async {
+                            while let Ok(log) = receiver.recv().await {
+                                check!(all.send_one(Value::Data(log)).await)
+                            }
+                        }.fuse();
                         let barrier = inner_stop_barrier.wait().fuse();
 
-                        pin_mut!(recv, barrier);
+                        pin_mut!(recv_finish, barrier);
 
                         loop {
                             select! {
-                                log = recv => {
-                                    match log {
-                                        Ok(log) => check!(all.send_one(Value::Data(log)).await),
-                                        Err(_) => break,
-                                    }
-                                }
+                                () = recv_finish => break,
                                 _ = barrier => {
                                     if !immediate_stop.load(Ordering::Relaxed) {
                                         loop {
