@@ -98,7 +98,7 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
             |entry("POSTGRES_DB", "test_db"),
             |entry("POSTGRES_USER", "test_user"),
             |entry("POSTGRES_PASSWORD", "test_pAs$w0rÐ"),
-            |entry("POSTGRES_HOST", "postgres"),
+            |entry("POSTGRES_HOST", "localhost"),
             |entry("POSTGRES_HOST_AUTH_METHOD", "trust")
         ]), _, false, false)),
         commands=[
