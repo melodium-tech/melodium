@@ -17,7 +17,8 @@ fn main() {
         .arg("sql.mel")
         .arg("--server_url")
         .arg(&format!(
-            r#""postgres://{user}:{password}@{host}:5432/{database}""#,
+            r#""postgres://{user}:{password}@{host}:{port}/{database}""#,
+            port = env::var("PGPORT").unwrap_or_else(|| "5432".into()),
             user = env::var("POSTGRES_USER").unwrap(),
             password = env::var("POSTGRES_PASSWORD").unwrap(),
             host = env::var("POSTGRES_HOST").unwrap(),
