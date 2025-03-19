@@ -272,7 +272,7 @@ impl Logger {
                                                 },
                                                 Err(_) => {
                                                     if iteration < 5 {
-                                                        async_std::task::sleep(Duration::from_millis(10)).await;
+                                                        async_std::task::sleep(Duration::from_millis(100)).await;
                                                         iteration += 1;
                                                     } else {
                                                         break
