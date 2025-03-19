@@ -9,7 +9,7 @@ use std/data/string_map::|entry
 use std/engine/util::startup
 use local/ci::archs
 
-treatment main(const key: string, out_directory: string, repository_url: string, ci_token: string, project: string, sha: string, test: bool = false, ref: string = "", pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
+treatment main(const key: string, out_directory: string, repository_url: string, ci_token: string, project: string, ref: string, test: bool = false, pipeline: string = "", sha: string = "", on_github: bool = false, on_gitlab: bool = false)
   model logger: Logger()
   model cicd: CicdDispatchEngine(key=key)
 {

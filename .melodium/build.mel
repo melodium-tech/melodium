@@ -25,7 +25,7 @@ use work/resources::|mount
 use work/resources::|volume
 use root/states::setServiceState
 
-treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build: bool, build_testers: bool = false, release: bool, on: Arch, pre_commands: Vec<Command> = [], environment_variables: StringMap, repository_url: string, gitlab_token: string, pipeline: string, project: string, sha: string, ref: string, rust_memory: u32 = 4000, rust_storage: u32 = 5000, on_github: bool = false, on_gitlab: bool = false)
+treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build: bool, build_testers: bool = false, release: bool, on: Arch, pre_commands: Vec<Command> = [], environment_variables: StringMap, repository_url: string, gitlab_token: string, pipeline: string, project: string, ref: string, sha: string, rust_memory: u32 = 4000, rust_storage: u32 = 5000, on_github: bool = false, on_gitlab: bool = false)
   model runner: CicdRunnerEngine()
   input trigger:  Block<void>
   output binary:  Stream<byte>
