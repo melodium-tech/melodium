@@ -94,6 +94,13 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
         executor_name="testers",
         in_filesystem="binaries",
         in_file="testers.tar.gz",
+        environment=|wrap<Environment>(|environment(|map([
+            |entry("POSTGRES_DB", "test_db"),
+            |entry("POSTGRES_USER", "test_user"),
+            |entry("POSTGRES_PASSWORD", "test_pAs$w0rÐ"),
+            |entry("POSTGRES_HOST", "postgres"),
+            |entry("POSTGRES_HOST_AUTH_METHOD", "trust")
+        ]), _, false, false)),
         commands=[
             |command("tar", ["--verbose", "--extract", "--gzip", "--file", "/mounted/binaries/testers.tar.gz"]),
             |command("echo", ["complex_call"]),

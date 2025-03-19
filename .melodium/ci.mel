@@ -1,0 +1,148 @@
+use cicd/runners::CicdDispatchEngine
+use fs/local::writeLocal
+use log/logger::Logger
+use std/flow::trigger
+use std/flow::one
+use std/flow::flock
+use std/flow/concentrate::Concentrator
+use std/flow/concentrate::concentrateBlock
+use std/flow/concentrate::concentrated
+use std/text/compose::|format
+use std/data/string_map::StringMap
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/text/compare::|contains
+use std/ops::|condition
+use work/resources/arch::Arch
+use work/resources/arch::|arm64
+use work/resources/arch::|amd64
+use work/resources::|volume
+use work/resources::|mount
+use process/command::Command
+use process/command::|raw_commands
+use root/build::build
+use root/test::test
+
+treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: bool = false, release: bool, out_directory: string, repository_url: string, report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
+  input trigger: Block<void>
+  output finished: Block<void>
+  model finishConcentrator: Concentrator()
+{
+    concentrated<void>[concentrator=finishConcentrator]()
+    triggerFinished: trigger<void>()
+    Self.trigger -> concentrated.trigger,data -> triggerFinished.stream,end -> Self.finished
+
+    ciX86_64UnknownLinuxGnu: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=test,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="x86_64-unknown-linux-gnu",
+      build_on=|amd64(),
+      build_environment_variables=|map([]),
+      test_on=|amd64(),
+      test_image="ubuntu:noble"
+    )
+    ciX86_64UnknownLinuxGnuFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciX86_64UnknownLinuxGnu.trigger,finished -> ciX86_64UnknownLinuxGnuFinished.data
+
+    ciX86_64UnknownLinuxMusl: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=test,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="x86_64-unknown-linux-musl",
+      build_on=|amd64(),
+      build_environment_variables=|map([]),
+      pre_build_commands=|raw_commands([
+          "apt-get update",
+          "apt-get install -y musl-tools",
+          "rustup target add x86_64-unknown-linux-musl"
+        ]),
+      test_on=|amd64(),
+      test_image="ubuntu:noble"
+    )
+    ciX86_64UnknownLinuxMuslFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciX86_64UnknownLinuxMusl.trigger,finished -> ciX86_64UnknownLinuxMuslFinished.data
+}
+
+treatment ciArch[logger: Logger, cicd: CicdDispatchEngine](target: string, build: bool, test: bool = false, release: bool, build_on: Arch, pre_build_commands: Vec<Command> = [], build_environment_variables: StringMap, test_on: Arch, test_image: string, out_directory: string, repository_url: string, report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
+  input trigger: Block<void>
+  output finished: Block<void>
+{
+    build[cicd=cicd, logger=logger]
+      (
+        build=build,
+        target=target,
+        release=release,
+        build_testers=test,
+        on=build_on,
+        environment_variables=build_environment_variables,
+        pre_commands=pre_build_commands,
+        repository_url=repository_url,
+        gitlab_token=report_service_token,
+        project=project,
+        sha=sha,
+        ref=ref,
+        pipeline=pipeline,
+        on_github=on_github,
+        on_gitlab=on_gitlab
+      )
+    melodiumBinaryReady: trigger<byte>()
+    testersReady: trigger<byte>()
+    triggerTests: one<void>()
+    Self.trigger -> build.trigger,binary -> test.binary
+                    build.testers --------> test.testers
+                    build.binary --> melodiumBinaryReady.stream,start -> triggerTests.a
+                    build.testers -> testersReady.stream,start --------> triggerTests.b
+    
+    test[cicd=cicd, logger=logger]
+      (
+        test=test,
+        target=target,
+        arch=test_on,
+        test_image=test_image,
+        report_service_token=report_service_token,
+        project=project,
+        sha=sha,
+        ref=ref,
+        pipeline=pipeline,
+        on_github=on_github,
+        on_gitlab=on_gitlab
+      )
+    triggerTests.value -> test.trigger
+
+    writeLocal(
+      path=|format("{dir}/melodium/{target}/melodium{ext}",
+        |map([
+          |entry("dir", out_directory),
+          |entry("target", target),
+          |entry("ext", |condition<string>(|contains(target, "windows"), ".exe", ""))
+        ])
+      )
+    )
+    build.binary -> writeLocal.data
+
+    flock<void>()
+    triggerFinished: trigger<void>()
+    test.finished -------> flock.a,stream -> triggerFinished.stream,end -> Self.finished
+    writeLocal.finished -> flock.b
+}
