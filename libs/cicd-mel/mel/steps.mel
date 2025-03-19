@@ -6,7 +6,6 @@ use std/data/string_map::|map
 use std/flow::close
 use std/flow::emit
 use std/flow::flock
-use std/flow::insert
 use std/flow::uncheck
 use std/flow::one
 use std/flow::passBlock
@@ -147,9 +146,7 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     Self.data ----> sendData.data
 
     injectStreamLog[logger=logger]()
-    triggerLogs: trigger<Log>()
     recvLogs.data -> injectStreamLog.logs
-    recvLogs.data -> triggerLogs.stream,end -> insertLogsFinished.block
 
     stopRunner[runner=runner]()
     passStop: passBlock<void>(cond=stop_on_failure)
@@ -158,12 +155,11 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     logStepFailed: logErrorMessage[logger=logger](label=name, message="Step failed")
     distribOrStepFailed.value -> logStepFailed.trigger
 
-    insertLogsFinished: insert<void>()
     streamFinished: stream<void>()
     triggerAllFinished: trigger<void>()
 
     recvStarted.data -> Self.started
-    recvFinished.data -> streamFinished.block,stream -> insertLogsFinished.stream,output -> triggerAllFinished.stream,end -> Self.finished
+    recvFinished.data -> streamFinished.block,stream -> triggerAllFinished.stream,end -> Self.finished
     recvFailed.data -> distribOrStepFailed.b,value -> Self.failed
     recvCompleted.data -> Self.completed
     recvData.data -> Self.data
