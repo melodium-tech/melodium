@@ -13,6 +13,7 @@ use work/distant::DistantEngine
 use work/distant::distant
 use work/resources/arch::Arch
 use work/resources::Container
+use work/resources::ServiceContainer
 use work/resources::Volume
 
 model CicdDispatchEngine(key: string, address: string = "https://api-staging.melodium.tech/0.1"): DistantEngine {
@@ -25,12 +26,12 @@ model CicdRunnerEngine(): DistributionEngine {
     version = "0.9.0-pre.1"
 }
 
-treatment setupRunner[dispatcher: CicdDispatchEngine, runner: CicdRunnerEngine, logger: Logger](name: string, cpu: u32, memory: u32, storage: u32, edition: Option<string> = _, arch: Option<Arch> = _, max_duration: u32 = 3600, volumes: Vec<Volume> = [], containers: Vec<Container> = [], var stop_on_failure: bool = true)
+treatment setupRunner[dispatcher: CicdDispatchEngine, runner: CicdRunnerEngine, logger: Logger](name: string, cpu: u32, memory: u32, storage: u32, edition: Option<string> = _, arch: Option<Arch> = _, max_duration: u32 = 3600, volumes: Vec<Volume> = [], containers: Vec<Container> = [], service_containers: Vec<ServiceContainer> = [], var stop_on_failure: bool = true)
   input trigger: Block<void>
   output ready:  Block<void>
   output failed: Block<void>
 {
-    distant[distant_engine=dispatcher](cpu=cpu, memory=memory, storage=storage, edition=edition, arch=arch, max_duration=max_duration, volumes=volumes, containers=containers)
+    distant[distant_engine=dispatcher](cpu=cpu, memory=memory, storage=storage, edition=edition, arch=arch, max_duration=max_duration, volumes=volumes, containers=containers, service_containers=service_containers)
 
     logDistantErrors: logErrors[logger=logger](label=name)
     distant.errors -> logDistantErrors.messages

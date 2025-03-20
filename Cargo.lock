@@ -5498,6 +5498,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "std-mel",
  "tokio",
  "trillium-async-std",
  "trillium-client",
