@@ -54,10 +54,10 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
         storage=1000,
         volumes=[|volume("binaries", 500)],
         containers=[
-            |container("testers", 500, 1, 5000, arch, [|mount("binaries", "/mounted/binaries")], test_image, _)
+            |container("testers", 500, 1000, 5000, arch, [|mount("binaries", "/mounted/binaries")], test_image, _)
         ],
         service_containers=[
-          |service_container("postgres", 1000, 1, 5000, arch, [], "postgres:16", _, |wrap<StringMap>(|map([
+          |service_container("postgres", 1000, 500, 5000, arch, [], "postgres:16", _, |wrap<StringMap>(|map([
             |entry("PGPORT", "42000"),
             |entry("POSTGRES_DB", "test_db"),
             |entry("POSTGRES_USER", "test_user"),

@@ -266,20 +266,25 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             if let Some(max_duration) = max_duration {
                 futures::future::select_all([
                     async {
+                        eprintln!("Awaiting barrier in limit");
                         barrier.wait().await;
                     }
                     .boxed(),
                     async {
                         async_std::task::sleep(max_duration).await;
                         expired.store(true, core::sync::atomic::Ordering::Relaxed);
+                        eprintln!("Limit expired");
                     }
                     .boxed(),
                 ])
                 .await;
+                eprintln!("Limit ending engine");
                 engine.end().await;
             } else {
+                eprintln!("Awaiting barrier in limit");
                 barrier.wait().await;
             }
+            eprintln!("Limit done");
         }
     };
     let live = {
@@ -290,8 +295,10 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             let _ = protocol.send_message(Message::Ended).await;
             protocol.close().await;
             if !expired.load(core::sync::atomic::Ordering::Relaxed) {
+                eprintln!("Awaiting barrier in live");
                 barrier.wait().await;
             }
+            eprintln!("Live done");
         }
     };
     let run = async {
@@ -501,12 +508,15 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             }
         }
 
+        eprintln!("Closing outputs in run");
         for (_, outputs) in tracks_entry_outputs.read().await.iter() {
             for (_, output) in outputs {
                 output.close().await;
             }
         }
+        eprintln!("End engine in run");
         engine.end().await;
+        eprintln!("Run done");
     };
     let probe = {
         let engine = Arc::clone(&engine);
@@ -524,10 +534,12 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             }
             eprintln!("Probe KO");
             protocol.close().await;
+            eprintln!("Probe done");
         }
     };
 
     futures::join!(limit, live, run, probe);
+    eprintln!("Listen stream finished");
 }
 
 #[cfg(any(
