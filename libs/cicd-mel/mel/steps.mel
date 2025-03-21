@@ -6,7 +6,6 @@ use std/data/string_map::|map
 use std/flow::close
 use std/flow::emit
 use std/flow::flock
-use std/flow::insert
 use std/flow::uncheck
 use std/flow::one
 use std/flow::passBlock
@@ -39,6 +38,21 @@ use root/data::ioToString
 use root/runners::CicdRunnerEngine
 use root/runners::stopRunner
 
+/**
+Runs step on given runner.
+
+Uses the `runner` to run given `commands` on executor designated by `executor_name` with `environment`.
+
+`name` serves as identifying purpose.
+
+After `commands` run, and if they all succeed, the `out_file` from `out_filesystem` is extracted and streamed through `data`.
+
+ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOn to directly extract `out_file` from `out_filesystem`.
+`out_file` and `out_filesystem` can be _none_ and `data` stream will be closed without emitting reading error.
+
+⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
+Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
+*/
 treatment stepOn[runner: CicdRunnerEngine, logger: Logger](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
   input trigger: Block<void>
   output started: Block<void>
@@ -147,9 +161,7 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     Self.data ----> sendData.data
 
     injectStreamLog[logger=logger]()
-    triggerLogs: trigger<Log>()
     recvLogs.data -> injectStreamLog.logs
-    recvLogs.data -> triggerLogs.stream,end -> insertLogsFinished.block
 
     stopRunner[runner=runner]()
     passStop: passBlock<void>(cond=stop_on_failure)
@@ -158,12 +170,11 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     logStepFailed: logErrorMessage[logger=logger](label=name, message="Step failed")
     distribOrStepFailed.value -> logStepFailed.trigger
 
-    insertLogsFinished: insert<void>()
     streamFinished: stream<void>()
     triggerAllFinished: trigger<void>()
 
     recvStarted.data -> Self.started
-    recvFinished.data -> streamFinished.block,stream -> insertLogsFinished.stream,output -> triggerAllFinished.stream,end -> Self.finished
+    recvFinished.data -> streamFinished.block,stream -> triggerAllFinished.stream,end -> Self.finished
     recvFailed.data -> distribOrStepFailed.b,value -> Self.failed
     recvCompleted.data -> Self.completed
     recvData.data -> Self.data

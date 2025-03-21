@@ -130,7 +130,8 @@ impl DistantEngine {
 /// - `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
 /// - `edition`: Mélodium edition the worker must rely on (see on the Mélodium Services documentation to get the full list, can be none if nothing specific is required);
 ///
-/// - `containers`: list of containers to instanciate alongside Mélodium engine;
+/// - `containers`: list of containers to instanciate alongside Mélodium engine as executors;
+/// - `service_containers`: list of containers to instanciate alongside Mélodium engine as services;
 /// - `volumes`: list of filesystem volumes that can be shared between the Mélodium engine and containers.
 ///
 /// It should be noted that the CPU and memory requirements for the Mélodium engine and possible containers are cumulative.
@@ -154,6 +155,7 @@ pub async fn distant(
     arch: Option<Arch>,
     volumes: Vec<Volume>,
     containers: Vec<Container>,
+    service_containers: Vec<ServiceContainer>,
 ) {
     let model = DistantEngineModel::into(distant_engine);
     let distant = model.inner();
@@ -173,6 +175,10 @@ pub async fn distant(
         arch: arch.map(|arch| arch.0),
         volumes: volumes.into_iter().map(|vol| vol.0.clone()).collect(),
         containers: containers.into_iter().map(|cont| cont.0.clone()).collect(),
+        service_containers: service_containers
+            .into_iter()
+            .map(|cont| cont.0.clone())
+            .collect(),
     };
 
     if let Ok(_) = trigger.recv_one().await {

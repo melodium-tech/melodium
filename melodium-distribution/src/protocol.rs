@@ -109,9 +109,13 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
         let mut data = Vec::new();
         match ciborium::into_writer(&message, &mut data) {
             Ok(()) => {
-                writer.write_all(&(data.len() as u32).to_be_bytes()).await?;
-                writer.write_all(&data).await?;
-                writer.flush().await?;
+                timeout(
+                    Duration::from_secs(TIMEOUT),
+                    writer.write_all(&(data.len() as u32).to_be_bytes()),
+                )
+                .await?;
+                timeout(Duration::from_secs(TIMEOUT), writer.write_all(&data)).await?;
+                timeout(Duration::from_secs(TIMEOUT), writer.flush()).await?;
                 Ok(())
             }
             Err(err) => Err(Error::Serialization(err)),

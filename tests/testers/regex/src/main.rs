@@ -15,9 +15,6 @@ fn main() {
         .spawn()
         .expect("failed to launch Mélodium executable");
 
-    println!("REGEX (stdout)");
-    eprintln!("REGEX (stderr)");
-
     match melodium.wait() {
         Ok(status) if status.success() => match std::fs::metadata(FILENAME) {
             Ok(_metadata) => match std::fs::read_to_string(FILENAME) {

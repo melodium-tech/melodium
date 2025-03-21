@@ -1,42 +1,15 @@
 use cicd/runners::CicdDispatchEngine
-use cicd/runners::stopRunner
-use cicd/steps::stepOn
-use fs/local::writeLocal
 use log/logger::Logger
 use log/logger::logs
 use log/logger::stop
+use log/file::writeAllLogs
 use log/console::console
-use std/flow/concentrate::Concentrator
-use std/flow/concentrate::concentrateBlock
-use std/flow/concentrate::concentrated
-use std/flow::trigger
-use std/flow::one
-use std/flow::flock
 use std/text/compose::|format
-use std/data/string_map::StringMap
 use std/data/string_map::|entry
-use std/data/string_map::|map
 use std/engine/util::startup
-use std/ops/vec::|contains
-use std/text/compare::|contains as |string_contains
-use std/ops::|condition
-use work/resources::|container
-use work/resources/arch::Arch
-use work/resources/arch::|arm64
-use work/resources/arch::|amd64
-use work/resources::|volume
-use work/resources::|mount
-use process/command::Command
-use process/command::|command
-use process/command::|raw_command
-use process/command::|raw_commands
-use root/build::buildMelodium
-use root/build::build
-use root/tests::test
-use root/tests::tests
-use root/logging::writeLogs
+use local/ci::archs
 
-treatment main(const key: string, out_directory: string, repository_url: string, ci_token: string, project: string, sha: string, test: bool = false, ref: string = "", pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
+treatment main(const key: string, out_directory: string, repository_url: string, ci_token: string, project: string, ref: string, test: bool = false, pipeline: string = "", sha: string = "", on_github: bool = false, on_gitlab: bool = false)
   model logger: Logger()
   model cicd: CicdDispatchEngine(key=key)
 {
@@ -45,12 +18,15 @@ treatment main(const key: string, out_directory: string, repository_url: string,
     allLogs: logs[logger=logger]()
     stopLogs: stop[logger=logger]()
     logConsole: console(timestamp=true)
-    writeLogs(out_directory=out_directory)
+    writeAllLogs(file=|format("{out_directory}/logs/full.log", |entry("out_directory", out_directory)))
     allLogs.all -> logConsole.logs
-    allLogs.all -> writeLogs.logs
+    allLogs.all -> writeAllLogs.logs
 
-    ciX86_64[cicd=cicd, logger=logger](release=true, build=true, test=test, out_directory=out_directory, repository_url=repository_url, report_service_token=ci_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab)
-    startup.trigger -> ciX86_64.trigger,finished -> stopLogs.trigger
+    /*ciX86_64[cicd=cicd, logger=logger](release=true, build=true, test=test, out_directory=out_directory, repository_url=repository_url, report_service_token=ci_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab)
+    startup.trigger -> ciX86_64.trigger,finished -> stopLogs.trigger*/
+
+    archs[cicd=cicd, logger=logger](release=true, build=true, test=test, out_directory=out_directory, repository_url=repository_url, report_service_token=ci_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab)
+    startup.trigger -> archs.trigger,finished -> stopLogs.trigger
 
   /*
     builds[cicd=cicd, logger=logger](targets=[
@@ -135,6 +111,7 @@ treatment main(const key: string, out_directory: string, repository_url: string,
   */
 }
 
+/*
 treatment writeBinaries(out_directory: string)
   model concentrator: Concentrator()
   input trigger: Block<void>
@@ -229,69 +206,6 @@ treatment ciX86_64[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: 
       test_image="ubuntu:noble"
     )
     Self.trigger -> ciArch.trigger,finished -> Self.finished
-}
-
-treatment ciArch[logger: Logger, cicd: CicdDispatchEngine](target: string, build: bool, test: bool = false, release: bool, build_on: Arch, pre_build_commands: Vec<Command> = [], build_environment_variables: StringMap, test_on: Arch, test_image: string, out_directory: string, repository_url: string, report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
-  input trigger: Block<void>
-  output finished: Block<void>
-{
-    build[cicd=cicd, logger=logger]
-      (
-        build=build,
-        target=target,
-        release=release,
-        build_testers=test,
-        on=build_on,
-        environment_variables=build_environment_variables,
-        pre_commands=pre_build_commands,
-        repository_url=repository_url,
-        gitlab_token=report_service_token,
-        project=project,
-        sha=sha,
-        ref=ref,
-        pipeline=pipeline,
-        on_github=on_github,
-        on_gitlab=on_gitlab
-      )
-    melodiumBinaryReady: trigger<byte>()
-    testersReady: trigger<byte>()
-    triggerTests: one<void>()
-    Self.trigger -> build.trigger,binary -> test.binary
-                    build.testers --------> test.testers
-                    build.binary --> melodiumBinaryReady.stream,start -> triggerTests.a
-                    build.testers -> testersReady.stream,start --------> triggerTests.b
-    
-    test[cicd=cicd, logger=logger]
-      (
-        test=test,
-        target=target,
-        arch=test_on,
-        test_image=test_image,
-        report_service_token=report_service_token,
-        project=project,
-        sha=sha,
-        ref=ref,
-        pipeline=pipeline,
-        on_github=on_github,
-        on_gitlab=on_gitlab
-      )
-    triggerTests.value -> test.trigger
-
-    writeLocal(
-      path=|format("{dir}/melodium/{target}/melodium{ext}",
-        |map([
-          |entry("dir", out_directory),
-          |entry("target", target),
-          |entry("ext", |condition<string>(|string_contains(target, "windows"), ".exe", ""))
-        ])
-      )
-    )
-    build.binary -> writeLocal.data
-
-    flock<void>()
-    triggerFinished: trigger<void>()
-    test.finished -------> flock.a,stream -> triggerFinished.stream,end -> Self.finished
-    writeLocal.finished -> flock.b
 }
 
 treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, repository_url: string, gitlab_token: string, project: string, sha: string, ref: string, pipeline: string, test: bool, on_github: bool = false, on_gitlab: bool = false)
@@ -682,3 +596,4 @@ treatment builds[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>,
     Self.trigger -> releaseAarch64PcWindowsMsvc.trigger,binary -> Self.binReleaseAarch64PcWindowsMsvc
                     releaseAarch64PcWindowsMsvc.testers --------> Self.binTestersAarch64PcWindowsMsvc
 }
+*/

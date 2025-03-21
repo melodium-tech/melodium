@@ -501,6 +501,8 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             }
         }
 
+        protocol.close().await;
+
         for (_, outputs) in tracks_entry_outputs.read().await.iter() {
             for (_, output) in outputs {
                 output.close().await;
@@ -514,15 +516,11 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         async move {
             loop {
                 async_std::task::sleep(Duration::from_secs(10)).await;
-                eprintln!("Probing");
                 if protocol.send_message(Message::Probe).await.is_err() {
-                    eprintln!("Probe error");
                     engine.end().await;
                     break;
                 }
-                eprintln!("Probe OK");
             }
-            eprintln!("Probe KO");
             protocol.close().await;
         }
     };
