@@ -175,7 +175,10 @@ pub async fn distant(
         arch: arch.map(|arch| arch.0),
         volumes: volumes.into_iter().map(|vol| vol.0.clone()).collect(),
         containers: containers.into_iter().map(|cont| cont.0.clone()).collect(),
-        service_containers: service_containers.into_iter().map(|cont| cont.0.clone()).collect(),
+        service_containers: service_containers
+            .into_iter()
+            .map(|cont| cont.0.clone())
+            .collect(),
     };
 
     if let Ok(_) = trigger.recv_one().await {

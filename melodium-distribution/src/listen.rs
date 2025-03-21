@@ -262,7 +262,6 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let engine = Arc::clone(&engine);
         let barrier = Arc::clone(&barrier);
         let expired = Arc::clone(&expired);
-        let protocol = Arc::clone(&protocol);
         async move {
             if let Some(max_duration) = max_duration {
                 futures::future::select_all([
@@ -281,7 +280,6 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                 .await;
                 eprintln!("Limit ending engine");
                 engine.end().await;
-                protocol.close().await;
             } else {
                 eprintln!("Awaiting barrier in limit");
                 barrier.wait().await;

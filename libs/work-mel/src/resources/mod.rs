@@ -3,10 +3,10 @@ pub mod arch;
 use crate::api;
 use arch::*;
 use fs_mel::filesystem::*;
-use std_mel::data::string_map::*;
 use melodium_core::*;
 use melodium_macro::{mel_data, mel_function, mel_treatment};
 use process_mel::exec::*;
+use std_mel::data::string_map::*;
 
 #[mel_treatment(
     input name Block<string>
@@ -136,7 +136,7 @@ pub fn service_container(
     image: string,
     pull_secret: Option<string>,
     env: Option<StringMap>,
-    command: Option<Vec<string>>
+    command: Option<Vec<string>>,
 ) -> ServiceContainer {
     ServiceContainer(api::ServiceContainer {
         name,
