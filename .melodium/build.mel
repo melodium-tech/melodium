@@ -110,7 +110,7 @@ treatment runnerBuild[cicd: CicdDispatchEngine, runner: CicdRunnerEngine, logger
         logger=logger
     ](
         name=name,
-        cpu=1,
+        cpu=1000,
         memory=500,
         storage=1300,
         volumes=[|volume("compilation-result", 1000)],

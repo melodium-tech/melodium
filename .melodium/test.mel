@@ -11,6 +11,7 @@ use process/environment::Environment
 use process/environment::|environment
 use std/text/compose::|format
 use std/conv::|to_string
+use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
 use std/ops/bin::|and
@@ -24,6 +25,7 @@ use std/flow::trigger
 use std/flow::waitBlock
 use std/ops/vec::|contains
 use work/resources::|container
+use work/resources::|service_container
 use work/resources/arch::Arch
 use work/resources/arch::|amd64
 use work/resources/arch::|arm64
@@ -52,32 +54,22 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
         storage=1000,
         volumes=[|volume("binaries", 500)],
         containers=[
-            |container("testers", 500, 1, 5000, arch, [|mount("binaries", "/mounted/binaries")], test_image, _),
-            |container("postgres", 1000, 1, 5000, arch, [], "postgres:16", _)
+            |container("testers", 500, 1, 5000, arch, [|mount("binaries", "/mounted/binaries")], test_image, _)
         ],
-        stop_on_failure=false
-    )
-    setupRunnerFail: concentrateBlock<void>[concentrator=failureConcentrator]()
-    setupRunner.failed -> setupRunnerFail.data
-    launchPostgre: stepOn[runner=runner, logger=logger](
-        name=|format("{target} test postgresql launch", |entry("target", target)),
-        executor_name="postgres",
-        environment=|wrap<Environment>(|environment(|map([
+        service_containers=[
+          |service_container("postgres", 1000, 1, 5000, arch, [], "postgres:16", _, |wrap<StringMap>(|map([
             |entry("PGPORT", "42000"),
             |entry("POSTGRES_DB", "test_db"),
             |entry("POSTGRES_USER", "test_user"),
             |entry("POSTGRES_PASSWORD", "test_pAs$w0rÐ"),
             |entry("POSTGRES_HOST", "localhost"),
             |entry("POSTGRES_HOST_AUTH_METHOD", "trust")
-        ]), _, false, false)),
-        commands=[
-            //|command("bash", ["-c", "sudo -u postgres postgres & disown"])
-            |command("docker-entrypoint.sh", []),
-            |command("echo", ["PostgreSQL launched"])
-        ]
+          ])), _)
+        ],
+        stop_on_failure=false
     )
-    launchPostgreFail: concentrateBlock<void>[concentrator=failureConcentrator]()
-    launchPostgre.failed -> launchPostgreFail.data
+    setupRunnerFail: concentrateBlock<void>[concentrator=failureConcentrator]()
+    setupRunner.failed -> setupRunnerFail.data
     installMelodium: stepOnWithInput[runner=runner, logger=logger](
         name=|format("{target} test Mélodium install", |entry("target", target)),
         executor_name="testers",
@@ -130,19 +122,16 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
 
     stopRunner[runner=runner]()
 
-    waitPostgreAndMelodium: waitBlock<void>()
-
     concentratedFailure: concentrated<void>[concentrator=failureConcentrator]()
     triggerFailure: trigger<void>()
     Self.trigger -> concentratedFailure.trigger,data -> triggerFailure.stream,start -> setServiceState.failed
 
-    Self.trigger -> doTest.block,passed -> setupRunner.trigger,ready -> launchPostgre.trigger,completed ---> waitPostgreAndMelodium.a,awaited -> makeTests.trigger,finished -> Self.finished
-                                           setupRunner.ready ---------> installMelodium.trigger,completed -> waitPostgreAndMelodium.b            makeTests.finished ---------> stopRunner.trigger
+    Self.trigger -> doTest.block,passed -> setupRunner.trigger,ready -> installMelodium.trigger,completed ---> makeTests.trigger,finished -> Self.finished
+    Self.testers --------------------------------------------------------------------------------------------> makeTests.data,finished ----> stopRunner.trigger
     Self.binary ------------------------------------------------------> installMelodium.data
-    Self.testers -----------------------------------------------------> makeTests.data
 
     doTest.passed -> setServiceState.pending
-    waitPostgreAndMelodium.awaited -> setServiceState.running
+    installMelodium.completed -> setServiceState.running
     makeTests.completed -> setServiceState.success
 }
 
