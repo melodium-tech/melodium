@@ -1,5 +1,5 @@
 use serde::{Deserialize, Deserializer, Serialize};
-use std::net::IpAddr;
+use std::{collections::HashMap, net::IpAddr};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -33,6 +33,7 @@ pub struct Request {
     pub arch: Option<Arch>,
     pub volumes: Vec<Volume>,
     pub containers: Vec<Container>,
+    pub service_containers: Vec<ServiceContainer>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -93,6 +94,20 @@ pub struct Container {
     pub storage: u32,
     pub arch: Arch,
     pub mounts: Vec<VolumeMount>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ServiceContainer {
+    pub name: String,
+    pub image: String,
+    pub pull_secret: String,
+    pub memory: u32,
+    pub cpu: u32,
+    pub storage: u32,
+    pub arch: Arch,
+    pub mounts: Vec<VolumeMount>,
+    pub env: HashMap<String, String>,
+    pub command: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

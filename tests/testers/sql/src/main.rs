@@ -17,7 +17,8 @@ fn main() {
         .arg("sql.mel")
         .arg("--server_url")
         .arg(&format!(
-            r#""postgres://{user}:{password}@{host}:5432/{database}""#,
+            r#""postgres://{user}:{password}@{host}:{port}/{database}""#,
+            port = env::var("PGPORT").unwrap_or_else(|_| "5432".into()),
             user = env::var("POSTGRES_USER").unwrap(),
             password = env::var("POSTGRES_PASSWORD").unwrap(),
             host = env::var("POSTGRES_HOST").unwrap(),
@@ -31,9 +32,6 @@ fn main() {
         .arg(&format!(r#""{SUCCESS_FILENAME}""#))
         .spawn()
         .expect("failed to launch Mélodium executable");
-
-    println!("Launching SQL (stdout)");
-    eprintln!("Launching SQL (stderr)");
 
     let exit_code = match melodium.wait() {
         Ok(status) => {

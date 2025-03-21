@@ -6,6 +6,7 @@ use fs_mel::filesystem::*;
 use melodium_core::*;
 use melodium_macro::{mel_data, mel_function, mel_treatment};
 use process_mel::exec::*;
+use std_mel::data::string_map::*;
 
 #[mel_treatment(
     input name Block<string>
@@ -117,6 +118,37 @@ pub fn container(
         storage,
         arch: arch.0,
         mounts: mounts.into_iter().map(|mount| mount.0).collect(),
+    })
+}
+
+#[mel_data]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ServiceContainer(pub api::ServiceContainer);
+
+#[mel_function]
+pub fn service_container(
+    name: string,
+    memory: u32,
+    cpu: u32,
+    storage: u32,
+    arch: Arch,
+    mounts: Vec<Mount>,
+    image: string,
+    pull_secret: Option<string>,
+    env: Option<StringMap>,
+    command: Option<Vec<string>>,
+) -> ServiceContainer {
+    ServiceContainer(api::ServiceContainer {
+        name,
+        image,
+        pull_secret: pull_secret.unwrap_or_else(|| "{}".to_string()),
+        memory,
+        cpu,
+        storage,
+        arch: arch.0,
+        mounts: mounts.into_iter().map(|mount| mount.0).collect(),
+        env: env.map(|map| map.map).unwrap_or_default(),
+        command: command,
     })
 }
 
