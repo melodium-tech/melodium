@@ -225,7 +225,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     Self.trigger -> ciAarch64UnknownLinuxMusl.trigger,finished -> ciAarch64UnknownLinuxMuslFinished.data
 
     ciWasm32UnknownUnknown: ciArch[logger=logger, cicd=cicd](
-      build=build,
+      build=false,
       test=false,
       release=release,
       out_directory=out_directory,
