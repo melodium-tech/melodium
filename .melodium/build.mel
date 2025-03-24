@@ -2,6 +2,7 @@ use log/logger::Logger
 use std/data/string_map::StringMap
 use std/flow::passBlock
 use std/flow::flock
+use std/flow::one
 use std/flow::trigger
 use std/ops/vec::|concat
 use std/ops::|condition
@@ -34,6 +35,7 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build:
     doBuild: passBlock<void>(cond=build)
     doBuildTesters: passBlock<void>(cond=build_testers)
     setServiceState[logger=logger](report=build, gitlab_root_url="https://gitlab.com/api/v4", token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, name=|format("Build target {target}", |entry("target", target)), description="Building Mélodium on Mélodium-managed CI", on_github=on_github, on_gitlab=on_gitlab)
+    oneFailed: one<void>()
     runnerBuild[cicd=cicd, runner=runner, logger=logger](
         name=target,
         on=on,
@@ -94,8 +96,9 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build:
     gitClone.completed -> doBuildTesters.block,passed -> testersCompilation.trigger,data -> Self.testers
     doBuild.passed -> setServiceState.pending
     runnerBuild.ready -> setServiceState.running
+    runnerBuild.failed -> oneFailed.a,value -> setServiceState.failed
     compilation.completed -> setServiceState.success
-    compilation.failed -> setServiceState.failed
+    compilation.failed -> oneFailed.b
     compilation.finished -> flockCompilations.a,stream -> triggerFinishedCompilations.stream,end -> stopRunner.trigger
     testersCompilation.finished -> flockCompilations.b
 }
@@ -103,6 +106,7 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build:
 treatment runnerBuild[cicd: CicdDispatchEngine, runner: CicdRunnerEngine, logger: Logger](name: string, on: Arch, rust_memory: u32 = 4000, rust_storage: u32 = 5000)
   input trigger: Block<void>
   output ready:  Block<void>
+  output failed: Block<void>
 {
     setupRunner[
         dispatcher=cicd,
@@ -118,4 +122,5 @@ treatment runnerBuild[cicd: CicdDispatchEngine, runner: CicdRunnerEngine, logger
         stop_on_failure=false
     )
     Self.trigger -> setupRunner.trigger,ready -> Self.ready
+                    setupRunner.failed --------> Self.failed
 }
