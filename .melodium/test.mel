@@ -72,14 +72,14 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
     setupRunnerFail: concentrateBlock<void>[concentrator=failureConcentrator]()
     setupRunner.failed -> setupRunnerFail.data
     preStep: stepOn[runner=runner, logger=logger](
-        name=|format("{target}", |entry("target", target)),
+        name=|format("test:{target}", |entry("target", target)),
         executor_name="testers",
         commands=pre_commands
     )
     preStepFail: concentrateBlock<void>[concentrator=failureConcentrator]()
     preStep.failed -> preStepFail.data
     installMelodium: stepOnWithInput[runner=runner, logger=logger](
-        name=|format("{target} test Mélodium install", |entry("target", target)),
+        name=|format("test:{target}", |entry("target", target)),
         executor_name="testers",
         in_filesystem="binaries",
         in_file="melodium",
@@ -91,7 +91,7 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
     installMelodiumFail: concentrateBlock<void>[concentrator=failureConcentrator]()
     installMelodium.failed -> installMelodiumFail.data
     makeTests: stepOnWithInput[runner=runner, logger=logger](
-        name=|format("{target} tests", |entry("target", target)),
+        name=|format("test:{target}", |entry("target", target)),
         executor_name="testers",
         in_filesystem="binaries",
         in_file="testers.tar.gz",
