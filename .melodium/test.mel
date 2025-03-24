@@ -50,7 +50,7 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
         logger=logger
     ](
         name=|format("test:{target}", |entry("target", target)),
-        cpu=1,
+        cpu=1000,
         memory=500,
         storage=1000,
         volumes=[|volume("binaries", 500)],
