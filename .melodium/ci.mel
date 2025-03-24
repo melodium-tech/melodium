@@ -26,7 +26,7 @@ use process/command::|raw_commands
 use root/build::build
 use root/test::test
 
-treatment ciArch[logger: Logger, cicd: CicdDispatchEngine](target: string, build: bool, test: bool = false, release: bool, build_on: Arch, pre_build_commands: Vec<Command> = [], build_environment_variables: StringMap, test_on: Arch, test_image: string, out_directory: string, repository_url: string, report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
+treatment ciArch[logger: Logger, cicd: CicdDispatchEngine](target: string, build: bool, test: bool = false, release: bool, build_on: Arch, build_storage: u32 = 5000, pre_build_commands: Vec<Command> = [], build_environment_variables: StringMap, test_on: Arch, test_image: string, pre_test_commands: Vec<Command> = [], out_directory: string, repository_url: string, report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
   input trigger: Block<void>
   output finished: Block<void>
 {
@@ -37,6 +37,7 @@ treatment ciArch[logger: Logger, cicd: CicdDispatchEngine](target: string, build
         release=release,
         build_testers=test,
         on=build_on,
+        rust_storage=build_storage,
         environment_variables=build_environment_variables,
         pre_commands=pre_build_commands,
         repository_url=repository_url,
@@ -62,6 +63,7 @@ treatment ciArch[logger: Logger, cicd: CicdDispatchEngine](target: string, build
         target=target,
         arch=test_on,
         test_image=test_image,
+        pre_commands=pre_test_commands,
         report_service_token=report_service_token,
         project=project,
         sha=sha,
@@ -183,7 +185,12 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
           "rustup target add i686-unknown-linux-gnu"
         ]),
       test_on=|amd64(),
-      test_image="ubuntu:noble"
+      test_image="ubuntu:noble",
+      pre_test_commands=|raw_commands([
+          "dpkg --add-architecture i386",
+          "apt-get update",
+          "apt-get install -y gcc-multilib"
+        ])
     )
     ciI686UnknownLinuxGnuFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciI686UnknownLinuxGnu.trigger,finished -> ciI686UnknownLinuxGnuFinished.data
@@ -376,6 +383,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
       test=false,
       release=release,
       out_directory=out_directory,
+      build_storage=15000,
       repository_url=repository_url,
       report_service_token=report_service_token,
       project=project,
