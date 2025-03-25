@@ -16,6 +16,7 @@ regex-mel
 json-mel
 fs-mel
 process-mel
+net-mel
 http-mel
 log-mel
 sql-mel
