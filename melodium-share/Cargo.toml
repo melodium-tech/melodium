@@ -11,7 +11,6 @@ readme = "README.md"
 description = "Mélodium language parsing and semantic analyser"
 keywords = ["dataflow","parallelization","scalability","async","signal"]
 categories = ["compilers", "science", "concurrency", "asynchronous"]
-publish = false
 
 [lib]
 name = "melodium_share"
