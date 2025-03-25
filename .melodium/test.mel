@@ -15,7 +15,6 @@ use std/conv::|to_string
 use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
-use std/ops/bin::|and
 use std/ops/option::|wrap
 use std/flow/concentrate::Concentrator
 use std/flow/concentrate::concentrateBlock
@@ -24,12 +23,9 @@ use std/flow::flock
 use std/flow::passBlock
 use std/flow::trigger
 use std/flow::waitBlock
-use std/ops/vec::|contains
 use work/resources::|container
 use work/resources::|service_container
 use work/resources/arch::Arch
-use work/resources/arch::|amd64
-use work/resources/arch::|arm64
 use work/resources::|volume
 use work/resources::|mount
 use root/states::setServiceState
@@ -141,120 +137,4 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
     doTest.passed -> setServiceState.pending
     installMelodium.completed -> setServiceState.running
     makeTests.completed -> setServiceState.success
-}
-
-treatment tests[logger: Logger, cicd: CicdDispatchEngine](targets: Vec<string>, report_service_token: string, project: string, sha: string, ref: string, pipeline: string, test: bool, on_github: bool = false, on_gitlab: bool = false)
-  input trigger: Block<void>
-  input binReleaseX86_64UnknownLinuxGnu: Stream<byte>
-  input binReleaseX86_64UnknownLinuxMusl: Stream<byte>
-  input binReleaseAarch64UnknownLinuxGnu: Stream<byte>
-  input binReleaseAarch64UnknownLinuxMusl: Stream<byte>
-  input binReleaseI686UnknownLinuxGnu: Stream<byte>
-  input binReleaseI686UnknownLinuxMusl: Stream<byte>
-  input binReleaseWasm32UnknownUnknown: Stream<byte>
-  input binReleaseX86_64AppleDarwin: Stream<byte>
-  input binReleaseAarch64AppleDarwin: Stream<byte>
-  input binReleaseX86_64PcWindowsGnu: Stream<byte>
-  input binReleaseX86_64PcWindowsMsvc: Stream<byte>
-  input binReleaseI686PcWindowsGnu: Stream<byte>
-  input binReleaseI686PcWindowsMsvc: Stream<byte>
-  input binReleaseAarch64PcWindowsMsvc: Stream<byte>
-  input binTestersX86_64UnknownLinuxGnu: Stream<byte>
-  input binTestersX86_64UnknownLinuxMusl: Stream<byte>
-  input binTestersAarch64UnknownLinuxGnu: Stream<byte>
-  input binTestersAarch64UnknownLinuxMusl: Stream<byte>
-  input binTestersI686UnknownLinuxGnu: Stream<byte>
-  input binTestersI686UnknownLinuxMusl: Stream<byte>
-  input binTestersWasm32UnknownUnknown: Stream<byte>
-  input binTestersX86_64AppleDarwin: Stream<byte>
-  input binTestersAarch64AppleDarwin: Stream<byte>
-  input binTestersX86_64PcWindowsGnu: Stream<byte>
-  input binTestersX86_64PcWindowsMsvc: Stream<byte>
-  input binTestersI686PcWindowsGnu: Stream<byte>
-  input binTestersI686PcWindowsMsvc: Stream<byte>
-  input binTestersAarch64PcWindowsMsvc: Stream<byte>
-{
-    testX86_64UnknownLinuxGnu: test[cicd=cicd, logger=logger]
-      (
-        test=|and<bool>(test, |contains<string>(targets, "x86_64-unknown-linux-gnu")),
-        target="x86_64-unknown-linux-gnu",
-        arch=|amd64(),
-        test_image="ubuntu:bookworm",
-        report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
-      )
-    triggerX86_64UnknownLinuxGnu: trigger<byte>()
-    //Self.trigger -------------------------> testX86_64UnknownLinuxGnu.trigger
-    Self.binTestersX86_64UnknownLinuxGnu -> triggerX86_64UnknownLinuxGnu.stream,start -> testX86_64UnknownLinuxGnu.trigger
-    Self.binReleaseX86_64UnknownLinuxGnu -> testX86_64UnknownLinuxGnu.binary
-    Self.binTestersX86_64UnknownLinuxGnu -> testX86_64UnknownLinuxGnu.testers
-
-    testX86_64UnknownLinuxMusl: test[cicd=cicd, logger=logger]
-      (
-        test=|and<bool>(test, |contains<string>(targets, "x86_64-unknown-linux-musl")),
-        target="x86_64-unknown-linux-musl",
-        arch=|amd64(),
-        test_image="alpine:3",
-        report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
-      )
-    triggerX86_64UnknownLinuxMusl: trigger<byte>()
-    //Self.trigger --------------------------> testX86_64UnknownLinuxMusl.trigger
-    Self.binTestersX86_64UnknownLinuxMusl -> triggerX86_64UnknownLinuxMusl.stream,start -> testX86_64UnknownLinuxMusl.trigger
-    Self.binReleaseX86_64UnknownLinuxMusl -> testX86_64UnknownLinuxMusl.binary
-    Self.binTestersX86_64UnknownLinuxMusl -> testX86_64UnknownLinuxMusl.testers
-
-    testAarch64UnknownLinuxGnu: test[cicd=cicd, logger=logger]
-      (
-        test=|and<bool>(test, |contains<string>(targets, "aarch64-unknown-linux-gnu")),
-        target="aarch64-unknown-linux-gnu",
-        arch=|arm64(),
-        test_image="ubuntu:bookworm",
-        report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
-      )
-    triggerAarch64UnknownLinuxGnu: trigger<byte>()
-    //Self.trigger --------------------------> testAarch64UnknownLinuxGnu.trigger
-    Self.binTestersAarch64UnknownLinuxGnu -> triggerAarch64UnknownLinuxGnu.stream,start -> testAarch64UnknownLinuxGnu.trigger
-    Self.binReleaseAarch64UnknownLinuxGnu -> testAarch64UnknownLinuxGnu.binary
-    Self.binTestersAarch64UnknownLinuxGnu -> testAarch64UnknownLinuxGnu.testers
-
-    testAarch64UnknownLinuxMusl: test[cicd=cicd, logger=logger]
-      (
-        test=|and<bool>(test, |contains<string>(targets, "aarch64-unknown-linux-musl")),
-        target="aarch64-unknown-linux-musl",
-        arch=|arm64(),
-        test_image="alpine:3",
-        report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
-      )
-    triggerAarch64UnknownLinuxMusl: trigger<byte>()
-    //Self.trigger --------------------------> testAarch64UnknownLinuxMusl.trigger
-    Self.binTestersAarch64UnknownLinuxMusl -> triggerAarch64UnknownLinuxMusl.stream,start -> testAarch64UnknownLinuxMusl.trigger
-    Self.binReleaseAarch64UnknownLinuxMusl -> testAarch64UnknownLinuxMusl.binary
-    Self.binTestersAarch64UnknownLinuxMusl -> testAarch64UnknownLinuxMusl.testers
-
-    testI686UnknownLinuxGnu: test[cicd=cicd, logger=logger]
-      (
-        test=|and<bool>(test, |contains<string>(targets, "i686-unknown-linux-gnu")),
-        target="i686-unknown-linux-gnu",
-        arch=|amd64(),
-        test_image="ubuntu:bookworm",
-        report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
-      )
-    triggerI686UnknownLinuxGnu: trigger<byte>()
-    //Self.trigger -----------------------> testI686UnknownLinuxGnu.trigger
-    Self.binTestersI686UnknownLinuxGnu -> triggerI686UnknownLinuxGnu.stream,start -> testI686UnknownLinuxGnu.trigger
-    Self.binReleaseI686UnknownLinuxGnu -> testI686UnknownLinuxGnu.binary
-    Self.binTestersI686UnknownLinuxGnu -> testI686UnknownLinuxGnu.testers
-
-    testI686UnknownLinuxMusl: test[cicd=cicd, logger=logger]
-      (
-        test=|and<bool>(test, |contains<string>(targets, "i686-unknown-linux-musl")),
-        target="i686-unknown-linux-musl",
-        arch=|amd64(),
-        test_image="alpine:3",
-        report_service_token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab
-      )
-    triggerI686UnknownLinuxMusl: trigger<byte>()
-    //Self.trigger ------------------------> testI686UnknownLinuxMusl.trigger
-    Self.binTestersI686UnknownLinuxMusl -> triggerI686UnknownLinuxMusl.stream,start -> testI686UnknownLinuxMusl.trigger
-    Self.binReleaseI686UnknownLinuxMusl -> testI686UnknownLinuxMusl.binary
-    Self.binTestersI686UnknownLinuxMusl -> testI686UnknownLinuxMusl.testers
 }
