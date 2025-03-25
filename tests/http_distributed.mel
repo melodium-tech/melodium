@@ -7,6 +7,7 @@ use http/server::HttpServer
 use http/server::start as startHttp
 use http/server::connection
 use http/method::HttpMethod
+use http/server::failedBinding
 use http/status::|ok
 use http/status::HttpStatus
 use http/method::|post
@@ -57,7 +58,15 @@ treatment main(const distrib_port: u16, var remote_key: string, var self_key: st
 
 
     startHttp[http_server=server]()
+    failedBinding[http_server=server]()
+    writeBindingError: writeTextLocal(path = "binding_error.log")
+    writeBindingFailure: writeTextLocal(path = "binding_failure.log")
+    streamBindingError: stream<string>()
+    emitBindingFailure: emit<string>(value="failure")
+    streamBindingFailure: stream<string>()
     start.ready -> startHttp.trigger
+    failedBinding.error -> streamBindingError.block,stream -> writeBindingError.text
+    failedBinding.failed -> emitBindingFailure.trigger,emit -> streamBindingFailure.block,stream -> writeBindingFailure.text
 
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())

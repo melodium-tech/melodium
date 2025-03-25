@@ -43,7 +43,10 @@ fn main() {
             .send(r#""Pingouin""#.as_bytes())
         {
             Ok(resp) => response = Some(resp),
-            Err(err) => eprintln!("Trial {trial} failed: {err}"),
+            Err(err) => {
+                eprintln!("Trial {trial} failed: {err}");
+                sleep(Duration::from_millis(1500))
+            }
         }
     }
 
@@ -53,6 +56,14 @@ fn main() {
     eprintln!(
         "failure.log: {}",
         std::fs::read_to_string("failure.log").unwrap_or("Rien".to_string())
+    );
+    eprintln!(
+        "binding_failure.log: {}",
+        std::fs::read_to_string("binding_failure.log").unwrap_or("Rien".to_string())
+    );
+    eprintln!(
+        "binding_error.log: {}",
+        std::fs::read_to_string("binding_error.log").unwrap_or("Rien".to_string())
     );
 
     if let Some(mut resp) = response {
