@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.9.0]
+
+- Fix package files loading.
+
 ## [v0.8.0]
 
 - Adding entrypoints management.

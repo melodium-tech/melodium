@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.9.0]
+
+- Adding Deserialize trait.
+
 ## [v0.8.0]
 
 - Adding custom data types management.

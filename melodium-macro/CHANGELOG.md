@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.9.0]
+
+- Improvement of macros usage.
+
 ## [v0.8.0]
 
 - Adding custom data types management.

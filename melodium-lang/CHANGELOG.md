@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.9.0]
+
+- Fix parsing.
+
 ## [v0.8.0]
 
 - Adding custom data types management.

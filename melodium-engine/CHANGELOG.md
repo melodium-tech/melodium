@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.9.0]
+
+- Improving data transmission.
+- Making engine able to manage different launch modes.
+
 ## [v0.8.0]
 
 - Adding custom data types management.

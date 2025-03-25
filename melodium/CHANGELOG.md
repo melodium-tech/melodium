@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.9.0]
+
+- Adding `check` command.
+- Adding `dist` command.
+- Adding `new` command.
+- Providing distribution across engines.
+- All changes included in v0.9.0 crates.
+
 ## [v0.8.0]
 
 - Adding direct entrypoint call through CLI.
