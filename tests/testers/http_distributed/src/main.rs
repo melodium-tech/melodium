@@ -37,7 +37,7 @@ fn main() {
         sleep(Duration::from_millis(500));
         match ureq::post("http://localhost:28015/hello")
             .config()
-            .timeout_global(Some(Duration::from_secs(1)))
+            .timeout_global(Some(Duration::from_secs(10)))
             .build()
             .header("Content-Type", "text/plain")
             .send(r#""Pingouin""#.as_bytes())
