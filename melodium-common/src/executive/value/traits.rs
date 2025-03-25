@@ -2842,8 +2842,36 @@ impl core::fmt::Display for Value {
             Value::F64(v) => write!(f, "{}", v),
             Value::Bool(v) => write!(f, "{}", v),
             Value::Byte(v) => write!(f, "0x{}", hex::encode([*v])),
-            Value::Char(v) => write!(f, "'{}'", v),
-            Value::String(v) => write!(f, "\"{}\"", v.replace('"', "\\\"")),
+            Value::Char(v) => write!(
+                f,
+                "'{}'",
+                match v {
+                    '\n' => r"\n".to_string(),
+                    '\r' => r"\r".to_string(),
+                    '\t' => r"\t".to_string(),
+                    '\\' => r"\\".to_string(),
+                    '\0' => r"\0".to_string(),
+                    '\'' => r"\'".to_string(),
+                    c if c.is_control() => c.escape_unicode().to_string(),
+                    c => c.to_string(),
+                }
+            ),
+            Value::String(v) => write!(
+                f,
+                "\"{}\"",
+                v.chars()
+                    .map(|c| match c {
+                        '\n' => r"\n".to_string(),
+                        '\r' => r"\r".to_string(),
+                        '\t' => r"\t".to_string(),
+                        '\\' => r"\\".to_string(),
+                        '\0' => r"\0".to_string(),
+                        '\"' => r#"\""#.to_string(),
+                        c if c.is_control() => c.escape_unicode().to_string(),
+                        c => c.to_string(),
+                    })
+                    .collect::<String>()
+            ),
             Value::Option(v) => {
                 if let Some(v) = v {
                     write!(f, "{v}")

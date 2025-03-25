@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = http_javascript
-#! version = 0.8.0
-#! require = http:0.8.0 net:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0
+#! version = 0.9.0-pre.1
+#! require = http:=0.9.0-pre.1 net:=0.9.0-pre.1 std:=0.9.0-pre.1 javascript:=0.9.0-pre.1 encoding:=0.9.0-pre.1 json:=0.9.0-pre.1
 
 use http/server::HttpServer
 use http/server::start
@@ -18,8 +18,8 @@ use std/flow::trigger
 use std/ops/option::unwrapOr
 use std/ops/option::unwrap
 use std/conv::toString
-use std/data::Map
-use std/data::|map
+use std/data/string_map::StringMap
+use std/data/string_map::|map
 use encoding::decode
 use encoding::encode
 use javascript::JavaScriptEngine
@@ -41,7 +41,7 @@ treatment main()
 
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())
-    headers: emit<Map>(value=|map([]))
+    headers: emit<StringMap>(value=|map([]))
     trigger<byte>()
     
     connection.data -> trigger.stream,start --> status.trigger,emit -> connection.status

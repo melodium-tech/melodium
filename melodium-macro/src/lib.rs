@@ -252,7 +252,7 @@ fn convert_to_mel_value(ty: &Vec<String>, generics: &Vec<String>, call: &str) ->
                 "Vec" => {
                     let deeper = conv_value(iter, generics);
                     conv = format!(
-                        "value.into_iter().map(|value| {deeper}).collect::<Vec<_>>().into()"
+                        "melodium_core::Value::Vec(value.into_iter().map(|value| {deeper}).collect())"
                     )
                 }
                 "Option" => {
@@ -1429,6 +1429,13 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let pre_inputs: proc_macro2::TokenStream = inputs.iter().map(|(name, _)| {
             format!(r#"let {name} = std::mem::replace(&mut *self.r#{name}.lock().unwrap(), None).unwrap()"#)
         }).collect::<Vec<_>>().join(";").parse().unwrap();
+        let borrow_inputs: proc_macro2::TokenStream = inputs
+            .iter()
+            .map(|(name, _)| format!(r#"let {name} = &{name}"#))
+            .collect::<Vec<_>>()
+            .join(";")
+            .parse()
+            .unwrap();
         let post_inputs: proc_macro2::TokenStream = inputs
             .iter()
             .map(|(name, _)| format!(r#"{name}.close()"#))
@@ -1439,6 +1446,13 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let pre_outputs: proc_macro2::TokenStream = outputs.iter().map(|(name, _)| {
             format!(r#"let {name} = std::mem::replace(&mut *self.r#{name}.lock().unwrap(), None).unwrap()"#)
         }).collect::<Vec<_>>().join(";").parse().unwrap();
+        let borrow_outputs: proc_macro2::TokenStream = outputs
+            .iter()
+            .map(|(name, _)| format!(r#"let {name} = &{name}"#))
+            .collect::<Vec<_>>()
+            .join(";")
+            .parse()
+            .unwrap();
         let post_outputs: proc_macro2::TokenStream = outputs
             .iter()
             .map(|(name, _)| format!(r#"{name}.close().await"#))
@@ -1456,7 +1470,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let body = treatment.block;
 
         prepare_implementation = quote! {
-            fn prepare(&self) -> Vec<melodium_core::common::executive::TrackFuture> {
+            fn prepare(&self, track_id: usize) -> Vec<melodium_core::common::executive::TrackFuture> {
 
                 #generics;
                 #parameters;
@@ -1466,7 +1480,12 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 vec![Box::new(Box::pin(async move {
 
-                    #body
+                    let exec = || {
+                        #borrow_inputs;
+                        #borrow_outputs;
+                        async move #body
+                    };
+                    exec().await;
 
                     #post_inputs;
                     #post_outputs;
@@ -2121,6 +2140,104 @@ pub fn mel_data(attr: TokenStream, item: TokenStream) -> TokenStream {
             .parse()
             .unwrap();
 
+        let deserialize_trait: proc_macro2::TokenStream =
+            if traits.iter().any(|tr| tr.as_str() == "Deserialize") {
+                let name: proc_macro2::TokenStream = name.parse().unwrap();
+                quote! {
+                    Some(Box::new(|deserializer| {
+                        let obj: #name = melodium_core::erased_deserialize(deserializer)?;
+                        Ok(melodium_core::common::executive::Value::Data(
+                            std::sync::Arc::new(obj)
+                        ))
+                    }))
+                }
+            } else {
+                "None".parse().unwrap()
+            };
+        let (bounded_min, bounded_max): (proc_macro2::TokenStream, proc_macro2::TokenStream) =
+            if traits.iter().any(|tr| tr.as_str() == "Bounded") {
+                let function_min: proc_macro2::TokenStream =
+                    format!("{name}_bounded_min", name = name.to_case(Case::Snake))
+                        .parse()
+                        .unwrap();
+                let function_max: proc_macro2::TokenStream =
+                    format!("{name}_bounded_max", name = name.to_case(Case::Snake))
+                        .parse()
+                        .unwrap();
+                (
+                    quote! {
+                        Some(Box::new(|| {
+                            let obj = #function_min();
+                            melodium_core::common::executive::Value::Data(
+                                std::sync::Arc::new(obj)
+                            )
+                        }))
+                    },
+                    quote! {
+                        Some(Box::new(|| {
+                            let obj = #function_max();
+                            melodium_core::common::executive::Value::Data(
+                                std::sync::Arc::new(obj)
+                            )
+                        }))
+                    },
+                )
+            } else {
+                ("None".parse().unwrap(), "None".parse().unwrap())
+            };
+        let (float_infinity, float_neg_infinity, float_nan): (
+            proc_macro2::TokenStream,
+            proc_macro2::TokenStream,
+            proc_macro2::TokenStream,
+        ) = if traits.iter().any(|tr| tr.as_str() == "Float") {
+            let function_infinity: proc_macro2::TokenStream =
+                format!("{name}_float_infinity", name = name.to_case(Case::Snake))
+                    .parse()
+                    .unwrap();
+            let function_neg_infinity: proc_macro2::TokenStream = format!(
+                "{name}_float_neg_infinity",
+                name = name.to_case(Case::Snake)
+            )
+            .parse()
+            .unwrap();
+            let function_nan: proc_macro2::TokenStream =
+                format!("{name}_float_nan", name = name.to_case(Case::Snake))
+                    .parse()
+                    .unwrap();
+            (
+                quote! {
+                    Some(Box::new(|| {
+                        let obj = #function_infinity();
+                        melodium_core::common::executive::Value::Data(
+                            std::sync::Arc::new(obj)
+                        )
+                    }))
+                },
+                quote! {
+                    Some(Box::new(|| {
+                        let obj = #function_neg_infinity();
+                        melodium_core::common::executive::Value::Data(
+                            std::sync::Arc::new(obj)
+                        )
+                    }))
+                },
+                quote! {
+                    Some(Box::new(|| {
+                        let obj = #function_nan();
+                        melodium_core::common::executive::Value::Data(
+                            std::sync::Arc::new(obj)
+                        )
+                    }))
+                },
+            )
+        } else {
+            (
+                "None".parse().unwrap(),
+                "None".parse().unwrap(),
+                "None".parse().unwrap(),
+            )
+        };
+
         let traits: proc_macro2::TokenStream = traits
             .iter()
             .map(|name| format!(r#"melodium_core::common::descriptor::DataTrait::{name}"#))
@@ -2139,6 +2256,12 @@ pub fn mel_data(attr: TokenStream, item: TokenStream) -> TokenStream {
                         attrs
                     },
                     vec![#traits],
+                    #bounded_min,
+                    #bounded_max,
+                    #float_infinity,
+                    #float_neg_infinity,
+                    #float_nan,
+                    #deserialize_trait
                 )
         };
     }

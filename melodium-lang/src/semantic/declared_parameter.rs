@@ -130,6 +130,12 @@ impl DeclaredParameter {
                             .and_then(|val| {
                                 ScriptResult::new_success((described_type, flow, Some(val)))
                             })
+                    } else if described_type.contains_generic() {
+                        ScriptResult::new_failure(ScriptError::default_forbidden_for_generics(
+                            187,
+                            self.text.name.clone(),
+                            described_type.final_type().to_string(),
+                        ))
                     } else {
                         ScriptResult::new_failure(ScriptError::default_forbidden(
                             172,

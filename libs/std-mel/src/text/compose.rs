@@ -1,3 +1,4 @@
+use crate::data::string_map::*;
 use melodium_core::*;
 use melodium_macro::{check, mel_function, mel_treatment};
 
@@ -37,10 +38,14 @@ pub async fn rescale(delimiter: string) {
         for split in splits {
             previous.push_str(split);
             if previous.ends_with(&delimiter) {
-                check!('main, scaled.send_one(previous.into()).await);
+                let sendable = previous;
                 previous = String::new();
+                check!('main, scaled.send_one(sendable.into()).await);
             }
         }
+    }
+    if !previous.is_empty() {
+        let _ = scaled.send_one(previous.into()).await;
     }
 }
 
@@ -136,4 +141,161 @@ pub async fn trim() {
 #[mel_function]
 pub fn trim(text: string) -> string {
     text.trim().to_string()
+}
+
+/// Trim end of streamed strings.
+///
+/// Stream strings with trailing whitespace removed.
+/// _Whitespace_ is defined according to the terms of the Unicode Derived Core Property `White_Space`, which includes newlines.
+#[mel_treatment(
+    input text Stream<string>
+    output trimmed Stream<string>
+)]
+pub async fn trim_end() {
+    while let Ok(mut text) = text
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
+        text.iter_mut().for_each(|t| *t = t.trim_end().to_string());
+
+        check!(trimmed.send_many(text.into()).await);
+    }
+}
+
+/// Trim end of string.
+///
+/// Return string with trailing whitespace removed.
+/// _Whitespace_ is defined according to the terms of the Unicode Derived Core Property `White_Space`, which includes newlines.
+#[mel_function]
+pub fn trim_end(text: string) -> string {
+    text.trim_end().to_string()
+}
+
+/// Trim start of streamed strings.
+///
+/// Stream strings with leading whitespace removed.
+/// _Whitespace_ is defined according to the terms of the Unicode Derived Core Property `White_Space`, which includes newlines.
+#[mel_treatment(
+    input text Stream<string>
+    output trimmed Stream<string>
+)]
+pub async fn trim_start() {
+    while let Ok(mut text) = text
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+    {
+        text.iter_mut()
+            .for_each(|t| *t = t.trim_start().to_string());
+
+        check!(trimmed.send_many(text.into()).await);
+    }
+}
+
+/// Trim start of string.
+///
+/// Return string with trailing whitespace removed.
+/// _Whitespace_ is defined according to the terms of the Unicode Derived Core Property `White_Space`, which includes newlines.
+#[mel_function]
+pub fn trim_start(text: string) -> string {
+    text.trim_start().to_string()
+}
+
+/// Format string.
+///
+/// Return string formatted with given entries.
+/// Format string is expected to contains braced placeholders, like: `"Hello {name}!"`.
+///
+/// If a formatting error happens, like missing key of incorrect format string, an empty string is returned.
+#[mel_function]
+pub fn format(format: string, entries: StringMap) -> string {
+    strfmt::strfmt(&format, &entries.map).unwrap_or_default()
+}
+
+/// Checked format string.
+///
+/// Return string formatted with given entries.
+/// Format string is expected to contains braced placeholders, like: `"Hello {name}!"`.
+///
+/// If a formatting error happens, like missing key of incorrect format string, _none_ is returned.
+#[mel_function]
+pub fn checked_format(format: string, entries: StringMap) -> Option<string> {
+    strfmt::strfmt(&format, &entries.map).ok()
+}
+
+/// Format stream.
+///
+/// Stream string formatted with given entries.
+/// Format string is expected to contains braced placeholders, like: `"Hello {name}!"`.
+///
+/// If a formatting error happens, like missing key of incorrect format string, an empty string is sent.
+#[mel_treatment(
+    input entries Stream<StringMap>
+    output formatted Stream<string>
+)]
+pub async fn format(format: string) {
+    while let Ok(maps) = entries
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<Value>>::try_into(values).unwrap())
+    {
+        let formatted_str = maps
+            .into_iter()
+            .map(|map| {
+                GetData::<std::sync::Arc<dyn Data>>::try_data(map)
+                    .unwrap()
+                    .downcast_arc::<StringMap>()
+                    .unwrap()
+            })
+            .map(|map| strfmt::strfmt(&format, &map.map).unwrap_or_default())
+            .collect::<VecDeque<_>>();
+
+        check!(
+            formatted
+                .send_many(TransmissionValue::String(formatted_str))
+                .await
+        );
+    }
+}
+
+/// Format stream.
+///
+/// Stream string formatted with given entries.
+/// Format string is expected to contains braced placeholders, like: `"Hello {name}!"`.
+///
+/// If a formatting error happens, like missing key of incorrect format string, _none_ is sent.
+#[mel_treatment(
+    input entries Stream<StringMap>
+    output formatted Stream<Option<string>>
+)]
+pub async fn checked_format(format: string) {
+    while let Ok(maps) = entries
+        .recv_many()
+        .await
+        .map(|values| TryInto::<Vec<Value>>::try_into(values).unwrap())
+    {
+        let formatted_str = maps
+            .into_iter()
+            .map(|map| {
+                GetData::<std::sync::Arc<dyn Data>>::try_data(map)
+                    .unwrap()
+                    .downcast_arc::<StringMap>()
+                    .unwrap()
+            })
+            .map(|map| {
+                Value::Option(
+                    strfmt::strfmt(&format, &map.map)
+                        .map(|formatted| Box::new(Value::String(formatted)))
+                        .ok(),
+                )
+            })
+            .collect::<VecDeque<_>>();
+
+        check!(
+            formatted
+                .send_many(TransmissionValue::Other(formatted_str))
+                .await
+        );
+    }
 }

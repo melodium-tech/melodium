@@ -6,18 +6,28 @@ use fs_mel::filesystem::*;
 use melodium_core::*;
 use melodium_macro::{mel_data, mel_function, mel_treatment};
 use process_mel::exec::*;
+use std_mel::data::string_map::*;
 
 #[mel_treatment(
-    input trigger Block<void>
+    input name Block<string>
     output executor Block<Executor>
-    output failure Block<string>
+    output error Block<string>
+    output failed Block<void>
 )]
-pub async fn getExecutor(name: string) {
-    if let Ok(_) = trigger.recv_one().await {
+pub async fn getExecutor() {
+    #[allow(unused)]
+    if let Ok(name) = name
+        .recv_one()
+        .await
+        .map(|val| GetData::<String>::try_data(val).unwrap())
+    {
         #[cfg(not(feature = "kubernetes"))]
-        let _ = failure
-            .send_one("No executor available".to_string().into())
-            .await;
+        {
+            let _ = failed.send_one(().into()).await;
+            let _ = error
+                .send_one("No executor available".to_string().into())
+                .await;
+        }
 
         #[cfg(feature = "kubernetes")]
         {
@@ -33,7 +43,8 @@ pub async fn getExecutor(name: string) {
                         .await;
                 }
                 Err(err) => {
-                    let _ = failure.send_one(err.into()).await;
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error.send_one(err.into()).await;
                 }
             }
         }
@@ -41,16 +52,25 @@ pub async fn getExecutor(name: string) {
 }
 
 #[mel_treatment(
-    input trigger Block<void>
+    input name Block<string>
     output filesystem Block<FileSystem>
-    output failure Block<string>
+    output error Block<string>
+    output failed Block<void>
 )]
-pub async fn getFileSystem(name: string) {
-    if let Ok(_) = trigger.recv_one().await {
+pub async fn getFileSystem() {
+    #[allow(unused)]
+    if let Ok(name) = name
+        .recv_one()
+        .await
+        .map(|val| GetData::<String>::try_data(val).unwrap())
+    {
         #[cfg(not(feature = "kubernetes"))]
-        let _ = failure
-            .send_one("No filesystem available".to_string().into())
-            .await;
+        {
+            let _ = failed.send_one(().into()).await;
+            let _ = error
+                .send_one("No filesystem available".to_string().into())
+                .await;
+        }
 
         #[cfg(feature = "kubernetes")]
         {
@@ -66,7 +86,8 @@ pub async fn getFileSystem(name: string) {
                         .await;
                 }
                 Err(err) => {
-                    let _ = failure.send_one(err.into()).await;
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error.send_one(err.into()).await;
                 }
             }
         }
@@ -97,6 +118,37 @@ pub fn container(
         storage,
         arch: arch.0,
         mounts: mounts.into_iter().map(|mount| mount.0).collect(),
+    })
+}
+
+#[mel_data]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ServiceContainer(pub api::ServiceContainer);
+
+#[mel_function]
+pub fn service_container(
+    name: string,
+    memory: u32,
+    cpu: u32,
+    storage: u32,
+    arch: Arch,
+    mounts: Vec<Mount>,
+    image: string,
+    pull_secret: Option<string>,
+    env: Option<StringMap>,
+    command: Option<Vec<string>>,
+) -> ServiceContainer {
+    ServiceContainer(api::ServiceContainer {
+        name,
+        image,
+        pull_secret: pull_secret.unwrap_or_else(|| "{}".to_string()),
+        memory,
+        cpu,
+        storage,
+        arch: arch.0,
+        mounts: mounts.into_iter().map(|mount| mount.0).collect(),
+        env: env.map(|map| map.map).unwrap_or_default(),
+        command: command,
     })
 }
 

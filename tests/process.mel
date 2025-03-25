@@ -1,23 +1,22 @@
 #!/usr/bin/env melodium
 #! name = process_test
-#! version = 0.8.0
-#! require = std:0.8.0
-#! require = fs:0.8.0
-#! require = process:0.8.0
+#! version = 0.9.0-pre.1
+#! require = std:=0.9.0-pre.1
+#! require = fs:=0.9.0-pre.1
+#! require = process:=0.9.0-pre.1
 
 use std/engine/util::startup
 use std/flow::stream
 use std/text/convert/string::toUtf8
 use std/flow::emit
-use std/data::|map
-use fs/util::write
+use fs/local::writeLocal
 use process/command::|command
-use process/local::spawn
+use process/local::spawnOnce
 use std/ops/option::|wrap
 
 treatment main(const work: Option<string> = _)
 {
-    spawn(command=|command("sed", ["-e", "s/foo/bar/g"]))
+    spawn: spawnOnce(command=|command("sed", ["-e", "s/foo/bar/g"]))
     startup()
     
     startup.trigger ------> spawn.launch
@@ -25,14 +24,14 @@ treatment main(const work: Option<string> = _)
     emitText: emit<string>(value="This is foo!")
     streamText: stream<string>()
     toUtf8()
-    file: write(path="./replaced.txt")
+    file: writeLocal(path="./replaced.txt")
     startup.trigger -> emitText.trigger,emit -> streamText.block,stream -> toUtf8.text,encoded -> spawn.stdin,stdout -> file.data
 
-    fileError: write(path="./error.txt")
+    fileError: writeLocal(path="./error.txt")
     spawn.stderr --> fileError.data
 
     streamFailure: stream<string>()
     failureToUtf8: toUtf8()
-    fileFailure: write(path="./failure.txt")
-    spawn.failure -> streamFailure.block,stream -> failureToUtf8.text,encoded -> fileFailure.data
+    fileFailure: writeLocal(path="./failure.txt")
+    spawn.error -> streamFailure.block,stream -> failureToUtf8.text,encoded -> fileFailure.data
 }

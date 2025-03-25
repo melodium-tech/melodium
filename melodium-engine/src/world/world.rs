@@ -2,19 +2,20 @@ use super::{ExecutionTrack, InfoTrack, SourceEntry, TrackResult};
 use crate::building::HostTreatment;
 use crate::building::{
     model::get_builder as get_builder_model, treatment::get_builder as get_builder_treatment,
-    BuildId, Builder, CheckEnvironment, ContextualEnvironment, FeedingInputs, GenesisEnvironment,
-    StaticBuildResult,
+    BuildId, Builder, /*CheckEnvironment,*/ ContextualEnvironment, FeedingInputs,
+    GenesisEnvironment, StaticBuildResult,
 };
 use crate::engine::Engine;
 use crate::error::{LogicError, LogicErrors, LogicResult};
 use crate::transmission::{Input, Output, Outputs};
 use async_std::channel::{unbounded, Receiver, Sender};
-use async_std::sync::Mutex;
+use async_std::sync::{Barrier, Mutex};
 use async_std::task::block_on;
 use async_trait::async_trait;
 use core::fmt::Debug;
 use futures::future::join;
 use futures::stream::{FuturesUnordered, StreamExt};
+use futures::{pin_mut, select, FutureExt};
 use melodium_common::descriptor::{
     Collection, Entry as CollectionEntry, Identified, Identifier, Treatment,
 };
@@ -42,6 +43,7 @@ pub struct World {
     main: RwLock<Option<Arc<dyn Treatment>>>,
     main_id: RwLock<Option<Identifier>>,
     main_build_id: RwLock<BuildId>,
+    main_gen_env: RwLock<Option<GenesisEnvironment>>,
     main_tracks: RwLock<HashMap<TrackId, FeedingInputs>>,
 
     continuous_tasks_sender: Sender<ContinuousFuture>,
@@ -54,6 +56,7 @@ pub struct World {
 
     close_at_continuous_end: AtomicBool,
     continous_ended: AtomicBool,
+    continous_ended_barrier: Barrier,
     closing: AtomicBool,
 }
 
@@ -84,6 +87,7 @@ impl World {
             main: RwLock::new(None),
             main_id: RwLock::new(None),
             main_build_id: RwLock::new(0),
+            main_gen_env: RwLock::new(None),
             main_tracks: RwLock::new(HashMap::new()),
             continuous_tasks_sender,
             continuous_tasks_receiver,
@@ -93,6 +97,7 @@ impl World {
             tracks_receiver,
             close_at_continuous_end: AtomicBool::new(true),
             continous_ended: AtomicBool::new(false),
+            continous_ended_barrier: Barrier::new(2),
             closing: AtomicBool::new(false),
         })
     }
@@ -143,7 +148,7 @@ impl World {
     }
 
     pub fn direct(&self, id: &TrackId) -> LogicResult<FeedingInputs> {
-        let possible_build_result;
+        /*let possible_build_result;
         {
             possible_build_result = self
                 .main_tracks
@@ -157,7 +162,15 @@ impl World {
             LogicResult::new_success(dbr)
         } else {
             LogicResult::new_failure(LogicError::no_direct_track(242, id.clone()))
-        }
+        }*/
+        LogicResult::new_success(
+            self.main_tracks
+                .read()
+                .unwrap()
+                .get(id)
+                .map(|feeding_inputs| feeding_inputs.clone())
+                .unwrap_or_default(),
+        )
     }
 
     pub fn builder(&self, identifier: &Identifier) -> LogicResult<Arc<dyn Builder>> {
@@ -216,10 +229,14 @@ impl World {
     async fn run_tracks(&self) {
         let mut futures = FuturesUnordered::new();
 
+        let mut tracks_receiver = self.tracks_receiver.clone();
+        let continous_ended_barrier = self.continous_ended_barrier.wait().fuse();
+        pin_mut!(continous_ended_barrier);
+
         async fn track_future(mut track: ExecutionTrack) -> TrackResult {
             let mut non_ok: Vec<ResultStatus> = Vec::new();
             while let Some(r) = track.future.next().await {
-                // The `_ =>` is unreachable for now, but will ResultStatus will be complexified.
+                // The `_ =>` is unreachable for now, but will when ResultStatus will be complexified.
                 #[allow(unreachable_patterns)]
                 match r {
                     ResultStatus::Ok => {}
@@ -234,38 +251,36 @@ impl World {
             }
         }
 
-        while !self.closing.load(Ordering::Relaxed) {
-            if !self.tracks_receiver.is_empty() {
-                while let Ok(track) = self.tracks_receiver.try_recv() {
-                    futures.push(track_future(track));
-                }
-            } else if futures.is_empty() {
-                self.check_closing();
-
-                if let Ok(track) = self.tracks_receiver.recv().await {
-                    futures.push(track_future(track));
-                }
-            }
-
-            while let Some(result) = futures.next().await {
-                match result {
-                    TrackResult::AllOk(id) => {
-                        self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
+        loop {
+            select! {
+                received_track = tracks_receiver.select_next_some() => {
+                    futures.push(track_future(received_track));
+                },
+                result = futures.select_next_some() => {
+                    match result {
+                        TrackResult::AllOk(id) => {
+                            self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
+                        }
+                        TrackResult::NotAllOk(id, _) => {
+                            self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
+                        }
                     }
-                    TrackResult::NotAllOk(id, _) => {
-                        self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
-                    }
-                }
+                    self.check_closing().await;
+                },
+                _result = continous_ended_barrier => {
+                    self.check_closing().await;
+                },
+                complete => break,
             }
         }
     }
 
-    fn check_closing(&self) {
+    async fn check_closing(&self) {
         if self.auto_end()
             && self.continous_ended.load(Ordering::Relaxed)
             && self.tracks_receiver.len() == 0
         {
-            self.end();
+            self.end().await;
         }
     }
 }
@@ -288,6 +303,8 @@ impl Engine for World {
         let descriptor = if let Some(CollectionEntry::Treatment(descriptor)) =
             self.collection.get(&entry.into())
         {
+            let non_absolute_launch =
+                descriptor.inputs().len() > 0 || descriptor.outputs().len() > 0;
             for (name, param) in descriptor.parameters() {
                 if let Some(value) = params.remove(name).filter(|val| {
                     param
@@ -298,6 +315,8 @@ impl Engine for World {
                 }) {
                     gen_env.add_variable(name, value);
                 } else if param.default().is_some() {
+                    continue;
+                } else if non_absolute_launch {
                     continue;
                 } else {
                     return LogicResult::new_failure(LogicError::launch_wrong_parameter(
@@ -310,7 +329,7 @@ impl Engine for World {
         } else {
             return LogicResult::new_failure(LogicError::launch_expect_treatment(
                 224,
-                entry.clone(),
+                Some(entry.clone()),
             ));
         };
 
@@ -330,8 +349,8 @@ impl Engine for World {
         };
 
         // Check all the tracks/paths
-        let mut result = result.and_degrade_failure(LogicResult::new_success(()));
-        let models = self.models.read().unwrap();
+        let /*mut*/ result = result.and_degrade_failure(LogicResult::new_success(()));
+        /*let models = self.models.read().unwrap();
         let mut builds = Vec::new();
         for (model_id, model_sources) in self.sources.read().unwrap().iter() {
             let model = models.get(*model_id as usize).unwrap();
@@ -367,7 +386,7 @@ impl Engine for World {
                     );
                 }
             }
-        }
+        }*/
 
         let mut borrowed_errors = self.errors.write().unwrap();
         borrowed_errors.extend(result.errors().clone());
@@ -377,6 +396,7 @@ impl Engine for World {
                 {
                     self.main.write().unwrap().replace(descriptor);
                     self.main_id.write().unwrap().replace(entry.clone());
+                    self.main_gen_env.write().unwrap().replace(gen_env);
                 }
                 self.models
                     .read()
@@ -421,28 +441,7 @@ impl Engine for World {
                 while let Some(_) = continuous.next().await {}
 
                 me.continous_ended.store(true, Ordering::Relaxed);
-
-                // Inserting one last pseudo-track to make run_tracks check one more time,
-                // might be removed once new way of running track is implemented.
-                {
-                    let track_id;
-                    {
-                        let mut counter = self.tracks_counter.lock().await;
-                        track_id = *counter;
-                        *counter = track_id + 1;
-                    }
-
-                    let info_track = InfoTrack::new(track_id, None, 0);
-                    let execution_track = ExecutionTrack::new(
-                        track_id,
-                        0,
-                        vec![Box::new(Box::pin(async { ResultStatus::Ok })) as TrackFuture]
-                            .into_iter()
-                            .collect(),
-                    );
-                    self.tracks_info.lock().await.insert(track_id, info_track);
-                    let _ = self.tracks_sender.send(execution_track).await;
-                }
+                me.continous_ended_barrier.wait().await;
             }
         };
 
@@ -451,7 +450,7 @@ impl Engine for World {
         join(continuum, async move { me.run_tracks().await }).await;
     }
 
-    async fn instanciate(&self, callback: Option<DirectCreationCallback>) {
+    async fn instanciate(&self, callback: Option<DirectCreationCallback>) -> LogicResult<()> {
         let main;
         let main_id;
         let main_build_id;
@@ -464,7 +463,7 @@ impl Engine for World {
                 main_id = identifier.clone();
                 main_build_id = *self.main_build_id.read().unwrap();
             } else {
-                return;
+                return LogicResult::new_failure(LogicError::launch_expect_treatment(231, None));
             }
         }
 
@@ -475,24 +474,26 @@ impl Engine for World {
             *counter = track_id + 1;
         }
 
+        let contextual_environment = ContextualEnvironment::new(track_id);
+
         let mut inputs = HashMap::new();
-        for (name, _) in main.inputs() {
+        for (name, _) in main.outputs() {
             let input = self.new_input();
             inputs.insert(name.clone(), input);
         }
-        self.main_tracks.write().unwrap().insert(
-            track_id,
-            inputs
-                .iter()
-                .map(|(name, input)| (name.clone(), vec![input.clone()]))
-                .collect(),
-        );
+        {
+            self.main_tracks.write().unwrap().insert(
+                track_id,
+                inputs
+                    .iter()
+                    .map(|(name, input)| (name.clone(), vec![input.clone()]))
+                    .collect(),
+            );
+        }
 
         let mut track_futures: Vec<TrackFuture> = Vec::new();
         let mut outputs: HashMap<String, Output> = HashMap::new();
         {
-            let contextual_environment = ContextualEnvironment::new(track_id);
-
             let build_result = self
                 .builder(&main_id)
                 .success()
@@ -503,7 +504,7 @@ impl Engine for World {
             track_futures.extend(build_result.prepared_futures);
 
             for (input_name, mut input_transmitters) in build_result.feeding_inputs {
-                match outputs.entry(input_name) {
+                match outputs.entry(input_name.clone()) {
                     Entry::Vacant(e) => {
                         let e = e.insert(Output::from(input_transmitters.pop().unwrap()));
                         e.add_transmission(&input_transmitters);
@@ -535,6 +536,8 @@ impl Engine for World {
         let execution_track = ExecutionTrack::new(track_id, 0, track_futures.into_iter().collect());
         self.tracks_info.lock().await.insert(track_id, info_track);
         let _ = self.tracks_sender.send(execution_track).await;
+
+        LogicResult::new_success(())
     }
 
     /*
@@ -542,16 +545,16 @@ impl Engine for World {
         Probably prepare a distinction between "closing", that ends the program and let all stored tracks to finish (even create new ones?),
         and termination, that jut allows already running tracks to finish and ends models.
     */
-    fn end(&self) {
+    async fn end(&self) {
         if !self.closing.load(Ordering::Relaxed) {
             self.models
                 .read()
                 .unwrap()
                 .iter()
                 .for_each(|m| m.shutdown());
+            self.tracks_sender.close();
+            self.closing.store(true, Ordering::Relaxed);
         }
-        self.tracks_sender.close();
-        self.closing.store(true, Ordering::Relaxed);
     }
 }
 

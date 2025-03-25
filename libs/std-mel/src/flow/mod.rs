@@ -3,6 +3,7 @@ use melodium_core::common::executive::{GetData, Value};
 use melodium_macro::{check, mel_treatment};
 use std::collections::VecDeque;
 
+pub mod concentrate;
 pub mod vec;
 
 /// Chain two streams.
@@ -51,7 +52,7 @@ pub async fn chain() {
 /// ```mermaid
 /// graph LR
 ///     T("trigger()")
-///     B["🟥 … 🟨 🟨 🟨 🟨 🟨 🟨 … 🟩"] -->|stream| T
+///     B["🟥 … 🟨 🟨 🟨 🟨 🟨 🟨 … 🟩"] -->|stream| T
 ///     
 ///     T -->|start| S["〈🟦〉"]
 ///     T -->|first| F["〈🟩〉"]
@@ -78,9 +79,13 @@ pub async fn trigger() {
     if let Ok(mut values) = stream.recv_many().await {
         let _ = start.send_one(().into()).await;
         if let Some(val) = values.pop_front() {
-            let _ = first.send_one(val).await;
+            let _ = first.send_one(val.clone()).await;
+            last_value = Some(val);
         }
-        last_value = Into::<VecDeque<Value>>::into(values).pop_back();
+        if let Some(val) = Into::<VecDeque<Value>>::into(values).pop_back() {
+            last_value = Some(val);
+        }
+
         let _ = futures::join!(start.close(), first.close());
     }
 
@@ -120,6 +125,31 @@ pub async fn trigger() {
 pub async fn check() {
     if let Ok(_) = value.recv_one().await {
         let _ = check.send_one(().into()).await;
+    }
+}
+
+/// Uncheck a blocking value.
+///
+/// When `value` block stream is closed without receiving anything, `uncheck` is emitted.
+///
+/// ```mermaid
+/// graph LR
+///     T("uncheck()")
+///     B["〈🟨〉"] -->|value| T
+///         
+///     T -->|uncheck| S["〈🟦〉"]
+///     
+///     style B fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    generic T ()
+    input value Block<T>
+    output uncheck Block<void>
+)]
+pub async fn uncheck() {
+    if let Err(_) = value.recv_one().await {
+        let _ = uncheck.send_one(().into()).await;
     }
 }
 
@@ -357,6 +387,42 @@ pub async fn filter() {
                     break;
                 }
             }
+        }
+    }
+}
+
+/// Filter a block according to `bool` value.
+///
+/// ℹ️ If `select` is never received nothing is emitted.
+///  
+/// ```mermaid
+/// graph LR
+///     T("filterBlock()")
+///     V["〈🟦〉"] -->|value| T
+///     D["〈🟩〉"] -->|select|T
+///     
+///     T -->|accepted| A["〈🟦〉"]
+///     T -->|rejected| R[" "]
+///
+///     style V fill:#ffff,stroke:#ffff
+///     style D fill:#ffff,stroke:#ffff
+///     style A fill:#ffff,stroke:#ffff
+///     style R fill:#ffff,stroke:#ffff
+/// ```
+#[mel_treatment(
+    generic T ()
+    input value Block<T>
+    input select Block<bool>
+    output accepted Block<T>
+    output rejected Block<T>
+)]
+pub async fn filterBlock() {
+    if let (Ok(value), Ok(select)) = futures::join!(value.recv_one(), select.recv_one()) {
+        let select = GetData::<bool>::try_data(select).unwrap();
+        if select {
+            let _ = accepted.send_one(value).await;
+        } else {
+            let _ = rejected.send_one(value).await;
         }
     }
 }
@@ -644,5 +710,177 @@ pub async fn one() {
             let _ = value.send_one(val).await;
             break;
         }
+    }
+}
+
+/// Never send any value.
+///
+/// No value is ever sent on `closed` output, which is immediately closed.
+///
+#[mel_treatment(
+    generic T ()
+    input trigger Block<void>
+    output closed Stream<T>
+)]
+pub async fn close() {
+    // Nothing to do
+}
+
+/// Consume stream indefinitely.
+///
+/// Input `stream` is consumed indefinitely until it becomes closed by previous treatment.
+///
+#[mel_treatment(
+    generic T ()
+    input stream Stream<T>
+)]
+pub async fn consume() {
+    while let Ok(_) = stream.recv_many().await {
+        // Nothing to do.
+    }
+}
+
+/// Pass stream under condition.
+///
+/// If `if` is `true`, pass the stream, else closes it.
+///
+#[mel_treatment(
+    generic T ()
+    input stream Stream<T>
+    output passed Stream<T>
+)]
+pub async fn pass(cond: bool) {
+    if cond {
+        while let Ok(data) = stream.recv_many().await {
+            check!(passed.send_many(data).await)
+        }
+    }
+}
+
+/// Pass block under condition.
+///
+/// If `if` is `true`, pass the block, else nothing.
+///
+#[mel_treatment(
+    generic T ()
+    input block Block<T>
+    output passed Block<T>
+)]
+pub async fn passBlock(cond: bool) {
+    if cond {
+        if let Ok(data) = block.recv_one().await {
+            let _ = passed.send_one(data).await;
+        }
+    }
+}
+
+/// Barrier stream under condition.
+///
+/// Awaits `leverage` to let stream pass if it is `true`, else closes the stream.
+///
+#[mel_treatment(
+    generic T ()
+    input leverage Block<bool>
+    input stream Stream<T>
+    output passed Stream<T>
+)]
+pub async fn barrier() {
+    if let Ok(true) = leverage
+        .recv_one()
+        .await
+        .map(|val| GetData::<bool>::try_data(val).unwrap())
+    {
+        while let Ok(data) = stream.recv_many().await {
+            check!(passed.send_many(data).await)
+        }
+    }
+}
+
+/// Pass stream until cut signal.
+///
+/// Let stream pass until `cut` signal si received.
+///
+#[mel_treatment(
+    generic T ()
+    input cut Block<void>
+    input stream Stream<T>
+    output passed Stream<T>
+)]
+pub async fn cut() {
+    let cut = async { cut.recv_one().await.is_ok() }.fuse();
+    let pass = async {
+        while let Ok(values) = stream.recv_many().await {
+            check!(passed.send_many(values).await)
+        }
+    }
+    .fuse();
+
+    pin_mut!(cut, pass);
+
+    loop {
+        select! {
+            () = pass => break,
+            do_cut = cut => if do_cut {
+                break
+            },
+            complete => break,
+        }
+    }
+}
+
+/// Release stream once signal is received.
+///
+/// Awaits `leverage` to let stream pass, else closes the stream.
+///
+#[mel_treatment(
+    generic T ()
+    input leverage Block<void>
+    input data Stream<T>
+    output released Stream<T>
+)]
+pub async fn release() {
+    if let Ok(_) = leverage.recv_one().await {
+        while let Ok(data) = data.recv_many().await {
+            check!(released.send_many(data).await)
+        }
+    }
+}
+
+/// Release block once signal is received.
+///
+/// Awaits `leverage` to let block pass, else closes the flow.
+///
+#[mel_treatment(
+    generic T ()
+    input leverage Block<void>
+    input data Block<T>
+    output released Block<T>
+)]
+pub async fn releaseBlock() {
+    if let Ok(_) = leverage.recv_one().await {
+        if let Ok(data) = data.recv_one().await {
+            let _ = released.send_one(data).await;
+        }
+    }
+}
+
+/// Await blocks.
+///
+/// Wait for two blocks and send `awaited` once both are received.
+///
+/// ℹ️ If one block is never received, `awaited` is never emitted.
+#[mel_treatment(
+    generic T ()
+    input a Block<T>
+    input b Block<T>
+    output awaited Block<void>
+)]
+pub async fn waitBlock() {
+    let (a, b) = futures::join!(async { a.recv_one().await.is_ok() }, async {
+        b.recv_one().await.is_ok()
+    });
+
+    if a && b {
+        let _ = awaited.send_one(().into()).await;
     }
 }

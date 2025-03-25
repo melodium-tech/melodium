@@ -29,7 +29,9 @@ pub enum LogicErrorKind {
     /// No design available.
     UnavailableDesign { identifier: Identifier },
     /// The launch must be done using a treatment.
-    LaunchExpectTreatment { wrong_identifier: Identifier },
+    LaunchExpectTreatment {
+        wrong_identifier: Option<Identifier>,
+    },
     /// A parameter with wrong or missing value was given for launch.
     LaunchWrongParameter { parameter: String },
     /// No direct track exist for id.
@@ -258,6 +260,16 @@ pub enum LogicErrorKind {
     },
 }
 
+impl LogicErrorKind {
+    fn described_type_details(described_type: &DescribedType) -> String {
+        match described_type.final_type() {
+            DescribedType::Data(data) => format!("data type {}", data.identifier()),
+            DescribedType::Generic(generic) => format!("generic {}", generic),
+            dt => dt.to_string(),
+        }
+    }
+}
+
 impl Display for LogicErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -267,7 +279,10 @@ impl Display for LogicErrorKind {
             LogicErrorKind::ErroneousDesign {identifier} => write!(f, "Design for '{identifier}' contains errors and cannot be commited"),
             LogicErrorKind::ErroneousChecks => write!(f, "Building coherency checks found errors, build cannot be made"),
             LogicErrorKind::UnavailableDesign { identifier } => write!(f, "Unavailable design for '{identifier}'"),
-            LogicErrorKind::LaunchExpectTreatment { wrong_identifier } => write!(f, "Launch must be done using a treatment, '{wrong_identifier}' is not one"),
+            LogicErrorKind::LaunchExpectTreatment { wrong_identifier } => if let Some(id) = wrong_identifier {
+                write!(f, "Launch must be done using a treatment, '{id}' is not one") } else {
+                    write!(f, "Launch must be done using a treatment, but no valid identifier is provided")
+                },
             LogicErrorKind::LaunchWrongParameter { parameter } => write!(f, "Parameter '{parameter}' has no valid value for launch"),
             LogicErrorKind::NoDirectTrack { id } => write!(f, "No directly instancied track exist for id {id}"),
             LogicErrorKind::UnexistingVariable {identifier,
@@ -284,7 +299,7 @@ impl Display for LogicErrorKind {
             } => write!(f, "Parameter '{parameter}' does not exist for '{called}' in '{scope}'"),
             LogicErrorKind::UnmatchingDataType {
                 scope, called, parameter, value, expected, given
-            } => write!(f, "Datatype does not match for '{parameter}' of '{called}' in '{scope}', {expected} expected but '{value}' is {given}"),
+            } => write!(f, "Datatype does not match for '{parameter}' of '{called}' in '{scope}', {expected} ({}) expected but '{value}' is {given} ({})", Self::described_type_details(expected), Self::described_type_details(given)),
             LogicErrorKind::UnsetParameter { scope, called, parameter } => write!(f, "Parameter '{parameter}' of '{called}' is not set in '{scope}'"),
             LogicErrorKind::MultipleParameterAssignation { scope, called, parameter } => write!(f, "Parameter '{parameter}' of '{called}' assigned multiple times in '{scope}'"),
             LogicErrorKind::NoValue {scope, called, parameter} => write!(f, "No value assigned to '{parameter}' of '{called}' in '{scope}'"),
@@ -303,7 +318,7 @@ impl Display for LogicErrorKind {
             LogicErrorKind::AlreadyDeclaredModel { scope, model } => write!(f, "Model '{model}' is already declared in '{scope}'"),
             LogicErrorKind::UndeclaredTreatment { scope, treatment } => write!(f, "Treatment '{treatment}' is not declared in '{scope}'"),
             LogicErrorKind::AlreadyDeclaredTreatment { scope, treatment } => write!(f, "Treatment '{treatment}' is already declared in '{scope}'"),
-            LogicErrorKind::UnexistingConnectionType { scope, from, output, to, input, output_type, input_type, output_flow, input_flow } => write!(f, "Connection from '{from}' to '{to}' in '{scope}' is not possible, '{output}' is {output_flow}<{output_type}> but '{input}' is {input_flow}<{input_type}>"),
+            LogicErrorKind::UnexistingConnectionType { scope, from, output, to, input, output_type, input_type, output_flow, input_flow } => write!(f, "Connection from '{from}' to '{to}' in '{scope}' is not possible, '{output}' is {output_flow}<{output_type}> ({}) but '{input}' is {input_flow}<{input_type}> ({})", Self::described_type_details(output_type), Self::described_type_details(input_type)),
             LogicErrorKind::UnsatisfiedOutput { scope, output } => write!(f, "Output '{output}' is not satisfied in '{scope}'"),
             LogicErrorKind::OverloadedOutput { scope, output } => write!(f, "Output '{output}' is overloaded in '{scope}', only one connection is possible to 'Self' outputs"),
             LogicErrorKind::UnmatchingModelType { scope: _, called, name, expected, given_name, given } => write!(f, "Model '{name}' for '{called}' is expected to be '{expected}', but given '{given_name}' is '{given}' and not based on it"),
@@ -317,9 +332,9 @@ impl Display for LogicErrorKind {
             LogicErrorKind::ModelInstanciationConstOnly { scope, called, name, parameter } => write!(f, "Variable provided for parameter '{parameter}' of model '{name}' from type '{called}' in '{scope}', model instanciations can only get constants"),
             LogicErrorKind::ConstRequiredFunctionReturnsVar { scope, called, parameter, function } => write!(f, "Parameter '{parameter}' of '{called}' is constant but provided '{function}' have variable return value in '{scope}'"),
             LogicErrorKind::UnmatchingNumberOfParameters { scope, function } => write!(f, "Number of parameters given do not match for function '{function}' in '{scope}'"),
-            LogicErrorKind::UnexistingGeneric { scope, element, name, described_type: _ } => write!(f, "The generic type '{name}' doesn't exist for '{element}' in '{scope}'"),
-            LogicErrorKind::UndefinedGeneric { scope, element, described_type } => write!(f, "Generic '{described_type}' is not defined for '{element}' in '{scope}'"),
-            LogicErrorKind::UnsatisfiedTraits { scope, element, described_type, unsatisfied_traits } => write!(f, "Type '{described_type}' does not satisfy trait {} for '{element}' in '{scope}'", unsatisfied_traits.iter().map(|tr| tr.to_string()).collect::<Vec<_>>().join(" + ")),
+            LogicErrorKind::UnexistingGeneric { scope, element, name, described_type } => write!(f, "The generic type '{name}' ({}) doesn't exist for '{element}' in '{scope}'", Self::described_type_details(described_type)),
+            LogicErrorKind::UndefinedGeneric { scope, element, described_type } => write!(f, "Generic '{described_type}' ({}) is not defined for '{element}' in '{scope}'", Self::described_type_details(described_type)),
+            LogicErrorKind::UnsatisfiedTraits { scope, element, described_type, unsatisfied_traits } => write!(f, "Type '{described_type}' ({}) does not satisfy trait {} for '{element}' in '{scope}'", Self::described_type_details(described_type), unsatisfied_traits.iter().map(|tr| tr.to_string()).collect::<Vec<_>>().join(" + ")),
         }
     }
 }
@@ -407,7 +422,7 @@ impl LogicError {
     }
 
     /// Generates a new error with [`LogicErrorKind::LaunchExpectTreatment`] kind.
-    pub fn launch_expect_treatment(id: u32, wrong_identifier: Identifier) -> Self {
+    pub fn launch_expect_treatment(id: u32, wrong_identifier: Option<Identifier>) -> Self {
         Self {
             id,
             design_reference: None,

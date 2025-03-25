@@ -1,0 +1,63 @@
+use std/flow::one
+use std/flow::passBlock
+use std/data/map::|entry
+use log/logger::Logger
+use log/logger::stop as stopLogs
+use log/log::logErrors
+use log/log::logError
+use log/log::logErrorMessage
+use distrib::DistributionEngine
+use distrib::start
+use distrib::stop
+use work/distant::DistantEngine
+use work/distant::distant
+use work/resources/arch::Arch
+use work/resources::Container
+use work/resources::ServiceContainer
+use work/resources::Volume
+
+model CicdDispatchEngine(key: string, address: string = "https://api-staging.melodium.tech/0.1"): DistantEngine {
+    address = address
+    key = key
+}
+
+model CicdRunnerEngine(): DistributionEngine {
+    treatment = "cicd/steps::step"
+    version = "0.9.0-pre.1"
+}
+
+treatment setupRunner[dispatcher: CicdDispatchEngine, runner: CicdRunnerEngine, logger: Logger](name: string, cpu: u32, memory: u32, storage: u32, edition: Option<string> = _, arch: Option<Arch> = _, max_duration: u32 = 3600, volumes: Vec<Volume> = [], containers: Vec<Container> = [], service_containers: Vec<ServiceContainer> = [], var stop_on_failure: bool = true)
+  input trigger: Block<void>
+  output ready:  Block<void>
+  output failed: Block<void>
+{
+    distant[distant_engine=dispatcher](cpu=cpu, memory=memory, storage=storage, edition=edition, arch=arch, max_duration=max_duration, volumes=volumes, containers=containers, service_containers=service_containers)
+
+    logDistantErrors: logErrors[logger=logger](label=name)
+    distant.errors -> logDistantErrors.messages
+
+    start[distributor=runner](params=|entry<string>("label", name))
+    logStartError: logError[logger=logger](label=name)
+    start.error -> logStartError.message
+
+    stopOnFailure: stop[distributor=runner]()
+    oneFailed.value -> stopOnFailure.trigger
+
+    logErrorMessage[logger=logger](label=name, message="Dispatch failed")
+    oneFailed.value -> logErrorMessage.trigger
+
+    oneFailed: one<void>()
+    distant.failed -> oneFailed.a
+    start.failed ---> oneFailed.b
+
+    Self.trigger -> distant.trigger,access -> start.access,ready -> Self.ready
+
+    oneFailed.value -> Self.failed
+}
+
+treatment stopRunner[runner: CicdRunnerEngine]()
+  input trigger: Block<void>
+{
+  stop[distributor=runner]()
+  Self.trigger -> stop.trigger
+}

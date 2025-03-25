@@ -333,7 +333,21 @@ impl PackageManager {
             let mut result = LoadingResult::new_success(());
 
             if let Some(pkg) =
-                result.merge_degrade_failure(package::FsPackage::new(path.parent().unwrap_or(path)))
+                result.merge_degrade_failure(package::FsPackage::new(match path.parent() {
+                    None => path
+                        .canonicalize()
+                        .ok()
+                        .map(|p| p.parent().map(|p| p.to_path_buf()))
+                        .flatten()
+                        .unwrap_or(path.to_path_buf()),
+                    Some(p) if p.as_os_str() == "" => path
+                        .canonicalize()
+                        .ok()
+                        .map(|p| p.parent().map(|p| p.to_path_buf()))
+                        .flatten()
+                        .unwrap_or(path.to_path_buf()),
+                    Some(parent) => parent.to_path_buf(),
+                }))
             {
                 let pkg = Arc::new(Package::Fs(pkg));
                 self.found_packages
@@ -542,7 +556,7 @@ impl PackageManager {
             }
         }
 
-        // search_locations
+        // already found packages
         for (_, pkg) in &*self.found_packages.lock().unwrap() {
             if let Some(pkg) = pkg {
                 if pkg.name() == &requirement.package

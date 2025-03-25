@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 # assert_cmd = "2.0.12"
-ureq = { version = "2.8.0", default-features = false }
+ureq = { version = "3", default-features = false }

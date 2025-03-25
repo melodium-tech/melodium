@@ -6,7 +6,7 @@ use melodium_macro::{check, mel_function, mel_package, mel_treatment};
 use regex::Regex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std_mel::data::*;
+use std_mel::data::string_map::*;
 
 /// Matches stream of strings against a regex.
 ///
@@ -130,7 +130,7 @@ pub fn find(text: string, #[mel(content(regex))] regex: string) -> Option<string
 /// in documentation for full syntax description.
 #[mel_treatment(
     input text Stream<string>
-    output captured Stream<Option<Map>>
+    output captured Stream<Option<StringMap>>
     output error Block<string>
 )]
 pub async fn capture(#[mel(content(regex))] regex: string) {
@@ -153,16 +153,14 @@ pub async fn capture(#[mel(content(regex))] regex: string) {
                             for name in regex.capture_names() {
                                 if let Some(name) = name {
                                     if let Some(cap) = captures.name(name) {
-                                        map_captured.insert(
-                                            name.to_string(),
-                                            Value::String(cap.as_str().to_string()),
-                                        );
+                                        map_captured
+                                            .insert(name.to_string(), cap.as_str().to_string());
                                     }
                                 }
                             }
 
                             vec_captured.push_back(Value::Option(Some(Box::new(Value::Data(
-                                Arc::new(Map::new_with(map_captured)),
+                                Arc::new(StringMap::new_with(map_captured)),
                             )))));
                         }
                         None => {
@@ -186,12 +184,12 @@ pub async fn capture(#[mel(content(regex))] regex: string) {
 
 /// Captures groups of text according to a regex.
 ///
-/// If match, return a `Map` containing the captured **named** groups.
+/// If match, return a `StringMap` containing the captured **named** groups.
 ///
 /// The regex syntax is Unicode-aware. Please refer to [Regex Syntax](https://docs.rs/regex/latest/regex/index.html#syntax)
 /// in documentation for full syntax description.
 #[mel_function]
-pub fn capture(text: string, #[mel(content(regex))] regex: string) -> Option<Map> {
+pub fn capture(text: string, #[mel(content(regex))] regex: string) -> Option<StringMap> {
     match Regex::new(&regex) {
         Ok(regex) => match regex.captures(&text) {
             Some(captures) => {
@@ -200,13 +198,12 @@ pub fn capture(text: string, #[mel(content(regex))] regex: string) -> Option<Map
                 for name in regex.capture_names() {
                     if let Some(name) = name {
                         if let Some(cap) = captures.name(name) {
-                            map_captured
-                                .insert(name.to_string(), Value::String(cap.as_str().to_string()));
+                            map_captured.insert(name.to_string(), cap.as_str().to_string());
                         }
                     }
                 }
 
-                Some(Map::new_with(map_captured))
+                Some(StringMap::new_with(map_captured))
             }
             None => None,
         },

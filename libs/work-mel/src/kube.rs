@@ -1,5 +1,5 @@
 use async_std::{
-    fs::{self, OpenOptions},
+    fs::{self, DirBuilder, OpenOptions},
     io::{ReadExt, WriteExt},
     path::{Path, PathBuf},
     stream::StreamExt,
@@ -7,13 +7,17 @@ use async_std::{
 use async_trait::async_trait;
 use async_walkdir::{Filtering, WalkDir};
 use core::fmt::Debug;
-use fs_mel::filesystem::FileSystemEngine;
+use fs_mel::filesystem::{self, FileSystemEngine};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{api::AttachParams, Api, Client};
-use melodium_core::common::executive::*;
 use melodium_macro::check;
-use process_mel::{command::Command, environment::Environment, exec::ExecutorEngine};
-use std::sync::Arc;
+use process_mel::{
+    command::Command,
+    environment::{environment_variable_regex, Environment},
+    exec::*,
+};
+use regex::{Captures, Replacer};
+use std::collections::{HashMap, HashSet};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 
 pub struct KubeExecutor {
@@ -54,47 +58,155 @@ impl KubeExecutor {
             return Err(format!("No container '{container}' available"));
         }
     }
+
+    async fn manage_variable_substitution(
+        &self,
+        variables: &HashMap<String, String>,
+    ) -> HashMap<String, String> {
+        let names = Self::get_used_variables(variables);
+
+        let environment_variables = self.get_environment_variables(names).await;
+
+        struct VarReplacer<'a> {
+            variables: &'a HashMap<String, String>,
+        }
+
+        impl Replacer for VarReplacer<'_> {
+            fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
+                dst.push_str(
+                    self.variables
+                        .get(&caps[1].to_string())
+                        .map(|str| str.clone())
+                        .unwrap_or_default()
+                        .as_str(),
+                );
+            }
+        }
+
+        let regex = environment_variable_regex();
+        let mut substitued_variables = HashMap::new();
+        for (name, content) in variables.iter() {
+            let expanded = regex
+                .replace_all(
+                    content,
+                    VarReplacer {
+                        variables: &environment_variables,
+                    },
+                )
+                .to_string();
+            substitued_variables.insert(name.clone(), expanded);
+        }
+
+        substitued_variables
+    }
+
+    async fn get_environment_variables(&self, keys: Vec<String>) -> HashMap<String, String> {
+        let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
+
+        let mut map = HashMap::new();
+
+        for key in keys {
+            let var_command = vec![
+                "/usr/bin/env".to_string(),
+                "sh".to_string(),
+                "-c".to_string(),
+                format!("echo ${key}"),
+            ];
+
+            match pod
+                .exec(
+                    &self.pod,
+                    var_command,
+                    &AttachParams::default()
+                        .stdin(false)
+                        .stdout(true)
+                        .stderr(false)
+                        .container(self.container_full_name.clone()),
+                )
+                .await
+            {
+                Ok(mut process) => {
+                    if let Some(process_stdout) = process.stdout() {
+                        let read_stdout = async {
+                            let mut process_stdout = BufReader::new(process_stdout);
+
+                            let mut content = String::new();
+                            match process_stdout.read_to_string(&mut content).await {
+                                Ok(_s) => {
+                                    // Removing '\n'
+                                    content.pop();
+                                    content
+                                }
+                                Err(_e) => String::new(),
+                            }
+                        };
+
+                        let variable = read_stdout.await;
+                        map.insert(key, variable);
+                    }
+                }
+                Err(_err) => {}
+            }
+        }
+
+        map
+    }
+
+    fn get_used_variables(map: &HashMap<String, String>) -> Vec<String> {
+        let mut set = HashSet::new();
+
+        for (_, var) in map {
+            let regex = environment_variable_regex();
+            for capture in regex.captures_iter(var) {
+                if let Some(name) = capture.get(1) {
+                    let name = name.as_str().to_string();
+                    set.insert(name);
+                }
+            }
+        }
+
+        set.into_iter().collect()
+    }
 }
 
 #[async_trait]
 impl ExecutorEngine for KubeExecutor {
     async fn exec(
         &self,
-        command: Arc<Command>,
-        environment: Option<Arc<Environment>>,
-        started: &Box<dyn Output>,
-        ended: &Box<dyn Output>,
-        success: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
+        command: &Command,
+        environment: Option<&Environment>,
+        started: OnceTriggerCall<'async_trait>,
+        finished: OnceTriggerCall<'async_trait>,
+        completed: OnceTriggerCall<'async_trait>,
+        failed: OnceTriggerCall<'async_trait>,
+        error: OnceMessageCall<'async_trait>,
+        exit: OnceCodeCall<'async_trait>,
     ) {
         let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
 
         let mut full_command = if let Some(environment) = environment {
             let mut env_command = vec!["/usr/bin/env".to_string()];
 
-            if environment.clear_env {
-                env_command.push("--ignore-environment".to_string());
-            }
-
             if let Some(dir) = &environment.working_directory {
                 env_command.push(format!("--chdir={dir}"));
             }
 
-            for (name, val) in &environment.variables.map {
-                env_command.push(format!(
-                    "{name}={}",
-                    if val
-                        .datatype()
-                        .implements(&melodium_core::common::descriptor::DataTrait::ToString)
-                    {
-                        melodium_core::DataTrait::to_string(val)
-                    } else {
-                        "".to_string()
-                    }
-                ));
+            if environment.clear_env {
+                env_command.push("--ignore-environment".to_string());
             }
 
-            env_command.push("--split-string".to_string());
+            if environment.expand_variables {
+                let variables = self
+                    .manage_variable_substitution(&environment.variables.map)
+                    .await;
+                for (name, val) in variables {
+                    env_command.push(format!("{name}={val}"));
+                }
+            } else {
+                for (name, val) in &environment.variables.map {
+                    env_command.push(format!("{name}={val}"));
+                }
+            }
 
             env_command.push(command.command.clone());
 
@@ -104,6 +216,8 @@ impl ExecutorEngine for KubeExecutor {
         };
 
         full_command.extend(command.arguments.clone());
+
+        eprintln!("Running command '{full_command:?}'");
 
         match pod
             .exec(
@@ -115,81 +229,95 @@ impl ExecutorEngine for KubeExecutor {
         {
             Ok(mut process) => {
                 if let Some(status_waiter) = process.take_status() {
-                    let _ = started.send_one(().into()).await;
+                    started().await;
 
                     if let Some(status) = status_waiter.await {
                         match status.status.as_ref().map(|s| s.as_str()) {
                             Some("Success") => {
-                                let _ = success.send_one((status.code == Some(0)).into()).await;
-                                let _ = ended.send_one(status.code.into()).await;
+                                completed().await;
+                                if let Some(causes) = status.details.map(|d| d.causes).flatten() {
+                                    let code = causes
+                                        .iter()
+                                        .filter(|cause| cause.reason.as_deref() == Some("ExitCode"))
+                                        .map(|cause| {
+                                            cause.message.as_ref().map(|msg| msg.parse().ok())
+                                        })
+                                        .next()
+                                        .flatten()
+                                        .flatten();
+                                    exit(code).await;
+                                } else {
+                                    exit(None).await;
+                                }
                             }
                             _ => {
-                                let _ = failure
-                                    .send_one(
-                                        status
-                                            .reason
-                                            .unwrap_or_else(|| "No reason provided".to_string())
-                                            .into(),
-                                    )
-                                    .await;
+                                failed().await;
+                                error(
+                                    status
+                                        .reason
+                                        .unwrap_or_else(|| "No reason provided".to_string()),
+                                )
+                                .await;
                             }
                         }
                     } else {
-                        let _ = failure
-                            .send_one("No output status provided".to_string().into())
-                            .await;
+                        failed().await;
+                        error("No output status provided".to_string()).await;
                     }
                 } else {
-                    let _ = failure
-                        .send_one("Unable to take status waiter".to_string().into())
-                        .await;
+                    failed().await;
+                    error("Unable to take status waiter".to_string()).await;
                 }
             }
             Err(err) => {
-                let _ = failure.send_one(err.to_string().into()).await;
+                failed().await;
+                error(err.to_string()).await;
             }
         }
+        finished().await;
     }
     async fn spawn(
         &self,
-        command: Arc<Command>,
-        environment: Option<Arc<Environment>>,
-        started: &Box<dyn Output>,
-        ended: &Box<dyn Output>,
-        success: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
-        stdin: &Box<dyn Input>,
-        stdout: &Box<dyn Output>,
-        stderr: &Box<dyn Output>,
+        command: &Command,
+        environment: Option<&Environment>,
+        started: OnceTriggerCall<'async_trait>,
+        finished: OnceTriggerCall<'async_trait>,
+        completed: OnceTriggerCall<'async_trait>,
+        failed: OnceTriggerCall<'async_trait>,
+        error: OnceMessageCall<'async_trait>,
+        exit: OnceCodeCall<'async_trait>,
+        stdin: InDataCall<'async_trait>,
+        _stdinclose: OnceTriggerCall<'async_trait>,
+        stdout: OutDataCall<'async_trait>,
+        _stdoutclose: OnceTriggerCall<'async_trait>,
+        stderr: OutDataCall<'async_trait>,
+        _stderrclose: OnceTriggerCall<'async_trait>,
     ) {
         let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
 
         let mut full_command = if let Some(environment) = environment {
             let mut env_command = vec!["/usr/bin/env".to_string()];
 
-            if environment.clear_env {
-                env_command.push("--ignore-environment".to_string());
-            }
-
             if let Some(dir) = &environment.working_directory {
                 env_command.push(format!("--chdir={dir}"));
             }
 
-            for (name, val) in &environment.variables.map {
-                env_command.push(format!(
-                    "{name}={}",
-                    if val
-                        .datatype()
-                        .implements(&melodium_core::common::descriptor::DataTrait::ToString)
-                    {
-                        melodium_core::DataTrait::to_string(val)
-                    } else {
-                        "".to_string()
-                    }
-                ));
+            if environment.clear_env {
+                env_command.push("--ignore-environment".to_string());
             }
 
-            env_command.push("--split-string".to_string());
+            if environment.expand_variables {
+                let variables = self
+                    .manage_variable_substitution(&environment.variables.map)
+                    .await;
+                for (name, val) in variables {
+                    env_command.push(format!("{name}={val}"));
+                }
+            } else {
+                for (name, val) in &environment.variables.map {
+                    env_command.push(format!("{name}={val}"));
+                }
+            }
 
             env_command.push(command.command.clone());
 
@@ -199,6 +327,8 @@ impl ExecutorEngine for KubeExecutor {
         };
 
         full_command.extend(command.arguments.clone());
+
+        eprintln!("Running command '{full_command:?}'");
 
         match pod
             .exec(
@@ -224,14 +354,10 @@ impl ExecutorEngine for KubeExecutor {
                     process.stdout(),
                     process.stderr(),
                 ) {
-                    let _ = started.send_one(().into()).await;
+                    started().await;
 
                     let write_stdin = async {
-                        while let Ok(data) = stdin
-                            .recv_many()
-                            .await
-                            .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
-                        {
+                        while let Ok(data) = stdin().await {
                             check!(process_stdin.write_all(&data).await);
                             check!(process_stdin.flush().await);
                         }
@@ -245,13 +371,7 @@ impl ExecutorEngine for KubeExecutor {
                             if n == 0 {
                                 break;
                             }
-                            check!(
-                                stdout
-                                    .send_many(TransmissionValue::Byte(
-                                        buffer[..n].iter().cloned().collect()
-                                    ))
-                                    .await
-                            );
+                            check!(stdout(buffer[..n].iter().cloned().collect()).await);
                         }
                     };
 
@@ -263,13 +383,7 @@ impl ExecutorEngine for KubeExecutor {
                             if n == 0 {
                                 break;
                             }
-                            check!(
-                                stderr
-                                    .send_many(TransmissionValue::Byte(
-                                        buffer[..n].iter().cloned().collect()
-                                    ))
-                                    .await
-                            );
+                            check!(stderr(buffer[..n].iter().cloned().collect()).await);
                         }
                     };
 
@@ -277,42 +391,200 @@ impl ExecutorEngine for KubeExecutor {
                         if let Some(status) = status_waiter.await {
                             match status.status.as_ref().map(|s| s.as_str()) {
                                 Some("Success") => {
-                                    let _ = success.send_one((status.code == Some(0)).into()).await;
-                                    let _ = ended.send_one(status.code.into()).await;
+                                    completed().await;
+                                    if let Some(causes) = status.details.map(|d| d.causes).flatten()
+                                    {
+                                        let code = causes
+                                            .iter()
+                                            .filter(|cause| {
+                                                cause.reason.as_deref() == Some("ExitCode")
+                                            })
+                                            .map(|cause| {
+                                                cause.message.as_ref().map(|msg| msg.parse().ok())
+                                            })
+                                            .next()
+                                            .flatten()
+                                            .flatten();
+                                        exit(code).await;
+                                    } else {
+                                        exit(None).await;
+                                    }
                                 }
                                 _ => {
-                                    let _ = failure
-                                        .send_one(
-                                            status
-                                                .reason
-                                                .unwrap_or_else(|| "No reason provided".to_string())
-                                                .into(),
-                                        )
-                                        .await;
+                                    failed().await;
+                                    error(
+                                        status
+                                            .reason
+                                            .unwrap_or_else(|| "No reason provided".to_string()),
+                                    )
+                                    .await;
                                 }
                             }
                         } else {
-                            let _ = failure
-                                .send_one("No output status provided".to_string().into())
-                                .await;
+                            failed().await;
+                            error("No output status provided".to_string()).await;
                         }
                     };
 
                     tokio::join!(write_stdin, read_stdout, read_stderr, status_waiter);
                 } else {
-                    let _ = failure
-                        .send_one(
-                            "Unable to take status waiter and process I/O"
-                                .to_string()
-                                .into(),
-                        )
-                        .await;
+                    failed().await;
+                    error("Unable to take status waiter and process I/O".to_string()).await;
                 }
             }
             Err(err) => {
-                let _ = failure.send_one(err.to_string().into()).await;
+                failed().await;
+                error(err.to_string()).await;
             }
         }
+        finished().await;
+    }
+
+    async fn spawn_out(
+        &self,
+        command: &Command,
+        environment: Option<&Environment>,
+        started: OnceTriggerCall<'async_trait>,
+        finished: OnceTriggerCall<'async_trait>,
+        completed: OnceTriggerCall<'async_trait>,
+        failed: OnceTriggerCall<'async_trait>,
+        error: OnceMessageCall<'async_trait>,
+        exit: OnceCodeCall<'async_trait>,
+        stdout: OutDataCall<'async_trait>,
+        _stdoutclose: OnceTriggerCall<'async_trait>,
+        stderr: OutDataCall<'async_trait>,
+        _stderrclose: OnceTriggerCall<'async_trait>,
+    ) {
+        let pod: Api<Pod> = Api::namespaced(self.client.clone(), "melodium");
+
+        let mut full_command = if let Some(environment) = environment {
+            let mut env_command = vec!["/usr/bin/env".to_string()];
+
+            if let Some(dir) = &environment.working_directory {
+                env_command.push(format!("--chdir={dir}"));
+            }
+
+            if environment.clear_env {
+                env_command.push("--ignore-environment".to_string());
+            }
+
+            if environment.expand_variables {
+                let variables = self
+                    .manage_variable_substitution(&environment.variables.map)
+                    .await;
+                for (name, val) in variables {
+                    env_command.push(format!("{name}={val}"));
+                }
+            } else {
+                for (name, val) in &environment.variables.map {
+                    env_command.push(format!("{name}={val}"));
+                }
+            }
+
+            env_command.push(command.command.clone());
+
+            env_command
+        } else {
+            vec![command.command.clone()]
+        };
+
+        full_command.extend(command.arguments.clone());
+
+        eprintln!("Running command '{full_command:?}'");
+
+        match pod
+            .exec(
+                &self.pod,
+                full_command,
+                &AttachParams::default()
+                    .container(self.container_full_name.clone())
+                    .stdin(false)
+                    .stdout(true)
+                    .stderr(true),
+            )
+            .await
+        {
+            Ok(mut process) => {
+                if let (Some(status_waiter), Some(process_stdout), Some(process_stderr)) =
+                    (process.take_status(), process.stdout(), process.stderr())
+                {
+                    started().await;
+
+                    let read_stdout = async {
+                        let mut process_stdout = BufReader::new(process_stdout);
+                        let mut buffer = vec![0; 2usize.pow(20)];
+
+                        while let Ok(n) = process_stdout.read(&mut buffer[..]).await {
+                            if n == 0 {
+                                break;
+                            }
+                            check!(stdout(buffer[..n].iter().cloned().collect()).await);
+                        }
+                    };
+
+                    let read_stderr = async {
+                        let mut process_stderr = BufReader::new(process_stderr);
+                        let mut buffer = vec![0; 2usize.pow(20)];
+
+                        while let Ok(n) = process_stderr.read(&mut buffer[..]).await {
+                            if n == 0 {
+                                break;
+                            }
+                            check!(stderr(buffer[..n].iter().cloned().collect()).await);
+                        }
+                    };
+
+                    let status_waiter = async {
+                        if let Some(status) = status_waiter.await {
+                            match status.status.as_ref().map(|s| s.as_str()) {
+                                Some("Success") => {
+                                    completed().await;
+                                    if let Some(causes) = status.details.map(|d| d.causes).flatten()
+                                    {
+                                        let code = causes
+                                            .iter()
+                                            .filter(|cause| {
+                                                cause.reason.as_deref() == Some("ExitCode")
+                                            })
+                                            .map(|cause| {
+                                                cause.message.as_ref().map(|msg| msg.parse().ok())
+                                            })
+                                            .next()
+                                            .flatten()
+                                            .flatten();
+                                        exit(code).await;
+                                    } else {
+                                        exit(None).await;
+                                    }
+                                }
+                                _ => {
+                                    failed().await;
+                                    error(
+                                        status
+                                            .reason
+                                            .unwrap_or_else(|| "No reason provided".to_string()),
+                                    )
+                                    .await;
+                                }
+                            }
+                        } else {
+                            failed().await;
+                            error("No output status provided".to_string()).await;
+                        }
+                    };
+
+                    tokio::join!(read_stdout, read_stderr, status_waiter);
+                } else {
+                    failed().await;
+                    error("Unable to take status waiter and process I/O".to_string()).await;
+                }
+            }
+            Err(err) => {
+                failed().await;
+                error(err.to_string()).await;
+            }
+        }
+        finished().await;
     }
 }
 
@@ -372,11 +644,13 @@ impl FileSystemEngine for KubeFileSystem {
     async fn read_file(
         &self,
         path: &str,
-        data: &Box<dyn Output>,
-        reached: &Box<dyn Output>,
-        finished: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
-        error: &Box<dyn Output>,
+        data: filesystem::OutDataCall<'async_trait>,
+        reached: filesystem::OnceTriggerCall<'async_trait>,
+        reachedclose: filesystem::OnceTriggerCall<'async_trait>,
+        completed: filesystem::OnceTriggerCall<'async_trait>,
+        failed: filesystem::OnceTriggerCall<'async_trait>,
+        finished: filesystem::OnceTriggerCall<'async_trait>,
+        errors: filesystem::OutMessageCall<'async_trait>,
     ) {
         let path = match self
             .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
@@ -384,8 +658,9 @@ impl FileSystemEngine for KubeFileSystem {
         {
             Ok(path) => path,
             Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                failed().await;
+                let _ = errors(err.to_string()).await;
+                finished().await;
                 return;
             }
         };
@@ -393,37 +668,38 @@ impl FileSystemEngine for KubeFileSystem {
         let file = OpenOptions::new().read(true).open(path).await;
         match file {
             Ok(mut file) => {
-                let _ = reached.send_one(().into()).await;
-                reached.close().await;
+                reached().await;
+                reachedclose().await;
                 let mut vec = vec![0; 2usize.pow(20)];
                 let mut fail = false;
                 loop {
                     match file.read(&mut vec).await {
                         Ok(n) if n > 0 => {
                             vec.truncate(n);
-                            check!(data.send_many(TransmissionValue::Byte(vec.into())).await);
+                            check!(data(vec.into()).await);
                             vec = vec![0; 2usize.pow(20)];
                         }
                         Ok(_) => {
                             break;
                         }
                         Err(err) => {
-                            let _ = failure.send_one(().into()).await;
-                            let _ = error.send_one(err.to_string().into()).await;
+                            failed().await;
+                            let _ = errors(err.to_string()).await;
                             fail = true;
                             break;
                         }
                     }
                 }
                 if !fail {
-                    let _ = finished.send_one(().into()).await;
+                    completed().await;
                 }
             }
             Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                failed().await;
+                let _ = errors(err.to_string()).await;
             }
         }
+        finished().await;
     }
     async fn write_file(
         &self,
@@ -431,11 +707,12 @@ impl FileSystemEngine for KubeFileSystem {
         append: bool,
         create: bool,
         new: bool,
-        data: &Box<dyn Input>,
-        amount: &Box<dyn Output>,
-        finished: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
-        error: &Box<dyn Output>,
+        data: filesystem::InDataCall<'async_trait>,
+        amount: filesystem::OutU128Call<'async_trait>,
+        completed: filesystem::OnceTriggerCall<'async_trait>,
+        failed: filesystem::OnceTriggerCall<'async_trait>,
+        finished: filesystem::OnceTriggerCall<'async_trait>,
+        errors: filesystem::OutMessageCall<'async_trait>,
     ) {
         let path = match self
             .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
@@ -443,58 +720,66 @@ impl FileSystemEngine for KubeFileSystem {
         {
             Ok(path) => path,
             Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                failed().await;
+                let _ = errors(err.to_string()).await;
+                finished().await;
                 return;
             }
         };
 
-        let file = OpenOptions::new()
-            .write(true)
-            .append(append)
-            .create(create)
-            .create_new(new)
-            .open(path)
-            .await;
-        match file {
-            Ok(mut file) => {
-                let mut written_amount = 0u128;
-                let mut fail = false;
-                while let Ok(data) = data
-                    .recv_many()
-                    .await
-                    .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
-                {
-                    match file.write_all(&data).await {
-                        Ok(_) => {
-                            written_amount += data.len() as u128;
-                            let _ = amount.send_one(written_amount.into()).await;
-                        }
-                        Err(err) => {
-                            let _ = failure.send_one(().into()).await;
-                            let _ = error.send_one(err.to_string().into()).await;
-                            fail = true;
-                            break;
+        if let Err(err) = DirBuilder::new()
+            .recursive(true)
+            .create(path.parent().unwrap_or(Path::new("")))
+            .await
+        {
+            failed().await;
+            let _ = errors(err.to_string()).await;
+            finished().await;
+        } else {
+            let file = OpenOptions::new()
+                .write(true)
+                .append(append)
+                .create(create)
+                .create_new(new)
+                .open(path)
+                .await;
+            match file {
+                Ok(mut file) => {
+                    let mut written_amount = 0u128;
+                    let mut fail = false;
+                    while let Ok(data) = data().await {
+                        match file.write_all(&data).await {
+                            Ok(_) => {
+                                written_amount += data.len() as u128;
+                                let _ = amount(written_amount).await;
+                            }
+                            Err(err) => {
+                                failed().await;
+                                let _ = errors(err.to_string()).await;
+                                fail = true;
+                                break;
+                            }
                         }
                     }
+                    if !fail {
+                        completed().await;
+                    }
                 }
-                if !fail {
-                    let _ = finished.send_one(().into()).await;
+                Err(err) => {
+                    failed().await;
+                    let _ = errors(err.to_string()).await;
                 }
             }
-            Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
-            }
+            finished().await;
         }
     }
     async fn create_dir(
         &self,
         path: &str,
         recursive: bool,
-        success: &Box<dyn Output>,
-        failure: &Box<dyn Output>,
-        error: &Box<dyn Output>,
+        success: filesystem::OnceTriggerCall<'async_trait>,
+        failed: filesystem::OnceTriggerCall<'async_trait>,
+        error: filesystem::OnceMessageCall<'async_trait>,
     ) {
         let path = match self
             .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
@@ -502,8 +787,8 @@ impl FileSystemEngine for KubeFileSystem {
         {
             Ok(path) => path,
             Err(err) => {
-                let _ = failure.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                failed().await;
+                error(err.to_string()).await;
                 return;
             }
         };
@@ -514,11 +799,11 @@ impl FileSystemEngine for KubeFileSystem {
             fs::create_dir(path).await
         } {
             Ok(()) => {
-                let _ = success.send_one(().into()).await;
+                success().await;
             }
             Err(err) => {
-                let _ = error.send_one(err.to_string().into()).await;
-                let _ = failure.send_one(().into()).await;
+                error(err.to_string()).await;
+                failed().await;
             }
         }
     }
@@ -527,9 +812,11 @@ impl FileSystemEngine for KubeFileSystem {
         path: &str,
         recursive: bool,
         follow_links: bool,
-        entries: &Box<dyn Output>,
-        success: &Box<dyn Output>,
-        error: &Box<dyn Output>,
+        entries: filesystem::OutMessageCall<'async_trait>,
+        completed: filesystem::OnceTriggerCall<'async_trait>,
+        failed: filesystem::OnceTriggerCall<'async_trait>,
+        finished: filesystem::OnceTriggerCall<'async_trait>,
+        errors: filesystem::OutMessageCall<'async_trait>,
     ) {
         let path = match self
             .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
@@ -537,7 +824,8 @@ impl FileSystemEngine for KubeFileSystem {
         {
             Ok(path) => path,
             Err(err) => {
-                let _ = error.send_one(err.to_string().into()).await;
+                failed().await;
+                let _ = errors(err.to_string()).await;
                 return;
             }
         };
@@ -565,18 +853,21 @@ impl FileSystemEngine for KubeFileSystem {
             }
         });
 
+        let mut success = true;
         while let Some(entry) = dir_entries.next().await {
             match entry {
-                Ok(entry) => check!(
-                    entries
-                        .send_one(entry.path().to_string_lossy().to_string().into())
-                        .await
-                ),
+                Ok(entry) => check!(entries(entry.path().to_string_lossy().to_string()).await),
                 Err(err) => {
-                    let _ = error.send_one(err.to_string().into()).await;
+                    success = false;
+                    let _ = errors(err.to_string()).await;
                 }
             }
         }
-        let _ = success.send_one(().into()).await;
+        finished().await;
+        if success {
+            completed().await;
+        } else {
+            failed().await;
+        }
     }
 }

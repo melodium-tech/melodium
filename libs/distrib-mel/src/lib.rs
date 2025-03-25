@@ -6,14 +6,15 @@ use async_native_tls::TlsStream;
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::io::{Read, Write};
 use async_std::net::{SocketAddr, TcpStream};
-use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
-use common::descriptor::{Entry, Treatment};
-use common::{
-    descriptor::{Identifier, Version},
-    executive::ResultStatus,
+use async_std::sync::{
+    Arc as AsyncArc, Barrier as AsyncBarrier, Mutex as AsyncMutex, RwLock as AsyncRwLock,
 };
+use common::descriptor::{Entry, Treatment};
+use common::descriptor::{Identifier, Version};
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
+use core::time::Duration;
+use futures::{pin_mut, select, FutureExt};
 #[cfg(any(
     all(not(target_os = "windows"), not(target_vendor = "apple")),
     all(target_os = "windows", target_env = "gnu")
@@ -30,7 +31,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, Weak},
 };
-use std_mel::data::*;
+use std_mel::data::map::*;
 use work_mel::access::*;
 
 #[derive(Debug)]
@@ -49,12 +50,6 @@ struct Track {
 #[mel_model(
     param treatment string none
     param version string none
-    source ready () () (
-        trigger Block<void>
-    )
-    source distributionFailure () () (
-        failure Block<string>
-    )
     continuous (continuous)
     shutdown shutdown
 )]
@@ -63,7 +58,8 @@ pub struct DistributionEngine {
     protocol: AsyncRwLock<Option<AsyncArc<Protocol<TlsStream<TcpStream>>>>>,
     treatment: AsyncRwLock<Option<Arc<dyn Treatment>>>,
     tracks: AsyncRwLock<HashMap<u64, Track>>,
-    protocol_barrier: AsyncBarrier,
+    protocol_barrier: AsyncMutex<(bool, Option<AsyncArc<AsyncBarrier>>)>,
+    started_once: AtomicBool,
 }
 
 impl DistributionEngine {
@@ -73,7 +69,29 @@ impl DistributionEngine {
             protocol: AsyncRwLock::new(None),
             treatment: AsyncRwLock::new(None),
             tracks: AsyncRwLock::new(HashMap::new()),
-            protocol_barrier: AsyncBarrier::new(2),
+            protocol_barrier: AsyncMutex::new((false, Some(AsyncArc::new(AsyncBarrier::new(2))))),
+            started_once: AtomicBool::new(false),
+        }
+    }
+
+    pub async fn protocol_barrier(&self) {
+        let barrier = {
+            let mut lock = self.protocol_barrier.lock().await;
+            if lock.0 {
+                lock.1.take()
+            } else {
+                lock.0 = true;
+                lock.1.as_ref().map(|barrier| AsyncArc::clone(barrier))
+            }
+        };
+        if let Some(barrier) = barrier {
+            barrier.wait().await;
+        }
+    }
+
+    pub async fn fuse(&self) {
+        if self.started_once.load(Ordering::Relaxed) {
+            self.protocol_barrier().await;
         }
     }
 
@@ -81,22 +99,22 @@ impl DistributionEngine {
         &self,
         access: &work_mel::api::CommonAccess,
         params: HashMap<String, Value>,
-    ) {
+    ) -> Result<(), String> {
+        if self.started_once.swap(true, Ordering::Relaxed) {
+            return Ok(());
+        }
+
         let model = self.model.upgrade().unwrap();
 
         let entrypoint = match Identifier::from_str(&model.get_treatment()) {
             Ok(id) => match Version::from_str(&model.get_version()) {
                 Ok(version) => id.with_version(&version),
                 Err(err) => {
-                    self.distribution_failure(format!("'{err}' is not a valid version"))
-                        .await;
-                    return;
+                    return Err(format!("'{err}' is not a valid version"));
                 }
             },
             Err(err) => {
-                self.distribution_failure(format!("'{err}' is not a valid identifier"))
-                    .await;
-                return;
+                return Err(format!("'{err}' is not a valid identifier"));
             }
         };
 
@@ -140,39 +158,29 @@ impl DistributionEngine {
                         match protocol.recv_message().await {
                             Ok(Message::ConfirmDistribution(confirm)) => {
                                 if !confirm.accept {
-                                    self.distribution_failure(format!("Cannot distribute, remote engine version is {} with protocol version {}, while local engine version is {} with protocol version {}.", confirm.melodium_version, confirm.distribution_version, env!("CARGO_PKG_VERSION"), melodium_distribution::VERSION)).await;
-                                    return;
+                                    return Err(format!("Cannot distribute, remote engine version is {} with protocol version {}, while local engine version is {} with protocol version {}.", confirm.melodium_version, confirm.distribution_version, env!("CARGO_PKG_VERSION"), melodium_distribution::VERSION));
                                 }
                                 if confirm.key != access.self_key {
-                                    self.distribution_failure("Cannot distribute, remote engine did not provided valid key.".to_string()).await;
-                                    return;
+                                    return Err("Cannot distribute, remote engine did not provided valid key.".to_string());
                                 }
                             }
                             Ok(_) => {
-                                self.distribution_failure(
-                                    "Unexpected response message".to_string(),
-                                )
-                                .await;
-                                return;
+                                return Err("Unexpected response message".to_string());
                             }
                             Err(err) => {
-                                self.distribution_failure(err.to_string()).await;
-                                return;
+                                return Err(err.to_string());
                             }
                         }
                     }
                     Err(err) => {
-                        self.distribution_failure(err.to_string()).await;
-                        return;
+                        return Err(err.to_string());
                     }
                 }
 
                 let treatment = match model.world().collection().get(&(&entrypoint).into()) {
                     Some(Entry::Treatment(treatment)) => Arc::clone(treatment),
                     _ => {
-                        self.distribution_failure("No treatment found".to_string())
-                            .await;
-                        return;
+                        return Err("No treatment found".to_string());
                     }
                 };
 
@@ -196,69 +204,49 @@ impl DistributionEngine {
                         Ok(Message::LaunchStatus(status)) => match status {
                             melodium_distribution::LaunchStatus::Ok => {
                                 *protocol_lock = Some(AsyncArc::new(protocol));
-                                model
-                                    .new_ready(
-                                        None,
-                                        &HashMap::new(),
-                                        Some(Box::new(move |mut outputs| {
-                                            let trigger = outputs.get("trigger");
-
-                                            vec![Box::new(Box::pin(async move {
-                                                let _ = trigger.send_one(().into()).await;
-                                                trigger.close().await;
-                                                ResultStatus::Ok
-                                            }))]
-                                        })),
-                                    )
-                                    .await;
-                                self.protocol_barrier.wait().await;
+                                self.protocol_barrier().await;
+                                Ok(())
                             }
                             melodium_distribution::LaunchStatus::Failure(err) => {
-                                self.distribution_failure(err.to_string()).await;
-                                return;
+                                return Err(err.to_string());
                             }
                             _ => {
-                                self.distribution_failure(
-                                    "Unexpected response message".to_string(),
-                                )
-                                .await;
-                                return;
+                                return Err("Unexpected response message".to_string());
                             }
                         },
                         Ok(_) => {
-                            self.distribution_failure("Unexpected response message".to_string())
-                                .await;
-                            return;
+                            return Err("Unexpected response message".to_string());
                         }
                         Err(err) => {
-                            self.distribution_failure(err.to_string()).await;
-                            return;
+                            return Err(err.to_string());
                         }
                     },
                     Err(err) => {
-                        self.distribution_failure(err.to_string()).await;
-                        return;
+                        return Err(err.to_string());
                     }
                 }
             } else if let Some(err) = error_message {
-                self.distribution_failure(err).await;
+                Err(err)
             } else {
-                self.distribution_failure("No IP address provided".to_string())
-                    .await;
+                Err("No IP address provided".to_string())
             }
+        } else {
+            Ok(())
         }
     }
 
     pub async fn stop(&self) {
         if let Some(protocol) = self.protocol.read().await.as_ref() {
             let _ = protocol.send_message(Message::Ended).await;
+            protocol.close().await;
+        } else if !self.started_once.load(Ordering::Relaxed) {
+            self.protocol_barrier().await;
+        } else {
+            self.fuse().await;
         }
     }
 
-    pub async fn distribute(
-        &self,
-        params: HashMap<String, Value>,
-    ) -> Option<(u64, AsyncArc<AsyncBarrier>, AsyncArc<AtomicBool>)> {
+    pub async fn distribute(&self) -> Option<(u64, AsyncArc<AsyncBarrier>, AsyncArc<AtomicBool>)> {
         if let Some(protocol) = self.protocol.read().await.as_ref() {
             let mut tracks = self.tracks.write().await;
 
@@ -304,13 +292,7 @@ impl DistributionEngine {
                 tracks.insert(id, track);
 
                 if protocol
-                    .send_message(Message::Instanciate(Instanciate {
-                        id: id,
-                        parameters: params
-                            .into_iter()
-                            .map(|(name, value)| (name, value.into()))
-                            .collect(),
-                    }))
+                    .send_message(Message::Instanciate(Instanciate { id: id }))
                     .await
                     .is_ok()
                 {
@@ -372,7 +354,7 @@ impl DistributionEngine {
             .flatten()
     }
 
-    pub async fn send_data(&self, distribution_id: &u64, name: &String) {
+    pub async fn send_data(&self, distribution_id: &u64, name: &String) -> Result<(), ()> {
         if let Some(data_recv) = self
             .tracks
             .read()
@@ -383,15 +365,23 @@ impl DistributionEngine {
         {
             while let Ok(data) = data_recv.try_recv() {
                 if let Some(protocol) = self.protocol.read().await.as_ref() {
-                    let _ = protocol
+                    if let Err(_) = protocol
                         .send_message(Message::InputData(InputData {
                             id: *distribution_id,
                             name: name.clone(),
                             data: data.into(),
                         }))
-                        .await;
+                        .await
+                    {
+                        return Err(());
+                    }
+                } else {
+                    return Err(());
                 }
             }
+            return Ok(());
+        } else {
+            return Err(());
         }
     }
 
@@ -407,81 +397,111 @@ impl DistributionEngine {
     }
 
     async fn continuous(&self) {
-        self.protocol_barrier.wait().await;
+        self.protocol_barrier().await;
 
-        if let Some(protocol) = self.protocol.read().await.as_ref() {
-            loop {
-                match protocol.recv_message().await {
-                    Ok(Message::InstanciateStatus(instanciate_status)) => {
-                        match instanciate_status {
-                            InstanciateStatus::Ok { id } => {
-                                if let Some(track) = self.tracks.read().await.get(&id) {
-                                    track.instancied.store(true, Ordering::Relaxed);
-                                    track.instanciation_barrier.wait().await;
+        let exec = async {
+            if let Some(protocol) = self.protocol.read().await.as_ref() {
+                loop {
+                    match protocol.recv_message().await {
+                        Ok(Message::InstanciateStatus(instanciate_status)) => {
+                            match instanciate_status {
+                                InstanciateStatus::Ok { id } => {
+                                    if let Some(track) = self.tracks.read().await.get(&id) {
+                                        track.instancied.store(true, Ordering::Relaxed);
+                                        track.instanciation_barrier.wait().await;
+                                    }
+                                }
+                                InstanciateStatus::Failure { id, message: _ } => {
+                                    if let Some(track) = self.tracks.read().await.get(&id) {
+                                        track.instanciation_barrier.wait().await;
+                                    }
                                 }
                             }
-                            InstanciateStatus::Failure { id, message: _ } => {
-                                if let Some(track) = self.tracks.read().await.get(&id) {
-                                    track.instanciation_barrier.wait().await;
+                        }
+                        Ok(Message::CloseInput(close_input)) => {
+                            if let Some(input) = self
+                                .tracks
+                                .read()
+                                .await
+                                .get(&close_input.id)
+                                .map(|track| track.inputs_receivers.get(&close_input.name))
+                                .flatten()
+                            {
+                                input.close();
+                            }
+                        }
+                        Ok(Message::OutputData(output_data)) => {
+                            if let Some(output) = self
+                                .tracks
+                                .read()
+                                .await
+                                .get(&output_data.id)
+                                .map(|track| track.outputs_senders.get(&output_data.name))
+                                .flatten()
+                            {
+                                if output.send(output_data.data).await.is_err() {
+                                    let _ = protocol
+                                        .send_message(Message::CloseOutput(CloseOutput {
+                                            id: output_data.id,
+                                            name: output_data.name.clone(),
+                                        }))
+                                        .await;
                                 }
                             }
                         }
-                    }
-                    Ok(Message::CloseInput(close_input)) => {
-                        if let Some(input) = self
-                            .tracks
-                            .read()
-                            .await
-                            .get(&close_input.id)
-                            .map(|track| track.inputs_receivers.get(&close_input.name))
-                            .flatten()
-                        {
-                            input.close();
-                        }
-                    }
-                    Ok(Message::OutputData(output_data)) => {
-                        if let Some(output) = self
-                            .tracks
-                            .read()
-                            .await
-                            .get(&output_data.id)
-                            .map(|track| track.outputs_senders.get(&output_data.name))
-                            .flatten()
-                        {
-                            if output.send(output_data.data).await.is_err() {
-                                let _ = protocol
-                                    .send_message(Message::CloseOutput(CloseOutput {
-                                        id: output_data.id,
-                                        name: output_data.name.clone(),
-                                    }))
-                                    .await;
+                        Ok(Message::CloseOutput(close_output)) => {
+                            if let Some(output) = self
+                                .tracks
+                                .read()
+                                .await
+                                .get(&close_output.id)
+                                .map(|track| track.outputs_senders.get(&close_output.name))
+                                .flatten()
+                            {
+                                output.close();
                             }
                         }
-                    }
-                    Ok(Message::CloseOutput(close_output)) => {
-                        if let Some(output) = self
-                            .tracks
-                            .read()
-                            .await
-                            .get(&close_output.id)
-                            .map(|track| track.outputs_senders.get(&close_output.name))
-                            .flatten()
-                        {
-                            output.close();
+                        Ok(Message::Ended) => {
+                            self.close_all().await;
+                            break;
+                        }
+                        Ok(Message::Probe) => {}
+                        Ok(_) => {}
+                        Err(_) => {
+                            self.close_all().await;
+                            break;
                         }
                     }
-                    Ok(Message::Ended) => {
-                        self.close_all().await;
-                        break;
-                    }
-                    Ok(_) => {}
-                    Err(_) => {
-                        self.close_all().await;
+                }
+                protocol.close().await;
+            }
+        }
+        .fuse();
+
+        let probe = async {
+            if let Some(protocol) = self.protocol.read().await.as_ref() {
+                loop {
+                    async_std::task::sleep(Duration::from_secs(10)).await;
+                    if protocol.send_message(Message::Probe).await.is_err() {
                         break;
                     }
                 }
+                protocol.close().await;
             }
         }
+        .fuse();
+
+        pin_mut!(exec, probe);
+
+        loop {
+            select! {
+                () = exec => { break }
+                () = probe => { break }
+                complete => break,
+            }
+        }
+
+        self.close_all().await;
     }
 
     async fn close_all(&self) {
@@ -514,31 +534,14 @@ impl DistributionEngine {
     }
 
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
-
-    async fn distribution_failure(&self, message: String) {
-        self.model
-            .upgrade()
-            .unwrap()
-            .new_distributionFailure(
-                None,
-                &HashMap::new(),
-                Some(Box::new(move |mut outputs| {
-                    let failure = outputs.get("failure");
-
-                    vec![Box::new(Box::pin(async move {
-                        let _ = failure.send_one(message.into()).await;
-                        failure.close().await;
-                        ResultStatus::Ok
-                    }))]
-                })),
-            )
-            .await;
-    }
 }
 
 #[mel_treatment(
     model distributor DistributionEngine
     input access Block<Access>
+    output ready Block<void>
+    output failed Block<void>
+    output error Block<string>
 )]
 pub async fn start(params: Map) {
     let model = DistributionEngineModel::into(distributor);
@@ -552,7 +555,18 @@ pub async fn start(params: Map) {
             .downcast_arc::<Access>()
             .unwrap()
     }) {
-        distributor.start(&access.0, params).await;
+        match distributor.start(&access.0, params).await {
+            Ok(_) => {
+                let _ = ready.send_one(().into()).await;
+            }
+            Err(err) => {
+                let _ = failed.send_one(().into()).await;
+                let _ = error.send_one(err.into()).await;
+                distributor.fuse().await;
+            }
+        }
+    } else {
+        distributor.stop().await;
     }
 }
 
@@ -573,22 +587,32 @@ pub async fn stop() {
     model distributor DistributionEngine
     input trigger Block<void>
     output distribution_id Block<u64>
+    output failed Block<void>
+    output error Block<string>
 )]
-pub async fn distribute(params: Map) {
+pub async fn distribute() {
     let model = DistributionEngineModel::into(distributor);
     let distributor = model.inner();
 
-    let params = params.map.clone();
-
     if let Ok(_) = trigger.recv_one().await {
-        if let Some((id, barrier, validation)) = distributor.distribute(params).await {
+        if let Some((id, barrier, validation)) = distributor.distribute().await {
             if !validation.load(Ordering::Relaxed) {
                 barrier.wait().await;
                 validation.store(true, Ordering::Relaxed);
                 if distributor.is_ok(&id).await {
                     let _ = distribution_id.send_one(id.into()).await;
+                } else {
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error
+                        .send_one("Instanciation failed".to_string().into())
+                        .await;
                 }
             }
+        } else {
+            let _ = failed.send_one(().into()).await;
+            let _ = error
+                .send_one("Distribution failed".to_string().into())
+                .await;
         }
     }
 }
@@ -609,12 +633,13 @@ pub async fn recv_stream(name: string) {
     {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
+        let collection = distributor.model.upgrade().unwrap().world().collection();
 
         if let Some(receiver) = distributor.get_output(&distribution_id, &name).await {
             while let Ok(recv_data) = receiver.recv().await {
                 let recv_data: Vec<_> = recv_data
                     .into_iter()
-                    .map(|v| TryInto::<Value>::try_into(v))
+                    .map(|v| v.to_value(&collection))
                     .collect();
                 if recv_data
                     .iter()
@@ -654,11 +679,12 @@ pub async fn recv_block(name: string) {
     {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
+        let collection = distributor.model.upgrade().unwrap().world().collection();
 
         if let Some(receiver) = distributor.get_output(&distribution_id, &name).await {
             while let Ok(recv_data) = receiver.recv().await {
                 if let Some(value) = recv_data.first() {
-                    if let Ok(value) = TryInto::<Value>::try_into(value) {
+                    if let Some(value) = value.to_value(&collection) {
                         if value.datatype() == datatype {
                             let _ = data.send_one(value).await;
                         }
@@ -700,7 +726,15 @@ pub async fn send_stream(name: string) {
                     voluntary_close = false;
                     break;
                 }
-                distributor.send_data(&distribution_id, &name).await;
+
+                if distributor
+                    .send_data(&distribution_id, &name)
+                    .await
+                    .is_err()
+                {
+                    voluntary_close = false;
+                    break;
+                }
             }
 
             if voluntary_close {
@@ -731,7 +765,13 @@ pub async fn send_block(name: string) {
                 if sender.send(vec![data.into()]).await.is_err() {
                     voluntary_close = false;
                 } else {
-                    distributor.send_data(&distribution_id, &name).await;
+                    if distributor
+                        .send_data(&distribution_id, &name)
+                        .await
+                        .is_err()
+                    {
+                        voluntary_close = false;
+                    }
                 }
             }
             if voluntary_close {

@@ -1,6 +1,6 @@
 [package]
 name = "fs-mel"
-version = "0.8.0"
+version = "0.9.0-pre.1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -17,14 +17,14 @@ crate-type = ["lib", "cdylib"]
 name = "fs_mel"
 
 [dependencies]
-async-std = "1.12"
+async-std = "1.13"
 async-trait = "0.1.71"
 async-walkdir = "2.0"
 futures = "0.3.28"
-melodium-core = { path = "../../melodium-core", version = "0.8.0" }
-melodium-macro = { path = "../../melodium-macro", version = "0.8.0" }
+melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.1" }
+melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.1" }
 serde = "1.0.185"
-std-mel = { path = "../std-mel", version = "0.8.0" }
+std-mel = { path = "../std-mel", version = "=0.9.0-pre.1" }
 
 [features]
 mock = []

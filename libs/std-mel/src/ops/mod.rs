@@ -5,6 +5,19 @@ pub mod bin;
 pub mod float;
 pub mod num;
 pub mod option;
+pub mod vec;
+
+/// Conditionally return `a` or `b`
+#[mel_function(
+    generic T ()
+)]
+pub fn condition(condition: bool, a: T, b: T) -> T {
+    if condition {
+        a
+    } else {
+        b
+    }
+}
 
 /// Return whether `a` is equal to `b`
 #[mel_function(

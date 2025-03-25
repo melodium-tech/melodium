@@ -1,8 +1,8 @@
 #!/usr/bin/env melodium
 #! name = fs_test
-#! version = 0.8.0
-#! require = std:0.8.0
-#! require = fs:0.8.0
+#! version = 0.9.0-pre.1
+#! require = std:=0.9.0-pre.1
+#! require = fs:=0.9.0-pre.1
 
 use std/engine/util::startup
 use std/flow::generate
@@ -10,7 +10,7 @@ use std/flow::count
 use std/conv::toBytes
 use std/flow/vec::flatten
 use std/flow::emit
-use fs/util::write
+use fs/local::writeLocal
 
 treatment main() {
     
@@ -26,8 +26,8 @@ treatment main() {
     
     generate.stream -> count.stream,count -> toBytes.value,data -> flatten.vector
     
-    write(path="./fs_try.data")
+    writeLocal(path="./fs_try.data")
     
-    flatten.value -> write.data
+    flatten.value -> writeLocal.data
     
 }

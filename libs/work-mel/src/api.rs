@@ -1,5 +1,5 @@
 use serde::{Deserialize, Deserializer, Serialize};
-use std::net::IpAddr;
+use std::{collections::HashMap, net::IpAddr};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -12,6 +12,7 @@ pub struct CommonAccess {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Access {
+    pub id: Uuid,
     pub addresses: Vec<IpAddr>,
     pub port: u16,
     pub key: Uuid,
@@ -21,7 +22,7 @@ pub struct Access {
 pub struct Request {
     pub config: Option<RequestConfig>,
     pub id: Option<Uuid>,
-    pub client_id: Option<Uuid>,
+    pub organization_id: Option<Uuid>,
     pub edition: String,
     pub version: String,
     pub mode: ModeRequest,
@@ -32,6 +33,7 @@ pub struct Request {
     pub arch: Option<Arch>,
     pub volumes: Vec<Volume>,
     pub containers: Vec<Container>,
+    pub service_containers: Vec<ServiceContainer>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -95,6 +97,20 @@ pub struct Container {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ServiceContainer {
+    pub name: String,
+    pub image: String,
+    pub pull_secret: String,
+    pub memory: u32,
+    pub cpu: u32,
+    pub storage: u32,
+    pub arch: Arch,
+    pub mounts: Vec<VolumeMount>,
+    pub env: HashMap<String, String>,
+    pub command: Option<Vec<String>>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VolumeMount {
     pub name: String,
     pub mount_point: String,
@@ -103,6 +119,13 @@ pub struct VolumeMount {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Response {
+    Ok(Uuid),
+    Error(Vec<String>),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DistributionResponse {
     Started(Option<Access>),
     Error(Vec<String>),
 }

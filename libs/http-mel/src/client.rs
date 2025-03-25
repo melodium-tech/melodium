@@ -6,7 +6,7 @@ use melodium_macro::{check, mel_model, mel_treatment};
 use std::collections::HashMap;
 use std::sync::RwLock;
 use std::sync::{Arc, Weak};
-use std_mel::data::*;
+use std_mel::data::string_map::*;
 use trillium::HeaderName;
 use trillium::HeaderValue;
 use trillium::KnownHeaderName;
@@ -32,7 +32,7 @@ pub const USER_AGENT: &str = concat!("http-mel/", env!("CARGO_PKG_VERSION"));
 #[mel_model(
     param base_url Option<string> none
     param tcp_no_delay bool true
-    param headers Map none
+    param headers StringMap none
     initialize initialization
 )]
 #[derive(Debug)]
@@ -85,14 +85,20 @@ impl HttpClient {
 /// - `status`: HTTP status response.
 /// - `res_headers`: the headers contained in the response.
 /// - `data`: data received as response, corresponding to the HTTP body.
-/// - `failure`: emitted if the request failed technically, containing the failure message.
+/// - `completed`: emitted when the incoming request finished successfully.
+/// - `failed`: emitted if the incoming request failed technically.
+/// - `error`: message containing error when request failed technically.
+/// - `finished`: emitted when the incoming request finished, regardless of state.
 #[mel_treatment(
     model client HttpClient
     input url Block<string>
-    input req_headers Block<Map>
-    output res_headers Block<Map>
+    input req_headers Block<StringMap>
+    output res_headers Block<StringMap>
     output data Stream<byte>
-    output failure Block<string>
+    output completed Block<void>
+    output failed Block<void>
+    output finished Block<void>
+    output error Block<string>
     output status Block<HttpStatus>
 )]
 pub async fn request(method: HttpMethod) {
@@ -103,7 +109,7 @@ pub async fn request(method: HttpMethod) {
         req_headers.recv_one().await.map(|val| {
             GetData::<Arc<dyn Data>>::try_data(val)
                 .unwrap()
-                .downcast_arc::<Map>()
+                .downcast_arc::<StringMap>()
                 .unwrap()
         }),
     ) {
@@ -113,17 +119,12 @@ pub async fn request(method: HttpMethod) {
                 .map(|base_url| base_url.join(&url))
                 .unwrap_or_else(|| Url::parse(&url))
             {
-                Ok(_) => match {
+                Ok(url) => match {
                     let mut conn = client.build_conn(method.0, url);
                     for (name, content) in &req_headers.map {
-                        let header_name = HeaderName::from(name.as_str());
-                        if header_name.is_valid()
-                            && content
-                                .datatype()
-                                .implements(&melodium_core::common::descriptor::DataTrait::ToString)
-                        {
-                            let header_content =
-                                HeaderValue::from(melodium_core::DataTrait::to_string(content));
+                        let header_name = HeaderName::from(name.to_string());
+                        if header_name.is_valid() {
+                            let header_content = HeaderValue::from(content.clone());
                             if header_content.is_valid() {
                                 conn.request_headers_mut()
                                     .insert(header_name.to_owned(), header_content);
@@ -146,14 +147,14 @@ pub async fn request(method: HttpMethod) {
                                 .response_headers()
                                 .iter()
                                 .filter_map(|(name, value)| {
-                                    value.as_str().map(|value| {
-                                        (name.to_string(), Value::String(value.to_string()))
-                                    })
+                                    value
+                                        .as_str()
+                                        .map(|value| (name.to_string(), value.to_string()))
                                 })
                                 .collect();
                             let _ = res_headers
                                 .send_one(Value::Data(
-                                    Arc::new(Map::new_with(headers)) as Arc<dyn Data>
+                                    Arc::new(StringMap::new_with(headers)) as Arc<dyn Data>
                                 ))
                                 .await;
 
@@ -164,8 +165,12 @@ pub async fn request(method: HttpMethod) {
                             let (prod, mut cons) = data_buf.split();
 
                             let response_body = conn.response_body();
-                            let _ =
-                                futures::join!(async_std::io::copy(response_body, prod), async {
+                            let _ = futures::join!(
+                                async {
+                                    let _ = async_std::io::copy(response_body, prod).await;
+                                    let _ = completed.send_one(().into()).await;
+                                },
+                                async {
                                     loop {
                                         let mut size = 2usize.pow(20);
                                         let mut recv_data = vec![0; size];
@@ -187,17 +192,21 @@ pub async fn request(method: HttpMethod) {
                                             break;
                                         }
                                     }
-                                });
+                                }
+                            );
                         }
                     }
                     Err(err) => {
-                        let _ = failure.send_one(err.to_string().into()).await;
+                        let _ = failed.send_one(().into()).await;
+                        let _ = error.send_one(err.to_string().into()).await;
                     }
                 },
                 Err(err) => {
-                    let _ = failure.send_one(err.to_string().into()).await;
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error.send_one(err.to_string().into()).await;
                 }
             }
+            let _ = finished.send_one(().into()).await;
         }
     }
 }
@@ -214,15 +223,21 @@ pub async fn request(method: HttpMethod) {
 /// - `status`: HTTP status response.
 /// - `res_headers`: the headers contained in the response.
 /// - `data`: data received as response, corresponding to the HTTP body.
-/// - `failure`: emitted if the request failed technically, containing the failure message.
+/// - `completed`: emitted when the request finished successfully.
+/// - `failed`: emitted if the request failed technically.
+/// - `error`: message containing error when request failed technically.
+/// - `finished`: emitted when the request finished, regardless of state.
 #[mel_treatment(
     model client HttpClient
     input url Block<string>
-    input req_headers Block<Map>
+    input req_headers Block<StringMap>
     input body Stream<byte>
     output data Stream<byte>
-    output res_headers Block<Map>
-    output failure Block<string>
+    output res_headers Block<StringMap>
+    output completed Block<void>
+    output failed Block<void>
+    output finished Block<void>
+    output error Block<string>
     output status Block<HttpStatus>
 )]
 pub async fn request_with_body(method: HttpMethod) {
@@ -233,7 +248,7 @@ pub async fn request_with_body(method: HttpMethod) {
         req_headers.recv_one().await.map(|val| {
             GetData::<Arc<dyn Data>>::try_data(val)
                 .unwrap()
-                .downcast_arc::<Map>()
+                .downcast_arc::<StringMap>()
                 .unwrap()
         }),
     ) {
@@ -243,23 +258,18 @@ pub async fn request_with_body(method: HttpMethod) {
                 .map(|base_url| base_url.join(&url))
                 .unwrap_or_else(|| Url::parse(&url))
             {
-                Ok(_) => {
+                Ok(url) => {
                     let in_body_buf = AsyncHeapRb::<u8>::new(2usize.pow(20));
                     let (mut in_prod, in_cons) = in_body_buf.split();
 
                     let conn_doing = async {
                         {
                             let mut conn = client.build_conn(method.0, url);
+
                             for (name, content) in &req_headers.map {
-                                let header_name = HeaderName::from(name.as_str());
-                                if header_name.is_valid()
-                                    && content.datatype().implements(
-                                        &melodium_core::common::descriptor::DataTrait::ToString,
-                                    )
-                                {
-                                    let header_content = HeaderValue::from(
-                                        melodium_core::DataTrait::to_string(content),
-                                    );
+                                let header_name = HeaderName::from(name.to_string());
+                                if header_name.is_valid() {
+                                    let header_content = HeaderValue::from(content.to_string());
                                     if header_content.is_valid() {
                                         conn.request_headers_mut()
                                             .insert(header_name.to_owned(), header_content);
@@ -280,6 +290,7 @@ pub async fn request_with_body(method: HttpMethod) {
                                 break;
                             }
                         }
+                        in_prod.close();
                     };
 
                     match futures::join!(body_transmission, conn_doing) {
@@ -295,14 +306,14 @@ pub async fn request_with_body(method: HttpMethod) {
                                     .response_headers()
                                     .iter()
                                     .filter_map(|(name, value)| {
-                                        value.as_str().map(|value| {
-                                            (name.to_string(), Value::String(value.to_string()))
-                                        })
+                                        value
+                                            .as_str()
+                                            .map(|value| (name.to_string(), value.to_string()))
                                     })
                                     .collect();
                                 let _ = res_headers
                                     .send_one(Value::Data(
-                                        Arc::new(Map::new_with(headers)) as Arc<dyn Data>
+                                        Arc::new(StringMap::new_with(headers)) as Arc<dyn Data>
                                     ))
                                     .await;
 
@@ -314,7 +325,10 @@ pub async fn request_with_body(method: HttpMethod) {
 
                                 let response_body = conn.response_body();
                                 let _ = futures::join!(
-                                    async_std::io::copy(response_body, out_prod),
+                                    async {
+                                        let _ = async_std::io::copy(response_body, out_prod).await;
+                                        let _ = completed.send_one(().into()).await;
+                                    },
                                     async {
                                         loop {
                                             let mut size = 2usize.pow(20);
@@ -341,14 +355,17 @@ pub async fn request_with_body(method: HttpMethod) {
                             }
                         }
                         (_, Err(err)) => {
-                            let _ = failure.send_one(err.to_string().into()).await;
+                            let _ = failed.send_one(().into()).await;
+                            let _ = error.send_one(err.to_string().into()).await;
                         }
                     }
                 }
                 Err(err) => {
-                    let _ = failure.send_one(err.to_string().into()).await;
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error.send_one(err.to_string().into()).await;
                 }
             }
+            let _ = finished.send_one(().into()).await;
         }
     }
 }

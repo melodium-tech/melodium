@@ -1,0 +1,27 @@
+use cicd/runners::CicdDispatchEngine
+use log/logger::Logger
+use log/logger::logs
+use log/logger::stop
+use log/file::writeAllLogs
+use log/console::console
+use std/text/compose::|format
+use std/data/string_map::|entry
+use std/engine/util::startup
+use local/ci::archs
+
+treatment main(const key: string, out_directory: string, repository_url: string, ci_token: string, project: string, ref: string, test: bool = false, pipeline: string = "", sha: string = "", on_github: bool = false, on_gitlab: bool = false)
+  model logger: Logger()
+  model cicd: CicdDispatchEngine(key=key)
+{
+    startup()
+
+    allLogs: logs[logger=logger]()
+    stopLogs: stop[logger=logger]()
+    logConsole: console(timestamp=true)
+    writeAllLogs(file=|format("{out_directory}/logs/full.log", |entry("out_directory", out_directory)))
+    allLogs.all -> logConsole.logs
+    allLogs.all -> writeAllLogs.logs
+
+    archs[cicd=cicd, logger=logger](release=true, build=true, test=test, out_directory=out_directory, repository_url=repository_url, report_service_token=ci_token, project=project, sha=sha, ref=ref, pipeline=pipeline, on_github=on_github, on_gitlab=on_gitlab)
+    startup.trigger -> archs.trigger,finished -> stopLogs.trigger
+}

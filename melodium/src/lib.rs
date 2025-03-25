@@ -11,15 +11,21 @@
 #![doc = include_str!("../README.md")]
 
 use melodium_common::{
-    descriptor::{Collection, Identifier, LoadingError, LoadingResult, Package},
+    descriptor::{
+        Collection, Identifier, LoadingError, LoadingResult, Package, PackageRequirement,
+        VersionReq,
+    },
     executive::Value,
 };
 use melodium_engine::LogicResult;
 pub use melodium_loader::LoadingConfig;
-use melodium_loader::{Loader, PackageInfo};
+use melodium_loader::{Compo, Loader, PackageInfo};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+
+#[cfg(feature = "fs")]
+pub mod new;
 
 pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 pub const TARGET: &'static str = env!("TARGET");
@@ -59,6 +65,96 @@ pub fn load_entry(
         .and_then(|_| loader.load(identifier))
         .and_then(|_| loader.build())
 }*/
+
+pub fn load_compo(
+    content: &str,
+    entrypoint: &str,
+    mut config: LoadingConfig,
+) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
+    config.extend(core_config());
+
+    Compo::parse(content).and_then(|compo| {
+        let loader = Loader::new(config);
+        loader
+            .load_package(&PackageRequirement {
+                package: compo.name,
+                version_requirement: VersionReq::parse(&format!("={}", compo.version)).unwrap(),
+            })
+            .and_then(|pkg| {
+                if let Some(main) = pkg.entrypoints().get(entrypoint) {
+                    loader
+                        .load(&main.into())
+                        .and(LoadingResult::new_success(pkg))
+                } else {
+                    LoadingResult::new_failure(LoadingError::no_entry_point_provided(245))
+                }
+            })
+            .and_then(|pkg| {
+                loader
+                    .build()
+                    .and_then(|collection| LoadingResult::new_success((pkg, collection)))
+            })
+    })
+}
+
+pub fn load_compo_all_entrypoints(
+    content: &str,
+    mut config: LoadingConfig,
+) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
+    config.extend(core_config());
+
+    Compo::parse(content).and_then(|compo| {
+        let loader = Loader::new(config);
+        loader
+            .load_package(&PackageRequirement {
+                package: compo.name,
+                version_requirement: VersionReq::parse(&format!("={}", compo.version)).unwrap(),
+            })
+            .and_then(|pkg| {
+                let mut result = LoadingResult::new_success(Arc::clone(&pkg));
+                for (_, id) in pkg.entrypoints() {
+                    result = result.and(
+                        loader
+                            .load(&id.into())
+                            .and(LoadingResult::new_success(Arc::clone(&pkg))),
+                    )
+                }
+                result
+            })
+            .and_then(|pkg| {
+                loader
+                    .build()
+                    .and_then(|collection| LoadingResult::new_success((pkg, collection)))
+            })
+    })
+}
+
+pub fn load_compo_force_entrypoint(
+    content: &str,
+    identifier: &Identifier,
+    mut config: LoadingConfig,
+) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
+    config.extend(core_config());
+
+    Compo::parse(content).and_then(|compo| {
+        let loader = Loader::new(config);
+        loader
+            .load_package(&PackageRequirement {
+                package: compo.name,
+                version_requirement: VersionReq::parse(&format!("={}", compo.version)).unwrap(),
+            })
+            .and_then(|pkg| {
+                loader
+                    .load(&identifier.into())
+                    .and(LoadingResult::new_success(pkg))
+            })
+            .and_then(|pkg| {
+                loader
+                    .build()
+                    .and_then(|collection| LoadingResult::new_success((pkg, collection)))
+            })
+    })
+}
 
 pub fn load_raw(
     raw: Arc<Vec<u8>>,
@@ -138,24 +234,60 @@ pub fn load_raw_force_entrypoint(
 pub fn load_file(
     file: PathBuf,
     entrypoint: &str,
-    config: LoadingConfig,
+    mut config: LoadingConfig,
 ) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
-    match std::fs::read(&file) {
-        Ok(content) => load_raw(Arc::new(content), entrypoint, config),
-        Err(err) => {
-            LoadingResult::new_failure(LoadingError::unreachable_file(193, file, err.to_string()))
+    if file
+        .file_name()
+        .map(|file_name| file_name == "Compo.toml")
+        .unwrap_or(false)
+    {
+        config.search_locations.push(file.clone());
+        match std::fs::read_to_string(&file) {
+            Ok(content) => load_compo(&content, entrypoint, config),
+            Err(err) => LoadingResult::new_failure(LoadingError::unreachable_file(
+                246,
+                file,
+                err.to_string(),
+            )),
+        }
+    } else {
+        match std::fs::read(&file) {
+            Ok(content) => load_raw(Arc::new(content), entrypoint, config),
+            Err(err) => LoadingResult::new_failure(LoadingError::unreachable_file(
+                193,
+                file,
+                err.to_string(),
+            )),
         }
     }
 }
 
 pub fn load_file_all_entrypoints(
     file: PathBuf,
-    config: LoadingConfig,
+    mut config: LoadingConfig,
 ) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
-    match std::fs::read(&file) {
-        Ok(content) => load_raw_all_entrypoints(Arc::new(content), config),
-        Err(err) => {
-            LoadingResult::new_failure(LoadingError::unreachable_file(244, file, err.to_string()))
+    if file
+        .file_name()
+        .map(|file_name| file_name == "Compo.toml")
+        .unwrap_or(false)
+    {
+        config.search_locations.push(file.clone());
+        match std::fs::read_to_string(&file) {
+            Ok(content) => load_compo_all_entrypoints(&content, config),
+            Err(err) => LoadingResult::new_failure(LoadingError::unreachable_file(
+                247,
+                file,
+                err.to_string(),
+            )),
+        }
+    } else {
+        match std::fs::read(&file) {
+            Ok(content) => load_raw_all_entrypoints(Arc::new(content), config),
+            Err(err) => LoadingResult::new_failure(LoadingError::unreachable_file(
+                244,
+                file,
+                err.to_string(),
+            )),
         }
     }
 }
@@ -163,12 +295,30 @@ pub fn load_file_all_entrypoints(
 pub fn load_file_force_entrypoint(
     file: PathBuf,
     identifier: &Identifier,
-    config: LoadingConfig,
+    mut config: LoadingConfig,
 ) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
-    match std::fs::read(&file) {
-        Ok(content) => load_raw_force_entrypoint(Arc::new(content), identifier, config),
-        Err(err) => {
-            LoadingResult::new_failure(LoadingError::unreachable_file(243, file, err.to_string()))
+    if file
+        .file_name()
+        .map(|file_name| file_name == "Compo.toml")
+        .unwrap_or(false)
+    {
+        config.search_locations.push(file.clone());
+        match std::fs::read_to_string(&file) {
+            Ok(content) => load_compo_force_entrypoint(&content, identifier, config),
+            Err(err) => LoadingResult::new_failure(LoadingError::unreachable_file(
+                248,
+                file,
+                err.to_string(),
+            )),
+        }
+    } else {
+        match std::fs::read(&file) {
+            Ok(content) => load_raw_force_entrypoint(Arc::new(content), identifier, config),
+            Err(err) => LoadingResult::new_failure(LoadingError::unreachable_file(
+                243,
+                file,
+                err.to_string(),
+            )),
         }
     }
 }
@@ -184,7 +334,7 @@ pub async fn launch(
         return result;
     } else {
         engine.live().await;
-        engine.end();
+        engine.end().await;
         LogicResult::new_success(())
     }
 }
@@ -202,6 +352,8 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
     let mut packages = Vec::new();
     packages.push(std_mel::__mel_package::package());
 
+    #[cfg(feature = "cicd-mel")]
+    packages.push(cicd_mel::__mel_package::package());
     #[cfg(feature = "distrib-mel")]
     packages.push(distrib_mel::__mel_package::package());
     #[cfg(feature = "encoding-mel")]
@@ -214,6 +366,8 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
     packages.push(javascript_mel::__mel_package::package());
     #[cfg(feature = "json-mel")]
     packages.push(json_mel::__mel_package::package());
+    #[cfg(feature = "log-mel")]
+    packages.push(log_mel::__mel_package::package());
     #[cfg(feature = "net-mel")]
     packages.push(net_mel::__mel_package::package());
     #[cfg(feature = "process-mel")]

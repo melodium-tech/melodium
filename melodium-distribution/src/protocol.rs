@@ -1,10 +1,15 @@
 use crate::messages::Message;
-use async_std::io::{BufReader, BufWriter, Read, Write, WriteExt};
+use async_std::io::{timeout, BufReader, BufWriter, Read, Write};
 use async_std::sync::Mutex;
 use core::fmt::Display;
+use core::sync::atomic::AtomicBool;
+use core::time::Duration;
 use futures::io::{AsyncReadExt, ReadHalf, WriteHalf};
+use futures::AsyncWriteExt;
 
 type Result<T> = std::result::Result<T, Error>;
+
+const TIMEOUT: u64 = 20;
 
 #[derive(Debug)]
 pub enum Error {
@@ -41,6 +46,7 @@ impl From<async_std::io::Error> for Error {
 
 #[derive(Debug)]
 pub struct Protocol<R: Read + Write + Unpin + Send> {
+    closed: AtomicBool,
     reader: Mutex<BufReader<ReadHalf<R>>>,
     writer: Mutex<BufWriter<WriteHalf<R>>>,
 }
@@ -49,19 +55,41 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
     pub fn new(rw: R) -> Self {
         let (read, write) = rw.split();
         Self {
+            closed: AtomicBool::new(false),
             reader: Mutex::new(BufReader::new(read)),
             writer: Mutex::new(BufWriter::new(write)),
         }
     }
 
+    pub async fn close(&self) {
+        if !self.closed.load(core::sync::atomic::Ordering::Relaxed) {
+            let _ = self.send_message(Message::Ended).await;
+            // Currently only writer can be closed (reader rely on timeout)
+            let mut writer = self.writer.lock().await;
+            let _ = writer.close().await;
+            self.closed
+                .store(true, core::sync::atomic::Ordering::Relaxed);
+        }
+    }
+
     pub async fn recv_message(&self) -> Result<Message> {
+        if self.closed.load(core::sync::atomic::Ordering::Relaxed) {
+            return Err(Error::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "closed",
+            )));
+        }
         let mut reader = self.reader.lock().await;
         let mut expected_size: [u8; 4] = [0; 4];
-        reader.read_exact(&mut expected_size).await?;
+        timeout(
+            Duration::from_secs(TIMEOUT),
+            reader.read_exact(&mut expected_size),
+        )
+        .await?;
         let expected_size = u32::from_be_bytes(expected_size) as usize;
 
         let mut data = vec![0u8; expected_size];
-        reader.read_exact(&mut data).await?;
+        timeout(Duration::from_secs(TIMEOUT), reader.read_exact(&mut data)).await?;
 
         match ciborium::de::from_reader(data.as_slice()) {
             Ok(message) => Ok(message),
@@ -70,14 +98,24 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
     }
 
     pub async fn send_message(&self, message: Message) -> Result<()> {
+        if self.closed.load(core::sync::atomic::Ordering::Relaxed) {
+            return Err(Error::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "closed",
+            )));
+        }
         let mut writer = self.writer.lock().await;
 
         let mut data = Vec::new();
         match ciborium::into_writer(&message, &mut data) {
             Ok(()) => {
-                writer.write_all(&(data.len() as u32).to_be_bytes()).await?;
-                writer.write_all(&data).await?;
-                writer.flush().await?;
+                timeout(
+                    Duration::from_secs(TIMEOUT),
+                    writer.write_all(&(data.len() as u32).to_be_bytes()),
+                )
+                .await?;
+                timeout(Duration::from_secs(TIMEOUT), writer.write_all(&data)).await?;
+                timeout(Duration::from_secs(TIMEOUT), writer.flush()).await?;
                 Ok(())
             }
             Err(err) => Err(Error::Serialization(err)),

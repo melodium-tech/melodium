@@ -10,11 +10,11 @@ use melodium_lang::{
     semantic::{NoneDeclarativeElement, Value as SemanticValue},
     text::{get_words, Value as TextValue},
 };
-use std::sync::Arc;
 use std::{collections::HashMap, sync::RwLock};
+use std::{collections::HashSet, sync::Arc};
 use std::{net::IpAddr, path::PathBuf};
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[clap(author, version, about)]
 struct Cli {
     #[clap(value_parser)]
@@ -29,7 +29,7 @@ struct Cli {
     command: Option<Commands>,
 }
 
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Run given program, with optionnal arguments
 struct Run {
     #[clap(long)]
@@ -50,7 +50,7 @@ struct Run {
     prog_args: Vec<String>,
 }
 
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Check given program
 struct Check {
     #[clap(long)]
@@ -67,7 +67,7 @@ struct Check {
     prog_cmd: Option<String>,
 }
 
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Give information about program or package
 struct Info {
     #[clap(long)]
@@ -78,8 +78,31 @@ struct Info {
     name: String,
 }
 
+#[cfg(feature = "fs")]
+#[derive(clap::Args, Debug)]
+/// Creates a new program
+struct New {
+    #[clap(short, long, allow_hyphen_values = true, default_value = "0.1.0")]
+    /// Program version.
+    version: String,
+    #[clap(short, long, allow_hyphen_values = true)]
+    /// Path where create new program, if a `.mel` file name is specified, a standalone file program is created, defaults to program name.
+    path: Option<String>,
+    #[clap(short, long, default_value_t, value_enum)]
+    /// Template to use for new project.
+    template: melodium::new::Template,
+    #[clap(value_parser, allow_hyphen_values = true)]
+    /// Program name.
+    name: String,
+}
+
+#[cfg(not(feature = "fs"))]
+#[derive(clap::Args, Debug)]
+/// [Not available in this release] Creates a new program
+struct New {}
+
 #[cfg(feature = "distribution")]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Makes engine available for distribution
 struct Dist {
     #[clap(short, long)]
@@ -112,11 +135,11 @@ struct Dist {
 }
 
 #[cfg(not(feature = "distribution"))]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// [Not available in this release] Makes engine available for distribution
 struct Dist {}
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 /// Manage `.jeu` package files
 
 enum Jeu {
@@ -125,7 +148,7 @@ enum Jeu {
 }
 
 #[cfg(all(feature = "jeu", feature = "fs"))]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Build a `.jeu` file from package on located in input directory
 struct JeuBuild {
     #[clap(value_parser)]
@@ -137,7 +160,7 @@ struct JeuBuild {
 }
 
 #[cfg(all(feature = "jeu", feature = "fs"))]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Extract a `.jeu` file into designated directory
 struct JeuExtract {
     #[clap(value_parser)]
@@ -149,17 +172,17 @@ struct JeuExtract {
 }
 
 #[cfg(not(all(feature = "jeu", feature = "fs")))]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// [Not available in this release] Build a `.jeu` file from package on located in input directory
 struct JeuBuild {}
 
 #[cfg(not(all(feature = "jeu", feature = "fs")))]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// [Not available in this release] Extract a `.jeu` file into designated directory
 struct JeuExtract {}
 
 #[cfg(feature = "doc")]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// Generates documentation
 struct Doc {
     #[clap(long)]
@@ -180,15 +203,16 @@ struct Doc {
 }
 
 #[cfg(not(feature = "doc"))]
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 /// [Not available in this release] Generates documentation
 struct Doc {}
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 enum Commands {
     Run(Run),
     Check(Check),
     Info(Info),
+    New(New),
     Dist(Dist),
     #[clap(subcommand)]
     Jeu(Jeu),
@@ -215,6 +239,10 @@ pub fn main() {
             Commands::Run(args) => run(args),
             Commands::Check(args) => check(args),
             Commands::Info(args) => info(args),
+            #[cfg(feature = "fs")]
+            Commands::New(args) => new(args),
+            #[cfg(not(feature = "fs"))]
+            Commands::New(_) => {}
             #[cfg(feature = "distribution")]
             Commands::Dist(args) => dist(args),
             #[cfg(not(feature = "distribution"))]
@@ -300,7 +328,7 @@ fn check(args: Check) {
 }
 
 fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
-    let mut config = LoadingConfig {
+    let config = LoadingConfig {
         core_packages: Vec::new(),
         search_locations: args
             .path
@@ -310,18 +338,7 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
         raw_elements: Vec::new(),
     };
 
-    let file = if let Some(file) = args.file.as_ref().map(|f| PathBuf::from(f)) {
-        if file.is_file() {
-            Some(file)
-        } else if file.is_dir() {
-            config.search_locations.push(file);
-            None
-        } else {
-            None
-        }
-    } else {
-        None
-    };
+    let file = args.file.as_ref().map(|f| PathBuf::from(f));
 
     let result = match (
         args.prog_cmd.as_ref().filter(|arg| !arg.starts_with('-')),
@@ -402,6 +419,82 @@ fn info(args: Info) {
         let _ = cmd.print_long_help();
     } else {
         std::process::exit(1);
+    }
+}
+
+#[cfg(feature = "fs")]
+fn new(args: New) {
+    use convert_case::{Case, Casing};
+    use melodium_common::descriptor::Version;
+    use std::str::FromStr;
+
+    let program_version = match Version::parse(&args.version) {
+        Ok(version) => version,
+        Err(err) => {
+            eprintln!("{}: {err}", "error".bold().red());
+            std::process::exit(1);
+        }
+    };
+
+    let path = match PathBuf::from_str(args.path.as_ref().unwrap_or(&args.name)) {
+        Ok(path) => path,
+        Err(err) => {
+            eprintln!("{}: {err}", "error".bold().red());
+            std::process::exit(1);
+        }
+    };
+
+    let program_name = args.name.to_case(Case::Snake);
+
+    if args.template == melodium::new::Template::Raw
+        && path.extension().map(|ext| ext == "mel").unwrap_or(false)
+    {
+        // Standalone file
+        let melodium_version = Version::parse(VERSION).unwrap();
+
+        let contents = format!("#!/usr/bin/env melodium\n#! name = {program_name}\n#! version = {program_version}\n#! require = std:{}\n\ntreatment main()\n{{\n    \n}}\n\n",
+        if melodium_version.pre.is_empty() {
+            melodium_version.to_string()
+        } else {
+            format!("={melodium_version}")
+        });
+
+        if let Err(err) = std::fs::write(&path, contents) {
+            eprintln!("{}: {err}", "error".bold().red());
+            std::process::exit(1);
+        }
+
+        println!(
+            "{}: program '{program_name}' created in standalone file '{path}'",
+            "success".bold().green(),
+            path = path.to_string_lossy()
+        )
+    } else {
+        // Project tree
+        let project_tree = melodium::new::template(args.template, &program_name, &program_version);
+
+        match std::fs::create_dir_all(&path) {
+            Ok(_) => {
+                for (filename, content) in project_tree {
+                    let mut full_path = path.clone();
+                    full_path.push(filename);
+                    if let Err(err) = std::fs::write(full_path, content) {
+                        eprintln!("{}: {err}", "error".bold().red());
+                        std::process::exit(1);
+                    }
+                }
+
+                println!(
+                    "{}: program '{program_name}' created in '{path}'",
+                    "success".bold().green(),
+                    path = path.to_string_lossy()
+                )
+            }
+            Err(err) => {
+                eprintln!("{}: {err}", "error".bold().red());
+                std::process::exit(1);
+            }
+        }
     }
 }
 
@@ -720,17 +813,26 @@ fn extract_jeu(args: JeuExtract) {
 }
 
 fn print_result<T>(result: &LoadingResult<T>) {
+    let mut printed = HashSet::new();
     match result {
         Status::Success { success: _, errors } => {
-            errors
-                .iter()
-                .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
+            errors.iter().for_each(|err| {
+                let err_msg = err.to_string();
+                if printed.insert(err_msg.clone()) {
+                    eprintln!("{}: {err_msg}", "error".bold().red())
+                }
+            });
         }
         Status::Failure { failure, errors } => {
-            eprintln!("{}: {failure}", "failure".bold().red());
-            errors
-                .iter()
-                .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
+            let failure_msg = failure.to_string();
+            eprintln!("{}: {failure_msg}", "failure".bold().red());
+            printed.insert(failure_msg);
+            errors.iter().for_each(|err| {
+                let err_msg = err.to_string();
+                if printed.insert(err_msg.clone()) {
+                    eprintln!("{}: {err_msg}", "error".bold().red())
+                }
+            });
         }
     }
 }

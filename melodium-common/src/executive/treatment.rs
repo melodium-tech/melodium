@@ -13,5 +13,5 @@ pub trait Treatment: Debug + Sync + Send {
     fn assign_input(&self, input_name: &str, transmitter: Box<dyn Input>);
     fn assign_output(&self, output_name: &str, transmitter: Box<dyn Output>);
 
-    fn prepare(&self) -> Vec<TrackFuture>;
+    fn prepare(&self, track_id: usize) -> Vec<TrackFuture>;
 }

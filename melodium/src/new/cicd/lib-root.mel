@@ -1,0 +1,21 @@
+use cicd/runners::CicdDispatchEngine
+use cicd/logging::manageLogs
+use local/works::build
+use local/works::test
+use log/logger::Logger
+use std/engine/util::startup
+
+treatment main(const dispatch_api_key: string, output_directory: string, repository_clone_url: string, repository_clone_ref: string, repository_clone_sha: string = "", ci_service_token: string = "", ci_service_project: string = "", ci_service_ref: string = "", ci_service_pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
+  model logger: Logger()
+  model cicd: CicdDispatchEngine(key=dispatch_api_key)
+{
+    startup()
+
+    manageLogs[logger=logger](output_directory=output_directory)
+
+    build[cicd=cicd, logger=logger](repository_clone_url=repository_clone_url, repository_clone_ref=repository_clone_ref)
+    test[cicd=cicd, logger=logger]()
+
+    startup.trigger -> build.trigger,data -> test.data
+    startup.trigger -----------------------> test.trigger,finished -> manageLogs.stop
+}

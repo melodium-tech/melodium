@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = http_distributed
-#! version = 0.8.0
-#! require = http:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0 work:0.8.0 distrib:0.8.0 fs:0.8.0 net:0.8.0
+#! version = 0.9.0-pre.1
+#! require = http:=0.9.0-pre.1 std:=0.9.0-pre.1 javascript:=0.9.0-pre.1 encoding:=0.9.0-pre.1 json:=0.9.0-pre.1 work:=0.9.0-pre.1 distrib:=0.9.0-pre.1 fs:=0.9.0-pre.1 net:=0.9.0-pre.1
 
 use http/server::HttpServer
 use http/server::start as startHttp
@@ -20,8 +20,8 @@ use std/flow/vec::flatten
 use std/ops/option::unwrapOr
 use std/ops/option::unwrap
 use std/conv::toString
-use std/data::Map
-use std/data::|map
+use std/data/string_map::StringMap
+use std/data/string_map::|map
 use std/engine/util::startup
 use encoding::decode
 use encoding::encode
@@ -30,14 +30,14 @@ use javascript::process
 use json::toJson
 use json::Json
 use json/value::|null
-use fs/util::writeText
+use fs/local::writeTextLocal
 use work::DistantEngine
 use work::distant
 use work::Access
 
 treatment main(const distant: string, const key: string)
   model distant: DistantEngine(address=distant, key=key)
-  model distributor: DistributionEngine(treatment="http_distributed::js_function", version="0.8.0")
+  model distributor: DistributionEngine(treatment="http_distributed::js_function", version="=0.9.0-pre.1")
   model server: HttpServer(
     host=|from_ipv4(|localhost_ipv4()),
     port=8080
@@ -49,20 +49,20 @@ treatment main(const distant: string, const key: string)
     distributedJs[distributor=distributor]()
     startup.trigger -> distant.trigger,access -> start.access
 
-    writeDistantFailure: writeText(path = "distant_failure.log")
+    writeDistantFailure: writeTextLocal(path = "distant_failure.log")
     streamDistantFailure: stream<Vec<string>>()
     flatten<string>()
-    distant.failure -> streamDistantFailure.block,stream -> flatten.vector,value -> writeDistantFailure.text
+    distant.error -> streamDistantFailure.block,stream -> flatten.vector,value -> writeDistantFailure.text
 
     emitOk: emit<string>(value="ok")
     streamOk: stream<string>()
-    writeOk: writeText(path = "ok.log")
+    writeOk: writeTextLocal(path = "ok.log")
     ready[distribution_engine=distributor]()
-    writeDistribFailure: writeText(path = "distrib_failure.log")
+    writeDistribFailure: writeTextLocal(path = "distrib_failure.log")
     streamDistribFailure: stream<string>()
     distributionFailure[distribution_engine=distributor]()
 
-    distributionFailure.failure -> streamDistribFailure.block,stream -> writeDistribFailure.text
+    distributionFailure.error -> streamDistribFailure.block,stream -> writeDistribFailure.text
     ready.trigger -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
 
     startHttp[http_server=server]()
@@ -71,7 +71,7 @@ treatment main(const distant: string, const key: string)
 
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())
-    headers: emit<Map>(value=|map([]))
+    headers: emit<StringMap>(value=|map([]))
     trigger<byte>()
     
     connection.data -> trigger.stream,start --> status.trigger,emit -> connection.status

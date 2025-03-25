@@ -1,0 +1,66 @@
+use root/exec::Executor
+use root/environment::Environment
+use root/command::Command
+use root/exec::execOne
+use root/exec::spawnOne
+use std/flow::emit
+
+treatment execOnce(command: Command, environment: Option<Environment> = _)
+  input executor: Block<Executor>
+  input launch: Block<void>
+  output started: Block<void>
+  output finished: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output error: Block<string>
+  output exit: Block<Option<i32>>
+{
+    emitCommand: emit<Command>(value=command)
+    emitEnv: emit<Option<Environment>>(value=environment)
+
+    execOne()
+
+    Self.executor -----------------------------> execOne.executor
+    Self.launch ---> emitCommand.trigger,emit -> execOne.command
+    Self.launch ---> emitEnv.trigger,emit -----> execOne.environment
+
+    execOne.started ---> Self.started
+    execOne.finished --> Self.finished
+    execOne.completed -> Self.completed
+    execOne.failed ----> Self.failed
+    execOne.error -----> Self.error
+    execOne.exit ------> Self.exit
+}
+
+treatment spawnOnce(command: Command, environment: Option<Environment> = _)
+  input executor: Block<Executor>
+  input launch: Block<void>
+  input stdin: Stream<byte>
+  output started: Block<void>
+  output finished: Block<void>
+  output completed :Block<void>
+  output failed: Block<void>
+  output error: Block<string>
+  output exit: Block<Option<i32>>
+  output stdout: Stream<byte>
+  output stderr: Stream<byte>
+{
+    emitCommand: emit<Command>(value=command)
+    emitEnv: emit<Option<Environment>>(value=environment)
+
+    spawnOne()
+
+    Self.executor -----------------------------> spawnOne.executor
+    Self.launch ---> emitCommand.trigger,emit -> spawnOne.command
+    Self.launch ---> emitEnv.trigger,emit -----> spawnOne.environment
+    Self.stdin --------------------------------> spawnOne.stdin
+
+    spawnOne.started ---> Self.started
+    spawnOne.finished --> Self.finished
+    spawnOne.completed -> Self.completed
+    spawnOne.failed ----> Self.failed
+    spawnOne.error -----> Self.error
+    spawnOne.exit ------> Self.exit
+    spawnOne.stdout ----> Self.stdout
+    spawnOne.stderr ----> Self.stderr
+}

@@ -4,7 +4,7 @@ use root/server::incoming
 use root/server::outgoing
 use root/method::HttpMethod
 use root/status::HttpStatus
-use std/data::Map
+use std/data/string_map::StringMap
 
 /**
 Connection on HTTP server.
@@ -17,7 +17,8 @@ In order to start sending response to the requester, `status` and `headers` inpu
 Outputs:
     - `headers`: headers send in request.
     - `data`: the raw body data received in the request.
-    - `failure`: emitted if a failure occurs during the processing of request.
+    - `failed`: emitted if a failure occurs during the processing of request.
+    - `error`: error message emitted if a failure occurs during the processing of request.
 
 Inputs:
     - `status`: HTTP status response.
@@ -27,22 +28,24 @@ Inputs:
 treatment connection[http_server: HttpServer](const method: HttpMethod, const route: string)
   require @HttpRequest
   input status: Block<HttpStatus>
-  input headers: Block<Map>
+  input headers: Block<StringMap>
   input data: Stream<byte>
   output started: Block<void>
-  output headers: Block<Map>
+  output headers: Block<StringMap>
   output data: Stream<byte>
-  output failure: Block<string>
+  output failed: Block<void>
+  output error: Block<string>
 {
     incoming[http_server=http_server](method=method, route=route)
     outgoing[http_server=http_server](id=@HttpRequest[id])
 
     incoming.started -> Self.started
     incoming.headers -> Self.headers
-    incoming.data -> Self.data
-    incoming.failure -> Self.failure
+    incoming.data ----> Self.data
+    incoming.error ---> Self.error
+    incoming.failed --> Self.failed
 
-    Self.status -> outgoing.status
+    Self.status --> outgoing.status
     Self.headers -> outgoing.headers
-    Self.data -> outgoing.data
+    Self.data ----> outgoing.data
 }

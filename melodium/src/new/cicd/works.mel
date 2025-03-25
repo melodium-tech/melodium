@@ -1,0 +1,94 @@
+use cicd/runners::CicdDispatchEngine
+use cicd/runners::CicdRunnerEngine
+use cicd/runners::setupRunner
+use cicd/runners::stopRunner
+use cicd/steps::stepOn
+use cicd/steps::stepOnWithInput
+use log/logger::Logger
+use process/command::|command
+use process/command::|raw_commands
+use process/environment::Environment
+use process/environment::|environment
+use std/data/string_map::|map
+use std/ops/option::|wrap
+use work/resources::|container
+use work/resources/arch::|amd64
+use work/resources::|volume
+use work/resources::|mount
+
+treatment build[cicd: CicdDispatchEngine, logger: Logger](repository_clone_url: string, repository_clone_ref: string)
+  model runner: CicdRunnerEngine()
+  input trigger: Block<void>
+  output data:   Stream<byte>
+{
+    setupRunner[
+        dispatcher=cicd,
+        runner=runner,
+        logger=logger
+    ](
+        name="build",
+        cpu=1,
+        memory=500,
+        storage=1000,
+        volumes=[|volume("build-result", 30)],
+        containers=[|container("ubuntu", 1000, 2, 8000, |amd64(), [|mount("build-result", "/mounted/result")], "ubuntu:noble", _)]
+    )
+    gitClone: stepOn[runner=runner, logger=logger](
+        executor_name="ubuntu",
+        environment=|wrap<Environment>(|environment(|map([]), "/root", false, false)),
+        commands=[
+            |command("apt-get", ["update"]),
+            |command("apt-get", ["install", "-y", "git"]),
+            |command("git", ["config", "--global", "url.https://.insteadOf", "git://"]),
+            |command("git", ["clone", "--branch", repository_clone_ref, "--depth", "1", repository_clone_url, "project"])
+        ]
+    )
+    makeList: stepOn[runner=runner, logger=logger](
+        executor_name="ubuntu",
+        environment=|wrap<Environment>(|environment(|map([]), "/root/project", false, false)),
+        commands=|raw_commands([
+            "sh -c \"ls -l --almost-all | tee files-list.txt\"",
+            "mv files-list.txt /mounted/result/"
+        ]),
+        out_filesystem="build-result",
+        out_file="files-list.txt"
+    )
+    stopRunner[runner=runner]()
+
+    Self.trigger -> setupRunner.trigger,ready -> gitClone.trigger,completed -> makeList.trigger,finished -> stopRunner.trigger
+                                                                               makeList.data -------------> Self.data
+}
+
+treatment test[cicd: CicdDispatchEngine, logger: Logger]()
+  model runner: CicdRunnerEngine()
+  input trigger: Block<void>
+  input data: Stream<byte>
+  output finished: Block<void>
+{
+    setupRunner[
+        dispatcher=cicd,
+        runner=runner,
+        logger=logger
+    ](
+        name="test",
+        cpu=1,
+        memory=500,
+        storage=1000,
+        volumes=[|volume("tested-data", 30)],
+        containers=[|container("alpine", 500, 1, 1000, |amd64(), [|mount("tested-data", "/mounted/data")], "alpine:3", _)]
+    )
+    makeTest: stepOnWithInput[runner=runner, logger=logger](
+        executor_name="alpine",
+        in_filesystem="tested-data",
+        in_file="list.txt",
+        commands=[
+            |command("test", ["-s", "/mounted/data/list.txt"]),
+            |command("cat", ["/mounted/data/list.txt"])
+        ]
+    )
+    stopRunner[runner=runner]()
+
+    Self.trigger -> setupRunner.trigger,ready -> makeTest.trigger
+    Self.data ---------------------------------> makeTest.data,finished -> stopRunner.trigger
+                                                 makeTest.finished ------> Self.finished
+}

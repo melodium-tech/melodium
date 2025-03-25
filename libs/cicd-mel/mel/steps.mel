@@ -1,0 +1,296 @@
+use process/command::Command
+use process/environment::Environment
+use process/exec::Executor
+use process/exec::spawn
+use std/data/string_map::|map
+use std/flow::close
+use std/flow::emit
+use std/flow::flock
+use std/flow::uncheck
+use std/flow::one
+use std/flow::passBlock
+use std/flow::stream
+use std/flow::trigger
+use std/flow::releaseBlock
+use std/flow::waitBlock
+use std/flow/vec::flatten
+use std/ops/option/block::unwrap
+use log/log::logDebugs
+use log/log::logError
+use log/log::logErrorMessage
+use log/logger::Log
+use log/logger::Logger
+use log/logger::trackLogs
+use log/logger::logs
+use log/logger::injectStreamLog
+use log/logger::stop
+use work/distant::DistantEngine
+use work/distant::distant
+use work/resources::getExecutor
+use distrib::distribute
+use distrib::sendBlock
+use distrib::sendStream
+use distrib::recvBlock
+use distrib::recvStream
+use root/data::readFile
+use root/data::writeFile
+use root/data::ioToString
+use root/runners::CicdRunnerEngine
+use root/runners::stopRunner
+
+/**
+Runs step on given runner.
+
+Uses the `runner` to run given `commands` on executor designated by `executor_name` with `environment`.
+
+`name` serves as identifying purpose.
+
+After `commands` run, and if they all succeed, the `out_file` from `out_filesystem` is extracted and streamed through `data`.
+
+ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOn to directly extract `out_file` from `out_filesystem`.
+`out_file` and `out_filesystem` can be _none_ and `data` stream will be closed without emitting reading error.
+
+⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
+Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
+*/
+treatment stepOn[runner: CicdRunnerEngine, logger: Logger](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
+  input trigger: Block<void>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+  output data: Stream<byte>
+{
+    stepOnWithInput[runner=runner, logger=logger](
+      name=name,
+      executor_name=executor_name,
+      environment=environment,
+      commands=commands,
+      out_filesystem=out_filesystem,
+      out_file=out_file,
+      stop_on_failure=stop_on_failure
+    )
+    closeData: close<byte>()
+
+    Self.trigger -> stepOnWithInput.trigger
+    Self.trigger -> closeData.trigger,closed -> stepOnWithInput.data
+    stepOnWithInput.started ---> Self.started
+    stepOnWithInput.finished --> Self.finished
+    stepOnWithInput.failed ----> Self.failed
+    stepOnWithInput.completed -> Self.completed
+    stepOnWithInput.data ------> Self.data
+}
+
+treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
+  input trigger: Block<void>
+  input data: Stream<byte>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+  output data: Stream<byte>
+{
+    distribute[distributor=runner]()
+
+    Self.trigger -> distribute.trigger
+
+    logDistribErr: logError[logger=logger](label=name)
+    distribute.error -> logDistribErr.message
+
+    distribOrStepFailed: one<void>()
+    distribute.failed -> distribOrStepFailed.a
+
+    sendTriggerLogs: sendBlock<void>[distributor=runner](name="trigger_logs")
+    sendInFilesystemName: sendBlock<string>[distributor=runner](name="in_filesystem_name")
+    sendInFileName: sendBlock<string>[distributor=runner](name="in_file_name")
+    sendData: sendStream<byte>[distributor=runner](name="data")
+    sendExecutorName: sendBlock<string>[distributor=runner](name="executor_name")
+    sendEnvironment: sendBlock<Option<Environment>>[distributor=runner](name="environment")
+    sendCommands: sendStream<Command>[distributor=runner](name="commands")
+    sendOutFilesystemName: sendBlock<string>[distributor=runner](name="out_filesystem_name")
+    sendOutFileName: sendBlock<string>[distributor=runner](name="out_file_name")
+
+    recvStarted: recvBlock<void>[distributor=runner](name="started")
+    recvFinished: recvBlock<void>[distributor=runner](name="finished")
+    recvFailed: recvBlock<void>[distributor=runner](name="failed")
+    recvCompleted: recvBlock<void>[distributor=runner](name="completed")
+    recvData: recvStream<byte>[distributor=runner](name="data")
+    recvLogs: recvStream<Log>[distributor=runner](name="logs")
+
+    distribute.distribution_id -> sendTriggerLogs.distribution_id
+    distribute.distribution_id -> sendInFilesystemName.distribution_id
+    distribute.distribution_id -> sendInFileName.distribution_id
+    distribute.distribution_id -> sendData.distribution_id
+    distribute.distribution_id -> sendExecutorName.distribution_id
+    distribute.distribution_id -> sendEnvironment.distribution_id
+    distribute.distribution_id -> sendCommands.distribution_id
+    distribute.distribution_id -> sendOutFilesystemName.distribution_id
+    distribute.distribution_id -> sendOutFileName.distribution_id
+    distribute.distribution_id -> recvStarted.distribution_id
+    distribute.distribution_id -> recvFinished.distribution_id
+    distribute.distribution_id -> recvFailed.distribution_id
+    distribute.distribution_id -> recvCompleted.distribution_id
+    distribute.distribution_id -> recvData.distribution_id
+    distribute.distribution_id -> recvLogs.distribution_id
+
+    emitInFilesystemName: emit<Option<string>>(value=in_filesystem)
+    unwrapInFilesystemName: unwrap<string>()
+    emitInFileName: emit<Option<string>>(value=in_file)
+    unwrapInFileName: unwrap<string>()
+
+    emitExecutorName: emit<Option<string>>(value=executor_name)
+    unwrapExecutorName: unwrap<string>()
+    emitEnvironment: emit<Option<Environment>>(value=environment)
+    emitCommands: emit<Vec<Command>>(value=commands)
+    streamCommands: stream<Vec<Command>>()
+    flattenCommands: flatten<Command>()
+
+    emitOutFilesystemName: emit<Option<string>>(value=out_filesystem)
+    unwrapOutFilesystemName: unwrap<string>()
+    emitOutFileName: emit<Option<string>>(value=out_file)
+    unwrapOutFileName: unwrap<string>()
+
+    Self.trigger -> sendTriggerLogs.data
+    Self.trigger -> emitInFilesystemName.trigger,emit -> unwrapInFilesystemName.option,value -> sendInFilesystemName.data
+    Self.trigger -> emitInFileName.trigger,emit -> unwrapInFileName.option,value -> sendInFileName.data
+    Self.trigger -> emitExecutorName.trigger,emit -> unwrapExecutorName.option,value -> sendExecutorName.data
+    Self.trigger -> emitEnvironment.trigger,emit --> sendEnvironment.data
+    Self.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector,value -> sendCommands.data
+    Self.trigger -> emitOutFilesystemName.trigger,emit -> unwrapOutFilesystemName.option,value -> sendOutFilesystemName.data
+    Self.trigger -> emitOutFileName.trigger,emit -> unwrapOutFileName.option,value -> sendOutFileName.data
+    Self.data ----> sendData.data
+
+    injectStreamLog[logger=logger]()
+    recvLogs.data -> injectStreamLog.logs
+
+    stopRunner[runner=runner]()
+    passStop: passBlock<void>(cond=stop_on_failure)
+    distribOrStepFailed.value -> passStop.block,passed -> stopRunner.trigger
+
+    logStepFailed: logErrorMessage[logger=logger](label=name, message="Step failed")
+    distribOrStepFailed.value -> logStepFailed.trigger
+
+    streamFinished: stream<void>()
+    triggerAllFinished: trigger<void>()
+
+    recvStarted.data -> Self.started
+    recvFinished.data -> streamFinished.block,stream -> triggerAllFinished.stream,end -> Self.finished
+    recvFailed.data -> distribOrStepFailed.b,value -> Self.failed
+    recvCompleted.data -> Self.completed
+    recvData.data -> Self.data
+}
+
+treatment step(var label: string)
+  input trigger_logs: Block<void>
+  input in_filesystem_name: Block<string>
+  input in_file_name: Block<string>
+  input data: Stream<byte>
+  input executor_name: Block<string>
+  input environment: Block<Option<Environment>>
+  input commands: Stream<Command>
+  input out_filesystem_name: Block<string>
+  input out_file_name: Block<string>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+  output data: Stream<byte>
+  output logs: Stream<Log>
+  model  logger: Logger()
+{
+    writeFile[logger=logger](label=label)
+    uncheckWriteFileFailed: uncheck<void>()
+
+    Self.in_filesystem_name -> writeFile.filesystem_name
+    Self.in_file_name -------> writeFile.file_path
+    Self.data ---------------> writeFile.data
+
+    writeFile.failed -> uncheckWriteFileFailed.value,uncheck -> releaseExecutorName.leverage
+
+    spawnCommands[logger=logger](label=label)
+    releaseExecutorName: releaseBlock<string>()
+
+    Self.executor_name -> releaseExecutorName.data,released -> spawnCommands.executor_name
+    Self.environment ----------------------------------------> spawnCommands.environment
+    Self.commands -------------------------------------------> spawnCommands.commands
+
+    readFile[logger=logger](label=label)
+    uncheckSpawnCommandsFailed: uncheck<void>()
+    releaseFsName: releaseBlock<string>()
+
+    Self.out_filesystem_name -> releaseFsName.data,released ----------> readFile.filesystem_name
+    Self.out_file_name -----------------------------------------------> readFile.file_path
+    spawnCommands.failed -> uncheckSpawnCommandsFailed.value,uncheck -> releaseFsName.leverage
+
+    spawnOrReadFileFailed: one<void>()
+    spawnCommands.failed -> spawnOrReadFileFailed.a
+    readFile.failed ------> spawnOrReadFileFailed.b
+
+    flockSpawnAndReadFileFinished: flock<void>()
+    triggerSpawnAndReadFileFinished: trigger<void>()
+
+    uncheckReadFileFailed: uncheck<void>()
+    waitSpawnAndReadFileCompleted: waitBlock<void>()
+
+    spawnCommands.finished -> flockSpawnAndReadFileFinished.a
+    readFile.finished ------> flockSpawnAndReadFileFinished.b,stream -> triggerSpawnAndReadFileFinished.stream
+
+    spawnCommands.completed --------------------------------> waitSpawnAndReadFileCompleted.a
+    readFile.failed -> uncheckReadFileFailed.value,uncheck -> waitSpawnAndReadFileCompleted.b
+
+    spawnCommands.started --------------------> Self.started
+    triggerSpawnAndReadFileFinished.last -----> Self.finished
+    spawnOrReadFileFailed.value --------------> Self.failed
+    waitSpawnAndReadFileCompleted.awaited ----> Self.completed
+
+    readFile.data ----------------------------> Self.data
+
+    trackLogs[logger=logger]()
+    Self.trigger_logs -> trackLogs.trigger,logs --> Self.logs
+    triggerSpawnAndReadFileFinished.end ----------> trackLogs.stop
+}
+
+treatment spawnCommands[logger: Logger](var label: string)
+  input executor_name: Block<string>
+  input environment: Block<Option<Environment>>
+  input commands: Stream<Command>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+{
+    getExecutor()
+    spawn()
+
+    Self.executor_name -> getExecutor.name,executor -> spawn.executor
+    Self.environment --------------------------------> spawn.environment
+    Self.commands -----------------------------------> spawn.commands
+
+    executorOrSpawnFailed: one<void>()
+    getExecutor.failed -> executorOrSpawnFailed.a
+    spawn.failed -------> executorOrSpawnFailed.b
+
+    logExecutorErr: logError[logger=logger](label=label)
+    getExecutor.error -> logExecutorErr.message
+
+    logSpawnErr: logError[logger=logger](label=label)
+    logSpawnErrsString: ioToString()
+    logSpawnErrs: logDebugs[logger=logger](label=label)
+    logSpawnInfosString: ioToString()
+    logSpawnInfos: logDebugs[logger=logger](label=label)
+    spawn.error --> logSpawnErr.message
+    spawn.stderr -> logSpawnErrsString.stdio,lines -> logSpawnErrs.messages
+    spawn.stdout -> logSpawnInfosString.stdio,lines -> logSpawnInfos.messages
+
+    waitAllMessages: waitBlock<void>()
+    waitSpawnFinishedAndAllMessages: waitBlock<void>()
+
+    logSpawnErrs.ended --> waitAllMessages.a
+    logSpawnInfos.ended -> waitAllMessages.b,awaited -> waitSpawnFinishedAndAllMessages.a
+    spawn.finished -----------------------------------> waitSpawnFinishedAndAllMessages.b
+
+    spawn.started ----------------------------> Self.started
+    waitSpawnFinishedAndAllMessages.awaited --> Self.finished
+    executorOrSpawnFailed.value --------------> Self.failed
+    spawn.completed --------------------------> Self.completed
+}

@@ -85,8 +85,8 @@
    - dpkg --add-architecture i386
    - apt-get update
    - apt-get install -y gcc-multilib
-   - wget http://musl.cc/i686-linux-musl-cross.tgz
-   - tar --extract --gzip --file i686-linux-musl-cross.tgz --directory /usr/local
+   - wget https://repo.melodium.tech/tooling/musl/i686-linux-musl-cross.tar.gz
+   - tar --extract --gzip --file i686-linux-musl-cross.tar.gz --directory /usr/local
    - ln -s /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc_s.so.1 /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc.so
    - rustup target add i686-unknown-linux-musl
    - export PATH="$CARGO_HOME/bin:$PATH"
@@ -128,8 +128,8 @@
    - dpkg --add-architecture arm64
    - apt-get update
    - apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross musl-tools libc-dev:arm64
-   - wget https://musl.cc/aarch64-linux-musl-cross.tgz
-   - tar --extract --gzip --file aarch64-linux-musl-cross.tgz --directory /usr/local
+   - wget https://repo.melodium.tech/tooling/musl/aarch64-linux-musl-cross.tar.gz
+   - tar --extract --gzip --file aarch64-linux-musl-cross.tar.gz --directory /usr/local
    - ln -s /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc_s.so.1 /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc.so
    - rustup target add aarch64-unknown-linux-musl
    - export PATH="$CARGO_HOME/bin:$PATH"
@@ -166,9 +166,11 @@
       if [ ! -d $CI_PROJECT_DIR/osxcross ]
       then
         base="$PWD"
-        git clone https://github.com/tpoechtrager/osxcross
+        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-611675b.tar.gz
+        tar --extract --gzip --file osxcross-611675b.tar.gz
+        mv osxcross-master osxcross
         cd osxcross
-        wget -nc https://github.com/joseluisq/macosx-sdks/releases/download/10.12/MacOSX10.12.sdk.tar.xz
+        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX10.12.sdk.tar.xz
         mv MacOSX10.12.sdk.tar.xz tarballs/
         UNATTENDED=yes OSX_VERSION_MIN=10.12 ./build.sh
         ln -s "$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin16-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
@@ -196,9 +198,11 @@
       if [ ! -d $CI_PROJECT_DIR/osxcross ]
       then
         base="$PWD"
-        git clone https://github.com/tpoechtrager/osxcross
+        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-611675b.tar.gz
+        tar --extract --gzip --file osxcross-611675b.tar.gz
+        mv osxcross-master osxcross
         cd osxcross
-        wget -nc https://storage.googleapis.com/ory.sh/build-assets/MacOSX11.3.sdk.tar.xz
+        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX11.3.sdk.tar.xz
         mv MacOSX11.3.sdk.tar.xz tarballs/
         UNATTENDED=yes OSX_VERSION_MIN=11.3 ./build.sh
         ln -s "$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin20.4-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"

@@ -185,6 +185,7 @@ impl Display for Kind {
 /// Convenience structure for internal treatments.
 ///
 /// Embeds different informations in fancy way, instead of a tuple.
+#[derive(Debug)]
 struct KindCheck {
     pub is_that_kind: bool,
     pub end_at: usize,
@@ -400,26 +401,29 @@ pub fn get_words(script: &str) -> Result<Vec<Word>, Vec<Word>> {
             kind = None;
         }
 
-        let splitted_script = remaining_script.split_at(kind_check.end_at);
-        let (line, pos_in_line) = get_line_pos(script, actual_position);
-        let word = Word {
-            text: splitted_script.0.to_string(),
-            position: Position {
-                absolute_position: actual_position,
-                line_position: pos_in_line,
-                line_number: line,
-            },
-            kind: kind,
-        };
+        if let Some(splitted_script) = remaining_script.split_at_checked(kind_check.end_at) {
+            let (line, pos_in_line) = get_line_pos(script, actual_position);
+            let word = Word {
+                text: splitted_script.0.to_string(),
+                position: Position {
+                    absolute_position: actual_position,
+                    line_position: pos_in_line,
+                    line_number: line,
+                },
+                kind: kind,
+            };
 
-        words.push(word);
+            words.push(word);
 
-        if !kind_check.is_well_formed {
-            return Err(words);
+            if !kind_check.is_well_formed {
+                return Err(words);
+            } else {
+                let after_word = splitted_script.1.trim_start();
+                actual_position += remaining_script.len() - after_word.len();
+                remaining_script = after_word;
+            }
         } else {
-            let after_word = splitted_script.1.trim_start();
-            actual_position += remaining_script.len() - after_word.len();
-            remaining_script = after_word;
+            return Err(words);
         }
     }
 
@@ -599,7 +603,7 @@ fn manage_string(text: &str) -> KindCheck {
 
 fn manage_char(text: &str) -> KindCheck {
     lazy_static! {
-        static ref REGEX_CHAR: Regex = Regex::new(r##"^'(?:.)'"##).unwrap();
+        static ref REGEX_CHAR: Regex = Regex::new(r##"^'(?:[^'\]|\.)+'"##).unwrap();
     }
     if text.starts_with('\'') {
         let mat = REGEX_CHAR.find(text);

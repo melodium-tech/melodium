@@ -1,12 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
+    "libs/cicd-mel",
     "libs/distrib-mel",
     "libs/encoding-mel",
     "libs/fs-mel",
     "libs/http-mel",
     "libs/javascript-mel",
     "libs/json-mel",
+    "libs/log-mel",
     "libs/net-mel",
     "libs/process-mel",
     "libs/regex-mel",

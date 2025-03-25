@@ -17,6 +17,7 @@ pub enum Message {
     OutputData(OutputData),
     CloseOutput(CloseOutput),
     Ended,
+    Probe,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -51,7 +52,6 @@ pub enum LaunchStatus {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Instanciate {
     pub id: u64,
-    pub parameters: HashMap<String, RawValue>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

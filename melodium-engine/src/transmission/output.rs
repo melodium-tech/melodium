@@ -1,8 +1,9 @@
 use crate::transmission::Input;
-use async_std::channel::Sender;
+use async_std::channel::{Sender, TrySendError};
 use async_std::sync::Mutex as AsyncMutex;
 use async_trait::async_trait;
 use core::sync::atomic::{AtomicUsize, Ordering};
+use futures::stream::{FuturesUnordered, StreamExt};
 use melodium_common::executive::{
     Output as ExecutiveOutput, SendResult, TransmissionError, TransmissionValue, Value,
 };
@@ -48,39 +49,101 @@ impl Output {
             .map(|buf| buf.len())
             .unwrap_or(0);
 
-        if buffer_len >= LIMIT || (force && buffer_len > 0) {
-            match self.count_receivers.load(Ordering::Relaxed) {
-                0 => Err(TransmissionError::NoReceiver),
-                1 => {
-                    let senders = Arc::clone(&self.senders.lock().unwrap());
-                    if let Some(sender) = senders.first() {
-                        // We can unwrap the `take` because buffer_len must be > 0, so buffer have value.
-                        let data = self.buffer.lock().await.take().unwrap();
-                        match sender.send(data).await {
-                            Ok(_) => Ok(()),
-                            Err(_) => Err(TransmissionError::EverythingClosed),
+        if buffer_len > 0 {
+            // We can unwrap the `take` because buffer_len must be > 0, so buffer have value.
+            let data = self.buffer.lock().await.take().unwrap();
+            if buffer_len >= LIMIT || force {
+                match self.count_receivers.load(Ordering::Relaxed) {
+                    0 => Err(TransmissionError::NoReceiver),
+                    1 => {
+                        let senders = Arc::clone(&self.senders.lock().unwrap());
+                        if let Some(sender) = senders.first() {
+                            match sender.send(data).await {
+                                Ok(_) => Ok(()),
+                                Err(_) => Err(TransmissionError::EverythingClosed),
+                            }
+                        } else {
+                            Err(TransmissionError::NoReceiver)
                         }
-                    } else {
-                        Err(TransmissionError::NoReceiver)
+                    }
+                    _ => {
+                        let senders = Arc::clone(&self.senders.lock().unwrap());
+
+                        let transmissions = FuturesUnordered::new();
+                        for sender in senders.iter() {
+                            let transmission = {
+                                let data = &data;
+                                async move {
+                                    match sender.send(data.clone()).await {
+                                        Ok(_) => true,
+                                        Err(_) => false,
+                                    }
+                                }
+                            };
+                            transmissions.push(transmission);
+                        }
+
+                        let statuses: Vec<_> = transmissions.collect().await;
+
+                        if let Some(_) = statuses.iter().find(|s| **s) {
+                            Ok(())
+                        } else {
+                            Err(TransmissionError::EverythingClosed)
+                        }
                     }
                 }
-                _ => {
-                    let mut statuses = Vec::new();
-                    let senders = Arc::clone(&self.senders.lock().unwrap());
-
-                    // We can unwrap the `take` because buffer_len must be > 0, so buffer have value.
-                    let data = self.buffer.lock().await.take().unwrap();
-                    for sender in senders.iter() {
-                        statuses.push(match sender.send(data.clone()).await {
-                            Ok(()) => true,
-                            Err(_) => false,
-                        });
+            } else {
+                match self.count_receivers.load(Ordering::Relaxed) {
+                    0 => Err(TransmissionError::NoReceiver),
+                    1 => {
+                        let senders = Arc::clone(&self.senders.lock().unwrap());
+                        if let Some(sender) = senders.first() {
+                            match sender.try_send(data) {
+                                Ok(_) => Ok(()),
+                                Err(TrySendError::Full(data)) => {
+                                    self.buffer.lock().await.replace(data);
+                                    Ok(())
+                                }
+                                Err(TrySendError::Closed(_)) => {
+                                    Err(TransmissionError::EverythingClosed)
+                                }
+                            }
+                        } else {
+                            Err(TransmissionError::NoReceiver)
+                        }
                     }
+                    _ => {
+                        let senders = Arc::clone(&self.senders.lock().unwrap());
 
-                    if let Some(_) = statuses.iter().find(|s| **s) {
-                        Ok(())
-                    } else {
-                        Err(TransmissionError::EverythingClosed)
+                        let all_senders_not_full = !senders.iter().any(|sender| sender.is_full());
+
+                        if all_senders_not_full {
+                            let transmissions = FuturesUnordered::new();
+                            for sender in senders.iter() {
+                                let transmission = {
+                                    let data = &data;
+                                    async move {
+                                        match sender.try_send(data.clone()) {
+                                            Ok(_) => true,
+                                            Err(TrySendError::Full(_)) => unreachable!(),
+                                            Err(TrySendError::Closed(_)) => false,
+                                        }
+                                    }
+                                };
+                                transmissions.push(transmission);
+                            }
+
+                            let statuses: Vec<_> = transmissions.collect().await;
+
+                            if let Some(_) = statuses.iter().find(|s| **s) {
+                                Ok(())
+                            } else {
+                                Err(TransmissionError::EverythingClosed)
+                            }
+                        } else {
+                            self.buffer.lock().await.replace(data);
+                            Ok(())
+                        }
                     }
                 }
             }
@@ -110,6 +173,7 @@ impl ExecutiveOutput for Output {
         }
         self.check_send(false).await
     }
+
     async fn send_one(&self, data: Value) -> SendResult {
         {
             let mut lock = self.buffer.lock().await;

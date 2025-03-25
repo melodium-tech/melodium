@@ -35,9 +35,12 @@ fn main() {
 
     for trial in 0..3 {
         sleep(Duration::from_millis(500));
-        match ureq::post("http://localhost:8080/hello")
-            .set("Content-Type", "text/plain")
-            .send_bytes(r#""Pingouin""#.as_bytes())
+        match ureq::post("http://localhost:28015/hello")
+            .config()
+            .timeout_global(Some(Duration::from_secs(1)))
+            .build()
+            .header("Content-Type", "text/plain")
+            .send(r#""Pingouin""#.as_bytes())
         {
             Ok(resp) => response = Some(resp),
             Err(err) => eprintln!("Trial {trial} failed: {err}"),
@@ -47,11 +50,14 @@ fn main() {
     let _ = melodium.kill();
     let _ = melodium_distrib.kill();
 
-    eprintln!("failure.log: {}", std::fs::read_to_string("failure.log").unwrap_or("Rien".to_string()));
+    eprintln!(
+        "failure.log: {}",
+        std::fs::read_to_string("failure.log").unwrap_or("Rien".to_string())
+    );
 
-    if let Some(resp) = response {
+    if let Some(mut resp) = response {
         if resp.status() == 200 {
-            match resp.into_string() {
+            match resp.body_mut().read_to_string() {
                 Ok(response) => {
                     let expected =
                         r#"{"ps":"Thanks for contacting me :D","response":"Hello Pingouin!"}"#;

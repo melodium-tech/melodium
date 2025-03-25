@@ -25,7 +25,9 @@ Please refer to the [Mélodium crate](melodium/) for informations about how to b
 
 ## Development
 
-Development channels and related Mélodium stuff are available on [Discord](https://discord.gg/GQmckruKNx).
+Mélodium development repository is hosted on [GitLab](https://gitlab.com/melodium/melodium), with mirroring on [GitHub](https://github.com/melodium-tech/melodium).  
+Social accounts can be found on [BlueSky](https://bsky.app/profile/melodium.tech), [Mastodon](https://mastodon.social/@melodium) and [LinkedIn](https://www.linkedin.com/company/m%C3%A9lodium/).  
+Development chats and related Mélodium stuff can be discussed on [Discord](https://discord.gg/GQmckruKNx).
 
 ## Repository organization
 
@@ -63,7 +65,7 @@ As example, to run checks or tests on a specific pushed commit:
 
 `CHECK` and `TEST` are considered `true` for every commit on `master` branch, and _everything_ is considered `true` for tagged commits.
 
-[^1]: while build is made for all supported platforms, tests are only processed on some platorms where GitLab CI have matching native runners, such as Linux aarch64 and x86_64 (testing aarch64, i686 and x86_64 versions, GNU and MUSL), Windows x86_64 (testing i686 and x86_64 versions, GNU and MSVC), and Mac OS ARM64 (testing arm64 version).
+[^1]: while build is made for all supported platforms, tests are only processed on some platforms where GitLab CI have matching native runners, such as Linux aarch64 and x86_64 (testing aarch64, i686 and x86_64 versions, GNU and MUSL), Windows x86_64 (testing i686 and x86_64 versions, GNU and MSVC), and Mac OS ARM64 (testing arm64 version).
 
 ## Licence
 
@@ -75,7 +77,7 @@ In the same way, as *no culture is more important than another*, it was importan
 Then, the legal part:
 > Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work except in compliance with the Licence. You may obtain a copy of the Licence at: https://joinup.ec.europa.eu/software/page/eupl
 >
->Unless required by applicable law or agreed to in writing, software distributed under the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+> Unless required by applicable law or agreed to in writing, software distributed under the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the Licence for the specific language governing permissions and limitations under the Licence.
 
 And do not worry, this licence is explicitly compatible with the ones mentionned in its appendix, including most of the common open-source licences.

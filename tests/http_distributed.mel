@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = http_distributed
-#! version = 0.8.0
-#! require = http:0.8.0 std:0.8.0 javascript:0.8.0 encoding:0.8.0 json:0.8.0 distrib:0.8.0 work:0.8.0 fs:0.8.0 net:0.8.0
+#! version = 0.9.0-pre.1
+#! require = http:=0.9.0-pre.1 std:=0.9.0-pre.1 javascript:=0.9.0-pre.1 encoding:=0.9.0-pre.1 json:=0.9.0-pre.1 distrib:=0.9.0-pre.1 work:=0.9.0-pre.1 fs:=0.9.0-pre.1 net:=0.9.0-pre.1
 
 use http/server::HttpServer
 use http/server::start as startHttp
@@ -20,8 +20,9 @@ use std/flow::stream
 use std/ops/option::unwrapOr
 use std/ops/option::unwrap
 use std/conv::toString
-use std/data::Map
-use std/data::|map
+use std/data/string_map::StringMap
+use std/data/string_map::|map as |string_map
+use std/data/map::|map
 use std/engine/util::startup
 use encoding::decode
 use encoding::encode
@@ -30,13 +31,13 @@ use javascript::process
 use json::toJson
 use json::Json
 use json/value::|null
-use fs/util::writeText
+use fs/local::writeTextLocal
 
 treatment main(const distrib_port: u16, var remote_key: string, var self_key: string)
-  model distributor: DistributionEngine(treatment="http_distributed::js_function", version="0.8.0")
+  model distributor: DistributionEngine(treatment="http_distributed::js_function", version="0.9.0-pre.1")
   model server: HttpServer(
     host=|from_ipv4(|localhost_ipv4()),
-    port=8080
+    port=28015
   )
 {
     startup()
@@ -47,22 +48,20 @@ treatment main(const distrib_port: u16, var remote_key: string, var self_key: st
 
     emitOk: emit<string>(value="ok")
     streamOk: stream<string>()
-    writeOk: writeText(path = "ok.log")
-    ready[distribution_engine=distributor]()
-    writeFailure: writeText(path = "failure.log")
+    writeOk: writeTextLocal(path = "ok.log")
+    writeFailure: writeTextLocal(path = "failure.log")
     streamFailure: stream<string>()
-    distributionFailure[distribution_engine=distributor]()
 
-    distributionFailure.failure -> streamFailure.block,stream -> writeFailure.text
-    ready.trigger -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
+    start.error -> streamFailure.block,stream --> writeFailure.text
+    start.ready -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
 
 
     startHttp[http_server=server]()
-    ready.trigger -> startHttp.trigger
+    start.ready -> startHttp.trigger
 
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())
-    headers: emit<Map>(value=|map([]))
+    headers: emit<StringMap>(value=|string_map([]))
     trigger<byte>()
     
     connection.data -> trigger.stream,start --> status.trigger,emit -> connection.status
@@ -100,18 +99,16 @@ treatment js_function()
 
 use distrib::DistributionEngine
 use distrib::distribute
-use distrib::ready
 use distrib::start
 use distrib::sendStream
 use distrib::recvStream
-use distrib::distributionFailure
 
 treatment distributedJs[distributor: DistributionEngine]()
   input data: Stream<byte>
   output data: Stream<byte>
 {
   trigger<byte>()
-  distribute[distributor=distributor](params=|map([]))
+  distribute[distributor=distributor]()
 
   Self.data -> trigger.stream,start -> distribute.trigger
 

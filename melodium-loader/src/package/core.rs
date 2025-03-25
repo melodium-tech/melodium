@@ -55,9 +55,10 @@ impl CorePackage {
                     })
                 }
             }
-            None => {
-                LoadingResult::new_failure(LoadingError::not_found(159, designation.to_string()))
-            }
+            None => LoadingResult::new_failure(LoadingError::not_found(
+                159,
+                designation.trim_end_matches(".mel").to_string(),
+            )),
         }
     }
 
@@ -283,7 +284,9 @@ impl PackageTrait for CorePackage {
         let designation = Self::designation(identifier_requirement);
 
         if let None = result.merge_degrade_failure(self.insure_content(&designation)) {
-            return result;
+            return result.and_degrade_failure(LoadingResult::new_failure(
+                LoadingError::not_found(250, identifier_requirement.to_string()),
+            ));
         }
 
         let content = { self.contents.read().unwrap().get(&designation).cloned() };

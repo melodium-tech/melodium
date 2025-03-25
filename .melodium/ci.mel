@@ -1,0 +1,607 @@
+use cicd/runners::CicdDispatchEngine
+use fs/local::writeLocal
+use log/logger::Logger
+use log/logger::logs
+use log/file::writeLogs
+use std/flow::trigger
+use std/flow::one
+use std/flow::flock
+use std/flow/concentrate::Concentrator
+use std/flow/concentrate::concentrateBlock
+use std/flow/concentrate::concentrated
+use std/text/compose::|format
+use std/data/string_map::StringMap
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/text/compare::|contains
+use std/ops::|condition
+use work/resources/arch::Arch
+use work/resources/arch::|arm64
+use work/resources/arch::|amd64
+use work/resources::|volume
+use work/resources::|mount
+use process/command::Command
+use process/command::|command
+use process/command::|raw_commands
+use root/build::build
+use root/test::test
+
+treatment ciArch[logger: Logger, cicd: CicdDispatchEngine](target: string, build: bool, test: bool = false, release: bool, build_on: Arch, build_memory: u32 = 4000, build_storage: u32 = 5000, pre_build_commands: Vec<Command> = [], build_environment_variables: StringMap, test_on: Arch, test_image: string, pre_test_commands: Vec<Command> = [], out_directory: string, repository_url: string, report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
+  input trigger: Block<void>
+  output finished: Block<void>
+{
+    build[cicd=cicd, logger=logger]
+      (
+        build=build,
+        target=target,
+        release=release,
+        build_testers=test,
+        on=build_on,
+        rust_memory=build_memory,
+        rust_storage=build_storage,
+        environment_variables=build_environment_variables,
+        pre_commands=pre_build_commands,
+        repository_url=repository_url,
+        gitlab_token=report_service_token,
+        project=project,
+        sha=sha,
+        ref=ref,
+        pipeline=pipeline,
+        on_github=on_github,
+        on_gitlab=on_gitlab
+      )
+    melodiumBinaryReady: trigger<byte>()
+    testersReady: trigger<byte>()
+    triggerTests: one<void>()
+    Self.trigger -> build.trigger,binary -> test.binary
+                    build.testers --------> test.testers
+                    build.binary --> melodiumBinaryReady.stream,start -> triggerTests.a
+                    build.testers -> testersReady.stream,start --------> triggerTests.b
+    
+    test[cicd=cicd, logger=logger]
+      (
+        test=test,
+        target=target,
+        arch=test_on,
+        test_image=test_image,
+        pre_commands=pre_test_commands,
+        report_service_token=report_service_token,
+        project=project,
+        sha=sha,
+        ref=ref,
+        pipeline=pipeline,
+        on_github=on_github,
+        on_gitlab=on_gitlab
+      )
+    triggerTests.value -> test.trigger
+
+    writeLocal(
+      path=|format("{dir}/melodium/{target}/melodium{ext}",
+        |map([
+          |entry("dir", out_directory),
+          |entry("target", target),
+          |entry("ext", |condition<string>(|contains(target, "windows"), ".exe", ""))
+        ])
+      )
+    )
+    build.binary -> writeLocal.data
+
+    flock<void>()
+    triggerFinished: trigger<void>()
+    test.finished -------> flock.a,stream -> triggerFinished.stream,end -> Self.finished
+    writeLocal.finished -> flock.b
+
+    logs[logger=logger]()
+    writeLogs(label=target, file=|format("{dir}/logs/{target}.log", |map([
+          |entry("dir", out_directory),
+          |entry("target", target)
+        ])))
+    testLogs: writeLogs(label=|format("test:{target}", |entry("target", target)), file=|format("{dir}/logs/test:{target}.log", |map([
+          |entry("dir", out_directory),
+          |entry("target", target)
+        ])))
+    logs.all -> writeLogs.logs
+    logs.all -> testLogs.logs
+}
+
+treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: bool = false, release: bool, out_directory: string, repository_url: string, report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
+  input trigger: Block<void>
+  output finished: Block<void>
+  model finishConcentrator: Concentrator()
+{
+    concentrated<void>[concentrator=finishConcentrator]()
+    triggerFinished: trigger<void>()
+    Self.trigger -> concentrated.trigger,data -> triggerFinished.stream,end -> Self.finished
+
+    ciX86_64UnknownLinuxGnu: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=test,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="x86_64-unknown-linux-gnu",
+      build_on=|amd64(),
+      build_environment_variables=|map([]),
+      test_on=|amd64(),
+      test_image="ubuntu:noble"
+    )
+    ciX86_64UnknownLinuxGnuFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciX86_64UnknownLinuxGnu.trigger,finished -> ciX86_64UnknownLinuxGnuFinished.data
+
+    ciX86_64UnknownLinuxMusl: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=test,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="x86_64-unknown-linux-musl",
+      build_on=|amd64(),
+      build_environment_variables=|map([]),
+      pre_build_commands=|raw_commands([
+          "apt-get update",
+          "apt-get install -y musl-tools",
+          "rustup target add x86_64-unknown-linux-musl"
+        ]),
+      test_on=|amd64(),
+      test_image="ubuntu:noble"
+    )
+    ciX86_64UnknownLinuxMuslFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciX86_64UnknownLinuxMusl.trigger,finished -> ciX86_64UnknownLinuxMuslFinished.data
+    
+    ciI686UnknownLinuxGnu: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=test,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="i686-unknown-linux-gnu",
+      build_on=|amd64(),
+      build_environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
+          |entry("PKG_CONFIG", "/usr/bin/i686-linux-gnu-pkg-config")
+        ]),
+      pre_build_commands=|raw_commands([
+          "dpkg --add-architecture i386",
+          "apt-get update",
+          "apt-get install -y gcc-multilib",
+          "rustup target add i686-unknown-linux-gnu"
+        ]),
+      test_on=|amd64(),
+      test_image="ubuntu:noble",
+      pre_test_commands=|raw_commands([
+          "dpkg --add-architecture i386",
+          "apt-get update",
+          "apt-get install -y gcc-multilib"
+        ])
+    )
+    ciI686UnknownLinuxGnuFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciI686UnknownLinuxGnu.trigger,finished -> ciI686UnknownLinuxGnuFinished.data
+    
+    ciI686UnknownLinuxMusl: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=test,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="i686-unknown-linux-musl",
+      build_on=|amd64(),
+      build_environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
+          |entry("PKG_CONFIG", "/usr/bin/i686-linux-gnu-pkg-config"),
+          |entry("CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_LINKER", "/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-ld"),
+          |entry("CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_AR", "/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-ar"),
+          |entry("TARGET_CC", "/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-gcc"),
+          |entry("TARGET_AR", "/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-gcc-ar")
+        ]),
+      pre_build_commands=|raw_commands([
+          "dpkg --add-architecture i386",
+          "apt-get update",
+          "apt-get install -y gcc-multilib",
+          "wget https://repo.melodium.tech/tooling/musl/i686-linux-musl-cross.tar.gz",
+          "tar --extract --gzip --file i686-linux-musl-cross.tar.gz --directory /usr/local",
+          "ln -s /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc_s.so.1 /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc.so",
+          "rustup target add i686-unknown-linux-musl"
+        ]),
+      test_on=|amd64(),
+      test_image="ubuntu:noble"
+    )
+    ciI686UnknownLinuxMuslFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciI686UnknownLinuxMusl.trigger,finished -> ciI686UnknownLinuxMuslFinished.data
+
+    ciAarch64UnknownLinuxGnu: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=test,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="aarch64-unknown-linux-gnu",
+      build_on=|arm64(),
+      build_environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}")
+        ]),
+      pre_build_commands=|raw_commands([
+          "apt-get update",
+          "apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev"
+        ]),
+      test_on=|arm64(),
+      test_image="ubuntu:noble"
+    )
+    ciAarch64UnknownLinuxGnuFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciAarch64UnknownLinuxGnu.trigger,finished -> ciAarch64UnknownLinuxGnuFinished.data
+
+    ciAarch64UnknownLinuxMusl: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=test,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="aarch64-unknown-linux-musl",
+      build_on=|amd64(),
+      build_environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
+          |entry("PKG_CONFIG", "/usr/bin/aarch64-linux-gnu-pkg-config"),
+          |entry("CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER", "/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-ld"),
+          |entry("CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_AR", "/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-ar"),
+          |entry("LD_LIBRARY_PATH", "/usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/:${LD_LIBRARY_PATH}"),
+          |entry("TARGET_CC", "/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc"),
+          |entry("TARGET_AR", "/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc-ar")
+        ]),
+      pre_build_commands=|raw_commands([
+          "dpkg --add-architecture arm64",
+          "apt-get update",
+          "apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross musl-tools libc-dev:arm64",
+          "wget https://repo.melodium.tech/tooling/musl/aarch64-linux-musl-cross.tar.gz",
+          "tar --extract --gzip --file aarch64-linux-musl-cross.tar.gz --directory /usr/local",
+          "ln -s /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc_s.so.1 /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc.so",
+          "rustup target add aarch64-unknown-linux-musl"
+        ]),
+      test_on=|arm64(),
+      test_image="ubuntu:noble"
+    )
+    ciAarch64UnknownLinuxMuslFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciAarch64UnknownLinuxMusl.trigger,finished -> ciAarch64UnknownLinuxMuslFinished.data
+
+    ciWasm32UnknownUnknown: ciArch[logger=logger, cicd=cicd](
+      build=false,
+      test=false,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="wasm32-unknown-unknown",
+      build_on=|amd64(),
+      build_environment_variables=|map([]),
+      pre_build_commands=|raw_commands([
+          "rustup target add wasm32-unknown-unknown"
+        ]),
+      test_on=|arm64(),
+      test_image="ubuntu:noble"
+    )
+    ciWasm32UnknownUnknownFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciWasm32UnknownUnknown.trigger,finished -> ciWasm32UnknownUnknownFinished.data
+
+    ciX86_64AppleDarwin: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=false,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="x86_64-apple-darwin",
+      build_on=|amd64(),
+      build_environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:/osxcross/target/bin:${PATH}"),
+          |entry("CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER", "x86_64-apple-darwin16-clang"),
+          |entry("CARGO_TARGET_X86_64_APPLE_DARWIN_AR", "x86_64-apple-darwin16-ar"),
+          |entry("TARGET_CC", "x86_64-apple-darwin16-cc"),
+          |entry("TARGET_AR", "x86_64-apple-darwin16-ar")
+      ]),
+      pre_build_commands=[
+          |command("apt-get", ["update"]),
+          |command("apt-get", ["install", "-y", "clang", "gcc", "g++", "cmake", "zlib1g-dev", "libmpc-dev", "libmpfr-dev", "libgmp-dev"]),
+          |command("rustup", ["target", "add", "x86_64-apple-darwin"]),
+          |command("bash", ["-c", "
+            if [ ! -d /osxcross ]
+            then
+              base=\"$PWD\"
+              cd /
+              wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-611675b.tar.gz
+              tar --extract --gzip --file osxcross-611675b.tar.gz
+              mv osxcross-master osxcross
+              cd osxcross
+              wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX10.12.sdk.tar.xz
+              mv MacOSX10.12.sdk.tar.xz tarballs/
+              UNATTENDED=yes OSX_VERSION_MIN=10.12 ./build.sh
+              ln -s \"/osxcross/target/bin/x86_64-apple-darwin16-strip\" \"/osxcross/target/bin/strip\"
+              cd \"$base\"
+            fi"])
+        ],
+      test_on=|arm64(),
+      test_image="ubuntu:noble"
+    )
+    ciX86_64AppleDarwinFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciX86_64AppleDarwin.trigger,finished -> ciX86_64AppleDarwinFinished.data
+
+    ciAarch64AppleDarwin: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=false,
+      release=release,
+      out_directory=out_directory,
+      build_memory=6000,
+      build_storage=15000,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="aarch64-apple-darwin",
+      build_on=|amd64(),
+      build_environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:/osxcross/target/bin:${PATH}"),
+          |entry("CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER", "aarch64-apple-darwin20.4-clang"),
+          |entry("CARGO_TARGET_AARCH64_APPLE_DARWIN_AR", "aarch64-apple-darwin20.4-ar"),
+          |entry("TARGET_CC", "aarch64-apple-darwin20.4-cc"),
+          |entry("TARGET_AR", "aarch64-apple-darwin20.4-ar")
+      ]),
+      pre_build_commands=[
+          |command("apt-get", ["update"]),
+          |command("apt-get", ["install", "-y", "clang", "gcc", "g++", "cmake", "zlib1g-dev", "libmpc-dev", "libmpfr-dev", "libgmp-dev"]),
+          |command("rustup", ["target", "add", "aarch64-apple-darwin"]),
+          |command("bash", ["-c", "
+            if [ ! -d /osxcross ]
+            then
+              base=\"$PWD\"
+              cd /
+              wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-611675b.tar.gz
+              tar --extract --gzip --file osxcross-611675b.tar.gz
+              mv osxcross-master osxcross
+              cd osxcross
+              wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX11.3.sdk.tar.xz
+              mv MacOSX11.3.sdk.tar.xz tarballs/
+              UNATTENDED=yes OSX_VERSION_MIN=11.3 ./build.sh
+              ln -s \"/osxcross/target/bin/aarch64-apple-darwin20.4-strip\" \"/osxcross/target/bin/strip\"
+              cd \"$base\"
+            fi"])
+        ],
+      test_on=|arm64(),
+      test_image="ubuntu:noble"
+    )
+    ciAarch64AppleDarwinFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciAarch64AppleDarwin.trigger,finished -> ciAarch64AppleDarwinFinished.data
+
+    ciX86_64PcWindowsGnu: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=false,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="x86_64-pc-windows-gnu",
+      build_on=|amd64(),
+      build_environment_variables=|map([]),
+      pre_build_commands=|raw_commands([
+          "apt-get update",
+          "apt-get install -y mingw-w64",
+          "rustup target add x86_64-pc-windows-gnu"
+      ]),
+      test_on=|arm64(),
+      test_image="ubuntu:noble"
+    )
+    ciX86_64PcWindowsGnuFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciX86_64PcWindowsGnu.trigger,finished -> ciX86_64PcWindowsGnuFinished.data
+
+    ciX86_64PcWindowsMsvc: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=false,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="x86_64-pc-windows-msvc",
+      build_on=|amd64(),
+      build_environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
+          |entry("CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS", "-Ctarget-feature=+crt-static -Lnative=/.xwin/crt/lib/x86_64 -Lnative=/.xwin/sdk/lib/um/x86_64 -Lnative=/.xwin/sdk/lib/ucrt/x86_64"),
+          |entry("CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER", "lld")
+      ]),
+      pre_build_commands=[
+          |command("apt-get", ["update"]),
+          |command("apt-get", ["install", "-y", "lld"]),
+          |command("rustup", ["target", "add", "x86_64-pc-windows-msvc"]),
+          |command("bash", ["-c", "
+            if [ ! -f .cargo/bin/xwin ]
+            then
+              cargo install xwin --locked
+              xwin --accept-license --log-level info --manifest-version 16 --arch x86_64 --cache-dir /.xwin-cache splat --output /.xwin
+            fi"])
+        ],
+      test_on=|arm64(),
+      test_image="ubuntu:noble"
+    )
+    ciX86_64PcWindowsMsvcFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciX86_64PcWindowsMsvc.trigger,finished -> ciX86_64PcWindowsMsvcFinished.data
+
+    ciI686PcWindowsGnu: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=false,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="i686-pc-windows-gnu",
+      build_on=|amd64(),
+      build_environment_variables=|map([]),
+      pre_build_commands=|raw_commands([
+          "apt-get update",
+          "apt-get install -y mingw-w64",
+          "rustup target add i686-pc-windows-gnu"
+      ]),
+      test_on=|amd64(),
+      test_image="ubuntu:noble"
+    )
+    ciI686PcWindowsGnuFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciI686PcWindowsGnu.trigger,finished -> ciI686PcWindowsGnuFinished.data
+
+    ciI686PcWindowsMsvc: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=false,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="i686-pc-windows-msvc",
+      build_on=|amd64(),
+      build_environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
+          |entry("CARGO_TARGET_I686_PC_WINDOWS_MSVC_RUSTFLAGS", "-Ctarget-feature=+crt-static -Lnative=/.xwin/crt/lib/x86 -Lnative=/.xwin/sdk/lib/um/x86 -Lnative=/.xwin/sdk/lib/ucrt/x86"),
+          |entry("CARGO_TARGET_I686_PC_WINDOWS_MSVC_LINKER", "lld")
+      ]),
+      pre_build_commands=[
+          |command("apt-get", ["update"]),
+          |command("apt-get", ["install", "-y", "lld"]),
+          |command("rustup", ["target", "add", "i686-pc-windows-msvc"]),
+          |command("bash", ["-c", "
+            if [ ! -f .cargo/bin/xwin ]
+            then
+              cargo install xwin --locked
+              xwin --accept-license --log-level info --manifest-version 16 --arch x86 --cache-dir /.xwin-cache splat --output /.xwin
+            fi"])
+        ],
+      test_on=|amd64(),
+      test_image="ubuntu:noble"
+    )
+    ciI686PcWindowsMsvcFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciI686PcWindowsMsvc.trigger,finished -> ciI686PcWindowsMsvcFinished.data
+
+    ciAarch64PcWindowsMsvc: ciArch[logger=logger, cicd=cicd](
+      build=build,
+      test=false,
+      release=release,
+      out_directory=out_directory,
+      repository_url=repository_url,
+      report_service_token=report_service_token,
+      project=project,
+      sha=sha,
+      ref=ref,
+      pipeline=pipeline,
+      on_github=on_github,
+      on_gitlab=on_gitlab,
+
+      target="i686-pc-windows-msvc",
+      build_on=|amd64(),
+      build_environment_variables=|map([
+          |entry("PATH", "${CARGO_HOME}/bin:${PATH}"),
+          |entry("CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_RUSTFLAGS", "-Ctarget-feature=+crt-static -Lnative=/.xwin/crt/lib/aarch64 -Lnative=/.xwin/sdk/lib/um/aarch64 -Lnative=/.xwin/sdk/lib/ucrt/aarch64"),
+          |entry("CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER", "lld")
+      ]),
+      pre_build_commands=[
+          |command("apt-get", ["update"]),
+          |command("apt-get", ["install", "-y", "lld"]),
+          |command("rustup", ["target", "add", "aarch64-pc-windows-msvc"]),
+          |command("bash", ["-c", "
+            if [ ! -f .cargo/bin/xwin ]
+            then
+              cargo install xwin --locked
+              xwin --accept-license --log-level info --manifest-version 16 --arch aarch64 --cache-dir /.xwin-cache splat --output /.xwin
+            fi"])
+        ],
+      test_on=|arm64(),
+      test_image="ubuntu:noble"
+    )
+    ciAarch64PcWindowsMsvcFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
+    Self.trigger -> ciAarch64PcWindowsMsvc.trigger,finished -> ciAarch64PcWindowsMsvcFinished.data
+}

@@ -1,0 +1,25 @@
+use log/file::writeAllLogs
+use log/logger::Logger
+use log/logger::logs
+use log/logger::stop
+use log/console::console
+use std/engine/util::startup
+use std/text/compose::|format
+use std/data/string_map::|map
+use std/data/string_map::|entry
+
+treatment manageLogs[logger: Logger](var output_directory: string, var file: string = "full.log")
+  input stop: Block<void>
+{
+    allLogs: logs[logger=logger]()
+    stopLogs: stop[logger=logger]()
+    logConsole: console(timestamp=true)
+    writeAllLogs(file=|format("{output_directory}/{file}", |map([
+        |entry("output_directory", output_directory),
+        |entry("file", file)
+    ])))
+    allLogs.all -> logConsole.logs
+    allLogs.all -> writeAllLogs.logs
+
+    Self.stop -> stopLogs.trigger
+}

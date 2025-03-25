@@ -7,17 +7,20 @@ use std::sync::Arc;
 ///
 /// The content of the file given through `path` is streamed through `data`.
 /// When file is reached and opened, `reached` is emitted.
-/// Once file is totally and succesfully read, `finished` is emitted.
+/// Once file is totally and succesfully read, `completed` is emitted.
+/// `finished` is emitted when the read ends, regardless of the reason.
+/// All reading errors are streamed through `errors`.
 ///
-/// If any reading failure happens, `failure` is emitted and `error` contains text of the related text of error(s).
+/// If any reading failure happens, `failed` is emitted.
 #[mel_treatment(
     input path Block<string>
     input filesystem Block<FileSystem>
     output data Stream<byte>
     output reached Block<void>
+    output completed Block<void>
+    output failed Block<void>
     output finished Block<void>
-    output failure Block<void>
-    output error Stream<string>
+    output errors Stream<string>
 )]
 pub async fn read() {
     if let (Ok(filesystem), Ok(path)) = (
@@ -33,7 +36,44 @@ pub async fn read() {
     ) {
         filesystem
             .filesystem
-            .read_file(&path, &data, &reached, &finished, &failure, &error)
+            .read_file(
+                &path,
+                Box::new(|content: VecDeque<u8>| {
+                    Box::pin(async {
+                        data.send_many(TransmissionValue::Byte(content))
+                            .await
+                            .map_err(|_| ())
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = reached.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        reached.close().await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = completed.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = failed.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = finished.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|msg: String| {
+                    Box::pin(async { errors.send_one(msg.into()).await.map_err(|_| ()) })
+                }),
+            )
             .await
     }
 }
@@ -48,7 +88,8 @@ pub async fn read() {
 ///
 /// The amount of written bytes is sent through `amount`. There is no guarantee about its increment, as an undefined number of bytes may be written at once.
 ///
-/// `finished` is emitted when successful writting is finished. `failure` is emitted if an error occurs, and `error` contains the related text of error(s).
+/// `completed` is emitted when successful writting is finished. `failed` is emitted if an error occurs, and `errors` contains the related text of error(s).
+/// `finished` is emitted at the end, regardless of the writing status.
 #[mel_treatment(
     default append false
     default create true
@@ -56,9 +97,10 @@ pub async fn read() {
     input path Block<string>
     input filesystem Block<FileSystem>
     input data Stream<byte>
+    output completed Block<void>
+    output failed Block<void>
     output finished Block<void>
-    output failure Block<void>
-    output error Stream<string>
+    output errors Stream<string>
     output amount Stream<u128>
 )]
 pub async fn write(append: bool, create: bool, new: bool) {
@@ -76,7 +118,42 @@ pub async fn write(append: bool, create: bool, new: bool) {
         filesystem
             .filesystem
             .write_file(
-                &path, append, create, new, &data, &amount, &finished, &failure, &error,
+                &path,
+                append,
+                create,
+                new,
+                Box::new(|| {
+                    Box::pin(async {
+                        data.recv_many()
+                            .await
+                            .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
+                            .map_err(|_| ())
+                    })
+                }),
+                Box::new(|amt: u128| {
+                    Box::pin({
+                        let amount = &amount;
+                        async move { amount.send_one(amt.into()).await.map_err(|_| ()) }
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = completed.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = failed.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|| {
+                    Box::pin(async {
+                        let _ = finished.send_one(().into()).await;
+                    })
+                }),
+                Box::new(|msg: String| {
+                    Box::pin(async { errors.send_one(msg.into()).await.map_err(|_| ()) })
+                }),
             )
             .await
     }

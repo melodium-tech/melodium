@@ -39,7 +39,7 @@ pub async fn get(key: string) {
     }
 }
 
-/// Create maps with one entry
+/// Insert entry in map
 ///
 /// Insert `value` in `base` map, then emit to `map`.
 #[mel_treatment(
@@ -61,5 +61,40 @@ pub async fn insert(key: string) {
         let mut new_map = Arc::unwrap_or_clone(base);
         new_map.map.insert(key.clone(), value);
         let _ = map.send_one(Value::Data(Arc::new(new_map))).await;
+    }
+}
+
+/// Merge two maps
+///
+/// Merge map `entries` in `base`.
+/// `entries` erase existing entries in `base` if they already exists.
+/// `entries` can be omitted (closed input) and `merge` will still be emitted if `base` is received.
+#[mel_treatment(
+    input base Block<Map>
+    input entries Block<Map>
+    output merged Block<Map>
+)]
+pub async fn merge() {
+    if let Ok(base) = base.recv_one().await.map(|val| {
+        GetData::<Arc<dyn Data>>::try_data(val)
+            .unwrap()
+            .downcast_arc::<Map>()
+            .unwrap()
+    }) {
+        if let Ok(entries) = entries.recv_one().await.map(|val| {
+            GetData::<Arc<dyn Data>>::try_data(val)
+                .unwrap()
+                .downcast_arc::<Map>()
+                .unwrap()
+        }) {
+            let mut new_map = Arc::unwrap_or_clone(base);
+            for (key, value) in &entries.map {
+                new_map.map.insert(key.clone(), value.clone());
+            }
+
+            let _ = merged.send_one(Value::Data(Arc::new(new_map))).await;
+        } else {
+            let _ = merged.send_one(Value::Data(base)).await;
+        }
     }
 }

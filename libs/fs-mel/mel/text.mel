@@ -1,0 +1,83 @@
+use root/file::read
+use root/file::write
+use root/filesystem::FileSystem
+use root/local::|local_filesystem
+use std/flow::emit
+use std/flow::trigger
+use std/text/convert/string::fromUtf8
+use std/text/convert/string::toUtf8
+
+/*
+Read one file as text.
+
+The content of the file given through `path` is decoded as UTF-8 and streamed through `text`.
+
+When file is reached and opened, `reached` is emitted.
+Once file is totally and succesfully read, `completed` is emitted.
+`finished` is emitted when the read ends, regardless of the reason.
+All reading errors are streamed through `errors`.
+
+If any reading failure happens, `failed` is emitted.
+*/
+treatment readText(path: string)
+  input  fileystem: Block<FileSystem>
+  input  trigger: Block<void>
+  output text: Stream<string>
+  output reached: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output errors: Stream<string>
+{
+    emitFilename: emit<string>(value=path)
+
+    read()
+    fromUtf8()
+
+    Self.trigger -> emitFilename.trigger,emit -> read.path
+    Self.filesystem ---------------------------> read.filesystem
+
+    read.data -> fromUtf8.encoded,text -> Self.text
+
+    read.reached ---> Self.reached
+    read.completed -> Self.completed
+    read.finished --> Self.finished
+    read.failed ----> Self.failed
+    read.errors ----> Self.errors
+}
+
+/**
+Write text in one file.
+
+The text received through `text` is written as UTF-8 in the file located at `path`.
+The writing behavior is set up by the parameters:
+- `append`: bytes are added to the file instead of replacing the existing file;
+- `create`: if the file does not exists, it is created;
+- `new`: the file is required to being new, if a file already exists at that path then the writing fails.
+
+The amount of written bytes is sent through `amount`. There is no guarantee about its increment, as an undefined number of bytes may be written at once.
+`finished` is emitted when successful writting is finished. `failed` is emitted if an error occurs, and `error` contains the related text of error(s).
+*/
+treatment writeText(path: string, append: bool = false, create: bool = true, new: bool = false)
+  input  fileystem: Block<FileSystem>
+  input  text: Stream<string>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output errors: Stream<string>
+  output amount: Stream<u128>
+{
+    triggerData: trigger<byte>()
+    emitFilename: emit<string>(value=path)
+    write(append=append, create=create, new=new)
+    toUtf8()
+
+    Self.data -> triggerData.stream,start -> emitFilename.trigger,emit -> write.path
+    Self.text -> toUtf8.text,encoded -----------------------------------> write.data
+
+    write.completed -> Self.completed
+    write.finished --> Self.finished
+    write.failed ----> Self.failed
+    write.errors ----> Self.errors
+    write.amount ----> Self.amount
+}

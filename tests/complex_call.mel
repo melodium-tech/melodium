@@ -1,8 +1,8 @@
 #!/usr/bin/env melodium
 #! name = complex_call
-#! version = 0.8.0
-#! require = std:0.8.0
-#! require = fs:0.8.0
+#! version = 0.9.0-pre.1
+#! require = std:=0.9.0-pre.1
+#! require = fs:=0.9.0-pre.1
 
 use std/engine/util::startup
 use std/flow::generate
@@ -64,7 +64,7 @@ treatment count_writer(var output_file: string)
     stream<u128>()
     write()
     emit<string>(value=output_file)
-    emitFS: emit<Option<FileSystem>>(value=|local_filesystem())
+    emitFS: emit<Option<FileSystem>>(value=|local_filesystem(_))
     unwrap<FileSystem>()
     toBytes<u128>()
     flatten<byte>()

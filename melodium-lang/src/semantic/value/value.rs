@@ -10,6 +10,7 @@ use crate::path::Path;
 use crate::text::PositionnedString;
 use crate::text::Value as TextValue;
 use crate::ScriptResult;
+use descape::UnescapeExt;
 use melodium_common::descriptor::Collection;
 use melodium_common::descriptor::DescribedType;
 use melodium_common::descriptor::VersionReq;
@@ -118,20 +119,21 @@ impl Value {
             return ScriptResult::new_failure(ScriptError::invalid_string(147, s.clone()));
         }
 
-        let string = string
-            .unwrap()
-            .replace(r#"\""#, r#"""#)
-            .replace(r#"\\"#, r#"\"#);
-
-        ScriptResult::new_success(ValueContent::String(string))
+        match string.unwrap().to_unescaped() {
+            Ok(string) => ScriptResult::new_success(ValueContent::String(string.to_string())),
+            Err(_err) => ScriptResult::new_failure(ScriptError::invalid_string(185, s.clone())),
+        }
     }
 
     fn parse_character(c: &PositionnedString) -> ScriptResult<ValueContent> {
         if let Some(character) = c.string.strip_prefix('\'') {
             if let Some(character) = character.strip_suffix('\'') {
-                ScriptResult::new_success(ValueContent::Character(
-                    character.chars().next().unwrap(),
-                ))
+                match character.to_unescaped() {
+                    Ok(char) if char.len() == 1 => ScriptResult::new_success(
+                        ValueContent::Character(char.chars().next().unwrap()),
+                    ),
+                    _ => ScriptResult::new_failure(ScriptError::invalid_character(186, c.clone())),
+                }
             } else {
                 ScriptResult::new_failure(ScriptError::invalid_character(148, c.clone()))
             }
@@ -212,7 +214,15 @@ impl Value {
                 } else {
                     let ps = match &self.text {
                         TextValue::Name(ps) => ps.clone(),
-                        _ => PositionnedString::default(),
+                        TextValue::Void(ps) => ps.clone(),
+                        TextValue::Boolean(ps) => ps.clone(),
+                        TextValue::Number(ps) => ps.clone(),
+                        TextValue::String(ps) => ps.clone(),
+                        TextValue::Character(ps) => ps.clone(),
+                        TextValue::Byte(ps) => ps.clone(),
+                        TextValue::Array(ps, _) => ps.clone(),
+                        TextValue::ContextReference((ps, _)) => ps.clone(),
+                        TextValue::Function(function) => function.name.clone(),
                     };
                     return ScriptResult::new_failure(ScriptError::undeclared_parameter(152, ps));
                 }
@@ -443,6 +453,14 @@ impl Value {
                         }
                     }
                     ScriptResult::new_success(ValueDesigner::Array(vector))
+                } else if let DescribedType::Option(inner_type) = described_type {
+                    Self::build_designed_value(
+                        content,
+                        designer,
+                        inner_type,
+                        collection,
+                        positioned_string,
+                    )
                 } else {
                     ScriptResult::new_failure(ScriptError::invalid_type(
                         182,

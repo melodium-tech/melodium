@@ -1,0 +1,69 @@
+use http/client/util::post
+use std/data/string_map::StringMap
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/text/compose::|format
+use std/flow::emit
+use std/flow::pass
+use std/flow::stream
+use std/conv::toString
+use std/conv::|to_string
+use std/text/convert/string::toUtf8
+use std/text/convert/string::fromUtf8
+use json::|to_json
+use json::Json
+use json/value::|null
+use std/ops/option::|unwrap_or
+use std/ops/option::|wrap
+use local::StepState
+use log/logger::Logger
+use log/log::logError
+use log/log::logInfos
+
+treatment postGitlabState[logger: Logger](root_url: string, token: string, project: string, sha: string, state: StepState, ref: string, pipeline: string, name: string, description: string, log_response: bool = false)
+    input trigger: Block<void>
+{
+    post(
+        headers=|wrap<StringMap>(|map([
+            |entry("PRIVATE-TOKEN", token),
+            |entry("Content-Type", "application/json")
+        ])),
+        url=|format("{root_url}/projects/{project_id}/statuses/{sha}",
+                |map([
+                    |entry("root_url", root_url),
+                    |entry("project_id", project),
+                    |entry("sha", sha)
+                ])
+        )
+    )
+    passInfos: pass<byte>(cond=log_response)
+    logInfos[logger=logger](label="GitLab API")
+    fromUtf8()
+    post.data -> passInfos.stream,passed -> fromUtf8.encoded,text -> logInfos.messages
+    logError[logger=logger](label="GitLab API")
+    post.error -> logError.message
+
+    emit<Json>(value=|unwrap_or<Json>(|to_json(
+        |format(
+            "{{
+                \"state\": \"{state}\",
+                \"ref\": \"{ref}\",
+                \"pipeline_id\": \"{pipeline_id}\",
+                \"name\": \"{name}\",
+                \"description\": \"{description}\"
+            }}",
+            |map([
+                    |entry("state", |to_string<StepState>(state)),
+                    |entry("ref", ref),
+                    |entry("pipeline_id", pipeline),
+                    |entry("name", name),
+                    |entry("description", description)
+                ])
+        )
+    ), |null()))
+    stream<Json>()
+    toString<Json>()
+    toUtf8()
+
+    Self.trigger -> emit.trigger,emit -> stream.block,stream -> toString.value,into -> toUtf8.text,encoded -> post.data
+}

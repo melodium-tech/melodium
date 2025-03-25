@@ -1,0 +1,66 @@
+use http/client/util::post
+use std/data/string_map::StringMap
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/text/compose::|format
+use std/flow::emit
+use std/flow::pass
+use std/flow::stream
+use std/conv::toString
+use std/conv::|to_string
+use std/text/convert/string::toUtf8
+use std/text/convert/string::fromUtf8
+use json::|to_json
+use json::Json
+use json/value::|null
+use std/ops/option::|unwrap_or
+use std/ops/option::|wrap
+use local::StepState
+use log/logger::Logger
+use log/log::logError
+use log/log::logInfos
+
+treatment postGithubState[logger: Logger](token: string, project: string, sha: string, state: StepState, name: string, description: string, log_response: bool = false)
+    input trigger: Block<void>
+{
+    post(
+        headers=|wrap<StringMap>(|map([
+            |entry("Accept", "application/vnd.github+json"),
+            |entry("Authorization", |format("Bearer {token}", |entry("token", token))),
+            |entry("Content-Type", "application/json"),
+            |entry("X-GitHub-Api-Version", "2022-11-28")
+        ])),
+        url=|format("https://api.github.com/repos/{project}/statuses/{sha}",
+                |map([
+                    |entry("project", project),
+                    |entry("sha", sha)
+                ])
+        )
+    )
+    passInfos: pass<byte>(cond=log_response)
+    logInfos[logger=logger](label="GitHub API")
+    fromUtf8()
+    post.data -> passInfos.stream,passed -> fromUtf8.encoded,text -> logInfos.messages
+    logError[logger=logger](label="GitHub API")
+    post.error -> logError.message
+
+    emit<Json>(value=|unwrap_or<Json>(|to_json(
+        |format(
+            "{{
+                \"state\": \"{state}\",
+                \"context\": \"{name}\",
+                \"description\": \"{description}\"
+            }}",
+            |map([
+                    |entry("state", |to_string<StepState>(state)),
+                    |entry("name", name),
+                    |entry("description", description)
+                ])
+        )
+    ), |null()))
+    stream<Json>()
+    toString<Json>()
+    toUtf8()
+
+    Self.trigger -> emit.trigger,emit -> stream.block,stream -> toString.value,into -> toUtf8.text,encoded -> post.data
+}

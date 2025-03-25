@@ -17,7 +17,8 @@ fn main() {
         .arg("sql.mel")
         .arg("--server_url")
         .arg(&format!(
-            r#""postgres://{user}:{password}@{host}:5432/{database}""#,
+            r#""postgres://{user}:{password}@{host}:{port}/{database}""#,
+            port = env::var("PGPORT").unwrap_or_else(|_| "5432".into()),
             user = env::var("POSTGRES_USER").unwrap(),
             password = env::var("POSTGRES_PASSWORD").unwrap(),
             host = env::var("POSTGRES_HOST").unwrap(),
@@ -32,8 +33,8 @@ fn main() {
         .spawn()
         .expect("failed to launch Mélodium executable");
 
-    match melodium.wait() {
-        Ok(status) if status.success() => {
+    let exit_code = match melodium.wait() {
+        Ok(status) => {
             if let Ok(error_contents) = std::fs::read_to_string(CONN_ERROR_FILENAME) {
                 if !error_contents.is_empty() {
                     eprintln!("SQL connection error: {error_contents}");
@@ -46,35 +47,38 @@ fn main() {
                 }
             }
 
-            match std::fs::metadata(SUCCESS_FILENAME) {
+            let sub_code = match std::fs::metadata(SUCCESS_FILENAME) {
                 Ok(_metadata) => match std::fs::read_to_string(SUCCESS_FILENAME) {
                     Ok(contents) => {
                         if contents != "8" {
                             eprintln!("Invalid result content: {contents}");
-                            exit(1);
+                            1
+                        } else {
+                            0
                         }
                     }
                     Err(err) => {
                         eprintln!("Error reading file: {err}");
-                        exit(1);
+                        1
                     }
                 },
                 Err(err) => {
                     eprintln!("Error retrieving metadata: {err}");
-                    exit(1);
+                    1
                 }
-            }
-        }
-        Ok(status) => {
-            exit(status.code().unwrap_or(1));
+            };
+
+            status.code().unwrap_or(1) | sub_code
         }
         Err(err) => {
             eprintln!("Execution error: {err}");
-            exit(1);
+            1
         }
-    }
+    };
 
     let _ = std::fs::remove_file(CONN_ERROR_FILENAME);
     let _ = std::fs::remove_file(EXEC_ERROR_FILENAME);
     let _ = std::fs::remove_file(SUCCESS_FILENAME);
+
+    exit(exit_code)
 }
