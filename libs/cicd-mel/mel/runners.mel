@@ -16,7 +16,7 @@ use work/resources::Container
 use work/resources::ServiceContainer
 use work/resources::Volume
 
-model CicdDispatchEngine(key: string, address: string = "https://api-staging.melodium.tech/0.1"): DistantEngine {
+model CicdDispatchEngine(key: string, address: string = "https://api.melodium.tech/0.1"): DistantEngine {
     address = address
     key = key
 }

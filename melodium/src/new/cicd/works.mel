@@ -16,6 +16,9 @@ use work/resources/arch::|amd64
 use work/resources::|volume
 use work/resources::|mount
 
+/**
+  Build step, cloning and listing the repository root content.
+*/
 treatment build[cicd: CicdDispatchEngine, logger: Logger](repository_clone_url: string, repository_clone_ref: string)
   model runner: CicdRunnerEngine()
   input trigger: Block<void>
@@ -27,13 +30,14 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](repository_clone_url: 
         logger=logger
     ](
         name="build",
-        cpu=1,
+        cpu=10,
         memory=500,
         storage=1000,
         volumes=[|volume("build-result", 30)],
-        containers=[|container("ubuntu", 1000, 2, 8000, |amd64(), [|mount("build-result", "/mounted/result")], "ubuntu:noble", _)]
+        containers=[|container("ubuntu", 1000, 10, 8000, |amd64(), [|mount("build-result", "/mounted/result")], "ubuntu:noble", _)]
     )
     gitClone: stepOn[runner=runner, logger=logger](
+        name="git",
         executor_name="ubuntu",
         environment=|wrap<Environment>(|environment(|map([]), "/root", false, false)),
         commands=[
@@ -44,6 +48,7 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](repository_clone_url: 
         ]
     )
     makeList: stepOn[runner=runner, logger=logger](
+        name="list",
         executor_name="ubuntu",
         environment=|wrap<Environment>(|environment(|map([]), "/root/project", false, false)),
         commands=|raw_commands([
@@ -59,6 +64,9 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](repository_clone_url: 
                                                                                makeList.data -------------> Self.data
 }
 
+/**
+  Test step, insuring listing is not empty.
+*/
 treatment test[cicd: CicdDispatchEngine, logger: Logger]()
   model runner: CicdRunnerEngine()
   input trigger: Block<void>
@@ -71,13 +79,14 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger]()
         logger=logger
     ](
         name="test",
-        cpu=1,
+        cpu=10,
         memory=500,
         storage=1000,
         volumes=[|volume("tested-data", 30)],
-        containers=[|container("alpine", 500, 1, 1000, |amd64(), [|mount("tested-data", "/mounted/data")], "alpine:3", _)]
+        containers=[|container("alpine", 500, 10, 1000, |amd64(), [|mount("tested-data", "/mounted/data")], "alpine:3", _)]
     )
     makeTest: stepOnWithInput[runner=runner, logger=logger](
+        name="test",
         executor_name="alpine",
         in_filesystem="tested-data",
         in_file="list.txt",

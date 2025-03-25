@@ -5,8 +5,20 @@ use local/works::test
 use log/logger::Logger
 use std/engine/util::startup
 
+/**
+  `main` treatment, used as entrypoint as defined in `Compo.toml`.
+
+  - `dispatch_api_key`: service key provided to access Mélodium work distribution API;
+  - `output_directory`: directory where output files (including logs) are wrote;
+  - `repository_clone_url`: URL to process Git clone;
+  - `repository_clone_ref`: Git reference (sha or tag) to clone.
+
+  All the other parameters are present to handle integration with CI services.
+*/
 treatment main(const dispatch_api_key: string, output_directory: string, repository_clone_url: string, repository_clone_ref: string, repository_clone_sha: string = "", ci_service_token: string = "", ci_service_project: string = "", ci_service_ref: string = "", ci_service_pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
+  // Model used to handle all logs.
   model logger: Logger()
+  // Model used to dispatch work among Mélodium engines.
   model cicd: CicdDispatchEngine(key=dispatch_api_key)
 {
     startup()
