@@ -25,8 +25,8 @@ Please refer to the [Mélodium crate](melodium/) for informations about how to b
 
 ## Development
 
-Mélodium development repository is hosted on [GitLab](https://gitlab.com/melodium/melodium), with mirroring on [GitHub](https://github.com/melodium-tech/melodium).
-Social accounts can be found on [BlueSky](https://bsky.app/profile/melodium.tech), [Mastodon](https://mastodon.social/@melodium) and [LinkedIn](https://www.linkedin.com/company/m%C3%A9lodium/).
+Mélodium development repository is hosted on [GitLab](https://gitlab.com/melodium/melodium), with mirroring on [GitHub](https://github.com/melodium-tech/melodium).  
+Social accounts can be found on [BlueSky](https://bsky.app/profile/melodium.tech), [Mastodon](https://mastodon.social/@melodium) and [LinkedIn](https://www.linkedin.com/company/m%C3%A9lodium/).  
 Development chats and related Mélodium stuff can be discussed on [Discord](https://discord.gg/GQmckruKNx).
 
 ## Repository organization
@@ -65,7 +65,7 @@ As example, to run checks or tests on a specific pushed commit:
 
 `CHECK` and `TEST` are considered `true` for every commit on `master` branch, and _everything_ is considered `true` for tagged commits.
 
-[^1]: while build is made for all supported platforms, tests are only processed on some platorms where GitLab CI have matching native runners, such as Linux aarch64 and x86_64 (testing aarch64, i686 and x86_64 versions, GNU and MUSL), Windows x86_64 (testing i686 and x86_64 versions, GNU and MSVC), and Mac OS ARM64 (testing arm64 version).
+[^1]: while build is made for all supported platforms, tests are only processed on some platforms where GitLab CI have matching native runners, such as Linux aarch64 and x86_64 (testing aarch64, i686 and x86_64 versions, GNU and MUSL), Windows x86_64 (testing i686 and x86_64 versions, GNU and MSVC), and Mac OS ARM64 (testing arm64 version).
 
 ## Licence
 

@@ -17,7 +17,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Mélodium CI
-        run: run .melodium/Compo.toml main --on_github=true --test=true --out_directory "\"./results\"" --key "\"${{ secrets.MELODIUM_SERVICE_KEY }}\"" --repository_url \"${{ github.repositoryUrl }}\" --ci_token \"${{ github.token }}\" --project \"${{ github.repository }}\" --ref \"${{ github.ref_name }}\" --sha \"${{ github.sha }}\"
+        run: melodium run .melodium/Compo.toml main --on_github=true --test=true --out_directory "\"./results\"" --key "\"${{ secrets.MELODIUM_SERVICE_KEY }}\"" --repository_url \"${{ github.repositoryUrl }}\" --ci_token \"${{ github.token }}\" --project \"${{ github.repository }}\" --ref \"${{ github.ref_name }}\" --sha \"${{ github.sha }}\"
       - name: Archive results
         uses: actions/upload-artifact@v4
         with:
