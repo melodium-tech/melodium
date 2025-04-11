@@ -1,1 +1,2 @@
-.gitlab/** -linguist-detectable
+*.rtf -linguist-detectable
+*.sh -linguist-detectable
