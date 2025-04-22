@@ -3,7 +3,7 @@
 # Builders follows syntax [host os]/[target triple]
 
 .host:debian:
-  image: rust:1.83-bullseye
+  image: rust:1.86-bullseye
 
 .host:windows:
   tags:
