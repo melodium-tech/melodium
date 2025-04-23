@@ -135,7 +135,8 @@ testers:rust:x86_64-pc-windows-gnu:
     - .builder:linux:x86_64-pc-windows-gnu
   script:
     - cd tests/testers
-    - cargo build --locked
+    - cargo build --locked --release
+    - mv target/x86_64-pc-windows-gnu/release target/x86_64-pc-windows-gnu/debug
     - ls target/x86_64-pc-windows-gnu/debug
   artifacts:
     paths:
@@ -163,7 +164,8 @@ testers:rust:i686-pc-windows-gnu:
     - .builder:linux:i686-pc-windows-gnu
   script:
     - cd tests/testers
-    - cargo build --locked
+    - cargo build --locked --release
+    - mv target/i686-pc-windows-gnu/release target/i686-pc-windows-gnu/debug
     - ls target/i686-pc-windows-gnu/debug
   artifacts:
     paths:
