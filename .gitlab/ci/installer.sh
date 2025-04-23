@@ -4,6 +4,9 @@ if [ "$(whoami)" != "root" ]; then
         exit -1
 fi
 
+mkdir -p /usr/local/lib
+mkdir -p /usr/local/bin
+
 ARCHIVE=$(awk '/^__ARCHIVE__/ {print NR + 1; exit 0; }' "${0}")
 tail -n+${ARCHIVE} "${0}" | tar xpz -C "/usr/local/lib"
 
