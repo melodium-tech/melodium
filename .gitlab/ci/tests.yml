@@ -133,7 +133,6 @@ testers:rust:x86_64-pc-windows-gnu:
   extends:
     - .build-testers
     - .builder:linux:x86_64-pc-windows-gnu
-  image: rust:1.83-bullseye
   script:
     - cd tests/testers
     - cargo build --locked
@@ -162,7 +161,6 @@ testers:rust:i686-pc-windows-gnu:
   extends:
     - .build-testers
     - .builder:linux:i686-pc-windows-gnu
-  image: rust:1.83-bullseye
   script:
     - cd tests/testers
     - cargo build --locked
