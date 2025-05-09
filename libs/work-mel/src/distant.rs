@@ -44,68 +44,84 @@ impl DistantEngine {
         let address = model.get_address();
         let key = model.get_key();
 
-        let config = TlsConfig::default().with_tcp_config(ClientConfig::new().with_nodelay(true));
+        if address.as_str() == "local" {
+            // Nothing to do, using containers
+        } else {
+            let config =
+                TlsConfig::default().with_tcp_config(ClientConfig::new().with_nodelay(true));
 
-        let client = Client::new(config)
-            .with_base(address)
-            .with_default_pool()
-            .with_default_header(KnownHeaderName::UserAgent, crate::USER_AGENT)
-            .with_default_header(KnownHeaderName::Authorization, format!("Bearer {key}"));
+            let client = Client::new(config)
+                .with_base(address)
+                .with_default_pool()
+                .with_default_header(KnownHeaderName::UserAgent, crate::USER_AGENT)
+                .with_default_header(KnownHeaderName::Authorization, format!("Bearer {key}"));
 
-        self.client.write().unwrap().replace(Arc::new(client));
+            self.client.write().unwrap().replace(Arc::new(client));
+        }
     }
 
     pub async fn start(&self, request: api::Request) -> Result<api::DistributionResponse, String> {
-        let client = Arc::clone(self.client.read().unwrap().as_ref().unwrap());
+        let client = self
+            .client
+            .read()
+            .unwrap()
+            .as_ref()
+            .map(|client| Arc::clone(client));
+        if let Some(client) = client {
+            let connection = client
+                .post("/execution/job/start")
+                .with_request_header(KnownHeaderName::ContentType, "application/json")
+                .with_body(serde_json::to_string(&request).unwrap())
+                .await
+                .map_err(|err| err.to_string())?;
 
-        let connection = client
-            .post("/execution/job/start")
-            .with_request_header(KnownHeaderName::ContentType, "application/json")
-            .with_body(serde_json::to_string(&request).unwrap())
-            .await
-            .map_err(|err| err.to_string())?;
-
-        match connection.success() {
-            Ok(mut connection) => {
-                match serde_json::from_str::<api::Response>(
-                    &connection
-                        .response_body()
-                        .read_string()
-                        .await
-                        .map_err(|err| err.to_string())?,
-                )
-                .map_err(|err| err.to_string())?
-                {
-                    api::Response::Ok(id) => {
-                        async_std::task::sleep(Duration::from_secs(1)).await;
-                        loop {
-                            let mut connection = client
-                                .get(format!("/execution/job/{id}/access"))
-                                .await
-                                .map_err(|err| err.to_string())?;
-                            match connection.status() {
-                                Some(Status::Accepted) => {
-                                    async_std::task::sleep(Duration::from_secs(5)).await;
+            match connection.success() {
+                Ok(mut connection) => {
+                    match serde_json::from_str::<api::Response>(
+                        &connection
+                            .response_body()
+                            .read_string()
+                            .await
+                            .map_err(|err| err.to_string())?,
+                    )
+                    .map_err(|err| err.to_string())?
+                    {
+                        api::Response::Ok(id) => {
+                            async_std::task::sleep(Duration::from_secs(1)).await;
+                            loop {
+                                let mut connection = client
+                                    .get(format!("/execution/job/{id}/access"))
+                                    .await
+                                    .map_err(|err| err.to_string())?;
+                                match connection.status() {
+                                    Some(Status::Accepted) => {
+                                        async_std::task::sleep(Duration::from_secs(5)).await;
+                                    }
+                                    Some(Status::Ok) => {
+                                        return Ok(serde_json::from_str(
+                                            &connection
+                                                .response_body()
+                                                .read_string()
+                                                .await
+                                                .map_err(|err| err.to_string())?,
+                                        )
+                                        .map_err(|err| err.to_string())?)
+                                    }
+                                    Some(code) => return Err(format!("API responded {code}")),
+                                    None => return Err("Invalid response from API".to_string()),
                                 }
-                                Some(Status::Ok) => {
-                                    return Ok(serde_json::from_str(
-                                        &connection
-                                            .response_body()
-                                            .read_string()
-                                            .await
-                                            .map_err(|err| err.to_string())?,
-                                    )
-                                    .map_err(|err| err.to_string())?)
-                                }
-                                Some(code) => return Err(format!("API responded {code}")),
-                                None => return Err("Invalid response from API".to_string()),
                             }
                         }
+                        api::Response::Error(err) => Ok(api::DistributionResponse::Error(err)),
                     }
-                    api::Response::Error(err) => Ok(api::DistributionResponse::Error(err)),
                 }
+                Err(status) => Err(status.to_string()),
             }
-            Err(status) => Err(status.to_string()),
+        } else {
+            match crate::compose::compose(request).await {
+                Ok(access) => Ok(api::DistributionResponse::Started(Some(access))),
+                Err(err) => Ok(api::DistributionResponse::Error(err)),
+            }
         }
     }
 

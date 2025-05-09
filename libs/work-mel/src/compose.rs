@@ -1,20 +1,57 @@
 use crate::api::{Access, ModeRequest, Request};
+use async_std::{io::WriteExt, process::Command};
 use compose_spec::{
     service::{
         ports::{Protocol, Range, ShortPort, ShortRanges},
         volumes::{
-            mount::{Common, Volume},
-            Mount, ShortVolume,
+            self,
+            mount::{Bind, Common, Volume},
+            HostPath, Mount,
         },
         AbsolutePath, Cpus, Image,
     },
-    Compose, Identifier, MapKey, Service, Value, Volumes,
+    Compose, Identifier, ListOrMap, Map, MapKey, Service, Value,
 };
+use core::net::{Ipv4Addr, Ipv6Addr};
+use std::{fmt::Display, process::Stdio};
 use uuid::Uuid;
 
-const IMAGES_PULL_SOURCE: &str = "quay.io/repository/melodium";
+const IMAGES_PULL_SOURCE: &str = "registry.gitlab.com/melodium";
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Executor {
+    Podman,
+    Docker,
+}
+
+impl Display for Executor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Executor::Podman => write!(f, "podman"),
+            Executor::Docker => write!(f, "docker"),
+        }
+    }
+}
 
 pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
+    let executor = if let Ok(_output) = Command::new("podman").args(&["version"]).output().await {
+        Executor::Podman
+    } else if let Ok(_output) = Command::new("docker").args(&["version"]).output().await {
+        Executor::Docker
+    } else {
+        return Err(vec!["No executor available".to_string()]);
+    };
+
+    let socket = if let Ok(output) = Command::new(executor.to_string())
+        .args(&["info", "--format", "{{ .Host.RemoteSocket.Path }}"])
+        .output()
+        .await
+    {
+        String::from_utf8(output.stdout).map_err(|err| vec![err.to_string()])?
+    } else {
+        return Err(vec!["No socket available with".to_string()]);
+    };
+
     let id = Uuid::new_v4();
     let short_id = format!("{id:.*}", 8);
 
@@ -31,15 +68,238 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
         })
         .collect();
 
+    let mut containers = Vec::new();
+    for container in &request.containers {
+        let mut mounts = volumes::Volumes::new();
+        for mount in &container.mounts {
+            mounts.insert(
+                Mount::Volume(Volume {
+                    source: Some(
+                        Identifier::new(format!("volume-custom-{}", mount.name))
+                            .map_err(|err| vec![err.to_string()])?,
+                    ),
+                    common: Common {
+                        target: AbsolutePath::new(mount.mount_point.clone())
+                            .map_err(|err| vec![err.to_string()])
+                            .unwrap(),
+                        read_only: false,
+                        consistency: None,
+                        extensions: [].into(),
+                    },
+                    volume: None,
+                })
+                .into(),
+            );
+        }
+
+        let service = Service {
+            container_name: Some(
+                Identifier::new(format!("{short_id}-container-custom-{}", container.name))
+                    .map_err(|err| vec![err.to_string()])?,
+            ),
+            image: Some(
+                Image::parse(container.image.clone()).map_err(|err| vec![err.to_string()])?,
+            ),
+            command: Some(compose_spec::service::Command::List(vec![
+                "/bin/sh".to_string(),
+                "-c".to_string(),
+                "trap : TERM INT; sleep 9999999999d & wait".to_string(),
+            ])),
+            cpus: Some(
+                Cpus::new(container.cpu as f64 / 1000f64).map_err(|err| vec![err.to_string()])?,
+            ),
+            mem_limit: Some(compose_spec::service::ByteValue::Megabytes(
+                container.memory as u64,
+            )),
+            storage_opt: [(
+                MapKey::new("size").map_err(|err| vec![err.to_string()])?,
+                Some(Value::parse(format!("{}M", container.storage))),
+            )]
+            .into(),
+            volumes: mounts,
+            ..Default::default()
+        };
+        containers.push(service);
+    }
+
+    for container in &request.service_containers {
+        let mut mounts = volumes::Volumes::new();
+        for mount in &container.mounts {
+            mounts.insert(
+                Mount::Volume(Volume {
+                    source: Some(
+                        Identifier::new(format!("volume-custom-{}", mount.name))
+                            .map_err(|err| vec![err.to_string()])?,
+                    ),
+                    common: Common {
+                        target: AbsolutePath::new(mount.mount_point.clone())
+                            .map_err(|err| vec![err.to_string()])
+                            .unwrap(),
+                        read_only: false,
+                        consistency: None,
+                        extensions: [].into(),
+                    },
+                    volume: None,
+                })
+                .into(),
+            );
+        }
+
+        let service = Service {
+            container_name: Some(
+                Identifier::new(format!("{short_id}-container-service-{}", container.name))
+                    .map_err(|err| vec![err.to_string()])?,
+            ),
+            image: Some(
+                Image::parse(container.image.clone()).map_err(|err| vec![err.to_string()])?,
+            ),
+            environment: ListOrMap::Map(
+                container
+                    .env
+                    .iter()
+                    .map(|(name, value)| {
+                        (
+                            MapKey::new(name.clone()).unwrap(),
+                            Some(value.clone().into()),
+                        )
+                    })
+                    .collect(),
+            ),
+            command: container
+                .command
+                .as_ref()
+                .map(|command| compose_spec::service::Command::List(command.clone())),
+            cpus: Some(
+                Cpus::new(container.cpu as f64 / 1000f64).map_err(|err| vec![err.to_string()])?,
+            ),
+            mem_limit: Some(compose_spec::service::ByteValue::Megabytes(
+                container.memory as u64,
+            )),
+            storage_opt: [(
+                MapKey::new("size").map_err(|err| vec![err.to_string()])?,
+                Some(Value::parse(format!("{}M", container.storage))),
+            )]
+            .into(),
+            volumes: mounts,
+            ..Default::default()
+        };
+        containers.push(service);
+    }
+
+    let mut mounts = volumes::Volumes::new();
+    mounts.insert(
+        Mount::Bind(Bind {
+            source: HostPath::new(socket).map_err(|err| vec![err.to_string()])?,
+            common: Common {
+                target: AbsolutePath::new(match executor {
+                    Executor::Podman => "/run/podman/podman.sock",
+                    Executor::Docker => "/var/run/docker.sock",
+                })
+                .map_err(|err| vec![err.to_string()])?,
+                read_only: false,
+                consistency: None,
+                extensions: [].into(),
+            },
+            bind: None,
+        })
+        .into(),
+    );
+    for volume in &request.volumes {
+        mounts.insert(
+            Mount::Volume(Volume {
+                source: Some(Identifier::new(format!("volume-custom-{}", volume.name)).unwrap()),
+                common: Common {
+                    target: AbsolutePath::new(format!("/media/{}", volume.name))
+                        .map_err(|err| vec![err.to_string()])?,
+                    read_only: false,
+                    consistency: None,
+                    extensions: [].into(),
+                },
+                volume: None,
+            })
+            .into(),
+        );
+    }
+
+    let mut environment = Map::new();
+    environment.insert(
+        MapKey::new("MELODIUM_JOB_EXECUTOR").map_err(|err| vec![err.to_string()])?,
+        Some(executor.to_string().into()),
+    );
+    environment.insert(
+        MapKey::new("MELODIUM_JOB_CONTAINERS").map_err(|err| vec![err.to_string()])?,
+        Some(
+            request
+                .containers
+                .iter()
+                .map(|container| container.name.clone())
+                .collect::<Vec<_>>()
+                .join(",")
+                .into(),
+        ),
+    );
+    environment.insert(
+        MapKey::new("MELODIUM_JOB_SERVICE_CONTAINERS").map_err(|err| vec![err.to_string()])?,
+        Some(
+            request
+                .service_containers
+                .iter()
+                .map(|container| container.name.clone())
+                .collect::<Vec<_>>()
+                .join(",")
+                .into(),
+        ),
+    );
+    environment.insert(
+        MapKey::new("MELODIUM_JOB_VOLUMES").map_err(|err| vec![err.to_string()])?,
+        Some(
+            request
+                .volumes
+                .iter()
+                .map(|volume| volume.name.clone())
+                .collect::<Vec<_>>()
+                .join(",")
+                .into(),
+        ),
+    );
+    for container in &request.containers {
+        environment.insert(
+            MapKey::new(format!("MELODIUM_JOB_CONTAINER_{}", container.name))
+                .map_err(|err| vec![err.to_string()])?,
+            Some(format!("{short_id}-container-custom-{}", container.name).into()),
+        );
+    }
+    for container in &request.service_containers {
+        environment.insert(
+            MapKey::new(format!("MELODIUM_JOB_SERVICE_CONTAINER_{}", container.name))
+                .map_err(|err| vec![err.to_string()])?,
+            Some(format!("{short_id}-container-service-{}", container.name).into()),
+        );
+    }
+    for volume in &request.volumes {
+        environment.insert(
+            MapKey::new(format!("MELODIUM_JOB_VOLUME_{}", volume.name))
+                .map_err(|err| vec![err.to_string()])?,
+            Some(format!("/media/{}", volume.name).into()),
+        );
+    }
+
     let melodium = Service {
-        container_name: Some(Identifier::new(format!("{short_id}-container")).unwrap()),
+        container_name: Some(Identifier::new(format!("{short_id}-melodium")).unwrap()),
         image: Some(
             Image::parse(format!(
-                "{}/melodium:{}-{}",
-                IMAGES_PULL_SOURCE, request.edition, request.version
+                "{}/melodium:{}-{}-{}",
+                IMAGES_PULL_SOURCE, request.edition, executor, request.version
             ))
             .map_err(|err| vec![err.to_string()])?,
         ),
+        depends_on: compose_spec::ShortOrLong::Short(
+            containers
+                .iter()
+                .filter_map(|container| container.container_name.clone())
+                .collect(),
+        ),
+        environment: compose_spec::ListOrMap::Map(environment),
         command: Some(compose_spec::service::Command::List(match &request.mode {
             ModeRequest::Direct {
                 entrypoint,
@@ -72,7 +332,7 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
         ports: [ShortPort {
             host_ip: None,
             ranges: ShortRanges::new(
-                Some(Range::new(port, None).map_err(|err| vec![err.to_string()])?),
+                None,
                 Range::new(8080, None).map_err(|err| vec![err.to_string()])?,
             )
             .map_err(|err| vec![err.to_string()])?,
@@ -80,41 +340,82 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
         }
         .into()]
         .into(),
-        volumes: request
-            .volumes
-            .iter()
-            .map(|volume| {
-                Mount::Volume(Volume {
-                    source: Some(
-                        Identifier::new(format!("volume-custom-{}", volume.name)).unwrap(),
-                    ),
-                    common: Common {
-                        target: AbsolutePath::new(format!("/media/{}", volume.name))
-                            .map_err(|err| vec![err.to_string()])
-                            .unwrap(),
-                        read_only: false,
-                        consistency: None,
-                        extensions: [].into(),
-                    },
-                    volume: None,
-                })
-                .into()
-            })
-            .collect(),
+        volumes: mounts,
+        ..Default::default()
     };
 
-    let services = {
-        request
-            .containers
-            .iter()
-            .map(|container| (Identifier::new("common").unwrap()))
-    };
+    containers.push(melodium);
 
     let compose_spec = Compose {
-        networks: [(Identifier::new("common").unwrap(), None)].into(),
-        services: services,
+        services: containers
+            .into_iter()
+            .map(|container| (container.container_name.clone().unwrap(), container))
+            .collect(),
         volumes: volumes,
+        ..Default::default()
     };
 
-    Err(vec![])
+    match Command::new(executor.to_string())
+        .args(&["compose", "--file", "-"])
+        .stdin(Stdio::piped())
+        .stderr(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+    {
+        Ok(mut child) => {
+            if let Some(ref mut stdin) = child.stdin {
+                stdin
+                    .write_all(
+                        serde_yaml::to_string(&compose_spec)
+                            .map_err(|err| vec![err.to_string()])?
+                            .as_bytes(),
+                    )
+                    .await
+                    .map_err(|err| vec![err.to_string()])?;
+                match child.output().await {
+                    Ok(output) if output.status.success() => {
+                        let binding = match Command::new(executor.to_string())
+                            .args(&[
+                                "compose".to_string(),
+                                "port".to_string(),
+                                "--protocol".to_string(),
+                                "tcp".to_string(),
+                                format!("{short_id}-melodium"),
+                                "8080".to_string(),
+                            ])
+                            .output()
+                            .await
+                        {
+                            Ok(output) if output.status.success() => {
+                                let port = String::from_utf8_lossy(&output.stdout)
+                                    .split_once(':')
+                                    .ok_or_else(|| vec!["Unable to get exposed port".to_string()])?
+                                    .1
+                                    .to_string();
+                                port.parse::<u16>().map_err(|err| vec![err.to_string()])?
+                            }
+                            Ok(output) => {
+                                return Err(vec![
+                                    String::from_utf8_lossy(&output.stderr).to_string()
+                                ])
+                            }
+                            Err(err) => return Err(vec![err.to_string()]),
+                        };
+
+                        Ok(Access {
+                            id: id,
+                            addresses: vec![Ipv6Addr::LOCALHOST.into(), Ipv4Addr::LOCALHOST.into()],
+                            port: binding,
+                            key: access_key,
+                        })
+                    }
+                    Ok(output) => Err(vec![String::from_utf8_lossy(&output.stderr).to_string()]),
+                    Err(err) => Err(vec![err.to_string()]),
+                }
+            } else {
+                Err(vec!["Unable to get compose executor stdin".to_string()])
+            }
+        }
+        Err(err) => Err(vec![err.to_string()]),
+    }
 }

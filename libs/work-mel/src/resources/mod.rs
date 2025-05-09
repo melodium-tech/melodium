@@ -23,10 +23,22 @@ pub async fn getExecutor() {
     {
         #[cfg(not(feature = "kubernetes"))]
         {
-            let _ = failed.send_one(().into()).await;
-            let _ = error
-                .send_one("No executor available".to_string().into())
-                .await;
+            match crate::container::ContainerExecutor::try_new(name).await {
+                Ok(container_exec) => {
+                    let _ = executor
+                        .send_one(
+                            (std::sync::Arc::new(Executor {
+                                executor: std::sync::Arc::new(container_exec),
+                            }) as std::sync::Arc<dyn Data>)
+                                .into(),
+                        )
+                        .await;
+                }
+                Err(err) => {
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error.send_one(err.into()).await;
+                }
+            }
         }
 
         #[cfg(feature = "kubernetes")]
@@ -66,10 +78,22 @@ pub async fn getFileSystem() {
     {
         #[cfg(not(feature = "kubernetes"))]
         {
-            let _ = failed.send_one(().into()).await;
-            let _ = error
-                .send_one("No filesystem available".to_string().into())
-                .await;
+            match crate::container::ContainerFileSystem::try_new(name).await {
+                Ok(container_fs) => {
+                    let _ = filesystem
+                        .send_one(
+                            (std::sync::Arc::new(FileSystem {
+                                filesystem: std::sync::Arc::new(container_fs),
+                            }) as std::sync::Arc<dyn Data>)
+                                .into(),
+                        )
+                        .await;
+                }
+                Err(err) => {
+                    let _ = failed.send_one(().into()).await;
+                    let _ = error.send_one(err.into()).await;
+                }
+            }
         }
 
         #[cfg(feature = "kubernetes")]

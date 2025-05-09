@@ -280,3 +280,22 @@ release:publish:containers:
     - buildah images --all
     - buildah manifest inspect $manifest
     - buildah manifest push --all ${manifest} docker://$CI_REGISTRY_IMAGE:alpine-${version}
+
+    # alpine podman
+    - manifest=melodium:alpine-podman
+    - version=$(target/x86_64-unknown-linux-musl/release/melodium --version | cut -d " " -f2)
+
+    # ARM64
+    - container=$(buildah from --platform "linux/arm64" mgoltzsche/podman:5-minimal)
+    - buildah copy ${container} target/aarch64-unknown-linux-musl/release/melodium /usr/bin/
+    - buildah config --entrypoint '["melodium"]' --cmd 'help' --env MELODIUM_HOME=/usr/share/melodium ${container}
+    - buildah commit --manifest ${manifest} ${container} melodium-aarch64-unknown-linux-musl
+    # AMD64
+    - container=$(buildah from --platform "linux/amd64" mgoltzsche/podman:5-minimal)
+    - buildah copy ${container} target/x86_64-unknown-linux-musl/release/melodium /usr/bin/
+    - buildah config --entrypoint '["melodium"]' --cmd 'help' --env MELODIUM_HOME=/usr/share/melodium ${container}
+    - buildah commit --manifest ${manifest} ${container} melodium-x86_64-unknown-linux-musl
+
+    - buildah images --all
+    - buildah manifest inspect $manifest
+    - buildah manifest push --all ${manifest} docker://$CI_REGISTRY_IMAGE:alpine-podman-${version}
