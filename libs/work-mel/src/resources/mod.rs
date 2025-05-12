@@ -21,42 +21,52 @@ pub async fn getExecutor() {
         .await
         .map(|val| GetData::<String>::try_data(val).unwrap())
     {
-        #[cfg(not(feature = "kubernetes"))]
-        {
-            match crate::container::ContainerExecutor::try_new(name).await {
-                Ok(container_exec) => {
-                    let _ = executor
-                        .send_one(
-                            (std::sync::Arc::new(Executor {
-                                executor: std::sync::Arc::new(container_exec),
-                            }) as std::sync::Arc<dyn Data>)
-                                .into(),
-                        )
-                        .await;
-                }
-                Err(err) => {
-                    let _ = failed.send_one(().into()).await;
-                    let _ = error.send_one(err.into()).await;
+        match std::env::var("MELODIUM_JOB_EXECUTOR").as_deref() {
+            Ok("podman") | Ok("docker") => {
+                match crate::container::ContainerExecutor::try_new(name).await {
+                    Ok(container_exec) => {
+                        let _ = executor
+                            .send_one(
+                                (std::sync::Arc::new(Executor {
+                                    executor: std::sync::Arc::new(container_exec),
+                                }) as std::sync::Arc<dyn Data>)
+                                    .into(),
+                            )
+                            .await;
+                    }
+                    Err(err) => {
+                        let _ = failed.send_one(().into()).await;
+                        let _ = error.send_one(err.into()).await;
+                    }
                 }
             }
-        }
-
-        #[cfg(feature = "kubernetes")]
-        {
-            match crate::kube::KubeExecutor::try_new(name).await {
-                Ok(kube_exec) => {
-                    let _ = executor
-                        .send_one(
-                            (std::sync::Arc::new(Executor {
-                                executor: std::sync::Arc::new(kube_exec),
-                            }) as std::sync::Arc<dyn Data>)
-                                .into(),
-                        )
-                        .await;
+            _ => {
+                #[cfg(feature = "kubernetes")]
+                {
+                    match crate::kube::KubeExecutor::try_new(name).await {
+                        Ok(kube_exec) => {
+                            let _ = executor
+                                .send_one(
+                                    (std::sync::Arc::new(Executor {
+                                        executor: std::sync::Arc::new(kube_exec),
+                                    })
+                                        as std::sync::Arc<dyn Data>)
+                                        .into(),
+                                )
+                                .await;
+                        }
+                        Err(err) => {
+                            let _ = failed.send_one(().into()).await;
+                            let _ = error.send_one(err.into()).await;
+                        }
+                    }
                 }
-                Err(err) => {
+                #[cfg(not(feature = "kubernetes"))]
+                {
                     let _ = failed.send_one(().into()).await;
-                    let _ = error.send_one(err.into()).await;
+                    let _ = error
+                        .send_one("Executor name not set".to_string().into())
+                        .await;
                 }
             }
         }
@@ -76,42 +86,52 @@ pub async fn getFileSystem() {
         .await
         .map(|val| GetData::<String>::try_data(val).unwrap())
     {
-        #[cfg(not(feature = "kubernetes"))]
-        {
-            match crate::container::ContainerFileSystem::try_new(name).await {
-                Ok(container_fs) => {
-                    let _ = filesystem
-                        .send_one(
-                            (std::sync::Arc::new(FileSystem {
-                                filesystem: std::sync::Arc::new(container_fs),
-                            }) as std::sync::Arc<dyn Data>)
-                                .into(),
-                        )
-                        .await;
-                }
-                Err(err) => {
-                    let _ = failed.send_one(().into()).await;
-                    let _ = error.send_one(err.into()).await;
+        match std::env::var("MELODIUM_JOB_EXECUTOR").as_deref() {
+            Ok("podman") | Ok("docker") => {
+                match crate::container::ContainerFileSystem::try_new(name).await {
+                    Ok(container_fs) => {
+                        let _ = filesystem
+                            .send_one(
+                                (std::sync::Arc::new(FileSystem {
+                                    filesystem: std::sync::Arc::new(container_fs),
+                                }) as std::sync::Arc<dyn Data>)
+                                    .into(),
+                            )
+                            .await;
+                    }
+                    Err(err) => {
+                        let _ = failed.send_one(().into()).await;
+                        let _ = error.send_one(err.into()).await;
+                    }
                 }
             }
-        }
-
-        #[cfg(feature = "kubernetes")]
-        {
-            match crate::kube::KubeFileSystem::try_new(name).await {
-                Ok(kube_fs) => {
-                    let _ = filesystem
-                        .send_one(
-                            (std::sync::Arc::new(FileSystem {
-                                filesystem: std::sync::Arc::new(kube_fs),
-                            }) as std::sync::Arc<dyn Data>)
-                                .into(),
-                        )
-                        .await;
+            _ => {
+                #[cfg(feature = "kubernetes")]
+                {
+                    match crate::kube::KubeFileSystem::try_new(name).await {
+                        Ok(kube_fs) => {
+                            let _ = filesystem
+                                .send_one(
+                                    (std::sync::Arc::new(FileSystem {
+                                        filesystem: std::sync::Arc::new(kube_fs),
+                                    })
+                                        as std::sync::Arc<dyn Data>)
+                                        .into(),
+                                )
+                                .await;
+                        }
+                        Err(err) => {
+                            let _ = failed.send_one(().into()).await;
+                            let _ = error.send_one(err.into()).await;
+                        }
+                    }
                 }
-                Err(err) => {
+                #[cfg(not(feature = "kubernetes"))]
+                {
                     let _ = failed.send_one(().into()).await;
-                    let _ = error.send_one(err.into()).await;
+                    let _ = error
+                        .send_one(format!("No volume '{name}' available").into())
+                        .await;
                 }
             }
         }

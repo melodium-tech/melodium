@@ -33,7 +33,12 @@ impl ContainerExecutor {
         let executor = match std::env::var("MELODIUM_JOB_EXECUTOR").as_deref() {
             Ok("podman") => Executor::Podman,
             Ok("docker") => Executor::Docker,
-            _ => return Err("Executor name not set".to_string()),
+            Ok(other) => {
+                return Err(format!(
+                    "Executor '{other}' not known as manageable executor"
+                ))
+            }
+            Err(_) => return Err("Executor name not set".to_string()),
         };
 
         if Ok(true)

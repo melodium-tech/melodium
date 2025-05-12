@@ -309,6 +309,8 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
             } => vec!["run".to_string(), entrypoint.clone()],
             ModeRequest::Distribute { key } => vec![
                 "dist".to_string(),
+                "--ip".to_string(),
+                "0.0.0.0".to_string(),
                 "--port".to_string(),
                 "8080".to_string(),
                 "--wait".to_string(),
@@ -332,7 +334,7 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
         )]
         .into(),
         ports: [ShortPort {
-            host_ip: None,
+            host_ip: Some(Ipv4Addr::LOCALHOST.into()),
             ranges: ShortRanges::new(
                 None,
                 Range::new(8080, None).map_err(|err| vec![err.to_string()])?,
@@ -418,7 +420,7 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
                             Err(err) => return Err(vec![err.to_string()]),
                         };
 
-                        println!("TCP port: {binding}");
+                        println!("TCP port: {binding}, recv_key: {access_key}");
 
                         Ok(Access {
                             id: id,
