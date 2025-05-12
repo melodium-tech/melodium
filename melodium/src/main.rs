@@ -535,7 +535,10 @@ fn dist(args: Dist) {
                     }
                 };
                 async_std::task::block_on(melodium_distribution::launch_listen(
-                    SocketAddr::new(Ipv4Addr::LOCALHOST.into(), args.port),
+                    SocketAddr::new(
+                        args.ip.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into()),
+                        args.port,
+                    ),
                     &cert_content,
                     &key_content,
                     &Version::parse(melodium::VERSION).unwrap(),

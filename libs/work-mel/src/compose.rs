@@ -1,5 +1,5 @@
 use crate::api::{Access, ModeRequest, Request};
-use async_std::{io::WriteExt, process::Command};
+use async_std::process::Command;
 use compose_spec::{
     service::{
         ports::{Protocol, Range, ShortPort, ShortRanges},
@@ -13,6 +13,7 @@ use compose_spec::{
     Compose, Identifier, ListOrMap, Map, MapKey, Service, Value,
 };
 use core::net::{Ipv4Addr, Ipv6Addr};
+use futures::AsyncWriteExt;
 use std::{fmt::Display, process::Stdio};
 use uuid::Uuid;
 
@@ -284,8 +285,9 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
         );
     }
 
+    let melodium_service_name = format!("{short_id}-melodium");
     let melodium = Service {
-        container_name: Some(Identifier::new(format!("{short_id}-melodium")).unwrap()),
+        container_name: Some(Identifier::new(melodium_service_name.as_str()).unwrap()),
         image: Some(
             Image::parse(format!(
                 "{}/melodium:{}-{}-{}",
@@ -355,8 +357,23 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
         ..Default::default()
     };
 
+    let _ = std::fs::write(
+        "/tmp/compose.yml",
+        serde_yaml::to_string(&compose_spec).unwrap().as_bytes(),
+    );
+
     match Command::new(executor.to_string())
-        .args(&["compose", "--file", "-"])
+        //.args(&["compose", "--abort-on-container-exit", "--no-color", "--force-recreate", "--pull", "--exit-code-from", melodium_service_name.as_str(), "--file", "-", "up"])
+        .args(&[
+            "compose",
+            "-f",
+            "-",
+            "up",
+            "--detach",
+            "--no-color",
+            "--force-recreate",
+            "--pull",
+        ])
         .stdin(Stdio::piped())
         .stderr(Stdio::piped())
         .stdout(Stdio::piped())
@@ -372,16 +389,14 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
                     )
                     .await
                     .map_err(|err| vec![err.to_string()])?;
+                let _ = stdin.close().await;
                 match child.output().await {
                     Ok(output) if output.status.success() => {
                         let binding = match Command::new(executor.to_string())
                             .args(&[
-                                "compose".to_string(),
                                 "port".to_string(),
-                                "--protocol".to_string(),
-                                "tcp".to_string(),
                                 format!("{short_id}-melodium"),
-                                "8080".to_string(),
+                                "8080/tcp".to_string(),
                             ])
                             .output()
                             .await
@@ -391,6 +406,7 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
                                     .split_once(':')
                                     .ok_or_else(|| vec!["Unable to get exposed port".to_string()])?
                                     .1
+                                    .trim()
                                     .to_string();
                                 port.parse::<u16>().map_err(|err| vec![err.to_string()])?
                             }
@@ -401,6 +417,8 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
                             }
                             Err(err) => return Err(vec![err.to_string()]),
                         };
+
+                        println!("TCP port: {binding}");
 
                         Ok(Access {
                             id: id,
