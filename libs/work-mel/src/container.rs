@@ -187,6 +187,8 @@ impl ExecutorEngine for ContainerExecutor {
             }
         }
 
+        arguments.push(self.container_name.clone());
+
         arguments.push(command.command.clone());
 
         arguments.extend(command.arguments.clone());
@@ -260,6 +262,8 @@ impl ExecutorEngine for ContainerExecutor {
                 }
             }
         }
+
+        arguments.push(self.container_name.clone());
 
         arguments.push(command.command.clone());
 
@@ -387,6 +391,8 @@ impl ExecutorEngine for ContainerExecutor {
                 }
             }
         }
+
+        arguments.push(self.container_name.clone());
 
         arguments.push(command.command.clone());
 

@@ -420,8 +420,6 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
                             Err(err) => return Err(vec![err.to_string()]),
                         };
 
-                        println!("TCP port: {binding}, recv_key: {access_key}");
-
                         Ok(Access {
                             id: id,
                             addresses: vec![Ipv6Addr::LOCALHOST.into(), Ipv4Addr::LOCALHOST.into()],
