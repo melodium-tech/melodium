@@ -510,7 +510,10 @@ fn dist(args: Dist) {
         match (args.certificate, args.key) {
             (None, None) => {
                 async_std::task::block_on(melodium_distribution::launch_listen_localcert(
-                    SocketAddr::new(Ipv4Addr::LOCALHOST.into(), args.port),
+                    SocketAddr::new(
+                        args.ip.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into()),
+                        args.port,
+                    ),
                     &Version::parse(melodium::VERSION).unwrap(),
                     args.recv_key,
                     args.send_key,
