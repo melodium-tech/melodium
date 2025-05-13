@@ -5,7 +5,7 @@ use compose_spec::{
         ports::{Protocol, Range, ShortPort, ShortRanges},
         volumes::{
             self,
-            mount::{Bind, Common, Volume},
+            mount::{Bind, BindOptions, Common, Volume},
             HostPath, Mount,
         },
         AbsolutePath, Cpus, Image,
@@ -48,7 +48,9 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
         .output()
         .await
     {
-        String::from_utf8(output.stdout).map_err(|err| vec![err.to_string()])?
+        String::from_utf8(output.stdout)
+            .map(|out| out.trim().to_string())
+            .map_err(|err| vec![err.to_string()])?
     } else {
         return Err(vec!["No socket available with".to_string()]);
     };
@@ -201,7 +203,10 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
                 consistency: None,
                 extensions: [].into(),
             },
-            bind: None,
+            bind: Some(BindOptions {
+                selinux: Some(volumes::SELinux::Shared),
+                ..Default::default()
+            }),
         })
         .into(),
     );

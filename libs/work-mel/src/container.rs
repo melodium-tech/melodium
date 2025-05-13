@@ -108,12 +108,14 @@ impl ContainerExecutor {
         let mut map = HashMap::new();
 
         for key in keys {
-            let var_command = vec![
-                "exec".to_string(),
-                self.container_name.clone(),
-                "echo".to_string(),
-                format!("${key}"),
-            ];
+            let mut var_command = vec![];
+            if self.executor == Executor::Podman {
+                var_command.push("--remote".to_string());
+            }
+            var_command.push("exec".to_string());
+            var_command.push(self.container_name.clone());
+            var_command.push("echo".to_string());
+            var_command.push(format!("${key}"));
 
             match async_std::process::Command::new(self.executor.to_string())
                 .args(var_command)
@@ -161,7 +163,12 @@ impl ExecutorEngine for ContainerExecutor {
         error: OnceMessageCall<'async_trait>,
         exit: OnceCodeCall<'async_trait>,
     ) {
-        let mut arguments = vec!["exec".to_string()];
+        let mut arguments = vec![];
+        if self.executor == Executor::Podman {
+            arguments.push("--remote".to_string());
+        }
+        arguments.push("exec".to_string());
+
         if let Some(environment) = environment {
             if let Some(dir) = &environment.working_directory {
                 arguments.push(format!("--workdir={dir}"));
@@ -237,7 +244,13 @@ impl ExecutorEngine for ContainerExecutor {
         stderr: OutDataCall<'async_trait>,
         stderrclose: OnceTriggerCall<'async_trait>,
     ) {
-        let mut arguments = vec!["exec".to_string(), "--interactive".to_string()];
+        let mut arguments = vec![];
+        if self.executor == Executor::Podman {
+            arguments.push("--remote".to_string());
+        }
+        arguments.push("exec".to_string());
+        arguments.push("--interactive".to_string());
+
         if let Some(environment) = environment {
             if let Some(dir) = &environment.working_directory {
                 arguments.push(format!("--workdir={dir}"));
@@ -366,7 +379,12 @@ impl ExecutorEngine for ContainerExecutor {
         stderr: OutDataCall<'async_trait>,
         stderrclose: OnceTriggerCall<'async_trait>,
     ) {
-        let mut arguments = vec!["exec".to_string()];
+        let mut arguments = vec![];
+        if self.executor == Executor::Podman {
+            arguments.push("--remote".to_string());
+        }
+        arguments.push("exec".to_string());
+
         if let Some(environment) = environment {
             if let Some(dir) = &environment.working_directory {
                 arguments.push(format!("--workdir={dir}"));
