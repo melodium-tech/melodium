@@ -1,5 +1,8 @@
 use crate::api::{Access, ModeRequest, Request};
-use async_std::process::Command;
+use async_std::{
+    process::{Child, Command},
+    task::sleep,
+};
 use compose_spec::{
     service::{
         ports::{Protocol, Range, ShortPort, ShortRanges},
@@ -12,7 +15,10 @@ use compose_spec::{
     },
     Compose, Identifier, ListOrMap, Map, MapKey, Service, Value,
 };
-use core::net::{Ipv4Addr, Ipv6Addr};
+use core::{
+    net::{Ipv4Addr, Ipv6Addr},
+    time::Duration,
+};
 use futures::AsyncWriteExt;
 use std::{fmt::Display, process::Stdio};
 use uuid::Uuid;
@@ -34,7 +40,7 @@ impl Display for Executor {
     }
 }
 
-pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
+pub async fn compose(request: Request) -> Result<(Access, Child), Vec<String>> {
     let executor = if let Ok(_output) = Command::new("podman").args(&["version"]).output().await {
         Executor::Podman
     } else if let Ok(_output) = Command::new("docker").args(&["version"]).output().await {
@@ -376,10 +382,12 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
             "-f",
             "-",
             "up",
-            "--detach",
+            "--abort-on-container-exit",
             "--no-color",
             "--force-recreate",
             "--pull",
+            "--exit-code-from",
+            melodium_service_name.as_str(),
         ])
         .stdin(Stdio::piped())
         .stderr(Stdio::piped())
@@ -397,46 +405,73 @@ pub async fn compose(request: Request) -> Result<Access, Vec<String>> {
                     .await
                     .map_err(|err| vec![err.to_string()])?;
                 let _ = stdin.close().await;
-                match child.output().await {
-                    Ok(output) if output.status.success() => {
-                        let binding = match Command::new(executor.to_string())
-                            .args(&[
-                                "port".to_string(),
-                                format!("{short_id}-melodium"),
-                                "8080/tcp".to_string(),
-                            ])
-                            .output()
-                            .await
-                        {
-                            Ok(output) if output.status.success() => {
-                                let port = String::from_utf8_lossy(&output.stdout)
-                                    .split_once(':')
-                                    .ok_or_else(|| vec!["Unable to get exposed port".to_string()])?
-                                    .1
-                                    .trim()
-                                    .to_string();
-                                port.parse::<u16>().map_err(|err| vec![err.to_string()])?
-                            }
-                            Ok(output) => {
-                                return Err(vec![
-                                    String::from_utf8_lossy(&output.stderr).to_string()
-                                ])
-                            }
-                            Err(err) => return Err(vec![err.to_string()]),
-                        };
 
-                        Ok(Access {
+                let mut success = false;
+                while child
+                    .try_status()
+                    .map_err(|err| vec![err.to_string()])?
+                    .is_none()
+                {
+                    if let Ok(output) = Command::new(executor.to_string())
+                        .args(&[
+                            "inspect",
+                            "--format",
+                            "{{ .State.Status }}",
+                            melodium_service_name.as_str(),
+                        ])
+                        .output()
+                        .await
+                    {
+                        if output.stdout.as_slice() == b"running" {
+                            success = true;
+                            break;
+                        }
+                    }
+                    sleep(Duration::from_secs(1)).await;
+                }
+
+                if success {
+                    let binding = match Command::new(executor.to_string())
+                        .args(&["port", melodium_service_name.as_str(), "8080/tcp"])
+                        .output()
+                        .await
+                    {
+                        Ok(output) if output.status.success() => {
+                            let port = String::from_utf8_lossy(&output.stdout)
+                                .split_once(':')
+                                .ok_or_else(|| vec!["Unable to get exposed port".to_string()])?
+                                .1
+                                .trim()
+                                .to_string();
+                            port.parse::<u16>().map_err(|err| vec![err.to_string()])?
+                        }
+                        Ok(output) => {
+                            return Err(vec![String::from_utf8_lossy(&output.stderr).to_string()])
+                        }
+                        Err(err) => return Err(vec![err.to_string()]),
+                    };
+
+                    Ok((
+                        Access {
                             id: id,
                             addresses: vec![Ipv6Addr::LOCALHOST.into(), Ipv4Addr::LOCALHOST.into()],
                             port: binding,
                             key: access_key,
-                        })
+                        },
+                        child,
+                    ))
+                } else {
+                    match child.output().await {
+                        Ok(output) => Err(vec![
+                            String::from_utf8_lossy(&output.stdout).to_string(),
+                            String::from_utf8_lossy(&output.stderr).to_string(),
+                            format!("Executor '{}' exit code: {}", executor, output.status),
+                        ]),
+                        Err(err) => Err(vec![err.to_string()]),
                     }
-                    Ok(output) => Err(vec![String::from_utf8_lossy(&output.stderr).to_string()]),
-                    Err(err) => Err(vec![err.to_string()]),
                 }
             } else {
-                Err(vec!["Unable to get compose executor stdin".to_string()])
+                Err(vec!["Unable to get executor stdin".to_string()])
             }
         }
         Err(err) => Err(vec![err.to_string()]),

@@ -42,11 +42,12 @@ impl ContainerExecutor {
             Err(_) => return Err("Executor name not set".to_string()),
         };
 
-        let executor_entrypoint = if let Ok(entrypoint) = std::env::var("MELODIUM_JOB_EXECUTOR_ENTRYPOINT") {
-            entrypoint
-        } else {
-            executor.to_string()
-        };
+        let executor_entrypoint =
+            if let Ok(entrypoint) = std::env::var("MELODIUM_JOB_EXECUTOR_ENTRYPOINT") {
+                entrypoint
+            } else {
+                executor.to_string()
+            };
 
         if Ok(true)
             != std::env::var("MELODIUM_JOB_CONTAINERS").map(|var| {

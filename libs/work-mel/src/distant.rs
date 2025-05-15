@@ -2,6 +2,7 @@ use crate::access::*;
 use crate::api;
 use crate::resources::arch::*;
 use crate::resources::*;
+use async_std::process::Child;
 use core::time::Duration;
 use melodium_core::*;
 use melodium_macro::{mel_model, mel_treatment};
@@ -28,6 +29,7 @@ use uuid::Uuid;
 pub struct DistantEngine {
     model: Weak<DistantEngineModel>,
     client: RwLock<Option<Arc<Client>>>,
+    child: RwLock<Option<Arc<Child>>>,
 }
 
 impl DistantEngine {
@@ -35,6 +37,7 @@ impl DistantEngine {
         Self {
             model,
             client: RwLock::new(None),
+            child: RwLock::new(None),
         }
     }
 
@@ -119,7 +122,10 @@ impl DistantEngine {
             }
         } else {
             match crate::compose::compose(request).await {
-                Ok(access) => Ok(api::DistributionResponse::Started(Some(access))),
+                Ok((access, child)) => {
+                    self.child.write().unwrap().replace(Arc::new(child));
+                    Ok(api::DistributionResponse::Started(Some(access)))
+                }
                 Err(err) => Ok(api::DistributionResponse::Error(err)),
             }
         }
