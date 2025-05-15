@@ -1,4 +1,4 @@
-use crate::api::{Access, ModeRequest, Request};
+use crate::api::{Access, Arch, ModeRequest, Request};
 use async_std::{
     process::{Child, Command},
     task::sleep,
@@ -20,10 +20,10 @@ use core::{
     time::Duration,
 };
 use futures::AsyncWriteExt;
-use std::{fmt::Display, process::Stdio};
+use std::{fmt::Display, process::Stdio, sync::OnceLock};
 use uuid::Uuid;
 
-const IMAGES_PULL_SOURCE: &str = "registry.gitlab.com/melodium";
+static IMAGES_PULL_SOURCE: OnceLock<String> = OnceLock::new();
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Executor {
@@ -40,7 +40,25 @@ impl Display for Executor {
     }
 }
 
-pub async fn compose(request: Request) -> Result<(Access, Child), Vec<String>> {
+pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String>> {
+    if request.edition.as_str() == "scratch" {
+        request.edition = "alpine".to_string()
+    }
+
+    if !request
+        .arch
+        .map(|arch| match env!("ARCH") {
+            "x86_64" => arch == Arch::Amd64,
+            "aarch64" => arch == Arch::Arm64,
+            _ => false,
+        })
+        .unwrap_or(false)
+    {
+        return Err(vec![
+            "Host architecture does not match requirements".to_string()
+        ]);
+    }
+
     let executor = if let Ok(_output) = Command::new("podman").args(&["version"]).output().await {
         Executor::Podman
     } else if let Ok(_output) = Command::new("docker").args(&["version"]).output().await {
@@ -302,7 +320,13 @@ pub async fn compose(request: Request) -> Result<(Access, Child), Vec<String>> {
         image: Some(
             Image::parse(format!(
                 "{}/melodium:{}-{}-{}",
-                IMAGES_PULL_SOURCE, request.edition, executor, request.version
+                IMAGES_PULL_SOURCE.get_or_init(|| {
+                    std::env::var("MELODIUM_IMAGES_PULL_SOURCE")
+                        .unwrap_or("quay.io/repository/melodium".to_string())
+                }),
+                request.version,
+                request.edition,
+                executor
             ))
             .map_err(|err| vec![err.to_string()])?,
         ),
