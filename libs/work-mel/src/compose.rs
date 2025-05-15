@@ -45,7 +45,15 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         request.edition = "alpine".to_string()
     }
 
-    if !request
+    eprintln!(
+        "Host: {}, Arch: {}",
+        env!("ARCH"),
+        request
+            .arch
+            .map(|arch| arch.to_string())
+            .unwrap_or("none".to_string())
+    );
+    /*if !request
         .arch
         .map(|arch| match env!("ARCH") {
             "x86_64" => arch == Arch::Amd64,
@@ -57,7 +65,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         return Err(vec![
             "Host architecture does not match requirements".to_string()
         ]);
-    }
+    }*/
 
     let executor = if let Ok(_output) = Command::new("podman").args(&["version"]).output().await {
         Executor::Podman
