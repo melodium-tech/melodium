@@ -23,6 +23,7 @@ use std::{
 #[derive(Debug)]
 pub struct ContainerExecutor {
     executor: Executor,
+    executor_entrypoint: String,
     #[allow(unused)]
     name: String,
     container_name: String,
@@ -41,6 +42,12 @@ impl ContainerExecutor {
             Err(_) => return Err("Executor name not set".to_string()),
         };
 
+        let executor_entrypoint = if let Ok(entrypoint) = std::env::var("MELODIUM_JOB_EXECUTOR_ENTRYPOINT") {
+            entrypoint
+        } else {
+            executor.to_string()
+        };
+
         if Ok(true)
             != std::env::var("MELODIUM_JOB_CONTAINERS").map(|var| {
                 var.split(",")
@@ -55,6 +62,7 @@ impl ContainerExecutor {
         {
             Ok(Self {
                 executor,
+                executor_entrypoint,
                 name: container,
                 container_name: container_full_name,
             })
@@ -117,7 +125,7 @@ impl ContainerExecutor {
             var_command.push("echo".to_string());
             var_command.push(format!("${key}"));
 
-            match async_std::process::Command::new(self.executor.to_string())
+            match async_std::process::Command::new(self.executor_entrypoint.clone())
                 .args(var_command)
                 .output()
                 .await
@@ -201,7 +209,7 @@ impl ExecutorEngine for ContainerExecutor {
         arguments.extend(command.arguments.clone());
 
         started().await;
-        match async_std::process::Command::new(self.executor.to_string())
+        match async_std::process::Command::new(self.executor_entrypoint.clone())
             .args(arguments)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -282,7 +290,7 @@ impl ExecutorEngine for ContainerExecutor {
 
         arguments.extend(command.arguments.clone());
 
-        match async_std::process::Command::new(self.executor.to_string())
+        match async_std::process::Command::new(self.executor_entrypoint.clone())
             .args(arguments)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -416,7 +424,7 @@ impl ExecutorEngine for ContainerExecutor {
 
         arguments.extend(command.arguments.clone());
 
-        match async_std::process::Command::new(self.executor.to_string())
+        match async_std::process::Command::new(self.executor_entrypoint.clone())
             .args(arguments)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
