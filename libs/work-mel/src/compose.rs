@@ -153,11 +153,11 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             mem_limit: Some(compose_spec::service::ByteValue::Megabytes(
                 container.memory as u64,
             )),
-            storage_opt: [(
+            /*storage_opt: [(
                 MapKey::new("size").map_err(|err| vec![err.to_string()])?,
                 Some(Value::parse(format!("{}M", container.storage))),
             )]
-            .into(),
+            .into(),*/
             volumes: mounts,
             ..Default::default()
         };
@@ -217,11 +217,11 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             mem_limit: Some(compose_spec::service::ByteValue::Megabytes(
                 container.memory as u64,
             )),
-            storage_opt: [(
+            /*storage_opt: [(
                 MapKey::new("size").map_err(|err| vec![err.to_string()])?,
                 Some(Value::parse(format!("{}M", container.storage))),
             )]
-            .into(),
+            .into(),*/
             volumes: mounts,
             ..Default::default()
         };
@@ -395,11 +395,11 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         mem_limit: Some(compose_spec::service::ByteValue::Megabytes(
             request.memory as u64,
         )),
-        storage_opt: [(
+        /*storage_opt: [(
             MapKey::new("size").unwrap(),
             Some(Value::parse(format!("{}M", request.storage))),
         )]
-        .into(),
+        .into(),*/
         ports: [ShortPort {
             host_ip: Some(Ipv4Addr::LOCALHOST.into()),
             ranges: ShortRanges::new(
