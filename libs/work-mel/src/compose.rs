@@ -472,7 +472,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         .args(&[
                             "inspect",
                             "--format",
-                            "{{ .State.Status }}",
+                            "{{ .State.Running }}",
                             melodium_service_name.as_str(),
                         ])
                         .output()
@@ -480,7 +480,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                     {
                         let status = String::from_utf8_lossy(output.stdout.as_slice()).trim().to_string();
                         eprintln!("{:?}", String::from_utf8_lossy(output.stdout.as_slice()));
-                        if status.as_str() == "running" {
+                        if status.as_str() == "true" {
                             success = true;
                             break;
                         }
