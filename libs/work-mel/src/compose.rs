@@ -53,6 +53,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             .map(|arch| arch.to_string())
             .unwrap_or("none".to_string())
     );
+    eprintln!("{request:#?}");
     /*if !request
         .arch
         .map(|arch| match env!("ARCH") {
@@ -80,6 +81,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         .output()
         .await
     {
+        eprintln!("Host.RemoteSocket.Path: {output}");
         String::from_utf8(output.stdout)
             .map(|out| out.trim().to_string())
             .map_err(|err| vec![err.to_string()])?
@@ -224,7 +226,10 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
     let mut mounts = volumes::Volumes::new();
     mounts.insert(
         Mount::Bind(Bind {
-            source: HostPath::new(socket).map_err(|err| vec![err.to_string()])?,
+            source: HostPath::new(socket).map_err(|err| {
+                eprintln!("Volume host path error");
+                vec![err.to_string()]
+            })?,
             common: Common {
                 target: AbsolutePath::new(match executor {
                     Executor::Podman => "/run/podman/podman.sock",
