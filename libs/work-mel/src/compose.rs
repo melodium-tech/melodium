@@ -478,7 +478,8 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         .output()
                         .await
                     {
-                        if output.stdout.as_slice() == b"running" {
+                        eprintln!("{:?}", String::from_utf8_lossy(output.stdout.as_slice()));
+                        if output.stdout.as_slice() == b"running\n" {
                             success = true;
                             break;
                         }
