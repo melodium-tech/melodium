@@ -147,12 +147,12 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 "-c".to_string(),
                 "trap : TERM INT; sleep 9999999999d & wait".to_string(),
             ])),
-            cpus: Some(
+            /*cpus: Some(
                 Cpus::new(container.cpu as f64 / 1000f64).map_err(|err| vec![err.to_string()])?,
-            ),
-            mem_limit: Some(compose_spec::service::ByteValue::Megabytes(
+            ),*/
+            /*mem_limit: Some(compose_spec::service::ByteValue::Megabytes(
                 container.memory as u64,
-            )),
+            )),*/
             /*storage_opt: [(
                 MapKey::new("size").map_err(|err| vec![err.to_string()])?,
                 Some(Value::parse(format!("{}M", container.storage))),
@@ -211,12 +211,12 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 .command
                 .as_ref()
                 .map(|command| compose_spec::service::Command::List(command.clone())),
-            cpus: Some(
+            /*cpus: Some(
                 Cpus::new(container.cpu as f64 / 1000f64).map_err(|err| vec![err.to_string()])?,
-            ),
-            mem_limit: Some(compose_spec::service::ByteValue::Megabytes(
+            ),*/
+            /*mem_limit: Some(compose_spec::service::ByteValue::Megabytes(
                 container.memory as u64,
-            )),
+            )),*/
             /*storage_opt: [(
                 MapKey::new("size").map_err(|err| vec![err.to_string()])?,
                 Some(Value::parse(format!("{}M", container.storage))),
@@ -391,10 +391,10 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 "--localhost".to_string(),
             ],
         })),
-        cpus: Some(Cpus::new(request.cpu as f64 / 1000f64).map_err(|err| vec![err.to_string()])?),
-        mem_limit: Some(compose_spec::service::ByteValue::Megabytes(
+        //cpus: Some(Cpus::new(request.cpu as f64 / 1000f64).map_err(|err| vec![err.to_string()])?),
+        /*mem_limit: Some(compose_spec::service::ByteValue::Megabytes(
             request.memory as u64,
-        )),
+        )),*/
         /*storage_opt: [(
             MapKey::new("size").unwrap(),
             Some(Value::parse(format!("{}M", request.storage))),
