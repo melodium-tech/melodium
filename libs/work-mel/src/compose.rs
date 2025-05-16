@@ -81,7 +81,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         .output()
         .await
     {
-        eprintln!("Host.RemoteSocket.Path: {output}");
+        eprintln!("Host.RemoteSocket.Path: {output:?}");
         String::from_utf8(output.stdout)
             .map(|out| out.trim().to_string())
             .map_err(|err| vec![err.to_string()])?
