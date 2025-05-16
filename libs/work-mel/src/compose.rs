@@ -446,8 +446,8 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             melodium_service_name.as_str(),
         ])
         .stdin(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .stdout(Stdio::inherit())
+        .stderr(Stdio::piped())
+        .stdout(Stdio::piped())
         .spawn()
     {
         Ok(mut child) => {
@@ -463,6 +463,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 let _ = stdin.close().await;
 
                 let mut success = false;
+                let mut timeout = 0;
                 while child
                     .try_status()
                     .map_err(|err| vec![err.to_string()])?
@@ -484,6 +485,11 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         }
                     }
                     sleep(Duration::from_secs(1)).await;
+                    timeout += 1;
+
+                    if timeout > 15 {
+                        break;
+                    }
                 }
 
                 if success {
