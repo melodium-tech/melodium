@@ -446,8 +446,8 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             melodium_service_name.as_str(),
         ])
         .stdin(Stdio::piped())
-        .stderr(Stdio::piped())
-        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .stdout(Stdio::inherit())
         .spawn()
     {
         Ok(mut child) => {
