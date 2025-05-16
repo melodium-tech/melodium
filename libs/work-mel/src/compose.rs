@@ -478,8 +478,9 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         .output()
                         .await
                     {
+                        let status = String::from_utf8_lossy(output.stdout.as_slice()).trim().to_string();
                         eprintln!("{:?}", String::from_utf8_lossy(output.stdout.as_slice()));
-                        if output.stdout.as_slice() == b"running\n" {
+                        if status.as_str() == "running" {
                             success = true;
                             break;
                         }
@@ -487,7 +488,8 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                     sleep(Duration::from_secs(1)).await;
                     timeout += 1;
 
-                    if timeout > 60 {
+                    // Do not wait more than 10 minutes to launch
+                    if timeout > 600 {
                         break;
                     }
                 }
@@ -523,6 +525,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         child,
                     ))
                 } else {
+                    let _ = child.kill();
                     match child.output().await {
                         Ok(output) => Err(vec![
                             String::from_utf8_lossy(&output.stdout).to_string(),
