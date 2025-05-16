@@ -81,10 +81,15 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         .output()
         .await
     {
-        eprintln!("Host.RemoteSocket.Path: {output:?}");
-        String::from_utf8(output.stdout)
-            .map(|out| out.trim().to_string())
-            .map_err(|err| vec![err.to_string()])?
+        if output.status.success() {
+            Some(
+                String::from_utf8(output.stdout)
+                    .map(|out| out.trim().to_string())
+                    .map_err(|err| vec![err.to_string()])?,
+            )
+        } else {
+            None
+        }
     } else {
         return Err(vec!["No socket available with".to_string()]);
     };
@@ -224,29 +229,29 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
     }
 
     let mut mounts = volumes::Volumes::new();
-    mounts.insert(
-        Mount::Bind(Bind {
-            source: HostPath::new(socket).map_err(|err| {
-                eprintln!("Volume host path error");
-                vec![err.to_string()]
-            })?,
-            common: Common {
-                target: AbsolutePath::new(match executor {
-                    Executor::Podman => "/run/podman/podman.sock",
-                    Executor::Docker => "/var/run/docker.sock",
-                })
-                .map_err(|err| vec![err.to_string()])?,
-                read_only: false,
-                consistency: None,
-                extensions: [].into(),
-            },
-            bind: Some(BindOptions {
-                selinux: Some(volumes::SELinux::Shared),
-                ..Default::default()
-            }),
-        })
-        .into(),
-    );
+    if let Some(socket) = socket {
+        mounts.insert(
+            Mount::Bind(Bind {
+                source: HostPath::new(socket).map_err(|err| vec![err.to_string()])?,
+                common: Common {
+                    target: AbsolutePath::new(match executor {
+                        Executor::Podman => "/run/podman/podman.sock",
+                        Executor::Docker => "/var/run/docker.sock",
+                    })
+                    .map_err(|err| vec![err.to_string()])?,
+                    read_only: false,
+                    consistency: None,
+                    extensions: [].into(),
+                },
+                bind: Some(BindOptions {
+                    selinux: Some(volumes::SELinux::Shared),
+                    ..Default::default()
+                }),
+            })
+            .into(),
+        );
+    }
+
     for volume in &request.volumes {
         mounts.insert(
             Mount::Volume(Volume {
