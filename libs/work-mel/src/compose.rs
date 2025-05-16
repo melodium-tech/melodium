@@ -441,7 +441,6 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             "--abort-on-container-exit",
             "--no-color",
             "--force-recreate",
-            "--pull",
             "--exit-code-from",
             melodium_service_name.as_str(),
         ])
@@ -487,7 +486,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                     sleep(Duration::from_secs(1)).await;
                     timeout += 1;
 
-                    if timeout > 15 {
+                    if timeout > 60 {
                         break;
                     }
                 }
