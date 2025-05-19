@@ -527,7 +527,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
 
                     let access = Access {
                         id: id,
-                        addresses: vec![Ipv6Addr::LOCALHOST.into(), Ipv4Addr::LOCALHOST.into()],
+                        addresses: vec![/*Ipv6Addr::LOCALHOST.into(), */Ipv4Addr::LOCALHOST.into()],
                         port: binding,
                         key: access_key,
                     };
