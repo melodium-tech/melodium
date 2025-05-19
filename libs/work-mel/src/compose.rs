@@ -450,16 +450,19 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         .spawn()
     {
         Ok(mut child) => {
-            if let Some(ref mut stdin) = child.stdin {
-                stdin
-                    .write_all(
-                        serde_yaml::to_string(&compose_spec)
-                            .map_err(|err| vec![err.to_string()])?
-                            .as_bytes(),
-                    )
-                    .await
-                    .map_err(|err| vec![err.to_string()])?;
-                let _ = stdin.close().await;
+            if let Some(stdin) = child.stdin.take() {
+                {
+                    let mut stdin = stdin;
+                    stdin
+                        .write_all(
+                            serde_yaml::to_string(&compose_spec)
+                                .map_err(|err| vec![err.to_string()])?
+                                .as_bytes(),
+                        )
+                        .await
+                        .map_err(|err| vec![err.to_string()])?;
+                    let _ = stdin.close().await;
+                }
 
                 let mut success = false;
                 let mut timeout = 0;
@@ -478,7 +481,9 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         .output()
                         .await
                     {
-                        let status = String::from_utf8_lossy(output.stdout.as_slice()).trim().to_string();
+                        let status = String::from_utf8_lossy(output.stdout.as_slice())
+                            .trim()
+                            .to_string();
                         eprintln!("{:?}", String::from_utf8_lossy(output.stdout.as_slice()));
                         if status.as_str() == "true" {
                             success = true;
