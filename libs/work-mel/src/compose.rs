@@ -354,7 +354,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 "{}/melodium:{}-{}-{}",
                 IMAGES_PULL_SOURCE.get_or_init(|| {
                     std::env::var("MELODIUM_IMAGES_PULL_SOURCE")
-                        .unwrap_or("quay.io/repository/melodium".to_string())
+                        .unwrap_or("quay.io/melodium".to_string())
                 }),
                 request.version,
                 request.edition,
