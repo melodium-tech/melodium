@@ -1,5 +1,6 @@
 use crate::api::{Access, Arch, ModeRequest, Request};
 use async_std::{
+    net::ToSocketAddrs,
     process::{Child, Command},
     task::sleep,
 };
@@ -16,7 +17,7 @@ use compose_spec::{
     Compose, Identifier, ListOrMap, Map, MapKey, Service, Value,
 };
 use core::{
-    net::{Ipv4Addr, Ipv6Addr},
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr},
     time::Duration,
 };
 use futures::AsyncWriteExt;
@@ -388,7 +389,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 access_key.to_string(),
                 "--send-key".to_string(),
                 key.to_string(),
-                "--localhost".to_string(),
+                "--disable-tls".to_string(),
             ],
         })),
         //cpus: Some(Cpus::new(request.cpu as f64 / 1000f64).map_err(|err| vec![err.to_string()])?),
@@ -525,23 +526,30 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         Err(err) => return Err(vec!["Tyu 2".to_string(), err.to_string()]),
                     };
 
+                    let address = if executor == Executor::Docker {
+                        if let Ok(mut socket_iter) = ("docker", binding).to_socket_addrs().await {
+                            if let Some(socket) = socket_iter.next() {
+                                socket.ip()
+                            } else {
+                                Ipv4Addr::LOCALHOST.into()
+                            }
+                        } else {
+                            Ipv4Addr::LOCALHOST.into()
+                        }
+                    } else {
+                        Ipv4Addr::LOCALHOST.into()
+                    };
+
                     let access = Access {
                         id: id,
-                        addresses: vec![/*Ipv6Addr::LOCALHOST.into(), */Ipv4Addr::LOCALHOST.into()],
+                        addresses: vec![address],
                         port: binding,
                         key: access_key,
+                        disable_tls: true,
                     };
                     eprintln!("Access: {access:?}");
 
-                    Ok((
-                        Access {
-                            id: id,
-                            addresses: vec![Ipv6Addr::LOCALHOST.into(), Ipv4Addr::LOCALHOST.into()],
-                            port: binding,
-                            key: access_key,
-                        },
-                        child,
-                    ))
+                    Ok((access, child))
                 } else {
                     let _ = child.kill();
                     match child.output().await {

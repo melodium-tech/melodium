@@ -123,9 +123,12 @@ struct Dist {
     /// Key to authenticate with remote engine.
     #[clap(short, long)]
     send_key: uuid::Uuid,
-    /// Listen localhost, using embedded certificate.
+    /// Listen localhost (if ip is not set), using embedded certificate.
     #[clap(long, action)]
     localhost: bool,
+    /// Disable TLS encryption.
+    #[clap(long, action)]
+    disable_tls: bool,
     /// Time (in seconds) to wait for a distant engine to connect.
     #[clap(long, default_value = None)]
     wait: Option<u64>,
@@ -507,8 +510,8 @@ fn dist(args: Dist) {
     let loader = melodium_loader::Loader::new(core_config());
 
     if args.localhost {
-        match (args.certificate, args.key) {
-            (None, None) => {
+        match (args.disable_tls, args.certificate, args.key) {
+            (false, None, None) => {
                 async_std::task::block_on(melodium_distribution::launch_listen_localcert(
                     SocketAddr::new(
                         args.ip.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into()),
@@ -522,7 +525,7 @@ fn dist(args: Dist) {
                     args.duration.map(|secs| Duration::from_secs(secs)),
                 ))
             }
-            (Some(certificate), Some(key)) => {
+            (false, Some(certificate), Some(key)) => {
                 let cert_content = match std::fs::read(&certificate) {
                     Ok(cert) => cert,
                     Err(err) => {
@@ -552,17 +555,38 @@ fn dist(args: Dist) {
                     args.duration.map(|secs| Duration::from_secs(secs)),
                 ))
             }
-            (_, _) => {
+            (false, _, _) => {
                 eprintln!(
                     "{}: certificate and key must be specified together",
                     "error".bold().red()
                 );
                 return;
             }
+            (true, None, None) => {
+                async_std::task::block_on(melodium_distribution::launch_listen_unsecure(
+                    SocketAddr::new(
+                        args.ip.unwrap_or_else(|| Ipv4Addr::LOCALHOST.into()),
+                        args.port,
+                    ),
+                    &Version::parse(melodium::VERSION).unwrap(),
+                    args.recv_key,
+                    args.send_key,
+                    loader,
+                    args.wait.map(|secs| Duration::from_secs(secs)),
+                    args.duration.map(|secs| Duration::from_secs(secs)),
+                ))
+            }
+            (true, Some(_), Some(_)) | (true, None, Some(_)) | (true, Some(_), None) => {
+                eprintln!(
+                    "{}: unsecure mode or localhost certs or both certificate and key can be provided, but not all",
+                    "error".bold().red()
+                );
+                return;
+            }
         }
     } else {
-        match (args.ip, args.certificate, args.key) {
-            (Some(ip), Some(certificate), Some(key)) => {
+        match (args.disable_tls, args.ip, args.certificate, args.key) {
+            (false, Some(ip), Some(certificate), Some(key)) => {
                 let cert_content = match std::fs::read(&certificate) {
                     Ok(cert) => cert,
                     Err(err) => {
@@ -589,9 +613,34 @@ fn dist(args: Dist) {
                     args.duration.map(|secs| Duration::from_secs(secs)),
                 ))
             }
-            (_, _, _) => {
+            (false, _, _, _) => {
                 eprintln!(
                     "{}: ip address to bind on, certificate, and key must be specified together",
+                    "error".bold().red()
+                );
+                return;
+            }
+            (true, Some(ip), None, None) => {
+                async_std::task::block_on(melodium_distribution::launch_listen_unsecure(
+                    SocketAddr::new(ip, args.port),
+                    &Version::parse(melodium::VERSION).unwrap(),
+                    args.recv_key,
+                    args.send_key,
+                    loader,
+                    args.wait.map(|secs| Duration::from_secs(secs)),
+                    args.duration.map(|secs| Duration::from_secs(secs)),
+                ))
+            }
+            (true, _, Some(_), Some(_)) | (true, _, Some(_), None) | (true, _, None, Some(_)) => {
+                eprintln!(
+                    "{}: certificate and key cannot be provided if unsecure mode enabled",
+                    "error".bold().red()
+                );
+                return;
+            }
+            (true, None, _, _) => {
+                eprintln!(
+                    "{}: ip address to bind on must be specified",
                     "error".bold().red()
                 );
                 return;

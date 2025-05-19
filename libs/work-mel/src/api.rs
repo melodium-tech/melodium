@@ -8,6 +8,8 @@ pub struct CommonAccess {
     pub port: u16,
     pub remote_key: Uuid,
     pub self_key: Uuid,
+    #[serde(skip)] // Default to false
+    pub disable_tls: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -16,6 +18,8 @@ pub struct Access {
     pub addresses: Vec<IpAddr>,
     pub port: u16,
     pub key: Uuid,
+    #[serde(skip)] // Default to false
+    pub disable_tls: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

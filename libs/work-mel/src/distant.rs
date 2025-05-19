@@ -213,6 +213,7 @@ pub async fn distant(
                             port: access_info.port,
                             remote_key: access_info.key,
                             self_key: key,
+                            disable_tls: access_info.disable_tls,
                         }))))
                         .await;
                 }
