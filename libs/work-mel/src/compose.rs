@@ -506,19 +506,32 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         .await
                     {
                         Ok(output) if output.status.success() => {
+                            eprintln!("Exposed: {}", String::from_utf8_lossy(&output.stdout));
                             let port = String::from_utf8_lossy(&output.stdout)
                                 .split_once(':')
                                 .ok_or_else(|| vec!["Unable to get exposed port".to_string()])?
                                 .1
                                 .trim()
                                 .to_string();
-                            port.parse::<u16>().map_err(|err| vec![err.to_string()])?
+                            port.parse::<u16>()
+                                .map_err(|err| vec!["Tyu 0".to_string(), err.to_string()])?
                         }
                         Ok(output) => {
-                            return Err(vec![String::from_utf8_lossy(&output.stderr).to_string()])
+                            return Err(vec![
+                                "Tyu 1".to_string(),
+                                String::from_utf8_lossy(&output.stderr).to_string(),
+                            ])
                         }
-                        Err(err) => return Err(vec![err.to_string()]),
+                        Err(err) => return Err(vec!["Tyu 2".to_string(), err.to_string()]),
                     };
+
+                    let access = Access {
+                        id: id,
+                        addresses: vec![Ipv6Addr::LOCALHOST.into(), Ipv4Addr::LOCALHOST.into()],
+                        port: binding,
+                        key: access_key,
+                    };
+                    eprintln!("Access: {access:?}");
 
                     Ok((
                         Access {

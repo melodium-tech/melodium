@@ -134,12 +134,12 @@ impl DistributionEngine {
                             break;
                         }
                         Err(err) => {
-                            error_message = Some(err.to_string());
+                            error_message = Some(format!("Tyu 3 {err}"));
                             continue;
                         }
                     },
                     Err(err) => {
-                        error_message = Some(err.to_string());
+                        error_message = Some(format!("Tyu 4 {err}"));
                         continue;
                     }
                 };
