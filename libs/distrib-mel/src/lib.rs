@@ -180,6 +180,8 @@ impl DistributionEngine {
             for ipaddr in access.addresses.iter() {
                 let addrs = SocketAddr::new(*ipaddr, access.port);
 
+                eprintln!("Trying {addrs}");
+
                 match TcpStream::connect(addrs).await {
                     Ok(stream) => {
                         if access.disable_tls {

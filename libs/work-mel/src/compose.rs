@@ -526,23 +526,23 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         Err(err) => return Err(vec!["Tyu 2".to_string(), err.to_string()]),
                     };
 
-                    let address = if executor == Executor::Docker {
+                    let addresses = if executor == Executor::Docker {
                         if let Ok(mut socket_iter) = ("docker", binding).to_socket_addrs().await {
                             if let Some(socket) = socket_iter.next() {
-                                socket.ip()
+                                vec![socket.ip(), Ipv4Addr::LOCALHOST.into()]
                             } else {
-                                Ipv4Addr::LOCALHOST.into()
+                                vec![Ipv4Addr::LOCALHOST.into()]
                             }
                         } else {
-                            Ipv4Addr::LOCALHOST.into()
+                            vec![Ipv4Addr::LOCALHOST.into()]
                         }
                     } else {
-                        Ipv4Addr::LOCALHOST.into()
+                        vec![Ipv4Addr::LOCALHOST.into()]
                     };
 
                     let access = Access {
                         id: id,
-                        addresses: vec![address],
+                        addresses: addresses,
                         port: binding,
                         key: access_key,
                         disable_tls: true,
