@@ -251,6 +251,25 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             })
             .into(),
         );
+    } else if executor == Executor::Docker {
+        mounts.insert(
+            Mount::Bind(Bind {
+                source: HostPath::new("/var/run/docker.sock")
+                    .map_err(|err| vec![err.to_string()])?,
+                common: Common {
+                    target: AbsolutePath::new("/var/run/docker.sock")
+                        .map_err(|err| vec![err.to_string()])?,
+                    read_only: false,
+                    consistency: None,
+                    extensions: [].into(),
+                },
+                bind: Some(BindOptions {
+                    selinux: Some(volumes::SELinux::Shared),
+                    ..Default::default()
+                }),
+            })
+            .into(),
+        );
     }
 
     for volume in &request.volumes {
@@ -311,6 +330,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 .into(),
         ),
     );
+
     /*if executor == Executor::Docker {
         if let Ok(docker_host) = std::env::var("DOCKER_HOST") {
             environment.insert(
