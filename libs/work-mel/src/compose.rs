@@ -311,7 +311,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 .into(),
         ),
     );
-    if executor == Executor::Docker {
+    /*if executor == Executor::Docker {
         if let Ok(docker_host) = std::env::var("DOCKER_HOST") {
             environment.insert(
                 MapKey::new("DOCKER_HOST").map_err(|err| vec![err.to_string()])?,
@@ -324,7 +324,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 Some(docker_tls_certdir.into()),
             );
         }
-    }
+    }*/
     for container in &request.containers {
         environment.insert(
             MapKey::new(format!("MELODIUM_JOB_CONTAINER_{}", container.name))
