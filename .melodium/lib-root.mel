@@ -11,7 +11,7 @@ use local/ci::archs
 
 treatment main(const key: string, out_directory: string, repository_url: string, ci_token: string, project: string, ref: string, test: bool = false, pipeline: string = "", sha: string = "", on_github: bool = false, on_gitlab: bool = false)
   model logger: Logger()
-  model cicd: CicdDispatchEngine(key=key, address="local")
+  model cicd: CicdDispatchEngine(key=key, address="https://api.melodium.tech/0.1")
 {
     startup()
 

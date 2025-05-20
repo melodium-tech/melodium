@@ -74,6 +74,8 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
     } else if let Ok(_output) = Command::new("docker").args(&["version"]).output().await {
         Executor::Docker
     } else {
+        println!("Lol");
+        eprintln!("Super Lol");
         return Err(vec!["No executor available".to_string()]);
     };
 
