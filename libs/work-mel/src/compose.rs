@@ -402,7 +402,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         )]
         .into(),*/
         ports: [ShortPort {
-            host_ip: Some(Ipv4Addr::LOCALHOST.into()),
+            host_ip: Some(Ipv4Addr::UNSPECIFIED.into()),
             ranges: ShortRanges::new(
                 None,
                 Range::new(8080, None).map_err(|err| vec![err.to_string()])?,
