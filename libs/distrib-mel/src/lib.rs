@@ -180,6 +180,7 @@ impl DistributionEngine {
             for ipaddr in access.addresses.iter() {
                 let addrs = SocketAddr::new(*ipaddr, access.port);
 
+                eprintln!("Trying connection on {addrs:?}");
                 match TcpStream::connect(&addrs).await {
                     Ok(stream) => {
                         if access.disable_tls {
@@ -194,6 +195,7 @@ impl DistributionEngine {
                                     break;
                                 }
                                 Err(err) => {
+                                    eprintln!("TLS refused {err}");
                                     error_message = Some(format!("{err}"));
                                     continue;
                                 }
@@ -201,6 +203,7 @@ impl DistributionEngine {
                         }
                     }
                     Err(err) => {
+                        eprintln!("TCP refused {err}");
                         error_message = Some(format!("{err}"));
                         continue;
                     }
