@@ -1,4 +1,4 @@
-use crate::api::{Access, Arch, ModeRequest, Request};
+use crate::api::{Access, /*Arch,*/ ModeRequest, Request};
 use async_std::{
     net::ToSocketAddrs,
     process::{Child, Command},
@@ -12,12 +12,12 @@ use compose_spec::{
             mount::{Bind, BindOptions, Common, Volume},
             HostPath, Mount,
         },
-        AbsolutePath, Cpus, Image,
+        AbsolutePath, /*Cpus,*/ Image,
     },
-    Compose, Identifier, ListOrMap, Map, MapKey, Service, Value,
+    Compose, Identifier, ListOrMap, Map, MapKey, Service, /*Value,*/
 };
 use core::{
-    net::{Ipv4Addr, Ipv6Addr, SocketAddr},
+    net::{Ipv4Addr /*Ipv6Addr, SocketAddr*/},
     time::Duration,
 };
 use futures::AsyncWriteExt;
@@ -46,15 +46,6 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         request.edition = "alpine".to_string()
     }
 
-    eprintln!(
-        "Host: {}, Arch: {}",
-        env!("ARCH"),
-        request
-            .arch
-            .map(|arch| arch.to_string())
-            .unwrap_or("none".to_string())
-    );
-    eprintln!("{request:#?}");
     /*if !request
         .arch
         .map(|arch| match env!("ARCH") {
@@ -74,8 +65,6 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
     } else if let Ok(_output) = Command::new("docker").args(&["version"]).output().await {
         Executor::Docker
     } else {
-        println!("Lol");
-        eprintln!("Super Lol");
         return Err(vec!["No executor available".to_string()]);
     };
 
@@ -273,6 +262,19 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             .into(),
         );
     }
+    let bind_ip = if executor == Executor::Docker {
+        if let Ok(mut socket_iter) = ("docker", 0).to_socket_addrs().await {
+            if let Some(socket) = socket_iter.next() {
+                socket.ip()
+            } else {
+                Ipv4Addr::LOCALHOST.into()
+            }
+        } else {
+            Ipv4Addr::LOCALHOST.into()
+        }
+    } else {
+        Ipv4Addr::LOCALHOST.into()
+    };
 
     for volume in &request.volumes {
         mounts.insert(
@@ -333,20 +335,6 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         ),
     );
 
-    /*if executor == Executor::Docker {
-        if let Ok(docker_host) = std::env::var("DOCKER_HOST") {
-            environment.insert(
-                MapKey::new("DOCKER_HOST").map_err(|err| vec![err.to_string()])?,
-                Some(docker_host.into()),
-            );
-        }
-        if let Ok(docker_tls_certdir) = std::env::var("DOCKER_TLS_CERTDIR") {
-            environment.insert(
-                MapKey::new("DOCKER_TLS_CERTDIR").map_err(|err| vec![err.to_string()])?,
-                Some(docker_tls_certdir.into()),
-            );
-        }
-    }*/
     for container in &request.containers {
         environment.insert(
             MapKey::new(format!("MELODIUM_JOB_CONTAINER_{}", container.name))
@@ -411,7 +399,11 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 access_key.to_string(),
                 "--send-key".to_string(),
                 key.to_string(),
-                "--localhost".to_string(),
+                if bind_ip == Ipv4Addr::LOCALHOST {
+                    "--localhost".to_string()
+                } else {
+                    "--disable-tls".to_string()
+                },
             ],
         })),
         //cpus: Some(Cpus::new(request.cpu as f64 / 1000f64).map_err(|err| vec![err.to_string()])?),
@@ -449,13 +441,14 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         ..Default::default()
     };
 
-    let _ = std::fs::write(
-        "/tmp/compose.yml",
-        serde_yaml::to_string(&compose_spec).unwrap().as_bytes(),
-    );
+    if let Some(path) = std::env::var_os("MELODIUM_COMPOSE_DUMP") {
+        let _ = std::fs::write(
+            path,
+            serde_yaml::to_string(&compose_spec).unwrap().as_bytes(),
+        );
+    }
 
     match Command::new(executor.to_string())
-        //.args(&["compose", "--abort-on-container-exit", "--no-color", "--force-recreate", "--pull", "--exit-code-from", melodium_service_name.as_str(), "--file", "-", "up"])
         .args(&[
             "compose",
             "-f",
@@ -468,8 +461,8 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             melodium_service_name.as_str(),
         ])
         .stdin(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .stdout(Stdio::inherit())
+        .stderr(Stdio::piped())
+        .stdout(Stdio::piped())
         .spawn()
     {
         Ok(mut child) => {
@@ -529,44 +522,27 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         .await
                     {
                         Ok(output) if output.status.success() => {
-                            eprintln!("Exposed: {}", String::from_utf8_lossy(&output.stdout));
                             let port = String::from_utf8_lossy(&output.stdout)
                                 .split_once(':')
                                 .ok_or_else(|| vec!["Unable to get exposed port".to_string()])?
                                 .1
                                 .trim()
                                 .to_string();
-                            port.parse::<u16>()
-                                .map_err(|err| vec!["Tyu 0".to_string(), err.to_string()])?
+                            port.parse::<u16>().map_err(|err| vec![err.to_string()])?
                         }
                         Ok(output) => {
                             return Err(vec![String::from_utf8_lossy(&output.stderr).to_string()])
                         }
-                        Err(err) => return Err(vec!["Tyu 2".to_string(), err.to_string()]),
-                    };
-
-                    let addresses = if executor == Executor::Docker {
-                        if let Ok(mut socket_iter) = ("docker", binding).to_socket_addrs().await {
-                            if let Some(socket) = socket_iter.next() {
-                                vec![socket.ip(), Ipv4Addr::LOCALHOST.into()]
-                            } else {
-                                vec![Ipv4Addr::LOCALHOST.into()]
-                            }
-                        } else {
-                            vec![Ipv4Addr::LOCALHOST.into()]
-                        }
-                    } else {
-                        vec![Ipv4Addr::LOCALHOST.into()]
+                        Err(err) => return Err(vec![err.to_string()]),
                     };
 
                     let access = Access {
                         id: id,
-                        addresses: addresses,
+                        addresses: vec![bind_ip],
                         port: binding,
                         key: access_key,
-                        disable_tls: false,
+                        disable_tls: bind_ip != Ipv4Addr::LOCALHOST,
                     };
-                    eprintln!("Access: {access:?}");
 
                     Ok((access, child))
                 } else {
