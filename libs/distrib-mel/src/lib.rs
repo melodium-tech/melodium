@@ -180,14 +180,17 @@ impl DistributionEngine {
             for ipaddr in access.addresses.iter() {
                 let addrs = SocketAddr::new(*ipaddr, access.port);
 
-                match TcpStream::connect(addrs).await {
+                match TcpStream::connect(&addrs).await {
                     Ok(stream) => {
                         if access.disable_tls {
                             protocol = Some(Protocol::new(NetworkStream::TcpStream(stream)));
+                            eprintln!("Connected through {addrs:?}");
+                            break;
                         } else {
                             match tls_stream(*ipaddr, stream).await {
                                 Ok(prot) => {
                                     protocol = Some(prot);
+                                    eprintln!("Connected through {addrs:?}");
                                     break;
                                 }
                                 Err(err) => {

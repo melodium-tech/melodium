@@ -411,7 +411,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 access_key.to_string(),
                 "--send-key".to_string(),
                 key.to_string(),
-                "--disable-tls".to_string(),
+                "--localhost".to_string(),
             ],
         })),
         //cpus: Some(Cpus::new(request.cpu as f64 / 1000f64).map_err(|err| vec![err.to_string()])?),
@@ -564,7 +564,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         addresses: addresses,
                         port: binding,
                         key: access_key,
-                        disable_tls: true,
+                        disable_tls: false,
                     };
                     eprintln!("Access: {access:?}");
 
