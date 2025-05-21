@@ -46,15 +46,6 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         request.edition = "alpine".to_string()
     }
 
-    eprintln!(
-        "Host: {}, Arch: {}",
-        env!("ARCH"),
-        request
-            .arch
-            .map(|arch| arch.to_string())
-            .unwrap_or("none".to_string())
-    );
-    eprintln!("{request:#?}");
     /*if !request
         .arch
         .map(|arch| match env!("ARCH") {
@@ -74,8 +65,6 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
     } else if let Ok(_output) = Command::new("docker").args(&["version"]).output().await {
         Executor::Docker
     } else {
-        println!("Lol");
-        eprintln!("Super Lol");
         return Err(vec!["No executor available".to_string()]);
     };
 
@@ -411,7 +400,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 access_key.to_string(),
                 "--send-key".to_string(),
                 key.to_string(),
-                "--disable-tls".to_string(),
+                //"--disable-tls".to_string(),
             ],
         })),
         //cpus: Some(Cpus::new(request.cpu as f64 / 1000f64).map_err(|err| vec![err.to_string()])?),
@@ -507,7 +496,6 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         let status = String::from_utf8_lossy(output.stdout.as_slice())
                             .trim()
                             .to_string();
-                        eprintln!("{:?}", String::from_utf8_lossy(output.stdout.as_slice()));
                         if status.as_str() == "true" {
                             success = true;
                             break;
@@ -529,15 +517,13 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         .await
                     {
                         Ok(output) if output.status.success() => {
-                            eprintln!("Exposed: {}", String::from_utf8_lossy(&output.stdout));
                             let port = String::from_utf8_lossy(&output.stdout)
                                 .split_once(':')
                                 .ok_or_else(|| vec!["Unable to get exposed port".to_string()])?
                                 .1
                                 .trim()
                                 .to_string();
-                            port.parse::<u16>()
-                                .map_err(|err| vec!["Tyu 0".to_string(), err.to_string()])?
+                            port.parse::<u16>().map_err(|err| vec![err.to_string()])?
                         }
                         Ok(output) => {
                             return Err(vec![
@@ -545,31 +531,18 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                                 String::from_utf8_lossy(&output.stderr).to_string(),
                             ])
                         }
-                        Err(err) => return Err(vec!["Tyu 2".to_string(), err.to_string()]),
+                        Err(err) => return Err(vec![err.to_string()]),
                     };
 
-                    let addresses = if executor == Executor::Docker {
-                        if let Ok(mut socket_iter) = ("docker", binding).to_socket_addrs().await {
-                            if let Some(socket) = socket_iter.next() {
-                                vec![socket.ip(), Ipv4Addr::LOCALHOST.into()]
-                            } else {
-                                vec![Ipv4Addr::LOCALHOST.into()]
-                            }
-                        } else {
-                            vec![Ipv4Addr::LOCALHOST.into()]
-                        }
-                    } else {
-                        vec![Ipv4Addr::LOCALHOST.into()]
-                    };
+                    let addresses = vec![Ipv4Addr::LOCALHOST.into()];
 
                     let access = Access {
                         id: id,
                         addresses: addresses,
                         port: binding,
                         key: access_key,
-                        disable_tls: true,
+                        disable_tls: false,
                     };
-                    eprintln!("Access: {access:?}");
 
                     Ok((access, child))
                 } else {
@@ -578,7 +551,6 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         Ok(output) => Err(vec![
                             String::from_utf8_lossy(&output.stdout).to_string(),
                             String::from_utf8_lossy(&output.stderr).to_string(),
-                            format!("Executor '{}' exit code: {}", executor, output.status),
                         ]),
                         Err(err) => Err(vec![err.to_string()]),
                     }
