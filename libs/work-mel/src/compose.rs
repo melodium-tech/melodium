@@ -531,7 +531,19 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         Err(err) => return Err(vec![err.to_string()]),
                     };
 
-                    let addresses = vec![Ipv4Addr::LOCALHOST.into()];
+                    let addresses = if executor == Executor::Docker {
+                        if let Ok(mut socket_iter) = ("docker", binding).to_socket_addrs().await {
+                            if let Some(socket) = socket_iter.next() {
+                                vec![socket.ip(), Ipv4Addr::LOCALHOST.into()]
+                            } else {
+                                vec![Ipv4Addr::LOCALHOST.into()]
+                            }
+                        } else {
+                            vec![Ipv4Addr::LOCALHOST.into()]
+                        }
+                    } else {
+                        vec![Ipv4Addr::LOCALHOST.into()]
+                    };
 
                     let access = Access {
                         id: id,
