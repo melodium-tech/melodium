@@ -400,7 +400,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 access_key.to_string(),
                 "--send-key".to_string(),
                 key.to_string(),
-                //"--disable-tls".to_string(),
+                "--localhost".to_string(),
             ],
         })),
         //cpus: Some(Cpus::new(request.cpu as f64 / 1000f64).map_err(|err| vec![err.to_string()])?),
@@ -526,10 +526,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                             port.parse::<u16>().map_err(|err| vec![err.to_string()])?
                         }
                         Ok(output) => {
-                            return Err(vec![
-                                "Tyu 1".to_string(),
-                                String::from_utf8_lossy(&output.stderr).to_string(),
-                            ])
+                            return Err(vec![String::from_utf8_lossy(&output.stderr).to_string()])
                         }
                         Err(err) => return Err(vec![err.to_string()]),
                     };

@@ -121,7 +121,6 @@ impl DistantEngine {
                 Err(status) => Err(status.to_string()),
             }
         } else {
-            eprintln!("Compose because no client set");
             match crate::compose::compose(request).await {
                 Ok((access, child)) => {
                     self.child.write().unwrap().replace(Arc::new(child));
