@@ -552,6 +552,25 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         Err(err) => return Err(vec![err.to_string()]),
                     };
 
+                    Command::new(executor.to_string())
+                        .args(["info"])
+                        .stdout(Stdio::inherit())
+                        .stderr(Stdio::inherit())
+                        .output()
+                        .await;
+                    Command::new(executor.to_string())
+                        .args(["container", "ls", "-a"])
+                        .stdout(Stdio::inherit())
+                        .stderr(Stdio::inherit())
+                        .output()
+                        .await;
+                    Command::new(executor.to_string())
+                        .args(["network", "ls"])
+                        .stdout(Stdio::inherit())
+                        .stderr(Stdio::inherit())
+                        .output()
+                        .await;
+
                     let access = Access {
                         id: id,
                         addresses: vec![bind_ip],
