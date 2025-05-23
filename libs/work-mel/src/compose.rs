@@ -46,6 +46,10 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         request.edition = "alpine".to_string()
     }
 
+    let enable_debug = std::env::var("MELODIUM_COMPOSE_DEBUG")
+        .map(|val| val == "true")
+        .unwrap_or(false);
+
     /*if !request
         .arch
         .map(|arch| match env!("ARCH") {
@@ -85,6 +89,10 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
     } else {
         return Err(vec!["No socket available with".to_string()]);
     };
+
+    if enable_debug {
+        eprintln!("Socket: {socket:?}");
+    }
 
     let id = Uuid::new_v4();
     let short_id = format!("{id:.*}", 8);
@@ -265,6 +273,9 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
     let bind_ip = if executor == Executor::Docker {
         if let Ok(mut socket_iter) = ("docker", 0).to_socket_addrs().await {
             if let Some(socket) = socket_iter.next() {
+                if enable_debug {
+                    eprintln!("Docker socket: {socket:?}");
+                }
                 socket.ip()
             } else {
                 Ipv4Addr::LOCALHOST.into()
@@ -500,7 +511,9 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         let status = String::from_utf8_lossy(output.stdout.as_slice())
                             .trim()
                             .to_string();
-                        eprintln!("{:?}", String::from_utf8_lossy(output.stdout.as_slice()));
+                        if enable_debug {
+                            eprintln!("{:?}", String::from_utf8_lossy(output.stdout.as_slice()));
+                        }
                         if status.as_str() == "true" {
                             success = true;
                             break;
@@ -543,6 +556,10 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         key: access_key,
                         disable_tls: bind_ip != Ipv4Addr::LOCALHOST,
                     };
+
+                    if enable_debug {
+                        eprintln!("Access: {access:#?}");
+                    }
 
                     Ok((access, child))
                 } else {
