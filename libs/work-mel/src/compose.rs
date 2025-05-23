@@ -535,6 +535,9 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         .await
                     {
                         Ok(output) if output.status.success() => {
+                            if enable_debug {
+                                eprintln!("Port: {}", String::from_utf8_lossy(&output.stdout));
+                            }
                             let port = String::from_utf8_lossy(&output.stdout)
                                 .split_once(':')
                                 .ok_or_else(|| vec!["Unable to get exposed port".to_string()])?
