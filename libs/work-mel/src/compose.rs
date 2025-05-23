@@ -271,18 +271,10 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         );
     }
     let bind_ip = if executor == Executor::Docker {
-        if let (Ok(mut docker_socket_iter), Ok(mut host_socket_iter)) = (
-            ("docker", 0).to_socket_addrs().await,
-            ("host.docker.internal", 0).to_socket_addrs().await,
-        ) {
-            if let Some(socket) = docker_socket_iter.next() {
+        if let Ok(mut socket_iter) = ("docker", 0).to_socket_addrs().await {
+            if let Some(socket) = socket_iter.next() {
                 if enable_debug {
                     eprintln!("Docker socket: {socket:?}");
-                }
-                socket.ip()
-            } else if let Some(socket) = host_socket_iter.next() {
-                if enable_debug {
-                    eprintln!("Host socket: {socket:?}");
                 }
                 socket.ip()
             } else {
@@ -560,24 +552,9 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         Err(err) => return Err(vec![err.to_string()]),
                     };
 
-                    Command::new(executor.to_string())
-                        .args(["info"])
-                        .stdout(Stdio::inherit())
-                        .stderr(Stdio::inherit())
-                        .output()
-                        .await;
-                    Command::new(executor.to_string())
-                        .args(["container", "ls", "-a"])
-                        .stdout(Stdio::inherit())
-                        .stderr(Stdio::inherit())
-                        .output()
-                        .await;
-                    Command::new(executor.to_string())
-                        .args(["network", "ls"])
-                        .stdout(Stdio::inherit())
-                        .stderr(Stdio::inherit())
-                        .output()
-                        .await;
+                                        Command::new(executor.to_string()).args(["info"]).stdout(Stdio::inherit()).stderr(Stdio::inherit()).output().await;
+                    Command::new(executor.to_string()).args(["container", "ls", "-a"]).stdout(Stdio::inherit()).stderr(Stdio::inherit()).output().await;
+                    Command::new(executor.to_string()).args(["network", "ls"]).stdout(Stdio::inherit()).stderr(Stdio::inherit()).output().await;
 
                     let access = Access {
                         id: id,
