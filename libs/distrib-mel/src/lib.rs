@@ -1,8 +1,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
-#[cfg(any(target_env = "msvc", target_vendor = "apple"))]
-use async_native_tls::TlsStream;
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::io::{Read, Write};
 use async_std::net::{SocketAddr, TcpStream};
@@ -15,10 +13,6 @@ use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
 use futures::{pin_mut, select, FutureExt};
-#[cfg(any(
-    all(not(target_os = "windows"), not(target_vendor = "apple")),
-    all(target_os = "windows", target_env = "gnu")
-))]
 use futures_rustls::client::TlsStream;
 use melodium_core::*;
 use melodium_distribution::{
