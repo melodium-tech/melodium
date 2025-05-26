@@ -1,8 +1,6 @@
 use crate::error::DistributionResult;
 use crate::protocol::Protocol;
 use crate::{messages, messages::*, VERSION};
-#[cfg(any(target_env = "msvc", target_vendor = "apple"))]
-use async_native_tls::TlsAcceptor;
 use async_std::sync::Barrier;
 use async_std::{
     future::timeout,
@@ -14,10 +12,6 @@ use core::sync::atomic::AtomicBool;
 use core::time::Duration;
 use futures::stream::{unfold, FuturesUnordered};
 use futures::{pin_mut, select, FutureExt, StreamExt};
-#[cfg(any(
-    all(not(target_os = "windows"), not(target_vendor = "apple")),
-    all(target_os = "windows", target_env = "gnu")
-))]
 use futures_rustls::TlsAcceptor;
 use melodium_common::{
     descriptor::{Entry, Identifier, Model as CommonModel, Treatment as CommonTreatment, Version},
@@ -528,10 +522,6 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     futures::join!(limit, live, run, probe);
 }
 
-#[cfg(any(
-    all(not(target_os = "windows"), not(target_vendor = "apple")),
-    all(target_os = "windows", target_env = "gnu")
-))]
 fn acceptor(
     mut certificate_chain: &[u8],
     mut key: &[u8],
@@ -550,14 +540,4 @@ fn acceptor(
         .with_no_client_auth()
         .with_single_cert(certs, futures_rustls::pki_types::PrivateKeyDer::Pkcs8(key))?,
     )))
-}
-
-#[cfg(any(target_env = "msvc", target_vendor = "apple"))]
-fn acceptor(
-    certificate_chain: &[u8],
-    key: &[u8],
-) -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
-    let identity = native_tls::Identity::from_pkcs8(certificate_chain, key)?;
-    let acceptor = native_tls::TlsAcceptor::new(identity)?;
-    Ok(TlsAcceptor::from(acceptor))
 }
