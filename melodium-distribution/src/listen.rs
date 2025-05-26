@@ -159,7 +159,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     loader.load(&identifier.into()),
                 ));
             } else {
-                result = result.and_degrade_failure(DistributionResult::from(
+                result = result.and_degrade_failure(DistributionResult::from::<(), _, _>(
                     SharingResult::new_failure(SharingError::invalid_identifier(
                         18,
                         element.identifier().clone(),
