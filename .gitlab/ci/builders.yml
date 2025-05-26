@@ -225,7 +225,7 @@
     - .cache:cargo
   before_script:
     - apt-get update
-    - apt-get install -y mingw-w64 cmake
+    - apt-get install -y mingw-w64
     - rustup target add x86_64-pc-windows-gnu
     - export CARGO_BUILD_TARGET=x86_64-pc-windows-gnu
     - rustc --version
@@ -237,7 +237,7 @@
     - .cache:cargo-xwin
   before_script:
     - apt-get update
-    - apt-get install -y lld cmake
+    - apt-get install -y lld
     - rustup target add x86_64-pc-windows-msvc
     - export PATH="$CARGO_HOME/bin:$PATH"
     - |
@@ -271,7 +271,7 @@
     - .cache:cargo
   before_script:
     - apt-get update
-    - apt-get install -y mingw-w64 cmake
+    - apt-get install -y mingw-w64
     - rustup target add i686-pc-windows-gnu
     - export PATH="$CARGO_HOME/bin:$PATH"
     - export CARGO_BUILD_TARGET=i686-pc-windows-gnu
@@ -284,7 +284,7 @@
     - .cache:cargo-xwin
   before_script:
     - apt-get update
-    - apt-get install -y lld cmake
+    - apt-get install -y lld
     - rustup target add i686-pc-windows-msvc
     - export PATH="$CARGO_HOME/bin:$PATH"
     - |
@@ -319,7 +319,7 @@
     - .cache:cargo-xwin
   before_script:
     - apt-get update
-    - apt-get install -y lld cmake
+    - apt-get install -y lld
     - rustup target add aarch64-pc-windows-msvc
     - export PATH="$CARGO_HOME/bin:$PATH"
     - |
