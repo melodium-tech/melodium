@@ -28,7 +28,7 @@ trillium = { version = "0.2", features = ["serde"] }
 trillium-router = "0.4"
 trillium-async-std = "0.4"
 trillium-client = "0.6"
-trillium-rustls = { version = "0.8", default-features = false, features = ["client"] }
+trillium-rustls = { version = "0.8", features = ["client"] }
 ringbuf = "0.3"
 async-ringbuf = "0.1"
 routefinder = "0.5"
