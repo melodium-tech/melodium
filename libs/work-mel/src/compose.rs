@@ -512,7 +512,10 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                             .trim()
                             .to_string();
                         if enable_debug {
-                            eprintln!("{:?}", String::from_utf8_lossy(output.stdout.as_slice()));
+                            eprintln!(
+                                "Status: {:?}",
+                                String::from_utf8_lossy(output.stdout.as_slice())
+                            );
                         }
                         if status.as_str() == "true" {
                             success = true;
@@ -552,9 +555,26 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         Err(err) => return Err(vec![err.to_string()]),
                     };
 
-                                        Command::new(executor.to_string()).args(["info"]).stdout(Stdio::inherit()).stderr(Stdio::inherit()).output().await;
-                    Command::new(executor.to_string()).args(["container", "ls", "-a"]).stdout(Stdio::inherit()).stderr(Stdio::inherit()).output().await;
-                    Command::new(executor.to_string()).args(["network", "ls"]).stdout(Stdio::inherit()).stderr(Stdio::inherit()).output().await;
+                    if enable_debug {
+                        let _ = Command::new(executor.to_string())
+                            .args(["info"])
+                            .stdout(Stdio::inherit())
+                            .stderr(Stdio::inherit())
+                            .output()
+                            .await;
+                        let _ = Command::new(executor.to_string())
+                            .args(["container", "ls", "-a"])
+                            .stdout(Stdio::inherit())
+                            .stderr(Stdio::inherit())
+                            .output()
+                            .await;
+                        let _ = Command::new(executor.to_string())
+                            .args(["network", "ls"])
+                            .stdout(Stdio::inherit())
+                            .stderr(Stdio::inherit())
+                            .output()
+                            .await;
+                    }
 
                     let access = Access {
                         id: id,
