@@ -898,7 +898,7 @@ dependencies = [
 
 [[package]]
 name = "cicd-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "distrib-mel",
  "fs-mel",
@@ -1264,7 +1264,7 @@ dependencies = [
 
 [[package]]
 name = "distrib-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-native-tls 0.5.0",
  "async-std",
@@ -1303,7 +1303,7 @@ dependencies = [
 
 [[package]]
 name = "encoding-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "encoding_rs",
  "melodium-core",
@@ -1498,7 +1498,7 @@ dependencies = [
 
 [[package]]
 name = "fs-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "async-trait",
@@ -1908,7 +1908,7 @@ dependencies = [
 
 [[package]]
 name = "http-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-ringbuf",
  "async-std",
@@ -2292,7 +2292,7 @@ checksum = "d75a2a4b1b190afb6f5425f10f6a8f959d2ea0b9c2b1d79553551850539e4674"
 
 [[package]]
 name = "javascript-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "boa_engine",
@@ -2314,7 +2314,7 @@ dependencies = [
 
 [[package]]
 name = "json-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "futures",
  "melodium-core",
@@ -2528,7 +2528,7 @@ dependencies = [
 
 [[package]]
 name = "log-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "chrono",
@@ -2553,7 +2553,7 @@ dependencies = [
 
 [[package]]
 name = "melodium"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "cicd-mel",
@@ -2586,11 +2586,11 @@ dependencies = [
 
 [[package]]
 name = "melodium-certs"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 
 [[package]]
 name = "melodium-common"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-trait",
  "downcast-rs",
@@ -2602,7 +2602,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-core"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "erased-serde",
  "melodium-common",
@@ -2612,7 +2612,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-distribution"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-native-tls 0.5.0",
  "async-std",
@@ -2631,7 +2631,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-doc"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "itertools",
  "melodium-common",
@@ -2639,7 +2639,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-engine"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "async-trait",
@@ -2651,7 +2651,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-lang"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "convert_case",
  "descape",
@@ -2669,7 +2669,7 @@ version = "0.0.1-reserved"
 
 [[package]]
 name = "melodium-loader"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "banzai",
  "bzip2-rs",
@@ -2687,7 +2687,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-macro"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "convert_case",
  "glob",
@@ -2700,7 +2700,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-repository"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "cargo_author",
@@ -2718,7 +2718,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-share"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "cbor4ii",
  "erased-serde",
@@ -2788,7 +2788,7 @@ dependencies = [
 
 [[package]]
 name = "net-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "futures",
  "melodium-core",
@@ -3307,7 +3307,7 @@ dependencies = [
 
 [[package]]
 name = "process-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "async-trait",
@@ -3434,7 +3434,7 @@ dependencies = [
 
 [[package]]
 name = "regex-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "futures",
  "melodium-core",
@@ -4067,7 +4067,7 @@ checksum = "3b9b39299b249ad65f3b7e96443bad61c02ca5cd3589f46cb6d610a0fd6c0d6a"
 
 [[package]]
 name = "sql-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "melodium-core",
@@ -4290,7 +4290,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "std-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "futures",
@@ -5443,7 +5443,7 @@ dependencies = [
 
 [[package]]
 name = "work-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "async-trait",

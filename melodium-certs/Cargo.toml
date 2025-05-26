@@ -1,6 +1,6 @@
 [package]
 name = "melodium-certs"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 edition = "2021"
 license = "EUPL-1.2"

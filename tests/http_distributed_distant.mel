@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = http_distributed
-#! version = 0.9.0-pre.1
-#! require = http:=0.9.0-pre.1 std:=0.9.0-pre.1 javascript:=0.9.0-pre.1 encoding:=0.9.0-pre.1 json:=0.9.0-pre.1 work:=0.9.0-pre.1 distrib:=0.9.0-pre.1 fs:=0.9.0-pre.1 net:=0.9.0-pre.1
+#! version = 0.9.0-pre.2
+#! require = http:=0.9.0-pre.2 std:=0.9.0-pre.2 javascript:=0.9.0-pre.2 encoding:=0.9.0-pre.2 json:=0.9.0-pre.2 work:=0.9.0-pre.2 distrib:=0.9.0-pre.2 fs:=0.9.0-pre.2 net:=0.9.0-pre.2
 
 use http/server::HttpServer
 use http/server::start as startHttp
@@ -37,7 +37,7 @@ use work::Access
 
 treatment main(const distant: string, const key: string)
   model distant: DistantEngine(address=distant, key=key)
-  model distributor: DistributionEngine(treatment="http_distributed::js_function", version="=0.9.0-pre.1")
+  model distributor: DistributionEngine(treatment="http_distributed::js_function", version="=0.9.0-pre.2")
   model server: HttpServer(
     host=|from_ipv4(|localhost_ipv4()),
     port=8080
