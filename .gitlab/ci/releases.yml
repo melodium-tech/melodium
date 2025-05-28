@@ -15,30 +15,30 @@ release:gitlab:
     description: 'melodium/CHANGELOG.md'
     assets:
       links:
-        - name: Windows ARM 64 bits (arm64, MSVC compiler) – Zip archive
-          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_aarch64-pc-windows-msvc.zip"
-          link_type: package
-        - name: Windows ARM 64 bits (arm64, MSVC compiler) – MSI installer
-          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_aarch64-pc-windows-msvc.msi"
-          link_type: package
-        - name: Windows 32 bits (i686, MSVC compiler) – Zip archive
-          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-msvc.zip"
-          link_type: package
-        - name: Windows 32 bits (i686, MSVC compiler) – MSI installer
-          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_i686-pc-windows-msvc.msi"
-          link_type: package
+        # - name: Windows ARM 64 bits (arm64, MSVC compiler) – Zip archive
+        #   url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_aarch64-pc-windows-msvc.zip"
+        #   link_type: package
+        # - name: Windows ARM 64 bits (arm64, MSVC compiler) – MSI installer
+        #   url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_aarch64-pc-windows-msvc.msi"
+        #   link_type: package
+        # - name: Windows 32 bits (i686, MSVC compiler) – Zip archive
+        #   url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-msvc.zip"
+        #   link_type: package
+        # - name: Windows 32 bits (i686, MSVC compiler) – MSI installer
+        #   url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_i686-pc-windows-msvc.msi"
+        #   link_type: package
         - name: Windows 32 bits (i686, GNU compiler) – Zip archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_i686-pc-windows-gnu.zip"
           link_type: package
         - name: Windows 32 bits (i686, GNU compiler) – MSI installer
           url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_i686-pc-windows-gnu.msi"
           link_type: package
-        - name: Windows 64 bits (x86_64, MSVC compiler) – Zip archive
-          url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-pc-windows-msvc.zip"
-          link_type: package
-        - name: Windows 64 bits (x86_64, MSVC compiler) – MSI installer
-          url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_x86_64-pc-windows-msvc.msi"
-          link_type: package
+        # - name: Windows 64 bits (x86_64, MSVC compiler) – Zip archive
+        #   url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-pc-windows-msvc.zip"
+        #   link_type: package
+        # - name: Windows 64 bits (x86_64, MSVC compiler) – MSI installer
+        #   url: "https://repo.melodium.tech/install/$VERSION/melodium-${VERSION}_x86_64-pc-windows-msvc.msi"
+        #   link_type: package
         - name: Windows 64 bits (x86_64, GNU compiler) – Zip archive
           url: "https://repo.melodium.tech/zips/$VERSION/melodium-${VERSION}_x86_64-pc-windows-gnu.zip"
           link_type: package
@@ -147,11 +147,11 @@ release:publish:installers:
   script:
     - mkdir ~/.ssh
     - ssh-keyscan "$INSTALLERS_RELEASE_PUBLISH_SERVER" >> ~/.ssh/known_hosts
-    - mv melodium_aarch64-pc-windows-msvc.msi melodium-${VERSION}_aarch64-pc-windows-msvc.msi
+    #- mv melodium_aarch64-pc-windows-msvc.msi melodium-${VERSION}_aarch64-pc-windows-msvc.msi
     - mv melodium_i686-pc-windows-gnu.msi melodium-${VERSION}_i686-pc-windows-gnu.msi
-    - mv melodium_i686-pc-windows-msvc.msi melodium-${VERSION}_i686-pc-windows-msvc.msi
+    #- mv melodium_i686-pc-windows-msvc.msi melodium-${VERSION}_i686-pc-windows-msvc.msi
     - mv melodium_x86_64-pc-windows-gnu.msi melodium-${VERSION}_x86_64-pc-windows-gnu.msi
-    - mv melodium_x86_64-pc-windows-msvc.msi melodium-${VERSION}_x86_64-pc-windows-msvc.msi
+    #- mv melodium_x86_64-pc-windows-msvc.msi melodium-${VERSION}_x86_64-pc-windows-msvc.msi
     - mkdir "$VERSION"
     - mv melodium-* SHA256SUMS "$VERSION/"
     - SSHPASS="$INSTALLERS_RELEASE_PUBLISH_PASSWORD" sshpass -e rsync -a "$VERSION" "$INSTALLERS_RELEASE_PUBLISH_USER@$INSTALLERS_RELEASE_PUBLISH_SERVER:$INSTALLERS_RELEASE_PUBLISH_DIRECTORY"

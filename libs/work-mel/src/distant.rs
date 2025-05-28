@@ -13,9 +13,6 @@ use trillium_async_std::async_std;
 use trillium_async_std::ClientConfig;
 use trillium_client::Status;
 use trillium_client::{Client, KnownHeaderName};
-#[cfg(any(target_env = "msvc", target_vendor = "apple"))]
-use trillium_native_tls::NativeTlsConfig as TlsConfig;
-#[cfg(all(not(target_env = "msvc"), not(target_vendor = "apple")))]
 use trillium_rustls::RustlsConfig as TlsConfig;
 use uuid::Uuid;
 
