@@ -1,6 +1,6 @@
 [package]
 name = "encoding-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -17,8 +17,8 @@ crate-type = ["lib", "cdylib"]
 name = "encoding_mel"
 
 [dependencies]
-melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.1" }
-melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.1" }
+melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.2" }
+melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.2" }
 encoding_rs = "0.8"
 
 [features]

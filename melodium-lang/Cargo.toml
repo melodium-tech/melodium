@@ -1,6 +1,6 @@
 [package]
 name = "melodium-lang"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2018"
@@ -16,8 +16,8 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 name = "melodium_lang"
 
 [dependencies]
-melodium-common = { path = "../melodium-common", version = "=0.9.0-pre.1" }
-melodium-engine = { path = "../melodium-engine", version = "=0.9.0-pre.1" }
+melodium-common = { path = "../melodium-common", version = "=0.9.0-pre.2" }
+melodium-engine = { path = "../melodium-engine", version = "=0.9.0-pre.2" }
 convert_case = { version = "0.6", optional = true }
 descape = "2.0.3"
 hex = "0.4"
