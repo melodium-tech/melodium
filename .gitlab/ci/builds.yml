@@ -119,18 +119,18 @@ build:debug:x86_64-pc-windows-gnu:
       - target/x86_64-pc-windows-gnu/debug/melodium.exe
     expire_in: 1 hour
 
-build:debug:x86_64-pc-windows-msvc:
-  stage: build
-  extends:
-    - .build-debug
-    - .builder:linux:x86_64-pc-windows-msvc
-  script:
-    - cargo build --package melodium --locked
-    - ls target/x86_64-pc-windows-msvc/debug
-  artifacts:
-    paths:
-      - target/x86_64-pc-windows-msvc/debug/melodium.exe
-    expire_in: 1 hour
+# build:debug:x86_64-pc-windows-msvc:
+#   stage: build
+#   extends:
+#     - .build-debug
+#     - .builder:linux:x86_64-pc-windows-msvc
+#   script:
+#     - cargo build --package melodium --locked
+#     - ls target/x86_64-pc-windows-msvc/debug
+#   artifacts:
+#     paths:
+#       - target/x86_64-pc-windows-msvc/debug/melodium.exe
+#     expire_in: 1 hour
 
 build:debug:i686-pc-windows-gnu:
   stage: build
@@ -145,31 +145,31 @@ build:debug:i686-pc-windows-gnu:
       - target/i686-pc-windows-gnu/debug/melodium.exe
     expire_in: 1 hour
 
-build:debug:i686-pc-windows-msvc:
-  stage: build
-  extends:
-    - .build-debug
-    - .builder:linux:i686-pc-windows-msvc
-  script:
-    - cargo build --package melodium --locked
-    - ls target/i686-pc-windows-msvc/debug
-  artifacts:
-    paths:
-      - target/i686-pc-windows-msvc/debug/melodium.exe
-    expire_in: 1 hour
+# build:debug:i686-pc-windows-msvc:
+#   stage: build
+#   extends:
+#     - .build-debug
+#     - .builder:linux:i686-pc-windows-msvc
+#   script:
+#     - cargo build --package melodium --locked
+#     - ls target/i686-pc-windows-msvc/debug
+#   artifacts:
+#     paths:
+#       - target/i686-pc-windows-msvc/debug/melodium.exe
+#     expire_in: 1 hour
 
-build:debug:aarch64-pc-windows-msvc:
-  stage: build
-  extends:
-    - .build-debug
-    - .builder:linux:aarch64-pc-windows-msvc
-  script:
-    - cargo build --package melodium --locked
-    - ls target/aarch64-pc-windows-msvc/debug
-  artifacts:
-    paths:
-      - target/aarch64-pc-windows-msvc/debug/melodium.exe
-    expire_in: 1 hour
+# build:debug:aarch64-pc-windows-msvc:
+#   stage: build
+#   extends:
+#     - .build-debug
+#     - .builder:linux:aarch64-pc-windows-msvc
+#   script:
+#     - cargo build --package melodium --locked
+#     - ls target/aarch64-pc-windows-msvc/debug
+#   artifacts:
+#     paths:
+#       - target/aarch64-pc-windows-msvc/debug/melodium.exe
+#     expire_in: 1 hour
 
 build:release:x86_64-unknown-linux-gnu:
   stage: build
@@ -333,18 +333,18 @@ build:release:x86_64-pc-windows-gnu:
       - target/x86_64-pc-windows-gnu/release/melodium.exe
     expire_in: 1 hour
 
-build:release:x86_64-pc-windows-msvc:
-  stage: build
-  extends:
-    - .build-release
-    - .builder:linux:x86_64-pc-windows-msvc
-  script:
-    - cargo build --package melodium --locked --release 
-    - ls target/x86_64-pc-windows-msvc/release
-  artifacts:
-    paths:
-      - target/x86_64-pc-windows-msvc/release/melodium.exe
-    expire_in: 1 hour
+# build:release:x86_64-pc-windows-msvc:
+#   stage: build
+#   extends:
+#     - .build-release
+#     - .builder:linux:x86_64-pc-windows-msvc
+#   script:
+#     - cargo build --package melodium --locked --release 
+#     - ls target/x86_64-pc-windows-msvc/release
+#   artifacts:
+#     paths:
+#       - target/x86_64-pc-windows-msvc/release/melodium.exe
+#     expire_in: 1 hour
 
 build:release:i686-pc-windows-gnu:
   stage: build
@@ -359,31 +359,31 @@ build:release:i686-pc-windows-gnu:
       - target/i686-pc-windows-gnu/release/melodium.exe
     expire_in: 1 hour
 
-build:release:i686-pc-windows-msvc:
-  stage: build
-  extends:
-    - .build-release
-    - .builder:linux:i686-pc-windows-msvc
-  script:
-    - cargo build --package melodium --locked --release 
-    - ls target/i686-pc-windows-msvc/release
-  artifacts:
-    paths:
-      - target/i686-pc-windows-msvc/release/melodium.exe
-    expire_in: 1 hour
+# build:release:i686-pc-windows-msvc:
+#   stage: build
+#   extends:
+#     - .build-release
+#     - .builder:linux:i686-pc-windows-msvc
+#   script:
+#     - cargo build --package melodium --locked --release 
+#     - ls target/i686-pc-windows-msvc/release
+#   artifacts:
+#     paths:
+#       - target/i686-pc-windows-msvc/release/melodium.exe
+#     expire_in: 1 hour
 
-build:release:aarch64-pc-windows-msvc:
-  stage: build
-  extends:
-    - .build-release
-    - .builder:linux:aarch64-pc-windows-msvc
-  script:
-    - cargo build --package melodium --locked --release 
-    - ls target/aarch64-pc-windows-msvc/release
-  artifacts:
-    paths:
-      - target/aarch64-pc-windows-msvc/release/melodium.exe
-    expire_in: 1 hour
+# build:release:aarch64-pc-windows-msvc:
+#   stage: build
+#   extends:
+#     - .build-release
+#     - .builder:linux:aarch64-pc-windows-msvc
+#   script:
+#     - cargo build --package melodium --locked --release 
+#     - ls target/aarch64-pc-windows-msvc/release
+#   artifacts:
+#     paths:
+#       - target/aarch64-pc-windows-msvc/release/melodium.exe
+#     expire_in: 1 hour
 
 build:packages:release:wasm32-unknown-unknown:
   stage: build

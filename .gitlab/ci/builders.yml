@@ -182,6 +182,7 @@
     - export TARGET_CC=x86_64-apple-darwin16-cc
     - export TARGET_AR=x86_64-apple-darwin16-ar
     - export CARGO_BUILD_TARGET=x86_64-apple-darwin
+    - export CFLAGS_x86_64_apple_darwin=-fuse-ld=x86_64-apple-darwin16-ld
     - rustc --version
     - cargo --version
 
@@ -214,6 +215,7 @@
     - export TARGET_CC=aarch64-apple-darwin20.4-cc
     - export TARGET_AR=aarch64-apple-darwin20.4-ar
     - export CARGO_BUILD_TARGET=aarch64-apple-darwin
+    - export CFLAGS_aarch64_apple_darwin=-fuse-ld=aarch64-apple-darwin20.4-ld
     - rustc --version
     - cargo --version
 

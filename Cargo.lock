@@ -330,30 +330,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-native-tls"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e9e7a929bd34c68a82d58a4de7f86fffdaf97fb2af850162a7bb19dd7269b33"
-dependencies = [
- "async-std",
- "native-tls",
- "thiserror 1.0.69",
- "url",
-]
-
-[[package]]
-name = "async-native-tls"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9343dc5acf07e79ff82d0c37899f079db3534d99f189a1837c8e549c99405bec"
-dependencies = [
- "futures-util",
- "native-tls",
- "thiserror 1.0.69",
- "url",
-]
-
-[[package]]
 name = "async-process"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -898,7 +874,7 @@ dependencies = [
 
 [[package]]
 name = "cicd-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "distrib-mel",
  "fs-mel",
@@ -1291,9 +1267,8 @@ dependencies = [
 
 [[package]]
 name = "distrib-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
- "async-native-tls 0.5.0",
  "async-std",
  "futures",
  "futures-rustls",
@@ -1330,7 +1305,7 @@ dependencies = [
 
 [[package]]
 name = "encoding-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "encoding_rs",
  "melodium-core",
@@ -1500,21 +1475,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f81ec6369c545a7d40e4589b5597581fa1c441fe1cce96dd1de43159910a36a2"
 
 [[package]]
-name = "foreign-types"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6f339eb8adc052cd2ca78910fda869aefa38d22d5cb648e6485e4d3fc06f3b1"
-dependencies = [
- "foreign-types-shared",
-]
-
-[[package]]
-name = "foreign-types-shared"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
-
-[[package]]
 name = "form_urlencoded"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1525,7 +1485,7 @@ dependencies = [
 
 [[package]]
 name = "fs-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "async-trait",
@@ -1937,7 +1897,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1947510dc91e2bf586ea5ffb412caad7673264e14bb39fb9078da114a94ce1a5"
 dependencies = [
  "async-h1",
- "async-native-tls 0.3.3",
  "async-std",
  "async-tls",
  "async-trait",
@@ -1952,7 +1911,7 @@ dependencies = [
 
 [[package]]
 name = "http-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-ringbuf",
  "async-std",
@@ -1967,7 +1926,6 @@ dependencies = [
  "trillium",
  "trillium-async-std",
  "trillium-client",
- "trillium-native-tls",
  "trillium-router",
  "trillium-rustls",
  "uuid",
@@ -2346,7 +2304,7 @@ checksum = "d75a2a4b1b190afb6f5425f10f6a8f959d2ea0b9c2b1d79553551850539e4674"
 
 [[package]]
 name = "javascript-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "boa_engine",
@@ -2368,7 +2326,7 @@ dependencies = [
 
 [[package]]
 name = "json-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "futures",
  "melodium-core",
@@ -2582,7 +2540,7 @@ dependencies = [
 
 [[package]]
 name = "log-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "chrono",
@@ -2607,7 +2565,7 @@ dependencies = [
 
 [[package]]
 name = "melodium"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "cicd-mel",
@@ -2640,11 +2598,11 @@ dependencies = [
 
 [[package]]
 name = "melodium-certs"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 
 [[package]]
 name = "melodium-common"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-trait",
  "downcast-rs",
@@ -2656,7 +2614,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-core"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "erased-serde",
  "melodium-common",
@@ -2666,9 +2624,8 @@ dependencies = [
 
 [[package]]
 name = "melodium-distribution"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
- "async-native-tls 0.5.0",
  "async-std",
  "ciborium",
  "futures",
@@ -2677,7 +2634,6 @@ dependencies = [
  "melodium-engine",
  "melodium-loader",
  "melodium-share",
- "native-tls",
  "rustls-pemfile",
  "serde",
  "uuid",
@@ -2685,7 +2641,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-doc"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "itertools",
  "melodium-common",
@@ -2693,7 +2649,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-engine"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "async-trait",
@@ -2705,7 +2661,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-lang"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "convert_case",
  "descape",
@@ -2723,7 +2679,7 @@ version = "0.0.1-reserved"
 
 [[package]]
 name = "melodium-loader"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "banzai",
  "bzip2-rs",
@@ -2741,7 +2697,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-macro"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "convert_case",
  "glob",
@@ -2754,7 +2710,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-repository"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "cargo_author",
@@ -2772,7 +2728,7 @@ dependencies = [
 
 [[package]]
 name = "melodium-share"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "cbor4ii",
  "erased-serde",
@@ -2824,25 +2780,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "native-tls"
-version = "0.2.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8614eb2c83d59d1c8cc974dd3f920198647674a0a035e1af1fa58707e317466"
-dependencies = [
- "libc",
- "log",
- "openssl",
- "openssl-probe",
- "openssl-sys",
- "schannel",
- "security-framework 2.11.1",
- "security-framework-sys",
- "tempfile",
-]
-
-[[package]]
 name = "net-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "futures",
  "melodium-core",
@@ -2988,48 +2927,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 
 [[package]]
-name = "openssl"
-version = "0.10.68"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6174bc48f102d208783c2c84bf931bb75927a617866870de8a4ea85597f871f5"
-dependencies = [
- "bitflags 2.6.0",
- "cfg-if",
- "foreign-types",
- "libc",
- "once_cell",
- "openssl-macros",
- "openssl-sys",
-]
-
-[[package]]
-name = "openssl-macros"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a948666b637a0f465e8564c73e89d4dde00d72d4d473cc972f390fc3dcee7d9c"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.90",
-]
-
-[[package]]
 name = "openssl-probe"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
-
-[[package]]
-name = "openssl-sys"
-version = "0.9.104"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45abf306cbf99debc8195b66b7346498d7b10c210de50418b5ccd7ceba08c741"
-dependencies = [
- "cc",
- "libc",
- "pkg-config",
- "vcpkg",
-]
 
 [[package]]
 name = "ordered-float"
@@ -3361,7 +3262,7 @@ dependencies = [
 
 [[package]]
 name = "process-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "async-trait",
@@ -3488,7 +3389,7 @@ dependencies = [
 
 [[package]]
 name = "regex-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "futures",
  "melodium-core",
@@ -4121,7 +4022,7 @@ checksum = "3b9b39299b249ad65f3b7e96443bad61c02ca5cd3589f46cb6d610a0fd6c0d6a"
 
 [[package]]
 name = "sql-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "melodium-core",
@@ -4165,7 +4066,6 @@ dependencies = [
  "indexmap",
  "log",
  "memchr",
- "native-tls",
  "once_cell",
  "percent-encoding",
  "rustls 0.23.20",
@@ -4344,7 +4244,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "std-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "futures",
@@ -4934,17 +4834,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "trillium-native-tls"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "156b7da36f7338192369e289ff231d842c25f35633eec157b4695398ac126fc8"
-dependencies = [
- "async-native-tls 0.5.0",
- "native-tls",
- "trillium-server-common",
-]
-
-[[package]]
 name = "trillium-router"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5497,7 +5386,7 @@ dependencies = [
 
 [[package]]
 name = "work-mel"
-version = "0.9.0-pre.1"
+version = "0.9.0-pre.2"
 dependencies = [
  "async-std",
  "async-trait",
@@ -5518,8 +5407,6 @@ dependencies = [
  "serde_yaml",
  "std-mel",
  "tokio",
- "trillium-native-tls",
- "trillium-rustls",
  "uuid",
 ]
 
