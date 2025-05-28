@@ -1687,6 +1687,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "generic-async-http-client"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd90d06d306744c0746788fc20e7cfde3e26cb03713dfb74918a87c6dd53cd75"
+dependencies = [
+ "async-h1",
+ "async-std",
+ "futures",
+ "futures-rustls",
+ "http-types",
+ "log",
+ "serde",
+ "tokio-rustls",
+ "webpki-roots 0.26.7",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5488,6 +5505,7 @@ dependencies = [
  "compose_spec",
  "fs-mel",
  "futures",
+ "generic-async-http-client",
  "k8s-openapi",
  "kube",
  "melodium-core",
@@ -5500,8 +5518,6 @@ dependencies = [
  "serde_yaml",
  "std-mel",
  "tokio",
- "trillium-async-std",
- "trillium-client",
  "trillium-native-tls",
  "trillium-rustls",
  "uuid",

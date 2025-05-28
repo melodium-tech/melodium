@@ -9,7 +9,7 @@ use process_mel::exec::*;
 use std_mel::data::string_map::*;
 
 #[mel_treatment(
-    input name Block<string>
+    input name Block<Option<string>>
     output executor Block<Executor>
     output error Block<string>
     output failed Block<void>
@@ -19,36 +19,17 @@ pub async fn getExecutor() {
     if let Ok(name) = name
         .recv_one()
         .await
-        .map(|val| GetData::<String>::try_data(val).unwrap())
+        .map(|val| GetData::<Option<String>>::try_data(val).unwrap())
     {
-        match std::env::var("MELODIUM_JOB_EXECUTOR").as_deref() {
-            Ok("podman") | Ok("docker") => {
-                match crate::container::ContainerExecutor::try_new(name).await {
-                    Ok(container_exec) => {
-                        let _ = executor
-                            .send_one(
-                                (std::sync::Arc::new(Executor {
-                                    executor: std::sync::Arc::new(container_exec),
-                                }) as std::sync::Arc<dyn Data>)
-                                    .into(),
-                            )
-                            .await;
-                    }
-                    Err(err) => {
-                        let _ = failed.send_one(().into()).await;
-                        let _ = error.send_one(err.into()).await;
-                    }
-                }
-            }
-            _ => {
-                #[cfg(feature = "kubernetes")]
-                {
-                    match crate::kube::KubeExecutor::try_new(name).await {
-                        Ok(kube_exec) => {
+        if let Some(name) = name {
+            match std::env::var("MELODIUM_JOB_EXECUTOR").as_deref() {
+                Ok("podman") | Ok("docker") => {
+                    match crate::container::ContainerExecutor::try_new(name).await {
+                        Ok(container_exec) => {
                             let _ = executor
                                 .send_one(
                                     (std::sync::Arc::new(Executor {
-                                        executor: std::sync::Arc::new(kube_exec),
+                                        executor: std::sync::Arc::new(container_exec),
                                     })
                                         as std::sync::Arc<dyn Data>)
                                         .into(),
@@ -61,14 +42,45 @@ pub async fn getExecutor() {
                         }
                     }
                 }
-                #[cfg(not(feature = "kubernetes"))]
-                {
-                    let _ = failed.send_one(().into()).await;
-                    let _ = error
-                        .send_one("Executor name not set".to_string().into())
-                        .await;
+                _ => {
+                    #[cfg(feature = "kubernetes")]
+                    {
+                        match crate::kube::KubeExecutor::try_new(name).await {
+                            Ok(kube_exec) => {
+                                let _ = executor
+                                    .send_one(
+                                        (std::sync::Arc::new(Executor {
+                                            executor: std::sync::Arc::new(kube_exec),
+                                        })
+                                            as std::sync::Arc<dyn Data>)
+                                            .into(),
+                                    )
+                                    .await;
+                            }
+                            Err(err) => {
+                                let _ = failed.send_one(().into()).await;
+                                let _ = error.send_one(err.into()).await;
+                            }
+                        }
+                    }
+                    #[cfg(not(feature = "kubernetes"))]
+                    {
+                        let _ = failed.send_one(().into()).await;
+                        let _ = error
+                            .send_one("Executor name not set".to_string().into())
+                            .await;
+                    }
                 }
             }
+        } else {
+            let _ = executor
+                .send_one(
+                    (std::sync::Arc::new(Executor {
+                        executor: std::sync::Arc::new(process_mel::local::LocalExecutorEngine {}),
+                    }) as std::sync::Arc<dyn Data>)
+                        .into(),
+                )
+                .await;
         }
     }
 }

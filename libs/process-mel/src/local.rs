@@ -16,7 +16,7 @@ impl Replacer for VarReplacer {
 }
 
 #[derive(Debug)]
-struct LocalExecutorEngine {}
+pub struct LocalExecutorEngine {}
 
 impl LocalExecutorEngine {
     fn manage_env(process_command: &mut ProcessCommand, env: &Environment) {
