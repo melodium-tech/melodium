@@ -1,8 +1,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
-#[cfg(any(target_env = "msvc", target_vendor = "apple"))]
-use async_native_tls::TlsStream;
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::io::{Read, Write};
 use async_std::net::{SocketAddr, TcpStream};
@@ -15,10 +13,6 @@ use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
 use futures::{pin_mut, select, FutureExt};
-#[cfg(any(
-    all(not(target_os = "windows"), not(target_vendor = "apple")),
-    all(target_os = "windows", target_env = "gnu")
-))]
 use futures_rustls::client::TlsStream;
 use melodium_core::*;
 use melodium_distribution::{
@@ -781,10 +775,6 @@ pub async fn send_block(name: string) {
     }
 }
 
-#[cfg(any(
-    all(not(target_os = "windows"), not(target_vendor = "apple")),
-    all(target_os = "windows", target_env = "gnu")
-))]
 async fn tls_stream<IO>(
     ip: std::net::IpAddr,
     stream: IO,
@@ -812,31 +802,6 @@ where
             .connect(ServerName::IpAddress(ip.into()), stream)
             .await?,
     ))
-}
-
-#[cfg(any(target_env = "msvc", target_vendor = "apple"))]
-async fn tls_stream<IO>(
-    ip: std::net::IpAddr,
-    stream: IO,
-) -> std::io::Result<Protocol<TlsStream<IO>>>
-where
-    IO: Read + Write + Unpin + Send,
-{
-    use async_native_tls::{Certificate, Protocol as NativeTlsProtocol, TlsConnector};
-    use std::io::{Error, ErrorKind};
-
-    match TlsConnector::new()
-        .min_protocol_version(Some(NativeTlsProtocol::Tlsv12))
-        .add_root_certificate(
-            Certificate::from_pem(melodium_certs::ROOT_CERTIFICATE.as_slice())
-                .map_err(|err| Error::new(ErrorKind::Other, err))?,
-        )
-        .connect(ip.to_string(), stream)
-        .await
-    {
-        Ok(stream) => Ok(Protocol::new(stream)),
-        Err(err) => Err(Error::new(ErrorKind::Other, err)),
-    }
 }
 
 mel_package!();

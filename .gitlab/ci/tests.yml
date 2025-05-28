@@ -143,19 +143,19 @@ testers:rust:x86_64-pc-windows-gnu:
       - tests/testers/target/x86_64-pc-windows-gnu/debug
     expire_in: 1 hour
 
-testers:rust:x86_64-pc-windows-msvc:
-  stage: test
-  extends:
-    - .build-testers
-    - .builder:linux:x86_64-pc-windows-msvc
-  script:
-    - cd tests/testers
-    - cargo build --locked
-    - ls target/x86_64-pc-windows-msvc/debug
-  artifacts:
-    paths:
-      - tests/testers/target/x86_64-pc-windows-msvc/debug
-    expire_in: 1 hour
+# testers:rust:x86_64-pc-windows-msvc:
+#   stage: test
+#   extends:
+#     - .build-testers
+#     - .builder:linux:x86_64-pc-windows-msvc
+#   script:
+#     - cd tests/testers
+#     - cargo build --locked
+#     - ls target/x86_64-pc-windows-msvc/debug
+#   artifacts:
+#     paths:
+#       - tests/testers/target/x86_64-pc-windows-msvc/debug
+#     expire_in: 1 hour
 
 testers:rust:i686-pc-windows-gnu:
   stage: test
@@ -172,33 +172,33 @@ testers:rust:i686-pc-windows-gnu:
       - tests/testers/target/i686-pc-windows-gnu/debug
     expire_in: 1 hour
 
-testers:rust:i686-pc-windows-msvc:
-  stage: test
-  extends:
-    - .build-testers
-    - .builder:linux:i686-pc-windows-msvc
-  script:
-    - cd tests/testers
-    - cargo build --locked
-    - ls target/i686-pc-windows-msvc/debug
-  artifacts:
-    paths:
-      - tests/testers/target/i686-pc-windows-msvc/debug
-    expire_in: 1 hour
+# testers:rust:i686-pc-windows-msvc:
+#   stage: test
+#   extends:
+#     - .build-testers
+#     - .builder:linux:i686-pc-windows-msvc
+#   script:
+#     - cd tests/testers
+#     - cargo build --locked
+#     - ls target/i686-pc-windows-msvc/debug
+#   artifacts:
+#     paths:
+#       - tests/testers/target/i686-pc-windows-msvc/debug
+#     expire_in: 1 hour
 
-testers:rust:aarch64-pc-windows-msvc:
-  stage: test
-  extends:
-    - .build-testers
-    - .builder:linux:aarch64-pc-windows-msvc
-  script:
-    - cd tests/testers
-    - cargo build --locked
-    - ls target/aarch64-pc-windows-msvc/debug
-  artifacts:
-    paths:
-      - tests/testers/target/aarch64-pc-windows-msvc/debug
-    expire_in: 1 hour
+# testers:rust:aarch64-pc-windows-msvc:
+#   stage: test
+#   extends:
+#     - .build-testers
+#     - .builder:linux:aarch64-pc-windows-msvc
+#   script:
+#     - cd tests/testers
+#     - cargo build --locked
+#     - ls target/aarch64-pc-windows-msvc/debug
+#   artifacts:
+#     paths:
+#       - tests/testers/target/aarch64-pc-windows-msvc/debug
+#     expire_in: 1 hour
 
 test:melodium:aarch64-unknown-linux-gnu:
   stage: test
@@ -450,64 +450,64 @@ test:melodium:x86_64-pc-windows-gnu:
       }
       exit $OK
 
-test:melodium:x86_64-pc-windows-msvc:
-  stage: test
-  extends: 
-    - .run-tests
-    - .runner:windows:x86_64
-    - .service:postgresql
-  needs:
-    - build:debug:x86_64-pc-windows-msvc
-    - testers:rust:x86_64-pc-windows-msvc
-  #variables:
-    # On Windows, services cannot be used, so defining global PG stuff.
-    #POSTGRES_DB: test_db
-    #POSTGRES_USER: test_user
-    #POSTGRES_PASSWORD: test_pAs$w0rÐ
-    #POSTGRES_HOST: localhost
-  script:
-    # On Windows, Gitlab CI doesn't provide a way to have side services (such as Postgre),
-    # so we should install stuff ourselves, however PG installation (or any other tool) is
-    # prohibitively long (and doesn't match with the 'raw base system' logic for tests), so here
-    # is the script allowing to install PG, but we don't actually use it.
-    # - choco install postgresql16 -y --params '/Password:test' --ia '--enable-components server,commandlinetools'
-    # - |
-    #   $Env:PGPASSWORD='test'; psql -U postgres --command "CREATE ROLE $Env:POSTGRES_USER WITH
-    #     LOGIN
-    #     NOSUPERUSER
-    #     INHERIT
-    #     NOCREATEDB
-    #     NOCREATEROLE
-    #     NOREPLICATION
-    #     NOBYPASSRLS
-    #     UNENCRYPTED PASSWORD '$Env:POSTGRES_PASSWORD';
-    #     CREATE DATABASE $Env:POSTGRES_DB
-    #     WITH
-    #     OWNER = $Env:POSTGRES_USER
-    #     ENCODING = 'UTF8'
-    #     LC_COLLATE = 'fr_FR.UTF-8'
-    #     LC_CTYPE = 'fr_FR.UTF-8'
-    #     TABLESPACE = pg_default
-    #     CONNECTION LIMIT = -1
-    #     IS_TEMPLATE = False;"
-    # Test phase
-    - $Env:Path="$CI_PROJECT_DIR/target/x86_64-pc-windows-msvc/debug;$Env:Path"
-    - cd tests/
-    - $TESTS = $TESTS.Split(" ")
-    - |
-      $OK = 0
-      Foreach ($TEST in $TESTS) {
-        echo Running $TEST
-        & ./testers/target/x86_64-pc-windows-msvc/debug/$TEST.exe
-        If ( $? ) {
-          echo $TEST OK
-        }
-        Else {
-          $OK=1
-          echo $TEST failed
-        }
-      }
-      exit $OK
+# test:melodium:x86_64-pc-windows-msvc:
+#   stage: test
+#   extends: 
+#     - .run-tests
+#     - .runner:windows:x86_64
+#     - .service:postgresql
+#   needs:
+#     - build:debug:x86_64-pc-windows-msvc
+#     - testers:rust:x86_64-pc-windows-msvc
+#   #variables:
+#     # On Windows, services cannot be used, so defining global PG stuff.
+#     #POSTGRES_DB: test_db
+#     #POSTGRES_USER: test_user
+#     #POSTGRES_PASSWORD: test_pAs$w0rÐ
+#     #POSTGRES_HOST: localhost
+#   script:
+#     # On Windows, Gitlab CI doesn't provide a way to have side services (such as Postgre),
+#     # so we should install stuff ourselves, however PG installation (or any other tool) is
+#     # prohibitively long (and doesn't match with the 'raw base system' logic for tests), so here
+#     # is the script allowing to install PG, but we don't actually use it.
+#     # - choco install postgresql16 -y --params '/Password:test' --ia '--enable-components server,commandlinetools'
+#     # - |
+#     #   $Env:PGPASSWORD='test'; psql -U postgres --command "CREATE ROLE $Env:POSTGRES_USER WITH
+#     #     LOGIN
+#     #     NOSUPERUSER
+#     #     INHERIT
+#     #     NOCREATEDB
+#     #     NOCREATEROLE
+#     #     NOREPLICATION
+#     #     NOBYPASSRLS
+#     #     UNENCRYPTED PASSWORD '$Env:POSTGRES_PASSWORD';
+#     #     CREATE DATABASE $Env:POSTGRES_DB
+#     #     WITH
+#     #     OWNER = $Env:POSTGRES_USER
+#     #     ENCODING = 'UTF8'
+#     #     LC_COLLATE = 'fr_FR.UTF-8'
+#     #     LC_CTYPE = 'fr_FR.UTF-8'
+#     #     TABLESPACE = pg_default
+#     #     CONNECTION LIMIT = -1
+#     #     IS_TEMPLATE = False;"
+#     # Test phase
+#     - $Env:Path="$CI_PROJECT_DIR/target/x86_64-pc-windows-msvc/debug;$Env:Path"
+#     - cd tests/
+#     - $TESTS = $TESTS.Split(" ")
+#     - |
+#       $OK = 0
+#       Foreach ($TEST in $TESTS) {
+#         echo Running $TEST
+#         & ./testers/target/x86_64-pc-windows-msvc/debug/$TEST.exe
+#         If ( $? ) {
+#           echo $TEST OK
+#         }
+#         Else {
+#           $OK=1
+#           echo $TEST failed
+#         }
+#       }
+#       exit $OK
 
 test:melodium:i686-pc-windows-gnu:
   stage: test
@@ -537,33 +537,33 @@ test:melodium:i686-pc-windows-gnu:
       }
       exit $OK
 
-test:melodium:i686-pc-windows-msvc:
-  stage: test
-  extends: 
-    - .run-tests
-    - .runner:windows:x86_64
-    - .service:postgresql
-  needs:
-    - build:debug:i686-pc-windows-msvc
-    - testers:rust:i686-pc-windows-msvc
-  script:
-    - $Env:Path="$CI_PROJECT_DIR/target/i686-pc-windows-msvc/debug;$Env:Path"
-    - cd tests/
-    - $TESTS = $TESTS.Split(" ")
-    - |
-      $OK = 0
-      Foreach ($TEST in $TESTS) {
-        echo Running $TEST
-        & ./testers/target/i686-pc-windows-msvc/debug/$TEST.exe
-        If ( $? ) {
-          echo $TEST OK
-        }
-        Else {
-          $OK=1
-          echo $TEST failed
-        }
-      }
-      exit $OK
+# test:melodium:i686-pc-windows-msvc:
+#   stage: test
+#   extends: 
+#     - .run-tests
+#     - .runner:windows:x86_64
+#     - .service:postgresql
+#   needs:
+#     - build:debug:i686-pc-windows-msvc
+#     - testers:rust:i686-pc-windows-msvc
+#   script:
+#     - $Env:Path="$CI_PROJECT_DIR/target/i686-pc-windows-msvc/debug;$Env:Path"
+#     - cd tests/
+#     - $TESTS = $TESTS.Split(" ")
+#     - |
+#       $OK = 0
+#       Foreach ($TEST in $TESTS) {
+#         echo Running $TEST
+#         & ./testers/target/i686-pc-windows-msvc/debug/$TEST.exe
+#         If ( $? ) {
+#           echo $TEST OK
+#         }
+#         Else {
+#           $OK=1
+#           echo $TEST failed
+#         }
+#       }
+#       exit $OK
 
 # test:melodium:general:
 #   stage: test

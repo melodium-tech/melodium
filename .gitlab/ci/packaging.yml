@@ -95,28 +95,28 @@ packaging:installers:msi:
     - .build-release
     - .builder:windows:x86_64-pc-windows-msvc
   needs:
-    - build:release:aarch64-pc-windows-msvc
+    #- build:release:aarch64-pc-windows-msvc
     - build:release:i686-pc-windows-gnu
-    - build:release:i686-pc-windows-msvc
+    #- build:release:i686-pc-windows-msvc
     - build:release:x86_64-pc-windows-gnu
-    - build:release:x86_64-pc-windows-msvc
+    #- build:release:x86_64-pc-windows-msvc
   script:
     - Invoke-WebRequest -Uri https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip -UseBasicParsing -OutFile wix314-binaries.zip
     - Expand-Archive -Path wix314-binaries.zip -DestinationPath wix-binaries
     - cargo install cargo-wix
-    - cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target aarch64-pc-windows-msvc --output melodium_aarch64-pc-windows-msvc.msi
+    #- cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target aarch64-pc-windows-msvc --output melodium_aarch64-pc-windows-msvc.msi
     - cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target i686-pc-windows-gnu --output melodium_i686-pc-windows-gnu.msi
-    - cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target i686-pc-windows-msvc --output melodium_i686-pc-windows-msvc.msi
+    #- cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target i686-pc-windows-msvc --output melodium_i686-pc-windows-msvc.msi
     - cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target x86_64-pc-windows-gnu --output melodium_x86_64-pc-windows-gnu.msi
-    - cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target x86_64-pc-windows-msvc --output melodium_x86_64-pc-windows-msvc.msi
+    #- cargo wix --package melodium --no-build --nocapture --include ".gitlab/ci/wix/main.wxs" --bin-path "wix-binaries/" --target x86_64-pc-windows-msvc --output melodium_x86_64-pc-windows-msvc.msi
   artifacts:
     name: "packaging-installers-msi-$CI_COMMIT_SHORT_SHA"
     paths:
-      - melodium_aarch64-pc-windows-msvc.msi
+      #- melodium_aarch64-pc-windows-msvc.msi
       - melodium_i686-pc-windows-gnu.msi
-      - melodium_i686-pc-windows-msvc.msi
+      #- melodium_i686-pc-windows-msvc.msi
       - melodium_x86_64-pc-windows-gnu.msi
-      - melodium_x86_64-pc-windows-msvc.msi
+      #- melodium_x86_64-pc-windows-msvc.msi
     expire_in: 1 day
 
 packaging:zips:
@@ -126,17 +126,17 @@ packaging:zips:
     - .build-release
   needs:
     - build:release:aarch64-apple-darwin
-    - build:release:aarch64-pc-windows-msvc
+    #- build:release:aarch64-pc-windows-msvc
     - build:release:aarch64-unknown-linux-gnu
     - build:release:aarch64-unknown-linux-musl
-    # - build:release:i686-apple-darwin
+    #- build:release:i686-apple-darwin
     - build:release:i686-pc-windows-gnu
-    - build:release:i686-pc-windows-msvc
+    #- build:release:i686-pc-windows-msvc
     - build:release:i686-unknown-linux-gnu
     - build:release:i686-unknown-linux-musl
     - build:release:x86_64-apple-darwin
     - build:release:x86_64-pc-windows-gnu
-    - build:release:x86_64-pc-windows-msvc
+    #- build:release:x86_64-pc-windows-msvc
     - build:release:x86_64-unknown-linux-gnu
     - build:release:x86_64-unknown-linux-musl
   before_script:
@@ -147,17 +147,17 @@ packaging:zips:
     - export VERSION=${VERSION:-$CI_COMMIT_SHORT_SHA}
     - export VERSION=$(echo $VERSION | sed 's/^v//')
     - .gitlab/ci/package.sh -t aarch64-apple-darwin -v $VERSION -e melodium -z tgz
-    - .gitlab/ci/package.sh -t aarch64-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
+    #- .gitlab/ci/package.sh -t aarch64-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
     - .gitlab/ci/package.sh -t aarch64-unknown-linux-gnu -v $VERSION -e melodium -z tgz
     - .gitlab/ci/package.sh -t aarch64-unknown-linux-musl -v $VERSION -e melodium -z tgz
-    # - .gitlab/ci/package.sh -t i686-apple-darwin -v $VERSION -e melodium -z tgz
+    #- .gitlab/ci/package.sh -t i686-apple-darwin -v $VERSION -e melodium -z tgz
     - .gitlab/ci/package.sh -t i686-pc-windows-gnu -v $VERSION -e melodium.exe -z zip
-    - .gitlab/ci/package.sh -t i686-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
+    #- .gitlab/ci/package.sh -t i686-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
     - .gitlab/ci/package.sh -t i686-unknown-linux-gnu -v $VERSION -e melodium -z tgz
     - .gitlab/ci/package.sh -t i686-unknown-linux-musl -v $VERSION -e melodium -z tgz
     - .gitlab/ci/package.sh -t x86_64-apple-darwin -v $VERSION -e melodium -z tgz
     - .gitlab/ci/package.sh -t x86_64-pc-windows-gnu -v $VERSION -e melodium.exe -z zip
-    - .gitlab/ci/package.sh -t x86_64-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
+    #- .gitlab/ci/package.sh -t x86_64-pc-windows-msvc -v $VERSION -e melodium.exe -z zip
     - .gitlab/ci/package.sh -t x86_64-unknown-linux-gnu -v $VERSION -e melodium -z tgz
     - .gitlab/ci/package.sh -t x86_64-unknown-linux-musl -v $VERSION -e melodium -z tgz
     - sha256sum *.tar.gz *.zip > SHA256SUMS
@@ -167,17 +167,17 @@ packaging:zips:
     paths:
       - SHA256SUMS
       - melodium-*_aarch64-apple-darwin.tar.gz
-      - melodium-*_aarch64-pc-windows-msvc.zip
+      #- melodium-*_aarch64-pc-windows-msvc.zip
       - melodium-*_aarch64-unknown-linux-gnu.tar.gz
       - melodium-*_aarch64-unknown-linux-musl.tar.gz
-      # - melodium-*_i686-apple-darwin.tar.gz
+      #- melodium-*_i686-apple-darwin.tar.gz
       - melodium-*_i686-pc-windows-gnu.zip
-      - melodium-*_i686-pc-windows-msvc.zip
+      #- melodium-*_i686-pc-windows-msvc.zip
       - melodium-*_i686-unknown-linux-gnu.tar.gz
       - melodium-*_i686-unknown-linux-musl.tar.gz
       - melodium-*_x86_64-apple-darwin.tar.gz
       - melodium-*_x86_64-pc-windows-gnu.zip
-      - melodium-*_x86_64-pc-windows-msvc.zip
+      #- melodium-*_x86_64-pc-windows-msvc.zip
       - melodium-*_x86_64-unknown-linux-gnu.tar.gz
       - melodium-*_x86_64-unknown-linux-musl.tar.gz
     expire_in: 1 day
