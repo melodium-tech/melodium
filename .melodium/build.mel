@@ -132,6 +132,7 @@ treatment runnerBuild[cicd: CicdDispatchEngine, runner: CicdRunnerEngine, logger
         logger=logger
     ](
         name=name,
+        edition="alpine",
         cpu=1000,
         memory=500,
         storage=1300,

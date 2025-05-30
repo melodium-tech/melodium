@@ -41,6 +41,58 @@ struct Track {
 }
 
 #[derive(Debug)]
+enum NetworkStream {
+    TlsStream(TlsStream<TcpStream>),
+    TcpStream(TcpStream),
+}
+
+impl Read for NetworkStream {
+    fn poll_read(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+    ) -> std::task::Poll<std::io::Result<usize>> {
+        match &mut *self {
+            NetworkStream::TlsStream(tls_stream) => std::pin::pin!(tls_stream).poll_read(cx, buf),
+            NetworkStream::TcpStream(tcp_stream) => std::pin::pin!(tcp_stream).poll_read(cx, buf),
+        }
+    }
+}
+
+impl Write for NetworkStream {
+    fn poll_write(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<std::io::Result<usize>> {
+        match &mut *self {
+            NetworkStream::TlsStream(tls_stream) => std::pin::pin!(tls_stream).poll_write(cx, buf),
+            NetworkStream::TcpStream(tcp_stream) => std::pin::pin!(tcp_stream).poll_write(cx, buf),
+        }
+    }
+
+    fn poll_flush(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        match &mut *self {
+            NetworkStream::TlsStream(tls_stream) => std::pin::pin!(tls_stream).poll_flush(cx),
+            NetworkStream::TcpStream(tcp_stream) => std::pin::pin!(tcp_stream).poll_flush(cx),
+        }
+    }
+
+    fn poll_close(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        match &mut *self {
+            NetworkStream::TlsStream(tls_stream) => std::pin::pin!(tls_stream).poll_close(cx),
+            NetworkStream::TcpStream(tcp_stream) => std::pin::pin!(tcp_stream).poll_close(cx),
+        }
+    }
+}
+
+#[derive(Debug)]
 #[mel_model(
     param treatment string none
     param version string none
@@ -49,7 +101,8 @@ struct Track {
 )]
 pub struct DistributionEngine {
     model: Weak<DistributionEngineModel>,
-    protocol: AsyncRwLock<Option<AsyncArc<Protocol<TlsStream<TcpStream>>>>>,
+    //protocol: AsyncRwLock<Option<AsyncArc<Protocol<TlsStream<TcpStream>>>>>,
+    protocol: AsyncRwLock<Option<AsyncArc<Protocol<NetworkStream>>>>,
     treatment: AsyncRwLock<Option<Arc<dyn Treatment>>>,
     tracks: AsyncRwLock<HashMap<u64, Track>>,
     protocol_barrier: AsyncMutex<(bool, Option<AsyncArc<AsyncBarrier>>)>,
@@ -121,19 +174,26 @@ impl DistributionEngine {
             for ipaddr in access.addresses.iter() {
                 let addrs = SocketAddr::new(*ipaddr, access.port);
 
-                match TcpStream::connect(addrs).await {
-                    Ok(stream) => match tls_stream(*ipaddr, stream).await {
-                        Ok(prot) => {
-                            protocol = Some(prot);
+                match TcpStream::connect(&addrs).await {
+                    Ok(stream) => {
+                        if access.disable_tls {
+                            protocol = Some(Protocol::new(NetworkStream::TcpStream(stream)));
                             break;
+                        } else {
+                            match tls_stream(*ipaddr, stream).await {
+                                Ok(prot) => {
+                                    protocol = Some(prot);
+                                    break;
+                                }
+                                Err(err) => {
+                                    error_message = Some(format!("{err}"));
+                                    continue;
+                                }
+                            }
                         }
-                        Err(err) => {
-                            error_message = Some(err.to_string());
-                            continue;
-                        }
-                    },
+                    }
                     Err(err) => {
-                        error_message = Some(err.to_string());
+                        error_message = Some(format!("{err}"));
                         continue;
                     }
                 };
@@ -775,13 +835,10 @@ pub async fn send_block(name: string) {
     }
 }
 
-async fn tls_stream<IO>(
+async fn tls_stream(
     ip: std::net::IpAddr,
-    stream: IO,
-) -> std::io::Result<Protocol<TlsStream<IO>>>
-where
-    IO: Read + Write + Unpin + Send,
-{
+    stream: TcpStream,
+) -> std::io::Result<Protocol<NetworkStream>> {
     use futures_rustls::rustls::{
         pki_types::ServerName, version::TLS13, ClientConfig, RootCertStore,
     };
@@ -797,11 +854,11 @@ where
         .with_no_client_auth();
 
     let connector = TlsConnector::from(std::sync::Arc::new(config));
-    Ok(Protocol::new(
+    Ok(Protocol::new(NetworkStream::TlsStream(
         connector
             .connect(ServerName::IpAddress(ip.into()), stream)
             .await?,
-    ))
+    )))
 }
 
 mel_package!();

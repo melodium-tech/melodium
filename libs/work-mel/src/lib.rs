@@ -3,6 +3,8 @@
 
 pub mod access;
 pub mod api;
+pub mod compose;
+pub mod container;
 pub mod distant;
 pub mod resources;
 

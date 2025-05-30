@@ -1,11 +1,13 @@
 use std/flow::one
 use std/flow::passBlock
 use std/data/map::|entry
+use std/ops/option::|wrap
 use log/logger::Logger
 use log/logger::stop as stopLogs
 use log/log::logErrors
 use log/log::logError
 use log/log::logErrorMessage
+use log/log::logInfoMessage
 use distrib::DistributionEngine
 use distrib::start
 use distrib::stop
@@ -16,9 +18,9 @@ use work/resources::Container
 use work/resources::ServiceContainer
 use work/resources::Volume
 
-model CicdDispatchEngine(key: string, address: string = "https://api.melodium.tech/0.1"): DistantEngine {
-    address = address
-    key = key
+model CicdDispatchEngine(api_token: string, api_url: string = "https://api.melodium.tech/0.1"): DistantEngine {
+    api_token = |wrap<string>(api_token)
+    api_url = |wrap<string>(api_url)
 }
 
 model CicdRunnerEngine(): DistributionEngine {
@@ -43,6 +45,8 @@ treatment setupRunner[dispatcher: CicdDispatchEngine, runner: CicdRunnerEngine, 
     stopOnFailure: stop[distributor=runner]()
     oneFailed.value -> stopOnFailure.trigger
 
+    logInfoMessage[logger=logger](label=name, message="Dispatch requested")
+    Self.trigger -> logInfoMessage.trigger
     logErrorMessage[logger=logger](label=name, message="Dispatch failed")
     oneFailed.value -> logErrorMessage.trigger
 

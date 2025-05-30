@@ -44,9 +44,13 @@ pub async fn launch_listen(
     let listener = TcpListener::bind(bind).await.unwrap();
 
     let accept_stream = async {
-        let (stream, _addr) = listener.accept().await.unwrap();
-
-        acceptor.accept(stream).await.unwrap()
+        loop {
+            if let Ok((stream, _addr)) = listener.accept().await {
+                if let Ok(stream) = acceptor.accept(stream).await {
+                    return stream;
+                }
+            }
+        }
     };
 
     let stream = if let Some(wait_for) = wait_for {

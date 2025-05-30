@@ -136,6 +136,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     ciX86_64UnknownLinuxGnuFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciX86_64UnknownLinuxGnu.trigger,finished -> ciX86_64UnknownLinuxGnuFinished.data
 
+/*
     ciX86_64UnknownLinuxMusl: ciArch[logger=logger, cicd=cicd](
       build=build,
       test=test,
@@ -604,4 +605,5 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     )
     ciAarch64PcWindowsMsvcFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciAarch64PcWindowsMsvc.trigger,finished -> ciAarch64PcWindowsMsvcFinished.data
+    */
 }

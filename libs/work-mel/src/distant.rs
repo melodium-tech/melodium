@@ -2,111 +2,202 @@ use crate::access::*;
 use crate::api;
 use crate::resources::arch::*;
 use crate::resources::*;
+use async_std::process::Child;
 use core::time::Duration;
+use generic_async_http_client::Request;
 use melodium_core::*;
 use melodium_macro::{mel_model, mel_treatment};
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock, Weak},
 };
-use trillium_async_std::async_std;
-use trillium_async_std::ClientConfig;
-use trillium_client::Status;
-use trillium_client::{Client, KnownHeaderName};
-use trillium_rustls::RustlsConfig as TlsConfig;
 use uuid::Uuid;
 
 #[derive(Debug)]
 #[mel_model(
-    param address string none
-    param key string none
+    param location string "api"
+    param api_url Option<string> none
+    param api_token Option<string> none
     initialize initialize
 )]
 pub struct DistantEngine {
     model: Weak<DistantEngineModel>,
-    client: RwLock<Option<Arc<Client>>>,
+    location: RwLock<Option<String>>,
+    api_url: RwLock<Option<String>>,
+    api_token: RwLock<Option<String>>,
+    child: RwLock<Option<Arc<Child>>>,
 }
 
 impl DistantEngine {
     fn new(model: Weak<DistantEngineModel>) -> Self {
         Self {
             model,
-            client: RwLock::new(None),
+            location: RwLock::new(None),
+            api_url: RwLock::new(None),
+            api_token: RwLock::new(None),
+            child: RwLock::new(None),
         }
     }
 
     pub fn initialize(&self) {
         let model = self.model.upgrade().unwrap();
 
-        let address = model.get_address();
-        let key = model.get_key();
+        let location = model.get_location();
+        let api_url = model.get_api_url();
+        let api_token = model.get_api_token();
 
-        let config = TlsConfig::default().with_tcp_config(ClientConfig::new().with_nodelay(true));
-
-        let client = Client::new(config)
-            .with_base(address)
-            .with_default_pool()
-            .with_default_header(KnownHeaderName::UserAgent, crate::USER_AGENT)
-            .with_default_header(KnownHeaderName::Authorization, format!("Bearer {key}"));
-
-        self.client.write().unwrap().replace(Arc::new(client));
+        self.location.write().unwrap().replace(location);
+        if let Some(api_url) = api_url {
+            self.api_url.write().unwrap().replace(api_url);
+        }
+        if let Some(api_token) = api_token {
+            self.api_token.write().unwrap().replace(api_token);
+        }
     }
 
     pub async fn start(&self, request: api::Request) -> Result<api::DistributionResponse, String> {
-        let client = Arc::clone(self.client.read().unwrap().as_ref().unwrap());
-
-        let connection = client
-            .post("/execution/job/start")
-            .with_request_header(KnownHeaderName::ContentType, "application/json")
-            .with_body(serde_json::to_string(&request).unwrap())
-            .await
-            .map_err(|err| err.to_string())?;
-
-        match connection.success() {
-            Ok(mut connection) => {
-                match serde_json::from_str::<api::Response>(
-                    &connection
-                        .response_body()
-                        .read_string()
-                        .await
-                        .map_err(|err| err.to_string())?,
-                )
-                .map_err(|err| err.to_string())?
-                {
-                    api::Response::Ok(id) => {
-                        async_std::task::sleep(Duration::from_secs(1)).await;
-                        loop {
-                            let mut connection = client
-                                .get(format!("/execution/job/{id}/access"))
-                                .await
-                                .map_err(|err| err.to_string())?;
-                            match connection.status() {
-                                Some(Status::Accepted) => {
-                                    async_std::task::sleep(Duration::from_secs(5)).await;
-                                }
-                                Some(Status::Ok) => {
-                                    return Ok(serde_json::from_str(
-                                        &connection
-                                            .response_body()
-                                            .read_string()
-                                            .await
-                                            .map_err(|err| err.to_string())?,
-                                    )
-                                    .map_err(|err| err.to_string())?)
-                                }
-                                Some(code) => return Err(format!("API responded {code}")),
-                                None => return Err("Invalid response from API".to_string()),
-                            }
-                        }
-                    }
-                    api::Response::Error(err) => Ok(api::DistributionResponse::Error(err)),
+        let location = self.location.read().unwrap().clone();
+        match location.as_ref().map(|loc| loc.as_str()) {
+            Some("api") => self.distrib_api(request).await,
+            Some("compose") => match crate::compose::compose(request).await {
+                Ok((access, child)) => {
+                    self.child.write().unwrap().replace(Arc::new(child));
+                    Ok(api::DistributionResponse::Started(Some(access)))
                 }
-            }
-            Err(status) => Err(status.to_string()),
+                Err(err) => Ok(api::DistributionResponse::Error(err)),
+            },
+            Some(oth) => Err(format!(
+                "\"{oth}\" is not a recognized distant execution location"
+            )),
+            None => Err("No location set".to_string()),
         }
     }
 
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
+
+    async fn distrib_api(
+        &self,
+        request: api::Request,
+    ) -> Result<api::DistributionResponse, String> {
+        let (api_url, api_token) = (
+            self.api_url.read().unwrap().clone(),
+            self.api_token.read().unwrap().clone(),
+        );
+        if let (Some(api_url), Some(api_token)) = (api_url, api_token) {
+            match Request::post(&format!("{api_url}/execution/job/start"))
+                .add_header("User-Agent", crate::USER_AGENT)
+                .map_err(|err| err.to_string())?
+                .add_header("Authorization", format!("Bearer {api_token}").as_bytes())
+                .map_err(|err| err.to_string())?
+                .add_header("Content-Type", "application/json")
+                .map_err(|err| err.to_string())?
+                .body(serde_json::to_string(&request).unwrap())
+                .map_err(|err| err.to_string())?
+                .exec()
+                .await
+            {
+                Ok(mut response) => {
+                    if response.status_code() == 200 {
+                        match response.json::<api::Response>().await {
+                            Ok(response) => match response {
+                                api::Response::Ok(id) => {
+                                    async_std::task::sleep(Duration::from_secs(1)).await;
+                                    loop {
+                                        match Request::get(&format!(
+                                            "{api_url}/execution/job/{id}/access"
+                                        ))
+                                        .add_header("User-Agent", crate::USER_AGENT)
+                                        .map_err(|err| err.to_string())?
+                                        .add_header(
+                                            "Authorization",
+                                            format!("Bearer {api_token}").as_bytes(),
+                                        )
+                                        .map_err(|err| err.to_string())?
+                                        .exec()
+                                        .await
+                                        {
+                                            Ok(mut response) => match response.status_code() {
+                                                202 => {
+                                                    async_std::task::sleep(Duration::from_secs(5))
+                                                        .await
+                                                }
+                                                200 => match response.json().await {
+                                                    Ok(distribution) => return Ok(distribution),
+                                                    Err(error) => {
+                                                        return Err(Self::manage_error(error).await)
+                                                    }
+                                                },
+                                                code => {
+                                                    return Err(format!(
+                                                        "API {code} response: {response}",
+                                                        response = match response.text().await {
+                                                            Ok(response) => response,
+                                                            Err(error) =>
+                                                                Box::pin(Self::manage_error(error))
+                                                                    .await,
+                                                        }
+                                                    ))
+                                                }
+                                            },
+                                            Err(error) => {
+                                                return Err(Self::manage_error(error).await)
+                                            }
+                                        }
+                                    }
+                                }
+                                api::Response::Error(errs) => {
+                                    Ok(api::DistributionResponse::Error(errs))
+                                }
+                            },
+                            Err(error) => Err(Self::manage_error(error).await),
+                        }
+                    } else {
+                        match response.text().await {
+                            Ok(body) => Err(format!(
+                                "Server {} response: {body}",
+                                response.status_code()
+                            )),
+                            Err(error) => Err(Self::manage_error(error).await),
+                        }
+                    }
+                }
+                Err(error) => Err(Self::manage_error(error).await),
+            }
+        } else {
+            Err("API address and token missing".into())
+        }
+    }
+
+    async fn manage_error(error: generic_async_http_client::Error) -> String {
+        match error {
+            generic_async_http_client::Error::Io(error) => error.to_string(),
+            generic_async_http_client::Error::HTTPServerErr(code, mut response) => format!(
+                "API {code} error: {response}",
+                response = match response.text().await {
+                    Ok(text) =>
+                        if text.is_empty() {
+                            response.status().to_string()
+                        } else {
+                            format!("{}: {}", response.status(), text)
+                        },
+                    Err(error) => Box::pin(Self::manage_error(error)).await,
+                }
+            ),
+            generic_async_http_client::Error::HTTPClientErr(code, mut response) => format!(
+                "API {code} error: {response}",
+                response = match response.text().await {
+                    Ok(text) =>
+                        if text.is_empty() {
+                            response.status().to_string()
+                        } else {
+                            format!("{}: {}", response.status(), text)
+                        },
+                    Err(error) => Box::pin(Self::manage_error(error)).await,
+                }
+            ),
+            generic_async_http_client::Error::Other(error) => error.to_string(),
+        }
+    }
 }
 
 /// Request for a distant worker.
@@ -188,6 +279,7 @@ pub async fn distant(
                             port: access_info.port,
                             remote_key: access_info.key,
                             self_key: key,
+                            disable_tls: access_info.disable_tls,
                         }))))
                         .await;
                 }
