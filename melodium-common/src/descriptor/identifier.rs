@@ -78,7 +78,7 @@ impl Identifier {
         }
     }
 
-    pub fn with_optionnal_version(&self, version: Option<&Version>) -> Self {
+    pub fn with_optional_version(&self, version: Option<&Version>) -> Self {
         Self {
             version: version.cloned(),
             path: self.path.clone(),

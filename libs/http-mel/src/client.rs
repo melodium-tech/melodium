@@ -76,7 +76,7 @@ impl HttpClient {
 /// This treatment process HTTP request to the given `url`.
 /// - `method`: HTTP method used for the request.
 ///
-/// - `url`: the URL to use for the request (combined with optionnal base from the client model), request starts as soon as the URL is transmitted.
+/// - `url`: the URL to use for the request (combined with optional base from the client model), request starts as soon as the URL is transmitted.
 /// - `req_headers`: the headers to use for the request (combined with ones defined at client level).
 ///
 /// - `status`: HTTP status response.
@@ -213,7 +213,7 @@ pub async fn request(method: HttpMethod) {
 /// This treatment process HTTP request to the given `url`.
 /// - `method`: HTTP method used for the request.
 ///
-/// - `url`: the URL to use for the request (combined with optionnal base from the client model), request starts as soon as the URL is transmitted.
+/// - `url`: the URL to use for the request (combined with optional base from the client model), request starts as soon as the URL is transmitted.
 /// - `req_headers`: the headers to use for the request (combined with ones defined at client level).
 /// - `body`: data to send as request body.
 ///

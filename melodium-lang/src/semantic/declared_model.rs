@@ -17,7 +17,7 @@ use std::sync::{Arc, RwLock, Weak};
 
 /// Structure managing and describing semantic of a declared model.
 ///
-/// It owns optionnally the whole [text parameter](TextParameter),
+/// It owns optionally the whole [text parameter](TextParameter),
 /// depending on explicit or implicit declaration.
 #[derive(Debug)]
 pub struct DeclaredModel {

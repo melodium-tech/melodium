@@ -19,7 +19,7 @@ use root/client::requestWithBody
 
     Inputs:
 
-    - `url`: input gives the URL to call DELETE on (combined with optionnal base from the client model).
+    - `url`: input gives the URL to call DELETE on (combined with optional base from the client model).
     - `headers`: headers to send in request.
 
     Outputs:
@@ -65,7 +65,7 @@ treatment delete[client: HttpClient]()
 
     Inputs:
 
-    - `url`: input gives the URL to call GET on (combined with optionnal base from the client model).
+    - `url`: input gives the URL to call GET on (combined with optional base from the client model).
     - `headers`: headers to send in request.
     
     Outputs:
@@ -111,7 +111,7 @@ treatment get[client: HttpClient]()
 
     Inputs:
 
-    - `url`: input gives the URL to call HEAD on (combined with optionnal base from the client model).
+    - `url`: input gives the URL to call HEAD on (combined with optional base from the client model).
     - `headers`: headers to send in request.
     
     Outputs:
@@ -154,7 +154,7 @@ treatment head[client: HttpClient]()
 
     Inputs:
 
-    - `url`: input gives the URL to call OPTIONS on (combined with optionnal base from the client model).
+    - `url`: input gives the URL to call OPTIONS on (combined with optional base from the client model).
     - `headers`: headers to send in request.
     
     Outputs:
@@ -200,7 +200,7 @@ treatment options[client: HttpClient]()
 
     Inputs:
 
-    - `url`: input gives the URL to call PATCH on (combined with optionnal base from the client model).
+    - `url`: input gives the URL to call PATCH on (combined with optional base from the client model).
     - `headers`: headers to send in request.
     - `data`: data sent in request, corresponding to the HTTP body.
 
@@ -246,7 +246,7 @@ treatment patch[client: HttpClient]()
 
     Inputs:
 
-    - `url`: input gives the URL to call POST on (combined with optionnal base from the client model).
+    - `url`: input gives the URL to call POST on (combined with optional base from the client model).
     - `headers`: headers to send in request.
     - `data`: data sent in request, corresponding to the HTTP body.
 
@@ -295,7 +295,7 @@ treatment post[client: HttpClient]()
 
     Inputs:
 
-    - `url`: input gives the URL to call PUT on (combined with optionnal base from the client model).
+    - `url`: input gives the URL to call PUT on (combined with optional base from the client model).
     - `headers`: headers to send in request.
     - `data`: data sent in request, corresponding to the HTTP body.
 
@@ -341,7 +341,7 @@ treatment put[client: HttpClient]()
 
     Inputs:
 
-    - `url`: input gives the URL to call TRACE on (combined with optionnal base from the client model).
+    - `url`: input gives the URL to call TRACE on (combined with optional base from the client model).
     - `headers`: headers to send in request.
 
     Outputs:

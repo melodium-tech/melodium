@@ -82,7 +82,7 @@ pub struct Executor {
 
 /// Executes a command.
 ///
-/// Takes an `Executor` on which `command` will be run with the optionnal `environment`.
+/// Takes an `Executor` on which `command` will be run with the optional `environment`.
 ///
 /// When the execution finishes, `finished` is emitted, regardless of the execution or command status.
 /// `completed` is emitted if the command execution went right from executor perspective
@@ -169,7 +169,7 @@ pub async fn exec_one() {
 
 /// Executes commands.
 ///
-/// Takes an `Executor` on which `commands` will be run with the optionnal `environment`.
+/// Takes an `Executor` on which `commands` will be run with the optional `environment`.
 ///
 /// When the execution finishes, `finished` is emitted, regardless of the execution or commands status.
 /// `completed` is emitted if all the commands executions went right from executor perspective
@@ -263,7 +263,7 @@ pub async fn exec() {
 
 /// Spawn a command and provides input and outputs to the process.
 ///
-/// Takes an `Executor` on which `command` will be spawned with the optionnal `environment`.
+/// Takes an `Executor` on which `command` will be spawned with the optional `environment`.
 ///
 /// `stdin` corresponds to standard input of the related process, `stdout` to the standard output,
 /// and `stderr` to the standard error output.
@@ -396,7 +396,7 @@ pub async fn spawn_one() {
 
 /// Spawn a command and provides input and outputs to the process.
 ///
-/// Takes an `Executor` on which `command` will be spawned with the optionnal `environment`.
+/// Takes an `Executor` on which `command` will be spawned with the optional `environment`.
 ///
 /// `stdin` corresponds to standard input of the related process, `stdout` to the standard output,
 /// and `stderr` to the standard error output.

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 /// Structure describing a textual parameter.
 ///
-/// It owns a name, and optionnal [Type] and/or [Value]. There is no logical dependency between them at this point.
+/// It owns a name, and optional [Type] and/or [Value]. There is no logical dependency between them at this point.
 #[derive(Clone, Debug)]
 pub struct Parameter {
     pub annotations: Option<CommentsAnnotations>,

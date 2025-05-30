@@ -358,7 +358,7 @@ fn config_param(
         (
             name.to_string(),
             config_ty(ts),
-            config_optionnal_value(ts),
+            config_optional_value(ts),
             attributes,
         )
     } else {
@@ -476,7 +476,7 @@ fn config_value(ts: &mut IntoIterTokenStream) -> String {
     }
 }
 
-fn config_optionnal_value(ts: &mut IntoIterTokenStream) -> Option<String> {
+fn config_optional_value(ts: &mut IntoIterTokenStream) -> Option<String> {
     let next = ts.next();
     if let Some(TokenTree::Literal(default)) = next {
         Some(default.to_string())

@@ -30,7 +30,7 @@ struct Cli {
 }
 
 #[derive(clap::Args, Debug)]
-/// Run given program, with optionnal arguments
+/// Run given program, with optional arguments
 struct Run {
     #[clap(long)]
     /// Path to use for packages.
