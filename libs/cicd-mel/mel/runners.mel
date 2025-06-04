@@ -36,7 +36,40 @@ model CicdRunnerEngine(): DistributionEngine {
     version = "0.9.0-pre.2"
 }
 
-treatment setupRunner[dispatcher: CicdDispatchEngine, runner: CicdRunnerEngine, logger: Logger](name: string, cpu: u32, memory: u32, storage: u32, edition: Option<string> = _, arch: Option<Arch> = _, max_duration: u32 = 3600, volumes: Vec<Volume> = [], containers: Vec<Container> = [], service_containers: Vec<ServiceContainer> = [], var stop_on_failure: bool = true)
+/**
+Setup a runner.
+
+The runner configuration values are:
+- `cpu`: CPU amount requested for the worker, in millicores (`1000` means one full CPU, `500` half of it);
+- `memory`: memory requested for the worker, in megabytes;
+- `storage`: filesystem storage requested for the worker, in megabytes;
+- `max_duration`: maximum duration for which the worker will be effective, in seconds;
+
+- `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
+- `edition`: Mélodium edition the worker must rely on (see on the Mélodium Services documentation to get the full list, can be none if nothing specific is required);
+
+- `containers`: list of containers to instanciate alongside Mélodium engine as executors;
+- `service_containers`: list of containers to instanciate alongside Mélodium engine as services;
+- `volumes`: list of filesystem volumes that can be shared between the Mélodium engine and containers.
+
+It should be noted that the CPU and memory requirements for the Mélodium engine and possible containers are cumulative.
+Also, multiple different architecture cannot be requested for the same worker, so containers in the same request all have to use the same architecture.
+Finally, the cumuled size of all volumes must be equal or less than the Mélodium engine storage value,
+and each container must have storage values at least equal to the sum of the volumes mounted inside them.
+*/
+treatment setupRunner[dispatcher: CicdDispatchEngine, runner: CicdRunnerEngine, logger: Logger](
+    name: string,
+    cpu: u32,
+    memory: u32,
+    storage: u32,
+    edition: Option<string> = _,
+    arch: Option<Arch> = _,
+    max_duration: u32 = 3600,
+    volumes: Vec<Volume> = [],
+    containers: Vec<Container> = [],
+    service_containers: Vec<ServiceContainer> = [],
+    var stop_on_failure: bool = true
+  )
   input trigger: Block<void>
   output ready:  Block<void>
   output failed: Block<void>

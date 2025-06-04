@@ -1,0 +1,288 @@
+use root/runners::CicdDispatchEngine
+use root/runners::CicdRunnerEngine
+use root/runners::setupRunner
+use root/runners::stopRunner
+use root/services::setServiceState
+use root/steps::stepOn
+use root/steps::stepOnWithInput
+use log/logger::Logger
+use process/command::|command
+use process/command::|raw_commands
+use process/environment::Environment
+use process/environment::|environment
+use std/data/string_map::StringMap
+use std/data/string_map::|map
+use std/flow::one
+use std/ops/num::|saturating_add
+use std/ops/num::|div
+use std/ops/option::|wrap
+use std/ops/option::|unwrap_or
+use work/resources::|container
+use work/resources::|volume
+use work/resources::|mount
+use work/resources/arch::|arm64
+use work/resources::ServiceContainer
+use work/resources/arch::Arch
+
+treatment localStep[logger: Logger](
+  name: string,
+  commands: Vec<Command>,
+  report: bool = true,
+  github: bool = false,
+  gitlab: bool = false,
+  github_token: string = "",
+  github_project: string = "",
+  github_sha: string = "",
+  gitlab_root_url: string = "https://gitlab.com/api/v4",
+  gitlab_token: string = "",
+  gitlab_project_id: string = "",
+  gitlab_sha: string = "",
+  gitlab_ref: string = "",
+  gitlab_pipeline_id: string = "",
+  description: string = ""
+)
+{
+
+}
+
+/**
+Run a step on a container.
+
+This treatment manages creation and run of a container and runs commands inside it.
+
+The runner configuration values are:
+- `cpu`: CPU amount requested for the worker, in millicores (`1000` means one full CPU, `500` half of it);
+- `memory`: memory requested for the worker, in megabytes;
+- `storage`: filesystem storage requested for the worker, in megabytes;
+- `max_duration`: maximum duration for which the worker will be effective, in seconds;
+- `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
+- `service_containers`: list of containers to instanciate alongside main container.
+
+The container gets a volume mounted in `/mnt/data` (this volume size can be setup through `out_storage` parameter), where `out_file` can be written.
+
+`commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
+This output is ignored if no `out_file` is set.
+
+The `trigger` input signals the treatment to start, then:
+- `started`: emitted when the step effectively starts;
+- `completed`: emitted when the step finished successfully;
+- `failed`: emitted if the step failed;
+- `finished`: emitted when the request finished, regardless of state.
+
+The `report` and `github_*`/`gitlab_*` values are made available to report status in Github Actions and GitLab CI.
+*/
+treatment simpleStep[dispatcher: CicdDispatchEngine, logger: Logger](
+    name: string,
+    cpu: u32 = 500,
+    memory: u32 = 500,
+    storage: u32 = 5000,
+    arch: Option<Arch> = _,
+    max_duration: u32 = 3600,
+    service_containers: Vec<ServiceContainer> = [],
+    image: string,
+    pull_secret: Option<string> = _,
+    variables: Option<StringMap> = _,
+    commands: Vec<Command>,
+    out_storage: Option<u32> = _,
+    out_file: Option<string> = _,
+
+    report: bool = true,
+    github: bool = false,
+    gitlab: bool = false,
+    github_token: string = "",
+    github_project: string = "",
+    github_sha: string = "",
+    gitlab_root_url: string = "https://gitlab.com/api/v4",
+    gitlab_token: string = "",
+    gitlab_project_id: string = "",
+    gitlab_sha: string = "",
+    gitlab_ref: string = "",
+    gitlab_pipeline_id: string = "",
+    description: string = ""
+)
+  model runner: CicdRunnerEngine()
+  input trigger: Block<void>
+  output started: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output data: Stream<byte>
+{
+    setupRunner[
+        dispatcher=dispatcher,
+        runner=runner,
+        logger=logger
+    ](
+        name=name,
+        cpu=100,
+        memory=500,
+        storage=|saturating_add<u32>(|unwrap_or<u32>(out_storage, |div<u32>(storage, 10)), 80),
+        volumes=[|volume("data", |unwrap_or<u32>(out_storage, |div<u32>(storage, 10)))],
+        containers=[
+            |container(name, cpu, memory, storage, |unwrap_or<Arch>(arch, |arm64()), [|mount("data", "/mnt/data")], image, pull_secret)
+        ],
+        service_containers=service_containers
+    )
+    stepOn[runner=runner, logger=logger](
+        name=name,
+        executor_name=name,
+        commands=commands,
+        environment=|wrap<Environment>(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false)),
+        out_file=out_file,
+        out_filesystem="data"
+    )
+    setServiceState[logger=logger](
+        name=name,
+        report=report,
+        github=github,
+        gitlab=gitlab,
+        github_token=github_token,
+        github_project=github_project,
+        github_sha=github_sha,
+        gitlab_root_url=gitlab_root_url,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=gitlab_ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        description=description
+    )
+  
+  oneFailed: one<void>()
+  setupRunner.failed -> oneFailed.a,value -> Self.failed
+  stepOn.failed ------> oneFailed.b
+
+  Self.trigger -> setupRunner.trigger,ready -> stepOn.trigger,finished -> Self.finished
+                                               stepOn.completed --------> Self.completed
+                                               stepOn.started ----------> Self.started
+                                               stepOn.data -------------> Self.data
+
+  Self.trigger -----> setServiceState.pending
+  stepOn.started ---> setServiceState.running
+  oneFailed.value --> setServiceState.failed
+  stepOn.completed -> setServiceState.success
+}
+
+
+/**
+Run a step on a container.
+
+This treatment manages creation and run of a container and runs commands inside it.
+
+The runner configuration values are:
+- `cpu`: CPU amount requested for the worker, in millicores (`1000` means one full CPU, `500` half of it);
+- `memory`: memory requested for the worker, in megabytes;
+- `storage`: filesystem storage requested for the worker, in megabytes;
+- `max_duration`: maximum duration for which the worker will be effective, in seconds;
+- `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
+- `service_containers`: list of containers to instanciate alongside main container.
+
+The container gets a volume mounted in `/mnt/data` (this volume size can be setup through `out_storage` parameter), where `in_file` and `out_file` can be written (`in_file="some.txt"` meaning file `"/mnt/data/some.txt"`).
+
+`commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
+This output is ignored if no `out_file` is set.
+
+The `trigger` input signals the treatment to start, then:
+- `started`: emitted when the step effectively starts;
+- `completed`: emitted when the step finished successfully;
+- `failed`: emitted if the step failed;
+- `finished`: emitted when the request finished, regardless of state.
+
+The `report` and `github_*`/`gitlab_*` values are made available to report status in Github Actions and GitLab CI.
+*/
+treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
+    name: string,
+    cpu: u32 = 500,
+    memory: u32 = 500,
+    storage: u32 = 5000,
+    arch: Option<Arch> = _,
+    max_duration: u32 = 3600,
+    service_containers: Vec<ServiceContainer> = [],
+    image: string,
+    pull_secret: Option<string> = _,
+    variables: Option<StringMap> = _,
+    commands: Vec<Command>,
+    in_file: string,
+    out_storage: Option<u32> = _,
+    out_file: Option<string> = _,
+
+    report: bool = true,
+    github: bool = false,
+    gitlab: bool = false,
+    github_token: string = "",
+    github_project: string = "",
+    github_sha: string = "",
+    gitlab_root_url: string = "https://gitlab.com/api/v4",
+    gitlab_token: string = "",
+    gitlab_project_id: string = "",
+    gitlab_sha: string = "",
+    gitlab_ref: string = "",
+    gitlab_pipeline_id: string = "",
+    description: string = ""
+)
+  model runner: CicdRunnerEngine()
+  input trigger: Block<void>
+  input data: Stream<byte>
+  output started: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output data: Stream<byte>
+{
+    setupRunner[
+        dispatcher=dispatcher,
+        runner=runner,
+        logger=logger
+    ](
+        name=name,
+        cpu=100,
+        memory=500,
+        storage=|saturating_add<u32>(|unwrap_or<u32>(out_storage, |div<u32>(storage, 10)), 80),
+        volumes=[|volume("data", |unwrap_or<u32>(out_storage, |div<u32>(storage, 10)))],
+        containers=[
+            |container(name, cpu, memory, storage, |unwrap_or<Arch>(arch, |arm64()), [|mount("data", "/mnt/data")], image, pull_secret)
+        ],
+        service_containers=service_containers
+    )
+    stepOnWithInput[runner=runner, logger=logger](
+        name=name,
+        executor_name=name,
+        commands=commands,
+        environment=|wrap<Environment>(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false)),
+        in_file=in_file,
+        in_filesystem="data",
+        out_file=out_file,
+        out_filesystem="data"
+    )
+    setServiceState[logger=logger](
+        name=name,
+        report=report,
+        github=github,
+        gitlab=gitlab,
+        github_token=github_token,
+        github_project=github_project,
+        github_sha=github_sha,
+        gitlab_root_url=gitlab_root_url,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=gitlab_ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        description=description
+    )
+  
+  oneFailed: one<void>()
+  setupRunner.failed -> oneFailed.a,value -> Self.failed
+  stepOn.failed ------> oneFailed.b
+
+  Self.trigger -> setupRunner.trigger,ready -> stepOnWithInput.trigger,finished -> Self.finished
+  Self.data ---------------------------------> stepOnWithInput.data
+                                               stepOnWithInput.completed --------> Self.completed
+                                               stepOnWithInput.started ----------> Self.started
+                                               stepOnWithInput.data -------------> Self.data
+
+  Self.trigger -----> setServiceState.pending
+  stepOn.started ---> setServiceState.running
+  oneFailed.value --> setServiceState.failed
+  stepOn.completed -> setServiceState.success
+}
