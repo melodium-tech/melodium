@@ -24,7 +24,7 @@ Process dispatcher to spawn workers.
 `api_url` and `api_token` are respectively the URI and job token to use to contact the API.  
 `location` tells where job-worker should be spawned, might be one of those:
 - `"api"` (default): ask the API to spawn required job-worker somewhere;
-- `"compose"`: uses `podman-compose` or `docker-compose` (tried is this order) to spawn locally (or as the Podman/Docker configuration specifies) the job-worker, useful to test or run on local resources.
+- `"compose"`: uses `podman compose` or `docker compose` (tried is this order) to spawn locally (or as the Podman/Docker configuration specifies) the job-worker, useful to test or run on local resources.
 */
 model CicdDispatchEngine(location: string = "api", api_token: string, api_url: string = "https://api.melodium.tech/0.1"): DistantEngine {
     api_token = |wrap<string>(api_token)

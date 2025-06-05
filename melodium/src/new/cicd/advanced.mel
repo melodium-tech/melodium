@@ -1,7 +1,15 @@
+
+/*
+  Example of advanced CI/CD implementation.
+
+  This file illustrate treatments doing some advanced interaction between runners, commands, and data.
+*/
+
 use cicd/runners::CicdDispatchEngine
 use cicd/runners::CicdRunnerEngine
 use cicd/runners::setupRunner
 use cicd/runners::stopRunner
+use cicd/logging::manageLogs
 use cicd/steps::stepOn
 use cicd/steps::stepOnWithInput
 use log/logger::Logger
@@ -9,12 +17,41 @@ use process/command::|command
 use process/command::|raw_commands
 use process/environment::Environment
 use process/environment::|environment
+use std/engine/util::startup
 use std/data/string_map::|map
 use std/ops/option::|wrap
 use work/resources::|container
 use work/resources/arch::|amd64
 use work/resources::|volume
 use work/resources::|mount
+
+/**
+  `main` treatment, used as `advanced` entrypoint as defined in `Compo.toml`.
+
+  - `api_token`: service key provided to access Mélodium work distribution API;
+  - `work_location`: location where dispatched job-workers take place (default throught API, can be set to `"compose"` for local run);
+  - `output_directory`: directory where output files (including logs) are wrote;
+  - `repository_clone_url`: URL to process Git clone;
+  - `repository_clone_ref`: Git reference (sha or tag) to clone.
+
+  All the other parameters are present to handle integration with CI services.
+*/
+treatment main(const api_token: string, const work_location: string = "api", output_directory: string, repository_clone_url: string, repository_clone_ref: string, ci_service_token: string = "", ci_service_project: string = "", ci_service_ref: string = "", ci_service_sha: string = "", ci_service_pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
+  // Model used to handle all logs.
+  model logger: Logger()
+  // Model used to dispatch work among Mélodium engines.
+  model cicd: CicdDispatchEngine(api_token=api_token, location=work_location)
+{
+    startup()
+
+    manageLogs[logger=logger](output_directory=output_directory)
+
+    build[cicd=cicd, logger=logger](repository_clone_url=repository_clone_url, repository_clone_ref=repository_clone_ref)
+    test[cicd=cicd, logger=logger]()
+
+    startup.trigger -> build.trigger,data -> test.data
+    startup.trigger -----------------------> test.trigger,finished -> manageLogs.stop
+}
 
 /**
   Build step, cloning and listing the repository root content.

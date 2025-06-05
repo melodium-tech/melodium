@@ -96,6 +96,10 @@ pub fn cicd_pattern(program_name: &str, version: &Version) -> HashMap<String, Ve
                 "main".to_string(),
                 Identifier::new(vec![program_name.to_string()], "main"),
             );
+            entrypoints.insert(
+                "advanced".to_string(),
+                Identifier::new(vec![program_name.to_string(), "advanced".to_string()], "main"),
+            );
             entrypoints
         },
     }
@@ -108,7 +112,7 @@ pub fn cicd_pattern(program_name: &str, version: &Version) -> HashMap<String, Ve
         "lib-root.mel".to_string(),
         include_str!("lib-root.mel").into(),
     );
-    files.insert("works.mel".to_string(), include_str!("works.mel").into());
+    files.insert("advanced.mel".to_string(), include_str!("advanced.mel").into());
 
     files
 }

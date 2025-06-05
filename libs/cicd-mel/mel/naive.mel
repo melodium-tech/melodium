@@ -5,6 +5,7 @@ use root/runners::stopRunner
 use root/services::setServiceState
 use root/steps::stepOn
 use root/steps::stepOnWithInput
+use root/steps::spawnCommands
 use log/logger::Logger
 use process/command::|command
 use process/command::|raw_commands
@@ -13,6 +14,9 @@ use process/environment::|environment
 use std/data/string_map::StringMap
 use std/data/string_map::|map
 use std/flow::one
+use std/flow::emit
+use std/flow::stream
+use std/flow/vec::flatten
 use std/ops/num::|saturating_add
 use std/ops/num::|div
 use std/ops/option::|wrap
@@ -24,9 +28,15 @@ use work/resources/arch::|arm64
 use work/resources::ServiceContainer
 use work/resources/arch::Arch
 
+/**
+Run a step on local machine.
+
+This treatment runs commands on local machine.
+*/
 treatment localStep[logger: Logger](
   name: string,
   commands: Vec<Command>,
+  variables: Option<StringMap> = _,
   report: bool = true,
   github: bool = false,
   gitlab: bool = false,
@@ -41,8 +51,50 @@ treatment localStep[logger: Logger](
   gitlab_pipeline_id: string = "",
   description: string = ""
 )
+  input trigger: Block<void>
+  output started: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
 {
+    spawnCommands[logger=logger](label=name)
 
+    emitExecutorName: emit<Option<string>>(value=_)
+    emitEnvironment: emit<Option<Environment>>(value=|wrap<Environment>(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false)))
+    emitCommands: emit<Vec<Command>>(value=commands)
+    streamCommands: stream<Vec<Command>>()
+    flattenCommands: flatten<Command>()
+
+    Self.trigger -> emitExecutorName.trigger,emit -> spawnCommands.executor_name
+    Self.trigger -> emitEnvironment.trigger,emit --> spawnCommands.environment
+    Self.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector,value -> spawnCommands.commands
+
+    setServiceState[logger=logger](
+        name=name,
+        report=report,
+        github=github,
+        gitlab=gitlab,
+        github_token=github_token,
+        github_project=github_project,
+        github_sha=github_sha,
+        gitlab_root_url=gitlab_root_url,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=gitlab_ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        description=description
+    )
+
+    Self.trigger ------------> setServiceState.pending
+    spawnCommands.started ---> setServiceState.running
+    spawnCommands.completed -> setServiceState.success
+    spawnCommands.failed ----> setServiceState.failed
+
+    spawnCommands.started ---> Self.started
+    spawnCommands.completed -> Self.completed
+    spawnCommands.failed ----> Self.failed
+    spawnCommands.finished --> Self.finished
 }
 
 /**
@@ -272,8 +324,8 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
     )
   
   oneFailed: one<void>()
-  setupRunner.failed -> oneFailed.a,value -> Self.failed
-  stepOn.failed ------> oneFailed.b
+  setupRunner.failed ----------> oneFailed.a,value -> Self.failed
+  stepOnWithInput.failed ------> oneFailed.b
 
   Self.trigger -> setupRunner.trigger,ready -> stepOnWithInput.trigger,finished -> Self.finished
   Self.data ---------------------------------> stepOnWithInput.data
@@ -281,8 +333,8 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
                                                stepOnWithInput.started ----------> Self.started
                                                stepOnWithInput.data -------------> Self.data
 
-  Self.trigger -----> setServiceState.pending
-  stepOn.started ---> setServiceState.running
-  oneFailed.value --> setServiceState.failed
-  stepOn.completed -> setServiceState.success
+  Self.trigger --------------> setServiceState.pending
+  stepOnWithInput.started ---> setServiceState.running
+  oneFailed.value -----------> setServiceState.failed
+  stepOnWithInput.completed -> setServiceState.success
 }

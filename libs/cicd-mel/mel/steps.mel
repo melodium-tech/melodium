@@ -104,7 +104,7 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     sendInFilesystemName: sendBlock<string>[distributor=runner](name="in_filesystem_name")
     sendInFileName: sendBlock<string>[distributor=runner](name="in_file_name")
     sendData: sendStream<byte>[distributor=runner](name="data")
-    sendExecutorName: sendBlock<string>[distributor=runner](name="executor_name")
+    sendExecutorName: sendBlock<Option<string>>[distributor=runner](name="executor_name")
     sendEnvironment: sendBlock<Option<Environment>>[distributor=runner](name="environment")
     sendCommands: sendStream<Command>[distributor=runner](name="commands")
     sendOutFilesystemName: sendBlock<string>[distributor=runner](name="out_filesystem_name")
@@ -185,7 +185,7 @@ treatment step(var label: string)
   input in_filesystem_name: Block<string>
   input in_file_name: Block<string>
   input data: Stream<byte>
-  input executor_name: Block<string>
+  input executor_name: Block<Option<string>>
   input environment: Block<Option<Environment>>
   input commands: Stream<Command>
   input out_filesystem_name: Block<string>
@@ -251,7 +251,7 @@ treatment step(var label: string)
 }
 
 treatment spawnCommands[logger: Logger](var label: string)
-  input executor_name: Block<string>
+  input executor_name: Block<Option<string>>
   input environment: Block<Option<Environment>>
   input commands: Stream<Command>
   output started: Block<void>

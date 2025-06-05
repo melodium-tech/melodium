@@ -1,8 +1,13 @@
 use cicd/runners::CicdDispatchEngine
 use cicd/logging::manageLogs
-use local/works::build
-use local/works::test
+use cicd/naive::simpleStep
+use cicd/naive::simpleStepWithInput
 use log/logger::Logger
+use process/command::|command
+use process/command::|raw_commands
+use std/text/compose::|format
+use std/data/string_map::|map
+use std/data/string_map::|entry
 use std/engine/util::startup
 
 /**
@@ -16,18 +21,44 @@ use std/engine/util::startup
 
   All the other parameters are present to handle integration with CI services.
 */
-treatment main(const api_token: string, const work_location: string = "api", output_directory: string, repository_clone_url: string, repository_clone_ref: string, repository_clone_sha: string = "", ci_service_token: string = "", ci_service_project: string = "", ci_service_ref: string = "", ci_service_pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
+treatment main(const api_token: string, const work_location: string = "api", output_directory: string, repository_clone_url: string, repository_clone_ref: string, ci_service_token: string = "", ci_service_project: string = "", ci_service_ref: string = "", ci_service_sha: string = "", ci_service_pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
   // Model used to handle all logs.
   model logger: Logger()
   // Model used to dispatch work among Mélodium engines.
-  model cicd: CicdDispatchEngine(api_token=api_token)
+  model cicd: CicdDispatchEngine(api_token=api_token, location=work_location)
 {
     startup()
 
     manageLogs[logger=logger](output_directory=output_directory)
 
-    build[cicd=cicd, logger=logger](repository_clone_url=repository_clone_url, repository_clone_ref=repository_clone_ref)
-    test[cicd=cicd, logger=logger]()
+    build: simpleStep[cicd=cicd, logger=logger](
+      name="build",
+      image="ubuntu:noble",
+      commands=|raw_commands([
+        "apt-get update",
+        "apt-get install -y git",
+        "git config --global url.https://.insteadOf  git://",
+        |format("git clone --branch {repository_clone_ref} --depth 1 {repository_clone_url} project",
+          |map([
+            |entry("repository_clone_ref", repository_clone_ref),
+            |entry("repository_clone_url", repository_clone_url)
+          ])
+        ),
+        "sh -c \"cd project/ ; ls -l --almost-all | tee files-list.txt\"",
+        "mv project/files-list.txt /mnt/data/"
+      ]),
+      out_file="files-list.txt"
+    )
+    
+    test: simpleStepWithInput[cicd=cicd, logger=logger](
+      name="test",
+      image="alpine",
+      in_file="list.txt",
+      commands=[
+        |command("test", ["-s", "/mnt/data/list.txt"]),
+        |command("cat", ["/mnt/data/list.txt"])
+      ]
+    )
 
     startup.trigger -> build.trigger,data -> test.data
     startup.trigger -----------------------> test.trigger,finished -> manageLogs.stop
