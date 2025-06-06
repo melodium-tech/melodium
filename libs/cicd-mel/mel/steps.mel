@@ -139,7 +139,6 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     unwrapInFileName: unwrap<string>()
 
     emitExecutorName: emit<Option<string>>(value=executor_name)
-    unwrapExecutorName: unwrap<string>()
     emitEnvironment: emit<Option<Environment>>(value=environment)
     emitCommands: emit<Vec<Command>>(value=commands)
     streamCommands: stream<Vec<Command>>()
@@ -153,7 +152,7 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     Self.trigger -> sendTriggerLogs.data
     Self.trigger -> emitInFilesystemName.trigger,emit -> unwrapInFilesystemName.option,value -> sendInFilesystemName.data
     Self.trigger -> emitInFileName.trigger,emit -> unwrapInFileName.option,value -> sendInFileName.data
-    Self.trigger -> emitExecutorName.trigger,emit -> unwrapExecutorName.option,value -> sendExecutorName.data
+    Self.trigger -> emitExecutorName.trigger,emit -> sendExecutorName.data
     Self.trigger -> emitEnvironment.trigger,emit --> sendEnvironment.data
     Self.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector,value -> sendCommands.data
     Self.trigger -> emitOutFilesystemName.trigger,emit -> unwrapOutFilesystemName.option,value -> sendOutFilesystemName.data
@@ -208,7 +207,7 @@ treatment step(var label: string)
     writeFile.failed -> uncheckWriteFileFailed.value,uncheck -> releaseExecutorName.leverage
 
     spawnCommands[logger=logger](label=label)
-    releaseExecutorName: releaseBlock<string>()
+    releaseExecutorName: releaseBlock<Option<string>>()
 
     Self.executor_name -> releaseExecutorName.data,released -> spawnCommands.executor_name
     Self.environment ----------------------------------------> spawnCommands.environment

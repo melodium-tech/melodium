@@ -31,7 +31,7 @@ treatment main(const api_token: string, const work_location: string = "api", out
 
     manageLogs[logger=logger](output_directory=output_directory)
 
-    build: simpleStep[cicd=cicd, logger=logger](
+    build: simpleStep[dispatcher=cicd, logger=logger](
       name="build",
       image="ubuntu:noble",
       commands=|raw_commands([
@@ -50,7 +50,7 @@ treatment main(const api_token: string, const work_location: string = "api", out
       out_file="files-list.txt"
     )
     
-    test: simpleStepWithInput[cicd=cicd, logger=logger](
+    test: simpleStepWithInput[dispatcher=cicd, logger=logger](
       name="test",
       image="alpine",
       in_file="list.txt",

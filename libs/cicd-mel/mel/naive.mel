@@ -7,6 +7,7 @@ use root/steps::stepOn
 use root/steps::stepOnWithInput
 use root/steps::spawnCommands
 use log/logger::Logger
+use process/command::Command
 use process/command::|command
 use process/command::|raw_commands
 use process/environment::Environment
@@ -177,12 +178,13 @@ treatment simpleStep[dispatcher: CicdDispatchEngine, logger: Logger](
     )
     stepOn[runner=runner, logger=logger](
         name=name,
-        executor_name=name,
+        executor_name=|wrap<string>(name),
         commands=commands,
         environment=|wrap<Environment>(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false)),
         out_file=out_file,
         out_filesystem="data"
     )
+    stopRunner[runner=runner]()
     setServiceState[logger=logger](
         name=name,
         report=report,
@@ -203,6 +205,8 @@ treatment simpleStep[dispatcher: CicdDispatchEngine, logger: Logger](
   oneFailed: one<void>()
   setupRunner.failed -> oneFailed.a,value -> Self.failed
   stepOn.failed ------> oneFailed.b
+
+  stepOn.finished -> stopRunner.trigger
 
   Self.trigger -> setupRunner.trigger,ready -> stepOn.trigger,finished -> Self.finished
                                                stepOn.completed --------> Self.completed
@@ -298,14 +302,15 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
     )
     stepOnWithInput[runner=runner, logger=logger](
         name=name,
-        executor_name=name,
+        executor_name=|wrap<string>(name),
         commands=commands,
         environment=|wrap<Environment>(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false)),
-        in_file=in_file,
+        in_file=|wrap<string>(in_file),
         in_filesystem="data",
         out_file=out_file,
         out_filesystem="data"
     )
+    stopRunner[runner=runner]()
     setServiceState[logger=logger](
         name=name,
         report=report,
@@ -326,6 +331,8 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
   oneFailed: one<void>()
   setupRunner.failed ----------> oneFailed.a,value -> Self.failed
   stepOnWithInput.failed ------> oneFailed.b
+
+  stepOnWithInput.finished -> stopRunner.trigger
 
   Self.trigger -> setupRunner.trigger,ready -> stepOnWithInput.trigger,finished -> Self.finished
   Self.data ---------------------------------> stepOnWithInput.data
