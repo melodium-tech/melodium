@@ -51,7 +51,7 @@ treatment localStep[logger: Logger](
   gitlab_ref: string = "",
   gitlab_pipeline_id: string = "",
   description: string = "",
-  log_service_response=false
+  log_service_response: bool = false
 )
   input trigger: Block<void>
   output started: Block<void>
@@ -154,7 +154,7 @@ treatment simpleStep[dispatcher: CicdDispatchEngine, logger: Logger](
     gitlab_ref: string = "",
     gitlab_pipeline_id: string = "",
     description: string = "",
-    log_service_response=false
+    log_service_response: bool = false
 )
   model runner: CicdRunnerEngine()
   input trigger: Block<void>
@@ -279,7 +279,7 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
     gitlab_ref: string = "",
     gitlab_pipeline_id: string = "",
     description: string = "",
-    log_service_response=false
+    log_service_response: bool = false
 )
   model runner: CicdRunnerEngine()
   input trigger: Block<void>
