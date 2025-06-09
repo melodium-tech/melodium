@@ -26,7 +26,8 @@ treatment setServiceState[logger: Logger](
     gitlab_ref: string = "",
     gitlab_pipeline_id: string = "",
     name: string,
-    description: string = ""
+    description: string = "",
+    log_response: bool = false
 )
   input pending: Block<void>
   input running: Block<void>
@@ -43,7 +44,8 @@ treatment setServiceState[logger: Logger](
         pipeline=gitlab_pipeline_id,
         name=name,
         description=description,
-        state=|gitlab_pending()
+        state=|gitlab_pending(),
+        log_response=log_response
     )
     passRunningGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
     runningGitlab: postGitlabState[logger=logger](
@@ -55,7 +57,8 @@ treatment setServiceState[logger: Logger](
         pipeline=gitlab_pipeline_id,
         name=name,
         description=description,
-        state=|gitlab_running()
+        state=|gitlab_running(),
+        log_response=log_response
     )
     passSuccessGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
     successGitlab: postGitlabState[logger=logger](
@@ -67,7 +70,8 @@ treatment setServiceState[logger: Logger](
         pipeline=gitlab_pipeline_id,
         name=name,
         description=description,
-        state=|gitlab_success()
+        state=|gitlab_success(),
+        log_response=log_response
     )
     passFailedGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
     failedGitlab: postGitlabState[logger=logger](
@@ -79,7 +83,8 @@ treatment setServiceState[logger: Logger](
         pipeline=gitlab_pipeline_id,
         name=name,
         description=description,
-        state=|gitlab_failed()
+        state=|gitlab_failed(),
+        log_response=log_response
     )
 
     passPendingGithub: passBlock<void>(cond=|and<bool>(report, github))
@@ -89,7 +94,8 @@ treatment setServiceState[logger: Logger](
         sha=github_sha,
         name=name,
         description=description,
-        state=|github_pending()
+        state=|github_pending(),
+        log_response=log_response
     )
     passSuccessGithub: passBlock<void>(cond=|and<bool>(report, github))
     successGithub: postGithubState[logger=logger](
@@ -98,7 +104,8 @@ treatment setServiceState[logger: Logger](
         sha=github_sha,
         name=name,
         description=description,
-        state=|github_success()
+        state=|github_success(),
+        log_response=log_response
     )
     passErrorGithub: passBlock<void>(cond=|and<bool>(report, github))
     errorGithub: postGithubState[logger=logger](
@@ -107,7 +114,8 @@ treatment setServiceState[logger: Logger](
         sha=github_sha,
         name=name,
         description=description,
-        state=|github_error()
+        state=|github_error(),
+        log_response=log_response
     )
 
 

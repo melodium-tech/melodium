@@ -50,7 +50,8 @@ treatment localStep[logger: Logger](
   gitlab_sha: string = "",
   gitlab_ref: string = "",
   gitlab_pipeline_id: string = "",
-  description: string = ""
+  description: string = "",
+  log_service_response=false
 )
   input trigger: Block<void>
   output started: Block<void>
@@ -84,7 +85,8 @@ treatment localStep[logger: Logger](
         gitlab_sha=gitlab_sha,
         gitlab_ref=gitlab_ref,
         gitlab_pipeline_id=gitlab_pipeline_id,
-        description=description
+        description=description,
+        log_response=log_service_response
     )
 
     Self.trigger ------------> setServiceState.pending
@@ -151,7 +153,8 @@ treatment simpleStep[dispatcher: CicdDispatchEngine, logger: Logger](
     gitlab_sha: string = "",
     gitlab_ref: string = "",
     gitlab_pipeline_id: string = "",
-    description: string = ""
+    description: string = "",
+    log_service_response=false
 )
   model runner: CicdRunnerEngine()
   input trigger: Block<void>
@@ -199,7 +202,8 @@ treatment simpleStep[dispatcher: CicdDispatchEngine, logger: Logger](
         gitlab_sha=gitlab_sha,
         gitlab_ref=gitlab_ref,
         gitlab_pipeline_id=gitlab_pipeline_id,
-        description=description
+        description=description,
+        log_response=log_service_response
     )
   
   oneFailed: one<void>()
@@ -274,7 +278,8 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
     gitlab_sha: string = "",
     gitlab_ref: string = "",
     gitlab_pipeline_id: string = "",
-    description: string = ""
+    description: string = "",
+    log_service_response=false
 )
   model runner: CicdRunnerEngine()
   input trigger: Block<void>
@@ -325,7 +330,8 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
         gitlab_sha=gitlab_sha,
         gitlab_ref=gitlab_ref,
         gitlab_pipeline_id=gitlab_pipeline_id,
-        description=description
+        description=description,
+        log_response=log_service_response
     )
   
   oneFailed: one<void>()
