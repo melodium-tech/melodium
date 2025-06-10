@@ -29,6 +29,7 @@ Process dispatcher to spawn workers.
 model CicdDispatchEngine(location: string = "api", api_token: string, api_url: string = "https://api.melodium.tech/0.1"): DistantEngine {
     api_token = |wrap<string>(api_token)
     api_url = |wrap<string>(api_url)
+    location = location
 }
 
 model CicdRunnerEngine(): DistributionEngine {

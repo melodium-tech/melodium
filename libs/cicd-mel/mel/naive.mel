@@ -7,6 +7,7 @@ use root/steps::stepOn
 use root/steps::stepOnWithInput
 use root/steps::spawnCommands
 use log/logger::Logger
+use process/command::Command
 use process/command::|command
 use process/command::|raw_commands
 use process/environment::Environment
@@ -49,7 +50,8 @@ treatment localStep[logger: Logger](
   gitlab_sha: string = "",
   gitlab_ref: string = "",
   gitlab_pipeline_id: string = "",
-  description: string = ""
+  description: string = "",
+  log_service_response: bool = false
 )
   input trigger: Block<void>
   output started: Block<void>
@@ -83,7 +85,8 @@ treatment localStep[logger: Logger](
         gitlab_sha=gitlab_sha,
         gitlab_ref=gitlab_ref,
         gitlab_pipeline_id=gitlab_pipeline_id,
-        description=description
+        description=description,
+        log_response=log_service_response
     )
 
     Self.trigger ------------> setServiceState.pending
@@ -150,7 +153,8 @@ treatment simpleStep[dispatcher: CicdDispatchEngine, logger: Logger](
     gitlab_sha: string = "",
     gitlab_ref: string = "",
     gitlab_pipeline_id: string = "",
-    description: string = ""
+    description: string = "",
+    log_service_response: bool = false
 )
   model runner: CicdRunnerEngine()
   input trigger: Block<void>
@@ -177,12 +181,13 @@ treatment simpleStep[dispatcher: CicdDispatchEngine, logger: Logger](
     )
     stepOn[runner=runner, logger=logger](
         name=name,
-        executor_name=name,
+        executor_name=|wrap<string>(name),
         commands=commands,
         environment=|wrap<Environment>(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false)),
         out_file=out_file,
         out_filesystem="data"
     )
+    stopRunner[runner=runner]()
     setServiceState[logger=logger](
         name=name,
         report=report,
@@ -197,12 +202,15 @@ treatment simpleStep[dispatcher: CicdDispatchEngine, logger: Logger](
         gitlab_sha=gitlab_sha,
         gitlab_ref=gitlab_ref,
         gitlab_pipeline_id=gitlab_pipeline_id,
-        description=description
+        description=description,
+        log_response=log_service_response
     )
   
   oneFailed: one<void>()
   setupRunner.failed -> oneFailed.a,value -> Self.failed
   stepOn.failed ------> oneFailed.b
+
+  stepOn.finished -> stopRunner.trigger
 
   Self.trigger -> setupRunner.trigger,ready -> stepOn.trigger,finished -> Self.finished
                                                stepOn.completed --------> Self.completed
@@ -270,7 +278,8 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
     gitlab_sha: string = "",
     gitlab_ref: string = "",
     gitlab_pipeline_id: string = "",
-    description: string = ""
+    description: string = "",
+    log_service_response: bool = false
 )
   model runner: CicdRunnerEngine()
   input trigger: Block<void>
@@ -298,14 +307,15 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
     )
     stepOnWithInput[runner=runner, logger=logger](
         name=name,
-        executor_name=name,
+        executor_name=|wrap<string>(name),
         commands=commands,
         environment=|wrap<Environment>(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false)),
-        in_file=in_file,
+        in_file=|wrap<string>(in_file),
         in_filesystem="data",
         out_file=out_file,
         out_filesystem="data"
     )
+    stopRunner[runner=runner]()
     setServiceState[logger=logger](
         name=name,
         report=report,
@@ -320,12 +330,15 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
         gitlab_sha=gitlab_sha,
         gitlab_ref=gitlab_ref,
         gitlab_pipeline_id=gitlab_pipeline_id,
-        description=description
+        description=description,
+        log_response=log_service_response
     )
   
   oneFailed: one<void>()
   setupRunner.failed ----------> oneFailed.a,value -> Self.failed
   stepOnWithInput.failed ------> oneFailed.b
+
+  stepOnWithInput.finished -> stopRunner.trigger
 
   Self.trigger -> setupRunner.trigger,ready -> stepOnWithInput.trigger,finished -> Self.finished
   Self.data ---------------------------------> stepOnWithInput.data
