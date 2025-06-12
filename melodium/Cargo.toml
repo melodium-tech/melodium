@@ -34,6 +34,7 @@ melodium-lang = { path = "../melodium-lang", version = "=0.9.0-pre.2" }
 melodium-loader = { path = "../melodium-loader", version = "=0.9.0-pre.2" }
 melodium-distribution = { path = "../melodium-distribution", version = "=0.9.0-pre.2", optional = true  }
 melodium-doc = { path = "../melodium-doc", version = "=0.9.0-pre.2", optional = true }
+melodium-share = { path = "../melodium-share", version = "=0.9.0-pre.2", optional = true }
 uuid = { version = "1.5.0", features = ["serde"], optional = true }
 
 std-mel = { path = "../libs/std-mel", version = "=0.9.0-pre.2" }
@@ -67,10 +68,12 @@ javascript = ["javascript-mel/real", "json-mel/real"]
 sql = ["sql-mel/real"]
 standard-edition = ["jeu", "doc", "cicd", "distribution", "fs", "log", "network", "text", "javascript", "sql", "std-mel/real"]
 container-edition = ["standard-edition", "work-mel/kubernetes"]
-webassembly-edition = ["jeu", "doc", "std-mel/mock", "cicd-mel/mock", "log-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "sql-mel/mock", "distrib-mel/mock", "work-mel/mock", "uuid", "fs-mel/mock", "process-mel/mock", "net-mel/mock", "http-mel/mock"]
+webassembly-edition = ["melodium-share", "jeu", "doc", "std-mel/mock", "cicd-mel/mock", "log-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "sql-mel/mock", "distrib-mel/mock", "work-mel/mock", "uuid", "fs-mel/mock", "process-mel/mock", "net-mel/mock", "http-mel/mock"]
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
+wasm-bindgen = "0.2.100"
+serde-wasm-bindgen = "0.6"
 
 [package.metadata.docs.rs]
 all-features = true

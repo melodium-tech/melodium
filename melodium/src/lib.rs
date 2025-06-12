@@ -381,3 +381,15 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
 
     packages
 }
+
+#[cfg(feature = "webassembly-edition")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn get_project() -> Result<wasm_bindgen::JsValue, wasm_bindgen::JsValue> {
+    let core_config = core_config();
+
+    let (_, collection) = load_all(core_config).to_success().unwrap();
+
+    Ok(serde_wasm_bindgen::to_value(
+        &melodium_share::Collection::from(collection.as_ref()),
+    )?)
+}
