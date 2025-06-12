@@ -73,6 +73,14 @@ Mélodium can also be directly installed from [crates.io](https://crates.io/crat
 cargo install melodium
 ```
 
+### Compile for WASM
+
+Mélodium can be compiled for WASM with specific subset of features.
+```shell
+cargo build --package melodium --target wasm32-unknown-unknown --no-default-features --features webassembly-edition
+```
+
+
 ## Development
 
 The development of Mélodium project is hosted by [GitLab](https://gitlab.com/melodium/melodium).

@@ -1,6 +1,12 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
+#[cfg(any(
+    all(feature = "real", feature = "mock"),
+    not(any(feature = "real", feature = "mock"))
+))]
+compile_error!("One of the two features 'real' or 'mock' must be enabled");
+
 use melodium_core::{executive::*, *};
 use melodium_macro::{check, mel_data, mel_function, mel_package, mel_treatment};
 use std::sync::Arc;

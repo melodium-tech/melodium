@@ -2,9 +2,9 @@ use crate::access::*;
 use crate::api;
 use crate::resources::arch::*;
 use crate::resources::*;
+#[cfg(feature = "real")]
 use async_std::process::Child;
 use core::time::Duration;
-use generic_async_http_client::Request;
 use melodium_core::*;
 use melodium_macro::{mel_model, mel_treatment};
 use std::{
@@ -25,6 +25,7 @@ pub struct DistantEngine {
     location: RwLock<Option<String>>,
     api_url: RwLock<Option<String>>,
     api_token: RwLock<Option<String>>,
+    #[cfg(feature = "real")]
     child: RwLock<Option<Arc<Child>>>,
 }
 
@@ -35,6 +36,7 @@ impl DistantEngine {
             location: RwLock::new(None),
             api_url: RwLock::new(None),
             api_token: RwLock::new(None),
+            #[cfg(feature = "real")]
             child: RwLock::new(None),
         }
     }
@@ -55,6 +57,7 @@ impl DistantEngine {
         }
     }
 
+    #[cfg(feature = "real")]
     pub async fn start(&self, request: api::Request) -> Result<api::DistributionResponse, String> {
         let location = self.location.read().unwrap().clone();
         match location.as_ref().map(|loc| loc.as_str()) {
@@ -73,8 +76,14 @@ impl DistantEngine {
         }
     }
 
+    #[cfg(feature = "mock")]
+    pub async fn start(&self, request: api::Request) -> Result<api::DistributionResponse, String> {
+        Err("Mock mode, nothing to do".to_string())
+    }
+
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 
+    #[cfg(feature = "real")]
     async fn distrib_api(
         &self,
         request: api::Request,
@@ -84,17 +93,19 @@ impl DistantEngine {
             self.api_token.read().unwrap().clone(),
         );
         if let (Some(api_url), Some(api_token)) = (api_url, api_token) {
-            match Request::post(&format!("{api_url}/execution/job/start"))
-                .add_header("User-Agent", crate::USER_AGENT)
-                .map_err(|err| err.to_string())?
-                .add_header("Authorization", format!("Bearer {api_token}").as_bytes())
-                .map_err(|err| err.to_string())?
-                .add_header("Content-Type", "application/json")
-                .map_err(|err| err.to_string())?
-                .body(serde_json::to_string(&request).unwrap())
-                .map_err(|err| err.to_string())?
-                .exec()
-                .await
+            match generic_async_http_client::Request::post(&format!(
+                "{api_url}/execution/job/start"
+            ))
+            .add_header("User-Agent", crate::USER_AGENT)
+            .map_err(|err| err.to_string())?
+            .add_header("Authorization", format!("Bearer {api_token}").as_bytes())
+            .map_err(|err| err.to_string())?
+            .add_header("Content-Type", "application/json")
+            .map_err(|err| err.to_string())?
+            .body(serde_json::to_string(&request).unwrap())
+            .map_err(|err| err.to_string())?
+            .exec()
+            .await
             {
                 Ok(mut response) => {
                     if response.status_code() == 200 {
@@ -103,7 +114,7 @@ impl DistantEngine {
                                 api::Response::Ok(id) => {
                                     async_std::task::sleep(Duration::from_secs(1)).await;
                                     loop {
-                                        match Request::get(&format!(
+                                        match generic_async_http_client::Request::get(&format!(
                                             "{api_url}/execution/job/{id}/access"
                                         ))
                                         .add_header("User-Agent", crate::USER_AGENT)
@@ -168,6 +179,7 @@ impl DistantEngine {
         }
     }
 
+    #[cfg(feature = "real")]
     async fn manage_error(error: generic_async_http_client::Error) -> String {
         match error {
             generic_async_http_client::Error::Io(error) => error.to_string(),

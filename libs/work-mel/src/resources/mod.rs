@@ -15,7 +15,7 @@ use std_mel::data::string_map::*;
     output failed Block<void>
 )]
 pub async fn getExecutor() {
-    #[allow(unused)]
+    #[cfg(feature = "real")]
     if let Ok(name) = name
         .recv_one()
         .await
@@ -83,6 +83,11 @@ pub async fn getExecutor() {
                 .await;
         }
     }
+    #[cfg(feature = "mock")]
+    {
+        let _ = failed.send_one(().into()).await;
+        let _ = error.send_one("Mock mode".to_string().into()).await;
+    }
 }
 
 #[mel_treatment(
@@ -92,7 +97,7 @@ pub async fn getExecutor() {
     output failed Block<void>
 )]
 pub async fn getFileSystem() {
-    #[allow(unused)]
+    #[cfg(feature = "real")]
     if let Ok(name) = name
         .recv_one()
         .await
@@ -147,6 +152,11 @@ pub async fn getFileSystem() {
                 }
             }
         }
+    }
+    #[cfg(feature = "mock")]
+    {
+        let _ = failed.send_one(().into()).await;
+        let _ = error.send_one("Mock mode".to_string().into()).await;
     }
 }
 

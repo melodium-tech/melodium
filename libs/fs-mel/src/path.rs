@@ -66,6 +66,7 @@ pub async fn composition() {
     output exists Stream<bool>
 )]
 pub async fn exists() {
+    #[cfg(feature = "real")]
     while let Ok(paths) = path
         .recv_many()
         .await
@@ -90,6 +91,7 @@ pub async fn exists() {
     output length Stream<u64>
 )]
 pub async fn meta() {
+    #[cfg(feature = "real")]
     while let Ok(paths) = path
         .recv_many()
         .await

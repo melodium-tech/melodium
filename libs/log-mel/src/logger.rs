@@ -236,6 +236,7 @@ impl Logger {
         }
     }
 
+    #[cfg(feature = "real")]
     pub async fn continuous(&self) {
         let model = self.model.upgrade().unwrap();
         let receiver = self.receiver.clone();
@@ -294,6 +295,9 @@ impl Logger {
             )
             .await;
     }
+
+    #[cfg(feature = "mock")]
+    pub async fn continuous(&self) {}
 
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 

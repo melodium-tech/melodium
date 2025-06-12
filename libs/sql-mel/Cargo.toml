@@ -21,12 +21,12 @@ async-std = {version="1.13", features=["unstable"]}
 melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.2" }
 melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.2" }
 std-mel = { path = "../std-mel", version = "=0.9.0-pre.2" }
-sqlx = { version = "0.8", features = ["runtime-async-std", "postgres", "mysql", "tls-rustls"] }
+sqlx = { version = "0.8" }
 
 [features]
 mock = []
 plugin = []
-real = []
+real = ["sqlx/runtime-async-std", "sqlx/postgres", "sqlx/mysql", "sqlx/tls-rustls"]
 
 [package.metadata.docs.rs]
 all-features = true

@@ -1,4 +1,5 @@
 use crate::api::{Access, /*Arch,*/ ModeRequest, Request};
+#[cfg(feature = "real")]
 use async_std::{
     net::ToSocketAddrs,
     process::{Child, Command},
@@ -41,6 +42,7 @@ impl Display for Executor {
     }
 }
 
+#[cfg(feature = "real")]
 pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String>> {
     if request.edition.as_str() == "scratch" {
         request.edition = "alpine".to_string()
