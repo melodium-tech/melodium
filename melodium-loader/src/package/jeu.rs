@@ -1,7 +1,7 @@
 use crate::compo::Compo;
 use crate::content::Content;
 use crate::package::package::PackageTrait;
-use crate::{Loader, PackageInfo};
+use crate::{Loader, PackageInfo, LIB_ROOT_FILENAME};
 use bzip2_rs::DecoderReader;
 use melodium_common::descriptor::{
     Collection, Identifier, IdentifierRequirement, LoadingError, LoadingResult, PackageRequirement,
@@ -68,11 +68,17 @@ impl JeuPackage {
                                 Ok(_) => {
                                     if let Some(content) = result.merge_degrade_failure(
                                         Content::new(
-                                            &format!(
-                                                "{}/{}",
-                                                composition.name,
-                                                path.to_string_lossy()
-                                            ),
+                                            &if entry.path().unwrap()
+                                                == PathBuf::from(LIB_ROOT_FILENAME)
+                                            {
+                                                composition.name.clone()
+                                            } else {
+                                                format!(
+                                                    "{}/{}",
+                                                    composition.name,
+                                                    path.to_string_lossy()
+                                                )
+                                            },
                                             &content,
                                             &composition.version,
                                             &composition
@@ -162,16 +168,20 @@ impl JeuPackage {
     }
 
     fn designation(identifier: &Identifier) -> PathBuf {
-        PathBuf::from(format!(
-            "{}.mel",
-            identifier
-                .path()
-                .clone()
-                .into_iter()
-                .skip(1)
-                .collect::<Vec<_>>()
-                .join("/")
-        ))
+        if identifier.path().len() == 1 {
+            PathBuf::from(LIB_ROOT_FILENAME)
+        } else {
+            PathBuf::from(format!(
+                "{}.mel",
+                identifier
+                    .path()
+                    .clone()
+                    .into_iter()
+                    .skip(1)
+                    .collect::<Vec<_>>()
+                    .join("/")
+            ))
+        }
     }
 
     fn insure_loading(

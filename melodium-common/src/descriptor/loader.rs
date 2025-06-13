@@ -50,6 +50,9 @@ pub enum LoadingErrorKind {
     JeuFormatError {
         error: String,
     },
+    MappingFormatError {
+        error: String,
+    },
     UncompatiblePlatform {
         platform: String,
     },
@@ -122,6 +125,9 @@ impl Display for LoadingErrorKind {
             },
             LoadingErrorKind::JeuFormatError { error } => {
                 write!(f, "Jeu data cannot be processed: {error}")
+            }
+            LoadingErrorKind::MappingFormatError { error } => {
+                write!(f, "Mapped package cannot be processed: {error}")
             }
             LoadingErrorKind::UncompatiblePlatform { platform } => {
                 write!(f, "Platform '{platform}' is not compatible")
@@ -260,6 +266,13 @@ impl LoadingError {
         Self {
             id,
             kind: LoadingErrorKind::JeuFormatError { error },
+        }
+    }
+
+    pub fn mapping_format_error(id: u32, error: String) -> Self {
+        Self {
+            id,
+            kind: LoadingErrorKind::MappingFormatError { error },
         }
     }
 

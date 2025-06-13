@@ -10,6 +10,7 @@ use std::{collections::HashMap, sync::Arc};
 pub enum Package {
     Core(super::CorePackage),
     Raw(super::RawPackage),
+    Map(super::MappedPackage),
     #[cfg(feature = "filesystem")]
     Fs(super::FsPackage),
     #[cfg(feature = "jeu")]
@@ -21,6 +22,7 @@ impl PackageInfo for Package {
         match self {
             Package::Core(pkg) => pkg.name(),
             Package::Raw(pkg) => pkg.name(),
+            Package::Map(pkg) => pkg.name(),
             #[cfg(feature = "filesystem")]
             Package::Fs(pkg) => pkg.name(),
             #[cfg(feature = "jeu")]
@@ -32,6 +34,7 @@ impl PackageInfo for Package {
         match self {
             Package::Core(pkg) => pkg.version(),
             Package::Raw(pkg) => pkg.version(),
+            Package::Map(pkg) => pkg.version(),
             #[cfg(feature = "filesystem")]
             Package::Fs(pkg) => pkg.version(),
             #[cfg(feature = "jeu")]
@@ -43,6 +46,7 @@ impl PackageInfo for Package {
         match self {
             Package::Core(pkg) => pkg.requirements(),
             Package::Raw(pkg) => pkg.requirements(),
+            Package::Map(pkg) => pkg.requirements(),
             #[cfg(feature = "filesystem")]
             Package::Fs(pkg) => pkg.requirements(),
             #[cfg(feature = "jeu")]
@@ -54,6 +58,7 @@ impl PackageInfo for Package {
         match self {
             Package::Core(pkg) => pkg.entrypoints(),
             Package::Raw(pkg) => pkg.entrypoints(),
+            Package::Map(pkg) => pkg.entrypoints(),
             #[cfg(feature = "filesystem")]
             Package::Fs(pkg) => pkg.entrypoints(),
             #[cfg(feature = "jeu")]
@@ -67,6 +72,7 @@ impl PackageTrait for Package {
         match self {
             Package::Core(pkg) => pkg.embedded_collection(loader),
             Package::Raw(pkg) => pkg.embedded_collection(loader),
+            Package::Map(pkg) => pkg.embedded_collection(loader),
             #[cfg(feature = "filesystem")]
             Package::Fs(pkg) => pkg.embedded_collection(loader),
             #[cfg(feature = "jeu")]
@@ -78,6 +84,7 @@ impl PackageTrait for Package {
         match self {
             Package::Core(pkg) => pkg.full_collection(loader),
             Package::Raw(pkg) => pkg.full_collection(loader),
+            Package::Map(pkg) => pkg.full_collection(loader),
             #[cfg(feature = "filesystem")]
             Package::Fs(pkg) => pkg.full_collection(loader),
             #[cfg(feature = "jeu")]
@@ -89,6 +96,7 @@ impl PackageTrait for Package {
         match self {
             Package::Core(pkg) => pkg.all_identifiers(loader),
             Package::Raw(pkg) => pkg.all_identifiers(loader),
+            Package::Map(pkg) => pkg.all_identifiers(loader),
             #[cfg(feature = "filesystem")]
             Package::Fs(pkg) => pkg.all_identifiers(loader),
             #[cfg(feature = "jeu")]
@@ -104,6 +112,7 @@ impl PackageTrait for Package {
         match self {
             Package::Core(pkg) => pkg.element(loader, identifier_requirement),
             Package::Raw(pkg) => pkg.element(loader, identifier_requirement),
+            Package::Map(pkg) => pkg.element(loader, identifier_requirement),
             #[cfg(feature = "filesystem")]
             Package::Fs(pkg) => pkg.element(loader, identifier_requirement),
             #[cfg(feature = "jeu")]
@@ -115,6 +124,7 @@ impl PackageTrait for Package {
         match self {
             Package::Core(pkg) => pkg.make_building(collection),
             Package::Raw(pkg) => pkg.make_building(collection),
+            Package::Map(pkg) => pkg.make_building(collection),
             #[cfg(feature = "filesystem")]
             Package::Fs(pkg) => pkg.make_building(collection),
             #[cfg(feature = "jeu")]

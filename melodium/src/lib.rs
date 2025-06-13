@@ -383,13 +383,76 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
 }
 
 #[cfg(feature = "webassembly-edition")]
-#[wasm_bindgen::prelude::wasm_bindgen]
-pub fn get_project() -> Result<wasm_bindgen::JsValue, wasm_bindgen::JsValue> {
-    let core_config = core_config();
+mod wasm {
+    use crate::*;
+    use serde::{Deserialize, Serialize};
+    use std::collections::{BTreeMap, HashMap};
+    use wasm_bindgen_utils::{impl_wasm_traits, prelude::*};
 
-    let (_, collection) = load_all(core_config).to_success().unwrap();
+    #[derive(Debug, Serialize, Deserialize, Tsify)]
+    pub struct FilesList {
+        pub files: HashMap<String, Vec<u8>>,
+    }
 
-    Ok(serde_wasm_bindgen::to_value(
-        &melodium_share::Collection::from(collection.as_ref()),
-    )?)
+    #[derive(Debug, Serialize, Deserialize, Tsify)]
+    pub struct SimplePackage {
+        pub name: String,
+        pub version: String,
+        pub requirements: Vec<PackageRequirement>,
+        pub entrypoints: BTreeMap<String, melodium_share::Identifier>,
+    }
+    impl From<&dyn PackageInfo> for SimplePackage {
+        fn from(value: &dyn PackageInfo) -> Self {
+            Self {
+                name: value.name().to_string(),
+                version: value.version().to_string(),
+                requirements: value.requirements().iter().map(|s| s.into()).collect(),
+                entrypoints: BTreeMap::new(),
+            }
+        }
+    }
+
+    #[derive(Debug, Serialize, Deserialize, Tsify)]
+    pub struct PackageRequirement {
+        pub package: String,
+        pub version_requirement: String,
+    }
+    impl From<&melodium_common::descriptor::PackageRequirement> for PackageRequirement {
+        fn from(value: &melodium_common::descriptor::PackageRequirement) -> Self {
+            Self {
+                package: value.package.clone(),
+                version_requirement: value.version_requirement.to_string(),
+            }
+        }
+    }
+
+    #[derive(Debug, Serialize, Deserialize, Tsify)]
+    pub struct Loaded {
+        pub package: SimplePackage,
+        pub collection: melodium_share::Collection,
+    }
+
+    impl_wasm_traits!(FilesList);
+    impl_wasm_traits!(Loaded);
+
+    #[wasm_bindgen::prelude::wasm_bindgen]
+    pub fn test_get_project(files: FilesList) -> Result<Loaded, wasm_bindgen::JsValue> {
+        let loader = Loader::new(core_config());
+
+        match loader.load_mapped(files.files).and_then(|package| {
+            loader.build().and_then(|coll| {
+                LoadingResult::new_success(Loaded {
+                    package: package.as_ref().into(),
+                    collection: coll.as_ref().into(),
+                })
+            })
+        }) {
+            melodium_common::descriptor::Status::Success { success, errors: _ } => Ok(success),
+            melodium_common::descriptor::Status::Failure { failure, errors } => {
+                let mut errs = vec![failure.to_string()];
+                errs.extend(errors.iter().map(|err| err.to_string()));
+                Err(serde_wasm_bindgen::to_value(&errs)?)
+            }
+        }
+    }
 }

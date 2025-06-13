@@ -7,6 +7,7 @@ use melodium_common::descriptor::{
 };
 use melodium_repository::network::NetworkRepositoryConfiguration;
 use melodium_repository::{Repository, RepositoryConfig};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
 
 /**
@@ -81,14 +82,27 @@ impl Loader {
     /**
      * Loads the given raw package content.
      *
-     * Returns the name of the package and its main entry point, if any.
-     *
      * This function _does not_ load any package content on its own, see [Self::load], [Self::load_all] or the functions of [LoaderTrait]
      * to get elements required loaded.
      */
     pub fn load_raw(&self, raw_content: Arc<Vec<u8>>) -> LoadingResult<Arc<dyn PackageInfo>> {
         self.package_manager
             .add_raw_package(raw_content)
+            .and_then(|pkg| LoadingResult::new_success(Arc::clone(&pkg) as Arc<dyn PackageInfo>))
+    }
+
+    /**
+     * Loads the given mapped package content.
+     *
+     * This function _does not_ load any package content on its own, see [Self::load], [Self::load_all] or the functions of [LoaderTrait]
+     * to get elements required loaded.
+     */
+    pub fn load_mapped(
+        &self,
+        mapped_content: HashMap<String, Vec<u8>>,
+    ) -> LoadingResult<Arc<dyn PackageInfo>> {
+        self.package_manager
+            .add_map_package(mapped_content)
             .and_then(|pkg| LoadingResult::new_success(Arc::clone(&pkg) as Arc<dyn PackageInfo>))
     }
 

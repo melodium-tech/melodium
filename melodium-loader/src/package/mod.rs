@@ -3,6 +3,7 @@ pub mod core;
 pub mod filesystem;
 #[cfg(feature = "jeu")]
 pub mod jeu;
+pub mod mapped;
 pub mod package;
 pub mod raw;
 
@@ -11,6 +12,7 @@ pub use self::core::CorePackage;
 pub use filesystem::FsPackage;
 #[cfg(feature = "jeu")]
 pub use jeu::JeuPackage;
+pub use mapped::MappedPackage;
 pub use package::{Package, PackageInfo, PackageTrait};
 pub use raw::RawPackage;
 
