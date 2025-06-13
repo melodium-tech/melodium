@@ -29,7 +29,6 @@ include:
     - cargo check --package melodium-loader --locked --no-default-features --features filesystem,jeu,script
     - cargo check --package melodium-loader --locked --no-default-features --features network,jeu,script
     - cargo check --package melodium-loader --locked --no-default-features --features filesystem,network,jeu,script
-    - cargo check --package melodium --locked --no-default-features --features cli
     - cargo check --package melodium --locked --no-default-features --features cli,distribution
     - cargo check --package melodium --locked --no-default-features --features cli,jeu
     - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,distribution
@@ -135,5 +134,4 @@ build:check:wasm32-unknown-unknown:
     - .check-builds
     - .builder:linux:wasm32-unknown-unknown
   script:
-    - cargo check --package melodium --locked --no-default-features
-    - cargo check --package melodium --locked --no-default-features --features jeu,doc,text,javascript
+    - cargo check --package melodium --locked --no-default-features --features webassembly-edition
