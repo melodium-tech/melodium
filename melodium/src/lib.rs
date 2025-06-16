@@ -437,6 +437,8 @@ mod wasm {
 
     #[wasm_bindgen::prelude::wasm_bindgen]
     pub fn test_get_project(files: FilesList) -> Result<Loaded, wasm_bindgen::JsValue> {
+        console_error_panic_hook::set_once();
+        
         let loader = Loader::new(core_config());
 
         match loader.load_mapped(files.files).and_then(|package| {
