@@ -32,30 +32,33 @@ impl Loader {
         Self {
             collection: RwLock::new(Collection::new()),
             package_manager: PackageManager::new(PackageManagerConfiguration {
-                repositories: vec![Arc::new(Mutex::new(Repository::new(RepositoryConfig {
-                    repository_location: {
-                        let mut path = std::env::var_os("MELODIUM_HOME")
-                            .map(|var| var.into())
-                            .or_else(|| {
-                                simple_home_dir::home_dir().map(|mut path| {
-                                    path.push(".melodium");
-                                    path
+                repositories: vec![
+                    #[cfg(feature = "filesystem")]
+                    Arc::new(Mutex::new(Repository::new(RepositoryConfig {
+                        repository_location: {
+                            let mut path = std::env::var_os("MELODIUM_HOME")
+                                .map(|var| var.into())
+                                .or_else(|| {
+                                    simple_home_dir::home_dir().map(|mut path| {
+                                        path.push(".melodium");
+                                        path
+                                    })
                                 })
-                            })
-                            .unwrap_or_else(|| {
-                                let mut path = std::env::temp_dir();
-                                path.push("melodium");
-                                path
-                            });
-                        path.push(env!("CARGO_PKG_VERSION"));
-                        path
-                    },
-                    network: if cfg!(feature = "network") {
-                        Some(NetworkRepositoryConfiguration::new())
-                    } else {
-                        None
-                    },
-                })))],
+                                .unwrap_or_else(|| {
+                                    let mut path = std::env::temp_dir();
+                                    path.push("melodium");
+                                    path
+                                });
+                            path.push(env!("CARGO_PKG_VERSION"));
+                            path
+                        },
+                        network: if cfg!(feature = "network") {
+                            Some(NetworkRepositoryConfiguration::new())
+                        } else {
+                            None
+                        },
+                    }))),
+                ],
                 core_packages: config.core_packages,
                 search_locations: config.search_locations,
                 raw_elements: config.raw_elements,
