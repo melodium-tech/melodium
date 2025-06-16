@@ -54,7 +54,7 @@ sql-mel = { path = "../libs/sql-mel", version = "=0.9.0-pre.2", optional = true 
 work-mel = { path = "../libs/work-mel", version = "=0.9.0-pre.2", optional = true }
 
 [features]
-default = ["cli", "webassembly-edition"]
+default = ["cli", "standard-edition"]
 cli = ["clap", "colored"]
 jeu = ["melodium-loader/jeu"]
 cicd = ["distribution", "fs", "network", "cicd-mel/real"]
