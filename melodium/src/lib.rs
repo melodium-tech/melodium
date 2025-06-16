@@ -442,10 +442,12 @@ mod wasm {
         let loader = Loader::new(core_config());
 
         match loader.load_mapped(files.files).and_then(|package| {
-            loader.build().and_then(|coll| {
-                LoadingResult::new_success(Loaded {
-                    package: package.as_ref().into(),
-                    collection: coll.as_ref().into(),
+            loader.load_all().and_then(|_| {
+                loader.build().and_then(|coll| {
+                    LoadingResult::new_success(Loaded {
+                        package: package.as_ref().into(),
+                        collection: coll.as_ref().into(),
+                    })
                 })
             })
         }) {
