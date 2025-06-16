@@ -72,7 +72,8 @@ treatment writeText(path: string, append: bool = false, create: bool = true, new
     write(append=append, create=create, new=new)
     toUtf8()
 
-    Self.data -> triggerData.stream,start -> emitFilename.trigger,emit -> write.path
+    Self.filesystem ----------------------------------------------------> write.filesystem
+    Self.text -> triggerData.stream,start -> emitFilename.trigger,emit -> write.path
     Self.text -> toUtf8.text,encoded -----------------------------------> write.data
 
     write.completed -> Self.completed
