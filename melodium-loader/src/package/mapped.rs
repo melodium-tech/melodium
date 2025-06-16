@@ -49,26 +49,28 @@ impl MappedPackage {
         let mut contents = HashMap::new();
 
         for (path, data) in map.iter() {
-            if let Some(content) = result.merge_degrade_failure(
-                Content::new(
-                    &if path == LIB_ROOT_FILENAME {
-                        composition.name.clone()
-                    } else {
-                        format!("{}/{}", composition.name, path,)
-                    },
-                    data,
-                    &composition.version,
-                    &composition
-                        .requirements
-                        .iter()
-                        .map(|pkg_req| {
-                            (pkg_req.package.clone(), pkg_req.version_requirement.clone())
-                        })
-                        .collect(),
-                )
-                .convert_failure_errors(|err| LoadingError::content_error(231, Arc::new(err))),
-            ) {
-                contents.insert(path.clone(), Arc::new(content));
+            if path.ends_with(".mel") {
+                if let Some(content) = result.merge_degrade_failure(
+                    Content::new(
+                        &if path == LIB_ROOT_FILENAME {
+                            composition.name.clone()
+                        } else {
+                            format!("{}/{}", composition.name, path,)
+                        },
+                        data,
+                        &composition.version,
+                        &composition
+                            .requirements
+                            .iter()
+                            .map(|pkg_req| {
+                                (pkg_req.package.clone(), pkg_req.version_requirement.clone())
+                            })
+                            .collect(),
+                    )
+                    .convert_failure_errors(|err| LoadingError::content_error(231, Arc::new(err))),
+                ) {
+                    contents.insert(path.clone(), Arc::new(content));
+                }
             }
         }
 
