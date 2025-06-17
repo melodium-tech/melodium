@@ -407,7 +407,11 @@ mod wasm {
                 name: value.name().to_string(),
                 version: value.version().to_string(),
                 requirements: value.requirements().iter().map(|s| s.into()).collect(),
-                entrypoints: BTreeMap::new(),
+                entrypoints: value
+                    .entrypoints()
+                    .iter()
+                    .map(|(entry_name, entry_id)| (entry_name.clone(), entry_id.into()))
+                    .collect(),
             }
         }
     }
