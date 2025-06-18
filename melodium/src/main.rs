@@ -328,6 +328,18 @@ fn run(args: Run) {
 
 fn check(args: Check) {
     if args.all {
+        if args
+            .prog_cmd
+            .as_ref()
+            .filter(|arg| !arg.starts_with('-'))
+            .is_some()
+            || args.force_entry.is_some()
+        {
+            eprintln!(
+                "{}: entrypoint is ignored when --all is activated",
+                "warning".bold().yellow()
+            );
+        }
         let result = load_all(LoadingConfig {
             core_packages: Vec::new(),
             search_locations: args
