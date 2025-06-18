@@ -7,6 +7,8 @@ use std::sync::Arc;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "webassembly", derive(tsify::Tsify))]
+#[cfg_attr(feature = "webassembly", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum DataType {
     /// Special variant not aimed to be explicitly used,
     /// it corresponds to the case a value Vec or Option
