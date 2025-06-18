@@ -13,6 +13,8 @@ use std::{
 };
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "webassembly", derive(tsify::Tsify))]
+#[cfg_attr(feature = "webassembly", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Treatment {
     pub identifier: Identifier,
     pub documentation: String,
@@ -258,6 +260,8 @@ impl From<&Arc<dyn CommonTreatment>> for Treatment {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "webassembly", derive(tsify::Tsify))]
+#[cfg_attr(feature = "webassembly", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum TreatmentImplementationKind {
     Compiled,
     Designed(Option<TreatmentDesign>),

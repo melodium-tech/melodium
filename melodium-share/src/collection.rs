@@ -8,6 +8,8 @@ use std::collections::VecDeque;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "webassembly", derive(tsify::Tsify))]
+#[cfg_attr(feature = "webassembly", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum Element {
     Context(Context),
     Data(Data),
@@ -51,6 +53,8 @@ impl From<&Entry> for Element {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "webassembly", derive(tsify::Tsify))]
+#[cfg_attr(feature = "webassembly", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Collection {
     elements: Vec<Element>,
 }

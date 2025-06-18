@@ -3,6 +3,8 @@ use melodium_common::descriptor::Data as CommonData;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "webassembly", derive(tsify::Tsify))]
+#[cfg_attr(feature = "webassembly", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Data {
     pub identifier: Identifier,
     pub documentation: String,

@@ -6,6 +6,8 @@ use melodium_common::descriptor::{Identifier as CommonIdentifier, Version};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "webassembly", derive(tsify::Tsify))]
+#[cfg_attr(feature = "webassembly", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Identifier {
     pub version: Option<String>,
     pub path: Vec<String>,
