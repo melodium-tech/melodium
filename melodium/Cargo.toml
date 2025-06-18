@@ -68,7 +68,7 @@ javascript = ["javascript-mel/real", "json-mel/real"]
 sql = ["sql-mel/real"]
 standard-edition = ["jeu", "doc", "cicd", "distribution", "fs", "log", "network", "text", "javascript", "sql", "std-mel/real"]
 container-edition = ["standard-edition", "work-mel/kubernetes"]
-webassembly-edition = ["melodium-share", "jeu", "doc", "std-mel/mock", "cicd-mel/mock", "log-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "sql-mel/mock", "distrib-mel/mock", "work-mel/mock", "uuid", "fs-mel/mock", "process-mel/mock", "net-mel/mock", "http-mel/mock"]
+webassembly-edition = ["melodium-share/webassembly", "jeu", "doc", "std-mel/mock", "cicd-mel/mock", "log-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "sql-mel/mock", "distrib-mel/mock", "work-mel/mock", "uuid", "fs-mel/mock", "process-mel/mock", "net-mel/mock", "http-mel/mock"]
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
