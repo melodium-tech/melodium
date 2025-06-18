@@ -30,6 +30,8 @@ impl Into<IO> for &IoDesign {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "webassembly", derive(tsify::Tsify))]
+#[cfg_attr(feature = "webassembly", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct ConnectionDesign {
     pub output_treatment: IoDesign,
     pub output_name: String,

@@ -2,6 +2,7 @@ use melodium_common::descriptor::Attributes as CommonAttributes;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+#[cfg_attr(feature = "webassembly", tsify::declare)]
 pub type Attribute = String;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
