@@ -38,6 +38,8 @@ pub struct Request {
     pub volumes: Vec<Volume>,
     pub containers: Vec<Container>,
     pub service_containers: Vec<ServiceContainer>,
+    #[serde(default)]
+    pub local_exec: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -143,4 +145,23 @@ where
 
     // Return unit as our 'Unknown' variant has no args
     Ok(())
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DistributionResult {
+    Success(Option<Vec<String>>),
+    Failure(Option<Vec<String>>),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LocalEnd {
+    pub job_id: Uuid,
+    pub result: DistributionResult,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LocalLaunched {
+    pub job_id: Uuid,
+    pub response: DistributionResponse,
 }
