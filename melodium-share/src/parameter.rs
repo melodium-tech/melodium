@@ -5,6 +5,8 @@ use melodium_common::descriptor::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "webassembly", derive(tsify::Tsify))]
+#[cfg_attr(feature = "webassembly", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Parameter {
     pub name: String,
     pub variability: Variability,
@@ -23,7 +25,6 @@ impl Parameter {
             .to_described_type(collection, scope)
             .and_then(|described_type| {
                 let default = if let Some(val) = &self.default {
-                    // TODO change when #81
                     Some(val.to_value(collection))
                 } else {
                     None
