@@ -474,7 +474,11 @@ impl Documentation {
         };
 
         let base = if let Some(base_model) = model.base_model() {
-            format!("Based on `{}`\n\n", base_model.identifier())
+            format!(
+                "Based on [`{id}`]({link})\n\n",
+                id = base_model.identifier(),
+                link = self.get_link(model.identifier(), base_model.identifier())
+            )
         } else {
             String::new()
         };
