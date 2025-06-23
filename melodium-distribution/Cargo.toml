@@ -1,6 +1,6 @@
 [package]
 name = "melodium-distribution"
-version = "0.9.0-pre.2"
+version = "0.9.0-pre.3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -16,10 +16,10 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 name = "melodium_distribution"
 
 [dependencies]
-melodium-common = { path = "../melodium-common", version = "=0.9.0-pre.2" }
-melodium-engine = { path = "../melodium-engine", version = "=0.9.0-pre.2" }
-melodium-share = { path = "../melodium-share", version = "=0.9.0-pre.2" }
-melodium-loader = { path = "../melodium-loader", version = "=0.9.0-pre.2" }
+melodium-common = { path = "../melodium-common", version = "=0.9.0-pre.3" }
+melodium-engine = { path = "../melodium-engine", version = "=0.9.0-pre.3" }
+melodium-share = { path = "../melodium-share", version = "=0.9.0-pre.3" }
+melodium-loader = { path = "../melodium-loader", version = "=0.9.0-pre.3" }
 async-std = { version = "1.13", features = ["unstable"] }
 ciborium = "0.2.2"
 futures = "0.3.28"

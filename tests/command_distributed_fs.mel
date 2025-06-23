@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = command_distributed
-#! version = 0.9.0-pre.2
-#! require = std:=0.9.0-pre.2 work:=0.9.0-pre.2 distrib:=0.9.0-pre.2 process:=0.9.0-pre.2 fs:=0.9.0-pre.2
+#! version = 0.9.0-pre.3
+#! require = std:=0.9.0-pre.3 work:=0.9.0-pre.3 distrib:=0.9.0-pre.3 process:=0.9.0-pre.3 fs:=0.9.0-pre.3
 
 use std/flow::emit
 use std/flow::trigger
@@ -32,7 +32,7 @@ use fs/file::write
 
 treatment main(const distant: string, const key: string, var input_data: string, var output_data: string)
   model distant: DistantEngine(address=distant, key=key)
-  model distributor: DistributionEngine(treatment="command_distributed::command", version="=0.9.0-pre.2")
+  model distributor: DistributionEngine(treatment="command_distributed::command", version="=0.9.0-pre.3")
 {
     startup()
     distant[distant_engine=distant](max_duration=600, memory=280, cpu=1000, storage=256, edition=_, volumes=[|volume("sharedfolder", 50)], arch=_, containers=[|container("ubuntu", 1000, 1000, 3000, |arm64(), [|mount("sharedfolder", "/mnt/the_shared_folder")], "ubuntu:jammy", _)])

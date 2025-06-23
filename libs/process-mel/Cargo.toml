@@ -1,6 +1,6 @@
 [package]
 name = "process-mel"
-version = "0.9.0-pre.2"
+version = "0.9.0-pre.3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -20,10 +20,10 @@ name = "process_mel"
 async-std = { version = "1.13", features = ["unstable"] }
 async-trait = "0.1.71"
 futures = "0.3.28"
-melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.2" }
-melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.2" }
+melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.3" }
+melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.3" }
 regex = "1.9.1"
-std-mel = { path = "../std-mel", version = "=0.9.0-pre.2" }
+std-mel = { path = "../std-mel", version = "=0.9.0-pre.3" }
 serde = "1.0.185"
 shlex = "1.3"
 

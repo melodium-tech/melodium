@@ -1,6 +1,6 @@
 [package]
 name = "http-mel"
-version = "0.9.0-pre.2"
+version = "0.9.0-pre.3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -19,10 +19,10 @@ name = "http_mel"
 [dependencies]
 async-std = {version="1.13", features=["unstable"]}
 futures = "0.3"
-melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.2" }
-melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.2" }
-std-mel = { path = "../std-mel", version = "=0.9.0-pre.2" }
-net-mel = { path = "../net-mel", version = "=0.9.0-pre.2" }
+melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.3" }
+melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.3" }
+std-mel = { path = "../std-mel", version = "=0.9.0-pre.3" }
+net-mel = { path = "../net-mel", version = "=0.9.0-pre.3" }
 serde = "1.0.185"
 trillium = { version = "0.2", features = ["serde"] }
 trillium-router = "0.4"
