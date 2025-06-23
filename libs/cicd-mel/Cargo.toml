@@ -1,6 +1,6 @@
 [package]
 name = "cicd-mel"
-version = "0.9.0-pre.2"
+version = "0.9.0-pre.3"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -17,16 +17,16 @@ crate-type = ["lib", "cdylib"]
 name = "cicd_mel"
 
 [dependencies]
-melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.2" }
-melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.2" }
-std-mel = { path = "../std-mel", version = "=0.9.0-pre.2" }
-http-mel = { path = "../http-mel", version = "=0.9.0-pre.2" }
-json-mel = { path = "../json-mel", version = "=0.9.0-pre.2" }
-log-mel = { path = "../log-mel", version = "=0.9.0-pre.2" }
-process-mel = { path = "../process-mel", version = "=0.9.0-pre.2" }
-fs-mel = { path = "../fs-mel", version = "=0.9.0-pre.2" }
-work-mel = { path = "../work-mel", version = "=0.9.0-pre.2" }
-distrib-mel = { path = "../distrib-mel", version = "=0.9.0-pre.2" }
+melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.3" }
+melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.3" }
+std-mel = { path = "../std-mel", version = "=0.9.0-pre.3" }
+http-mel = { path = "../http-mel", version = "=0.9.0-pre.3" }
+json-mel = { path = "../json-mel", version = "=0.9.0-pre.3" }
+log-mel = { path = "../log-mel", version = "=0.9.0-pre.3" }
+process-mel = { path = "../process-mel", version = "=0.9.0-pre.3" }
+fs-mel = { path = "../fs-mel", version = "=0.9.0-pre.3" }
+work-mel = { path = "../work-mel", version = "=0.9.0-pre.3" }
+distrib-mel = { path = "../distrib-mel", version = "=0.9.0-pre.3" }
 serde = { version = "1.0", features = ["derive"] }
 
 [features]
