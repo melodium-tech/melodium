@@ -71,7 +71,8 @@ pub struct Log {
 
 impl Log {
     pub fn new(timestamp: DateTime<Utc>, level: LogLevel, label: String, message: String) -> Self {
-        LOG_COUNT.fetch_add(1, Ordering::Relaxed);
+        let val = LOG_COUNT.fetch_add(1, Ordering::Relaxed);
+        eprintln!("Log count: {}", val + 1);
         Self {
             timestamp,
             level,
@@ -84,7 +85,8 @@ impl Log {
 
 impl Drop for Log {
     fn drop(&mut self) {
-        LOG_COUNT.fetch_sub(1, Ordering::Relaxed);
+        let val = LOG_COUNT.fetch_sub(1, Ordering::Relaxed);
+        eprintln!("Log count: {}", val - 1);
     }
 }
 
@@ -92,7 +94,8 @@ fn deserialize_increment_log_count<'de, D>(_deserializer: D) -> Result<(), D::Er
 where
     D: Deserializer<'de>,
 {
-    LOG_COUNT.fetch_add(1, Ordering::Relaxed);
+    let val = LOG_COUNT.fetch_add(1, Ordering::Relaxed);
+    eprintln!("Log count: {}", val + 1);
     Ok(())
 }
 
@@ -213,7 +216,7 @@ impl Logger {
                 track_id,
             },
             HashMapEntry::Vacant(vacant_entry) => {
-                let couple = bounded(500);
+                let couple = bounded(10);
                 let entry = vacant_entry.insert(TrackLogEntry {
                     track_sender: couple.0,
                     track_receiver: couple.1,
@@ -240,7 +243,7 @@ impl Logger {
                 occupied_entry.get().track_receiver.clone()
             }
             HashMapEntry::Vacant(vacant_entry) => {
-                let couple = bounded(500);
+                let couple = bounded(10);
                 let entry = vacant_entry.insert(TrackLogEntry {
                     track_sender: couple.0,
                     track_receiver: couple.1,
@@ -294,14 +297,24 @@ impl Logger {
                                 () = recv_finish => break,
                                 _ = barrier => {
                                     if !immediate_stop.load(Ordering::Relaxed) {
+                                        let mut iter = 0;
                                         loop {
                                             match receiver.try_recv() {
                                                 Ok(log) => {
                                                     check!(all.send_one(Value::Data(log)).await)
                                                 },
                                                 Err(_) => {
-                                                    if LOG_COUNT.load(Ordering::Relaxed) != 0 {
-                                                        async_std::task::sleep(Duration::from_millis(100)).await;
+                                                    let val = LOG_COUNT.load(Ordering::Relaxed);
+                                                    if val != 0 {
+                                                        iter += 1;
+                                                        eprintln!("Don't closing because {val} remaining logs");
+                                                        if iter <=10 {
+                                                            eprintln!("Waiting");
+                                                            async_std::task::sleep(Duration::from_millis(1000)).await
+                                                        } else {
+                                                            eprintln!("Close anyway");
+                                                            break
+                                                        }
                                                     } else {
                                                         break
                                                     }
