@@ -71,8 +71,7 @@ pub struct Log {
 
 impl Log {
     pub fn new(timestamp: DateTime<Utc>, level: LogLevel, label: String, message: String) -> Self {
-        let val = LOG_COUNT.fetch_add(1, Ordering::Relaxed);
-        eprintln!("Log count: {}", val + 1);
+        LOG_COUNT.fetch_add(1, Ordering::Relaxed);
         Self {
             timestamp,
             level,
@@ -85,8 +84,7 @@ impl Log {
 
 impl Drop for Log {
     fn drop(&mut self) {
-        let val = LOG_COUNT.fetch_sub(1, Ordering::Relaxed);
-        eprintln!("Log count: {}", val - 1);
+        LOG_COUNT.fetch_sub(1, Ordering::Relaxed);
     }
 }
 
@@ -94,8 +92,7 @@ fn deserialize_increment_log_count<'de, D>(_deserializer: D) -> Result<(), D::Er
 where
     D: Deserializer<'de>,
 {
-    let val = LOG_COUNT.fetch_add(1, Ordering::Relaxed);
-    eprintln!("Log count: {}", val + 1);
+    LOG_COUNT.fetch_add(1, Ordering::Relaxed);
     Ok(())
 }
 
@@ -216,7 +213,7 @@ impl Logger {
                 track_id,
             },
             HashMapEntry::Vacant(vacant_entry) => {
-                let couple = bounded(10);
+                let couple = bounded(500);
                 let entry = vacant_entry.insert(TrackLogEntry {
                     track_sender: couple.0,
                     track_receiver: couple.1,
@@ -243,7 +240,7 @@ impl Logger {
                 occupied_entry.get().track_receiver.clone()
             }
             HashMapEntry::Vacant(vacant_entry) => {
-                let couple = bounded(10);
+                let couple = bounded(500);
                 let entry = vacant_entry.insert(TrackLogEntry {
                     track_sender: couple.0,
                     track_receiver: couple.1,
@@ -307,12 +304,9 @@ impl Logger {
                                                     let val = LOG_COUNT.load(Ordering::Relaxed);
                                                     if val != 0 {
                                                         iter += 1;
-                                                        eprintln!("Don't closing because {val} remaining logs");
                                                         if iter <=10 {
-                                                            eprintln!("Waiting");
-                                                            async_std::task::sleep(Duration::from_millis(1000)).await
+                                                            async_std::task::sleep(Duration::from_millis(100)).await
                                                         } else {
-                                                            eprintln!("Close anyway");
                                                             break
                                                         }
                                                     } else {
