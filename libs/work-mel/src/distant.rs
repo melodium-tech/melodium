@@ -262,8 +262,13 @@ impl DistantEngine {
                                                     async_std::task::sleep(Duration::from_secs(5))
                                                         .await
                                                 }
-                                                200 => match response.json().await {
-                                                    Ok(distribution) => return Ok(distribution),
+                                                200 => match response
+                                                    .json::<api::DistributionResponse>()
+                                                    .await
+                                                {
+                                                    Ok(distribution) => {
+                                                        return Ok((distribution, vec![]))
+                                                    }
                                                     Err(error) => {
                                                         return Err(Self::manage_error(error).await)
                                                     }
