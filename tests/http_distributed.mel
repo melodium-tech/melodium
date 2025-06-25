@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = http_distributed
-#! version = 0.9.0-pre.3
-#! require = http:=0.9.0-pre.3 std:=0.9.0-pre.3 javascript:=0.9.0-pre.3 encoding:=0.9.0-pre.3 json:=0.9.0-pre.3 distrib:=0.9.0-pre.3 work:=0.9.0-pre.3 fs:=0.9.0-pre.3 net:=0.9.0-pre.3
+#! version = 0.9.0-pre.4
+#! require = http:=0.9.0-pre.4 std:=0.9.0-pre.4 javascript:=0.9.0-pre.4 encoding:=0.9.0-pre.4 json:=0.9.0-pre.4 distrib:=0.9.0-pre.4 work:=0.9.0-pre.4 fs:=0.9.0-pre.4 net:=0.9.0-pre.4
 
 use http/server::HttpServer
 use http/server::start as startHttp
@@ -35,7 +35,7 @@ use json/value::|null
 use fs/local::writeTextLocal
 
 treatment main(const distrib_port: u16, var remote_key: string, var self_key: string)
-  model distributor: DistributionEngine(treatment="http_distributed::js_function", version="0.9.0-pre.3")
+  model distributor: DistributionEngine(treatment="http_distributed::js_function", version="0.9.0-pre.4")
   model server: HttpServer(
     host=|from_ipv4(|localhost_ipv4()),
     port=28015

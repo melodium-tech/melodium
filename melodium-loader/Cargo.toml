@@ -1,6 +1,6 @@
 [package]
 name = "melodium-loader"
-version = "0.9.0-pre.3"
+version = "0.9.0-pre.4"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2018"
@@ -16,10 +16,10 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 name = "melodium_loader"
 
 [dependencies]
-melodium-common = { path = "../melodium-common", version = "=0.9.0-pre.3" }
-melodium-engine = { path = "../melodium-engine", version = "=0.9.0-pre.3" }
-melodium-lang = { path = "../melodium-lang", version = "=0.9.0-pre.3", optional = true }
-melodium-repository = { path = "../melodium-repository", version = "=0.9.0-pre.3" }
+melodium-common = { path = "../melodium-common", version = "=0.9.0-pre.4" }
+melodium-engine = { path = "../melodium-engine", version = "=0.9.0-pre.4" }
+melodium-lang = { path = "../melodium-lang", version = "=0.9.0-pre.4", optional = true }
+melodium-repository = { path = "../melodium-repository", version = "=0.9.0-pre.4" }
 banzai = { version = "0.3.1", optional = true }
 bzip2-rs = { version = "0.1.2", features = ["rustc_1_51"], optional = true }
 glob = { version = "0.3.1", optional = true }

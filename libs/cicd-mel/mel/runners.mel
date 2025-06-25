@@ -34,7 +34,7 @@ model CicdDispatchEngine(location: string = "api", api_token: string, api_url: s
 
 model CicdRunnerEngine(): DistributionEngine {
     treatment = "cicd/steps::step"
-    version = "0.9.0-pre.3"
+    version = "0.9.0-pre.4"
 }
 
 /**

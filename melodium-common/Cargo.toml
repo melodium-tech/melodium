@@ -1,6 +1,6 @@
 [package]
 name = "melodium-common"
-version = "0.9.0-pre.3"
+version = "0.9.0-pre.4"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2018"
