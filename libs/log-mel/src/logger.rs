@@ -304,7 +304,7 @@ impl Logger {
                                                     let val = LOG_COUNT.load(Ordering::Relaxed);
                                                     if val != 0 {
                                                         iter += 1;
-                                                        if iter <=10 {
+                                                        if iter <= 10 {
                                                             async_std::task::sleep(Duration::from_millis(1000)).await
                                                         } else {
                                                             break
