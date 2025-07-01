@@ -68,7 +68,10 @@ impl DistantEngine {
     }
 
     #[cfg(feature = "mock")]
-    pub async fn start(&self, request: api::Request) -> Result<api::DistributionResponse, String> {
+    pub async fn start(
+        &self,
+        request: api::Request,
+    ) -> Result<(api::DistributionResponse, Vec<String>), String> {
         Err("Mock mode, nothing to do".to_string())
     }
 
@@ -89,17 +92,19 @@ impl DistantEngine {
             self.api_token.read().unwrap().clone(),
         );
         if let (Some(api_url), Some(api_token)) = (&api_url, &api_token) {
-            match generic_async_http_client::Request::post(&format!("{api_url}/execution/job/start"))
-                .add_header("User-Agent", crate::USER_AGENT)
-                .map_err(|err| err.to_string())?
-                .add_header("Authorization", format!("Bearer {api_token}").as_bytes())
-                .map_err(|err| err.to_string())?
-                .add_header("Content-Type", "application/json")
-                .map_err(|err| err.to_string())?
-                .body(serde_json::to_string(&request).unwrap())
-                .map_err(|err| err.to_string())?
-                .exec()
-                .await
+            match generic_async_http_client::Request::post(&format!(
+                "{api_url}/execution/job/start"
+            ))
+            .add_header("User-Agent", crate::USER_AGENT)
+            .map_err(|err| err.to_string())?
+            .add_header("Authorization", format!("Bearer {api_token}").as_bytes())
+            .map_err(|err| err.to_string())?
+            .add_header("Content-Type", "application/json")
+            .map_err(|err| err.to_string())?
+            .body(serde_json::to_string(&request).unwrap())
+            .map_err(|err| err.to_string())?
+            .exec()
+            .await
             {
                 Ok(mut response) => {
                     if response.status_code() == 200 {
@@ -135,26 +140,28 @@ impl DistantEngine {
         if let (Some(job_api_id), Some(api_url), Some(api_token)) =
             (job_api_id.clone(), &api_url, &api_token)
         {
-            match generic_async_http_client::Request::post(&format!("{api_url}/execution/job/launched"))
-                .add_header("User-Agent", crate::USER_AGENT)
-                .map_err(|err| err.to_string())?
-                .add_header("Authorization", format!("Bearer {api_token}").as_bytes())
-                .map_err(|err| err.to_string())?
-                .add_header("Content-Type", "application/json")
-                .map_err(|err| err.to_string())?
-                .body(
-                    serde_json::to_string(&api::LocalLaunched {
-                        job_id: job_api_id,
-                        response: match &response {
-                            Ok(_) => api::DistributionResponse::Started(None),
-                            Err(errs) => api::DistributionResponse::Error(errs.clone()),
-                        },
-                    })
-                    .unwrap(),
-                )
-                .map_err(|err| err.to_string())?
-                .exec()
-                .await
+            match generic_async_http_client::Request::post(&format!(
+                "{api_url}/execution/job/launched"
+            ))
+            .add_header("User-Agent", crate::USER_AGENT)
+            .map_err(|err| err.to_string())?
+            .add_header("Authorization", format!("Bearer {api_token}").as_bytes())
+            .map_err(|err| err.to_string())?
+            .add_header("Content-Type", "application/json")
+            .map_err(|err| err.to_string())?
+            .body(
+                serde_json::to_string(&api::LocalLaunched {
+                    job_id: job_api_id,
+                    response: match &response {
+                        Ok(_) => api::DistributionResponse::Started(None),
+                        Err(errs) => api::DistributionResponse::Error(errs.clone()),
+                    },
+                })
+                .unwrap(),
+            )
+            .map_err(|err| err.to_string())?
+            .exec()
+            .await
             {
                 Ok(mut response) => {
                     if response.status_code() != 200 {
@@ -179,37 +186,39 @@ impl DistantEngine {
                     if let (Some(job_api_id), Some(api_url), Some(api_token)) =
                         (job_api_id, api_url, api_token)
                     {
-                        let _ = generic_async_http_client::Request::post(&format!("{api_url}/execution/job/ended"))
-                            .add_header("User-Agent", crate::USER_AGENT)?
-                            .add_header("Authorization", format!("Bearer {api_token}").as_bytes())?
-                            .add_header("Content-Type", "application/json")?
-                            .body(
-                                serde_json::to_string(&api::LocalEnd {
-                                    job_id: job_api_id,
-                                    result: match status {
-                                        Ok(exit) => {
-                                            if exit.success() {
-                                                api::DistributionResult::Success(None)
-                                            } else {
-                                                api::DistributionResult::Failure(Some(vec![
-                                                    format!(
-                                                        "Compose exit code {}",
-                                                        exit.code()
-                                                            .map(|code| code.to_string())
-                                                            .unwrap_or("undefined".into())
-                                                    ),
-                                                ]))
-                                            }
+                        let _ = generic_async_http_client::Request::post(&format!(
+                            "{api_url}/execution/job/ended"
+                        ))
+                        .add_header("User-Agent", crate::USER_AGENT)?
+                        .add_header("Authorization", format!("Bearer {api_token}").as_bytes())?
+                        .add_header("Content-Type", "application/json")?
+                        .body(
+                            serde_json::to_string(&api::LocalEnd {
+                                job_id: job_api_id,
+                                result: match status {
+                                    Ok(exit) => {
+                                        if exit.success() {
+                                            api::DistributionResult::Success(None)
+                                        } else {
+                                            api::DistributionResult::Failure(Some(vec![format!(
+                                                "Compose exit code {}",
+                                                exit.code()
+                                                    .map(|code| code.to_string())
+                                                    .unwrap_or("undefined".into())
+                                            )]))
                                         }
-                                        Err(err) => api::DistributionResult::Failure(Some(vec![
-                                            err.to_string(),
-                                        ])),
-                                    },
-                                })
-                                .unwrap(),
-                            )?
-                            .exec()
-                            .await;
+                                    }
+                                    Err(err) => {
+                                        api::DistributionResult::Failure(Some(
+                                            vec![err.to_string()],
+                                        ))
+                                    }
+                                },
+                            })
+                            .unwrap(),
+                        )?
+                        .exec()
+                        .await;
                     }
                     Ok::<(), generic_async_http_client::Error>(())
                 };
@@ -222,6 +231,7 @@ impl DistantEngine {
         }
     }
 
+    #[cfg(feature = "real")]
     async fn distrib_api(
         &self,
         request: api::Request,

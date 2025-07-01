@@ -5,10 +5,8 @@ use melodium_common::descriptor::{
     Collection, Context, Entry, Function, Identified, Identifier, IdentifierRequirement,
     Loader as LoaderTrait, LoadingError, LoadingResult, Model, PackageRequirement, Treatment,
 };
-use melodium_repository::network::NetworkRepositoryConfiguration;
-use melodium_repository::{Repository, RepositoryConfig};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 /**
  * Manages loading of Mélodium packages.
@@ -34,30 +32,32 @@ impl Loader {
             package_manager: PackageManager::new(PackageManagerConfiguration {
                 repositories: vec![
                     #[cfg(feature = "filesystem")]
-                    Arc::new(Mutex::new(Repository::new(RepositoryConfig {
-                        repository_location: {
-                            let mut path = std::env::var_os("MELODIUM_HOME")
-                                .map(|var| var.into())
-                                .or_else(|| {
-                                    simple_home_dir::home_dir().map(|mut path| {
-                                        path.push(".melodium");
-                                        path
+                    Arc::new(std::sync::Mutex::new(melodium_repository::Repository::new(
+                        melodium_repository::RepositoryConfig {
+                            repository_location: {
+                                let mut path = std::env::var_os("MELODIUM_HOME")
+                                    .map(|var| var.into())
+                                    .or_else(|| {
+                                        simple_home_dir::home_dir().map(|mut path| {
+                                            path.push(".melodium");
+                                            path
+                                        })
                                     })
-                                })
-                                .unwrap_or_else(|| {
-                                    let mut path = std::env::temp_dir();
-                                    path.push("melodium");
-                                    path
-                                });
-                            path.push(env!("CARGO_PKG_VERSION"));
-                            path
+                                    .unwrap_or_else(|| {
+                                        let mut path = std::env::temp_dir();
+                                        path.push("melodium");
+                                        path
+                                    });
+                                path.push(env!("CARGO_PKG_VERSION"));
+                                path
+                            },
+                            network: if cfg!(feature = "network") {
+                                Some(melodium_repository::network::NetworkRepositoryConfiguration::new())
+                            } else {
+                                None
+                            },
                         },
-                        network: if cfg!(feature = "network") {
-                            Some(NetworkRepositoryConfiguration::new())
-                        } else {
-                            None
-                        },
-                    }))),
+                    ))),
                 ],
                 core_packages: config.core_packages,
                 search_locations: config.search_locations,
