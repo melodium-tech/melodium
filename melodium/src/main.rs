@@ -53,6 +53,9 @@ struct Run {
 #[derive(clap::Args, Debug)]
 /// Check given program
 struct Check {
+    /// Check all elements in the required packages, ignoring entrypoint.
+    #[clap(short, long, action)]
+    all: bool,
     #[clap(long)]
     /// Path to look for packages.
     path: Vec<String>,
@@ -275,6 +278,7 @@ pub fn main() {
 
 fn run(args: Run) {
     if let Ok((identifier, collection)) = check_load(Check {
+        all: false, // Ignored by check_load
         file: args.file,
         path: args.path,
         force_entry: args.force_entry.clone(),
@@ -323,10 +327,40 @@ fn run(args: Run) {
 }
 
 fn check(args: Check) {
-    if let Ok(_) = check_load(args) {
-        std::process::exit(0);
+    if args.all {
+        if args
+            .prog_cmd
+            .as_ref()
+            .filter(|arg| !arg.starts_with('-'))
+            .is_some()
+            || args.force_entry.is_some()
+        {
+            eprintln!(
+                "{}: entrypoint is ignored when --all is activated",
+                "warning".bold().yellow()
+            );
+        }
+        let result = load_all(LoadingConfig {
+            core_packages: Vec::new(),
+            search_locations: args
+                .path
+                .iter()
+                .map(|p| PathBuf::from(p))
+                .collect::<Vec<_>>(),
+            raw_elements: Vec::new(),
+        });
+        if result.is_success() {
+            std::process::exit(0);
+        } else {
+            print_result(&result);
+            std::process::exit(1);
+        }
     } else {
-        std::process::exit(1);
+        if let Ok(_) = check_load(args) {
+            std::process::exit(0);
+        } else {
+            std::process::exit(1);
+        }
     }
 }
 

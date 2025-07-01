@@ -1,6 +1,6 @@
 [package]
 name = "melodium"
-version = "0.9.0-pre.2"
+version = "0.9.0-pre.4"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2018"
@@ -27,31 +27,31 @@ async-std = "1.13"
 clap = { version = "4.0.32", features = ["cargo", "derive", "string"], optional = true }
 colored = { version = "2.0.2", optional = true }
 convert_case = "0.6"
-melodium-common = { path = "../melodium-common", version = "=0.9.0-pre.2" }
-melodium-core = { path = "../melodium-core", version = "=0.9.0-pre.2", optional = true  }
-melodium-engine = { path = "../melodium-engine", version = "=0.9.0-pre.2" }
-melodium-lang = { path = "../melodium-lang", version = "=0.9.0-pre.2" }
-melodium-loader = { path = "../melodium-loader", version = "=0.9.0-pre.2" }
-melodium-distribution = { path = "../melodium-distribution", version = "=0.9.0-pre.2", optional = true  }
-melodium-doc = { path = "../melodium-doc", version = "=0.9.0-pre.2", optional = true }
-melodium-share = { path = "../melodium-share", version = "=0.9.0-pre.2", optional = true }
+melodium-common = { path = "../melodium-common", version = "=0.9.0-pre.4" }
+melodium-core = { path = "../melodium-core", version = "=0.9.0-pre.4", optional = true  }
+melodium-engine = { path = "../melodium-engine", version = "=0.9.0-pre.4" }
+melodium-lang = { path = "../melodium-lang", version = "=0.9.0-pre.4" }
+melodium-loader = { path = "../melodium-loader", version = "=0.9.0-pre.4" }
+melodium-distribution = { path = "../melodium-distribution", version = "=0.9.0-pre.4", optional = true  }
+melodium-doc = { path = "../melodium-doc", version = "=0.9.0-pre.4", optional = true }
+melodium-share = { path = "../melodium-share", version = "=0.9.0-pre.4", optional = true }
 uuid = { version = "1.5.0", features = ["serde"], optional = true }
 
-std-mel = { path = "../libs/std-mel", version = "=0.9.0-pre.2" }
+std-mel = { path = "../libs/std-mel", version = "=0.9.0-pre.4" }
 
-cicd-mel = { path = "../libs/cicd-mel", version = "=0.9.0-pre.2", optional = true }
-distrib-mel = { path = "../libs/distrib-mel", version = "=0.9.0-pre.2", optional = true }
-encoding-mel = { path = "../libs/encoding-mel", version = "=0.9.0-pre.2", optional = true }
-fs-mel = { path = "../libs/fs-mel", version = "=0.9.0-pre.2", optional = true }
-http-mel = { path = "../libs/http-mel", version = "=0.9.0-pre.2", optional = true }
-javascript-mel = { path = "../libs/javascript-mel", version = "=0.9.0-pre.2", optional = true }
-json-mel = { path = "../libs/json-mel", version = "=0.9.0-pre.2", optional = true }
-log-mel = { path = "../libs/log-mel", version = "=0.9.0-pre.2", optional = true }
-net-mel = { path = "../libs/net-mel", version = "=0.9.0-pre.2", optional = true }
-process-mel = { path = "../libs/process-mel", version = "=0.9.0-pre.2", optional = true }
-regex-mel = { path = "../libs/regex-mel", version = "=0.9.0-pre.2", optional = true }
-sql-mel = { path = "../libs/sql-mel", version = "=0.9.0-pre.2", optional = true }
-work-mel = { path = "../libs/work-mel", version = "=0.9.0-pre.2", optional = true }
+cicd-mel = { path = "../libs/cicd-mel", version = "=0.9.0-pre.4", optional = true }
+distrib-mel = { path = "../libs/distrib-mel", version = "=0.9.0-pre.4", optional = true }
+encoding-mel = { path = "../libs/encoding-mel", version = "=0.9.0-pre.4", optional = true }
+fs-mel = { path = "../libs/fs-mel", version = "=0.9.0-pre.4", optional = true }
+http-mel = { path = "../libs/http-mel", version = "=0.9.0-pre.4", optional = true }
+javascript-mel = { path = "../libs/javascript-mel", version = "=0.9.0-pre.4", optional = true }
+json-mel = { path = "../libs/json-mel", version = "=0.9.0-pre.4", optional = true }
+log-mel = { path = "../libs/log-mel", version = "=0.9.0-pre.4", optional = true }
+net-mel = { path = "../libs/net-mel", version = "=0.9.0-pre.4", optional = true }
+process-mel = { path = "../libs/process-mel", version = "=0.9.0-pre.4", optional = true }
+regex-mel = { path = "../libs/regex-mel", version = "=0.9.0-pre.4", optional = true }
+sql-mel = { path = "../libs/sql-mel", version = "=0.9.0-pre.4", optional = true }
+work-mel = { path = "../libs/work-mel", version = "=0.9.0-pre.4", optional = true }
 
 [features]
 default = ["cli", "standard-edition"]

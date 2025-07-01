@@ -5,17 +5,19 @@ use async_std::{
 use chrono::{DateTime, Utc};
 use core::{
     fmt::Display,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     time::Duration,
 };
 use futures::{pin_mut, select, FutureExt};
 use melodium_core::{common::executive::*, *};
 use melodium_macro::{check, mel_data, mel_function, mel_model, mel_treatment};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::{
     collections::{hash_map::Entry as HashMapEntry, HashMap},
     sync::{Arc, Weak},
 };
+
+static LOG_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LogLevel {
@@ -63,6 +65,35 @@ pub struct Log {
     pub level: LogLevel,
     pub label: String,
     pub message: String,
+    #[serde(deserialize_with = "deserialize_increment_log_count")]
+    _count: (),
+}
+
+impl Log {
+    pub fn new(timestamp: DateTime<Utc>, level: LogLevel, label: String, message: String) -> Self {
+        LOG_COUNT.fetch_add(1, Ordering::Relaxed);
+        Self {
+            timestamp,
+            level,
+            label,
+            message,
+            _count: (),
+        }
+    }
+}
+
+impl Drop for Log {
+    fn drop(&mut self) {
+        LOG_COUNT.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
+fn deserialize_increment_log_count<'de, D>(_deserializer: D) -> Result<(), D::Error>
+where
+    D: Deserializer<'de>,
+{
+    LOG_COUNT.fetch_add(1, Ordering::Relaxed);
+    Ok(())
 }
 
 impl melodium_core::executive::ToString for Log {
@@ -264,17 +295,21 @@ impl Logger {
                                 () = recv_finish => break,
                                 _ = barrier => {
                                     if !immediate_stop.load(Ordering::Relaxed) {
-                                        let mut iteration = 0;
+                                        let mut iter = 0;
                                         loop {
                                             match receiver.try_recv() {
                                                 Ok(log) => {
-                                                    iteration = 0;
                                                     check!(all.send_one(Value::Data(log)).await)
                                                 },
                                                 Err(_) => {
-                                                    if iteration < 5 {
-                                                        async_std::task::sleep(Duration::from_millis(100)).await;
-                                                        iteration += 1;
+                                                    let val = LOG_COUNT.load(Ordering::Relaxed);
+                                                    if val != 0 {
+                                                        iter += 1;
+                                                        if iter <= 10 {
+                                                            async_std::task::sleep(Duration::from_millis(1000)).await
+                                                        } else {
+                                                            break
+                                                        }
                                                     } else {
                                                         break
                                                     }
@@ -395,12 +430,12 @@ pub async fn log_stream(level: Level, label: string) {
     {
         check!(
             senders
-                .send(Arc::new(Log {
-                    timestamp: Utc::now(),
-                    level: level.level.clone(),
-                    label: label.clone(),
-                    message: msg
-                }))
+                .send(Arc::new(Log::new(
+                    Utc::now(),
+                    level.level.clone(),
+                    label.clone(),
+                    msg
+                )))
                 .await
         )
     }
@@ -421,12 +456,12 @@ pub async fn log_block(level: Level, label: string) {
         .map(|val| GetData::<string>::try_data(val).unwrap())
     {
         let _ = senders
-            .send(Arc::new(Log {
-                timestamp: Utc::now(),
-                level: level.level.clone(),
-                label: label.clone(),
-                message: msg,
-            }))
+            .send(Arc::new(Log::new(
+                Utc::now(),
+                level.level.clone(),
+                label.clone(),
+                msg,
+            )))
             .await;
     }
     let _ = ended.send_one(().into()).await;
@@ -444,12 +479,12 @@ pub async fn log_data_stream(level: Level, label: string) {
     while let Ok(val) = display.recv_one().await {
         check!(
             senders
-                .send(Arc::new(Log {
-                    timestamp: Utc::now(),
-                    level: level.level.clone(),
-                    label: label.clone(),
-                    message: format!("{val}")
-                }))
+                .send(Arc::new(Log::new(
+                    Utc::now(),
+                    level.level.clone(),
+                    label.clone(),
+                    format!("{val}")
+                )))
                 .await
         )
     }
@@ -467,12 +502,12 @@ pub async fn log_data_block(level: Level, label: string) {
 
     if let Ok(val) = display.recv_one().await {
         let _ = senders
-            .send(Arc::new(Log {
-                timestamp: Utc::now(),
-                level: level.level.clone(),
-                label: label.clone(),
-                message: format!("{val}"),
-            }))
+            .send(Arc::new(Log::new(
+                Utc::now(),
+                level.level.clone(),
+                label.clone(),
+                format!("{val}"),
+            )))
             .await;
     }
     let _ = ended.send_one(().into()).await;

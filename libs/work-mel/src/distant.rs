@@ -2,8 +2,6 @@ use crate::access::*;
 use crate::api;
 use crate::resources::arch::*;
 use crate::resources::*;
-#[cfg(feature = "real")]
-use async_std::process::Child;
 use core::time::Duration;
 use melodium_core::*;
 use melodium_macro::{mel_model, mel_treatment};
@@ -25,8 +23,6 @@ pub struct DistantEngine {
     location: RwLock<Option<String>>,
     api_url: RwLock<Option<String>>,
     api_token: RwLock<Option<String>>,
-    #[cfg(feature = "real")]
-    child: RwLock<Option<Arc<Child>>>,
 }
 
 impl DistantEngine {
@@ -36,8 +32,6 @@ impl DistantEngine {
             location: RwLock::new(None),
             api_url: RwLock::new(None),
             api_token: RwLock::new(None),
-            #[cfg(feature = "real")]
-            child: RwLock::new(None),
         }
     }
 
@@ -58,17 +52,14 @@ impl DistantEngine {
     }
 
     #[cfg(feature = "real")]
-    pub async fn start(&self, request: api::Request) -> Result<api::DistributionResponse, String> {
+    pub async fn start(
+        &self,
+        request: api::Request,
+    ) -> Result<(api::DistributionResponse, Vec<String>), String> {
         let location = self.location.read().unwrap().clone();
         match location.as_ref().map(|loc| loc.as_str()) {
             Some("api") => self.distrib_api(request).await,
-            Some("compose") => match crate::compose::compose(request).await {
-                Ok((access, child)) => {
-                    self.child.write().unwrap().replace(Arc::new(child));
-                    Ok(api::DistributionResponse::Started(Some(access)))
-                }
-                Err(err) => Ok(api::DistributionResponse::Error(err)),
-            },
+            Some("compose") => self.distrib_compose(request).await,
             Some(oth) => Err(format!(
                 "\"{oth}\" is not a recognized distant execution location"
             )),
@@ -84,10 +75,157 @@ impl DistantEngine {
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 
     #[cfg(feature = "real")]
+    async fn distrib_compose(
+        &self,
+        mut request: api::Request,
+    ) -> Result<(api::DistributionResponse, Vec<String>), String> {
+        request.local_exec = true;
+
+        let mut job_api_id = None;
+        let mut api_errors = Vec::new();
+
+        let (api_url, api_token) = (
+            self.api_url.read().unwrap().clone(),
+            self.api_token.read().unwrap().clone(),
+        );
+        if let (Some(api_url), Some(api_token)) = (&api_url, &api_token) {
+            match Request::post(&format!("{api_url}/execution/job/start"))
+                .add_header("User-Agent", crate::USER_AGENT)
+                .map_err(|err| err.to_string())?
+                .add_header("Authorization", format!("Bearer {api_token}").as_bytes())
+                .map_err(|err| err.to_string())?
+                .add_header("Content-Type", "application/json")
+                .map_err(|err| err.to_string())?
+                .body(serde_json::to_string(&request).unwrap())
+                .map_err(|err| err.to_string())?
+                .exec()
+                .await
+            {
+                Ok(mut response) => {
+                    if response.status_code() == 200 {
+                        match response.json::<api::Response>().await {
+                            Ok(response) => match response {
+                                api::Response::Ok(id) => {
+                                    job_api_id = Some(id);
+                                }
+                                api::Response::Error(errs) => {
+                                    api_errors.extend(errs);
+                                }
+                            },
+                            Err(error) => api_errors.push(Self::manage_error(error).await),
+                        }
+                    } else {
+                        match response.text().await {
+                            Ok(body) => api_errors.push(format!(
+                                "Server {} response: {body}",
+                                response.status_code()
+                            )),
+                            Err(error) => api_errors.push(Self::manage_error(error).await),
+                        }
+                    }
+                }
+                Err(error) => api_errors.push(Self::manage_error(error).await),
+            }
+        } else {
+            api_errors.push("API address and token missing".into());
+        }
+
+        let response = crate::compose::compose(request).await;
+
+        if let (Some(job_api_id), Some(api_url), Some(api_token)) =
+            (job_api_id.clone(), &api_url, &api_token)
+        {
+            match Request::post(&format!("{api_url}/execution/job/launched"))
+                .add_header("User-Agent", crate::USER_AGENT)
+                .map_err(|err| err.to_string())?
+                .add_header("Authorization", format!("Bearer {api_token}").as_bytes())
+                .map_err(|err| err.to_string())?
+                .add_header("Content-Type", "application/json")
+                .map_err(|err| err.to_string())?
+                .body(
+                    serde_json::to_string(&api::LocalLaunched {
+                        job_id: job_api_id,
+                        response: match &response {
+                            Ok(_) => api::DistributionResponse::Started(None),
+                            Err(errs) => api::DistributionResponse::Error(errs.clone()),
+                        },
+                    })
+                    .unwrap(),
+                )
+                .map_err(|err| err.to_string())?
+                .exec()
+                .await
+            {
+                Ok(mut response) => {
+                    if response.status_code() != 200 {
+                        match response.text().await {
+                            Ok(body) => api_errors.push(format!(
+                                "Server {} response: {body}",
+                                response.status_code()
+                            )),
+                            Err(error) => api_errors.push(Self::manage_error(error).await),
+                        }
+                    }
+                }
+                Err(error) => api_errors.push(Self::manage_error(error).await),
+            }
+        }
+
+        match response {
+            Ok((access, mut child)) => {
+                let finish_notification = async move {
+                    let status = child.status().await;
+
+                    if let (Some(job_api_id), Some(api_url), Some(api_token)) =
+                        (job_api_id, api_url, api_token)
+                    {
+                        let _ = Request::post(&format!("{api_url}/execution/job/ended"))
+                            .add_header("User-Agent", crate::USER_AGENT)?
+                            .add_header("Authorization", format!("Bearer {api_token}").as_bytes())?
+                            .add_header("Content-Type", "application/json")?
+                            .body(
+                                serde_json::to_string(&api::LocalEnd {
+                                    job_id: job_api_id,
+                                    result: match status {
+                                        Ok(exit) => {
+                                            if exit.success() {
+                                                api::DistributionResult::Success(None)
+                                            } else {
+                                                api::DistributionResult::Failure(Some(vec![
+                                                    format!(
+                                                        "Compose exit code {}",
+                                                        exit.code()
+                                                            .map(|code| code.to_string())
+                                                            .unwrap_or("undefined".into())
+                                                    ),
+                                                ]))
+                                            }
+                                        }
+                                        Err(err) => api::DistributionResult::Failure(Some(vec![
+                                            err.to_string(),
+                                        ])),
+                                    },
+                                })
+                                .unwrap(),
+                            )?
+                            .exec()
+                            .await;
+                    }
+                    Ok::<(), generic_async_http_client::Error>(())
+                };
+
+                async_std::task::spawn(finish_notification);
+
+                Ok((api::DistributionResponse::Started(Some(access)), api_errors))
+            }
+            Err(errs) => Ok((api::DistributionResponse::Error(errs.clone()), api_errors)),
+        }
+    }
+
     async fn distrib_api(
         &self,
         request: api::Request,
-    ) -> Result<api::DistributionResponse, String> {
+    ) -> Result<(api::DistributionResponse, Vec<String>), String> {
         let (api_url, api_token) = (
             self.api_url.read().unwrap().clone(),
             self.api_token.read().unwrap().clone(),
@@ -132,8 +270,13 @@ impl DistantEngine {
                                                     async_std::task::sleep(Duration::from_secs(5))
                                                         .await
                                                 }
-                                                200 => match response.json().await {
-                                                    Ok(distribution) => return Ok(distribution),
+                                                200 => match response
+                                                    .json::<api::DistributionResponse>()
+                                                    .await
+                                                {
+                                                    Ok(distribution) => {
+                                                        return Ok((distribution, vec![]))
+                                                    }
                                                     Err(error) => {
                                                         return Err(Self::manage_error(error).await)
                                                     }
@@ -157,7 +300,7 @@ impl DistantEngine {
                                     }
                                 }
                                 api::Response::Error(errs) => {
-                                    Ok(api::DistributionResponse::Error(errs))
+                                    Ok((api::DistributionResponse::Error(errs), vec![]))
                                 }
                             },
                             Err(error) => Err(Self::manage_error(error).await),
@@ -279,29 +422,32 @@ pub async fn distant(
             .into_iter()
             .map(|cont| cont.0.clone())
             .collect(),
+        local_exec: false,
     };
 
     if let Ok(_) = trigger.recv_one().await {
         match distant.start(start).await {
-            Ok(distrib) => match distrib {
-                api::DistributionResponse::Started(Some(access_info)) => {
-                    let _ = access
-                        .send_one(Value::Data(Arc::new(Access(api::CommonAccess {
-                            addresses: access_info.addresses,
-                            port: access_info.port,
-                            remote_key: access_info.key,
-                            self_key: key,
-                            disable_tls: access_info.disable_tls,
-                        }))))
-                        .await;
+            Ok((distrib, api_errors)) => {
+                let _ = errors.send_many(api_errors.into()).await;
+                match distrib {
+                    api::DistributionResponse::Started(Some(access_info)) => {
+                        let _ = access
+                            .send_one(Value::Data(Arc::new(Access(api::CommonAccess {
+                                addresses: access_info.addresses,
+                                port: access_info.port,
+                                remote_key: access_info.key,
+                                self_key: key,
+                                disable_tls: access_info.disable_tls,
+                            }))))
+                            .await;
+                    }
+                    api::DistributionResponse::Started(None) => {}
+                    api::DistributionResponse::Error(errs) => {
+                        let _ = failed.send_one(().into()).await;
+                        let _ = errors.send_many(errs.into()).await;
+                    }
                 }
-                api::DistributionResponse::Started(None) => {}
-                api::DistributionResponse::Error(errs) => {
-                    let _ = failed.send_one(().into()).await;
-                    let _ = errors.send_many(errs.into()).await;
-                }
-            },
-
+            }
             Err(err) => {
                 let _ = failed.send_one(().into()).await;
                 let _ = errors.send_many(vec![err].into()).await;
