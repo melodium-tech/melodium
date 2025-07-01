@@ -1,5 +1,4 @@
 use crate::filesystem::*;
-use async_std::fs::{self, DirBuilder, OpenOptions};
 use async_std::path::{Path, PathBuf};
 use async_std::stream::StreamExt;
 use async_trait::async_trait;
@@ -46,54 +45,66 @@ impl FileSystemEngine for LocalFileSystemEngine {
         finished: OnceTriggerCall<'async_trait>,
         errors: OutMessageCall<'async_trait>,
     ) {
-        let path = match self
-            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-            .await
+        #[cfg(feature = "real")]
         {
-            Ok(path) => path,
-            Err(err) => {
-                failed().await;
-                let _ = errors(err.to_string()).await;
-                finished().await;
-                return;
-            }
-        };
+            let path = match self
+                .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
+                .await
+            {
+                Ok(path) => path,
+                Err(err) => {
+                    failed().await;
+                    let _ = errors(err.to_string()).await;
+                    finished().await;
+                    return;
+                }
+            };
 
-        let file = OpenOptions::new().read(true).open(path).await;
-        match file {
-            Ok(mut file) => {
-                reached().await;
-                reachedclose().await;
-                let mut vec = vec![0; 2usize.pow(20)];
-                let mut fail = false;
-                loop {
-                    match file.read(&mut vec).await {
-                        Ok(n) if n > 0 => {
-                            vec.truncate(n);
-                            check!(data(vec.into()).await);
-                            vec = vec![0; 2usize.pow(20)];
-                        }
-                        Ok(_) => {
-                            break;
-                        }
-                        Err(err) => {
-                            let _ = failed().await;
-                            let _ = errors(err.to_string()).await;
-                            fail = true;
-                            break;
+            let file = async_std::fs::OpenOptions::new()
+                .read(true)
+                .open(path)
+                .await;
+            match file {
+                Ok(mut file) => {
+                    reached().await;
+                    reachedclose().await;
+                    let mut vec = vec![0; 2usize.pow(20)];
+                    let mut fail = false;
+                    loop {
+                        match file.read(&mut vec).await {
+                            Ok(n) if n > 0 => {
+                                vec.truncate(n);
+                                check!(data(vec.into()).await);
+                                vec = vec![0; 2usize.pow(20)];
+                            }
+                            Ok(_) => {
+                                break;
+                            }
+                            Err(err) => {
+                                let _ = failed().await;
+                                let _ = errors(err.to_string()).await;
+                                fail = true;
+                                break;
+                            }
                         }
                     }
+                    if !fail {
+                        let _ = completed().await;
+                    }
                 }
-                if !fail {
-                    let _ = completed().await;
+                Err(err) => {
+                    let _ = failed().await;
+                    let _ = errors(err.to_string()).await;
                 }
             }
-            Err(err) => {
-                let _ = failed().await;
-                let _ = errors(err.to_string()).await;
-            }
+            let _ = finished().await;
         }
-        let _ = finished().await;
+        #[cfg(feature = "mock")]
+        {
+            let _ = failed().await;
+            let _ = errors("Mock mode".to_string()).await;
+            let _ = finished().await;
+        }
     }
     async fn write_file(
         &self,
@@ -108,62 +119,71 @@ impl FileSystemEngine for LocalFileSystemEngine {
         finished: OnceTriggerCall<'async_trait>,
         errors: OutMessageCall<'async_trait>,
     ) {
-        let path = match self
-            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-            .await
+        #[cfg(feature = "real")]
         {
-            Ok(path) => path,
-            Err(err) => {
-                failed().await;
-                let _ = errors(err.to_string()).await;
-                finished().await;
-                return;
-            }
-        };
-
-        if let Err(err) = DirBuilder::new()
-            .recursive(true)
-            .create(path.parent().unwrap_or(Path::new("")))
-            .await
-        {
-            failed().await;
-            let _ = errors(err.to_string()).await;
-            finished().await;
-        } else {
-            let file = OpenOptions::new()
-                .write(true)
-                .append(append)
-                .create(create)
-                .create_new(new)
-                .open(path)
-                .await;
-            match file {
-                Ok(mut file) => {
-                    let mut written_amount = 0u128;
-                    let mut fail = false;
-                    while let Ok(data) = data().await {
-                        match file.write_all(&data).await {
-                            Ok(_) => {
-                                written_amount += data.len() as u128;
-                                let _ = amount(written_amount).await;
-                            }
-                            Err(err) => {
-                                failed().await;
-                                let _ = errors(err.to_string()).await;
-                                fail = true;
-                                break;
-                            }
-                        }
-                    }
-                    if !fail {
-                        completed().await;
-                    }
-                }
+            let path = match self
+                .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
+                .await
+            {
+                Ok(path) => path,
                 Err(err) => {
                     failed().await;
                     let _ = errors(err.to_string()).await;
+                    finished().await;
+                    return;
                 }
+            };
+
+            if let Err(err) = async_std::fs::DirBuilder::new()
+                .recursive(true)
+                .create(path.parent().unwrap_or(Path::new("")))
+                .await
+            {
+                failed().await;
+                let _ = errors(err.to_string()).await;
+                finished().await;
+            } else {
+                let file = async_std::fs::OpenOptions::new()
+                    .write(true)
+                    .append(append)
+                    .create(create)
+                    .create_new(new)
+                    .open(path)
+                    .await;
+                match file {
+                    Ok(mut file) => {
+                        let mut written_amount = 0u128;
+                        let mut fail = false;
+                        while let Ok(data) = data().await {
+                            match file.write_all(&data).await {
+                                Ok(_) => {
+                                    written_amount += data.len() as u128;
+                                    let _ = amount(written_amount).await;
+                                }
+                                Err(err) => {
+                                    failed().await;
+                                    let _ = errors(err.to_string()).await;
+                                    fail = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if !fail {
+                            completed().await;
+                        }
+                    }
+                    Err(err) => {
+                        failed().await;
+                        let _ = errors(err.to_string()).await;
+                    }
+                }
+                finished().await;
             }
+        }
+        #[cfg(feature = "mock")]
+        {
+            failed().await;
+            let _ = errors("Mock mode".to_string()).await;
             finished().await;
         }
     }
@@ -175,30 +195,38 @@ impl FileSystemEngine for LocalFileSystemEngine {
         failed: OnceTriggerCall<'async_trait>,
         error: OnceMessageCall<'async_trait>,
     ) {
-        let path = match self
-            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-            .await
+        #[cfg(feature = "real")]
         {
-            Ok(path) => path,
-            Err(err) => {
-                failed().await;
-                error(err.to_string()).await;
-                return;
-            }
-        };
+            let path = match self
+                .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
+                .await
+            {
+                Ok(path) => path,
+                Err(err) => {
+                    failed().await;
+                    error(err.to_string()).await;
+                    return;
+                }
+            };
 
-        match if recursive {
-            fs::create_dir_all(path).await
-        } else {
-            fs::create_dir(path).await
-        } {
-            Ok(()) => {
-                success().await;
+            match if recursive {
+                async_std::fs::create_dir_all(path).await
+            } else {
+                async_std::fs::create_dir(path).await
+            } {
+                Ok(()) => {
+                    success().await;
+                }
+                Err(err) => {
+                    error(err.to_string()).await;
+                    failed().await;
+                }
             }
-            Err(err) => {
-                error(err.to_string()).await;
-                failed().await;
-            }
+        }
+        #[cfg(feature = "mock")]
+        {
+            error("Mock mode".to_string()).await;
+            failed().await;
         }
     }
     async fn scan_dir(

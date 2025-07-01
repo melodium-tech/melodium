@@ -1,4 +1,5 @@
 use crate::compose::Executor;
+#[cfg(feature = "real")]
 use async_std::{
     fs::{self, DirBuilder, OpenOptions},
     io::BufReader,
@@ -29,6 +30,7 @@ pub struct ContainerExecutor {
     container_name: String,
 }
 
+#[cfg(feature = "real")]
 impl ContainerExecutor {
     pub async fn try_new(container: String) -> Result<ContainerExecutor, String> {
         let executor = match std::env::var("MELODIUM_JOB_EXECUTOR").as_deref() {
@@ -172,68 +174,77 @@ impl ExecutorEngine for ContainerExecutor {
         error: OnceMessageCall<'async_trait>,
         exit: OnceCodeCall<'async_trait>,
     ) {
-        let mut arguments = vec![];
-        if self.executor == Executor::Podman {
-            arguments.push("--remote".to_string());
-        }
-        arguments.push("exec".to_string());
-
-        if let Some(environment) = environment {
-            if let Some(dir) = &environment.working_directory {
-                arguments.push(format!("--workdir={dir}"));
-            }
-
-            if environment.clear_env {
-                // Nothing doable
-            }
-
-            if environment.expand_variables {
-                let variables = self
-                    .manage_variable_substitution(&environment.variables.map)
-                    .await;
-                for (name, val) in variables {
-                    arguments.push("--env".to_string());
-                    arguments.push(format!("{name}={val}"));
-                }
-            } else {
-                for (name, val) in &environment.variables.map {
-                    arguments.push("--env".to_string());
-                    arguments.push(format!("{name}={val}"));
-                }
-            }
-        }
-
-        arguments.push(self.container_name.clone());
-
-        arguments.push(command.command.clone());
-
-        arguments.extend(command.arguments.clone());
-
-        started().await;
-        match async_std::process::Command::new(self.executor_entrypoint.clone())
-            .args(arguments)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::piped())
-            .output()
-            .await
+        #[cfg(feature = "real")]
         {
-            Ok(output) => match output.status.success() {
-                true => {
-                    completed().await;
-                    exit(output.status.code()).await;
-                }
-                false => {
-                    failed().await;
-                    error(String::from_utf8_lossy(&output.stderr).to_string()).await;
-                }
-            },
-            Err(err) => {
-                failed().await;
-                error(err.to_string()).await;
+            let mut arguments = vec![];
+            if self.executor == Executor::Podman {
+                arguments.push("--remote".to_string());
             }
+            arguments.push("exec".to_string());
+
+            if let Some(environment) = environment {
+                if let Some(dir) = &environment.working_directory {
+                    arguments.push(format!("--workdir={dir}"));
+                }
+
+                if environment.clear_env {
+                    // Nothing doable
+                }
+
+                if environment.expand_variables {
+                    let variables = self
+                        .manage_variable_substitution(&environment.variables.map)
+                        .await;
+                    for (name, val) in variables {
+                        arguments.push("--env".to_string());
+                        arguments.push(format!("{name}={val}"));
+                    }
+                } else {
+                    for (name, val) in &environment.variables.map {
+                        arguments.push("--env".to_string());
+                        arguments.push(format!("{name}={val}"));
+                    }
+                }
+            }
+
+            arguments.push(self.container_name.clone());
+
+            arguments.push(command.command.clone());
+
+            arguments.extend(command.arguments.clone());
+
+            started().await;
+            match async_std::process::Command::new(self.executor_entrypoint.clone())
+                .args(arguments)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::piped())
+                .output()
+                .await
+            {
+                Ok(output) => match output.status.success() {
+                    true => {
+                        completed().await;
+                        exit(output.status.code()).await;
+                    }
+                    false => {
+                        failed().await;
+                        error(String::from_utf8_lossy(&output.stderr).to_string()).await;
+                    }
+                },
+                Err(err) => {
+                    failed().await;
+                    error(err.to_string()).await;
+                }
+            }
+            finished().await;
         }
-        finished().await;
+        #[cfg(feature = "mock")]
+        {
+            let _ = failed().await;
+            let _ = error("Mock mode".to_string()).await;
+            let _ = finished().await;
+        }
     }
 
     async fn spawn(
@@ -253,124 +264,133 @@ impl ExecutorEngine for ContainerExecutor {
         stderr: OutDataCall<'async_trait>,
         stderrclose: OnceTriggerCall<'async_trait>,
     ) {
-        let mut arguments = vec![];
-        if self.executor == Executor::Podman {
-            arguments.push("--remote".to_string());
-        }
-        arguments.push("exec".to_string());
-        arguments.push("--interactive".to_string());
-
-        if let Some(environment) = environment {
-            if let Some(dir) = &environment.working_directory {
-                arguments.push(format!("--workdir={dir}"));
-            }
-
-            if environment.clear_env {
-                // Nothing doable
-            }
-
-            if environment.expand_variables {
-                let variables = self
-                    .manage_variable_substitution(&environment.variables.map)
-                    .await;
-                for (name, val) in variables {
-                    arguments.push("--env".to_string());
-                    arguments.push(format!("{name}={val}"));
-                }
-            } else {
-                for (name, val) in &environment.variables.map {
-                    arguments.push("--env".to_string());
-                    arguments.push(format!("{name}={val}"));
-                }
-            }
-        }
-
-        arguments.push(self.container_name.clone());
-
-        arguments.push(command.command.clone());
-
-        arguments.extend(command.arguments.clone());
-
-        match async_std::process::Command::new(self.executor_entrypoint.clone())
-            .args(arguments)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
+        #[cfg(feature = "real")]
         {
-            Ok(mut child) => {
-                started().await;
-
-                let child_stdin = child.stdin.take();
-                let child_stdout = child.stdout.take();
-                let child_stderr = child.stderr.take();
-
-                let write_stdin = async {
-                    if let Some(mut child_stdin) = child_stdin {
-                        while let Ok(data) = stdin().await {
-                            check!(child_stdin.write_all(&data).await);
-                            check!(child_stdin.flush().await);
-                        }
-
-                        let _ = child_stdin.close().await;
-                    } else {
-                        stdinclose().await;
-                    }
-                };
-
-                let read_stdout = async {
-                    if let Some(child_stdout) = child_stdout {
-                        let mut child_stdout = BufReader::new(child_stdout);
-                        let mut buffer = vec![0; 2usize.pow(20)];
-
-                        while let Ok(n) = child_stdout.read(&mut buffer[..]).await {
-                            if n == 0 {
-                                break;
-                            }
-                            check!(stdout(buffer[..n].iter().cloned().collect()).await);
-                        }
-                    } else {
-                        stdoutclose().await;
-                    }
-                };
-
-                let read_stderr = async {
-                    if let Some(child_stderr) = child_stderr {
-                        let mut child_stderr = BufReader::new(child_stderr);
-                        let mut buffer = vec![0; 2usize.pow(20)];
-
-                        while let Ok(n) = child_stderr.read(&mut buffer[..]).await {
-                            if n == 0 {
-                                break;
-                            }
-                            check!(stderr(buffer[..n].iter().cloned().collect()).await);
-                        }
-                    } else {
-                        stderrclose().await;
-                    }
-                };
-
-                let status = async {
-                    match child.status().await {
-                        Ok(status) => {
-                            completed().await;
-                            exit(status.code()).await;
-                        }
-                        Err(err) => {
-                            failed().await;
-                            error(err.to_string()).await;
-                        }
-                    }
-                };
-
-                let _ = futures::join!(status, write_stdin, read_stdout, read_stderr);
+            let mut arguments = vec![];
+            if self.executor == Executor::Podman {
+                arguments.push("--remote".to_string());
             }
-            Err(err) => {
-                failed().await;
-                error(err.to_string()).await;
+            arguments.push("exec".to_string());
+            arguments.push("--interactive".to_string());
+
+            if let Some(environment) = environment {
+                if let Some(dir) = &environment.working_directory {
+                    arguments.push(format!("--workdir={dir}"));
+                }
+
+                if environment.clear_env {
+                    // Nothing doable
+                }
+
+                if environment.expand_variables {
+                    let variables = self
+                        .manage_variable_substitution(&environment.variables.map)
+                        .await;
+                    for (name, val) in variables {
+                        arguments.push("--env".to_string());
+                        arguments.push(format!("{name}={val}"));
+                    }
+                } else {
+                    for (name, val) in &environment.variables.map {
+                        arguments.push("--env".to_string());
+                        arguments.push(format!("{name}={val}"));
+                    }
+                }
             }
+
+            arguments.push(self.container_name.clone());
+
+            arguments.push(command.command.clone());
+
+            arguments.extend(command.arguments.clone());
+
+            match async_std::process::Command::new(self.executor_entrypoint.clone())
+                .args(arguments)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+            {
+                Ok(mut child) => {
+                    started().await;
+
+                    let child_stdin = child.stdin.take();
+                    let child_stdout = child.stdout.take();
+                    let child_stderr = child.stderr.take();
+
+                    let write_stdin = async {
+                        if let Some(mut child_stdin) = child_stdin {
+                            while let Ok(data) = stdin().await {
+                                check!(child_stdin.write_all(&data).await);
+                                check!(child_stdin.flush().await);
+                            }
+
+                            let _ = child_stdin.close().await;
+                        } else {
+                            stdinclose().await;
+                        }
+                    };
+
+                    let read_stdout = async {
+                        if let Some(child_stdout) = child_stdout {
+                            let mut child_stdout = BufReader::new(child_stdout);
+                            let mut buffer = vec![0; 2usize.pow(20)];
+
+                            while let Ok(n) = child_stdout.read(&mut buffer[..]).await {
+                                if n == 0 {
+                                    break;
+                                }
+                                check!(stdout(buffer[..n].iter().cloned().collect()).await);
+                            }
+                        } else {
+                            stdoutclose().await;
+                        }
+                    };
+
+                    let read_stderr = async {
+                        if let Some(child_stderr) = child_stderr {
+                            let mut child_stderr = BufReader::new(child_stderr);
+                            let mut buffer = vec![0; 2usize.pow(20)];
+
+                            while let Ok(n) = child_stderr.read(&mut buffer[..]).await {
+                                if n == 0 {
+                                    break;
+                                }
+                                check!(stderr(buffer[..n].iter().cloned().collect()).await);
+                            }
+                        } else {
+                            stderrclose().await;
+                        }
+                    };
+
+                    let status = async {
+                        match child.status().await {
+                            Ok(status) => {
+                                completed().await;
+                                exit(status.code()).await;
+                            }
+                            Err(err) => {
+                                failed().await;
+                                error(err.to_string()).await;
+                            }
+                        }
+                    };
+
+                    let _ = futures::join!(status, write_stdin, read_stdout, read_stderr);
+                }
+                Err(err) => {
+                    failed().await;
+                    error(err.to_string()).await;
+                }
+            }
+            finished().await;
         }
-        finished().await;
+        #[cfg(feature = "mock")]
+        {
+            let _ = failed().await;
+            let _ = error("Mock mode".to_string()).await;
+            let _ = finished().await;
+        }
     }
 
     async fn spawn_out(
@@ -388,112 +408,122 @@ impl ExecutorEngine for ContainerExecutor {
         stderr: OutDataCall<'async_trait>,
         stderrclose: OnceTriggerCall<'async_trait>,
     ) {
-        let mut arguments = vec![];
-        if self.executor == Executor::Podman {
-            arguments.push("--remote".to_string());
-        }
-        arguments.push("exec".to_string());
-
-        if let Some(environment) = environment {
-            if let Some(dir) = &environment.working_directory {
-                arguments.push(format!("--workdir={dir}"));
-            }
-
-            if environment.clear_env {
-                // Nothing doable
-            }
-
-            if environment.expand_variables {
-                let variables = self
-                    .manage_variable_substitution(&environment.variables.map)
-                    .await;
-                for (name, val) in variables {
-                    arguments.push("--env".to_string());
-                    arguments.push(format!("{name}={val}"));
-                }
-            } else {
-                for (name, val) in &environment.variables.map {
-                    arguments.push("--env".to_string());
-                    arguments.push(format!("{name}={val}"));
-                }
-            }
-        }
-
-        arguments.push(self.container_name.clone());
-
-        arguments.push(command.command.clone());
-
-        arguments.extend(command.arguments.clone());
-
-        match async_std::process::Command::new(self.executor_entrypoint.clone())
-            .args(arguments)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
+        #[cfg(feature = "real")]
         {
-            Ok(mut child) => {
-                started().await;
-
-                let child_stdout = child.stdout.take();
-                let child_stderr = child.stderr.take();
-
-                let read_stdout = async {
-                    if let Some(child_stdout) = child_stdout {
-                        let mut child_stdout = BufReader::new(child_stdout);
-                        let mut buffer = vec![0; 2usize.pow(20)];
-
-                        while let Ok(n) = child_stdout.read(&mut buffer[..]).await {
-                            if n == 0 {
-                                break;
-                            }
-                            check!(stdout(buffer[..n].iter().cloned().collect()).await);
-                        }
-                    } else {
-                        stdoutclose().await;
-                    }
-                };
-
-                let read_stderr = async {
-                    if let Some(child_stderr) = child_stderr {
-                        let mut child_stderr = BufReader::new(child_stderr);
-                        let mut buffer = vec![0; 2usize.pow(20)];
-
-                        while let Ok(n) = child_stderr.read(&mut buffer[..]).await {
-                            if n == 0 {
-                                break;
-                            }
-                            check!(stderr(buffer[..n].iter().cloned().collect()).await);
-                        }
-                    } else {
-                        stderrclose().await;
-                    }
-                };
-
-                let status = async {
-                    match child.status().await {
-                        Ok(status) => {
-                            completed().await;
-                            exit(status.code()).await;
-                        }
-                        Err(err) => {
-                            failed().await;
-                            error(err.to_string()).await;
-                        }
-                    }
-                };
-
-                let _ = futures::join!(status, read_stdout, read_stderr);
+            let mut arguments = vec![];
+            if self.executor == Executor::Podman {
+                arguments.push("--remote".to_string());
             }
-            Err(err) => {
-                failed().await;
-                error(err.to_string()).await;
+            arguments.push("exec".to_string());
+
+            if let Some(environment) = environment {
+                if let Some(dir) = &environment.working_directory {
+                    arguments.push(format!("--workdir={dir}"));
+                }
+
+                if environment.clear_env {
+                    // Nothing doable
+                }
+
+                if environment.expand_variables {
+                    let variables = self
+                        .manage_variable_substitution(&environment.variables.map)
+                        .await;
+                    for (name, val) in variables {
+                        arguments.push("--env".to_string());
+                        arguments.push(format!("{name}={val}"));
+                    }
+                } else {
+                    for (name, val) in &environment.variables.map {
+                        arguments.push("--env".to_string());
+                        arguments.push(format!("{name}={val}"));
+                    }
+                }
             }
+
+            arguments.push(self.container_name.clone());
+
+            arguments.push(command.command.clone());
+
+            arguments.extend(command.arguments.clone());
+
+            match async_std::process::Command::new(self.executor_entrypoint.clone())
+                .args(arguments)
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+            {
+                Ok(mut child) => {
+                    started().await;
+
+                    let child_stdout = child.stdout.take();
+                    let child_stderr = child.stderr.take();
+
+                    let read_stdout = async {
+                        if let Some(child_stdout) = child_stdout {
+                            let mut child_stdout = BufReader::new(child_stdout);
+                            let mut buffer = vec![0; 2usize.pow(20)];
+
+                            while let Ok(n) = child_stdout.read(&mut buffer[..]).await {
+                                if n == 0 {
+                                    break;
+                                }
+                                check!(stdout(buffer[..n].iter().cloned().collect()).await);
+                            }
+                        } else {
+                            stdoutclose().await;
+                        }
+                    };
+
+                    let read_stderr = async {
+                        if let Some(child_stderr) = child_stderr {
+                            let mut child_stderr = BufReader::new(child_stderr);
+                            let mut buffer = vec![0; 2usize.pow(20)];
+
+                            while let Ok(n) = child_stderr.read(&mut buffer[..]).await {
+                                if n == 0 {
+                                    break;
+                                }
+                                check!(stderr(buffer[..n].iter().cloned().collect()).await);
+                            }
+                        } else {
+                            stderrclose().await;
+                        }
+                    };
+
+                    let status = async {
+                        match child.status().await {
+                            Ok(status) => {
+                                completed().await;
+                                exit(status.code()).await;
+                            }
+                            Err(err) => {
+                                failed().await;
+                                error(err.to_string()).await;
+                            }
+                        }
+                    };
+
+                    let _ = futures::join!(status, read_stdout, read_stderr);
+                }
+                Err(err) => {
+                    failed().await;
+                    error(err.to_string()).await;
+                }
+            }
+            finished().await;
         }
-        finished().await;
+        #[cfg(feature = "mock")]
+        {
+            let _ = failed().await;
+            let _ = error("Mock mode".to_string()).await;
+            let _ = finished().await;
+        }
     }
 }
 
+#[cfg(feature = "real")]
 #[derive(Debug)]
 pub struct ContainerFileSystem {
     #[allow(unused)]
@@ -501,6 +531,7 @@ pub struct ContainerFileSystem {
     path: PathBuf,
 }
 
+#[cfg(feature = "real")]
 impl ContainerFileSystem {
     pub async fn try_new(volume: String) -> Result<ContainerFileSystem, String> {
         if Ok(true)
@@ -534,6 +565,7 @@ impl ContainerFileSystem {
     }
 }
 
+#[cfg(feature = "real")]
 #[async_trait]
 impl FileSystemEngine for ContainerFileSystem {
     async fn read_file(
@@ -547,106 +579,37 @@ impl FileSystemEngine for ContainerFileSystem {
         finished: filesystem::OnceTriggerCall<'async_trait>,
         errors: filesystem::OutMessageCall<'async_trait>,
     ) {
-        let path = match self
-            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-            .await
+        #[cfg(feature = "real")]
         {
-            Ok(path) => path,
-            Err(err) => {
-                failed().await;
-                let _ = errors(err.to_string()).await;
-                finished().await;
-                return;
-            }
-        };
-
-        let file = OpenOptions::new().read(true).open(path).await;
-        match file {
-            Ok(mut file) => {
-                reached().await;
-                reachedclose().await;
-                let mut vec = vec![0; 2usize.pow(20)];
-                let mut fail = false;
-                loop {
-                    match file.read(&mut vec).await {
-                        Ok(n) if n > 0 => {
-                            vec.truncate(n);
-                            check!(data(vec.into()).await);
-                            vec = vec![0; 2usize.pow(20)];
-                        }
-                        Ok(_) => {
-                            break;
-                        }
-                        Err(err) => {
-                            failed().await;
-                            let _ = errors(err.to_string()).await;
-                            fail = true;
-                            break;
-                        }
-                    }
+            let path = match self
+                .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
+                .await
+            {
+                Ok(path) => path,
+                Err(err) => {
+                    failed().await;
+                    let _ = errors(err.to_string()).await;
+                    finished().await;
+                    return;
                 }
-                if !fail {
-                    completed().await;
-                }
-            }
-            Err(err) => {
-                failed().await;
-                let _ = errors(err.to_string()).await;
-            }
-        }
-        finished().await;
-    }
-    async fn write_file(
-        &self,
-        path: &str,
-        append: bool,
-        create: bool,
-        new: bool,
-        data: filesystem::InDataCall<'async_trait>,
-        amount: filesystem::OutU128Call<'async_trait>,
-        completed: filesystem::OnceTriggerCall<'async_trait>,
-        failed: filesystem::OnceTriggerCall<'async_trait>,
-        finished: filesystem::OnceTriggerCall<'async_trait>,
-        errors: filesystem::OutMessageCall<'async_trait>,
-    ) {
-        let path = match self
-            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-            .await
-        {
-            Ok(path) => path,
-            Err(err) => {
-                failed().await;
-                let _ = errors(err.to_string()).await;
-                finished().await;
-                return;
-            }
-        };
+            };
 
-        if let Err(err) = DirBuilder::new()
-            .recursive(true)
-            .create(path.parent().unwrap_or(Path::new("")))
-            .await
-        {
-            failed().await;
-            let _ = errors(err.to_string()).await;
-            finished().await;
-        } else {
-            let file = OpenOptions::new()
-                .write(true)
-                .append(append)
-                .create(create)
-                .create_new(new)
-                .open(path)
-                .await;
+            let file = OpenOptions::new().read(true).open(path).await;
             match file {
                 Ok(mut file) => {
-                    let mut written_amount = 0u128;
+                    reached().await;
+                    reachedclose().await;
+                    let mut vec = vec![0; 2usize.pow(20)];
                     let mut fail = false;
-                    while let Ok(data) = data().await {
-                        match file.write_all(&data).await {
+                    loop {
+                        match file.read(&mut vec).await {
+                            Ok(n) if n > 0 => {
+                                vec.truncate(n);
+                                check!(data(vec.into()).await);
+                                vec = vec![0; 2usize.pow(20)];
+                            }
                             Ok(_) => {
-                                written_amount += data.len() as u128;
-                                let _ = amount(written_amount).await;
+                                break;
                             }
                             Err(err) => {
                                 failed().await;
@@ -667,6 +630,93 @@ impl FileSystemEngine for ContainerFileSystem {
             }
             finished().await;
         }
+        #[cfg(feature = "mock")]
+        {
+            let _ = failed().await;
+            let _ = errors("Mock mode".to_string()).await;
+            let _ = finished().await;
+        }
+    }
+    async fn write_file(
+        &self,
+        path: &str,
+        append: bool,
+        create: bool,
+        new: bool,
+        data: filesystem::InDataCall<'async_trait>,
+        amount: filesystem::OutU128Call<'async_trait>,
+        completed: filesystem::OnceTriggerCall<'async_trait>,
+        failed: filesystem::OnceTriggerCall<'async_trait>,
+        finished: filesystem::OnceTriggerCall<'async_trait>,
+        errors: filesystem::OutMessageCall<'async_trait>,
+    ) {
+        #[cfg(feature = "real")]
+        {
+            let path = match self
+                .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
+                .await
+            {
+                Ok(path) => path,
+                Err(err) => {
+                    failed().await;
+                    let _ = errors(err.to_string()).await;
+                    finished().await;
+                    return;
+                }
+            };
+
+            if let Err(err) = DirBuilder::new()
+                .recursive(true)
+                .create(path.parent().unwrap_or(Path::new("")))
+                .await
+            {
+                failed().await;
+                let _ = errors(err.to_string()).await;
+                finished().await;
+            } else {
+                let file = OpenOptions::new()
+                    .write(true)
+                    .append(append)
+                    .create(create)
+                    .create_new(new)
+                    .open(path)
+                    .await;
+                match file {
+                    Ok(mut file) => {
+                        let mut written_amount = 0u128;
+                        let mut fail = false;
+                        while let Ok(data) = data().await {
+                            match file.write_all(&data).await {
+                                Ok(_) => {
+                                    written_amount += data.len() as u128;
+                                    let _ = amount(written_amount).await;
+                                }
+                                Err(err) => {
+                                    failed().await;
+                                    let _ = errors(err.to_string()).await;
+                                    fail = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if !fail {
+                            completed().await;
+                        }
+                    }
+                    Err(err) => {
+                        failed().await;
+                        let _ = errors(err.to_string()).await;
+                    }
+                }
+                finished().await;
+            }
+            #[cfg(feature = "mock")]
+            {
+                let _ = failed().await;
+                let _ = errors("Mock mode".to_string()).await;
+                let _ = finished().await;
+            }
+        }
     }
     async fn create_dir(
         &self,
@@ -676,30 +726,39 @@ impl FileSystemEngine for ContainerFileSystem {
         failed: filesystem::OnceTriggerCall<'async_trait>,
         error: filesystem::OnceMessageCall<'async_trait>,
     ) {
-        let path = match self
-            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-            .await
+        #[cfg(feature = "real")]
         {
-            Ok(path) => path,
-            Err(err) => {
-                failed().await;
-                error(err.to_string()).await;
-                return;
-            }
-        };
+            let path = match self
+                .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
+                .await
+            {
+                Ok(path) => path,
+                Err(err) => {
+                    failed().await;
+                    error(err.to_string()).await;
+                    return;
+                }
+            };
 
-        match if recursive {
-            fs::create_dir_all(path).await
-        } else {
-            fs::create_dir(path).await
-        } {
-            Ok(()) => {
-                success().await;
+            match if recursive {
+                fs::create_dir_all(path).await
+            } else {
+                fs::create_dir(path).await
+            } {
+                Ok(()) => {
+                    success().await;
+                }
+                Err(err) => {
+                    error(err.to_string()).await;
+                    failed().await;
+                }
             }
-            Err(err) => {
-                error(err.to_string()).await;
-                failed().await;
-            }
+        }
+        #[cfg(feature = "mock")]
+        {
+            let _ = failed().await;
+            let _ = errors("Mock mode".to_string()).await;
+            let _ = finished().await;
         }
     }
     async fn scan_dir(
@@ -713,56 +772,65 @@ impl FileSystemEngine for ContainerFileSystem {
         finished: filesystem::OnceTriggerCall<'async_trait>,
         errors: filesystem::OutMessageCall<'async_trait>,
     ) {
-        let path = match self
-            .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
-            .await
+        #[cfg(feature = "real")]
         {
-            Ok(path) => path,
-            Err(err) => {
-                failed().await;
-                let _ = errors(err.to_string()).await;
-                return;
-            }
-        };
+            let path = match self
+                .full_path(&Into::<async_std::path::PathBuf>::into(path.to_string()))
+                .await
+            {
+                Ok(path) => path,
+                Err(err) => {
+                    failed().await;
+                    let _ = errors(err.to_string()).await;
+                    return;
+                }
+            };
 
-        let mut dir_entries = WalkDir::new(path).filter(move |entry| async move {
-            match entry.file_type().await {
-                Ok(file_type) => {
-                    if file_type.is_dir() {
-                        if recursive {
-                            Filtering::Continue
+            let mut dir_entries = WalkDir::new(path).filter(move |entry| async move {
+                match entry.file_type().await {
+                    Ok(file_type) => {
+                        if file_type.is_dir() {
+                            if recursive {
+                                Filtering::Continue
+                            } else {
+                                Filtering::IgnoreDir
+                            }
+                        } else if file_type.is_symlink() {
+                            if follow_links {
+                                Filtering::Continue
+                            } else {
+                                Filtering::IgnoreDir
+                            }
                         } else {
-                            Filtering::IgnoreDir
-                        }
-                    } else if file_type.is_symlink() {
-                        if follow_links {
                             Filtering::Continue
-                        } else {
-                            Filtering::IgnoreDir
                         }
-                    } else {
-                        Filtering::Continue
+                    }
+                    Err(_) => Filtering::Continue,
+                }
+            });
+
+            let mut success = true;
+            while let Some(entry) = dir_entries.next().await {
+                match entry {
+                    Ok(entry) => check!(entries(entry.path().to_string_lossy().to_string()).await),
+                    Err(err) => {
+                        success = false;
+                        let _ = errors(err.to_string()).await;
                     }
                 }
-                Err(_) => Filtering::Continue,
             }
-        });
-
-        let mut success = true;
-        while let Some(entry) = dir_entries.next().await {
-            match entry {
-                Ok(entry) => check!(entries(entry.path().to_string_lossy().to_string()).await),
-                Err(err) => {
-                    success = false;
-                    let _ = errors(err.to_string()).await;
-                }
+            finished().await;
+            if success {
+                completed().await;
+            } else {
+                failed().await;
             }
         }
-        finished().await;
-        if success {
-            completed().await;
-        } else {
-            failed().await;
+        #[cfg(feature = "mock")]
+        {
+            let _ = failed().await;
+            let _ = errors("Mock mode".to_string()).await;
+            let _ = finished().await;
         }
     }
 }

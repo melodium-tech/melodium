@@ -20,7 +20,7 @@ All reading errors are streamed through `errors`.
 If any reading failure happens, `failed` is emitted.
 */
 treatment readText(path: string)
-  input  fileystem: Block<FileSystem>
+  input  filesystem: Block<FileSystem>
   input  trigger: Block<void>
   output text: Stream<string>
   output reached: Block<void>
@@ -59,7 +59,7 @@ The amount of written bytes is sent through `amount`. There is no guarantee abou
 `finished` is emitted when successful writting is finished. `failed` is emitted if an error occurs, and `error` contains the related text of error(s).
 */
 treatment writeText(path: string, append: bool = false, create: bool = true, new: bool = false)
-  input  fileystem: Block<FileSystem>
+  input  filesystem: Block<FileSystem>
   input  text: Stream<string>
   output completed: Block<void>
   output failed: Block<void>
@@ -67,12 +67,13 @@ treatment writeText(path: string, append: bool = false, create: bool = true, new
   output errors: Stream<string>
   output amount: Stream<u128>
 {
-    triggerData: trigger<byte>()
+    triggerText: trigger<string>()
     emitFilename: emit<string>(value=path)
     write(append=append, create=create, new=new)
     toUtf8()
 
-    Self.data -> triggerData.stream,start -> emitFilename.trigger,emit -> write.path
+    Self.filesystem ----------------------------------------------------> write.filesystem
+    Self.text -> triggerText.stream,start -> emitFilename.trigger,emit -> write.path
     Self.text -> toUtf8.text,encoded -----------------------------------> write.data
 
     write.completed -> Self.completed

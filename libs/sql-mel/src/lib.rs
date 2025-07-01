@@ -1,5 +1,12 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
+#![cfg_attr(feature = "mock", allow(unused))]
+
+#[cfg(any(
+    all(feature = "real", feature = "mock"),
+    not(any(feature = "real", feature = "mock"))
+))]
+compile_error!("One of the two features 'real' or 'mock' must be enabled");
 
 use async_std::stream::StreamExt;
 use async_std::sync::{Arc as AsyncArc, RwLock as AsyncRwLock};
@@ -239,6 +246,7 @@ impl SqlPool {
     }
 
     fn shutdown(&self) {
+        #[cfg(feature = "real")]
         async_std::task::block_on(async {
             if let Some(pool) = self.pool.read().await.as_ref() {
                 pool.close().await;

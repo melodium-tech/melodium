@@ -10,10 +10,8 @@ use std_mel::data::string_map::*;
 use trillium::HeaderName;
 use trillium::HeaderValue;
 use trillium::KnownHeaderName;
-use trillium_async_std::ClientConfig;
 use trillium_client::Url;
 use trillium_client::{Body, Client};
-use trillium_rustls::RustlsConfig as TlsConfig;
 
 pub const USER_AGENT: &str = concat!("http-mel/", env!("CARGO_PKG_VERSION"));
 
@@ -47,21 +45,25 @@ impl HttpClient {
     }
 
     fn initialization(&self) {
-        let model = self.model.upgrade().unwrap();
+        #[cfg(feature = "real")]
+        {
+            let model = self.model.upgrade().unwrap();
 
-        let config = TlsConfig::default()
-            .with_tcp_config(ClientConfig::new().with_nodelay(model.get_tcp_no_delay()));
+            let config = trillium_rustls::RustlsConfig::default().with_tcp_config(
+                trillium_async_std::ClientConfig::new().with_nodelay(model.get_tcp_no_delay()),
+            );
 
-        let mut client = Client::new(config)
-            .with_default_pool()
-            .with_default_header(KnownHeaderName::UserAgent, USER_AGENT);
-        if let Some(base) = model.get_base_url() {
-            if let Ok(url) = Url::parse(&base) {
-                client = client.with_base(url);
+            let mut client = Client::new(config)
+                .with_default_pool()
+                .with_default_header(KnownHeaderName::UserAgent, USER_AGENT);
+            if let Some(base) = model.get_base_url() {
+                if let Ok(url) = Url::parse(&base) {
+                    client = client.with_base(url);
+                }
             }
-        }
 
-        *self.client.write().unwrap() = Some(Arc::new(client));
+            *self.client.write().unwrap() = Some(Arc::new(client));
+        }
     }
 
     fn client(&self) -> Option<Arc<Client>> {

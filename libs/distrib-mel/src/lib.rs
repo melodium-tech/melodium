@@ -1,8 +1,16 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
+#![cfg_attr(feature = "mock", allow(unused))]
+
+#[cfg(any(
+    all(feature = "real", feature = "mock"),
+    not(any(feature = "real", feature = "mock"))
+))]
+compile_error!("One of the two features 'real' or 'mock' must be enabled");
 
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::io::{Read, Write};
+#[cfg(feature = "real")]
 use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{
     Arc as AsyncArc, Barrier as AsyncBarrier, Mutex as AsyncMutex, RwLock as AsyncRwLock,
@@ -13,8 +21,10 @@ use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
 use futures::{pin_mut, select, FutureExt};
+#[cfg(feature = "real")]
 use futures_rustls::client::TlsStream;
 use melodium_core::*;
+#[cfg(feature = "real")]
 use melodium_distribution::{
     AskDistribution, CloseInput, CloseOutput, InputData, Instanciate, InstanciateStatus,
     LoadAndLaunch, Message, Protocol,
@@ -40,12 +50,14 @@ struct Track {
     pub io_barrier: AsyncBarrier,
 }
 
+#[cfg(feature = "real")]
 #[derive(Debug)]
 enum NetworkStream {
     TlsStream(TlsStream<TcpStream>),
     TcpStream(TcpStream),
 }
 
+#[cfg(feature = "real")]
 impl Read for NetworkStream {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
@@ -59,6 +71,7 @@ impl Read for NetworkStream {
     }
 }
 
+#[cfg(feature = "real")]
 impl Write for NetworkStream {
     fn poll_write(
         mut self: std::pin::Pin<&mut Self>,
@@ -102,6 +115,7 @@ impl Write for NetworkStream {
 pub struct DistributionEngine {
     model: Weak<DistributionEngineModel>,
     //protocol: AsyncRwLock<Option<AsyncArc<Protocol<TlsStream<TcpStream>>>>>,
+    #[cfg(feature = "real")]
     protocol: AsyncRwLock<Option<AsyncArc<Protocol<NetworkStream>>>>,
     treatment: AsyncRwLock<Option<Arc<dyn Treatment>>>,
     tracks: AsyncRwLock<HashMap<u64, Track>>,
@@ -113,6 +127,7 @@ impl DistributionEngine {
     fn new(model: Weak<DistributionEngineModel>) -> Self {
         Self {
             model,
+            #[cfg(feature = "real")]
             protocol: AsyncRwLock::new(None),
             treatment: AsyncRwLock::new(None),
             tracks: AsyncRwLock::new(HashMap::new()),
@@ -120,7 +135,10 @@ impl DistributionEngine {
             started_once: AtomicBool::new(false),
         }
     }
+}
 
+#[cfg(feature = "real")]
+impl DistributionEngine {
     pub async fn protocol_barrier(&self) {
         let barrier = {
             let mut lock = self.protocol_barrier.lock().await;
@@ -590,6 +608,14 @@ impl DistributionEngine {
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
+#[cfg(feature = "mock")]
+impl DistributionEngine {
+    pub async fn continuous(&self) {}
+
+    fn shutdown(&self) {}
+    fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
+}
+
 #[mel_treatment(
     model distributor DistributionEngine
     input access Block<Access>
@@ -603,6 +629,7 @@ pub async fn start(params: Map) {
 
     let params = params.map.clone();
 
+    #[cfg(feature = "real")]
     if let Ok(access) = access.recv_one().await.map(|val| {
         GetData::<Arc<dyn Data>>::try_data(val)
             .unwrap()
@@ -622,6 +649,11 @@ pub async fn start(params: Map) {
     } else {
         distributor.stop().await;
     }
+    #[cfg(feature = "mock")]
+    {
+        let _ = failed.send_one(().into()).await;
+        let _ = error.send_one("Mock mode".to_string().into()).await;
+    }
 }
 
 #[mel_treatment(
@@ -632,6 +664,7 @@ pub async fn stop() {
     let model = DistributionEngineModel::into(distributor);
     let distributor = model.inner();
 
+    #[cfg(feature = "real")]
     if let Ok(_) = trigger.recv_one().await {
         distributor.stop().await;
     }
@@ -648,6 +681,7 @@ pub async fn distribute() {
     let model = DistributionEngineModel::into(distributor);
     let distributor = model.inner();
 
+    #[cfg(feature = "real")]
     if let Ok(_) = trigger.recv_one().await {
         if let Some((id, barrier, validation)) = distributor.distribute().await {
             if !validation.load(Ordering::Relaxed) {
@@ -669,6 +703,11 @@ pub async fn distribute() {
                 .await;
         }
     }
+    #[cfg(feature = "mock")]
+    {
+        let _ = failed.send_one(().into()).await;
+        let _ = error.send_one("Mock mode".to_string().into()).await;
+    }
 }
 
 #[mel_treatment(
@@ -680,6 +719,7 @@ pub async fn distribute() {
 pub async fn recv_stream(name: string) {
     let datatype = D;
 
+    #[cfg(feature = "real")]
     if let Ok(distribution_id) = distribution_id
         .recv_one()
         .await
@@ -726,6 +766,7 @@ pub async fn recv_stream(name: string) {
 pub async fn recv_block(name: string) {
     let datatype = D;
 
+    #[cfg(feature = "real")]
     if let Ok(distribution_id) = distribution_id
         .recv_one()
         .await
@@ -757,6 +798,7 @@ pub async fn recv_block(name: string) {
     input data Stream<S>
 )]
 pub async fn send_stream(name: string) {
+    #[cfg(feature = "real")]
     if let Ok(distribution_id) = distribution_id
         .recv_one()
         .await
@@ -805,6 +847,7 @@ pub async fn send_stream(name: string) {
     input data Block<S>
 )]
 pub async fn send_block(name: string) {
+    #[cfg(feature = "real")]
     if let Ok(distribution_id) = distribution_id
         .recv_one()
         .await
@@ -835,6 +878,7 @@ pub async fn send_block(name: string) {
     }
 }
 
+#[cfg(feature = "real")]
 async fn tls_stream(
     ip: std::net::IpAddr,
     stream: TcpStream,

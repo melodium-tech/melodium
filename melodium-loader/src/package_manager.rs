@@ -29,6 +29,7 @@ pub struct PackageManager {
     search_locations: Vec<PathBuf>,
     found_packages: Mutex<HashMap<PathBuf, Option<Arc<Package>>>>,
     raw_packages: Mutex<HashMap<Arc<Vec<u8>>, Option<Arc<Package>>>>,
+    map_packages: Mutex<Vec<Arc<Package>>>,
     #[allow(unused)]
     allow_network: bool,
 }
@@ -56,6 +57,7 @@ impl PackageManager {
                     })
                     .collect(),
             ),
+            map_packages: Mutex::new(Vec::new()),
             allow_network: config.allow_network,
         }
     }
@@ -446,6 +448,14 @@ impl PackageManager {
         }
     }
 
+    pub fn add_map_package(&self, map: HashMap<String, Vec<u8>>) -> LoadingResult<Arc<Package>> {
+        package::MappedPackage::new(map).and_then(|mapped| {
+            let mapped = Arc::new(Package::Map(mapped));
+            self.map_packages.lock().unwrap().push(Arc::clone(&mapped));
+            LoadingResult::new_success(mapped)
+        })
+    }
+
     fn manage_repo_package(
         &self,
         repo: &mut Repository,
@@ -518,6 +528,7 @@ impl PackageManager {
     pub fn get_packages(&self) -> Vec<Arc<Package>> {
         let mut all_packages = Vec::new();
         all_packages.extend(self.core_packages.iter().map(Arc::clone));
+        all_packages.extend(self.map_packages.lock().unwrap().iter().map(Arc::clone));
         all_packages.extend(
             self.found_packages
                 .lock()
@@ -538,6 +549,15 @@ impl PackageManager {
     fn retrieve_package(&self, requirement: &PackageRequirement) -> LoadingResult<Arc<Package>> {
         // core_packages
         for pkg in &self.core_packages {
+            if pkg.name() == &requirement.package
+                && requirement.version_requirement.matches(pkg.version())
+            {
+                return LoadingResult::new_success(Arc::clone(pkg));
+            }
+        }
+
+        // map_packages
+        for pkg in self.map_packages.lock().unwrap().iter() {
             if pkg.name() == &requirement.package
                 && requirement.version_requirement.matches(pkg.version())
             {

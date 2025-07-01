@@ -15,6 +15,7 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
+crate-type = ["cdylib", "rlib"]
 name = "melodium"
 
 [[bin]]
@@ -33,6 +34,7 @@ melodium-lang = { path = "../melodium-lang", version = "=0.9.0-pre.4" }
 melodium-loader = { path = "../melodium-loader", version = "=0.9.0-pre.4" }
 melodium-distribution = { path = "../melodium-distribution", version = "=0.9.0-pre.4", optional = true  }
 melodium-doc = { path = "../melodium-doc", version = "=0.9.0-pre.4", optional = true }
+melodium-share = { path = "../melodium-share", version = "=0.9.0-pre.4", optional = true }
 uuid = { version = "1.5.0", features = ["serde"], optional = true }
 
 std-mel = { path = "../libs/std-mel", version = "=0.9.0-pre.4" }
@@ -55,20 +57,26 @@ work-mel = { path = "../libs/work-mel", version = "=0.9.0-pre.4", optional = tru
 default = ["cli", "standard-edition"]
 cli = ["clap", "colored"]
 jeu = ["melodium-loader/jeu"]
-cicd = ["distribution", "fs", "network", "cicd-mel"]
-distribution = ["melodium-distribution", "distrib-mel", "work-mel", "uuid"]
+cicd = ["distribution", "fs", "network", "cicd-mel/real"]
+distribution = ["melodium-distribution", "distrib-mel/real", "work-mel/real", "uuid"]
 doc = ["melodium-doc", "melodium-engine/doc", "melodium-core/doc"]
-network = ["net-mel", "http-mel", "melodium-loader/network"]
-fs = ["fs-mel", "process-mel", "melodium-loader/filesystem"]
-log = ["log-mel"]
-text = ["encoding-mel", "regex-mel"]
-javascript = ["javascript-mel", "json-mel"]
-sql = ["sql-mel"]
-standard-edition = ["jeu", "doc", "cicd", "distribution", "fs", "log", "network", "text", "javascript", "sql"]
+network = ["net-mel/real", "http-mel/real", "melodium-loader/network"]
+fs = ["fs-mel/real", "process-mel/real", "melodium-loader/filesystem"]
+log = ["log-mel/real"]
+text = ["encoding-mel/real", "regex-mel/real"]
+javascript = ["javascript-mel/real", "json-mel/real"]
+sql = ["sql-mel/real"]
+standard-edition = ["jeu", "doc", "cicd", "distribution", "fs", "log", "network", "text", "javascript", "sql", "std-mel/real"]
 container-edition = ["standard-edition", "work-mel/kubernetes"]
+webassembly-edition = ["melodium-share/webassembly", "jeu", "doc", "std-mel/mock", "cicd-mel/mock", "log-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "sql-mel/mock", "distrib-mel/mock", "work-mel/mock", "uuid/js", "fs-mel/mock", "process-mel/mock", "net-mel/mock", "http-mel/mock"]
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
+wasm-bindgen = "0.2.100"
+wasm-bindgen-utils = "0.0.10"
+serde-wasm-bindgen = "0.6"
+serde = { version = "1.0", features = ["derive"] }
+console_error_panic_hook = "0.1.7"
 
 [package.metadata.docs.rs]
 all-features = true

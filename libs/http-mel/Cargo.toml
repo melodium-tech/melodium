@@ -24,11 +24,11 @@ melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.4" }
 std-mel = { path = "../std-mel", version = "=0.9.0-pre.4" }
 net-mel = { path = "../net-mel", version = "=0.9.0-pre.4" }
 serde = "1.0.185"
-trillium = { version = "0.2", features = ["serde"] }
-trillium-router = "0.4"
-trillium-async-std = "0.4"
-trillium-client = "0.6"
-trillium-rustls = { version = "0.8", default-features = false, features = ["client", "ring"] }
+trillium = { version = "0.2", features = ["serde"]}
+trillium-router = { version = "0.4"}
+trillium-async-std = {version = "0.4", optional = true}
+trillium-client = {version = "0.6"}
+trillium-rustls = { version = "0.8", default-features = false, features = ["client", "ring"], optional = true }
 ringbuf = "0.3"
 async-ringbuf = "0.1"
 routefinder = "0.5"
@@ -37,7 +37,7 @@ uuid = { version = "1.7", features = ["v4", "fast-rng"] }
 [features]
 mock = []
 plugin = []
-real = []
+real = ["trillium-async-std", "trillium-rustls"]
 
 [package.metadata.docs.rs]
 all-features = true

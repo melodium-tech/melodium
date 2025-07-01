@@ -1,10 +1,7 @@
 use crate::method::*;
 use crate::status::*;
 use async_ringbuf::{AsyncHeapRb, AsyncProducer, AsyncRb};
-use async_std::{
-    net::TcpListener,
-    sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock},
-};
+use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
 use core::{fmt::Debug, mem::MaybeUninit};
 use melodium_core::{common::executive::ResultStatus, *};
 use melodium_macro::{mel_context, mel_model, mel_treatment};
@@ -23,7 +20,6 @@ use trillium::HeaderValue;
 use trillium::KnownHeaderName;
 use trillium::{Body, Conn};
 use trillium::{Method, Status};
-use trillium_async_std::Stopper;
 use trillium_router::{Router, RouterConnExt};
 use uuid::Uuid;
 
@@ -96,16 +92,28 @@ pub struct HttpServer {
     status: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerStatus>>>,
     headers: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerHeaders>>>,
     outgoing: AsyncArc<AsyncRwLock<HashMap<Uuid, AsyncProducerOutgoing>>>,
-    shutdown: Stopper,
+    #[cfg(feature = "real")]
+    shutdown: trillium_async_std::Stopper,
 }
 
 impl Debug for HttpServer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("HttpServer")
-            .field("model", &self.model)
-            .field("routes", &self.routes)
-            .field("shutdown", &self.shutdown)
-            .finish()
+        #[cfg(feature = "real")]
+        {
+            f.debug_struct("HttpServer")
+                .field("model", &self.model)
+                .field("routes", &self.routes)
+                .field("shutdown", &self.shutdown)
+                .finish()
+        }
+
+        #[cfg(not(feature = "real"))]
+        {
+            f.debug_struct("HttpServer")
+                .field("model", &self.model)
+                .field("routes", &self.routes)
+                .finish()
+        }
     }
 }
 
@@ -118,7 +126,8 @@ impl HttpServer {
             status: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
             headers: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
             outgoing: AsyncArc::new(AsyncRwLock::new(HashMap::new())),
-            shutdown: Stopper::new(),
+            #[cfg(feature = "real")]
+            shutdown: trillium_async_std::Stopper::new(),
         }
     }
 
@@ -134,6 +143,7 @@ impl HttpServer {
         AsyncArc::clone(&self.outgoing)
     }
 
+    #[cfg(feature = "real")]
     async fn continuous(&self) {
         let model = self.model.upgrade().unwrap();
 
@@ -314,7 +324,7 @@ impl HttpServer {
             }
         }
 
-        match TcpListener::bind((model.get_host().0, model.get_port())).await {
+        match async_std::net::TcpListener::bind((model.get_host().0, model.get_port())).await {
             Ok(listener) => {
                 trillium_async_std::config()
                     .without_signals()
@@ -345,6 +355,9 @@ impl HttpServer {
         }
     }
 
+    #[cfg(not(feature = "real"))]
+    async fn continuous(&self) {}
+
     fn invoke_source(&self, source: &str, params: HashMap<String, Value>) {
         match source {
             "incoming" => {
@@ -366,6 +379,7 @@ impl HttpServer {
     }
 
     fn shutdown(&self) {
+        #[cfg(feature = "real")]
         self.shutdown.stop();
     }
 }

@@ -101,3 +101,19 @@ impl Collection {
         Self { elements }
     }
 }
+
+impl From<&CommonCollection> for Collection {
+    fn from(collection: &CommonCollection) -> Self {
+        Self {
+            elements: collection
+                .identifiers()
+                .iter()
+                .filter_map(|identifier| {
+                    collection
+                        .get(&(identifier.into()))
+                        .map(|entry| entry.into())
+                })
+                .collect(),
+        }
+    }
+}
