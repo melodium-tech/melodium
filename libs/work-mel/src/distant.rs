@@ -89,7 +89,7 @@ impl DistantEngine {
             self.api_token.read().unwrap().clone(),
         );
         if let (Some(api_url), Some(api_token)) = (&api_url, &api_token) {
-            match Request::post(&format!("{api_url}/execution/job/start"))
+            match generic_async_http_client::Request::post(&format!("{api_url}/execution/job/start"))
                 .add_header("User-Agent", crate::USER_AGENT)
                 .map_err(|err| err.to_string())?
                 .add_header("Authorization", format!("Bearer {api_token}").as_bytes())
@@ -135,7 +135,7 @@ impl DistantEngine {
         if let (Some(job_api_id), Some(api_url), Some(api_token)) =
             (job_api_id.clone(), &api_url, &api_token)
         {
-            match Request::post(&format!("{api_url}/execution/job/launched"))
+            match generic_async_http_client::Request::post(&format!("{api_url}/execution/job/launched"))
                 .add_header("User-Agent", crate::USER_AGENT)
                 .map_err(|err| err.to_string())?
                 .add_header("Authorization", format!("Bearer {api_token}").as_bytes())
@@ -179,7 +179,7 @@ impl DistantEngine {
                     if let (Some(job_api_id), Some(api_url), Some(api_token)) =
                         (job_api_id, api_url, api_token)
                     {
-                        let _ = Request::post(&format!("{api_url}/execution/job/ended"))
+                        let _ = generic_async_http_client::Request::post(&format!("{api_url}/execution/job/ended"))
                             .add_header("User-Agent", crate::USER_AGENT)?
                             .add_header("Authorization", format!("Bearer {api_token}").as_bytes())?
                             .add_header("Content-Type", "application/json")?
