@@ -17,17 +17,21 @@ crate-type = ["lib", "cdylib"]
 name = "cicd_mel"
 
 [dependencies]
+async-std = "1.13"
 melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.4" }
 melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.4" }
 std-mel = { path = "../std-mel", version = "=0.9.0-pre.4" }
 http-mel = { path = "../http-mel", version = "=0.9.0-pre.4" }
+javascript-mel = { path = "../javascript-mel", version = "=0.9.0-pre.4" }
 json-mel = { path = "../json-mel", version = "=0.9.0-pre.4" }
 log-mel = { path = "../log-mel", version = "=0.9.0-pre.4" }
 process-mel = { path = "../process-mel", version = "=0.9.0-pre.4" }
 fs-mel = { path = "../fs-mel", version = "=0.9.0-pre.4" }
 work-mel = { path = "../work-mel", version = "=0.9.0-pre.4" }
 distrib-mel = { path = "../distrib-mel", version = "=0.9.0-pre.4" }
+regex = "1.9.1"
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.105"
 
 [features]
 mock = []

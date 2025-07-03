@@ -872,15 +872,19 @@ dependencies = [
 name = "cicd-mel"
 version = "0.9.0-pre.4"
 dependencies = [
+ "async-std",
  "distrib-mel",
  "fs-mel",
  "http-mel",
+ "javascript-mel",
  "json-mel",
  "log-mel",
  "melodium-core",
  "melodium-macro",
  "process-mel",
+ "regex",
  "serde",
+ "serde_json",
  "std-mel",
  "work-mel",
 ]
