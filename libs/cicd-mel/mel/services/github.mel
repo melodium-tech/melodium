@@ -6,19 +6,95 @@ use std/text/compose::|format
 use std/flow::emit
 use std/flow::pass
 use std/flow::stream
+use std/flow::trigger
+use std/flow::filterBlock
 use std/conv::toString
 use std/conv::|to_string
 use std/text/convert/string::toUtf8
 use std/text/convert/string::fromUtf8
+use std/ops::equal
+use std/ops/option/block::map
+use std/ops/option/block::reduce
+use std/ops/option/block::unwrapOr
+use std/ops/option::|unwrap_or
+use std/ops/option::|wrap
+use javascript::JavaScriptEngine
 use json::|to_json
 use json::Json
 use json/value::|null
-use std/ops/option::|unwrap_or
-use std/ops/option::|wrap
+use process/environment::mapFullEnvironment
+use root/steps::spawnCommands
 use local::StepState
+use local::githubMapEval
+use local::githubStringEval
+use local::githubCommand
 use log/logger::Logger
 use log/log::logError
 use log/log::logInfos
+
+treatment runAction[contexts: JavaScriptEngine, logger: Logger](
+    id: Option<string> = _,
+    name: string,
+    display_name: Option<string> = _,
+    commands: string,
+    env: Option<StringMap> = _,
+    working_directory: Option<string> = _,
+    shell: Option<string> = _,
+    if: Option<string> = _,
+    continue_on_error: bool = false,
+)
+  input trigger: Block<void>
+{
+    ifExec: filterBlock<void>()
+    localExec: emit<Option<string>>(value=_)
+    spawnCommands[logger=logger](label=name)
+    mapFullEnvironment()
+    githubCommand()
+
+    Self.trigger -> ifExec.value,accepted -> localExec.trigger,value -> spawnCommands.executor_name
+    mapFullEnvironment.environment -----------------------------------> spawnCommands.environment
+    githubCommand.command --------------------------------------------> spawnCommands.commands
+
+
+    emitCommands: emit<string>(value=commands)
+    evalCommands: githubStringEval[contexts=contexts]()
+    Self.trigger -> emitCommands.trigger,emit -> evalCommands.value,evaluated -> githubCommand.run
+
+    emitShell: emit<Option<string>>(value=shell)
+    mapShell: map<string>()
+    evalShell: githubStringEval[contexts=contexts]()
+    reduceShell: reduce<string>()
+    Self.trigger -> emitShell.trigger,emit -> mapShell.option,none --------------------------> reduceShell.none,option -> githubCommand.shell
+                                              mapShell.value ---> evalShell.value,evaluated -> reduceShell.value
+
+    emitEnv: emit<Option<StringMap>>(value=env)
+    mapEnv: map<StringMap>()
+    evalEnv: githubMapEval[contexts=contexts]()
+    reduceEnv: reduce<StringMap>()
+    Self.trigger -> emitEnv.trigger,emit -> mapEnv.option,none --------------------------> reduceEnv.none,option -> mapFullEnvironment.variables
+                                            mapEnv.value ------> evalEnv.map,evaluated --> reduceEnv.value
+
+    emitWorkdir: emit<Option<string>>(value=working_directory)
+    mapWorkdir: map<string>()
+    evalWorkdir: githubStringEval[contexts=contexts]()
+    reduceWorkdir: reduce<string>()
+    Self.trigger -> emitWorkdir.trigger,emit -> mapWorkdir.option,none --------------------------> reduceWorkdir.none,option -> mapFullEnvironment.working_directory
+                                                mapWorkdir.value -> evalWorkdir.value,evaluated -> reduceWorkdir.value
+    
+    emitIf: emit<Option<string>>(value=if)
+    mapIf: map<string>()
+    evalIf: githubStringEval[contexts=contexts]()
+    reduceIf: reduce<string>()
+    unwrapIf: unwrapOr<string>(default="true")
+    streamIf: stream<string>()
+    blockIf: trigger<string>()
+    emitTrue: emit<string>(value="true")
+    streamTrue: stream<string>()
+    equalIf: equal<string>()
+
+    Self.trigger -> emitIf.trigger,emit -> mapIf.option,none ---------------------> reduceIf.none,option ----------> unwrapIf.option,value -> streamIf.block,stream ---> equalIf.a,result -> blockIf.first -> ifExec.select
+                                           mapIf.value -> evalIf.value,evaluated -> reduceIf.value    Self.trigger --> emitTrue.emit,value -> streamTrue.block,stream -> equalIf.b
+}
 
 treatment postGithubState[logger: Logger](token: string, project: string, sha: string, state: StepState, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>

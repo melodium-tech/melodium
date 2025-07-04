@@ -64,3 +64,37 @@ pub async fn map_environment(
             .await;
     }
 }
+
+#[mel_treatment(
+    input variables Block<StringMap>
+    input working_directory Block<Option<string>>
+    output environment Block<Environment>
+    default clear_env false
+    default expand_variables false
+)]
+pub async fn map_full_environment(clear_env: bool, expand_variables: bool) {
+    if let (Ok(working_directory), Ok(variables)) = (
+        working_directory
+            .recv_one()
+            .await
+            .map(|val| GetData::<Option<String>>::try_data(val).unwrap()),
+        variables.recv_one().await.map(|val| {
+            GetData::<std::sync::Arc<dyn Data>>::try_data(val)
+                .unwrap()
+                .downcast_arc::<StringMap>()
+                .unwrap()
+        }),
+    ) {
+        let _ = environment
+            .send_one(
+                (std::sync::Arc::new(Environment {
+                    working_directory,
+                    variables: (*variables).clone(),
+                    expand_variables,
+                    clear_env,
+                }) as std::sync::Arc<dyn Data>)
+                    .into(),
+            )
+            .await;
+    }
+}
