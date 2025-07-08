@@ -2,6 +2,7 @@ use http/client/util::post
 use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
+use std/data/string_map/block::merge
 use std/text/compose::|format
 use std/flow::emit
 use std/flow::pass
@@ -28,6 +29,8 @@ use local::StepState
 use local::githubMapEval
 use local::githubStringEval
 use local::githubCommand
+use local::githubGetEnv
+use local::githubSetOutputs
 use log/logger::Logger
 use log/log::logError
 use log/log::logInfos
@@ -42,8 +45,12 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
     shell: Option<string> = _,
     if: Option<string> = _,
     continue_on_error: bool = false,
+    outputs: Vec<string> = []
 )
   input trigger: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output continue: Block<void>
 {
     ifExec: filterBlock<void>()
     localExec: emit<Option<string>>(value=_)
@@ -55,6 +62,12 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
     mapFullEnvironment.environment -----------------------------------> spawnCommands.environment
     githubCommand.command --------------------------------------------> spawnCommands.commands
 
+    setOutputs: githubSetOutputs[contexts=contexts](outputs=outputs)
+    emitContinueOnError: emit<bool>(value=continue_on_error)
+    Self.trigger -> emitContinueOnError.trigger,emit -> setOutputs.continue_on_error
+                        spawnCommands.completed -> setOutputs.spawn_completed,step_completed -> Self.completed
+                        spawnCommands.failed ----> setOutputs.spawn_failed,step_failed -------> Self.failed
+                                                   setOutputs.step_continue ------------------> Self.continue
 
     emitCommands: emit<string>(value=commands)
     evalCommands: githubStringEval[contexts=contexts]()
@@ -71,8 +84,20 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
     mapEnv: map<StringMap>()
     evalEnv: githubMapEval[contexts=contexts]()
     reduceEnv: reduce<StringMap>()
-    Self.trigger -> emitEnv.trigger,emit -> mapEnv.option,none --------------------------> reduceEnv.none,option -> mapFullEnvironment.variables
+    Self.trigger -> emitEnv.trigger,emit -> mapEnv.option,none --------------------------> reduceEnv.none,option -> mergeEnvs.entries,merged -> mapFullEnvironment.variables
                                             mapEnv.value ------> evalEnv.map,evaluated --> reduceEnv.value
+
+    mergeEnvs: merge()
+
+    emitWorkflowId: emit<string>(value="${{ workflow.id }}")
+    evalWorkflowId: githubStringEval[contexts=contexts]()
+    emitStepId: emit<string>(value=|format("{name}$\\{\\{ strategy.job-index \\}\\}", |entry("name", name)))
+    evalStepId: githubStringEval[contexts=contexts]()
+    envFileVariables: githubGetEnv()
+    Self.trigger -> emitWorkflowId.trigger,emit -> evalWorkflowId.value,evaluated -> envFileVariables.workflow_id,variables -> mergeEnvs.base
+    Self.trigger -> emitStepId.trigger,emit -----> evalStepId.value,evaluated -----> envFileVariables.step_id
+                                                   evalWorkflowId.evaluated -> setOutputs.workflow_id
+                                                   evalStepId.evaluated -----> setOutputs.step_id
 
     emitWorkdir: emit<Option<string>>(value=working_directory)
     mapWorkdir: map<string>()
@@ -83,7 +108,7 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
     
     emitIf: emit<Option<string>>(value=if)
     mapIf: map<string>()
-    evalIf: githubStringEval[contexts=contexts]()
+    evalIf: githubStringEval[contexts=contexts](assume=true)
     reduceIf: reduce<string>()
     unwrapIf: unwrapOr<string>(default="true")
     streamIf: stream<string>()

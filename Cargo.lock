@@ -874,6 +874,7 @@ version = "0.9.0-pre.4"
 dependencies = [
  "async-std",
  "distrib-mel",
+ "dotenvy",
  "fs-mel",
  "http-mel",
  "javascript-mel",

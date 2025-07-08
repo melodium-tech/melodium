@@ -66,12 +66,13 @@ pub fn error() -> StepState {
 }
 
 #[mel_treatment(
-    model engine JavaScriptEngine
+    model contexts JavaScriptEngine
+    default assume false
     input map Block<StringMap>
     output evaluated Block<StringMap>
 )]
-pub async fn github_map_eval() {
-    let engine = JavaScriptEngineModel::into(engine);
+pub async fn github_map_eval(assume: bool) {
+    let engine = JavaScriptEngineModel::into(contexts);
 
     if let Ok(map) = map.recv_one().await.map(|val| {
         GetData::<Arc<dyn Data>>::try_data(val)
@@ -83,10 +84,21 @@ pub async fn github_map_eval() {
         let var_replacer = VarReplacer { js_engine: &engine };
         for (name, value) in &map.map {
             let regex = github_regex();
-            updated_map.insert(
-                name.clone(),
-                regex.replace_all(value, &var_replacer).to_string(),
-            );
+            if assume {
+                if regex.is_match(&value) {
+                    updated_map.insert(
+                        name.clone(),
+                        regex.replace_all(value, &var_replacer).to_string(),
+                    );
+                } else {
+                    updated_map.insert(name.clone(), eval_js(&engine, &value));
+                }
+            } else {
+                updated_map.insert(
+                    name.clone(),
+                    regex.replace_all(value, &var_replacer).to_string(),
+                );
+            }
         }
         let _ = evaluated
             .send_one(Value::Data(
@@ -97,12 +109,13 @@ pub async fn github_map_eval() {
 }
 
 #[mel_treatment(
-    model engine JavaScriptEngine
+    model contexts JavaScriptEngine
+    default assume false
     input value Block<string>
     output evaluated Block<string>
 )]
-pub async fn github_string_eval() {
-    let engine = JavaScriptEngineModel::into(engine);
+pub async fn github_string_eval(assume: bool) {
+    let engine = JavaScriptEngineModel::into(contexts);
 
     if let Ok(value) = value
         .recv_one()
@@ -110,8 +123,18 @@ pub async fn github_string_eval() {
         .map(|val| GetData::<String>::try_data(val).unwrap())
     {
         let var_replacer = VarReplacer { js_engine: &engine };
+
         let regex = github_regex();
-        let _ = evaluated.send_one(regex.replace_all(&value, &var_replacer).to_string().into());
+        if assume {
+            if regex.is_match(&value) {
+                let _ =
+                    evaluated.send_one(regex.replace_all(&value, &var_replacer).to_string().into());
+            } else {
+                let _ = evaluated.send_one(eval_js(&engine, &value).into());
+            }
+        } else {
+            let _ = evaluated.send_one(regex.replace_all(&value, &var_replacer).to_string().into());
+        }
     }
 }
 
@@ -258,10 +281,225 @@ pub async fn github_command() {
     }
 }
 
+#[mel_treatment(
+    input workflow_id Block<string>
+    input step_id Block<string>
+    output variables Block<StringMap>
+)]
+pub async fn github_get_env(step_name: string) {
+    if let (Ok(workflow_id), Ok(step_id)) = (
+        workflow_id
+            .recv_one()
+            .await
+            .map(|val| GetData::<String>::try_data(val).unwrap()),
+        step_id
+            .recv_one()
+            .await
+            .map(|val| GetData::<String>::try_data(val).unwrap()),
+    ) {
+        let env_file = env_file(&workflow_id);
+
+        let mut map = HashMap::new();
+        map.insert("GITHUB_ENV".to_string(), env_file.clone());
+        map.insert(
+            "GITHUB_OUTPUT".to_string(),
+            output_file(&workflow_id, &step_id),
+        );
+
+        if let Ok(env) = dotenvy::from_filename_iter(env_file) {
+            for item in env {
+                if let Ok((key, val)) = item {
+                    map.insert(key, val);
+                }
+            }
+        }
+
+        let _ = variables
+            .send_one(Value::Data(Arc::new(StringMap { map })))
+            .await;
+    }
+}
+
+#[mel_treatment(
+    model contexts JavaScriptEngine
+
+    input workflow_id Block<string>
+    input step_id Block<string>
+    input continue_on_error Block<bool>
+    input spawn_completed Block<void>
+    input spawn_failed Block<void>
+
+    output step_completed Block<void>
+    output step_failed Block<void>
+    output step_continue Block<void>
+)]
+pub async fn github_set_output(outputs: Vec<string>) {
+    let engine = JavaScriptEngineModel::into(contexts);
+
+    if let (Ok(workflow_id), Ok(step_id)) = (
+        workflow_id
+            .recv_one()
+            .await
+            .map(|val| GetData::<String>::try_data(val).unwrap()),
+        step_id
+            .recv_one()
+            .await
+            .map(|val| GetData::<String>::try_data(val).unwrap()),
+    ) {
+        let continue_on_error = continue_on_error
+            .recv_one()
+            .await
+            .map(|val| GetData::<bool>::try_data(val).unwrap())
+            .unwrap_or(false);
+
+        let conclusion;
+        let outcome;
+        let outputs_contents;
+        let continue_after;
+        let completed;
+        let failed;
+        match (
+            spawn_completed.recv_one().await,
+            spawn_failed.recv_one().await,
+        ) {
+            (Ok(_), Err(_)) => {
+                conclusion = serde_json::Value::String("success".to_string());
+                outcome = serde_json::Value::String("success".to_string());
+                continue_after = true;
+                completed = true;
+                failed = false;
+
+                let mut map = HashMap::new();
+                if let Ok(env) = dotenvy::from_filename_iter(output_file(&workflow_id, &step_id)) {
+                    for item in env {
+                        if let Ok((key, val)) = item {
+                            map.insert(key, val);
+                        }
+                    }
+                }
+                outputs_contents = serde_json::Value::Object(
+                    outputs
+                        .iter()
+                        .map(|output| {
+                            (
+                                output.clone(),
+                                map.remove(output)
+                                    .map(|val| serde_json::Value::String(val))
+                                    .unwrap_or_else(|| serde_json::Value::Null),
+                            )
+                        })
+                        .collect(),
+                );
+            }
+            (Err(_), Ok(_)) => {
+                completed = false;
+                failed = true;
+                outcome = serde_json::Value::String("failure".to_string());
+                if continue_on_error {
+                    conclusion = serde_json::Value::String("success".to_string());
+                    continue_after = true;
+                } else {
+                    conclusion = serde_json::Value::String("failure".to_string());
+                    continue_after = false;
+                }
+                outputs_contents = serde_json::Value::Object(
+                    outputs
+                        .iter()
+                        .map(|output| (output.clone(), serde_json::Value::Null))
+                        .collect(),
+                );
+            }
+            _ => {
+                conclusion = serde_json::Value::String("skipped".to_string());
+                outcome = serde_json::Value::String("skipped".to_string());
+                continue_after = false;
+                completed = false;
+                failed = false;
+                outputs_contents = serde_json::Value::Object(
+                    outputs
+                        .iter()
+                        .map(|output| (output.clone(), serde_json::Value::Null))
+                        .collect(),
+                );
+            }
+        }
+        let mut full_object = serde_json::Map::new();
+        full_object.insert(
+            "identifier".to_string(),
+            serde_json::Value::String(step_id.clone()),
+        );
+        full_object.insert("conclusion".to_string(), conclusion);
+        full_object.insert("outcome".to_string(), outcome);
+        full_object.insert("outputs".to_string(), outputs_contents);
+        let _ = engine
+            .inner()
+            .process(
+                serde_json::Value::Object(full_object),
+                r#"
+                let identifier = value.identifier;
+                delete value.identifier;
+                if (typeof steps !== "object") { steps = {}; }
+                steps[identifier] = value;
+                "#
+                .to_string(),
+            )
+            .await;
+
+        if completed {
+            let _ = step_completed.send_one(().into()).await;
+        }
+        if failed {
+            let _ = step_failed.send_one(().into()).await;
+        }
+        if continue_after {
+            let _ = step_continue.send_one(().into()).await;
+        }
+    }
+}
+
+#[mel_treatment(
+    input workflow_id Block<string>
+    output filename Block<string>
+)]
+pub async fn github_get_env_files() {
+    if let Ok(workflow_id) = workflow_id
+        .recv_one()
+        .await
+        .map(|val| GetData::<String>::try_data(val).unwrap())
+    {
+        let _ = filename.send_one(env_file(&workflow_id).into()).await;
+    }
+}
+
+fn env_file(id: &str) -> String {
+    let mut file_path = std::env::temp_dir();
+    file_path.push(format!("{id}.env"));
+    file_path.to_string_lossy().to_string()
+}
+
+fn output_file(workflow_id: &str, step_id: &str) -> String {
+    let mut file_path = std::env::temp_dir();
+    file_path.push(format!("{workflow_id}-{step_id}.output"));
+    file_path.to_string_lossy().to_string()
+}
+
 static VAR_REGEX: OnceLock<Regex> = OnceLock::new();
 
 fn github_regex() -> &'static Regex {
     VAR_REGEX.get_or_init(|| Regex::new(r#"\$\{\{(.*)\}\}"#).unwrap())
+}
+
+fn eval_js(js_engine: &JavaScriptEngineModel, eval: &str) -> String {
+    async_std::task::block_on(
+        js_engine
+            .inner()
+            .process(serde_json::Value::Null, eval.to_string()),
+    )
+    .map(|res| res.map(|val| val.as_str().map(|s| s.to_string())).ok())
+    .ok()
+    .flatten()
+    .flatten()
+    .unwrap_or_default()
 }
 
 struct VarReplacer<'a> {
@@ -270,16 +508,7 @@ struct VarReplacer<'a> {
 
 impl<'a> Replacer for &VarReplacer<'a> {
     fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
-        let eval = async_std::task::block_on(
-            self.js_engine
-                .inner()
-                .process(serde_json::Value::Null, caps[1].to_string()),
-        )
-        .map(|res| res.map(|val| val.as_str().map(|s| s.to_string())).ok())
-        .ok()
-        .flatten()
-        .flatten()
-        .unwrap_or_default();
+        let eval = eval_js(&self.js_engine, &caps[1]);
         dst.push_str(eval.as_str());
     }
 }
