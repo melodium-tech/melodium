@@ -333,7 +333,7 @@ pub async fn github_get_env(step_name: string) {
     output step_failed Block<void>
     output step_continue Block<void>
 )]
-pub async fn github_set_output(outputs: Vec<string>) {
+pub async fn github_set_output() {
     let engine = JavaScriptEngineModel::into(contexts);
 
     if let (Ok(workflow_id), Ok(step_id)) = (
@@ -369,27 +369,15 @@ pub async fn github_set_output(outputs: Vec<string>) {
                 completed = true;
                 failed = false;
 
-                let mut map = HashMap::new();
+                let mut map = serde_json::Map::new();
                 if let Ok(env) = dotenvy::from_filename_iter(output_file(&workflow_id, &step_id)) {
                     for item in env {
                         if let Ok((key, val)) = item {
-                            map.insert(key, val);
+                            map.insert(key, serde_json::Value::String(val));
                         }
                     }
                 }
-                outputs_contents = serde_json::Value::Object(
-                    outputs
-                        .iter()
-                        .map(|output| {
-                            (
-                                output.clone(),
-                                map.remove(output)
-                                    .map(|val| serde_json::Value::String(val))
-                                    .unwrap_or_else(|| serde_json::Value::Null),
-                            )
-                        })
-                        .collect(),
-                );
+                outputs_contents = serde_json::Value::Object(map);
             }
             (Err(_), Ok(_)) => {
                 completed = false;
@@ -402,12 +390,7 @@ pub async fn github_set_output(outputs: Vec<string>) {
                     conclusion = serde_json::Value::String("failure".to_string());
                     continue_after = false;
                 }
-                outputs_contents = serde_json::Value::Object(
-                    outputs
-                        .iter()
-                        .map(|output| (output.clone(), serde_json::Value::Null))
-                        .collect(),
-                );
+                outputs_contents = serde_json::Value::Object(serde_json::Map::new());
             }
             _ => {
                 conclusion = serde_json::Value::String("skipped".to_string());
@@ -415,12 +398,7 @@ pub async fn github_set_output(outputs: Vec<string>) {
                 continue_after = false;
                 completed = false;
                 failed = false;
-                outputs_contents = serde_json::Value::Object(
-                    outputs
-                        .iter()
-                        .map(|output| (output.clone(), serde_json::Value::Null))
-                        .collect(),
-                );
+                outputs_contents = serde_json::Value::Object(serde_json::Map::new());
             }
         }
         let mut full_object = serde_json::Map::new();

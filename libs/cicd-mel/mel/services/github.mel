@@ -44,8 +44,7 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
     working_directory: Option<string> = _,
     shell: Option<string> = _,
     if: Option<string> = _,
-    continue_on_error: bool = false,
-    outputs: Vec<string> = []
+    continue_on_error: Option<string> = _
 )
   input trigger: Block<void>
   output completed: Block<void>
@@ -54,7 +53,7 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
 {
     ifExec: filterBlock<void>()
     localExec: emit<Option<string>>(value=_)
-    spawnCommands[logger=logger](label=name)
+    spawnCommands[logger=logger](label=|unwrap_or<string>(display_name, name))
     mapFullEnvironment()
     githubCommand()
 
@@ -62,8 +61,8 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
     mapFullEnvironment.environment -----------------------------------> spawnCommands.environment
     githubCommand.command --------------------------------------------> spawnCommands.commands
 
-    setOutputs: githubSetOutputs[contexts=contexts](outputs=outputs)
-    emitContinueOnError: emit<bool>(value=continue_on_error)
+    setOutputs: githubSetOutputs[contexts=contexts]()
+    
     Self.trigger -> emitContinueOnError.trigger,emit -> setOutputs.continue_on_error
                         spawnCommands.completed -> setOutputs.spawn_completed,step_completed -> Self.completed
                         spawnCommands.failed ----> setOutputs.spawn_failed,step_failed -------> Self.failed
@@ -117,8 +116,20 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
     streamTrue: stream<string>()
     equalIf: equal<string>()
 
-    Self.trigger -> emitIf.trigger,emit -> mapIf.option,none ---------------------> reduceIf.none,option ----------> unwrapIf.option,value -> streamIf.block,stream ---> equalIf.a,result -> blockIf.first -> ifExec.select
+    Self.trigger -> emitIf.trigger,emit -> mapIf.option,none ---------------------> reduceIf.none,option ----------> unwrapIf.option,value -> streamIf.block,stream ---> equalIf.a,result -> blockIf.stream,first -> ifExec.select
                                            mapIf.value -> evalIf.value,evaluated -> reduceIf.value    Self.trigger --> emitTrue.emit,value -> streamTrue.block,stream -> equalIf.b
+
+    emitContinueOnError: emit<Option<string>>(value=continue_on_error)
+    mapContinueOnError: map<string>()
+    evalContinueOnError: githubStringEval[contexts=contexts](assume=true)
+    reduceContinueOnError: reduce<string>()
+    unwrapContinueOnError: unwrapOr<string>(default="false")
+    streamContinueOnError: stream<string>()
+    blockContinueOnError: trigger<string>()
+    equalContinueOnError: equal<string>()
+
+    Self.trigger -> emitContinueOnError.trigger,emit -> mapContinueOnError.option,none ----------------------------------> reduceContinueOnError.none,option ----------> unwrapContinueOnError.option,value -> streamContinueOnError.block,stream ---> equalContinueOnError.a,result -> blockContinueOnError.stream,first -> setOutputs.continue_on_error
+                                                        mapContinueOnError.value -> evalContinueOnError.value,evaluated -> reduceContinueOnError.value                                                                            streamTrue.stream -> equalContinueOnError.b
 }
 
 treatment postGithubState[logger: Logger](token: string, project: string, sha: string, state: StepState, name: string, description: string, log_response: bool = false)
