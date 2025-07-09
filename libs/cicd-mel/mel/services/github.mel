@@ -16,6 +16,8 @@ use std/text/convert/string::fromUtf8
 use std/ops::equal
 use std/ops/option/block::map
 use std/ops/option/block::reduce
+use std/ops/option/block::wrap
+use std/ops/option/block::unwrap
 use std/ops/option/block::unwrapOr
 use std/ops/option::|unwrap_or
 use std/ops/option::|wrap
@@ -23,6 +25,7 @@ use javascript::JavaScriptEngine
 use json::|to_json
 use json::Json
 use json/value::|null
+use process/environment::Environment
 use process/environment::mapFullEnvironment
 use root/steps::spawnCommands
 use local::StepState
@@ -55,18 +58,18 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
     localExec: emit<Option<string>>(value=_)
     spawnCommands[logger=logger](label=|unwrap_or<string>(display_name, name))
     mapFullEnvironment()
+    wrapFullEnvironment: wrap<Environment>()
     githubCommand()
 
-    Self.trigger -> ifExec.value,accepted -> localExec.trigger,value -> spawnCommands.executor_name
-    mapFullEnvironment.environment -----------------------------------> spawnCommands.environment
-    githubCommand.command --------------------------------------------> spawnCommands.commands
+    Self.trigger -> ifExec.value,accepted -> localExec.trigger,emit ----> spawnCommands.executor_name
+    mapFullEnvironment.environment -> wrapFullEnvironment.value,option -> spawnCommands.environment
+    githubCommand.command ----------------------------------------------> spawnCommands.commands
 
     setOutputs: githubSetOutputs[contexts=contexts]()
     
-    Self.trigger -> emitContinueOnError.trigger,emit -> setOutputs.continue_on_error
-                        spawnCommands.completed -> setOutputs.spawn_completed,step_completed -> Self.completed
-                        spawnCommands.failed ----> setOutputs.spawn_failed,step_failed -------> Self.failed
-                                                   setOutputs.step_continue ------------------> Self.continue
+    spawnCommands.completed -> setOutputs.spawn_completed,step_completed -> Self.completed
+    spawnCommands.failed ----> setOutputs.spawn_failed,step_failed -------> Self.failed
+                               setOutputs.step_continue ------------------> Self.continue
 
     emitCommands: emit<string>(value=commands)
     evalCommands: githubStringEval[contexts=contexts]()
@@ -83,7 +86,8 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
     mapEnv: map<StringMap>()
     evalEnv: githubMapEval[contexts=contexts]()
     reduceEnv: reduce<StringMap>()
-    Self.trigger -> emitEnv.trigger,emit -> mapEnv.option,none --------------------------> reduceEnv.none,option -> mergeEnvs.entries,merged -> mapFullEnvironment.variables
+    unwrapEnv: unwrap<StringMap>()
+    Self.trigger -> emitEnv.trigger,emit -> mapEnv.option,none --------------------------> reduceEnv.none,option -> unwrapEnv.option,value -> mergeEnvs.entries,merged -> mapFullEnvironment.variables
                                             mapEnv.value ------> evalEnv.map,evaluated --> reduceEnv.value
 
     mergeEnvs: merge()
@@ -111,13 +115,13 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
     reduceIf: reduce<string>()
     unwrapIf: unwrapOr<string>(default="true")
     streamIf: stream<string>()
-    blockIf: trigger<string>()
+    blockIf: trigger<bool>()
     emitTrue: emit<string>(value="true")
     streamTrue: stream<string>()
     equalIf: equal<string>()
 
-    Self.trigger -> emitIf.trigger,emit -> mapIf.option,none ---------------------> reduceIf.none,option ----------> unwrapIf.option,value -> streamIf.block,stream ---> equalIf.a,result -> blockIf.stream,first -> ifExec.select
-                                           mapIf.value -> evalIf.value,evaluated -> reduceIf.value    Self.trigger --> emitTrue.emit,value -> streamTrue.block,stream -> equalIf.b
+    Self.trigger -> emitIf.trigger,emit -> mapIf.option,none ---------------------> reduceIf.none,option ----------> unwrapIf.option,value --> streamIf.block,stream ---> equalIf.a,result -> blockIf.stream,first -> ifExec.select
+                                           mapIf.value -> evalIf.value,evaluated -> reduceIf.value    Self.trigger -> emitTrue.trigger,emit -> streamTrue.block,stream -> equalIf.b
 
     emitContinueOnError: emit<Option<string>>(value=continue_on_error)
     mapContinueOnError: map<string>()
@@ -125,7 +129,7 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
     reduceContinueOnError: reduce<string>()
     unwrapContinueOnError: unwrapOr<string>(default="false")
     streamContinueOnError: stream<string>()
-    blockContinueOnError: trigger<string>()
+    blockContinueOnError: trigger<bool>()
     equalContinueOnError: equal<string>()
 
     Self.trigger -> emitContinueOnError.trigger,emit -> mapContinueOnError.option,none ----------------------------------> reduceContinueOnError.none,option ----------> unwrapContinueOnError.option,value -> streamContinueOnError.block,stream ---> equalContinueOnError.a,result -> blockContinueOnError.stream,first -> setOutputs.continue_on_error

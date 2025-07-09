@@ -6,7 +6,7 @@ use melodium_common::descriptor::{
     Package as CommonPackage, PackageRequirement,
 };
 use semver::Version;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, OnceLock, RwLock};
 
 #[derive(Debug)]
@@ -143,7 +143,7 @@ impl PackageTrait for CorePackage {
         };
 
         // Getting all needs of each content, while being sure no circular dependency occurs
-        let mut all_needs = HashMap::new();
+        let mut all_needs = BTreeMap::new();
         for (designation, content) in self.contents.read().unwrap().iter() {
             let needs = content.require();
 

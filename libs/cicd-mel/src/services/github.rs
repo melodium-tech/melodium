@@ -286,7 +286,7 @@ pub async fn github_command() {
     input step_id Block<string>
     output variables Block<StringMap>
 )]
-pub async fn github_get_env(step_name: string) {
+pub async fn github_get_env() {
     if let (Ok(workflow_id), Ok(step_id)) = (
         workflow_id
             .recv_one()
@@ -333,7 +333,7 @@ pub async fn github_get_env(step_name: string) {
     output step_failed Block<void>
     output step_continue Block<void>
 )]
-pub async fn github_set_output() {
+pub async fn github_set_outputs() {
     let engine = JavaScriptEngineModel::into(contexts);
 
     if let (Ok(workflow_id), Ok(step_id)) = (
