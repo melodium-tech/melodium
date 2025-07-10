@@ -2856,22 +2856,41 @@ impl core::fmt::Display for Value {
                     c => c.to_string(),
                 }
             ),
-            Value::String(v) => write!(
-                f,
-                "\"{}\"",
-                v.chars()
-                    .map(|c| match c {
-                        '\n' => r"\n".to_string(),
-                        '\r' => r"\r".to_string(),
-                        '\t' => r"\t".to_string(),
-                        '\\' => r"\\".to_string(),
-                        '\0' => r"\0".to_string(),
-                        '\"' => r#"\""#.to_string(),
-                        c if c.is_control() => c.escape_unicode().to_string(),
-                        c => c.to_string(),
-                    })
-                    .collect::<String>()
-            ),
+            Value::String(v) => {
+                if !v.contains(['\n', '\t', '\r'])
+                    || v.contains(['\0'])
+                    || v.contains(char::is_control)
+                {
+                    write!(
+                        f,
+                        "\"{}\"",
+                        v.chars()
+                            .map(|c| match c {
+                                '\n' => r"\n".to_string(),
+                                '\r' => r"\r".to_string(),
+                                '\t' => r"\t".to_string(),
+                                '\\' => r"\\".to_string(),
+                                '\0' => r"\0".to_string(),
+                                '\"' => r#"\""#.to_string(),
+                                c if c.is_control() => c.escape_unicode().to_string(),
+                                c => c.to_string(),
+                            })
+                            .collect::<String>()
+                    )
+                } else {
+                    let mut num_braces: usize = 1;
+                    let mut start_braces;
+                    let mut end_braces;
+                    while {
+                        start_braces = [0..=num_braces].iter().map(|_| '{').collect::<String>();
+                        end_braces = [0..=num_braces].iter().map(|_| '}').collect::<String>();
+                        v.contains(&start_braces) || v.contains(&end_braces)
+                    } {
+                        num_braces += 1;
+                    }
+                    write!(f, "${start_braces}{v}{end_braces}")
+                }
+            }
             Value::Option(v) => {
                 if let Some(v) = v {
                     write!(f, "{v}")
