@@ -77,7 +77,7 @@ impl Model {
                         default = param
                             .default()
                             .as_ref()
-                            .map(|v| format!(" = {}", value(&v.into(), names)))
+                            .map(|v| format!(" = {}", value(&v.into(), names, 2)))
                             .unwrap_or_default()
                     )
                 })
@@ -98,7 +98,7 @@ impl Model {
             implementation.push_str("    ");
             implementation.push_str(&param.name);
             implementation.push_str(" = ");
-            implementation.push_str(&value(&param.value, names));
+            implementation.push_str(&value(&param.value, names, 1));
             implementation.push_str("\n");
         }
 

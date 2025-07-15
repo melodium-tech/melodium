@@ -105,7 +105,7 @@ impl Treatment {
             implementation.push_str("]");
         }
 
-        implementation.push_str("(");
+        implementation.push_str("(\n");
 
         implementation.push_str(
             &descriptor
@@ -114,25 +114,25 @@ impl Treatment {
                 .sorted_by_key(|(k, _)| *k)
                 .map(|(_, param)| {
                     format!(
-                        "{variability} {attributes}{name}: {param}{default}",
+                        "{attributes}{variability} {name}: {param}{default}",
                         variability = param.variability(),
                         attributes = param
                             .attributes()
                             .iter()
-                            .map(|(name, attribute)| format!("#[{name}({attribute})] "))
+                            .map(|(name, attribute)| format!("#[{name}({attribute})]"))
                             .collect::<Vec<_>>()
-                            .join(""),
+                            .join("\n        "),
                         name = param.name(),
                         param = describe_type(param.described_type(), names),
                         default = param
                             .default()
                             .as_ref()
-                            .map(|v| format!(" = {}", value(&v.into(), names)))
+                            .map(|v| format!(" = {}", value(&v.into(), names, 2)))
                             .unwrap_or_default()
                     )
                 })
                 .collect::<Vec<_>>()
-                .join(", "),
+                .join(",\n        "),
         );
 
         implementation.push_str(")\n");
@@ -210,7 +210,7 @@ impl Treatment {
                         format!(
                             "{name} = {value}",
                             name = param.name,
-                            value = value(&param.value, names)
+                            value = value(&param.value, names, 1)
                         )
                     })
                     .collect::<Vec<_>>()
@@ -268,6 +268,7 @@ impl Treatment {
                     &instanciation
                         .models
                         .iter()
+                        .sorted_by_key(|(k, _)| *k)
                         .map(|(name, model)| format!("{name} = {model}"))
                         .collect::<Vec<_>>()
                         .join(", "),
@@ -275,24 +276,25 @@ impl Treatment {
                 implementation.push_str("]");
             }
 
-            implementation.push_str("(");
+            implementation.push_str("(\n        ");
 
             implementation.push_str(
                 &instanciation
                     .parameters
                     .iter()
+                    .sorted_by_key(|(k, _)| *k)
                     .map(|(_, param)| {
                         format!(
                             "{name} = {value}",
                             name = param.name,
-                            value = value(&param.value, names)
+                            value = value(&param.value, names, 2)
                         )
                     })
                     .collect::<Vec<_>>()
-                    .join(", "),
+                    .join(",\n        "),
             );
 
-            implementation.push_str(")\n");
+            implementation.push_str("\n    )\n");
         }
 
         implementation.push_str("\n");
