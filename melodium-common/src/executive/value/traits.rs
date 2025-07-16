@@ -2858,7 +2858,7 @@ impl core::fmt::Display for Value {
             ),
             Value::String(v) => {
                 if v.chars()
-                    .any(|c| c.is_control() && !['\n', '\t', '\r'].iter().any(|l| l == &c))
+                    .any(|c| c.is_control() && c != '\n' && c != '\t' && c != '\r')
                     || v.contains(['\0'])
                 {
                     write!(
@@ -2878,15 +2878,11 @@ impl core::fmt::Display for Value {
                             .collect::<String>()
                     )
                 } else {
-                    let mut num_braces: usize = 1;
-                    let mut start_braces;
-                    let mut end_braces;
-                    while {
-                        start_braces = [0..=num_braces].iter().map(|_| '{').collect::<String>();
-                        end_braces = [0..=num_braces].iter().map(|_| '}').collect::<String>();
-                        v.contains(&start_braces) || v.contains(&end_braces)
-                    } {
-                        num_braces += 1;
+                    let mut start_braces: String = "{".into();
+                    let mut end_braces: String = "}".into();
+                    while v.contains(&start_braces) || v.contains(&end_braces) {
+                        start_braces.push('{');
+                        end_braces.push('}');
                     }
                     write!(f, "${start_braces}{v}{end_braces}")
                 }
