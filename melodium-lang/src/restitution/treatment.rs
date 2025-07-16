@@ -105,7 +105,7 @@ impl Treatment {
             implementation.push_str("]");
         }
 
-        implementation.push_str("(\n");
+        implementation.push_str("(");
 
         implementation.push_str(
             &descriptor
@@ -114,14 +114,14 @@ impl Treatment {
                 .sorted_by_key(|(k, _)| *k)
                 .map(|(_, param)| {
                     format!(
-                        "{attributes}{variability} {name}: {param}{default}",
+                        "{attributes}\n        {variability} {name}: {param}{default}",
                         variability = param.variability(),
                         attributes = param
                             .attributes()
                             .iter()
-                            .map(|(name, attribute)| format!("#[{name}({attribute})]"))
+                            .map(|(name, attribute)| format!("\n        #[{name}({attribute})]"))
                             .collect::<Vec<_>>()
-                            .join("\n        "),
+                            .join(""),
                         name = param.name(),
                         param = describe_type(param.described_type(), names),
                         default = param
@@ -132,7 +132,7 @@ impl Treatment {
                     )
                 })
                 .collect::<Vec<_>>()
-                .join(",\n        "),
+                .join(","),
         );
 
         implementation.push_str(")\n");
@@ -276,7 +276,7 @@ impl Treatment {
                 implementation.push_str("]");
             }
 
-            implementation.push_str("(\n        ");
+            implementation.push_str("(");
 
             implementation.push_str(
                 &instanciation
@@ -285,16 +285,16 @@ impl Treatment {
                     .sorted_by_key(|(k, _)| *k)
                     .map(|(_, param)| {
                         format!(
-                            "{name} = {value}",
+                            "\n        {name} = {value}",
                             name = param.name,
                             value = value(&param.value, names, 2)
                         )
                     })
                     .collect::<Vec<_>>()
-                    .join(",\n        "),
+                    .join(","),
             );
 
-            implementation.push_str("\n    )\n");
+            implementation.push_str(")\n");
         }
 
         implementation.push_str("\n");

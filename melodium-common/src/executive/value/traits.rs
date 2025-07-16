@@ -2857,9 +2857,9 @@ impl core::fmt::Display for Value {
                 }
             ),
             Value::String(v) => {
-                if !v.contains(['\n', '\t', '\r'])
+                if v.chars()
+                    .any(|c| c.is_control() && !['\n', '\t', '\r'].iter().any(|l| l == &c))
                     || v.contains(['\0'])
-                    || v.contains(char::is_control)
                 {
                     write!(
                         f,
