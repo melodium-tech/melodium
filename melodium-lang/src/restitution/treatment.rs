@@ -135,6 +135,10 @@ impl Treatment {
                 .join(","),
         );
 
+        if !descriptor.parameters().is_empty() {
+            implementation.push_str("\n");
+        }
+
         implementation.push_str(")\n");
 
         for (_, context) in descriptor.contexts().iter().sorted_by_key(|(k, _)| *k) {
@@ -293,7 +297,9 @@ impl Treatment {
                     .collect::<Vec<_>>()
                     .join(","),
             );
-
+            if !instanciation.parameters.is_empty() {
+                implementation.push_str("\n    ");
+            }
             implementation.push_str(")\n");
         }
 

@@ -65,11 +65,11 @@ impl Model {
                 .sorted_by_key(|(k, _)| *k)
                 .map(|(_, param)| {
                     format!(
-                        "const {attributes}{name}: {param}{default}",
+                        "{attributes}\n        const {name}: {param}{default}",
                         attributes = param
                             .attributes()
                             .iter()
-                            .map(|(name, attribute)| format!("#[{name}({attribute})] "))
+                            .map(|(name, attribute)| format!("\n        #[{name}({attribute})] "))
                             .collect::<Vec<_>>()
                             .join(""),
                         name = param.name(),
@@ -82,8 +82,12 @@ impl Model {
                     )
                 })
                 .collect::<Vec<_>>()
-                .join(", "),
+                .join(","),
         );
+
+        if !descriptor.parameters().is_empty() {
+            implementation.push_str("\n");
+        }
 
         implementation.push_str("): ");
         implementation.push_str(

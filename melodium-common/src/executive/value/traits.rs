@@ -2860,6 +2860,7 @@ impl core::fmt::Display for Value {
                 if v.chars()
                     .any(|c| c.is_control() && c != '\n' && c != '\t' && c != '\r')
                     || v.contains(['\0'])
+                    || !v.contains(['\n', '\t', '\r'])
                 {
                     write!(
                         f,
