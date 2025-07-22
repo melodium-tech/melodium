@@ -598,7 +598,10 @@ fn manage_string(text: &str) -> KindCheck {
         }
     } else if text.starts_with("${") {
         let num_braces = text.chars().skip(1).take_while(|c| *c == '{').count();
-        let end_braces = [0..num_braces].iter().map(|_| '}').collect::<String>();
+        let mut end_braces: String = "}".into();
+        for _ in 0..num_braces {
+            end_braces.push('}');
+        }
         eprintln!("num_braces: {num_braces}, end_braces: {end_braces}");
         if let Some(end_string_position) = text.find(&end_braces) {
             KindCheck {
