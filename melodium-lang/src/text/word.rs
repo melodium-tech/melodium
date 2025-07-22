@@ -382,7 +382,6 @@ pub fn get_words(script: &str) -> Result<Vec<Word>, Vec<Word>> {
             kind_check = manage_string(remaining_script);
             kind_check.is_that_kind
         } {
-            eprintln!("String identified");
             kind = Some(Kind::String);
         }
         // Check if word is Char
@@ -603,7 +602,6 @@ fn manage_string(text: &str) -> KindCheck {
         for _ in 1..num_braces {
             end_braces.push('}');
         }
-        eprintln!("num_braces: {num_braces}, end_braces: {end_braces}");
         if let Some(end_string_position) = text.find(&end_braces) {
             KindCheck {
                 is_that_kind: true,

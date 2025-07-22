@@ -130,7 +130,6 @@ impl Value {
             for _ in 1..num_braces {
                 end_braces.push('}');
             }
-            eprintln!("Parse string: num_braces: {num_braces}, end_braces: {end_braces}");
             let string = s
                 .string
                 .split_at(num_braces + 1)
