@@ -75,19 +75,19 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
                                setOutputs.step_continue ------------------> Self.continue
 
     emitCommands: emit<string>(value=commands)
-    evalCommands: githubStringEval[contexts=contexts]()
+    evalCommands: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()))
     Self.trigger -> emitCommands.trigger,emit -> evalCommands.value,evaluated -> githubCommand.run
 
     emitShell: emit<Option<string>>(value=shell)
     mapShell: map<string>()
-    evalShell: githubStringEval[contexts=contexts]()
+    evalShell: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()))
     reduceShell: reduce<string>()
     Self.trigger -> emitShell.trigger,emit -> mapShell.option,none --------------------------> reduceShell.none,option -> githubCommand.shell
                                               mapShell.value ---> evalShell.value,evaluated -> reduceShell.value
 
     emitEnv: emit<Option<StringMap>>(value=env)
     mapEnv: map<StringMap>()
-    evalEnv: githubMapEval[contexts=contexts]()
+    evalEnv: githubMapEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()))
     reduceEnv: reduce<StringMap>()
     unwrapEnv: unwrap<StringMap>()
     Self.trigger -> emitEnv.trigger,emit -> mapEnv.option,none --------------------------> reduceEnv.none,option -> unwrapEnv.option,value -> mergeEnvs.entries,merged -> mapFullEnvironment.variables
@@ -96,9 +96,9 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
     mergeEnvs: merge()
 
     emitWorkflowId: emit<string>(value="${{ workflow.id }}")
-    evalWorkflowId: githubStringEval[contexts=contexts]()
+    evalWorkflowId: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()))
     emitStepId: emit<string>(value=|format("{name}$\\{\\{ strategy.job-index \\}\\}", |entry("name", name)))
-    evalStepId: githubStringEval[contexts=contexts]()
+    evalStepId: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()))
     envFileVariables: githubGetEnv()
     Self.trigger -> emitWorkflowId.trigger,emit -> evalWorkflowId.value,evaluated -> envFileVariables.workflow_id,variables -> mergeEnvs.base
     Self.trigger -> emitStepId.trigger,emit -----> evalStepId.value,evaluated -----> envFileVariables.step_id
@@ -107,14 +107,14 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
 
     emitWorkdir: emit<Option<string>>(value=working_directory)
     mapWorkdir: map<string>()
-    evalWorkdir: githubStringEval[contexts=contexts]()
+    evalWorkdir: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()))
     reduceWorkdir: reduce<string>()
     Self.trigger -> emitWorkdir.trigger,emit -> mapWorkdir.option,none --------------------------> reduceWorkdir.none,option -> mapFullEnvironment.working_directory
                                                 mapWorkdir.value -> evalWorkdir.value,evaluated -> reduceWorkdir.value
     
     emitIf: emit<Option<string>>(value=if)
     mapIf: map<string>()
-    evalIf: githubStringEval[contexts=contexts](assume=true)
+    evalIf: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()), assume=true)
     reduceIf: reduce<string>()
     unwrapIf: unwrapOr<string>(default="true")
     streamIf: stream<string>()
@@ -128,7 +128,7 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
 
     emitContinueOnError: emit<Option<string>>(value=continue_on_error)
     mapContinueOnError: map<string>()
-    evalContinueOnError: githubStringEval[contexts=contexts](assume=true)
+    evalContinueOnError: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()), assume=true)
     reduceContinueOnError: reduce<string>()
     unwrapContinueOnError: unwrapOr<string>(default="false")
     streamContinueOnError: stream<string>()
