@@ -2457,6 +2457,7 @@ dependencies = [
  "melodium-macro",
  "serde",
  "serde_json",
+ "std-mel",
 ]
 
 [[package]]

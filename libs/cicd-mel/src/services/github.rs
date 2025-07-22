@@ -1,4 +1,5 @@
 use javascript_mel::*;
+use json_mel::*;
 use melodium_core::{executive::*, *};
 use melodium_macro::{mel_data, mel_function, mel_treatment};
 use process_mel::command::*;
@@ -71,7 +72,7 @@ pub fn error() -> StepState {
     input map Block<StringMap>
     output evaluated Block<StringMap>
 )]
-pub async fn github_map_eval(assume: bool) {
+pub async fn github_map_eval(assume: bool, local_context: Json) {
     let engine = JavaScriptEngineModel::into(contexts);
 
     if let Ok(map) = map.recv_one().await.map(|val| {
@@ -81,7 +82,10 @@ pub async fn github_map_eval(assume: bool) {
             .unwrap()
     }) {
         let mut updated_map = HashMap::new();
-        let var_replacer = VarReplacer { js_engine: &engine };
+        let var_replacer = VarReplacer {
+            js_engine: &engine,
+            local_context: &local_context.0,
+        };
         for (name, value) in &map.map {
             let regex = github_regex();
             if assume {
@@ -91,7 +95,7 @@ pub async fn github_map_eval(assume: bool) {
                         regex.replace_all(value, &var_replacer).to_string(),
                     );
                 } else {
-                    updated_map.insert(name.clone(), eval_js(&engine, &value));
+                    updated_map.insert(name.clone(), eval_js(&engine, &local_context.0, &value));
                 }
             } else {
                 updated_map.insert(
@@ -114,7 +118,7 @@ pub async fn github_map_eval(assume: bool) {
     input value Block<string>
     output evaluated Block<string>
 )]
-pub async fn github_string_eval(assume: bool) {
+pub async fn github_string_eval(assume: bool, local_context: Json) {
     let engine = JavaScriptEngineModel::into(contexts);
 
     if let Ok(value) = value
@@ -122,7 +126,10 @@ pub async fn github_string_eval(assume: bool) {
         .await
         .map(|val| GetData::<String>::try_data(val).unwrap())
     {
-        let var_replacer = VarReplacer { js_engine: &engine };
+        let var_replacer = VarReplacer {
+            js_engine: &engine,
+            local_context: &local_context.0,
+        };
 
         let regex = github_regex();
         if assume {
@@ -130,7 +137,7 @@ pub async fn github_string_eval(assume: bool) {
                 let _ =
                     evaluated.send_one(regex.replace_all(&value, &var_replacer).to_string().into());
             } else {
-                let _ = evaluated.send_one(eval_js(&engine, &value).into());
+                let _ = evaluated.send_one(eval_js(&engine, &local_context.0, &value).into());
             }
         } else {
             let _ = evaluated.send_one(regex.replace_all(&value, &var_replacer).to_string().into());
@@ -305,6 +312,7 @@ pub async fn github_get_env() {
             "GITHUB_OUTPUT".to_string(),
             output_file(&workflow_id, &step_id),
         );
+        map.insert("GITHUB_WORKSPACE".to_string(), workspace_dir(&workflow_id));
 
         if let Ok(env) = dotenvy::from_filename_iter(env_file) {
             for item in env {
@@ -461,17 +469,37 @@ fn output_file(workflow_id: &str, step_id: &str) -> String {
     file_path.to_string_lossy().to_string()
 }
 
+fn workspace_dir(workflow_id: &str) -> String {
+    let mut file_path = std::env::temp_dir();
+    file_path.push(format!("{workflow_id}-workspace"));
+    file_path.to_string_lossy().to_string()
+}
+
 static VAR_REGEX: OnceLock<Regex> = OnceLock::new();
 
 fn github_regex() -> &'static Regex {
     VAR_REGEX.get_or_init(|| Regex::new(r#"\$\{\{(.*)\}\}"#).unwrap())
 }
 
-fn eval_js(js_engine: &JavaScriptEngineModel, eval: &str) -> String {
+fn eval_js(
+    js_engine: &JavaScriptEngineModel,
+    local_context: &serde_json::Value,
+    eval: &str,
+) -> String {
+    let eval = format!(
+        r#"
+{{
+    let job = value.job;
+    let env = {{...env, ...value.env}};
+    
+    {eval}
+}}
+    "#
+    );
     async_std::task::block_on(
         js_engine
             .inner()
-            .process(serde_json::Value::Null, eval.to_string()),
+            .process(local_context.clone(), eval.to_string()),
     )
     .map(|res| res.map(|val| val.as_str().map(|s| s.to_string())).ok())
     .ok()
@@ -482,11 +510,12 @@ fn eval_js(js_engine: &JavaScriptEngineModel, eval: &str) -> String {
 
 struct VarReplacer<'a> {
     pub js_engine: &'a JavaScriptEngineModel,
+    pub local_context: &'a serde_json::Value,
 }
 
 impl<'a> Replacer for &VarReplacer<'a> {
     fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
-        let eval = eval_js(&self.js_engine, &caps[1]);
+        let eval = eval_js(&self.js_engine, &self.local_context, &caps[1]);
         dst.push_str(eval.as_str());
     }
 }

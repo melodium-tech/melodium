@@ -9,6 +9,7 @@ use std/flow::pass
 use std/flow::stream
 use std/flow::trigger
 use std/flow::filterBlock
+use std/flow::releaseBlock
 use std/conv::toString
 use std/conv::|to_string
 use std/text/convert/string::toUtf8
@@ -22,6 +23,7 @@ use std/ops/option/block::unwrapOr
 use std/ops/option::|unwrap_or
 use std/ops/option::|wrap
 use javascript::JavaScriptEngine
+use javascript::process
 use json::|to_json
 use json::Json
 use json/value::|null
@@ -47,7 +49,8 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
     working_directory: Option<string> = _,
     shell: Option<string> = _,
     if: Option<string> = _,
-    continue_on_error: Option<string> = _
+    continue_on_error: Option<string> = _,
+    local_context: Option<string> = _
 )
   input trigger: Block<void>
   output completed: Block<void>
@@ -179,4 +182,53 @@ treatment postGithubState[logger: Logger](token: string, project: string, sha: s
     toUtf8()
 
     Self.trigger -> emit.trigger,emit -> stream.block,stream -> toString.value,into -> toUtf8.text,encoded -> post.data
+}
+
+treatment prepareContexts[contexts: JavaScriptEngine](github_contexts: string)
+  input trigger: Block<void>
+  output ready: Block<void>
+{
+    process[engine=contexts](code=${{{
+        function always() {
+            true
+        }
+
+        let github = value.github ?? {};
+        let env = value.env ?? {};
+        let vars = value.vars ?? {};
+        let jobs = value.jobs ?? {};
+        let steps = value.steps ?? {};
+        let runner = value.runner ?? {};
+        let secrets = value.secrets ?? {};
+        let strategy = value.strategy ?? {};
+        let matrix = value.matrix ?? {};
+        let needs = value.needs ?? {};
+        let inputs = value.inputs ?? {};
+
+        delete value;
+    }}})
+    emit<Json>(value=|unwrap_or<Json>(|to_json(github_contexts), |null()))
+    stream<Json>()
+    trigger<Option<Json>>()
+
+    Self.trigger -> emit.trigger,emit -> stream.block,stream -> process.value,result -> trigger.stream,end -> Self.ready
+}
+
+treatment includeNeeds[contexts: JavaScriptEngine]()
+  input trigger: Block<void>
+  input needs: Block<Json>
+  output ready: Block<void>
+{
+    process[engine=contexts](code=${{{
+        
+        needs = {{...needs, ...value}};
+
+        delete value;
+    }}})
+    releaseBlock<Json>()
+    stream<Json>()
+    trigger<Option<Json>>()
+
+    Self.trigger -> releaseBlock.leverage,released -> stream.block,stream -> process.value,result -> trigger.stream,end -> Self.ready
+    Self.needs ---> releaseBlock.data
 }
