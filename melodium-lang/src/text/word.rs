@@ -402,8 +402,6 @@ pub fn get_words(script: &str) -> Result<Vec<Word>, Vec<Word>> {
             kind = None;
         }
 
-        eprintln!("Kind check: {kind_check:?}");
-
         if let Some(splitted_script) = remaining_script.split_at_checked(kind_check.end_at) {
             let (line, pos_in_line) = get_line_pos(script, actual_position);
             let word = Word {
@@ -610,7 +608,7 @@ fn manage_string(text: &str) -> KindCheck {
             KindCheck {
                 is_that_kind: true,
                 end_at: end_string_position + num_braces,
-                is_well_formed: false,
+                is_well_formed: true,
             }
         } else {
             KindCheck {
