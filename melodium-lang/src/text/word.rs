@@ -382,6 +382,7 @@ pub fn get_words(script: &str) -> Result<Vec<Word>, Vec<Word>> {
             kind_check = manage_string(remaining_script);
             kind_check.is_that_kind
         } {
+            eprintln!("String identified");
             kind = Some(Kind::String);
         }
         // Check if word is Char
@@ -400,6 +401,8 @@ pub fn get_words(script: &str) -> Result<Vec<Word>, Vec<Word>> {
             };
             kind = None;
         }
+
+        eprintln!("Kind check: {kind_check:?}");
 
         if let Some(splitted_script) = remaining_script.split_at_checked(kind_check.end_at) {
             let (line, pos_in_line) = get_line_pos(script, actual_position);
