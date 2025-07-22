@@ -127,6 +127,7 @@ impl Value {
         } else if s.string.starts_with('$') {
             let num_braces = s.string.chars().skip(1).take_while(|c| *c == '{').count();
             let end_braces = [0..num_braces].iter().map(|_| '}').collect::<String>();
+            eprintln!("Parse string: num_braces: {num_braces}, end_braces: {end_braces}");
             let string = s
                 .string
                 .split_at(num_braces + 1)
