@@ -245,7 +245,7 @@ treatment prepareContexts[contexts: JavaScriptEngine](github_contexts: string)
 
 treatment includeNeeds[contexts: JavaScriptEngine](from: string)
   input trigger: Block<void>
-  input needs: Block<StringMap>
+  input needs: Block<Json>
   output ready: Block<void>
 {
     process[engine=contexts](code=|format(${{{
@@ -253,8 +253,7 @@ treatment includeNeeds[contexts: JavaScriptEngine](from: string)
         needs["{from}"] = value;
 
         delete value;
-    }}}),
-    |entry("from", from))
+    }}}, |entry("from", from)))
     releaseBlock<Json>()
     stream<Json>()
     trigger<Option<Json>>()
