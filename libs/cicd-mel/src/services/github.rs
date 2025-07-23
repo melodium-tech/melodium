@@ -81,29 +81,8 @@ pub async fn github_map_eval(assume: bool, local_context: Json) {
             .downcast_arc::<StringMap>()
             .unwrap()
     }) {
-        let mut updated_map = HashMap::new();
-        let var_replacer = VarReplacer {
-            js_engine: &engine,
-            local_context: &local_context.0,
-        };
-        for (name, value) in &map.map {
-            let regex = github_regex();
-            if assume {
-                if regex.is_match(&value) {
-                    updated_map.insert(
-                        name.clone(),
-                        regex.replace_all(value, &var_replacer).to_string(),
-                    );
-                } else {
-                    updated_map.insert(name.clone(), eval_js(&engine, &local_context.0, &value));
-                }
-            } else {
-                updated_map.insert(
-                    name.clone(),
-                    regex.replace_all(value, &var_replacer).to_string(),
-                );
-            }
-        }
+        let updated_map = map_eval(&map.map, &local_context.0, &engine, assume);
+
         let _ = evaluated
             .send_one(Value::Data(
                 Arc::new(StringMap { map: updated_map }) as Arc<dyn Data>
@@ -328,6 +307,65 @@ pub async fn github_get_env() {
     }
 }
 
+// TODO: USE THIS #######################################################
+#[mel_treatment(
+    model contexts JavaScriptEngine
+
+    input trigger_release Block<void>
+    output result Block<Json>
+    output success Block<void>
+    output failure Block<void>
+    output finished Block<void>
+)]
+pub async fn github_job_result(name: string, outputs: StringMap, local_context: Json) {
+    let engine = JavaScriptEngineModel::into(contexts);
+
+    trigger_release.recv_one().await;
+
+    let outputs = outputs
+        .map(|outputs| map_eval(&outputs.map, &local_context.0, &engine, false))
+        .unwrap_or_default();
+
+    if let Ok(Ok(job_result)) = engine
+        .inner()
+        .process(
+            serde_json::Value::Object(
+                outputs
+                    .into_iter()
+                    .map(|(name, val)| (name, val.into()))
+                    .collect(),
+            ),
+            format!(
+                r#"
+    {{ "{name}":
+        {{ 
+        result: job.status,
+        outputs: value
+        }}
+    }}
+        
+        "#
+            ),
+        )
+        .await
+    {
+        match job_result[&name]["result"].as_str() {
+            Some("success") => {
+                let _ = success.send_one(().into()).await;
+            }
+            Some("failure") => {
+                let _ = failure.send_one(().into()).await;
+            }
+            _ => {}
+        }
+
+        let _ = result
+            .send_one(Value::Data(Arc::new(Json(job_result))))
+            .await;
+    }
+    let _ = finished.send_one(().into()).await;
+}
+
 #[mel_treatment(
     model contexts JavaScriptEngine
 
@@ -423,9 +461,12 @@ pub async fn github_set_outputs() {
                 serde_json::Value::Object(full_object),
                 r#"
                 let identifier = value.identifier;
+                if (value.outcome == "failure") { job.status = "failure"; }
                 delete value.identifier;
                 if (typeof steps !== "object") { steps = {}; }
-                steps[identifier] = value;
+                if (typeof steps[identifier] !== "object") { steps[identifier] = {}; }
+                steps[identifier] = { ...steps[identifier], ...value };
+                
                 "#
                 .to_string(),
             )
@@ -481,6 +522,38 @@ fn github_regex() -> &'static Regex {
     VAR_REGEX.get_or_init(|| Regex::new(r#"\$\{\{(.*)\}\}"#).unwrap())
 }
 
+fn map_eval(
+    map: &HashMap<String, String>,
+    local_context: &serde_json::Value,
+    js_engine: &JavaScriptEngineModel,
+    assume: bool,
+) -> HashMap<String, String> {
+    let mut updated_map = HashMap::new();
+    let var_replacer = VarReplacer {
+        js_engine,
+        local_context,
+    };
+    for (name, value) in map {
+        let regex = github_regex();
+        if assume {
+            if regex.is_match(&value) {
+                updated_map.insert(
+                    name.clone(),
+                    regex.replace_all(value, &var_replacer).to_string(),
+                );
+            } else {
+                updated_map.insert(name.clone(), eval_js(&js_engine, &local_context, &value));
+            }
+        } else {
+            updated_map.insert(
+                name.clone(),
+                regex.replace_all(value, &var_replacer).to_string(),
+            );
+        }
+    }
+    updated_map
+}
+
 fn eval_js(
     js_engine: &JavaScriptEngineModel,
     local_context: &serde_json::Value,
@@ -489,7 +562,6 @@ fn eval_js(
     let eval = format!(
         r#"
 {{
-    let job = value.job;
     let env = {{...env, ...value.env}};
     
     {eval}

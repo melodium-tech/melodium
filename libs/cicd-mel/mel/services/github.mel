@@ -189,13 +189,10 @@ treatment prepareContexts[contexts: JavaScriptEngine](github_contexts: string)
   output ready: Block<void>
 {
     process[engine=contexts](code=${{{
-        function always() {
-            true
-        }
-
         let github = value.github ?? {};
         let env = value.env ?? {};
         let vars = value.vars ?? {};
+        let job = value.vars ?? {};
         let jobs = value.jobs ?? {};
         let steps = value.steps ?? {};
         let runner = value.runner ?? {};
@@ -204,6 +201,38 @@ treatment prepareContexts[contexts: JavaScriptEngine](github_contexts: string)
         let matrix = value.matrix ?? {};
         let needs = value.needs ?? {};
         let inputs = value.inputs ?? {};
+
+        if (typeof job.status == "undefined") {
+            job.status = "success;
+        }
+
+        function always() {
+            true
+        }
+
+        function success() {
+            if (job.status == "success") {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        function failure() {
+            if (job.status == "failure") {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        function cancelled() {
+            if (job.status == "cancelled") {
+                return true;
+            } else {
+                return false;
+            }
+        }
 
         delete value;
     }}})
@@ -214,17 +243,18 @@ treatment prepareContexts[contexts: JavaScriptEngine](github_contexts: string)
     Self.trigger -> emit.trigger,emit -> stream.block,stream -> process.value,result -> trigger.stream,end -> Self.ready
 }
 
-treatment includeNeeds[contexts: JavaScriptEngine]()
+treatment includeNeeds[contexts: JavaScriptEngine](from: string)
   input trigger: Block<void>
-  input needs: Block<Json>
+  input needs: Block<StringMap>
   output ready: Block<void>
 {
-    process[engine=contexts](code=${{{
+    process[engine=contexts](code=|format(${{{
         
-        needs = {{...needs, ...value}};
+        needs["{from}"] = value;
 
         delete value;
-    }}})
+    }}}),
+    |entry("from", from))
     releaseBlock<Json>()
     stream<Json>()
     trigger<Option<Json>>()
