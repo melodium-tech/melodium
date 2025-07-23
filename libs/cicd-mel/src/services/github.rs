@@ -307,7 +307,6 @@ pub async fn github_get_env() {
     }
 }
 
-// TODO: USE THIS #######################################################
 #[mel_treatment(
     model contexts JavaScriptEngine
 
@@ -320,11 +319,9 @@ pub async fn github_get_env() {
 pub async fn github_job_result(name: string, outputs: StringMap, local_context: Json) {
     let engine = JavaScriptEngineModel::into(contexts);
 
-    trigger_release.recv_one().await;
+    let _ = trigger_release.recv_one().await;
 
-    let outputs = outputs
-        .map(|outputs| map_eval(&outputs.map, &local_context.0, &engine, false))
-        .unwrap_or_default();
+    let outputs = map_eval(&outputs.map, &local_context.0, &engine, false);
 
     if let Ok(Ok(job_result)) = engine
         .inner()
