@@ -261,3 +261,22 @@ treatment includeNeeds[contexts: JavaScriptEngine](from: string)
     Self.trigger -> releaseBlock.leverage,released -> stream.block,stream -> process.value,result -> trigger.stream,end -> Self.ready
     Self.needs ---> releaseBlock.data
 }
+
+treatment includeInputs[contexts: JavaScriptEngine]()
+  input trigger: Block<void>
+  input inputs: Block<Json>
+  output ready: Block<void>
+{
+    process[engine=contexts](code=${{{
+        
+        inputs = value;
+
+        delete value;
+    }}})
+    releaseBlock<Json>()
+    stream<Json>()
+    trigger<Option<Json>>()
+
+    Self.trigger -> releaseBlock.leverage,released -> stream.block,stream -> process.value,result -> trigger.stream,end -> Self.ready
+    Self.inputs --> releaseBlock.data
+}
