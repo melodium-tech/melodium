@@ -20,6 +20,7 @@ use std/ops/option/block::reduce
 use std/ops/option/block::wrap
 use std/ops/option/block::unwrap
 use std/ops/option/block::unwrapOr
+use std/ops/option::unwrap as unwrapStream
 use std/ops/option::|unwrap_or
 use std/ops/option::|wrap
 use javascript::JavaScriptEngine
@@ -27,6 +28,7 @@ use javascript::process
 use json::|to_json
 use json::Json
 use json/value::|null
+use json/value::fromStringMap
 use process/environment::Environment
 use process/environment::mapFullEnvironment
 use root/steps::spawnCommands
@@ -279,4 +281,44 @@ treatment includeInputs[contexts: JavaScriptEngine]()
 
     Self.trigger -> releaseBlock.leverage,released -> stream.block,stream -> process.value,result -> trigger.stream,end -> Self.ready
     Self.inputs --> releaseBlock.data
+}
+
+treatment replicateContextsForComposite[main_contexts: JavaScriptEngine, composite_contexts: JavaScriptEngine](inputs: StringMap)
+  input trigger: Block<void>
+  output ready: Block<void>
+{
+    prepareContexts[contexts=composite_contexts](github_contexts="{}")
+    emitNull: emit<Json>(value=|null())
+    streamNull: stream<Json>()
+    extractProcess: process[engine=main_contexts](code=${{{
+        {
+            github: github,
+            runner: runner
+        }
+    }}})
+    unwrapContexts: unwrapStream<Json>()
+    injectProcess: process[engine=composite_contexts](code=${{{
+        
+        github = value.github;
+        runner = value.runner;
+
+        delete value;
+    }}})
+    triggerInjectDone: trigger<Option<Json>>()
+    Self.trigger -> prepareContexts.trigger,ready -> emitNull.trigger,emit -> streamNull.block,stream -> extractProcess.value,result -> unwrapContexts.option,value -> injectProcess.value,result -> triggerInjectDone.stream
+
+    
+    emitInputs: emit<StringMap>(value=inputs)
+    githubMapEval[contexts=main_contexts](local_context=|null())
+    streamInputs: stream<StringMap>()
+    fromStringMap()
+    inputsProcess: process[engine=composite_contexts](code=${{{
+        
+        inputs = value;
+
+        delete value;
+    }}})
+    triggerReady: trigger<Option<Json>>()
+
+    triggerInjectDone.end -> emitInputs.trigger,emit -> githubMapEval.map,evaluated -> streamInputs.block,stream -> fromStringMap.value,json -> inputsProcess.value,result -> triggerReady.stream,end -> Self.ready
 }
