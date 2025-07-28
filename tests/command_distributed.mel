@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = command_distributed
-#! version = 0.9.0-pre.4
-#! require = std:=0.9.0-pre.4 work:=0.9.0-pre.4 distrib:=0.9.0-pre.4 process:=0.9.0-pre.4 fs:=0.9.0-pre.4
+#! version = 0.9.0-pre.5
+#! require = std:=0.9.0-pre.5 work:=0.9.0-pre.5 distrib:=0.9.0-pre.5 process:=0.9.0-pre.5 fs:=0.9.0-pre.5
 
 use std/flow::emit
 use std/flow::trigger
@@ -28,7 +28,7 @@ use fs/local::readLocal
 
 treatment main(const distant: string, const key: string, var input_data: string, var output_data: string)
   model distant: DistantEngine(address=distant, key=key)
-  model distributor: DistributionEngine(treatment="command_distributed::command", version="=0.9.0-pre.4")
+  model distributor: DistributionEngine(treatment="command_distributed::command", version="=0.9.0-pre.5")
 {
     startup()
     distant[distant_engine=distant](max_duration=600, memory=280, cpu=1000, storage=256, edition=_, volumes=[], arch=_, containers=[|container("ubuntu", 1000, 1000, 3000, |arm64(), [], "ubuntu:jammy", _)])

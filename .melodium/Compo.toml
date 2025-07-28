@@ -2,17 +2,17 @@ name = "melodium_ci"
 version = "0.1.0"
 
 [dependencies]
-std = "=0.9.0-pre.4"
-log = "=0.9.0-pre.4"
-fs = "=0.9.0-pre.4"
-process = "=0.9.0-pre.4"
-work = "=0.9.0-pre.4"
-distrib = "=0.9.0-pre.4"
-net = "=0.9.0-pre.4"
-cicd = "=0.9.0-pre.4"
+std = "=0.9.0-pre.5"
+log = "=0.9.0-pre.5"
+fs = "=0.9.0-pre.5"
+process = "=0.9.0-pre.5"
+work = "=0.9.0-pre.5"
+distrib = "=0.9.0-pre.5"
+net = "=0.9.0-pre.5"
+cicd = "=0.9.0-pre.5"
 
-http = "=0.9.0-pre.4"
-json = "=0.9.0-pre.4"
+http = "=0.9.0-pre.5"
+json = "=0.9.0-pre.5"
 
 [entrypoints]
 main = "melodium_ci::main"

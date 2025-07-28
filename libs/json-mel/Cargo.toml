@@ -1,6 +1,6 @@
 [package]
 name = "json-mel"
-version = "0.9.0-pre.4"
+version = "0.9.0-pre.5"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -18,9 +18,9 @@ name = "json_mel"
 
 [dependencies]
 futures = "0.3.28"
-melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.4" }
-melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.4" }
-std-mel = { path = "../std-mel", version = "=0.9.0-pre.4" }
+melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.5" }
+melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.5" }
+std-mel = { path = "../std-mel", version = "=0.9.0-pre.5" }
 serde = "1.0.185"
 serde_json = "1.0.105"
 
