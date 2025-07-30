@@ -551,6 +551,7 @@ fn map_eval(
     updated_map
 }
 
+#[cfg(feature = "real")]
 fn eval_js(
     js_engine: &JavaScriptEngineModel,
     local_context: &serde_json::Value,
@@ -575,6 +576,15 @@ fn eval_js(
     .flatten()
     .flatten()
     .unwrap_or_default()
+}
+
+#[cfg(feature = "mock")]
+fn eval_js(
+    _js_engine: &JavaScriptEngineModel,
+    _local_context: &serde_json::Value,
+    _eval: &str,
+) -> String {
+    String::new()
 }
 
 struct VarReplacer<'a> {
