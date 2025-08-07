@@ -308,6 +308,14 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
 
     let mut environment = Map::new();
     environment.insert(
+        MapKey::new("MELODIUM_JOB_ID").map_err(|err| vec![err.to_string()])?,
+        Some(id.to_string().into()),
+    );
+    environment.insert(
+        MapKey::new("MELODIUM_GROUP_ID").map_err(|err| vec![err.to_string()])?,
+        Some(crate::EXECUTION_GROUP_ID.to_string().into()),
+    );
+    environment.insert(
         MapKey::new("MELODIUM_JOB_EXECUTOR").map_err(|err| vec![err.to_string()])?,
         Some(executor.to_string().into()),
     );

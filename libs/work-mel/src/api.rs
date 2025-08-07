@@ -38,6 +38,8 @@ pub struct Request {
     pub volumes: Vec<Volume>,
     pub containers: Vec<Container>,
     pub service_containers: Vec<ServiceContainer>,
+    pub tags: Vec<String>,
+    pub group_id: Option<Uuid>,
     #[serde(default)]
     pub local_exec: bool,
 }

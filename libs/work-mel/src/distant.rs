@@ -432,7 +432,9 @@ pub async fn distant(
             .into_iter()
             .map(|cont| cont.0.clone())
             .collect(),
+        tags: vec![],
         local_exec: false,
+        group_id: Some(crate::EXECUTION_GROUP_ID.clone()),
     };
 
     if let Ok(_) = trigger.recv_one().await {
