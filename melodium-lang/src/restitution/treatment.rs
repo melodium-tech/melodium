@@ -14,7 +14,7 @@ pub struct Treatment {
 
 impl Treatment {
     pub fn new(design: TreatmentDesign) -> Self {
-        let mut uses = design.uses();
+        let mut uses = design.descriptor.upgrade().unwrap().uses();
 
         uses.retain(|id| id != design.descriptor.upgrade().unwrap().identifier());
 

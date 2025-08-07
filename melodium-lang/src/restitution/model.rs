@@ -13,7 +13,7 @@ pub struct Model {
 
 impl Model {
     pub fn new(design: ModelDesign) -> Self {
-        let mut uses = design.uses();
+        let mut uses = design.descriptor.upgrade().unwrap().uses();
 
         uses.retain(|id| id != design.descriptor.upgrade().unwrap().identifier());
 
