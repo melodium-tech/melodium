@@ -289,8 +289,12 @@ impl ExecutorEngine for LocalExecutorEngine {
 
                     let status = async {
                         match child.status().await {
-                            Ok(status) => {
+                            Ok(status) if status.success() => {
                                 completed().await;
+                                exit(status.code()).await;
+                            }
+                            Ok(status) => {
+                                failed().await;
                                 exit(status.code()).await;
                             }
                             Err(err) => {

@@ -39,7 +39,7 @@ struct Run {
     /// Force identifier to be used as entrypoint.
     force_entry: Option<String>,
     #[clap(value_parser)]
-    /// Program file to run, can be either `.mel` or `.jeu` file.
+    /// Program file to run, can be either `.mel`, `Compo.toml` or `.jeu` file.
     file: Option<String>,
     #[clap(
         value_parser,
@@ -63,7 +63,7 @@ struct Check {
     /// Force identifier to be used as entrypoint.
     force_entry: Option<String>,
     #[clap(value_parser)]
-    /// Program file to check, can be either `.mel` or `.jeu` file.
+    /// Program file to check, can be either `.mel`, `Compo.toml` or `.jeu` file.
     file: Option<String>,
     #[clap(value_parser, value_name = "COMMAND")]
     /// Entrypoint command to check (default to `main`).
@@ -77,7 +77,7 @@ struct Info {
     /// Path to look for packages.
     path: Vec<String>,
     #[clap(value_parser)]
-    /// Program file, can be either `.mel` or `.jeu` file.
+    /// Program file, can be either `.mel`, `Compo.toml` or `.jeu` file.
     name: String,
 }
 

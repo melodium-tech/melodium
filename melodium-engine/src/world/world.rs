@@ -303,6 +303,12 @@ impl Engine for World {
         let descriptor = if let Some(CollectionEntry::Treatment(descriptor)) =
             self.collection.get(&entry.into())
         {
+            if descriptor.models().len() > 0 {
+                return LogicResult::new_failure(LogicError::launch_treatment_expect_model(
+                    236,
+                    descriptor.identifier().clone(),
+                ));
+            }
             let non_absolute_launch =
                 descriptor.inputs().len() > 0 || descriptor.outputs().len() > 0;
             for (name, param) in descriptor.parameters() {

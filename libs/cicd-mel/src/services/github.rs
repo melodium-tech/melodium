@@ -111,16 +111,18 @@ pub async fn github_string_eval(assume: bool, local_context: Json) {
         };
 
         let regex = github_regex();
+        let result =
         if assume {
             if regex.is_match(&value) {
-                let _ =
-                    evaluated.send_one(regex.replace_all(&value, &var_replacer).to_string().into());
+                regex.replace_all(&value, &var_replacer).to_string()
             } else {
-                let _ = evaluated.send_one(eval_js(&engine, &local_context.0, &value).into());
+                eval_js(&engine, &local_context.0, &value)
             }
         } else {
-            let _ = evaluated.send_one(regex.replace_all(&value, &var_replacer).to_string().into());
-        }
+            regex.replace_all(&value, &var_replacer).to_string()
+        };
+
+        let _ = evaluated.send_one(result.into()).await;
     }
 }
 
@@ -155,7 +157,7 @@ pub async fn github_command() {
                     arguments: vec![
                         "--noprofile".into(),
                         "--norc".into(),
-                        "-eo".into(),
+                        "-xeo".into(),
                         "pipefail".into(),
                         file_path.to_string_lossy().to_string(),
                     ],
@@ -191,7 +193,7 @@ pub async fn github_command() {
 
                 Some(Command {
                     command: "sh".into(),
-                    arguments: vec!["-e".into(), file_path.to_string_lossy().to_string()],
+                    arguments: vec!["-xe".into(), file_path.to_string_lossy().to_string()],
                 })
             }
             Some("cmd") => {
@@ -235,7 +237,7 @@ pub async fn github_command() {
 
                 Some(Command {
                     command: "bash".into(),
-                    arguments: vec!["-e".into(), file_path.to_string_lossy().to_string()],
+                    arguments: vec!["-xe".into(), file_path.to_string_lossy().to_string()],
                 })
             }
             #[cfg(target_family = "windows")]

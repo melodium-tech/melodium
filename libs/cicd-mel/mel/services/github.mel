@@ -97,9 +97,9 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
 
     mergeEnvs: merge()
 
-    emitWorkflowId: emit<string>(value="${{ workflow.id }}")
+    emitWorkflowId: emit<string>(value="${{ github.workflow }}")
     evalWorkflowId: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()))
-    emitStepId: emit<string>(value=|format("{name}$\\{\\{ strategy.job-index \\}\\}", |entry("name", name)))
+    emitStepId: emit<string>(value=|format("{name}${{{{ strategy.job-index }}}}", |entry("name", name)))
     evalStepId: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()))
     envFileVariables: githubGetEnv()
     Self.trigger -> emitWorkflowId.trigger,emit -> evalWorkflowId.value,evaluated -> envFileVariables.workflow_id,variables -> mergeEnvs.base
