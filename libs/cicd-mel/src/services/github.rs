@@ -260,7 +260,9 @@ pub async fn github_command() {
         };
 
         if let Some(github_command) = github_command {
-            if let Ok(_) = std::fs::write(&file_path, run.as_bytes()) {
+            
+            if let Ok(_) = std::fs::write(&file_path, run.as_bytes()).inspect_err(|err| eprintln!("Write error: {err}")) {
+                eprintln!("File written: {}", file_path.as_os_str().to_string_lossy());
                 let _ = command
                     .send_one(Value::Data(Arc::new(github_command)))
                     .await;
