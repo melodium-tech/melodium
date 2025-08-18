@@ -121,6 +121,7 @@ pub async fn process(#[mel(content(javascript))] code: string) {
             if let Value::Data(value) = value {
                 match value.downcast_arc::<Json>() {
                     Ok(value) => {
+                        eprintln!("Js Processing:\n{value:?}");
                         let processed;
                         if let Some(engine) = engine.inner().engine().lock().await.as_ref() {
                             processed = engine.process(value.0.clone(), code.clone()).await;
@@ -130,6 +131,7 @@ pub async fn process(#[mel(content(javascript))] code: string) {
 
                         match processed {
                             Ok(Ok(value)) => {
+                                eprintln!("Result in: {value:?}");
                                 check!(
                                     result
                                         .send_one(
@@ -138,10 +140,12 @@ pub async fn process(#[mel(content(javascript))] code: string) {
                                         .await
                                 );
                             }
-                            Ok(Err(_err)) => {
+                            Ok(Err(err)) => {
+                                eprintln!("Result in error: {err}");
                                 check!(result.send_one(Option::<Arc<dyn Data>>::None.into()).await);
                             }
                             Err(_) => {
+                                eprintln!("Got error");
                                 break 'main;
                             }
                         }

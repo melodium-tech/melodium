@@ -574,9 +574,11 @@ fn eval_js(
     static INNER_REGEX: OnceLock<Regex> = OnceLock::new();
 
     let inner_regex = INNER_REGEX.get_or_init(|| Regex::new(r#"\.([\w-]+)"#).unwrap());
+    eprintln!("Pre eval: {eval}");
     let eval = inner_regex.replace_all(
         eval,
-        r#".["$1"]#);
+        r#".["$1"]"#);
+    eprintln!("Prepared eval: {eval}");
 
 
     let eval = format!(
