@@ -111,8 +111,7 @@ pub async fn github_string_eval(assume: bool, local_context: Json) {
         };
 
         let regex = github_regex();
-        let result =
-        if assume {
+        let result = if assume {
             if regex.is_match(&value) {
                 regex.replace_all(&value, &var_replacer).to_string()
             } else {
@@ -260,8 +259,9 @@ pub async fn github_command() {
         };
 
         if let Some(github_command) = github_command {
-            
-            if let Ok(_) = std::fs::write(&file_path, run.as_bytes()).inspect_err(|err| eprintln!("Write error: {err}")) {
+            if let Ok(_) = std::fs::write(&file_path, run.as_bytes())
+                .inspect_err(|err| eprintln!("Write error: {err}"))
+            {
                 eprintln!("File written: {}", file_path.as_os_str().to_string_lossy());
                 let _ = command
                     .send_one(Value::Data(Arc::new(github_command)))
@@ -502,25 +502,34 @@ pub async fn github_get_env_files() {
 fn env_file(id: &str) -> String {
     let mut file_path = std::env::temp_dir();
     file_path.push(format!("{id}.env"));
+    let _ = std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(&file_path);
     file_path.to_string_lossy().to_string()
 }
 
 fn output_file(workflow_id: &str, step_id: &str) -> String {
     let mut file_path = std::env::temp_dir();
     file_path.push(format!("{workflow_id}-{step_id}.output"));
+    let _ = std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(&file_path);
     file_path.to_string_lossy().to_string()
 }
 
 fn workspace_dir(workflow_id: &str) -> String {
     let mut file_path = std::env::temp_dir();
     file_path.push(format!("{workflow_id}-workspace"));
+    let _ = std::fs::create_dir_all(&file_path);
     file_path.to_string_lossy().to_string()
 }
 
 static VAR_REGEX: OnceLock<Regex> = OnceLock::new();
 
 fn github_regex() -> &'static Regex {
-    VAR_REGEX.get_or_init(|| Regex::new(r#"\$\{\{(.*)\}\}"#).unwrap())
+    VAR_REGEX.get_or_init(|| Regex::new(r#"\$\{\{([^}]*)\}\}"#).unwrap())
 }
 
 fn map_eval(
@@ -561,21 +570,38 @@ fn eval_js(
     local_context: &serde_json::Value,
     eval: &str,
 ) -> String {
+    // Transform the "inner value" part of evaluations
+    static INNER_REGEX: OnceLock<Regex> = OnceLock::new();
+
+    let inner_regex = INNER_REGEX.get_or_init(|| Regex::new(r#"\.([\w-]+)"#).unwrap());
+    let eval = inner_regex.replace_all(
+        eval,
+        r#".["$1"]#);
+
+
     let eval = format!(
         r#"
 {{
-    let env = {{...env, ...value.env}};
+    let new_env = {{...(typeof env === "undefined" ? {{}} : env), ...value?.env }};
     
-    {eval}
+    {{
+        let env = new_env;
+
+        {eval}
+    }}
+    
 }}
-    "#
+    "#,
     );
     async_std::task::block_on(
         js_engine
             .inner()
             .process(local_context.clone(), eval.to_string()),
     )
-    .map(|res| res.map(|val| val.as_str().map(|s| s.to_string())).ok())
+    .map(|res| {
+        eprintln!("Eval: {eval}\nGives: {res:?}");
+        res.map(|val| val.as_str().map(|s| s.to_string())).ok()
+    })
     .ok()
     .flatten()
     .flatten()
