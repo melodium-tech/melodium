@@ -205,7 +205,7 @@ treatment prepareContexts[contexts: JavaScriptEngine](github_contexts: string)
         let inputs = value.inputs ?? {};
 
         if (typeof job.status == "undefined") {
-            job.status = "success;
+            job.status = "success";
         }
 
         function always() {
@@ -283,7 +283,7 @@ treatment includeInputs[contexts: JavaScriptEngine]()
     Self.inputs --> releaseBlock.data
 }
 
-treatment replicateContextsForComposite[main_contexts: JavaScriptEngine, composite_contexts: JavaScriptEngine](inputs: StringMap)
+treatment replicateContextsWithInputs[main_contexts: JavaScriptEngine, action_contexts: JavaScriptEngine](inputs: StringMap)
   input trigger: Block<void>
   output ready: Block<void>
 {

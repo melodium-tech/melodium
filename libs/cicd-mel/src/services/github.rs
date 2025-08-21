@@ -575,11 +575,8 @@ fn eval_js(
 
     let inner_regex = INNER_REGEX.get_or_init(|| Regex::new(r#"\.([\w-]+)"#).unwrap());
     eprintln!("Pre eval: {eval}");
-    let eval = inner_regex.replace_all(
-        eval,
-        r#".["$1"]"#);
+    let eval = inner_regex.replace_all(eval, r#"["$1"]"#);
     eprintln!("Prepared eval: {eval}");
-
 
     let eval = format!(
         r#"
