@@ -297,7 +297,7 @@ treatment replicateContextsWithInputs[main_contexts: JavaScriptEngine, action_co
         }
     }}})
     unwrapContexts: unwrapStream<Json>()
-    injectProcess: process[engine=composite_contexts](code=${{{
+    injectProcess: process[engine=action_contexts](code=${{{
         
         github = value.github;
         runner = value.runner;
@@ -312,7 +312,7 @@ treatment replicateContextsWithInputs[main_contexts: JavaScriptEngine, action_co
     githubMapEval[contexts=main_contexts](local_context=|null())
     streamInputs: stream<StringMap>()
     fromStringMap()
-    inputsProcess: process[engine=composite_contexts](code=${{{
+    inputsProcess: process[engine=action_contexts](code=${{{
         
         inputs = value;
 
