@@ -248,8 +248,6 @@ impl ExecutorEngine for LocalExecutorEngine {
 
             process_command.kill_on_drop(true);
 
-            eprintln!("Spawn command: {process_command:?}");
-
             match process_command.spawn() {
                 Ok(mut child) => {
                     started().await;

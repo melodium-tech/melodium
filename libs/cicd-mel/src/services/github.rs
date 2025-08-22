@@ -259,10 +259,7 @@ pub async fn github_command() {
         };
 
         if let Some(github_command) = github_command {
-            if let Ok(_) = std::fs::write(&file_path, run.as_bytes())
-                .inspect_err(|err| eprintln!("Write error: {err}"))
-            {
-                eprintln!("File written: {}", file_path.as_os_str().to_string_lossy());
+            if let Ok(_) = std::fs::write(&file_path, run.as_bytes()) {
                 let _ = command
                     .send_one(Value::Data(Arc::new(github_command)))
                     .await;
@@ -574,9 +571,7 @@ fn eval_js(
     static INNER_REGEX: OnceLock<Regex> = OnceLock::new();
 
     let inner_regex = INNER_REGEX.get_or_init(|| Regex::new(r#"\.([\w-]+)"#).unwrap());
-    eprintln!("Pre eval: {eval}");
     let eval = inner_regex.replace_all(eval, r#"["$1"]"#);
-    eprintln!("Prepared eval: {eval}");
 
     let eval = format!(
         r#"
@@ -597,10 +592,7 @@ fn eval_js(
             .inner()
             .process(local_context.clone(), eval.to_string()),
     )
-    .map(|res| {
-        eprintln!("Eval: {eval}\nGives: {res:?}");
-        res.map(|val| val.as_str().map(|s| s.to_string())).ok()
-    })
+    .map(|res| res.map(|val| val.as_str().map(|s| s.to_string())).ok())
     .ok()
     .flatten()
     .flatten()
