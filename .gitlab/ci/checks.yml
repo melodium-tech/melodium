@@ -29,12 +29,12 @@ include:
     - cargo check --package melodium-loader --locked --no-default-features --features filesystem,jeu,script
     - cargo check --package melodium-loader --locked --no-default-features --features network,jeu,script
     - cargo check --package melodium-loader --locked --no-default-features --features filesystem,network,jeu,script
-    - cargo check --package melodium --locked --no-default-features --features cli,distribution
-    - cargo check --package melodium --locked --no-default-features --features cli,jeu
-    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,distribution
-    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,distribution
-    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,text,javascript,distribution
-    - cargo check --package melodium --locked --no-default-features
+    - cargo check --package melodium --locked --no-default-features --features cli,distribution,std-mel/real,net-mel/real,fs-mel/real,process-mel/real
+    - cargo check --package melodium --locked --no-default-features --features cli,jeu,std-mel/real
+    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,distribution,std-mel/real,net-mel/real,fs-mel/real,process-mel/real
+    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,distribution,std-mel/real
+    - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,text,javascript,distribution,std-mel/real
+    - cargo check --package melodium --locked --no-default-features --features std-mel/real
     - cargo check --package melodium --locked
 
 build:check:x86_64-unknown-linux-gnu:
