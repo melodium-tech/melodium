@@ -1,4 +1,6 @@
-use http/client/util::post
+use http/client/util::post as simplePost
+use http/client::post
+use http/client::HttpClient
 use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
@@ -141,10 +143,58 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
                                                         mapContinueOnError.value -> evalContinueOnError.value,evaluated -> reduceContinueOnError.value                                                                            streamTrue.stream -> equalContinueOnError.b
 }
 
+treatment postGithubStateContext[contexts: JavaScriptEngine, logger: Logger](state: StepState, name: string, description: string, log_response: bool = false)
+    input trigger: Block<void>
+    model http_client: HttpClient(
+        base_url = _,
+        headers = |map([])
+    )
+{
+    post[client=http_client]()
+    evalUrl: githubStringEval[contexts=contexts](local_context=|null())
+    evalHeaders: githubMapEval[contexts=contexts](local_context=|null())
+    
+    emitUrl: emit<string>(value="${{ github.api_url }}/repos/${{ github.repository_id }}/statuses/${{ github.sha }}")
+    emitHeaders: emit<StringMap>(value=|map([
+            |entry("Accept", "application/vnd.github+json"),
+            |entry("Authorization", "Bearer ${{ secrets.GITHUB_TOKEN }}"),
+            |entry("Content-Type", "application/json"),
+            |entry("X-GitHub-Api-Version", "2022-11-28")
+        ]))
+    emitBody: emit<Json>(value=|unwrap_or<Json>(|to_json(
+        |format(
+            "{{
+                \"state\": \"{state}\",
+                \"context\": \"{name}\",
+                \"description\": \"{description}\"
+            }}",
+            |map([
+                    |entry("state", |to_string<StepState>(state)),
+                    |entry("name", name),
+                    |entry("description", description)
+                ])
+        )
+    ), |null()))
+    stream<Json>()
+    toString<Json>()
+    toUtf8()
+
+    passInfos: pass<byte>(cond=log_response)
+    logInfos[logger=logger](label="GitHub API")
+    fromUtf8()
+    post.data -> passInfos.stream,passed -> fromUtf8.encoded,text -> logInfos.messages
+    logError[logger=logger](label="GitHub API")
+    post.error -> logError.message
+
+    Self.trigger -> emitUrl.trigger,emit -> evalUrl.value,evaluated -> post.url
+    Self.trigger -> emitHeaders.trigger,emit -> evalHeaders.map,evaluated -> post.headers
+    Self.trigger -> emitBody.trigger,emit -> stream.block,stream -> toString.value,into -> toUtf8.text,encoded -> post.data
+}
+
 treatment postGithubState[logger: Logger](token: string, project: string, sha: string, state: StepState, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>
 {
-    post(
+    post: simplePost(
         headers=|wrap<StringMap>(|map([
             |entry("Accept", "application/vnd.github+json"),
             |entry("Authorization", |format("Bearer {token}", |entry("token", token))),
@@ -292,8 +342,11 @@ treatment replicateContextsWithInputs[main_contexts: JavaScriptEngine, action_co
     streamNull: stream<Json>()
     extractProcess: process[engine=main_contexts](code=${{{
         {
-            github: github,
-            runner: runner
+            let extracted = {
+                github: github,
+                runner: runner
+            };
+            extracted
         }
     }}})
     unwrapContexts: unwrapStream<Json>()
