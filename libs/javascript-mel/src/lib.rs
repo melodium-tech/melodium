@@ -9,7 +9,7 @@ compile_error!("One of the two features 'real' or 'mock' must be enabled");
 
 mod engine;
 
-use async_std::sync::RwLock;
+use async_std::sync::Mutex;
 use engine::Engine;
 use json_mel::*;
 use melodium_core::*;
@@ -42,14 +42,14 @@ use std::{
 )]
 pub struct JavaScriptEngine {
     model: Weak<JavaScriptEngineModel>,
-    engine: RwLock<Option<Engine>>,
+    engine: Mutex<Option<Engine>>,
 }
 
 impl JavaScriptEngine {
     fn new(model: Weak<JavaScriptEngineModel>) -> Self {
         Self {
             model,
-            engine: RwLock::new(None),
+            engine: Mutex::new(None),
         }
     }
 
@@ -65,14 +65,14 @@ impl JavaScriptEngine {
         );
 
         async_std::task::block_on(async move {
-            *model.inner().engine.write().await = Some(engine);
+            *model.inner().engine.lock().await = Some(engine);
         });
     }
 
     fn shutdown(&self) {
         let model = self.model.upgrade().unwrap();
         async_std::task::block_on(async move {
-            if let Some(engine) = model.inner().engine.write().await.as_ref() {
+            if let Some(engine) = model.inner().engine.lock().await.as_ref() {
                 engine.stop();
             }
         });
@@ -80,7 +80,19 @@ impl JavaScriptEngine {
 
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 
-    pub(crate) fn engine(&self) -> &RwLock<Option<Engine>> {
+    pub async fn process(
+        &self,
+        value: serde_json::Value,
+        code: String,
+    ) -> Result<Result<serde_json::Value, String>, ()> {
+        if let Some(engine) = self.engine.lock().await.as_ref() {
+            engine.process(value, code).await
+        } else {
+            Err(())
+        }
+    }
+
+    pub(crate) fn engine(&self) -> &Mutex<Option<Engine>> {
         &self.engine
     }
 }
@@ -110,7 +122,7 @@ pub async fn process(#[mel(content(javascript))] code: string) {
                 match value.downcast_arc::<Json>() {
                     Ok(value) => {
                         let processed;
-                        if let Some(engine) = engine.inner().engine().read().await.as_ref() {
+                        if let Some(engine) = engine.inner().engine().lock().await.as_ref() {
                             processed = engine.process(value.0.clone(), code.clone()).await;
                         } else {
                             break;
@@ -126,7 +138,7 @@ pub async fn process(#[mel(content(javascript))] code: string) {
                                         .await
                                 );
                             }
-                            Ok(Err(_err)) => {
+                            Ok(Err(err)) => {
                                 check!(result.send_one(Option::<Arc<dyn Data>>::None.into()).await);
                             }
                             Err(_) => {

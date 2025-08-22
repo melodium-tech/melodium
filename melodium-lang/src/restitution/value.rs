@@ -3,16 +3,16 @@ use melodium_common::descriptor::Identifier;
 use melodium_engine::designer::Value;
 use std::collections::BTreeMap;
 
-pub fn value(value: &Value, names: &BTreeMap<Identifier, String>) -> String {
+pub fn value(value: &Value, names: &BTreeMap<Identifier, String>, level: usize) -> String {
     match value {
         Value::Raw(val) => val.to_string(),
         Value::Array(array) => format!(
             "[{}]",
             array
                 .iter()
-                .map(|val| self::value(val, names))
+                .map(|val| self::value(val, names, level + 1))
                 .collect::<Vec<_>>()
-                .join(", ")
+                .join(&format!(",\n{}", "    ".repeat(level)))
         ),
         Value::Variable(var) => var.clone(),
         Value::Context(context, entry) => {
@@ -43,11 +43,14 @@ pub fn value(value: &Value, names: &BTreeMap<Identifier, String>) -> String {
 
             let params = params
                 .iter()
-                .map(|p| self::value(p, names))
+                .map(|p| self::value(p, names, level + 1))
                 .collect::<Vec<_>>()
-                .join(", ");
+                .join(&format!(",\n{}", "    ".repeat(level)));
 
-            format!("{name}{generics}({params})")
+            format!(
+                "{name}{generics}(\n{lvl}{params}\n{lvl})",
+                lvl = "    ".repeat(level)
+            )
         }
     }
 }

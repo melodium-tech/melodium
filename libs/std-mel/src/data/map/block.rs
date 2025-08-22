@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 /// Create maps with one entry
 ///
-/// When `value` is reveived, generates a mono-entry map with it.
+/// When `value` is received, generates a mono-entry map with it.
 #[mel_treatment(
     generic T ()
     input value Block<T>

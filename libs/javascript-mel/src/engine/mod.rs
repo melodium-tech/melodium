@@ -1,4 +1,4 @@
-use async_std::channel::{unbounded, Receiver, Sender};
+use async_std::channel::{bounded, Receiver, Sender};
 use boa_engine::{Context, JsString, JsValue, Source};
 use serde_json::Value;
 use std::sync::Mutex;
@@ -19,8 +19,8 @@ impl Engine {
         strict: bool,
         code: String,
     ) -> Self {
-        let (sender, js_receiver) = unbounded();
-        let (js_sender, receiver) = unbounded();
+        let (sender, js_receiver) = bounded(1);
+        let (js_sender, receiver) = bounded(1);
 
         Self {
             join: Mutex::new(Some(std::thread::spawn(move || {

@@ -13,7 +13,7 @@ pub struct Model {
 
 impl Model {
     pub fn new(design: ModelDesign) -> Self {
-        let mut uses = design.uses();
+        let mut uses = design.descriptor.upgrade().unwrap().uses();
 
         uses.retain(|id| id != design.descriptor.upgrade().unwrap().identifier());
 
@@ -65,11 +65,11 @@ impl Model {
                 .sorted_by_key(|(k, _)| *k)
                 .map(|(_, param)| {
                     format!(
-                        "const {attributes}{name}: {param}{default}",
+                        "{attributes}\n        const {name}: {param}{default}",
                         attributes = param
                             .attributes()
                             .iter()
-                            .map(|(name, attribute)| format!("#[{name}({attribute})] "))
+                            .map(|(name, attribute)| format!("\n        #[{name}({attribute})] "))
                             .collect::<Vec<_>>()
                             .join(""),
                         name = param.name(),
@@ -77,13 +77,17 @@ impl Model {
                         default = param
                             .default()
                             .as_ref()
-                            .map(|v| format!(" = {}", value(&v.into(), names)))
+                            .map(|v| format!(" = {}", value(&v.into(), names, 2)))
                             .unwrap_or_default()
                     )
                 })
                 .collect::<Vec<_>>()
-                .join(", "),
+                .join(","),
         );
+
+        if !descriptor.parameters().is_empty() {
+            implementation.push_str("\n");
+        }
 
         implementation.push_str("): ");
         implementation.push_str(
@@ -98,7 +102,7 @@ impl Model {
             implementation.push_str("    ");
             implementation.push_str(&param.name);
             implementation.push_str(" = ");
-            implementation.push_str(&value(&param.value, names));
+            implementation.push_str(&value(&param.value, names, 1));
             implementation.push_str("\n");
         }
 

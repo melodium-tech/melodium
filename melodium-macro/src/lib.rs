@@ -1910,7 +1910,7 @@ pub fn mel_model(attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
             }
         }
-        use #module_name::AdHocModel as #adhoc_model_name;
+        pub use #module_name::AdHocModel as #adhoc_model_name;
 
         #model
     };

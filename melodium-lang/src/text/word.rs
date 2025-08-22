@@ -141,7 +141,7 @@ pub enum Kind {
     Function,
     /// Anything matching a number, starting optionally with `-`, or any digit, and having an arbitrary number of digits, with at most one point `.` inside.
     Number,
-    /// Any string starting and ending with `"` (with a preservation of `\"` and `\\`).
+    /// Any string starting and ending with `"` (with a preservation of `\"` and `\\`) or using incremental braces with `${` and `}`.
     String,
     /// A character enclosed by `'`
     Character,
@@ -596,6 +596,25 @@ fn manage_string(text: &str) -> KindCheck {
                 is_well_formed: false,
             }
         }
+    } else if text.starts_with("${") {
+        let num_braces = text.chars().skip(1).take_while(|c| *c == '{').count();
+        let mut end_braces: String = "}".into();
+        for _ in 1..num_braces {
+            end_braces.push('}');
+        }
+        if let Some(end_string_position) = text.find(&end_braces) {
+            KindCheck {
+                is_that_kind: true,
+                end_at: end_string_position + num_braces,
+                is_well_formed: true,
+            }
+        } else {
+            KindCheck {
+                is_that_kind: true,
+                end_at: text.len(),
+                is_well_formed: false,
+            }
+        }
     } else {
         KindCheck::default()
     }
@@ -603,7 +622,7 @@ fn manage_string(text: &str) -> KindCheck {
 
 fn manage_char(text: &str) -> KindCheck {
     lazy_static! {
-        static ref REGEX_CHAR: Regex = Regex::new(r##"^'(?:[^'\]|\.)+'"##).unwrap();
+        static ref REGEX_CHAR: Regex = Regex::new(r##"^'(?:[^'\\]|\.)+'"##).unwrap();
     }
     if text.starts_with('\'') {
         let mat = REGEX_CHAR.find(text);

@@ -1,5 +1,6 @@
 use super::*;
 use melodium_macro::{check, mel_function, mel_treatment};
+use std_mel::data::string_map::*;
 
 /// Return JSON `null` value.
 #[mel_function]
@@ -245,6 +246,40 @@ pub async fn from_string() {
             ))
             .await
         )
+    }
+}
+
+/// Makes a JSON object
+#[mel_function]
+pub fn from_string_map(map: StringMap) -> Json {
+    Json(serde_json::Value::Object(
+        map.map
+            .iter()
+            .map(|(key, val)| (key.into(), serde_json::Value::String(val.into())))
+            .collect(),
+    ))
+}
+
+/// Turns stream of string map into JSON objects
+#[mel_treatment(
+    input value Stream<StringMap>
+    output json Stream<Json>
+)]
+pub async fn from_string_map() {
+    while let Ok(value) = value.recv_one().await.map(|val| {
+        GetData::<Arc<dyn Data>>::try_data(val)
+            .unwrap()
+            .downcast_arc::<StringMap>()
+            .unwrap()
+    }) {
+        let object = Json(serde_json::Value::Object(
+            value
+                .map
+                .iter()
+                .map(|(key, val)| (key.into(), serde_json::Value::String(val.into())))
+                .collect(),
+        ));
+        check!(json.send_one(Value::Data(Arc::new(object))).await)
     }
 }
 

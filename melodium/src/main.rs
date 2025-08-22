@@ -39,7 +39,7 @@ struct Run {
     /// Force identifier to be used as entrypoint.
     force_entry: Option<String>,
     #[clap(value_parser)]
-    /// Program file to run, can be either `.mel` or `.jeu` file.
+    /// Program file to run, can be either `.mel`, `Compo.toml` or `.jeu` file.
     file: Option<String>,
     #[clap(
         value_parser,
@@ -63,7 +63,7 @@ struct Check {
     /// Force identifier to be used as entrypoint.
     force_entry: Option<String>,
     #[clap(value_parser)]
-    /// Program file to check, can be either `.mel` or `.jeu` file.
+    /// Program file to check, can be either `.mel`, `Compo.toml` or `.jeu` file.
     file: Option<String>,
     #[clap(value_parser, value_name = "COMMAND")]
     /// Entrypoint command to check (default to `main`).
@@ -77,7 +77,7 @@ struct Info {
     /// Path to look for packages.
     path: Vec<String>,
     #[clap(value_parser)]
-    /// Program file, can be either `.mel` or `.jeu` file.
+    /// Program file, can be either `.mel`, `Compo.toml` or `.jeu` file.
     name: String,
 }
 
@@ -277,8 +277,8 @@ pub fn main() {
 }
 
 fn run(args: Run) {
-    if let Ok((identifier, collection)) = check_load(Check {
-        all: false, // Ignored by check_load
+    if let Ok((Some(identifier), collection)) = check_load(Check {
+        all: false,
         file: args.file,
         path: args.path,
         force_entry: args.force_entry.clone(),
@@ -327,44 +327,28 @@ fn run(args: Run) {
 }
 
 fn check(args: Check) {
-    if args.all {
-        if args
+    if let Ok(_) = check_load(args) {
+        std::process::exit(0);
+    } else {
+        std::process::exit(1);
+    }
+}
+
+fn check_load(args: Check) -> Result<(Option<Identifier>, Arc<Collection>), ()> {
+    if args.all
+        && (args
             .prog_cmd
             .as_ref()
             .filter(|arg| !arg.starts_with('-'))
             .is_some()
-            || args.force_entry.is_some()
-        {
-            eprintln!(
-                "{}: entrypoint is ignored when --all is activated",
-                "warning".bold().yellow()
-            );
-        }
-        let result = load_all(LoadingConfig {
-            core_packages: Vec::new(),
-            search_locations: args
-                .path
-                .iter()
-                .map(|p| PathBuf::from(p))
-                .collect::<Vec<_>>(),
-            raw_elements: Vec::new(),
-        });
-        if result.is_success() {
-            std::process::exit(0);
-        } else {
-            print_result(&result);
-            std::process::exit(1);
-        }
-    } else {
-        if let Ok(_) = check_load(args) {
-            std::process::exit(0);
-        } else {
-            std::process::exit(1);
-        }
+            || args.force_entry.is_some())
+    {
+        eprintln!(
+            "{}: entrypoint is ignored when --all is activated",
+            "warning".bold().yellow()
+        );
     }
-}
 
-fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
     let config = LoadingConfig {
         core_packages: Vec::new(),
         search_locations: args
@@ -377,36 +361,51 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
 
     let file = args.file.as_ref().map(|f| PathBuf::from(f));
 
-    let result = match (
-        args.prog_cmd.as_ref().filter(|arg| !arg.starts_with('-')),
-        &args.force_entry,
-        file,
-    ) {
-        (None, None, Some(file)) => load_file(file, "main", config),
-        (Some(entrypoint), None, Some(file)) => load_file(file, entrypoint, config),
-        (None, Some(identifier), Some(file)) => {
-            let identifier = match Identifier::try_from(identifier) {
-                Ok(id) => id,
-                Err(str) => {
-                    eprintln!(
-                        "{}: '{str}' is not a valid identifier",
-                        "error".bold().red()
-                    );
-                    return Err(());
-                }
-            };
-            load_file_force_entrypoint(file, &identifier, config)
+    let result = if args.all {
+        match file {
+            Some(file) => load_file_all_entrypoints(file, config),
+            None => {
+                // Short circuit
+                let result = load_all(config);
+                print_result(&result);
+                return result
+                    .as_result()
+                    .map(|(_pkgs, collection)| (None, collection.clone()))
+                    .map_err(|_| ());
+            }
         }
-        (_, _, None) => {
-            eprintln!("{}: file must be given", "error".bold().red());
-            return Err(());
-        }
-        (Some(_), Some(_), _) => {
-            eprintln!(
-                "{}: entrypoint cannot be specified and forced at same time",
-                "error".bold().red()
-            );
-            return Err(());
+    } else {
+        match (
+            args.prog_cmd.as_ref().filter(|arg| !arg.starts_with('-')),
+            &args.force_entry,
+            file,
+        ) {
+            (None, None, Some(file)) => load_file(file, "main", config),
+            (Some(entrypoint), None, Some(file)) => load_file(file, entrypoint, config),
+            (None, Some(identifier), Some(file)) => {
+                let identifier = match Identifier::try_from(identifier) {
+                    Ok(id) => id,
+                    Err(str) => {
+                        eprintln!(
+                            "{}: '{str}' is not a valid identifier",
+                            "error".bold().red()
+                        );
+                        return Err(());
+                    }
+                };
+                load_file_force_entrypoint(file, &identifier, config)
+            }
+            (_, _, None) => {
+                eprintln!("{}: file must be given", "error".bold().red());
+                return Err(());
+            }
+            (Some(_), Some(_), _) => {
+                eprintln!(
+                    "{}: entrypoint cannot be specified and forced at same time",
+                    "error".bold().red()
+                );
+                return Err(());
+            }
         }
     };
 
@@ -416,15 +415,18 @@ fn check_load(args: Check) -> Result<(Identifier, Arc<Collection>), ()> {
         .into_result()
         .map(|(pkg, collection)| {
             (
-                pkg.entrypoints()
-                    .get(
-                        args.prog_cmd
-                            .as_ref()
-                            .filter(|arg| !arg.starts_with('-'))
-                            .unwrap_or(&"main".to_string()),
-                    )
-                    .unwrap()
-                    .clone(),
+                if !args.all {
+                    pkg.entrypoints()
+                        .get(
+                            args.prog_cmd
+                                .as_ref()
+                                .filter(|arg| !arg.starts_with('-'))
+                                .unwrap_or(&"main".to_string()),
+                        )
+                        .cloned()
+                } else {
+                    None
+                },
                 collection,
             )
         })

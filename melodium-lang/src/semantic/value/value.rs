@@ -110,18 +110,34 @@ impl Value {
     }
 
     fn parse_string(s: &PositionnedString) -> ScriptResult<ValueContent> {
-        let string = s.string.strip_prefix('"');
-        if string.is_none() {
-            return ScriptResult::new_failure(ScriptError::invalid_string(146, s.clone()));
-        }
-        let string = string.unwrap().strip_suffix('"');
-        if string.is_none() {
-            return ScriptResult::new_failure(ScriptError::invalid_string(147, s.clone()));
-        }
+        if s.string.starts_with('"') {
+            let string = s.string.strip_prefix('"');
+            if string.is_none() {
+                return ScriptResult::new_failure(ScriptError::invalid_string(146, s.clone()));
+            }
+            let string = string.unwrap().strip_suffix('"');
+            if string.is_none() {
+                return ScriptResult::new_failure(ScriptError::invalid_string(147, s.clone()));
+            }
 
-        match string.unwrap().to_unescaped() {
-            Ok(string) => ScriptResult::new_success(ValueContent::String(string.to_string())),
-            Err(_err) => ScriptResult::new_failure(ScriptError::invalid_string(185, s.clone())),
+            match string.unwrap().to_unescaped() {
+                Ok(string) => ScriptResult::new_success(ValueContent::String(string.to_string())),
+                Err(_err) => ScriptResult::new_failure(ScriptError::invalid_string(185, s.clone())),
+            }
+        } else if s.string.starts_with('$') {
+            let num_braces = s.string.chars().skip(1).take_while(|c| *c == '{').count();
+            let mut end_braces: String = "}".into();
+            for _ in 1..num_braces {
+                end_braces.push('}');
+            }
+            let string = s
+                .string
+                .split_at(num_braces + 1)
+                .1
+                .trim_end_matches(&end_braces);
+            ScriptResult::new_success(ValueContent::String(string.to_string()))
+        } else {
+            ScriptResult::new_failure(ScriptError::invalid_string(188, s.clone()))
         }
     }
 

@@ -1,29 +1,200 @@
-use http/client/util::post
+use http/client/util::post as simplePost
+use http/client::post
+use http/client::HttpClient
 use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
+use std/data/string_map/block::merge
 use std/text/compose::|format
 use std/flow::emit
 use std/flow::pass
 use std/flow::stream
+use std/flow::trigger
+use std/flow::filterBlock
+use std/flow::releaseBlock
 use std/conv::toString
 use std/conv::|to_string
 use std/text/convert/string::toUtf8
 use std/text/convert/string::fromUtf8
+use std/ops::equal
+use std/ops/option/block::map
+use std/ops/option/block::reduce
+use std/ops/option/block::wrap
+use std/ops/option/block::unwrap
+use std/ops/option/block::unwrapOr
+use std/ops/option::unwrap as unwrapStream
+use std/ops/option::|unwrap_or
+use std/ops/option::|wrap
+use javascript::JavaScriptEngine
+use javascript::process
 use json::|to_json
 use json::Json
 use json/value::|null
-use std/ops/option::|unwrap_or
-use std/ops/option::|wrap
+use json/value::fromStringMap
+use process/environment::Environment
+use process/environment::mapFullEnvironment
+use root/steps::spawnCommands
 use local::StepState
+use local::githubMapEval
+use local::githubStringEval
+use local::githubCommand
+use local::githubGetEnv
+use local::githubSetOutputs
 use log/logger::Logger
 use log/log::logError
 use log/log::logInfos
 
+treatment runAction[contexts: JavaScriptEngine, logger: Logger](
+    id: Option<string> = _,
+    name: string,
+    display_name: Option<string> = _,
+    commands: string,
+    env: Option<StringMap> = _,
+    working_directory: Option<string> = _,
+    shell: Option<string> = _,
+    if: Option<string> = _,
+    continue_on_error: Option<string> = _,
+    local_context: Option<string> = _
+)
+  input trigger: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output continue: Block<void>
+{
+    ifExec: filterBlock<void>()
+    localExec: emit<Option<string>>(value=_)
+    spawnCommands[logger=logger](label=|unwrap_or<string>(display_name, name))
+    mapFullEnvironment()
+    wrapFullEnvironment: wrap<Environment>()
+    githubCommand()
+
+    Self.trigger -> ifExec.value,accepted -> localExec.trigger,emit ----> spawnCommands.executor_name
+    mapFullEnvironment.environment -> wrapFullEnvironment.value,option -> spawnCommands.environment
+    githubCommand.command ----------------------------------------------> spawnCommands.commands
+
+    setOutputs: githubSetOutputs[contexts=contexts]()
+    
+    spawnCommands.completed -> setOutputs.spawn_completed,step_completed -> Self.completed
+    spawnCommands.failed ----> setOutputs.spawn_failed,step_failed -------> Self.failed
+                               setOutputs.step_continue ------------------> Self.continue
+
+    emitCommands: emit<string>(value=commands)
+    evalCommands: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()))
+    Self.trigger -> emitCommands.trigger,emit -> evalCommands.value,evaluated -> githubCommand.run
+
+    emitShell: emit<Option<string>>(value=shell)
+    mapShell: map<string>()
+    evalShell: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()))
+    reduceShell: reduce<string>()
+    Self.trigger -> emitShell.trigger,emit -> mapShell.option,none --------------------------> reduceShell.none,option -> githubCommand.shell
+                                              mapShell.value ---> evalShell.value,evaluated -> reduceShell.value
+
+    emitEnv: emit<Option<StringMap>>(value=env)
+    mapEnv: map<StringMap>()
+    evalEnv: githubMapEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()))
+    reduceEnv: reduce<StringMap>()
+    unwrapEnv: unwrap<StringMap>()
+    Self.trigger -> emitEnv.trigger,emit -> mapEnv.option,none --------------------------> reduceEnv.none,option -> unwrapEnv.option,value -> mergeEnvs.entries,merged -> mapFullEnvironment.variables
+                                            mapEnv.value ------> evalEnv.map,evaluated --> reduceEnv.value
+
+    mergeEnvs: merge()
+
+    emitWorkflowId: emit<string>(value="${{ github.workflow }}")
+    evalWorkflowId: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()))
+    emitStepId: emit<string>(value=|format("{name}${{{{ strategy.job-index }}}}", |entry("name", name)))
+    evalStepId: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()))
+    envFileVariables: githubGetEnv()
+    Self.trigger -> emitWorkflowId.trigger,emit -> evalWorkflowId.value,evaluated -> envFileVariables.workflow_id,variables -> mergeEnvs.base
+    Self.trigger -> emitStepId.trigger,emit -----> evalStepId.value,evaluated -----> envFileVariables.step_id
+                                                   evalWorkflowId.evaluated -> setOutputs.workflow_id
+                                                   evalStepId.evaluated -----> setOutputs.step_id
+
+    emitWorkdir: emit<Option<string>>(value=working_directory)
+    mapWorkdir: map<string>()
+    evalWorkdir: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()))
+    reduceWorkdir: reduce<string>()
+    Self.trigger -> emitWorkdir.trigger,emit -> mapWorkdir.option,none --------------------------> reduceWorkdir.none,option -> mapFullEnvironment.working_directory
+                                                mapWorkdir.value -> evalWorkdir.value,evaluated -> reduceWorkdir.value
+    
+    emitIf: emit<Option<string>>(value=if)
+    mapIf: map<string>()
+    evalIf: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()), assume=true)
+    reduceIf: reduce<string>()
+    unwrapIf: unwrapOr<string>(default="true")
+    streamIf: stream<string>()
+    blockIf: trigger<bool>()
+    emitTrue: emit<string>(value="true")
+    streamTrue: stream<string>()
+    equalIf: equal<string>()
+
+    Self.trigger -> emitIf.trigger,emit -> mapIf.option,none ---------------------> reduceIf.none,option ----------> unwrapIf.option,value --> streamIf.block,stream ---> equalIf.a,result -> blockIf.stream,first -> ifExec.select
+                                           mapIf.value -> evalIf.value,evaluated -> reduceIf.value    Self.trigger -> emitTrue.trigger,emit -> streamTrue.block,stream -> equalIf.b
+
+    emitContinueOnError: emit<Option<string>>(value=continue_on_error)
+    mapContinueOnError: map<string>()
+    evalContinueOnError: githubStringEval[contexts=contexts](local_context=|unwrap_or<Json>(|to_json(|unwrap_or<string>(local_context, "{}")), |null()), assume=true)
+    reduceContinueOnError: reduce<string>()
+    unwrapContinueOnError: unwrapOr<string>(default="false")
+    streamContinueOnError: stream<string>()
+    blockContinueOnError: trigger<bool>()
+    equalContinueOnError: equal<string>()
+
+    Self.trigger -> emitContinueOnError.trigger,emit -> mapContinueOnError.option,none ----------------------------------> reduceContinueOnError.none,option ----------> unwrapContinueOnError.option,value -> streamContinueOnError.block,stream ---> equalContinueOnError.a,result -> blockContinueOnError.stream,first -> setOutputs.continue_on_error
+                                                        mapContinueOnError.value -> evalContinueOnError.value,evaluated -> reduceContinueOnError.value                                                                            streamTrue.stream -> equalContinueOnError.b
+}
+
+treatment postGithubStateContext[contexts: JavaScriptEngine, logger: Logger](state: StepState, name: string, description: string, log_response: bool = false)
+    input trigger: Block<void>
+    model http_client: HttpClient(
+        base_url = _,
+        headers = |map([])
+    )
+{
+    post[client=http_client]()
+    evalUrl: githubStringEval[contexts=contexts](local_context=|null())
+    evalHeaders: githubMapEval[contexts=contexts](local_context=|null())
+    
+    emitUrl: emit<string>(value="${{ github.api_url }}/repos/${{ github.repository_id }}/statuses/${{ github.sha }}")
+    emitHeaders: emit<StringMap>(value=|map([
+            |entry("Accept", "application/vnd.github+json"),
+            |entry("Authorization", "Bearer ${{ secrets.GITHUB_TOKEN }}"),
+            |entry("Content-Type", "application/json"),
+            |entry("X-GitHub-Api-Version", "2022-11-28")
+        ]))
+    emitBody: emit<Json>(value=|unwrap_or<Json>(|to_json(
+        |format(
+            "{{
+                \"state\": \"{state}\",
+                \"context\": \"{name}\",
+                \"description\": \"{description}\"
+            }}",
+            |map([
+                    |entry("state", |to_string<StepState>(state)),
+                    |entry("name", name),
+                    |entry("description", description)
+                ])
+        )
+    ), |null()))
+    stream<Json>()
+    toString<Json>()
+    toUtf8()
+
+    passInfos: pass<byte>(cond=log_response)
+    logInfos[logger=logger](label="GitHub API")
+    fromUtf8()
+    post.data -> passInfos.stream,passed -> fromUtf8.encoded,text -> logInfos.messages
+    logError[logger=logger](label="GitHub API")
+    post.error -> logError.message
+
+    Self.trigger -> emitUrl.trigger,emit -> evalUrl.value,evaluated -> post.url
+    Self.trigger -> emitHeaders.trigger,emit -> evalHeaders.map,evaluated -> post.headers
+    Self.trigger -> emitBody.trigger,emit -> stream.block,stream -> toString.value,into -> toUtf8.text,encoded -> post.data
+}
+
 treatment postGithubState[logger: Logger](token: string, project: string, sha: string, state: StepState, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>
 {
-    post(
+    post: simplePost(
         headers=|wrap<StringMap>(|map([
             |entry("Accept", "application/vnd.github+json"),
             |entry("Authorization", |format("Bearer {token}", |entry("token", token))),
@@ -63,4 +234,144 @@ treatment postGithubState[logger: Logger](token: string, project: string, sha: s
     toUtf8()
 
     Self.trigger -> emit.trigger,emit -> stream.block,stream -> toString.value,into -> toUtf8.text,encoded -> post.data
+}
+
+treatment prepareContexts[contexts: JavaScriptEngine](github_contexts: string)
+  input trigger: Block<void>
+  output ready: Block<void>
+{
+    process[engine=contexts](code=${{{
+        let github = value.github ?? {};
+        let env = value.env ?? {};
+        let vars = value.vars ?? {};
+        let job = value.vars ?? {};
+        let jobs = value.jobs ?? {};
+        let steps = value.steps ?? {};
+        let runner = value.runner ?? {};
+        let secrets = value.secrets ?? {};
+        let strategy = value.strategy ?? {};
+        let matrix = value.matrix ?? {};
+        let needs = value.needs ?? {};
+        let inputs = value.inputs ?? {};
+
+        if (typeof job.status == "undefined") {
+            job.status = "success";
+        }
+
+        function always() {
+            true
+        }
+
+        function success() {
+            if (job.status == "success") {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        function failure() {
+            if (job.status == "failure") {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        function cancelled() {
+            if (job.status == "cancelled") {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        delete value;
+    }}})
+    emit<Json>(value=|unwrap_or<Json>(|to_json(github_contexts), |null()))
+    stream<Json>()
+    trigger<Option<Json>>()
+
+    Self.trigger -> emit.trigger,emit -> stream.block,stream -> process.value,result -> trigger.stream,end -> Self.ready
+}
+
+treatment includeNeeds[contexts: JavaScriptEngine](from: string)
+  input trigger: Block<void>
+  input needs: Block<Json>
+  output ready: Block<void>
+{
+    process[engine=contexts](code=|format(${{{
+        
+        needs["{from}"] = value;
+
+        delete value;
+    }}}, |entry("from", from)))
+    releaseBlock<Json>()
+    stream<Json>()
+    trigger<Option<Json>>()
+
+    Self.trigger -> releaseBlock.leverage,released -> stream.block,stream -> process.value,result -> trigger.stream,end -> Self.ready
+    Self.needs ---> releaseBlock.data
+}
+
+treatment includeInputs[contexts: JavaScriptEngine]()
+  input trigger: Block<void>
+  input inputs: Block<Json>
+  output ready: Block<void>
+{
+    process[engine=contexts](code=${{{
+        
+        inputs = value;
+
+        delete value;
+    }}})
+    releaseBlock<Json>()
+    stream<Json>()
+    trigger<Option<Json>>()
+
+    Self.trigger -> releaseBlock.leverage,released -> stream.block,stream -> process.value,result -> trigger.stream,end -> Self.ready
+    Self.inputs --> releaseBlock.data
+}
+
+treatment replicateContextsWithInputs[main_contexts: JavaScriptEngine, action_contexts: JavaScriptEngine](inputs: StringMap)
+  input trigger: Block<void>
+  output ready: Block<void>
+{
+    prepareContexts[contexts=action_contexts](github_contexts="{}")
+    emitNull: emit<Json>(value=|null())
+    streamNull: stream<Json>()
+    extractProcess: process[engine=main_contexts](code=${{{
+        {
+            let extracted = {
+                github: github,
+                runner: runner
+            };
+            extracted
+        }
+    }}})
+    unwrapContexts: unwrapStream<Json>()
+    injectProcess: process[engine=action_contexts](code=${{{
+        
+        github = value.github;
+        runner = value.runner;
+
+        delete value;
+    }}})
+    triggerInjectDone: trigger<Option<Json>>()
+    Self.trigger -> prepareContexts.trigger,ready -> emitNull.trigger,emit -> streamNull.block,stream -> extractProcess.value,result -> unwrapContexts.option,value -> injectProcess.value,result -> triggerInjectDone.stream
+
+    
+    emitInputs: emit<StringMap>(value=inputs)
+    githubMapEval[contexts=main_contexts](local_context=|null())
+    streamInputs: stream<StringMap>()
+    fromStringMap()
+    inputsProcess: process[engine=action_contexts](code=${{{
+        
+        inputs = value;
+
+        delete value;
+    }}})
+    triggerReady: trigger<Option<Json>>()
+
+    triggerInjectDone.end -> emitInputs.trigger,emit -> githubMapEval.map,evaluated -> streamInputs.block,stream -> fromStringMap.value,json -> inputsProcess.value,result -> triggerReady.stream,end -> Self.ready
 }
