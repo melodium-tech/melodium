@@ -242,7 +242,7 @@ pub async fn github_command() {
             #[cfg(target_family = "windows")]
             None => {
                 let file_name = format!("{run_hash}.ps1");
-                file_path.push(&file_path);
+                file_path.push(&file_name);
 
                 Some(Command {
                     command: "pwsh".into(),
