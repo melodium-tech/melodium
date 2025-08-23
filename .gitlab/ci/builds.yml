@@ -326,7 +326,8 @@ build:release:x86_64-pc-windows-gnu:
     - .build-release-or-test
     - .builder:linux:x86_64-pc-windows-gnu
   script:
-    - cargo build --package melodium --locked --release 
+    - cargo build --package melodium --locked --profile pc-windows-gnu
+    - mv target/x86_64-pc-windows-gnu/pc-windows-gnu target/x86_64-pc-windows-gnu/release
     - ls target/x86_64-pc-windows-gnu/release
   artifacts:
     paths:
@@ -352,7 +353,8 @@ build:release:i686-pc-windows-gnu:
     - .build-release-or-test
     - .builder:linux:i686-pc-windows-gnu
   script:
-    - cargo build --package melodium --locked --release 
+    - cargo build --package melodium --locked --profile pc-windows-gnu
+    - mv target/i686-pc-windows-gnu/pc-windows-gnu target/i686-pc-windows-gnu/release
     - ls target/i686-pc-windows-gnu/release
   artifacts:
     paths:
