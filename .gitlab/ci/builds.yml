@@ -397,7 +397,7 @@ build:packages:release:wasm32-unknown-unknown:
     - |
       for PACKAGE in $PACKAGES
       do
-        if cargo build --package $PACKAGE-mel --features plugin --locked --release 
+        if cargo build --package $PACKAGE-mel --features plugin,mock --locked --release 
         then
           echo $PACKAGE compiled
         else
