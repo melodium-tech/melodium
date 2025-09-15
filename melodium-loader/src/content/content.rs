@@ -97,7 +97,7 @@ impl Content {
         }
     }
 
-    pub fn try_lock(&self) -> Result<MutexGuard<()>, ()> {
+    pub fn try_lock(&'_ self) -> Result<MutexGuard<'_, ()>, ()> {
         match self.descriptors_building.try_lock() {
             Ok(guard) => Ok(guard),
             Err(_) => Err(()),

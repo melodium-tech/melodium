@@ -118,7 +118,7 @@ impl ModelInstanciation {
 }
 
 impl AssignativeElement for ModelInstanciation {
-    fn assignative_element(&self) -> AssignativeElementType {
+    fn assignative_element(&'_ self) -> AssignativeElementType<'_> {
         AssignativeElementType::ModelInstanciation(self)
     }
 

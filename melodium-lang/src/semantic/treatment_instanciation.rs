@@ -186,7 +186,7 @@ impl TreatmentInstanciation {
 }
 
 impl AssignativeElement for TreatmentInstanciation {
-    fn assignative_element(&self) -> AssignativeElementType {
+    fn assignative_element(&'_ self) -> AssignativeElementType<'_> {
         AssignativeElementType::Treatment(self)
     }
 

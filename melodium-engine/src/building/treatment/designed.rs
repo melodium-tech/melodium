@@ -20,6 +20,7 @@ struct BuildSample {
     genesis_environment: GenesisEnvironment,
     host_treatment: HostTreatment,
     host_build_id: Option<BuildId>,
+    #[allow(unused)]
     check: Arc<RwLock<CheckBuild>>,
     label: String,
     instancied_models: HashMap<String, Arc<dyn Model>>,

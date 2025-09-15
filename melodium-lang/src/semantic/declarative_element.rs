@@ -12,7 +12,7 @@ use std::sync::{Arc, RwLock};
 /// A declarative element is a block which owns declared parameters.
 pub trait DeclarativeElement: Node + Debug + Send + Sync {
     /// Returns a reference on the structure.
-    fn declarative_element(&self) -> DeclarativeElementType;
+    fn declarative_element(&'_ self) -> DeclarativeElementType<'_>;
 
     /// Search for a declared parameter.
     fn find_declared_parameter(&self, name: &str) -> Option<&Arc<RwLock<DeclaredParameter>>>;
@@ -31,7 +31,7 @@ pub enum DeclarativeElementType<'a> {
 pub struct NoneDeclarativeElement;
 
 impl DeclarativeElement for NoneDeclarativeElement {
-    fn declarative_element(&self) -> DeclarativeElementType {
+    fn declarative_element(&'_ self) -> DeclarativeElementType<'_> {
         DeclarativeElementType::None
     }
 

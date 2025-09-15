@@ -28,12 +28,14 @@ pub trait Builder: Debug + Send + Sync {
         environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult>;
 
+    #[allow(unused)]
     fn check_dynamic_build(
         &self,
         build: BuildId,
         environment: CheckEnvironment,
         previous_steps: Vec<CheckStep>,
     ) -> Option<CheckBuildResult>;
+    #[allow(unused)]
     fn check_give_next(
         &self,
         within_build: BuildId,

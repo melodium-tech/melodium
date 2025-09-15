@@ -203,7 +203,7 @@ impl FsPackage {
         &self.path
     }
 
-    pub fn contents(&self) -> RwLockReadGuard<HashMap<PathBuf, Arc<Content>>> {
+    pub fn contents(&'_ self) -> RwLockReadGuard<'_, HashMap<PathBuf, Arc<Content>>> {
         self.contents.read().unwrap()
     }
 }

@@ -446,7 +446,7 @@ impl Attribuable for TreatmentInstanciation {
 }
 
 impl GenericInstanciation for TreatmentInstanciation {
-    fn generics(&self) -> RwLockReadGuard<HashMap<String, DescribedType>> {
+    fn generics(&'_ self) -> RwLockReadGuard<'_, HashMap<String, DescribedType>> {
         self.generics.read().unwrap()
     }
 

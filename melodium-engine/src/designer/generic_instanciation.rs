@@ -8,7 +8,7 @@ use std::sync::RwLockReadGuard;
 
 pub trait GenericInstanciation: Send + Sync + Debug {
     fn set_generic(&mut self, generic_name: String, r#type: DescribedType) -> LogicResult<()>;
-    fn generics(&self) -> RwLockReadGuard<HashMap<String, DescribedType>>;
+    fn generics(&'_ self) -> RwLockReadGuard<'_, HashMap<String, DescribedType>>;
 }
 
 pub(crate) fn import_design_described_type(

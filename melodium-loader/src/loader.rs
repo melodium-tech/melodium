@@ -157,7 +157,7 @@ impl Loader {
             .collect()
     }
 
-    pub fn collection(&self) -> RwLockReadGuard<Collection> {
+    pub fn collection(&'_ self) -> RwLockReadGuard<'_, Collection> {
         self.collection.read().unwrap()
     }
 

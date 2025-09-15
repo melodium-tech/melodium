@@ -521,7 +521,7 @@ impl Node for Treatment {
 }
 
 impl DeclarativeElement for Treatment {
-    fn declarative_element(&self) -> DeclarativeElementType {
+    fn declarative_element(&'_ self) -> DeclarativeElementType<'_> {
         DeclarativeElementType::Treatment(&self)
     }
 

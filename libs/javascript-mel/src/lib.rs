@@ -138,7 +138,7 @@ pub async fn process(#[mel(content(javascript))] code: string) {
                                         .await
                                 );
                             }
-                            Ok(Err(err)) => {
+                            Ok(Err(_err)) => {
                                 check!(result.send_one(Option::<Arc<dyn Data>>::None.into()).await);
                             }
                             Err(_) => {

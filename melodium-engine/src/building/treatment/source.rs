@@ -15,6 +15,7 @@ use std::sync::{Arc, RwLock, Weak};
 struct BuildSample {
     host_treatment: HostTreatment,
     host_build_id: Option<BuildId>,
+    #[allow(unused)]
     check: Arc<RwLock<CheckBuild>>,
     label: String,
 }

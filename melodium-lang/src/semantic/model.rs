@@ -257,7 +257,7 @@ impl Model {
 }
 
 impl DeclarativeElement for Model {
-    fn declarative_element(&self) -> DeclarativeElementType {
+    fn declarative_element(&'_ self) -> DeclarativeElementType<'_> {
         DeclarativeElementType::Model(&self)
     }
 
@@ -269,7 +269,7 @@ impl DeclarativeElement for Model {
 }
 
 impl AssignativeElement for Model {
-    fn assignative_element(&self) -> AssignativeElementType {
+    fn assignative_element(&'_ self) -> AssignativeElementType<'_> {
         AssignativeElementType::Model(&self)
     }
 

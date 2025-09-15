@@ -101,7 +101,7 @@ impl FunctionInstanciation {
 }
 
 impl GenericInstanciation for FunctionInstanciation {
-    fn generics(&self) -> RwLockReadGuard<HashMap<String, DescribedType>> {
+    fn generics(&'_ self) -> RwLockReadGuard<'_, HashMap<String, DescribedType>> {
         self.generics.read().unwrap()
     }
 

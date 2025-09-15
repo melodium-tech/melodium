@@ -17,7 +17,7 @@ use std::sync::{Arc, RwLock};
 /// it belongs to.
 pub trait AssignativeElement: Node + Debug + Send + Sync {
     /// Returns a reference on the structure.
-    fn assignative_element(&self) -> AssignativeElementType;
+    fn assignative_element(&'_ self) -> AssignativeElementType<'_>;
 
     /// Returns the associated declarative element.
     ///
