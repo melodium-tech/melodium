@@ -1,7 +1,7 @@
 #!/usr/bin/env melodium
 #! name = http_client
-#! version = 0.9.0-pre.5
-#! require = http:=0.9.0-pre.5 std:=0.9.0-pre.5 fs:=0.9.0-pre.5
+#! version = 0.9.0
+#! require = http:0.9.0 std:0.9.0 fs:0.9.0
 
 use http/client/util::get
 use std/engine/util::startup

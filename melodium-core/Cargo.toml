@@ -1,6 +1,6 @@
 [package]
 name = "melodium-core"
-version = "0.9.0-pre.5"
+version = "0.9.0"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2018"
@@ -16,7 +16,7 @@ categories = ["compilers", "science", "concurrency", "asynchronous"]
 name = "melodium_core"
 
 [dependencies]
-melodium-common = { path = "../melodium-common", version = "=0.9.0-pre.5" }
+melodium-common = { path = "../melodium-common", version = "0.9.0" }
 erased-serde = "0.4"
 once_cell = "1.18.0"
 serde = { version = "1", features = ["derive"] }
