@@ -1,6 +1,6 @@
 [package]
 name = "log-mel"
-version = "0.9.0-pre.5"
+version = "0.9.0"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -21,10 +21,10 @@ async-std = { version="1.13", features=["unstable"] }
 chrono = { version = "0.4", default-features = false, features = ["now", "serde"] }
 colored = { version = "2.0.2" }
 futures = "0.3.28"
-std-mel = { path = "../std-mel", version = "=0.9.0-pre.5" }
-fs-mel = { path = "../fs-mel", version = "=0.9.0-pre.5" }
-melodium-core = { path = "../../melodium-core", version = "=0.9.0-pre.5" }
-melodium-macro = { path = "../../melodium-macro", version = "=0.9.0-pre.5" }
+std-mel = { path = "../std-mel", version = "0.9.0" }
+fs-mel = { path = "../fs-mel", version = "0.9.0" }
+melodium-core = { path = "../../melodium-core", version = "0.9.0" }
+melodium-macro = { path = "../../melodium-macro", version = "0.9.0" }
 serde = "1.0.185"
 
 [features]
