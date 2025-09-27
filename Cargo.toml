@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "libs/audio-mel",
     "libs/cicd-mel",
     "libs/distrib-mel",
     "libs/encoding-mel",

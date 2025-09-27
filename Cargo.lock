@@ -453,6 +453,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "834eee9ce518130a3b4d5af09ecc43e9d6b57ee76613f227a1ddd6b77c7a62bc"
 
 [[package]]
+name = "async_channel_io"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2817ab4eedf77732e9b8fa765801a598df651b49264112a75c72d8f5f56319d"
+dependencies = [
+ "async-channel 2.3.1",
+ "futures",
+ "log",
+]
+
+[[package]]
 name = "atoi"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -466,6 +477,22 @@ name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
+
+[[package]]
+name = "audio-mel"
+version = "0.9.0"
+dependencies = [
+ "async-channel 2.3.1",
+ "async-std",
+ "async_channel_io",
+ "futures",
+ "melodium-core",
+ "melodium-macro",
+ "serde",
+ "serde_json",
+ "std-mel",
+ "symphonia",
+]
 
 [[package]]
 name = "autocfg"
@@ -1406,6 +1433,12 @@ dependencies = [
  "event-listener 5.4.0",
  "pin-project-lite",
 ]
+
+[[package]]
+name = "extended"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af9673d8203fcb076b19dfd17e38b3d4ae9f44959416ea532ce72415a6020365"
 
 [[package]]
 name = "failure"
@@ -2699,6 +2732,7 @@ name = "melodium"
 version = "0.9.0"
 dependencies = [
  "async-std",
+ "audio-mel",
  "cicd-mel",
  "clap",
  "colored",
@@ -2966,6 +3000,15 @@ dependencies = [
  "rand 0.8.5",
  "smallvec",
  "zeroize",
+]
+
+[[package]]
+name = "num-complex"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73f88a1307638156682bada9d7604135552957b7818057dcef22705b4d509495"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -3575,6 +3618,12 @@ dependencies = [
  "memchr",
  "regex-syntax",
 ]
+
+[[package]]
+name = "regex-lite"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "943f41321c63ef1c92fd763bfe054d2668f7f225a5c29f0105903dc2fc04ba30"
 
 [[package]]
 name = "regex-mel"
@@ -4580,6 +4629,136 @@ name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
+
+[[package]]
+name = "symphonia"
+version = "0.5.4"
+source = "git+https://github.com/itytophile/Symphonia.git?branch=full-async#e5944ac67f3df37ecb28cc102550987f0854bc49"
+dependencies = [
+ "lazy_static",
+ "symphonia-bundle-flac",
+ "symphonia-codec-adpcm",
+ "symphonia-codec-pcm",
+ "symphonia-codec-vorbis",
+ "symphonia-core",
+ "symphonia-format-mkv",
+ "symphonia-format-ogg",
+ "symphonia-format-riff",
+ "symphonia-metadata",
+]
+
+[[package]]
+name = "symphonia-bundle-flac"
+version = "0.5.4"
+source = "git+https://github.com/itytophile/Symphonia.git?branch=full-async#e5944ac67f3df37ecb28cc102550987f0854bc49"
+dependencies = [
+ "futures-util",
+ "log",
+ "symphonia-common",
+ "symphonia-core",
+ "symphonia-metadata",
+]
+
+[[package]]
+name = "symphonia-codec-adpcm"
+version = "0.5.4"
+source = "git+https://github.com/itytophile/Symphonia.git?branch=full-async#e5944ac67f3df37ecb28cc102550987f0854bc49"
+dependencies = [
+ "log",
+ "symphonia-core",
+]
+
+[[package]]
+name = "symphonia-codec-pcm"
+version = "0.5.4"
+source = "git+https://github.com/itytophile/Symphonia.git?branch=full-async#e5944ac67f3df37ecb28cc102550987f0854bc49"
+dependencies = [
+ "log",
+ "symphonia-core",
+]
+
+[[package]]
+name = "symphonia-codec-vorbis"
+version = "0.5.4"
+source = "git+https://github.com/itytophile/Symphonia.git?branch=full-async#e5944ac67f3df37ecb28cc102550987f0854bc49"
+dependencies = [
+ "log",
+ "symphonia-common",
+ "symphonia-core",
+]
+
+[[package]]
+name = "symphonia-common"
+version = "0.5.4"
+source = "git+https://github.com/itytophile/Symphonia.git?branch=full-async#e5944ac67f3df37ecb28cc102550987f0854bc49"
+dependencies = [
+ "symphonia-core",
+ "symphonia-metadata",
+]
+
+[[package]]
+name = "symphonia-core"
+version = "0.5.4"
+source = "git+https://github.com/itytophile/Symphonia.git?branch=full-async#e5944ac67f3df37ecb28cc102550987f0854bc49"
+dependencies = [
+ "async-trait",
+ "bitflags 2.9.1",
+ "bytemuck",
+ "futures-util",
+ "lazy_static",
+ "log",
+ "num-complex",
+ "smallvec",
+]
+
+[[package]]
+name = "symphonia-format-mkv"
+version = "0.5.4"
+source = "git+https://github.com/itytophile/Symphonia.git?branch=full-async#e5944ac67f3df37ecb28cc102550987f0854bc49"
+dependencies = [
+ "futures-util",
+ "lazy_static",
+ "log",
+ "symphonia-common",
+ "symphonia-core",
+]
+
+[[package]]
+name = "symphonia-format-ogg"
+version = "0.5.4"
+source = "git+https://github.com/itytophile/Symphonia.git?branch=full-async#e5944ac67f3df37ecb28cc102550987f0854bc49"
+dependencies = [
+ "futures-util",
+ "log",
+ "symphonia-common",
+ "symphonia-core",
+ "symphonia-metadata",
+]
+
+[[package]]
+name = "symphonia-format-riff"
+version = "0.5.4"
+source = "git+https://github.com/itytophile/Symphonia.git?branch=full-async#e5944ac67f3df37ecb28cc102550987f0854bc49"
+dependencies = [
+ "extended",
+ "futures-util",
+ "log",
+ "symphonia-core",
+ "symphonia-metadata",
+]
+
+[[package]]
+name = "symphonia-metadata"
+version = "0.5.4"
+source = "git+https://github.com/itytophile/Symphonia.git?branch=full-async#e5944ac67f3df37ecb28cc102550987f0854bc49"
+dependencies = [
+ "futures-util",
+ "lazy_static",
+ "log",
+ "regex-lite",
+ "smallvec",
+ "symphonia-core",
+]
 
 [[package]]
 name = "syn"

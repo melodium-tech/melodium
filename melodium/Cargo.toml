@@ -39,6 +39,7 @@ uuid = { version = "1.5.0", features = ["serde"], optional = true }
 
 std-mel = { path = "../libs/std-mel", version = "0.9.0" }
 
+audio-mel = { path = "../libs/audio-mel", version = "0.9.0", optional = true }
 cicd-mel = { path = "../libs/cicd-mel", version = "0.9.0", optional = true }
 distrib-mel = { path = "../libs/distrib-mel", version = "0.9.0", optional = true }
 encoding-mel = { path = "../libs/encoding-mel", version = "0.9.0", optional = true }
@@ -66,7 +67,7 @@ log = ["log-mel/real"]
 text = ["encoding-mel/real", "regex-mel/real"]
 javascript = ["javascript-mel/real", "json-mel/real"]
 sql = ["sql-mel/real"]
-standard-edition = ["jeu", "doc", "cicd", "distribution", "fs", "log", "network", "text", "javascript", "sql", "std-mel/real"]
+standard-edition = ["jeu", "doc", "cicd", "distribution", "fs", "log", "network", "text", "javascript", "sql", "std-mel/real", "audio-mel/real"]
 container-edition = ["standard-edition", "work-mel/kubernetes"]
 webassembly-edition = ["melodium-share/webassembly", "jeu", "doc", "std-mel/mock", "cicd-mel/mock", "log-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "sql-mel/mock", "distrib-mel/mock", "work-mel/mock", "uuid/js", "fs-mel/mock", "process-mel/mock", "net-mel/mock", "http-mel/mock"]
 
