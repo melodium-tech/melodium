@@ -126,7 +126,7 @@ impl World {
         &self,
         model_id: ModelId,
         name: &str,
-        descriptor: Arc<dyn Identified>,
+        descriptor: Arc<dyn Treatment>,
         params: HashMap<String, Value>,
         build_id: BuildId,
     ) {
@@ -504,7 +504,7 @@ impl Engine for World {
                 .builder(&main_id)
                 .success()
                 .unwrap()
-                .dynamic_build(main_build_id, &contextual_environment)
+                .dynamic_build(main_build_id, main.inputs().keys().cloned().collect(), &contextual_environment, 0)
                 .unwrap();
 
             track_futures.extend(build_result.prepared_futures);
@@ -615,7 +615,7 @@ impl ExecutiveWorld for World {
                         .builder(entry.descriptor.identifier())
                         .success()
                         .unwrap()
-                        .dynamic_build(entry.id, &contextual_environment)
+                        .dynamic_build(entry.id, entry.descriptor.inputs().keys().cloned().collect(), &contextual_environment, 0)
                         .unwrap();
 
                     track_futures.extend(build_result.prepared_futures);

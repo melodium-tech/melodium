@@ -82,7 +82,7 @@ impl BuilderTrait for Builder {
                 world.add_source(
                     matching_model.id().unwrap(),
                     source,
-                    TreatmentDescriptor::as_identified(&*self.descriptor.upgrade().unwrap()),
+                    self.descriptor.upgrade().unwrap(),
                     environment.variables().clone(),
                     idx,
                 );
@@ -97,10 +97,13 @@ impl BuilderTrait for Builder {
     fn dynamic_build(
         &self,
         build: BuildId,
+        _with_inputs: Vec<String>,
         environment: &ContextualEnvironment,
+        recurse: usize,
     ) -> Option<DynamicBuildResult> {
         let world = self.world.upgrade().unwrap();
 
+        eprintln!("-> {recurse} db {}", self.descriptor.upgrade().unwrap().identifier());
         // Look for existing build
         {
             let borrowed_building_inputs = self.building_inputs.read().unwrap();
@@ -133,7 +136,9 @@ impl BuilderTrait for Builder {
                     .give_next(
                         build_sample.host_build_id.unwrap(),
                         build_sample.label.to_string(),
+                        descriptor.outputs().keys().cloned().collect(),
                         &environment.base_on(),
+                        recurse + 1,
                     )
                     .unwrap();
 
@@ -165,7 +170,9 @@ impl BuilderTrait for Builder {
         &self,
         _within_build: BuildId,
         _for_label: String,
+        _for_outputs: Vec<String>,
         _environment: &ContextualEnvironment,
+        recurse: usize,
     ) -> Option<DynamicBuildResult> {
         // A core treatment cannot have sub-treatments (its not a sequence), so nothing to ever return.
         None
