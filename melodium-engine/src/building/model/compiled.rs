@@ -51,7 +51,6 @@ impl BuilderTrait for Builder {
         _build: BuildId,
         _with_inputs: Vec<String>,
         _environment: &ContextualEnvironment,
-        recurse: usize,
     ) -> Option<DynamicBuildResult> {
         None
     }
@@ -62,7 +61,6 @@ impl BuilderTrait for Builder {
         _for_label: String,
         _for_outputs: Vec<String>,
         _environment: &ContextualEnvironment,
-        recurse: usize,
     ) -> Option<DynamicBuildResult> {
         None
     }

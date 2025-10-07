@@ -349,16 +349,9 @@ impl BuilderTrait for Builder {
         build: BuildId,
         with_inputs: Vec<String>,
         environment: &ContextualEnvironment,
-        recurse: usize,
     ) -> Option<DynamicBuildResult> {
-        //stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
+        stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
             let world = self.world.upgrade().unwrap();
-
-            eprintln!("-> {recurse} db {} ({}) ", self.design.descriptor.upgrade().unwrap().identifier(), with_inputs.join(", "));
-            /*eprintln!(
-                "dynamic_build (designed) {recurse}: {}",
-                self.design.descriptor.upgrade().unwrap().identifier()
-            );*/
 
             // Look for existing build
             let first_range_built;
@@ -384,69 +377,72 @@ impl BuilderTrait for Builder {
 
             let mut treatment_build_results: HashMap<String, DynamicBuildResult> = HashMap::new();
             // Get first-range treatments
-            eprintln!("FRB: {first_range_built}");
             if !first_range_built {
                 for (treatment_name, treatment_id) in &build_sample.root_treatments_build_ids {
-                    
-                let treatment = self.design.treatments.get(treatment_name).unwrap();
-                let treatment_descriptor = treatment.descriptor.upgrade().unwrap();
-                if treatment_descriptor.inputs().is_empty() {
-                    let treatment_builder = Arc::clone(
-                    world
-                        .builder(treatment_descriptor.identifier())
-                        .success()
-                        .unwrap(),
-                );
-                let mut remastered_environment = environment.base_on();
+                    let treatment = self.design.treatments.get(treatment_name).unwrap();
+                    let treatment_descriptor = treatment.descriptor.upgrade().unwrap();
+                    if treatment_descriptor.inputs().is_empty() {
+                        let treatment_builder = Arc::clone(
+                            world
+                                .builder(treatment_descriptor.identifier())
+                                .success()
+                                .unwrap(),
+                        );
+                        let mut remastered_environment = environment.base_on();
 
-                // Setup parameters
-                for (name, parameter) in &treatment.parameters {
-                    let data = get_value(
-                        &parameter.value,
-                        &build_sample.genesis_environment,
-                        Some(&environment),
-                    )
-                    .expect("Impossible data recoverage");
+                        // Setup parameters
+                        for (name, parameter) in &treatment.parameters {
+                            let data = get_value(
+                                &parameter.value,
+                                &build_sample.genesis_environment,
+                                Some(&environment),
+                            )
+                            .expect("Impossible data recoverage");
 
-                    remastered_environment.add_variable(&name, data);
+                            remastered_environment.add_variable(&name, data);
+                        }
+
+                        // Call their dynamic_build method with right contextual environment
+                        treatment_build_results.insert(
+                            treatment_name.to_string(),
+                            treatment_builder
+                                .dynamic_build(*treatment_id, Vec::new(), &remastered_environment)
+                                .unwrap(),
+                        );
+                    }
                 }
-
-                // Call their dynamic_build method with right contextual environment
-                treatment_build_results.insert(
-                    treatment_name.to_string(),
-                    treatment_builder
-                        .dynamic_build(*treatment_id, Vec::new(), &remastered_environment, recurse + 1)
-                        .unwrap(),
-                );
-                }
-                
-            }
-            self.building_inputs.write().unwrap().insert((build, environment.track_id()), HashMap::new());
+                self.building_inputs
+                    .write()
+                    .unwrap()
+                    .insert((build, environment.track_id()), HashMap::new());
             }
 
             let mut to_build_with = HashMap::<String, Vec<String>>::new();
             for needed_input in &with_inputs {
                 if !result.feeding_inputs.contains_key(needed_input) {
-                    build_sample.root_connections.iter()
-                    .filter(|connection| &connection.output_name == needed_input).for_each(|conn| {
-                        let treatment_name = match &conn.input_treatment  {
-                    IO::Treatment(t) => t.clone(),
-                    _ => panic!("Root connection to (input) treatment expected"),
-                };
+                    build_sample
+                        .root_connections
+                        .iter()
+                        .filter(|connection| &connection.output_name == needed_input)
+                        .for_each(|conn| {
+                            let treatment_name = match &conn.input_treatment {
+                                IO::Treatment(t) => t.clone(),
+                                _ => panic!("Root connection to (input) treatment expected"),
+                            };
 
-                        to_build_with.entry(treatment_name).or_default().push(conn.input_name.clone())
-                    });
-                
+                            to_build_with
+                                .entry(treatment_name)
+                                .or_default()
+                                .push(conn.input_name.clone())
+                        });
                 }
             }
-
-            eprintln!("TBW {to_build_with:?}");
 
             for (treatment_name, with_inputs) in &to_build_with {
                 let treatment = self.design.treatments.get(treatment_name).unwrap();
                 let treatment_descriptor = treatment.descriptor.upgrade().unwrap();
 
-                    let treatment_builder = Arc::clone(
+                let treatment_builder = Arc::clone(
                     world
                         .builder(treatment_descriptor.identifier())
                         .success()
@@ -470,76 +466,61 @@ impl BuilderTrait for Builder {
                 treatment_build_results.insert(
                     treatment_name.to_string(),
                     treatment_builder
-                        .dynamic_build(*build_sample.treatment_build_ids.get(treatment_name).expect("Missing build id"), with_inputs.clone(), &remastered_environment, recurse + 1)
+                        .dynamic_build(
+                            *build_sample
+                                .treatment_build_ids
+                                .get(treatment_name)
+                                .expect("Missing build id"),
+                            with_inputs.clone(),
+                            &remastered_environment,
+                        )
                         .unwrap(),
                 );
-                
-                
             }
 
-            eprintln!("TBR: {treatment_build_results:?}");
-
             for needed_input in &with_inputs {
-
                 for connection in &build_sample.root_connections {
                     if &connection.output_name == needed_input {
                         let treatment_name = match &connection.input_treatment {
-                    IO::Treatment(t) => t.clone(),
-                    _ => panic!("Root connection to (input) treatment expected"),
-                };
+                            IO::Treatment(t) => t.clone(),
+                            _ => panic!("Root connection to (input) treatment expected"),
+                        };
 
-                eprintln!("# {treatment_name}");
-                if let Some(treatment_build_result) = treatment_build_results.get(&treatment_name) {
-
-                        if let Some(transmitters) = treatment_build_result
-                    .feeding_inputs
-                    .get(&connection.input_name)
-                {
-                    result
-                        .feeding_inputs
-                        .entry(connection.output_name.clone())
-                        .or_default()
-                        .extend(transmitters.clone());
+                        if let Some(treatment_build_result) =
+                            treatment_build_results.get(&treatment_name)
+                        {
+                            if let Some(transmitters) = treatment_build_result
+                                .feeding_inputs
+                                .get(&connection.input_name)
+                            {
+                                result
+                                    .feeding_inputs
+                                    .entry(connection.output_name.clone())
+                                    .or_default()
+                                    .extend(transmitters.clone());
+                            }
+                        }
+                    }
                 }
-                    }}
-                }
-
 
                 if !result.feeding_inputs.contains_key(needed_input) {
-                    build_sample.root_connections.iter()
-                    .filter(|connection| &connection.output_name == needed_input).inspect(|conn| {
-                        let treatment_name = match &conn.input_treatment  {
-                    IO::Treatment(t) => t.clone(),
-                    _ => panic!("Root connection to (input) treatment expected"),
-                };
+                    build_sample
+                        .root_connections
+                        .iter()
+                        .filter(|connection| &connection.output_name == needed_input)
+                        .for_each(|conn| {
+                            let treatment_name = match &conn.input_treatment {
+                                IO::Treatment(t) => t.clone(),
+                                _ => panic!("Root connection to (input) treatment expected"),
+                            };
 
-                        to_build_with.entry(treatment_name).or_default().push(conn.input_name.clone())
-                    });
-                
+                            to_build_with
+                                .entry(treatment_name)
+                                .or_default()
+                                .push(conn.input_name.clone())
+                        });
                 }
             }
-            
-            /*
-            // Take root treatments transmitters and report them accordingly to Self-input (connection output) characteritics
-            for root_connection in &build_sample.root_connections {
-                let treatment_name = match &root_connection.input_treatment {
-                    IO::Treatment(t) => t.clone(),
-                    _ => panic!("Root connection to (input) treatment expected"),
-                };
-
-                let treatment_build_result = treatment_build_results.get(&treatment_name).unwrap();
-
-                if let Some(transmitters) = treatment_build_result
-                    .feeding_inputs
-                    .get(&root_connection.input_name)
-                {
-                    result
-                        .feeding_inputs
-                        .entry(root_connection.output_name.clone())
-                        .or_default()
-                        .extend(transmitters.clone());
-                }
-            }*/
 
             // Taking all the futures returned by the root treatments
             for (_, treatment_build_result) in treatment_build_results {
@@ -556,10 +537,9 @@ impl BuilderTrait for Builder {
                 }
             }
             if !for_outputs.is_empty() {
-match &build_sample.host_treatment {
+                match &build_sample.host_treatment {
                     HostTreatment::Treatment(host_descriptor) => {
-
-let host_build = world
+                        let host_build = world
                             .builder(host_descriptor.identifier())
                             .success()
                             .unwrap()
@@ -568,7 +548,6 @@ let host_build = world
                                 build_sample.label.to_string(),
                                 for_outputs,
                                 &environment.base_on(),
-                                recurse + 1,
                             )
                             .unwrap();
 
@@ -584,8 +563,6 @@ let host_build = world
                             }
                         }
                         result.prepared_futures.extend(host_build.prepared_futures);
-                        
-                        
                     }
                     HostTreatment::Direct => {
                         let direct_inputs =
@@ -611,7 +588,7 @@ let host_build = world
             );
 
             Some(result)
-        //})
+        })
     }
 
     fn give_next(
@@ -620,18 +597,9 @@ let host_build = world
         for_label: String,
         for_outputs: Vec<String>,
         environment: &ContextualEnvironment,
-        recurse: usize,
     ) -> Option<DynamicBuildResult> {
-        //stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
+        stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
             let world = self.world.upgrade().unwrap();
-
-            eprint!("-> {recurse} gn {} ({} / {}) ", self.design.descriptor.upgrade().unwrap().identifier(), for_label, for_outputs.join(", "));
-
-            /*eprintln!(
-                "give_next (designed) {recurse}: {} (label: {for_label}, outputs: {})",
-                self.design.descriptor.upgrade().unwrap().identifier(),
-                for_outputs.join(",")
-            );*/
 
             // Get build
             let borrowed_builds = self.builds.read().unwrap();
@@ -643,21 +611,44 @@ let host_build = world
             );
 
             let mut result = DynamicBuildResult::new();
-            //eprintln!("Asking (tuple {asking_treatment_tuple:?}) {for_label}, outputs: {}", for_outputs.join(", "));
-            //eprintln!("Build sample:\nRoot:{:?}\nNext:{:?}\nLast:{:?}\nDirect:{:?}", build_sample.root_connections, build_sample.next_connections, build_sample.last_connections, build_sample.direct_connections);
-            if for_outputs.is_empty() ||
-                !(
-                    build_sample.root_connections.iter().any(|conn| {/*eprintln!("Root conn: {conn:?}");*/let res = match &conn.output_treatment { IO::Treatment(name) => name == &for_label, _ => false} && for_outputs.contains(&conn.output_name); /* eprintln!("Match: {res}"); */ res} )
-                    || build_sample.next_connections.get(&asking_treatment_tuple).map(|conns| conns.iter().any(|conn| {/*eprintln!("Next conn: {conn:?}");*/let res = match &conn.output_treatment { IO::Treatment(name) => name == &for_label, _ => false} && for_outputs.contains(&conn.output_name); /* eprintln!("Match: {res}"); */ res })).unwrap_or(false)
-                    || build_sample.last_connections.get(&asking_treatment_tuple).map(|conns| conns.iter().any(|conn| {/*eprintln!("Last conn: {conn:?}");*/let res = match &conn.output_treatment { IO::Treatment(name) => name == &for_label, _ => false} && for_outputs.contains(&conn.output_name); /* eprintln!("Match: {res}"); */ res })).unwrap_or(false)
-                    || build_sample.direct_connections.iter().any(|conn| {/*eprintln!("Direct conn: {conn:?}");*/let res=match &conn.output_treatment { IO::Treatment(name) => name == &for_label, _ => false} && for_outputs.contains(&conn.output_name); /* eprintln!("Match: {res}"); */ res })
-                ) {
-                //eprintln!("Nothing matches");
-                eprintln!("[stop]");
-                return Some(result)
-            } else {
-                eprintln!("");
-                //eprintln!("Something matches");
+            if for_outputs.is_empty()
+                || !(build_sample.root_connections.iter().any(|conn| {
+                    (match &conn.output_treatment {
+                        IO::Treatment(name) => name == &for_label,
+                        _ => false,
+                    }) && for_outputs.contains(&conn.output_name)
+                }) || build_sample
+                    .next_connections
+                    .get(&asking_treatment_tuple)
+                    .map(|conns| {
+                        conns.iter().any(|conn| {
+                            (match &conn.output_treatment {
+                                IO::Treatment(name) => name == &for_label,
+                                _ => false,
+                            }) && for_outputs.contains(&conn.output_name)
+                        })
+                    })
+                    .unwrap_or(false)
+                    || build_sample
+                        .last_connections
+                        .get(&asking_treatment_tuple)
+                        .map(|conns| {
+                            conns.iter().any(|conn| {
+                                (match &conn.output_treatment {
+                                    IO::Treatment(name) => name == &for_label,
+                                    _ => false,
+                                }) && for_outputs.contains(&conn.output_name)
+                            })
+                        })
+                        .unwrap_or(false)
+                    || build_sample.direct_connections.iter().any(|conn| {
+                        (match &conn.output_treatment {
+                            IO::Treatment(name) => name == &for_label,
+                            _ => false,
+                        }) && for_outputs.contains(&conn.output_name)
+                    }))
+            {
+                return Some(result);
             }
 
             // Get the treatments connected right after the given label in the reffered build
@@ -721,7 +712,6 @@ let host_build = world
                                 .dynamic_build(
                                     *next_treatment_id,with_inputs,
                                     &remastered_environment,
-                                    recurse + 1,
                                 )
                                 .unwrap(),
                         );
@@ -781,7 +771,7 @@ let host_build = world
                             build_sample.host_build_id.unwrap(),
                             build_sample.label.to_string(),
                             last_connections.iter().filter(|conn| match &conn.output_treatment { IO::Treatment(name) => name == &for_label, _ => false} && for_outputs.contains(&conn.output_name)).map(|conn| conn.input_name.clone()).collect(),
-                            &environment.base_on(), recurse+1
+                            &environment.base_on()
                         )
                         .unwrap();
 
@@ -819,7 +809,7 @@ let host_build = world
             }
 
             Some(result)
-        //})
+        })
     }
 
     fn check_dynamic_build(

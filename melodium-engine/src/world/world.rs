@@ -16,9 +16,7 @@ use core::fmt::Debug;
 use futures::future::join;
 use futures::stream::{FuturesUnordered, StreamExt};
 use futures::{pin_mut, select, FutureExt};
-use melodium_common::descriptor::{
-    Collection, Entry as CollectionEntry, Identified, Identifier, Treatment,
-};
+use melodium_common::descriptor::{Collection, Entry as CollectionEntry, Identifier, Treatment};
 use melodium_common::executive::{
     Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback, Input as ExecutiveInput,
     Model, ModelId, Output as ExecutiveOutput, ResultStatus, TrackCreationCallback, TrackFuture,
@@ -504,7 +502,11 @@ impl Engine for World {
                 .builder(&main_id)
                 .success()
                 .unwrap()
-                .dynamic_build(main_build_id, main.inputs().keys().cloned().collect(), &contextual_environment, 0)
+                .dynamic_build(
+                    main_build_id,
+                    main.inputs().keys().cloned().collect(),
+                    &contextual_environment,
+                )
                 .unwrap();
 
             track_futures.extend(build_result.prepared_futures);
@@ -615,7 +617,11 @@ impl ExecutiveWorld for World {
                         .builder(entry.descriptor.identifier())
                         .success()
                         .unwrap()
-                        .dynamic_build(entry.id, entry.descriptor.inputs().keys().cloned().collect(), &contextual_environment, 0)
+                        .dynamic_build(
+                            entry.id,
+                            entry.descriptor.inputs().keys().cloned().collect(),
+                            &contextual_environment,
+                        )
                         .unwrap();
 
                     track_futures.extend(build_result.prepared_futures);

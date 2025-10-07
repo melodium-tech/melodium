@@ -22,7 +22,7 @@ async-trait = "0.1.71"
 downcast-rs = "1.2.0"
 futures = "0.3.28"
 lazy_static = "1.4"
-#stacker = "0.1"
+stacker = "0.1"
 
 [features]
 default = []

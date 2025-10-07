@@ -21,7 +21,6 @@ pub trait Builder: Debug + Send + Sync {
         build: BuildId,
         with_inputs: Vec<String>,
         environment: &ContextualEnvironment,
-        recurse: usize,
     ) -> Option<DynamicBuildResult>;
     fn give_next(
         &self,
@@ -29,7 +28,6 @@ pub trait Builder: Debug + Send + Sync {
         for_label: String,
         for_outputs: Vec<String>,
         environment: &ContextualEnvironment,
-        recurse: usize,
     ) -> Option<DynamicBuildResult>;
 
     #[allow(unused)]
