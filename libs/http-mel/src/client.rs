@@ -213,10 +213,10 @@ pub async fn request(method: HttpMethod) {
                 }
             }
             let _ = finished.send_one(().into()).await;
-        } else {
+        }
+    } else {
             eprintln!("Connection cancelled");
         }
-    }
 }
 
 /// Performs HTTP operation with data emission.
