@@ -85,8 +85,11 @@ impl JavaScriptEngine {
         value: serde_json::Value,
         code: String,
     ) -> Result<Result<serde_json::Value, String>, ()> {
+        eprintln!("JS process value {value:?} with code\n{code}");
         if let Some(engine) = self.engine.lock().await.as_ref() {
-            engine.process(value, code).await
+            let res = engine.process(value, code).await;
+            eprintln!("Result: {res:?}");
+            res
         } else {
             Err(())
         }

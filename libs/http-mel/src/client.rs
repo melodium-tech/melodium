@@ -207,11 +207,14 @@ pub async fn request(method: HttpMethod) {
                     }
                 },
                 Err(err) => {
+                    eprintln!("Connection: error {}", err);
                     let _ = failed.send_one(().into()).await;
                     let _ = error.send_one(err.to_string().into()).await;
                 }
             }
             let _ = finished.send_one(().into()).await;
+        } else {
+            eprintln!("Connection cancelled");
         }
     }
 }
