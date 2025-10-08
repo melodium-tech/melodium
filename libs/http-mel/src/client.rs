@@ -130,7 +130,6 @@ pub async fn request(method: HttpMethod) {
                             }
                         }
                     }
-                    eprintln!("Connection: {:?}", conn.request_headers());
                     conn
                 }
                 .await
@@ -153,7 +152,6 @@ pub async fn request(method: HttpMethod) {
                                 })
                                 .collect();
 
-                            eprintln!("Connection: resp_headers: {:?}", conn.request_headers());
                             let _ = res_headers
                                 .send_one(Value::Data(
                                     Arc::new(StringMap::new_with(headers)) as Arc<dyn Data>
@@ -184,8 +182,6 @@ pub async fn request(method: HttpMethod) {
 
                                         recv_data.truncate(size);
 
-                                        eprintln!("Connection: recv_data {}", size);
-
                                         check!(
                                             data.send_many(TransmissionValue::Byte(
                                                 recv_data.into()
@@ -201,22 +197,18 @@ pub async fn request(method: HttpMethod) {
                         }
                     }
                     Err(err) => {
-                        eprintln!("Connection: error {}", err);
                         let _ = failed.send_one(().into()).await;
                         let _ = error.send_one(err.to_string().into()).await;
                     }
                 },
                 Err(err) => {
-                    eprintln!("Connection: error {}", err);
                     let _ = failed.send_one(().into()).await;
                     let _ = error.send_one(err.to_string().into()).await;
                 }
             }
             let _ = finished.send_one(().into()).await;
         }
-    } else {
-            eprintln!("Connection cancelled");
-        }
+    }
 }
 
 /// Performs HTTP operation with data emission.
@@ -284,6 +276,7 @@ pub async fn request_with_body(method: HttpMethod) {
                                     }
                                 }
                             }
+                            eprintln!("Connection: {:?}", conn.request_headers());
                             conn.with_body(Body::new_streaming(in_cons, None))
                         }
                         .await
@@ -319,6 +312,10 @@ pub async fn request_with_body(method: HttpMethod) {
                                             .map(|value| (name.to_string(), value.to_string()))
                                     })
                                     .collect();
+                                eprintln!(
+                                    "Connection: resp_headers: {:?}",
+                                    conn.response_headers()
+                                );
                                 let _ = res_headers
                                     .send_one(Value::Data(
                                         Arc::new(StringMap::new_with(headers)) as Arc<dyn Data>
@@ -348,6 +345,8 @@ pub async fn request_with_body(method: HttpMethod) {
 
                                             recv_data.truncate(size);
 
+                                            eprintln!("Connection: recv_data {}", size);
+
                                             check!(
                                                 data.send_many(TransmissionValue::Byte(
                                                     recv_data.into()
@@ -363,17 +362,21 @@ pub async fn request_with_body(method: HttpMethod) {
                             }
                         }
                         (_, Err(err)) => {
+                            eprintln!("Connection: error {}", err);
                             let _ = failed.send_one(().into()).await;
                             let _ = error.send_one(err.to_string().into()).await;
                         }
                     }
                 }
                 Err(err) => {
+                    eprintln!("Connection: error {}", err);
                     let _ = failed.send_one(().into()).await;
                     let _ = error.send_one(err.to_string().into()).await;
                 }
             }
             let _ = finished.send_one(().into()).await;
         }
+    } else {
+        eprintln!("Connection cancelled");
     }
 }
