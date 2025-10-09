@@ -313,7 +313,8 @@ pub async fn request_with_body(method: HttpMethod) {
                                     })
                                     .collect();
                                 eprintln!(
-                                    "Connection: resp_headers: {:?}",
+                                    "Connection: status: {:?}, resp_headers: {:?}",
+                                    conn.status(),
                                     conn.response_headers()
                                 );
                                 let _ = res_headers
