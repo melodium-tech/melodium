@@ -1,6 +1,6 @@
 use async_std::{
     channel::{bounded, unbounded, Receiver, Sender},
-    sync::{Barrier, Mutex, RwLock},
+    sync::RwLock,
 };
 use chrono::{DateTime, Utc};
 use core::{
@@ -13,7 +13,7 @@ use melodium_core::{common::executive::*, *};
 use melodium_macro::{check, mel_data, mel_function, mel_model, mel_treatment};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::{
-    collections::{hash_map::Entry as HashMapEntry, HashMap},
+    collections::HashMap,
     sync::{Arc, Weak},
 };
 
@@ -181,6 +181,7 @@ pub struct Logger {
     sender: Sender<VecDeque<Arc<Log>>>,
     receiver: Receiver<VecDeque<Arc<Log>>>,
     senders: RwLock<Vec<Sender<VecDeque<Arc<Log>>>>>,
+    entries_open: RwLock<Vec<Arc<AtomicBool>>>,
     /*tracks: Mutex<HashMap<usize, TrackLogEntry>>,
     inner_stop_barrier: Arc<Barrier>,
     common_stop_barrier: Mutex<Option<Arc<Barrier>>>,
@@ -196,6 +197,7 @@ impl Logger {
             sender,
             receiver,
             senders: RwLock::new(Vec::new()),
+            entries_open: RwLock::new(Vec::new()),
             /*tracks: Mutex::new(HashMap::new()),
             inner_stop_barrier: Arc::clone(&barrier),
             common_stop_barrier: Mutex::new(Some(barrier)),
@@ -207,6 +209,10 @@ impl Logger {
         self.senders.write().await.push(sender);
     }
 
+    pub(crate) async fn add_entry_open(&self, entry_open: Arc<AtomicBool>) {
+        self.entries_open.write().await.push(entry_open);
+    }
+
     pub async fn send_logs(&self, logs: VecDeque<Arc<Log>>) -> bool {
         match self.sender.send(logs).await {
             Ok(_) => true,
@@ -215,7 +221,17 @@ impl Logger {
     }
 
     pub async fn close_common(&self) {
-        self.receiver.close();
+        let model = self.model.upgrade().unwrap();
+        async_std::task::spawn(async move {
+            loop {
+                if !model.inner().entries_open.read().await.iter().any(|entry| entry.load(Ordering::Relaxed)) {
+                    break;
+                }
+                async_std::task::sleep(Duration::from_millis(50)).await;
+            }
+            
+            model.inner().receiver.close();
+        });
     }
 
     #[cfg(feature = "real")]
@@ -254,6 +270,11 @@ impl Logger {
             for sender in senders.iter() {
                 let _ = sender.send(logs.clone()).await;
             }
+        }
+
+        let senders = self.senders.read().await;
+        for sender in senders.iter() {
+            let _ = sender.close();
         }
     }
 
@@ -334,6 +355,9 @@ pub async fn track_logs() {
 pub async fn inject_stream_log() {
     let logger = LoggerModel::into(logger);
 
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
+
     while let Ok(logs) = logs
         .recv_many()
         .await
@@ -356,6 +380,8 @@ pub async fn inject_stream_log() {
             break;
         }
     }
+
+    entry.store(false, Ordering::Relaxed);
 }
 
 #[mel_treatment(
@@ -365,6 +391,9 @@ pub async fn inject_stream_log() {
 pub async fn inject_block_log() {
     let logger = LoggerModel::into(logger);
 
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
+
     if let Ok(log) = log.recv_one().await.map(|val| {
         GetData::<Arc<dyn Data>>::try_data(val)
             .unwrap()
@@ -373,6 +402,8 @@ pub async fn inject_block_log() {
     }) {
         logger.inner().send_logs(vec![log].into()).await;
     }
+
+    entry.store(false, Ordering::Relaxed);
 }
 
 #[mel_treatment(
@@ -382,6 +413,9 @@ pub async fn inject_block_log() {
 )]
 pub async fn log_stream(level: Level, label: string) {
     let logger = LoggerModel::into(logger);
+
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
 
     while let Ok(msgs) = messages
         .recv_many()
@@ -407,6 +441,8 @@ pub async fn log_stream(level: Level, label: string) {
             break;
         }
     }
+    entry.store(false, Ordering::Relaxed);
+
     let _ = ended.send_one(().into()).await;
 }
 
@@ -417,6 +453,9 @@ pub async fn log_stream(level: Level, label: string) {
 )]
 pub async fn log_block(level: Level, label: string) {
     let logger = LoggerModel::into(logger);
+
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
 
     if let Ok(msg) = message
         .recv_one()
@@ -436,6 +475,8 @@ pub async fn log_block(level: Level, label: string) {
             )
             .await;
     }
+    entry.store(false, Ordering::Relaxed);
+
     let _ = ended.send_one(().into()).await;
 }
 
@@ -447,6 +488,9 @@ pub async fn log_block(level: Level, label: string) {
 )]
 pub async fn log_data_stream(level: Level, label: string) {
     let logger = LoggerModel::into(logger);
+
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
 
     while let Ok(values) = display
         .recv_many()
@@ -473,6 +517,8 @@ pub async fn log_data_stream(level: Level, label: string) {
             break;
         }
     }
+    entry.store(false, Ordering::Relaxed);
+
     let _ = ended.send_one(().into()).await;
 }
 
@@ -484,6 +530,9 @@ pub async fn log_data_stream(level: Level, label: string) {
 )]
 pub async fn log_data_block(level: Level, label: string) {
     let logger = LoggerModel::into(logger);
+
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
 
     if let Ok(val) = display.recv_one().await {
         logger
@@ -499,6 +548,8 @@ pub async fn log_data_block(level: Level, label: string) {
             )
             .await;
     }
+    entry.store(false, Ordering::Relaxed);
+
     let _ = ended.send_one(().into()).await;
 }
 
