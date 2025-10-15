@@ -255,7 +255,8 @@ impl Logger {
                                     logs.into_iter().map(|log| Value::Data(log)).collect()
                                 ))
                                 .await
-                            )
+                            );
+                            all.force_send().await;
                         }
 
                         all.close().await;
