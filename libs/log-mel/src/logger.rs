@@ -246,7 +246,7 @@ impl Logger {
                 Some(Box::new(move |mut outputs| {
                     let all = outputs.get("all");
                     vec![Box::new(Box::pin(async move {
-                        let (sender, receiver) = bounded(500);
+                        let (sender, receiver) = bounded(1);
                         model.inner().add_track_log(sender).await;
 
                         while let Ok(logs) = receiver.recv().await {
@@ -310,7 +310,7 @@ pub async fn track_logs() {
     let logger = LoggerModel::into(logger);
 
     if let Ok(_) = trigger.recv_one().await {
-        let (sender, receiver) = bounded(500);
+        let (sender, receiver) = bounded(1);
 
         logger.inner().add_track_log(sender).await;
 
