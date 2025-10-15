@@ -308,6 +308,7 @@ impl DistributionEngine {
     }
 
     pub async fn stop(&self) {
+        eprintln!("Stop invoked");
         if let Some(protocol) = self.protocol.read().await.as_ref() {
             let _ = protocol.send_message(Message::Ended).await;
             protocol.close().await;
@@ -474,7 +475,9 @@ impl DistributionEngine {
         let exec = async {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
                 loop {
-                    match protocol.recv_message().await {
+                    let msg = protocol.recv_message().await;
+                    eprintln!("MSG: {msg:?}");
+                    match msg {
                         Ok(Message::InstanciateStatus(instanciate_status)) => {
                             match instanciate_status {
                                 InstanciateStatus::Ok { id } => {
@@ -647,6 +650,7 @@ pub async fn start(params: Map) {
             }
         }
     } else {
+        eprintln!("No access value, stopping");
         distributor.stop().await;
     }
     #[cfg(feature = "mock")]
@@ -666,6 +670,7 @@ pub async fn stop() {
 
     #[cfg(feature = "real")]
     if let Ok(_) = trigger.recv_one().await {
+        eprintln!("Stop explicitly asked");
         distributor.stop().await;
     }
 }
