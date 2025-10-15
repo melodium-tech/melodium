@@ -190,7 +190,7 @@ pub struct Logger {
 
 impl Logger {
     pub fn new(model: Weak<LoggerModel>) -> Self {
-        let (sender, receiver) = unbounded();
+        let (sender, receiver) = bounded(1);
         //let barrier = Arc::new(Barrier::new(2));
         Self {
             model,
@@ -331,7 +331,8 @@ pub async fn track_logs() {
                         values.into_iter().map(|val| Value::Data(val)).collect()
                     ))
                     .await
-                )
+                );
+                logs.force_send().await;
             }
         }
         .fuse();
