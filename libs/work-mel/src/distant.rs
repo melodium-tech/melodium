@@ -438,9 +438,7 @@ pub async fn distant(
     if let Ok(_) = trigger.recv_one().await {
         match distant.start(start).await {
             Ok((distrib, api_errors)) => {
-                eprintln!("Api errs: {api_errors:?}");
                 let _ = errors.send_many(api_errors.into()).await;
-                eprintln!("Distrib: {distrib:?}");
                 match distrib {
                     api::DistributionResponse::Started(Some(access_info)) => {
                         let _ = access
@@ -455,14 +453,12 @@ pub async fn distant(
                     }
                     api::DistributionResponse::Started(None) => {}
                     api::DistributionResponse::Error(errs) => {
-                        eprintln!("Distrib errs: {errs:?}");
                         let _ = failed.send_one(().into()).await;
                         let _ = errors.send_many(errs.into()).await;
                     }
                 }
             }
             Err(err) => {
-                eprintln!("Distrib err: {err}");
                 let _ = failed.send_one(().into()).await;
                 let _ = errors.send_many(vec![err].into()).await;
             }

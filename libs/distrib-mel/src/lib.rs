@@ -308,7 +308,6 @@ impl DistributionEngine {
     }
 
     pub async fn stop(&self) {
-        eprintln!("Stop invoked");
         if let Some(protocol) = self.protocol.read().await.as_ref() {
             let _ = protocol.send_message(Message::Ended).await;
             protocol.close().await;
@@ -466,7 +465,6 @@ impl DistributionEngine {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
                 loop {
                     let msg = protocol.recv_message().await;
-                    eprintln!("MSG: {msg:?}");
                     match msg {
                         Ok(Message::InstanciateStatus(instanciate_status)) => {
                             match instanciate_status {
@@ -639,7 +637,6 @@ pub async fn start(params: Map) {
             }
         }
     } else {
-        eprintln!("No access value, stopping");
         distributor.stop().await;
     }
     #[cfg(feature = "mock")]
@@ -659,7 +656,6 @@ pub async fn stop() {
 
     #[cfg(feature = "real")]
     if let Ok(_) = trigger.recv_one().await {
-        eprintln!("Stop explicitly asked");
         distributor.stop().await;
     }
 }
@@ -847,15 +843,12 @@ pub async fn send_block(name: string) {
         .await
         .map(|val| GetData::<u64>::try_data(val).unwrap())
     {
-        eprintln!("Got distribution id: {distribution_id}");
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
 
         if let Some(sender) = distributor.get_input(&distribution_id, &name).await {
             let mut voluntary_close = true;
-            eprintln!("Got '{name}' for id {distribution_id}");
             if let Ok(data) = data.recv_one().await {
-                eprintln!("Sending {:?} on {name}", data);
                 if sender.send(vec![data.into()]).await.is_err() {
                     voluntary_close = false;
                 } else {
@@ -871,11 +864,7 @@ pub async fn send_block(name: string) {
             if voluntary_close {
                 distributor.close_input(&distribution_id, &name).await;
             }
-        } else {
-            eprintln!("No sender named '{name}' for id {distribution_id}");
         }
-    } else {
-        eprintln!("No distribution id");
     }
 }
 
