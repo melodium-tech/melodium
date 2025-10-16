@@ -224,12 +224,19 @@ impl Logger {
         let model = self.model.upgrade().unwrap();
         async_std::task::spawn(async move {
             loop {
-                if !model.inner().entries_open.read().await.iter().any(|entry| entry.load(Ordering::Relaxed)) {
+                if !model
+                    .inner()
+                    .entries_open
+                    .read()
+                    .await
+                    .iter()
+                    .any(|entry| entry.load(Ordering::Relaxed))
+                {
                     break;
                 }
                 async_std::task::sleep(Duration::from_millis(50)).await;
             }
-            
+
             model.inner().receiver.close();
         });
     }

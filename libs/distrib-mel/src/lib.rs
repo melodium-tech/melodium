@@ -864,6 +864,7 @@ pub async fn send_block(name: string) {
         if let Some(sender) = distributor.get_input(&distribution_id, &name).await {
             let mut voluntary_close = true;
             if let Ok(data) = data.recv_one().await {
+                eprintln!("Sending {:?} on {name}", data);
                 if sender.send(vec![data.into()]).await.is_err() {
                     voluntary_close = false;
                 } else {

@@ -587,6 +587,17 @@ impl BuilderTrait for Builder {
                 result.feeding_inputs.clone(),
             );
 
+            eprintln!(
+                "Building inputs for {}: {}",
+                self.design.descriptor.upgrade().unwrap().identifier(),
+                result
+                    .feeding_inputs
+                    .iter()
+                    .map(|(k, v)| format!("[{k}, {}]", v.len()))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+
             Some(result)
         })
     }

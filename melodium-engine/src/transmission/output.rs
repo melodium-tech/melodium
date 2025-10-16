@@ -118,7 +118,7 @@ impl Output {
                         let all_senders_not_full = !senders.iter().any(|sender| sender.is_full());
 
                         if all_senders_not_full {
-                            let transmissions = FuturesUnordered::new();
+                            /*let transmissions = FuturesUnordered::new();
                             for sender in senders.iter() {
                                 let transmission = {
                                     let data = &data;
@@ -133,7 +133,17 @@ impl Output {
                                 transmissions.push(transmission);
                             }
 
-                            let statuses: Vec<_> = transmissions.collect().await;
+
+
+                            let statuses: Vec<_> = transmissions.collect().await;*/
+                            let statuses: Vec<_> = senders
+                                .iter()
+                                .map(|sender| match sender.try_send(data.clone()) {
+                                    Ok(_) => true,
+                                    Err(TrySendError::Full(_)) => unreachable!(),
+                                    Err(TrySendError::Closed(_)) => false,
+                                })
+                                .collect();
 
                             if let Some(_) = statuses.iter().find(|s| **s) {
                                 Ok(())
