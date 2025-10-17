@@ -364,7 +364,9 @@ impl ExecutorEngine for ContainerExecutor {
                     };
 
                     let status = async {
-                        match child.status().await {
+                        let status = child.status().await;
+                        eprintln!("{status:?}");
+                        match status {
                             Ok(status) => {
                                 completed().await;
                                 exit(status.code()).await;
@@ -493,7 +495,9 @@ impl ExecutorEngine for ContainerExecutor {
                     };
 
                     let status = async {
-                        match child.status().await {
+                        let status = child.status().await;
+                        eprintln!("{status:?}");
+                        match status {
                             Ok(status) => {
                                 completed().await;
                                 exit(status.code()).await;
