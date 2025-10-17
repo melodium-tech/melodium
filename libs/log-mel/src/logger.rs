@@ -1,5 +1,5 @@
 use async_std::{
-    channel::{bounded, unbounded, Receiver, Sender},
+    channel::{bounded, Receiver, Sender},
     sync::RwLock,
 };
 use chrono::{DateTime, Utc};
@@ -109,65 +109,6 @@ impl melodium_core::executive::ToString for Log {
     }
 }
 
-/*
-#[derive(Debug, Clone)]
-struct TrackLogEntry {
-    pub track_sender: Sender<Arc<Log>>,
-    pub track_receiver: Receiver<Arc<Log>>,
-    pub track_receiver_reading_mark: Arc<AtomicBool>,
-}
-
-#[derive(Debug, Clone)]
-struct TrackLog {
-    pub common: Sender<Arc<Log>>,
-    pub track_sender: Sender<Arc<Log>>,
-    pub track_receiver_reading_mark: Arc<AtomicBool>,
-    track_id: usize,
-    model: Weak<LoggerModel>,
-}
-
-impl TrackLog {
-    pub async fn send(&self, msg: Arc<Log>) -> Result<(), ()> {
-        match (
-            self.common.send(Arc::clone(&msg)).await,
-            self.track_sender.try_send(Arc::clone(&msg)),
-        ) {
-            (Ok(_), Ok(_)) => Ok(()),
-            (Ok(_), Err(track_err)) => {
-                match track_err {
-                    async_std::channel::TrySendError::Full(_) => {
-                        if self.track_receiver_reading_mark.load(Ordering::Relaxed) {
-                            let _ = self.track_sender.send(msg).await;
-                        } else {
-                            self.track_sender.close();
-                            if let Some(model) = self.model.upgrade() {
-                                model.inner().remove_track(self.track_id).await;
-                            }
-                        }
-                    }
-                    async_std::channel::TrySendError::Closed(_) => {}
-                }
-                Ok(())
-            }
-            (Err(_), Ok(_)) => Ok(()),
-            (Err(_), Err(track_err)) => match track_err {
-                async_std::channel::TrySendError::Full(_) => {
-                    if self.track_receiver_reading_mark.load(Ordering::Relaxed) {
-                        self.track_sender.send(msg).await.map_err(|_| ())
-                    } else {
-                        self.track_sender.close();
-                        if let Some(model) = self.model.upgrade() {
-                            model.inner().remove_track(self.track_id).await;
-                        }
-                        Err(())
-                    }
-                }
-                async_std::channel::TrySendError::Closed(_) => Err(()),
-            },
-        }
-    }
-}*/
-
 #[derive(Debug)]
 #[mel_model(
     source logs () () (
@@ -182,26 +123,17 @@ pub struct Logger {
     receiver: Receiver<VecDeque<Arc<Log>>>,
     senders: RwLock<Vec<Sender<VecDeque<Arc<Log>>>>>,
     entries_open: RwLock<Vec<Arc<AtomicBool>>>,
-    /*tracks: Mutex<HashMap<usize, TrackLogEntry>>,
-    inner_stop_barrier: Arc<Barrier>,
-    common_stop_barrier: Mutex<Option<Arc<Barrier>>>,
-    immediate_stop: Arc<AtomicBool>,*/
 }
 
 impl Logger {
     pub fn new(model: Weak<LoggerModel>) -> Self {
         let (sender, receiver) = bounded(1);
-        //let barrier = Arc::new(Barrier::new(2));
         Self {
             model,
             sender,
             receiver,
             senders: RwLock::new(Vec::new()),
             entries_open: RwLock::new(Vec::new()),
-            /*tracks: Mutex::new(HashMap::new()),
-            inner_stop_barrier: Arc::clone(&barrier),
-            common_stop_barrier: Mutex::new(Some(barrier)),
-            immediate_stop: Arc::new(AtomicBool::new(false)),*/
         }
     }
 
