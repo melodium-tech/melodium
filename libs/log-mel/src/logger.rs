@@ -1,6 +1,6 @@
 use async_std::{
-    channel::{bounded, unbounded, Receiver, Sender},
-    sync::{Barrier, Mutex},
+    channel::{bounded, Receiver, Sender},
+    sync::RwLock,
 };
 use chrono::{DateTime, Utc};
 use core::{
@@ -13,7 +13,7 @@ use melodium_core::{common::executive::*, *};
 use melodium_macro::{check, mel_data, mel_function, mel_model, mel_treatment};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::{
-    collections::{hash_map::Entry as HashMapEntry, HashMap},
+    collections::HashMap,
     sync::{Arc, Weak},
 };
 
@@ -109,64 +109,6 @@ impl melodium_core::executive::ToString for Log {
     }
 }
 
-#[derive(Debug, Clone)]
-struct TrackLogEntry {
-    pub track_sender: Sender<Arc<Log>>,
-    pub track_receiver: Receiver<Arc<Log>>,
-    pub track_receiver_reading_mark: Arc<AtomicBool>,
-}
-
-#[derive(Debug, Clone)]
-struct TrackLog {
-    pub common: Sender<Arc<Log>>,
-    pub track_sender: Sender<Arc<Log>>,
-    pub track_receiver_reading_mark: Arc<AtomicBool>,
-    track_id: usize,
-    model: Weak<LoggerModel>,
-}
-
-impl TrackLog {
-    pub async fn send(&self, msg: Arc<Log>) -> Result<(), ()> {
-        match (
-            self.common.send(Arc::clone(&msg)).await,
-            self.track_sender.try_send(Arc::clone(&msg)),
-        ) {
-            (Ok(_), Ok(_)) => Ok(()),
-            (Ok(_), Err(track_err)) => {
-                match track_err {
-                    async_std::channel::TrySendError::Full(_) => {
-                        if self.track_receiver_reading_mark.load(Ordering::Relaxed) {
-                            let _ = self.track_sender.send(msg).await;
-                        } else {
-                            self.track_sender.close();
-                            if let Some(model) = self.model.upgrade() {
-                                model.inner().remove_track(self.track_id).await;
-                            }
-                        }
-                    }
-                    async_std::channel::TrySendError::Closed(_) => {}
-                }
-                Ok(())
-            }
-            (Err(_), Ok(_)) => Ok(()),
-            (Err(_), Err(track_err)) => match track_err {
-                async_std::channel::TrySendError::Full(_) => {
-                    if self.track_receiver_reading_mark.load(Ordering::Relaxed) {
-                        self.track_sender.send(msg).await.map_err(|_| ())
-                    } else {
-                        self.track_sender.close();
-                        if let Some(model) = self.model.upgrade() {
-                            model.inner().remove_track(self.track_id).await;
-                        }
-                        Err(())
-                    }
-                }
-                async_std::channel::TrySendError::Closed(_) => Err(()),
-            },
-        }
-    }
-}
-
 #[derive(Debug)]
 #[mel_model(
     source logs () () (
@@ -177,150 +119,83 @@ impl TrackLog {
 )]
 pub struct Logger {
     model: Weak<LoggerModel>,
-    sender: Sender<Arc<Log>>,
-    receiver: Receiver<Arc<Log>>,
-    tracks: Mutex<HashMap<usize, TrackLogEntry>>,
-    inner_stop_barrier: Arc<Barrier>,
-    common_stop_barrier: Mutex<Option<Arc<Barrier>>>,
-    immediate_stop: Arc<AtomicBool>,
+    sender: Sender<VecDeque<Arc<Log>>>,
+    receiver: Receiver<VecDeque<Arc<Log>>>,
+    senders: RwLock<Vec<Sender<VecDeque<Arc<Log>>>>>,
+    entries_open: RwLock<Vec<Arc<AtomicBool>>>,
 }
 
 impl Logger {
     pub fn new(model: Weak<LoggerModel>) -> Self {
-        let (sender, receiver) = unbounded();
-        let barrier = Arc::new(Barrier::new(2));
+        let (sender, receiver) = bounded(1);
         Self {
             model,
             sender,
             receiver,
-            tracks: Mutex::new(HashMap::new()),
-            inner_stop_barrier: Arc::clone(&barrier),
-            common_stop_barrier: Mutex::new(Some(barrier)),
-            immediate_stop: Arc::new(AtomicBool::new(false)),
+            senders: RwLock::new(Vec::new()),
+            entries_open: RwLock::new(Vec::new()),
         }
     }
 
-    pub(self) async fn senders(&self, track_id: usize) -> TrackLog {
-        match self.tracks.lock().await.entry(track_id) {
-            HashMapEntry::Occupied(occupied_entry) => TrackLog {
-                common: self.sender.clone(),
-                track_sender: occupied_entry.get().track_sender.clone(),
-                track_receiver_reading_mark: occupied_entry
-                    .get()
-                    .track_receiver_reading_mark
-                    .clone(),
-                model: self.model.clone(),
-                track_id,
-            },
-            HashMapEntry::Vacant(vacant_entry) => {
-                let couple = bounded(500);
-                let entry = vacant_entry.insert(TrackLogEntry {
-                    track_sender: couple.0,
-                    track_receiver: couple.1,
-                    track_receiver_reading_mark: Arc::new(AtomicBool::new(false)),
-                });
-                TrackLog {
-                    common: self.sender.clone(),
-                    track_sender: entry.track_sender.clone(),
-                    track_receiver_reading_mark: entry.track_receiver_reading_mark.clone(),
-                    model: self.model.clone(),
-                    track_id,
+    pub(crate) async fn add_track_log(&self, sender: Sender<VecDeque<Arc<Log>>>) {
+        self.senders.write().await.push(sender);
+    }
+
+    pub(crate) async fn add_entry_open(&self, entry_open: Arc<AtomicBool>) {
+        self.entries_open.write().await.push(entry_open);
+    }
+
+    pub async fn send_logs(&self, logs: VecDeque<Arc<Log>>) -> bool {
+        match self.sender.send(logs).await {
+            Ok(_) => true,
+            Err(_) => false,
+        }
+    }
+
+    pub async fn close_common(&self) {
+        let model = self.model.upgrade().unwrap();
+        async_std::task::spawn_local(async move {
+            loop {
+                if !model
+                    .inner()
+                    .entries_open
+                    .read()
+                    .await
+                    .iter()
+                    .any(|entry| entry.load(Ordering::Relaxed))
+                {
+                    break;
                 }
+                async_std::task::sleep(Duration::from_millis(50)).await;
             }
-        }
-    }
 
-    pub async fn receiver(&self, track_id: usize) -> Receiver<Arc<Log>> {
-        match self.tracks.lock().await.entry(track_id) {
-            HashMapEntry::Occupied(occupied_entry) => {
-                occupied_entry
-                    .get()
-                    .track_receiver_reading_mark
-                    .store(true, Ordering::Relaxed);
-                occupied_entry.get().track_receiver.clone()
-            }
-            HashMapEntry::Vacant(vacant_entry) => {
-                let couple = bounded(500);
-                let entry = vacant_entry.insert(TrackLogEntry {
-                    track_sender: couple.0,
-                    track_receiver: couple.1,
-                    track_receiver_reading_mark: Arc::new(AtomicBool::new(true)),
-                });
-                entry.track_receiver.clone()
-            }
-        }
-    }
-
-    pub async fn remove_track(&self, track_id: usize) {
-        let mut tracks = self.tracks.lock().await;
-        let _ = tracks.remove(&track_id);
-    }
-
-    pub async fn close_common(&self, immediate: bool) {
-        let barrier = { self.common_stop_barrier.lock().await.take() };
-        if let Some(barrier) = barrier {
-            self.immediate_stop.store(immediate, Ordering::Relaxed);
-            barrier.wait().await;
-            self.tracks.lock().await.iter().for_each(|(_, trackentry)| {
-                trackentry.track_receiver.close();
-            });
-        }
+            model.inner().receiver.close();
+        });
     }
 
     #[cfg(feature = "real")]
     pub async fn continuous(&self) {
         let model = self.model.upgrade().unwrap();
-        let receiver = self.receiver.clone();
-        let inner_stop_barrier = Arc::clone(&self.inner_stop_barrier);
-        let immediate_stop = Arc::clone(&self.immediate_stop);
 
         model
+            .clone()
             .new_logs(
                 None,
                 &HashMap::new(),
                 Some(Box::new(move |mut outputs| {
                     let all = outputs.get("all");
                     vec![Box::new(Box::pin(async move {
-                        let recv_finish = async {
-                            while let Ok(log) = receiver.recv().await {
-                                check!(all.send_one(Value::Data(log)).await)
-                            }
-                        }.fuse();
-                        let barrier = inner_stop_barrier.wait().fuse();
+                        let (sender, receiver) = bounded(1);
+                        model.inner().add_track_log(sender).await;
 
-                        pin_mut!(recv_finish, barrier);
-
-                        loop {
-                            select! {
-                                () = recv_finish => break,
-                                _ = barrier => {
-                                    if !immediate_stop.load(Ordering::Relaxed) {
-                                        let mut iter = 0;
-                                        loop {
-                                            match receiver.try_recv() {
-                                                Ok(log) => {
-                                                    check!(all.send_one(Value::Data(log)).await)
-                                                },
-                                                Err(_) => {
-                                                    let val = LOG_COUNT.load(Ordering::Relaxed);
-                                                    if val != 0 {
-                                                        iter += 1;
-                                                        if iter <= 10 {
-                                                            async_std::task::sleep(Duration::from_millis(1000)).await
-                                                        } else {
-                                                            break
-                                                        }
-                                                    } else {
-                                                        break
-                                                    }
-                                                },
-                                            }
-                                        }
-                                    }
-                                    receiver.close();
-                                }
-                                complete => break,
-                            }
+                        while let Ok(logs) = receiver.recv().await {
+                            check!(
+                                all.send_many(TransmissionValue::Other(
+                                    logs.into_iter().map(|log| Value::Data(log)).collect()
+                                ))
+                                .await
+                            );
+                            all.force_send().await;
                         }
 
                         all.close().await;
@@ -329,6 +204,18 @@ impl Logger {
                 })),
             )
             .await;
+
+        while let Ok(logs) = self.receiver.recv().await {
+            let senders = self.senders.read().await;
+            for sender in senders.iter() {
+                let _ = sender.send(logs.clone()).await;
+            }
+        }
+
+        let senders = self.senders.read().await;
+        for sender in senders.iter() {
+            let _ = sender.close();
+        }
     }
 
     #[cfg(feature = "mock")]
@@ -343,14 +230,13 @@ impl Logger {
 
 #[mel_treatment(
     model logger Logger
-    default immediate false
     input trigger Block<void>
 )]
-pub async fn stop(immediate: bool) {
+pub async fn stop() {
     let logger = LoggerModel::into(logger);
 
     if let Ok(_) = trigger.recv_one().await {
-        logger.inner().close_common(immediate).await;
+        logger.inner().close_common().await;
     }
 }
 
@@ -364,20 +250,42 @@ pub async fn track_logs() {
     let logger = LoggerModel::into(logger);
 
     if let Ok(_) = trigger.recv_one().await {
-        let receiver = logger.inner().receiver(track_id).await;
-        let transmit = async {
-            while let Ok(log) = receiver.recv().await {
-                check!(logs.send_one(Value::Data(log)).await)
-            }
-            logger.inner().remove_track(track_id).await;
-        };
-        let stop = async {
-            if stop.recv_one().await.is_ok() {
-                receiver.close();
-            }
-        };
+        let (sender, receiver) = bounded(1);
 
-        futures::join!(transmit, stop);
+        logger.inner().add_track_log(sender).await;
+
+        let stop = async {
+            if let Ok(_) = stop.recv_one().await {
+                receiver.close();
+                true
+            } else {
+                false
+            }
+        }
+        .fuse();
+
+        let transmit = async {
+            while let Ok(values) = receiver.recv().await {
+                check!(
+                    logs.send_many(TransmissionValue::Other(
+                        values.into_iter().map(|val| Value::Data(val)).collect()
+                    ))
+                    .await
+                );
+                logs.force_send().await;
+            }
+        }
+        .fuse();
+
+        pin_mut!(stop, transmit);
+
+        loop {
+            select! {
+                effective = stop => { if effective { break } }
+                () = transmit => { break }
+                complete => break,
+            }
+        }
     }
 }
 
@@ -386,16 +294,35 @@ pub async fn track_logs() {
     input logs Stream<Log>
 )]
 pub async fn inject_stream_log() {
-    let senders = LoggerModel::into(logger).inner().senders(track_id).await;
+    let logger = LoggerModel::into(logger);
 
-    while let Ok(log) = logs.recv_one().await.map(|val| {
-        GetData::<Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<Log>()
-            .unwrap()
-    }) {
-        check!(senders.send(log).await)
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
+
+    while let Ok(logs) = logs
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        if !logger
+            .inner()
+            .send_logs(
+                logs.into_iter()
+                    .map(|val| {
+                        GetData::<Arc<dyn Data>>::try_data(val)
+                            .unwrap()
+                            .downcast_arc::<Log>()
+                            .unwrap()
+                    })
+                    .collect(),
+            )
+            .await
+        {
+            break;
+        }
     }
+
+    entry.store(false, Ordering::Relaxed);
 }
 
 #[mel_treatment(
@@ -403,7 +330,10 @@ pub async fn inject_stream_log() {
     input log Block<Log>
 )]
 pub async fn inject_block_log() {
-    let senders = LoggerModel::into(logger).inner().senders(track_id).await;
+    let logger = LoggerModel::into(logger);
+
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
 
     if let Ok(log) = log.recv_one().await.map(|val| {
         GetData::<Arc<dyn Data>>::try_data(val)
@@ -411,8 +341,10 @@ pub async fn inject_block_log() {
             .downcast_arc::<Log>()
             .unwrap()
     }) {
-        let _ = senders.send(log).await;
+        logger.inner().send_logs(vec![log].into()).await;
     }
+
+    entry.store(false, Ordering::Relaxed);
 }
 
 #[mel_treatment(
@@ -421,24 +353,37 @@ pub async fn inject_block_log() {
     output ended Block<void>
 )]
 pub async fn log_stream(level: Level, label: string) {
-    let senders = LoggerModel::into(logger).inner().senders(track_id).await;
+    let logger = LoggerModel::into(logger);
 
-    while let Ok(msg) = messages
-        .recv_one()
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
+
+    while let Ok(msgs) = messages
+        .recv_many()
         .await
-        .map(|val| GetData::<string>::try_data(val).unwrap())
+        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
     {
-        check!(
-            senders
-                .send(Arc::new(Log::new(
-                    Utc::now(),
-                    level.level.clone(),
-                    label.clone(),
-                    msg
-                )))
-                .await
-        )
+        if !logger
+            .inner()
+            .send_logs(
+                msgs.into_iter()
+                    .map(|msg| {
+                        Arc::new(Log::new(
+                            Utc::now(),
+                            level.level.clone(),
+                            label.clone(),
+                            msg,
+                        ))
+                    })
+                    .collect(),
+            )
+            .await
+        {
+            break;
+        }
     }
+    entry.store(false, Ordering::Relaxed);
+
     let _ = ended.send_one(().into()).await;
 }
 
@@ -448,22 +393,31 @@ pub async fn log_stream(level: Level, label: string) {
     output ended Block<void>
 )]
 pub async fn log_block(level: Level, label: string) {
-    let senders = LoggerModel::into(logger).inner().senders(track_id).await;
+    let logger = LoggerModel::into(logger);
+
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
 
     if let Ok(msg) = message
         .recv_one()
         .await
         .map(|val| GetData::<string>::try_data(val).unwrap())
     {
-        let _ = senders
-            .send(Arc::new(Log::new(
-                Utc::now(),
-                level.level.clone(),
-                label.clone(),
-                msg,
-            )))
+        logger
+            .inner()
+            .send_logs(
+                vec![Arc::new(Log::new(
+                    Utc::now(),
+                    level.level.clone(),
+                    label.clone(),
+                    msg,
+                ))]
+                .into(),
+            )
             .await;
     }
+    entry.store(false, Ordering::Relaxed);
+
     let _ = ended.send_one(().into()).await;
 }
 
@@ -474,20 +428,38 @@ pub async fn log_block(level: Level, label: string) {
     generic D (Display)
 )]
 pub async fn log_data_stream(level: Level, label: string) {
-    let senders = LoggerModel::into(logger).inner().senders(track_id).await;
+    let logger = LoggerModel::into(logger);
 
-    while let Ok(val) = display.recv_one().await {
-        check!(
-            senders
-                .send(Arc::new(Log::new(
-                    Utc::now(),
-                    level.level.clone(),
-                    label.clone(),
-                    format!("{val}")
-                )))
-                .await
-        )
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
+
+    while let Ok(values) = display
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        if !logger
+            .inner()
+            .send_logs(
+                values
+                    .into_iter()
+                    .map(|val| {
+                        Arc::new(Log::new(
+                            Utc::now(),
+                            level.level.clone(),
+                            label.clone(),
+                            format!("{val}"),
+                        ))
+                    })
+                    .collect(),
+            )
+            .await
+        {
+            break;
+        }
     }
+    entry.store(false, Ordering::Relaxed);
+
     let _ = ended.send_one(().into()).await;
 }
 
@@ -498,18 +470,27 @@ pub async fn log_data_stream(level: Level, label: string) {
     generic D (Display)
 )]
 pub async fn log_data_block(level: Level, label: string) {
-    let senders = LoggerModel::into(logger).inner().senders(track_id).await;
+    let logger = LoggerModel::into(logger);
+
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
 
     if let Ok(val) = display.recv_one().await {
-        let _ = senders
-            .send(Arc::new(Log::new(
-                Utc::now(),
-                level.level.clone(),
-                label.clone(),
-                format!("{val}"),
-            )))
+        logger
+            .inner()
+            .send_logs(
+                vec![Arc::new(Log::new(
+                    Utc::now(),
+                    level.level.clone(),
+                    label.clone(),
+                    format!("{val}"),
+                ))]
+                .into(),
+            )
             .await;
     }
+    entry.store(false, Ordering::Relaxed);
+
     let _ = ended.send_one(().into()).await;
 }
 

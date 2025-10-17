@@ -151,6 +151,7 @@ pub async fn request(method: HttpMethod) {
                                         .map(|value| (name.to_string(), value.to_string()))
                                 })
                                 .collect();
+
                             let _ = res_headers
                                 .send_one(Value::Data(
                                     Arc::new(StringMap::new_with(headers)) as Arc<dyn Data>

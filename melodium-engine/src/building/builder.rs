@@ -19,12 +19,14 @@ pub trait Builder: Debug + Send + Sync {
     fn dynamic_build(
         &self,
         build: BuildId,
+        with_inputs: Vec<String>,
         environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult>;
     fn give_next(
         &self,
         within_build: BuildId,
         for_label: String,
+        for_outputs: Vec<String>,
         environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult>;
 

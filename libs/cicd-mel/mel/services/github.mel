@@ -154,7 +154,7 @@ treatment postGithubStateContext[contexts: JavaScriptEngine, logger: Logger](sta
     evalUrl: githubStringEval[contexts=contexts](local_context=|null())
     evalHeaders: githubMapEval[contexts=contexts](local_context=|null())
     
-    emitUrl: emit<string>(value="${{ github.api_url }}/repos/${{ github.repository_id }}/statuses/${{ github.sha }}")
+    emitUrl: emit<string>(value="${{ github.api_url }}/repos/${{ github.repository }}/statuses/${{ github.sha }}")
     emitHeaders: emit<StringMap>(value=|map([
             |entry("Accept", "application/vnd.github+json"),
             |entry("Authorization", "Bearer ${{ secrets.GITHUB_TOKEN }}"),

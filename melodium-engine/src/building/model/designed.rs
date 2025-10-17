@@ -66,6 +66,7 @@ impl BuilderTrait for Builder {
     fn dynamic_build(
         &self,
         _build: BuildId,
+        _with_inputs: Vec<String>,
         _environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         // Doing nothing, models are not supposed to have dynamic building phase
@@ -77,6 +78,7 @@ impl BuilderTrait for Builder {
         &self,
         _within_build: BuildId,
         _for_label: String,
+        _for_outputs: Vec<String>,
         _environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         // Doing nothing, models are not supposed to have dynamic building phase

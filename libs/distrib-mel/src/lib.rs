@@ -118,7 +118,7 @@ pub struct DistributionEngine {
     #[cfg(feature = "real")]
     protocol: AsyncRwLock<Option<AsyncArc<Protocol<NetworkStream>>>>,
     treatment: AsyncRwLock<Option<Arc<dyn Treatment>>>,
-    tracks: AsyncRwLock<HashMap<u64, Track>>,
+    tracks: AsyncRwLock<HashMap<u64, AsyncArc<AsyncRwLock<Track>>>>,
     protocol_barrier: AsyncMutex<(bool, Option<AsyncArc<AsyncBarrier>>)>,
     started_once: AtomicBool,
 }
@@ -361,7 +361,7 @@ impl DistributionEngine {
                     io_barrier: AsyncBarrier::new(io),
                 };
 
-                tracks.insert(id, track);
+                tracks.insert(id, AsyncArc::new(AsyncRwLock::new(track)));
 
                 if protocol
                     .send_message(Message::Instanciate(Instanciate { id: id }))
@@ -382,12 +382,12 @@ impl DistributionEngine {
     }
 
     pub async fn is_ok(&self, distribution_id: &u64) -> bool {
-        self.tracks
-            .read()
-            .await
-            .get(&distribution_id)
-            .map(|track| track.instancied.load(Ordering::Relaxed))
-            .unwrap_or(false)
+        let track = self.tracks.read().await.get(&distribution_id).cloned();
+        if let Some(track) = track {
+            track.read().await.instancied.load(Ordering::Relaxed)
+        } else {
+            false
+        }
     }
 
     pub async fn get_input(
@@ -395,17 +395,13 @@ impl DistributionEngine {
         distribution_id: &u64,
         name: &String,
     ) -> Option<Sender<Vec<RawValue>>> {
-        if let Some(track) = self.tracks.read().await.get(&distribution_id) {
-            track.io_barrier.wait().await;
+        let track = self.tracks.read().await.get(&distribution_id).cloned();
+        if let Some(track) = track {
+            track.read().await.io_barrier.wait().await;
+            track.write().await.inputs_senders.remove(name)
         } else {
             return None;
         }
-        self.tracks
-            .write()
-            .await
-            .get_mut(&distribution_id)
-            .map(|track| track.inputs_senders.remove(name))
-            .flatten()
     }
 
     pub async fn get_output(
@@ -413,45 +409,39 @@ impl DistributionEngine {
         distribution_id: &u64,
         name: &String,
     ) -> Option<Receiver<Vec<RawValue>>> {
-        if let Some(track) = self.tracks.read().await.get(&distribution_id) {
-            track.io_barrier.wait().await;
+        let track = self.tracks.read().await.get(&distribution_id).cloned();
+        if let Some(track) = track {
+            track.read().await.io_barrier.wait().await;
+            track.write().await.outputs_receivers.remove(name)
         } else {
             return None;
         }
-        self.tracks
-            .write()
-            .await
-            .get_mut(&distribution_id)
-            .map(|track| track.outputs_receivers.remove(name))
-            .flatten()
     }
 
     pub async fn send_data(&self, distribution_id: &u64, name: &String) -> Result<(), ()> {
-        if let Some(data_recv) = self
-            .tracks
-            .read()
-            .await
-            .get(&distribution_id)
-            .map(|track| track.inputs_receivers.get(name))
-            .flatten()
-        {
-            while let Ok(data) = data_recv.try_recv() {
-                if let Some(protocol) = self.protocol.read().await.as_ref() {
-                    if let Err(_) = protocol
-                        .send_message(Message::InputData(InputData {
-                            id: *distribution_id,
-                            name: name.clone(),
-                            data: data.into(),
-                        }))
-                        .await
-                    {
+        let track = self.tracks.read().await.get(&distribution_id).cloned();
+        if let Some(track) = track {
+            if let Some(data_recv) = track.read().await.inputs_receivers.get(name) {
+                while let Ok(data) = data_recv.try_recv() {
+                    if let Some(protocol) = self.protocol.read().await.as_ref() {
+                        if let Err(_) = protocol
+                            .send_message(Message::InputData(InputData {
+                                id: *distribution_id,
+                                name: name.clone(),
+                                data: data.into(),
+                            }))
+                            .await
+                        {
+                            return Err(());
+                        }
+                    } else {
                         return Err(());
                     }
-                } else {
-                    return Err(());
                 }
+                return Ok(());
+            } else {
+                return Err(());
             }
-            return Ok(());
         } else {
             return Err(());
         }
@@ -474,63 +464,62 @@ impl DistributionEngine {
         let exec = async {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
                 loop {
-                    match protocol.recv_message().await {
+                    let msg = protocol.recv_message().await;
+                    match msg {
                         Ok(Message::InstanciateStatus(instanciate_status)) => {
                             match instanciate_status {
                                 InstanciateStatus::Ok { id } => {
-                                    if let Some(track) = self.tracks.read().await.get(&id) {
+                                    let track = self.tracks.read().await.get(&id).cloned();
+                                    if let Some(track) = track {
+                                        let track = track.read().await;
                                         track.instancied.store(true, Ordering::Relaxed);
                                         track.instanciation_barrier.wait().await;
                                     }
                                 }
                                 InstanciateStatus::Failure { id, message: _ } => {
-                                    if let Some(track) = self.tracks.read().await.get(&id) {
+                                    let track = self.tracks.read().await.get(&id).cloned();
+                                    if let Some(track) = track {
+                                        let track = track.read().await;
                                         track.instanciation_barrier.wait().await;
                                     }
                                 }
                             }
                         }
                         Ok(Message::CloseInput(close_input)) => {
-                            if let Some(input) = self
-                                .tracks
-                                .read()
-                                .await
-                                .get(&close_input.id)
-                                .map(|track| track.inputs_receivers.get(&close_input.name))
-                                .flatten()
-                            {
-                                input.close();
+                            let track = self.tracks.read().await.get(&close_input.id).cloned();
+                            if let Some(track) = track {
+                                if let Some(input) =
+                                    track.read().await.inputs_receivers.get(&close_input.name)
+                                {
+                                    input.close();
+                                }
                             }
                         }
                         Ok(Message::OutputData(output_data)) => {
-                            if let Some(output) = self
-                                .tracks
-                                .read()
-                                .await
-                                .get(&output_data.id)
-                                .map(|track| track.outputs_senders.get(&output_data.name))
-                                .flatten()
-                            {
-                                if output.send(output_data.data).await.is_err() {
-                                    let _ = protocol
-                                        .send_message(Message::CloseOutput(CloseOutput {
-                                            id: output_data.id,
-                                            name: output_data.name.clone(),
-                                        }))
-                                        .await;
+                            let track = self.tracks.read().await.get(&output_data.id).cloned();
+                            if let Some(track) = track {
+                                if let Some(output) =
+                                    track.read().await.outputs_senders.get(&output_data.name)
+                                {
+                                    if output.send(output_data.data).await.is_err() {
+                                        let _ = protocol
+                                            .send_message(Message::CloseOutput(CloseOutput {
+                                                id: output_data.id,
+                                                name: output_data.name.clone(),
+                                            }))
+                                            .await;
+                                    }
                                 }
                             }
                         }
                         Ok(Message::CloseOutput(close_output)) => {
-                            if let Some(output) = self
-                                .tracks
-                                .read()
-                                .await
-                                .get(&close_output.id)
-                                .map(|track| track.outputs_senders.get(&close_output.name))
-                                .flatten()
-                            {
-                                output.close();
+                            let track = self.tracks.read().await.get(&close_output.id).cloned();
+                            if let Some(track) = track {
+                                if let Some(output) =
+                                    track.read().await.outputs_senders.get(&close_output.name)
+                                {
+                                    output.close();
+                                }
                             }
                         }
                         Ok(Message::Ended) => {
@@ -578,6 +567,7 @@ impl DistributionEngine {
 
     async fn close_all(&self) {
         for (_, track) in self.tracks.read().await.iter() {
+            let track = track.read().await;
             track.inputs_receivers.iter().for_each(|(_, recv)| {
                 recv.close();
             });

@@ -185,6 +185,10 @@ impl ExecutiveOutput for Output {
         }
         self.check_send(false).await
     }
+
+    async fn force_send(&self) {
+        let _ = self.check_send(true).await;
+    }
 }
 
 impl From<Input> for Output {
