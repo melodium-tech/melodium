@@ -5,6 +5,7 @@ use process/exec::spawn
 use std/data/string_map::|map
 use std/flow::close
 use std/flow::emit
+use std/flow::filterBlock
 use std/flow::flock
 use std/flow::uncheck
 use std/flow::one
@@ -15,6 +16,7 @@ use std/flow::releaseBlock
 use std/flow::waitBlock
 use std/flow/vec::flatten
 use std/ops/option/block::unwrap
+use std/ops/block::equalTo
 use log/log::logDebugs
 use log/log::logError
 use log/log::logErrorMessage
@@ -193,6 +195,8 @@ treatment step(var label: string)
   output finished: Block<void>
   output failed: Block<void>
   output completed: Block<void>
+  output success: Block<void>
+  output error: Block<void>
   output data: Stream<byte>
   output logs: Stream<Log>
   model  logger: Logger()
@@ -241,6 +245,8 @@ treatment step(var label: string)
     triggerSpawnAndReadFileFinished.last -----> Self.finished
     spawnOrReadFileFailed.value --------------> Self.failed
     waitSpawnAndReadFileCompleted.awaited ----> Self.completed
+    spawnCommands.success --------------------> Self.success
+    spawnCommands.error ----------------------> Self.error
 
     readFile.data ----------------------------> Self.data
 
@@ -257,9 +263,18 @@ treatment spawnCommands[logger: Logger](var label: string)
   output finished: Block<void>
   output failed: Block<void>
   output completed: Block<void>
+  output success: Block<void>
+  output error: Block<void>
 {
     getExecutor()
     spawn()
+    triggerExit: trigger<Option<i32>>()
+    unwrapExit: unwrap<i32>()
+    equalToExit: equalTo<i32>(value=0)
+    uncheckExit: uncheck<i32>()
+    emitNoExit: emit<bool>(value=false)
+    oneExit: one<bool>()
+    filterExit: filterBlock<void>()
 
     Self.executor_name -> getExecutor.name,executor -> spawn.executor
     Self.environment --------------------------------> spawn.environment
@@ -278,7 +293,7 @@ treatment spawnCommands[logger: Logger](var label: string)
     logSpawnInfosString: ioToString()
     logSpawnInfos: logDebugs[logger=logger](label=label)
     spawn.error --> logSpawnErr.message
-    spawn.stderr -> logSpawnErrsString.stdio,lines -> logSpawnErrs.messages
+    spawn.stderr -> logSpawnErrsString.stdio,lines --> logSpawnErrs.messages
     spawn.stdout -> logSpawnInfosString.stdio,lines -> logSpawnInfos.messages
 
     waitAllMessages: waitBlock<void>()
@@ -292,4 +307,10 @@ treatment spawnCommands[logger: Logger](var label: string)
     waitSpawnFinishedAndAllMessages.awaited --> Self.finished
     executorOrSpawnFailed.value --------------> Self.failed
     spawn.completed --------------------------> Self.completed
+
+    spawn.exit -> triggerExit.stream,last -> unwrapExit.option,value -> equalToExit.data,result ------------------------------> oneExit.a,value -> filterExit.select
+                                             unwrapExit.value --------> uncheckExit.value,uncheck -> emitNoExit.trigger,emit -> oneExit.b
+
+    spawn.started -> filterExit.value,accepted -> Self.success
+                     filterExit.rejected -------> Self.error
 }
