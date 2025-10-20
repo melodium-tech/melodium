@@ -154,7 +154,7 @@ impl Logger {
 
     pub async fn close_common(&self) {
         let model = self.model.upgrade().unwrap();
-        async_std::task::spawn(async move {
+        async_std::task::spawn_local(async move {
             loop {
                 if !model
                     .inner()
