@@ -24,7 +24,7 @@ use log/logger::Log
 use log/logger::Logger
 use log/logger::trackLogs
 use log/logger::logs
-use log/logger::injectStreamLog
+use log/logger::reportStreamLog
 use log/logger::stop
 use work/distant::DistantEngine
 use work/distant::distant
@@ -171,8 +171,8 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     Self.trigger -> emitOutFileName.trigger,emit -> unwrapOutFileName.option,value -> sendOutFileName.data
     Self.data ----> sendData.data
 
-    injectStreamLog[logger=logger]()
-    recvLogs.data -> injectStreamLog.logs
+    reportStreamLog[logger=logger](prefix_message = name)
+    recvLogs.data -> reportStreamLog.logs
 
     stopRunner[runner=runner]()
     passStop: passBlock<void>(cond=stop_on_failure)
