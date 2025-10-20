@@ -61,6 +61,8 @@ treatment stepOn[runner: CicdRunnerEngine, logger: Logger](var name: string, var
   output finished: Block<void>
   output failed: Block<void>
   output completed: Block<void>
+  output success: Block<void>
+  output error: Block<void>
   output data: Stream<byte>
 {
     stepOnWithInput[runner=runner, logger=logger](
@@ -80,6 +82,8 @@ treatment stepOn[runner: CicdRunnerEngine, logger: Logger](var name: string, var
     stepOnWithInput.finished --> Self.finished
     stepOnWithInput.failed ----> Self.failed
     stepOnWithInput.completed -> Self.completed
+    stepOnWithInput.success ---> Self.success
+    stepOnWithInput.error -----> Self.error
     stepOnWithInput.data ------> Self.data
 }
 
@@ -90,6 +94,8 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
   output finished: Block<void>
   output failed: Block<void>
   output completed: Block<void>
+  output success: Block<void>
+  output error: Block<void>
   output data: Stream<byte>
 {
     distribute[distributor=runner]()
@@ -116,6 +122,8 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     recvFinished: recvBlock<void>[distributor=runner](name="finished")
     recvFailed: recvBlock<void>[distributor=runner](name="failed")
     recvCompleted: recvBlock<void>[distributor=runner](name="completed")
+    recvSuccess: recvBlock<void>[distributor=runner](name="success")
+    recvError: recvBlock<void>[distributor=runner](name="error")
     recvData: recvStream<byte>[distributor=runner](name="data")
     recvLogs: recvStream<Log>[distributor=runner](name="logs")
 
@@ -132,6 +140,8 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     distribute.distribution_id -> recvFinished.distribution_id
     distribute.distribution_id -> recvFailed.distribution_id
     distribute.distribution_id -> recvCompleted.distribution_id
+    distribute.distribution_id -> recvSuccess.distribution_id
+    distribute.distribution_id -> recvError.distribution_id
     distribute.distribution_id -> recvData.distribution_id
     distribute.distribution_id -> recvLogs.distribution_id
 
@@ -174,11 +184,13 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     streamFinished: stream<void>()
     triggerAllFinished: trigger<void>()
 
-    recvStarted.data -> Self.started
+    recvStarted.data ------------------------------------------------------------------> Self.started
     recvFinished.data -> streamFinished.block,stream -> triggerAllFinished.stream,end -> Self.finished
-    recvFailed.data -> distribOrStepFailed.b,value -> Self.failed
-    recvCompleted.data -> Self.completed
-    recvData.data -> Self.data
+    recvFailed.data ------------------------------------> distribOrStepFailed.b,value -> Self.failed
+    recvCompleted.data ----------------------------------------------------------------> Self.completed
+    recvSuccess.data ------------------------------------------------------------------> Self.success
+    recvError.data --------------------------------------------------------------------> Self.error
+    recvData.data ---------------------------------------------------------------------> Self.data
 }
 
 treatment step(var label: string)
