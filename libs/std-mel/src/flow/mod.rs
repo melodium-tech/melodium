@@ -726,6 +726,19 @@ pub async fn close() {
     // Nothing to do
 }
 
+/// Never send any value.
+///
+/// No value is ever sent on `closed` output, which is immediately closed.
+///
+#[mel_treatment(
+    generic T ()
+    input trigger Block<void>
+    output closed Block<T>
+)]
+pub async fn close_block() {
+    // Nothing to do
+}
+
 /// Consume stream indefinitely.
 ///
 /// Input `stream` is consumed indefinitely until it becomes closed by previous treatment.
