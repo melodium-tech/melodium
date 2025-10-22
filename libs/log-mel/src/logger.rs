@@ -349,6 +349,76 @@ pub async fn inject_block_log() {
 
 #[mel_treatment(
     model logger Logger
+    input logs Stream<Log>
+)]
+pub async fn report_stream_log(prefix_message: string) {
+    let logger = LoggerModel::into(logger);
+
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
+
+    while let Ok(logs) = logs
+        .recv_many()
+        .await
+        .map(|values| Into::<VecDeque<Value>>::into(values))
+    {
+        if !logger
+            .inner()
+            .send_logs(
+                logs.into_iter()
+                    .map(|val| {
+                        let mut new_log = GetData::<Arc<dyn Data>>::try_data(val)
+                            .unwrap()
+                            .downcast_arc::<Log>()
+                            .unwrap()
+                            .as_ref()
+                            .clone();
+
+                        new_log.message = format!("{prefix_message}: {}", new_log.message);
+
+                        Arc::new(new_log)
+                    })
+                    .collect(),
+            )
+            .await
+        {
+            break;
+        }
+    }
+
+    entry.store(false, Ordering::Relaxed);
+}
+
+#[mel_treatment(
+    model logger Logger
+    input log Block<Log>
+)]
+pub async fn report_block_log(prefix_message: string) {
+    let logger = LoggerModel::into(logger);
+
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
+
+    if let Ok(log) = log.recv_one().await.map(|val| {
+        let mut new_log = GetData::<Arc<dyn Data>>::try_data(val)
+            .unwrap()
+            .downcast_arc::<Log>()
+            .unwrap()
+            .as_ref()
+            .clone();
+
+        new_log.message = format!("{prefix_message}: {}", new_log.message);
+
+        Arc::new(new_log)
+    }) {
+        logger.inner().send_logs(vec![log].into()).await;
+    }
+
+    entry.store(false, Ordering::Relaxed);
+}
+
+#[mel_treatment(
+    model logger Logger
     input messages Stream<string>
     output ended Block<void>
 )]
@@ -389,6 +459,54 @@ pub async fn log_stream(level: Level, label: string) {
 
 #[mel_treatment(
     model logger Logger
+    input label Block<string>
+    input messages Stream<string>
+    output ended Block<void>
+)]
+pub async fn log_stream_label(level: Level) {
+    let logger = LoggerModel::into(logger);
+
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
+
+    if let Ok(label) = label
+        .recv_one()
+        .await
+        .map(|val| GetData::<String>::try_data(val).unwrap())
+    {
+        while let Ok(msgs) = messages
+            .recv_many()
+            .await
+            .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
+        {
+            if !logger
+                .inner()
+                .send_logs(
+                    msgs.into_iter()
+                        .map(|msg| {
+                            Arc::new(Log::new(
+                                Utc::now(),
+                                level.level.clone(),
+                                label.clone(),
+                                msg,
+                            ))
+                        })
+                        .collect(),
+                )
+                .await
+            {
+                break;
+            }
+        }
+    }
+
+    entry.store(false, Ordering::Relaxed);
+
+    let _ = ended.send_one(().into()).await;
+}
+
+#[mel_treatment(
+    model logger Logger
     input message Block<string>
     output ended Block<void>
 )]
@@ -415,6 +533,47 @@ pub async fn log_block(level: Level, label: string) {
                 .into(),
             )
             .await;
+    }
+    entry.store(false, Ordering::Relaxed);
+
+    let _ = ended.send_one(().into()).await;
+}
+
+#[mel_treatment(
+    model logger Logger
+    input label Block<string>
+    input message Block<string>
+    output ended Block<void>
+)]
+pub async fn log_block_label(level: Level) {
+    let logger = LoggerModel::into(logger);
+
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
+
+    if let Ok(label) = label
+        .recv_one()
+        .await
+        .map(|val| GetData::<String>::try_data(val).unwrap())
+    {
+        if let Ok(msg) = message
+            .recv_one()
+            .await
+            .map(|val| GetData::<string>::try_data(val).unwrap())
+        {
+            logger
+                .inner()
+                .send_logs(
+                    vec![Arc::new(Log::new(
+                        Utc::now(),
+                        level.level.clone(),
+                        label.clone(),
+                        msg,
+                    ))]
+                    .into(),
+                )
+                .await;
+        }
     }
     entry.store(false, Ordering::Relaxed);
 
@@ -465,6 +624,55 @@ pub async fn log_data_stream(level: Level, label: string) {
 
 #[mel_treatment(
     model logger Logger
+    input label Block<string>
+    input display Stream<D>
+    output ended Block<void>
+    generic D (Display)
+)]
+pub async fn log_data_stream_label(level: Level) {
+    let logger = LoggerModel::into(logger);
+
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
+
+    if let Ok(label) = label
+        .recv_one()
+        .await
+        .map(|val| GetData::<String>::try_data(val).unwrap())
+    {
+        while let Ok(values) = display
+            .recv_many()
+            .await
+            .map(|values| Into::<VecDeque<Value>>::into(values))
+        {
+            if !logger
+                .inner()
+                .send_logs(
+                    values
+                        .into_iter()
+                        .map(|val| {
+                            Arc::new(Log::new(
+                                Utc::now(),
+                                level.level.clone(),
+                                label.clone(),
+                                format!("{val}"),
+                            ))
+                        })
+                        .collect(),
+                )
+                .await
+            {
+                break;
+            }
+        }
+    }
+    entry.store(false, Ordering::Relaxed);
+
+    let _ = ended.send_one(().into()).await;
+}
+
+#[mel_treatment(
+    model logger Logger
     input display Block<D>
     output ended Block<void>
     generic D (Display)
@@ -488,6 +696,44 @@ pub async fn log_data_block(level: Level, label: string) {
                 .into(),
             )
             .await;
+    }
+    entry.store(false, Ordering::Relaxed);
+
+    let _ = ended.send_one(().into()).await;
+}
+
+#[mel_treatment(
+    model logger Logger
+    input label Block<string>
+    input display Block<D>
+    output ended Block<void>
+    generic D (Display)
+)]
+pub async fn log_data_block_label(level: Level) {
+    let logger = LoggerModel::into(logger);
+
+    let entry = Arc::new(AtomicBool::new(true));
+    logger.inner().add_entry_open(entry.clone()).await;
+
+    if let Ok(label) = label
+        .recv_one()
+        .await
+        .map(|val| GetData::<String>::try_data(val).unwrap())
+    {
+        if let Ok(val) = display.recv_one().await {
+            logger
+                .inner()
+                .send_logs(
+                    vec![Arc::new(Log::new(
+                        Utc::now(),
+                        level.level.clone(),
+                        label.clone(),
+                        format!("{val}"),
+                    ))]
+                    .into(),
+                )
+                .await;
+        }
     }
     entry.store(false, Ordering::Relaxed);
 

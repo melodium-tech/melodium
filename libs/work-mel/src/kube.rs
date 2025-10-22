@@ -175,6 +175,7 @@ impl ExecutorEngine for KubeExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
         completed: OnceTriggerCall<'async_trait>,
@@ -228,45 +229,77 @@ impl ExecutorEngine for KubeExecutor {
             .await
         {
             Ok(mut process) => {
-                if let Some(status_waiter) = process.take_status() {
-                    started().await;
+                use futures::{pin_mut, select, FutureExt};
 
-                    if let Some(status) = status_waiter.await {
-                        match status.status.as_ref().map(|s| s.as_str()) {
-                            Some("Success") => {
-                                completed().await;
-                                if let Some(causes) = status.details.map(|d| d.causes).flatten() {
-                                    let code = causes
-                                        .iter()
-                                        .filter(|cause| cause.reason.as_deref() == Some("ExitCode"))
-                                        .map(|cause| {
-                                            cause.message.as_ref().map(|msg| msg.parse().ok())
-                                        })
-                                        .next()
-                                        .flatten()
-                                        .flatten();
-                                    exit(code).await;
+                started().await;
+
+                let mut to_terminate = false;
+                {
+                    let status =
+                        async {
+                            if let Some(status_waiter) = process.take_status() {
+                                if let Some(status) = status_waiter.await {
+                                    match status.status.as_ref().map(|s| s.as_str()) {
+                                        Some("Success") => {
+                                            completed().await;
+                                            if let Some(causes) =
+                                                status.details.map(|d| d.causes).flatten()
+                                            {
+                                                let code = causes
+                                                    .iter()
+                                                    .filter(|cause| {
+                                                        cause.reason.as_deref() == Some("ExitCode")
+                                                    })
+                                                    .map(|cause| {
+                                                        cause
+                                                            .message
+                                                            .as_ref()
+                                                            .map(|msg| msg.parse().ok())
+                                                    })
+                                                    .next()
+                                                    .flatten()
+                                                    .flatten();
+                                                exit(code).await;
+                                            } else {
+                                                exit(None).await;
+                                            }
+                                        }
+                                        _ => {
+                                            failed().await;
+                                            error(status.reason.unwrap_or_else(|| {
+                                                "No reason provided".to_string()
+                                            }))
+                                            .await;
+                                        }
+                                    }
                                 } else {
-                                    exit(None).await;
+                                    failed().await;
+                                    error("No output status provided".to_string()).await;
                                 }
-                            }
-                            _ => {
+                            } else {
                                 failed().await;
-                                error(
-                                    status
-                                        .reason
-                                        .unwrap_or_else(|| "No reason provided".to_string()),
-                                )
-                                .await;
+                                error("Unable to take status waiter".to_string()).await;
                             }
                         }
-                    } else {
-                        failed().await;
-                        error("No output status provided".to_string()).await;
+                        .fuse();
+
+                    let terminate = async {
+                        to_terminate = terminate().await;
+                        to_terminate
                     }
-                } else {
-                    failed().await;
-                    error("Unable to take status waiter".to_string()).await;
+                    .fuse();
+                    pin_mut!(status, terminate);
+
+                    loop {
+                        select! {
+                            () = status => break,
+                            to_terminate = terminate => if to_terminate { break },
+                            complete => break,
+                        }
+                    }
+                }
+                if to_terminate {
+                    process.abort();
                 }
             }
             Err(err) => {
@@ -280,6 +313,7 @@ impl ExecutorEngine for KubeExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
         completed: OnceTriggerCall<'async_trait>,
@@ -343,6 +377,7 @@ impl ExecutorEngine for KubeExecutor {
             .await
         {
             Ok(mut process) => {
+                let mut to_terminate = false;
                 if let (
                     Some(status_waiter),
                     Some(mut process_stdin),
@@ -354,6 +389,8 @@ impl ExecutorEngine for KubeExecutor {
                     process.stdout(),
                     process.stderr(),
                 ) {
+                    use futures::{pin_mut, select, FutureExt};
+
                     started().await;
 
                     let write_stdin = async {
@@ -361,7 +398,8 @@ impl ExecutorEngine for KubeExecutor {
                             check!(process_stdin.write_all(&data).await);
                             check!(process_stdin.flush().await);
                         }
-                    };
+                    }
+                    .fuse();
 
                     let read_stdout = async {
                         let mut process_stdout = BufReader::new(process_stdout);
@@ -373,7 +411,8 @@ impl ExecutorEngine for KubeExecutor {
                             }
                             check!(stdout(buffer[..n].iter().cloned().collect()).await);
                         }
-                    };
+                    }
+                    .fuse();
 
                     let read_stderr = async {
                         let mut process_stderr = BufReader::new(process_stderr);
@@ -385,7 +424,8 @@ impl ExecutorEngine for KubeExecutor {
                             }
                             check!(stderr(buffer[..n].iter().cloned().collect()).await);
                         }
-                    };
+                    }
+                    .fuse();
 
                     let status_waiter = async {
                         if let Some(status) = status_waiter.await {
@@ -424,12 +464,39 @@ impl ExecutorEngine for KubeExecutor {
                             failed().await;
                             error("No output status provided".to_string()).await;
                         }
-                    };
+                    }
+                    .fuse();
 
-                    tokio::join!(write_stdin, read_stdout, read_stderr, status_waiter);
+                    let terminate = async {
+                        to_terminate = terminate().await;
+                        to_terminate
+                    }
+                    .fuse();
+
+                    pin_mut!(
+                        write_stdin,
+                        read_stdout,
+                        read_stderr,
+                        status_waiter,
+                        terminate
+                    );
+
+                    loop {
+                        select! {
+                            () = write_stdin => {},
+                            () = read_stdout => {},
+                            () = read_stderr => {},
+                            () = status_waiter => break,
+                            to_terminate = terminate => if to_terminate { break },
+                            complete => break,
+                        }
+                    }
                 } else {
                     failed().await;
                     error("Unable to take status waiter and process I/O".to_string()).await;
+                }
+                if to_terminate {
+                    process.abort();
                 }
             }
             Err(err) => {
@@ -444,6 +511,7 @@ impl ExecutorEngine for KubeExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
         completed: OnceTriggerCall<'async_trait>,
@@ -505,9 +573,12 @@ impl ExecutorEngine for KubeExecutor {
             .await
         {
             Ok(mut process) => {
+                let mut to_terminate = false;
                 if let (Some(status_waiter), Some(process_stdout), Some(process_stderr)) =
                     (process.take_status(), process.stdout(), process.stderr())
                 {
+                    use futures::{pin_mut, select, FutureExt};
+
                     started().await;
 
                     let read_stdout = async {
@@ -520,7 +591,8 @@ impl ExecutorEngine for KubeExecutor {
                             }
                             check!(stdout(buffer[..n].iter().cloned().collect()).await);
                         }
-                    };
+                    }
+                    .fuse();
 
                     let read_stderr = async {
                         let mut process_stderr = BufReader::new(process_stderr);
@@ -532,7 +604,8 @@ impl ExecutorEngine for KubeExecutor {
                             }
                             check!(stderr(buffer[..n].iter().cloned().collect()).await);
                         }
-                    };
+                    }
+                    .fuse();
 
                     let status_waiter = async {
                         if let Some(status) = status_waiter.await {
@@ -571,12 +644,32 @@ impl ExecutorEngine for KubeExecutor {
                             failed().await;
                             error("No output status provided".to_string()).await;
                         }
-                    };
+                    }
+                    .fuse();
 
-                    tokio::join!(read_stdout, read_stderr, status_waiter);
+                    let terminate = async {
+                        to_terminate = terminate().await;
+                        to_terminate
+                    }
+                    .fuse();
+
+                    pin_mut!(read_stdout, read_stderr, status_waiter, terminate);
+
+                    loop {
+                        select! {
+                            () = read_stdout => {},
+                            () = read_stderr => {},
+                            () = status_waiter => break,
+                            to_terminate = terminate => if to_terminate { break },
+                            complete => break,
+                        }
+                    }
                 } else {
                     failed().await;
                     error("Unable to take status waiter and process I/O".to_string()).await;
+                }
+                if to_terminate {
+                    process.abort();
                 }
             }
             Err(err) => {

@@ -8,6 +8,10 @@ use root/logger::logBlock
 use root/logger::logStream
 use root/logger::logDataBlock
 use root/logger::logDataStream
+use root/logger::logBlockLabel
+use root/logger::logStreamLabel
+use root/logger::logDataBlockLabel
+use root/logger::logDataStreamLabel
 use std/flow::emit
 
 treatment logDebugMessage[logger: Logger](label: string = "debug", message: string)
@@ -238,4 +242,224 @@ treatment logDataWarnings<D: Display>[logger: Logger](label: string = "warning")
     logDataStream<D>[logger=logger](level = |warning(), label = label)
 
     Self.data -> logDataStream.display,ended -> Self.ended
+}
+
+treatment logDebugLabel[logger: Logger]()
+  input label: Block<string>
+  input message: Block<string>
+  output ended: Block<void>
+{
+    logBlockLabel[logger=logger](level = |debug())
+
+    Self.label ---> logBlockLabel.label
+    Self.message -> logBlockLabel.message,ended -> Self.ended
+}
+
+treatment logDebugsLabel[logger: Logger]()
+  input label: Block<string>
+  input messages: Stream<string>
+  output ended: Block<void>
+{
+    logStreamLabel[logger=logger](level = |debug())
+
+    Self.label ----> logStreamLabel.label
+    Self.messages -> logStreamLabel.messages,ended -> Self.ended
+}
+
+treatment logDataDebugLabel<D: Display>[logger: Logger]()
+  input label: Block<string>
+  input data: Block<D>
+  output ended: Block<void>
+{
+    logDataBlockLabel<D>[logger=logger](level = |debug())
+
+    Self.label -> logDataBlockLabel.label
+    Self.data --> logDataBlockLabel.display,ended -> Self.ended
+}
+
+treatment logDataDebugsLabel<D: Display>[logger: Logger]()
+  input label: Block<string>
+  input data: Stream<D>
+  output ended: Block<void>
+{
+    logDataStreamLabel<D>[logger=logger](level = |debug())
+
+    Self.label -> logDataStreamLabel.label
+    Self.data --> logDataStreamLabel.display,ended -> Self.ended
+}
+
+treatment logErrorLabel[logger: Logger]()
+  input label: Block<string>
+  input message: Block<string>
+  output ended: Block<void>
+{
+    logBlockLabel[logger=logger](level = |error())
+
+    Self.label ---> logBlockLabel.label
+    Self.message -> logBlockLabel.message,ended -> Self.ended
+}
+
+treatment logErrorsLabel[logger: Logger]()
+  input label: Block<string>
+  input messages: Stream<string>
+  output ended: Block<void>
+{
+    logStreamLabel[logger=logger](level = |error())
+
+    Self.label ----> logStreamLabel.label
+    Self.messages -> logStreamLabel.messages,ended -> Self.ended
+}
+
+treatment logDataErrorLabel<D: Display>[logger: Logger]()
+  input label: Block<string>
+  input data: Block<D>
+  output ended: Block<void>
+{
+    logDataBlockLabel<D>[logger=logger](level = |error())
+
+    Self.label -> logDataBlockLabel.label
+    Self.data --> logDataBlockLabel.display,ended -> Self.ended
+}
+
+treatment logDataErrorsLabel<D: Display>[logger: Logger]()
+  input label: Block<string>
+  input data: Stream<D>
+  output ended: Block<void>
+{
+    logDataStreamLabel<D>[logger=logger](level = |error())
+
+    Self.label -> logDataStreamLabel.label
+    Self.data --> logDataStreamLabel.display,ended -> Self.ended
+}
+
+treatment logTraceLabel[logger: Logger]()
+  input label: Block<string>
+  input message: Block<string>
+  output ended: Block<void>
+{
+    logBlockLabel[logger=logger](level = |trace())
+
+    Self.label ---> logBlockLabel.label
+    Self.message -> logBlockLabel.message,ended -> Self.ended
+}
+
+treatment logTracesLabel[logger: Logger]()
+  input label: Block<string>
+  input messages: Stream<string>
+  output ended: Block<void>
+{
+    logStreamLabel[logger=logger](level = |trace())
+
+    Self.label ----> logStreamLabel.label
+    Self.messages -> logStreamLabel.messages,ended -> Self.ended
+}
+
+treatment logDataTraceLabel<D: Display>[logger: Logger]()
+  input label: Block<string>
+  input data: Block<D>
+  output ended: Block<void>
+{
+    logDataBlockLabel<D>[logger=logger](level = |trace())
+
+    Self.label -> logDataBlockLabel.label
+    Self.data --> logDataBlockLabel.display,ended -> Self.ended
+}
+
+treatment logDataTracesLabel<D: Display>[logger: Logger]()
+  input label: Block<string>
+  input data: Stream<D>
+  output ended: Block<void>
+{
+    logDataStreamLabel<D>[logger=logger](level = |trace())
+
+    Self.label -> logDataStreamLabel.label
+    Self.data --> logDataStreamLabel.display,ended -> Self.ended
+}
+
+treatment logInfoLabel[logger: Logger]()
+  input label: Block<string>
+  input message: Block<string>
+  output ended: Block<void>
+{
+    logBlockLabel[logger=logger](level = |info())
+
+    Self.label ---> logBlockLabel.label
+    Self.message -> logBlockLabel.message,ended -> Self.ended
+}
+
+treatment logInfosLabel[logger: Logger]()
+  input label: Block<string>
+  input messages: Stream<string>
+  output ended: Block<void>
+{
+    logStreamLabel[logger=logger](level = |info())
+
+    Self.label ----> logStreamLabel.label
+    Self.messages -> logStreamLabel.messages,ended -> Self.ended
+}
+
+treatment logDataInfoLabel<D: Display>[logger: Logger]()
+  input label: Block<string>
+  input data: Block<D>
+  output ended: Block<void>
+{
+    logDataBlockLabel<D>[logger=logger](level = |info())
+
+    Self.label -> logDataBlockLabel.label
+    Self.data --> logDataBlockLabel.display,ended -> Self.ended
+}
+
+treatment logDataInfosLabel<D: Display>[logger: Logger]()
+  input label: Block<string>
+  input data: Stream<D>
+  output ended: Block<void>
+{
+    logDataStreamLabel<D>[logger=logger](level = |info())
+
+    Self.label -> logDataStreamLabel.label
+    Self.data --> logDataStreamLabel.display,ended -> Self.ended
+}
+
+treatment logWarningLabel[logger: Logger]()
+  input label: Block<string>
+  input message: Block<string>
+  output ended: Block<void>
+{
+    logBlockLabel[logger=logger](level = |warning())
+
+    Self.label ---> logBlockLabel.label
+    Self.message -> logBlockLabel.message,ended -> Self.ended
+}
+
+treatment logWarningsLabel[logger: Logger]()
+  input label: Block<string>
+  input messages: Stream<string>
+  output ended: Block<void>
+{
+    logStreamLabel[logger=logger](level = |warning())
+
+    Self.label ----> logStreamLabel.label
+    Self.messages -> logStreamLabel.messages,ended -> Self.ended
+}
+
+treatment logDataWarningLabel<D: Display>[logger: Logger]()
+  input label: Block<string>
+  input data: Block<D>
+  output ended: Block<void>
+{
+    logDataBlockLabel<D>[logger=logger](level = |warning())
+
+    Self.label -> logDataBlockLabel.label
+    Self.data --> logDataBlockLabel.display,ended -> Self.ended
+}
+
+treatment logDataWarningsLabel<D: Display>[logger: Logger]()
+  input label: Block<string>
+  input data: Stream<D>
+  output ended: Block<void>
+{
+    logDataStreamLabel<D>[logger=logger](level = |warning())
+
+    Self.label -> logDataStreamLabel.label
+    Self.data --> logDataStreamLabel.display,ended -> Self.ended
 }

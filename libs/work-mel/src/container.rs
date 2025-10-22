@@ -167,6 +167,7 @@ impl ExecutorEngine for ContainerExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
         completed: OnceTriggerCall<'async_trait>,
@@ -213,25 +214,54 @@ impl ExecutorEngine for ContainerExecutor {
 
             arguments.extend(command.arguments.clone());
 
-            started().await;
             match async_std::process::Command::new(self.executor_entrypoint.clone())
                 .args(arguments)
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())
-                .stderr(Stdio::piped())
-                .output()
-                .await
+                .stderr(Stdio::null())
+                .spawn()
             {
-                Ok(output) => match output.status.success() {
-                    true => {
-                        completed().await;
-                        exit(output.status.code()).await;
+                Ok(mut child) => {
+                    use futures::{pin_mut, select, FutureExt};
+
+                    started().await;
+
+                    let mut to_terminate = false;
+
+                    {
+                        let status = async { child.status().await }.fuse();
+                        let terminate = async {
+                            to_terminate = terminate().await;
+                            to_terminate
+                        }
+                        .fuse();
+
+                        pin_mut!(status, terminate);
+
+                        loop {
+                            select! {
+                                to_terminate = terminate => if to_terminate { break },
+                                status = status => {
+                                    match status {
+                                        Ok(status) => {
+                                            completed().await;
+                                            exit(status.code()).await;
+                                        }
+                                        Err(err) => {
+                                            failed().await;
+                                            error(err.to_string()).await;
+                                        }
+                                    }
+                                    break
+                                },
+                                complete => break,
+                            }
+                        }
                     }
-                    false => {
-                        failed().await;
-                        error(String::from_utf8_lossy(&output.stderr).to_string()).await;
+                    if to_terminate {
+                        let _ = child.kill();
                     }
-                },
+                }
                 Err(err) => {
                     failed().await;
                     error(err.to_string()).await;
@@ -251,6 +281,7 @@ impl ExecutorEngine for ContainerExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
         completed: OnceTriggerCall<'async_trait>,
@@ -314,69 +345,99 @@ impl ExecutorEngine for ContainerExecutor {
                 Ok(mut child) => {
                     started().await;
 
-                    let child_stdin = child.stdin.take();
-                    let child_stdout = child.stdout.take();
-                    let child_stderr = child.stderr.take();
+                    let mut to_terminate = false;
 
-                    let write_stdin = async {
-                        if let Some(mut child_stdin) = child_stdin {
-                            while let Ok(data) = stdin().await {
-                                check!(child_stdin.write_all(&data).await);
-                                check!(child_stdin.flush().await);
-                            }
+                    {
+                        use futures::{pin_mut, select, FutureExt};
 
-                            let _ = child_stdin.close().await;
-                        } else {
-                            stdinclose().await;
-                        }
-                    };
+                        let child_stdin = child.stdin.take();
+                        let child_stdout = child.stdout.take();
+                        let child_stderr = child.stderr.take();
 
-                    let read_stdout = async {
-                        if let Some(child_stdout) = child_stdout {
-                            let mut child_stdout = BufReader::new(child_stdout);
-                            let mut buffer = vec![0; 2usize.pow(20)];
-
-                            while let Ok(n) = child_stdout.read(&mut buffer[..]).await {
-                                if n == 0 {
-                                    break;
+                        let write_stdin = async {
+                            if let Some(mut child_stdin) = child_stdin {
+                                while let Ok(data) = stdin().await {
+                                    check!(child_stdin.write_all(&data).await);
+                                    check!(child_stdin.flush().await);
                                 }
-                                check!(stdout(buffer[..n].iter().cloned().collect()).await);
+
+                                let _ = child_stdin.close().await;
+                            } else {
+                                stdinclose().await;
                             }
-                        } else {
-                            stdoutclose().await;
                         }
-                    };
+                        .fuse();
 
-                    let read_stderr = async {
-                        if let Some(child_stderr) = child_stderr {
-                            let mut child_stderr = BufReader::new(child_stderr);
-                            let mut buffer = vec![0; 2usize.pow(20)];
+                        let read_stdout = async {
+                            if let Some(child_stdout) = child_stdout {
+                                let mut child_stdout = BufReader::new(child_stdout);
+                                let mut buffer = vec![0; 2usize.pow(20)];
 
-                            while let Ok(n) = child_stderr.read(&mut buffer[..]).await {
-                                if n == 0 {
-                                    break;
+                                while let Ok(n) = child_stdout.read(&mut buffer[..]).await {
+                                    if n == 0 {
+                                        break;
+                                    }
+                                    check!(stdout(buffer[..n].iter().cloned().collect()).await);
                                 }
-                                check!(stderr(buffer[..n].iter().cloned().collect()).await);
-                            }
-                        } else {
-                            stderrclose().await;
-                        }
-                    };
-
-                    let status = async {
-                        match child.status().await {
-                            Ok(status) => {
-                                completed().await;
-                                exit(status.code()).await;
-                            }
-                            Err(err) => {
-                                failed().await;
-                                error(err.to_string()).await;
+                            } else {
+                                stdoutclose().await;
                             }
                         }
-                    };
+                        .fuse();
 
-                    let _ = futures::join!(status, write_stdin, read_stdout, read_stderr);
+                        let read_stderr = async {
+                            if let Some(child_stderr) = child_stderr {
+                                let mut child_stderr = BufReader::new(child_stderr);
+                                let mut buffer = vec![0; 2usize.pow(20)];
+
+                                while let Ok(n) = child_stderr.read(&mut buffer[..]).await {
+                                    if n == 0 {
+                                        break;
+                                    }
+                                    check!(stderr(buffer[..n].iter().cloned().collect()).await);
+                                }
+                            } else {
+                                stderrclose().await;
+                            }
+                        }
+                        .fuse();
+
+                        let status = async {
+                            match child.status().await {
+                                Ok(status) => {
+                                    completed().await;
+                                    exit(status.code()).await;
+                                }
+                                Err(err) => {
+                                    failed().await;
+                                    error(err.to_string()).await;
+                                }
+                            }
+                        }
+                        .fuse();
+
+                        let terminate = async {
+                            to_terminate = terminate().await;
+                            to_terminate
+                        }
+                        .fuse();
+
+                        pin_mut!(write_stdin, read_stdout, read_stderr, status, terminate);
+
+                        loop {
+                            select! {
+                                () = write_stdin => {},
+                                () = read_stdout => {},
+                                () = read_stderr => {},
+                                () = status => break,
+                                to_terminate = terminate => if to_terminate { break },
+                                complete => break,
+                            }
+                        }
+                    }
+                    if to_terminate {
+                        let _ = child.kill();
+                    }
                 }
                 Err(err) => {
                     failed().await;
@@ -397,6 +458,7 @@ impl ExecutorEngine for ContainerExecutor {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
         completed: OnceTriggerCall<'async_trait>,
@@ -457,55 +519,83 @@ impl ExecutorEngine for ContainerExecutor {
                 Ok(mut child) => {
                     started().await;
 
-                    let child_stdout = child.stdout.take();
-                    let child_stderr = child.stderr.take();
+                    let mut to_terminate = false;
 
-                    let read_stdout = async {
-                        if let Some(child_stdout) = child_stdout {
-                            let mut child_stdout = BufReader::new(child_stdout);
-                            let mut buffer = vec![0; 2usize.pow(20)];
+                    {
+                        use futures::{pin_mut, select, FutureExt};
 
-                            while let Ok(n) = child_stdout.read(&mut buffer[..]).await {
-                                if n == 0 {
-                                    break;
+                        let child_stdout = child.stdout.take();
+                        let child_stderr = child.stderr.take();
+
+                        let read_stdout = async {
+                            if let Some(child_stdout) = child_stdout {
+                                let mut child_stdout = BufReader::new(child_stdout);
+                                let mut buffer = vec![0; 2usize.pow(20)];
+
+                                while let Ok(n) = child_stdout.read(&mut buffer[..]).await {
+                                    if n == 0 {
+                                        break;
+                                    }
+                                    check!(stdout(buffer[..n].iter().cloned().collect()).await);
                                 }
-                                check!(stdout(buffer[..n].iter().cloned().collect()).await);
+                            } else {
+                                stdoutclose().await;
                             }
-                        } else {
-                            stdoutclose().await;
                         }
-                    };
+                        .fuse();
 
-                    let read_stderr = async {
-                        if let Some(child_stderr) = child_stderr {
-                            let mut child_stderr = BufReader::new(child_stderr);
-                            let mut buffer = vec![0; 2usize.pow(20)];
+                        let read_stderr = async {
+                            if let Some(child_stderr) = child_stderr {
+                                let mut child_stderr = BufReader::new(child_stderr);
+                                let mut buffer = vec![0; 2usize.pow(20)];
 
-                            while let Ok(n) = child_stderr.read(&mut buffer[..]).await {
-                                if n == 0 {
-                                    break;
+                                while let Ok(n) = child_stderr.read(&mut buffer[..]).await {
+                                    if n == 0 {
+                                        break;
+                                    }
+                                    check!(stderr(buffer[..n].iter().cloned().collect()).await);
                                 }
-                                check!(stderr(buffer[..n].iter().cloned().collect()).await);
-                            }
-                        } else {
-                            stderrclose().await;
-                        }
-                    };
-
-                    let status = async {
-                        match child.status().await {
-                            Ok(status) => {
-                                completed().await;
-                                exit(status.code()).await;
-                            }
-                            Err(err) => {
-                                failed().await;
-                                error(err.to_string()).await;
+                            } else {
+                                stderrclose().await;
                             }
                         }
-                    };
+                        .fuse();
 
-                    let _ = futures::join!(status, read_stdout, read_stderr);
+                        let status = async {
+                            match child.status().await {
+                                Ok(status) => {
+                                    completed().await;
+                                    exit(status.code()).await;
+                                }
+                                Err(err) => {
+                                    failed().await;
+                                    error(err.to_string()).await;
+                                }
+                            }
+                        }
+                        .fuse();
+
+                        let terminate = async {
+                            to_terminate = terminate().await;
+                            to_terminate
+                        }
+                        .fuse();
+
+                        pin_mut!(read_stdout, read_stderr, status, terminate);
+
+                        loop {
+                            select! {
+                                () = read_stdout => {},
+                                () = read_stderr => {},
+                                () = status => break,
+                                to_terminate = terminate => if to_terminate { break },
+                                complete => break,
+                            }
+                        }
+                    }
+                    if to_terminate {
+                        let _ = child.kill();
+                    }
                 }
                 Err(err) => {
                     failed().await;

@@ -12,6 +12,7 @@ use std/flow::stream
 use std/flow::trigger
 use std/flow::filterBlock
 use std/flow::releaseBlock
+use std/flow::closeBlock
 use std/conv::toString
 use std/conv::|to_string
 use std/text/convert/string::toUtf8
@@ -67,10 +68,12 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
     mapFullEnvironment()
     wrapFullEnvironment: wrap<Environment>()
     githubCommand()
+    closeTerminate: closeBlock<void>()
 
     Self.trigger -> ifExec.value,accepted -> localExec.trigger,emit ----> spawnCommands.executor_name
     mapFullEnvironment.environment -> wrapFullEnvironment.value,option -> spawnCommands.environment
     githubCommand.command ----------------------------------------------> spawnCommands.commands
+    Self.trigger -> closeTerminate.trigger,closed ----------------------> spawnCommands.terminate
 
     setOutputs: githubSetOutputs[contexts=contexts]()
     

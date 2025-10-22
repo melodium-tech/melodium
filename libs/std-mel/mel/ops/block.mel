@@ -1,0 +1,38 @@
+use root/flow::check
+use root/flow::emit
+use root/flow::stream
+use root/flow::trigger
+
+use root/ops::equal as equalStream
+
+/**
+Determine whether `a` is equal to `b`
+*/
+treatment equal<T: PartialEquality>()
+  input a: Block<T>
+  input b: Block<T>
+  output result: Block<bool>
+{
+    streamA: stream<T>()
+    streamB: stream<T>()
+    equalStream<T>()
+    trigger<bool>()
+
+    Self.a -> streamA.block,stream -> equalStream.a,result -> trigger.stream,last -> Self.result
+    Self.b -> streamB.block,stream -> equalStream.b
+}
+
+/**
+Determine whether `data` is equal to `value`
+*/
+treatment equalTo<T: PartialEquality>(value: T)
+  input data: Block<T>
+  output result: Block<bool>
+{
+    check<T>()
+    emit<T>(value = value)
+    equal<T>()
+
+    Self.data -> check.value,check -> emit.trigger,emit -> equal.a,result -> Self.result
+    Self.data -------------------------------------------> equal.b
+}
