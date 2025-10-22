@@ -3,6 +3,7 @@ use local/gitlab::|pending as |gitlab_pending
 use local/gitlab::|running as |gitlab_running
 use local/gitlab::|success as |gitlab_success
 use local/gitlab::|failed as |gitlab_failed
+use local/gitlab::|canceled as |gitlab_canceled
 use local/github::postGithubState
 use local/github::|pending as |github_pending
 use local/github::|success as |github_success
@@ -10,6 +11,7 @@ use local/github::|failure as |github_failure
 use local/github::|error as |github_error
 use log/logger::Logger
 use std/flow::passBlock
+use std/flow::one
 use std/ops/bin::|and
 
 treatment setServiceState[logger: Logger](
@@ -29,10 +31,12 @@ treatment setServiceState[logger: Logger](
     description: string = "",
     log_response: bool = false
 )
-  input pending: Block<void>
-  input running: Block<void>
-  input success: Block<void>
-  input failed:  Block<void>
+  input pending:  Block<void>
+  input running:  Block<void>
+  input success:  Block<void>
+  input error:    Block<void>
+  input failed:   Block<void>
+  input canceled: Block<void>
 {
     passPendingGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
     pendingGitlab: postGitlabState[logger=logger](
@@ -86,6 +90,19 @@ treatment setServiceState[logger: Logger](
         state=|gitlab_failed(),
         log_response=log_response
     )
+    passCanceledGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
+    canceledGitlab: postGitlabState[logger=logger](
+        root_url=gitlab_root_url,
+        token=gitlab_token,
+        project=gitlab_project_id,
+        sha=gitlab_sha,
+        ref=gitlab_ref,
+        pipeline=gitlab_pipeline_id,
+        name=name,
+        description=description,
+        state=|gitlab_canceled(),
+        log_response=log_response
+    )
 
     passPendingGithub: passBlock<void>(cond=|and<bool>(report, github))
     pendingGithub: postGithubState[logger=logger](
@@ -117,13 +134,31 @@ treatment setServiceState[logger: Logger](
         state=|github_error(),
         log_response=log_response
     )
+    passFailureGithub: passBlock<void>(cond=|and<bool>(report, github))
+    failureGithub: postGithubState[logger=logger](
+        token=github_token,
+        project=github_project,
+        sha=github_sha,
+        name=name,
+        description=description,
+        state=|github_failure(),
+        log_response=log_response
+    )
 
+    errorOrFailedGitlab: one<void>()
 
-    Self.pending -> passPendingGitlab.block,passed --> pendingGitlab.trigger
-    Self.running -> passRunningGitlab.block,passed  -> runningGitlab.trigger
-    Self.success -> passSuccessGitlab.block,passed  -> successGitlab.trigger
-    Self.failed --> passFailedGitlab.block,passed  --> failedGitlab.trigger
-    Self.pending -> passPendingGithub.block,passed  -> pendingGithub.trigger
-    Self.success -> passSuccessGithub.block,passed  -> successGithub.trigger
-    Self.failed --> passErrorGithub.block,passed  ---> errorGithub.trigger
+    Self.pending --> passPendingGitlab.block,passed -> pendingGitlab.trigger
+    Self.running --> passRunningGitlab.block,passed -> runningGitlab.trigger
+    Self.success --> passSuccessGitlab.block,passed -> successGitlab.trigger
+    Self.error ----> errorOrFailedGitlab.a,value -> passFailedGitlab.block,passed -> failedGitlab.trigger
+    Self.failed ---> errorOrFailedGitlab.b
+    Self.canceled -> passCanceledGitlab.block,passed -> canceledGitlab.trigger
+
+    errorOrCanceledGithub: one<void>()
+
+    Self.pending -> passPendingGithub.block,passed -> pendingGithub.trigger
+    Self.success -> passSuccessGithub.block,passed -> successGithub.trigger
+    Self.error ----> errorOrCanceledGithub.a,value -> passErrorGithub.block,passed -> errorGithub.trigger
+    Self.canceled -> errorOrCanceledGithub.b
+    Self.failed --> passFailureGithub.block,passed -> failureGithub.trigger
 }

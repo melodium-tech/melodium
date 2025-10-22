@@ -50,6 +50,14 @@ Uses the `runner` to run given `commands` on executor designated by `executor_na
 
 After `commands` run, and if they all succeed, the `out_file` from `out_filesystem` is extracted and streamed through `data`.
 
+About the outputs signals:
+- `started` is emitted once first command is started;
+- `finished` is emitted once execution of commands ends in any case;
+- `failed` is emitted if executor failed to run commands (no further commands are executed);
+- `completed` is emitted once and if commands runs to completion;
+- `success` is emitted if commands run successfully, returning exit code `0`;
+- `error` is emitted if commands run exited with exit code different from `0`.
+
 ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOn to directly extract `out_file` from `out_filesystem`.
 `out_file` and `out_filesystem` can be _none_ and `data` stream will be closed without emitting reading error.
 
@@ -88,6 +96,30 @@ treatment stepOn[runner: CicdRunnerEngine, logger: Logger](var name: string, var
     stepOnWithInput.data ------> Self.data
 }
 
+/**
+Runs step on given runner, with input data.
+
+Uses the `runner` to run given `commands` on executor designated by `executor_name` with `environment`.
+
+`name` serves as identifying purpose.
+
+`data` input are written in file `in_file` of `in_filesystem`, and then `commands` are run.
+After `commands` run, and if they all succeed, the `out_file` from `out_filesystem` is extracted and streamed through `data`.
+
+About the outputs signals:
+- `started` is emitted once first command is started;
+- `finished` is emitted once execution of commands ends in any case;
+- `failed` is emitted if executor failed to run commands (no further commands are executed);
+- `completed` is emitted once and if commands runs to completion;
+- `success` is emitted if commands run successfully, returning exit code `0`;
+- `error` is emitted if commands run exited with exit code different from `0`.
+
+ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOnWithInput only write `data` to the designated location, and then succeed.
+`out_file` and `out_filesystem` can be left _none_ and `data` stream will be closed without emitting reading error.
+
+⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
+Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
+*/
 treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
   input trigger: Block<void>
   input data: Stream<byte>
@@ -123,6 +155,32 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     stepOnTerminableWithInput.data ------> Self.data
 }
 
+/**
+Runs step on given runner.
+
+Uses the `runner` to run given `commands` on executor designated by `executor_name` with `environment`.
+
+`name` serves as identifying purpose.
+
+After `commands` run, and if they all succeed, the `out_file` from `out_filesystem` is extracted and streamed through `data`.
+
+About the outputs signals:
+- `started` is emitted once first command is started;
+- `finished` is emitted once execution of commands ends in any case;
+- `failed` is emitted if executor failed to run commands (no further commands are executed);
+- `completed` is emitted once and if commands runs to completion;
+- `success` is emitted if commands run successfully, returning exit code `0`;
+- `error` is emitted if commands run exited with exit code different from `0`.
+
+At any moment, `terminate` signal can be triggered, stopping the run of currently running command (executors may have different strategies, usually killing the process) and cancelling subsequent ones.
+In that case, `terminated` and `finished` are emitted but not `failed` nor `error`.
+
+ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOn to directly extract `out_file` from `out_filesystem`.
+`out_file` and `out_filesystem` can be _none_ and `data` stream will be closed without emitting reading error.
+
+⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
+Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
+*/
 treatment stepOnTerminable[runner: CicdRunnerEngine, logger: Logger](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
   input trigger: Block<void>
   input terminate: Block<void>
@@ -160,6 +218,33 @@ treatment stepOnTerminable[runner: CicdRunnerEngine, logger: Logger](var name: s
     stepOnTerminableWithInput.data -------> Self.data
 }
 
+/**
+Runs step on given runner, with input data.
+
+Uses the `runner` to run given `commands` on executor designated by `executor_name` with `environment`.
+
+`name` serves as identifying purpose.
+
+`data` input are written in file `in_file` of `in_filesystem`, and then `commands` are run.
+After `commands` run, and if they all succeed, the `out_file` from `out_filesystem` is extracted and streamed through `data`.
+
+About the outputs signals:
+- `started` is emitted once first command is started;
+- `finished` is emitted once execution of commands ends in any case;
+- `failed` is emitted if executor failed to run commands (no further commands are executed);
+- `completed` is emitted once and if commands runs to completion;
+- `success` is emitted if commands run successfully, returning exit code `0`;
+- `error` is emitted if commands run exited with exit code different from `0`.
+
+At any moment, `terminate` signal can be triggered, stopping the run of currently running command (executors may have different strategies, usually killing the process) and cancelling subsequent ones.
+In that case, `terminated` and `finished` are emitted but not `failed` nor `error`.
+
+ℹ️ `commands` can be empty, as well as `environment` and `executor_name` set to _none_, making stepOnWithInput only write `data` to the designated location, and then succeed.
+`out_file` and `out_filesystem` can be left _none_ and `data` stream will be closed without emitting reading error.
+
+⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
+Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
+*/
 treatment stepOnTerminableWithInput[runner: CicdRunnerEngine, logger: Logger](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
   input trigger: Block<void>
   input data: Stream<byte>
@@ -274,6 +359,11 @@ treatment stepOnTerminableWithInput[runner: CicdRunnerEngine, logger: Logger](va
     recvData.data ---------------------------------------------------------------------> Self.data
 }
 
+/**
+Run step with all streamed inputs and outputs.
+
+ℹ️ This treatment is not aimed to be used directly, see `stepOn`, `stepOnWithInput`, `stepOnTerminable`, or `stepOnTerminableWithInput` for usage.
+*/
 treatment step(var label: string)
   input trigger_logs: Block<void>
   input in_filesystem_name: Block<string>
@@ -352,6 +442,11 @@ treatment step(var label: string)
     triggerSpawnAndReadFileFinished.end ----------> trackLogs.stop
 }
 
+/**
+Spawn commands with all streamed inputs and outputs.
+
+ℹ️ This treatment is not aimed to be used directly, see `stepOn`, `stepOnWithInput`, `stepOnTerminable`, or `stepOnTerminableWithInput` for usage.
+*/
 treatment spawnCommands[logger: Logger](var label: string)
   input executor_name: Block<Option<string>>
   input environment: Block<Option<Environment>>

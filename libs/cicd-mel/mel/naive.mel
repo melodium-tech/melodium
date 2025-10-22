@@ -3,8 +3,8 @@ use root/runners::CicdRunnerEngine
 use root/runners::setupRunner
 use root/runners::stopRunner
 use root/services::setServiceState
-use root/steps::stepOn
-use root/steps::stepOnWithInput
+use root/steps::stepOnTerminable
+use root/steps::stepOnTerminableWithInput
 use root/steps::spawnCommands
 use log/logger::Logger
 use process/command::Command
@@ -59,6 +59,75 @@ treatment localStep[logger: Logger](
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
+  output success: Block<void>
+  output error: Block<void>
+{
+    closeTerminate: closeBlock<void>()
+    localStepTerminable[logger=logger](
+        name=name,
+        commands=commands,
+        variables=variables,
+        report=report,
+        github=github,
+        gitlab=gitlab,
+        github_token=github_token,
+        github_project=github_project,
+        github_sha=github_sha,
+        gitlab_root_url=gitlab_root_url,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=gitlab_ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        description=description,
+        log_service_response=log_service_response
+    )
+
+    Self.trigger ----------------------------------> localStepTerminable.trigger
+    Self.trigger -> closeTerminate.trigger,closed -> localStepTerminable.terminate
+
+    localStepTerminable.started ---> Self.started
+    localStepTerminable.completed -> Self.completed
+    localStepTerminable.failed ----> Self.failed
+    localStepTerminable.finished --> Self.finished
+    localStepTerminable.success ---> Self.success
+    localStepTerminable.error -----> Self.error
+}
+
+
+/**
+Run a step on local machine.
+
+This treatment runs commands on local machine.
+*/
+treatment localStepTerminable[logger: Logger](
+  name: string,
+  commands: Vec<Command>,
+  variables: Option<StringMap> = _,
+  report: bool = true,
+  github: bool = false,
+  gitlab: bool = false,
+  github_token: string = "",
+  github_project: string = "",
+  github_sha: string = "",
+  gitlab_root_url: string = "https://gitlab.com/api/v4",
+  gitlab_token: string = "",
+  gitlab_project_id: string = "",
+  gitlab_sha: string = "",
+  gitlab_ref: string = "",
+  gitlab_pipeline_id: string = "",
+  description: string = "",
+  log_service_response: bool = false
+)
+  input trigger: Block<void>
+  input terminate: Block<void>
+  output started: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output success: Block<void>
+  output error: Block<void>
+  output terminated: Block<void>
 {
     spawnCommands[logger=logger](label=name)
 
@@ -67,12 +136,11 @@ treatment localStep[logger: Logger](
     emitCommands: emit<Vec<Command>>(value=commands)
     streamCommands: stream<Vec<Command>>()
     flattenCommands: flatten<Command>()
-    closeTerminate: closeBlock<void>()
 
     Self.trigger -> emitExecutorName.trigger,emit -> spawnCommands.executor_name
     Self.trigger -> emitEnvironment.trigger,emit --> spawnCommands.environment
     Self.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector,value -> spawnCommands.commands
-    Self.trigger -> closeTerminate.trigger,closed -> spawnCommands.terminate
+    Self.terminate -> spawnCommands.terminate
 
     setServiceState[logger=logger](
         name=name,
@@ -92,15 +160,20 @@ treatment localStep[logger: Logger](
         log_response=log_service_response
     )
 
-    Self.trigger ------------> setServiceState.pending
-    spawnCommands.started ---> setServiceState.running
-    spawnCommands.completed -> setServiceState.success
-    spawnCommands.failed ----> setServiceState.failed
+    Self.trigger -------------> setServiceState.pending
+    spawnCommands.started ----> setServiceState.running
+    spawnCommands.success ----> setServiceState.success
+    spawnCommands.failed -----> setServiceState.failed
+    spawnCommands.error ------> setServiceState.error
+    spawnCommands.terminated -> setServiceState.canceled
 
-    spawnCommands.started ---> Self.started
-    spawnCommands.completed -> Self.completed
-    spawnCommands.failed ----> Self.failed
-    spawnCommands.finished --> Self.finished
+    spawnCommands.started ----> Self.started
+    spawnCommands.completed --> Self.completed
+    spawnCommands.failed -----> Self.failed
+    spawnCommands.finished ---> Self.finished
+    spawnCommands.success ----> Self.success
+    spawnCommands.error ------> Self.error
+    spawnCommands.terminated -> Self.terminated
 }
 
 /**
@@ -123,8 +196,10 @@ This output is ignored if no `out_file` is set.
 
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
-- `completed`: emitted when the step finished successfully;
-- `failed`: emitted if the step failed;
+- `completed`: emitted when the step finished to be executed;
+- `failed`: emitted if the step failed to be executed;
+- `success`: emitted when the step exit with code `0`;
+- `error`: emitted when the step exit with code different from `0`;
 - `finished`: emitted when the request finished, regardless of state.
 
 The `report` and `github_*`/`gitlab_*` values are made available to report status in Github Actions and GitLab CI.
@@ -165,6 +240,124 @@ treatment simpleStep[dispatcher: CicdDispatchEngine, logger: Logger](
   output completed: Block<void>
   output failed: Block<void>
   output finished: Block<void>
+  output success: Block<void>
+  output error: Block<void>
+  output data: Stream<byte>
+{
+
+    simpleStepTerminable[dispatcher=dispatcher, logger=logger](
+        name=name,
+        cpu=cpu,
+        memory=memory,
+        storage=storage,
+        arch=arch,
+        max_duration=max_duration,
+        service_containers=service_containers,
+        image=image,
+        pull_secret=pull_secret,
+        variables=variables,
+        commands=commands,
+        out_storage=out_storage,
+        out_file=out_file,
+
+        report=report,
+        github=github,
+        gitlab=gitlab,
+        github_token=github_token,
+        github_project=github_project,
+        github_sha=github_sha,
+        gitlab_root_url=gitlab_root_url,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=gitlab_ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        description=description,
+        log_service_response=log_service_response
+    )
+    closeTerminate: closeBlock<void>()
+
+    Self.trigger ----------------------------------> simpleStepTerminable.trigger
+    Self.trigger -> closeTerminate.trigger,closed -> simpleStepTerminable.terminate
+
+    simpleStepTerminable.started ---> Self.started
+    simpleStepTerminable.completed -> Self.completed
+    simpleStepTerminable.failed ----> Self.failed
+    simpleStepTerminable.finished --> Self.finished
+    simpleStepTerminable.success ---> Self.success
+    simpleStepTerminable.error -----> Self.error
+    simpleStepTerminable.data ------> Self.data
+}
+
+
+/**
+Run a step on a container.
+
+This treatment manages creation and run of a container and runs commands inside it.
+
+The runner configuration values are:
+- `cpu`: CPU amount requested for the worker, in millicores (`1000` means one full CPU, `500` half of it);
+- `memory`: memory requested for the worker, in megabytes;
+- `storage`: filesystem storage requested for the worker, in megabytes;
+- `max_duration`: maximum duration for which the worker will be effective, in seconds;
+- `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
+- `service_containers`: list of containers to instanciate alongside main container.
+
+The container gets a volume mounted in `/mnt/data` (this volume size can be setup through `out_storage` parameter), where `out_file` can be written.
+
+`commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
+This output is ignored if no `out_file` is set.
+
+The `trigger` input signals the treatment to start, then:
+- `started`: emitted when the step effectively starts;
+- `completed`: emitted when the step finished to be executed;
+- `failed`: emitted if the step failed to be executed;
+- `success`: emitted when the step exit with code `0`;
+- `error`: emitted when the step exit with code different from `0`;
+- `finished`: emitted when the request finished, regardless of state.
+
+The `report` and `github_*`/`gitlab_*` values are made available to report status in Github Actions and GitLab CI.
+*/
+treatment simpleStepTerminable[dispatcher: CicdDispatchEngine, logger: Logger](
+    name: string,
+    cpu: u32 = 500,
+    memory: u32 = 500,
+    storage: u32 = 5000,
+    arch: Option<Arch> = _,
+    max_duration: u32 = 3600,
+    service_containers: Vec<ServiceContainer> = [],
+    image: string,
+    pull_secret: Option<string> = _,
+    variables: Option<StringMap> = _,
+    commands: Vec<Command>,
+    out_storage: Option<u32> = _,
+    out_file: Option<string> = _,
+
+    report: bool = true,
+    github: bool = false,
+    gitlab: bool = false,
+    github_token: string = "",
+    github_project: string = "",
+    github_sha: string = "",
+    gitlab_root_url: string = "https://gitlab.com/api/v4",
+    gitlab_token: string = "",
+    gitlab_project_id: string = "",
+    gitlab_sha: string = "",
+    gitlab_ref: string = "",
+    gitlab_pipeline_id: string = "",
+    description: string = "",
+    log_service_response: bool = false
+)
+  model runner: CicdRunnerEngine()
+  input trigger: Block<void>
+  input terminate: Block<void>
+  output started: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output finished: Block<void>
+  output success: Block<void>
+  output error: Block<void>
+  output terminated: Block<void>
   output data: Stream<byte>
 {
     setupRunner[
@@ -182,7 +375,7 @@ treatment simpleStep[dispatcher: CicdDispatchEngine, logger: Logger](
         ],
         service_containers=service_containers
     )
-    stepOn[runner=runner, logger=logger](
+    stepOnTerminable[runner=runner, logger=logger](
         name=name,
         executor_name=|wrap<string>(name),
         commands=commands,
@@ -211,21 +404,25 @@ treatment simpleStep[dispatcher: CicdDispatchEngine, logger: Logger](
   
   oneFailed: one<void>()
   setupRunner.failed -> oneFailed.a,value -> Self.failed
-  stepOn.failed ------> oneFailed.b
+  stepOnTerminable.failed ------> oneFailed.b
 
-  stepOn.finished -> stopRunner.trigger
+  stepOnTerminable.finished -> stopRunner.trigger
 
-  Self.trigger -> setupRunner.trigger,ready -> stepOn.trigger,finished -> Self.finished
-                                               stepOn.completed --------> Self.completed
-                                               stepOn.started ----------> Self.started
-                                               stepOn.data -------------> Self.data
+  Self.trigger -> setupRunner.trigger,ready -> stepOnTerminable.trigger,finished ---------------> Self.finished
+  Self.terminate ----------------------------> stepOnTerminable.terminate,terminated -----------> Self.terminated
+                                               stepOnTerminable.completed ----------------------> Self.completed
+                                               stepOnTerminable.started ------------------------> Self.started
+                                               stepOnTerminable.success ------------------------> Self.success
+                                               stepOnTerminable.error --------------------------> Self.error
+                                               stepOnTerminable.data ---------------------------> Self.data
 
-  Self.trigger -----> setServiceState.pending
-  stepOn.started ---> setServiceState.running
-  oneFailed.value --> setServiceState.failed
-  stepOn.completed -> setServiceState.success
+  Self.trigger ----------------> setServiceState.pending
+  stepOnTerminable.started ----> setServiceState.running
+  stepOnTerminable.success ----> setServiceState.success
+  oneFailed.value -------------> setServiceState.failed
+  stepOnTerminable.error ------> setServiceState.error
+  stepOnTerminable.terminated -> setServiceState.canceled
 }
-
 
 /**
 Run a step on a container.
@@ -247,8 +444,10 @@ This output is ignored if no `out_file` is set.
 
 The `trigger` input signals the treatment to start, then:
 - `started`: emitted when the step effectively starts;
-- `completed`: emitted when the step finished successfully;
-- `failed`: emitted if the step failed;
+- `completed`: emitted when the step finished to be executed;
+- `failed`: emitted if the step failed to be executed;
+- `success`: emitted when the step exit with code `0`;
+- `error`: emitted when the step exit with code different from `0`;
 - `finished`: emitted when the request finished, regardless of state.
 
 The `report` and `github_*`/`gitlab_*` values are made available to report status in Github Actions and GitLab CI.
@@ -290,7 +489,127 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
   output started: Block<void>
   output completed: Block<void>
   output failed: Block<void>
+  output success: Block<void>
+  output error: Block<void>
   output finished: Block<void>
+  output data: Stream<byte>
+{
+    simpleStepTerminableWithInput[dispatcher=dispatcher, logger=logger](
+        name=name,
+        cpu=cpu,
+        memory=memory,
+        storage=storage,
+        arch=arch,
+        max_duration=max_duration,
+        service_containers=service_containers,
+        image=image,
+        pull_secret=pull_secret,
+        variables=variables,
+        commands=commands,
+        in_file=in_file,
+        out_storage=out_storage,
+        out_file=out_file,
+
+        report=report,
+        github=github,
+        gitlab=gitlab,
+        github_token=github_token,
+        github_project=github_project,
+        github_sha=github_sha,
+        gitlab_root_url=gitlab_root_url,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=gitlab_ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        description=description,
+        log_service_response=log_service_response
+    )
+    closeTerminate: closeBlock<void>()
+
+    Self.trigger ----------------------------------> simpleStepTerminableWithInput.trigger
+    Self.trigger -> closeTerminate.trigger,closed -> simpleStepTerminableWithInput.terminate
+    Self.data -------------------------------------> simpleStepTerminableWithInput.data
+
+    simpleStepTerminableWithInput.started ---> Self.started
+    simpleStepTerminableWithInput.completed -> Self.completed
+    simpleStepTerminableWithInput.failed ----> Self.failed
+    simpleStepTerminableWithInput.finished --> Self.finished
+    simpleStepTerminableWithInput.success ---> Self.success
+    simpleStepTerminableWithInput.error -----> Self.error
+    simpleStepTerminableWithInput.data ------> Self.data
+}
+
+/**
+Run a step on a container.
+
+This treatment manages creation and run of a container and runs commands inside it.
+
+The runner configuration values are:
+- `cpu`: CPU amount requested for the worker, in millicores (`1000` means one full CPU, `500` half of it);
+- `memory`: memory requested for the worker, in megabytes;
+- `storage`: filesystem storage requested for the worker, in megabytes;
+- `max_duration`: maximum duration for which the worker will be effective, in seconds;
+- `arch`: hardware architecture the worker must have (should be none if nothing specific is required);
+- `service_containers`: list of containers to instanciate alongside main container.
+
+The container gets a volume mounted in `/mnt/data` (this volume size can be setup through `out_storage` parameter), where `in_file` and `out_file` can be written (`in_file="some.txt"` meaning file `"/mnt/data/some.txt"`).
+
+`commands` are run, and if they all succeed, the `out_file` is extracted and streamed through `data` (`out_file="a-file.tar"` meaning container wrote file `"/mnt/data/a-file.tar"`).
+This output is ignored if no `out_file` is set.
+
+The `trigger` input signals the treatment to start, then:
+- `started`: emitted when the step effectively starts;
+- `completed`: emitted when the step finished to be executed;
+- `failed`: emitted if the step failed to be executed;
+- `success`: emitted when the step exit with code `0`;
+- `error`: emitted when the step exit with code different from `0`;
+- `finished`: emitted when the request finished, regardless of state.
+
+The `report` and `github_*`/`gitlab_*` values are made available to report status in Github Actions and GitLab CI.
+*/
+treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
+    name: string,
+    cpu: u32 = 500,
+    memory: u32 = 500,
+    storage: u32 = 5000,
+    arch: Option<Arch> = _,
+    max_duration: u32 = 3600,
+    service_containers: Vec<ServiceContainer> = [],
+    image: string,
+    pull_secret: Option<string> = _,
+    variables: Option<StringMap> = _,
+    commands: Vec<Command>,
+    in_file: string,
+    out_storage: Option<u32> = _,
+    out_file: Option<string> = _,
+
+    report: bool = true,
+    github: bool = false,
+    gitlab: bool = false,
+    github_token: string = "",
+    github_project: string = "",
+    github_sha: string = "",
+    gitlab_root_url: string = "https://gitlab.com/api/v4",
+    gitlab_token: string = "",
+    gitlab_project_id: string = "",
+    gitlab_sha: string = "",
+    gitlab_ref: string = "",
+    gitlab_pipeline_id: string = "",
+    description: string = "",
+    log_service_response: bool = false
+)
+  model runner: CicdRunnerEngine()
+  input trigger: Block<void>
+  input terminate: Block<void>
+  input data: Stream<byte>
+  output started: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output success: Block<void>
+  output error: Block<void>
+  output finished: Block<void>
+  output terminated: Block<void>
   output data: Stream<byte>
 {
     setupRunner[
@@ -308,7 +627,7 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
         ],
         service_containers=service_containers
     )
-    stepOnWithInput[runner=runner, logger=logger](
+    stepOnTerminableWithInput[runner=runner, logger=logger](
         name=name,
         executor_name=|wrap<string>(name),
         commands=commands,
@@ -339,18 +658,24 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
   
   oneFailed: one<void>()
   setupRunner.failed ----------> oneFailed.a,value -> Self.failed
-  stepOnWithInput.failed ------> oneFailed.b
+  stepOnTerminableWithInput.failed ------> oneFailed.b
 
-  stepOnWithInput.finished -> stopRunner.trigger
+  stepOnTerminableWithInput.finished -> stopRunner.trigger
 
-  Self.trigger -> setupRunner.trigger,ready -> stepOnWithInput.trigger,finished -> Self.finished
-  Self.data ---------------------------------> stepOnWithInput.data
-                                               stepOnWithInput.completed --------> Self.completed
-                                               stepOnWithInput.started ----------> Self.started
-                                               stepOnWithInput.data -------------> Self.data
+  Self.trigger -> setupRunner.trigger,ready -> stepOnTerminableWithInput.trigger,finished ----> Self.finished
+  Self.terminate ----------------------------> stepOnTerminableWithInput.terminate
+  Self.data ---------------------------------> stepOnTerminableWithInput.data
+                                               stepOnTerminableWithInput.completed -----------> Self.completed
+                                               stepOnTerminableWithInput.started -------------> Self.started
+                                               stepOnTerminableWithInput.success -------------> Self.success
+                                               stepOnTerminableWithInput.error ---------------> Self.error
+                                               stepOnTerminableWithInput.data ----------------> Self.data
+                                               stepOnTerminableWithInput.terminated ----------> Self.terminated
 
-  Self.trigger --------------> setServiceState.pending
-  stepOnWithInput.started ---> setServiceState.running
-  oneFailed.value -----------> setServiceState.failed
-  stepOnWithInput.completed -> setServiceState.success
+  Self.trigger -------------------------> setServiceState.pending
+  stepOnTerminableWithInput.started ----> setServiceState.running
+  oneFailed.value ----------------------> setServiceState.failed
+  stepOnTerminableWithInput.success ----> setServiceState.success
+  stepOnTerminableWithInput.error ------> setServiceState.error
+  stepOnTerminableWithInput.terminated -> setServiceState.canceled
 }
