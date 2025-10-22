@@ -1,9 +1,10 @@
 use process/command::Command
 use process/environment::Environment
 use process/exec::Executor
-use process/exec::spawn
+use process/exec::spawnTerminable
 use std/data/string_map::|map
 use std/flow::close
+use std/flow::closeBlock
 use std/flow::emit
 use std/flow::filterBlock
 use std/flow::flock
@@ -98,6 +99,80 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
   output error: Block<void>
   output data: Stream<byte>
 {
+
+    stepOnTerminableWithInput[runner=runner, logger=logger](
+      name=name,
+      executor_name=executor_name,
+      environment=environment,
+      commands=commands,
+      out_filesystem=out_filesystem,
+      out_file=out_file,
+      stop_on_failure=stop_on_failure
+    )
+    closeBlock<void>()
+
+    Self.trigger ------------------------------> stepOnTerminableWithInput.trigger
+    Self.trigger -> closeBlock.trigger,closed -> stepOnTerminableWithInput.terminate
+    Self.data ---------------------------------> stepOnTerminableWithInput.data
+    stepOnTerminableWithInput.started ---> Self.started
+    stepOnTerminableWithInput.finished --> Self.finished
+    stepOnTerminableWithInput.failed ----> Self.failed
+    stepOnTerminableWithInput.completed -> Self.completed
+    stepOnTerminableWithInput.success ---> Self.success
+    stepOnTerminableWithInput.error -----> Self.error
+    stepOnTerminableWithInput.data ------> Self.data
+}
+
+treatment stepOnTerminable[runner: CicdRunnerEngine, logger: Logger](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
+  input trigger: Block<void>
+  input terminate: Block<void>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+  output terminated: Block<void>
+  output success: Block<void>
+  output error: Block<void>
+  output data: Stream<byte>
+{
+    stepOnTerminableWithInput[runner=runner, logger=logger](
+      name=name,
+      executor_name=executor_name,
+      environment=environment,
+      commands=commands,
+      out_filesystem=out_filesystem,
+      out_file=out_file,
+      stop_on_failure=stop_on_failure
+    )
+    closeData: close<byte>()
+    closeBlock<void>()
+
+    Self.trigger ------------------------------> stepOnTerminableWithInput.trigger
+    Self.trigger -> closeData.trigger,closed --> stepOnTerminableWithInput.data
+    Self.trigger -> closeBlock.trigger,closed -> stepOnTerminableWithInput.terminate
+    stepOnTerminableWithInput.started ----> Self.started
+    stepOnTerminableWithInput.finished ---> Self.finished
+    stepOnTerminableWithInput.failed -----> Self.failed
+    stepOnTerminableWithInput.completed --> Self.completed
+    stepOnTerminableWithInput.terminated -> Self.terminated
+    stepOnTerminableWithInput.success ----> Self.success
+    stepOnTerminableWithInput.error ------> Self.error
+    stepOnTerminableWithInput.data -------> Self.data
+}
+
+treatment stepOnTerminableWithInput[runner: CicdRunnerEngine, logger: Logger](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
+  input trigger: Block<void>
+  input data: Stream<byte>
+  input terminate: Block<void>
+  output started: Block<void>
+  output finished: Block<void>
+  output failed: Block<void>
+  output completed: Block<void>
+  output terminated: Block<void>
+  output success: Block<void>
+  output error: Block<void>
+  output data: Stream<byte>
+{
     distribute[distributor=runner]()
 
     Self.trigger -> distribute.trigger
@@ -115,6 +190,7 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     sendExecutorName: sendBlock<Option<string>>[distributor=runner](name="executor_name")
     sendEnvironment: sendBlock<Option<Environment>>[distributor=runner](name="environment")
     sendCommands: sendStream<Command>[distributor=runner](name="commands")
+    sendTerminate: sendBlock<void>[distributor=runner](name="terminate")
     sendOutFilesystemName: sendBlock<string>[distributor=runner](name="out_filesystem_name")
     sendOutFileName: sendBlock<string>[distributor=runner](name="out_file_name")
 
@@ -122,6 +198,7 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     recvFinished: recvBlock<void>[distributor=runner](name="finished")
     recvFailed: recvBlock<void>[distributor=runner](name="failed")
     recvCompleted: recvBlock<void>[distributor=runner](name="completed")
+    recvTerminated: recvBlock<void>[distributor=runner](name="terminated")
     recvSuccess: recvBlock<void>[distributor=runner](name="success")
     recvError: recvBlock<void>[distributor=runner](name="error")
     recvData: recvStream<byte>[distributor=runner](name="data")
@@ -134,12 +211,14 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     distribute.distribution_id -> sendExecutorName.distribution_id
     distribute.distribution_id -> sendEnvironment.distribution_id
     distribute.distribution_id -> sendCommands.distribution_id
+    distribute.distribution_id -> sendTerminate.distribution_id
     distribute.distribution_id -> sendOutFilesystemName.distribution_id
     distribute.distribution_id -> sendOutFileName.distribution_id
     distribute.distribution_id -> recvStarted.distribution_id
     distribute.distribution_id -> recvFinished.distribution_id
     distribute.distribution_id -> recvFailed.distribution_id
     distribute.distribution_id -> recvCompleted.distribution_id
+    distribute.distribution_id -> recvTerminated.distribution_id
     distribute.distribution_id -> recvSuccess.distribution_id
     distribute.distribution_id -> recvError.distribution_id
     distribute.distribution_id -> recvData.distribution_id
@@ -169,7 +248,8 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     Self.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector,value -> sendCommands.data
     Self.trigger -> emitOutFilesystemName.trigger,emit -> unwrapOutFilesystemName.option,value -> sendOutFilesystemName.data
     Self.trigger -> emitOutFileName.trigger,emit -> unwrapOutFileName.option,value -> sendOutFileName.data
-    Self.data ----> sendData.data
+    Self.terminate -> sendTerminate.data
+    Self.data ------> sendData.data
 
     reportStreamLog[logger=logger](prefix_message = name)
     recvLogs.data -> reportStreamLog.logs
@@ -188,6 +268,7 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
     recvFinished.data -> streamFinished.block,stream -> triggerAllFinished.stream,end -> Self.finished
     recvFailed.data ------------------------------------> distribOrStepFailed.b,value -> Self.failed
     recvCompleted.data ----------------------------------------------------------------> Self.completed
+    recvTerminated.data ---------------------------------------------------------------> Self.terminated
     recvSuccess.data ------------------------------------------------------------------> Self.success
     recvError.data --------------------------------------------------------------------> Self.error
     recvData.data ---------------------------------------------------------------------> Self.data
@@ -201,6 +282,7 @@ treatment step(var label: string)
   input executor_name: Block<Option<string>>
   input environment: Block<Option<Environment>>
   input commands: Stream<Command>
+  input terminate: Block<void>
   input out_filesystem_name: Block<string>
   input out_file_name: Block<string>
   output started: Block<void>
@@ -208,6 +290,7 @@ treatment step(var label: string)
   output failed: Block<void>
   output completed: Block<void>
   output success: Block<void>
+  output terminated: Block<void>
   output error: Block<void>
   output data: Stream<byte>
   output logs: Stream<Log>
@@ -228,6 +311,7 @@ treatment step(var label: string)
     Self.executor_name -> releaseExecutorName.data,released -> spawnCommands.executor_name
     Self.environment ----------------------------------------> spawnCommands.environment
     Self.commands -------------------------------------------> spawnCommands.commands
+    Self.terminate ------------------------------------------> spawnCommands.terminate
 
     readFile[logger=logger](label=label)
     uncheckSpawnCommandsFailed: uncheck<void>()
@@ -257,6 +341,7 @@ treatment step(var label: string)
     triggerSpawnAndReadFileFinished.last -----> Self.finished
     spawnOrReadFileFailed.value --------------> Self.failed
     waitSpawnAndReadFileCompleted.awaited ----> Self.completed
+    spawnCommands.terminated -----------------> Self.terminated
     spawnCommands.success --------------------> Self.success
     spawnCommands.error ----------------------> Self.error
 
@@ -271,15 +356,17 @@ treatment spawnCommands[logger: Logger](var label: string)
   input executor_name: Block<Option<string>>
   input environment: Block<Option<Environment>>
   input commands: Stream<Command>
+  input terminate: Block<void>
   output started: Block<void>
   output finished: Block<void>
   output failed: Block<void>
   output completed: Block<void>
+  output terminated: Block<void>
   output success: Block<void>
   output error: Block<void>
 {
     getExecutor()
-    spawn()
+    spawnTerminable()
     triggerExit: trigger<Option<i32>>()
     unwrapExit: unwrap<i32>()
     equalToExit: equalTo<i32>(value=0)
@@ -288,13 +375,14 @@ treatment spawnCommands[logger: Logger](var label: string)
     oneExit: one<bool>()
     filterExit: filterBlock<void>()
 
-    Self.executor_name -> getExecutor.name,executor -> spawn.executor
-    Self.environment --------------------------------> spawn.environment
-    Self.commands -----------------------------------> spawn.commands
+    Self.executor_name -> getExecutor.name,executor -> spawnTerminable.executor
+    Self.environment --------------------------------> spawnTerminable.environment
+    Self.commands -----------------------------------> spawnTerminable.commands
+    Self.terminate ----------------------------------> spawnTerminable.terminate
 
     executorOrSpawnFailed: one<void>()
-    getExecutor.failed -> executorOrSpawnFailed.a
-    spawn.failed -------> executorOrSpawnFailed.b
+    getExecutor.failed -----> executorOrSpawnFailed.a
+    spawnTerminable.failed -> executorOrSpawnFailed.b
 
     logExecutorErr: logError[logger=logger](label=label)
     getExecutor.error -> logExecutorErr.message
@@ -304,25 +392,26 @@ treatment spawnCommands[logger: Logger](var label: string)
     logSpawnErrs: logDebugs[logger=logger](label=label)
     logSpawnInfosString: ioToString()
     logSpawnInfos: logDebugs[logger=logger](label=label)
-    spawn.error --> logSpawnErr.message
-    spawn.stderr -> logSpawnErrsString.stdio,lines --> logSpawnErrs.messages
-    spawn.stdout -> logSpawnInfosString.stdio,lines -> logSpawnInfos.messages
+    spawnTerminable.error --> logSpawnErr.message
+    spawnTerminable.stderr -> logSpawnErrsString.stdio,lines --> logSpawnErrs.messages
+    spawnTerminable.stdout -> logSpawnInfosString.stdio,lines -> logSpawnInfos.messages
 
     waitAllMessages: waitBlock<void>()
     waitSpawnFinishedAndAllMessages: waitBlock<void>()
 
     logSpawnErrs.ended --> waitAllMessages.a
     logSpawnInfos.ended -> waitAllMessages.b,awaited -> waitSpawnFinishedAndAllMessages.a
-    spawn.finished -----------------------------------> waitSpawnFinishedAndAllMessages.b
+    spawnTerminable.finished -------------------------> waitSpawnFinishedAndAllMessages.b
 
-    spawn.started ----------------------------> Self.started
+    spawnTerminable.started ------------------> Self.started
     waitSpawnFinishedAndAllMessages.awaited --> Self.finished
     executorOrSpawnFailed.value --------------> Self.failed
-    spawn.completed --------------------------> Self.completed
+    spawnTerminable.completed ----------------> Self.completed
+    spawnTerminable.terminated ---------------> Self.terminated
 
-    spawn.exit -> triggerExit.stream,last -> unwrapExit.option,value -> equalToExit.data,result ------------------------------> oneExit.a,value -> filterExit.select
-                                             unwrapExit.value --------> uncheckExit.value,uncheck -> emitNoExit.trigger,emit -> oneExit.b
+    spawnTerminable.exit -> triggerExit.stream,last -> unwrapExit.option,value -> equalToExit.data,result ------------------------------> oneExit.a,value -> filterExit.select
+                                                       unwrapExit.value --------> uncheckExit.value,uncheck -> emitNoExit.trigger,emit -> oneExit.b
 
-    spawn.started -> filterExit.value,accepted -> Self.success
-                     filterExit.rejected -------> Self.error
+    spawnTerminable.started -> filterExit.value,accepted -> Self.success
+                               filterExit.rejected -------> Self.error
 }

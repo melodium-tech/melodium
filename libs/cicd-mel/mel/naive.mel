@@ -17,6 +17,7 @@ use std/data/string_map::|map
 use std/flow::one
 use std/flow::emit
 use std/flow::stream
+use std/flow::closeBlock
 use std/flow/vec::flatten
 use std/ops/num::|saturating_add
 use std/ops/num::|div
@@ -66,10 +67,12 @@ treatment localStep[logger: Logger](
     emitCommands: emit<Vec<Command>>(value=commands)
     streamCommands: stream<Vec<Command>>()
     flattenCommands: flatten<Command>()
+    closeTerminate: closeBlock<void>()
 
     Self.trigger -> emitExecutorName.trigger,emit -> spawnCommands.executor_name
     Self.trigger -> emitEnvironment.trigger,emit --> spawnCommands.environment
     Self.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector,value -> spawnCommands.commands
+    Self.trigger -> closeTerminate.trigger,closed -> spawnCommands.terminate
 
     setServiceState[logger=logger](
         name=name,
