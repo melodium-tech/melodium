@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.9.1]
+
+- Improving track building mechanism.
+- Adding stack size increase on need.
+
 ## [v0.9.0]
 
 - Improving data transmission.
