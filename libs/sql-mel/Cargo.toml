@@ -1,6 +1,6 @@
 [package]
 name = "sql-mel"
-version = "0.9.0"
+version = "0.9.1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -18,9 +18,9 @@ name = "sql_mel"
 
 [dependencies]
 async-std = {version="1.13", features=["unstable"]}
-melodium-core = { path = "../../melodium-core", version = "0.9.0" }
-melodium-macro = { path = "../../melodium-macro", version = "0.9.0" }
-std-mel = { path = "../std-mel", version = "0.9.0" }
+melodium-core = { path = "../../melodium-core", version = "0.9.1" }
+melodium-macro = { path = "../../melodium-macro", version = "0.9.1" }
+std-mel = { path = "../std-mel", version = "0.9.1" }
 sqlx = { version = "0.8" }
 
 [features]
@@ -29,5 +29,19 @@ plugin = []
 real = ["sqlx/runtime-async-std", "sqlx/postgres", "sqlx/mysql", "sqlx/tls-rustls"]
 
 [package.metadata.docs.rs]
-all-features = true
+features = ["mock"]
 rustdoc-args = ["--cfg", "docsrs"]
+default-target = "x86_64-unknown-linux-gnu"
+targets = [
+    "aarch64-unknown-linux-gnu",
+    "aarch64-unknown-linux-musl",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "riscv64gc-unknown-linux-gnu",
+    "s390x-unknown-linux-gnu",
+    "aarch64-apple-darwin",
+    "aarch64-pc-windows-msvc",
+    "x86_64-pc-windows-gnu",
+    "wasm32-unknown-unknown"
+]
+

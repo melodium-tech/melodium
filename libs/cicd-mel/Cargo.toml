@@ -1,6 +1,6 @@
 [package]
 name = "cicd-mel"
-version = "0.9.0"
+version = "0.9.1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -19,17 +19,17 @@ name = "cicd_mel"
 [dependencies]
 async-std = "1.13"
 dotenvy = "0.15"
-melodium-core = { path = "../../melodium-core", version = "0.9.0" }
-melodium-macro = { path = "../../melodium-macro", version = "0.9.0" }
-std-mel = { path = "../std-mel", version = "0.9.0" }
-http-mel = { path = "../http-mel", version = "0.9.0" }
-javascript-mel = { path = "../javascript-mel", version = "0.9.0" }
-json-mel = { path = "../json-mel", version = "0.9.0" }
-log-mel = { path = "../log-mel", version = "0.9.0" }
-process-mel = { path = "../process-mel", version = "0.9.0" }
-fs-mel = { path = "../fs-mel", version = "0.9.0" }
-work-mel = { path = "../work-mel", version = "0.9.0" }
-distrib-mel = { path = "../distrib-mel", version = "0.9.0" }
+melodium-core = { path = "../../melodium-core", version = "0.9.1" }
+melodium-macro = { path = "../../melodium-macro", version = "0.9.1" }
+std-mel = { path = "../std-mel", version = "0.9.1" }
+http-mel = { path = "../http-mel", version = "0.9.1" }
+javascript-mel = { path = "../javascript-mel", version = "0.9.1" }
+json-mel = { path = "../json-mel", version = "0.9.1" }
+log-mel = { path = "../log-mel", version = "0.9.1" }
+process-mel = { path = "../process-mel", version = "0.9.1" }
+fs-mel = { path = "../fs-mel", version = "0.9.1" }
+work-mel = { path = "../work-mel", version = "0.9.1" }
+distrib-mel = { path = "../distrib-mel", version = "0.9.1" }
 regex = "1.9.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.105"
@@ -40,5 +40,18 @@ plugin = []
 real = []
 
 [package.metadata.docs.rs]
-all-features = true
+features = ["mock"]
 rustdoc-args = ["--cfg", "docsrs"]
+default-target = "x86_64-unknown-linux-gnu"
+targets = [
+    "aarch64-unknown-linux-gnu",
+    "aarch64-unknown-linux-musl",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "riscv64gc-unknown-linux-gnu",
+    "s390x-unknown-linux-gnu",
+    "aarch64-apple-darwin",
+    "aarch64-pc-windows-msvc",
+    "x86_64-pc-windows-gnu",
+    "wasm32-unknown-unknown"
+]

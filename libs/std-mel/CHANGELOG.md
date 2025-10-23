@@ -1,6 +1,10 @@
 
 # Changelog
 
+## [v0.9.1]
+
+- Adding `flow/closeBlock`, `ops/block/equal`, and `ops/block/equalTo` treatments.
+
 ## [v0.9.0]
 
 - Moving Map data type.

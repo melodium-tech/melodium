@@ -1,6 +1,6 @@
 [package]
 name = "melodium-repository"
-version = "0.9.0"
+version = "0.9.1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2018"
@@ -22,7 +22,7 @@ required-features = [ "cargo" ]
 doc = false
 
 [dependencies]
-melodium-common = { path = "../melodium-common", version = "0.9.0" }
+melodium-common = { path = "../melodium-common", version = "0.9.1" }
 async-std = { version = "1.13", optional = true }
 cargo_author = "1.0.6"
 cargo_metadata = { version = "0.19", optional = true }
@@ -41,5 +41,18 @@ network = [ "http-client", "once_cell", "async-std" ]
 cargo = [ "cargo_metadata" ]
 
 [package.metadata.docs.rs]
-all-features = true
+features = ["network"]
 rustdoc-args = ["--cfg", "docsrs"]
+default-target = "x86_64-unknown-linux-gnu"
+targets = [
+    "aarch64-unknown-linux-gnu",
+    "aarch64-unknown-linux-musl",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "riscv64gc-unknown-linux-gnu",
+    "s390x-unknown-linux-gnu",
+    "aarch64-apple-darwin",
+    "aarch64-pc-windows-msvc",
+    "x86_64-pc-windows-gnu",
+    "wasm32-unknown-unknown"
+]
