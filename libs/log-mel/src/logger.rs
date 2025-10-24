@@ -65,18 +65,26 @@ pub struct Log {
     pub level: LogLevel,
     pub label: String,
     pub message: String,
+    pub track_id: Option<usize>,
     #[serde(deserialize_with = "deserialize_increment_log_count")]
     _count: (),
 }
 
 impl Log {
-    pub fn new(timestamp: DateTime<Utc>, level: LogLevel, label: String, message: String) -> Self {
+    pub fn new(
+        timestamp: DateTime<Utc>,
+        level: LogLevel,
+        label: String,
+        message: String,
+        track_id: Option<usize>,
+    ) -> Self {
         LOG_COUNT.fetch_add(1, Ordering::Relaxed);
         Self {
             timestamp,
             level,
             label,
             message,
+            track_id,
             _count: (),
         }
     }
@@ -242,11 +250,12 @@ pub async fn stop() {
 
 #[mel_treatment(
     model logger Logger
+    default same_track_only true
     input trigger Block<void>
     input stop Block<void>
     output logs Stream<Log>
 )]
-pub async fn track_logs() {
+pub async fn track_logs(same_track_only: bool) {
     let logger = LoggerModel::into(logger);
 
     if let Ok(_) = trigger.recv_one().await {
@@ -265,14 +274,19 @@ pub async fn track_logs() {
         .fuse();
 
         let transmit = async {
-            while let Ok(values) = receiver.recv().await {
-                check!(
-                    logs.send_many(TransmissionValue::Other(
-                        values.into_iter().map(|val| Value::Data(val)).collect()
-                    ))
-                    .await
-                );
-                logs.force_send().await;
+            while let Ok(mut values) = receiver.recv().await {
+                if same_track_only {
+                    values.retain(|log| log.track_id == Some(track_id));
+                }
+                if !values.is_empty() {
+                    check!(
+                        logs.send_many(TransmissionValue::Other(
+                            values.into_iter().map(|val| Value::Data(val)).collect()
+                        ))
+                        .await
+                    );
+                    logs.force_send().await;
+                }
             }
         }
         .fuse();
@@ -443,6 +457,7 @@ pub async fn log_stream(level: Level, label: string) {
                             level.level.clone(),
                             label.clone(),
                             msg,
+                            Some(track_id),
                         ))
                     })
                     .collect(),
@@ -489,6 +504,7 @@ pub async fn log_stream_label(level: Level) {
                                 level.level.clone(),
                                 label.clone(),
                                 msg,
+                                Some(track_id),
                             ))
                         })
                         .collect(),
@@ -529,6 +545,7 @@ pub async fn log_block(level: Level, label: string) {
                     level.level.clone(),
                     label.clone(),
                     msg,
+                    Some(track_id),
                 ))]
                 .into(),
             )
@@ -569,6 +586,7 @@ pub async fn log_block_label(level: Level) {
                         level.level.clone(),
                         label.clone(),
                         msg,
+                        Some(track_id),
                     ))]
                     .into(),
                 )
@@ -608,6 +626,7 @@ pub async fn log_data_stream(level: Level, label: string) {
                             level.level.clone(),
                             label.clone(),
                             format!("{val}"),
+                            Some(track_id),
                         ))
                     })
                     .collect(),
@@ -656,6 +675,7 @@ pub async fn log_data_stream_label(level: Level) {
                                 level.level.clone(),
                                 label.clone(),
                                 format!("{val}"),
+                                Some(track_id),
                             ))
                         })
                         .collect(),
@@ -692,6 +712,7 @@ pub async fn log_data_block(level: Level, label: string) {
                     level.level.clone(),
                     label.clone(),
                     format!("{val}"),
+                    Some(track_id),
                 ))]
                 .into(),
             )
@@ -729,6 +750,7 @@ pub async fn log_data_block_label(level: Level) {
                         level.level.clone(),
                         label.clone(),
                         format!("{val}"),
+                        Some(track_id),
                     ))]
                     .into(),
                 )
