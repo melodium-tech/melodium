@@ -284,6 +284,7 @@ pub async fn exec_terminable() {
                         Box::pin({
                             let exit = &exit;
                             async move {
+                                eprintln!("exec_terminable exit: {code:?}");
                                 let _ = exit.send_one(code.into()).await;
                             }
                         })
@@ -294,6 +295,7 @@ pub async fn exec_terminable() {
                 break;
             }
         }
+        eprintln!("exec_terminable completed: {completed:?}");
         if success && !send_terminated {
             let _ = completed.send_one(().into()).await;
         } else if !success && !send_terminated {
