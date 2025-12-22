@@ -550,6 +550,7 @@ pub async fn spawn_terminable() {
                     }),
                     Box::new(|msg: String| {
                         Box::pin(async {
+                            eprintln!("## Error: {msg:?}");
                             let _ = error.send_one(msg.into()).await;
                         })
                     }),
@@ -557,6 +558,7 @@ pub async fn spawn_terminable() {
                         Box::pin({
                             let exit = &exit;
                             async move {
+                                eprintln!("## Exit code: {code:?}");
                                 let _ = exit.send_one(code.into()).await;
                             }
                         })
@@ -586,12 +588,16 @@ pub async fn spawn_terminable() {
             }
         }
         if success && !send_terminated {
+            eprintln!("## Completed");
             let _ = completed.send_one(().into()).await;
         } else if !success && !send_terminated {
+            eprintln!("## Failed");
             let _ = failed.send_one(().into()).await;
         } else if send_terminated {
+            eprintln!("## Terminated");
             let _ = terminated.send_one(().into()).await;
         }
+        eprintln!("## Finished");
         let _ = finished.send_one(().into()).await;
     }
 }
