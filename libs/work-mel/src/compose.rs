@@ -13,7 +13,7 @@ use compose_spec::{
             mount::{Bind, BindOptions, Common, Volume},
             HostPath, Mount,
         },
-        AbsolutePath, /*Cpus,*/ Image,
+        AbsolutePath, Hostname, /*Cpus,*/ Image,
     },
     Compose, Identifier, ListOrMap, Map, MapKey, Service, /*Value,*/
 };
@@ -141,6 +141,9 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 Identifier::new(format!("{short_id}-container-custom-{}", container.name))
                     .map_err(|err| vec![err.to_string()])?,
             ),
+            hostname: Some(
+                Hostname::new(container.name.clone()).map_err(|err| vec![err.to_string()])?,
+            ),
             image: Some(
                 Image::parse(container.image.clone()).map_err(|err| vec![err.to_string()])?,
             ),
@@ -193,6 +196,9 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             container_name: Some(
                 Identifier::new(format!("{short_id}-container-service-{}", container.name))
                     .map_err(|err| vec![err.to_string()])?,
+            ),
+            hostname: Some(
+                Hostname::new(container.name.clone()).map_err(|err| vec![err.to_string()])?,
             ),
             image: Some(
                 Image::parse(container.image.clone()).map_err(|err| vec![err.to_string()])?,
