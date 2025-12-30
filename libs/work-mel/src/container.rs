@@ -18,8 +18,10 @@ use process_mel::{
 use regex::{Captures, Replacer};
 use std::{
     collections::{HashMap, HashSet},
-    process::Stdio,
+    process::Stdio
 };
+#[cfg(feature = "real")]
+use std::os::unix::fs::OpenOptionsExt;
 
 #[derive(Debug)]
 pub struct ContainerExecutor {
@@ -769,6 +771,7 @@ impl FileSystemEngine for ContainerFileSystem {
                     .append(append)
                     .create(create)
                     .create_new(new)
+                    .mode(0o644)
                     .open(path)
                     .await;
                 match file {
