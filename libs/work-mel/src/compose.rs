@@ -147,7 +147,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             image: Some(
                 Image::parse(container.image.clone()).map_err(|err| vec![err.to_string()])?,
             ),
-            user: Some(User::parse("1000:1000").map_err(|err| vec![err.to_string()])?),
+            //user: Some(User::parse("1000:1000").map_err(|err| vec![err.to_string()])?),
             command: Some(compose_spec::service::Command::List(vec![
                 "/bin/sh".to_string(),
                 "-c".to_string(),
@@ -204,7 +204,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             image: Some(
                 Image::parse(container.image.clone()).map_err(|err| vec![err.to_string()])?,
             ),
-            user: Some(User::parse("1000:1000").map_err(|err| vec![err.to_string()])?),
+            //user: Some(User::parse("1000:1000").map_err(|err| vec![err.to_string()])?),
             environment: ListOrMap::Map(
                 container
                     .env
@@ -394,7 +394,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             ))
             .map_err(|err| vec![err.to_string()])?,
         ),
-        user: Some(User::parse("1000:1000").map_err(|err| vec![err.to_string()])?),
+        //user: Some(User::parse("1000:1000").map_err(|err| vec![err.to_string()])?),
         depends_on: compose_spec::ShortOrLong::Short(
             containers
                 .iter()
