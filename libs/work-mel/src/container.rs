@@ -16,12 +16,12 @@ use process_mel::{
     exec::*,
 };
 use regex::{Captures, Replacer};
-use std::{
-    collections::{HashMap, HashSet},
-    process::Stdio
-};
 #[cfg(feature = "real")]
 use std::os::unix::fs::OpenOptionsExt;
+use std::{
+    collections::{HashMap, HashSet},
+    process::Stdio,
+};
 
 #[derive(Debug)]
 pub struct ContainerExecutor {

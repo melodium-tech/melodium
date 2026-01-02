@@ -135,7 +135,11 @@ pub async fn write(append: bool, create: bool, new: bool) {
                 Box::new(|amt: u128| {
                     Box::pin({
                         let amount = &amount;
-                        async move { errors.send_one(format!("Wrote {amt} bytes").into()).await; errors.force_send().await;amount.send_one(amt.into()).await.map_err(|_| ()) }
+                        async move {
+                            errors.send_one(format!("Wrote {amt} bytes").into()).await;
+                            errors.force_send().await;
+                            amount.send_one(amt.into()).await.map_err(|_| ())
+                        }
                     })
                 }),
                 Box::new(|| {
@@ -160,9 +164,18 @@ pub async fn write(append: bool, create: bool, new: bool) {
                     })
                 }),
                 Box::new(|msg: String| {
-                    Box::pin(async { errors.send_one(msg.into()).await.map_err(|_| ());errors.force_send().await; Ok(()) })
+                    Box::pin(async {
+                        errors.send_one(msg.into()).await.map_err(|_| ());
+                        errors.force_send().await;
+                        Ok(())
+                    })
                 }),
             )
             .await
+    } else {
+        errors
+            .send_one(format!("Nothing received for fs and file path").into())
+            .await;
+        errors.force_send().await;
     }
 }
