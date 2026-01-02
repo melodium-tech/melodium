@@ -134,6 +134,8 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
 
     stepOnTerminableWithInput[runner=runner, logger=logger](
       name=name,
+      in_filesystem=in_filesystem,
+      in_file=in_file,
       executor_name=executor_name,
       environment=environment,
       commands=commands,
