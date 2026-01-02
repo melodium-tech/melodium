@@ -771,14 +771,15 @@ impl FileSystemEngine for ContainerFileSystem {
                     .append(append)
                     .create(create)
                     .create_new(new)
-                    .mode(0o644)
                     .open(path)
                     .await;
                 match file {
                     Ok(mut file) => {
                         let mut written_amount = 0u128;
                         let mut fail = false;
+                        errors("file opened".into()).await;
                         while let Ok(data) = data().await {
+                            errors("data received".into()).await;
                             match file.write_all(&data).await {
                                 Ok(_) => {
                                     written_amount += data.len() as u128;
