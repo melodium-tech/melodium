@@ -3,7 +3,6 @@ use fs/file::write
 use log/logger::Logger
 use log/log::logErrors
 use log/log::logError
-use log/log::logTrace
 use std/flow::one
 use std/text/convert/string::fromUtf8
 use std/text/compose::rescale
@@ -31,11 +30,6 @@ treatment writeFile[logger: Logger](var label: string)
 {
     getFileSystem()
     write()
-
-    logTraceFsName: logTrace[logger=logger]()
-    logTraceFileName: logTrace[logger=logger]()
-    Self.filesystem_name -> logTraceFsName.message
-    Self.file_path -> logTraceFileName.message
 
     Self.filesystem_name -> getFileSystem.name,filesystem -> write.filesystem
     Self.file_path ----------------------------------------> write.path

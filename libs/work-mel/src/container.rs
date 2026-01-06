@@ -16,8 +16,6 @@ use process_mel::{
     exec::*,
 };
 use regex::{Captures, Replacer};
-#[cfg(feature = "real")]
-use std::os::unix::fs::OpenOptionsExt;
 use std::{
     collections::{HashMap, HashSet},
     process::Stdio,
@@ -777,9 +775,7 @@ impl FileSystemEngine for ContainerFileSystem {
                     Ok(mut file) => {
                         let mut written_amount = 0u128;
                         let mut fail = false;
-                        errors("file opened".into()).await;
                         while let Ok(data) = data().await {
-                            errors("data received".into()).await;
                             match file.write_all(&data).await {
                                 Ok(_) => {
                                     written_amount += data.len() as u128;
