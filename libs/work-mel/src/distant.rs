@@ -181,11 +181,15 @@ impl DistantEngine {
         match response {
             Ok((access, mut child)) => {
                 let finish_notification = async move {
+                    eprintln!("AWAITING finish_notification");
                     let status = child.status().await;
+
+                    eprintln!("GOT finish_notification: {status:?}");
 
                     if let (Some(job_api_id), Some(api_url), Some(api_token)) =
                         (job_api_id, api_url, api_token)
                     {
+                        eprintln!("SENDING finish_notification");
                         let _ = generic_async_http_client::Request::post(&format!(
                             "{api_url}/execution/job/ended"
                         ))
@@ -219,6 +223,7 @@ impl DistantEngine {
                         )?
                         .exec()
                         .await;
+                        eprintln!("DONE finish_notification");
                     }
                     Ok::<(), generic_async_http_client::Error>(())
                 };
