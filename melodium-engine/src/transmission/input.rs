@@ -1,6 +1,7 @@
 use async_std::channel::{bounded, Receiver, Sender};
 use async_std::sync::Mutex as AsyncMutex;
 use async_trait::async_trait;
+use melodium_common::descriptor::Flow;
 use melodium_common::executive::{
     Input as ExecutiveInput, RecvResult, TransmissionError, TransmissionValue, Value,
 };
@@ -10,20 +11,26 @@ pub struct Input {
     receiver: Receiver<TransmissionValue>,
     sender: Sender<TransmissionValue>,
     buffer: AsyncMutex<Option<TransmissionValue>>,
+    flow: Flow,
 }
 
 impl Input {
-    pub fn new() -> Self {
+    pub fn new(flow: Flow) -> Self {
         let (sender, receiver) = bounded(1);
         Self {
             receiver,
             sender,
             buffer: AsyncMutex::new(None),
+            flow,
         }
     }
 
     pub fn sender(&self) -> &Sender<TransmissionValue> {
         &self.sender
+    }
+
+    pub fn flow(&self) -> &Flow {
+        &self.flow
     }
 }
 
@@ -74,6 +81,7 @@ impl Clone for Input {
             receiver: self.receiver.clone(),
             sender: self.sender.clone(),
             buffer: AsyncMutex::new(None),
+            flow: self.flow.clone(),
         }
     }
 }

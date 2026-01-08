@@ -16,7 +16,9 @@ use core::fmt::Debug;
 use futures::future::join;
 use futures::stream::{FuturesUnordered, StreamExt};
 use futures::{pin_mut, select, FutureExt};
-use melodium_common::descriptor::{Collection, Entry as CollectionEntry, Identifier, Treatment};
+use melodium_common::descriptor::{
+    Collection, Entry as CollectionEntry, Flow, Identifier, Treatment,
+};
 use melodium_common::executive::{
     Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback, Input as ExecutiveInput,
     Model, ModelId, Output as ExecutiveOutput, ResultStatus, TrackCreationCallback, TrackFuture,
@@ -210,18 +212,18 @@ impl World {
         }
     }
 
-    pub fn new_input(&self) -> Input {
-        Input::new()
+    pub fn new_input(&self, flow: Flow) -> Input {
+        Input::new(flow)
     }
 
-    pub fn new_blocked_input(&self) -> Input {
-        let input = Input::new();
+    pub fn new_blocked_input(&self, flow: Flow) -> Input {
+        let input = Input::new(flow);
         input.close();
         input
     }
 
-    pub fn new_output(&self) -> Output {
-        Output::new()
+    pub fn new_output(&self, flow: Flow) -> Output {
+        Output::new(flow)
     }
 
     async fn run_tracks(&self) {
@@ -481,8 +483,8 @@ impl Engine for World {
         let contextual_environment = ContextualEnvironment::new(track_id);
 
         let mut inputs = HashMap::new();
-        for (name, _) in main.outputs() {
-            let input = self.new_input();
+        for (name, descriptor) in main.outputs() {
+            let input = self.new_input(*descriptor.flow());
             inputs.insert(name.clone(), input);
         }
         {

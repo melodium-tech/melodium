@@ -167,13 +167,13 @@ impl BuilderTrait for Builder {
                     .unwrap();
 
                 let mut inputs = HashMap::new();
-                for (name, _) in descriptor.inputs() {
-                    let input = world.new_input();
+                for (name, descriptor) in descriptor.inputs() {
+                    let input = world.new_input(*descriptor.flow());
                     treatment.assign_input(name, Box::new(input.clone()));
                     inputs.insert(name.clone(), input);
                 }
-                for (name, _) in descriptor.outputs() {
-                    let output = world.new_output();
+                for (name, descriptor) in descriptor.outputs() {
+                    let output = world.new_output(*descriptor.flow());
                     if let Some(inputs) = host_build.feeding_inputs.get(name) {
                         output.add_transmission(inputs);
                     }
@@ -193,13 +193,13 @@ impl BuilderTrait for Builder {
                 let direct_inputs = world.direct(&environment.track_id()).to_success().unwrap();
 
                 let mut inputs = HashMap::new();
-                for (name, _) in descriptor.inputs() {
-                    let input = world.new_input();
+                for (name, descriptor) in descriptor.inputs() {
+                    let input = world.new_input(*descriptor.flow());
                     treatment.assign_input(name, Box::new(input.clone()));
                     inputs.insert(name.clone(), input);
                 }
-                for (name, _) in descriptor.outputs() {
-                    let output = world.new_output();
+                for (name, descriptor) in descriptor.outputs() {
+                    let output = world.new_output(*descriptor.flow());
                     if let Some(inputs) = direct_inputs.get(name) {
                         output.add_transmission(inputs);
                     }

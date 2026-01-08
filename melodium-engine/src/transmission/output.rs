@@ -4,6 +4,7 @@ use async_std::sync::Mutex as AsyncMutex;
 use async_trait::async_trait;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use futures::stream::{FuturesUnordered, StreamExt};
+use melodium_common::descriptor::Flow;
 use melodium_common::executive::{
     Output as ExecutiveOutput, SendResult, TransmissionError, TransmissionValue, Value,
 };
@@ -16,14 +17,16 @@ pub struct Output {
     senders: Mutex<Arc<Vec<Sender<TransmissionValue>>>>,
     count_receivers: AtomicUsize,
     buffer: AsyncMutex<Option<TransmissionValue>>,
+    flow: Flow,
 }
 
 impl Output {
-    pub fn new() -> Self {
+    pub fn new(flow: Flow) -> Self {
         Self {
             senders: Mutex::new(Arc::new(Vec::new())),
             count_receivers: AtomicUsize::new(0),
             buffer: AsyncMutex::new(None),
+            flow,
         }
     }
 
@@ -52,7 +55,7 @@ impl Output {
         if buffer_len > 0 {
             // We can unwrap the `take` because buffer_len must be > 0, so buffer have value.
             let data = self.buffer.lock().await.take().unwrap();
-            if buffer_len >= LIMIT || force {
+            if self.flow == Flow::Block || buffer_len >= LIMIT || force {
                 match self.count_receivers.load(Ordering::Relaxed) {
                     0 => Err(TransmissionError::NoReceiver),
                     1 => {
@@ -193,7 +196,7 @@ impl ExecutiveOutput for Output {
 
 impl From<Input> for Output {
     fn from(value: Input) -> Self {
-        let o = Output::new();
+        let o = Output::new(*value.flow());
         o.add_transmission(&vec![value]);
         o
     }
