@@ -55,7 +55,7 @@ impl DistantEngine {
     pub async fn start(
         &self,
         request: api::Request,
-    ) -> Result<(api::DistributionResponse, Vec<String>), String> {
+    ) -> Result<(api::DistributionResponse, Vec<String>, Option<Box<dyn core::future::Future<Output = ()> + Send + Unpin>>), String> {
         let location = self.location.read().unwrap().clone();
         match location.as_ref().map(|loc| loc.as_str()) {
             Some("api") => self.distrib_api(request).await,
@@ -81,7 +81,7 @@ impl DistantEngine {
     async fn distrib_compose(
         &self,
         mut request: api::Request,
-    ) -> Result<(api::DistributionResponse, Vec<String>), String> {
+    ) -> Result<(api::DistributionResponse, Vec<String>, Option<Box<dyn core::future::Future<Output = ()> + Send + Unpin>>), String> {
         request.local_exec = true;
 
         let mut job_api_id = None;
@@ -311,11 +311,17 @@ impl DistantEngine {
                     Ok::<(), generic_async_http_client::Error>(())
                 };
 
-                async_std::task::spawn(finish_notification);
+                //async_std::task::spawn(finish_notification);
 
-                Ok((api::DistributionResponse::Started(Some(access)), api_errors))
+                //let future = ;
+
+                let finish_notification = async move {
+                    let _ = finish_notification.await;
+                };
+
+                Ok((api::DistributionResponse::Started(Some(access)), api_errors, Some(Box::new(Box::pin(finish_notification)))))
             }
-            Err(errs) => Ok((api::DistributionResponse::Error(errs.clone()), api_errors)),
+            Err(errs) => Ok((api::DistributionResponse::Error(errs.clone()), api_errors, None)),
         }
     }
 
@@ -323,7 +329,7 @@ impl DistantEngine {
     async fn distrib_api(
         &self,
         request: api::Request,
-    ) -> Result<(api::DistributionResponse, Vec<String>), String> {
+    ) -> Result<(api::DistributionResponse, Vec<String>, Option<Box<dyn core::future::Future<Output=()> + Send + Unpin>>), String> {
         let (api_url, api_token) = (
             self.api_url.read().unwrap().clone(),
             self.api_token.read().unwrap().clone(),
@@ -373,7 +379,7 @@ impl DistantEngine {
                                                     .await
                                                 {
                                                     Ok(distribution) => {
-                                                        return Ok((distribution, vec![]))
+                                                        return Ok((distribution, vec![], None))
                                                     }
                                                     Err(error) => {
                                                         return Err(Self::manage_error(error).await)
@@ -398,7 +404,7 @@ impl DistantEngine {
                                     }
                                 }
                                 api::Response::Error(errs) => {
-                                    Ok((api::DistributionResponse::Error(errs), vec![]))
+                                    Ok((api::DistributionResponse::Error(errs), vec![], None))
                                 }
                             },
                             Err(error) => Err(Self::manage_error(error).await),
@@ -525,7 +531,7 @@ pub async fn distant(
 
     if let Ok(_) = trigger.recv_one().await {
         match distant.start(start).await {
-            Ok((distrib, api_errors)) => {
+            Ok((distrib, api_errors, future)) => {
                 let _ = errors.send_many(api_errors.into()).await;
                 match distrib {
                     api::DistributionResponse::Started(Some(access_info)) => {
@@ -538,6 +544,12 @@ pub async fn distant(
                                 disable_tls: access_info.disable_tls,
                             }))))
                             .await;
+                        let _ = access.close().await;
+                         let _ = failed.close().await;
+                        let _ = errors.close().await;
+                        if let Some(future) = future {
+                            future.await;
+                        }
                     }
                     api::DistributionResponse::Started(None) => {}
                     api::DistributionResponse::Error(errs) => {
