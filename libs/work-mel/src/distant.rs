@@ -181,7 +181,6 @@ impl DistantEngine {
         match response {
             Ok((access, mut child)) => {
                 let finish_notification = async move {
-                    eprintln!("AWAITING finish_notification");
                     if let Some(ref mut stdin) = child.stdin {
                         use futures::AsyncWriteExt;
 
@@ -192,12 +191,9 @@ impl DistantEngine {
                         let status = child.try_status();
                         match status {
                             Ok(Some(exit)) => {
-                                eprintln!("GOT finish_notification: {status:?}");
-
                                 if let (Some(job_api_id), Some(api_url), Some(api_token)) =
                                     (job_api_id, api_url, api_token)
                                 {
-                                    eprintln!("SENDING finish_notification");
                                     let _ = generic_async_http_client::Request::post(&format!(
                                         "{api_url}/execution/job/ended"
                                     ))
@@ -231,16 +227,13 @@ impl DistantEngine {
                                 break;
                             }
                             Ok(None) => {
-                                eprintln!("No finish_notification");
                                 async_std::task::sleep(Duration::from_secs(1)).await;
                                 continue;
                             }
                             Err(err) => {
-                                eprintln!("GOT finish_notification error: {err:?}");
                                 if let (Some(job_api_id), Some(api_url), Some(api_token)) =
                                     (job_api_id, api_url, api_token)
                                 {
-                                    eprintln!("SENDING finish_notification with err {err:?}");
                                     let _ = generic_async_http_client::Request::post(&format!(
                                         "{api_url}/execution/job/ended"
                                     ))
