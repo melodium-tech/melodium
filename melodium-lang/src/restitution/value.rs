@@ -7,7 +7,7 @@ pub fn value(value: &Value, names: &BTreeMap<Identifier, String>, level: usize) 
     match value {
         Value::Raw(val) => val.to_string(),
         Value::Array(array) => format!(
-            "[{opt_n}{array}{opt_n}{opt_space}]",
+            "[{opt_n}{opt_space}{array}{opt_n}{opt_space}]",
             opt_n = if array.is_empty() { "" } else { "\n" },
             opt_space = if array.is_empty() {
                 "".to_string()
