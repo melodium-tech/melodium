@@ -7,12 +7,17 @@ pub fn value(value: &Value, names: &BTreeMap<Identifier, String>, level: usize) 
     match value {
         Value::Raw(val) => val.to_string(),
         Value::Array(array) => format!(
-            "[{opt_n}{opt_space}{array}{opt_n}{opt_space}]",
+            "[{opt_n}{opt_space}{array}{opt_n}{opt_space_n1}]",
             opt_n = if array.is_empty() { "" } else { "\n" },
             opt_space = if array.is_empty() {
                 "".to_string()
             } else {
                 "    ".repeat(level)
+            },
+            opt_space_n1 = if array.is_empty() {
+                "".to_string()
+            } else {
+                "    ".repeat(level.saturating_sub(1))
             },
             array = array
                 .iter()
@@ -54,12 +59,17 @@ pub fn value(value: &Value, names: &BTreeMap<Identifier, String>, level: usize) 
                 .join(&format!(",\n{}", "    ".repeat(level)));
 
             format!(
-                "{name}{generics}({opt_n}{opt_space}{params}{opt_n}{opt_space})",
+                "{name}{generics}({opt_n}{opt_space}{params}{opt_n}{opt_space_n1})",
                 opt_n = if params.is_empty() { "" } else { "\n" },
                 opt_space = if params.is_empty() {
                     "".to_string()
                 } else {
                     "    ".repeat(level)
+                },
+                opt_space_n1 = if params.is_empty() {
+                    "".to_string()
+                } else {
+                    "    ".repeat(level.saturating_sub(1))
                 }
             )
         }
