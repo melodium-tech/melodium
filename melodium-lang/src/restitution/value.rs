@@ -7,8 +7,14 @@ pub fn value(value: &Value, names: &BTreeMap<Identifier, String>, level: usize) 
     match value {
         Value::Raw(val) => val.to_string(),
         Value::Array(array) => format!(
-            "[{}]",
-            array
+            "[{opt_n}{array}{opt_n}{opt_space}]",
+            opt_n = if array.is_empty() { "" } else { "\n" },
+            opt_space = if array.is_empty() {
+                "".to_string()
+            } else {
+                "    ".repeat(level)
+            },
+            array = array
                 .iter()
                 .map(|val| self::value(val, names, level + 1))
                 .collect::<Vec<_>>()
@@ -48,8 +54,13 @@ pub fn value(value: &Value, names: &BTreeMap<Identifier, String>, level: usize) 
                 .join(&format!(",\n{}", "    ".repeat(level)));
 
             format!(
-                "{name}{generics}(\n{lvl}{params}\n{lvl})",
-                lvl = "    ".repeat(level)
+                "{name}{generics}({opt_n}{opt_space}{params}{opt_n}{opt_space})",
+                opt_n = if params.is_empty() { "" } else { "\n" },
+                opt_space = if params.is_empty() {
+                    "".to_string()
+                } else {
+                    "    ".repeat(level)
+                }
             )
         }
     }
