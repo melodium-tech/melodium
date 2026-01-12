@@ -893,12 +893,7 @@ pub async fn waitBlock() {
         b.recv_one().await.is_ok()
     });
 
-    eprintln!("[debug] waitBlock a: {a:?} b: {b:?}");
-
     if a && b {
-        eprintln!("[debug] waitBlock sending awaited");
         let _ = awaited.send_one(().into()).await;
     }
-
-    eprintln!("[debug] waitBlock end");
 }

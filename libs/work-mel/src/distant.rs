@@ -181,16 +181,10 @@ impl DistantEngine {
         match response {
             Ok((access, mut child)) => {
                 let finish_notification = async move {
-                    if let Some(ref mut stdin) = child.stdin {
-                        use futures::AsyncWriteExt;
 
-                        let _ = stdin.close().await;
-                    }
-                    //let status = child.status().await;
-                    loop {
-                        let status = child.try_status();
+                        let status = child.status().await;
                         match status {
-                            Ok(Some(exit)) => {
+                            Ok(exit) => {
                                 if let (Some(job_api_id), Some(api_url), Some(api_token)) =
                                     (job_api_id, api_url, api_token)
                                 {
@@ -224,11 +218,6 @@ impl DistantEngine {
                                     .exec()
                                     .await;
                                 }
-                                break;
-                            }
-                            Ok(None) => {
-                                async_std::task::sleep(Duration::from_secs(1)).await;
-                                continue;
                             }
                             Err(err) => {
                                 if let (Some(job_api_id), Some(api_url), Some(api_token)) =
@@ -255,58 +244,12 @@ impl DistantEngine {
                                     .exec()
                                     .await;
                                 }
-                                break;
-                            }
+                                
                         }
                     }
 
-                    /* eprintln!("GOT finish_notification: {status:?}");
-
-                    if let (Some(job_api_id), Some(api_url), Some(api_token)) =
-                        (job_api_id, api_url, api_token)
-                    {
-                        eprintln!("SENDING finish_notification");
-                        let _ = generic_async_http_client::Request::post(&format!(
-                            "{api_url}/execution/job/ended"
-                        ))
-                        .add_header("User-Agent", crate::USER_AGENT)?
-                        .add_header("Authorization", format!("Bearer {api_token}").as_bytes())?
-                        .add_header("Content-Type", "application/json")?
-                        .body(
-                            serde_json::to_string(&api::LocalEnd {
-                                job_id: job_api_id,
-                                result: match status {
-                                    Ok(exit) => {
-                                        if exit.success() {
-                                            api::DistributionResult::Success(None)
-                                        } else {
-                                            api::DistributionResult::Failure(Some(vec![format!(
-                                                "Compose exit code {}",
-                                                exit.code()
-                                                    .map(|code| code.to_string())
-                                                    .unwrap_or("undefined".into())
-                                            )]))
-                                        }
-                                    }
-                                    Err(err) => {
-                                        api::DistributionResult::Failure(Some(
-                                            vec![err.to_string()],
-                                        ))
-                                    }
-                                },
-                            })
-                            .unwrap(),
-                        )?
-                        .exec()
-                        .await;
-                        eprintln!("DONE finish_notification");
-                    }*/
                     Ok::<(), generic_async_http_client::Error>(())
                 };
-
-                //async_std::task::spawn(finish_notification);
-
-                //let future = ;
 
                 let finish_notification = async move {
                     let _ = finish_notification.await;
@@ -538,7 +481,7 @@ pub async fn distant(
                             }))))
                             .await;
                         let _ = access.close().await;
-                         let _ = failed.close().await;
+                        let _ = failed.close().await;
                         let _ = errors.close().await;
                         if let Some(future) = future {
                             future.await;
