@@ -291,7 +291,7 @@ impl Treatment {
                         format!(
                             "\n        {name} = {value}",
                             name = param.name,
-                            value = value(&param.value, names, 2)
+                            value = value(&param.value, names, 3)
                         )
                     })
                     .collect::<Vec<_>>()

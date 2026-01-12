@@ -102,7 +102,7 @@ impl Model {
             implementation.push_str("    ");
             implementation.push_str(&param.name);
             implementation.push_str(" = ");
-            implementation.push_str(&value(&param.value, names, 1));
+            implementation.push_str(&value(&param.value, names, 2));
             implementation.push_str("\n");
         }
 
