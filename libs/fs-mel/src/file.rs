@@ -152,7 +152,11 @@ pub async fn write(append: bool, create: bool, new: bool) {
                     })
                 }),
                 Box::new(|msg: String| {
-                    Box::pin(async { errors.send_one(msg.into()).await.map_err(|_| ()) })
+                    Box::pin(async {
+                        let _ = errors.send_one(msg.into()).await.map_err(|_| ());
+                        errors.force_send().await;
+                        Ok(())
+                    })
                 }),
             )
             .await

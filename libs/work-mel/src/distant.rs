@@ -55,7 +55,7 @@ impl DistantEngine {
     pub async fn start(
         &self,
         request: api::Request,
-    ) -> Result<(api::DistributionResponse, Vec<String>), String> {
+    ) -> Result<(api::DistributionResponse, Vec<String>, Option<Box<dyn core::future::Future<Output = ()> + Send + Unpin>>), String> {
         let location = self.location.read().unwrap().clone();
         match location.as_ref().map(|loc| loc.as_str()) {
             Some("api") => self.distrib_api(request).await,
@@ -81,7 +81,7 @@ impl DistantEngine {
     async fn distrib_compose(
         &self,
         mut request: api::Request,
-    ) -> Result<(api::DistributionResponse, Vec<String>), String> {
+    ) -> Result<(api::DistributionResponse, Vec<String>, Option<Box<dyn core::future::Future<Output = ()> + Send + Unpin>>), String> {
         request.local_exec = true;
 
         let mut job_api_id = None;
@@ -181,53 +181,83 @@ impl DistantEngine {
         match response {
             Ok((access, mut child)) => {
                 let finish_notification = async move {
-                    let status = child.status().await;
 
-                    if let (Some(job_api_id), Some(api_url), Some(api_token)) =
-                        (job_api_id, api_url, api_token)
-                    {
-                        let _ = generic_async_http_client::Request::post(&format!(
-                            "{api_url}/execution/job/ended"
-                        ))
-                        .add_header("User-Agent", crate::USER_AGENT)?
-                        .add_header("Authorization", format!("Bearer {api_token}").as_bytes())?
-                        .add_header("Content-Type", "application/json")?
-                        .body(
-                            serde_json::to_string(&api::LocalEnd {
-                                job_id: job_api_id,
-                                result: match status {
-                                    Ok(exit) => {
-                                        if exit.success() {
-                                            api::DistributionResult::Success(None)
-                                        } else {
-                                            api::DistributionResult::Failure(Some(vec![format!(
-                                                "Compose exit code {}",
-                                                exit.code()
-                                                    .map(|code| code.to_string())
-                                                    .unwrap_or("undefined".into())
-                                            )]))
-                                        }
-                                    }
-                                    Err(err) => {
-                                        api::DistributionResult::Failure(Some(
-                                            vec![err.to_string()],
-                                        ))
-                                    }
-                                },
-                            })
-                            .unwrap(),
-                        )?
-                        .exec()
-                        .await;
+                        let status = child.status().await;
+                        match status {
+                            Ok(exit) => {
+                                if let (Some(job_api_id), Some(api_url), Some(api_token)) =
+                                    (job_api_id, api_url, api_token)
+                                {
+                                    let _ = generic_async_http_client::Request::post(&format!(
+                                        "{api_url}/execution/job/ended"
+                                    ))
+                                    .add_header("User-Agent", crate::USER_AGENT)?
+                                    .add_header(
+                                        "Authorization",
+                                        format!("Bearer {api_token}").as_bytes(),
+                                    )?
+                                    .add_header("Content-Type", "application/json")?
+                                    .body(
+                                        serde_json::to_string(&api::LocalEnd {
+                                            job_id: job_api_id,
+                                            result: if exit.success() {
+                                                api::DistributionResult::Success(None)
+                                            } else {
+                                                api::DistributionResult::Failure(Some(vec![
+                                                    format!(
+                                                        "Compose exit code {}",
+                                                        exit.code()
+                                                            .map(|code| code.to_string())
+                                                            .unwrap_or("undefined".into())
+                                                    ),
+                                                ]))
+                                            },
+                                        })
+                                        .unwrap(),
+                                    )?
+                                    .exec()
+                                    .await;
+                                }
+                            }
+                            Err(err) => {
+                                if let (Some(job_api_id), Some(api_url), Some(api_token)) =
+                                    (job_api_id, api_url, api_token)
+                                {
+                                    let _ = generic_async_http_client::Request::post(&format!(
+                                        "{api_url}/execution/job/ended"
+                                    ))
+                                    .add_header("User-Agent", crate::USER_AGENT)?
+                                    .add_header(
+                                        "Authorization",
+                                        format!("Bearer {api_token}").as_bytes(),
+                                    )?
+                                    .add_header("Content-Type", "application/json")?
+                                    .body(
+                                        serde_json::to_string(&api::LocalEnd {
+                                            job_id: job_api_id,
+                                            result: api::DistributionResult::Failure(Some(vec![
+                                                err.to_string(),
+                                            ])),
+                                        })
+                                        .unwrap(),
+                                    )?
+                                    .exec()
+                                    .await;
+                                }
+                                
+                        }
                     }
+
                     Ok::<(), generic_async_http_client::Error>(())
                 };
 
-                async_std::task::spawn(finish_notification);
+                let finish_notification = async move {
+                    let _ = finish_notification.await;
+                };
 
-                Ok((api::DistributionResponse::Started(Some(access)), api_errors))
+                Ok((api::DistributionResponse::Started(Some(access)), api_errors, Some(Box::new(Box::pin(finish_notification)))))
             }
-            Err(errs) => Ok((api::DistributionResponse::Error(errs.clone()), api_errors)),
+            Err(errs) => Ok((api::DistributionResponse::Error(errs.clone()), api_errors, None)),
         }
     }
 
@@ -235,7 +265,7 @@ impl DistantEngine {
     async fn distrib_api(
         &self,
         request: api::Request,
-    ) -> Result<(api::DistributionResponse, Vec<String>), String> {
+    ) -> Result<(api::DistributionResponse, Vec<String>, Option<Box<dyn core::future::Future<Output=()> + Send + Unpin>>), String> {
         let (api_url, api_token) = (
             self.api_url.read().unwrap().clone(),
             self.api_token.read().unwrap().clone(),
@@ -285,7 +315,7 @@ impl DistantEngine {
                                                     .await
                                                 {
                                                     Ok(distribution) => {
-                                                        return Ok((distribution, vec![]))
+                                                        return Ok((distribution, vec![], None))
                                                     }
                                                     Err(error) => {
                                                         return Err(Self::manage_error(error).await)
@@ -310,7 +340,7 @@ impl DistantEngine {
                                     }
                                 }
                                 api::Response::Error(errs) => {
-                                    Ok((api::DistributionResponse::Error(errs), vec![]))
+                                    Ok((api::DistributionResponse::Error(errs), vec![], None))
                                 }
                             },
                             Err(error) => Err(Self::manage_error(error).await),
@@ -437,7 +467,7 @@ pub async fn distant(
 
     if let Ok(_) = trigger.recv_one().await {
         match distant.start(start).await {
-            Ok((distrib, api_errors)) => {
+            Ok((distrib, api_errors, future)) => {
                 let _ = errors.send_many(api_errors.into()).await;
                 match distrib {
                     api::DistributionResponse::Started(Some(access_info)) => {
@@ -450,6 +480,12 @@ pub async fn distant(
                                 disable_tls: access_info.disable_tls,
                             }))))
                             .await;
+                        let _ = access.close().await;
+                        let _ = failed.close().await;
+                        let _ = errors.close().await;
+                        if let Some(future) = future {
+                            future.await;
+                        }
                     }
                     api::DistributionResponse::Started(None) => {}
                     api::DistributionResponse::Error(errs) => {
