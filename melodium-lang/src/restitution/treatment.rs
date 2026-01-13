@@ -114,12 +114,12 @@ impl Treatment {
                 .sorted_by_key(|(k, _)| *k)
                 .map(|(_, param)| {
                     format!(
-                        "{attributes}\n        {variability} {name}: {param}{default}",
+                        "{attributes}\n    {variability} {name}: {param}{default}",
                         variability = param.variability(),
                         attributes = param
                             .attributes()
                             .iter()
-                            .map(|(name, attribute)| format!("\n        #[{name}({attribute})]"))
+                            .map(|(name, attribute)| format!("\n    #[{name}({attribute})]"))
                             .collect::<Vec<_>>()
                             .join(""),
                         name = param.name(),
@@ -127,7 +127,7 @@ impl Treatment {
                         default = param
                             .default()
                             .as_ref()
-                            .map(|v| format!(" = {}", value(&v.into(), names, 2)))
+                            .map(|v| format!(" = {}", value(&v.into(), names, 1)))
                             .unwrap_or_default()
                     )
                 })

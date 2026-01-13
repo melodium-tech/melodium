@@ -65,11 +65,11 @@ impl Model {
                 .sorted_by_key(|(k, _)| *k)
                 .map(|(_, param)| {
                     format!(
-                        "{attributes}\n        const {name}: {param}{default}",
+                        "{attributes}\n    const {name}: {param}{default}",
                         attributes = param
                             .attributes()
                             .iter()
-                            .map(|(name, attribute)| format!("\n        #[{name}({attribute})] "))
+                            .map(|(name, attribute)| format!("\n    #[{name}({attribute})] "))
                             .collect::<Vec<_>>()
                             .join(""),
                         name = param.name(),
