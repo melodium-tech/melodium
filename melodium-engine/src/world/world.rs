@@ -7,13 +7,14 @@ use crate::building::{
 };
 use crate::engine::Engine;
 use crate::error::{LogicError, LogicErrors, LogicResult};
+use crate::log::Log;
 use crate::transmission::{Input, Output, Outputs};
 use async_std::channel::{unbounded, Receiver, Sender};
-use async_std::sync::{Barrier, Mutex};
-use async_std::task::block_on;
+use async_std::sync::{Barrier, Mutex, RwLock as AsyncRwLock};
+use async_std::task::{block_on, spawn};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use futures::future::join;
+use futures::join;
 use futures::stream::{FuturesUnordered, StreamExt};
 use futures::{pin_mut, select, FutureExt};
 use melodium_common::descriptor::{
@@ -21,8 +22,8 @@ use melodium_common::descriptor::{
 };
 use melodium_common::executive::{
     Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback, Input as ExecutiveInput,
-    Model, ModelId, Output as ExecutiveOutput, ResultStatus, TrackCreationCallback, TrackFuture,
-    TrackId, Value, World as ExecutiveWorld,
+    Level, Model, ModelId, Output as ExecutiveOutput, ResultStatus, TrackCreationCallback,
+    TrackFuture, TrackId, Value, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
@@ -54,6 +55,10 @@ pub struct World {
     tracks_sender: Sender<ExecutionTrack>,
     tracks_receiver: Receiver<ExecutionTrack>,
 
+    logs_sender: Sender<Log>,
+    logs_receiver: Receiver<Log>,
+    logs_listeners: AsyncRwLock<Vec<Sender<Log>>>,
+
     close_at_continuous_end: AtomicBool,
     continous_ended: AtomicBool,
     continous_ended_barrier: Barrier,
@@ -76,6 +81,7 @@ impl World {
     pub fn new(collection: Arc<Collection>) -> Arc<Self> {
         let (tracks_sender, tracks_receiver) = unbounded();
         let (continuous_tasks_sender, continuous_tasks_receiver) = unbounded();
+        let (logs_sender, logs_receiver) = unbounded();
 
         Arc::new_cyclic(|me| Self {
             collection,
@@ -95,6 +101,9 @@ impl World {
             tracks_info: Mutex::new(HashMap::new()),
             tracks_sender,
             tracks_receiver,
+            logs_sender,
+            logs_receiver,
+            logs_listeners: AsyncRwLock::new(Vec::new()),
             close_at_continuous_end: AtomicBool::new(true),
             continous_ended: AtomicBool::new(false),
             continous_ended_barrier: Barrier::new(2),
@@ -433,6 +442,11 @@ impl Engine for World {
         self.close_at_continuous_end.load(Ordering::Relaxed)
     }
 
+    fn add_logs_listener(&self, sender: Sender<Log>) {
+        let mut logs_listeners = self.logs_listeners.write_blocking();
+        logs_listeners.push(sender);
+    }
+
     async fn live(&self) {
         let me = self.auto_reference.upgrade().unwrap();
         let continuum = {
@@ -451,9 +465,30 @@ impl Engine for World {
             }
         };
 
+        let run_tracks = {
+            let me = Arc::clone(&me);
+            async move { me.run_tracks().await }
+        };
+
+        let logs_transmission = {
+            let me = Arc::clone(&me);
+            async move {
+                while let Ok(log) = me.logs_receiver.recv().await {
+                    let listeners = me.logs_listeners.read().await;
+                    for listener in &*listeners {
+                        let _ = listener.send(log.clone());
+                    }
+                }
+            }
+        };
+
+        spawn(logs_transmission);
+
         self.continuous_tasks_sender.close();
 
-        join(continuum, async move { me.run_tracks().await }).await;
+        join!(continuum, run_tracks);
+
+        me.logs_receiver.close();
     }
 
     async fn instanciate(&self, callback: Option<DirectCreationCallback>) -> LogicResult<()> {
@@ -668,5 +703,12 @@ impl ExecutiveWorld for World {
             ExecutionTrack::new(track_id, ancestry, track_futures.into_iter().collect());
         self.tracks_info.lock().await.insert(track_id, info_track);
         let _ = self.tracks_sender.send(execution_track).await;
+    }
+
+    async fn log(&self, level: Level, label: String, message: String, track_id: Option<TrackId>) {
+        let _ = self
+            .logs_sender
+            .send(Log::new_now(level, label, message, track_id))
+            .await;
     }
 }

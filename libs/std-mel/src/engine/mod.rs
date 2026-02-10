@@ -5,6 +5,8 @@ use melodium_core::{
 use melodium_macro::mel_model;
 use std::collections::HashMap;
 
+pub mod log;
+
 /// Provides interactions with Mélodium engine.
 ///
 /// `ready` source is triggered at startup when engine is ready to process.
