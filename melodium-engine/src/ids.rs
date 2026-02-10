@@ -4,12 +4,12 @@ use uuid::Uuid;
 static EXECUTION_RUN_ID: OnceLock<Uuid> = OnceLock::new();
 static EXECUTION_GROUP_ID: OnceLock<Uuid> = OnceLock::new();
 
-pub fn set_execution_run_id(uuid: Uuid) {
-    EXECUTION_RUN_ID.set(uuid);
+pub fn set_execution_run_id(uuid: Uuid) -> Result<(), ()> {
+    EXECUTION_RUN_ID.set(uuid).map_err(|_| ())
 }
 
-pub fn set_execution_group_id(uuid: Uuid) {
-    EXECUTION_GROUP_ID.set(uuid);
+pub fn set_execution_group_id(uuid: Uuid) -> Result<(), ()> {
+    EXECUTION_GROUP_ID.set(uuid).map_err(|_| ())
 }
 
 pub fn execution_run_id() -> &'static Uuid {
