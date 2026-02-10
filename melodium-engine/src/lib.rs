@@ -11,7 +11,6 @@ pub mod designer;
 pub mod engine;
 pub mod error;
 pub(crate) mod ids;
-pub(crate) mod log;
 mod transmission;
 mod world;
 

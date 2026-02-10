@@ -1,12 +1,9 @@
-use crate::{
-    error::{LogicErrors, LogicResult},
-    log::Log,
-};
+use crate::error::{LogicErrors, LogicResult};
 use async_std::channel::Sender;
 use async_trait::async_trait;
 use melodium_common::{
     descriptor::{Collection, Identifier},
-    executive::{DirectCreationCallback, Value},
+    executive::{DirectCreationCallback, Log, Value},
 };
 use std::{collections::HashMap, sync::Arc};
 

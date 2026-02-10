@@ -2742,11 +2742,13 @@ name = "melodium-common"
 version = "0.9.2"
 dependencies = [
  "async-trait",
+ "chrono",
  "downcast-rs",
  "erased-serde",
  "hex",
  "semver 1.0.26",
  "serde",
+ "uuid",
 ]
 
 [[package]]

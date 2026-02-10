@@ -1,4 +1,4 @@
-use melodium_common::descriptor::Version;
+use melodium_common::{descriptor::Version, executive::Log};
 use melodium_share::{Collection, Identifier, RawValue};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -16,6 +16,7 @@ pub enum Message {
     CloseInput(CloseInput),
     OutputData(OutputData),
     CloseOutput(CloseOutput),
+    Log(Log),
     Ended,
     Probe,
 }

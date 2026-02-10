@@ -460,6 +460,7 @@ impl DistributionEngine {
 
     async fn continuous(&self) {
         self.protocol_barrier().await;
+        let world = self.model.upgrade().map(|model| model.world().clone());
 
         let exec = async {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
@@ -520,6 +521,11 @@ impl DistributionEngine {
                                 {
                                     output.close();
                                 }
+                            }
+                        }
+                        Ok(Message::Log(log)) => {
+                            if let Some(world) = world.as_ref() {
+                                let _ = world.inject_log(log).await;
                             }
                         }
                         Ok(Message::Ended) => {

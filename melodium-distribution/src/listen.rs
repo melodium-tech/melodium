@@ -1,6 +1,7 @@
 use crate::error::DistributionResult;
 use crate::protocol::Protocol;
 use crate::{messages, messages::*, VERSION};
+use async_std::channel::unbounded;
 use async_std::sync::Barrier;
 use async_std::{
     future::timeout,
@@ -253,6 +254,9 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         .send_message(Message::LaunchStatus(messages::LaunchStatus::Ok))
         .await
         .unwrap();
+
+    let (logs_sender, logs_receiver) = unbounded();
+    engine.add_logs_listener(logs_sender);
 
     let barrier = Arc::new(Barrier::new(2));
     let expired = Arc::new(AtomicBool::new(false));
@@ -508,6 +512,17 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         }
         engine.end().await;
     };
+    let logs = {
+        let protocol = Arc::clone(&protocol);
+
+        async move {
+            while let Ok(log) = logs_receiver.recv().await {
+                if protocol.send_message(Message::Log(log)).await.is_err() {
+                    break;
+                }
+            }
+        }
+    };
     let probe = {
         let engine = Arc::clone(&engine);
         let protocol = Arc::clone(&protocol);
@@ -523,7 +538,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         }
     };
 
-    futures::join!(limit, live, run, probe);
+    futures::join!(limit, live, run, logs, probe);
 }
 
 fn acceptor(

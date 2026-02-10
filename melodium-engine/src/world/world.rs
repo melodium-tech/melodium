@@ -7,12 +7,12 @@ use crate::building::{
 };
 use crate::engine::Engine;
 use crate::error::{LogicError, LogicErrors, LogicResult};
-use crate::log::Log;
 use crate::transmission::{Input, Output, Outputs};
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::sync::{Barrier, Mutex, RwLock as AsyncRwLock};
 use async_std::task::{block_on, spawn};
 use async_trait::async_trait;
+use chrono::Utc;
 use core::fmt::Debug;
 use futures::join;
 use futures::stream::{FuturesUnordered, StreamExt};
@@ -22,7 +22,7 @@ use melodium_common::descriptor::{
 };
 use melodium_common::executive::{
     Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback, Input as ExecutiveInput,
-    Level, Model, ModelId, Output as ExecutiveOutput, ResultStatus, TrackCreationCallback,
+    Level, Log, Model, ModelId, Output as ExecutiveOutput, ResultStatus, TrackCreationCallback,
     TrackFuture, TrackId, Value, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
@@ -479,6 +479,11 @@ impl Engine for World {
                         let _ = listener.send(log.clone());
                     }
                 }
+
+                let listeners = me.logs_listeners.read().await;
+                for listener in &*listeners {
+                    listener.close();
+                }
             }
         };
 
@@ -708,7 +713,19 @@ impl ExecutiveWorld for World {
     async fn log(&self, level: Level, label: String, message: String, track_id: Option<TrackId>) {
         let _ = self
             .logs_sender
-            .send(Log::new_now(level, label, message, track_id))
+            .send(Log {
+                level,
+                label,
+                message,
+                track_id,
+                timestamp: Utc::now(),
+                run_id: Some(*crate::execution_run_id()),
+                group_id: Some(*crate::execution_group_id()),
+            })
             .await;
+    }
+
+    async fn inject_log(&self, log: Log) -> Result<(), ()> {
+        self.logs_sender.send(log).await.map_err(|_| ())
     }
 }
