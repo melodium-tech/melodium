@@ -25,6 +25,7 @@ generic-async-http-client = { version = "0.7.0", features = ["use_async_h1", "ru
 std-mel = { path = "../std-mel", version = "0.9.2" }
 fs-mel = { path = "../fs-mel", version = "0.9.2" }
 melodium-core = { path = "../../melodium-core", version = "0.9.2" }
+melodium-engine = { path = "../../melodium-engine", version = "0.9.2" }
 melodium-macro = { path = "../../melodium-macro", version = "0.9.2" }
 net-mel = { path = "../net-mel", version = "0.9.2" }
 process-mel = { path = "../process-mel", version = "0.9.2" }

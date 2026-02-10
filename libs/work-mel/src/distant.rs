@@ -105,7 +105,7 @@ impl DistantEngine {
     > {
         request.local_exec = true;
 
-        let mut job_api_id = None;
+        let mut run_api_id = None;
         let mut api_errors = Vec::new();
 
         let (api_url, api_token) = (
@@ -114,7 +114,7 @@ impl DistantEngine {
         );
         if let (Some(api_url), Some(api_token)) = (&api_url, &api_token) {
             match generic_async_http_client::Request::post(&format!(
-                "{api_url}/execution/job/start"
+                "{api_url}/execution/run/start"
             ))
             .add_header("User-Agent", crate::USER_AGENT)
             .map_err(|err| err.to_string())?
@@ -132,7 +132,7 @@ impl DistantEngine {
                         match response.json::<api::Response>().await {
                             Ok(response) => match response {
                                 api::Response::Ok(id) => {
-                                    job_api_id = Some(id);
+                                    run_api_id = Some(id);
                                 }
                                 api::Response::Error(errs) => {
                                     api_errors.extend(errs);
@@ -158,11 +158,11 @@ impl DistantEngine {
 
         let response = crate::compose::compose(request).await;
 
-        if let (Some(job_api_id), Some(api_url), Some(api_token)) =
-            (job_api_id.clone(), &api_url, &api_token)
+        if let (Some(run_api_id), Some(api_url), Some(api_token)) =
+            (run_api_id.clone(), &api_url, &api_token)
         {
             match generic_async_http_client::Request::post(&format!(
-                "{api_url}/execution/job/launched"
+                "{api_url}/execution/run/launched"
             ))
             .add_header("User-Agent", crate::USER_AGENT)
             .map_err(|err| err.to_string())?
@@ -172,7 +172,7 @@ impl DistantEngine {
             .map_err(|err| err.to_string())?
             .body(
                 serde_json::to_string(&api::LocalLaunched {
-                    job_id: job_api_id,
+                    run_id: run_api_id,
                     response: match &response {
                         Ok(_) => api::DistributionResponse::Started(None),
                         Err(errs) => api::DistributionResponse::Error(errs.clone()),
@@ -205,11 +205,11 @@ impl DistantEngine {
                     let status = child.status().await;
                     match status {
                         Ok(exit) => {
-                            if let (Some(job_api_id), Some(api_url), Some(api_token)) =
-                                (job_api_id, api_url, api_token)
+                            if let (Some(run_api_id), Some(api_url), Some(api_token)) =
+                                (run_api_id, api_url, api_token)
                             {
                                 let _ = generic_async_http_client::Request::post(&format!(
-                                    "{api_url}/execution/job/ended"
+                                    "{api_url}/execution/run/ended"
                                 ))
                                 .add_header("User-Agent", crate::USER_AGENT)?
                                 .add_header(
@@ -219,7 +219,7 @@ impl DistantEngine {
                                 .add_header("Content-Type", "application/json")?
                                 .body(
                                     serde_json::to_string(&api::LocalEnd {
-                                        job_id: job_api_id,
+                                        run_id: run_api_id,
                                         result: if exit.success() {
                                             api::DistributionResult::Success(None)
                                         } else {
@@ -238,11 +238,11 @@ impl DistantEngine {
                             }
                         }
                         Err(err) => {
-                            if let (Some(job_api_id), Some(api_url), Some(api_token)) =
-                                (job_api_id, api_url, api_token)
+                            if let (Some(run_api_id), Some(api_url), Some(api_token)) =
+                                (run_api_id, api_url, api_token)
                             {
                                 let _ = generic_async_http_client::Request::post(&format!(
-                                    "{api_url}/execution/job/ended"
+                                    "{api_url}/execution/run/ended"
                                 ))
                                 .add_header("User-Agent", crate::USER_AGENT)?
                                 .add_header(
@@ -252,7 +252,7 @@ impl DistantEngine {
                                 .add_header("Content-Type", "application/json")?
                                 .body(
                                     serde_json::to_string(&api::LocalEnd {
-                                        job_id: job_api_id,
+                                        run_id: run_api_id,
                                         result: api::DistributionResult::Failure(Some(vec![
                                             err.to_string()
                                         ])),
@@ -304,7 +304,7 @@ impl DistantEngine {
         );
         if let (Some(api_url), Some(api_token)) = (api_url, api_token) {
             match generic_async_http_client::Request::post(&format!(
-                "{api_url}/execution/job/start"
+                "{api_url}/execution/run/start"
             ))
             .add_header("User-Agent", crate::USER_AGENT)
             .map_err(|err| err.to_string())?
@@ -325,7 +325,7 @@ impl DistantEngine {
                                     async_std::task::sleep(Duration::from_secs(1)).await;
                                     loop {
                                         match generic_async_http_client::Request::get(&format!(
-                                            "{api_url}/execution/job/{id}/access"
+                                            "{api_url}/execution/run/{id}/access"
                                         ))
                                         .add_header("User-Agent", crate::USER_AGENT)
                                         .map_err(|err| err.to_string())?
@@ -471,6 +471,7 @@ pub async fn distant(
     volumes: Vec<Volume>,
     containers: Vec<Container>,
     service_containers: Vec<ServiceContainer>,
+    tags: Vec<string>,
 ) {
     let model = DistantEngineModel::into(distant_engine);
     let distant = model.inner();
@@ -494,6 +495,8 @@ pub async fn distant(
             .into_iter()
             .map(|cont| cont.0.clone())
             .collect(),
+        group_id: Some(melodium_engine::execution_group_id().clone()),
+        tags: tags,
         local_exec: false,
     };
 

@@ -314,11 +314,20 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
 
     let mut environment = Map::new();
     environment.insert(
-        MapKey::new("MELODIUM_JOB_EXECUTOR").map_err(|err| vec![err.to_string()])?,
+        MapKey::new("MELODIUM_RUN_ID").map_err(|err| vec![err.to_string()])?,
+        Some(id.to_string().into()),
+    );
+    environment.insert(
+        MapKey::new("MELODIUM_GROUP_ID").map_err(|err| vec![err.to_string()])?,
+        Some(melodium_engine::execution_group_id().to_string().into()),
+    );
+
+    environment.insert(
+        MapKey::new("MELODIUM_RUN_EXECUTOR").map_err(|err| vec![err.to_string()])?,
         Some(executor.to_string().into()),
     );
     environment.insert(
-        MapKey::new("MELODIUM_JOB_CONTAINERS").map_err(|err| vec![err.to_string()])?,
+        MapKey::new("MELODIUM_RUN_CONTAINERS").map_err(|err| vec![err.to_string()])?,
         Some(
             request
                 .containers
@@ -330,7 +339,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         ),
     );
     environment.insert(
-        MapKey::new("MELODIUM_JOB_SERVICE_CONTAINERS").map_err(|err| vec![err.to_string()])?,
+        MapKey::new("MELODIUM_RUN_SERVICE_CONTAINERS").map_err(|err| vec![err.to_string()])?,
         Some(
             request
                 .service_containers
@@ -342,7 +351,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         ),
     );
     environment.insert(
-        MapKey::new("MELODIUM_JOB_VOLUMES").map_err(|err| vec![err.to_string()])?,
+        MapKey::new("MELODIUM_RUN_VOLUMES").map_err(|err| vec![err.to_string()])?,
         Some(
             request
                 .volumes
@@ -356,21 +365,21 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
 
     for container in &request.containers {
         environment.insert(
-            MapKey::new(format!("MELODIUM_JOB_CONTAINER_{}", container.name))
+            MapKey::new(format!("MELODIUM_RUN_CONTAINER_{}", container.name))
                 .map_err(|err| vec![err.to_string()])?,
             Some(format!("{short_id}-container-custom-{}", container.name).into()),
         );
     }
     for container in &request.service_containers {
         environment.insert(
-            MapKey::new(format!("MELODIUM_JOB_SERVICE_CONTAINER_{}", container.name))
+            MapKey::new(format!("MELODIUM_RUN_SERVICE_CONTAINER_{}", container.name))
                 .map_err(|err| vec![err.to_string()])?,
             Some(format!("{short_id}-container-service-{}", container.name).into()),
         );
     }
     for volume in &request.volumes {
         environment.insert(
-            MapKey::new(format!("MELODIUM_JOB_VOLUME_{}", volume.name))
+            MapKey::new(format!("MELODIUM_RUN_VOLUME_{}", volume.name))
                 .map_err(|err| vec![err.to_string()])?,
             Some(format!("/media/{}", volume.name).into()),
         );

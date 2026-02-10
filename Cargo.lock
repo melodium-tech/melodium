@@ -2795,6 +2795,7 @@ dependencies = [
  "lazy_static",
  "melodium-common",
  "stacker",
+ "uuid",
 ]
 
 [[package]]
@@ -5895,6 +5896,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "melodium-core",
+ "melodium-engine",
  "melodium-macro",
  "net-mel",
  "process-mel",

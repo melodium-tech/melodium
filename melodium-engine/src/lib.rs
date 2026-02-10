@@ -10,6 +10,7 @@ pub mod design;
 pub mod designer;
 pub mod engine;
 pub mod error;
+pub(crate) mod ids;
 mod transmission;
 mod world;
 
@@ -21,3 +22,5 @@ use std::sync::Arc;
 pub fn new_engine(collection: Arc<Collection>) -> Arc<dyn Engine> {
     world::World::new(collection)
 }
+
+pub use ids::{execution_group_id, execution_run_id};

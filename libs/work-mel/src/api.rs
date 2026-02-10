@@ -38,6 +38,8 @@ pub struct Request {
     pub volumes: Vec<Volume>,
     pub containers: Vec<Container>,
     pub service_containers: Vec<ServiceContainer>,
+    pub tags: Vec<String>,
+    pub group_id: Option<Uuid>,
     #[serde(default)]
     pub local_exec: bool,
 }
@@ -156,12 +158,12 @@ pub enum DistributionResult {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LocalEnd {
-    pub job_id: Uuid,
+    pub run_id: Uuid,
     pub result: DistributionResult,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LocalLaunched {
-    pub job_id: Uuid,
+    pub run_id: Uuid,
     pub response: DistributionResponse,
 }
