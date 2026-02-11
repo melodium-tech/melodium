@@ -1,0 +1,465 @@
+use root/engine::Engine
+use root/engine/log::|debug
+use root/engine/log::|error
+use root/engine/log::|info
+use root/engine/log::|trace
+use root/engine/log::|warning
+use root/engine/log::logBlock
+use root/engine/log::logStream
+use root/engine/log::logDataBlock
+use root/engine/log::logDataStream
+use root/engine/log::logBlockLabel
+use root/engine/log::logStreamLabel
+use root/engine/log::logDataBlockLabel
+use root/engine/log::logDataStreamLabel
+use root/flow::emit
+
+treatment logDebugMessage(label: string = "debug", message: string)
+  model engine: Engine()
+  input trigger: Block<void>
+{
+    emit<string>(value=message)
+    logBlock[engine=engine](level = |debug(), label = label)
+
+    Self.trigger -> emit.trigger,emit -> logBlock.message
+}
+
+treatment logDebug(label: string = "debug")
+  model engine: Engine()
+  input message: Block<string>
+{
+    logBlock[engine=engine](level = |debug(), label = label)
+
+    Self.message -> logBlock.message
+}
+
+treatment logDebugs(label: string = "debug")
+  model engine: Engine()
+  input messages: Stream<string>
+{
+    logStream[engine=engine](level = |debug(), label = label)
+
+    Self.messages -> logStream.messages
+}
+
+treatment logDataDebug<D: Display>(label: string = "debug")
+  model engine: Engine()
+  input data: Block<D>
+{
+    logDataBlock<D>[engine=engine](level = |debug(), label = label)
+
+    Self.data -> logDataBlock.display
+}
+
+treatment logDataDebugs<D: Display>(label: string = "debug")
+  model engine: Engine()
+  input data: Stream<D>
+{
+    logDataStream<D>[engine=engine](level = |debug(), label = label)
+
+    Self.data -> logDataStream.display
+}
+
+treatment logErrorMessage(label: string = "error", message: string)
+  model engine: Engine()
+  input trigger: Block<void>
+{
+    emit<string>(value=message)
+    logBlock[engine=engine](level = |error(), label = label)
+
+    Self.trigger -> emit.trigger,emit -> logBlock.message
+}
+
+treatment logError(label: string = "error")
+  model engine: Engine()
+  input message: Block<string>
+{
+    logBlock[engine=engine](level = |error(), label = label)
+
+    Self.message -> logBlock.message
+}
+
+treatment logErrors(label: string = "error")
+  model engine: Engine()
+  input messages: Stream<string>
+{
+    logStream[engine=engine](level = |error(), label = label)
+
+    Self.messages -> logStream.messages
+}
+
+treatment logDataError<D: Display>(label: string = "error")
+  model engine: Engine()
+  input data: Block<D>
+{
+    logDataBlock<D>[engine=engine](level = |error(), label = label)
+
+    Self.data -> logDataBlock.display
+}
+
+treatment logDataErrors<D: Display>(label: string = "error")
+  model engine: Engine()
+  input data: Stream<D>
+{
+    logDataStream<D>[engine=engine](level = |error(), label = label)
+
+    Self.data -> logDataStream.display
+}
+
+treatment logInfoMessage(label: string = "info", message: string)
+  model engine: Engine()
+  input trigger: Block<void>
+{
+    emit<string>(value=message)
+    logBlock[engine=engine](level = |info(), label = label)
+
+    Self.trigger -> emit.trigger,emit -> logBlock.message
+}
+
+treatment logInfo(label: string = "info")
+  model engine: Engine()
+  input message: Block<string>
+{
+    logBlock[engine=engine](level = |info(), label = label)
+
+    Self.message -> logBlock.message
+}
+
+treatment logInfos(label: string = "info")
+  model engine: Engine()
+  input messages: Stream<string>
+{
+    logStream[engine=engine](level = |info(), label = label)
+
+    Self.messages -> logStream.messages
+}
+
+treatment logDataInfo<D: Display>(label: string = "info")
+  model engine: Engine()
+  input data: Block<D>
+{
+    logDataBlock<D>[engine=engine](level = |info(), label = label)
+
+    Self.data -> logDataBlock.display
+}
+
+treatment logDataInfos<D: Display>(label: string = "info")
+  model engine: Engine()
+  input data: Stream<D>
+{
+    logDataStream<D>[engine=engine](level = |info(), label = label)
+
+    Self.data -> logDataStream.display
+}
+
+treatment logTraceMessage(label: string = "trace", message: string)
+  model engine: Engine()
+  input trigger: Block<void>
+{
+    emit<string>(value=message)
+    logBlock[engine=engine](level = |trace(), label = label)
+
+    Self.trigger -> emit.trigger,emit -> logBlock.message
+}
+
+treatment logTrace(label: string = "trace")
+  model engine: Engine()
+  input message: Block<string>
+{
+    logBlock[engine=engine](level = |trace(), label = label)
+
+    Self.message -> logBlock.message
+}
+
+treatment logTraces(label: string = "trace")
+  model engine: Engine()
+  input messages: Stream<string>
+{
+    logStream[engine=engine](level = |trace(), label = label)
+
+    Self.messages -> logStream.messages
+}
+
+treatment logDataTrace<D: Display>(label: string = "trace")
+  model engine: Engine()
+  input data: Block<D>
+{
+    logDataBlock<D>[engine=engine](level = |trace(), label = label)
+
+    Self.data -> logDataBlock.display
+}
+
+treatment logDataTraces<D: Display>(label: string = "trace")
+  model engine: Engine()
+  input data: Stream<D>
+{
+    logDataStream<D>[engine=engine](level = |trace(), label = label)
+
+    Self.data -> logDataStream.display
+}
+
+treatment logWarningMessage(label: string = "warning", message: string)
+  model engine: Engine()
+  input trigger: Block<void>
+{
+    emit<string>(value=message)
+    logBlock[engine=engine](level = |warning(), label = label)
+
+    Self.trigger -> emit.trigger,emit -> logBlock.message
+}
+
+treatment logWarning(label: string = "warning")
+  model engine: Engine()
+  input message: Block<string>
+{
+    logBlock[engine=engine](level = |warning(), label = label)
+
+    Self.message -> logBlock.message
+}
+
+treatment logWarnings(label: string = "warning")
+  model engine: Engine()
+  input messages: Stream<string>
+{
+    logStream[engine=engine](level = |warning(), label = label)
+
+    Self.messages -> logStream.messages
+}
+
+treatment logDataWarning<D: Display>(label: string = "warning")
+  model engine: Engine()
+  input data: Block<D>
+{
+    logDataBlock<D>[engine=engine](level = |warning(), label = label)
+
+    Self.data -> logDataBlock.display
+}
+
+treatment logDataWarnings<D: Display>(label: string = "warning")
+  model engine: Engine()
+  input data: Stream<D>
+{
+    logDataStream<D>[engine=engine](level = |warning(), label = label)
+
+    Self.data -> logDataStream.display
+}
+
+treatment logDebugLabel()
+  model engine: Engine()
+  input label: Block<string>
+  input message: Block<string>
+{
+    logBlockLabel[engine=engine](level = |debug())
+
+    Self.label ---> logBlockLabel.label
+    Self.message -> logBlockLabel.message
+}
+
+treatment logDebugsLabel()
+  model engine: Engine()
+  input label: Block<string>
+  input messages: Stream<string>
+{
+    logStreamLabel[engine=engine](level = |debug())
+
+    Self.label ----> logStreamLabel.label
+    Self.messages -> logStreamLabel.messages
+}
+
+treatment logDataDebugLabel<D: Display>()
+  model engine: Engine()
+  input label: Block<string>
+  input data: Block<D>
+{
+    logDataBlockLabel<D>[engine=engine](level = |debug())
+
+    Self.label -> logDataBlockLabel.label
+    Self.data --> logDataBlockLabel.display
+}
+
+treatment logDataDebugsLabel<D: Display>()
+  model engine: Engine()
+  input label: Block<string>
+  input data: Stream<D>
+{
+    logDataStreamLabel<D>[engine=engine](level = |debug())
+
+    Self.label -> logDataStreamLabel.label
+    Self.data --> logDataStreamLabel.display
+}
+
+treatment logErrorLabel()
+  model engine: Engine()
+  input label: Block<string>
+  input message: Block<string>
+{
+    logBlockLabel[engine=engine](level = |error())
+
+    Self.label ---> logBlockLabel.label
+    Self.message -> logBlockLabel.message
+}
+
+treatment logErrorsLabel()
+  model engine: Engine()
+  input label: Block<string>
+  input messages: Stream<string>
+{
+    logStreamLabel[engine=engine](level = |error())
+
+    Self.label ----> logStreamLabel.label
+    Self.messages -> logStreamLabel.messages
+}
+
+treatment logDataErrorLabel<D: Display>()
+  model engine: Engine()
+  input label: Block<string>
+  input data: Block<D>
+{
+    logDataBlockLabel<D>[engine=engine](level = |error())
+
+    Self.label -> logDataBlockLabel.label
+    Self.data --> logDataBlockLabel.display
+}
+
+treatment logDataErrorsLabel<D: Display>()
+  model engine: Engine()
+  input label: Block<string>
+  input data: Stream<D>
+{
+    logDataStreamLabel<D>[engine=engine](level = |error())
+
+    Self.label -> logDataStreamLabel.label
+    Self.data --> logDataStreamLabel.display
+}
+
+treatment logTraceLabel()
+  model engine: Engine()
+  input label: Block<string>
+  input message: Block<string>
+{
+    logBlockLabel[engine=engine](level = |trace())
+
+    Self.label ---> logBlockLabel.label
+    Self.message -> logBlockLabel.message
+}
+
+treatment logTracesLabel()
+  model engine: Engine()
+  input label: Block<string>
+  input messages: Stream<string>
+{
+    logStreamLabel[engine=engine](level = |trace())
+
+    Self.label ----> logStreamLabel.label
+    Self.messages -> logStreamLabel.messages
+}
+
+treatment logDataTraceLabel<D: Display>()
+  model engine: Engine()
+  input label: Block<string>
+  input data: Block<D>
+{
+    logDataBlockLabel<D>[engine=engine](level = |trace())
+
+    Self.label -> logDataBlockLabel.label
+    Self.data --> logDataBlockLabel.display
+}
+
+treatment logDataTracesLabel<D: Display>()
+  model engine: Engine()
+  input label: Block<string>
+  input data: Stream<D>
+{
+    logDataStreamLabel<D>[engine=engine](level = |trace())
+
+    Self.label -> logDataStreamLabel.label
+    Self.data --> logDataStreamLabel.display
+}
+
+treatment logInfoLabel()
+  model engine: Engine()
+  input label: Block<string>
+  input message: Block<string>
+{
+    logBlockLabel[engine=engine](level = |info())
+
+    Self.label ---> logBlockLabel.label
+    Self.message -> logBlockLabel.message
+}
+
+treatment logInfosLabel()
+  model engine: Engine()
+  input label: Block<string>
+  input messages: Stream<string>
+{
+    logStreamLabel[engine=engine](level = |info())
+
+    Self.label ----> logStreamLabel.label
+    Self.messages -> logStreamLabel.messages
+}
+
+treatment logDataInfoLabel<D: Display>()
+  model engine: Engine()
+  input label: Block<string>
+  input data: Block<D>
+{
+    logDataBlockLabel<D>[engine=engine](level = |info())
+
+    Self.label -> logDataBlockLabel.label
+    Self.data --> logDataBlockLabel.display
+}
+
+treatment logDataInfosLabel<D: Display>()
+  model engine: Engine()
+  input label: Block<string>
+  input data: Stream<D>
+{
+    logDataStreamLabel<D>[engine=engine](level = |info())
+
+    Self.label -> logDataStreamLabel.label
+    Self.data --> logDataStreamLabel.display
+}
+
+treatment logWarningLabel()
+  model engine: Engine()
+  input label: Block<string>
+  input message: Block<string>
+{
+    logBlockLabel[engine=engine](level = |warning())
+
+    Self.label ---> logBlockLabel.label
+    Self.message -> logBlockLabel.message
+}
+
+treatment logWarningsLabel()
+  model engine: Engine()
+  input label: Block<string>
+  input messages: Stream<string>
+{
+    logStreamLabel[engine=engine](level = |warning())
+
+    Self.label ----> logStreamLabel.label
+    Self.messages -> logStreamLabel.messages
+}
+
+treatment logDataWarningLabel<D: Display>()
+  model engine: Engine()
+  input label: Block<string>
+  input data: Block<D>
+{
+    logDataBlockLabel<D>[engine=engine](level = |warning())
+
+    Self.label -> logDataBlockLabel.label
+    Self.data --> logDataBlockLabel.display
+}
+
+treatment logDataWarningsLabel<D: Display>()
+  model engine: Engine()
+  input label: Block<string>
+  input data: Stream<D>
+{
+    logDataStreamLabel<D>[engine=engine](level = |warning())
+
+    Self.label -> logDataStreamLabel.label
+    Self.data --> logDataStreamLabel.display
+}

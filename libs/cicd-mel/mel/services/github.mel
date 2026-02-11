@@ -41,11 +41,10 @@ use local::githubStringEval
 use local::githubCommand
 use local::githubGetEnv
 use local::githubSetOutputs
-use log/logger::Logger
-use log/log::logError
-use log/log::logInfos
+use std/engine/log::logError
+use std/engine/log::logInfos
 
-treatment runAction[contexts: JavaScriptEngine, logger: Logger](
+treatment runAction[contexts: JavaScriptEngine](
     id: Option<string> = _,
     name: string,
     display_name: Option<string> = _,
@@ -64,7 +63,7 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
 {
     ifExec: filterBlock<void>()
     localExec: emit<Option<string>>(value=_)
-    spawnCommands[logger=logger](label=|unwrap_or<string>(display_name, name))
+    spawnCommands(label=|unwrap_or<string>(display_name, name))
     mapFullEnvironment()
     wrapFullEnvironment: wrap<Environment>()
     githubCommand()
@@ -146,7 +145,7 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
                                                         mapContinueOnError.value -> evalContinueOnError.value,evaluated -> reduceContinueOnError.value                                                                            streamTrue.stream -> equalContinueOnError.b
 }
 
-treatment postGithubStateContext[contexts: JavaScriptEngine, logger: Logger](state: StepState, name: string, description: string, log_response: bool = false)
+treatment postGithubStateContext[contexts: JavaScriptEngine](state: StepState, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>
     model http_client: HttpClient(
         base_url = _,
@@ -183,10 +182,10 @@ treatment postGithubStateContext[contexts: JavaScriptEngine, logger: Logger](sta
     toUtf8()
 
     passInfos: pass<byte>(cond=log_response)
-    logInfos[logger=logger](label="GitHub API")
+    logInfos(label="GitHub API")
     fromUtf8()
     post.data -> passInfos.stream,passed -> fromUtf8.encoded,text -> logInfos.messages
-    logError[logger=logger](label="GitHub API")
+    logError(label="GitHub API")
     post.error -> logError.message
 
     Self.trigger -> emitUrl.trigger,emit -> evalUrl.value,evaluated -> post.url
@@ -194,7 +193,7 @@ treatment postGithubStateContext[contexts: JavaScriptEngine, logger: Logger](sta
     Self.trigger -> emitBody.trigger,emit -> stream.block,stream -> toString.value,into -> toUtf8.text,encoded -> post.data
 }
 
-treatment postGithubState[logger: Logger](token: string, project: string, sha: string, state: StepState, name: string, description: string, log_response: bool = false)
+treatment postGithubState(token: string, project: string, sha: string, state: StepState, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>
 {
     post: simplePost(
@@ -212,10 +211,10 @@ treatment postGithubState[logger: Logger](token: string, project: string, sha: s
         )
     )
     passInfos: pass<byte>(cond=log_response)
-    logInfos[logger=logger](label="GitHub API")
+    logInfos(label="GitHub API")
     fromUtf8()
     post.data -> passInfos.stream,passed -> fromUtf8.encoded,text -> logInfos.messages
-    logError[logger=logger](label="GitHub API")
+    logError(label="GitHub API")
     post.error -> logError.message
 
     emit<Json>(value=|unwrap_or<Json>(|to_json(

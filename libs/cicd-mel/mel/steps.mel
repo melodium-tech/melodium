@@ -18,15 +18,9 @@ use std/flow::waitBlock
 use std/flow/vec::flatten
 use std/ops/option/block::unwrap
 use std/ops/block::equalTo
-use log/log::logDebugs
-use log/log::logError
-use log/log::logErrorMessage
-use log/logger::Log
-use log/logger::Logger
-use log/logger::trackLogs
-use log/logger::logs
-use log/logger::reportStreamLog
-use log/logger::stop
+use std/engine/log::logDebugs
+use std/engine/log::logError
+use std/engine/log::logErrorMessage
 use work/distant::DistantEngine
 use work/distant::distant
 use work/resources::getExecutor
@@ -64,7 +58,7 @@ About the outputs signals:
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOn[runner: CicdRunnerEngine, logger: Logger](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
+treatment stepOn[runner: CicdRunnerEngine](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
   input trigger: Block<void>
   output started: Block<void>
   output finished: Block<void>
@@ -74,7 +68,7 @@ treatment stepOn[runner: CicdRunnerEngine, logger: Logger](var name: string, var
   output error: Block<void>
   output data: Stream<byte>
 {
-    stepOnWithInput[runner=runner, logger=logger](
+    stepOnWithInput[runner=runner](
       name=name,
       executor_name=executor_name,
       environment=environment,
@@ -120,7 +114,7 @@ About the outputs signals:
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
+treatment stepOnWithInput[runner: CicdRunnerEngine](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
   input trigger: Block<void>
   input data: Stream<byte>
   output started: Block<void>
@@ -132,7 +126,7 @@ treatment stepOnWithInput[runner: CicdRunnerEngine, logger: Logger](var name: st
   output data: Stream<byte>
 {
 
-    stepOnTerminableWithInput[runner=runner, logger=logger](
+    stepOnTerminableWithInput[runner=runner](
       name=name,
       in_filesystem=in_filesystem,
       in_file=in_file,
@@ -183,7 +177,7 @@ In that case, `terminated` and `finished` are emitted but not `failed` nor `erro
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOnTerminable[runner: CicdRunnerEngine, logger: Logger](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
+treatment stepOnTerminable[runner: CicdRunnerEngine](var name: string, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
   input trigger: Block<void>
   input terminate: Block<void>
   output started: Block<void>
@@ -195,7 +189,7 @@ treatment stepOnTerminable[runner: CicdRunnerEngine, logger: Logger](var name: s
   output error: Block<void>
   output data: Stream<byte>
 {
-    stepOnTerminableWithInput[runner=runner, logger=logger](
+    stepOnTerminableWithInput[runner=runner](
       name=name,
       executor_name=executor_name,
       environment=environment,
@@ -247,7 +241,7 @@ In that case, `terminated` and `finished` are emitted but not `failed` nor `erro
 ⚠️ `environment` may rely on the executor abilities to be correctly setted up. Within containers it is usually passed to `/usr/bin/env` command, which then require it to be present to use specific environment.
 Also, while present in many base images, abilities of `/usr/bin/env` may be limited. Distributions such as Alpine Linux includes a basic `env` command unable to set working directory, requiring to run `apk add coreutils-env` beforehand if `working_directory` of given environment is used.
 */
-treatment stepOnTerminableWithInput[runner: CicdRunnerEngine, logger: Logger](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
+treatment stepOnTerminableWithInput[runner: CicdRunnerEngine](var name: string, var in_filesystem: Option<string> = _, var in_file: Option<string> = _, var executor_name: Option<string> = _, var environment: Option<Environment> = _, var commands: Vec<Command> = [], var out_filesystem: Option<string> = _, var out_file: Option<string> = _, var stop_on_failure: bool = true)
   input trigger: Block<void>
   input data: Stream<byte>
   input terminate: Block<void>
@@ -264,13 +258,12 @@ treatment stepOnTerminableWithInput[runner: CicdRunnerEngine, logger: Logger](va
 
     Self.trigger -> distribute.trigger
 
-    logDistribErr: logError[logger=logger](label=name)
+    logDistribErr: logError(label=name)
     distribute.error -> logDistribErr.message
 
     distribOrStepFailed: one<void>()
     distribute.failed -> distribOrStepFailed.a
 
-    sendTriggerLogs: sendBlock<void>[distributor=runner](name="trigger_logs")
     sendInFilesystemName: sendBlock<string>[distributor=runner](name="in_filesystem_name")
     sendInFileName: sendBlock<string>[distributor=runner](name="in_file_name")
     sendData: sendStream<byte>[distributor=runner](name="data")
@@ -289,9 +282,7 @@ treatment stepOnTerminableWithInput[runner: CicdRunnerEngine, logger: Logger](va
     recvSuccess: recvBlock<void>[distributor=runner](name="success")
     recvError: recvBlock<void>[distributor=runner](name="error")
     recvData: recvStream<byte>[distributor=runner](name="data")
-    recvLogs: recvStream<Log>[distributor=runner](name="logs")
 
-    distribute.distribution_id -> sendTriggerLogs.distribution_id
     distribute.distribution_id -> sendInFilesystemName.distribution_id
     distribute.distribution_id -> sendInFileName.distribution_id
     distribute.distribution_id -> sendData.distribution_id
@@ -309,7 +300,6 @@ treatment stepOnTerminableWithInput[runner: CicdRunnerEngine, logger: Logger](va
     distribute.distribution_id -> recvSuccess.distribution_id
     distribute.distribution_id -> recvError.distribution_id
     distribute.distribution_id -> recvData.distribution_id
-    distribute.distribution_id -> recvLogs.distribution_id
 
     emitInFilesystemName: emit<Option<string>>(value=in_filesystem)
     unwrapInFilesystemName: unwrap<string>()
@@ -327,7 +317,6 @@ treatment stepOnTerminableWithInput[runner: CicdRunnerEngine, logger: Logger](va
     emitOutFileName: emit<Option<string>>(value=out_file)
     unwrapOutFileName: unwrap<string>()
 
-    Self.trigger -> sendTriggerLogs.data
     Self.trigger -> emitInFilesystemName.trigger,emit -> unwrapInFilesystemName.option,value -> sendInFilesystemName.data
     Self.trigger -> emitInFileName.trigger,emit -> unwrapInFileName.option,value -> sendInFileName.data
     Self.trigger -> emitExecutorName.trigger,emit -> sendExecutorName.data
@@ -338,14 +327,11 @@ treatment stepOnTerminableWithInput[runner: CicdRunnerEngine, logger: Logger](va
     Self.terminate -> sendTerminate.data
     Self.data ------> sendData.data
 
-    reportStreamLog[logger=logger](prefix_message = name)
-    recvLogs.data -> reportStreamLog.logs
-
     stopRunner[runner=runner]()
     passStop: passBlock<void>(cond=stop_on_failure)
     distribOrStepFailed.value -> passStop.block,passed -> stopRunner.trigger
 
-    logStepFailed: logErrorMessage[logger=logger](label=name, message="Step failed")
+    logStepFailed: logErrorMessage(label=name, message="Step failed")
     distribOrStepFailed.value -> logStepFailed.trigger
 
     streamFinished: stream<void>()
@@ -367,7 +353,6 @@ Run step with all streamed inputs and outputs.
 ℹ️ This treatment is not aimed to be used directly, see `stepOn`, `stepOnWithInput`, `stepOnTerminable`, or `stepOnTerminableWithInput` for usage.
 */
 treatment step(var label: string)
-  input trigger_logs: Block<void>
   input in_filesystem_name: Block<string>
   input in_file_name: Block<string>
   input data: Stream<byte>
@@ -385,10 +370,8 @@ treatment step(var label: string)
   output terminated: Block<void>
   output error: Block<void>
   output data: Stream<byte>
-  output logs: Stream<Log>
-  model  logger: Logger()
 {
-    writeFile[logger=logger](label=label)
+    writeFile(label=label)
     uncheckWriteFileFailed: uncheck<void>()
 
     Self.in_filesystem_name -> writeFile.filesystem_name
@@ -397,7 +380,7 @@ treatment step(var label: string)
 
     writeFile.failed -> uncheckWriteFileFailed.value,uncheck -> releaseExecutorName.leverage
 
-    spawnCommands[logger=logger](label=label)
+    spawnCommands(label=label)
     releaseExecutorName: releaseBlock<Option<string>>()
 
     Self.executor_name -> releaseExecutorName.data,released -> spawnCommands.executor_name
@@ -405,7 +388,7 @@ treatment step(var label: string)
     Self.commands -------------------------------------------> spawnCommands.commands
     Self.terminate ------------------------------------------> spawnCommands.terminate
 
-    readFile[logger=logger](label=label)
+    readFile(label=label)
     uncheckSpawnCommandsFailed: uncheck<void>()
     releaseFsName: releaseBlock<string>()
 
@@ -438,10 +421,6 @@ treatment step(var label: string)
     spawnCommands.error ----------------------> Self.error
 
     readFile.data ----------------------------> Self.data
-
-    trackLogs[logger=logger]()
-    Self.trigger_logs -> trackLogs.trigger,logs --> Self.logs
-    triggerSpawnAndReadFileFinished.end ----------> trackLogs.stop
 }
 
 /**
@@ -449,7 +428,7 @@ Spawn commands with all streamed inputs and outputs.
 
 ℹ️ This treatment is not aimed to be used directly, see `stepOn`, `stepOnWithInput`, `stepOnTerminable`, or `stepOnTerminableWithInput` for usage.
 */
-treatment spawnCommands[logger: Logger](var label: string)
+treatment spawnCommands(var label: string)
   input executor_name: Block<Option<string>>
   input environment: Block<Option<Environment>>
   input commands: Stream<Command>
@@ -481,27 +460,20 @@ treatment spawnCommands[logger: Logger](var label: string)
     getExecutor.failed -----> executorOrSpawnFailed.a
     spawnTerminable.failed -> executorOrSpawnFailed.b
 
-    logExecutorErr: logError[logger=logger](label=label)
+    logExecutorErr: logError(label=label)
     getExecutor.error -> logExecutorErr.message
 
-    logSpawnErr: logError[logger=logger](label=label)
+    logSpawnErr: logError(label=label)
     logSpawnErrsString: ioToString()
-    logSpawnErrs: logDebugs[logger=logger](label=label)
+    logSpawnErrs: logDebugs(label=label)
     logSpawnInfosString: ioToString()
-    logSpawnInfos: logDebugs[logger=logger](label=label)
+    logSpawnInfos: logDebugs(label=label)
     spawnTerminable.error --> logSpawnErr.message
     spawnTerminable.stderr -> logSpawnErrsString.stdio,lines --> logSpawnErrs.messages
     spawnTerminable.stdout -> logSpawnInfosString.stdio,lines -> logSpawnInfos.messages
 
-    waitAllMessages: waitBlock<void>()
-    waitSpawnFinishedAndAllMessages: waitBlock<void>()
-
-    logSpawnErrs.ended --> waitAllMessages.a
-    logSpawnInfos.ended -> waitAllMessages.b,awaited -> waitSpawnFinishedAndAllMessages.a
-    spawnTerminable.finished -------------------------> waitSpawnFinishedAndAllMessages.b
-
     spawnTerminable.started ------------------> Self.started
-    waitSpawnFinishedAndAllMessages.awaited --> Self.finished
+    spawnTerminable.finished -----------------> Self.finished
     executorOrSpawnFailed.value --------------> Self.failed
     spawnTerminable.completed ----------------> Self.completed
     spawnTerminable.terminated ---------------> Self.terminated
