@@ -1,7 +1,7 @@
 use crate::error::DistributionResult;
 use crate::protocol::Protocol;
 use crate::{messages, messages::*, VERSION};
-use async_std::channel::unbounded;
+use async_std::channel::{unbounded, Sender};
 use async_std::sync::Barrier;
 use async_std::{
     future::timeout,
@@ -14,6 +14,7 @@ use core::time::Duration;
 use futures::stream::{unfold, FuturesUnordered};
 use futures::{pin_mut, select, FutureExt, StreamExt};
 use futures_rustls::TlsAcceptor;
+use melodium_common::executive::Log;
 use melodium_common::{
     descriptor::{Entry, Identifier, Model as CommonModel, Treatment as CommonTreatment, Version},
     executive::{ResultStatus, TransmissionValue, Value},
@@ -40,6 +41,7 @@ pub async fn launch_listen(
     loader: Loader,
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
+    logs_senders: Vec<Sender<Log>>,
 ) {
     let acceptor = acceptor(certificate_chain, key).unwrap();
     let listener = TcpListener::bind(bind).await.unwrap();
@@ -63,7 +65,16 @@ pub async fn launch_listen(
         accept_stream.await
     };
 
-    launch_listen_stream(stream, version, expect_key, emit_key, loader, max_duration).await
+    launch_listen_stream(
+        stream,
+        version,
+        expect_key,
+        emit_key,
+        loader,
+        max_duration,
+        logs_senders,
+    )
+    .await
 }
 
 pub async fn launch_listen_localcert(
@@ -74,6 +85,7 @@ pub async fn launch_listen_localcert(
     loader: Loader,
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
+    logs_senders: Vec<Sender<Log>>,
 ) {
     launch_listen(
         bind,
@@ -85,6 +97,7 @@ pub async fn launch_listen_localcert(
         loader,
         wait_for,
         max_duration,
+        logs_senders,
     )
     .await
 }
@@ -97,6 +110,7 @@ pub async fn launch_listen_unsecure(
     loader: Loader,
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
+    logs_senders: Vec<Sender<Log>>,
 ) {
     let listener = TcpListener::bind(bind).await.unwrap();
 
@@ -115,7 +129,16 @@ pub async fn launch_listen_unsecure(
         accept_stream.await
     };
 
-    launch_listen_stream(stream, version, expect_key, emit_key, loader, max_duration).await
+    launch_listen_stream(
+        stream,
+        version,
+        expect_key,
+        emit_key,
+        loader,
+        max_duration,
+        logs_senders,
+    )
+    .await
 }
 
 async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
@@ -125,6 +148,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     emit_key: Uuid,
     loader: Loader,
     max_duration: Option<Duration>,
+    logs_senders: Vec<Sender<Log>>,
 ) {
     let protocol = Arc::new(Protocol::new(stream));
 
@@ -257,6 +281,9 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
 
     let (logs_sender, logs_receiver) = unbounded();
     engine.add_logs_listener(logs_sender);
+    for log_sender in logs_senders {
+        engine.add_logs_listener(log_sender);
+    }
 
     let barrier = Arc::new(Barrier::new(2));
     let expired = Arc::new(AtomicBool::new(false));

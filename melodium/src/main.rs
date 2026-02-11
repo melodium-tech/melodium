@@ -38,6 +38,9 @@ struct Run {
     #[clap(long, value_name = "IDENTIFIER")]
     /// Force identifier to be used as entrypoint.
     force_entry: Option<String>,
+    #[clap(long)]
+    /// Write logs to path.
+    logs: Option<PathBuf>,
     #[clap(value_parser)]
     /// Program file to run, can be either `.mel`, `Compo.toml` or `.jeu` file.
     file: Option<String>,
@@ -138,6 +141,9 @@ struct Dist {
     /// Maximal duration (in seconds) for work to be made.
     #[clap(long, default_value = None)]
     duration: Option<u64>,
+    /// Write logs to path.
+    #[clap(long)]
+    logs: Option<PathBuf>,
 }
 
 #[cfg(not(feature = "distribution"))]
@@ -237,6 +243,7 @@ pub fn main() {
             file: Some(file),
             prog_args: cli.file_args,
             force_entry: None,
+            logs: None,
         };
 
         run(args);
@@ -313,7 +320,7 @@ fn run(args: Run) {
 
         let params = parse_args(entry_name, treatment, arguments);
 
-        let launch = async_std::task::block_on(launch(collection, &identifier, params));
+        let launch = async_std::task::block_on(launch(collection, &identifier, params, args.logs));
         if let Some(failure) = launch.failure() {
             eprintln!("{}: {failure}", "failure".bold().red());
         }
@@ -539,11 +546,22 @@ fn new(args: New) {
 
 #[cfg(feature = "distribution")]
 fn dist(args: Dist) {
+    use async_std::channel::unbounded;
     use core::time::Duration;
     use melodium_common::descriptor::Version;
     use std::net::{Ipv4Addr, SocketAddr};
 
     let loader = melodium_loader::Loader::new(core_config());
+
+    let (logs_stdout_sender, logs_stdout_receiver) = unbounded();
+    async_std::task::spawn(async move { crate::display_logs(logs_stdout_receiver).await });
+    let mut logs_senders = vec![logs_stdout_sender];
+
+    args.logs.map(|path| {
+        let (logs_write_sender, logs_write_receiver) = unbounded();
+        logs_senders.push(logs_write_sender);
+        async_std::task::spawn(async move { crate::write_logs(path, logs_write_receiver).await });
+    });
 
     if args.localhost {
         match (args.disable_tls, args.certificate, args.key) {
@@ -559,6 +577,7 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
                 ))
             }
             (false, Some(certificate), Some(key)) => {
@@ -589,6 +608,7 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
                 ))
             }
             (false, _, _) => {
@@ -610,6 +630,7 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
                 ))
             }
             (true, Some(_), Some(_)) | (true, None, Some(_)) | (true, Some(_), None) => {
@@ -647,6 +668,7 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
                 ))
             }
             (false, _, _, _) => {
@@ -665,6 +687,7 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
                 ))
             }
             (true, _, Some(_), Some(_)) | (true, _, Some(_), None) | (true, _, None, Some(_)) => {

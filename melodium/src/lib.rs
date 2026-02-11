@@ -10,12 +10,18 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 
+use async_std::{
+    channel::{unbounded, Receiver},
+    fs::OpenOptions,
+    io::{BufWriter, WriteExt},
+};
+use colored::Colorize;
 use melodium_common::{
     descriptor::{
         Collection, Identifier, LoadingError, LoadingResult, Package, PackageRequirement,
         VersionReq,
     },
-    executive::Value,
+    executive::{Level, Log, Value},
 };
 use melodium_engine::LogicResult;
 pub use melodium_loader::LoadingConfig;
@@ -327,16 +333,34 @@ pub async fn launch(
     collection: Arc<Collection>,
     identifier: &Identifier,
     parameters: HashMap<String, Value>,
+    log_path: Option<PathBuf>,
 ) -> LogicResult<()> {
     let engine = melodium_engine::new_engine(collection);
+
+    let (logs_stdout_sender, logs_stdout_receiver) = unbounded();
+    engine.add_logs_listener(logs_stdout_sender);
+    let logs_print =
+        async_std::task::spawn(async move { display_logs(logs_stdout_receiver).await });
+
+    let logs_write = log_path.map(|path| {
+        let (logs_write_sender, logs_write_receiver) = unbounded();
+        engine.add_logs_listener(logs_write_sender);
+        async_std::task::spawn(async move { write_logs(path, logs_write_receiver).await })
+    });
+
     let result = engine.genesis(&identifier, parameters);
     if result.is_failure() {
         return result;
     } else {
         engine.live().await;
         engine.end().await;
-        LogicResult::new_success(())
     }
+
+    logs_print.await;
+    if let Some(logs_write) = logs_write {
+        logs_write.await;
+    }
+    LogicResult::new_success(())
 }
 
 pub fn core_config() -> LoadingConfig {
@@ -380,4 +404,94 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
     packages.push(work_mel::__mel_package::package());
 
     packages
+}
+
+pub async fn display_logs(receiver: Receiver<Log>) {
+    while let Ok(log) = receiver.recv().await {
+        display_log(&log);
+    }
+}
+
+fn display_log(log: &Log) {
+    match log.level {
+        Level::Error => {
+            println!(
+                "[{}] {}: {}: {}",
+                log.timestamp
+                    .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                "error".bold().red(),
+                log.label,
+                log.message
+            )
+        }
+        Level::Warning => {
+            println!(
+                "[{}] {}: {}: {}",
+                log.timestamp
+                    .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                "warning".bold().yellow(),
+                log.label,
+                log.message
+            )
+        }
+        Level::Info => {
+            println!(
+                "[{}] {}: {}: {}",
+                log.timestamp
+                    .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                "info".bold().blue(),
+                log.label,
+                log.message
+            )
+        }
+        Level::Debug => {
+            println!(
+                "[{}] {}: {}: {}",
+                log.timestamp
+                    .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                "debug".bold().purple(),
+                log.label,
+                log.message
+            )
+        }
+        Level::Trace => {
+            println!(
+                "[{}] {}: {}: {}",
+                log.timestamp
+                    .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                "trace".bold().dimmed(),
+                log.label,
+                log.message
+            )
+        }
+    }
+}
+
+pub async fn write_logs(path: PathBuf, receiver: Receiver<Log>) {
+    if let Some(parent) = path.parent() {
+        let _ = async_std::fs::create_dir_all(parent).await;
+    }
+
+    if let Ok(log_file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .await
+    {
+        let mut log_file = BufWriter::new(log_file);
+
+        while let Ok(log) = receiver.recv().await {
+            let line = format!(
+                "[{}] {}: {}: {}",
+                log.timestamp
+                    .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                log.level,
+                log.label,
+                log.message,
+            );
+            let _ = log_file.write(line.as_bytes()).await;
+        }
+
+        let _ = log_file.flush().await;
+    }
 }
