@@ -532,10 +532,12 @@ impl DistributionEngine {
                             }
                         }
                         Ok(Message::Ended) => {
+                            eprintln!("Ended received");
                             self.close_all().await;
                             ended = true;
                         }
                         Ok(Message::LogEnded) => {
+                            eprintln!("LogEnded received");
                             log_ended = true;
                         }
                         Ok(Message::Probe) => {}
@@ -549,6 +551,7 @@ impl DistributionEngine {
                         break;
                     }
                 }
+                eprintln!("Closing protocol");
                 protocol.close().await;
             }
         }
