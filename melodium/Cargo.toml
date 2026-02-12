@@ -26,7 +26,7 @@ required-features = ["cli"]
 async-std = "1.13"
 chrono = { version = "0.4", default-features = false }
 clap = { version = "4.0.32", features = ["cargo", "derive", "string"], optional = true }
-colored = { version = "2.0.2", optional = true }
+colored = { version = "2.0.2" }
 convert_case = "0.6"
 melodium-common = { path = "../melodium-common", version = "0.10.0" }
 melodium-core = { path = "../melodium-core", version = "0.10.0", optional = true  }
@@ -55,7 +55,7 @@ work-mel = { path = "../libs/work-mel", version = "0.10.0", optional = true }
 
 [features]
 default = ["cli", "standard-edition"]
-cli = ["clap", "colored"]
+cli = ["clap"]
 jeu = ["melodium-loader/jeu"]
 cicd = ["distribution", "fs", "network", "cicd-mel/real"]
 distribution = ["melodium-distribution", "distrib-mel/real", "work-mel/real", "uuid"]
