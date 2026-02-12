@@ -711,18 +711,16 @@ impl ExecutiveWorld for World {
     }
 
     async fn log(&self, level: Level, label: String, message: String, track_id: Option<TrackId>) {
-        let _ = self
-            .logs_sender
-            .send(Log {
-                level,
-                label,
-                message,
-                track_id,
-                timestamp: Utc::now(),
-                run_id: Some(*crate::execution_run_id()),
-                group_id: Some(*crate::execution_group_id()),
-            })
-            .await;
+        let log = Log {
+            level,
+            label,
+            message,
+            track_id,
+            timestamp: Utc::now(),
+            run_id: Some(*crate::execution_run_id()),
+            group_id: Some(*crate::execution_group_id()),
+        };
+        let _ = self.logs_sender.send(log).await;
     }
 
     async fn inject_log(&self, log: Log) -> Result<(), ()> {

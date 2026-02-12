@@ -16,8 +16,9 @@ pub enum Message {
     CloseInput(CloseInput),
     OutputData(OutputData),
     CloseOutput(CloseOutput),
-    Log(Log),
     Ended,
+    Log(Log),
+    LogEnded,
     Probe,
 }
 

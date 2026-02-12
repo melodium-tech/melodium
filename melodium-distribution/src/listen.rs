@@ -317,7 +317,6 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         async move {
             engine.live().await;
             let _ = protocol.send_message(Message::Ended).await;
-            protocol.close().await;
             if !expired.load(core::sync::atomic::Ordering::Relaxed) {
                 barrier.wait().await;
             }
@@ -530,8 +529,6 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             }
         }
 
-        protocol.close().await;
-
         for (_, outputs) in tracks_entry_outputs.read().await.iter() {
             for (_, output) in outputs {
                 output.close().await;
@@ -548,6 +545,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     break;
                 }
             }
+            let _ = protocol.send_message(Message::LogEnded).await;
         }
     };
     let probe = {
@@ -566,6 +564,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     };
 
     futures::join!(limit, live, run, logs, probe);
+    protocol.close().await;
 }
 
 fn acceptor(

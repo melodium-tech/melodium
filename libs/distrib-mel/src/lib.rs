@@ -462,6 +462,9 @@ impl DistributionEngine {
         self.protocol_barrier().await;
         let world = self.model.upgrade().map(|model| model.world().clone());
 
+        let mut ended = false;
+        let mut log_ended = false;
+
         let exec = async {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
                 loop {
@@ -530,7 +533,10 @@ impl DistributionEngine {
                         }
                         Ok(Message::Ended) => {
                             self.close_all().await;
-                            break;
+                            ended = true;
+                        }
+                        Ok(Message::LogEnded) => {
+                            log_ended = true;
                         }
                         Ok(Message::Probe) => {}
                         Ok(_) => {}
@@ -538,6 +544,9 @@ impl DistributionEngine {
                             self.close_all().await;
                             break;
                         }
+                    }
+                    if ended && log_ended {
+                        break;
                     }
                 }
                 protocol.close().await;
