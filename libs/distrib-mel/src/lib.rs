@@ -542,7 +542,8 @@ impl DistributionEngine {
                         }
                         Ok(Message::Probe) => {}
                         Ok(_) => {}
-                        Err(_) => {
+                        Err(err) => {
+                            eprintln!("Protcol error: {err:?}");
                             self.close_all().await;
                             break;
                         }
@@ -553,6 +554,7 @@ impl DistributionEngine {
                 }
                 eprintln!("Closing protocol");
                 protocol.close().await;
+                eprintln!("Protocol closed");
             }
         }
         .fuse();
