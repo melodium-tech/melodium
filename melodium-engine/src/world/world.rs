@@ -476,7 +476,7 @@ impl Engine for World {
                 while let Ok(log) = me.logs_receiver.recv().await {
                     let listeners = me.logs_listeners.read().await;
                     for listener in &*listeners {
-                        let _ = listener.send(log.clone());
+                        let _ = listener.send(log.clone()).await;
                     }
                 }
 

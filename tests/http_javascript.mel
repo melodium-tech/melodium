@@ -12,6 +12,7 @@ use http/status::HttpStatus
 use http/method::|post
 use net/ip::|localhost_ipv4
 use net/ip::|from_ipv4
+use std/engine/log::logInfoMessage
 use std/engine/util::startup
 use std/flow::emit
 use std/flow::trigger
@@ -36,16 +37,20 @@ treatment main()
 {
     startup()
     start[http_server=server]()
+    logStart: logInfoMessage(message="Server start")
 
     startup.trigger -> start.trigger
+    startup.trigger -> logStart.trigger
 
     connection[http_server=server](method=|post(), route="/hello")
     status: emit<HttpStatus>(value=|ok())
     headers: emit<StringMap>(value=|map([]))
     trigger<byte>()
+    logConn: logInfoMessage(message="Incoming connection")
     
     connection.data -> trigger.stream,start --> status.trigger,emit -> connection.status
                        trigger.start --------> headers.trigger,emit -> connection.headers
+                       trigger.start ---------> logConn.trigger
     
     decode()
     toJson()
