@@ -1,9 +1,9 @@
 #!/usr/bin/env melodium
 #! name = process_test
-#! version = 0.9.2
-#! require = std:0.9.2
-#! require = fs:0.9.2
-#! require = process:0.9.2
+#! version = 0.10.0
+#! require = std:0.10.0
+#! require = fs:0.10.0
+#! require = process:0.10.0
 
 use std/engine/util::startup
 use std/flow::stream
