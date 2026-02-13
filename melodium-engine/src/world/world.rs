@@ -263,9 +263,11 @@ impl World {
         loop {
             select! {
                 received_track = tracks_receiver.select_next_some() => {
+                    eprintln!("Adding track_future");
                     futures.push(track_future(received_track));
                 },
                 result = futures.select_next_some() => {
+                    eprintln!("Track finished");
                     match result {
                         TrackResult::AllOk(id) => {
                             self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
@@ -277,9 +279,10 @@ impl World {
                     self.check_closing().await;
                 },
                 _result = continous_ended_barrier => {
+                    eprintln!("End barrier called");
                     self.check_closing().await;
                 },
-                complete => break,
+                complete => {eprintln!("Complete");break},
             }
         }
     }
@@ -461,13 +464,18 @@ impl Engine for World {
                 while let Some(_) = continuous.next().await {}
 
                 me.continous_ended.store(true, Ordering::Relaxed);
+                eprintln!("Continuum ending");
                 me.continous_ended_barrier.wait().await;
+                eprintln!("Continuum ended");
             }
         };
 
         let run_tracks = {
             let me = Arc::clone(&me);
-            async move { me.run_tracks().await }
+            async move {
+                me.run_tracks().await;
+                eprintln!("Run tracks ended")
+            }
         };
 
         let logs_transmission = {
