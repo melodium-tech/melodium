@@ -14,6 +14,7 @@ use async_std::task::{block_on, spawn};
 use async_trait::async_trait;
 use chrono::Utc;
 use core::fmt::Debug;
+use core::sync::atomic::AtomicUsize;
 use futures::join;
 use futures::stream::{FuturesUnordered, StreamExt};
 use futures::{pin_mut, select, FutureExt};
@@ -54,6 +55,7 @@ pub struct World {
     tracks_info: Mutex<HashMap<TrackId, InfoTrack>>,
     tracks_sender: Sender<ExecutionTrack>,
     tracks_receiver: Receiver<ExecutionTrack>,
+    tracks_running: AtomicUsize,
 
     logs_sender: Sender<Log>,
     logs_receiver: Receiver<Log>,
@@ -101,6 +103,7 @@ impl World {
             tracks_info: Mutex::new(HashMap::new()),
             tracks_sender,
             tracks_receiver,
+            tracks_running: AtomicUsize::new(0),
             logs_sender,
             logs_receiver,
             logs_listeners: AsyncRwLock::new(Vec::new()),
@@ -264,10 +267,13 @@ impl World {
             select! {
                 received_track = tracks_receiver.select_next_some() => {
                     eprintln!("Adding track_future");
+                    self.tracks_running.fetch_add(1, Ordering::Relaxed);
                     futures.push(track_future(received_track));
+                    
                 },
                 result = futures.select_next_some() => {
                     eprintln!("Track finished");
+                    self.tracks_running.fetch_sub(1, Ordering::Relaxed);
                     match result {
                         TrackResult::AllOk(id) => {
                             self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
@@ -291,6 +297,7 @@ impl World {
         if self.auto_end()
             && self.continous_ended.load(Ordering::Relaxed)
             && self.tracks_receiver.len() == 0
+            && self.tracks_running.load(Ordering::Relaxed) == 0
         {
             self.end().await;
         }
