@@ -66,6 +66,7 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
             let _ = self.send_message(Message::Ended).await;
             // Currently only writer can be closed (reader rely on timeout)
             let mut writer = self.writer.lock().await;
+            eprintln!("writer.close()");
             let _ = writer.close().await;
             self.closed
                 .store(true, core::sync::atomic::Ordering::Relaxed);

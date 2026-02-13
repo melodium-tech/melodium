@@ -567,6 +567,7 @@ impl DistributionEngine {
                         break;
                     }
                 }
+                eprintln!("Probe failed");
                 protocol.close().await;
             }
         }

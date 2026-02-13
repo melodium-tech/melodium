@@ -267,13 +267,15 @@ impl World {
             select! {
                 received_track = tracks_receiver.select_next_some() => {
                     eprintln!("Adding track_future");
-                    self.tracks_running.fetch_add(1, Ordering::Relaxed);
+                    let num = self.tracks_running.fetch_add(1, Ordering::Relaxed);
+                    eprintln!("Tracks running: {}", num+1);
                     futures.push(track_future(received_track));
-                    
+
                 },
                 result = futures.select_next_some() => {
                     eprintln!("Track finished");
-                    self.tracks_running.fetch_sub(1, Ordering::Relaxed);
+                    let num = self.tracks_running.fetch_sub(1, Ordering::Relaxed);
+                    eprintln!("Tracks running: {}", num-1);
                     match result {
                         TrackResult::AllOk(id) => {
                             self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
@@ -294,11 +296,15 @@ impl World {
     }
 
     async fn check_closing(&self) {
+        let tracks_recv = self.tracks_receiver.len();
+        let tracks_run = self.tracks_running.load(Ordering::Relaxed);
+        eprintln!("tracks_recv: {tracks_recv}, tracks_run: {tracks_run}");
         if self.auto_end()
             && self.continous_ended.load(Ordering::Relaxed)
-            && self.tracks_receiver.len() == 0
-            && self.tracks_running.load(Ordering::Relaxed) == 0
+            && tracks_recv == 0
+            && tracks_run == 0
         {
+            eprintln!("call engine.end()");
             self.end().await;
         }
     }
