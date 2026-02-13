@@ -683,6 +683,7 @@ pub async fn stop() {
         eprintln!("Stop called from treatment");
         distributor.stop().await;
     }
+    eprintln!("Stop done");
 }
 
 #[mel_treatment(
