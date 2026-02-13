@@ -493,6 +493,8 @@ impl Engine for World {
 
         join!(continuum, run_tracks);
 
+        eprintln!("Engine ended");
+
         me.logs_receiver.close();
     }
 
@@ -597,6 +599,7 @@ impl Engine for World {
     */
     async fn end(&self) {
         if !self.closing.load(Ordering::Relaxed) {
+            eprintln!("Engine end requested");
             self.models
                 .read()
                 .unwrap()

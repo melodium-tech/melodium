@@ -50,7 +50,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
 
     let enable_debug = std::env::var("MELODIUM_COMPOSE_DEBUG")
         .map(|val| val == "true")
-        .unwrap_or(false);
+        .unwrap_or(true);
 
     /*if !request
         .arch
@@ -506,6 +506,29 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         .await
                         .map_err(|err| vec![err.to_string()])?;
                     let _ = stdin.close().await;
+                }
+
+                if enable_debug {
+                    use async_std::io::{BufReadExt, BufReader};
+
+                    if let Some(stdout) = child.stdout.take() {
+                        let _ = async_std::task::spawn(async move {
+                            let mut stdout = BufReader::new(stdout);
+                            let mut line = String::new();
+                            while let Ok(_) = stdout.read_line(&mut line).await {
+                                eprintln!("Stdout: {line}");
+                            }
+                        });
+                    }
+                    if let Some(stderr) = child.stderr.take() {
+                        let _ = async_std::task::spawn(async move {
+                            let mut stderr = BufReader::new(stderr);
+                            let mut line = String::new();
+                            while let Ok(_) = stderr.read_line(&mut line).await {
+                                eprintln!("Stderr: {line}");
+                            }
+                        });
+                    }
                 }
 
                 let mut success = false;

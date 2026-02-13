@@ -582,7 +582,9 @@ impl DistributionEngine {
             }
         }
 
+        eprintln!("Close all");
         self.close_all().await;
+        eprintln!("All closed");
     }
 
     async fn close_all(&self) {

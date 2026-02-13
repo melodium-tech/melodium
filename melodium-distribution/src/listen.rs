@@ -316,6 +316,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let protocol = Arc::clone(&protocol);
         async move {
             engine.live().await;
+            eprintln!("Engine live ended");
             let _ = protocol.send_message(Message::Ended).await;
             if !expired.load(core::sync::atomic::Ordering::Relaxed) {
                 barrier.wait().await;
@@ -559,12 +560,15 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     break;
                 }
             }
+            eprintln!("Probe failure");
             protocol.close().await;
         }
     };
 
     futures::join!(limit, live, run, logs, probe);
+    eprintln!("Closing listen");
     protocol.close().await;
+    eprintln!("All listen ended");
 }
 
 fn acceptor(
