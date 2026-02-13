@@ -74,12 +74,12 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
     }
 
     pub async fn recv_message(&self) -> Result<Message> {
-        if self.closed.load(core::sync::atomic::Ordering::Relaxed) {
+        /*if self.closed.load(core::sync::atomic::Ordering::Relaxed) {
             return Err(Error::Io(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "closed",
             )));
-        }
+        }*/
         let mut reader = self.reader.lock().await;
         let mut expected_size: [u8; 4] = [0; 4];
         timeout(

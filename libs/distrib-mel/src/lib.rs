@@ -660,6 +660,7 @@ pub async fn start(params: Map) {
             }
         }
     } else {
+        eprintln!("Stop called from start");
         distributor.stop().await;
     }
     #[cfg(feature = "mock")]
@@ -679,6 +680,7 @@ pub async fn stop() {
 
     #[cfg(feature = "real")]
     if let Ok(_) = trigger.recv_one().await {
+        eprintln!("Stop called from treatment");
         distributor.stop().await;
     }
 }
