@@ -554,6 +554,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let protocol = Arc::clone(&protocol);
         async move {
             loop {
+                eprintln!("Probe awaiting");
                 async_std::task::sleep(Duration::from_secs(10)).await;
                 if protocol.send_message(Message::Probe).await.is_err() {
                     engine.end().await;
@@ -565,10 +566,15 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         }
     };
 
-    futures::join!(limit, live, run, logs, probe);
+    let probe = async_std::task::spawn(probe);
+    
+    futures::join!(limit, live, run, logs);
+
     eprintln!("Closing listen");
     protocol.close().await;
     eprintln!("All listen ended");
+
+    probe.cancel().await;
 }
 
 fn acceptor(
