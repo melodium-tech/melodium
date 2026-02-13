@@ -489,6 +489,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             "--exit-code-from",
             melodium_service_name.as_str(),
         ])
+        .env("COMPOSE_ANSI", "never")
         .stdin(Stdio::piped())
         .stderr(Stdio::piped())
         .stdout(Stdio::piped())

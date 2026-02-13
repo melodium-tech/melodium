@@ -567,7 +567,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     };
 
     let probe = async_std::task::spawn(probe);
-    
+
     futures::join!(limit, live, run, logs);
 
     eprintln!("Closing listen");
