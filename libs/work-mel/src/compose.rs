@@ -482,6 +482,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             "-f",
             "-",
             "up",
+            "--quiet-pull",
             "--abort-on-container-exit",
             "--no-color",
             "--force-recreate",
