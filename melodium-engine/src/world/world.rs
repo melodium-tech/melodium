@@ -247,6 +247,7 @@ impl World {
 
         async fn track_future(mut track: ExecutionTrack) -> TrackResult {
             let mut non_ok: Vec<ResultStatus> = Vec::new();
+            eprintln!("### track started, id: {}", track.id);
             while let Some(r) = track.future.next().await {
                 // The `_ =>` is unreachable for now, but will when ResultStatus will be complexified.
                 #[allow(unreachable_patterns)]
@@ -255,6 +256,7 @@ impl World {
                     _ => non_ok.push(r.clone()),
                 }
             }
+            eprintln!("### track ended, id: {}", track.id);
 
             if non_ok.is_empty() {
                 TrackResult::AllOk(track.id)
