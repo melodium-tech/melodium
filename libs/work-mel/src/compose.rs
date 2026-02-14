@@ -518,7 +518,9 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                             let mut stdout = BufReader::new(stdout);
                             let mut line = String::new();
                             while let Ok(_) = stdout.read_line(&mut line).await {
-                                eprintln!("Stdout: {line}");
+                                if !line.is_empty() {
+                                    eprintln!("Stdout: {line}");
+                                }
                                 line.clear();
                             }
                         });
@@ -528,7 +530,9 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                             let mut stderr = BufReader::new(stderr);
                             let mut line = String::new();
                             while let Ok(_) = stderr.read_line(&mut line).await {
-                                eprintln!("Stderr: {line}");
+                                if !line.is_empty() {
+                                    eprintln!("Stderr: {line}");
+                                }
                                 line.clear();
                             }
                         });
