@@ -519,7 +519,11 @@ pub async fn distant(
                         let _ = failed.close().await;
                         let _ = errors.close().await;
                         if let Some(future) = future {
-                            future.await;
+                            if let Err(err) =
+                                async_std::future::timeout(Duration::from_secs(10), future).await
+                            {
+                                eprintln!("Child end timeout: {err}");
+                            }
                         }
                     }
                     api::DistributionResponse::Started(None) => {}
