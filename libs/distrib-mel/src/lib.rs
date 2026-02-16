@@ -540,7 +540,7 @@ impl DistributionEngine {
                         }
                         Ok(Message::Probe) => {}
                         Ok(_) => {}
-                        Err(err) => {
+                        Err(_) => {
                             self.close_all().await;
                             break;
                         }

@@ -266,12 +266,12 @@ impl World {
         loop {
             select! {
                 received_track = tracks_receiver.select_next_some() => {
-                    let num = self.tracks_running.fetch_add(1, Ordering::Relaxed);
+                    let _ = self.tracks_running.fetch_add(1, Ordering::Relaxed);
                     futures.push(track_future(received_track));
 
                 },
                 result = futures.select_next_some() => {
-                    let num = self.tracks_running.fetch_sub(1, Ordering::Relaxed);
+                    let _ = self.tracks_running.fetch_sub(1, Ordering::Relaxed);
                     match result {
                         TrackResult::AllOk(id) => {
                             self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
@@ -285,7 +285,7 @@ impl World {
                 _result = continous_ended_barrier => {
                     self.check_closing().await;
                 },
-                complete => {break},
+                complete => break,
             }
         }
     }
