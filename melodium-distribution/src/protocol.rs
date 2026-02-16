@@ -66,7 +66,6 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
             let _ = self.send_message(Message::Ended).await;
             // Currently only writer can be closed (reader rely on timeout)
             let mut writer = self.writer.lock().await;
-            eprintln!("writer.close()");
             let _ = writer.close().await;
             self.closed
                 .store(true, core::sync::atomic::Ordering::Relaxed);
@@ -74,12 +73,6 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
     }
 
     pub async fn recv_message(&self) -> Result<Message> {
-        /*if self.closed.load(core::sync::atomic::Ordering::Relaxed) {
-            return Err(Error::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "closed",
-            )));
-        }*/
         let mut reader = self.reader.lock().await;
         let mut expected_size: [u8; 4] = [0; 4];
         timeout(

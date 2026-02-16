@@ -50,7 +50,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
 
     let enable_debug = std::env::var("MELODIUM_COMPOSE_DEBUG")
         .map(|val| val == "true")
-        .unwrap_or(true);
+        .unwrap_or(false);
 
     /*if !request
         .arch

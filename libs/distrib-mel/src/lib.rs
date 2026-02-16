@@ -532,18 +532,15 @@ impl DistributionEngine {
                             }
                         }
                         Ok(Message::Ended) => {
-                            eprintln!("Ended received");
                             self.close_all().await;
                             ended = true;
                         }
                         Ok(Message::LogEnded) => {
-                            eprintln!("LogEnded received");
                             log_ended = true;
                         }
                         Ok(Message::Probe) => {}
                         Ok(_) => {}
                         Err(err) => {
-                            eprintln!("Protcol error: {err:?}");
                             self.close_all().await;
                             break;
                         }
@@ -552,9 +549,7 @@ impl DistributionEngine {
                         break;
                     }
                 }
-                eprintln!("Closing protocol");
                 protocol.close().await;
-                eprintln!("Protocol closed");
             }
         }
         .fuse();
@@ -567,7 +562,6 @@ impl DistributionEngine {
                         break;
                     }
                 }
-                eprintln!("Probe failed");
                 protocol.close().await;
             }
         }
@@ -583,9 +577,7 @@ impl DistributionEngine {
             }
         }
 
-        eprintln!("Close all");
         self.close_all().await;
-        eprintln!("All closed");
     }
 
     async fn close_all(&self) {
@@ -660,7 +652,6 @@ pub async fn start(params: Map) {
             }
         }
     } else {
-        eprintln!("Stop called from start");
         distributor.stop().await;
     }
     #[cfg(feature = "mock")]
@@ -680,10 +671,8 @@ pub async fn stop() {
 
     #[cfg(feature = "real")]
     if let Ok(_) = trigger.recv_one().await {
-        eprintln!("Stop called from treatment");
         distributor.stop().await;
     }
-    eprintln!("Stop done");
 }
 
 #[mel_treatment(

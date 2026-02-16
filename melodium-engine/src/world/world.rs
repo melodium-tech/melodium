@@ -247,7 +247,6 @@ impl World {
 
         async fn track_future(mut track: ExecutionTrack) -> TrackResult {
             let mut non_ok: Vec<ResultStatus> = Vec::new();
-            eprintln!("### track started, id: {}", track.id);
             while let Some(r) = track.future.next().await {
                 // The `_ =>` is unreachable for now, but will when ResultStatus will be complexified.
                 #[allow(unreachable_patterns)]
@@ -256,7 +255,6 @@ impl World {
                     _ => non_ok.push(r.clone()),
                 }
             }
-            eprintln!("### track ended, id: {}", track.id);
 
             if non_ok.is_empty() {
                 TrackResult::AllOk(track.id)
@@ -268,16 +266,12 @@ impl World {
         loop {
             select! {
                 received_track = tracks_receiver.select_next_some() => {
-                    eprintln!("Adding track_future");
                     let num = self.tracks_running.fetch_add(1, Ordering::Relaxed);
-                    eprintln!("Tracks running: {}", num+1);
                     futures.push(track_future(received_track));
 
                 },
                 result = futures.select_next_some() => {
-                    eprintln!("Track finished");
                     let num = self.tracks_running.fetch_sub(1, Ordering::Relaxed);
-                    eprintln!("Tracks running: {}", num-1);
                     match result {
                         TrackResult::AllOk(id) => {
                             self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
@@ -289,10 +283,9 @@ impl World {
                     self.check_closing().await;
                 },
                 _result = continous_ended_barrier => {
-                    eprintln!("End barrier called");
                     self.check_closing().await;
                 },
-                complete => {eprintln!("Complete");break},
+                complete => {break},
             }
         }
     }
@@ -300,13 +293,11 @@ impl World {
     async fn check_closing(&self) {
         let tracks_recv = self.tracks_receiver.len();
         let tracks_run = self.tracks_running.load(Ordering::Relaxed);
-        eprintln!("tracks_recv: {tracks_recv}, tracks_run: {tracks_run}");
         if self.auto_end()
             && self.continous_ended.load(Ordering::Relaxed)
             && tracks_recv == 0
             && tracks_run == 0
         {
-            eprintln!("call engine.end()");
             self.end().await;
         }
     }
@@ -479,9 +470,7 @@ impl Engine for World {
                 while let Some(_) = continuous.next().await {}
 
                 me.continous_ended.store(true, Ordering::Relaxed);
-                eprintln!("Continuum ending");
                 me.continous_ended_barrier.wait().await;
-                eprintln!("Continuum ended");
             }
         };
 
@@ -489,7 +478,6 @@ impl Engine for World {
             let me = Arc::clone(&me);
             async move {
                 me.run_tracks().await;
-                eprintln!("Run tracks ended")
             }
         };
 
@@ -515,8 +503,6 @@ impl Engine for World {
         self.continuous_tasks_sender.close();
 
         join!(continuum, run_tracks);
-
-        eprintln!("Engine ended");
 
         me.logs_receiver.close();
     }
@@ -622,7 +608,6 @@ impl Engine for World {
     */
     async fn end(&self) {
         if !self.closing.load(Ordering::Relaxed) {
-            eprintln!("Engine end requested");
             self.models
                 .read()
                 .unwrap()

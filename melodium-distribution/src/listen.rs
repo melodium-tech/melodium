@@ -309,7 +309,6 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             } else {
                 barrier.wait().await;
             }
-            eprintln!("limit end");
         }
     };
     let live = {
@@ -317,13 +316,10 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let protocol = Arc::clone(&protocol);
         async move {
             engine.live().await;
-            eprintln!("Engine live ended");
             let _ = protocol.send_message(Message::Ended).await;
             if !expired.load(core::sync::atomic::Ordering::Relaxed) {
-                eprintln!("live barrier wait");
                 barrier.wait().await;
             }
-            eprintln!("live end");
         }
     };
     let run = async {
@@ -539,7 +535,6 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             }
         }
         engine.end().await;
-        eprintln!("run end");
     };
     let logs = {
         let protocol = Arc::clone(&protocol);
@@ -551,7 +546,6 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                 }
             }
             let _ = protocol.send_message(Message::LogEnded).await;
-            eprintln!("logs end");
         }
     };
     let probe = {
@@ -559,16 +553,13 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let protocol = Arc::clone(&protocol);
         async move {
             loop {
-                //eprintln!("Probe awaiting");
                 async_std::task::sleep(Duration::from_secs(10)).await;
                 if protocol.send_message(Message::Probe).await.is_err() {
                     engine.end().await;
                     break;
                 }
             }
-            eprintln!("Probe failure");
             protocol.close().await;
-            eprintln!("probe end");
         }
     };
 
@@ -576,10 +567,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
 
     futures::join!(limit, live, run, logs);
 
-    eprintln!("Closing listen");
     protocol.close().await;
-    eprintln!("All listen ended");
-
     probe.cancel().await;
 }
 
