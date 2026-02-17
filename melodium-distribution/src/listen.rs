@@ -14,11 +14,12 @@ use core::time::Duration;
 use futures::stream::{unfold, FuturesUnordered};
 use futures::{pin_mut, select, FutureExt, StreamExt};
 use futures_rustls::TlsAcceptor;
-use melodium_common::executive::Log;
+use melodium_common::executive::{Level, Log};
 use melodium_common::{
     descriptor::{Entry, Identifier, Model as CommonModel, Treatment as CommonTreatment, Version},
     executive::{ResultStatus, TransmissionValue, Value},
 };
+use melodium_engine::debug::DebugLevel;
 use melodium_engine::descriptor::{Model, Treatment};
 use melodium_loader::Loader;
 use melodium_share::{SharingError, SharingResult};
@@ -260,7 +261,8 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         .into_iter()
         .map(|(name, val)| (name, val.to_value(&collection).unwrap()))
         .collect();
-    let engine = melodium_engine::new_engine(Arc::clone(&collection));
+    let engine =
+        melodium_engine::new_engine(Arc::clone(&collection), Level::Trace, DebugLevel::Detailed);
     engine.set_auto_end(false);
     if let Err(fail) = engine
         .genesis(&entrypoint.try_into().unwrap(), parameters)

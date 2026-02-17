@@ -5,6 +5,7 @@
 extern crate lazy_static;
 
 mod building;
+pub mod debug;
 pub mod descriptor;
 pub mod design;
 pub mod designer;
@@ -16,11 +17,17 @@ mod world;
 
 pub use engine::Engine;
 pub use error::{LogicError, LogicErrors, LogicResult};
-use melodium_common::descriptor::Collection;
+use melodium_common::{descriptor::Collection, executive::Level};
 use std::sync::Arc;
 
-pub fn new_engine(collection: Arc<Collection>) -> Arc<dyn Engine> {
-    world::World::new(collection)
+pub fn new_engine(
+    collection: Arc<Collection>,
+    log_level: Level,
+    debug_level: DebugLevel,
+) -> Arc<dyn Engine> {
+    world::World::new(collection, log_level, debug_level)
 }
 
 pub use ids::{execution_group_id, execution_run_id};
+
+use crate::debug::DebugLevel;

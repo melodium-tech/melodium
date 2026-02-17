@@ -23,7 +23,7 @@ use melodium_common::{
     },
     executive::{Level, Log, Value},
 };
-use melodium_engine::LogicResult;
+use melodium_engine::{debug::DebugLevel, LogicResult};
 pub use melodium_loader::LoadingConfig;
 use melodium_loader::{Compo, Loader, PackageInfo};
 use std::collections::HashMap;
@@ -335,7 +335,7 @@ pub async fn launch(
     parameters: HashMap<String, Value>,
     log_path: Option<PathBuf>,
 ) -> LogicResult<()> {
-    let engine = melodium_engine::new_engine(collection);
+    let engine = melodium_engine::new_engine(collection, Level::Trace, DebugLevel::Detailed);
 
     let (logs_stdout_sender, logs_stdout_receiver) = unbounded();
     engine.add_logs_listener(logs_stdout_sender);

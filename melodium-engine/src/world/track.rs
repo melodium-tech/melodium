@@ -3,6 +3,7 @@ use melodium_common::executive::{ResultStatus, TrackFuture, TrackId};
 
 // We don't use id nor parent_id for now, but might be useful for reporting implementations.
 #[allow(dead_code)]
+#[derive(Debug, Clone)]
 pub struct InfoTrack {
     pub id: TrackId,
     pub parent_id: Option<TrackId>,
@@ -39,6 +40,7 @@ impl ExecutionTrack {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum TrackResult {
     AllOk(TrackId),
     #[allow(dead_code)]

@@ -5,9 +5,10 @@ use crate::building::{
     BuildId, Builder, /*CheckEnvironment,*/ ContextualEnvironment, FeedingInputs,
     GenesisEnvironment, StaticBuildResult,
 };
+use crate::debug::{DebugLevel, Event, EventKind, TrackCreation};
 use crate::engine::Engine;
 use crate::error::{LogicError, LogicErrors, LogicResult};
-use crate::transmission::{Input, Output, Outputs};
+use crate::transmission::{Input, Output, Outputs, TransmissionDebug, TransmissionDetails};
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::sync::{Barrier, Mutex, RwLock as AsyncRwLock};
 use async_std::task::{block_on, spawn};
@@ -23,8 +24,8 @@ use melodium_common::descriptor::{
 };
 use melodium_common::executive::{
     Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback, Input as ExecutiveInput,
-    Level, Log, Model, ModelId, Output as ExecutiveOutput, ResultStatus, TrackCreationCallback,
-    TrackFuture, TrackId, Value, World as ExecutiveWorld,
+    Level as LogLevel, Log, Model, ModelId, Output as ExecutiveOutput, ResultStatus,
+    TrackCreationCallback, TrackFuture, TrackId, Value, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
@@ -57,9 +58,15 @@ pub struct World {
     tracks_receiver: Receiver<ExecutionTrack>,
     tracks_running: AtomicUsize,
 
+    logs_level: LogLevel,
     logs_sender: Sender<Log>,
     logs_receiver: Receiver<Log>,
     logs_listeners: AsyncRwLock<Vec<Sender<Log>>>,
+
+    debug_level: DebugLevel,
+    debug_sender: Sender<Event>,
+    debug_receiver: Receiver<Event>,
+    debug_listeners: AsyncRwLock<Vec<Sender<Event>>>,
 
     close_at_continuous_end: AtomicBool,
     continous_ended: AtomicBool,
@@ -80,10 +87,15 @@ impl Debug for World {
 }
 
 impl World {
-    pub fn new(collection: Arc<Collection>) -> Arc<Self> {
+    pub fn new(
+        collection: Arc<Collection>,
+        logs_level: LogLevel,
+        debug_level: DebugLevel,
+    ) -> Arc<Self> {
         let (tracks_sender, tracks_receiver) = unbounded();
         let (continuous_tasks_sender, continuous_tasks_receiver) = unbounded();
         let (logs_sender, logs_receiver) = unbounded();
+        let (debug_sender, debug_receiver) = unbounded();
 
         Arc::new_cyclic(|me| Self {
             collection,
@@ -104,9 +116,14 @@ impl World {
             tracks_sender,
             tracks_receiver,
             tracks_running: AtomicUsize::new(0),
+            logs_level,
             logs_sender,
             logs_receiver,
             logs_listeners: AsyncRwLock::new(Vec::new()),
+            debug_level,
+            debug_sender,
+            debug_receiver,
+            debug_listeners: AsyncRwLock::new(Vec::new()),
             close_at_continuous_end: AtomicBool::new(true),
             continous_ended: AtomicBool::new(false),
             continous_ended_barrier: Barrier::new(2),
@@ -127,9 +144,16 @@ impl World {
         }
 
         let id: ModelId = models.len();
-        models.push(model);
+        models.push(model.clone());
 
         self.sources.write().unwrap().insert(id, sources);
+
+        self.debug_sender
+            .send_blocking(Event::new(EventKind::ModelAdded {
+                model_id: id,
+                model: model.descriptor(),
+            }))
+            .unwrap();
 
         id
     }
@@ -224,18 +248,55 @@ impl World {
         }
     }
 
-    pub fn new_input(&self, flow: Flow) -> Input {
-        Input::new(flow)
+    pub fn new_input(&self, flow: Flow, track_id: TrackId, details: TransmissionDetails) -> Input {
+        match self.debug_level {
+            DebugLevel::None => Input::new(flow, track_id, TransmissionDebug::None),
+            DebugLevel::Basic => Input::new(
+                flow,
+                track_id,
+                TransmissionDebug::Basic(self.auto_reference.upgrade().unwrap(), details),
+            ),
+            DebugLevel::Detailed => Input::new(
+                flow,
+                track_id,
+                TransmissionDebug::Detailed(self.auto_reference.upgrade().unwrap(), details),
+            ),
+        }
     }
 
-    pub fn new_blocked_input(&self, flow: Flow) -> Input {
-        let input = Input::new(flow);
+    pub fn new_blocked_input(&self, flow: Flow, track_id: TrackId) -> Input {
+        let input = Input::new(flow, track_id, TransmissionDebug::None);
         input.close();
         input
     }
 
-    pub fn new_output(&self, flow: Flow) -> Output {
-        Output::new(flow)
+    pub fn new_output(
+        &self,
+        flow: Flow,
+        track_id: TrackId,
+        details: TransmissionDetails,
+    ) -> Output {
+        match self.debug_level {
+            DebugLevel::None => Output::new(flow, track_id, TransmissionDebug::None),
+            DebugLevel::Basic => Output::new(
+                flow,
+                track_id,
+                TransmissionDebug::Basic(self.auto_reference.upgrade().unwrap(), details),
+            ),
+            DebugLevel::Detailed => Output::new(
+                flow,
+                track_id,
+                TransmissionDebug::Detailed(self.auto_reference.upgrade().unwrap(), details),
+            ),
+        }
+    }
+
+    pub fn send_debug(&self, event: Event) {
+        let _ = self.debug_sender.send_blocking(event);
+    }
+
+    pub async fn send_debug_async(&self, event: Event) {
+        let _ = self.debug_sender.send(event).await;
     }
 
     async fn run_tracks(&self) {
@@ -272,13 +333,24 @@ impl World {
                 },
                 result = futures.select_next_some() => {
                     let _ = self.tracks_running.fetch_sub(1, Ordering::Relaxed);
-                    match result {
+                    let track_info = match result {
                         TrackResult::AllOk(id) => {
-                            self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
+                            if let Some(info) = self.tracks_info.lock().await.get_mut(&id) {
+                                info.results = Some(result);
+
+                                Some(info.clone())
+                            } else {None}
                         }
                         TrackResult::NotAllOk(id, _) => {
-                            self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
+                             if let Some(info) = self.tracks_info.lock().await.get_mut(&id) {
+                                info.results = Some(result);
+
+                                Some(info.clone())
+                            } else {None}
                         }
+                    };
+                    if let Some(track_info) = track_info {
+                        let _ = self.debug_sender.send(Event::new(EventKind::TrackFinished {info: track_info})).await;
                     }
                     self.check_closing().await;
                 },
@@ -451,9 +523,22 @@ impl Engine for World {
         self.close_at_continuous_end.load(Ordering::Relaxed)
     }
 
+    fn log_level(&self) -> LogLevel {
+        self.logs_level
+    }
+
     fn add_logs_listener(&self, sender: Sender<Log>) {
         let mut logs_listeners = self.logs_listeners.write_blocking();
         logs_listeners.push(sender);
+    }
+
+    fn debug_level(&self) -> DebugLevel {
+        self.debug_level
+    }
+
+    fn add_debug_listener(&self, sender: Sender<Event>) {
+        let mut debug_listeners = self.debug_listeners.write_blocking();
+        debug_listeners.push(sender);
     }
 
     async fn live(&self) {
@@ -467,9 +552,17 @@ impl Engine for World {
                     continuous.push(c);
                 }
 
+                let _ = me
+                    .debug_sender
+                    .send(Event::new(EventKind::ContinuousModelsStarted))
+                    .await;
                 while let Some(_) = continuous.next().await {}
 
                 me.continous_ended.store(true, Ordering::Relaxed);
+                let _ = me
+                    .debug_sender
+                    .send(Event::new(EventKind::ContinuousModelsFinished))
+                    .await;
                 me.continous_ended_barrier.wait().await;
             }
         };
@@ -498,13 +591,32 @@ impl Engine for World {
             }
         };
 
+        let debug_transmission = {
+            let me = Arc::clone(&me);
+            async move {
+                while let Ok(event) = me.debug_receiver.recv().await {
+                    let listeners = me.debug_listeners.read().await;
+                    for listener in &*listeners {
+                        let _ = listener.send(event.clone()).await;
+                    }
+                }
+
+                let listeners = me.debug_listeners.read().await;
+                for listener in &*listeners {
+                    listener.close();
+                }
+            }
+        };
+
         spawn(logs_transmission);
+        spawn(debug_transmission);
 
         self.continuous_tasks_sender.close();
 
         join!(continuum, run_tracks);
 
         me.logs_receiver.close();
+        me.debug_receiver.close();
     }
 
     async fn instanciate(&self, callback: Option<DirectCreationCallback>) -> LogicResult<()> {
@@ -535,7 +647,7 @@ impl Engine for World {
 
         let mut inputs = HashMap::new();
         for (name, descriptor) in main.outputs() {
-            let input = self.new_input(*descriptor.flow());
+            let input = Input::new(*descriptor.flow(), track_id, TransmissionDebug::None); //self.new_input(*descriptor.flow());
             inputs.insert(name.clone(), input);
         }
         {
@@ -595,8 +707,18 @@ impl Engine for World {
 
         let info_track = InfoTrack::new(track_id, None, 0);
         let execution_track = ExecutionTrack::new(track_id, 0, track_futures.into_iter().collect());
-        self.tracks_info.lock().await.insert(track_id, info_track);
+        self.tracks_info
+            .lock()
+            .await
+            .insert(track_id, info_track.clone());
         let _ = self.tracks_sender.send(execution_track).await;
+        let _ = self
+            .debug_sender
+            .send(Event::new(EventKind::TrackAdded {
+                info: info_track,
+                creation: TrackCreation::Direct,
+            }))
+            .await;
 
         LogicResult::new_success(())
     }
@@ -660,8 +782,8 @@ impl ExecutiveWorld for World {
 
             let mut contextual_environment = ContextualEnvironment::new(track_id);
 
-            contexts.into_iter().for_each(|context| {
-                contextual_environment.add_context(context.descriptor().name(), context)
+            contexts.iter().for_each(|context| {
+                contextual_environment.add_context(context.descriptor().name(), context.clone())
             });
 
             for entry in entries {
@@ -717,11 +839,32 @@ impl ExecutiveWorld for World {
         let info_track = InfoTrack::new(track_id, parent_track, ancestry);
         let execution_track =
             ExecutionTrack::new(track_id, ancestry, track_futures.into_iter().collect());
-        self.tracks_info.lock().await.insert(track_id, info_track);
+        self.tracks_info
+            .lock()
+            .await
+            .insert(track_id, info_track.clone());
         let _ = self.tracks_sender.send(execution_track).await;
+        let _ = self
+            .debug_sender
+            .send(Event::new(EventKind::TrackAdded {
+                info: info_track,
+                creation: TrackCreation::Source {
+                    source: source.to_string(),
+                    model_id: id,
+                    parameters: params.clone(),
+                    contexts,
+                },
+            }))
+            .await;
     }
 
-    async fn log(&self, level: Level, label: String, message: String, track_id: Option<TrackId>) {
+    async fn log(
+        &self,
+        level: LogLevel,
+        label: String,
+        message: String,
+        track_id: Option<TrackId>,
+    ) {
         let log = Log {
             level,
             label,

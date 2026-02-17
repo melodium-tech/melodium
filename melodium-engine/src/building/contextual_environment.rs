@@ -2,7 +2,7 @@ use melodium_common::executive::{Context, TrackId, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ContextualEnvironment {
     track_id: TrackId,
     contexts: HashMap<String, Arc<dyn Context>>,

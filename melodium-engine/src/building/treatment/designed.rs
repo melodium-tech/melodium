@@ -4,6 +4,7 @@ use crate::building::{
     DynamicBuildResult, FeedingInputs, GenesisEnvironment, StaticBuildResult,
 };
 use crate::building::{Builder as BuilderTrait, HostTreatment};
+use crate::debug::Event;
 use crate::design::{Connection, Treatment, IO};
 use crate::error::{LogicError, LogicResult};
 use crate::world::World;
@@ -415,6 +416,14 @@ impl BuilderTrait for Builder {
                     .write()
                     .unwrap()
                     .insert((build, environment.track_id()), HashMap::new());
+                world.send_debug(Event::new(crate::debug::EventKind::TreatmentBuilt {
+                    treatment: self.design.descriptor.upgrade().unwrap(),
+                    environment: environment.clone(),
+                    host_treatment: build_sample.host_treatment.clone(),
+                    host_build: build_sample.host_build_id,
+                    build_id: build,
+                    label: build_sample.label.clone(),
+                }));
             }
 
             let mut to_build_with = HashMap::<String, Vec<String>>::new();
