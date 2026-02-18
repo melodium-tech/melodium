@@ -32,6 +32,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, RwLock, Weak,
 };
+use uuid::Uuid;
 
 pub struct World {
     collection: Arc<Collection>,
@@ -879,5 +880,12 @@ impl ExecutiveWorld for World {
 
     async fn inject_log(&self, log: Log) -> Result<(), ()> {
         self.logs_sender.send(log).await.map_err(|_| ())
+    }
+
+    async fn inject_debug(&self, run_id: Uuid, data: String) -> Result<(), ()> {
+        self.debug_sender
+            .send(Event::new(EventKind::Distant { run_id, text: data }))
+            .await
+            .map_err(|_| ())
     }
 }

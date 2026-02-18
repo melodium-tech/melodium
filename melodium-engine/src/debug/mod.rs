@@ -9,6 +9,7 @@ use melodium_common::{
     executive::{Context, ModelId, TrackId, Value},
 };
 use std::{collections::HashMap, sync::Arc};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DebugLevel {
@@ -101,6 +102,11 @@ pub enum EventKind {
     InputClosed {
         input: TransmissionDetails,
         track_id: TrackId,
+    },
+    Distant {
+        run_id: Uuid,
+        text: String,
+        //event: Box<Event>,
     },
 }
 

@@ -23,7 +23,10 @@ use melodium_common::{
     },
     executive::{Level, Log, Value},
 };
-use melodium_engine::{debug::DebugLevel, LogicResult};
+use melodium_engine::{
+    debug::{DebugLevel, Event},
+    LogicResult,
+};
 pub use melodium_loader::LoadingConfig;
 use melodium_loader::{Compo, Loader, PackageInfo};
 use std::collections::HashMap;
@@ -334,6 +337,7 @@ pub async fn launch(
     identifier: &Identifier,
     parameters: HashMap<String, Value>,
     log_path: Option<PathBuf>,
+    debug_path: Option<PathBuf>,
 ) -> LogicResult<()> {
     let engine = melodium_engine::new_engine(collection, Level::Trace, DebugLevel::Detailed);
 
@@ -348,6 +352,12 @@ pub async fn launch(
         async_std::task::spawn(async move { write_logs(path, logs_write_receiver).await })
     });
 
+    let debug_write = debug_path.map(|path| {
+        let (debug_listener, debug_receiver) = unbounded();
+        engine.add_debug_listener(debug_listener);
+        async_std::task::spawn(async move { write_debug(path, debug_receiver).await })
+    });
+
     let result = engine.genesis(&identifier, parameters);
     if result.is_failure() {
         return result;
@@ -359,6 +369,9 @@ pub async fn launch(
     logs_print.await;
     if let Some(logs_write) = logs_write {
         logs_write.await;
+    }
+    if let Some(debug_write) = debug_write {
+        debug_write.await;
     }
     LogicResult::new_success(())
 }
@@ -491,5 +504,33 @@ pub async fn write_logs(path: PathBuf, receiver: Receiver<Log>) {
         }
 
         let _ = log_file.flush().await;
+    }
+}
+
+pub async fn write_debug(path: PathBuf, receiver: Receiver<Event>) {
+    if let Some(parent) = path.parent() {
+        let _ = async_std::fs::create_dir_all(parent).await;
+    }
+
+    if let Ok(debug_file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .await
+    {
+        let mut debug_file = BufWriter::new(debug_file);
+
+        while let Ok(debug) = receiver.recv().await {
+            let line = format!(
+                "[{}] {:?}",
+                debug
+                    .timestamp
+                    .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                debug.kind
+            );
+            let _ = debug_file.write(line.as_bytes()).await;
+        }
+
+        let _ = debug_file.flush().await;
     }
 }

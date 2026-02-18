@@ -41,6 +41,8 @@ struct Run {
     #[clap(long)]
     /// Write logs to path.
     logs: Option<PathBuf>,
+    /// Write debug to path.
+    debug: Option<PathBuf>,
     #[clap(value_parser)]
     /// Program file to run, can be either `.mel`, `Compo.toml` or `.jeu` file.
     file: Option<String>,
@@ -144,6 +146,9 @@ struct Dist {
     /// Write logs to path.
     #[clap(long)]
     logs: Option<PathBuf>,
+    /// Write debug to path.
+    #[clap(long)]
+    debug: Option<PathBuf>,
 }
 
 #[cfg(not(feature = "distribution"))]
@@ -244,6 +249,7 @@ pub fn main() {
             prog_args: cli.file_args,
             force_entry: None,
             logs: None,
+            debug: None,
         };
 
         run(args);
@@ -320,7 +326,13 @@ fn run(args: Run) {
 
         let params = parse_args(entry_name, treatment, arguments);
 
-        let launch = async_std::task::block_on(launch(collection, &identifier, params, args.logs));
+        let launch = async_std::task::block_on(launch(
+            collection,
+            &identifier,
+            params,
+            args.logs,
+            args.debug,
+        ));
         if let Some(failure) = launch.failure() {
             eprintln!("{}: {failure}", "failure".bold().red());
         }
@@ -563,6 +575,14 @@ fn dist(args: Dist) {
         async_std::task::spawn(async move { crate::write_logs(path, logs_write_receiver).await });
     });
 
+    let debug_senders = if let Some(path) = args.debug {
+        let (debug_write_sender, debug_write_receiver) = unbounded();
+        async_std::task::spawn(async move { crate::write_debug(path, debug_write_receiver).await });
+        vec![debug_write_sender]
+    } else {
+        Vec::new()
+    };
+
     if args.localhost {
         match (args.disable_tls, args.certificate, args.key) {
             (false, None, None) => {
@@ -578,6 +598,7 @@ fn dist(args: Dist) {
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
+                    debug_senders,
                 ))
             }
             (false, Some(certificate), Some(key)) => {
@@ -609,6 +630,7 @@ fn dist(args: Dist) {
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
+                    debug_senders,
                 ))
             }
             (false, _, _) => {
@@ -631,6 +653,7 @@ fn dist(args: Dist) {
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
+                    debug_senders,
                 ))
             }
             (true, Some(_), Some(_)) | (true, None, Some(_)) | (true, Some(_), None) => {
@@ -669,6 +692,7 @@ fn dist(args: Dist) {
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
+                    debug_senders,
                 ))
             }
             (false, _, _, _) => {
@@ -688,6 +712,7 @@ fn dist(args: Dist) {
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
+                    debug_senders,
                 ))
             }
             (true, _, Some(_), Some(_)) | (true, _, Some(_), None) | (true, _, None, Some(_)) => {

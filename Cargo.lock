@@ -1285,10 +1285,12 @@ dependencies = [
  "melodium-certs",
  "melodium-core",
  "melodium-distribution",
+ "melodium-engine",
  "melodium-macro",
  "melodium-share",
  "rustls-pemfile",
  "std-mel",
+ "uuid",
  "work-mel",
 ]
 

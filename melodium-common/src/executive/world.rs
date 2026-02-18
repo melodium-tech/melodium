@@ -7,6 +7,7 @@ use crate::{
 use async_trait::async_trait;
 use core::fmt::Debug;
 use std::{collections::HashMap, sync::Arc};
+use uuid::Uuid;
 
 pub type TrackId = usize;
 pub type TrackCreationCallback = Box<dyn FnOnce(Box<dyn Outputs>) -> Vec<TrackFuture> + Send>;
@@ -33,4 +34,5 @@ pub trait World: Debug + Send + Sync {
     );
     async fn log(&self, level: Level, label: String, message: String, track_id: Option<TrackId>);
     async fn inject_log(&self, log: Log) -> Result<(), ()>;
+    async fn inject_debug(&self, run_id: Uuid, data: String) -> Result<(), ()>;
 }

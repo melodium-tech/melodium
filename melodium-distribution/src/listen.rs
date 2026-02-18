@@ -19,8 +19,9 @@ use melodium_common::{
     descriptor::{Entry, Identifier, Model as CommonModel, Treatment as CommonTreatment, Version},
     executive::{ResultStatus, TransmissionValue, Value},
 };
-use melodium_engine::debug::DebugLevel;
+use melodium_engine::debug::{DebugLevel, Event};
 use melodium_engine::descriptor::{Model, Treatment};
+use melodium_engine::execution_group_id;
 use melodium_loader::Loader;
 use melodium_share::{SharingError, SharingResult};
 use std::{
@@ -43,6 +44,7 @@ pub async fn launch_listen(
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
+    debug_senders: Vec<Sender<Event>>,
 ) {
     let acceptor = acceptor(certificate_chain, key).unwrap();
     let listener = TcpListener::bind(bind).await.unwrap();
@@ -74,6 +76,7 @@ pub async fn launch_listen(
         loader,
         max_duration,
         logs_senders,
+        debug_senders,
     )
     .await
 }
@@ -87,6 +90,7 @@ pub async fn launch_listen_localcert(
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
+    debug_senders: Vec<Sender<Event>>,
 ) {
     launch_listen(
         bind,
@@ -99,6 +103,7 @@ pub async fn launch_listen_localcert(
         wait_for,
         max_duration,
         logs_senders,
+        debug_senders,
     )
     .await
 }
@@ -112,6 +117,7 @@ pub async fn launch_listen_unsecure(
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
+    debug_senders: Vec<Sender<Event>>,
 ) {
     let listener = TcpListener::bind(bind).await.unwrap();
 
@@ -138,6 +144,7 @@ pub async fn launch_listen_unsecure(
         loader,
         max_duration,
         logs_senders,
+        debug_senders,
     )
     .await
 }
@@ -150,6 +157,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     loader: Loader,
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
+    debug_senders: Vec<Sender<Event>>,
 ) {
     let protocol = Arc::new(Protocol::new(stream));
 
@@ -157,13 +165,16 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         Ok(Message::AskDistribution(ask)) => {
             let accept = &ask.melodium_version == version
                 && ask.distribution_version == VERSION
-                && ask.key == expect_key;
+                && ask.key == expect_key
+                && &ask.group_id == execution_group_id();
             protocol
                 .send_message(Message::ConfirmDistribution(ConfirmDistribution {
                     melodium_version: version.clone(),
                     distribution_version: VERSION.clone(),
                     key: emit_key,
                     accept,
+                    confirming_run_id: *melodium_engine::execution_run_id(),
+                    group_id: *melodium_engine::execution_group_id(),
                 }))
                 .await
                 .unwrap();
@@ -264,6 +275,19 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     let engine =
         melodium_engine::new_engine(Arc::clone(&collection), Level::Trace, DebugLevel::Detailed);
     engine.set_auto_end(false);
+
+    let (logs_sender, logs_receiver) = unbounded();
+    engine.add_logs_listener(logs_sender);
+    for log_sender in logs_senders {
+        engine.add_logs_listener(log_sender);
+    }
+
+    let (debug_sender, debug_receiver) = unbounded();
+    engine.add_debug_listener(debug_sender);
+    for debug_sender in debug_senders {
+        engine.add_debug_listener(debug_sender);
+    }
+
     if let Err(fail) = engine
         .genesis(&entrypoint.try_into().unwrap(), parameters)
         .as_result()
@@ -280,12 +304,6 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         .send_message(Message::LaunchStatus(messages::LaunchStatus::Ok))
         .await
         .unwrap();
-
-    let (logs_sender, logs_receiver) = unbounded();
-    engine.add_logs_listener(logs_sender);
-    for log_sender in logs_senders {
-        engine.add_logs_listener(log_sender);
-    }
 
     let barrier = Arc::new(Barrier::new(2));
     let expired = Arc::new(AtomicBool::new(false));
@@ -550,6 +568,22 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             let _ = protocol.send_message(Message::LogEnded).await;
         }
     };
+    let debug = {
+        let protocol = Arc::clone(&protocol);
+
+        async move {
+            while let Ok(event) = debug_receiver.recv().await {
+                if protocol
+                    .send_message(Message::Debug(format!("{event:?}")))
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+            }
+            let _ = protocol.send_message(Message::DebugEnded).await;
+        }
+    };
     let probe = {
         let engine = Arc::clone(&engine);
         let protocol = Arc::clone(&protocol);
@@ -567,7 +601,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
 
     let probe = async_std::task::spawn(probe);
 
-    futures::join!(limit, live, run, logs);
+    futures::join!(limit, live, run, logs, debug);
 
     protocol.close().await;
     probe.cancel().await;

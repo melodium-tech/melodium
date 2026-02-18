@@ -19,6 +19,8 @@ pub enum Message {
     Ended,
     Log(Log),
     LogEnded,
+    Debug(String),
+    DebugEnded,
     Probe,
 }
 
@@ -27,6 +29,8 @@ pub struct AskDistribution {
     pub melodium_version: Version,
     pub distribution_version: Version,
     pub key: Uuid,
+    pub asking_run_id: Uuid,
+    pub group_id: Uuid,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -35,6 +39,8 @@ pub struct ConfirmDistribution {
     pub melodium_version: Version,
     pub distribution_version: Version,
     pub key: Uuid,
+    pub confirming_run_id: Uuid,
+    pub group_id: Uuid,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
