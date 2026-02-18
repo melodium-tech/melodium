@@ -41,6 +41,7 @@ struct Run {
     #[clap(long)]
     /// Write logs to path.
     logs: Option<PathBuf>,
+    #[clap(long)]
     /// Write debug to path.
     debug: Option<PathBuf>,
     #[clap(value_parser)]

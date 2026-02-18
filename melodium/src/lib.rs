@@ -522,7 +522,7 @@ pub async fn write_debug(path: PathBuf, receiver: Receiver<Event>) {
 
         while let Ok(debug) = receiver.recv().await {
             let line = format!(
-                "[{}] {:?}",
+                "[{}] {:?}\n",
                 debug
                     .timestamp
                     .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
