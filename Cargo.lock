@@ -2860,12 +2860,14 @@ name = "melodium-share"
 version = "0.10.0"
 dependencies = [
  "cbor4ii",
+ "chrono",
  "erased-serde",
  "itertools",
  "melodium-common",
  "melodium-engine",
  "serde",
  "tsify 0.5.5",
+ "uuid",
  "wasm-bindgen",
 ]
 

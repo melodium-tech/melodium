@@ -22,10 +22,12 @@ webassembly = ["tsify", "wasm-bindgen"]
 melodium-common = { path = "../melodium-common", version = "0.10.0" }
 melodium-engine = { path = "../melodium-engine", version = "0.10.0" }
 cbor4ii = { version = "0.3.3", features = ["serde1"] }
+chrono = { version = "0.4", default-features = false, features = ["serde"] }
 erased-serde = "0.4"
 itertools = "0.13.0"
 serde = { version = "1.0", features = ["derive"] }
 tsify = { version = "0.5", optional = true }
+uuid = { version = "1", features = ["serde"] }
 wasm-bindgen = { version = "0.2.95", optional = true }
 
 [package.metadata.docs.rs]
