@@ -2762,6 +2762,7 @@ dependencies = [
  "melodium-share",
  "rustls-pemfile",
  "serde",
+ "serde_json",
  "uuid",
 ]
 

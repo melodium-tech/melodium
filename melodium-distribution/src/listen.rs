@@ -574,7 +574,11 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         async move {
             while let Ok(event) = debug_receiver.recv().await {
                 if protocol
-                    .send_message(Message::Debug(format!("{event:?}")))
+                    .send_message(Message::Debug(
+                        serde_json::to_string(&melodium_share::Event::from(&event))
+                            .unwrap_or_else(|_| "\"<failed to serialize debug event>\"".to_string())
+                            .into(),
+                    ))
                     .await
                     .is_err()
                 {
