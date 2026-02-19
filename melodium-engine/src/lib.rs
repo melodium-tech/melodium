@@ -23,11 +23,13 @@ use std::sync::Arc;
 pub fn new_engine(
     collection: Arc<Collection>,
     log_level: Level,
-    debug_level: DebugLevel,
+    debug_level: crate::debug::DebugLevel,
 ) -> Arc<dyn Engine> {
     world::World::new(collection, log_level, debug_level)
 }
 
-pub use ids::{execution_group_id, execution_run_id};
+pub mod build {
+    pub use crate::building::{BuildId, ContextualEnvironment, GenesisEnvironment, HostTreatment};
+}
 
-use crate::debug::DebugLevel;
+pub use ids::{execution_group_id, execution_run_id};

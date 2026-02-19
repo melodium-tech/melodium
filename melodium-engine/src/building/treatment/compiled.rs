@@ -3,9 +3,8 @@ use crate::building::{
     DynamicBuildResult, FeedingInputs, GenesisEnvironment, StaticBuildResult,
 };
 use crate::building::{Builder as BuilderTrait, HostTreatment};
-use crate::debug::{Event, EventKind};
+use crate::debug::{Event, EventKind, TransmissionDetails};
 use crate::error::{LogicError, LogicResult};
-use crate::transmission::TransmissionDetails;
 use crate::world::World;
 use core::fmt::Debug;
 use melodium_common::descriptor::{Status, Treatment as TreatmentDescriptor};

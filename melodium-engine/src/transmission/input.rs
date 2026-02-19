@@ -1,5 +1,4 @@
-use crate::debug::{DataContent, Event, EventKind};
-use crate::transmission::TransmissionDebug;
+use crate::debug::{DataContent, Event, EventKind, TransmissionDebug};
 use async_std::channel::{bounded, Receiver, Sender};
 use async_std::sync::Mutex as AsyncMutex;
 use async_trait::async_trait;

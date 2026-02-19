@@ -5,10 +5,12 @@ use crate::building::{
     BuildId, Builder, /*CheckEnvironment,*/ ContextualEnvironment, FeedingInputs,
     GenesisEnvironment, StaticBuildResult,
 };
-use crate::debug::{DebugLevel, Event, EventKind, TrackCreation};
+use crate::debug::{
+    DebugLevel, Event, EventKind, TrackCreation, TransmissionDebug, TransmissionDetails,
+};
 use crate::engine::Engine;
 use crate::error::{LogicError, LogicErrors, LogicResult};
-use crate::transmission::{Input, Output, Outputs, TransmissionDebug, TransmissionDetails};
+use crate::transmission::{Input, Output, Outputs};
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::sync::{Barrier, Mutex, RwLock as AsyncRwLock};
 use async_std::task::{block_on, spawn};

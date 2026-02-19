@@ -50,4 +50,8 @@ impl ContextualEnvironment {
     pub fn get_context(&self, name: &str) -> Option<&Arc<dyn Context>> {
         self.contexts.get(name)
     }
+
+    pub fn contexts(&self) -> &HashMap<String, Arc<dyn Context>> {
+        &self.contexts
+    }
 }

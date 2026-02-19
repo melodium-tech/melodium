@@ -519,17 +519,20 @@ pub async fn write_debug(path: PathBuf, receiver: Receiver<Event>) {
         .await
     {
         let mut debug_file = BufWriter::new(debug_file);
-
+        let mut first = true;
+        let _ = debug_file.write("[".as_bytes()).await;
         while let Ok(debug) = receiver.recv().await {
-            let line = format!(
-                "[{}] {:?}\n",
-                debug
-                    .timestamp
-                    .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-                debug.kind
-            );
+            if !first {
+                let _ = debug_file.write(",".as_bytes()).await;
+            } else {
+                first = false;
+            }
+            let event = melodium_share::Event::from(&debug);
+            let line = serde_json::to_string(&event)
+                .unwrap_or_else(|_| "\"<failed to serialize debug event>\"".to_string());
             let _ = debug_file.write(line.as_bytes()).await;
         }
+        let _ = debug_file.write("]".as_bytes()).await;
 
         let _ = debug_file.flush().await;
     }

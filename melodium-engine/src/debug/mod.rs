@@ -1,7 +1,7 @@
+pub use crate::world::{InfoTrack, TrackResult};
 use crate::{
     building::{BuildId, ContextualEnvironment, HostTreatment},
-    transmission::TransmissionDetails,
-    world::InfoTrack,
+    world::World,
 };
 use chrono::{DateTime, Utc};
 use melodium_common::{
@@ -126,4 +126,21 @@ pub enum DataContent {
     Undetailed,
     Count { count: usize },
     Values { values: Vec<Value> },
+}
+
+#[derive(Debug, Clone)]
+pub enum TransmissionDebug {
+    None,
+    Basic(Arc<World>, TransmissionDetails),
+    Detailed(Arc<World>, TransmissionDetails),
+}
+
+#[derive(Debug, Clone)]
+pub struct TransmissionDetails {
+    pub treatment: Arc<dyn Treatment>,
+    pub host_treatment: HostTreatment,
+    pub host_build: Option<BuildId>,
+    pub build_id: BuildId,
+    pub label: String,
+    pub name: String,
 }

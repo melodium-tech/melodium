@@ -2711,6 +2711,7 @@ dependencies = [
  "regex-mel",
  "serde",
  "serde-wasm-bindgen 0.6.5",
+ "serde_json",
  "sql-mel",
  "std-mel",
  "uuid",
