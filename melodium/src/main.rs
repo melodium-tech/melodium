@@ -44,6 +44,8 @@ struct Run {
     #[clap(long)]
     /// Write debug to path.
     debug: Option<PathBuf>,
+    #[clap(long, default_value_t = false)]
+    api_report: bool,
     #[clap(value_parser)]
     /// Program file to run, can be either `.mel`, `Compo.toml` or `.jeu` file.
     file: Option<String>,
@@ -251,6 +253,7 @@ pub fn main() {
             force_entry: None,
             logs: None,
             debug: None,
+            api_report: false,
         };
 
         run(args);
@@ -333,6 +336,7 @@ fn run(args: Run) {
             params,
             args.logs,
             args.debug,
+            args.api_report,
         ));
         if let Some(failure) = launch.failure() {
             eprintln!("{}: {failure}", "failure".bold().red());

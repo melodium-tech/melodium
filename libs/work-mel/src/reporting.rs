@@ -1,0 +1,261 @@
+use async_std::channel::Receiver;
+use melodium_core::common::executive::Log;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use uuid::Uuid;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ReportingRequest {
+    pub run_id: Uuid,
+    pub group_id: Uuid,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Reporting {
+    pub run_id: Uuid,
+    pub group_id: Uuid,
+    pub dashboard: Option<String>,
+    pub logs: Option<PushSpecs>,
+    pub debug: Option<PushSpecs>,
+    pub program: Option<PushSpecs>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[non_exhaustive]
+#[serde(rename_all = "snake_case")]
+pub enum PushSpecs {
+    PresignedPutS3 {
+        uri: String,
+        headers: HashMap<String, String>,
+    },
+    PresignedPostS3 {
+        uri: String,
+        fields: HashMap<String, String>,
+        path: String,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ProgramDump {
+    pub collection: melodium_share::Collection,
+    pub entrypoint: melodium_share::Identifier,
+    pub parameters: HashMap<String, melodium_share::RawValue>,
+}
+
+static CLIENT: std::sync::LazyLock<Result<reqwest::Client, String>> =
+    std::sync::LazyLock::new(|| {
+        reqwest::Client::builder()
+            .user_agent(crate::USER_AGENT)
+            .build()
+            .map_err(|err| err.to_string())
+    });
+
+pub async fn request_reporting(request: ReportingRequest) -> Result<Reporting, String> {
+    match generic_async_http_client::Request::post(&format!(
+        "{api_url}/execution/report/request",
+        api_url = crate::API_URL.as_str()
+    ))
+    .add_header("User-Agent", crate::USER_AGENT)
+    .map_err(|err| err.to_string())?
+    .add_header(
+        "Authorization",
+        format!("Bearer {api_token}", api_token = crate::API_TOKEN.as_str()).as_bytes(),
+    )
+    .map_err(|err| err.to_string())?
+    .add_header("Content-Type", "application/json")
+    .map_err(|err| err.to_string())?
+    .body(serde_json::to_string(&request).unwrap())
+    .map_err(|err| err.to_string())?
+    .exec()
+    .await
+    {
+        Ok(mut response) => {
+            if response.status_code() == 200 {
+                match response.json::<Reporting>().await {
+                    Ok(reporting) => Ok(reporting),
+                    Err(error) => Err(error.to_string()),
+                }
+            } else {
+                match response.text().await {
+                    Ok(body) => Err(format!(
+                        "Server {} response: {body}",
+                        response.status_code()
+                    )),
+                    Err(error) => Err(error.to_string()),
+                }
+            }
+        }
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
+    match specs {
+        PushSpecs::PresignedPostS3 { uri, fields, path } => {
+            let mut buffer_logs = Vec::with_capacity(1000);
+            let mut timestamp = std::time::SystemTime::now();
+            let mut batch_index: u128 = 0;
+            while let Ok(log) = logs.recv().await {
+                buffer_logs.push(log);
+                if buffer_logs.len() >= 1000
+                    || timestamp.elapsed().unwrap_or_default().as_secs() >= 5
+                {
+                    let mut fields = fields.clone();
+                    fields.insert("key".to_string(), format!("{path}/logs_{batch_index}.json"));
+
+                    if let Err(err) = send_logs_to_s3(&uri, fields, &buffer_logs).await {
+                        eprintln!("Failed to send logs to S3: {err}");
+                    }
+
+                    buffer_logs.clear();
+                    timestamp = std::time::SystemTime::now();
+                    batch_index += 1;
+                }
+            }
+            // Send any remaining logs
+            if !buffer_logs.is_empty() {
+                let mut fields = fields.clone();
+                fields.insert("key".to_string(), format!("{path}/logs_{batch_index}.json"));
+
+                if let Err(err) = send_logs_to_s3(&uri, fields, &buffer_logs).await {
+                    eprintln!("Failed to send logs to S3: {err}");
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::debug::Event>) {
+    match specs {
+        PushSpecs::PresignedPostS3 { uri, fields, path } => {
+            let mut buffer_events = Vec::with_capacity(1000);
+            let mut timestamp = std::time::SystemTime::now();
+            let mut batch_index: u128 = 0;
+            while let Ok(event) = events.recv().await {
+                buffer_events.push(melodium_share::Event::from(&event));
+                if buffer_events.len() >= 1000
+                    || timestamp.elapsed().unwrap_or_default().as_secs() >= 5
+                {
+                    let mut fields = fields.clone();
+                    fields.insert(
+                        "key".to_string(),
+                        format!("{path}/debug_{batch_index}.json"),
+                    );
+
+                    if let Err(err) = send_debug_to_s3(&uri, fields, &buffer_events).await {
+                        eprintln!("Failed to send debug events to S3: {err}");
+                    }
+
+                    buffer_events.clear();
+                    timestamp = std::time::SystemTime::now();
+                    batch_index += 1;
+                }
+            }
+            // Send any remaining logs
+            if !buffer_events.is_empty() {
+                let mut fields = fields.clone();
+                fields.insert(
+                    "key".to_string(),
+                    format!("{path}/debug_{batch_index}.json"),
+                );
+
+                if let Err(err) = send_debug_to_s3(&uri, fields, &buffer_events).await {
+                    eprintln!("Failed to send debug events to S3: {err}");
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+pub async fn report_program(specs: PushSpecs, program: ProgramDump) {
+    match specs {
+        PushSpecs::PresignedPutS3 { uri, headers } => {
+            let client = match CLIENT.as_ref() {
+                Ok(client) => client,
+                Err(err) => {
+                    eprintln!("Failed to create HTTP client: {err}");
+                    return;
+                }
+            };
+
+            let request = client.put(&uri);
+            let request = headers
+                .into_iter()
+                .fold(request, |req, (key, value)| req.header(key, value));
+            match request
+                .body(serde_json::to_vec(&program).unwrap())
+                .send()
+                .await
+            {
+                Ok(response) => {
+                    if !response.status().is_success() {
+                        eprintln!(
+                            "Failed to upload program dump: Server responded with status code {}",
+                            response.status()
+                        );
+                    }
+                }
+                Err(err) => eprintln!("Failed to upload program dump: {err}"),
+            }
+        }
+        _ => {}
+    }
+}
+
+async fn send_logs_to_s3(
+    uri: &str,
+    fields: HashMap<String, String>,
+    logs: &Vec<Log>,
+) -> Result<(), String> {
+    let mut form = reqwest::multipart::Form::new();
+    for (key, value) in fields {
+        form = form.text(key, value);
+    }
+
+    form = form.part(
+        "file",
+        reqwest::multipart::Part::bytes(serde_json::to_vec(logs).unwrap())
+            .file_name("logs.json")
+            .mime_str("application/json")
+            .unwrap(),
+    );
+
+    CLIENT
+        .as_ref()?
+        .post(uri)
+        .multipart(form)
+        .send()
+        .await
+        .map(|_| ())
+        .map_err(|err| err.to_string())
+}
+
+async fn send_debug_to_s3(
+    uri: &str,
+    fields: HashMap<String, String>,
+    events: &Vec<melodium_share::Event>,
+) -> Result<(), String> {
+    let mut form = reqwest::multipart::Form::new();
+    for (key, value) in fields {
+        form = form.text(key, value);
+    }
+
+    form = form.part(
+        "file",
+        reqwest::multipart::Part::bytes(serde_json::to_vec(events).unwrap())
+            .file_name("debug.json")
+            .mime_str("application/json")
+            .unwrap(),
+    );
+
+    CLIENT
+        .as_ref()?
+        .post(uri)
+        .multipart(form)
+        .send()
+        .await
+        .map(|_| ())
+        .map_err(|err| err.to_string())
+}

@@ -16,6 +16,7 @@ use async_std::{
     io::{BufWriter, WriteExt},
 };
 use colored::Colorize;
+use futures::StreamExt;
 use melodium_common::{
     descriptor::{
         Collection, Identifier, LoadingError, LoadingResult, Package, PackageRequirement,
@@ -338,25 +339,77 @@ pub async fn launch(
     parameters: HashMap<String, Value>,
     log_path: Option<PathBuf>,
     debug_path: Option<PathBuf>,
+    api_report: bool,
 ) -> LogicResult<()> {
     let engine = melodium_engine::new_engine(collection, Level::Trace, DebugLevel::Detailed);
 
+    let mut monitoring = futures::stream::FuturesUnordered::new();
+
     let (logs_stdout_sender, logs_stdout_receiver) = unbounded();
     engine.add_logs_listener(logs_stdout_sender);
-    let logs_print =
-        async_std::task::spawn(async move { display_logs(logs_stdout_receiver).await });
-
-    let logs_write = log_path.map(|path| {
+    monitoring.push(async_std::task::spawn(async move {
+        display_logs(logs_stdout_receiver).await
+    }));
+    if let Some(log_path) = log_path.clone() {
         let (logs_write_sender, logs_write_receiver) = unbounded();
         engine.add_logs_listener(logs_write_sender);
-        async_std::task::spawn(async move { write_logs(path, logs_write_receiver).await })
-    });
+        monitoring.push(async_std::task::spawn(async move {
+            write_logs(log_path, logs_write_receiver).await
+        }));
+    }
+    if let Some(debug_path) = debug_path {
+        let (debug_write_sender, debug_write_receiver) = unbounded();
+        engine.add_debug_listener(debug_write_sender);
+        monitoring.push(async_std::task::spawn(async move {
+            write_debug(debug_path, debug_write_receiver).await
+        }));
+    }
 
-    let debug_write = debug_path.map(|path| {
-        let (debug_listener, debug_receiver) = unbounded();
-        engine.add_debug_listener(debug_listener);
-        async_std::task::spawn(async move { write_debug(path, debug_receiver).await })
-    });
+    #[cfg(feature = "work-mel")]
+    if api_report {
+        let reporting_request = work_mel::reporting::ReportingRequest {
+            run_id: *melodium_engine::execution_run_id(),
+            group_id: *melodium_engine::execution_group_id(),
+        };
+        let reporting = work_mel::reporting::request_reporting(reporting_request).await;
+        match reporting {
+            Ok(reporting) => {
+                if let Some(logs_specs) = reporting.logs {
+                    let (logs_report_sender, logs_report_receiver) = unbounded();
+                    engine.add_logs_listener(logs_report_sender);
+                    monitoring.push(async_std::task::spawn(async move {
+                        work_mel::reporting::report_logs(logs_specs, logs_report_receiver).await
+                    }));
+                }
+                if let Some(debug_specs) = reporting.debug {
+                    let (debug_report_sender, debug_report_receiver) = unbounded();
+                    engine.add_debug_listener(debug_report_sender);
+                    monitoring.push(async_std::task::spawn(async move {
+                        work_mel::reporting::report_debug(debug_specs, debug_report_receiver).await
+                    }));
+                }
+                if let Some(program_specs) = reporting.program {
+                    let program_dump = work_mel::reporting::ProgramDump {
+                        collection: melodium_share::Collection::from_entrypoint(
+                            &engine.collection(),
+                            identifier,
+                        ),
+                        entrypoint: melodium_share::Identifier::from(identifier),
+                        parameters: parameters
+                            .iter()
+                            .map(|(k, v)| (k.clone(), melodium_share::RawValue::from(v)))
+                            .collect(),
+                    };
+                    monitoring.push(async_std::task::spawn(async move {
+                        work_mel::reporting::report_program(program_specs, program_dump).await
+                    }));
+                }
+            }
+            Err(error) => {
+                eprintln!("Failed to request reporting: {error}");
+            }
+        }
+    }
 
     let result = engine.genesis(&identifier, parameters);
     if result.is_failure() {
@@ -366,13 +419,8 @@ pub async fn launch(
         engine.end().await;
     }
 
-    logs_print.await;
-    if let Some(logs_write) = logs_write {
-        logs_write.await;
-    }
-    if let Some(debug_write) = debug_write {
-        debug_write.await;
-    }
+    while let Some(_) = monitoring.next().await {}
+
     LogicResult::new_success(())
 }
 
