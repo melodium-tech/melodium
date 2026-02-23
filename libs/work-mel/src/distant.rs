@@ -61,7 +61,7 @@ impl DistantEngine {
         (
             api::DistributionResponse,
             Vec<String>,
-            Option<Box<dyn core::future::Future<Output = ()> + Send + Unpin>>,
+            Option<Box<dyn core::future::Future<Output = Vec<String>> + Send + Unpin>>,
         ),
         String,
     > {
@@ -101,7 +101,7 @@ impl DistantEngine {
         (
             api::DistributionResponse,
             Vec<String>,
-            Option<Box<dyn core::future::Future<Output = ()> + Send + Unpin>>,
+            Option<Box<dyn core::future::Future<Output = Vec<String>> + Send + Unpin>>,
         ),
         String,
     > {
@@ -204,9 +204,11 @@ impl DistantEngine {
         match response {
             Ok((access, mut child)) => {
                 let finish_notification = async move {
-                    let status = child.status().await;
+                    let mut possible_errors = Vec::new();
+                    let status =
+                        async_std::future::timeout(Duration::from_secs(10), child.status()).await;
                     match status {
-                        Ok(exit) => {
+                        Ok(Ok(exit)) => {
                             if let (Some(run_api_id), Some(api_url), Some(api_token)) =
                                 (run_api_id, api_url, api_token)
                             {
@@ -237,9 +239,18 @@ impl DistantEngine {
                                 )?
                                 .exec()
                                 .await;
+
+                                if !exit.success() {
+                                    possible_errors.push(format!(
+                                        "Compose exited with code {}",
+                                        exit.code()
+                                            .map(|code| code.to_string())
+                                            .unwrap_or("undefined".into())
+                                    ));
+                                }
                             }
                         }
-                        Err(err) => {
+                        Ok(Err(err)) => {
                             if let (Some(run_api_id), Some(api_url), Some(api_token)) =
                                 (run_api_id, api_url, api_token)
                             {
@@ -263,15 +274,52 @@ impl DistantEngine {
                                 )?
                                 .exec()
                                 .await;
+
+                                possible_errors.push(err.to_string());
+                            }
+                        }
+                        Err(err) => {
+                            if let (Some(run_api_id), Some(api_url), Some(api_token)) =
+                                (run_api_id, api_url, api_token)
+                            {
+                                let _ = generic_async_http_client::Request::post(&format!(
+                                    "{api_url}/execution/run/ended"
+                                ))
+                                .add_header("User-Agent", crate::USER_AGENT)?
+                                .add_header(
+                                    "Authorization",
+                                    format!("Bearer {api_token}").as_bytes(),
+                                )?
+                                .add_header("Content-Type", "application/json")?
+                                .body(
+                                    serde_json::to_string(&api::LocalEnd {
+                                        run_id: run_api_id,
+                                        result: api::DistributionResult::Success(Some(vec![
+                                            format!("Compose exit timeout: {}", err.to_string()),
+                                        ])),
+                                    })
+                                    .unwrap(),
+                                )?
+                                .exec()
+                                .await;
+
+                                possible_errors
+                                    .push(format!("Compose exit timeout: {}", err.to_string()));
                             }
                         }
                     }
 
-                    Ok::<(), generic_async_http_client::Error>(())
+                    Ok::<Vec<String>, generic_async_http_client::Error>(possible_errors)
                 };
 
                 let finish_notification = async move {
-                    let _ = finish_notification.await;
+                    match finish_notification.await {
+                        Ok(possible_errors) => possible_errors,
+                        Err(err) => vec![format!(
+                            "Error while sending run end notification: {}",
+                            err.to_string()
+                        )],
+                    }
                 };
 
                 Ok((
@@ -296,7 +344,7 @@ impl DistantEngine {
         (
             api::DistributionResponse,
             Vec<String>,
-            Option<Box<dyn core::future::Future<Output = ()> + Send + Unpin>>,
+            Option<Box<dyn core::future::Future<Output = Vec<String>> + Send + Unpin>>,
         ),
         String,
     > {
@@ -519,14 +567,15 @@ pub async fn distant(
                             .await;
                         let _ = access.close().await;
                         let _ = failed.close().await;
-                        let _ = errors.close().await;
-                        if let Some(future) = future {
-                            if let Err(err) =
-                                async_std::future::timeout(Duration::from_secs(10), future).await
-                            {
-                                eprintln!("Child end timeout: {err}");
+
+                        if let Some(future_errors) = future {
+                            let some_errors = future_errors.await;
+                            if !some_errors.is_empty() {
+                                let _ = errors.send_many(some_errors.into()).await;
                             }
                         }
+
+                        let _ = errors.close().await;
                     }
                     api::DistributionResponse::Started(None) => {}
                     api::DistributionResponse::Error(errs) => {
