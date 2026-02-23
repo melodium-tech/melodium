@@ -23,7 +23,7 @@ use melodium_engine::debug::{DebugLevel, Event};
 use melodium_engine::descriptor::{Model, Treatment};
 use melodium_engine::execution_group_id;
 use melodium_loader::Loader;
-use melodium_share::{SharingError, SharingResult};
+use melodium_share::{ProgramDump, SharingError, SharingResult};
 use std::{
     collections::{HashMap, VecDeque},
     sync::Arc,
@@ -45,6 +45,7 @@ pub async fn launch_listen(
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
     debug_senders: Vec<Sender<Event>>,
+    program_dump_sender: Option<Sender<ProgramDump>>,
 ) {
     let acceptor = acceptor(certificate_chain, key).unwrap();
     let listener = TcpListener::bind(bind).await.unwrap();
@@ -77,6 +78,7 @@ pub async fn launch_listen(
         max_duration,
         logs_senders,
         debug_senders,
+        program_dump_sender,
     )
     .await
 }
@@ -91,6 +93,7 @@ pub async fn launch_listen_localcert(
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
     debug_senders: Vec<Sender<Event>>,
+    program_dump_sender: Option<Sender<ProgramDump>>,
 ) {
     launch_listen(
         bind,
@@ -104,6 +107,7 @@ pub async fn launch_listen_localcert(
         max_duration,
         logs_senders,
         debug_senders,
+        program_dump_sender,
     )
     .await
 }
@@ -118,6 +122,7 @@ pub async fn launch_listen_unsecure(
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
     debug_senders: Vec<Sender<Event>>,
+    program_dump_sender: Option<Sender<ProgramDump>>,
 ) {
     let listener = TcpListener::bind(bind).await.unwrap();
 
@@ -145,6 +150,7 @@ pub async fn launch_listen_unsecure(
         max_duration,
         logs_senders,
         debug_senders,
+        program_dump_sender,
     )
     .await
 }
@@ -158,6 +164,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     max_duration: Option<Duration>,
     logs_senders: Vec<Sender<Log>>,
     debug_senders: Vec<Sender<Event>>,
+    program_dump_sender: Option<Sender<ProgramDump>>,
 ) {
     let protocol = Arc::new(Protocol::new(stream));
 
@@ -187,7 +194,23 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     }
 
     let (distributed_collection, entrypoint, parameters) = match protocol.recv_message().await {
-        Ok(Message::LoadAndLaunch(lal)) => (lal.collection, lal.entrypoint, lal.parameters),
+        Ok(Message::LoadAndLaunch(lal)) => {
+            if let Some(program_dump_sender) = program_dump_sender {
+                let _ = program_dump_sender
+                    .send(ProgramDump {
+                        collection: lal.collection.clone(),
+                        entrypoint: lal.entrypoint.clone(),
+                        parameters: lal
+                            .parameters
+                            .iter()
+                            .map(|(name, value)| (name.clone(), value.clone()))
+                            .collect(),
+                    })
+                    .await;
+                program_dump_sender.close();
+            }
+            (lal.collection, lal.entrypoint, lal.parameters)
+        }
         _ => return,
     };
 

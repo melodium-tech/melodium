@@ -35,13 +35,6 @@ pub enum PushSpecs {
     },
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ProgramDump {
-    pub collection: melodium_share::Collection,
-    pub entrypoint: melodium_share::Identifier,
-    pub parameters: HashMap<String, melodium_share::RawValue>,
-}
-
 static CLIENT: std::sync::LazyLock<Result<reqwest::Client, String>> =
     std::sync::LazyLock::new(|| {
         reqwest::Client::builder()
@@ -59,7 +52,14 @@ pub async fn request_reporting(request: ReportingRequest) -> Result<Reporting, S
     .map_err(|err| err.to_string())?
     .add_header(
         "Authorization",
-        format!("Bearer {api_token}", api_token = crate::API_TOKEN.as_str()).as_bytes(),
+        format!(
+            "Bearer {api_token}",
+            api_token = crate::API_TOKEN
+                .as_ref()
+                .map(|token| token.as_str())
+                .unwrap_or(&"")
+        )
+        .as_bytes(),
     )
     .map_err(|err| err.to_string())?
     .add_header("Content-Type", "application/json")
@@ -169,7 +169,7 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
     }
 }
 
-pub async fn report_program(specs: PushSpecs, program: ProgramDump) {
+pub async fn report_program(specs: PushSpecs, program: melodium_share::ProgramDump) {
     match specs {
         PushSpecs::PresignedPutS3 { uri, headers } => {
             let client = match CLIENT.as_ref() {

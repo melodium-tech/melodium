@@ -45,6 +45,7 @@ struct Run {
     /// Write debug to path.
     debug: Option<PathBuf>,
     #[clap(long, default_value_t = false)]
+    /// Whether to report execution to API, requires API token to be set in environment variable `MELODIUM_API_TOKEN`. Also requires API URL to be set in environment variable `MELODIUM_API_URL` if different from `https://api.melodium.tech/0.1`.
     api_report: bool,
     #[clap(value_parser)]
     /// Program file to run, can be either `.mel`, `Compo.toml` or `.jeu` file.
@@ -125,33 +126,36 @@ struct Dist {
     #[clap(short, long, allow_hyphen_values = true)]
     /// Certificate chain to use for TLS encryption (PEM format).
     certificate: Option<String>,
-    /// Key to use for TLS encryption (PKCS8 PEM format).
     #[clap(short, long, allow_hyphen_values = true)]
+    /// Key to use for TLS encryption (PKCS8 PEM format).
     key: Option<String>,
+    #[clap(short, long)]
     /// Key expected to authenticate remote engine.
-    #[clap(short, long)]
     recv_key: uuid::Uuid,
-    /// Key to authenticate with remote engine.
     #[clap(short, long)]
+    /// Key to authenticate with remote engine.
     send_key: uuid::Uuid,
+    #[clap(long, action)]
     /// Listen localhost (if ip is not set), using embedded certificate.
-    #[clap(long, action)]
     localhost: bool,
-    /// Disable TLS encryption.
     #[clap(long, action)]
+    /// Disable TLS encryption.
     disable_tls: bool,
+    #[clap(long, default_value = None)]
     /// Time (in seconds) to wait for a distant engine to connect.
-    #[clap(long, default_value = None)]
     wait: Option<u64>,
-    /// Maximal duration (in seconds) for work to be made.
     #[clap(long, default_value = None)]
+    /// Maximal duration (in seconds) for work to be made.
     duration: Option<u64>,
+    #[clap(long)]
     /// Write logs to path.
-    #[clap(long)]
     logs: Option<PathBuf>,
-    /// Write debug to path.
     #[clap(long)]
+    /// Write debug to path.
     debug: Option<PathBuf>,
+    #[clap(long, default_value_t = false)]
+    /// Whether to report execution to API, requires API token to be set in environment variable `MELODIUM_API_TOKEN`. Also requires API URL to be set in environment variable `MELODIUM_API_URL` if different from `https://api.melodium.tech/0.1`.
+    api_report: bool,
 }
 
 #[cfg(not(feature = "distribution"))]
@@ -570,23 +574,43 @@ fn dist(args: Dist) {
 
     let loader = melodium_loader::Loader::new(core_config());
 
+    let mut monitoring = futures::stream::FuturesUnordered::new();
+
     let (logs_stdout_sender, logs_stdout_receiver) = unbounded();
-    async_std::task::spawn(async move { crate::display_logs(logs_stdout_receiver).await });
+    monitoring.push(async_std::task::spawn(async move {
+        crate::display_logs(logs_stdout_receiver).await
+    }));
     let mut logs_senders = vec![logs_stdout_sender];
 
     args.logs.map(|path| {
         let (logs_write_sender, logs_write_receiver) = unbounded();
         logs_senders.push(logs_write_sender);
-        async_std::task::spawn(async move { crate::write_logs(path, logs_write_receiver).await });
+        monitoring.push(async_std::task::spawn(async move {
+            crate::write_logs(path, logs_write_receiver).await
+        }));
     });
 
-    let debug_senders = if let Some(path) = args.debug {
+    let mut debug_senders = if let Some(path) = args.debug {
         let (debug_write_sender, debug_write_receiver) = unbounded();
-        async_std::task::spawn(async move { crate::write_debug(path, debug_write_receiver).await });
+        monitoring.push(async_std::task::spawn(async move {
+            crate::write_debug(path, debug_write_receiver).await
+        }));
         vec![debug_write_sender]
     } else {
         Vec::new()
     };
+
+    let program_dump_sender;
+    if args.api_report {
+        let (given_program_dump_sender, logs_report_sender, debug_report_sender, full_join) =
+            async_std::task::block_on(crate::api_report());
+        monitoring.push(full_join);
+        logs_senders.push(logs_report_sender);
+        debug_senders.push(debug_report_sender);
+        program_dump_sender = Some(given_program_dump_sender);
+    } else {
+        program_dump_sender = None;
+    }
 
     if args.localhost {
         match (args.disable_tls, args.certificate, args.key) {
@@ -604,6 +628,7 @@ fn dist(args: Dist) {
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
                     debug_senders,
+                    program_dump_sender,
                 ))
             }
             (false, Some(certificate), Some(key)) => {
@@ -636,6 +661,7 @@ fn dist(args: Dist) {
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
                     debug_senders,
+                    program_dump_sender,
                 ))
             }
             (false, _, _) => {
@@ -659,6 +685,7 @@ fn dist(args: Dist) {
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
                     debug_senders,
+                    program_dump_sender,
                 ))
             }
             (true, Some(_), Some(_)) | (true, None, Some(_)) | (true, Some(_), None) => {
@@ -698,6 +725,7 @@ fn dist(args: Dist) {
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
                     debug_senders,
+                    program_dump_sender,
                 ))
             }
             (false, _, _, _) => {
@@ -718,6 +746,7 @@ fn dist(args: Dist) {
                     args.duration.map(|secs| Duration::from_secs(secs)),
                     logs_senders,
                     debug_senders,
+                    program_dump_sender,
                 ))
             }
             (true, _, Some(_), Some(_)) | (true, _, Some(_), None) | (true, _, None, Some(_)) => {
@@ -736,6 +765,11 @@ fn dist(args: Dist) {
             }
         }
     }
+
+    async_std::task::block_on(async move {
+        use futures::StreamExt;
+        while let Some(_) = monitoring.next().await {}
+    });
 }
 
 #[cfg(feature = "doc")]

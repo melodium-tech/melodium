@@ -39,8 +39,10 @@ impl DistantEngine {
         let model = self.model.upgrade().unwrap();
 
         let location = model.get_location();
-        let api_url = model.get_api_url();
-        let api_token = model.get_api_token();
+        let api_url = model
+            .get_api_url()
+            .or_else(|| Some(crate::API_URL.to_string()));
+        let api_token = model.get_api_token().or_else(|| crate::API_TOKEN.clone());
 
         self.location.write().unwrap().replace(location);
         if let Some(api_url) = api_url {

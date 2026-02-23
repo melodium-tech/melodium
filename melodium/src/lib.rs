@@ -367,48 +367,23 @@ pub async fn launch(
 
     #[cfg(feature = "work-mel")]
     if api_report {
-        let reporting_request = work_mel::reporting::ReportingRequest {
-            run_id: *melodium_engine::execution_run_id(),
-            group_id: *melodium_engine::execution_group_id(),
+        let (program_dump_sender, logs_report_sender, debug_report_sender, full_join) =
+            crate::api_report().await;
+        monitoring.push(full_join);
+        engine.add_logs_listener(logs_report_sender);
+        engine.add_debug_listener(debug_report_sender);
+        let program_dump = melodium_share::ProgramDump {
+            collection: melodium_share::Collection::from_entrypoint(
+                &engine.collection(),
+                identifier,
+            ),
+            entrypoint: melodium_share::Identifier::from(identifier),
+            parameters: parameters
+                .iter()
+                .map(|(k, v)| (k.clone(), melodium_share::RawValue::from(v)))
+                .collect(),
         };
-        let reporting = work_mel::reporting::request_reporting(reporting_request).await;
-        match reporting {
-            Ok(reporting) => {
-                if let Some(logs_specs) = reporting.logs {
-                    let (logs_report_sender, logs_report_receiver) = unbounded();
-                    engine.add_logs_listener(logs_report_sender);
-                    monitoring.push(async_std::task::spawn(async move {
-                        work_mel::reporting::report_logs(logs_specs, logs_report_receiver).await
-                    }));
-                }
-                if let Some(debug_specs) = reporting.debug {
-                    let (debug_report_sender, debug_report_receiver) = unbounded();
-                    engine.add_debug_listener(debug_report_sender);
-                    monitoring.push(async_std::task::spawn(async move {
-                        work_mel::reporting::report_debug(debug_specs, debug_report_receiver).await
-                    }));
-                }
-                if let Some(program_specs) = reporting.program {
-                    let program_dump = work_mel::reporting::ProgramDump {
-                        collection: melodium_share::Collection::from_entrypoint(
-                            &engine.collection(),
-                            identifier,
-                        ),
-                        entrypoint: melodium_share::Identifier::from(identifier),
-                        parameters: parameters
-                            .iter()
-                            .map(|(k, v)| (k.clone(), melodium_share::RawValue::from(v)))
-                            .collect(),
-                    };
-                    monitoring.push(async_std::task::spawn(async move {
-                        work_mel::reporting::report_program(program_specs, program_dump).await
-                    }));
-                }
-            }
-            Err(error) => {
-                eprintln!("Failed to request reporting: {error}");
-            }
-        }
+        let _ = program_dump_sender.send(program_dump).await;
     }
 
     let result = engine.genesis(&identifier, parameters);
@@ -584,4 +559,74 @@ pub async fn write_debug(path: PathBuf, receiver: Receiver<Event>) {
 
         let _ = debug_file.flush().await;
     }
+}
+
+#[cfg(feature = "work-mel")]
+pub async fn api_report() -> (
+    async_std::channel::Sender<melodium_share::ProgramDump>,
+    async_std::channel::Sender<Log>,
+    async_std::channel::Sender<Event>,
+    async_std::task::JoinHandle<()>,
+) {
+    let (program_dump_sender, program_dump_receiver) = async_std::channel::bounded(1);
+    let (logs_report_sender, logs_report_receiver) = unbounded();
+    let (debug_report_sender, debug_report_receiver) = unbounded();
+
+    let reporting_request = work_mel::reporting::ReportingRequest {
+        run_id: *melodium_engine::execution_run_id(),
+        group_id: *melodium_engine::execution_group_id(),
+    };
+    let reporting = work_mel::reporting::request_reporting(reporting_request).await;
+    let mut join_program_dump = None;
+    let mut join_logs_report = None;
+    let mut join_debug_report = None;
+    match reporting {
+        Ok(reporting) => {
+            if let Some(program_specs) = reporting.program {
+                join_program_dump = Some(async_std::task::spawn(async move {
+                    if let Ok(program_dump) = program_dump_receiver.recv().await {
+                        work_mel::reporting::report_program(program_specs, program_dump).await
+                    }
+                }))
+            } else {
+                program_dump_sender.close();
+            }
+            if let Some(logs_specs) = reporting.logs {
+                join_logs_report = Some(async_std::task::spawn(async move {
+                    work_mel::reporting::report_logs(logs_specs, logs_report_receiver).await
+                }));
+            } else {
+                logs_report_sender.close();
+            }
+            if let Some(debug_specs) = reporting.debug {
+                join_debug_report = Some(async_std::task::spawn(async move {
+                    work_mel::reporting::report_debug(debug_specs, debug_report_receiver).await
+                }));
+            } else {
+                debug_report_sender.close();
+            }
+        }
+        Err(error) => {
+            eprintln!("Failed to request reporting: {error}");
+        }
+    }
+
+    let full_join = async_std::task::spawn(async move {
+        if let Some(join) = join_program_dump {
+            let _ = join.await;
+        }
+        if let Some(join) = join_logs_report {
+            let _ = join.await;
+        }
+        if let Some(join) = join_debug_report {
+            let _ = join.await;
+        }
+    });
+
+    (
+        program_dump_sender,
+        logs_report_sender,
+        debug_report_sender,
+        full_join,
+    )
 }

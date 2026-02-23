@@ -23,9 +23,10 @@ use melodium_macro::mel_package;
 
 pub(crate) const USER_AGENT: &str = concat!("work-mel/", env!("CARGO_PKG_VERSION"));
 pub(crate) static API_URL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
-    std::env::var("MELODIUM_API_URL").unwrap_or_else(|_| "https://api.melodium.tech".to_string())
+    std::env::var("MELODIUM_API_URL")
+        .unwrap_or_else(|_| "https://api.melodium.tech/0.1".to_string())
 });
-pub(crate) static API_TOKEN: std::sync::LazyLock<String> =
-    std::sync::LazyLock::new(|| std::env::var("MELODIUM_API_TOKEN").unwrap_or_default());
+pub(crate) static API_TOKEN: std::sync::LazyLock<Option<String>> =
+    std::sync::LazyLock::new(|| std::env::var("MELODIUM_API_TOKEN").ok());
 
 mel_package!();
