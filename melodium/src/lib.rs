@@ -339,7 +339,8 @@ pub async fn launch(
     parameters: HashMap<String, Value>,
     log_path: Option<PathBuf>,
     debug_path: Option<PathBuf>,
-    api_report: bool,
+    enable_reports: bool,
+    enable_status: bool,
 ) -> LogicResult<()> {
     let engine = melodium_engine::new_engine(collection, Level::Trace, DebugLevel::Detailed);
 
@@ -365,10 +366,25 @@ pub async fn launch(
         }));
     }
 
+    let mut signal_launched = None;
+    let mut signal_ended = None;
+
     #[cfg(feature = "work-mel")]
-    if api_report {
-        let (program_dump_sender, logs_report_sender, debug_report_sender, full_join) =
-            crate::api_report().await;
+    if enable_reports || enable_status {
+        let (
+            program_dump_sender,
+            logs_report_sender,
+            debug_report_sender,
+            full_join,
+            status_reporting,
+        ) = crate::api_report(
+            enable_reports,
+            enable_status,
+            work_mel::api::ModeRequest::Direct,
+        )
+        .await;
+        signal_launched = status_reporting.launched;
+        signal_ended = status_reporting.ended;
         monitoring.push(full_join);
         engine.add_logs_listener(logs_report_sender);
         engine.add_debug_listener(debug_report_sender);
@@ -388,10 +404,19 @@ pub async fn launch(
 
     let result = engine.genesis(&identifier, parameters);
     if result.is_failure() {
+        if let Some(launched) = signal_launched {
+            launched(Err("Failed to launch engine".into())).await;
+        }
         return result;
     } else {
+        if let Some(launched) = signal_launched {
+            launched(Ok(())).await;
+        }
         engine.live().await;
         engine.end().await;
+        if let Some(ended) = signal_ended {
+            ended().await;
+        }
     }
 
     while let Some(_) = monitoring.next().await {}
@@ -562,11 +587,16 @@ pub async fn write_debug(path: PathBuf, receiver: Receiver<Event>) {
 }
 
 #[cfg(feature = "work-mel")]
-pub async fn api_report() -> (
+pub async fn api_report(
+    enable_reports: bool,
+    enable_status: bool,
+    mode: work_mel::api::ModeRequest,
+) -> (
     async_std::channel::Sender<melodium_share::ProgramDump>,
     async_std::channel::Sender<Log>,
     async_std::channel::Sender<Event>,
     async_std::task::JoinHandle<()>,
+    work_mel::reporting::StatusReporting,
 ) {
     let (program_dump_sender, program_dump_receiver) = async_std::channel::bounded(1);
     let (logs_report_sender, logs_report_receiver) = unbounded();
@@ -576,12 +606,24 @@ pub async fn api_report() -> (
         run_id: *melodium_engine::execution_run_id(),
         group_id: *melodium_engine::execution_group_id(),
     };
-    let reporting = work_mel::reporting::request_reporting(reporting_request).await;
+    let reporting = work_mel::reporting::request_reporting(
+        enable_reports,
+        enable_status,
+        reporting_request,
+        &melodium_common::descriptor::Version::parse(VERSION).unwrap(),
+        mode,
+    )
+    .await;
     let mut join_program_dump = None;
     let mut join_logs_report = None;
     let mut join_debug_report = None;
+    let mut status_reporting = work_mel::reporting::StatusReporting {
+        launched: None,
+        ended: None,
+    };
     match reporting {
-        Ok(reporting) => {
+        Ok((reporting, status)) => {
+            status_reporting = status;
             if let Some(program_specs) = reporting.program {
                 join_program_dump = Some(async_std::task::spawn(async move {
                     if let Ok(program_dump) = program_dump_receiver.recv().await {
@@ -628,5 +670,6 @@ pub async fn api_report() -> (
         logs_report_sender,
         debug_report_sender,
         full_join,
+        status_reporting,
     )
 }

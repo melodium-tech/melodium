@@ -46,6 +46,17 @@ pub async fn launch_listen(
     logs_senders: Vec<Sender<Log>>,
     debug_senders: Vec<Sender<Event>>,
     program_dump_sender: Option<Sender<ProgramDump>>,
+    launched: Option<
+        Box<
+            dyn FnOnce(
+                Result<(), String>,
+            )
+                -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
+        >,
+    >,
+    ended: Option<
+        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
+    >,
 ) {
     let acceptor = acceptor(certificate_chain, key).unwrap();
     let listener = TcpListener::bind(bind).await.unwrap();
@@ -63,7 +74,12 @@ pub async fn launch_listen(
     let stream = if let Some(wait_for) = wait_for {
         match timeout(wait_for, accept_stream).await {
             Ok(stream) => stream,
-            Err(_) => return,
+            Err(_) => {
+                if let Some(launched) = launched {
+                    launched(Err("Distribution timeout".to_string())).await;
+                }
+                return;
+            }
         }
     } else {
         accept_stream.await
@@ -79,6 +95,8 @@ pub async fn launch_listen(
         logs_senders,
         debug_senders,
         program_dump_sender,
+        launched,
+        ended,
     )
     .await
 }
@@ -94,6 +112,17 @@ pub async fn launch_listen_localcert(
     logs_senders: Vec<Sender<Log>>,
     debug_senders: Vec<Sender<Event>>,
     program_dump_sender: Option<Sender<ProgramDump>>,
+    launched: Option<
+        Box<
+            dyn FnOnce(
+                Result<(), String>,
+            )
+                -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
+        >,
+    >,
+    ended: Option<
+        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
+    >,
 ) {
     launch_listen(
         bind,
@@ -108,6 +137,8 @@ pub async fn launch_listen_localcert(
         logs_senders,
         debug_senders,
         program_dump_sender,
+        launched,
+        ended,
     )
     .await
 }
@@ -123,6 +154,17 @@ pub async fn launch_listen_unsecure(
     logs_senders: Vec<Sender<Log>>,
     debug_senders: Vec<Sender<Event>>,
     program_dump_sender: Option<Sender<ProgramDump>>,
+    launched: Option<
+        Box<
+            dyn FnOnce(
+                Result<(), String>,
+            )
+                -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
+        >,
+    >,
+    ended: Option<
+        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
+    >,
 ) {
     let listener = TcpListener::bind(bind).await.unwrap();
 
@@ -135,7 +177,12 @@ pub async fn launch_listen_unsecure(
     let stream = if let Some(wait_for) = wait_for {
         match timeout(wait_for, accept_stream).await {
             Ok(stream) => stream,
-            Err(_) => return,
+            Err(_) => {
+                if let Some(launched) = launched {
+                    launched(Err("Distribution timeout".to_string())).await;
+                }
+                return;
+            }
         }
     } else {
         accept_stream.await
@@ -151,6 +198,8 @@ pub async fn launch_listen_unsecure(
         logs_senders,
         debug_senders,
         program_dump_sender,
+        launched,
+        ended,
     )
     .await
 }
@@ -165,6 +214,17 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     logs_senders: Vec<Sender<Log>>,
     debug_senders: Vec<Sender<Event>>,
     program_dump_sender: Option<Sender<ProgramDump>>,
+    launched: Option<
+        Box<
+            dyn FnOnce(
+                Result<(), String>,
+            )
+                -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
+        >,
+    >,
+    ended: Option<
+        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
+    >,
 ) {
     let protocol = Arc::new(Protocol::new(stream));
 
@@ -187,10 +247,18 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                 .unwrap();
 
             if !accept {
+                if let Some(launched) = launched {
+                    launched(Err("Distribution refused".to_string())).await;
+                }
                 return;
             }
         }
-        _ => return,
+        _ => {
+            if let Some(launched) = launched {
+                launched(Err("No distribution asked".to_string())).await;
+            }
+            return;
+        }
     }
 
     let (distributed_collection, entrypoint, parameters) = match protocol.recv_message().await {
@@ -211,7 +279,12 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             }
             (lal.collection, lal.entrypoint, lal.parameters)
         }
-        _ => return,
+        _ => {
+            if let Some(launched) = launched {
+                launched(Err("No load provided".to_string())).await;
+            }
+            return;
+        }
     };
 
     // Proceed to load of compiled elements
@@ -321,12 +394,20 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             )))
             .await
             .unwrap();
+        if let Some(launched) = launched {
+            launched(Err(fail.to_string())).await;
+        }
+        return;
     }
 
     protocol
         .send_message(Message::LaunchStatus(messages::LaunchStatus::Ok))
         .await
         .unwrap();
+
+    if let Some(launched) = launched {
+        launched(Ok(())).await;
+    }
 
     let barrier = Arc::new(Barrier::new(2));
     let expired = Arc::new(AtomicBool::new(false));
@@ -632,6 +713,10 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
 
     protocol.close().await;
     probe.cancel().await;
+
+    if let Some(ended) = ended {
+        ended().await;
+    }
 }
 
 fn acceptor(

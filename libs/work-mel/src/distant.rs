@@ -135,6 +135,7 @@ impl DistantEngine {
                             Ok(response) => match response {
                                 api::Response::Ok(id) => {
                                     run_api_id = Some(id);
+                                    request.id = Some(id);
                                 }
                                 api::Response::Error(errs) => {
                                     api_errors.extend(errs);
@@ -528,16 +529,16 @@ pub async fn distant(
 
     let key = Uuid::new_v4();
     let start = api::Request {
-        edition: edition.unwrap_or_else(|| "scratch".to_string()),
-        max_duration,
-        memory,
-        cpu,
-        mode: api::ModeRequest::Distribute { key: key.clone() },
+        edition: Some(edition.unwrap_or_else(|| "scratch".to_string())),
+        max_duration: Some(max_duration),
+        memory: Some(memory),
+        cpu: Some(cpu),
+        mode: api::ModeRequest::DistributionSecretKey { key: key.clone() },
         config: None,
         id: None,
         organization_id: None,
         version: env!("CARGO_PKG_VERSION").to_string(),
-        storage,
+        storage: Some(storage),
         arch: arch.map(|arch| arch.0),
         volumes: volumes.into_iter().map(|vol| vol.0.clone()).collect(),
         containers: containers.into_iter().map(|cont| cont.0.clone()).collect(),
@@ -546,6 +547,7 @@ pub async fn distant(
             .map(|cont| cont.0.clone())
             .collect(),
         group_id: Some(melodium_engine::execution_group_id().clone()),
+        parent_id: Some(melodium_engine::execution_run_id().clone()),
         tags: tags,
         local_exec: false,
     };

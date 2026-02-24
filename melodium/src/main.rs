@@ -341,6 +341,7 @@ fn run(args: Run) {
             args.logs,
             args.debug,
             args.api_report,
+            args.api_report,
         ));
         if let Some(failure) = launch.failure() {
             eprintln!("{}: {failure}", "failure".bold().red());
@@ -601,15 +602,30 @@ fn dist(args: Dist) {
     };
 
     let program_dump_sender;
+    let signal_launched;
+    let signal_ended;
     if args.api_report {
-        let (given_program_dump_sender, logs_report_sender, debug_report_sender, full_join) =
-            async_std::task::block_on(crate::api_report());
+        let (
+            given_program_dump_sender,
+            logs_report_sender,
+            debug_report_sender,
+            full_join,
+            status_reporting,
+        ) = async_std::task::block_on(crate::api_report(
+            args.api_report,
+            args.api_report,
+            work_mel::api::ModeRequest::Distribution,
+        ));
         monitoring.push(full_join);
         logs_senders.push(logs_report_sender);
         debug_senders.push(debug_report_sender);
         program_dump_sender = Some(given_program_dump_sender);
+        signal_launched = status_reporting.launched;
+        signal_ended = status_reporting.ended;
     } else {
         program_dump_sender = None;
+        signal_launched = None;
+        signal_ended = None;
     }
 
     if args.localhost {
@@ -629,6 +645,8 @@ fn dist(args: Dist) {
                     logs_senders,
                     debug_senders,
                     program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (false, Some(certificate), Some(key)) => {
@@ -662,6 +680,8 @@ fn dist(args: Dist) {
                     logs_senders,
                     debug_senders,
                     program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (false, _, _) => {
@@ -686,6 +706,8 @@ fn dist(args: Dist) {
                     logs_senders,
                     debug_senders,
                     program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (true, Some(_), Some(_)) | (true, None, Some(_)) | (true, Some(_), None) => {
@@ -726,6 +748,8 @@ fn dist(args: Dist) {
                     logs_senders,
                     debug_senders,
                     program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (false, _, _, _) => {
@@ -747,6 +771,8 @@ fn dist(args: Dist) {
                     logs_senders,
                     debug_senders,
                     program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (true, _, Some(_), Some(_)) | (true, _, Some(_), None) | (true, _, None, Some(_)) => {

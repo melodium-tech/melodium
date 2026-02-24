@@ -44,8 +44,8 @@ impl Display for Executor {
 
 #[cfg(feature = "real")]
 pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String>> {
-    if request.edition.as_str() == "scratch" {
-        request.edition = "alpine".to_string()
+    if request.edition.as_deref().unwrap_or("scratch") == "scratch" {
+        request.edition = Some("alpine".to_string())
     }
 
     let enable_debug = std::env::var("MELODIUM_COMPOSE_DEBUG")
@@ -96,8 +96,10 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         eprintln!("Socket: {socket:?}");
     }
 
-    let id = Uuid::new_v4();
-    let short_id = format!("{id:.*}", 8);
+    if request.id.is_none() {
+        request.id = Some(Uuid::new_v4());
+    }
+    let short_id = format!("{1:.*}", 8, request.id.unwrap_or_default());
 
     let access_key = Uuid::new_v4();
 
@@ -315,7 +317,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
     let mut environment = Map::new();
     environment.insert(
         MapKey::new("MELODIUM_RUN_ID").map_err(|err| vec![err.to_string()])?,
-        Some(id.to_string().into()),
+        Some(request.id.unwrap_or_default().to_string().into()),
     );
     environment.insert(
         MapKey::new("MELODIUM_GROUP_ID").map_err(|err| vec![err.to_string()])?,
@@ -396,7 +398,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         .unwrap_or("quay.io/melodium".to_string())
                 }),
                 request.version,
-                request.edition,
+                request.edition.unwrap_or_else(|| "scratch".to_string()),
                 executor
             ))
             .map_err(|err| vec![err.to_string()])?,
@@ -409,11 +411,11 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         ),
         environment: compose_spec::ListOrMap::Map(environment),
         command: Some(compose_spec::service::Command::List(match &request.mode {
-            ModeRequest::Direct {
+            ModeRequest::DirectProject {
                 entrypoint,
                 project: _,
             } => vec!["run".to_string(), entrypoint.clone()],
-            ModeRequest::Distribute { key } => vec![
+            ModeRequest::DistributionSecretKey { key } => vec![
                 "dist".to_string(),
                 "--ip".to_string(),
                 "0.0.0.0".to_string(),
@@ -422,7 +424,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                 "--wait".to_string(),
                 "30".to_string(),
                 "--duration".to_string(),
-                request.max_duration.to_string(),
+                request.max_duration.unwrap_or(0).to_string(),
                 "--recv-key".to_string(),
                 access_key.to_string(),
                 "--send-key".to_string(),
@@ -433,6 +435,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                     "--disable-tls".to_string()
                 },
             ],
+            _ => return Err(vec!["Unsupported mode".to_string()]),
         })),
         //cpus: Some(Cpus::new(request.cpu as f64 / 1000f64).map_err(|err| vec![err.to_string()])?),
         /*mem_limit: Some(compose_spec::service::ByteValue::Megabytes(
@@ -625,7 +628,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                     }
 
                     let access = Access {
-                        id: id,
+                        id: request.id.unwrap_or_default(),
                         addresses: vec![bind_ip],
                         port: binding,
                         key: access_key,

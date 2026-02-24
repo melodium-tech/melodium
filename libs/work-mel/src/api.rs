@@ -27,19 +27,20 @@ pub struct Request {
     pub config: Option<RequestConfig>,
     pub id: Option<Uuid>,
     pub organization_id: Option<Uuid>,
-    pub edition: String,
+    pub edition: Option<String>,
     pub version: String,
     pub mode: ModeRequest,
-    pub max_duration: u32,
-    pub memory: u32,
-    pub cpu: u32,
-    pub storage: u32,
+    pub max_duration: Option<u32>,
+    pub memory: Option<u32>,
+    pub cpu: Option<u32>,
+    pub storage: Option<u32>,
     pub arch: Option<Arch>,
     pub volumes: Vec<Volume>,
     pub containers: Vec<Container>,
     pub service_containers: Vec<ServiceContainer>,
     pub tags: Vec<String>,
     pub group_id: Option<Uuid>,
+    pub parent_id: Option<Uuid>,
     #[serde(default)]
     pub local_exec: bool,
 }
@@ -63,8 +64,10 @@ pub enum ServiceMode {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ModeRequest {
-    Direct { entrypoint: String, project: () },
-    Distribute { key: Uuid },
+    Direct,
+    Distribution,
+    DirectProject { entrypoint: String, project: () },
+    DistributionSecretKey { key: Uuid },
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]

@@ -1,5 +1,6 @@
+use crate::api::{DistributionResponse, LocalEnd, LocalLaunched, ModeRequest, Request};
 use async_std::channel::Receiver;
-use melodium_core::common::executive::Log;
+use melodium_core::common::{descriptor::Version, executive::Log};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -18,6 +19,20 @@ pub struct Reporting {
     pub logs: Option<PushSpecs>,
     pub debug: Option<PushSpecs>,
     pub program: Option<PushSpecs>,
+}
+
+pub struct StatusReporting {
+    pub launched: Option<
+        Box<
+            dyn FnOnce(
+                Result<(), String>,
+            )
+                -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
+        >,
+    >,
+    pub ended: Option<
+        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
+    >,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -43,50 +58,217 @@ static CLIENT: std::sync::LazyLock<Result<reqwest::Client, String>> =
             .map_err(|err| err.to_string())
     });
 
-pub async fn request_reporting(request: ReportingRequest) -> Result<Reporting, String> {
-    match generic_async_http_client::Request::post(&format!(
-        "{api_url}/execution/report/request",
-        api_url = crate::API_URL.as_str()
-    ))
-    .add_header("User-Agent", crate::USER_AGENT)
-    .map_err(|err| err.to_string())?
-    .add_header(
-        "Authorization",
-        format!(
-            "Bearer {api_token}",
-            api_token = crate::API_TOKEN
-                .as_ref()
-                .map(|token| token.as_str())
-                .unwrap_or(&"")
+pub async fn request_reporting(
+    enable_reports: bool,
+    enable_status: bool,
+    request: ReportingRequest,
+    version: &Version,
+    mode: ModeRequest,
+) -> Result<(Reporting, StatusReporting), String> {
+    if enable_status {
+        match generic_async_http_client::Request::post(&format!(
+            "{api_url}/execution/run/start",
+            api_url = crate::API_URL.as_str()
+        ))
+        .add_header("User-Agent", crate::USER_AGENT)
+        .map_err(|err| err.to_string())?
+        .add_header(
+            "Authorization",
+            format!(
+                "Bearer {api_token}",
+                api_token = crate::API_TOKEN
+                    .as_ref()
+                    .map(|token| token.as_str())
+                    .unwrap_or(&"")
+            )
+            .as_bytes(),
         )
-        .as_bytes(),
-    )
-    .map_err(|err| err.to_string())?
-    .add_header("Content-Type", "application/json")
-    .map_err(|err| err.to_string())?
-    .body(serde_json::to_string(&request).unwrap())
-    .map_err(|err| err.to_string())?
-    .exec()
-    .await
-    {
-        Ok(mut response) => {
-            if response.status_code() == 200 {
-                match response.json::<Reporting>().await {
-                    Ok(reporting) => Ok(reporting),
-                    Err(error) => Err(error.to_string()),
-                }
-            } else {
-                match response.text().await {
-                    Ok(body) => Err(format!(
-                        "Server {} response: {body}",
-                        response.status_code()
-                    )),
-                    Err(error) => Err(error.to_string()),
+        .map_err(|err| err.to_string())?
+        .add_header("Content-Type", "application/json")
+        .map_err(|err| err.to_string())?
+        .body(
+            serde_json::to_string(&Request {
+                config: None,
+                id: Some(request.run_id),
+                organization_id: None,
+                edition: None,
+                version: version.to_string(),
+                mode,
+                max_duration: None,
+                memory: None,
+                cpu: None,
+                storage: None,
+                arch: None,
+                volumes: vec![],
+                containers: vec![],
+                service_containers: vec![],
+                tags: vec![],
+                group_id: Some(request.group_id),
+                parent_id: None,
+                local_exec: true,
+            })
+            .unwrap(),
+        )
+        .map_err(|err| err.to_string())?
+        .exec()
+        .await
+        {
+            Ok(mut response) => {
+                if response.status_code() == 200 || response.status_code() == 409 {
+                    // Nothing
+                } else {
+                    return match response.text().await {
+                        Ok(body) => Err(format!(
+                            "Server {} response: {body}",
+                            response.status_code()
+                        )),
+                        Err(error) => Err(error.to_string()),
+                    };
                 }
             }
+            Err(error) => return Err(error.to_string()),
         }
-        Err(error) => Err(error.to_string()),
     }
+
+    let mut reporting = Reporting {
+        run_id: request.run_id,
+        group_id: request.group_id,
+        dashboard: None,
+        logs: None,
+        debug: None,
+        program: None,
+    };
+    if enable_reports {
+        match generic_async_http_client::Request::post(&format!(
+            "{api_url}/execution/report/request",
+            api_url = crate::API_URL.as_str()
+        ))
+        .add_header("User-Agent", crate::USER_AGENT)
+        .map_err(|err| err.to_string())?
+        .add_header(
+            "Authorization",
+            format!(
+                "Bearer {api_token}",
+                api_token = crate::API_TOKEN
+                    .as_ref()
+                    .map(|token| token.as_str())
+                    .unwrap_or(&"")
+            )
+            .as_bytes(),
+        )
+        .map_err(|err| err.to_string())?
+        .add_header("Content-Type", "application/json")
+        .map_err(|err| err.to_string())?
+        .body(serde_json::to_string(&request).unwrap())
+        .map_err(|err| err.to_string())?
+        .exec()
+        .await
+        {
+            Ok(mut response) => {
+                if response.status_code() == 200 {
+                    match response.json::<Reporting>().await {
+                        Ok(resp_reporting) => {
+                            reporting = resp_reporting;
+                        }
+                        Err(error) => return Err(error.to_string()),
+                    }
+                } else {
+                    match response.text().await {
+                        Ok(body) => {
+                            return Err(format!(
+                                "Server {} response: {body}",
+                                response.status_code()
+                            ))
+                        }
+                        Err(error) => return Err(error.to_string()),
+                    }
+                }
+            }
+            Err(error) => return Err(error.to_string()),
+        }
+    }
+
+    let mut status_reporting = StatusReporting {
+        launched: None,
+        ended: None,
+    };
+    if enable_status {
+        let run_id = request.run_id.clone();
+        status_reporting.launched = Some(Box::new(move |result| {
+            Box::pin(async move {
+                let call = async || {
+                    generic_async_http_client::Request::post(&format!(
+                        "{api_url}/execution/run/launched",
+                        api_url = crate::API_URL.as_str()
+                    ))
+                    .add_header("User-Agent", crate::USER_AGENT)?
+                    .add_header(
+                        "Authorization",
+                        format!(
+                            "Bearer {api_token}",
+                            api_token = crate::API_TOKEN
+                                .as_ref()
+                                .map(|token| token.as_str())
+                                .unwrap_or(&"")
+                        )
+                        .as_bytes(),
+                    )?
+                    .add_header("Content-Type", "application/json")?
+                    .body(
+                        serde_json::to_string(&match result {
+                            Ok(_) => LocalLaunched {
+                                run_id,
+                                response: DistributionResponse::Started(None),
+                            },
+                            Err(err) => LocalLaunched {
+                                run_id,
+                                response: DistributionResponse::Error(vec![err]),
+                            },
+                        })
+                        .unwrap(),
+                    )?
+                    .exec()
+                    .await
+                };
+                let _ = call().await;
+            })
+        }));
+        status_reporting.ended = Some(Box::new(move || {
+            Box::pin(async move {
+                let call = async || {
+                    generic_async_http_client::Request::post(&format!(
+                        "{api_url}/execution/run/ended",
+                        api_url = crate::API_URL.as_str()
+                    ))
+                    .add_header("User-Agent", crate::USER_AGENT)?
+                    .add_header(
+                        "Authorization",
+                        format!(
+                            "Bearer {api_token}",
+                            api_token = crate::API_TOKEN
+                                .as_ref()
+                                .map(|token| token.as_str())
+                                .unwrap_or(&"")
+                        )
+                        .as_bytes(),
+                    )?
+                    .add_header("Content-Type", "application/json")?
+                    .body(
+                        serde_json::to_string(&LocalEnd {
+                            run_id,
+                            result: crate::api::DistributionResult::Success(None),
+                        })
+                        .unwrap(),
+                    )?
+                    .exec()
+                    .await
+                };
+                let _ = call().await;
+            })
+        }));
+    }
+
+    Ok((reporting, status_reporting))
 }
 
 pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
