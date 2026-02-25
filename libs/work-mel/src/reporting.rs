@@ -21,6 +21,11 @@ pub struct Reporting {
     pub program: Option<PushSpecs>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ReportingChunks {
+    pub chunks: u128,
+}
+
 pub struct StatusReporting {
     pub launched: Option<
         Box<
@@ -272,14 +277,20 @@ pub async fn request_reporting(
 }
 
 pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
+    let chunks_update_uri = format!(
+        "{api_url}/execution/report/run/{run_id}/logs/chunks",
+        api_url = crate::API_URL.as_str(),
+        run_id = melodium_engine::execution_run_id().to_string()
+    );
+
     match specs {
         PushSpecs::PresignedPostS3 { uri, fields, path } => {
-            let mut buffer_logs = Vec::with_capacity(1000);
+            let mut buffer_logs = Vec::with_capacity(5000);
             let mut timestamp = std::time::SystemTime::now();
             let mut batch_index: u128 = 0;
             while let Ok(log) = logs.recv().await {
                 buffer_logs.push(log);
-                if buffer_logs.len() >= 1000
+                if buffer_logs.len() >= 5000
                     || timestamp.elapsed().unwrap_or_default().as_secs() >= 5
                 {
                     let mut fields = fields.clone();
@@ -291,6 +302,9 @@ pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
 
                     buffer_logs.clear();
                     timestamp = std::time::SystemTime::now();
+
+                    let _ = chunks_update(&chunks_update_uri, batch_index).await;
+
                     batch_index += 1;
                 }
             }
@@ -309,14 +323,20 @@ pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
 }
 
 pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::debug::Event>) {
+    let chunks_update_uri = format!(
+        "{api_url}/execution/report/run/{run_id}/debug/chunks",
+        api_url = crate::API_URL.as_str(),
+        run_id = melodium_engine::execution_run_id().to_string()
+    );
+
     match specs {
         PushSpecs::PresignedPostS3 { uri, fields, path } => {
-            let mut buffer_events = Vec::with_capacity(1000);
+            let mut buffer_events = Vec::with_capacity(5000);
             let mut timestamp = std::time::SystemTime::now();
             let mut batch_index: u128 = 0;
             while let Ok(event) = events.recv().await {
                 buffer_events.push(melodium_share::Event::from(&event));
-                if buffer_events.len() >= 1000
+                if buffer_events.len() >= 5000
                     || timestamp.elapsed().unwrap_or_default().as_secs() >= 5
                 {
                     let mut fields = fields.clone();
@@ -331,6 +351,9 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
 
                     buffer_events.clear();
                     timestamp = std::time::SystemTime::now();
+
+                    let _ = chunks_update(&chunks_update_uri, batch_index).await;
+
                     batch_index += 1;
                 }
             }
@@ -436,6 +459,24 @@ async fn send_debug_to_s3(
         .as_ref()?
         .post(uri)
         .multipart(form)
+        .send()
+        .await
+        .map(|_| ())
+        .map_err(|err| err.to_string())
+}
+
+async fn chunks_update(uri: &str, chunks: u128) -> Result<(), String> {
+    CLIENT
+        .as_ref()?
+        .post(uri)
+        .bearer_auth(
+            crate::API_TOKEN
+                .as_ref()
+                .map(|token| token.as_str())
+                .unwrap_or(&""),
+        )
+        .header("Content-Type", "application/json")
+        .body(serde_json::to_string(&ReportingChunks { chunks }).unwrap())
         .send()
         .await
         .map(|_| ())
