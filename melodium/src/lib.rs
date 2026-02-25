@@ -42,6 +42,14 @@ pub const TARGET: &'static str = env!("TARGET");
 pub const TARGET_FEATURES: &'static str = env!("TARGET_FEATURE");
 pub const BUILD_HOST: &'static str = env!("HOST");
 
+pub type LaunchedSignalFuture = Box<
+    dyn FnOnce(
+        Result<(), String>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'static>>,
+>;
+pub type EndedSignalFuture =
+    Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'static>>>;
+
 pub fn load_all(
     mut config: LoadingConfig,
 ) -> LoadingResult<(Vec<Arc<dyn PackageInfo>>, Arc<Collection>)> {
@@ -54,27 +62,6 @@ pub fn load_all(
             .and_then(|coll| LoadingResult::new_success((loader.packages(), coll)))
     })
 }
-
-/*
-
-This former function is kept as implementation idea for direct load and launch of directly available elements.
-
-pub fn load_entry(
-    mut config: LoadingConfig,
-    identifier: &Identifier,
-) -> LoadingResult<(Arc<dyn PackageInfo>, Arc<Collection>)> {
-    config.extend(core_config());
-
-
-    let loader = Loader::new(config);
-    loader
-        .load_package(&PackageRequirement {
-            package: identifier.root().to_string(),
-            version_requirement: VersionReq::parse(">=0.0.0").unwrap(),
-        })
-        .and_then(|_| loader.load(identifier))
-        .and_then(|_| loader.build())
-}*/
 
 pub fn load_compo(
     content: &str,
@@ -366,8 +353,8 @@ pub async fn launch(
         }));
     }
 
-    let mut signal_launched = None;
-    let mut signal_ended = None;
+    let mut signal_launched: Option<LaunchedSignalFuture> = None;
+    let mut signal_ended: Option<EndedSignalFuture> = None;
 
     #[cfg(feature = "work-mel")]
     if enable_reports || enable_status {
