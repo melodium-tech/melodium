@@ -38,6 +38,7 @@ melodium-distribution = { path = "../melodium-distribution", version = "0.10.0",
 melodium-doc = { path = "../melodium-doc", version = "0.10.0", optional = true }
 melodium-share = { path = "../melodium-share", version = "0.10.0" }
 uuid = { version = "1.5.0", features = ["serde"], optional = true }
+serde_json = "1"
 
 std-mel = { path = "../libs/std-mel", version = "0.10.0" }
 
@@ -53,9 +54,6 @@ process-mel = { path = "../libs/process-mel", version = "0.10.0", optional = tru
 regex-mel = { path = "../libs/regex-mel", version = "0.10.0", optional = true }
 sql-mel = { path = "../libs/sql-mel", version = "0.10.0", optional = true }
 work-mel = { path = "../libs/work-mel", version = "0.10.0", optional = true }
-
-# For debug
-serde_json = "1"
 
 [features]
 default = ["cli", "standard-edition"]

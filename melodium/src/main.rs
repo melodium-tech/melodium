@@ -47,6 +47,12 @@ struct Run {
     #[clap(long, default_value_t = false)]
     /// Whether to report execution to API, requires API token to be set in environment variable `MELODIUM_API_TOKEN`. Also requires API URL to be set in environment variable `MELODIUM_API_URL` if different from `https://api.melodium.tech/0.1`.
     api_report: bool,
+    #[clap(long, default_value_t = false)]
+    /// If --api-report is enabled, do not report status.
+    api_report_disable_status: bool,
+    #[clap(long, default_value_t = false)]
+    /// If --api-report is enabled, do not report logs.
+    api_report_disable_logs: bool,
     #[clap(value_parser)]
     /// Program file to run, can be either `.mel`, `Compo.toml` or `.jeu` file.
     file: Option<String>,
@@ -156,6 +162,12 @@ struct Dist {
     #[clap(long, default_value_t = false)]
     /// Whether to report execution to API, requires API token to be set in environment variable `MELODIUM_API_TOKEN`. Also requires API URL to be set in environment variable `MELODIUM_API_URL` if different from `https://api.melodium.tech/0.1`.
     api_report: bool,
+    #[clap(long, default_value_t = false)]
+    /// If --api-report is enabled, do not report status.
+    api_report_disable_status: bool,
+    #[clap(long, default_value_t = false)]
+    /// If --api-report is enabled, do not report logs.
+    api_report_disable_logs: bool,
 }
 
 #[cfg(not(feature = "distribution"))]
@@ -258,6 +270,8 @@ pub fn main() {
             logs: None,
             debug: None,
             api_report: false,
+            api_report_disable_logs: false,
+            api_report_disable_status: false,
         };
 
         run(args);
@@ -340,8 +354,8 @@ fn run(args: Run) {
             params,
             args.logs,
             args.debug,
-            args.api_report,
-            args.api_report,
+            args.api_report && !args.api_report_disable_logs,
+            args.api_report && !args.api_report_disable_status,
         ));
         if let Some(failure) = launch.failure() {
             eprintln!("{}: {failure}", "failure".bold().red());
