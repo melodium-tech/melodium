@@ -303,9 +303,11 @@ pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
                     buffer_logs.clear();
                     timestamp = std::time::SystemTime::now();
 
-                    let _ = chunks_update(&chunks_update_uri, batch_index).await;
-
                     batch_index += 1;
+
+                    if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
+                        eprintln!("Failed to send debug chunk to API: {err}");
+                    }
                 }
             }
             // Send any remaining logs
@@ -315,6 +317,12 @@ pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
 
                 if let Err(err) = send_logs_to_s3(&uri, fields, &buffer_logs).await {
                     eprintln!("Failed to send logs to S3: {err}");
+                }
+
+                batch_index += 1;
+
+                if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
+                    eprintln!("Failed to send debug chunk to API: {err}");
                 }
             }
         }
@@ -352,9 +360,11 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
                     buffer_events.clear();
                     timestamp = std::time::SystemTime::now();
 
-                    let _ = chunks_update(&chunks_update_uri, batch_index).await;
-
                     batch_index += 1;
+
+                    if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
+                        eprintln!("Failed to send debug chunk to API: {err}");
+                    }
                 }
             }
             // Send any remaining logs
@@ -367,6 +377,12 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
 
                 if let Err(err) = send_debug_to_s3(&uri, fields, &buffer_events).await {
                     eprintln!("Failed to send debug events to S3: {err}");
+                }
+
+                batch_index += 1;
+
+                if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
+                    eprintln!("Failed to send debug chunk to API: {err}");
                 }
             }
         }
