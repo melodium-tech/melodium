@@ -65,6 +65,8 @@ static CLIENT: std::sync::LazyLock<Result<reqwest::Client, String>> =
     });
 pub(crate) static REPORTS_ENABLED: AtomicBool = AtomicBool::new(false);
 pub(crate) static STATUS_ENABLED: AtomicBool = AtomicBool::new(false);
+// Reqwest retry doesn't currently match our needs: multipart form & agnostic host
+const REQUESTS_RETRY: u32 = 3;
 
 pub async fn request_reporting(
     enable_reports: bool,
@@ -435,27 +437,36 @@ async fn send_logs_to_s3(
     fields: HashMap<String, String>,
     logs: &Vec<Log>,
 ) -> Result<(), String> {
-    let mut form = reqwest::multipart::Form::new();
-    for (key, value) in fields {
-        form = form.text(key, value);
+    let mut result = Ok(());
+    for _ in 0..REQUESTS_RETRY {
+        let mut form = reqwest::multipart::Form::new();
+        for (key, value) in &fields {
+            form = form.text(key.clone(), value.clone());
+        }
+
+        form = form.part(
+            "file",
+            reqwest::multipart::Part::bytes(serde_json::to_vec(logs).unwrap())
+                .file_name("logs.json")
+                .mime_str("application/json")
+                .unwrap(),
+        );
+
+        result = CLIENT
+            .as_ref()?
+            .post(uri)
+            .multipart(form)
+            .send()
+            .await
+            .map(|_| ())
+            .map_err(|err| err.to_string());
+
+        if result.is_ok() {
+            break;
+        }
     }
 
-    form = form.part(
-        "file",
-        reqwest::multipart::Part::bytes(serde_json::to_vec(logs).unwrap())
-            .file_name("logs.json")
-            .mime_str("application/json")
-            .unwrap(),
-    );
-
-    CLIENT
-        .as_ref()?
-        .post(uri)
-        .multipart(form)
-        .send()
-        .await
-        .map(|_| ())
-        .map_err(|err| err.to_string())
+    result
 }
 
 async fn send_debug_to_s3(
@@ -463,27 +474,35 @@ async fn send_debug_to_s3(
     fields: HashMap<String, String>,
     events: &Vec<melodium_share::Event>,
 ) -> Result<(), String> {
-    let mut form = reqwest::multipart::Form::new();
-    for (key, value) in fields {
-        form = form.text(key, value);
+    let mut result = Ok(());
+    for _ in 0..REQUESTS_RETRY {
+        let mut form = reqwest::multipart::Form::new();
+        for (key, value) in &fields {
+            form = form.text(key.clone(), value.clone());
+        }
+
+        form = form.part(
+            "file",
+            reqwest::multipart::Part::bytes(serde_json::to_vec(events).unwrap())
+                .file_name("debug.json")
+                .mime_str("application/json")
+                .unwrap(),
+        );
+
+        result = CLIENT
+            .as_ref()?
+            .post(uri)
+            .multipart(form)
+            .send()
+            .await
+            .map(|_| ())
+            .map_err(|err| err.to_string());
+        if result.is_ok() {
+            break;
+        }
     }
 
-    form = form.part(
-        "file",
-        reqwest::multipart::Part::bytes(serde_json::to_vec(events).unwrap())
-            .file_name("debug.json")
-            .mime_str("application/json")
-            .unwrap(),
-    );
-
-    CLIENT
-        .as_ref()?
-        .post(uri)
-        .multipart(form)
-        .send()
-        .await
-        .map(|_| ())
-        .map_err(|err| err.to_string())
+    result
 }
 
 async fn chunks_update(uri: &str, chunks: u128) -> Result<(), String> {
