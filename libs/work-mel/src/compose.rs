@@ -44,9 +44,13 @@ impl Display for Executor {
 
 #[cfg(feature = "real")]
 pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String>> {
+    use crate::reporting::REPORTS_ENABLED;
+
     if request.edition.as_deref().unwrap_or("scratch") == "scratch" {
         request.edition = Some("alpine".to_string())
     }
+
+    let enable_reports = REPORTS_ENABLED.load(core::sync::atomic::Ordering::Relaxed);
 
     let enable_debug = std::env::var("MELODIUM_COMPOSE_DEBUG")
         .map(|val| val == "true")
@@ -324,6 +328,19 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         Some(melodium_engine::execution_group_id().to_string().into()),
     );
 
+    if enable_reports {
+        use crate::{API_TOKEN, API_URL};
+
+        environment.insert(
+            MapKey::new("MELODIUM_API_URL").map_err(|err| vec![err.to_string()])?,
+            Some(API_URL.as_str().into()),
+        );
+        environment.insert(
+            MapKey::new("MELODIUM_API_TOKEN").map_err(|err| vec![err.to_string()])?,
+            API_TOKEN.as_ref().map(|t| t.as_str().into()),
+        );
+    }
+
     environment.insert(
         MapKey::new("MELODIUM_RUN_EXECUTOR").map_err(|err| vec![err.to_string()])?,
         Some(executor.to_string().into()),
@@ -414,27 +431,45 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             ModeRequest::DirectProject {
                 entrypoint,
                 project: _,
-            } => vec!["run".to_string(), entrypoint.clone()],
-            ModeRequest::DistributionSecretKey { key } => vec![
-                "dist".to_string(),
-                "--ip".to_string(),
-                "0.0.0.0".to_string(),
-                "--port".to_string(),
-                "8080".to_string(),
-                "--wait".to_string(),
-                "30".to_string(),
-                "--duration".to_string(),
-                request.max_duration.unwrap_or(0).to_string(),
-                "--recv-key".to_string(),
-                access_key.to_string(),
-                "--send-key".to_string(),
-                key.to_string(),
-                if bind_ip == Ipv4Addr::LOCALHOST {
-                    "--localhost".to_string()
+            } => {
+                if enable_reports {
+                    vec![
+                        "run".to_string(),
+                        "--api-report".to_string(),
+                        "--api-report-disable-status".to_string(),
+                        entrypoint.clone(),
+                    ]
                 } else {
-                    "--disable-tls".to_string()
-                },
-            ],
+                    vec!["run".to_string(), entrypoint.clone()]
+                }
+            }
+            ModeRequest::DistributionSecretKey { key } => {
+                let mut args = vec![
+                    "dist".to_string(),
+                    "--ip".to_string(),
+                    "0.0.0.0".to_string(),
+                    "--port".to_string(),
+                    "8080".to_string(),
+                    "--wait".to_string(),
+                    "30".to_string(),
+                    "--duration".to_string(),
+                    request.max_duration.unwrap_or(0).to_string(),
+                    "--recv-key".to_string(),
+                    access_key.to_string(),
+                    "--send-key".to_string(),
+                    key.to_string(),
+                    if bind_ip == Ipv4Addr::LOCALHOST {
+                        "--localhost".to_string()
+                    } else {
+                        "--disable-tls".to_string()
+                    },
+                ];
+                if enable_reports {
+                    args.push("--api-report".to_string());
+                    args.push("--api-report-disable-status".to_string());
+                }
+                args
+            }
             _ => return Err(vec!["Unsupported mode".to_string()]),
         })),
         //cpus: Some(Cpus::new(request.cpu as f64 / 1000f64).map_err(|err| vec![err.to_string()])?),

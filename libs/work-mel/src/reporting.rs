@@ -1,5 +1,6 @@
 use crate::api::{DistributionResponse, LocalEnd, LocalLaunched, ModeRequest, Request};
 use async_std::channel::Receiver;
+use core::sync::atomic::{AtomicBool, Ordering};
 use melodium_core::common::{descriptor::Version, executive::Log};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -62,6 +63,8 @@ static CLIENT: std::sync::LazyLock<Result<reqwest::Client, String>> =
             .build()
             .map_err(|err| err.to_string())
     });
+pub(crate) static REPORTS_ENABLED: AtomicBool = AtomicBool::new(false);
+pub(crate) static STATUS_ENABLED: AtomicBool = AtomicBool::new(false);
 
 pub async fn request_reporting(
     enable_reports: bool,
@@ -71,6 +74,7 @@ pub async fn request_reporting(
     mode: ModeRequest,
 ) -> Result<(Reporting, StatusReporting), String> {
     if enable_status {
+        STATUS_ENABLED.store(true, Ordering::Relaxed);
         match generic_async_http_client::Request::post(&format!(
             "{api_url}/execution/run/start",
             api_url = crate::API_URL.as_str()
@@ -144,6 +148,7 @@ pub async fn request_reporting(
         program: None,
     };
     if enable_reports {
+        REPORTS_ENABLED.store(true, Ordering::Relaxed);
         match generic_async_http_client::Request::post(&format!(
             "{api_url}/execution/report/request",
             api_url = crate::API_URL.as_str()
