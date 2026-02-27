@@ -21,7 +21,7 @@ async-std = { version = "1.13" }
 async-trait = "0.1.71"
 async-walkdir = "2.0"
 futures = "0.3.28"
-generic-async-http-client = { version = "0.7.0", features = ["use_async_h1"], optional = true }
+generic-async-http-client = { version = "0.7.0", features = ["use_async_h1", "rustls_ring"], optional = true }
 std-mel = { path = "../std-mel", version = "0.10.0" }
 fs-mel = { path = "../fs-mel", version = "0.10.0" }
 melodium-core = { path = "../../melodium-core", version = "0.10.0" }
