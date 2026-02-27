@@ -38,6 +38,7 @@ melodium-distribution = { path = "../melodium-distribution", version = "0.10.0",
 melodium-doc = { path = "../melodium-doc", version = "0.10.0", optional = true }
 melodium-share = { path = "../melodium-share", version = "0.10.0" }
 uuid = { version = "1.5.0", features = ["serde"], optional = true }
+rustls = { version = "0.23", optional = true }
 serde_json = "1"
 
 std-mel = { path = "../libs/std-mel", version = "0.10.0" }
@@ -62,7 +63,7 @@ jeu = ["melodium-loader/jeu"]
 cicd = ["distribution", "fs", "network", "cicd-mel/real"]
 distribution = ["melodium-distribution", "distrib-mel/real", "work-mel/real", "uuid"]
 doc = ["melodium-doc", "melodium-engine/doc", "melodium-core/doc"]
-network = ["net-mel/real", "http-mel/real", "melodium-loader/network"]
+network = ["net-mel/real", "http-mel/real", "melodium-loader/network", "rustls/aws_lc_rs"]
 fs = ["fs-mel/real", "process-mel/real", "melodium-loader/filesystem"]
 text = ["encoding-mel/real", "regex-mel/real"]
 javascript = ["javascript-mel/real", "json-mel/real"]
