@@ -1836,12 +1836,9 @@ dependencies = [
  "async-h1",
  "async-std",
  "futures",
- "futures-rustls",
  "http-types",
  "log",
  "serde",
- "tokio-rustls",
- "webpki-roots 0.26.11",
 ]
 
 [[package]]
