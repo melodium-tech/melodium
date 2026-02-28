@@ -56,6 +56,7 @@ pub enum PushSpecs {
     },
 }
 
+#[cfg(feature = "real")]
 static CLIENT: std::sync::LazyLock<Result<reqwest::Client, String>> =
     std::sync::LazyLock::new(|| {
         reqwest::Client::builder()
@@ -68,6 +69,7 @@ pub(crate) static STATUS_ENABLED: AtomicBool = AtomicBool::new(false);
 // Reqwest retry doesn't currently match our needs: multipart form & agnostic host
 const REQUESTS_RETRY: u32 = 3;
 
+#[cfg(feature = "real")]
 pub async fn request_reporting(
     enable_reports: bool,
     enable_status: bool,
@@ -283,6 +285,18 @@ pub async fn request_reporting(
     Ok((reporting, status_reporting))
 }
 
+#[cfg(feature = "mock")]
+pub async fn request_reporting(
+    enable_reports: bool,
+    enable_status: bool,
+    request: ReportingRequest,
+    version: &Version,
+    mode: ModeRequest,
+) -> Result<(Reporting, StatusReporting), String> {
+    Err("Mock mode".to_string())
+}
+
+#[cfg(feature = "real")]
 pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
     let chunks_update_uri = format!(
         "{api_url}/execution/report/run/{run_id}/logs/chunks",
@@ -336,7 +350,10 @@ pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
         _ => {}
     }
 }
+#[cfg(feature = "mock")]
+pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {}
 
+#[cfg(feature = "real")]
 pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::debug::Event>) {
     let chunks_update_uri = format!(
         "{api_url}/execution/report/run/{run_id}/debug/chunks",
@@ -396,7 +413,10 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
         _ => {}
     }
 }
+#[cfg(feature = "mock")]
+pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::debug::Event>) {}
 
+#[cfg(feature = "real")]
 pub async fn report_program(specs: PushSpecs, program: melodium_share::ProgramDump) {
     match specs {
         PushSpecs::PresignedPutS3 { uri, headers } => {
@@ -431,7 +451,10 @@ pub async fn report_program(specs: PushSpecs, program: melodium_share::ProgramDu
         _ => {}
     }
 }
+#[cfg(feature = "mock")]
+pub async fn report_program(specs: PushSpecs, program: melodium_share::ProgramDump) {}
 
+#[cfg(feature = "real")]
 async fn send_logs_to_s3(
     uri: &str,
     fields: HashMap<String, String>,
@@ -469,6 +492,7 @@ async fn send_logs_to_s3(
     result
 }
 
+#[cfg(feature = "real")]
 async fn send_debug_to_s3(
     uri: &str,
     fields: HashMap<String, String>,
@@ -505,6 +529,7 @@ async fn send_debug_to_s3(
     result
 }
 
+#[cfg(feature = "real")]
 async fn chunks_update(uri: &str, chunks: u128) -> Result<(), String> {
     CLIENT
         .as_ref()?
