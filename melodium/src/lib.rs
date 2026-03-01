@@ -12,7 +12,6 @@
 
 use async_std::{
     channel::{unbounded, Receiver},
-    fs::OpenOptions,
     io::{BufWriter, WriteExt},
 };
 use colored::Colorize;
@@ -331,16 +330,21 @@ pub async fn launch(
 ) -> LogicResult<()> {
     let engine = melodium_engine::new_engine(collection, Level::Trace, DebugLevel::Detailed);
 
-    let mut monitoring = futures::stream::FuturesUnordered::new();
+    let mut monitoring: futures::stream::FuturesUnordered<async_std::task::JoinHandle<()>> =
+        futures::stream::FuturesUnordered::new();
 
     let (logs_stdout_sender, logs_stdout_receiver) = unbounded();
     engine.add_logs_listener(logs_stdout_sender);
+    // TODO for WASM
+    #[cfg(not(target_os = "unknown"))]
     monitoring.push(async_std::task::spawn(async move {
         display_logs(logs_stdout_receiver).await
     }));
     if let Some(log_path) = log_path.clone() {
         let (logs_write_sender, logs_write_receiver) = unbounded();
         engine.add_logs_listener(logs_write_sender);
+        // TODO for WASM
+        #[cfg(not(target_os = "unknown"))]
         monitoring.push(async_std::task::spawn(async move {
             write_logs(log_path, logs_write_receiver).await
         }));
@@ -348,6 +352,8 @@ pub async fn launch(
     if let Some(debug_path) = debug_path {
         let (debug_write_sender, debug_write_receiver) = unbounded();
         engine.add_debug_listener(debug_write_sender);
+        // TODO for WASM
+        #[cfg(not(target_os = "unknown"))]
         monitoring.push(async_std::task::spawn(async move {
             write_debug(debug_path, debug_write_receiver).await
         }));
@@ -356,6 +362,8 @@ pub async fn launch(
     let mut signal_launched: Option<LaunchedSignalFuture> = None;
     let mut signal_ended: Option<EndedSignalFuture> = None;
 
+    // TODO for WASM
+    #[cfg(not(target_os = "unknown"))]
     #[cfg(feature = "work-mel")]
     if enable_reports || enable_status {
         let (
@@ -513,12 +521,14 @@ fn display_log(log: &Log) {
     }
 }
 
+// TODO for WASM
+#[cfg(not(target_os = "unknown"))]
 pub async fn write_logs(path: PathBuf, receiver: Receiver<Log>) {
     if let Some(parent) = path.parent() {
         let _ = async_std::fs::create_dir_all(parent).await;
     }
 
-    if let Ok(log_file) = OpenOptions::new()
+    if let Ok(log_file) = async_std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(path)
@@ -542,12 +552,14 @@ pub async fn write_logs(path: PathBuf, receiver: Receiver<Log>) {
     }
 }
 
+// TODO for WASM
+#[cfg(not(target_os = "unknown"))]
 pub async fn write_debug(path: PathBuf, receiver: Receiver<Event>) {
     if let Some(parent) = path.parent() {
         let _ = async_std::fs::create_dir_all(parent).await;
     }
 
-    if let Ok(debug_file) = OpenOptions::new()
+    if let Ok(debug_file) = async_std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(path)
@@ -573,6 +585,8 @@ pub async fn write_debug(path: PathBuf, receiver: Receiver<Event>) {
     }
 }
 
+// TODO for WASM
+#[cfg(not(target_os = "unknown"))]
 #[cfg(feature = "work-mel")]
 pub async fn api_report(
     enable_reports: bool,

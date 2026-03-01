@@ -74,7 +74,6 @@ webassembly-edition = ["melodium-share/webassembly", "jeu", "doc", "std-mel/mock
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
 wasm-bindgen = "0.2.100"
-wasm-bindgen-utils = "0.0.10"
 serde-wasm-bindgen = "0.6"
 serde = { version = "1.0", features = ["derive"] }
 console_error_panic_hook = "0.1.7"
