@@ -1,10 +1,13 @@
 use crate::{
     descriptor::Collection,
-    executive::{Context, ContinuousFuture, Input, ModelId, Output, Outputs, TrackFuture, Value},
+    executive::{
+        Context, ContinuousFuture, Input, Level, Log, ModelId, Output, Outputs, TrackFuture, Value,
+    },
 };
 use async_trait::async_trait;
 use core::fmt::Debug;
 use std::{collections::HashMap, sync::Arc};
+use uuid::Uuid;
 
 pub type TrackId = usize;
 pub type TrackCreationCallback = Box<dyn FnOnce(Box<dyn Outputs>) -> Vec<TrackFuture> + Send>;
@@ -29,4 +32,7 @@ pub trait World: Debug + Send + Sync {
         parent_track: Option<TrackId>,
         callback: Option<TrackCreationCallback>,
     );
+    async fn log(&self, level: Level, label: String, message: String, track_id: Option<TrackId>);
+    async fn inject_log(&self, log: Log) -> Result<(), ()>;
+    async fn inject_debug(&self, run_id: Uuid, data: String) -> Result<(), ()>;
 }

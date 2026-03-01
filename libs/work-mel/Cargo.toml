@@ -1,6 +1,6 @@
 [package]
 name = "work-mel"
-version = "0.9.2"
+version = "0.10.0"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -22,18 +22,21 @@ async-trait = "0.1.71"
 async-walkdir = "2.0"
 futures = "0.3.28"
 generic-async-http-client = { version = "0.7.0", features = ["use_async_h1", "rustls_ring"], optional = true }
-std-mel = { path = "../std-mel", version = "0.9.2" }
-fs-mel = { path = "../fs-mel", version = "0.9.2" }
-melodium-core = { path = "../../melodium-core", version = "0.9.2" }
-melodium-macro = { path = "../../melodium-macro", version = "0.9.2" }
-net-mel = { path = "../net-mel", version = "0.9.2" }
-process-mel = { path = "../process-mel", version = "0.9.2" }
+std-mel = { path = "../std-mel", version = "0.10.0" }
+fs-mel = { path = "../fs-mel", version = "0.10.0" }
+melodium-core = { path = "../../melodium-core", version = "0.10.0" }
+melodium-engine = { path = "../../melodium-engine", version = "0.10.0" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.0" }
+melodium-share = { path = "../../melodium-share", version = "0.10.0" }
+net-mel = { path = "../net-mel", version = "0.10.0" }
+process-mel = { path = "../process-mel", version = "0.10.0" }
 regex = { version = "1.9.1" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
 uuid = { version = "1.5.0", features = ["serde", "v4", "fast-rng"] }
 compose_spec = "0.3.0"
+reqwest = { version = "0.12", default-features = false, features = ["multipart", "rustls-tls", "json", "zstd", "brotli", "gzip", "deflate"] }
 kube = { version = "0.97", default-features = false, features = ["client", "rustls-tls", "ws"], optional = true}
 tokio = { version = "1", features = ["macros", "io-util"], optional = true}
 k8s-openapi = { version = "0.23.0", features = ["v1_31"], optional = true }

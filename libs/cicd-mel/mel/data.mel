@@ -1,8 +1,7 @@
 use fs/file::read
 use fs/file::write
-use log/logger::Logger
-use log/log::logErrors
-use log/log::logError
+use std/engine/log::logErrors
+use std/engine/log::logError
 use std/flow::one
 use std/text/convert/string::fromUtf8
 use std/text/compose::rescale
@@ -20,7 +19,7 @@ treatment ioToString()
     Self.stdio -> fromUtf8.encoded,text -> rescale.unscaled,scaled -> trimEnd.text,trimmed -> Self.lines
 }
 
-treatment writeFile[logger: Logger](var label: string)
+treatment writeFile(var label: string)
   input filesystem_name: Block<string>
   input file_path: Block<string>
   input data: Stream<byte>
@@ -35,8 +34,8 @@ treatment writeFile[logger: Logger](var label: string)
     Self.file_path ----------------------------------------> write.path
     Self.data ---------------------------------------------> write.data
 
-    logFsErr: logError[logger=logger](label=label)
-    logWriteErrs: logErrors[logger=logger](label=label)
+    logFsErr: logError(label=label)
+    logWriteErrs: logErrors(label=label)
     getFileSystem.error -> logFsErr.message
     write.errors --------> logWriteErrs.messages
 
@@ -53,7 +52,7 @@ treatment writeFile[logger: Logger](var label: string)
     oneFailedOrFinished.value -> Self.finished
 }
 
-treatment readFile[logger: Logger](var label: string)
+treatment readFile(var label: string)
   input filesystem_name: Block<string>
   input file_path: Block<string>
   output started: Block<void>
@@ -68,8 +67,8 @@ treatment readFile[logger: Logger](var label: string)
     Self.filesystem_name -> getFileSystem.name,filesystem -> read.filesystem
     Self.file_path ----------------------------------------> read.path
 
-    logFsErr: logError[logger=logger](label=label)
-    logReadErrs: logErrors[logger=logger](label=label)
+    logFsErr: logError(label=label)
+    logReadErrs: logErrors(label=label)
     getFileSystem.error -> logFsErr.message
     read.errors ---------> logReadErrs.messages
 

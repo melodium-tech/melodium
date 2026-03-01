@@ -3,6 +3,7 @@ use crate::building::{
     DynamicBuildResult, FeedingInputs, GenesisEnvironment, StaticBuildResult,
 };
 use crate::building::{Builder as BuilderTrait, HostTreatment};
+use crate::debug::Event;
 use crate::error::{LogicError, LogicResult};
 use crate::world::World;
 use core::fmt::Debug;
@@ -125,6 +126,15 @@ impl BuilderTrait for Builder {
 
         let mut result = DynamicBuildResult::new();
 
+        world.send_debug(Event::new(crate::debug::EventKind::TreatmentBuilt {
+            treatment: self.descriptor.upgrade().unwrap(),
+            environment: environment.clone(),
+            host_treatment: build_sample.host_treatment.clone(),
+            host_build: build_sample.host_build_id,
+            build_id: build,
+            label: build_sample.label.clone(),
+        }));
+
         match &build_sample.host_treatment {
             HostTreatment::Treatment(host_descriptor) => {
                 let host_build = world
@@ -145,7 +155,9 @@ impl BuilderTrait for Builder {
                     if !result.feeding_inputs.contains_key(name) {
                         result.feeding_inputs.insert(
                             name.clone(),
-                            vec![world.new_blocked_input(*descriptor.flow())],
+                            vec![
+                                world.new_blocked_input(*descriptor.flow(), environment.track_id())
+                            ],
                         );
                     }
                 }

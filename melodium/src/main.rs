@@ -3,7 +3,7 @@ use colored::Colorize;
 use core::convert::TryFrom;
 use melodium::*;
 use melodium_common::{
-    descriptor::{Collection, Entry, Identifier, LoadingResult, Status, Treatment},
+    descriptor::{Collection, DataType, Entry, Identifier, LoadingResult, Status, Treatment},
     executive::Value,
 };
 use melodium_lang::{
@@ -38,6 +38,24 @@ struct Run {
     #[clap(long, value_name = "IDENTIFIER")]
     /// Force identifier to be used as entrypoint.
     force_entry: Option<String>,
+    #[clap(long)]
+    /// Write logs to path.
+    logs: Option<PathBuf>,
+    #[clap(long)]
+    /// Write debug to path.
+    debug: Option<PathBuf>,
+    #[clap(long, default_value_t = false)]
+    /// Whether to report execution to API, requires API token to be set in environment variable `MELODIUM_API_TOKEN`. Also requires API URL to be set in environment variable `MELODIUM_API_URL` if different from `https://api.melodium.tech/0.1`.
+    api_report: bool,
+    #[clap(long, default_value_t = false)]
+    /// If --api-report is enabled, do not report status.
+    api_report_disable_status: bool,
+    #[clap(long, default_value_t = false)]
+    /// If --api-report is enabled, do not report logs.
+    api_report_disable_logs: bool,
+    #[clap(long, default_value_t = false)]
+    /// Parse the arguments according to the Mélodium syntax, applying types.
+    parse_arguments: bool,
     #[clap(value_parser)]
     /// Program file to run, can be either `.mel`, `Compo.toml` or `.jeu` file.
     file: Option<String>,
@@ -117,27 +135,42 @@ struct Dist {
     #[clap(short, long, allow_hyphen_values = true)]
     /// Certificate chain to use for TLS encryption (PEM format).
     certificate: Option<String>,
-    /// Key to use for TLS encryption (PKCS8 PEM format).
     #[clap(short, long, allow_hyphen_values = true)]
+    /// Key to use for TLS encryption (PKCS8 PEM format).
     key: Option<String>,
+    #[clap(short, long)]
     /// Key expected to authenticate remote engine.
-    #[clap(short, long)]
     recv_key: uuid::Uuid,
-    /// Key to authenticate with remote engine.
     #[clap(short, long)]
+    /// Key to authenticate with remote engine.
     send_key: uuid::Uuid,
+    #[clap(long, action)]
     /// Listen localhost (if ip is not set), using embedded certificate.
-    #[clap(long, action)]
     localhost: bool,
-    /// Disable TLS encryption.
     #[clap(long, action)]
+    /// Disable TLS encryption.
     disable_tls: bool,
+    #[clap(long, default_value = None)]
     /// Time (in seconds) to wait for a distant engine to connect.
-    #[clap(long, default_value = None)]
     wait: Option<u64>,
-    /// Maximal duration (in seconds) for work to be made.
     #[clap(long, default_value = None)]
+    /// Maximal duration (in seconds) for work to be made.
     duration: Option<u64>,
+    #[clap(long)]
+    /// Write logs to path.
+    logs: Option<PathBuf>,
+    #[clap(long)]
+    /// Write debug to path.
+    debug: Option<PathBuf>,
+    #[clap(long, default_value_t = false)]
+    /// Whether to report execution to API, requires API token to be set in environment variable `MELODIUM_API_TOKEN`. Also requires API URL to be set in environment variable `MELODIUM_API_URL` if different from `https://api.melodium.tech/0.1`.
+    api_report: bool,
+    #[clap(long, default_value_t = false)]
+    /// If --api-report is enabled, do not report status.
+    api_report_disable_status: bool,
+    #[clap(long, default_value_t = false)]
+    /// If --api-report is enabled, do not report logs.
+    api_report_disable_logs: bool,
 }
 
 #[cfg(not(feature = "distribution"))]
@@ -237,6 +270,12 @@ pub fn main() {
             file: Some(file),
             prog_args: cli.file_args,
             force_entry: None,
+            logs: None,
+            debug: None,
+            api_report: false,
+            api_report_disable_logs: false,
+            api_report_disable_status: false,
+            parse_arguments: false,
         };
 
         run(args);
@@ -311,9 +350,17 @@ fn run(args: Run) {
             std::process::exit(1);
         };
 
-        let params = parse_args(entry_name, treatment, arguments);
+        let params = parse_args(entry_name, treatment, arguments, args.parse_arguments);
 
-        let launch = async_std::task::block_on(launch(collection, &identifier, params));
+        let launch = async_std::task::block_on(launch(
+            collection,
+            &identifier,
+            params,
+            args.logs,
+            args.debug,
+            args.api_report && !args.api_report_disable_logs,
+            args.api_report && !args.api_report_disable_status,
+        ));
         if let Some(failure) = launch.failure() {
             eprintln!("{}: {failure}", "failure".bold().red());
         }
@@ -539,11 +586,65 @@ fn new(args: New) {
 
 #[cfg(feature = "distribution")]
 fn dist(args: Dist) {
+    use async_std::channel::unbounded;
     use core::time::Duration;
     use melodium_common::descriptor::Version;
     use std::net::{Ipv4Addr, SocketAddr};
 
     let loader = melodium_loader::Loader::new(core_config());
+
+    let mut monitoring = futures::stream::FuturesUnordered::new();
+
+    let (logs_stdout_sender, logs_stdout_receiver) = unbounded();
+    monitoring.push(async_std::task::spawn(async move {
+        crate::display_logs(logs_stdout_receiver).await
+    }));
+    let mut logs_senders = vec![logs_stdout_sender];
+
+    args.logs.map(|path| {
+        let (logs_write_sender, logs_write_receiver) = unbounded();
+        logs_senders.push(logs_write_sender);
+        monitoring.push(async_std::task::spawn(async move {
+            crate::write_logs(path, logs_write_receiver).await
+        }));
+    });
+
+    let mut debug_senders = if let Some(path) = args.debug {
+        let (debug_write_sender, debug_write_receiver) = unbounded();
+        monitoring.push(async_std::task::spawn(async move {
+            crate::write_debug(path, debug_write_receiver).await
+        }));
+        vec![debug_write_sender]
+    } else {
+        Vec::new()
+    };
+
+    let program_dump_sender;
+    let signal_launched;
+    let signal_ended;
+    if args.api_report {
+        let (
+            given_program_dump_sender,
+            logs_report_sender,
+            debug_report_sender,
+            full_join,
+            status_reporting,
+        ) = async_std::task::block_on(crate::api_report(
+            !args.api_report_disable_logs,
+            !args.api_report_disable_status,
+            work_mel::api::ModeRequest::Distribution,
+        ));
+        monitoring.push(full_join);
+        logs_senders.push(logs_report_sender);
+        debug_senders.push(debug_report_sender);
+        program_dump_sender = Some(given_program_dump_sender);
+        signal_launched = status_reporting.launched;
+        signal_ended = status_reporting.ended;
+    } else {
+        program_dump_sender = None;
+        signal_launched = None;
+        signal_ended = None;
+    }
 
     if args.localhost {
         match (args.disable_tls, args.certificate, args.key) {
@@ -559,6 +660,11 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
+                    debug_senders,
+                    program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (false, Some(certificate), Some(key)) => {
@@ -589,6 +695,11 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
+                    debug_senders,
+                    program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (false, _, _) => {
@@ -610,6 +721,11 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
+                    debug_senders,
+                    program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (true, Some(_), Some(_)) | (true, None, Some(_)) | (true, Some(_), None) => {
@@ -647,6 +763,11 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
+                    debug_senders,
+                    program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (false, _, _, _) => {
@@ -665,6 +786,11 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
+                    debug_senders,
+                    program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (true, _, Some(_), Some(_)) | (true, _, Some(_), None) | (true, _, None, Some(_)) => {
@@ -683,6 +809,11 @@ fn dist(args: Dist) {
             }
         }
     }
+
+    async_std::task::block_on(async move {
+        use futures::StreamExt;
+        while let Some(_) = monitoring.next().await {}
+    });
 }
 
 #[cfg(feature = "doc")]
@@ -784,6 +915,7 @@ fn parse_args(
     displayed_name: Option<String>,
     treatment: &Arc<dyn Treatment>,
     arguments: Vec<String>,
+    strict_syntax: bool,
 ) -> HashMap<String, Value> {
     let cmd = build_cmd(displayed_name, treatment);
 
@@ -794,83 +926,299 @@ fn parse_args(
         if let Some(raw_value) = matches.get_one::<String>(name.as_str()) {
             if matches.value_source(name.as_str()) != Some(clap::parser::ValueSource::DefaultValue)
             {
-                let mut words = match get_words(raw_value) {
-                    Ok(w) => w,
-                    Err(_) => {
-                        eprintln!(
-                            "{}: argument '{name}' cannot be parsed",
-                            "failure".bold().red()
-                        );
-                        std::process::exit(1);
-                    }
-                };
-                words.push(melodium_lang::text::Word::default());
+                if strict_syntax {
+                    let mut words = match get_words(raw_value) {
+                        Ok(w) => w,
+                        Err(_) => {
+                            eprintln!(
+                                "{}: argument '{name}' cannot be parsed",
+                                "failure".bold().red()
+                            );
+                            std::process::exit(1);
+                        }
+                    };
+                    words.push(melodium_lang::text::Word::default());
 
-                let value = match TextValue::build_from_first_item(
-                    &mut words.windows(2),
-                    &mut HashMap::new(),
-                ) {
-                    Ok(v) => v,
-                    Err(err) => {
-                        eprintln!(
-                            "{}: argument '{name}' cannot be parsed: {err}",
-                            "failure".bold().red()
-                        );
-                        std::process::exit(1);
-                    }
-                };
+                    let value = match TextValue::build_from_first_item(
+                        &mut words.windows(2),
+                        &mut HashMap::new(),
+                    ) {
+                        Ok(v) => v,
+                        Err(err) => {
+                            eprintln!(
+                                "{}: argument '{name}' cannot be parsed: {err}",
+                                "failure".bold().red()
+                            );
+                            std::process::exit(1);
+                        }
+                    };
 
-                let decl_element = Arc::new(RwLock::new(NoneDeclarativeElement));
-                let value = match SemanticValue::new(decl_element.clone(), value) {
-                    Status::Success { success, errors } => {
-                        if !errors.is_empty() {
+                    let decl_element = Arc::new(RwLock::new(NoneDeclarativeElement));
+                    let value = match SemanticValue::new(decl_element.clone(), value) {
+                        Status::Success { success, errors } => {
+                            if !errors.is_empty() {
+                                errors
+                                    .iter()
+                                    .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
+                                std::process::exit(1);
+                            }
+                            success
+                        }
+                        Status::Failure { failure, errors } => {
+                            eprintln!("{}: {failure}", "failure".bold().red());
                             errors
                                 .iter()
                                 .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
                             std::process::exit(1);
                         }
-                        success
-                    }
-                    Status::Failure { failure, errors } => {
-                        eprintln!("{}: {failure}", "failure".bold().red());
-                        errors
-                            .iter()
-                            .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
-                        std::process::exit(1);
-                    }
-                };
+                    };
 
-                let datatype = if let Some(dt) = param.described_type().to_datatype(&HashMap::new())
-                {
-                    dt
-                } else {
-                    eprintln!(
+                    let datatype =
+                        if let Some(dt) = param.described_type().to_datatype(&HashMap::new()) {
+                            dt
+                        } else {
+                            eprintln!(
                         "{}: provided treatment have generics, it cannot be used as entrypoint",
                         "failure".bold().red()
                     );
-                    std::process::exit(1);
-                };
+                            std::process::exit(1);
+                        };
 
-                let value = match value.read().unwrap().make_executive_value(&datatype) {
-                    Status::Success { success, errors } => {
-                        if !errors.is_empty() {
+                    let value = match value.read().unwrap().make_executive_value(&datatype) {
+                        Status::Success { success, errors } => {
+                            if !errors.is_empty() {
+                                errors
+                                    .iter()
+                                    .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
+                                std::process::exit(1);
+                            }
+                            success
+                        }
+                        Status::Failure { failure, errors } => {
+                            eprintln!("{}: {failure}", "failure".bold().red());
                             errors
                                 .iter()
                                 .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
                             std::process::exit(1);
                         }
-                        success
-                    }
-                    Status::Failure { failure, errors } => {
-                        eprintln!("{}: {failure}", "failure".bold().red());
-                        errors
-                            .iter()
-                            .for_each(|err| eprintln!("{}: {err}", "error".bold().red()));
-                        std::process::exit(1);
-                    }
-                };
+                    };
 
-                parsed.insert(name.clone(), value);
+                    parsed.insert(name.clone(), value);
+                } else {
+                    let datatype =
+                        if let Some(dt) = param.described_type().to_datatype(&HashMap::new()) {
+                            dt
+                        } else {
+                            eprintln!(
+                        "{}: provided treatment have generics, it cannot be used as entrypoint",
+                        "failure".bold().red()
+                    );
+                            std::process::exit(1);
+                        };
+
+                    fn naive_parse(name: &str, dt: &DataType, value: &str) -> Value {
+                        match dt {
+                            melodium_common::descriptor::DataType::I8 => {
+                                Value::I8(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::I16 => {
+                                Value::I16(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::I32 => {
+                                Value::I32(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::I64 => {
+                                Value::I64(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::I128 => {
+                                Value::I128(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::U8 => {
+                                Value::U8(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::U16 => {
+                                Value::U16(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::U32 => {
+                                Value::U32(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::U64 => {
+                                Value::U64(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::U128 => {
+                                Value::U128(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::F32 => {
+                                Value::F32(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::F64 => {
+                                Value::F64(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::Bool => {
+                                Value::Bool(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::Byte => {
+                                Value::Byte(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::Char => {
+                                Value::Char(match value.parse() {
+                                    Ok(v) => v,
+                                    Err(err) => {
+                                        eprintln!(
+                                            "{}: parameter '{name}' is type '{dt}': {err} ",
+                                            "failure".bold().red()
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                })
+                            }
+                            melodium_common::descriptor::DataType::String => {
+                                Value::String(value.to_string())
+                            }
+                            melodium_common::descriptor::DataType::Option(dt) => {
+                                if value.is_empty() || value == "_" {
+                                    Value::Option(None)
+                                } else {
+                                    Value::Option(Some(Box::new(naive_parse(name, dt, value))))
+                                }
+                            }
+                            _ => {
+                                eprintln!("{}: parameter '{name}' is type '{dt}', that cannot be set up without parsing, see --parse-arguments option", "failure".bold().red());
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+
+                    let value = naive_parse(param.name(), &datatype, raw_value);
+
+                    parsed.insert(name.clone(), value);
+                }
             }
         }
     }

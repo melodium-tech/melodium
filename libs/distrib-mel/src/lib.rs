@@ -36,6 +36,7 @@ use std::{
     sync::{Arc, Weak},
 };
 use std_mel::data::map::*;
+use uuid::Uuid;
 use work_mel::access::*;
 
 #[derive(Debug)]
@@ -121,6 +122,7 @@ pub struct DistributionEngine {
     tracks: AsyncRwLock<HashMap<u64, AsyncArc<AsyncRwLock<Track>>>>,
     protocol_barrier: AsyncMutex<(bool, Option<AsyncArc<AsyncBarrier>>)>,
     started_once: AtomicBool,
+    distant_run_id: AsyncRwLock<Option<Uuid>>,
 }
 
 impl DistributionEngine {
@@ -133,6 +135,7 @@ impl DistributionEngine {
             tracks: AsyncRwLock::new(HashMap::new()),
             protocol_barrier: AsyncMutex::new((false, Some(AsyncArc::new(AsyncBarrier::new(2))))),
             started_once: AtomicBool::new(false),
+            distant_run_id: AsyncRwLock::new(None),
         }
     }
 }
@@ -223,6 +226,8 @@ impl DistributionEngine {
                         melodium_version: Version::parse(env!("CARGO_PKG_VERSION")).unwrap(),
                         distribution_version: melodium_distribution::VERSION.clone(),
                         key: access.remote_key,
+                        asking_run_id: *melodium_engine::execution_run_id(),
+                        group_id: *melodium_engine::execution_group_id(),
                     }))
                     .await
                 {
@@ -235,6 +240,10 @@ impl DistributionEngine {
                                 if confirm.key != access.self_key {
                                     return Err("Cannot distribute, remote engine did not provided valid key.".to_string());
                                 }
+                                self.distant_run_id
+                                    .write()
+                                    .await
+                                    .replace(confirm.confirming_run_id);
                             }
                             Ok(_) => {
                                 return Err("Unexpected response message".to_string());
@@ -460,6 +469,11 @@ impl DistributionEngine {
 
     async fn continuous(&self) {
         self.protocol_barrier().await;
+        let world = self.model.upgrade().map(|model| model.world().clone());
+
+        let mut ended = false;
+        let mut log_ended = false;
+        let mut debug_ended = false;
 
         let exec = async {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
@@ -522,9 +536,27 @@ impl DistributionEngine {
                                 }
                             }
                         }
+                        Ok(Message::Log(log)) => {
+                            if let Some(world) = world.as_ref() {
+                                let _ = world.inject_log(log).await;
+                            }
+                        }
+                        Ok(Message::Debug(debug)) => {
+                            if let Some(world) = world.as_ref() {
+                                if let Some(run_id) = self.distant_run_id.read().await.as_ref() {
+                                    let _ = world.inject_debug(*run_id, debug).await;
+                                }
+                            }
+                        }
                         Ok(Message::Ended) => {
                             self.close_all().await;
-                            break;
+                            ended = true;
+                        }
+                        Ok(Message::LogEnded) => {
+                            log_ended = true;
+                        }
+                        Ok(Message::DebugEnded) => {
+                            debug_ended = true;
                         }
                         Ok(Message::Probe) => {}
                         Ok(_) => {}
@@ -532,6 +564,9 @@ impl DistributionEngine {
                             self.close_all().await;
                             break;
                         }
+                    }
+                    if ended && log_ended {
+                        break;
                     }
                 }
                 protocol.close().await;

@@ -1,6 +1,7 @@
 use crate::error::DistributionResult;
 use crate::protocol::Protocol;
 use crate::{messages, messages::*, VERSION};
+use async_std::channel::{unbounded, Sender};
 use async_std::sync::Barrier;
 use async_std::{
     future::timeout,
@@ -13,13 +14,16 @@ use core::time::Duration;
 use futures::stream::{unfold, FuturesUnordered};
 use futures::{pin_mut, select, FutureExt, StreamExt};
 use futures_rustls::TlsAcceptor;
+use melodium_common::executive::{Level, Log};
 use melodium_common::{
     descriptor::{Entry, Identifier, Model as CommonModel, Treatment as CommonTreatment, Version},
     executive::{ResultStatus, TransmissionValue, Value},
 };
+use melodium_engine::debug::{DebugLevel, Event};
 use melodium_engine::descriptor::{Model, Treatment};
+use melodium_engine::execution_group_id;
 use melodium_loader::Loader;
-use melodium_share::{SharingError, SharingResult};
+use melodium_share::{ProgramDump, SharingError, SharingResult};
 use std::{
     collections::{HashMap, VecDeque},
     sync::Arc,
@@ -39,6 +43,20 @@ pub async fn launch_listen(
     loader: Loader,
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
+    logs_senders: Vec<Sender<Log>>,
+    debug_senders: Vec<Sender<Event>>,
+    program_dump_sender: Option<Sender<ProgramDump>>,
+    launched: Option<
+        Box<
+            dyn FnOnce(
+                Result<(), String>,
+            )
+                -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
+        >,
+    >,
+    ended: Option<
+        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
+    >,
 ) {
     let acceptor = acceptor(certificate_chain, key).unwrap();
     let listener = TcpListener::bind(bind).await.unwrap();
@@ -56,13 +74,31 @@ pub async fn launch_listen(
     let stream = if let Some(wait_for) = wait_for {
         match timeout(wait_for, accept_stream).await {
             Ok(stream) => stream,
-            Err(_) => return,
+            Err(_) => {
+                if let Some(launched) = launched {
+                    launched(Err("Distribution timeout".to_string())).await;
+                }
+                return;
+            }
         }
     } else {
         accept_stream.await
     };
 
-    launch_listen_stream(stream, version, expect_key, emit_key, loader, max_duration).await
+    launch_listen_stream(
+        stream,
+        version,
+        expect_key,
+        emit_key,
+        loader,
+        max_duration,
+        logs_senders,
+        debug_senders,
+        program_dump_sender,
+        launched,
+        ended,
+    )
+    .await
 }
 
 pub async fn launch_listen_localcert(
@@ -73,6 +109,20 @@ pub async fn launch_listen_localcert(
     loader: Loader,
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
+    logs_senders: Vec<Sender<Log>>,
+    debug_senders: Vec<Sender<Event>>,
+    program_dump_sender: Option<Sender<ProgramDump>>,
+    launched: Option<
+        Box<
+            dyn FnOnce(
+                Result<(), String>,
+            )
+                -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
+        >,
+    >,
+    ended: Option<
+        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
+    >,
 ) {
     launch_listen(
         bind,
@@ -84,6 +134,11 @@ pub async fn launch_listen_localcert(
         loader,
         wait_for,
         max_duration,
+        logs_senders,
+        debug_senders,
+        program_dump_sender,
+        launched,
+        ended,
     )
     .await
 }
@@ -96,6 +151,20 @@ pub async fn launch_listen_unsecure(
     loader: Loader,
     wait_for: Option<Duration>,
     max_duration: Option<Duration>,
+    logs_senders: Vec<Sender<Log>>,
+    debug_senders: Vec<Sender<Event>>,
+    program_dump_sender: Option<Sender<ProgramDump>>,
+    launched: Option<
+        Box<
+            dyn FnOnce(
+                Result<(), String>,
+            )
+                -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
+        >,
+    >,
+    ended: Option<
+        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
+    >,
 ) {
     let listener = TcpListener::bind(bind).await.unwrap();
 
@@ -108,13 +177,31 @@ pub async fn launch_listen_unsecure(
     let stream = if let Some(wait_for) = wait_for {
         match timeout(wait_for, accept_stream).await {
             Ok(stream) => stream,
-            Err(_) => return,
+            Err(_) => {
+                if let Some(launched) = launched {
+                    launched(Err("Distribution timeout".to_string())).await;
+                }
+                return;
+            }
         }
     } else {
         accept_stream.await
     };
 
-    launch_listen_stream(stream, version, expect_key, emit_key, loader, max_duration).await
+    launch_listen_stream(
+        stream,
+        version,
+        expect_key,
+        emit_key,
+        loader,
+        max_duration,
+        logs_senders,
+        debug_senders,
+        program_dump_sender,
+        launched,
+        ended,
+    )
+    .await
 }
 
 async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
@@ -124,6 +211,20 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     emit_key: Uuid,
     loader: Loader,
     max_duration: Option<Duration>,
+    logs_senders: Vec<Sender<Log>>,
+    debug_senders: Vec<Sender<Event>>,
+    program_dump_sender: Option<Sender<ProgramDump>>,
+    launched: Option<
+        Box<
+            dyn FnOnce(
+                Result<(), String>,
+            )
+                -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
+        >,
+    >,
+    ended: Option<
+        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
+    >,
 ) {
     let protocol = Arc::new(Protocol::new(stream));
 
@@ -131,27 +232,59 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         Ok(Message::AskDistribution(ask)) => {
             let accept = &ask.melodium_version == version
                 && ask.distribution_version == VERSION
-                && ask.key == expect_key;
+                && ask.key == expect_key
+                && &ask.group_id == execution_group_id();
             protocol
                 .send_message(Message::ConfirmDistribution(ConfirmDistribution {
                     melodium_version: version.clone(),
                     distribution_version: VERSION.clone(),
                     key: emit_key,
                     accept,
+                    confirming_run_id: *melodium_engine::execution_run_id(),
+                    group_id: *melodium_engine::execution_group_id(),
                 }))
                 .await
                 .unwrap();
 
             if !accept {
+                if let Some(launched) = launched {
+                    launched(Err("Distribution refused".to_string())).await;
+                }
                 return;
             }
         }
-        _ => return,
+        _ => {
+            if let Some(launched) = launched {
+                launched(Err("No distribution asked".to_string())).await;
+            }
+            return;
+        }
     }
 
     let (distributed_collection, entrypoint, parameters) = match protocol.recv_message().await {
-        Ok(Message::LoadAndLaunch(lal)) => (lal.collection, lal.entrypoint, lal.parameters),
-        _ => return,
+        Ok(Message::LoadAndLaunch(lal)) => {
+            if let Some(program_dump_sender) = program_dump_sender {
+                let _ = program_dump_sender
+                    .send(ProgramDump {
+                        collection: lal.collection.clone(),
+                        entrypoint: lal.entrypoint.clone(),
+                        parameters: lal
+                            .parameters
+                            .iter()
+                            .map(|(name, value)| (name.clone(), value.clone()))
+                            .collect(),
+                    })
+                    .await;
+                program_dump_sender.close();
+            }
+            (lal.collection, lal.entrypoint, lal.parameters)
+        }
+        _ => {
+            if let Some(launched) = launched {
+                launched(Err("No load provided".to_string())).await;
+            }
+            return;
+        }
     };
 
     // Proceed to load of compiled elements
@@ -235,8 +368,22 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         .into_iter()
         .map(|(name, val)| (name, val.to_value(&collection).unwrap()))
         .collect();
-    let engine = melodium_engine::new_engine(Arc::clone(&collection));
+    let engine =
+        melodium_engine::new_engine(Arc::clone(&collection), Level::Trace, DebugLevel::Detailed);
     engine.set_auto_end(false);
+
+    let (logs_sender, logs_receiver) = unbounded();
+    engine.add_logs_listener(logs_sender);
+    for log_sender in logs_senders {
+        engine.add_logs_listener(log_sender);
+    }
+
+    let (debug_sender, debug_receiver) = unbounded();
+    engine.add_debug_listener(debug_sender);
+    for debug_sender in debug_senders {
+        engine.add_debug_listener(debug_sender);
+    }
+
     if let Err(fail) = engine
         .genesis(&entrypoint.try_into().unwrap(), parameters)
         .as_result()
@@ -247,12 +394,20 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             )))
             .await
             .unwrap();
+        if let Some(launched) = launched {
+            launched(Err(fail.to_string())).await;
+        }
+        return;
     }
 
     protocol
         .send_message(Message::LaunchStatus(messages::LaunchStatus::Ok))
         .await
         .unwrap();
+
+    if let Some(launched) = launched {
+        launched(Ok(())).await;
+    }
 
     let barrier = Arc::new(Barrier::new(2));
     let expired = Arc::new(AtomicBool::new(false));
@@ -286,7 +441,6 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         async move {
             engine.live().await;
             let _ = protocol.send_message(Message::Ended).await;
-            protocol.close().await;
             if !expired.load(core::sync::atomic::Ordering::Relaxed) {
                 barrier.wait().await;
             }
@@ -499,14 +653,44 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             }
         }
 
-        protocol.close().await;
-
         for (_, outputs) in tracks_entry_outputs.read().await.iter() {
             for (_, output) in outputs {
                 output.close().await;
             }
         }
         engine.end().await;
+    };
+    let logs = {
+        let protocol = Arc::clone(&protocol);
+
+        async move {
+            while let Ok(log) = logs_receiver.recv().await {
+                if protocol.send_message(Message::Log(log)).await.is_err() {
+                    break;
+                }
+            }
+            let _ = protocol.send_message(Message::LogEnded).await;
+        }
+    };
+    let debug = {
+        let protocol = Arc::clone(&protocol);
+
+        async move {
+            while let Ok(event) = debug_receiver.recv().await {
+                if protocol
+                    .send_message(Message::Debug(
+                        serde_json::to_string(&melodium_share::Event::from(&event))
+                            .unwrap_or_else(|_| "\"<failed to serialize debug event>\"".to_string())
+                            .into(),
+                    ))
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+            }
+            let _ = protocol.send_message(Message::DebugEnded).await;
+        }
     };
     let probe = {
         let engine = Arc::clone(&engine);
@@ -523,7 +707,16 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         }
     };
 
-    futures::join!(limit, live, run, probe);
+    let probe = async_std::task::spawn(probe);
+
+    futures::join!(limit, live, run, logs, debug);
+
+    protocol.close().await;
+    probe.cancel().await;
+
+    if let Some(ended) = ended {
+        ended().await;
+    }
 }
 
 fn acceptor(

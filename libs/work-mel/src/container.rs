@@ -33,7 +33,7 @@ pub struct ContainerExecutor {
 #[cfg(feature = "real")]
 impl ContainerExecutor {
     pub async fn try_new(container: String) -> Result<ContainerExecutor, String> {
-        let executor = match std::env::var("MELODIUM_JOB_EXECUTOR").as_deref() {
+        let executor = match std::env::var("MELODIUM_RUN_EXECUTOR").as_deref() {
             Ok("podman") => Executor::Podman,
             Ok("docker") => Executor::Docker,
             Ok(other) => {
@@ -45,14 +45,14 @@ impl ContainerExecutor {
         };
 
         let executor_entrypoint =
-            if let Ok(entrypoint) = std::env::var("MELODIUM_JOB_EXECUTOR_ENTRYPOINT") {
+            if let Ok(entrypoint) = std::env::var("MELODIUM_RUN_EXECUTOR_ENTRYPOINT") {
                 entrypoint
             } else {
                 executor.to_string()
             };
 
         if Ok(true)
-            != std::env::var("MELODIUM_JOB_CONTAINERS").map(|var| {
+            != std::env::var("MELODIUM_RUN_CONTAINERS").map(|var| {
                 var.split(",")
                     .any(|var_container| var_container == container)
             })
@@ -61,7 +61,7 @@ impl ContainerExecutor {
         }
 
         if let Ok(container_full_name) =
-            std::env::var(format!("MELODIUM_JOB_CONTAINER_{container}"))
+            std::env::var(format!("MELODIUM_RUN_CONTAINER_{container}"))
         {
             Ok(Self {
                 executor,
@@ -625,13 +625,13 @@ pub struct ContainerFileSystem {
 impl ContainerFileSystem {
     pub async fn try_new(volume: String) -> Result<ContainerFileSystem, String> {
         if Ok(true)
-            != std::env::var("MELODIUM_JOB_VOLUMES")
+            != std::env::var("MELODIUM_RUN_VOLUMES")
                 .map(|var| var.split(",").any(|var_volume| var_volume == volume))
         {
             return Err(format!("No volume '{volume}' listed as available"));
         }
 
-        if let Ok(path) = std::env::var(format!("MELODIUM_JOB_VOLUME_{volume}")) {
+        if let Ok(path) = std::env::var(format!("MELODIUM_RUN_VOLUME_{volume}")) {
             Ok(Self {
                 volume,
                 path: path.into(),

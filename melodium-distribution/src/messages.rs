@@ -1,4 +1,4 @@
-use melodium_common::descriptor::Version;
+use melodium_common::{descriptor::Version, executive::Log};
 use melodium_share::{Collection, Identifier, RawValue};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -17,6 +17,10 @@ pub enum Message {
     OutputData(OutputData),
     CloseOutput(CloseOutput),
     Ended,
+    Log(Log),
+    LogEnded,
+    Debug(String),
+    DebugEnded,
     Probe,
 }
 
@@ -25,6 +29,8 @@ pub struct AskDistribution {
     pub melodium_version: Version,
     pub distribution_version: Version,
     pub key: Uuid,
+    pub asking_run_id: Uuid,
+    pub group_id: Uuid,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -33,6 +39,8 @@ pub struct ConfirmDistribution {
     pub melodium_version: Version,
     pub distribution_version: Version,
     pub key: Uuid,
+    pub confirming_run_id: Uuid,
+    pub group_id: Uuid,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
