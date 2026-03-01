@@ -84,7 +84,7 @@ impl DistantEngine {
         (
             api::DistributionResponse,
             Vec<String>,
-            Option<Box<dyn core::future::Future<Output = ()> + Send + Unpin>>,
+            Option<Box<dyn core::future::Future<Output = Vec<String>> + Send + Unpin>>,
         ),
         String,
     > {

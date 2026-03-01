@@ -630,8 +630,8 @@ fn dist(args: Dist) {
             full_join,
             status_reporting,
         ) = async_std::task::block_on(crate::api_report(
-            args.api_report,
-            args.api_report,
+            !args.api_report_disable_logs,
+            !args.api_report_disable_status,
             work_mel::api::ModeRequest::Distribution,
         ));
         monitoring.push(full_join);

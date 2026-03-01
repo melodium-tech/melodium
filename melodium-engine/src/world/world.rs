@@ -13,7 +13,7 @@ use crate::error::{LogicError, LogicErrors, LogicResult};
 use crate::transmission::{Input, Output, Outputs};
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::sync::{Barrier, Mutex, RwLock as AsyncRwLock};
-use async_std::task::{block_on, spawn};
+use async_std::task::block_on;
 use async_trait::async_trait;
 use chrono::Utc;
 use core::fmt::Debug;
@@ -530,19 +530,25 @@ impl Engine for World {
         self.logs_level
     }
 
+    #[cfg(not(target_os = "unknown"))]
     fn add_logs_listener(&self, sender: Sender<Log>) {
         let mut logs_listeners = self.logs_listeners.write_blocking();
         logs_listeners.push(sender);
     }
+    #[cfg(target_os = "unknown")]
+    fn add_logs_listener(&self, _sender: Sender<Log>) {}
 
     fn debug_level(&self) -> DebugLevel {
         self.debug_level
     }
 
+    #[cfg(not(target_os = "unknown"))]
     fn add_debug_listener(&self, sender: Sender<Event>) {
         let mut debug_listeners = self.debug_listeners.write_blocking();
         debug_listeners.push(sender);
     }
+    #[cfg(target_os = "unknown")]
+    fn add_debug_listener(&self, _sender: Sender<Event>) {}
 
     async fn live(&self) {
         let me = self.auto_reference.upgrade().unwrap();
@@ -611,8 +617,12 @@ impl Engine for World {
             }
         };
 
-        spawn(logs_transmission);
-        spawn(debug_transmission);
+        // TODO for WASM
+        #[cfg(not(target_os = "unknown"))]
+        {
+            async_std::task::spawn(logs_transmission);
+            async_std::task::spawn(debug_transmission);
+        }
 
         self.continuous_tasks_sender.close();
 

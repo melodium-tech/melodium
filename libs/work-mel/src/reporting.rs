@@ -1,5 +1,6 @@
 use crate::api::{DistributionResponse, LocalEnd, LocalLaunched, ModeRequest, Request};
 use async_std::channel::Receiver;
+use core::sync::atomic::{AtomicBool, Ordering};
 use melodium_core::common::{descriptor::Version, executive::Log};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -55,6 +56,7 @@ pub enum PushSpecs {
     },
 }
 
+#[cfg(feature = "real")]
 static CLIENT: std::sync::LazyLock<Result<reqwest::Client, String>> =
     std::sync::LazyLock::new(|| {
         reqwest::Client::builder()
@@ -62,7 +64,12 @@ static CLIENT: std::sync::LazyLock<Result<reqwest::Client, String>> =
             .build()
             .map_err(|err| err.to_string())
     });
+pub(crate) static REPORTS_ENABLED: AtomicBool = AtomicBool::new(false);
+pub(crate) static STATUS_ENABLED: AtomicBool = AtomicBool::new(false);
+// Reqwest retry doesn't currently match our needs: multipart form & agnostic host
+const REQUESTS_RETRY: u32 = 3;
 
+#[cfg(feature = "real")]
 pub async fn request_reporting(
     enable_reports: bool,
     enable_status: bool,
@@ -71,6 +78,7 @@ pub async fn request_reporting(
     mode: ModeRequest,
 ) -> Result<(Reporting, StatusReporting), String> {
     if enable_status {
+        STATUS_ENABLED.store(true, Ordering::Relaxed);
         match generic_async_http_client::Request::post(&format!(
             "{api_url}/execution/run/start",
             api_url = crate::API_URL.as_str()
@@ -144,6 +152,7 @@ pub async fn request_reporting(
         program: None,
     };
     if enable_reports {
+        REPORTS_ENABLED.store(true, Ordering::Relaxed);
         match generic_async_http_client::Request::post(&format!(
             "{api_url}/execution/report/request",
             api_url = crate::API_URL.as_str()
@@ -276,6 +285,18 @@ pub async fn request_reporting(
     Ok((reporting, status_reporting))
 }
 
+#[cfg(feature = "mock")]
+pub async fn request_reporting(
+    enable_reports: bool,
+    enable_status: bool,
+    request: ReportingRequest,
+    version: &Version,
+    mode: ModeRequest,
+) -> Result<(Reporting, StatusReporting), String> {
+    Err("Mock mode".to_string())
+}
+
+#[cfg(feature = "real")]
 pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
     let chunks_update_uri = format!(
         "{api_url}/execution/report/run/{run_id}/logs/chunks",
@@ -329,7 +350,10 @@ pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
         _ => {}
     }
 }
+#[cfg(feature = "mock")]
+pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {}
 
+#[cfg(feature = "real")]
 pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::debug::Event>) {
     let chunks_update_uri = format!(
         "{api_url}/execution/report/run/{run_id}/debug/chunks",
@@ -389,7 +413,10 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
         _ => {}
     }
 }
+#[cfg(feature = "mock")]
+pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::debug::Event>) {}
 
+#[cfg(feature = "real")]
 pub async fn report_program(specs: PushSpecs, program: melodium_share::ProgramDump) {
     match specs {
         PushSpecs::PresignedPutS3 { uri, headers } => {
@@ -424,63 +451,85 @@ pub async fn report_program(specs: PushSpecs, program: melodium_share::ProgramDu
         _ => {}
     }
 }
+#[cfg(feature = "mock")]
+pub async fn report_program(specs: PushSpecs, program: melodium_share::ProgramDump) {}
 
+#[cfg(feature = "real")]
 async fn send_logs_to_s3(
     uri: &str,
     fields: HashMap<String, String>,
     logs: &Vec<Log>,
 ) -> Result<(), String> {
-    let mut form = reqwest::multipart::Form::new();
-    for (key, value) in fields {
-        form = form.text(key, value);
+    let mut result = Ok(());
+    for _ in 0..REQUESTS_RETRY {
+        let mut form = reqwest::multipart::Form::new();
+        for (key, value) in &fields {
+            form = form.text(key.clone(), value.clone());
+        }
+
+        form = form.part(
+            "file",
+            reqwest::multipart::Part::bytes(serde_json::to_vec(logs).unwrap())
+                .file_name("logs.json")
+                .mime_str("application/json")
+                .unwrap(),
+        );
+
+        result = CLIENT
+            .as_ref()?
+            .post(uri)
+            .multipart(form)
+            .send()
+            .await
+            .map(|_| ())
+            .map_err(|err| err.to_string());
+
+        if result.is_ok() {
+            break;
+        }
     }
 
-    form = form.part(
-        "file",
-        reqwest::multipart::Part::bytes(serde_json::to_vec(logs).unwrap())
-            .file_name("logs.json")
-            .mime_str("application/json")
-            .unwrap(),
-    );
-
-    CLIENT
-        .as_ref()?
-        .post(uri)
-        .multipart(form)
-        .send()
-        .await
-        .map(|_| ())
-        .map_err(|err| err.to_string())
+    result
 }
 
+#[cfg(feature = "real")]
 async fn send_debug_to_s3(
     uri: &str,
     fields: HashMap<String, String>,
     events: &Vec<melodium_share::Event>,
 ) -> Result<(), String> {
-    let mut form = reqwest::multipart::Form::new();
-    for (key, value) in fields {
-        form = form.text(key, value);
+    let mut result = Ok(());
+    for _ in 0..REQUESTS_RETRY {
+        let mut form = reqwest::multipart::Form::new();
+        for (key, value) in &fields {
+            form = form.text(key.clone(), value.clone());
+        }
+
+        form = form.part(
+            "file",
+            reqwest::multipart::Part::bytes(serde_json::to_vec(events).unwrap())
+                .file_name("debug.json")
+                .mime_str("application/json")
+                .unwrap(),
+        );
+
+        result = CLIENT
+            .as_ref()?
+            .post(uri)
+            .multipart(form)
+            .send()
+            .await
+            .map(|_| ())
+            .map_err(|err| err.to_string());
+        if result.is_ok() {
+            break;
+        }
     }
 
-    form = form.part(
-        "file",
-        reqwest::multipart::Part::bytes(serde_json::to_vec(events).unwrap())
-            .file_name("debug.json")
-            .mime_str("application/json")
-            .unwrap(),
-    );
-
-    CLIENT
-        .as_ref()?
-        .post(uri)
-        .multipart(form)
-        .send()
-        .await
-        .map(|_| ())
-        .map_err(|err| err.to_string())
+    result
 }
 
+#[cfg(feature = "real")]
 async fn chunks_update(uri: &str, chunks: u128) -> Result<(), String> {
     CLIENT
         .as_ref()?
