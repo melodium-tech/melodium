@@ -39,8 +39,10 @@ impl DistantEngine {
         let model = self.model.upgrade().unwrap();
 
         let location = model.get_location();
-        let api_url = model.get_api_url();
-        let api_token = model.get_api_token();
+        let api_url = model
+            .get_api_url()
+            .or_else(|| Some(crate::API_URL.to_string()));
+        let api_token = model.get_api_token().or_else(|| crate::API_TOKEN.clone());
 
         self.location.write().unwrap().replace(location);
         if let Some(api_url) = api_url {
@@ -59,7 +61,7 @@ impl DistantEngine {
         (
             api::DistributionResponse,
             Vec<String>,
-            Option<Box<dyn core::future::Future<Output = ()> + Send + Unpin>>,
+            Option<Box<dyn core::future::Future<Output = Vec<String>> + Send + Unpin>>,
         ),
         String,
     > {
@@ -82,7 +84,7 @@ impl DistantEngine {
         (
             api::DistributionResponse,
             Vec<String>,
-            Option<Box<dyn core::future::Future<Output = ()> + Send + Unpin>>,
+            Option<Box<dyn core::future::Future<Output = Vec<String>> + Send + Unpin>>,
         ),
         String,
     > {
@@ -99,13 +101,13 @@ impl DistantEngine {
         (
             api::DistributionResponse,
             Vec<String>,
-            Option<Box<dyn core::future::Future<Output = ()> + Send + Unpin>>,
+            Option<Box<dyn core::future::Future<Output = Vec<String>> + Send + Unpin>>,
         ),
         String,
     > {
         request.local_exec = true;
 
-        let mut job_api_id = None;
+        let mut run_api_id = None;
         let mut api_errors = Vec::new();
 
         let (api_url, api_token) = (
@@ -114,7 +116,7 @@ impl DistantEngine {
         );
         if let (Some(api_url), Some(api_token)) = (&api_url, &api_token) {
             match generic_async_http_client::Request::post(&format!(
-                "{api_url}/execution/job/start"
+                "{api_url}/execution/run/start"
             ))
             .add_header("User-Agent", crate::USER_AGENT)
             .map_err(|err| err.to_string())?
@@ -132,7 +134,8 @@ impl DistantEngine {
                         match response.json::<api::Response>().await {
                             Ok(response) => match response {
                                 api::Response::Ok(id) => {
-                                    job_api_id = Some(id);
+                                    run_api_id = Some(id);
+                                    request.id = Some(id);
                                 }
                                 api::Response::Error(errs) => {
                                     api_errors.extend(errs);
@@ -158,11 +161,11 @@ impl DistantEngine {
 
         let response = crate::compose::compose(request).await;
 
-        if let (Some(job_api_id), Some(api_url), Some(api_token)) =
-            (job_api_id.clone(), &api_url, &api_token)
+        if let (Some(run_api_id), Some(api_url), Some(api_token)) =
+            (run_api_id.clone(), &api_url, &api_token)
         {
             match generic_async_http_client::Request::post(&format!(
-                "{api_url}/execution/job/launched"
+                "{api_url}/execution/run/launched"
             ))
             .add_header("User-Agent", crate::USER_AGENT)
             .map_err(|err| err.to_string())?
@@ -172,7 +175,7 @@ impl DistantEngine {
             .map_err(|err| err.to_string())?
             .body(
                 serde_json::to_string(&api::LocalLaunched {
-                    job_id: job_api_id,
+                    run_id: run_api_id,
                     response: match &response {
                         Ok(_) => api::DistributionResponse::Started(None),
                         Err(errs) => api::DistributionResponse::Error(errs.clone()),
@@ -202,14 +205,16 @@ impl DistantEngine {
         match response {
             Ok((access, mut child)) => {
                 let finish_notification = async move {
-                    let status = child.status().await;
+                    let mut possible_errors = Vec::new();
+                    let status =
+                        async_std::future::timeout(Duration::from_secs(10), child.status()).await;
                     match status {
-                        Ok(exit) => {
-                            if let (Some(job_api_id), Some(api_url), Some(api_token)) =
-                                (job_api_id, api_url, api_token)
+                        Ok(Ok(exit)) => {
+                            if let (Some(run_api_id), Some(api_url), Some(api_token)) =
+                                (run_api_id, api_url, api_token)
                             {
                                 let _ = generic_async_http_client::Request::post(&format!(
-                                    "{api_url}/execution/job/ended"
+                                    "{api_url}/execution/run/ended"
                                 ))
                                 .add_header("User-Agent", crate::USER_AGENT)?
                                 .add_header(
@@ -219,7 +224,7 @@ impl DistantEngine {
                                 .add_header("Content-Type", "application/json")?
                                 .body(
                                     serde_json::to_string(&api::LocalEnd {
-                                        job_id: job_api_id,
+                                        run_id: run_api_id,
                                         result: if exit.success() {
                                             api::DistributionResult::Success(None)
                                         } else {
@@ -235,14 +240,23 @@ impl DistantEngine {
                                 )?
                                 .exec()
                                 .await;
+
+                                if !exit.success() {
+                                    possible_errors.push(format!(
+                                        "Compose exited with code {}",
+                                        exit.code()
+                                            .map(|code| code.to_string())
+                                            .unwrap_or("undefined".into())
+                                    ));
+                                }
                             }
                         }
-                        Err(err) => {
-                            if let (Some(job_api_id), Some(api_url), Some(api_token)) =
-                                (job_api_id, api_url, api_token)
+                        Ok(Err(err)) => {
+                            if let (Some(run_api_id), Some(api_url), Some(api_token)) =
+                                (run_api_id, api_url, api_token)
                             {
                                 let _ = generic_async_http_client::Request::post(&format!(
-                                    "{api_url}/execution/job/ended"
+                                    "{api_url}/execution/run/ended"
                                 ))
                                 .add_header("User-Agent", crate::USER_AGENT)?
                                 .add_header(
@@ -252,7 +266,7 @@ impl DistantEngine {
                                 .add_header("Content-Type", "application/json")?
                                 .body(
                                     serde_json::to_string(&api::LocalEnd {
-                                        job_id: job_api_id,
+                                        run_id: run_api_id,
                                         result: api::DistributionResult::Failure(Some(vec![
                                             err.to_string()
                                         ])),
@@ -261,15 +275,52 @@ impl DistantEngine {
                                 )?
                                 .exec()
                                 .await;
+
+                                possible_errors.push(err.to_string());
+                            }
+                        }
+                        Err(err) => {
+                            if let (Some(run_api_id), Some(api_url), Some(api_token)) =
+                                (run_api_id, api_url, api_token)
+                            {
+                                let _ = generic_async_http_client::Request::post(&format!(
+                                    "{api_url}/execution/run/ended"
+                                ))
+                                .add_header("User-Agent", crate::USER_AGENT)?
+                                .add_header(
+                                    "Authorization",
+                                    format!("Bearer {api_token}").as_bytes(),
+                                )?
+                                .add_header("Content-Type", "application/json")?
+                                .body(
+                                    serde_json::to_string(&api::LocalEnd {
+                                        run_id: run_api_id,
+                                        result: api::DistributionResult::Success(Some(vec![
+                                            format!("Compose exit timeout: {}", err.to_string()),
+                                        ])),
+                                    })
+                                    .unwrap(),
+                                )?
+                                .exec()
+                                .await;
+
+                                possible_errors
+                                    .push(format!("Compose exit timeout: {}", err.to_string()));
                             }
                         }
                     }
 
-                    Ok::<(), generic_async_http_client::Error>(())
+                    Ok::<Vec<String>, generic_async_http_client::Error>(possible_errors)
                 };
 
                 let finish_notification = async move {
-                    let _ = finish_notification.await;
+                    match finish_notification.await {
+                        Ok(possible_errors) => possible_errors,
+                        Err(err) => vec![format!(
+                            "Error while sending run end notification: {}",
+                            err.to_string()
+                        )],
+                    }
                 };
 
                 Ok((
@@ -294,7 +345,7 @@ impl DistantEngine {
         (
             api::DistributionResponse,
             Vec<String>,
-            Option<Box<dyn core::future::Future<Output = ()> + Send + Unpin>>,
+            Option<Box<dyn core::future::Future<Output = Vec<String>> + Send + Unpin>>,
         ),
         String,
     > {
@@ -304,7 +355,7 @@ impl DistantEngine {
         );
         if let (Some(api_url), Some(api_token)) = (api_url, api_token) {
             match generic_async_http_client::Request::post(&format!(
-                "{api_url}/execution/job/start"
+                "{api_url}/execution/run/start"
             ))
             .add_header("User-Agent", crate::USER_AGENT)
             .map_err(|err| err.to_string())?
@@ -325,7 +376,7 @@ impl DistantEngine {
                                     async_std::task::sleep(Duration::from_secs(1)).await;
                                     loop {
                                         match generic_async_http_client::Request::get(&format!(
-                                            "{api_url}/execution/job/{id}/access"
+                                            "{api_url}/execution/run/{id}/access"
                                         ))
                                         .add_header("User-Agent", crate::USER_AGENT)
                                         .map_err(|err| err.to_string())?
@@ -471,22 +522,23 @@ pub async fn distant(
     volumes: Vec<Volume>,
     containers: Vec<Container>,
     service_containers: Vec<ServiceContainer>,
+    tags: Vec<string>,
 ) {
     let model = DistantEngineModel::into(distant_engine);
     let distant = model.inner();
 
     let key = Uuid::new_v4();
     let start = api::Request {
-        edition: edition.unwrap_or_else(|| "scratch".to_string()),
-        max_duration,
-        memory,
-        cpu,
-        mode: api::ModeRequest::Distribute { key: key.clone() },
+        edition: Some(edition.unwrap_or_else(|| "scratch".to_string())),
+        max_duration: Some(max_duration),
+        memory: Some(memory),
+        cpu: Some(cpu),
+        mode: api::ModeRequest::DistributionSecretKey { key: key.clone() },
         config: None,
         id: None,
         organization_id: None,
         version: env!("CARGO_PKG_VERSION").to_string(),
-        storage,
+        storage: Some(storage),
         arch: arch.map(|arch| arch.0),
         volumes: volumes.into_iter().map(|vol| vol.0.clone()).collect(),
         containers: containers.into_iter().map(|cont| cont.0.clone()).collect(),
@@ -494,6 +546,9 @@ pub async fn distant(
             .into_iter()
             .map(|cont| cont.0.clone())
             .collect(),
+        group_id: Some(melodium_engine::execution_group_id().clone()),
+        parent_id: Some(melodium_engine::execution_run_id().clone()),
+        tags: tags,
         local_exec: false,
     };
 
@@ -514,10 +569,15 @@ pub async fn distant(
                             .await;
                         let _ = access.close().await;
                         let _ = failed.close().await;
-                        let _ = errors.close().await;
-                        if let Some(future) = future {
-                            future.await;
+
+                        if let Some(future_errors) = future {
+                            let some_errors = future_errors.await;
+                            if !some_errors.is_empty() {
+                                let _ = errors.send_many(some_errors.into()).await;
+                            }
                         }
+
+                        let _ = errors.close().await;
                     }
                     api::DistributionResponse::Started(None) => {}
                     api::DistributionResponse::Error(errs) => {

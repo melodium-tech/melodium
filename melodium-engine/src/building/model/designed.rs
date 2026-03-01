@@ -4,6 +4,7 @@ use crate::building::{
     DynamicBuildResult, GenesisEnvironment, StaticBuildResult,
 };
 use crate::building::{Builder as BuilderTrait, HostTreatment};
+use crate::debug::Event;
 use crate::design::Model;
 use crate::error::LogicResult;
 use crate::world::World;
@@ -54,9 +55,17 @@ impl BuilderTrait for Builder {
             remastered_environment.add_variable(&parameter.name, data.clone());
         }
 
-        self.world
-            .upgrade()
-            .unwrap()
+        let world = self.world.upgrade().unwrap();
+
+        world.send_debug(Event::new(crate::debug::EventKind::ModelBuilt {
+            model: Arc::clone(&descriptor) as Arc<dyn ModelDescriptor>,
+            parameters: remastered_environment.variables().clone(),
+            host_treatment: host_treatment.clone(),
+            host_build,
+            label: label.clone(),
+        }));
+
+        world
             .builder(descriptor.base_model().unwrap().identifier())
             .and_then(|builder| {
                 builder.static_build(host_treatment, host_build, label, &remastered_environment)

@@ -6,7 +6,6 @@ use root/services::setServiceState
 use root/steps::stepOnTerminable
 use root/steps::stepOnTerminableWithInput
 use root/steps::spawnCommands
-use log/logger::Logger
 use process/command::Command
 use process/command::|command
 use process/command::|raw_commands
@@ -35,7 +34,7 @@ Run a step on local machine.
 
 This treatment runs commands on local machine.
 */
-treatment localStep[logger: Logger](
+treatment localStep(
   name: string,
   commands: Vec<Command>,
   variables: Option<StringMap> = _,
@@ -63,7 +62,7 @@ treatment localStep[logger: Logger](
   output error: Block<void>
 {
     closeTerminate: closeBlock<void>()
-    localStepTerminable[logger=logger](
+    localStepTerminable(
         name=name,
         commands=commands,
         variables=variables,
@@ -100,7 +99,7 @@ Run a step on local machine.
 
 This treatment runs commands on local machine.
 */
-treatment localStepTerminable[logger: Logger](
+treatment localStepTerminable(
   name: string,
   commands: Vec<Command>,
   variables: Option<StringMap> = _,
@@ -129,7 +128,7 @@ treatment localStepTerminable[logger: Logger](
   output error: Block<void>
   output terminated: Block<void>
 {
-    spawnCommands[logger=logger](label=name)
+    spawnCommands(label=name)
 
     emitExecutorName: emit<Option<string>>(value=_)
     emitEnvironment: emit<Option<Environment>>(value=|wrap<Environment>(|environment(|unwrap_or<StringMap>(variables, |map([])), _, true, false)))
@@ -142,7 +141,7 @@ treatment localStepTerminable[logger: Logger](
     Self.trigger -> emitCommands.trigger,emit -> streamCommands.block,stream -> flattenCommands.vector,value -> spawnCommands.commands
     Self.terminate -> spawnCommands.terminate
 
-    setServiceState[logger=logger](
+    setServiceState(
         name=name,
         report=report,
         github=github,
@@ -204,7 +203,7 @@ The `trigger` input signals the treatment to start, then:
 
 The `report` and `github_*`/`gitlab_*` values are made available to report status in Github Actions and GitLab CI.
 */
-treatment simpleStep[dispatcher: CicdDispatchEngine, logger: Logger](
+treatment simpleStep[dispatcher: CicdDispatchEngine](
     name: string,
     cpu: u32 = 500,
     memory: u32 = 500,
@@ -245,7 +244,7 @@ treatment simpleStep[dispatcher: CicdDispatchEngine, logger: Logger](
   output data: Stream<byte>
 {
 
-    simpleStepTerminable[dispatcher=dispatcher, logger=logger](
+    simpleStepTerminable[dispatcher=dispatcher](
         name=name,
         cpu=cpu,
         memory=memory,
@@ -318,7 +317,7 @@ The `trigger` input signals the treatment to start, then:
 
 The `report` and `github_*`/`gitlab_*` values are made available to report status in Github Actions and GitLab CI.
 */
-treatment simpleStepTerminable[dispatcher: CicdDispatchEngine, logger: Logger](
+treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
     name: string,
     cpu: u32 = 500,
     memory: u32 = 500,
@@ -362,8 +361,7 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine, logger: Logger](
 {
     setupRunner[
         dispatcher=dispatcher,
-        runner=runner,
-        logger=logger
+        runner=runner
     ](
         name=name,
         cpu=100,
@@ -375,7 +373,7 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine, logger: Logger](
         ],
         service_containers=service_containers
     )
-    stepOnTerminable[runner=runner, logger=logger](
+    stepOnTerminable[runner=runner](
         name=name,
         executor_name=|wrap<string>(name),
         commands=commands,
@@ -384,7 +382,7 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine, logger: Logger](
         out_filesystem="data"
     )
     stopRunner[runner=runner]()
-    setServiceState[logger=logger](
+    setServiceState(
         name=name,
         report=report,
         github=github,
@@ -452,7 +450,7 @@ The `trigger` input signals the treatment to start, then:
 
 The `report` and `github_*`/`gitlab_*` values are made available to report status in Github Actions and GitLab CI.
 */
-treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
+treatment simpleStepWithInput[dispatcher: CicdDispatchEngine](
     name: string,
     cpu: u32 = 500,
     memory: u32 = 500,
@@ -494,7 +492,7 @@ treatment simpleStepWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
   output finished: Block<void>
   output data: Stream<byte>
 {
-    simpleStepTerminableWithInput[dispatcher=dispatcher, logger=logger](
+    simpleStepTerminableWithInput[dispatcher=dispatcher](
         name=name,
         cpu=cpu,
         memory=memory,
@@ -568,7 +566,7 @@ The `trigger` input signals the treatment to start, then:
 
 The `report` and `github_*`/`gitlab_*` values are made available to report status in Github Actions and GitLab CI.
 */
-treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine, logger: Logger](
+treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
     name: string,
     cpu: u32 = 500,
     memory: u32 = 500,
@@ -614,8 +612,7 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine, logger: 
 {
     setupRunner[
         dispatcher=dispatcher,
-        runner=runner,
-        logger=logger
+        runner=runner
     ](
         name=name,
         cpu=100,
@@ -627,7 +624,7 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine, logger: 
         ],
         service_containers=service_containers
     )
-    stepOnTerminableWithInput[runner=runner, logger=logger](
+    stepOnTerminableWithInput[runner=runner](
         name=name,
         executor_name=|wrap<string>(name),
         commands=commands,
@@ -638,7 +635,7 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine, logger: 
         out_filesystem="data"
     )
     stopRunner[runner=runner]()
-    setServiceState[logger=logger](
+    setServiceState(
         name=name,
         report=report,
         github=github,

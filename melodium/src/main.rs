@@ -38,6 +38,21 @@ struct Run {
     #[clap(long, value_name = "IDENTIFIER")]
     /// Force identifier to be used as entrypoint.
     force_entry: Option<String>,
+    #[clap(long)]
+    /// Write logs to path.
+    logs: Option<PathBuf>,
+    #[clap(long)]
+    /// Write debug to path.
+    debug: Option<PathBuf>,
+    #[clap(long, default_value_t = false)]
+    /// Whether to report execution to API, requires API token to be set in environment variable `MELODIUM_API_TOKEN`. Also requires API URL to be set in environment variable `MELODIUM_API_URL` if different from `https://api.melodium.tech/0.1`.
+    api_report: bool,
+    #[clap(long, default_value_t = false)]
+    /// If --api-report is enabled, do not report status.
+    api_report_disable_status: bool,
+    #[clap(long, default_value_t = false)]
+    /// If --api-report is enabled, do not report logs.
+    api_report_disable_logs: bool,
     #[clap(value_parser)]
     /// Program file to run, can be either `.mel`, `Compo.toml` or `.jeu` file.
     file: Option<String>,
@@ -117,27 +132,42 @@ struct Dist {
     #[clap(short, long, allow_hyphen_values = true)]
     /// Certificate chain to use for TLS encryption (PEM format).
     certificate: Option<String>,
-    /// Key to use for TLS encryption (PKCS8 PEM format).
     #[clap(short, long, allow_hyphen_values = true)]
+    /// Key to use for TLS encryption (PKCS8 PEM format).
     key: Option<String>,
+    #[clap(short, long)]
     /// Key expected to authenticate remote engine.
-    #[clap(short, long)]
     recv_key: uuid::Uuid,
-    /// Key to authenticate with remote engine.
     #[clap(short, long)]
+    /// Key to authenticate with remote engine.
     send_key: uuid::Uuid,
+    #[clap(long, action)]
     /// Listen localhost (if ip is not set), using embedded certificate.
-    #[clap(long, action)]
     localhost: bool,
-    /// Disable TLS encryption.
     #[clap(long, action)]
+    /// Disable TLS encryption.
     disable_tls: bool,
+    #[clap(long, default_value = None)]
     /// Time (in seconds) to wait for a distant engine to connect.
-    #[clap(long, default_value = None)]
     wait: Option<u64>,
-    /// Maximal duration (in seconds) for work to be made.
     #[clap(long, default_value = None)]
+    /// Maximal duration (in seconds) for work to be made.
     duration: Option<u64>,
+    #[clap(long)]
+    /// Write logs to path.
+    logs: Option<PathBuf>,
+    #[clap(long)]
+    /// Write debug to path.
+    debug: Option<PathBuf>,
+    #[clap(long, default_value_t = false)]
+    /// Whether to report execution to API, requires API token to be set in environment variable `MELODIUM_API_TOKEN`. Also requires API URL to be set in environment variable `MELODIUM_API_URL` if different from `https://api.melodium.tech/0.1`.
+    api_report: bool,
+    #[clap(long, default_value_t = false)]
+    /// If --api-report is enabled, do not report status.
+    api_report_disable_status: bool,
+    #[clap(long, default_value_t = false)]
+    /// If --api-report is enabled, do not report logs.
+    api_report_disable_logs: bool,
 }
 
 #[cfg(not(feature = "distribution"))]
@@ -237,6 +267,11 @@ pub fn main() {
             file: Some(file),
             prog_args: cli.file_args,
             force_entry: None,
+            logs: None,
+            debug: None,
+            api_report: false,
+            api_report_disable_logs: false,
+            api_report_disable_status: false,
         };
 
         run(args);
@@ -313,7 +348,15 @@ fn run(args: Run) {
 
         let params = parse_args(entry_name, treatment, arguments);
 
-        let launch = async_std::task::block_on(launch(collection, &identifier, params));
+        let launch = async_std::task::block_on(launch(
+            collection,
+            &identifier,
+            params,
+            args.logs,
+            args.debug,
+            args.api_report && !args.api_report_disable_logs,
+            args.api_report && !args.api_report_disable_status,
+        ));
         if let Some(failure) = launch.failure() {
             eprintln!("{}: {failure}", "failure".bold().red());
         }
@@ -539,11 +582,65 @@ fn new(args: New) {
 
 #[cfg(feature = "distribution")]
 fn dist(args: Dist) {
+    use async_std::channel::unbounded;
     use core::time::Duration;
     use melodium_common::descriptor::Version;
     use std::net::{Ipv4Addr, SocketAddr};
 
     let loader = melodium_loader::Loader::new(core_config());
+
+    let mut monitoring = futures::stream::FuturesUnordered::new();
+
+    let (logs_stdout_sender, logs_stdout_receiver) = unbounded();
+    monitoring.push(async_std::task::spawn(async move {
+        crate::display_logs(logs_stdout_receiver).await
+    }));
+    let mut logs_senders = vec![logs_stdout_sender];
+
+    args.logs.map(|path| {
+        let (logs_write_sender, logs_write_receiver) = unbounded();
+        logs_senders.push(logs_write_sender);
+        monitoring.push(async_std::task::spawn(async move {
+            crate::write_logs(path, logs_write_receiver).await
+        }));
+    });
+
+    let mut debug_senders = if let Some(path) = args.debug {
+        let (debug_write_sender, debug_write_receiver) = unbounded();
+        monitoring.push(async_std::task::spawn(async move {
+            crate::write_debug(path, debug_write_receiver).await
+        }));
+        vec![debug_write_sender]
+    } else {
+        Vec::new()
+    };
+
+    let program_dump_sender;
+    let signal_launched;
+    let signal_ended;
+    if args.api_report {
+        let (
+            given_program_dump_sender,
+            logs_report_sender,
+            debug_report_sender,
+            full_join,
+            status_reporting,
+        ) = async_std::task::block_on(crate::api_report(
+            !args.api_report_disable_logs,
+            !args.api_report_disable_status,
+            work_mel::api::ModeRequest::Distribution,
+        ));
+        monitoring.push(full_join);
+        logs_senders.push(logs_report_sender);
+        debug_senders.push(debug_report_sender);
+        program_dump_sender = Some(given_program_dump_sender);
+        signal_launched = status_reporting.launched;
+        signal_ended = status_reporting.ended;
+    } else {
+        program_dump_sender = None;
+        signal_launched = None;
+        signal_ended = None;
+    }
 
     if args.localhost {
         match (args.disable_tls, args.certificate, args.key) {
@@ -559,6 +656,11 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
+                    debug_senders,
+                    program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (false, Some(certificate), Some(key)) => {
@@ -589,6 +691,11 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
+                    debug_senders,
+                    program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (false, _, _) => {
@@ -610,6 +717,11 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
+                    debug_senders,
+                    program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (true, Some(_), Some(_)) | (true, None, Some(_)) | (true, Some(_), None) => {
@@ -647,6 +759,11 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
+                    debug_senders,
+                    program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (false, _, _, _) => {
@@ -665,6 +782,11 @@ fn dist(args: Dist) {
                     loader,
                     args.wait.map(|secs| Duration::from_secs(secs)),
                     args.duration.map(|secs| Duration::from_secs(secs)),
+                    logs_senders,
+                    debug_senders,
+                    program_dump_sender,
+                    signal_launched,
+                    signal_ended,
                 ))
             }
             (true, _, Some(_), Some(_)) | (true, _, Some(_), None) | (true, _, None, Some(_)) => {
@@ -683,6 +805,11 @@ fn dist(args: Dist) {
             }
         }
     }
+
+    async_std::task::block_on(async move {
+        use futures::StreamExt;
+        while let Some(_) = monitoring.next().await {}
+    });
 }
 
 #[cfg(feature = "doc")]

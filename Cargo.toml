@@ -8,7 +8,6 @@ members = [
     "libs/http-mel",
     "libs/javascript-mel",
     "libs/json-mel",
-    "libs/log-mel",
     "libs/net-mel",
     "libs/process-mel",
     "libs/regex-mel",

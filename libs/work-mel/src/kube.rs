@@ -30,7 +30,7 @@ pub struct KubeExecutor {
 impl KubeExecutor {
     pub async fn try_new(container: String) -> Result<KubeExecutor, String> {
         if Ok(true)
-            != std::env::var("MELODIUM_JOB_CONTAINERS").map(|var| {
+            != std::env::var("MELODIUM_RUN_CONTAINERS").map(|var| {
                 var.split(",")
                     .any(|var_container| var_container == container)
             })
@@ -39,7 +39,7 @@ impl KubeExecutor {
         }
 
         if let Ok(container_full_name) =
-            std::env::var(format!("MELODIUM_JOB_CONTAINER_{container}"))
+            std::env::var(format!("MELODIUM_RUN_CONTAINER_{container}"))
         {
             if let Ok(pod) = std::env::var("MELODIUM_POD_NAME") {
                 Client::try_default()
@@ -702,13 +702,13 @@ pub struct KubeFileSystem {
 impl KubeFileSystem {
     pub async fn try_new(volume: String) -> Result<KubeFileSystem, String> {
         if Ok(true)
-            != std::env::var("MELODIUM_JOB_VOLUMES")
+            != std::env::var("MELODIUM_RUN_VOLUMES")
                 .map(|var| var.split(",").any(|var_volume| var_volume == volume))
         {
             return Err(format!("No volume '{volume}' listed as available"));
         }
 
-        if let Ok(path) = std::env::var(format!("MELODIUM_JOB_VOLUME_{volume}")) {
+        if let Ok(path) = std::env::var(format!("MELODIUM_RUN_VOLUME_{volume}")) {
             Ok(Self {
                 volume,
                 path: path.into(),

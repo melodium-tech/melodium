@@ -2,7 +2,6 @@ use root/flow::check
 use root/flow::emit
 use root/flow::stream
 use root/flow::trigger
-
 use root/ops::equal as equalStream
 
 /**

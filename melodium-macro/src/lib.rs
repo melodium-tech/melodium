@@ -1470,7 +1470,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
         let body = treatment.block;
 
         prepare_implementation = quote! {
-            fn prepare(&self, track_id: usize) -> Vec<melodium_core::common::executive::TrackFuture> {
+            fn prepare(&self, track_id: usize, debug_start: core::pin::Pin<Box<dyn core::future::Future<Output = ()> + Send + Sync>>, debug_finish: core::pin::Pin<Box<dyn core::future::Future<Output = ()> + Send + Sync>>) -> Vec<melodium_core::common::executive::TrackFuture> {
 
                 #generics;
                 #parameters;
@@ -1480,6 +1480,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 vec![Box::new(Box::pin(async move {
 
+                    debug_start.await;
                     let exec = || {
                         #borrow_inputs;
                         #borrow_outputs;
@@ -1490,6 +1491,7 @@ pub fn mel_treatment(attr: TokenStream, item: TokenStream) -> TokenStream {
                     #post_inputs;
                     #post_outputs;
 
+                    debug_finish.await;
                     melodium_core::common::executive::ResultStatus::Ok
                 }))]
             }

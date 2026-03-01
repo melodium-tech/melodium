@@ -9,12 +9,11 @@ use local/github::|pending as |github_pending
 use local/github::|success as |github_success
 use local/github::|failure as |github_failure
 use local/github::|error as |github_error
-use log/logger::Logger
 use std/flow::passBlock
 use std/flow::one
 use std/ops/bin::|and
 
-treatment setServiceState[logger: Logger](
+treatment setServiceState(
     report: bool = true,
     github: bool = false,
     gitlab: bool = false,
@@ -39,7 +38,7 @@ treatment setServiceState[logger: Logger](
   input canceled: Block<void>
 {
     passPendingGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
-    pendingGitlab: postGitlabState[logger=logger](
+    pendingGitlab: postGitlabState(
         root_url=gitlab_root_url,
         token=gitlab_token,
         project=gitlab_project_id,
@@ -52,7 +51,7 @@ treatment setServiceState[logger: Logger](
         log_response=log_response
     )
     passRunningGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
-    runningGitlab: postGitlabState[logger=logger](
+    runningGitlab: postGitlabState(
         root_url=gitlab_root_url,
         token=gitlab_token,
         project=gitlab_project_id,
@@ -65,7 +64,7 @@ treatment setServiceState[logger: Logger](
         log_response=log_response
     )
     passSuccessGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
-    successGitlab: postGitlabState[logger=logger](
+    successGitlab: postGitlabState(
         root_url=gitlab_root_url,
         token=gitlab_token,
         project=gitlab_project_id,
@@ -78,7 +77,7 @@ treatment setServiceState[logger: Logger](
         log_response=log_response
     )
     passFailedGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
-    failedGitlab: postGitlabState[logger=logger](
+    failedGitlab: postGitlabState(
         root_url=gitlab_root_url,
         token=gitlab_token,
         project=gitlab_project_id,
@@ -91,7 +90,7 @@ treatment setServiceState[logger: Logger](
         log_response=log_response
     )
     passCanceledGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
-    canceledGitlab: postGitlabState[logger=logger](
+    canceledGitlab: postGitlabState(
         root_url=gitlab_root_url,
         token=gitlab_token,
         project=gitlab_project_id,
@@ -105,7 +104,7 @@ treatment setServiceState[logger: Logger](
     )
 
     passPendingGithub: passBlock<void>(cond=|and<bool>(report, github))
-    pendingGithub: postGithubState[logger=logger](
+    pendingGithub: postGithubState(
         token=github_token,
         project=github_project,
         sha=github_sha,
@@ -115,7 +114,7 @@ treatment setServiceState[logger: Logger](
         log_response=log_response
     )
     passSuccessGithub: passBlock<void>(cond=|and<bool>(report, github))
-    successGithub: postGithubState[logger=logger](
+    successGithub: postGithubState(
         token=github_token,
         project=github_project,
         sha=github_sha,
@@ -125,7 +124,7 @@ treatment setServiceState[logger: Logger](
         log_response=log_response
     )
     passErrorGithub: passBlock<void>(cond=|and<bool>(report, github))
-    errorGithub: postGithubState[logger=logger](
+    errorGithub: postGithubState(
         token=github_token,
         project=github_project,
         sha=github_sha,
@@ -135,7 +134,7 @@ treatment setServiceState[logger: Logger](
         log_response=log_response
     )
     passFailureGithub: passBlock<void>(cond=|and<bool>(report, github))
-    failureGithub: postGithubState[logger=logger](
+    failureGithub: postGithubState(
         token=github_token,
         project=github_project,
         sha=github_sha,
