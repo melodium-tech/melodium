@@ -9,9 +9,9 @@ fn main() {
         .arg("run")
         .arg("regex.mel")
         .arg("--file")
-        .arg(&format!(r#""{FILENAME}""#))
+        .arg(&format!(r#"{FILENAME}"#))
         .arg("--text")
-        .arg(&format!(r#""{INPUT_STRING}""#))
+        .arg(&format!(r#"{INPUT_STRING}"#))
         .spawn()
         .expect("failed to launch Mélodium executable");
 

@@ -17,7 +17,7 @@ fn main() {
         .arg("sql.mel")
         .arg("--server_url")
         .arg(&format!(
-            r#""postgres://{user}:{password}@{host}:{port}/{database}""#,
+            r#"postgres://{user}:{password}@{host}:{port}/{database}"#,
             port = env::var("PGPORT").unwrap_or_else(|_| "5432".into()),
             user = env::var("POSTGRES_USER").unwrap(),
             password = env::var("POSTGRES_PASSWORD").unwrap(),
@@ -25,11 +25,11 @@ fn main() {
             database = env::var("POSTGRES_DB").unwrap(),
         ))
         .arg("--conn_error_file")
-        .arg(&format!(r#""{CONN_ERROR_FILENAME}""#))
+        .arg(&format!(r#"{CONN_ERROR_FILENAME}"#))
         .arg("--exec_error_file")
-        .arg(&format!(r#""{EXEC_ERROR_FILENAME}""#))
+        .arg(&format!(r#"{EXEC_ERROR_FILENAME}"#))
         .arg("--success_file")
-        .arg(&format!(r#""{SUCCESS_FILENAME}""#))
+        .arg(&format!(r#"{SUCCESS_FILENAME}"#))
         .spawn()
         .expect("failed to launch Mélodium executable");
 
