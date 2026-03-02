@@ -2,7 +2,7 @@ use melodium_core::{
     common::executive::{Output, ResultStatus},
     *,
 };
-use melodium_macro::mel_model;
+use melodium_macro::{mel_model, mel_function};
 use std::collections::HashMap;
 
 pub mod log;
@@ -47,4 +47,19 @@ impl Engine {
     }
 
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
+}
+
+#[mel_function]
+pub fn version() -> string {
+    melodium_engine::VERSION.to_string()
+}
+
+#[mel_function]
+pub fn run_id() -> string {
+    melodium_engine::execution_run_id().to_string()
+}
+
+#[mel_function]
+pub fn group_id() -> string {
+    melodium_engine::execution_group_id().to_string()
 }

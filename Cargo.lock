@@ -4852,6 +4852,7 @@ dependencies = [
  "async-std",
  "futures",
  "melodium-core",
+ "melodium-engine",
  "melodium-macro",
  "serde",
  "strfmt",

@@ -106,6 +106,19 @@ impl Write for NetworkStream {
     }
 }
 
+/// The `DistributionEngine` model handles remote distribution of Mélodium
+/// treatments. It connects to a distant engine using the provided access
+/// configuration, negotiates protocol compatibility, and then loads and
+/// launches a treatment identified by the model parameters. Once started it
+/// maintains an asynchronous connection and keeps track of distributed
+/// instances and tracks allowing the local engine to send inputs and receive
+/// outputs, logs and debugging information.
+///
+/// Parameters:
+/// * `treatment` – identifier of the treatment to execute on the remote
+///   engine.
+/// * `version` – version of the treatment (must be a valid [SemVer](https://semver.org/)).
+///
 #[derive(Debug)]
 #[mel_model(
     param treatment string none
@@ -641,6 +654,18 @@ impl DistributionEngine {
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
+/// Treatment `start` for the `DistributionEngine` model.
+///
+/// This treatment is responsible for initiating the distribution
+/// connection using the supplied `access` block, which must contain a single
+/// `Access` value describing the remote addresses, port, keys and other
+/// connection parameters. The treatment also takes arbitrary `params` that are
+/// forwarded as launch parameters to the remote side.
+///
+/// On a successful start the treatment sends a unit token on `ready`.
+/// If the engine cannot be started it emits a signal on `failed` followed by
+/// an error message on `error` and triggers a fuse of the distributor so that
+/// further attempts are ignored.
 #[mel_treatment(
     model distributor DistributionEngine
     input access Block<Access>
@@ -681,6 +706,12 @@ pub async fn start(params: Map) {
     }
 }
 
+/// Treatment `stop` for the `DistributionEngine` model.
+///
+/// When the `trigger` block receives a unit token the treatment asks the
+/// distributor to terminate its protocol connection and clean up any
+/// resources. This allow the world to gracefully shut down the distributed
+/// execution.
 #[mel_treatment(
     model distributor DistributionEngine
     input trigger Block<void>
@@ -695,6 +726,13 @@ pub async fn stop() {
     }
 }
 
+/// Treatment `distribute` for the `DistributionEngine` model.
+///
+/// When a unit token is received on `trigger`, this treatment requests a new
+/// distributed track from the remote engine. If successful it waits for the
+/// track to be fully instantiated and then sends its `distribution_id` on
+/// the corresponding output. Failures during instantiation are reported via
+/// the `failed` and `error` outputs.
 #[mel_treatment(
     model distributor DistributionEngine
     input trigger Block<void>
@@ -735,6 +773,16 @@ pub async fn distribute() {
     }
 }
 
+/// Treatment `recv_stream` for receiving streaming output from a
+/// distributed instance.
+///
+/// * `name` is the name of the output port defined by the distributed
+///   treatment.
+/// * `distribution_id` provides the identifier obtained from `distribute`.
+///
+/// The treatment forwards each value received from the remote output into the
+/// `data` stream, converting raw values back into the requested generic type
+/// `D`. If a value of the wrong datatype is encountered the stream is closed.
 #[mel_treatment(
     model distributor DistributionEngine
     generic D (Deserialize)
@@ -782,6 +830,11 @@ pub async fn recv_stream(name: string) {
     }
 }
 
+/// Treatment `recv_block` for receiving a single (blocking) output value
+/// from a distributed instance.
+///
+/// It reads exactly one item from the remote output and emits it on the `data`
+/// block. Afterwards the corresponding remote `name` output is closed.
 #[mel_treatment(
     model distributor DistributionEngine
     generic D (Deserialize)
@@ -816,6 +869,12 @@ pub async fn recv_block(name: string) {
     }
 }
 
+/// Treatment `send_stream` for sending a stream of values to a distributed
+/// instance input.
+///
+/// Values received on `data` are serialized and forwarded to the remote
+/// treatment. The treatment handles automatic closing of the remote input when
+/// the stream ends or an error occurs.
 #[mel_treatment(
     model distributor DistributionEngine
     generic S (Serialize)
@@ -865,6 +924,10 @@ pub async fn send_stream(name: string) {
     }
 }
 
+/// Treatment `send_block` for sending a single value to a distributed input.
+///
+/// The provided `data` block is consumed once, serialized and sent to the
+/// remote side. The remote input is closed after transmission.
 #[mel_treatment(
     model distributor DistributionEngine
     generic S (Serialize)

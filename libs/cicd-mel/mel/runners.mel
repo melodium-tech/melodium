@@ -2,6 +2,7 @@ use std/flow::one
 use std/flow::passBlock
 use std/data/map::|entry
 use std/ops/option::|wrap
+use std/engine::|version
 use std/engine/log::logErrors
 use std/engine/log::logError
 use std/engine/log::logErrorMessage
@@ -30,9 +31,16 @@ model CicdDispatchEngine(location: string = "api", api_token: Option<string> = _
     location = location
 }
 
+/**
+Engine used by CI/CD runners to distribute step executions.
+
+This model is a thin wrapper around `DistributionEngine` preconfigured to
+run the `cicd/steps::step` treatment at current engine version. It serves as the
+local-side distributor handling a job runner worker spawned by the `CicdDispatchEngine` dispatcher.
+*/
 model CicdRunnerEngine(): DistributionEngine {
     treatment = "cicd/steps::step"
-    version = "0.10.0"
+    version = |version()
 }
 
 /**

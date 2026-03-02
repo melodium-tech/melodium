@@ -20,6 +20,7 @@ name = "std_mel"
 async-std = "1.13"
 futures = "0.3.28"
 melodium-core = { path = "../../melodium-core", version = "0.10.0" }
+melodium-engine = { path = "../../melodium-engine", version = "0.10.0" }
 melodium-macro = { path = "../../melodium-macro", version = "0.10.0" }
 serde = { version = "1", features = ["derive"] }
 strfmt = "0.2.4"

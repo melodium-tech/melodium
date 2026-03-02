@@ -33,3 +33,5 @@ pub mod build {
 }
 
 pub use ids::{execution_group_id, execution_run_id};
+
+pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
