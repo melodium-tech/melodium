@@ -2,7 +2,7 @@ use melodium_core::{
     common::executive::{Output, ResultStatus},
     *,
 };
-use melodium_macro::{mel_model, mel_function};
+use melodium_macro::{mel_function, mel_model};
 use std::collections::HashMap;
 
 pub mod log;

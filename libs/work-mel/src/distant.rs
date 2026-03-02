@@ -4,7 +4,7 @@ use crate::resources::arch::*;
 use crate::resources::*;
 use core::time::Duration;
 use melodium_core::*;
-use melodium_macro::{mel_model, mel_treatment};
+use melodium_macro::{mel_function, mel_model, mel_treatment};
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock, Weak},
@@ -592,4 +592,9 @@ pub async fn distant(
             }
         }
     }
+}
+
+#[mel_function]
+pub fn default_api_url() -> string {
+    crate::API_URL.to_string()
 }

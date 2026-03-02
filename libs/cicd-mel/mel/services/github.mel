@@ -5,6 +5,8 @@ use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
 use std/data/string_map/block::merge
+use std/engine::|group_id
+use std/engine::|run_id
 use std/text/compose::|format
 use std/flow::emit
 use std/flow::pass
@@ -34,6 +36,7 @@ use json/value::|null
 use json/value::fromStringMap
 use process/environment::Environment
 use process/environment::mapFullEnvironment
+use root/distant::|default_api_url
 use root/steps::spawnCommands
 use local::StepState
 use local::githubMapEval
@@ -168,12 +171,16 @@ treatment postGithubStateContext[contexts: JavaScriptEngine](state: StepState, n
             "{{
                 \"state\": \"{state}\",
                 \"context\": \"{name}\",
-                \"description\": \"{description}\"
+                \"description\": \"{description}\",
+                \"target_url\": \"{api_url}/execution/report/dashboard/{group_id}/{run_id}\"
             }}",
             |map([
                     |entry("state", |to_string<StepState>(state)),
                     |entry("name", name),
-                    |entry("description", description)
+                    |entry("description", description),
+                    |entry("api_url", |default_api_url()),
+                    |entry("group_id", |group_id()),
+                    |entry("run_id", |run_id())
                 ])
         )
     ), |null()))
@@ -222,12 +229,16 @@ treatment postGithubState(token: string, project: string, sha: string, state: St
             "{{
                 \"state\": \"{state}\",
                 \"context\": \"{name}\",
-                \"description\": \"{description}\"
+                \"description\": \"{description}\",
+                \"target_url\": \"{api_url}/execution/report/dashboard/{group_id}/{run_id}\"
             }}",
             |map([
                     |entry("state", |to_string<StepState>(state)),
                     |entry("name", name),
-                    |entry("description", description)
+                    |entry("description", description),
+                    |entry("api_url", |default_api_url()),
+                    |entry("group_id", |group_id()),
+                    |entry("run_id", |run_id())
                 ])
         )
     ), |null()))
