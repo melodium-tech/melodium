@@ -20,7 +20,7 @@ use std/ops/option::|wrap
 use local::StepState
 use std/engine/log::logError
 use std/engine/log::logInfos
-use root/distant::|default_api_url
+use work/distant::|default_api_url
 
 treatment postGitlabState(root_url: string, token: string, project: string, sha: string, state: StepState, ref: string, pipeline: string, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>

@@ -36,7 +36,7 @@ use json/value::|null
 use json/value::fromStringMap
 use process/environment::Environment
 use process/environment::mapFullEnvironment
-use root/distant::|default_api_url
+use work/distant::|default_api_url
 use root/steps::spawnCommands
 use local::StepState
 use local::githubMapEval
