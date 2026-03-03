@@ -27,7 +27,7 @@ Please refer to the [Mélodium crate](melodium/) for informations about how to b
 
 Mélodium development repository is hosted on [GitLab](https://gitlab.com/melodium/melodium), with mirroring on [GitHub](https://github.com/melodium-tech/melodium).  
 Social accounts can be found on [BlueSky](https://bsky.app/profile/melodium.tech), [Mastodon](https://mastodon.social/@melodium) and [LinkedIn](https://www.linkedin.com/company/m%C3%A9lodium/).  
-Development chats and related Mélodium stuff can be discussed on [Discord](https://discord.gg/GQmckruKNx).
+Development chats and related Mélodium stuff can be discussed on [Matrix](https://matrix.to/#/#melodium:matrix.org).
 
 ## Repository organization
 
