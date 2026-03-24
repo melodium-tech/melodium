@@ -84,7 +84,7 @@ cargo build --package melodium --target wasm32-unknown-unknown --no-default-feat
 ## Development
 
 The development of Mélodium project is hosted by [GitLab](https://gitlab.com/melodium/melodium).
-Direct channels and news are available on [Discord](https://discord.gg/GQmckruKNx).
+Direct channels and news are available on [Matrix](https://matrix.to/#/#melodium:matrix.org).
 
 ## Origin
 
