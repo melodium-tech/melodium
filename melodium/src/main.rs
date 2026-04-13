@@ -350,7 +350,12 @@ fn run(args: Run) {
             std::process::exit(1);
         };
 
-        let params = parse_args(entry_name, treatment, arguments, args.parse_arguments);
+        let params = parse_args(
+            entry_name.clone(),
+            treatment,
+            arguments,
+            args.parse_arguments,
+        );
 
         let launch = async_std::task::block_on(launch(
             collection,
@@ -360,6 +365,7 @@ fn run(args: Run) {
             args.debug,
             args.api_report && !args.api_report_disable_logs,
             args.api_report && !args.api_report_disable_status,
+            entry_name.map(|name| vec![format!("entrypoint={name}")]),
         ));
         if let Some(failure) = launch.failure() {
             eprintln!("{}: {failure}", "failure".bold().red());
@@ -633,6 +639,7 @@ fn dist(args: Dist) {
             !args.api_report_disable_logs,
             !args.api_report_disable_status,
             work_mel::api::ModeRequest::Distribution,
+            None,
         ));
         monitoring.push(full_join);
         logs_senders.push(logs_report_sender);

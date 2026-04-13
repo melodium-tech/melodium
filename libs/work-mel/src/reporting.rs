@@ -85,9 +85,14 @@ pub async fn request_reporting(
     request: ReportingRequest,
     version: &Version,
     mode: ModeRequest,
+    tags: Option<Vec<String>>,
 ) -> Result<(Reporting, StatusReporting), String> {
     if enable_status {
+        use crate::API_TAGS;
+
         STATUS_ENABLED.store(true, Ordering::Relaxed);
+        let mut all_tags = API_TAGS.as_ref().cloned().unwrap_or_default();
+        all_tags.extend(tags.unwrap_or_default());
         match generic_async_http_client::Request::post(&format!(
             "{api_url}/execution/run/start",
             api_url = crate::API_URL.as_str()
@@ -124,7 +129,7 @@ pub async fn request_reporting(
                 volumes: vec![],
                 containers: vec![],
                 service_containers: vec![],
-                tags: vec![],
+                tags: all_tags,
                 group_id: Some(request.group_id),
                 parent_id: None,
                 local_exec: true,
@@ -503,7 +508,7 @@ async fn report_program_details(program: &melodium_share::ProgramDump) -> Result
     .await
     {
         Ok(mut response) => {
-            if response.status_code() == 200 || response.status_code() == 409 {
+            if response.status_code() == 200 {
                 // Nothing
             } else {
                 return match response.text().await {
