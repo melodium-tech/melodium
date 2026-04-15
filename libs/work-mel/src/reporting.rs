@@ -2,8 +2,9 @@ use crate::api::{DistributionResponse, LocalEnd, LocalLaunched, ModeRequest, Req
 use async_std::channel::Receiver;
 use core::sync::atomic::{AtomicBool, Ordering};
 use melodium_core::common::{descriptor::Version, executive::Log};
+use melodium_share::{Identifier, RawValue};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -20,6 +21,14 @@ pub struct Reporting {
     pub logs: Option<PushSpecs>,
     pub debug: Option<PushSpecs>,
     pub program: Option<PushSpecs>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ReportingProgramDetails {
+    pub run_id: Uuid,
+    pub group_id: Uuid,
+    pub entrypoint: Identifier,
+    pub parameters: BTreeMap<String, RawValue>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -76,9 +85,14 @@ pub async fn request_reporting(
     request: ReportingRequest,
     version: &Version,
     mode: ModeRequest,
+    tags: Option<Vec<String>>,
 ) -> Result<(Reporting, StatusReporting), String> {
     if enable_status {
+        use crate::API_TAGS;
+
         STATUS_ENABLED.store(true, Ordering::Relaxed);
+        let mut all_tags = API_TAGS.as_ref().cloned().unwrap_or_default();
+        all_tags.extend(tags.unwrap_or_default());
         match generic_async_http_client::Request::post(&format!(
             "{api_url}/execution/run/start",
             api_url = crate::API_URL.as_str()
@@ -115,7 +129,7 @@ pub async fn request_reporting(
                 volumes: vec![],
                 containers: vec![],
                 service_containers: vec![],
-                tags: vec![],
+                tags: all_tags,
                 group_id: Some(request.group_id),
                 parent_id: None,
                 local_exec: true,
@@ -418,6 +432,9 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
 
 #[cfg(feature = "real")]
 pub async fn report_program(specs: PushSpecs, program: melodium_share::ProgramDump) {
+    if let Err(err) = report_program_details(&program).await {
+        eprintln!("Failed to report program details: {err}");
+    }
     match specs {
         PushSpecs::PresignedPutS3 { uri, headers } => {
             let client = match CLIENT.as_ref() {
@@ -453,6 +470,60 @@ pub async fn report_program(specs: PushSpecs, program: melodium_share::ProgramDu
 }
 #[cfg(feature = "mock")]
 pub async fn report_program(specs: PushSpecs, program: melodium_share::ProgramDump) {}
+
+#[cfg(feature = "real")]
+async fn report_program_details(program: &melodium_share::ProgramDump) -> Result<(), String> {
+    match generic_async_http_client::Request::post(&format!(
+        "{api_url}/execution/report/run/{run_id}/program/details",
+        api_url = crate::API_URL.as_str(),
+        run_id = melodium_engine::execution_run_id(),
+    ))
+    .add_header("User-Agent", crate::USER_AGENT)
+    .map_err(|err| err.to_string())?
+    .add_header(
+        "Authorization",
+        format!(
+            "Bearer {api_token}",
+            api_token = crate::API_TOKEN
+                .as_ref()
+                .map(|token| token.as_str())
+                .unwrap_or(&"")
+        )
+        .as_bytes(),
+    )
+    .map_err(|err| err.to_string())?
+    .add_header("Content-Type", "application/json")
+    .map_err(|err| err.to_string())?
+    .body(
+        serde_json::to_string(&ReportingProgramDetails {
+            run_id: melodium_engine::execution_run_id().clone(),
+            group_id: melodium_engine::execution_group_id().clone(),
+            entrypoint: program.entrypoint.clone(),
+            parameters: program.parameters.clone(),
+        })
+        .unwrap(),
+    )
+    .map_err(|err| err.to_string())?
+    .exec()
+    .await
+    {
+        Ok(mut response) => {
+            if response.status_code() == 200 {
+                // Nothing
+            } else {
+                return match response.text().await {
+                    Ok(body) => Err(format!(
+                        "Server {} response: {body}",
+                        response.status_code()
+                    )),
+                    Err(error) => Err(error.to_string()),
+                };
+            }
+        }
+        Err(error) => return Err(error.to_string()),
+    }
+    Ok(())
+}
 
 #[cfg(feature = "real")]
 async fn send_logs_to_s3(

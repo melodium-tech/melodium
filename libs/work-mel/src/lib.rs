@@ -28,5 +28,11 @@ pub(crate) static API_URL: std::sync::LazyLock<String> = std::sync::LazyLock::ne
 });
 pub(crate) static API_TOKEN: std::sync::LazyLock<Option<String>> =
     std::sync::LazyLock::new(|| std::env::var("MELODIUM_API_TOKEN").ok());
+pub(crate) static API_TAGS: std::sync::LazyLock<Option<Vec<String>>> =
+    std::sync::LazyLock::new(|| {
+        std::env::var("MELODIUM_API_TAGS")
+            .map(|val| val.split_whitespace().map(|s| s.to_string()).collect())
+            .ok()
+    });
 
 mel_package!();
