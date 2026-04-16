@@ -1,5 +1,22 @@
 # Changelog
 
+## [v0.10.1] (2026-04-16)
+
+- Adding program details to execution reporting (#106).
+- Improving installation script.
+
+## [v0.10.0] (2026-03-02)
+
+- Adding debug/dump execution mode (#102).
+- Softening CLI argument parsing for parameters (#100).
+- Adding WebAssembly library compilation target (#104).
+- Adding execution reporting with run IDs and execution group IDs.
+- Migrating to new logging system.
+
+## [v0.9.2] (2026-01-15)
+
+- No changes in this crate.
+
 ## [v0.9.0]
 
 - Adding `check` command.
