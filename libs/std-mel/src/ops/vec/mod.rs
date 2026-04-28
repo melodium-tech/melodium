@@ -3,6 +3,7 @@ use melodium_macro::{check, mel_function, mel_treatment};
 
 pub mod block;
 
+/// Return `true` if `vector` contains a value equal to `value`.
 #[mel_function(
     generic T (PartialEquality)
 )]
@@ -10,6 +11,9 @@ pub fn contains(vector: Vec<T>, value: T) -> bool {
     vector.iter().any(|val| val.partial_equality_eq(&value))
 }
 
+/// Pair-wise membership check over two streams.
+///
+/// For each (`value`, `vec`) pair received from the two streams, emit `true` through `contains` if `vec` contains `value`.
 #[mel_treatment(
     generic T (PartialEquality)
     input value Stream<T>
@@ -26,6 +30,7 @@ pub async fn contains() {
     }
 }
 
+/// Concatenate `second` onto the end of `first` and return the combined vector.
 #[mel_function(
     generic T ()
 )]
@@ -34,6 +39,9 @@ pub fn concat(mut first: Vec<T>, mut second: Vec<T>) -> Vec<T> {
     first
 }
 
+/// Pair-wise concatenation over two streams.
+///
+/// For each (`first`, `second`) pair received from the two streams, append `second` to `first` and emit the result through `concatened`.
 #[mel_treatment(
     generic T ()
     input first Stream<Vec<T>>

@@ -71,6 +71,11 @@ pub trait FileSystemEngine: Debug + Send + Sync {
     );
 }
 
+/// Abstract handle to a filesystem implementation.
+///
+/// `FileSystem` carries a filesystem engine (local, remote, container, etc.)
+/// and is consumed by filesystem treatments such as `readFile`, `writeFile`, `scanDir`, and `createDir`.
+/// Obtain a `FileSystem` value via companion functions such as `|local_filesystem`.
 #[derive(Debug, Serialize)]
 #[mel_data]
 pub struct FileSystem {

@@ -47,6 +47,23 @@ use local::githubSetOutputs
 use std/engine/log::logError
 use std/engine/log::logInfos
 
+/**
+Run a single GitHub Actions step as a Mélodium treatment.
+
+Evaluates GitHub Actions expression syntax in `commands`, `env`, `shell`, `working_directory`,
+`if`, and `continue_on_error` against the provided JavaScript `contexts`.
+
+- `name`: step identifier used for labelling and outputs.
+- `display_name`: optional human-readable label shown in logs (falls back to `name`).
+- `commands`: the shell script or command string to run (supports `${{ }}` expressions).
+- `env`: optional additional environment variables (merged with GitHub env-file variables).
+- `working_directory`, `shell`: optional overrides evaluated via expression.
+- `if`: optional expression that gates execution; the step is skipped if it evaluates to `false`.
+- `continue_on_error`: when `true`-ish, a non-zero exit emits `continue` instead of `failed`.
+- `local_context`: optional JSON object merged into the expression context.
+
+`completed` is emitted on successful exit; `failed` on error; `continue` when `continue_on_error` is set and the step fails.
+*/
 treatment runAction[contexts: JavaScriptEngine](
     id: Option<string> = _,
     name: string,
@@ -148,6 +165,16 @@ treatment runAction[contexts: JavaScriptEngine](
                                                         mapContinueOnError.value -> evalContinueOnError.value,evaluated -> reduceContinueOnError.value                                                                            streamTrue.stream -> equalContinueOnError.b
 }
 
+/**
+Post a GitHub commit status using expression-evaluated URL and headers from the current GitHub Actions context.
+
+The API URL and the `Authorization` header value are resolved by evaluating GitHub Actions
+`${{ }}` expressions from the `contexts` engine, so this treatment must be used inside a
+workflow that has already called `prepareContexts`.
+
+`state` sets the commit status; `name` is the context label; `description` is the human-readable
+message. When `log_response` is `true`, the raw response body is logged.
+*/
 treatment postGithubStateContext[contexts: JavaScriptEngine](state: StepState, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>
     model http_client: HttpClient(
@@ -200,6 +227,15 @@ treatment postGithubStateContext[contexts: JavaScriptEngine](state: StepState, n
     Self.trigger -> emitBody.trigger,emit -> stream.block,stream -> toString.value,into -> toUtf8.text,encoded -> post.data
 }
 
+/**
+Post a GitHub commit status using explicit credentials.
+
+Sends a POST to `https://api.github.com/repos/{project}/statuses/{sha}` using `token`
+for the `Authorization: Bearer` header. `state` sets the commit status; `name` is the
+context label; `description` is the human-readable message.
+A link to the Mélodium execution dashboard is included as `target_url`.
+When `log_response` is `true`, the raw response body is logged.
+*/
 treatment postGithubState(token: string, project: string, sha: string, state: StepState, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>
 {
@@ -249,6 +285,16 @@ treatment postGithubState(token: string, project: string, sha: string, state: St
     Self.trigger -> emit.trigger,emit -> stream.block,stream -> toString.value,into -> toUtf8.text,encoded -> post.data
 }
 
+/**
+Initialise the GitHub Actions expression context in a JavaScript engine.
+
+Parses `github_contexts` as JSON and injects the standard GitHub Actions context variables
+(`github`, `env`, `vars`, `job`, `jobs`, `steps`, `runner`, `secrets`, `strategy`, `matrix`,
+`needs`, `inputs`) into the `contexts` engine, along with the `always()`, `success()`,
+`failure()`, and `cancelled()` helper functions.
+
+`ready` is emitted once the context is fully initialised and the engine is ready for expression evaluation.
+*/
 treatment prepareContexts[contexts: JavaScriptEngine](github_contexts: string)
   input trigger: Block<void>
   output ready: Block<void>
@@ -308,6 +354,13 @@ treatment prepareContexts[contexts: JavaScriptEngine](github_contexts: string)
     Self.trigger -> emit.trigger,emit -> stream.block,stream -> process.value,result -> trigger.stream,end -> Self.ready
 }
 
+/**
+Inject a `needs` dependency result into the GitHub Actions expression context.
+
+Inserts the JSON value from `needs` into `contexts` under `needs["{from}"]`,
+making the outputs of a preceding job available to `${{ needs.<from>.* }}` expressions.
+`ready` is emitted once the injection is complete.
+*/
 treatment includeNeeds[contexts: JavaScriptEngine](from: string)
   input trigger: Block<void>
   input needs: Block<Json>
@@ -327,6 +380,13 @@ treatment includeNeeds[contexts: JavaScriptEngine](from: string)
     Self.needs ---> releaseBlock.data
 }
 
+/**
+Inject workflow inputs into the GitHub Actions expression context.
+
+Sets the `inputs` variable inside `contexts` to the JSON value received through `inputs`,
+making `${{ inputs.* }}` expressions resolvable.
+`ready` is emitted once the injection is complete.
+*/
 treatment includeInputs[contexts: JavaScriptEngine]()
   input trigger: Block<void>
   input inputs: Block<Json>
@@ -346,6 +406,18 @@ treatment includeInputs[contexts: JavaScriptEngine]()
     Self.inputs --> releaseBlock.data
 }
 
+/**
+Copy the GitHub Actions expression context from the main engine into an action-scoped engine and inject inputs.
+
+Prepares `action_contexts` by first initialising it with an empty context, then extracting
+the `github` and `runner` objects from `main_contexts` and injecting them.
+Finally, `inputs` is evaluated through `main_contexts` (allowing expression expansion) and
+injected as the `inputs` variable in `action_contexts`.
+
+This treatment is used to give GitHub Actions action implementations their own isolated engine
+pre-seeded with the parent workflow's context and the resolved step inputs.
+`ready` is emitted once both injections are complete.
+*/
 treatment replicateContextsWithInputs[main_contexts: JavaScriptEngine, action_contexts: JavaScriptEngine](inputs: StringMap)
   input trigger: Block<void>
   output ready: Block<void>

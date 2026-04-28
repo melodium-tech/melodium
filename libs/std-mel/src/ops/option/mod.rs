@@ -3,7 +3,7 @@ use melodium_macro::{check, mel_function, mel_treatment};
 
 pub mod block;
 
-/// Unwrap option of return default value
+/// Return the contained value if `option` is `some`, or `default` if it is `none`.
 #[mel_function(
     generic T ()
 )]
@@ -95,7 +95,7 @@ pub async fn fuse() {
     }
 }
 
-/// Wrap a value in an option
+/// Wrap `value` in `Some`, producing an `Option<T>` that always contains a value.
 #[mel_function(
     generic T ()
 )]

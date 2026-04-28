@@ -49,16 +49,19 @@ impl Engine {
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
+/// Return the current Mélodium engine version string.
 #[mel_function]
 pub fn version() -> string {
     melodium_engine::VERSION.to_string()
 }
 
+/// Return the unique identifier of the current execution run.
 #[mel_function]
 pub fn run_id() -> string {
     melodium_engine::execution_run_id().to_string()
 }
 
+/// Return the group identifier of the current execution run, shared across all workers of the same job.
 #[mel_function]
 pub fn group_id() -> string {
     melodium_engine::execution_group_id().to_string()

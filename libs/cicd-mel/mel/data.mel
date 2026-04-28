@@ -8,6 +8,12 @@ use std/text/compose::rescale
 use std/text/compose::trimEnd
 use work/resources::getFileSystem
 
+/**
+Convert a byte stream from a process stdio into a stream of text lines.
+
+Decodes `stdio` as UTF-8, splits on newlines, and trims trailing whitespace from each line,
+emitting them through `lines`.
+*/
 treatment ioToString()
   input  stdio: Stream<byte>
   output lines: Stream<string>
@@ -19,6 +25,13 @@ treatment ioToString()
     Self.stdio -> fromUtf8.encoded,text -> rescale.unscaled,scaled -> trimEnd.text,trimmed -> Self.lines
 }
 
+/**
+Write a byte stream to a file on a named work-environment volume.
+
+Looks up the volume identified by `filesystem_name`, then writes the `data` stream to `file_path`
+on that volume. Errors from the filesystem lookup or write are logged under `label`.
+`completed` is emitted on success; `failed` on any error; `finished` always at the end.
+*/
 treatment writeFile(var label: string)
   input filesystem_name: Block<string>
   input file_path: Block<string>
@@ -52,6 +65,14 @@ treatment writeFile(var label: string)
     oneFailedOrFinished.value -> Self.finished
 }
 
+/**
+Read a file from a named work-environment volume as a byte stream.
+
+Looks up the volume identified by `filesystem_name`, then reads `file_path` from that volume,
+streaming content through `data`. Errors are logged under `label`.
+`started` is emitted when the file is opened; `completed` on full successful read;
+`failed` on any error; `finished` always at the end.
+*/
 treatment readFile(var label: string)
   input filesystem_name: Block<string>
   input file_path: Block<string>

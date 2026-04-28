@@ -80,7 +80,7 @@ treatment writeTextLocal(path: string, append: bool = false, create: bool = true
     write.amount ----> Self.amount
 }
 
-/*
+/**
 Read one file on local filesystem.
 
 The content of the file given through `path` is streamed through `data`.
@@ -118,7 +118,7 @@ treatment readLocal(path: string)
     read.errors ----> Self.errors
 }
 
-/*
+/**
 Read one file as text on local filesystem.
 
 The content of the file given through `path` is decoded as UTF-8 and streamed through `text`.

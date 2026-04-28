@@ -5,6 +5,11 @@ use std::sync::Arc;
 
 pub mod block;
 
+/// A heterogeneous key→value map where keys are strings and values can be any Mélodium type.
+///
+/// Used to pass structured data between treatments and to build JSON-like payloads.
+/// Supports `entry`, `get`, `insert`, and `merge` operations.
+/// Later entries with the same key overwrite earlier ones.
 #[mel_data(
     traits (PartialEquality Serialize Display)
 )]
@@ -31,7 +36,10 @@ impl Display for Map {
     }
 }
 
-/// Create a map from entries
+/// Build a `Map` by merging a list of single-entry maps.
+///
+/// Each element in `entries` should be produced by `|entry(key, value)`.
+/// Later entries with the same key overwrite earlier ones.
 #[mel_function]
 pub fn map(entries: Vec<Map>) -> Map {
     let mut map = HashMap::new();
@@ -41,7 +49,9 @@ pub fn map(entries: Vec<Map>) -> Map {
     Map { map }
 }
 
-/// Create a map with one entry
+/// Build a single-entry `Map` mapping `key` to `value`.
+///
+/// Typically used as an argument to `|map([...])` to construct multi-entry maps.
 #[mel_function(
     generic T ()
 )]
@@ -51,9 +61,7 @@ pub fn entry(key: string, value: T) -> Map {
     Map { map }
 }
 
-/// Create maps with one entry
-///
-/// For every `value` coming through the stream, send a mono-entry map.
+/// For every `value` received on the stream, produce a single-entry `Map` with `key` → `value` and emit it on `map`.
 #[mel_treatment(
     generic T ()
     input value Stream<T>
@@ -68,7 +76,7 @@ pub async fn entry(key: string) {
     }
 }
 
-/// Get a map entry
+/// Look up `key` in `map` and return its value as `Option<T>`, or `none` if the key is absent or the stored value is of a different type.
 #[mel_function(
     generic T ()
 )]
@@ -79,9 +87,9 @@ pub fn get(map: Map, key: string) -> Option<T> {
         .flatten()
 }
 
-/// Get a map entry
+/// For every `map` received on the stream, look up `key` and emit the result as `Option<T>` on `value`.
 ///
-/// For every `map` coming through the stream, get the `key` entry.
+/// Emits `none` if the key is absent or the stored value does not match type `T`.
 #[mel_treatment(
     generic T ()
     input map Stream<Map>
@@ -98,7 +106,7 @@ pub async fn get(key: string) {
     }
 }
 
-/// Insert one entry in a map
+/// Return a copy of `map` with `key` set to `value`, overwriting any existing entry for that key.
 #[mel_function(
     generic T ()
 )]
@@ -107,9 +115,7 @@ pub fn insert(mut map: Map, key: string, value: T) -> Map {
     map
 }
 
-/// Insert entry in map
-///
-/// For every `value` coming through the stream, insert it into the `base` map.
+/// For every (`base`, `value`) pair received from the two streams, insert `key` → `value` into a copy of `base` and emit it on `map`.
 #[mel_treatment(
     generic T ()
     input base Stream<Map>

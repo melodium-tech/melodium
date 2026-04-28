@@ -9,6 +9,14 @@ use std/flow::check
 use std/flow::closeBlock
 use std/flow::emit
 
+/**
+Execute a single command on an executor, triggered by a launch signal.
+
+`command` is run with the optional `environment` on the provided `executor` when `launch` fires.
+`started` is emitted when the process begins. `completed` is emitted on successful execution with `exit` holding
+the return code; `failed` and `error` are emitted if the executor cannot launch the command.
+`finished` is always emitted at the end regardless of outcome.
+*/
 treatment execOnce(command: Command, environment: Option<Environment> = _)
   input executor: Block<Executor>
   input launch: Block<void>
@@ -36,6 +44,15 @@ treatment execOnce(command: Command, environment: Option<Environment> = _)
     execOne.exit ------> Self.exit
 }
 
+/**
+Spawn a single command on an executor with stdio streams, triggered by a launch signal.
+
+Like `execOnce` but also connects `stdin`, `stdout`, and `stderr` streams to the process.
+`command` is spawned with the optional `environment` on the provided `executor` when `launch` fires.
+`started` is emitted when the process begins. `completed` is emitted on success with `exit` holding
+the return code; `failed` and `error` are emitted if the executor cannot spawn the command.
+`finished` is always emitted at the end.
+*/
 treatment spawnOnce(command: Command, environment: Option<Environment> = _)
   input executor: Block<Executor>
   input launch: Block<void>
@@ -69,11 +86,11 @@ treatment spawnOnce(command: Command, environment: Option<Environment> = _)
     spawnOne.stderr ----> Self.stderr
 }
 
-/*
+/**
     Executes a command.
-   
+
     Takes an `Executor` on which `command` will be run with the optional `environment`.
-   
+
     When the execution finishes, `finished` is emitted, regardless of the execution or command status.
     `completed` is emitted if the command execution went right from executor perspective
     (the command itself may have failed in its own logic),
@@ -108,11 +125,11 @@ treatment execOne()
     execOneTerminable.exit ------> Self.exit
 }
 
-/*
+/**
     Executes commands.
-   
+
     Takes an `Executor` on which `commands` will be run with the optional `environment`.
-   
+
     When the execution finishes, `finished` is emitted, regardless of the execution or commands status.
     `completed` is emitted if all the commands executions went right from executor perspective
     (the command thelselves may have failed in their own logic),
@@ -147,14 +164,14 @@ treatment exec()
     execTerminable.exit ------> Self.exit
 }
 
-/*
+/**
     Spawn a command and provides input and outputs to the process.
-   
+
     Takes an `Executor` on which `command` will be spawned with the optional `environment`.
-   
+
     `stdin` corresponds to standard input of the related process, `stdout` to the standard output,
     and `stderr` to the standard error output.
-   
+
     When the execution finishes, `finished` is emitted, regardless of the execution or command status.
     `completed` is emitted if the command execution went right from executor perspective
     (the command itself may have failed in its own logic),
@@ -195,14 +212,14 @@ treatment spawnOne()
     spawnOneTerminable.stderr ----> Self.stderr
 }
 
-/*
+/**
     Spawn commands and provides outputs of the process.
-   
+
     Takes an `Executor` on which `commands` will be spawned with the optional `environment`.
-   
+
     `stdout` corresponds to the standard output,
     and `stderr` to the standard error output.
-   
+
     When the execution finishes, `finished` is emitted, regardless of the execution or command status.
     `completed` is emitted if the command execution went right from executor perspective
     (the command itself may have failed in its own logic),

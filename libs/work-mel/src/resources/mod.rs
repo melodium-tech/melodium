@@ -8,6 +8,26 @@ use melodium_macro::{mel_data, mel_function, mel_treatment};
 use process_mel::exec::*;
 use std_mel::data::string_map::*;
 
+/// Retrieve an executor by name from the current work environment.
+///
+/// `name` identifies the executor (container or Kubernetes pod) to look up.
+/// When `name` is `None`, a local executor is returned directly.
+///
+/// `executor` is emitted when the executor is found and ready.
+/// `failed` and `error` are emitted if the executor cannot be located or initialised.
+///
+/// ```mermaid
+/// graph LR
+///     T("getExecutor()")
+///     N["〈🟦〉"] -->|name| T
+///     T -->|executor| E["〈🟩〉"]
+///     T -->|error| ER["〈🟫〉"]
+///     T -->|failed| F["〈🟥〉"]
+///     style N fill:#ffff,stroke:#ffff
+///     style E fill:#ffff,stroke:#ffff
+///     style ER fill:#ffff,stroke:#ffff
+///     style F fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input name Block<Option<string>>
     output executor Block<Executor>
@@ -90,6 +110,25 @@ pub async fn getExecutor() {
     }
 }
 
+/// Retrieve a filesystem handle by volume name from the current work environment.
+///
+/// `name` identifies the volume to look up (container volume or Kubernetes persistent volume).
+///
+/// `filesystem` is emitted when the volume is found and ready.
+/// `failed` and `error` are emitted if the volume cannot be located.
+///
+/// ```mermaid
+/// graph LR
+///     T("getFileSystem()")
+///     N["〈🟦〉"] -->|name| T
+///     T -->|filesystem| FS["〈🟩〉"]
+///     T -->|error| ER["〈🟫〉"]
+///     T -->|failed| F["〈🟥〉"]
+///     style N fill:#ffff,stroke:#ffff
+///     style FS fill:#ffff,stroke:#ffff
+///     style ER fill:#ffff,stroke:#ffff
+///     style F fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input name Block<string>
     output filesystem Block<FileSystem>
@@ -160,10 +199,23 @@ pub async fn getFileSystem() {
     }
 }
 
+/// Container specification for a work request.
+///
+/// Used in `distant` to request containers that run alongside the Mélodium engine as executors.
 #[mel_data]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Container(pub api::Container);
 
+/// Build a `Container` specification.
+///
+/// - `name`: unique name for this container within the request.
+/// - `memory`: memory allocated in megabytes.
+/// - `cpu`: CPU allocated in millicores.
+/// - `storage`: ephemeral storage in megabytes.
+/// - `arch`: CPU architecture required.
+/// - `mounts`: list of volume mounts.
+/// - `image`: container image reference.
+/// - `pull_secret`: optional image pull secret (defaults to `"{}"`).
 #[mel_function]
 pub fn container(
     name: string,
@@ -187,10 +239,20 @@ pub fn container(
     })
 }
 
+/// Service container specification for a work request.
+///
+/// Service containers run alongside the Mélodium engine and are accessible as network services,
+/// but are not directly used as executors.
 #[mel_data]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ServiceContainer(pub api::ServiceContainer);
 
+/// Build a `ServiceContainer` specification.
+///
+/// - `name`: unique name for this service container.
+/// - `memory`, `cpu`, `storage`, `arch`, `mounts`, `image`, `pull_secret`: same as `|container`.
+/// - `env`: optional environment variables for the container.
+/// - `command`: optional entrypoint override.
 #[mel_function]
 pub fn service_container(
     name: string,
@@ -218,10 +280,12 @@ pub fn service_container(
     })
 }
 
+/// A volume mount point that maps a named volume into a container.
 #[mel_data]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Mount(pub api::VolumeMount);
 
+/// Build a `Mount` that maps `name` to `point` inside a container.
 #[mel_function]
 pub fn mount(name: string, point: string) -> Mount {
     Mount(api::VolumeMount {
@@ -230,10 +294,12 @@ pub fn mount(name: string, point: string) -> Mount {
     })
 }
 
+/// A shared filesystem volume for work requests.
 #[mel_data]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Volume(pub api::Volume);
 
+/// Build a `Volume` with the given `name` and `storage` size in megabytes.
 #[mel_function]
 pub fn volume(name: string, storage: u32) -> Volume {
     Volume(api::Volume { name, storage })

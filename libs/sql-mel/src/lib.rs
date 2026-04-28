@@ -120,6 +120,22 @@ fn get_row_as_map(row: &AnyRow) -> Map {
     Map::new_with(map)
 }
 
+/// SQL connection pool.
+///
+/// Manages a pool of database connections for a single database URL.
+/// Supports PostgreSQL, MySQL, MariaDB, and SQLite via a unified driver.
+///
+/// - `url`: database connection URL (e.g. `"postgresql://user@host/db"`).
+/// - `max_connections`: maximum number of simultaneous connections (default `10`).
+/// - `min_connections`: minimum number of idle connections to keep open (default `0`).
+/// - `acquire_timeout`: milliseconds to wait before failing to acquire a connection (default `10000`).
+/// - `idle_timeout`: milliseconds before an idle connection is closed; `none` disables the timeout (default `600000`).
+/// - `max_lifetime`: milliseconds before a connection is recycled; `none` disables recycling (default `1800000`).
+///
+/// Use `connect` to open the pool and `close` to drain it explicitly.
+/// The `connected` source fires a track once the pool is ready;
+/// `failure` fires a track when the connection attempt fails;
+/// `closed` fires a track when the pool is drained.
 #[derive(Debug)]
 #[mel_model(
     param url string none
@@ -264,6 +280,17 @@ impl SqlPool {
     }
 }
 
+/// Open the SQL connection pool.
+///
+/// Waits for `trigger`, then attempts to connect to the database.
+/// On success the model's `connected` source fires; on failure the `failure` source fires.
+///
+/// ```mermaid
+/// graph LR
+///     T("connect()")
+///     B["〈🟦〉"] -->|trigger| T
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     model sql_pool SqlPool
     input trigger Block<void>
@@ -277,6 +304,17 @@ pub async fn connect() {
     }
 }
 
+/// Close the SQL connection pool.
+///
+/// Waits for `trigger`, then gracefully drains and closes all connections.
+/// The model's `closed` source fires once the pool has been drained.
+///
+/// ```mermaid
+/// graph LR
+///     T("close()")
+///     B["〈🟦〉"] -->|trigger| T
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     model sql_pool SqlPool
     input trigger Block<void>
@@ -290,6 +328,30 @@ pub async fn close() {
     }
 }
 
+/// Execute a raw SQL statement without parameter binding.
+///
+/// Waits for `trigger`, then runs `sql` directly against the pool.
+/// `completed` and `affected` are emitted on success; `failed` and `error` on failure.
+/// `finished` is always emitted.
+///
+/// ⚠️ This treatment does not sanitise `sql` — only use it with trusted, static SQL strings.
+///
+/// ```mermaid
+/// graph LR
+///     T("executeRaw()")
+///     B["〈🟦〉"] -->|trigger| T
+///     T -->|completed| C["〈🟩〉"]
+///     T -->|affected| A["〈🟨〉"]
+///     T -->|failed| F["〈🟥〉"]
+///     T -->|error| E["〈🟫〉"]
+///     T -->|finished| FN["〈🟦〉"]
+///     style B fill:#ffff,stroke:#ffff
+///     style C fill:#ffff,stroke:#ffff
+///     style A fill:#ffff,stroke:#ffff
+///     style F fill:#ffff,stroke:#ffff
+///     style E fill:#ffff,stroke:#ffff
+///     style FN fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input trigger Block<void>
     output affected Block<u64>
@@ -319,6 +381,31 @@ pub async fn execute_raw(sql: string) {
     let _ = finished.send_one(().into()).await;
 }
 
+/// Execute a parameterised SQL statement with a single binding map.
+///
+/// `bind` supplies the parameter values as a `Map`; `bindings` lists the keys to
+/// extract in order. `bind_symbol` is the placeholder token in `sql` (default `"?"`; for
+/// PostgreSQL the treatment automatically converts it to `$1`, `$2`, …).
+///
+/// `completed` and `affected` are emitted on success; `failed` and `error` on failure.
+/// `finished` is always emitted.
+///
+/// ```mermaid
+/// graph LR
+///     T("execute()")
+///     B["〈🟦〉"] -->|bind| T
+///     T -->|completed| C["〈🟩〉"]
+///     T -->|affected| A["〈🟨〉"]
+///     T -->|failed| F["〈🟥〉"]
+///     T -->|error| E["〈🟫〉"]
+///     T -->|finished| FN["〈🟦〉"]
+///     style B fill:#ffff,stroke:#ffff
+///     style C fill:#ffff,stroke:#ffff
+///     style A fill:#ffff,stroke:#ffff
+///     style F fill:#ffff,stroke:#ffff
+///     style E fill:#ffff,stroke:#ffff
+///     style FN fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input bind Block<Map>
     output affected Block<u64>
@@ -372,6 +459,30 @@ pub async fn execute(sql: string, bindings: Vec<string>, bind_symbol: string) {
     }
 }
 
+/// Execute a parameterised SQL statement once per incoming binding map.
+///
+/// Each `Map` received on `bind` triggers one execution of `sql`.
+/// `affected` emits the row count for each successful execution.
+/// When `stop_on_failure` is `true` (the default), the stream stops at the first error and
+/// `failed` is emitted; otherwise all maps are processed and errors are streamed through `errors`.
+/// `completed` or `failed` is emitted when the stream ends; `finished` is always emitted.
+///
+/// ```mermaid
+/// graph LR
+///     T("executeEach()")
+///     B["🟦 🟦 🟦 …"] -->|bind| T
+///     T -->|affected| A["🟨 🟨 🟨 …"]
+///     T -->|completed| C["〈🟩〉"]
+///     T -->|failed| F["〈🟥〉"]
+///     T -->|errors| E["🟫 …"]
+///     T -->|finished| FN["〈🟦〉"]
+///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffff,stroke:#ffff
+///     style C fill:#ffff,stroke:#ffff
+///     style F fill:#ffff,stroke:#ffff
+///     style E fill:#ffff,stroke:#ffff
+///     style FN fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input bind Stream<Map>
     output affected Stream<u64>
@@ -440,6 +551,34 @@ pub async fn execute_each(
     }
 }
 
+/// Execute a SQL statement in bulk using batched parameter binding.
+///
+/// Collects incoming `bind` maps into batches of at most `bind_limit / len(bindings)` rows,
+/// builds one statement per batch using `base` + repeated `batch` fragments joined by `separator`,
+/// and executes it. This is significantly more efficient than `execute_each` for large inserts.
+///
+/// `affected` emits the row count per batch.
+/// `completed` or `failed` is emitted at the end; `finished` is always emitted.
+///
+/// ℹ️ `bind_limit` caps the total number of bind parameters per statement; the default (`65535`)
+/// matches the maximum supported by most SQL drivers.
+///
+/// ```mermaid
+/// graph LR
+///     T("executeBatch()")
+///     B["🟦 🟦 🟦 …"] -->|bind| T
+///     T -->|affected| A["🟨 🟨 …"]
+///     T -->|completed| C["〈🟩〉"]
+///     T -->|failed| F["〈🟥〉"]
+///     T -->|errors| E["🟫 …"]
+///     T -->|finished| FN["〈🟦〉"]
+///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffff,stroke:#ffff
+///     style C fill:#ffff,stroke:#ffff
+///     style F fill:#ffff,stroke:#ffff
+///     style E fill:#ffff,stroke:#ffff
+///     style FN fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     default separator ", "
     default stop_on_failure true
@@ -540,6 +679,28 @@ pub async fn execute_batch(
     }
 }
 
+/// Execute a parameterised SQL query and stream each result row as a `Map`.
+///
+/// `bind` supplies the parameter values. Rows are streamed through `data` as they arrive.
+/// `completed` and `finished` are emitted once all rows have been sent; `failed`, `errors`,
+/// and `finished` are emitted on error.
+///
+/// ```mermaid
+/// graph LR
+///     T("fetch()")
+///     B["〈🟦〉"] -->|bind| T
+///     T -->|data| D["🟨 🟨 🟨 …"]
+///     T -->|completed| C["〈🟩〉"]
+///     T -->|failed| F["〈🟥〉"]
+///     T -->|errors| E["🟫 …"]
+///     T -->|finished| FN["〈🟦〉"]
+///     style B fill:#ffff,stroke:#ffff
+///     style D fill:#ffff,stroke:#ffff
+///     style C fill:#ffff,stroke:#ffff
+///     style F fill:#ffff,stroke:#ffff
+///     style E fill:#ffff,stroke:#ffff
+///     style FN fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input bind Block<Map>
     output data Stream<Map>
@@ -606,6 +767,28 @@ pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
     }
 }
 
+/// Execute a batched SQL query and stream each result row as a `Map`.
+///
+/// Like `execute_batch`, builds and runs one statement per batch of incoming `bind` maps,
+/// streaming all result rows through `data`.
+/// `completed` or `failed` is emitted at the end; `finished` is always emitted.
+///
+/// ```mermaid
+/// graph LR
+///     T("fetchBatch()")
+///     B["🟦 🟦 🟦 …"] -->|bind| T
+///     T -->|data| D["🟨 🟨 …"]
+///     T -->|completed| C["〈🟩〉"]
+///     T -->|failed| F["〈🟥〉"]
+///     T -->|errors| E["🟫 …"]
+///     T -->|finished| FN["〈🟦〉"]
+///     style B fill:#ffff,stroke:#ffff
+///     style D fill:#ffff,stroke:#ffff
+///     style C fill:#ffff,stroke:#ffff
+///     style F fill:#ffff,stroke:#ffff
+///     style E fill:#ffff,stroke:#ffff
+///     style FN fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     default separator ", "
     default stop_on_failure true
