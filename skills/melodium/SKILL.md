@@ -493,6 +493,8 @@ treatment handler()
 
 For an extended reference of what is available in Mélodium, see the [Mélodium Reference](references/REFERENCE.md) guide.
 
+If asked to create or modify a Mélodium project, read the specific [Mélodium Projects](references/projects.md) guide.
+
 If dealing with Mélodium elements written in Rust, read the specific [Mélodium Elements in Rust](references/rust.md) guide.
 
 If dealing with Mélodium documentation, either being instructed to write some or to explore some, read the specific [Mélodium Documentation](references/documentation.md) guide.
