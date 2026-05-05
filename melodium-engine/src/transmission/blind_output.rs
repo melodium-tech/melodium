@@ -20,4 +20,5 @@ impl ExecutiveOutput for BlindOutput {
     async fn send_one(&self, _data: Value) -> SendResult {
         Ok(())
     }
+    async fn force_send(&self) {}
 }

@@ -1,8 +1,5 @@
 use cicd/runners::CicdDispatchEngine
 use fs/local::writeLocal
-use log/logger::Logger
-use log/logger::logs
-use log/file::writeLogs
 use std/flow::trigger
 use std/flow::one
 use std/flow::flock
@@ -26,11 +23,11 @@ use process/command::|raw_commands
 use root/build::build
 use root/test::test
 
-treatment ciArch[logger: Logger, cicd: CicdDispatchEngine](target: string, build: bool, test: bool = false, release: bool, build_on: Arch, build_memory: u32 = 4000, build_storage: u32 = 5000, pre_build_commands: Vec<Command> = [], build_environment_variables: StringMap, test_on: Arch, test_image: string, pre_test_commands: Vec<Command> = [], out_directory: string, repository_url: string, report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
+treatment ciArch[cicd: CicdDispatchEngine](target: string, build: bool, test: bool = false, release: bool, build_on: Arch, build_memory: u32 = 4000, build_storage: u32 = 5000, pre_build_commands: Vec<Command> = [], build_environment_variables: StringMap, test_on: Arch, test_image: string, pre_test_commands: Vec<Command> = [], out_directory: string, repository_url: string, report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
   input trigger: Block<void>
   output finished: Block<void>
 {
-    build[cicd=cicd, logger=logger]
+    build[cicd=cicd]
       (
         build=build,
         target=target,
@@ -58,7 +55,7 @@ treatment ciArch[logger: Logger, cicd: CicdDispatchEngine](target: string, build
                     build.binary --> melodiumBinaryReady.stream,start -> triggerTests.a
                     build.testers -> testersReady.stream,start --------> triggerTests.b
     
-    test[cicd=cicd, logger=logger]
+    test[cicd=cicd]
       (
         test=test,
         target=target,
@@ -91,7 +88,7 @@ treatment ciArch[logger: Logger, cicd: CicdDispatchEngine](target: string, build
     test.finished -------> flock.a,stream -> triggerFinished.stream,end -> Self.finished
     writeLocal.finished -> flock.b
 
-    logs[logger=logger]()
+    logs()
     writeLogs(label=target, file=|format("{dir}/logs/{target}.log", |map([
           |entry("dir", out_directory),
           |entry("target", target)
@@ -104,7 +101,7 @@ treatment ciArch[logger: Logger, cicd: CicdDispatchEngine](target: string, build
     logs.all -> testLogs.logs
 }
 
-treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: bool = false, release: bool, out_directory: string, repository_url: string, report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
+treatment archs[cicd: CicdDispatchEngine](build: bool, test: bool = false, release: bool, out_directory: string, repository_url: string, report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
   input trigger: Block<void>
   output finished: Block<void>
   model finishConcentrator: Concentrator()
@@ -113,7 +110,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     triggerFinished: trigger<void>()
     Self.trigger -> concentrated.trigger,data -> triggerFinished.stream,end -> Self.finished
 
-    ciX86_64UnknownLinuxGnu: ciArch[logger=logger, cicd=cicd](
+    ciX86_64UnknownLinuxGnu: ciArch[cicd=cicd](
       build=build,
       test=test,
       release=release,
@@ -137,7 +134,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     Self.trigger -> ciX86_64UnknownLinuxGnu.trigger,finished -> ciX86_64UnknownLinuxGnuFinished.data
 
 /*
-    ciX86_64UnknownLinuxMusl: ciArch[logger=logger, cicd=cicd](
+    ciX86_64UnknownLinuxMusl: ciArch[cicd=cicd](
       build=build,
       test=test,
       release=release,
@@ -165,7 +162,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     ciX86_64UnknownLinuxMuslFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciX86_64UnknownLinuxMusl.trigger,finished -> ciX86_64UnknownLinuxMuslFinished.data
     
-    ciI686UnknownLinuxGnu: ciArch[logger=logger, cicd=cicd](
+    ciI686UnknownLinuxGnu: ciArch[cicd=cicd](
       build=build,
       test=test,
       release=release,
@@ -202,7 +199,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     ciI686UnknownLinuxGnuFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciI686UnknownLinuxGnu.trigger,finished -> ciI686UnknownLinuxGnuFinished.data
     
-    ciI686UnknownLinuxMusl: ciArch[logger=logger, cicd=cicd](
+    ciI686UnknownLinuxMusl: ciArch[cicd=cicd](
       build=build,
       test=test,
       release=release,
@@ -241,7 +238,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     ciI686UnknownLinuxMuslFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciI686UnknownLinuxMusl.trigger,finished -> ciI686UnknownLinuxMuslFinished.data
 
-    ciAarch64UnknownLinuxGnu: ciArch[logger=logger, cicd=cicd](
+    ciAarch64UnknownLinuxGnu: ciArch[cicd=cicd](
       build=build,
       test=test,
       release=release,
@@ -270,7 +267,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     ciAarch64UnknownLinuxGnuFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciAarch64UnknownLinuxGnu.trigger,finished -> ciAarch64UnknownLinuxGnuFinished.data
 
-    ciAarch64UnknownLinuxMusl: ciArch[logger=logger, cicd=cicd](
+    ciAarch64UnknownLinuxMusl: ciArch[cicd=cicd](
       build=build,
       test=test,
       release=release,
@@ -310,7 +307,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     ciAarch64UnknownLinuxMuslFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciAarch64UnknownLinuxMusl.trigger,finished -> ciAarch64UnknownLinuxMuslFinished.data
 
-    ciWasm32UnknownUnknown: ciArch[logger=logger, cicd=cicd](
+    ciWasm32UnknownUnknown: ciArch[cicd=cicd](
       build=false,
       test=false,
       release=release,
@@ -336,7 +333,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     ciWasm32UnknownUnknownFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciWasm32UnknownUnknown.trigger,finished -> ciWasm32UnknownUnknownFinished.data
 
-    ciX86_64AppleDarwin: ciArch[logger=logger, cicd=cicd](
+    ciX86_64AppleDarwin: ciArch[cicd=cicd](
       build=build,
       test=false,
       release=release,
@@ -385,7 +382,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     ciX86_64AppleDarwinFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciX86_64AppleDarwin.trigger,finished -> ciX86_64AppleDarwinFinished.data
 
-    ciAarch64AppleDarwin: ciArch[logger=logger, cicd=cicd](
+    ciAarch64AppleDarwin: ciArch[cicd=cicd](
       build=build,
       test=false,
       release=release,
@@ -436,7 +433,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     ciAarch64AppleDarwinFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciAarch64AppleDarwin.trigger,finished -> ciAarch64AppleDarwinFinished.data
 
-    ciX86_64PcWindowsGnu: ciArch[logger=logger, cicd=cicd](
+    ciX86_64PcWindowsGnu: ciArch[cicd=cicd](
       build=build,
       test=false,
       release=release,
@@ -464,7 +461,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     ciX86_64PcWindowsGnuFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciX86_64PcWindowsGnu.trigger,finished -> ciX86_64PcWindowsGnuFinished.data
 
-    ciX86_64PcWindowsMsvc: ciArch[logger=logger, cicd=cicd](
+    ciX86_64PcWindowsMsvc: ciArch[cicd=cicd](
       build=build,
       test=false,
       release=release,
@@ -502,7 +499,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     ciX86_64PcWindowsMsvcFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciX86_64PcWindowsMsvc.trigger,finished -> ciX86_64PcWindowsMsvcFinished.data
 
-    ciI686PcWindowsGnu: ciArch[logger=logger, cicd=cicd](
+    ciI686PcWindowsGnu: ciArch[cicd=cicd](
       build=build,
       test=false,
       release=release,
@@ -530,7 +527,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     ciI686PcWindowsGnuFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciI686PcWindowsGnu.trigger,finished -> ciI686PcWindowsGnuFinished.data
 
-    ciI686PcWindowsMsvc: ciArch[logger=logger, cicd=cicd](
+    ciI686PcWindowsMsvc: ciArch[cicd=cicd](
       build=build,
       test=false,
       release=release,
@@ -568,7 +565,7 @@ treatment archs[logger: Logger, cicd: CicdDispatchEngine](build: bool, test: boo
     ciI686PcWindowsMsvcFinished: concentrateBlock<void>[concentrator=finishConcentrator]()
     Self.trigger -> ciI686PcWindowsMsvc.trigger,finished -> ciI686PcWindowsMsvcFinished.data
 
-    ciAarch64PcWindowsMsvc: ciArch[logger=logger, cicd=cicd](
+    ciAarch64PcWindowsMsvc: ciArch[cicd=cicd](
       build=build,
       test=false,
       release=release,

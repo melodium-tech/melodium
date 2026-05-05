@@ -25,11 +25,11 @@ fn test_download(url: &str, file: &str, log: &str) {
         .arg("run")
         .arg("http_client.mel")
         .arg("--url")
-        .arg(&format!(r#""{url}""#))
+        .arg(&format!(r#"{url}"#))
         .arg("--file")
-        .arg(&format!(r#""{file}""#))
+        .arg(&format!(r#"{file}"#))
         .arg("--log")
-        .arg(&format!(r#""{log}""#))
+        .arg(&format!(r#"{log}"#))
         .spawn()
         .expect("failed to launch Mélodium executable");
 

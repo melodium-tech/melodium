@@ -1,8 +1,12 @@
 use root/exec::Executor
 use root/environment::Environment
 use root/command::Command
-use root/exec::execOne
-use root/exec::spawnOne
+use root/exec::execOneTerminable
+use root/exec::spawnOneTerminable
+use root/exec::execTerminable
+use root/exec::spawnTerminable
+use std/flow::check
+use std/flow::closeBlock
 use std/flow::emit
 
 treatment execOnce(command: Command, environment: Option<Environment> = _)
@@ -63,4 +67,176 @@ treatment spawnOnce(command: Command, environment: Option<Environment> = _)
     spawnOne.exit ------> Self.exit
     spawnOne.stdout ----> Self.stdout
     spawnOne.stderr ----> Self.stderr
+}
+
+/*
+    Executes a command.
+   
+    Takes an `Executor` on which `command` will be run with the optional `environment`.
+   
+    When the execution finishes, `finished` is emitted, regardless of the execution or command status.
+    `completed` is emitted if the command execution went right from executor perspective
+    (the command itself may have failed in its own logic),
+    and `exit` contains the return code of the command. `failed` is emitted if the executor
+    is not able to launch the command, and `error` contains the associated error message.
+*/
+treatment execOne()
+  input executor: Block<Executor>
+  input command: Block<Command>
+  input environment: Block<Option<Environment>>
+  output started: Block<void>
+  output finished: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output error: Block<string>
+  output exit: Block<Option<i32>>
+{
+    check<Executor>()
+    closeBlock<void>()
+    execOneTerminable()
+
+    Self.executor ---------------------------------------------------> execOneTerminable.executor
+    Self.command ----------------------------------------------------> execOneTerminable.command
+    Self.environment ------------------------------------------------> execOneTerminable.environment
+    Self.executor -> check.value,check -> closeBlock.trigger,closed -> execOneTerminable.terminate
+
+    execOneTerminable.started ---> Self.started
+    execOneTerminable.finished --> Self.finished
+    execOneTerminable.completed -> Self.completed
+    execOneTerminable.failed ----> Self.failed
+    execOneTerminable.error -----> Self.error
+    execOneTerminable.exit ------> Self.exit
+}
+
+/*
+    Executes commands.
+   
+    Takes an `Executor` on which `commands` will be run with the optional `environment`.
+   
+    When the execution finishes, `finished` is emitted, regardless of the execution or commands status.
+    `completed` is emitted if all the commands executions went right from executor perspective
+    (the command thelselves may have failed in their own logic),
+    and `exit` contains the return code of each command. `failed` is emitted if the executor
+    is not able to launch a command, and `error` contains the associated error message, and no new command is executed.
+*/
+treatment exec()
+  input executor: Block<Executor>
+  input commands: Stream<Command>
+  input environment: Block<Option<Environment>>
+  output started: Block<void>
+  output finished: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+  output error: Block<string>
+  output exit: Stream<Option<i32>>
+{
+    check<Executor>()
+    closeBlock<void>()
+    execTerminable()
+
+    Self.executor ---------------------------------------------------> execTerminable.executor
+    Self.commands ---------------------------------------------------> execTerminable.commands
+    Self.environment ------------------------------------------------> execTerminable.environment
+    Self.executor -> check.value,check -> closeBlock.trigger,closed -> execTerminable.terminate
+
+    execTerminable.started ---> Self.started
+    execTerminable.finished --> Self.finished
+    execTerminable.completed -> Self.completed
+    execTerminable.failed ----> Self.failed
+    execTerminable.error -----> Self.error
+    execTerminable.exit ------> Self.exit
+}
+
+/*
+    Spawn a command and provides input and outputs to the process.
+   
+    Takes an `Executor` on which `command` will be spawned with the optional `environment`.
+   
+    `stdin` corresponds to standard input of the related process, `stdout` to the standard output,
+    and `stderr` to the standard error output.
+   
+    When the execution finishes, `finished` is emitted, regardless of the execution or command status.
+    `completed` is emitted if the command execution went right from executor perspective
+    (the command itself may have failed in its own logic),
+    and `exit` contains the return code of the command. `failed` is emitted if the executor
+    is not able to launch the command, and `error` contains the associated error message.
+*/
+treatment spawnOne()
+  input executor: Block<Executor>
+  input command: Block<Command>
+  input environment: Block<Option<Environment>>
+  input stdin: Stream<byte>
+  output started: Block<void>
+  output finished: Block<void>
+  output completed :Block<void>
+  output failed: Block<void>
+  output error: Block<string>
+  output exit: Block<Option<i32>>
+  output stdout: Stream<byte>
+  output stderr: Stream<byte>
+{
+    check<Executor>()
+    closeBlock<void>()
+    spawnOneTerminable()
+
+    Self.executor ---------------------------------------------------> spawnOneTerminable.executor
+    Self.command ----------------------------------------------------> spawnOneTerminable.command
+    Self.environment ------------------------------------------------> spawnOneTerminable.environment
+    Self.executor -> check.value,check -> closeBlock.trigger,closed -> spawnOneTerminable.terminate
+    Self.stdin ------------------------------------------------------> spawnOneTerminable.stdin
+
+    spawnOneTerminable.started ---> Self.started
+    spawnOneTerminable.finished --> Self.finished
+    spawnOneTerminable.completed -> Self.completed
+    spawnOneTerminable.failed ----> Self.failed
+    spawnOneTerminable.error -----> Self.error
+    spawnOneTerminable.exit ------> Self.exit
+    spawnOneTerminable.stdout ----> Self.stdout
+    spawnOneTerminable.stderr ----> Self.stderr
+}
+
+/*
+    Spawn commands and provides outputs of the process.
+   
+    Takes an `Executor` on which `commands` will be spawned with the optional `environment`.
+   
+    `stdout` corresponds to the standard output,
+    and `stderr` to the standard error output.
+   
+    When the execution finishes, `finished` is emitted, regardless of the execution or command status.
+    `completed` is emitted if the command execution went right from executor perspective
+    (the command itself may have failed in its own logic),
+    and `exit` contains the return code of the command. `failed` is emitted if the executor
+    is not able to launch the command, and `error` contains the associated error message.
+*/
+treatment spawn()
+  input executor: Block<Executor>
+  input commands: Stream<Command>
+  input environment: Block<Option<Environment>>
+  output started: Block<void>
+  output finished: Block<void>
+  output completed :Block<void>
+  output failed: Block<void>
+  output error: Block<string>
+  output exit: Stream<Option<i32>>
+  output stdout: Stream<byte>
+  output stderr: Stream<byte>
+{
+    check<Executor>()
+    closeBlock<void>()
+    spawnTerminable()
+
+    Self.executor ---------------------------------------------------> spawnTerminable.executor
+    Self.commands ---------------------------------------------------> spawnTerminable.commands
+    Self.environment ------------------------------------------------> spawnTerminable.environment
+    Self.executor -> check.value,check -> closeBlock.trigger,closed -> spawnTerminable.terminate
+
+    spawnTerminable.started ---> Self.started
+    spawnTerminable.finished --> Self.finished
+    spawnTerminable.completed -> Self.completed
+    spawnTerminable.failed ----> Self.failed
+    spawnTerminable.error -----> Self.error
+    spawnTerminable.exit ------> Self.exit
+    spawnTerminable.stdout ----> Self.stdout
+    spawnTerminable.stderr ----> Self.stderr
 }

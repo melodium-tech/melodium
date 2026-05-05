@@ -5,30 +5,36 @@ use crate::building::{
     BuildId, Builder, /*CheckEnvironment,*/ ContextualEnvironment, FeedingInputs,
     GenesisEnvironment, StaticBuildResult,
 };
+use crate::debug::{
+    DebugLevel, Event, EventKind, TrackCreation, TransmissionDebug, TransmissionDetails,
+};
 use crate::engine::Engine;
 use crate::error::{LogicError, LogicErrors, LogicResult};
 use crate::transmission::{Input, Output, Outputs};
 use async_std::channel::{unbounded, Receiver, Sender};
-use async_std::sync::{Barrier, Mutex};
+use async_std::sync::{Barrier, Mutex, RwLock as AsyncRwLock};
 use async_std::task::block_on;
 use async_trait::async_trait;
+use chrono::Utc;
 use core::fmt::Debug;
-use futures::future::join;
+use core::sync::atomic::AtomicUsize;
+use futures::join;
 use futures::stream::{FuturesUnordered, StreamExt};
 use futures::{pin_mut, select, FutureExt};
 use melodium_common::descriptor::{
-    Collection, Entry as CollectionEntry, Identified, Identifier, Treatment,
+    Collection, Entry as CollectionEntry, Flow, Identifier, Treatment,
 };
 use melodium_common::executive::{
     Context as ExecutiveContext, ContinuousFuture, DirectCreationCallback, Input as ExecutiveInput,
-    Model, ModelId, Output as ExecutiveOutput, ResultStatus, TrackCreationCallback, TrackFuture,
-    TrackId, Value, World as ExecutiveWorld,
+    Level as LogLevel, Log, Model, ModelId, Output as ExecutiveOutput, ResultStatus,
+    TrackCreationCallback, TrackFuture, TrackId, Value, World as ExecutiveWorld,
 };
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, RwLock, Weak,
 };
+use uuid::Uuid;
 
 pub struct World {
     collection: Arc<Collection>,
@@ -53,6 +59,17 @@ pub struct World {
     tracks_info: Mutex<HashMap<TrackId, InfoTrack>>,
     tracks_sender: Sender<ExecutionTrack>,
     tracks_receiver: Receiver<ExecutionTrack>,
+    tracks_running: AtomicUsize,
+
+    logs_level: LogLevel,
+    logs_sender: Sender<Log>,
+    logs_receiver: Receiver<Log>,
+    logs_listeners: AsyncRwLock<Vec<Sender<Log>>>,
+
+    debug_level: DebugLevel,
+    debug_sender: Sender<Event>,
+    debug_receiver: Receiver<Event>,
+    debug_listeners: AsyncRwLock<Vec<Sender<Event>>>,
 
     close_at_continuous_end: AtomicBool,
     continous_ended: AtomicBool,
@@ -73,9 +90,15 @@ impl Debug for World {
 }
 
 impl World {
-    pub fn new(collection: Arc<Collection>) -> Arc<Self> {
+    pub fn new(
+        collection: Arc<Collection>,
+        logs_level: LogLevel,
+        debug_level: DebugLevel,
+    ) -> Arc<Self> {
         let (tracks_sender, tracks_receiver) = unbounded();
         let (continuous_tasks_sender, continuous_tasks_receiver) = unbounded();
+        let (logs_sender, logs_receiver) = unbounded();
+        let (debug_sender, debug_receiver) = unbounded();
 
         Arc::new_cyclic(|me| Self {
             collection,
@@ -95,6 +118,15 @@ impl World {
             tracks_info: Mutex::new(HashMap::new()),
             tracks_sender,
             tracks_receiver,
+            tracks_running: AtomicUsize::new(0),
+            logs_level,
+            logs_sender,
+            logs_receiver,
+            logs_listeners: AsyncRwLock::new(Vec::new()),
+            debug_level,
+            debug_sender,
+            debug_receiver,
+            debug_listeners: AsyncRwLock::new(Vec::new()),
             close_at_continuous_end: AtomicBool::new(true),
             continous_ended: AtomicBool::new(false),
             continous_ended_barrier: Barrier::new(2),
@@ -115,9 +147,16 @@ impl World {
         }
 
         let id: ModelId = models.len();
-        models.push(model);
+        models.push(model.clone());
 
         self.sources.write().unwrap().insert(id, sources);
+
+        self.debug_sender
+            .send_blocking(Event::new(EventKind::ModelAdded {
+                model_id: id,
+                model: model.descriptor(),
+            }))
+            .unwrap();
 
         id
     }
@@ -126,7 +165,7 @@ impl World {
         &self,
         model_id: ModelId,
         name: &str,
-        descriptor: Arc<dyn Identified>,
+        descriptor: Arc<dyn Treatment>,
         params: HashMap<String, Value>,
         build_id: BuildId,
     ) {
@@ -212,18 +251,55 @@ impl World {
         }
     }
 
-    pub fn new_input(&self) -> Input {
-        Input::new()
+    pub fn new_input(&self, flow: Flow, track_id: TrackId, details: TransmissionDetails) -> Input {
+        match self.debug_level {
+            DebugLevel::None => Input::new(flow, track_id, TransmissionDebug::None),
+            DebugLevel::Basic => Input::new(
+                flow,
+                track_id,
+                TransmissionDebug::Basic(self.auto_reference.upgrade().unwrap(), details),
+            ),
+            DebugLevel::Detailed => Input::new(
+                flow,
+                track_id,
+                TransmissionDebug::Detailed(self.auto_reference.upgrade().unwrap(), details),
+            ),
+        }
     }
 
-    pub fn new_blocked_input(&self) -> Input {
-        let input = Input::new();
+    pub fn new_blocked_input(&self, flow: Flow, track_id: TrackId) -> Input {
+        let input = Input::new(flow, track_id, TransmissionDebug::None);
         input.close();
         input
     }
 
-    pub fn new_output(&self) -> Output {
-        Output::new()
+    pub fn new_output(
+        &self,
+        flow: Flow,
+        track_id: TrackId,
+        details: TransmissionDetails,
+    ) -> Output {
+        match self.debug_level {
+            DebugLevel::None => Output::new(flow, track_id, TransmissionDebug::None),
+            DebugLevel::Basic => Output::new(
+                flow,
+                track_id,
+                TransmissionDebug::Basic(self.auto_reference.upgrade().unwrap(), details),
+            ),
+            DebugLevel::Detailed => Output::new(
+                flow,
+                track_id,
+                TransmissionDebug::Detailed(self.auto_reference.upgrade().unwrap(), details),
+            ),
+        }
+    }
+
+    pub fn send_debug(&self, event: Event) {
+        let _ = self.debug_sender.send_blocking(event);
+    }
+
+    pub async fn send_debug_async(&self, event: Event) {
+        let _ = self.debug_sender.send(event).await;
     }
 
     async fn run_tracks(&self) {
@@ -254,16 +330,30 @@ impl World {
         loop {
             select! {
                 received_track = tracks_receiver.select_next_some() => {
+                    let _ = self.tracks_running.fetch_add(1, Ordering::Relaxed);
                     futures.push(track_future(received_track));
+
                 },
                 result = futures.select_next_some() => {
-                    match result {
+                    let _ = self.tracks_running.fetch_sub(1, Ordering::Relaxed);
+                    let track_info = match result {
                         TrackResult::AllOk(id) => {
-                            self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
+                            if let Some(info) = self.tracks_info.lock().await.get_mut(&id) {
+                                info.results = Some(result);
+
+                                Some(info.clone())
+                            } else {None}
                         }
                         TrackResult::NotAllOk(id, _) => {
-                            self.tracks_info.lock().await.get_mut(&id).unwrap().results = Some(result);
+                             if let Some(info) = self.tracks_info.lock().await.get_mut(&id) {
+                                info.results = Some(result);
+
+                                Some(info.clone())
+                            } else {None}
                         }
+                    };
+                    if let Some(track_info) = track_info {
+                        let _ = self.debug_sender.send(Event::new(EventKind::TrackFinished {info: track_info})).await;
                     }
                     self.check_closing().await;
                 },
@@ -276,9 +366,12 @@ impl World {
     }
 
     async fn check_closing(&self) {
+        let tracks_recv = self.tracks_receiver.len();
+        let tracks_run = self.tracks_running.load(Ordering::Relaxed);
         if self.auto_end()
             && self.continous_ended.load(Ordering::Relaxed)
-            && self.tracks_receiver.len() == 0
+            && tracks_recv == 0
+            && tracks_run == 0
         {
             self.end().await;
         }
@@ -433,6 +526,30 @@ impl Engine for World {
         self.close_at_continuous_end.load(Ordering::Relaxed)
     }
 
+    fn log_level(&self) -> LogLevel {
+        self.logs_level
+    }
+
+    #[cfg(not(target_os = "unknown"))]
+    fn add_logs_listener(&self, sender: Sender<Log>) {
+        let mut logs_listeners = self.logs_listeners.write_blocking();
+        logs_listeners.push(sender);
+    }
+    #[cfg(target_os = "unknown")]
+    fn add_logs_listener(&self, _sender: Sender<Log>) {}
+
+    fn debug_level(&self) -> DebugLevel {
+        self.debug_level
+    }
+
+    #[cfg(not(target_os = "unknown"))]
+    fn add_debug_listener(&self, sender: Sender<Event>) {
+        let mut debug_listeners = self.debug_listeners.write_blocking();
+        debug_listeners.push(sender);
+    }
+    #[cfg(target_os = "unknown")]
+    fn add_debug_listener(&self, _sender: Sender<Event>) {}
+
     async fn live(&self) {
         let me = self.auto_reference.upgrade().unwrap();
         let continuum = {
@@ -444,16 +561,75 @@ impl Engine for World {
                     continuous.push(c);
                 }
 
+                let _ = me
+                    .debug_sender
+                    .send(Event::new(EventKind::ContinuousModelsStarted))
+                    .await;
                 while let Some(_) = continuous.next().await {}
 
                 me.continous_ended.store(true, Ordering::Relaxed);
+                let _ = me
+                    .debug_sender
+                    .send(Event::new(EventKind::ContinuousModelsFinished))
+                    .await;
                 me.continous_ended_barrier.wait().await;
             }
         };
 
+        let run_tracks = {
+            let me = Arc::clone(&me);
+            async move {
+                me.run_tracks().await;
+            }
+        };
+
+        let logs_transmission = {
+            let me = Arc::clone(&me);
+            async move {
+                while let Ok(log) = me.logs_receiver.recv().await {
+                    let listeners = me.logs_listeners.read().await;
+                    for listener in &*listeners {
+                        let _ = listener.send(log.clone()).await;
+                    }
+                }
+
+                let listeners = me.logs_listeners.read().await;
+                for listener in &*listeners {
+                    listener.close();
+                }
+            }
+        };
+
+        let debug_transmission = {
+            let me = Arc::clone(&me);
+            async move {
+                while let Ok(event) = me.debug_receiver.recv().await {
+                    let listeners = me.debug_listeners.read().await;
+                    for listener in &*listeners {
+                        let _ = listener.send(event.clone()).await;
+                    }
+                }
+
+                let listeners = me.debug_listeners.read().await;
+                for listener in &*listeners {
+                    listener.close();
+                }
+            }
+        };
+
+        // TODO for WASM
+        #[cfg(not(target_os = "unknown"))]
+        {
+            async_std::task::spawn(logs_transmission);
+            async_std::task::spawn(debug_transmission);
+        }
+
         self.continuous_tasks_sender.close();
 
-        join(continuum, async move { me.run_tracks().await }).await;
+        join!(continuum, run_tracks);
+
+        me.logs_receiver.close();
+        me.debug_receiver.close();
     }
 
     async fn instanciate(&self, callback: Option<DirectCreationCallback>) -> LogicResult<()> {
@@ -483,8 +659,8 @@ impl Engine for World {
         let contextual_environment = ContextualEnvironment::new(track_id);
 
         let mut inputs = HashMap::new();
-        for (name, _) in main.outputs() {
-            let input = self.new_input();
+        for (name, descriptor) in main.outputs() {
+            let input = Input::new(*descriptor.flow(), track_id, TransmissionDebug::None); //self.new_input(*descriptor.flow());
             inputs.insert(name.clone(), input);
         }
         {
@@ -504,7 +680,11 @@ impl Engine for World {
                 .builder(&main_id)
                 .success()
                 .unwrap()
-                .dynamic_build(main_build_id, &contextual_environment)
+                .dynamic_build(
+                    main_build_id,
+                    main.inputs().keys().cloned().collect(),
+                    &contextual_environment,
+                )
                 .unwrap();
 
             track_futures.extend(build_result.prepared_futures);
@@ -540,8 +720,18 @@ impl Engine for World {
 
         let info_track = InfoTrack::new(track_id, None, 0);
         let execution_track = ExecutionTrack::new(track_id, 0, track_futures.into_iter().collect());
-        self.tracks_info.lock().await.insert(track_id, info_track);
+        self.tracks_info
+            .lock()
+            .await
+            .insert(track_id, info_track.clone());
         let _ = self.tracks_sender.send(execution_track).await;
+        let _ = self
+            .debug_sender
+            .send(Event::new(EventKind::TrackAdded {
+                info: info_track,
+                creation: TrackCreation::Direct,
+            }))
+            .await;
 
         LogicResult::new_success(())
     }
@@ -605,8 +795,8 @@ impl ExecutiveWorld for World {
 
             let mut contextual_environment = ContextualEnvironment::new(track_id);
 
-            contexts.into_iter().for_each(|context| {
-                contextual_environment.add_context(context.descriptor().name(), context)
+            contexts.iter().for_each(|context| {
+                contextual_environment.add_context(context.descriptor().name(), context.clone())
             });
 
             for entry in entries {
@@ -615,7 +805,11 @@ impl ExecutiveWorld for World {
                         .builder(entry.descriptor.identifier())
                         .success()
                         .unwrap()
-                        .dynamic_build(entry.id, &contextual_environment)
+                        .dynamic_build(
+                            entry.id,
+                            entry.descriptor.inputs().keys().cloned().collect(),
+                            &contextual_environment,
+                        )
                         .unwrap();
 
                     track_futures.extend(build_result.prepared_futures);
@@ -658,7 +852,52 @@ impl ExecutiveWorld for World {
         let info_track = InfoTrack::new(track_id, parent_track, ancestry);
         let execution_track =
             ExecutionTrack::new(track_id, ancestry, track_futures.into_iter().collect());
-        self.tracks_info.lock().await.insert(track_id, info_track);
+        self.tracks_info
+            .lock()
+            .await
+            .insert(track_id, info_track.clone());
         let _ = self.tracks_sender.send(execution_track).await;
+        let _ = self
+            .debug_sender
+            .send(Event::new(EventKind::TrackAdded {
+                info: info_track,
+                creation: TrackCreation::Source {
+                    source: source.to_string(),
+                    model_id: id,
+                    parameters: params.clone(),
+                    contexts,
+                },
+            }))
+            .await;
+    }
+
+    async fn log(
+        &self,
+        level: LogLevel,
+        label: String,
+        message: String,
+        track_id: Option<TrackId>,
+    ) {
+        let log = Log {
+            level,
+            label,
+            message,
+            track_id,
+            timestamp: Utc::now(),
+            run_id: Some(*crate::execution_run_id()),
+            group_id: Some(*crate::execution_group_id()),
+        };
+        let _ = self.logs_sender.send(log).await;
+    }
+
+    async fn inject_log(&self, log: Log) -> Result<(), ()> {
+        self.logs_sender.send(log).await.map_err(|_| ())
+    }
+
+    async fn inject_debug(&self, run_id: Uuid, data: String) -> Result<(), ()> {
+        self.debug_sender
+            .send(Event::new(EventKind::Distant { run_id, text: data }))
+            .await
+            .map_err(|_| ())
     }
 }

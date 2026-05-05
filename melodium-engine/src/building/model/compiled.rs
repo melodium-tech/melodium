@@ -3,6 +3,7 @@ use crate::building::{
     DynamicBuildResult, GenesisEnvironment, StaticBuildResult,
 };
 use crate::building::{Builder as BuilderTrait, HostTreatment};
+use crate::debug::Event;
 use crate::error::LogicResult;
 use crate::world::World;
 use core::fmt::Debug;
@@ -27,9 +28,9 @@ impl Builder {
 impl BuilderTrait for Builder {
     fn static_build(
         &self,
-        _host_treatment: HostTreatment,
-        _host_build: Option<BuildId>,
-        _label: String,
+        host_treatment: HostTreatment,
+        host_build: Option<BuildId>,
+        label: String,
         environment: &GenesisEnvironment,
     ) -> LogicResult<StaticBuildResult> {
         let world = self.world.upgrade().unwrap();
@@ -38,6 +39,14 @@ impl BuilderTrait for Builder {
         for (name, value) in environment.variables() {
             model.set_parameter(name, value.clone());
         }
+
+        world.send_debug(Event::new(crate::debug::EventKind::ModelBuilt {
+            model: model.descriptor(),
+            parameters: environment.variables().clone(),
+            host_treatment: host_treatment.clone(),
+            host_build,
+            label: label.clone(),
+        }));
 
         let id = world.add_model(Arc::clone(&model) as Arc<dyn Model>);
 
@@ -49,6 +58,7 @@ impl BuilderTrait for Builder {
     fn dynamic_build(
         &self,
         _build: BuildId,
+        _with_inputs: Vec<String>,
         _environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         None
@@ -58,6 +68,7 @@ impl BuilderTrait for Builder {
         &self,
         _within_build: BuildId,
         _for_label: String,
+        _for_outputs: Vec<String>,
         _environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         None

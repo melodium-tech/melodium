@@ -1,4 +1,3 @@
-use log/logger::Logger
 use std/data/string_map::StringMap
 use std/flow::passBlock
 use std/flow::flock
@@ -30,7 +29,7 @@ use work/resources::|mount
 use work/resources::|volume
 use root/states::setServiceState
 
-treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build: bool, build_testers: bool = false, release: bool, on: Arch, pre_commands: Vec<Command> = [], environment_variables: StringMap, repository_url: string, gitlab_token: string, pipeline: string, project: string, ref: string, sha: string, rust_memory: u32 = 4000, rust_storage: u32 = 5000, on_github: bool = false, on_gitlab: bool = false)
+treatment build[cicd: CicdDispatchEngine](target: string, build: bool, build_testers: bool = false, release: bool, on: Arch, pre_commands: Vec<Command> = [], environment_variables: StringMap, repository_url: string, gitlab_token: string, pipeline: string, project: string, ref: string, sha: string, rust_memory: u32 = 4000, rust_storage: u32 = 5000, on_github: bool = false, on_gitlab: bool = false)
   model runner: CicdRunnerEngine()
   model failureConcentrator: Concentrator()
   input trigger:  Block<void>
@@ -39,8 +38,8 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build:
 {
     doBuild: passBlock<void>(cond=build)
     doBuildTesters: passBlock<void>(cond=build_testers)
-    setServiceState[logger=logger](report=build, gitlab_root_url="https://gitlab.com/api/v4", token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, name=|format("Build target {target}", |entry("target", target)), description="Building Mélodium on Mélodium-managed CI", on_github=on_github, on_gitlab=on_gitlab)
-    runnerBuild[cicd=cicd, runner=runner, logger=logger](
+    setServiceState(report=build, gitlab_root_url="https://gitlab.com/api/v4", token=gitlab_token, project=project, sha=sha, ref=ref, pipeline=pipeline, name=|format("Build target {target}", |entry("target", target)), description="Building Mélodium on Mélodium-managed CI", on_github=on_github, on_gitlab=on_gitlab)
+    runnerBuild[cicd=cicd, runner=runner](
         name=target,
         on=on,
         rust_memory=rust_memory,
@@ -48,7 +47,7 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build:
     )
     runnerBuildFailed: concentrateBlock<void>[concentrator=failureConcentrator]()
     runnerBuild.failed -> runnerBuildFailed.data
-    preSteps: stepOn[runner=runner, logger=logger](
+    preSteps: stepOn[runner=runner](
         name=|format("{target} pre steps", |entry("target", target)),
         executor_name="rust",
         commands=|concat<Command>([
@@ -58,7 +57,7 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build:
     )
     preStepsFailed: concentrateBlock<void>[concentrator=failureConcentrator]()
     preSteps.failed -> preStepsFailed.data
-    gitClone: stepOn[runner=runner, logger=logger](
+    gitClone: stepOn[runner=runner](
         name=|format("{target} git clone", |entry("target", target)),
         executor_name="rust",
         environment=|wrap<Environment>(|environment(environment_variables, "/work", true, false)),
@@ -70,7 +69,7 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build:
     )
     gitCloneFailed: concentrateBlock<void>[concentrator=failureConcentrator]()
     gitClone.failed -> gitCloneFailed.data
-    compilation: stepOn[runner=runner, logger=logger](
+    compilation: stepOn[runner=runner](
         name=|format("{target} compilation", |entry("target", target)),
         executor_name="rust",
         environment=|wrap<Environment>(|environment(environment_variables, "/work/melodium", true, false)),
@@ -89,7 +88,7 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build:
     compilationCompletionUnchecking: concentrateBlock<void>[concentrator=failureConcentrator]()
     compilation.failed -> compilationFailed.data
     compilation.completed -> compilationCompletionUncheck.value,uncheck -> compilationCompletionUnchecking.data
-    testersCompilation: stepOn[runner=runner, logger=logger](
+    testersCompilation: stepOn[runner=runner](
         name=|format("{target} testers compilation", |entry("target", target)),
         executor_name="rust",
         environment=|wrap<Environment>(|environment(environment_variables, "/work/melodium/tests/testers", true, false)),
@@ -121,15 +120,14 @@ treatment build[cicd: CicdDispatchEngine, logger: Logger](target: string, build:
     testersCompilation.finished -> flockCompilations.b
 }
 
-treatment runnerBuild[cicd: CicdDispatchEngine, runner: CicdRunnerEngine, logger: Logger](name: string, on: Arch, rust_memory: u32 = 4000, rust_storage: u32 = 5000)
+treatment runnerBuild[cicd: CicdDispatchEngine, runner: CicdRunnerEngine](name: string, on: Arch, rust_memory: u32 = 4000, rust_storage: u32 = 5000)
   input trigger: Block<void>
   output ready:  Block<void>
   output failed: Block<void>
 {
     setupRunner[
         dispatcher=cicd,
-        runner=runner,
-        logger=logger
+        runner=runner
     ](
         name=name,
         edition="alpine",

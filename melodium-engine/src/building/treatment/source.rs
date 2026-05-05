@@ -3,6 +3,7 @@ use crate::building::{
     DynamicBuildResult, FeedingInputs, GenesisEnvironment, StaticBuildResult,
 };
 use crate::building::{Builder as BuilderTrait, HostTreatment};
+use crate::debug::Event;
 use crate::error::{LogicError, LogicResult};
 use crate::world::World;
 use core::fmt::Debug;
@@ -82,7 +83,7 @@ impl BuilderTrait for Builder {
                 world.add_source(
                     matching_model.id().unwrap(),
                     source,
-                    TreatmentDescriptor::as_identified(&*self.descriptor.upgrade().unwrap()),
+                    self.descriptor.upgrade().unwrap(),
                     environment.variables().clone(),
                     idx,
                 );
@@ -97,6 +98,7 @@ impl BuilderTrait for Builder {
     fn dynamic_build(
         &self,
         build: BuildId,
+        _with_inputs: Vec<String>,
         environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         let world = self.world.upgrade().unwrap();
@@ -124,6 +126,15 @@ impl BuilderTrait for Builder {
 
         let mut result = DynamicBuildResult::new();
 
+        world.send_debug(Event::new(crate::debug::EventKind::TreatmentBuilt {
+            treatment: self.descriptor.upgrade().unwrap(),
+            environment: environment.clone(),
+            host_treatment: build_sample.host_treatment.clone(),
+            host_build: build_sample.host_build_id,
+            build_id: build,
+            label: build_sample.label.clone(),
+        }));
+
         match &build_sample.host_treatment {
             HostTreatment::Treatment(host_descriptor) => {
                 let host_build = world
@@ -133,17 +144,21 @@ impl BuilderTrait for Builder {
                     .give_next(
                         build_sample.host_build_id.unwrap(),
                         build_sample.label.to_string(),
+                        descriptor.outputs().keys().cloned().collect(),
                         &environment.base_on(),
                     )
                     .unwrap();
 
                 result.feeding_inputs = host_build.feeding_inputs;
                 // We add here blocked inputs for source outputs that might not be used in scripts.
-                for (name, _) in descriptor.outputs() {
+                for (name, descriptor) in descriptor.outputs() {
                     if !result.feeding_inputs.contains_key(name) {
-                        result
-                            .feeding_inputs
-                            .insert(name.clone(), vec![world.new_blocked_input()]);
+                        result.feeding_inputs.insert(
+                            name.clone(),
+                            vec![
+                                world.new_blocked_input(*descriptor.flow(), environment.track_id())
+                            ],
+                        );
                     }
                 }
                 result.prepared_futures.extend(host_build.prepared_futures);
@@ -165,6 +180,7 @@ impl BuilderTrait for Builder {
         &self,
         _within_build: BuildId,
         _for_label: String,
+        _for_outputs: Vec<String>,
         _environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         // A core treatment cannot have sub-treatments (its not a sequence), so nothing to ever return.

@@ -22,7 +22,7 @@ pub async fn getExecutor() {
         .map(|val| GetData::<Option<String>>::try_data(val).unwrap())
     {
         if let Some(name) = name {
-            match std::env::var("MELODIUM_JOB_EXECUTOR").as_deref() {
+            match std::env::var("MELODIUM_RUN_EXECUTOR").as_deref() {
                 Ok("podman") | Ok("docker") => {
                     match crate::container::ContainerExecutor::try_new(name).await {
                         Ok(container_exec) => {
@@ -103,7 +103,7 @@ pub async fn getFileSystem() {
         .await
         .map(|val| GetData::<String>::try_data(val).unwrap())
     {
-        match std::env::var("MELODIUM_JOB_EXECUTOR").as_deref() {
+        match std::env::var("MELODIUM_RUN_EXECUTOR").as_deref() {
             Ok("podman") | Ok("docker") => {
                 match crate::container::ContainerFileSystem::try_new(name).await {
                     Ok(container_fs) => {

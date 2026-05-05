@@ -23,7 +23,7 @@ pub async fn decode_mono(format: string) {
 
         while let Ok(Some(packet)) = format_reader.next_packet().await {
             let audio = decoder.decode(&packet).unwrap();
-            audio.
+            //audio.
         }
         
     }

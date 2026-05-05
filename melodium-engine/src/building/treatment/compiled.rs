@@ -3,6 +3,7 @@ use crate::building::{
     DynamicBuildResult, FeedingInputs, GenesisEnvironment, StaticBuildResult,
 };
 use crate::building::{Builder as BuilderTrait, HostTreatment};
+use crate::debug::{Event, EventKind, TransmissionDetails};
 use crate::error::{LogicError, LogicResult};
 use crate::world::World;
 use core::fmt::Debug;
@@ -95,7 +96,7 @@ impl BuilderTrait for Builder {
                 world.add_source(
                     matching_model.id().unwrap(),
                     source,
-                    TreatmentDescriptor::as_identified(&*self.descriptor.upgrade().unwrap()),
+                    self.descriptor.upgrade().unwrap(),
                     environment.variables().clone(),
                     idx,
                 );
@@ -110,6 +111,7 @@ impl BuilderTrait for Builder {
     fn dynamic_build(
         &self,
         build: BuildId,
+        _with_inputs: Vec<String>,
         environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         let world = self.world.upgrade().unwrap();
@@ -151,6 +153,58 @@ impl BuilderTrait for Builder {
             treatment.set_parameter(name, value.clone());
         }
 
+        world.send_debug(Event::new(EventKind::TreatmentBuilt {
+            treatment: treatment.descriptor(),
+            environment: environment.clone(),
+            host_treatment: build_sample.host_treatment.clone(),
+            host_build: build_sample.host_build_id,
+            build_id: build,
+            label: build_sample.label.clone(),
+        }));
+
+        let start = Box::pin({
+            let world = world.clone();
+            let treatment = treatment.descriptor();
+            let host_treatment = build_sample.host_treatment.clone();
+            let host_build = build_sample.host_build_id;
+            let build_id = build;
+            let track_id = environment.track_id();
+            let label = build_sample.label.clone();
+            async move {
+                world
+                    .send_debug_async(Event::new(EventKind::TreatmentStarted {
+                        treatment,
+                        host_treatment,
+                        host_build,
+                        build_id,
+                        track_id,
+                        label,
+                    }))
+                    .await;
+            }
+        });
+        let finish = Box::pin({
+            let world = world.clone();
+            let treatment = treatment.descriptor();
+            let host_treatment = build_sample.host_treatment.clone();
+            let host_build = build_sample.host_build_id;
+            let build_id = build;
+            let track_id = environment.track_id();
+            let label = build_sample.label.clone();
+            async move {
+                world
+                    .send_debug_async(Event::new(EventKind::TreatmentFinished {
+                        treatment,
+                        host_treatment,
+                        host_build,
+                        build_id,
+                        track_id,
+                        label,
+                    }))
+                    .await;
+            }
+        });
+
         match &build_sample.host_treatment {
             HostTreatment::Treatment(host_descriptor) => {
                 let host_build = world
@@ -160,18 +214,41 @@ impl BuilderTrait for Builder {
                     .give_next(
                         build_sample.host_build_id.unwrap(),
                         build_sample.label.to_string(),
+                        descriptor.outputs().keys().cloned().collect(),
                         &environment.base_on(),
                     )
                     .unwrap();
 
                 let mut inputs = HashMap::new();
-                for (name, _) in descriptor.inputs() {
-                    let input = world.new_input();
+                for (name, descriptor) in descriptor.inputs() {
+                    let input = world.new_input(
+                        *descriptor.flow(),
+                        environment.track_id(),
+                        TransmissionDetails {
+                            treatment: treatment.descriptor(),
+                            host_treatment: build_sample.host_treatment.clone(),
+                            host_build: build_sample.host_build_id,
+                            build_id: build,
+                            label: build_sample.label.clone(),
+                            name: name.clone(),
+                        },
+                    );
                     treatment.assign_input(name, Box::new(input.clone()));
                     inputs.insert(name.clone(), input);
                 }
-                for (name, _) in descriptor.outputs() {
-                    let output = world.new_output();
+                for (name, descriptor) in descriptor.outputs() {
+                    let output = world.new_output(
+                        *descriptor.flow(),
+                        environment.track_id(),
+                        TransmissionDetails {
+                            treatment: treatment.descriptor(),
+                            host_treatment: build_sample.host_treatment.clone(),
+                            host_build: build_sample.host_build_id,
+                            build_id: build,
+                            label: build_sample.label.clone(),
+                            name: name.clone(),
+                        },
+                    );
                     if let Some(inputs) = host_build.feeding_inputs.get(name) {
                         output.add_transmission(inputs);
                     }
@@ -183,7 +260,7 @@ impl BuilderTrait for Builder {
                     .map(|(name, input)| (name.to_string(), vec![input.clone()]))
                     .collect();
 
-                let prepared_futures = treatment.prepare(environment.track_id());
+                let prepared_futures = treatment.prepare(environment.track_id(), start, finish);
                 result.prepared_futures.extend(prepared_futures);
                 result.prepared_futures.extend(host_build.prepared_futures);
             }
@@ -191,13 +268,35 @@ impl BuilderTrait for Builder {
                 let direct_inputs = world.direct(&environment.track_id()).to_success().unwrap();
 
                 let mut inputs = HashMap::new();
-                for (name, _) in descriptor.inputs() {
-                    let input = world.new_input();
+                for (name, descriptor) in descriptor.inputs() {
+                    let input = world.new_input(
+                        *descriptor.flow(),
+                        environment.track_id(),
+                        TransmissionDetails {
+                            treatment: treatment.descriptor(),
+                            host_treatment: build_sample.host_treatment.clone(),
+                            host_build: build_sample.host_build_id,
+                            build_id: build,
+                            label: build_sample.label.clone(),
+                            name: name.clone(),
+                        },
+                    );
                     treatment.assign_input(name, Box::new(input.clone()));
                     inputs.insert(name.clone(), input);
                 }
-                for (name, _) in descriptor.outputs() {
-                    let output = world.new_output();
+                for (name, descriptor) in descriptor.outputs() {
+                    let output = world.new_output(
+                        *descriptor.flow(),
+                        environment.track_id(),
+                        TransmissionDetails {
+                            treatment: treatment.descriptor(),
+                            host_treatment: build_sample.host_treatment.clone(),
+                            host_build: build_sample.host_build_id,
+                            build_id: build,
+                            label: build_sample.label.clone(),
+                            name: name.clone(),
+                        },
+                    );
                     if let Some(inputs) = direct_inputs.get(name) {
                         output.add_transmission(inputs);
                     }
@@ -209,9 +308,11 @@ impl BuilderTrait for Builder {
                     .map(|(name, input)| (name.to_string(), vec![input.clone()]))
                     .collect();
 
-                result
-                    .prepared_futures
-                    .extend(treatment.prepare(environment.track_id()));
+                result.prepared_futures.extend(treatment.prepare(
+                    environment.track_id(),
+                    start,
+                    finish,
+                ));
             }
         }
 
@@ -227,6 +328,7 @@ impl BuilderTrait for Builder {
         &self,
         _within_build: BuildId,
         _for_label: String,
+        _for_outputs: Vec<String>,
         _environment: &ContextualEnvironment,
     ) -> Option<DynamicBuildResult> {
         // A core treatment cannot have sub-treatments (it is not a sequence), so nothing to ever return.

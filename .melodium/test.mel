@@ -4,7 +4,6 @@ use cicd/runners::setupRunner
 use cicd/runners::stopRunner
 use cicd/steps::stepOn
 use cicd/steps::stepOnWithInput
-use log/logger::Logger
 use process/command::Command
 use process/command::|command
 use process/command::|raw_commands
@@ -30,7 +29,7 @@ use work/resources::|volume
 use work/resources::|mount
 use root/states::setServiceState
 
-treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch, target: string, test_image: string, pre_commands: Vec<Command> = [], report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
+treatment test[cicd: CicdDispatchEngine](test: bool, arch: Arch, target: string, test_image: string, pre_commands: Vec<Command> = [], report_service_token: string, pipeline: string, project: string, sha: string, ref: string, on_github: bool = false, on_gitlab: bool = false)
   model runner: CicdRunnerEngine()
   model failureConcentrator: Concentrator()
   input trigger: Block<void>
@@ -39,7 +38,7 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
   output finished: Block<void>
 {
     doTest: passBlock<void>(cond=test)
-    setServiceState[logger=logger](report=test, gitlab_root_url="https://gitlab.com/api/v4", token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, name=|format("Test target {target}", |entry("target", target)), description=|format("Test Mélodium on Mélodium-managed CI (test: {do})", |entry("do", |to_string<bool>(test))), on_github=on_github, on_gitlab=on_gitlab)
+    setServiceState(report=test, gitlab_root_url="https://gitlab.com/api/v4", token=report_service_token, project=project, sha=sha, ref=ref, pipeline=pipeline, name=|format("Test target {target}", |entry("target", target)), description=|format("Test Mélodium on Mélodium-managed CI (test: {do})", |entry("do", |to_string<bool>(test))), on_github=on_github, on_gitlab=on_gitlab)
     setupRunner[
         dispatcher=cicd,
         runner=runner,
@@ -68,14 +67,14 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
     )
     setupRunnerFail: concentrateBlock<void>[concentrator=failureConcentrator]()
     setupRunner.failed -> setupRunnerFail.data
-    preStep: stepOn[runner=runner, logger=logger](
+    preStep: stepOn[runner=runner](
         name=|format("test:{target}", |entry("target", target)),
         executor_name="testers",
         commands=pre_commands
     )
     preStepFail: concentrateBlock<void>[concentrator=failureConcentrator]()
     preStep.failed -> preStepFail.data
-    installMelodium: stepOnWithInput[runner=runner, logger=logger](
+    installMelodium: stepOnWithInput[runner=runner](
         name=|format("test:{target}", |entry("target", target)),
         executor_name="testers",
         in_filesystem="binaries",
@@ -87,7 +86,7 @@ treatment test[cicd: CicdDispatchEngine, logger: Logger](test: bool, arch: Arch,
     )
     installMelodiumFail: concentrateBlock<void>[concentrator=failureConcentrator]()
     installMelodium.failed -> installMelodiumFail.data
-    makeTests: stepOnWithInput[runner=runner, logger=logger](
+    makeTests: stepOnWithInput[runner=runner](
         name=|format("test:{target}", |entry("target", target)),
         executor_name="testers",
         in_filesystem="binaries",

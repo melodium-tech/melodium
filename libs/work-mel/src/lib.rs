@@ -13,6 +13,7 @@ pub mod api;
 pub mod compose;
 pub mod container;
 pub mod distant;
+pub mod reporting;
 pub mod resources;
 
 #[cfg(feature = "kubernetes")]
@@ -21,5 +22,17 @@ mod kube;
 use melodium_macro::mel_package;
 
 pub(crate) const USER_AGENT: &str = concat!("work-mel/", env!("CARGO_PKG_VERSION"));
+pub(crate) static API_URL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+    std::env::var("MELODIUM_API_URL")
+        .unwrap_or_else(|_| "https://api.melodium.tech/0.1".to_string())
+});
+pub(crate) static API_TOKEN: std::sync::LazyLock<Option<String>> =
+    std::sync::LazyLock::new(|| std::env::var("MELODIUM_API_TOKEN").ok());
+pub(crate) static API_TAGS: std::sync::LazyLock<Option<Vec<String>>> =
+    std::sync::LazyLock::new(|| {
+        std::env::var("MELODIUM_API_TAGS")
+            .map(|val| val.split_whitespace().map(|s| s.to_string()).collect())
+            .ok()
+    });
 
 mel_package!();

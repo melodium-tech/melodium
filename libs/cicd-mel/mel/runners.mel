@@ -2,12 +2,11 @@ use std/flow::one
 use std/flow::passBlock
 use std/data/map::|entry
 use std/ops/option::|wrap
-use log/logger::Logger
-use log/logger::stop as stopLogs
-use log/log::logErrors
-use log/log::logError
-use log/log::logErrorMessage
-use log/log::logInfoMessage
+use std/engine::|version
+use std/engine/log::logErrors
+use std/engine/log::logError
+use std/engine/log::logErrorMessage
+use std/engine/log::logInfoMessage
 use distrib::DistributionEngine
 use distrib::start
 use distrib::stop
@@ -21,20 +20,27 @@ use work/resources::Volume
 /**
 Process dispatcher to spawn workers.
 
-`api_url` and `api_token` are respectively the URI and job token to use to contact the API.  
+`api_url` and `api_token` are respectively the URI and job token to use to contact the API. If left to _none_ the values of the current Mélodium engine will be used. 
 `location` tells where job-worker should be spawned, might be one of those:
 - `"api"` (default): ask the API to spawn required job-worker somewhere;
 - `"compose"`: uses `podman compose` or `docker compose` (tried is this order) to spawn locally (or as the Podman/Docker configuration specifies) the job-worker, useful to test or run on local resources.
 */
-model CicdDispatchEngine(location: string = "api", api_token: string, api_url: string = "https://api.melodium.tech/0.1"): DistantEngine {
-    api_token = |wrap<string>(api_token)
-    api_url = |wrap<string>(api_url)
+model CicdDispatchEngine(location: string = "api", api_token: Option<string> = _, api_url: Option<string> = _): DistantEngine {
+    api_token = api_token
+    api_url = api_url
     location = location
 }
 
+/**
+Engine used by CI/CD runners to distribute step executions.
+
+This model is a thin wrapper around `DistributionEngine` preconfigured to
+run the `cicd/steps::step` treatment at current engine version. It serves as the
+local-side distributor handling a job runner worker spawned by the `CicdDispatchEngine` dispatcher.
+*/
 model CicdRunnerEngine(): DistributionEngine {
     treatment = "cicd/steps::step"
-    version = "0.9.0"
+    version = |version()
 }
 
 /**
@@ -58,7 +64,7 @@ Also, multiple different architecture cannot be requested for the same worker, s
 Finally, the cumuled size of all volumes must be equal or less than the Mélodium engine storage value,
 and each container must have storage values at least equal to the sum of the volumes mounted inside them.
 */
-treatment setupRunner[dispatcher: CicdDispatchEngine, runner: CicdRunnerEngine, logger: Logger](
+treatment setupRunner[dispatcher: CicdDispatchEngine, runner: CicdRunnerEngine](
     name: string,
     cpu: u32,
     memory: u32,
@@ -69,27 +75,28 @@ treatment setupRunner[dispatcher: CicdDispatchEngine, runner: CicdRunnerEngine, 
     volumes: Vec<Volume> = [],
     containers: Vec<Container> = [],
     service_containers: Vec<ServiceContainer> = [],
+    tags: Vec<string> = [],
     var stop_on_failure: bool = true
   )
   input trigger: Block<void>
   output ready:  Block<void>
   output failed: Block<void>
 {
-    distant[distant_engine=dispatcher](cpu=cpu, memory=memory, storage=storage, edition=edition, arch=arch, max_duration=max_duration, volumes=volumes, containers=containers, service_containers=service_containers)
+    distant[distant_engine=dispatcher](cpu=cpu, memory=memory, storage=storage, edition=edition, arch=arch, max_duration=max_duration, volumes=volumes, containers=containers, service_containers=service_containers, tags=tags)
 
-    logDistantErrors: logErrors[logger=logger](label=name)
+    logDistantErrors: logErrors(label=name)
     distant.errors -> logDistantErrors.messages
 
     start[distributor=runner](params=|entry<string>("label", name))
-    logStartError: logError[logger=logger](label=name)
+    logStartError: logError(label=name)
     start.error -> logStartError.message
 
     stopOnFailure: stop[distributor=runner]()
     oneFailed.value -> stopOnFailure.trigger
 
-    logInfoMessage[logger=logger](label=name, message="Dispatch requested")
+    logInfoMessage(label=name, message="Dispatch requested")
     Self.trigger -> logInfoMessage.trigger
-    logErrorMessage[logger=logger](label=name, message="Dispatch failed")
+    logErrorMessage(label=name, message="Dispatch failed")
     oneFailed.value -> logErrorMessage.trigger
 
     oneFailed: one<void>()

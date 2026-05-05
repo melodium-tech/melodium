@@ -9,6 +9,7 @@ fn main() {
     }
 
     let mut melodium_distrib = Command::new("melodium")
+        .env("MELODIUM_GROUP_ID", "3b8ca956-3f98-44b0-b222-e4cc45f79730")
         .arg("dist")
         .arg("--localhost")
         .arg("--port")
@@ -20,14 +21,15 @@ fn main() {
         .spawn()
         .expect("failed to launch Mélodium executable");
     let mut melodium = Command::new("melodium")
+        .env("MELODIUM_GROUP_ID", "3b8ca956-3f98-44b0-b222-e4cc45f79730")
         .arg("run")
         .arg("http_distributed.mel")
         .arg("--distrib_port")
         .arg("28014")
         .arg("--remote_key")
-        .arg("\"d0bf1006-a851-50eb-b32b-5f443d642ce6\"")
+        .arg("d0bf1006-a851-50eb-b32b-5f443d642ce6")
         .arg("--self_key")
-        .arg("\"9a1bed00-1051-565e-b418-f3b32462620d\"")
+        .arg("9a1bed00-1051-565e-b418-f3b32462620d")
         .spawn()
         .expect("failed to launch Mélodium executable");
 

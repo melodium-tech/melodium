@@ -36,6 +36,7 @@ use std::{
     sync::{Arc, Weak},
 };
 use std_mel::data::map::*;
+use uuid::Uuid;
 use work_mel::access::*;
 
 #[derive(Debug)]
@@ -105,6 +106,19 @@ impl Write for NetworkStream {
     }
 }
 
+/// The `DistributionEngine` model handles remote distribution of Mélodium
+/// treatments. It connects to a distant engine using the provided access
+/// configuration, negotiates protocol compatibility, and then loads and
+/// launches a treatment identified by the model parameters. Once started it
+/// maintains an asynchronous connection and keeps track of distributed
+/// instances and tracks allowing the local engine to send inputs and receive
+/// outputs, logs and debugging information.
+///
+/// Parameters:
+/// * `treatment` – identifier of the treatment to execute on the remote
+///   engine.
+/// * `version` – version of the treatment (must be a valid [SemVer](https://semver.org/)).
+///
 #[derive(Debug)]
 #[mel_model(
     param treatment string none
@@ -118,9 +132,10 @@ pub struct DistributionEngine {
     #[cfg(feature = "real")]
     protocol: AsyncRwLock<Option<AsyncArc<Protocol<NetworkStream>>>>,
     treatment: AsyncRwLock<Option<Arc<dyn Treatment>>>,
-    tracks: AsyncRwLock<HashMap<u64, Track>>,
+    tracks: AsyncRwLock<HashMap<u64, AsyncArc<AsyncRwLock<Track>>>>,
     protocol_barrier: AsyncMutex<(bool, Option<AsyncArc<AsyncBarrier>>)>,
     started_once: AtomicBool,
+    distant_run_id: AsyncRwLock<Option<Uuid>>,
 }
 
 impl DistributionEngine {
@@ -133,6 +148,7 @@ impl DistributionEngine {
             tracks: AsyncRwLock::new(HashMap::new()),
             protocol_barrier: AsyncMutex::new((false, Some(AsyncArc::new(AsyncBarrier::new(2))))),
             started_once: AtomicBool::new(false),
+            distant_run_id: AsyncRwLock::new(None),
         }
     }
 }
@@ -223,6 +239,8 @@ impl DistributionEngine {
                         melodium_version: Version::parse(env!("CARGO_PKG_VERSION")).unwrap(),
                         distribution_version: melodium_distribution::VERSION.clone(),
                         key: access.remote_key,
+                        asking_run_id: *melodium_engine::execution_run_id(),
+                        group_id: *melodium_engine::execution_group_id(),
                     }))
                     .await
                 {
@@ -235,6 +253,10 @@ impl DistributionEngine {
                                 if confirm.key != access.self_key {
                                     return Err("Cannot distribute, remote engine did not provided valid key.".to_string());
                                 }
+                                self.distant_run_id
+                                    .write()
+                                    .await
+                                    .replace(confirm.confirming_run_id);
                             }
                             Ok(_) => {
                                 return Err("Unexpected response message".to_string());
@@ -361,7 +383,7 @@ impl DistributionEngine {
                     io_barrier: AsyncBarrier::new(io),
                 };
 
-                tracks.insert(id, track);
+                tracks.insert(id, AsyncArc::new(AsyncRwLock::new(track)));
 
                 if protocol
                     .send_message(Message::Instanciate(Instanciate { id: id }))
@@ -382,12 +404,12 @@ impl DistributionEngine {
     }
 
     pub async fn is_ok(&self, distribution_id: &u64) -> bool {
-        self.tracks
-            .read()
-            .await
-            .get(&distribution_id)
-            .map(|track| track.instancied.load(Ordering::Relaxed))
-            .unwrap_or(false)
+        let track = self.tracks.read().await.get(&distribution_id).cloned();
+        if let Some(track) = track {
+            track.read().await.instancied.load(Ordering::Relaxed)
+        } else {
+            false
+        }
     }
 
     pub async fn get_input(
@@ -395,17 +417,13 @@ impl DistributionEngine {
         distribution_id: &u64,
         name: &String,
     ) -> Option<Sender<Vec<RawValue>>> {
-        if let Some(track) = self.tracks.read().await.get(&distribution_id) {
-            track.io_barrier.wait().await;
+        let track = self.tracks.read().await.get(&distribution_id).cloned();
+        if let Some(track) = track {
+            track.read().await.io_barrier.wait().await;
+            track.write().await.inputs_senders.remove(name)
         } else {
             return None;
         }
-        self.tracks
-            .write()
-            .await
-            .get_mut(&distribution_id)
-            .map(|track| track.inputs_senders.remove(name))
-            .flatten()
     }
 
     pub async fn get_output(
@@ -413,45 +431,39 @@ impl DistributionEngine {
         distribution_id: &u64,
         name: &String,
     ) -> Option<Receiver<Vec<RawValue>>> {
-        if let Some(track) = self.tracks.read().await.get(&distribution_id) {
-            track.io_barrier.wait().await;
+        let track = self.tracks.read().await.get(&distribution_id).cloned();
+        if let Some(track) = track {
+            track.read().await.io_barrier.wait().await;
+            track.write().await.outputs_receivers.remove(name)
         } else {
             return None;
         }
-        self.tracks
-            .write()
-            .await
-            .get_mut(&distribution_id)
-            .map(|track| track.outputs_receivers.remove(name))
-            .flatten()
     }
 
     pub async fn send_data(&self, distribution_id: &u64, name: &String) -> Result<(), ()> {
-        if let Some(data_recv) = self
-            .tracks
-            .read()
-            .await
-            .get(&distribution_id)
-            .map(|track| track.inputs_receivers.get(name))
-            .flatten()
-        {
-            while let Ok(data) = data_recv.try_recv() {
-                if let Some(protocol) = self.protocol.read().await.as_ref() {
-                    if let Err(_) = protocol
-                        .send_message(Message::InputData(InputData {
-                            id: *distribution_id,
-                            name: name.clone(),
-                            data: data.into(),
-                        }))
-                        .await
-                    {
+        let track = self.tracks.read().await.get(&distribution_id).cloned();
+        if let Some(track) = track {
+            if let Some(data_recv) = track.read().await.inputs_receivers.get(name) {
+                while let Ok(data) = data_recv.try_recv() {
+                    if let Some(protocol) = self.protocol.read().await.as_ref() {
+                        if let Err(_) = protocol
+                            .send_message(Message::InputData(InputData {
+                                id: *distribution_id,
+                                name: name.clone(),
+                                data: data.into(),
+                            }))
+                            .await
+                        {
+                            return Err(());
+                        }
+                    } else {
                         return Err(());
                     }
-                } else {
-                    return Err(());
                 }
+                return Ok(());
+            } else {
+                return Err(());
             }
-            return Ok(());
         } else {
             return Err(());
         }
@@ -470,72 +482,94 @@ impl DistributionEngine {
 
     async fn continuous(&self) {
         self.protocol_barrier().await;
+        let world = self.model.upgrade().map(|model| model.world().clone());
+
+        let mut ended = false;
+        let mut log_ended = false;
+        let mut debug_ended = false;
 
         let exec = async {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
                 loop {
-                    match protocol.recv_message().await {
+                    let msg = protocol.recv_message().await;
+                    match msg {
                         Ok(Message::InstanciateStatus(instanciate_status)) => {
                             match instanciate_status {
                                 InstanciateStatus::Ok { id } => {
-                                    if let Some(track) = self.tracks.read().await.get(&id) {
+                                    let track = self.tracks.read().await.get(&id).cloned();
+                                    if let Some(track) = track {
+                                        let track = track.read().await;
                                         track.instancied.store(true, Ordering::Relaxed);
                                         track.instanciation_barrier.wait().await;
                                     }
                                 }
                                 InstanciateStatus::Failure { id, message: _ } => {
-                                    if let Some(track) = self.tracks.read().await.get(&id) {
+                                    let track = self.tracks.read().await.get(&id).cloned();
+                                    if let Some(track) = track {
+                                        let track = track.read().await;
                                         track.instanciation_barrier.wait().await;
                                     }
                                 }
                             }
                         }
                         Ok(Message::CloseInput(close_input)) => {
-                            if let Some(input) = self
-                                .tracks
-                                .read()
-                                .await
-                                .get(&close_input.id)
-                                .map(|track| track.inputs_receivers.get(&close_input.name))
-                                .flatten()
-                            {
-                                input.close();
+                            let track = self.tracks.read().await.get(&close_input.id).cloned();
+                            if let Some(track) = track {
+                                if let Some(input) =
+                                    track.read().await.inputs_receivers.get(&close_input.name)
+                                {
+                                    input.close();
+                                }
                             }
                         }
                         Ok(Message::OutputData(output_data)) => {
-                            if let Some(output) = self
-                                .tracks
-                                .read()
-                                .await
-                                .get(&output_data.id)
-                                .map(|track| track.outputs_senders.get(&output_data.name))
-                                .flatten()
-                            {
-                                if output.send(output_data.data).await.is_err() {
-                                    let _ = protocol
-                                        .send_message(Message::CloseOutput(CloseOutput {
-                                            id: output_data.id,
-                                            name: output_data.name.clone(),
-                                        }))
-                                        .await;
+                            let track = self.tracks.read().await.get(&output_data.id).cloned();
+                            if let Some(track) = track {
+                                if let Some(output) =
+                                    track.read().await.outputs_senders.get(&output_data.name)
+                                {
+                                    if output.send(output_data.data).await.is_err() {
+                                        let _ = protocol
+                                            .send_message(Message::CloseOutput(CloseOutput {
+                                                id: output_data.id,
+                                                name: output_data.name.clone(),
+                                            }))
+                                            .await;
+                                    }
                                 }
                             }
                         }
                         Ok(Message::CloseOutput(close_output)) => {
-                            if let Some(output) = self
-                                .tracks
-                                .read()
-                                .await
-                                .get(&close_output.id)
-                                .map(|track| track.outputs_senders.get(&close_output.name))
-                                .flatten()
-                            {
-                                output.close();
+                            let track = self.tracks.read().await.get(&close_output.id).cloned();
+                            if let Some(track) = track {
+                                if let Some(output) =
+                                    track.read().await.outputs_senders.get(&close_output.name)
+                                {
+                                    output.close();
+                                }
+                            }
+                        }
+                        Ok(Message::Log(log)) => {
+                            if let Some(world) = world.as_ref() {
+                                let _ = world.inject_log(log).await;
+                            }
+                        }
+                        Ok(Message::Debug(debug)) => {
+                            if let Some(world) = world.as_ref() {
+                                if let Some(run_id) = self.distant_run_id.read().await.as_ref() {
+                                    let _ = world.inject_debug(*run_id, debug).await;
+                                }
                             }
                         }
                         Ok(Message::Ended) => {
                             self.close_all().await;
-                            break;
+                            ended = true;
+                        }
+                        Ok(Message::LogEnded) => {
+                            log_ended = true;
+                        }
+                        Ok(Message::DebugEnded) => {
+                            debug_ended = true;
                         }
                         Ok(Message::Probe) => {}
                         Ok(_) => {}
@@ -543,6 +577,9 @@ impl DistributionEngine {
                             self.close_all().await;
                             break;
                         }
+                    }
+                    if ended && log_ended {
+                        break;
                     }
                 }
                 protocol.close().await;
@@ -578,6 +615,7 @@ impl DistributionEngine {
 
     async fn close_all(&self) {
         for (_, track) in self.tracks.read().await.iter() {
+            let track = track.read().await;
             track.inputs_receivers.iter().for_each(|(_, recv)| {
                 recv.close();
             });
@@ -616,6 +654,18 @@ impl DistributionEngine {
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 }
 
+/// Treatment `start` for the `DistributionEngine` model.
+///
+/// This treatment is responsible for initiating the distribution
+/// connection using the supplied `access` block, which must contain a single
+/// `Access` value describing the remote addresses, port, keys and other
+/// connection parameters. The treatment also takes arbitrary `params` that are
+/// forwarded as launch parameters to the remote side.
+///
+/// On a successful start the treatment sends a unit token on `ready`.
+/// If the engine cannot be started it emits a signal on `failed` followed by
+/// an error message on `error` and triggers a fuse of the distributor so that
+/// further attempts are ignored.
 #[mel_treatment(
     model distributor DistributionEngine
     input access Block<Access>
@@ -656,6 +706,12 @@ pub async fn start(params: Map) {
     }
 }
 
+/// Treatment `stop` for the `DistributionEngine` model.
+///
+/// When the `trigger` block receives a unit token the treatment asks the
+/// distributor to terminate its protocol connection and clean up any
+/// resources. This allow the world to gracefully shut down the distributed
+/// execution.
 #[mel_treatment(
     model distributor DistributionEngine
     input trigger Block<void>
@@ -670,6 +726,13 @@ pub async fn stop() {
     }
 }
 
+/// Treatment `distribute` for the `DistributionEngine` model.
+///
+/// When a unit token is received on `trigger`, this treatment requests a new
+/// distributed track from the remote engine. If successful it waits for the
+/// track to be fully instantiated and then sends its `distribution_id` on
+/// the corresponding output. Failures during instantiation are reported via
+/// the `failed` and `error` outputs.
 #[mel_treatment(
     model distributor DistributionEngine
     input trigger Block<void>
@@ -710,6 +773,16 @@ pub async fn distribute() {
     }
 }
 
+/// Treatment `recv_stream` for receiving streaming output from a
+/// distributed instance.
+///
+/// * `name` is the name of the output port defined by the distributed
+///   treatment.
+/// * `distribution_id` provides the identifier obtained from `distribute`.
+///
+/// The treatment forwards each value received from the remote output into the
+/// `data` stream, converting raw values back into the requested generic type
+/// `D`. If a value of the wrong datatype is encountered the stream is closed.
 #[mel_treatment(
     model distributor DistributionEngine
     generic D (Deserialize)
@@ -757,6 +830,11 @@ pub async fn recv_stream(name: string) {
     }
 }
 
+/// Treatment `recv_block` for receiving a single (blocking) output value
+/// from a distributed instance.
+///
+/// It reads exactly one item from the remote output and emits it on the `data`
+/// block. Afterwards the corresponding remote `name` output is closed.
 #[mel_treatment(
     model distributor DistributionEngine
     generic D (Deserialize)
@@ -791,6 +869,12 @@ pub async fn recv_block(name: string) {
     }
 }
 
+/// Treatment `send_stream` for sending a stream of values to a distributed
+/// instance input.
+///
+/// Values received on `data` are serialized and forwarded to the remote
+/// treatment. The treatment handles automatic closing of the remote input when
+/// the stream ends or an error occurs.
 #[mel_treatment(
     model distributor DistributionEngine
     generic S (Serialize)
@@ -840,6 +924,10 @@ pub async fn send_stream(name: string) {
     }
 }
 
+/// Treatment `send_block` for sending a single value to a distributed input.
+///
+/// The provided `data` block is consumed once, serialized and sent to the
+/// remote side. The remote input is closed after transmission.
 #[mel_treatment(
     model distributor DistributionEngine
     generic S (Serialize)

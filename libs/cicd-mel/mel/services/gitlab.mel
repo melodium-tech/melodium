@@ -2,6 +2,8 @@ use http/client/util::post
 use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
+use std/engine::|group_id
+use std/engine::|run_id
 use std/text/compose::|format
 use std/flow::emit
 use std/flow::pass
@@ -16,11 +18,11 @@ use json/value::|null
 use std/ops/option::|unwrap_or
 use std/ops/option::|wrap
 use local::StepState
-use log/logger::Logger
-use log/log::logError
-use log/log::logInfos
+use std/engine/log::logError
+use std/engine/log::logInfos
+use work/distant::|default_api_url
 
-treatment postGitlabState[logger: Logger](root_url: string, token: string, project: string, sha: string, state: StepState, ref: string, pipeline: string, name: string, description: string, log_response: bool = false)
+treatment postGitlabState(root_url: string, token: string, project: string, sha: string, state: StepState, ref: string, pipeline: string, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>
 {
     post(
@@ -37,10 +39,10 @@ treatment postGitlabState[logger: Logger](root_url: string, token: string, proje
         )
     )
     passInfos: pass<byte>(cond=log_response)
-    logInfos[logger=logger](label="GitLab API")
+    logInfos(label="GitLab API")
     fromUtf8()
     post.data -> passInfos.stream,passed -> fromUtf8.encoded,text -> logInfos.messages
-    logError[logger=logger](label="GitLab API")
+    logError(label="GitLab API")
     post.error -> logError.message
 
     emit<Json>(value=|unwrap_or<Json>(|to_json(
@@ -50,14 +52,18 @@ treatment postGitlabState[logger: Logger](root_url: string, token: string, proje
                 \"ref\": \"{ref}\",
                 \"pipeline_id\": \"{pipeline_id}\",
                 \"name\": \"{name}\",
-                \"description\": \"{description}\"
+                \"description\": \"{description}\",
+                \"target_url\": \"{api_url}/execution/report/dashboard/{group_id}/{run_id}\"
             }}",
             |map([
                     |entry("state", |to_string<StepState>(state)),
                     |entry("ref", ref),
                     |entry("pipeline_id", pipeline),
                     |entry("name", name),
-                    |entry("description", description)
+                    |entry("description", description),
+                    |entry("api_url", |default_api_url()),
+                    |entry("group_id", |group_id()),
+                    |entry("run_id", |run_id())
                 ])
         )
     ), |null()))

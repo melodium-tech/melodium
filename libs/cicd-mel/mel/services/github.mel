@@ -5,6 +5,8 @@ use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
 use std/data/string_map/block::merge
+use std/engine::|group_id
+use std/engine::|run_id
 use std/text/compose::|format
 use std/flow::emit
 use std/flow::pass
@@ -12,6 +14,7 @@ use std/flow::stream
 use std/flow::trigger
 use std/flow::filterBlock
 use std/flow::releaseBlock
+use std/flow::closeBlock
 use std/conv::toString
 use std/conv::|to_string
 use std/text/convert/string::toUtf8
@@ -33,6 +36,7 @@ use json/value::|null
 use json/value::fromStringMap
 use process/environment::Environment
 use process/environment::mapFullEnvironment
+use work/distant::|default_api_url
 use root/steps::spawnCommands
 use local::StepState
 use local::githubMapEval
@@ -40,11 +44,10 @@ use local::githubStringEval
 use local::githubCommand
 use local::githubGetEnv
 use local::githubSetOutputs
-use log/logger::Logger
-use log/log::logError
-use log/log::logInfos
+use std/engine/log::logError
+use std/engine/log::logInfos
 
-treatment runAction[contexts: JavaScriptEngine, logger: Logger](
+treatment runAction[contexts: JavaScriptEngine](
     id: Option<string> = _,
     name: string,
     display_name: Option<string> = _,
@@ -63,14 +66,16 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
 {
     ifExec: filterBlock<void>()
     localExec: emit<Option<string>>(value=_)
-    spawnCommands[logger=logger](label=|unwrap_or<string>(display_name, name))
+    spawnCommands(label=|unwrap_or<string>(display_name, name))
     mapFullEnvironment()
     wrapFullEnvironment: wrap<Environment>()
     githubCommand()
+    closeTerminate: closeBlock<void>()
 
     Self.trigger -> ifExec.value,accepted -> localExec.trigger,emit ----> spawnCommands.executor_name
     mapFullEnvironment.environment -> wrapFullEnvironment.value,option -> spawnCommands.environment
     githubCommand.command ----------------------------------------------> spawnCommands.commands
+    Self.trigger -> closeTerminate.trigger,closed ----------------------> spawnCommands.terminate
 
     setOutputs: githubSetOutputs[contexts=contexts]()
     
@@ -143,7 +148,7 @@ treatment runAction[contexts: JavaScriptEngine, logger: Logger](
                                                         mapContinueOnError.value -> evalContinueOnError.value,evaluated -> reduceContinueOnError.value                                                                            streamTrue.stream -> equalContinueOnError.b
 }
 
-treatment postGithubStateContext[contexts: JavaScriptEngine, logger: Logger](state: StepState, name: string, description: string, log_response: bool = false)
+treatment postGithubStateContext[contexts: JavaScriptEngine](state: StepState, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>
     model http_client: HttpClient(
         base_url = _,
@@ -154,7 +159,7 @@ treatment postGithubStateContext[contexts: JavaScriptEngine, logger: Logger](sta
     evalUrl: githubStringEval[contexts=contexts](local_context=|null())
     evalHeaders: githubMapEval[contexts=contexts](local_context=|null())
     
-    emitUrl: emit<string>(value="${{ github.api_url }}/repos/${{ github.repository_id }}/statuses/${{ github.sha }}")
+    emitUrl: emit<string>(value="${{ github.api_url }}/repos/${{ github.repository }}/statuses/${{ github.sha }}")
     emitHeaders: emit<StringMap>(value=|map([
             |entry("Accept", "application/vnd.github+json"),
             |entry("Authorization", "Bearer ${{ secrets.GITHUB_TOKEN }}"),
@@ -166,12 +171,16 @@ treatment postGithubStateContext[contexts: JavaScriptEngine, logger: Logger](sta
             "{{
                 \"state\": \"{state}\",
                 \"context\": \"{name}\",
-                \"description\": \"{description}\"
+                \"description\": \"{description}\",
+                \"target_url\": \"{api_url}/execution/report/dashboard/{group_id}/{run_id}\"
             }}",
             |map([
                     |entry("state", |to_string<StepState>(state)),
                     |entry("name", name),
-                    |entry("description", description)
+                    |entry("description", description),
+                    |entry("api_url", |default_api_url()),
+                    |entry("group_id", |group_id()),
+                    |entry("run_id", |run_id())
                 ])
         )
     ), |null()))
@@ -180,10 +189,10 @@ treatment postGithubStateContext[contexts: JavaScriptEngine, logger: Logger](sta
     toUtf8()
 
     passInfos: pass<byte>(cond=log_response)
-    logInfos[logger=logger](label="GitHub API")
+    logInfos(label="GitHub API")
     fromUtf8()
     post.data -> passInfos.stream,passed -> fromUtf8.encoded,text -> logInfos.messages
-    logError[logger=logger](label="GitHub API")
+    logError(label="GitHub API")
     post.error -> logError.message
 
     Self.trigger -> emitUrl.trigger,emit -> evalUrl.value,evaluated -> post.url
@@ -191,7 +200,7 @@ treatment postGithubStateContext[contexts: JavaScriptEngine, logger: Logger](sta
     Self.trigger -> emitBody.trigger,emit -> stream.block,stream -> toString.value,into -> toUtf8.text,encoded -> post.data
 }
 
-treatment postGithubState[logger: Logger](token: string, project: string, sha: string, state: StepState, name: string, description: string, log_response: bool = false)
+treatment postGithubState(token: string, project: string, sha: string, state: StepState, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>
 {
     post: simplePost(
@@ -209,10 +218,10 @@ treatment postGithubState[logger: Logger](token: string, project: string, sha: s
         )
     )
     passInfos: pass<byte>(cond=log_response)
-    logInfos[logger=logger](label="GitHub API")
+    logInfos(label="GitHub API")
     fromUtf8()
     post.data -> passInfos.stream,passed -> fromUtf8.encoded,text -> logInfos.messages
-    logError[logger=logger](label="GitHub API")
+    logError(label="GitHub API")
     post.error -> logError.message
 
     emit<Json>(value=|unwrap_or<Json>(|to_json(
@@ -220,12 +229,16 @@ treatment postGithubState[logger: Logger](token: string, project: string, sha: s
             "{{
                 \"state\": \"{state}\",
                 \"context\": \"{name}\",
-                \"description\": \"{description}\"
+                \"description\": \"{description}\",
+                \"target_url\": \"{api_url}/execution/report/dashboard/{group_id}/{run_id}\"
             }}",
             |map([
                     |entry("state", |to_string<StepState>(state)),
                     |entry("name", name),
-                    |entry("description", description)
+                    |entry("description", description),
+                    |entry("api_url", |default_api_url()),
+                    |entry("group_id", |group_id()),
+                    |entry("run_id", |run_id())
                 ])
         )
     ), |null()))

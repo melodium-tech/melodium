@@ -1,6 +1,6 @@
 [package]
 name = "melodium-common"
-version = "0.9.0"
+version = "0.10.1"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2018"
@@ -17,13 +17,28 @@ name = "melodium_common"
 
 [dependencies]
 async-trait = "0.1.71"
+chrono = { version = "0.4", default-features = false, features = ["serde"] }
 downcast-rs = "1.2.0"
 hex = "0.4"
 #num-traits = "0.2.17"
 semver = "1.0.17"
-serde = { version = "1", features = ["rc"] }
+serde = { version = "1", features = ["derive", "rc"] }
+uuid = { version = "1.7", features = ["serde"] }
 erased-serde = "0.4"
 
 [package.metadata.docs.rs]
-all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+default-target = "x86_64-unknown-linux-gnu"
+targets = [
+    "aarch64-unknown-linux-gnu",
+    "aarch64-unknown-linux-musl",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "riscv64gc-unknown-linux-gnu",
+    "s390x-unknown-linux-gnu",
+    "aarch64-apple-darwin",
+    "aarch64-pc-windows-msvc",
+    "x86_64-pc-windows-gnu",
+    "wasm32-unknown-unknown"
+]
+

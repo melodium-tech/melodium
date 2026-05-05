@@ -13,4 +13,6 @@ pub trait Output: Debug + Send + Sync {
 
     async fn send_many(&self, data: TransmissionValue) -> SendResult;
     async fn send_one(&self, data: Value) -> SendResult;
+
+    async fn force_send(&self);
 }

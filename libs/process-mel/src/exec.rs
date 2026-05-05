@@ -12,6 +12,8 @@ pub type OnceMessageCall<'a> =
 pub type OnceCodeCall<'a> = Box<
     dyn FnOnce(Option<i32>) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> + Send + Sync + 'a,
 >;
+pub type OnceRecvCall<'a> =
+    Box<dyn FnOnce() -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> + Send + Sync + 'a>;
 pub type InDataCall<'a> = Box<
     dyn Fn() -> Pin<Box<dyn Future<Output = Result<Vec<u8>, ()>> + Send + 'a>> + Send + Sync + 'a,
 >;
@@ -28,6 +30,7 @@ pub trait ExecutorEngine: Debug + Send + Sync {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
         completed: OnceTriggerCall<'async_trait>,
@@ -39,6 +42,7 @@ pub trait ExecutorEngine: Debug + Send + Sync {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
         completed: OnceTriggerCall<'async_trait>,
@@ -56,6 +60,7 @@ pub trait ExecutorEngine: Debug + Send + Sync {
         &self,
         command: &Command,
         environment: Option<&Environment>,
+        terminate: OnceRecvCall<'async_trait>,
         started: OnceTriggerCall<'async_trait>,
         finished: OnceTriggerCall<'async_trait>,
         completed: OnceTriggerCall<'async_trait>,
@@ -89,18 +94,23 @@ pub struct Executor {
 /// (the command itself may have failed in its own logic),
 /// and `exit` contains the return code of the command. `failed` is emitted if the executor
 /// is not able to launch the command, and `error` contains the associated error message.
+/// If `terminate` signal is received, the executor stops as soon as possible the process,
+/// and `terminated` is then emitted. In that case `finished` is also emitted but not `failed`
+/// or `completed`.
 #[mel_treatment(
     input executor Block<Executor>
     input command Block<Command>
     input environment Block<Option<Environment>>
+    input terminate Block<void>
     output started Block<void>
     output finished Block<void>
     output completed Block<void>
     output failed Block<void>
+    output terminated Block<void>
     output error Block<string>
     output exit Block<Option<i32>>
 )]
-pub async fn exec_one() {
+pub async fn exec_one_terminable() {
     if let (Ok(executor), Ok(command), Ok(environment)) = (
         executor.recv_one().await.map(|val| {
             GetData::<Arc<dyn Data>>::try_data(val)
@@ -124,11 +134,23 @@ pub async fn exec_one() {
             _ => unreachable!(),
         }),
     ) {
+        let mut send_terminated = false;
         executor
             .executor
             .exec(
                 &command,
                 environment.as_deref(),
+                Box::new(|| {
+                    Box::pin(async {
+                        match terminate.recv_one().await {
+                            Ok(_) => {
+                                send_terminated = true;
+                                true
+                            }
+                            Err(_) => false,
+                        }
+                    })
+                }),
                 Box::new(|| {
                     Box::pin(async {
                         let _ = started.send_one(().into()).await;
@@ -164,6 +186,9 @@ pub async fn exec_one() {
                 }),
             )
             .await;
+        if send_terminated {
+            let _ = terminated.send_one(().into()).await;
+        }
     }
 }
 
@@ -176,18 +201,23 @@ pub async fn exec_one() {
 /// (the command thelselves may have failed in their own logic),
 /// and `exit` contains the return code of each command. `failed` is emitted if the executor
 /// is not able to launch a command, and `error` contains the associated error message, and no new command is executed.
+/// If `terminate` signal is received, the executor stops as soon as possible the process,
+/// and `terminated` is then emitted. In that case `finished` is also emitted but not `failed`
+/// or `completed`.
 #[mel_treatment(
     input executor Block<Executor>
     input commands Stream<Command>
     input environment Block<Option<Environment>>
+    input terminate Block<void>
     output started Block<void>
     output finished Block<void>
     output completed Block<void>
     output failed Block<void>
+    output terminated Block<void>
     output error Block<string>
     output exit Stream<Option<i32>>
 )]
-pub async fn exec() {
+pub async fn exec_terminable() {
     if let (Ok(executor), Ok(environment)) = (
         executor.recv_one().await.map(|val| {
             GetData::<Arc<dyn Data>>::try_data(val)
@@ -207,6 +237,7 @@ pub async fn exec() {
     ) {
         let mut first = true;
         let mut success = true;
+        let mut send_terminated = false;
         while let Ok(command) = commands.recv_one().await.map(|val| {
             GetData::<Arc<dyn Data>>::try_data(val)
                 .unwrap()
@@ -218,6 +249,17 @@ pub async fn exec() {
                 .exec(
                     &command,
                     environment.as_deref(),
+                    Box::new(|| {
+                        Box::pin(async {
+                            match terminate.recv_one().await {
+                                Ok(_) => {
+                                    send_terminated = true;
+                                    true
+                                }
+                                Err(_) => false,
+                            }
+                        })
+                    }),
                     Box::new(|| {
                         Box::pin(async {
                             if first {
@@ -248,14 +290,16 @@ pub async fn exec() {
                     }),
                 )
                 .await;
-            if !success {
+            if !success || send_terminated {
                 break;
             }
         }
-        if success {
+        if success && !send_terminated {
             let _ = completed.send_one(().into()).await;
-        } else {
+        } else if !success && !send_terminated {
             let _ = failed.send_one(().into()).await;
+        } else if send_terminated {
+            let _ = terminated.send_one(().into()).await;
         }
         let _ = finished.send_one(().into()).await;
     }
@@ -273,10 +317,14 @@ pub async fn exec() {
 /// (the command itself may have failed in its own logic),
 /// and `exit` contains the return code of the command. `failed` is emitted if the executor
 /// is not able to launch the command, and `error` contains the associated error message.
+/// If `terminate` signal is received, the executor stops as soon as possible the process,
+/// and `terminated` is then emitted. In that case `finished` is also emitted but not `failed`
+/// or `completed`.
 #[mel_treatment(
     input executor Block<Executor>
     input command Block<Command>
     input environment Block<Option<Environment>>
+    input terminate Block<void>
     input stdin Stream<byte>
     output started Block<void>
     output stdout Stream<byte>
@@ -284,10 +332,11 @@ pub async fn exec() {
     output finished Block<void>
     output completed Block<void>
     output failed Block<void>
+    output terminated Block<void>
     output error Block<string>
     output exit Block<Option<i32>>
 )]
-pub async fn spawn_one() {
+pub async fn spawn_one_terminable() {
     if let (Ok(executor), Ok(command), Ok(environment)) = (
         executor.recv_one().await.map(|val| {
             GetData::<Arc<dyn Data>>::try_data(val)
@@ -311,11 +360,23 @@ pub async fn spawn_one() {
             _ => unreachable!(),
         }),
     ) {
+        let mut send_terminated = false;
         executor
             .executor
             .spawn(
                 &command,
                 environment.as_deref(),
+                Box::new(|| {
+                    Box::pin(async {
+                        match terminate.recv_one().await {
+                            Ok(_) => {
+                                send_terminated = true;
+                                true
+                            }
+                            Err(_) => false,
+                        }
+                    })
+                }),
                 Box::new(|| {
                     Box::pin(async {
                         let _ = started.send_one(().into()).await;
@@ -391,14 +452,17 @@ pub async fn spawn_one() {
                 }),
             )
             .await;
+        if send_terminated {
+            let _ = terminated.send_one(().into()).await;
+        }
     }
 }
 
-/// Spawn a command and provides input and outputs to the process.
+/// Spawn commands and provides outputs of the process.
 ///
-/// Takes an `Executor` on which `command` will be spawned with the optional `environment`.
+/// Takes an `Executor` on which `commands` will be spawned with the optional `environment`.
 ///
-/// `stdin` corresponds to standard input of the related process, `stdout` to the standard output,
+/// `stdout` corresponds to the standard output,
 /// and `stderr` to the standard error output.
 ///
 /// When the execution finishes, `finished` is emitted, regardless of the execution or command status.
@@ -406,20 +470,25 @@ pub async fn spawn_one() {
 /// (the command itself may have failed in its own logic),
 /// and `exit` contains the return code of the command. `failed` is emitted if the executor
 /// is not able to launch the command, and `error` contains the associated error message.
+/// If `terminate` signal is received, the executor stops as soon as possible the process,
+/// and `terminated` is then emitted. In that case `finished` is also emitted but not `failed`
+/// or `completed`.
 #[mel_treatment(
     input executor Block<Executor>
     input commands Stream<Command>
     input environment Block<Option<Environment>>
+    input terminate Block<void>
     output started Block<void>
     output stdout Stream<byte>
     output stderr Stream<byte>
     output finished Block<void>
     output completed Block<void>
     output failed Block<void>
+    output terminated Block<void>
     output error Block<string>
     output exit Stream<Option<i32>>
 )]
-pub async fn spawn() {
+pub async fn spawn_terminable() {
     if let (Ok(executor), Ok(environment)) = (
         executor.recv_one().await.map(|val| {
             GetData::<Arc<dyn Data>>::try_data(val)
@@ -439,6 +508,7 @@ pub async fn spawn() {
     ) {
         let mut first = true;
         let mut success = true;
+        let mut send_terminated = false;
         while let Ok(command) = commands.recv_one().await.map(|val| {
             GetData::<Arc<dyn Data>>::try_data(val)
                 .unwrap()
@@ -450,6 +520,17 @@ pub async fn spawn() {
                 .spawn_out(
                     &command,
                     environment.as_deref(),
+                    Box::new(|| {
+                        Box::pin(async {
+                            match terminate.recv_one().await {
+                                Ok(_) => {
+                                    send_terminated = true;
+                                    true
+                                }
+                                Err(_) => false,
+                            }
+                        })
+                    }),
                     Box::new(|| {
                         Box::pin(async {
                             if first {
@@ -498,14 +579,16 @@ pub async fn spawn() {
                     Box::new(|| Box::pin(async {})),
                 )
                 .await;
-            if !success {
+            if !success || send_terminated {
                 break;
             }
         }
-        if success {
+        if success && !send_terminated {
             let _ = completed.send_one(().into()).await;
-        } else {
+        } else if !success && !send_terminated {
             let _ = failed.send_one(().into()).await;
+        } else if send_terminated {
+            let _ = terminated.send_one(().into()).await;
         }
         let _ = finished.send_one(().into()).await;
     }

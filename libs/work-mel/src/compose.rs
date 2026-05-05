@@ -13,7 +13,7 @@ use compose_spec::{
             mount::{Bind, BindOptions, Common, Volume},
             HostPath, Mount,
         },
-        AbsolutePath, /*Cpus,*/ Image,
+        AbsolutePath, Hostname, /*Cpus,*/ Image,
     },
     Compose, Identifier, ListOrMap, Map, MapKey, Service, /*Value,*/
 };
@@ -44,9 +44,13 @@ impl Display for Executor {
 
 #[cfg(feature = "real")]
 pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String>> {
-    if request.edition.as_str() == "scratch" {
-        request.edition = "alpine".to_string()
+    use crate::reporting::REPORTS_ENABLED;
+
+    if request.edition.as_deref().unwrap_or("scratch") == "scratch" {
+        request.edition = Some("alpine".to_string())
     }
+
+    let enable_reports = REPORTS_ENABLED.load(core::sync::atomic::Ordering::Relaxed);
 
     let enable_debug = std::env::var("MELODIUM_COMPOSE_DEBUG")
         .map(|val| val == "true")
@@ -96,8 +100,10 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         eprintln!("Socket: {socket:?}");
     }
 
-    let id = Uuid::new_v4();
-    let short_id = format!("{id:.*}", 8);
+    if request.id.is_none() {
+        request.id = Some(Uuid::new_v4());
+    }
+    let short_id = format!("{1:.*}", 8, request.id.unwrap_or_default());
 
     let access_key = Uuid::new_v4();
 
@@ -140,6 +146,9 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             container_name: Some(
                 Identifier::new(format!("{short_id}-container-custom-{}", container.name))
                     .map_err(|err| vec![err.to_string()])?,
+            ),
+            hostname: Some(
+                Hostname::new(container.name.clone()).map_err(|err| vec![err.to_string()])?,
             ),
             image: Some(
                 Image::parse(container.image.clone()).map_err(|err| vec![err.to_string()])?,
@@ -193,6 +202,9 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             container_name: Some(
                 Identifier::new(format!("{short_id}-container-service-{}", container.name))
                     .map_err(|err| vec![err.to_string()])?,
+            ),
+            hostname: Some(
+                Hostname::new(container.name.clone()).map_err(|err| vec![err.to_string()])?,
             ),
             image: Some(
                 Image::parse(container.image.clone()).map_err(|err| vec![err.to_string()])?,
@@ -308,11 +320,33 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
 
     let mut environment = Map::new();
     environment.insert(
-        MapKey::new("MELODIUM_JOB_EXECUTOR").map_err(|err| vec![err.to_string()])?,
+        MapKey::new("MELODIUM_RUN_ID").map_err(|err| vec![err.to_string()])?,
+        Some(request.id.unwrap_or_default().to_string().into()),
+    );
+    environment.insert(
+        MapKey::new("MELODIUM_GROUP_ID").map_err(|err| vec![err.to_string()])?,
+        Some(melodium_engine::execution_group_id().to_string().into()),
+    );
+
+    if enable_reports {
+        use crate::{API_TOKEN, API_URL};
+
+        environment.insert(
+            MapKey::new("MELODIUM_API_URL").map_err(|err| vec![err.to_string()])?,
+            Some(API_URL.as_str().into()),
+        );
+        environment.insert(
+            MapKey::new("MELODIUM_API_TOKEN").map_err(|err| vec![err.to_string()])?,
+            API_TOKEN.as_ref().map(|t| t.as_str().into()),
+        );
+    }
+
+    environment.insert(
+        MapKey::new("MELODIUM_RUN_EXECUTOR").map_err(|err| vec![err.to_string()])?,
         Some(executor.to_string().into()),
     );
     environment.insert(
-        MapKey::new("MELODIUM_JOB_CONTAINERS").map_err(|err| vec![err.to_string()])?,
+        MapKey::new("MELODIUM_RUN_CONTAINERS").map_err(|err| vec![err.to_string()])?,
         Some(
             request
                 .containers
@@ -324,7 +358,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         ),
     );
     environment.insert(
-        MapKey::new("MELODIUM_JOB_SERVICE_CONTAINERS").map_err(|err| vec![err.to_string()])?,
+        MapKey::new("MELODIUM_RUN_SERVICE_CONTAINERS").map_err(|err| vec![err.to_string()])?,
         Some(
             request
                 .service_containers
@@ -336,7 +370,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         ),
     );
     environment.insert(
-        MapKey::new("MELODIUM_JOB_VOLUMES").map_err(|err| vec![err.to_string()])?,
+        MapKey::new("MELODIUM_RUN_VOLUMES").map_err(|err| vec![err.to_string()])?,
         Some(
             request
                 .volumes
@@ -350,21 +384,21 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
 
     for container in &request.containers {
         environment.insert(
-            MapKey::new(format!("MELODIUM_JOB_CONTAINER_{}", container.name))
+            MapKey::new(format!("MELODIUM_RUN_CONTAINER_{}", container.name))
                 .map_err(|err| vec![err.to_string()])?,
             Some(format!("{short_id}-container-custom-{}", container.name).into()),
         );
     }
     for container in &request.service_containers {
         environment.insert(
-            MapKey::new(format!("MELODIUM_JOB_SERVICE_CONTAINER_{}", container.name))
+            MapKey::new(format!("MELODIUM_RUN_SERVICE_CONTAINER_{}", container.name))
                 .map_err(|err| vec![err.to_string()])?,
             Some(format!("{short_id}-container-service-{}", container.name).into()),
         );
     }
     for volume in &request.volumes {
         environment.insert(
-            MapKey::new(format!("MELODIUM_JOB_VOLUME_{}", volume.name))
+            MapKey::new(format!("MELODIUM_RUN_VOLUME_{}", volume.name))
                 .map_err(|err| vec![err.to_string()])?,
             Some(format!("/media/{}", volume.name).into()),
         );
@@ -381,7 +415,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         .unwrap_or("quay.io/melodium".to_string())
                 }),
                 request.version,
-                request.edition,
+                request.edition.unwrap_or_else(|| "scratch".to_string()),
                 executor
             ))
             .map_err(|err| vec![err.to_string()])?,
@@ -394,30 +428,49 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         ),
         environment: compose_spec::ListOrMap::Map(environment),
         command: Some(compose_spec::service::Command::List(match &request.mode {
-            ModeRequest::Direct {
+            ModeRequest::DirectProject {
                 entrypoint,
                 project: _,
-            } => vec!["run".to_string(), entrypoint.clone()],
-            ModeRequest::Distribute { key } => vec![
-                "dist".to_string(),
-                "--ip".to_string(),
-                "0.0.0.0".to_string(),
-                "--port".to_string(),
-                "8080".to_string(),
-                "--wait".to_string(),
-                "30".to_string(),
-                "--duration".to_string(),
-                request.max_duration.to_string(),
-                "--recv-key".to_string(),
-                access_key.to_string(),
-                "--send-key".to_string(),
-                key.to_string(),
-                if bind_ip == Ipv4Addr::LOCALHOST {
-                    "--localhost".to_string()
+            } => {
+                if enable_reports {
+                    vec![
+                        "run".to_string(),
+                        "--api-report".to_string(),
+                        "--api-report-disable-status".to_string(),
+                        entrypoint.clone(),
+                    ]
                 } else {
-                    "--disable-tls".to_string()
-                },
-            ],
+                    vec!["run".to_string(), entrypoint.clone()]
+                }
+            }
+            ModeRequest::DistributionSecretKey { key } => {
+                let mut args = vec![
+                    "dist".to_string(),
+                    "--ip".to_string(),
+                    "0.0.0.0".to_string(),
+                    "--port".to_string(),
+                    "8080".to_string(),
+                    "--wait".to_string(),
+                    "30".to_string(),
+                    "--duration".to_string(),
+                    request.max_duration.unwrap_or(0).to_string(),
+                    "--recv-key".to_string(),
+                    access_key.to_string(),
+                    "--send-key".to_string(),
+                    key.to_string(),
+                    if bind_ip == Ipv4Addr::LOCALHOST {
+                        "--localhost".to_string()
+                    } else {
+                        "--disable-tls".to_string()
+                    },
+                ];
+                if enable_reports {
+                    args.push("--api-report".to_string());
+                    args.push("--api-report-disable-status".to_string());
+                }
+                args
+            }
+            _ => return Err(vec!["Unsupported mode".to_string()]),
         })),
         //cpus: Some(Cpus::new(request.cpu as f64 / 1000f64).map_err(|err| vec![err.to_string()])?),
         /*mem_limit: Some(compose_spec::service::ByteValue::Megabytes(
@@ -467,12 +520,14 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
             "-f",
             "-",
             "up",
+            "--quiet-pull",
             "--abort-on-container-exit",
             "--no-color",
             "--force-recreate",
             "--exit-code-from",
             melodium_service_name.as_str(),
         ])
+        .env("COMPOSE_ANSI", "never")
         .stdin(Stdio::piped())
         .stderr(Stdio::piped())
         .stdout(Stdio::piped())
@@ -491,6 +546,35 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                         .await
                         .map_err(|err| vec![err.to_string()])?;
                     let _ = stdin.close().await;
+                }
+
+                if enable_debug {
+                    use async_std::io::{BufReadExt, BufReader};
+
+                    if let Some(stdout) = child.stdout.take() {
+                        let _ = async_std::task::spawn(async move {
+                            let mut stdout = BufReader::new(stdout);
+                            let mut line = String::new();
+                            while let Ok(_) = stdout.read_line(&mut line).await {
+                                if !line.is_empty() {
+                                    eprintln!("Stdout: {line}");
+                                }
+                                line.clear();
+                            }
+                        });
+                    }
+                    if let Some(stderr) = child.stderr.take() {
+                        let _ = async_std::task::spawn(async move {
+                            let mut stderr = BufReader::new(stderr);
+                            let mut line = String::new();
+                            while let Ok(_) = stderr.read_line(&mut line).await {
+                                if !line.is_empty() {
+                                    eprintln!("Stderr: {line}");
+                                }
+                                line.clear();
+                            }
+                        });
+                    }
                 }
 
                 let mut success = false;
@@ -579,7 +663,7 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
                     }
 
                     let access = Access {
-                        id: id,
+                        id: request.id.unwrap_or_default(),
                         addresses: vec![bind_ip],
                         port: binding,
                         key: access_key,
