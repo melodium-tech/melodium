@@ -30,9 +30,18 @@ use work/resources::ServiceContainer
 use work/resources/arch::Arch
 
 /**
-Run a step on local machine.
+Run a CI/CD step on the local machine.
 
-This treatment runs commands on local machine.
+Executes `commands` sequentially on the local executor with the optional `variables` environment.
+Wraps `localStepTerminable` with a fixed terminate signal (no external cancellation).
+
+CI/CD service state reporting is controlled by `report`, `github`, and `gitlab` flags,
+using the corresponding token/project/sha parameters for each platform.
+`description` and `log_service_response` are forwarded to the service reporting treatment.
+
+`started` fires when the first command begins; `completed` when all commands succeed;
+`success` when the overall step is considered successful; `error` on non-zero exit;
+`failed` on executor-level failure; `finished` always at the end.
 */
 treatment localStep(
   name: string,

@@ -14,6 +14,11 @@ use root/engine/log::logDataBlockLabel
 use root/engine/log::logDataStreamLabel
 use root/flow::emit
 
+/**
+Log a fixed debug message when triggered.
+
+Emits `message` to the engine log at debug level with the given `label` whenever `trigger` fires.
+*/
 treatment logDebugMessage(label: string = "debug", message: string)
   model engine: Engine()
   input trigger: Block<void>
@@ -24,6 +29,11 @@ treatment logDebugMessage(label: string = "debug", message: string)
     Self.trigger -> emit.trigger,emit -> logBlock.message
 }
 
+/**
+Log a single debug-level message block.
+
+Forwards `message` to the engine log at debug level with the given `label`.
+*/
 treatment logDebug(label: string = "debug")
   model engine: Engine()
   input message: Block<string>
@@ -33,6 +43,11 @@ treatment logDebug(label: string = "debug")
     Self.message -> logBlock.message
 }
 
+/**
+Log a stream of debug-level messages.
+
+Each string in `messages` is forwarded to the engine log at debug level with the given `label`.
+*/
 treatment logDebugs(label: string = "debug")
   model engine: Engine()
   input messages: Stream<string>
@@ -42,6 +57,11 @@ treatment logDebugs(label: string = "debug")
     Self.messages -> logStream.messages
 }
 
+/**
+Log a single displayable value at debug level.
+
+Converts `data` to its display representation and logs it at debug level with the given `label`.
+*/
 treatment logDataDebug<D: Display>(label: string = "debug")
   model engine: Engine()
   input data: Block<D>
@@ -51,6 +71,11 @@ treatment logDataDebug<D: Display>(label: string = "debug")
     Self.data -> logDataBlock.display
 }
 
+/**
+Log a stream of displayable values at debug level.
+
+Each item in `data` is converted to its display representation and logged at debug level with the given `label`.
+*/
 treatment logDataDebugs<D: Display>(label: string = "debug")
   model engine: Engine()
   input data: Stream<D>
@@ -60,6 +85,11 @@ treatment logDataDebugs<D: Display>(label: string = "debug")
     Self.data -> logDataStream.display
 }
 
+/**
+Log a fixed error message when triggered.
+
+Emits `message` to the engine log at error level with the given `label` whenever `trigger` fires.
+*/
 treatment logErrorMessage(label: string = "error", message: string)
   model engine: Engine()
   input trigger: Block<void>
@@ -70,6 +100,11 @@ treatment logErrorMessage(label: string = "error", message: string)
     Self.trigger -> emit.trigger,emit -> logBlock.message
 }
 
+/**
+Log a single error-level message block.
+
+Forwards `message` to the engine log at error level with the given `label`.
+*/
 treatment logError(label: string = "error")
   model engine: Engine()
   input message: Block<string>
@@ -79,6 +114,11 @@ treatment logError(label: string = "error")
     Self.message -> logBlock.message
 }
 
+/**
+Log a stream of error-level messages.
+
+Each string in `messages` is forwarded to the engine log at error level with the given `label`.
+*/
 treatment logErrors(label: string = "error")
   model engine: Engine()
   input messages: Stream<string>
@@ -88,6 +128,11 @@ treatment logErrors(label: string = "error")
     Self.messages -> logStream.messages
 }
 
+/**
+Log a single displayable value at error level.
+
+Converts `data` to its display representation and logs it at error level with the given `label`.
+*/
 treatment logDataError<D: Display>(label: string = "error")
   model engine: Engine()
   input data: Block<D>
@@ -97,6 +142,11 @@ treatment logDataError<D: Display>(label: string = "error")
     Self.data -> logDataBlock.display
 }
 
+/**
+Log a stream of displayable values at error level.
+
+Each item in `data` is converted to its display representation and logged at error level with the given `label`.
+*/
 treatment logDataErrors<D: Display>(label: string = "error")
   model engine: Engine()
   input data: Stream<D>
@@ -106,6 +156,11 @@ treatment logDataErrors<D: Display>(label: string = "error")
     Self.data -> logDataStream.display
 }
 
+/**
+Log a fixed info message when triggered.
+
+Emits `message` to the engine log at info level with the given `label` whenever `trigger` fires.
+*/
 treatment logInfoMessage(label: string = "info", message: string)
   model engine: Engine()
   input trigger: Block<void>
@@ -116,6 +171,11 @@ treatment logInfoMessage(label: string = "info", message: string)
     Self.trigger -> emit.trigger,emit -> logBlock.message
 }
 
+/**
+Log a single info-level message block.
+
+Forwards `message` to the engine log at info level with the given `label`.
+*/
 treatment logInfo(label: string = "info")
   model engine: Engine()
   input message: Block<string>
@@ -125,6 +185,11 @@ treatment logInfo(label: string = "info")
     Self.message -> logBlock.message
 }
 
+/**
+Log a stream of info-level messages.
+
+Each string in `messages` is forwarded to the engine log at info level with the given `label`.
+*/
 treatment logInfos(label: string = "info")
   model engine: Engine()
   input messages: Stream<string>
@@ -134,6 +199,11 @@ treatment logInfos(label: string = "info")
     Self.messages -> logStream.messages
 }
 
+/**
+Log a single displayable value at info level.
+
+Converts `data` to its display representation and logs it at info level with the given `label`.
+*/
 treatment logDataInfo<D: Display>(label: string = "info")
   model engine: Engine()
   input data: Block<D>
@@ -143,6 +213,11 @@ treatment logDataInfo<D: Display>(label: string = "info")
     Self.data -> logDataBlock.display
 }
 
+/**
+Log a stream of displayable values at info level.
+
+Each item in `data` is converted to its display representation and logged at info level with the given `label`.
+*/
 treatment logDataInfos<D: Display>(label: string = "info")
   model engine: Engine()
   input data: Stream<D>
@@ -152,6 +227,11 @@ treatment logDataInfos<D: Display>(label: string = "info")
     Self.data -> logDataStream.display
 }
 
+/**
+Log a fixed trace message when triggered.
+
+Emits `message` to the engine log at trace level with the given `label` whenever `trigger` fires.
+*/
 treatment logTraceMessage(label: string = "trace", message: string)
   model engine: Engine()
   input trigger: Block<void>
@@ -162,6 +242,11 @@ treatment logTraceMessage(label: string = "trace", message: string)
     Self.trigger -> emit.trigger,emit -> logBlock.message
 }
 
+/**
+Log a single trace-level message block.
+
+Forwards `message` to the engine log at trace level with the given `label`.
+*/
 treatment logTrace(label: string = "trace")
   model engine: Engine()
   input message: Block<string>
@@ -171,6 +256,11 @@ treatment logTrace(label: string = "trace")
     Self.message -> logBlock.message
 }
 
+/**
+Log a stream of trace-level messages.
+
+Each string in `messages` is forwarded to the engine log at trace level with the given `label`.
+*/
 treatment logTraces(label: string = "trace")
   model engine: Engine()
   input messages: Stream<string>
@@ -180,6 +270,11 @@ treatment logTraces(label: string = "trace")
     Self.messages -> logStream.messages
 }
 
+/**
+Log a single displayable value at trace level.
+
+Converts `data` to its display representation and logs it at trace level with the given `label`.
+*/
 treatment logDataTrace<D: Display>(label: string = "trace")
   model engine: Engine()
   input data: Block<D>
@@ -189,6 +284,11 @@ treatment logDataTrace<D: Display>(label: string = "trace")
     Self.data -> logDataBlock.display
 }
 
+/**
+Log a stream of displayable values at trace level.
+
+Each item in `data` is converted to its display representation and logged at trace level with the given `label`.
+*/
 treatment logDataTraces<D: Display>(label: string = "trace")
   model engine: Engine()
   input data: Stream<D>
@@ -198,6 +298,11 @@ treatment logDataTraces<D: Display>(label: string = "trace")
     Self.data -> logDataStream.display
 }
 
+/**
+Log a fixed warning message when triggered.
+
+Emits `message` to the engine log at warning level with the given `label` whenever `trigger` fires.
+*/
 treatment logWarningMessage(label: string = "warning", message: string)
   model engine: Engine()
   input trigger: Block<void>
@@ -208,6 +313,11 @@ treatment logWarningMessage(label: string = "warning", message: string)
     Self.trigger -> emit.trigger,emit -> logBlock.message
 }
 
+/**
+Log a single warning-level message block.
+
+Forwards `message` to the engine log at warning level with the given `label`.
+*/
 treatment logWarning(label: string = "warning")
   model engine: Engine()
   input message: Block<string>
@@ -217,6 +327,11 @@ treatment logWarning(label: string = "warning")
     Self.message -> logBlock.message
 }
 
+/**
+Log a stream of warning-level messages.
+
+Each string in `messages` is forwarded to the engine log at warning level with the given `label`.
+*/
 treatment logWarnings(label: string = "warning")
   model engine: Engine()
   input messages: Stream<string>
@@ -226,6 +341,11 @@ treatment logWarnings(label: string = "warning")
     Self.messages -> logStream.messages
 }
 
+/**
+Log a single displayable value at warning level.
+
+Converts `data` to its display representation and logs it at warning level with the given `label`.
+*/
 treatment logDataWarning<D: Display>(label: string = "warning")
   model engine: Engine()
   input data: Block<D>
@@ -235,6 +355,11 @@ treatment logDataWarning<D: Display>(label: string = "warning")
     Self.data -> logDataBlock.display
 }
 
+/**
+Log a stream of displayable values at warning level.
+
+Each item in `data` is converted to its display representation and logged at warning level with the given `label`.
+*/
 treatment logDataWarnings<D: Display>(label: string = "warning")
   model engine: Engine()
   input data: Stream<D>
@@ -244,6 +369,11 @@ treatment logDataWarnings<D: Display>(label: string = "warning")
     Self.data -> logDataStream.display
 }
 
+/**
+Log a single debug-level message with a streamed label.
+
+Both `label` and `message` are received as blocks, allowing the label to vary at runtime.
+*/
 treatment logDebugLabel()
   model engine: Engine()
   input label: Block<string>
@@ -255,6 +385,11 @@ treatment logDebugLabel()
     Self.message -> logBlockLabel.message
 }
 
+/**
+Log a stream of debug-level messages with a streamed label.
+
+`label` is received as a block; each string in `messages` is logged at debug level under that label.
+*/
 treatment logDebugsLabel()
   model engine: Engine()
   input label: Block<string>
@@ -266,6 +401,11 @@ treatment logDebugsLabel()
     Self.messages -> logStreamLabel.messages
 }
 
+/**
+Log a single displayable value at debug level with a streamed label.
+
+Both `label` and `data` are received as blocks; `data` is converted to its display form before logging.
+*/
 treatment logDataDebugLabel<D: Display>()
   model engine: Engine()
   input label: Block<string>
@@ -277,6 +417,11 @@ treatment logDataDebugLabel<D: Display>()
     Self.data --> logDataBlockLabel.display
 }
 
+/**
+Log a stream of displayable values at debug level with a streamed label.
+
+`label` is received as a block; each item in `data` is converted to its display form and logged at debug level.
+*/
 treatment logDataDebugsLabel<D: Display>()
   model engine: Engine()
   input label: Block<string>
@@ -288,6 +433,11 @@ treatment logDataDebugsLabel<D: Display>()
     Self.data --> logDataStreamLabel.display
 }
 
+/**
+Log a single error-level message with a streamed label.
+
+Both `label` and `message` are received as blocks, allowing the label to vary at runtime.
+*/
 treatment logErrorLabel()
   model engine: Engine()
   input label: Block<string>
@@ -299,6 +449,11 @@ treatment logErrorLabel()
     Self.message -> logBlockLabel.message
 }
 
+/**
+Log a stream of error-level messages with a streamed label.
+
+`label` is received as a block; each string in `messages` is logged at error level under that label.
+*/
 treatment logErrorsLabel()
   model engine: Engine()
   input label: Block<string>
@@ -310,6 +465,11 @@ treatment logErrorsLabel()
     Self.messages -> logStreamLabel.messages
 }
 
+/**
+Log a single displayable value at error level with a streamed label.
+
+Both `label` and `data` are received as blocks; `data` is converted to its display form before logging.
+*/
 treatment logDataErrorLabel<D: Display>()
   model engine: Engine()
   input label: Block<string>
@@ -321,6 +481,11 @@ treatment logDataErrorLabel<D: Display>()
     Self.data --> logDataBlockLabel.display
 }
 
+/**
+Log a stream of displayable values at error level with a streamed label.
+
+`label` is received as a block; each item in `data` is converted to its display form and logged at error level.
+*/
 treatment logDataErrorsLabel<D: Display>()
   model engine: Engine()
   input label: Block<string>
@@ -332,6 +497,11 @@ treatment logDataErrorsLabel<D: Display>()
     Self.data --> logDataStreamLabel.display
 }
 
+/**
+Log a single trace-level message with a streamed label.
+
+Both `label` and `message` are received as blocks, allowing the label to vary at runtime.
+*/
 treatment logTraceLabel()
   model engine: Engine()
   input label: Block<string>
@@ -343,6 +513,11 @@ treatment logTraceLabel()
     Self.message -> logBlockLabel.message
 }
 
+/**
+Log a stream of trace-level messages with a streamed label.
+
+`label` is received as a block; each string in `messages` is logged at trace level under that label.
+*/
 treatment logTracesLabel()
   model engine: Engine()
   input label: Block<string>
@@ -354,6 +529,11 @@ treatment logTracesLabel()
     Self.messages -> logStreamLabel.messages
 }
 
+/**
+Log a single displayable value at trace level with a streamed label.
+
+Both `label` and `data` are received as blocks; `data` is converted to its display form before logging.
+*/
 treatment logDataTraceLabel<D: Display>()
   model engine: Engine()
   input label: Block<string>
@@ -365,6 +545,11 @@ treatment logDataTraceLabel<D: Display>()
     Self.data --> logDataBlockLabel.display
 }
 
+/**
+Log a stream of displayable values at trace level with a streamed label.
+
+`label` is received as a block; each item in `data` is converted to its display form and logged at trace level.
+*/
 treatment logDataTracesLabel<D: Display>()
   model engine: Engine()
   input label: Block<string>
@@ -376,6 +561,11 @@ treatment logDataTracesLabel<D: Display>()
     Self.data --> logDataStreamLabel.display
 }
 
+/**
+Log a single info-level message with a streamed label.
+
+Both `label` and `message` are received as blocks, allowing the label to vary at runtime.
+*/
 treatment logInfoLabel()
   model engine: Engine()
   input label: Block<string>
@@ -387,6 +577,11 @@ treatment logInfoLabel()
     Self.message -> logBlockLabel.message
 }
 
+/**
+Log a stream of info-level messages with a streamed label.
+
+`label` is received as a block; each string in `messages` is logged at info level under that label.
+*/
 treatment logInfosLabel()
   model engine: Engine()
   input label: Block<string>
@@ -398,6 +593,11 @@ treatment logInfosLabel()
     Self.messages -> logStreamLabel.messages
 }
 
+/**
+Log a single displayable value at info level with a streamed label.
+
+Both `label` and `data` are received as blocks; `data` is converted to its display form before logging.
+*/
 treatment logDataInfoLabel<D: Display>()
   model engine: Engine()
   input label: Block<string>
@@ -409,6 +609,11 @@ treatment logDataInfoLabel<D: Display>()
     Self.data --> logDataBlockLabel.display
 }
 
+/**
+Log a stream of displayable values at info level with a streamed label.
+
+`label` is received as a block; each item in `data` is converted to its display form and logged at info level.
+*/
 treatment logDataInfosLabel<D: Display>()
   model engine: Engine()
   input label: Block<string>
@@ -420,6 +625,11 @@ treatment logDataInfosLabel<D: Display>()
     Self.data --> logDataStreamLabel.display
 }
 
+/**
+Log a single warning-level message with a streamed label.
+
+Both `label` and `message` are received as blocks, allowing the label to vary at runtime.
+*/
 treatment logWarningLabel()
   model engine: Engine()
   input label: Block<string>
@@ -431,6 +641,11 @@ treatment logWarningLabel()
     Self.message -> logBlockLabel.message
 }
 
+/**
+Log a stream of warning-level messages with a streamed label.
+
+`label` is received as a block; each string in `messages` is logged at warning level under that label.
+*/
 treatment logWarningsLabel()
   model engine: Engine()
   input label: Block<string>
@@ -442,6 +657,11 @@ treatment logWarningsLabel()
     Self.messages -> logStreamLabel.messages
 }
 
+/**
+Log a single displayable value at warning level with a streamed label.
+
+Both `label` and `data` are received as blocks; `data` is converted to its display form before logging.
+*/
 treatment logDataWarningLabel<D: Display>()
   model engine: Engine()
   input label: Block<string>
@@ -453,6 +673,11 @@ treatment logDataWarningLabel<D: Display>()
     Self.data --> logDataBlockLabel.display
 }
 
+/**
+Log a stream of displayable values at warning level with a streamed label.
+
+`label` is received as a block; each item in `data` is converted to its display form and logged at warning level.
+*/
 treatment logDataWarningsLabel<D: Display>()
   model engine: Engine()
   input label: Block<string>

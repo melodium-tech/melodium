@@ -13,6 +13,19 @@ use std/flow::passBlock
 use std/flow::one
 use std/ops/bin::|and
 
+/**
+Report a CI/CD step state to one or more service integrations.
+
+Accepts lifecycle signals (`pending`, `running`, `success`, `error`, `failed`, `canceled`) and
+forwards the corresponding state to GitHub and/or GitLab commit status APIs depending on the
+`github` and `gitlab` flags. Reporting is skipped entirely when `report` is `false`.
+
+- `name`: the status context name shown in the CI/CD interface.
+- `description`: optional human-readable description attached to the status.
+- `log_response`: when `true`, logs the raw API response body at info level.
+- `github_token`, `github_project`, `github_sha`: credentials and target for GitHub status API.
+- `gitlab_root_url`, `gitlab_token`, `gitlab_project_id`, `gitlab_sha`, `gitlab_ref`, `gitlab_pipeline_id`: credentials and target for GitLab commit status API.
+*/
 treatment setServiceState(
     report: bool = true,
     github: bool = false,

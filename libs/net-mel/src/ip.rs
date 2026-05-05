@@ -57,19 +57,29 @@ impl Display for Ipv4 {
     }
 }
 
-/// Makes IPv4 generic.
+/// Wrap an `Ipv4` into a generic `Ip`.
 #[mel_function]
 pub fn from_ipv4(ipv4: Ipv4) -> Ip {
     Ip(std::net::IpAddr::V4(ipv4.0))
 }
 
-/// Makes IPv6 generic.
+/// Wrap an `Ipv6` into a generic `Ip`.
 #[mel_function]
 pub fn from_ipv6(ipv6: Ipv6) -> Ip {
     Ip(std::net::IpAddr::V6(ipv6.0))
 }
 
-/// Turn stream of IPv4 into generic IP
+/// Convert a stream of `Ipv4` addresses into generic `Ip` values.
+///
+/// ```mermaid
+/// graph LR
+///     T("fromIpv4()")
+///     A["〈🟦〉 … 〈🟨〉"] -->|ipv4| T
+///     T -->|ip| B["〈🟦〉 … 〈🟨〉"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input ipv4 Stream<Ipv4>
     output ip Stream<Ip>
@@ -97,7 +107,17 @@ pub async fn from_ipv4() {
     }
 }
 
-/// Turn stream of IPv6 into generic IP
+/// Convert a stream of `Ipv6` addresses into generic `Ip` values.
+///
+/// ```mermaid
+/// graph LR
+///     T("fromIpv6()")
+///     A["〈🟦〉 … 〈🟨〉"] -->|ipv6| T
+///     T -->|ip| B["〈🟦〉 … 〈🟨〉"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input ipv6 Stream<Ipv6>
     output ip Stream<Ip>
@@ -125,7 +145,7 @@ pub async fn from_ipv6() {
     }
 }
 
-/// Get the IPv4 of generic IP.
+/// Extract the `Ipv4` address from a generic `Ip`, or `none` if it is an IPv6 address.
 #[mel_function]
 pub fn as_ipv4(ip: Ip) -> Option<Ipv4> {
     if let std::net::IpAddr::V4(ip) = ip.0 {
@@ -135,7 +155,7 @@ pub fn as_ipv4(ip: Ip) -> Option<Ipv4> {
     }
 }
 
-/// Get the IPv6 of generic IP.
+/// Extract the `Ipv6` address from a generic `Ip`, or `none` if it is an IPv4 address.
 #[mel_function]
 pub fn as_ipv6(ip: Ip) -> Option<Ipv6> {
     if let std::net::IpAddr::V6(ip) = ip.0 {
@@ -145,7 +165,19 @@ pub fn as_ipv6(ip: Ip) -> Option<Ipv6> {
     }
 }
 
-/// Get the IPv4 from generic IP stream
+/// Extract the `Ipv4` address from each generic `Ip` in the stream.
+///
+/// Emits `none` for each element that is an IPv6 address.
+///
+/// ```mermaid
+/// graph LR
+///     T("asIpv4()")
+///     A["〈🟦〉 … 〈🟨〉"] -->|ip| T
+///     T -->|ipv4| B["〈🟦〉 … 〈none〉"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input ip Stream<Ip>
     output ipv4 Stream<Option<Ipv4>>
@@ -178,7 +210,19 @@ pub async fn as_ipv4() {
     }
 }
 
-/// Get the IPv6 from generic IP stream
+/// Extract the `Ipv6` address from each generic `Ip` in the stream.
+///
+/// Emits `none` for each element that is an IPv4 address.
+///
+/// ```mermaid
+/// graph LR
+///     T("asIpv6()")
+///     A["〈🟦〉 … 〈🟨〉"] -->|ip| T
+///     T -->|ipv6| B["〈🟦〉 … 〈none〉"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input ip Stream<Ip>
     output ipv6 Stream<Option<Ipv6>>
@@ -211,19 +255,29 @@ pub async fn as_ipv6() {
     }
 }
 
-/// Tells if generic IP is IPv4.
+/// Return `true` if `ip` is an IPv4 address.
 #[mel_function]
 pub fn is_ipv4(ip: Ip) -> bool {
     ip.0.is_ipv4()
 }
 
-/// Tells if generic IP is IPv6.
+/// Return `true` if `ip` is an IPv6 address.
 #[mel_function]
 pub fn is_ipv6(ip: Ip) -> bool {
     ip.0.is_ipv6()
 }
 
-/// Tells for IP in stream if they are v4
+/// Emit `true` for each `Ip` in the stream that is an IPv4 address, `false` otherwise.
+///
+/// ```mermaid
+/// graph LR
+///     T("isIpv4()")
+///     A["〈🟦〉 … 〈🟨〉"] -->|ip| T
+///     T -->|ipv4| B["true … false"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input ip Stream<Ip>
     output ipv4 Stream<bool>
@@ -250,7 +304,17 @@ pub async fn is_ipv4() {
     }
 }
 
-/// Tells for IP in stream if they are v6
+/// Emit `true` for each `Ip` in the stream that is an IPv6 address, `false` otherwise.
+///
+/// ```mermaid
+/// graph LR
+///     T("isIpv6()")
+///     A["〈🟦〉 … 〈🟨〉"] -->|ip| T
+///     T -->|ipv6| B["true … false"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input ip Stream<Ip>
     output ipv6 Stream<bool>
@@ -277,21 +341,31 @@ pub async fn is_ipv6() {
     }
 }
 
-/// Creates new IPv4.
+/// Build an `Ipv4` address from its four octets `a.b.c.d`.
 #[mel_function]
 pub fn ipv4(a: u8, b: u8, c: u8, d: u8) -> Ipv4 {
     Ipv4(std::net::Ipv4Addr::new(a, b, c, d))
 }
 
-/// Parse string into IPv4.
+/// Parse `text` into an `Ipv4` address, returning `none` if `text` is not a valid IPv4 address.
 #[mel_function]
 pub fn to_ipv4(text: string) -> Option<Ipv4> {
     std::net::Ipv4Addr::from_str(&text).ok().map(|ip| Ipv4(ip))
 }
 
-/// Parse string into IPv4.
+/// Parse each string in the stream into an `Ipv4` address.
 ///
-/// `ipv4` contains some `Ipv4` if input `text` contains valid ip, else none.
+/// Emits `none` for each element that is not a valid IPv4 address.
+///
+/// ```mermaid
+/// graph LR
+///     T("toIpv4()")
+///     A["🟦 … 🟨"] -->|text| T
+///     T -->|ipv4| B["〈🟦〉 … 〈none〉"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input text Stream<string>
     output ipv4 Stream<Option<Ipv4>>
@@ -317,13 +391,13 @@ pub async fn to_ipv4() {
     }
 }
 
-/// Return IPv4 localhost.
+/// Return the IPv4 loopback address `127.0.0.1`.
 #[mel_function]
 pub fn localhost_ipv4() -> Ipv4 {
     Ipv4(std::net::Ipv4Addr::LOCALHOST)
 }
 
-/// Return IPv4 unspecified.
+/// Return the IPv4 unspecified address `0.0.0.0`, typically used to bind to all interfaces.
 #[mel_function]
 pub fn unspecified_ipv4() -> Ipv4 {
     Ipv4(std::net::Ipv4Addr::UNSPECIFIED)
@@ -356,21 +430,31 @@ impl Display for Ipv6 {
     }
 }
 
-/// Creates new IPv6.
+/// Build an `Ipv6` address from its eight 16-bit segments `a:b:c:d:e:f:g:h`.
 #[mel_function]
 pub fn ipv6(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u16, h: u16) -> Ipv6 {
     Ipv6(std::net::Ipv6Addr::new(a, b, c, d, e, f, g, h))
 }
 
-/// Parse string into IPv6.
+/// Parse `text` into an `Ipv6` address, returning `none` if `text` is not a valid IPv6 address.
 #[mel_function]
 pub fn to_ipv6(text: string) -> Option<Ipv6> {
     std::net::Ipv6Addr::from_str(&text).ok().map(|ip| Ipv6(ip))
 }
 
-/// Parse string into IPv6.
+/// Parse each string in the stream into an `Ipv6` address.
 ///
-/// `ipv6` contains some `Ipv6` if input `text` contains valid ip, else none.
+/// Emits `none` for each element that is not a valid IPv6 address.
+///
+/// ```mermaid
+/// graph LR
+///     T("toIpv6()")
+///     A["🟦 … 🟨"] -->|text| T
+///     T -->|ipv6| B["〈🟦〉 … 〈none〉"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input text Stream<string>
     output ipv6 Stream<Option<Ipv6>>
@@ -396,13 +480,13 @@ pub async fn to_ipv6() {
     }
 }
 
-/// Return IPv6 localhost.
+/// Return the IPv6 loopback address `::1`.
 #[mel_function]
 pub fn localhost_ipv6() -> Ipv6 {
     Ipv6(std::net::Ipv6Addr::LOCALHOST)
 }
 
-/// Return IPv6 unspecified.
+/// Return the IPv6 unspecified address `::`, typically used to bind to all interfaces.
 #[mel_function]
 pub fn unspecified_ipv6() -> Ipv6 {
     Ipv6(std::net::Ipv6Addr::UNSPECIFIED)

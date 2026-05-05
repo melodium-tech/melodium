@@ -3,11 +3,13 @@ pub mod char;
 use melodium_core::*;
 use melodium_macro::{check, mel_function, mel_treatment};
 
+/// Return `true` if `text` contains `substring`.
 #[mel_function]
 pub fn contains(text: string, substring: string) -> bool {
     text.contains(&substring)
 }
 
+/// For each string in `text`, emit `true` through `contains` if it contains `substring`.
 #[mel_treatment(
     input text Stream<string>
     output contains Stream<bool>

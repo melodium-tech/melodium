@@ -571,3 +571,5 @@ When writing documentation for a Mélodium element, verify:
 - [ ] A code example is included when wiring is non-trivial or usage is not obvious.
 - [ ] No section headers (`##`, `###`) inside the doc comment body.
 - [ ] No restating of information the renderer already generates (parameter names/types, input/output types).
+
+For detailed guidance on writing and validating code examples specifically, see the [Code Example Strategy](documentation-code-example.md) reference.
