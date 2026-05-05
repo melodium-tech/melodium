@@ -24,6 +24,7 @@ impl std::fmt::Display for State {
     }
 }
 
+/// Possible state of a GitLab CI step.
 #[mel_data(
     traits (PartialEquality Serialize Deserialize Display ToString)
 )]
@@ -42,31 +43,37 @@ impl Display for StepState {
     }
 }
 
+/// Return the `pending` step state.
 #[mel_function]
 pub fn pending() -> StepState {
     StepState(State::Pending)
 }
 
+/// Return the `running` step state.
 #[mel_function]
 pub fn running() -> StepState {
     StepState(State::Running)
 }
 
+/// Return the `success` step state.
 #[mel_function]
 pub fn success() -> StepState {
     StepState(State::Success)
 }
 
+/// Return the `failed` step state.
 #[mel_function]
 pub fn failed() -> StepState {
     StepState(State::Failed)
 }
 
+/// Return the `canceled` step state.
 #[mel_function]
 pub fn canceled() -> StepState {
     StepState(State::Canceled)
 }
 
+/// Return the `skipped` step state.
 #[mel_function]
 pub fn skipped() -> StepState {
     StepState(State::Skipped)

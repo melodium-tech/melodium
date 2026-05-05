@@ -19,18 +19,18 @@ use std::{
     sync::{Arc, Weak},
 };
 
-/// Provides JavaScript execution engine.
-///
-/// The JavaScript/ECMAScript engine manages execution of JS language within Mélodium.
-/// First, an engine is instancied with `code` parameter, that code can contains functions definitions, variables setup, and whatever seems useful for incoming use.
-/// Then `process` treatment is used for doing JavaScript processing.
-///
-/// Other parameters are defined:
-/// - `stack_size_limit`: Maximum stack size the JavaScript code may use, in bytes.
-/// - `recursion_limit`: Maximum recursion that can be reached.
-/// - `loop_iteration_limit`: Maximum iteration that can occur on any loop.
-/// - `strict`: Defines JavaScript interpretation strictness, can be override by `"use strict"` instruction in JavaScript code.
 #[derive(Debug)]
+/// Provides a JavaScript/ECMAScript execution engine.
+///
+/// The engine is initialised with `code`, which may define functions, set up variables, or
+/// perform any one-time setup useful for later processing. Use the `process` treatment to run
+/// JavaScript against data at track time.
+///
+/// - `stack_size_limit`: maximum stack size available to JavaScript code, in bytes.
+/// - `recursion_limit`: maximum call-stack depth.
+/// - `loop_iteration_limit`: maximum iterations any single loop may perform.
+/// - `strict`: enables strict mode; can also be enabled per-script with `"use strict"`.
+/// - `code`: JavaScript source loaded once at engine initialisation.
 #[mel_model(
     param stack_size_limit u64 1024
     param recursion_limit u64 400

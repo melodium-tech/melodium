@@ -493,7 +493,14 @@ treatment handler()
 
 For an extended reference of what is available in Mélodium, see the [Mélodium Reference](references/REFERENCE.md) guide.
 
+If asked to create or modify a Mélodium project, read the specific [Mélodium Projects](references/projects.md) guide.
+
 If dealing with Mélodium elements written in Rust, read the specific [Mélodium Elements in Rust](references/rust.md) guide.
 
 If dealing with Mélodium documentation, either being instructed to write some or to explore some, read the specific [Mélodium Documentation](references/documentation.md) guide.
 
+### Migrations
+
+If you are asked to migrate code from Github Actions, read the specific [Github Actions migration](references/github-migration.md) guide.
+
+If you are asked to migrate code from Gitlab CI, read the specific [Gitlab CI migration](references/gitlab-migration.md) guide.

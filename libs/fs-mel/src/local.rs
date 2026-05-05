@@ -294,6 +294,14 @@ impl FileSystemEngine for LocalFileSystemEngine {
     }
 }
 
+/// Create a local filesystem handle optionally rooted at `path`.
+///
+/// When `path` is `Some`, all file operations performed through the returned `FileSystem`
+/// are interpreted relative to that directory.
+/// When `path` is `None`, the process working directory is used as the root.
+///
+/// Returns `None` only when the underlying engine cannot be initialised, which in practice
+/// never happens for a local filesystem.
 #[mel_function]
 pub fn local_filesystem(path: Option<string>) -> Option<FileSystem> {
     Some(FileSystem {

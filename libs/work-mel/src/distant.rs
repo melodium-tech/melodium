@@ -11,6 +11,17 @@ use std::{
 };
 use uuid::Uuid;
 
+/// Model for requesting and connecting to a distant Mélodium worker.
+///
+/// `DistantEngine` sends a worker request to the Mélodium Services API or a local Compose
+/// deployment, waits for the worker to become available, and provides an `Access` value for
+/// establishing a distribution connection.
+///
+/// - `location`: where to submit the request — `"api"` (default) for Mélodium Services, or `"compose"` for a local Docker/Podman Compose deployment.
+/// - `api_url`: base URL of the Mélodium Services API; defaults to the built-in endpoint.
+/// - `api_token`: authentication token for the API; can also be set via the `MELODIUM_API_TOKEN` environment variable.
+///
+/// Use the `distant` treatment to trigger a worker request.
 #[derive(Debug)]
 #[mel_model(
     param location string "api"
@@ -594,6 +605,7 @@ pub async fn distant(
     }
 }
 
+/// Return the default Mélodium Services API URL.
 #[mel_function]
 pub fn default_api_url() -> string {
     crate::API_URL.to_string()

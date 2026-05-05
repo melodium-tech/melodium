@@ -86,7 +86,7 @@ impl Display for Json {
     }
 }
 
-/// Parse string into Json data.
+/// Parse `text` into a `Json` value, returning `none` if `text` is not valid JSON.
 #[mel_function]
 pub fn to_json(text: string) -> Option<Json> {
     serde_json::from_str::<serde_json::Value>(&text)
@@ -94,10 +94,23 @@ pub fn to_json(text: string) -> Option<Json> {
         .map(|json| Json(json))
 }
 
-/// Parse string into Json data.
+/// Parse each string in the stream into a `Json` value.
 ///
-/// `json` contains json data if input `text` contains valid json, else none.
-/// `error` contains message if input `text` is not valid json, else none.
+/// For every element: `json` receives `some(Json)` on success and `none` on failure;
+/// `error` receives `none` on success and `some(message)` on failure.
+/// Both outputs always emit one value per input.
+///
+/// ```mermaid
+/// graph LR
+///     T("toJson()")
+///     A["🟦 … 🟨"] -->|text| T
+///     T -->|json| B["〈🟦〉 … 〈none〉"]
+///     T -->|error| E["〈none〉 … 〈🟥〉"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+///     style E fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input text Stream<string>
     output json Stream<Option<Json>>
@@ -133,9 +146,19 @@ pub async fn to_json() {
     }
 }
 
-/// Validate JSON string.
+/// Validate each string in the stream as JSON, emitting `true` if valid and `false` otherwise.
 ///
-/// Tells wether `text` is valid JSON or not.
+/// Unlike `toJson`, this treatment discards the parsed value — it only checks validity.
+///
+/// ```mermaid
+/// graph LR
+///     T("validate()")
+///     A["🟦 … 🟨"] -->|text| T
+///     T -->|is_json| B["true … false"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input {content(json)} text Stream<string>
     output is_json Stream<bool>

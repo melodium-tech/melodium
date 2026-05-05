@@ -1,6 +1,8 @@
 use melodium_macro::mel_function;
 
 /// Return the positive infinity for floating type.
+///
+/// Comparing any finite value against `infinity()` with `<` returns `true`.
 #[mel_function(
     generic F (Float)
 )]
@@ -21,6 +23,8 @@ pub fn neg_infinity() -> F {
 }
 
 /// Return the not-a-number value for floating type.
+///
+/// ⚠️ `NaN` is not equal to itself; use `is_nan()` to test for it rather than equality comparison.
 #[mel_function(
     generic F (Float)
 )]

@@ -411,6 +411,9 @@ impl ExecutorEngine for LocalExecutorEngine {
     }
 }
 
+/// Create a local executor that runs commands in the current process environment.
+///
+/// Returns `None` only in mock build mode; in production this always succeeds.
 #[mel_function]
 pub fn local_executor() -> Option<Executor> {
     Some(Executor {

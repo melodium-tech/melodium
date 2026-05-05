@@ -7,7 +7,7 @@ use std/flow::trigger
 use std/text/convert/string::fromUtf8
 use std/text/convert/string::toUtf8
 
-/*
+/**
 Read one file as text.
 
 The content of the file given through `path` is decoded as UTF-8 and streamed through `text`.

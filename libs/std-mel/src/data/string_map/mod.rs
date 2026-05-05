@@ -6,6 +6,11 @@ use std::sync::Arc;
 pub mod block;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// A `string`→`string` map; serialisable and equatable.
+///
+/// Commonly used for environment variables and HTTP headers.
+/// Supports `entry`, `get`, `insert`, and `merge` operations.
+/// Later entries with the same key overwrite earlier ones.
 #[mel_data(traits(Serialize Deserialize PartialEquality Equality))]
 pub struct StringMap {
     pub map: HashMap<String, String>,
@@ -29,7 +34,10 @@ impl Display for StringMap {
     }
 }
 
-/// Create a map from entries
+/// Build a `StringMap` by merging a list of single-entry maps.
+///
+/// Each element in `entries` should be produced by `|entry(key, value)`.
+/// Later entries with the same key overwrite earlier ones.
 #[mel_function]
 pub fn map(entries: Vec<StringMap>) -> StringMap {
     let mut map = HashMap::new();
@@ -39,7 +47,9 @@ pub fn map(entries: Vec<StringMap>) -> StringMap {
     StringMap { map }
 }
 
-/// Create a map with one entry
+/// Build a single-entry `StringMap` mapping `key` to `value`.
+///
+/// Typically used as an argument to `|map([...])` to construct multi-entry maps.
 #[mel_function]
 pub fn entry(key: string, value: string) -> StringMap {
     let mut map = HashMap::new();
@@ -47,9 +57,7 @@ pub fn entry(key: string, value: string) -> StringMap {
     StringMap { map }
 }
 
-/// Create maps with one entry
-///
-/// For every `value` coming through the stream, send a mono-entry map.
+/// For every `value` received on the stream, produce a single-entry `StringMap` with `key` → `value` and emit it on `map`.
 #[mel_treatment(
     input value Stream<string>
     output map Stream<StringMap>
@@ -67,15 +75,13 @@ pub async fn entry(key: string) {
     }
 }
 
-/// Get a map entry
+/// Look up `key` in `map` and return its value, or `none` if the key is absent.
 #[mel_function]
 pub fn get(map: StringMap, key: string) -> Option<string> {
     map.map.get(&key).cloned()
 }
 
-/// Get a map entry
-///
-/// For every `map` coming through the stream, get the `key` entry.
+/// For every `map` received on the stream, look up `key` and emit the result as `Option<string>` on `value`.
 #[mel_treatment(
     input map Stream<StringMap>
     output value Stream<Option<string>>
@@ -91,16 +97,14 @@ pub async fn get(key: string) {
     }
 }
 
-/// Insert one entry in a map
+/// Return a copy of `map` with `key` set to `value`, overwriting any existing entry for that key.
 #[mel_function]
 pub fn insert(mut map: StringMap, key: string, value: string) -> StringMap {
     map.map.insert(key, value);
     map
 }
 
-/// Insert entry in map
-///
-/// For every `value` coming through the stream, insert it into the `base` map.
+/// For every (`base`, `value`) pair received from the two streams, insert `key` → `value` into a copy of `base` and emit it on `map`.
 #[mel_treatment(
     input base Stream<StringMap>
     input value Stream<string>
