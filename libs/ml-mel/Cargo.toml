@@ -1,0 +1,52 @@
+[package]
+name = "ml-mel"
+version = "0.10.1"
+authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
+rust-version = "1.83"
+edition = "2021"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "Mélodium machine learning library"
+keywords = ["dataflow","parallelization","scalability","async","signal"]
+categories = ["compilers", "science", "concurrency", "asynchronous"]
+
+[lib]
+crate-type = ["lib", "cdylib"]
+name = "ml_mel"
+
+[dependencies]
+async-std = { version = "1.13" }
+candle-core = { version = "0.10.2" }
+candle-nn = { version = "0.10.2" }
+candle-transformers = { version = "0.10.2" }
+flume = { version = "0.11" }
+hf-hub = { version = "0.4", default-features = false, features = ["ureq"] }
+tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
+melodium-core = { path = "../../melodium-core", version = "0.10.1" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.1" }
+
+[features]
+mock = []
+plugin = []
+real = []
+
+[package.metadata.docs.rs]
+features = ["mock"]
+rustdoc-args = ["--cfg", "docsrs"]
+default-target = "x86_64-unknown-linux-gnu"
+targets = [
+    "aarch64-unknown-linux-gnu",
+    "aarch64-unknown-linux-musl",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "riscv64gc-unknown-linux-gnu",
+    "s390x-unknown-linux-gnu",
+    "aarch64-apple-darwin",
+    "aarch64-pc-windows-msvc",
+    "x86_64-pc-windows-gnu",
+    "wasm32-unknown-unknown"
+]
+
+
