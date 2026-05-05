@@ -1360,6 +1360,7 @@ name = "distrib-mel"
 version = "0.10.1"
 dependencies = [
  "async-std",
+ "event-listener 5.4.1",
  "futures",
  "futures-rustls",
  "melodium-certs",
