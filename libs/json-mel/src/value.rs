@@ -2,13 +2,23 @@ use super::*;
 use melodium_macro::{check, mel_function, mel_treatment};
 use std_mel::data::string_map::*;
 
-/// Return JSON `null` value.
+/// Return the JSON `null` value.
 #[mel_function]
 pub fn null() -> Json {
     Json(serde_json::Value::Null)
 }
 
-/// Makes stream of JSON `null` values.
+/// Emit a JSON `null` for each tick received on `ticks`.
+///
+/// ```mermaid
+/// graph LR
+///     T("null()")
+///     A["🟦 … 🟨"] -->|ticks| T
+///     T -->|nulls| B["null … null"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input ticks Stream<void>
     output nulls Stream<Json>
@@ -25,7 +35,7 @@ pub async fn null() {
     }
 }
 
-/// Makes a JSON boolean value.
+/// Convert a bool-convertible value into a JSON boolean.
 #[mel_function(
     generic B (ToBool)
 )]
@@ -33,7 +43,17 @@ pub fn from_bool(value: B) -> Json {
     Json(serde_json::Value::Bool(value.to_bool()))
 }
 
-/// Turns stream of boolean convertible values into JSON booleans.
+/// Convert each bool-convertible value in the stream into a JSON boolean.
+///
+/// ```mermaid
+/// graph LR
+///     T("fromBool()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|json| B["true … false"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     generic B (ToBool)
     input value Stream<B>
@@ -57,7 +77,7 @@ pub async fn from_bool() {
     }
 }
 
-/// Makes a JSON numeric value from i64
+/// Convert an i64-convertible value into a JSON number.
 #[mel_function(
     generic I (ToI64)
 )]
@@ -65,7 +85,17 @@ pub fn from_number_i64(value: I) -> Json {
     Json(serde_json::Value::from(value.to_i64()))
 }
 
-/// Turns stream of i64 convertible values into JSON numbers.
+/// Convert each i64-convertible value in the stream into a JSON number.
+///
+/// ```mermaid
+/// graph LR
+///     T("fromNumberI64()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|json| B["🟦 … 🟨"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     generic I (ToI64)
     input value Stream<I>
@@ -89,7 +119,7 @@ pub async fn from_number_i64() {
     }
 }
 
-/// Makes a JSON numeric value from u64
+/// Convert a u64-convertible value into a JSON number.
 #[mel_function(
     generic U (ToU64)
 )]
@@ -97,7 +127,17 @@ pub fn from_number_u64(value: U) -> Json {
     Json(serde_json::Value::from(value.to_u64()))
 }
 
-/// Turns stream of u64 convertible values into JSON numbers.
+/// Convert each u64-convertible value in the stream into a JSON number.
+///
+/// ```mermaid
+/// graph LR
+///     T("fromNumberU64()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|json| B["🟦 … 🟨"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     generic U (ToU64)
     input value Stream<U>
@@ -121,9 +161,9 @@ pub async fn from_number_u64() {
     }
 }
 
-/// Try to make a JSON numeric value from f64
+/// Convert an f64-convertible value into a JSON number, returning `none` if the value is infinite or NaN.
 ///
-/// An infinite or NaN number is not a valid JSON value, and then return none value if in that case.
+/// ⚠️ Infinite and NaN values are not valid JSON; use `from_number_f64` if you need a fallback instead of `none`.
 #[mel_function(
     generic F (ToF64)
 )]
@@ -135,9 +175,19 @@ pub fn try_from_number_f64(value: F) -> Option<Json> {
     }
 }
 
-/// Turns stream of f64 convertible values into JSON numbers.
+/// Convert each f64-convertible value in the stream into a JSON number, emitting `none` for infinite or NaN values.
 ///
-/// An infinite or NaN number is not a valid JSON value, and then stream none value if in that case.
+/// ⚠️ Infinite and NaN values are not valid JSON; use `fromNumberF64` if you need a fallback instead of `none`.
+///
+/// ```mermaid
+/// graph LR
+///     T("tryFromNumberF64()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|json| B["〈🟦〉 … 〈none〉"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     generic F (ToF64)
     input value Stream<F>
@@ -169,9 +219,9 @@ pub async fn try_from_number_f64() {
     }
 }
 
-/// Makes a JSON numeric value from f64
+/// Convert an f64-convertible value into a JSON number, using `replacement` if the value is infinite or NaN.
 ///
-/// An infinite or NaN number is not a valid JSON value, and then return `replacement` value if in that case.
+/// ⚠️ Infinite and NaN values are not valid JSON; `replacement` must itself be a valid JSON value.
 #[mel_function(
     generic F (ToF64)
 )]
@@ -183,9 +233,19 @@ pub fn from_number_f64(value: F, replacement: Json) -> Json {
     }
 }
 
-/// Turns stream of u64 convertible values into JSON numbers.
+/// Convert each f64-convertible value in the stream into a JSON number, emitting `replacement` for infinite or NaN values.
 ///
-/// An infinite or NaN number is not a valid JSON value, and then stream `replacement` value if in that case.
+/// ⚠️ Infinite and NaN values are not valid JSON; `replacement` must itself be a valid JSON value.
+///
+/// ```mermaid
+/// graph LR
+///     T("fromNumberF64(replacement=🟥)")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|json| B["🟦 … 🟥"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     generic F (ToF64)
     input value Stream<F>
@@ -215,7 +275,7 @@ pub async fn from_number_f64(replacement: Json) {
     }
 }
 
-/// Makes a JSON string value
+/// Convert a string-convertible value into a JSON string.
 #[mel_function(
     generic S (ToString)
 )]
@@ -223,7 +283,17 @@ pub fn from_string(value: S) -> Json {
     Json(serde_json::Value::from(DataTrait::to_string(&value)))
 }
 
-/// Turns stream of string convertible values into JSON strings.
+/// Convert each string-convertible value in the stream into a JSON string.
+///
+/// ```mermaid
+/// graph LR
+///     T("fromString()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|json| B["🟦 … 🟨"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     generic S (ToString)
     input value Stream<S>
@@ -249,7 +319,7 @@ pub async fn from_string() {
     }
 }
 
-/// Makes a JSON object
+/// Convert a `StringMap` into a JSON object where every value is a JSON string.
 #[mel_function]
 pub fn from_string_map(map: StringMap) -> Json {
     Json(serde_json::Value::Object(
@@ -260,7 +330,17 @@ pub fn from_string_map(map: StringMap) -> Json {
     ))
 }
 
-/// Turns stream of string map into JSON objects
+/// Convert each `StringMap` in the stream into a JSON object where every value is a JSON string.
+///
+/// ```mermaid
+/// graph LR
+///     T("fromStringMap()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|json| B["🟦 … 🟨"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input value Stream<StringMap>
     output json Stream<Json>
@@ -283,9 +363,7 @@ pub async fn from_string_map() {
     }
 }
 
-/// Makes a JSON boolean or null value.
-///
-/// If `value` is some boolean, it is turned into JSON boolean, else if `value` is `none`, `null` JSON value is returned.
+/// Convert an optional bool-convertible value into a JSON boolean, or `null` if `value` is `none`.
 #[mel_function(
     generic B (ToBool)
 )]
@@ -297,9 +375,17 @@ pub fn from_option_bool(value: Option<B>) -> Json {
     }
 }
 
-/// Turns stream of boolean convertible option values into JSON boolean or null values.
+/// Convert each optional bool-convertible value in the stream into a JSON boolean, or `null` for `none` elements.
 ///
-/// When `value` is some boolean, it is turned into JSON boolean, else if `value` is `none`, `null` JSON value is streamed.
+/// ```mermaid
+/// graph LR
+///     T("fromOptionBool()")
+///     A["〈🟦〉 … 〈none〉"] -->|value| T
+///     T -->|json| B["true … null"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     generic B (ToBool)
     input value Stream<Option<B>>
@@ -328,9 +414,7 @@ pub async fn from_option_bool() {
     }
 }
 
-/// Makes a JSON numeric or null value from option of convertible i64 value.
-///
-/// If `value` is some number, it is turned into JSON, else if `value` is `none`, `null` JSON value is returned.
+/// Convert an optional i64-convertible value into a JSON number, or `null` if `value` is `none`.
 #[mel_function(
     generic I (ToI64)
 )]
@@ -342,9 +426,17 @@ pub fn from_option_number_i64(value: Option<I>) -> Json {
     }
 }
 
-/// Turns stream of i64 convertible option values into JSON numbers.
+/// Convert each optional i64-convertible value in the stream into a JSON number, or `null` for `none` elements.
 ///
-/// When `value` is some number, it is turned into JSON, else if `value` is `none`, `null` JSON value is streamed.
+/// ```mermaid
+/// graph LR
+///     T("fromOptionNumberI64()")
+///     A["〈🟦〉 … 〈none〉"] -->|value| T
+///     T -->|json| B["🟦 … null"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     generic I (ToI64)
     input value Stream<Option<I>>
@@ -373,9 +465,7 @@ pub async fn from_option_number_i64() {
     }
 }
 
-/// Makes a JSON numeric or null value from option of convertible u64 value.
-///
-/// If `value` is some number, it is turned into JSON, else if `value` is `none`, `null` JSON value is returned.
+/// Convert an optional u64-convertible value into a JSON number, or `null` if `value` is `none`.
 #[mel_function(
     generic U (ToU64)
 )]
@@ -387,9 +477,17 @@ pub fn from_option_number_u64(value: Option<U>) -> Json {
     }
 }
 
-/// Turns stream of u64 convertible option values into JSON numbers.
+/// Convert each optional u64-convertible value in the stream into a JSON number, or `null` for `none` elements.
 ///
-/// When `value` is some number, it is turned into JSON, else if `value` is `none`, `null` JSON value is streamed.
+/// ```mermaid
+/// graph LR
+///     T("fromOptionNumberU64()")
+///     A["〈🟦〉 … 〈none〉"] -->|value| T
+///     T -->|json| B["🟦 … null"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     generic U (ToU64)
     input value Stream<Option<U>>
@@ -418,10 +516,9 @@ pub async fn from_option_number_u64() {
     }
 }
 
-/// Try to make a JSON numeric value from option f64 convertible value
+/// Convert an optional f64-convertible value into a JSON number, `null` if `value` is `none`, or `none` if the number is infinite or NaN.
 ///
-/// If `value` is some number, it is turned into JSON, else if `value` is `none`, `null` JSON value is returned.
-/// An infinite or NaN number is not a valid JSON value, and then return none value in that case.
+/// ⚠️ Infinite and NaN values are not valid JSON and result in `none` being returned, not a JSON value.
 #[mel_function(
     generic F (ToF64)
 )]
@@ -437,10 +534,19 @@ pub fn try_from_option_number_f64(value: Option<F>) -> Option<Json> {
     }
 }
 
-/// Turns stream of option f64 convertible values into JSON numbers.
+/// Convert each optional f64-convertible value in the stream into a JSON number, `null` for `none` elements, or `none` for infinite/NaN values.
 ///
-/// If `value` is some number, it is turned into JSON, else if `value` is `none`, `null` JSON value is streamed.
-/// An infinite or NaN number is not a valid JSON value, and then stream none value if in that case.
+/// ⚠️ Infinite and NaN values are not valid JSON and produce `none` on `json`, not a JSON `null`.
+///
+/// ```mermaid
+/// graph LR
+///     T("tryFromOptionNumberF64()")
+///     A["〈🟦〉 … 〈none〉"] -->|value| T
+///     T -->|json| B["〈🟦〉 … 〈null〉 … 〈none〉"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     generic F (ToF64)
     input value Stream<Option<F>>
@@ -477,10 +583,9 @@ pub async fn try_from_option_number_f64() {
     }
 }
 
-/// Makes a JSON numeric value from option f64 convertible value
+/// Convert an optional f64-convertible value into a JSON number, `null` if `value` is `none`, or `replacement` if the number is infinite or NaN.
 ///
-/// If `value` is some number, it is turned into JSON, else if `value` is `none`, `null` JSON value is returned.
-/// An infinite or NaN number is not a valid JSON value, then `replacement` value is used in that case.
+/// ⚠️ Infinite and NaN values are not valid JSON; `replacement` must itself be a valid JSON value.
 #[mel_function(
     generic F (ToF64)
 )]
@@ -496,10 +601,19 @@ pub fn from_option_number_f64(value: Option<F>, replacement: Json) -> Json {
     }
 }
 
-/// Turns stream of option u64 convertible values into JSON numbers.
+/// Convert each optional f64-convertible value in the stream into a JSON number, `null` for `none` elements, or `replacement` for infinite/NaN values.
 ///
-/// If `value` is some number, it is turned into JSON, else if `value` is `none`, `null` JSON value is streamed.
-/// An infinite or NaN number is not a valid JSON value, and then stream `replacement` value if in that case.
+/// ⚠️ Infinite and NaN values are not valid JSON; `replacement` must itself be a valid JSON value.
+///
+/// ```mermaid
+/// graph LR
+///     T("fromOptionNumberF64(replacement=🟥)")
+///     A["〈🟦〉 … 〈none〉"] -->|value| T
+///     T -->|json| B["🟦 … null … 🟥"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     generic F (ToF64)
     input value Stream<Option<F>>
@@ -532,9 +646,7 @@ pub async fn from_option_number_f64(replacement: Json) {
     }
 }
 
-/// Makes a JSON string or null value.
-///
-/// If `value` is some string, it is turned into JSON string, else if `value` is `none`, `null` JSON value is returned.
+/// Convert an optional string-convertible value into a JSON string, or `null` if `value` is `none`.
 #[mel_function(
     generic S (ToString)
 )]
@@ -546,9 +658,17 @@ pub fn from_option_string(value: Option<S>) -> Json {
     }
 }
 
-/// Turns stream of string convertible option values into JSON string or null values.
+/// Convert each optional string-convertible value in the stream into a JSON string, or `null` for `none` elements.
 ///
-/// When `value` is some string, it is turned into JSON string, else if `value` is `none`, `null` JSON value is streamed.
+/// ```mermaid
+/// graph LR
+///     T("fromOptionString()")
+///     A["〈🟦〉 … 〈none〉"] -->|value| T
+///     T -->|json| B["🟦 … null"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     generic S (ToString)
     input value Stream<Option<S>>
@@ -577,13 +697,23 @@ pub async fn from_option_string() {
     }
 }
 
-/// Tells if JSON value is null.
+/// Return `true` if `value` is JSON `null`.
 #[mel_function]
 pub fn is_null(value: Json) -> bool {
     value.0.is_null()
 }
 
-/// Determine if streamed JSON values are null.
+/// Emit `true` for each JSON value in the stream that is `null`, `false` otherwise.
+///
+/// ```mermaid
+/// graph LR
+///     T("isNull()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|is_null| B["false … true"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input value Stream<Json>
     output is_null Stream<bool>
@@ -613,13 +743,23 @@ pub async fn is_null() {
     }
 }
 
-/// Tells if JSON value is boolean.
+/// Return `true` if `value` is a JSON boolean.
 #[mel_function]
 pub fn is_bool(value: Json) -> bool {
     value.0.is_boolean()
 }
 
-/// Determine if streamed JSON values are booleans.
+/// Emit `true` for each JSON value in the stream that is a boolean, `false` otherwise.
+///
+/// ```mermaid
+/// graph LR
+///     T("isBool()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|is_bool| B["false … true"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input value Stream<Json>
     output is_bool Stream<bool>
@@ -649,13 +789,23 @@ pub async fn is_bool() {
     }
 }
 
-/// Tells if JSON value is a string.
+/// Return `true` if `value` is a JSON string.
 #[mel_function]
 pub fn is_string(value: Json) -> bool {
     value.0.is_string()
 }
 
-/// Determine if streamed JSON values are strings.
+/// Emit `true` for each JSON value in the stream that is a string, `false` otherwise.
+///
+/// ```mermaid
+/// graph LR
+///     T("isString()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|is_string| B["false … true"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input value Stream<Json>
     output is_string Stream<bool>
@@ -685,13 +835,23 @@ pub async fn is_string() {
     }
 }
 
-/// Tells if JSON value is a number.
+/// Return `true` if `value` is any JSON number (integer or float).
 #[mel_function]
 pub fn is_number(value: Json) -> bool {
     value.0.is_number()
 }
 
-/// Determine if streamed JSON values are numbers.
+/// Emit `true` for each JSON value in the stream that is any number (integer or float), `false` otherwise.
+///
+/// ```mermaid
+/// graph LR
+///     T("isNumber()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|is_number| B["false … true"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input value Stream<Json>
     output is_number Stream<bool>
@@ -721,13 +881,23 @@ pub async fn is_number() {
     }
 }
 
-/// Tells if JSON value is a i64 number.
+/// Return `true` if `value` is a JSON number representable as i64.
 #[mel_function]
 pub fn is_i64(value: Json) -> bool {
     value.0.is_i64()
 }
 
-/// Determine if streamed JSON values are i64 numbers.
+/// Emit `true` for each JSON value in the stream that is representable as i64, `false` otherwise.
+///
+/// ```mermaid
+/// graph LR
+///     T("isI64()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|is_i64| B["false … true"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input value Stream<Json>
     output is_i64 Stream<bool>
@@ -757,13 +927,23 @@ pub async fn is_i64() {
     }
 }
 
-/// Tells if JSON value is a u64 number.
+/// Return `true` if `value` is a JSON number representable as u64.
 #[mel_function]
 pub fn is_u64(value: Json) -> bool {
     value.0.is_u64()
 }
 
-/// Determine if streamed JSON values are u64 numbers.
+/// Emit `true` for each JSON value in the stream that is representable as u64, `false` otherwise.
+///
+/// ```mermaid
+/// graph LR
+///     T("isU64()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|is_u64| B["false … true"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input value Stream<Json>
     output is_u64 Stream<bool>
@@ -793,13 +973,23 @@ pub async fn is_u64() {
     }
 }
 
-/// Tells if JSON value is a f64 number.
+/// Return `true` if `value` is a JSON number representable as f64.
 #[mel_function]
 pub fn is_f64(value: Json) -> bool {
     value.0.is_f64()
 }
 
-/// Determine if streamed JSON values are f64 numbers.
+/// Emit `true` for each JSON value in the stream that is representable as f64, `false` otherwise.
+///
+/// ```mermaid
+/// graph LR
+///     T("isF64()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|is_f64| B["false … true"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input value Stream<Json>
     output is_f64 Stream<bool>
@@ -829,13 +1019,23 @@ pub async fn is_f64() {
     }
 }
 
-/// Tells if JSON value is a vector.
+/// Return `true` if `value` is a JSON array.
 #[mel_function]
 pub fn is_vec(value: Json) -> bool {
     value.0.is_array()
 }
 
-/// Determine if streamed JSON values are vectors.
+/// Emit `true` for each JSON value in the stream that is an array, `false` otherwise.
+///
+/// ```mermaid
+/// graph LR
+///     T("isVector()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|is_vector| B["false … true"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input value Stream<Json>
     output is_vector Stream<bool>
@@ -865,13 +1065,23 @@ pub async fn is_vector() {
     }
 }
 
-/// Tells if JSON value is an object.
+/// Return `true` if `value` is a JSON object.
 #[mel_function]
 pub fn is_object(value: Json) -> bool {
     value.0.is_object()
 }
 
-/// Determine if streamed JSON values are objects.
+/// Emit `true` for each JSON value in the stream that is an object, `false` otherwise.
+///
+/// ```mermaid
+/// graph LR
+///     T("isObject()")
+///     A["🟦 … 🟨"] -->|value| T
+///     T -->|is_object| B["false … true"]
+///
+///     style A fill:#ffff,stroke:#ffff
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input value Stream<Json>
     output is_object Stream<bool>
