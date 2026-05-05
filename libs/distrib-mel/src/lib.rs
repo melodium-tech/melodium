@@ -106,20 +106,16 @@ impl Write for NetworkStream {
     }
 }
 
-/// The `DistributionEngine` model handles remote distribution of Mélodium
-/// treatments. It connects to a distant engine using the provided access
-/// configuration, negotiates protocol compatibility, and then loads and
-/// launches a treatment identified by the model parameters. Once started it
-/// maintains an asynchronous connection and keeps track of distributed
-/// instances and tracks allowing the local engine to send inputs and receive
-/// outputs, logs and debugging information.
-///
-/// Parameters:
-/// * `treatment` – identifier of the treatment to execute on the remote
-///   engine.
-/// * `version` – version of the treatment (must be a valid [SemVer](https://semver.org/)).
-///
 #[derive(Debug)]
+/// Distribute a Mélodium treatment to a remote engine.
+///
+/// `DistributionEngine` connects to a distant engine using the provided access configuration,
+/// negotiates protocol compatibility, then loads and launches the treatment identified by the
+/// model parameters. It maintains an asynchronous connection and keeps track of distributed
+/// instances and tracks, allowing the local engine to send inputs and receive outputs.
+///
+/// - `treatment`: fully-qualified identifier of the treatment to execute on the remote engine.
+/// - `version`: version of the treatment (must be a valid SemVer string).
 #[mel_model(
     param treatment string none
     param version string none

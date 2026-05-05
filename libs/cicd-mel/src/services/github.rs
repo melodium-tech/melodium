@@ -29,6 +29,7 @@ impl std::fmt::Display for State {
     }
 }
 
+/// Possible state of a GitHub CI step.
 #[mel_data(
     traits (PartialEquality Serialize Deserialize Display ToString)
 )]
@@ -47,25 +48,47 @@ impl Display for StepState {
     }
 }
 
+/// Return the `pending` step state.
 #[mel_function]
 pub fn pending() -> StepState {
     StepState(State::Pending)
 }
+
+/// Return the `success` step state.
 #[mel_function]
 pub fn success() -> StepState {
     StepState(State::Success)
 }
 
+/// Return the `failure` step state.
 #[mel_function]
 pub fn failure() -> StepState {
     StepState(State::Failure)
 }
 
+/// Return the `error` step state.
 #[mel_function]
 pub fn error() -> StepState {
     StepState(State::Error)
 }
 
+/// Evaluate GitHub Actions expression syntax inside a `StringMap`.
+///
+/// Each string value in `map` is scanned for `${{ … }}` placeholders.
+/// When `assume` is `false` (the default) every placeholder is resolved via the JavaScript engine.
+/// When `assume` is `true`, values that contain no placeholder are treated as plain JavaScript expressions
+/// and evaluated directly.
+///
+/// `evaluated` receives the updated map once all values have been resolved.
+///
+/// ```mermaid
+/// graph LR
+///     T("githubMapEval()")
+///     M["〈🟦〉"] -->|map| T
+///     T -->|evaluated| O["〈🟦〉"]
+///     style M fill:#ffff,stroke:#ffff
+///     style O fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     model contexts JavaScriptEngine
     default assume false
@@ -91,6 +114,23 @@ pub async fn github_map_eval(assume: bool, local_context: Json) {
     }
 }
 
+/// Evaluate GitHub Actions expression syntax inside a single string.
+///
+/// The `value` string is scanned for `${{ … }}` placeholders.
+/// When `assume` is `false` (the default) every placeholder is resolved via the JavaScript engine.
+/// When `assume` is `true`, a value without any placeholder is treated as a plain JavaScript expression
+/// and evaluated directly.
+///
+/// `evaluated` receives the resolved string.
+///
+/// ```mermaid
+/// graph LR
+///     T("githubStringEval()")
+///     I["〈🟨〉"] -->|value| T
+///     T -->|evaluated| O["〈🟨〉"]
+///     style I fill:#ffff,stroke:#ffff
+///     style O fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     model contexts JavaScriptEngine
     default assume false
@@ -125,6 +165,25 @@ pub async fn github_string_eval(assume: bool, local_context: Json) {
     }
 }
 
+/// Build a shell `Command` for a GitHub Actions `run` step.
+///
+/// Given the optional `shell` name and the script content in `run`, writes the script to a
+/// temporary file and emits a `Command` value ready to be passed to an executor.
+///
+/// Supported `shell` values: `"bash"`, `"sh"`, `"pwsh"`, `"powershell"`, `"python"`, `"cmd"`.
+/// When `shell` is `None`, the platform default is used (`bash` on Unix, `pwsh` on Windows).
+/// Nothing is emitted if the shell name is unrecognised or if the script file cannot be written.
+///
+/// ```mermaid
+/// graph LR
+///     T("githubCommand()")
+///     S["〈🟦〉"] -->|shell| T
+///     R["〈🟨〉"] -->|run| T
+///     T -->|command| C["🟩 …"]
+///     style S fill:#ffff,stroke:#ffff
+///     style R fill:#ffff,stroke:#ffff
+///     style C fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input shell Block<Option<string>>
     input run Block<string>
@@ -268,6 +327,23 @@ pub async fn github_command() {
     }
 }
 
+/// Collect GitHub Actions environment variables for a workflow step.
+///
+/// Reads the `GITHUB_ENV` file accumulated so far for `workflow_id` and merges it with
+/// the standard GitHub environment file paths (`GITHUB_ENV`, `GITHUB_OUTPUT`, `GITHUB_WORKSPACE`).
+///
+/// `variables` emits a `StringMap` containing all resolved environment variables.
+///
+/// ```mermaid
+/// graph LR
+///     T("githubGetEnv()")
+///     W["〈🟦〉"] -->|workflow_id| T
+///     S["〈🟨〉"] -->|step_id| T
+///     T -->|variables| V["〈🟩〉"]
+///     style W fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+///     style V fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input workflow_id Block<string>
     input step_id Block<string>
@@ -308,6 +384,29 @@ pub async fn github_get_env() {
     }
 }
 
+/// Compute the final job result after all steps have run.
+///
+/// Waits for `trigger_release`, then evaluates `outputs` expressions via the JavaScript engine
+/// and queries the job status from the engine context.
+///
+/// `result` emits a `Json` value containing the full job result object.
+/// `success` is emitted when the job status is `"success"`, `failure` when it is `"failure"`.
+/// `finished` is always emitted when the treatment ends.
+///
+/// ```mermaid
+/// graph LR
+///     T("githubJobResult()")
+///     TR["〈🟦〉"] -->|trigger_release| T
+///     T -->|result| R["〈🟨〉"]
+///     T -->|success| S["〈🟩〉"]
+///     T -->|failure| F["〈🟥〉"]
+///     T -->|finished| FN["〈🟦〉"]
+///     style TR fill:#ffff,stroke:#ffff
+///     style R fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+///     style F fill:#ffff,stroke:#ffff
+///     style FN fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     model contexts JavaScriptEngine
 
@@ -364,6 +463,37 @@ pub async fn github_job_result(name: string, outputs: StringMap, local_context: 
     let _ = finished.send_one(().into()).await;
 }
 
+/// Record step outputs and advance the GitHub Actions step state machine.
+///
+/// Waits for either `spawn_completed` or `spawn_failed` to arrive, then reads the step's
+/// output file, updates the JavaScript engine's `steps` context object, and emits the
+/// appropriate signals.
+///
+/// `step_completed` is emitted when the step succeeded.
+/// `step_failed` is emitted when the step failed.
+/// `step_continue` is emitted when execution should proceed to the next step (either because
+/// the step succeeded, or because `continue_on_error` is `true`).
+///
+/// ```mermaid
+/// graph LR
+///     T("githubSetOutputs()")
+///     W["〈🟦〉"] -->|workflow_id| T
+///     S["〈🟨〉"] -->|step_id| T
+///     C["〈🟩〉"] -->|continue_on_error| T
+///     SC["〈🟪〉"] -->|spawn_completed| T
+///     SF["〈🟫〉"] -->|spawn_failed| T
+///     T -->|step_completed| O1["〈🟦〉"]
+///     T -->|step_failed| O2["〈🟥〉"]
+///     T -->|step_continue| O3["〈🟩〉"]
+///     style W fill:#ffff,stroke:#ffff
+///     style S fill:#ffff,stroke:#ffff
+///     style C fill:#ffff,stroke:#ffff
+///     style SC fill:#ffff,stroke:#ffff
+///     style SF fill:#ffff,stroke:#ffff
+///     style O1 fill:#ffff,stroke:#ffff
+///     style O2 fill:#ffff,stroke:#ffff
+///     style O3 fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     model contexts JavaScriptEngine
 
@@ -482,6 +612,19 @@ pub async fn github_set_outputs() {
     }
 }
 
+/// Emit the path to the `GITHUB_ENV` file for a given workflow run.
+///
+/// `filename` receives the absolute path to the environment accumulation file used by
+/// `github_get_env`.
+///
+/// ```mermaid
+/// graph LR
+///     T("githubGetEnvFiles()")
+///     W["〈🟦〉"] -->|workflow_id| T
+///     T -->|filename| F["〈🟨〉"]
+///     style W fill:#ffff,stroke:#ffff
+///     style F fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input workflow_id Block<string>
     output filename Block<string>

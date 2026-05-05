@@ -327,6 +327,7 @@ pub async fn launch(
     debug_path: Option<PathBuf>,
     enable_reports: bool,
     enable_status: bool,
+    tags: Option<Vec<String>>,
 ) -> LogicResult<()> {
     let engine = melodium_engine::new_engine(collection, Level::Trace, DebugLevel::Detailed);
 
@@ -376,6 +377,7 @@ pub async fn launch(
             enable_reports,
             enable_status,
             work_mel::api::ModeRequest::Direct,
+            tags,
         )
         .await;
         signal_launched = status_reporting.launched;
@@ -592,6 +594,7 @@ pub async fn api_report(
     enable_reports: bool,
     enable_status: bool,
     mode: work_mel::api::ModeRequest,
+    tags: Option<Vec<String>>,
 ) -> (
     async_std::channel::Sender<melodium_share::ProgramDump>,
     async_std::channel::Sender<Log>,
@@ -613,6 +616,7 @@ pub async fn api_report(
         reporting_request,
         &melodium_common::descriptor::Version::parse(VERSION).unwrap(),
         mode,
+        tags,
     )
     .await;
     let mut join_program_dump = None;

@@ -22,6 +22,15 @@ use std/engine/log::logError
 use std/engine/log::logInfos
 use work/distant::|default_api_url
 
+/**
+Post a commit status to the GitLab API.
+
+Sends a POST request to `{root_url}/projects/{project}/statuses/{sha}` using `token` for
+authentication. The body carries `state`, `ref`, `pipeline`, `name`, `description`, and a
+link back to the Mélodium execution dashboard as `target_url`.
+When `log_response` is `true`, the raw response body is logged at info level under the
+"GitLab API" label; errors are always logged.
+*/
 treatment postGitlabState(root_url: string, token: string, project: string, sha: string, state: StepState, ref: string, pipeline: string, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>
 {

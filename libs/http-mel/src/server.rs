@@ -384,6 +384,20 @@ impl HttpServer {
     }
 }
 
+/// Start listening for incoming HTTP connections.
+///
+/// Blocks until `trigger` is received, then releases the HTTP server launch barrier so
+/// that the server begins accepting connections.
+///
+/// ℹ️ Use this treatment together with `connection` — `start` unblocks the server, while
+/// each `connection` track handles an individual request.
+///
+/// ```mermaid
+/// graph LR
+///     T("start()")
+///     B["〈🟦〉"] -->|trigger| T
+///     style B fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     model http_server HttpServer
     input trigger Block<void>
@@ -397,6 +411,27 @@ pub async fn start() {
     }
 }
 
+/// Send an HTTP response for a specific connection.
+///
+/// Low-level counterpart to `connection` — sends `status`, `headers`, and streams the body
+/// `data` back to the client identified by `id`.
+///
+/// `status` and `headers` must both arrive before any body data is forwarded; if either is
+/// missing the response is not sent.
+///
+/// ⚠️ Use `connection` rather than `outgoing` directly unless you have a specific reason to
+/// manage connection IDs manually.
+///
+/// ```mermaid
+/// graph LR
+///     T("outgoing()")
+///     ST["〈🟦〉"] -->|status| T
+///     H["〈🟨〉"] -->|headers| T
+///     D["🟩 …"] -->|data| T
+///     style ST fill:#ffff,stroke:#ffff
+///     style H fill:#ffff,stroke:#ffff
+///     style D fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input status Block<HttpStatus>
     input headers Block<StringMap>

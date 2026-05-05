@@ -3,9 +3,7 @@ use melodium_macro::mel_treatment;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// Create maps with one entry
-///
-/// When `value` is received, generates a mono-entry map with it.
+/// When `value` is received, produce a single-entry `Map` with `key` → `value` and emit it on `map`.
 #[mel_treatment(
     generic T ()
     input value Block<T>
@@ -20,9 +18,9 @@ pub async fn entry(key: string) {
     }
 }
 
-/// Get a map entry
+/// Receive one `Map` block and emit the value stored under `key` as `Option<T>` on `value`.
 ///
-/// Takes in `map` the `key` entry.
+/// Emits `none` if the key is absent or the stored value does not match type `T`.
 #[mel_treatment(
     generic T ()
     input map Block<Map>
@@ -39,9 +37,7 @@ pub async fn get(key: string) {
     }
 }
 
-/// Insert entry in map
-///
-/// Insert `value` in `base` map, then emit to `map`.
+/// Receive one `base` map and one `value` block, insert `key` → `value` into a copy of `base`, and emit the updated map on `map`.
 #[mel_treatment(
     generic T ()
     input base Block<Map>

@@ -739,7 +739,6 @@ impl Documentation {
             r#"[book]
 authors = ["{}"]
 language = "en"
-multilingual = false
 src = "src"
 title = "{}"
 

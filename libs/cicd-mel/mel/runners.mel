@@ -108,6 +108,11 @@ treatment setupRunner[dispatcher: CicdDispatchEngine, runner: CicdRunnerEngine](
     oneFailed.value -> Self.failed
 }
 
+/**
+Stop a running CI/CD runner worker.
+
+Signals the `CicdRunnerEngine` distributor to stop the worker when `trigger` fires.
+*/
 treatment stopRunner[runner: CicdRunnerEngine]()
   input trigger: Block<void>
 {

@@ -21,6 +21,12 @@ struct TrackEntry {
     pub track_receiver: Mutex<Option<Receiver<Value>>>,
 }
 
+/// Collect and re-distribute typed data streams across tracks within a single engine run.
+///
+/// `concentrate` / `concentrateBlock` push values in per-track, per-type channels;
+/// `concentrated` drains those channels back out as a stream.
+/// Useful when multiple upstream tracks need to fan-in into a single downstream consumer
+/// that processes all values after all producers have finished.
 #[mel_model]
 #[derive(Debug)]
 pub struct Concentrator {
@@ -128,6 +134,9 @@ impl Concentrator {
     }
 }
 
+/// Receive a `Stream<T>` and forward each value into the `Concentrator` channel for type `T` on the current track.
+///
+/// Pair with `concentrated` to retrieve the accumulated values after all producers are done.
 #[mel_treatment(
     model concentrator Concentrator
     generic T ()
@@ -146,6 +155,9 @@ pub async fn concentrate() {
     }
 }
 
+/// Receive a single `Block<T>` value and forward it into the `Concentrator` channel for type `T` on the current track.
+///
+/// Block variant of `concentrate`; use when the producer emits exactly one value rather than a stream.
 #[mel_treatment(
     model concentrator Concentrator
     generic T ()
@@ -164,6 +176,9 @@ pub async fn concentrateBlock() {
     }
 }
 
+/// Wait for `trigger` then drain the `Concentrator` channel for type `T` on the current track, re-emitting all accumulated values through `data`.
+///
+/// `trigger` must carry a value of the same type `T` as the accumulated data; the value itself is ignored — only its arrival matters.
 #[mel_treatment(
     model concentrator Concentrator
     generic T ()

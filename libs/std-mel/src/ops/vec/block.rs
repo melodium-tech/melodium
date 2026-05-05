@@ -1,6 +1,7 @@
 use melodium_core::*;
 use melodium_macro::mel_treatment;
 
+/// Check whether `vec` contains a value equal to `value` and emit the boolean result through `contains`.
 #[mel_treatment(
     generic T (PartialEquality)
     input value Block<T>
@@ -15,6 +16,7 @@ pub async fn contains() {
     }
 }
 
+/// Append the elements of `second` to `first` and emit the combined vector through `concatened`.
 #[mel_treatment(
     generic T ()
     input first Block<Vec<T>>

@@ -2,6 +2,9 @@ use crate::engine::*;
 use melodium_core::common::executive::Level as LogLevel;
 use melodium_macro::{mel_data, mel_function, mel_treatment};
 
+/// Forward a stream of strings to the engine log at the given `level` under `label`.
+///
+/// Each received string is logged as a separate entry. The treatment continues until the stream closes.
 #[mel_treatment(
     model engine Engine
     input messages Stream<string>
@@ -23,6 +26,9 @@ pub async fn log_stream(level: Level, label: string) {
     }
 }
 
+/// Like `log_stream` but reads `label` as a block input rather than a constant parameter.
+///
+/// Waits for `label` to arrive first, then logs each string in `messages` at `level` under that label.
 #[mel_treatment(
     model engine Engine
     input label Block<string>
@@ -51,6 +57,7 @@ pub async fn log_stream_label(level: Level) {
     }
 }
 
+/// Forward a single string block to the engine log at the given `level` under `label`.
 #[mel_treatment(
     model engine Engine
     input message Block<string>
@@ -70,6 +77,9 @@ pub async fn log_block(level: Level, label: string) {
     }
 }
 
+/// Like `log_block` but reads both `label` and `message` as block inputs.
+///
+/// Waits for `label` first, then logs `message` at `level` under that label.
 #[mel_treatment(
     model engine Engine
     input label Block<string>
@@ -96,6 +106,7 @@ pub async fn log_block_label(level: Level) {
     }
 }
 
+/// Convert each item in a `Display` stream to its string representation and log it at `level` under `label`.
 #[mel_treatment(
     model engine Engine
     input display Stream<D>
@@ -118,6 +129,9 @@ pub async fn log_data_stream(level: Level, label: string) {
     }
 }
 
+/// Like `log_data_stream` but reads `label` as a block input.
+///
+/// Waits for `label` first, then converts and logs each item in `display` at `level`.
 #[mel_treatment(
     model engine Engine
     input label Block<string>
@@ -147,6 +161,7 @@ pub async fn log_data_stream_label(level: Level) {
     }
 }
 
+/// Convert a single `Display` block to its string representation and log it at `level` under `label`.
 #[mel_treatment(
     model engine Engine
     input display Block<D>
@@ -163,6 +178,9 @@ pub async fn log_data_block(level: Level, label: string) {
     }
 }
 
+/// Like `log_data_block` but reads both `label` and `display` as block inputs.
+///
+/// Waits for `label` first, then converts and logs `display` at `level`.
 #[mel_treatment(
     model engine Engine
     input label Block<string>
@@ -187,6 +205,10 @@ pub async fn log_data_block_label(level: Level) {
 }
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+/// Log severity level.
+///
+/// Ordered from lowest to highest verbosity: `trace` < `debug` < `info` < `warning` < `error`.
+/// Use the constructor functions `|trace()`, `|debug()`, `|info()`, `|warning()`, `|error()` to obtain a value.
 #[mel_data(traits(Serialize Deserialize Bounded PartialEquality Equality PartialOrder Order))]
 pub struct Level {
     pub level: LogLevel,
@@ -204,6 +226,7 @@ fn level_bounded_max() -> Level {
     }
 }
 
+/// Return the error log level.
 #[mel_function]
 pub fn error() -> Level {
     Level {
@@ -211,6 +234,7 @@ pub fn error() -> Level {
     }
 }
 
+/// Return the warning log level.
 #[mel_function]
 pub fn warning() -> Level {
     Level {
@@ -218,6 +242,7 @@ pub fn warning() -> Level {
     }
 }
 
+/// Return the info log level.
 #[mel_function]
 pub fn info() -> Level {
     Level {
@@ -225,6 +250,7 @@ pub fn info() -> Level {
     }
 }
 
+/// Return the debug log level.
 #[mel_function]
 pub fn debug() -> Level {
     Level {
@@ -232,6 +258,7 @@ pub fn debug() -> Level {
     }
 }
 
+/// Return the trace log level (most verbose).
 #[mel_function]
 pub fn trace() -> Level {
     Level {

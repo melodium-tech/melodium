@@ -7,6 +7,13 @@ use root/local::|local_executor
 use root/exec::execOnce as generalExecOnce
 use root/exec::spawnOnce as generalSpawnOnce
 
+/**
+Execute a single command on the local machine, triggered by a launch signal.
+
+Convenience wrapper around `execOnce` that automatically obtains the local executor.
+`command` is run with the optional `environment` when `launch` fires.
+`started`, `completed`, `failed`, `error`, `exit`, and `finished` behave identically to `execOnce`.
+*/
 treatment execOnce(command: Command, environment: Option<Environment> = _)
   input  launch:    Block<void>
   output started:   Block<void>
@@ -32,6 +39,14 @@ treatment execOnce(command: Command, environment: Option<Environment> = _)
     generalExecOnce.exit -------> Self.exit
 }
 
+/**
+Spawn a single command on the local machine with stdio streams, triggered by a launch signal.
+
+Convenience wrapper around `spawnOnce` that automatically obtains the local executor.
+`command` is spawned with the optional `environment` when `launch` fires.
+Connects `stdin`, `stdout`, and `stderr` streams to the process.
+`started`, `completed`, `failed`, `error`, `exit`, and `finished` behave identically to `spawnOnce`.
+*/
 treatment spawnOnce(command: Command, environment: Option<Environment> = _)
   input  launch:    Block<void>
   input  stdin:     Stream<byte>

@@ -10,6 +10,12 @@ pub fn environment_variable_regex() -> &'static Regex {
     VAR_REGEX.get_or_init(|| Regex::new(r#"\$\{([a-zA-Z_][0-9a-zA-Z_]*)\}"#).unwrap())
 }
 
+/// Execution environment for a subprocess.
+///
+/// - `working_directory`: optional directory to set as the process working directory.
+/// - `clear_env`: when `true`, the subprocess inherits no environment variables from the parent process.
+/// - `variables`: the environment variables to set.
+/// - `expand_variables`: when `true`, `${VAR}` references in variable values are expanded using the parent environment.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[mel_data(traits(Serialize Deserialize PartialEquality Equality))]
 pub struct Environment {
@@ -19,6 +25,12 @@ pub struct Environment {
     pub expand_variables: bool,
 }
 
+/// Build an `Environment` value from explicit parameters.
+///
+/// - `variables`: key–value pairs to expose to the subprocess.
+/// - `working_directory`: optional working directory.
+/// - `expand_variables`: expand `${VAR}` references in variable values.
+/// - `clear_env`: inherit no variables from the parent process.
 #[mel_function]
 pub fn environment(
     variables: StringMap,
@@ -34,6 +46,19 @@ pub fn environment(
     }
 }
 
+/// Convert a `StringMap` block into an `Environment` block.
+///
+/// `variables` supplies the key–value pairs; other environment properties come from the
+/// constant parameters `clear_env`, `expand_variables`, and `working_directory`.
+///
+/// ```mermaid
+/// graph LR
+///     T("mapEnvironment()")
+///     V["〈🟦〉"] -->|variables| T
+///     T -->|environment| E["〈🟨〉"]
+///     style V fill:#ffff,stroke:#ffff
+///     style E fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input variables Block<StringMap>
     output environment Block<Environment>
@@ -65,6 +90,21 @@ pub async fn map_environment(
     }
 }
 
+/// Convert a `StringMap` block and a working directory block into an `Environment` block.
+///
+/// Like `map_environment`, but also accepts `working_directory` as a streamed `Block<Option<string>>`
+/// instead of a constant parameter.
+///
+/// ```mermaid
+/// graph LR
+///     T("mapFullEnvironment()")
+///     V["〈🟦〉"] -->|variables| T
+///     W["〈🟨〉"] -->|working_directory| T
+///     T -->|environment| E["〈🟩〉"]
+///     style V fill:#ffff,stroke:#ffff
+///     style W fill:#ffff,stroke:#ffff
+///     style E fill:#ffff,stroke:#ffff
+/// ```
 #[mel_treatment(
     input variables Block<StringMap>
     input working_directory Block<Option<string>>
