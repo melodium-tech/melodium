@@ -1,0 +1,41 @@
+[package]
+name = "audio-mel"
+version = "0.10.1"
+authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
+rust-version = "1.83"
+edition = "2021"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "Mélodium audio processing library"
+keywords = ["dataflow","parallelization","scalability","async","signal"]
+categories = ["compilers", "science", "concurrency", "asynchronous"]
+
+[lib]
+crate-type = ["lib", "cdylib"]
+name = "audio_mel"
+
+[dependencies]
+async-std = "1.13"
+async-channel = "2"
+cpal = "0.17"
+futures = "0.3.28"
+melodium-core = { path = "../../melodium-core", version = "0.10.1" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.1" }
+std-mel = { path = "../std-mel", version = "0.10.1" }
+serde = "1.0.185"
+serde_json = "1.0.105"
+symphonia = { version = "0.5.4", features = ["all"] }
+hound = "3.5"
+flacenc = { version = "0.5", default-features = false, features = ["par"] }
+
+[features]
+mock = []
+plugin = []
+real = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
