@@ -22,6 +22,7 @@ candle-core = { version = "0.10.2" }
 candle-nn = { version = "0.10.2" }
 candle-transformers = { version = "0.10.2" }
 flume = { version = "0.11" }
+futures = { version = "0.3" }
 hf-hub = { version = "0.4", default-features = false, features = ["ureq"] }
 tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
 melodium-core = { path = "../../melodium-core", version = "0.10.1" }

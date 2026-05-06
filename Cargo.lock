@@ -3633,6 +3633,7 @@ dependencies = [
  "candle-nn",
  "candle-transformers",
  "flume",
+ "futures",
  "hf-hub",
  "melodium-core",
  "melodium-macro",
