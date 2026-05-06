@@ -46,7 +46,8 @@
     - .host:debian
     - .cache:cargo
   before_script:
-    - apt-get update -y libasound2-dev
+    - apt-get update
+    - apt-get install -y libasound2-dev
     - export CARGO_BUILD_TARGET=x86_64-unknown-linux-gnu
     - rustc --version
     - cargo --version 
