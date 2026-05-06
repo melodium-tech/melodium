@@ -19,14 +19,16 @@ name = "audio_mel"
 [dependencies]
 async-std = "1.13"
 async-channel = "2"
-async_channel_io = "0.3"
+cpal = "0.17"
 futures = "0.3.28"
 melodium-core = { path = "../../melodium-core", version = "0.10.1" }
 melodium-macro = { path = "../../melodium-macro", version = "0.10.1" }
 std-mel = { path = "../std-mel", version = "0.10.1" }
 serde = "1.0.185"
 serde_json = "1.0.105"
-symphonia = { git = "https://github.com/itytophile/Symphonia.git", branch = "full-async" }
+symphonia = { version = "0.5.4", features = ["all"] }
+hound = "3.5"
+flacenc = { version = "0.5", default-features = false, features = ["par"] }
 
 [features]
 mock = []

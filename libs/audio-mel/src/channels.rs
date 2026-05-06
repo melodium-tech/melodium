@@ -1,41 +1,51 @@
-use async_channel_io::ChannelReader;
 use async_channel::Receiver;
-use futures::{AsyncRead, AsyncSeek};
-use symphonia::core::io::AsyncMediaSource;
+use std::io::{Read, Seek, SeekFrom};
+use symphonia::core::io::MediaSource;
 
 pub struct ChannelReaderMediaSource {
-    reader: ChannelReader,
+    receiver: Receiver<Vec<u8>>,
+    buffer: Vec<u8>,
+    pos: usize,
 }
 
 impl ChannelReaderMediaSource {
-    pub fn new(recv: Receiver<Vec<u8>>) -> Self {
+    pub fn new(receiver: Receiver<Vec<u8>>) -> Self {
         Self {
-            reader: ChannelReader::new(recv)
+            receiver,
+            buffer: Vec::new(),
+            pos: 0,
         }
     }
 }
 
-impl AsyncRead for ChannelReaderMediaSource {
-    fn poll_read(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-        buf: &mut [u8],
-    ) -> std::task::Poll<std::io::Result<usize>> {
-        std::pin::pin!(&mut self.reader).as_mut().poll_read(cx, buf)
+impl Read for ChannelReaderMediaSource {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        while self.pos >= self.buffer.len() {
+            match self.receiver.recv_blocking() {
+                Ok(chunk) => {
+                    self.buffer = chunk;
+                    self.pos = 0;
+                }
+                Err(_) => return Ok(0),
+            }
+        }
+        let n = (self.buffer.len() - self.pos).min(buf.len());
+        buf[..n].copy_from_slice(&self.buffer[self.pos..self.pos + n]);
+        self.pos += n;
+        Ok(n)
     }
 }
 
-impl AsyncSeek for ChannelReaderMediaSource {
-    fn poll_seek(
-        self: std::pin::Pin<&mut Self>,
-        _cx: &mut std::task::Context<'_>,
-        _pos: std::io::SeekFrom,
-    ) -> std::task::Poll<std::io::Result<u64>> {
-        std::task::Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::NotSeekable, "Stream not seekable")))
+impl Seek for ChannelReaderMediaSource {
+    fn seek(&mut self, _: SeekFrom) -> std::io::Result<u64> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "stream not seekable",
+        ))
     }
 }
 
-impl AsyncMediaSource for ChannelReaderMediaSource {
+impl MediaSource for ChannelReaderMediaSource {
     fn is_seekable(&self) -> bool {
         false
     }
