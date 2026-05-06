@@ -6,11 +6,16 @@ use melodium_macro::{check, mel_model, mel_treatment};
 use std::collections::HashMap;
 use std::sync::Weak;
 
-// The worker receives raw f32 chunks from the async side.
-// Sending end is closed (dropped) by the treatment when the audio stream ends,
-// which tells the worker to flush any remaining samples.
 #[cfg(feature = "real")]
 struct AudioChunk(Vec<f32>);
+
+// A per-track stream handle returned by enqueue_stream().
+// Dropping chunk_tx closes the worker's input, triggering the final flush.
+#[cfg(feature = "real")]
+struct DecodeStream {
+    chunk_tx: flume::Sender<AudioChunk>,
+    text_rx:  flume::Receiver<String>,
+}
 
 /// Whisper automatic speech recognition model configuration.
 ///
@@ -32,7 +37,7 @@ struct AudioChunk(Vec<f32>);
 /// ℹ️ Use `Whisper` together with `HfHub`, `fetch`, `load`, and `decode`.
 /// `load` must complete successfully before `decode` will produce output.
 ///
-/// ```
+/// ```mel
 /// use ml/repos/hf::HfHub
 /// use ml/repos/hf::fetch
 /// use ml/models/whisper::Whisper
@@ -73,13 +78,11 @@ struct AudioChunk(Vec<f32>);
 #[derive(Debug)]
 pub struct Whisper {
     model: Weak<WhisperModel>,
-    // Sending end of the chunk queue. The worker owns the receiving end.
+    // The loaded candle model, held behind a Mutex so load() can replace it
+    // and enqueue_stream() can clone the config to spawn per-track workers.
     // None until load() is called successfully.
     #[cfg(feature = "real")]
-    chunk_tx: std::sync::Mutex<Option<flume::Sender<AudioChunk>>>,
-    // Text produced by the worker, consumed by decode() treatments.
-    #[cfg(feature = "real")]
-    text_rx: std::sync::Mutex<Option<flume::Receiver<String>>>,
+    loaded: std::sync::Mutex<Option<whisper_model::model::Whisper>>,
 }
 
 impl Whisper {
@@ -87,22 +90,15 @@ impl Whisper {
         Self {
             model,
             #[cfg(feature = "real")]
-            chunk_tx: std::sync::Mutex::new(None),
-            #[cfg(feature = "real")]
-            text_rx: std::sync::Mutex::new(None),
+            loaded: std::sync::Mutex::new(None),
         }
     }
 
-    fn shutdown(&self) {
-        #[cfg(feature = "real")]
-        {
-            *self.chunk_tx.lock().unwrap() = None;
-        }
-    }
+    fn shutdown(&self) {}
 
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
 
-    /// Load weights from `shard_paths`, then start the streaming decode worker.
+    /// Load weights from `shard_paths` into the model, replacing any previously loaded weights.
     #[cfg(feature = "real")]
     pub fn load(&self, shard_paths: Vec<String>) -> Result<(), String> {
         let model_ref = self.model.upgrade().ok_or("model dropped")?;
@@ -133,38 +129,27 @@ impl Whisper {
         let candle_model = whisper_model::model::Whisper::load(&vb, config)
             .map_err(|e| e.to_string())?;
 
+        *self.loaded.lock().unwrap() = Some(candle_model);
+        Ok(())
+    }
+
+    /// Spawn a fresh worker thread for one track and return its I/O handle.
+    /// Each call produces an independent (chunk_tx, text_rx) pair so concurrent
+    /// tracks never share state.  Returns None if the model has not been loaded.
+    #[cfg(feature = "real")]
+    pub fn enqueue_stream(&self) -> Option<DecodeStream> {
+        // Clone the candle model so each worker thread owns its own copy of
+        // the weights and KV cache — no sharing, no serialisation between tracks.
+        let candle_model = self.loaded.lock().unwrap().clone()?;
+
         let (chunk_tx, chunk_rx) = flume::unbounded::<AudioChunk>();
-        let (text_tx, text_rx)   = flume::unbounded::<String>();
+        let (text_tx,  text_rx)  = flume::unbounded::<String>();
 
         std::thread::spawn(move || {
             worker_loop(candle_model, chunk_rx, text_tx);
         });
 
-        *self.chunk_tx.lock().unwrap() = Some(chunk_tx);
-        *self.text_rx.lock().unwrap()  = Some(text_rx);
-        Ok(())
-    }
-
-    /// Send one batch of samples to the worker.
-    /// Returns `false` if the model has not been loaded or the channel is closed.
-    #[cfg(feature = "real")]
-    pub fn send_chunk(&self, samples: Vec<f32>) -> bool {
-        let tx = self.chunk_tx.lock().unwrap();
-        tx.as_ref()
-            .and_then(|tx| tx.send(AudioChunk(samples)).ok())
-            .is_some()
-    }
-
-    /// Close the audio input channel, signalling end-of-stream to the worker.
-    #[cfg(feature = "real")]
-    pub fn close_audio(&self) {
-        *self.chunk_tx.lock().unwrap() = None;
-    }
-
-    /// Receive the next decoded text segment from the worker (blocks until available or done).
-    #[cfg(feature = "real")]
-    pub fn recv_text(&self) -> Option<flume::Receiver<String>> {
-        self.text_rx.lock().unwrap().clone()
+        Some(DecodeStream { chunk_tx, text_rx })
     }
 }
 
@@ -312,7 +297,7 @@ fn worker_loop(
 ///     style E fill:#ffff,stroke:#ffff
 /// ```
 ///
-/// ```
+/// ```mel
 /// use ml/repos/hf::HfHub
 /// use ml/repos/hf::fetch
 /// use ml/models/whisper::Whisper
@@ -396,7 +381,7 @@ pub async fn load() {
 ///     style X fill:#ffff,stroke:#ffff
 /// ```
 ///
-/// ```
+/// ```mel
 /// use ml/repos/hf::HfHub
 /// use ml/repos/hf::fetch
 /// use ml/models/whisper::Whisper
@@ -440,30 +425,30 @@ pub async fn decode() {
     {
         use futures::future;
 
-        let text_rx = match whisper_struct.recv_text() {
-            Some(rx) => rx,
+        // Spawn a dedicated worker for this track. Each track gets its own
+        // candle model clone, KV cache, sample buffer, and channel pair —
+        // fully independent of every other concurrent decode track.
+        let stream = match whisper_struct.enqueue_stream() {
+            Some(s) => s,
             None => return,
         };
 
-        // Both halves run truly concurrently inside this single async task.
-        // `feed`: forwards incoming sample batches to the worker as they arrive,
-        //         then signals end-of-stream so the worker flushes its last window.
-        // `drain`: receives decoded text segments from the worker and emits them
-        //          on `transcribed` as soon as they are ready.
-        // Neither half waits for the other to finish before making progress.
         let feed = async {
             while let Ok(batch) = audio
                 .recv_many()
                 .await
                 .map(|v| TryInto::<Vec<f32>>::try_into(v).unwrap_or_default())
             {
-                whisper_struct.send_chunk(batch);
+                // Sending fails only if the worker panicked — treat as done.
+                if stream.chunk_tx.send(AudioChunk(batch)).is_err() {
+                    break;
+                }
             }
-            whisper_struct.close_audio();
+            // Dropping chunk_tx here closes the channel; the worker flushes and exits.
         };
 
         let drain = async {
-            while let Ok(segment) = text_rx.recv_async().await {
+            while let Ok(segment) = stream.text_rx.recv_async().await {
                 if transcribed.send_one(Value::String(segment)).await.is_err() {
                     break;
                 }

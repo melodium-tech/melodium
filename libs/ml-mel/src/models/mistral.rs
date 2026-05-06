@@ -45,7 +45,7 @@ struct InferRequest {
 /// ℹ️ Use `Mistral` together with `HfHub`, `fetch`, `load`, and `generate`.
 /// `load` must complete successfully before `generate` will produce output.
 ///
-/// ```
+/// ```mel
 /// use ml/repos/hf::HfHub
 /// use ml/repos/hf::fetch
 /// use ml/models/mistral::Mistral
@@ -372,7 +372,7 @@ fn emit_token(tokenizer: &Tokenizer, token: u32, reply: &flume::Sender<String>) 
 ///     style E fill:#ffff,stroke:#ffff
 /// ```
 ///
-/// ```
+/// ```mel
 /// use ml/repos/hf::HfHub
 /// use ml/repos/hf::fetch
 /// use ml/models/mistral::Mistral
@@ -480,7 +480,7 @@ pub async fn load() {
 ///     style G fill:#ffff,stroke:#ffff
 /// ```
 ///
-/// ```
+/// ```mel
 /// use ml/repos/hf::HfHub
 /// use ml/repos/hf::fetch
 /// use ml/models/mistral::Mistral
