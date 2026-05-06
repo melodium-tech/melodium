@@ -434,6 +434,8 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
     let mut packages = Vec::new();
     packages.push(std_mel::__mel_package::package());
 
+    #[cfg(feature = "audio-mel")]
+    packages.push(audio_mel::__mel_package::package());
     #[cfg(feature = "cicd-mel")]
     packages.push(cicd_mel::__mel_package::package());
     #[cfg(feature = "distrib-mel")]
