@@ -18,15 +18,6 @@ pub fn cicd_pattern(program_name: &str, version: &Version) -> HashMap<String, Ve
                 .unwrap(),
             },
             PackageRequirement {
-                package: "log".into(),
-                version_requirement: VersionReq::parse(&if melodium_version.pre.is_empty() {
-                    melodium_version.to_string()
-                } else {
-                    format!("={melodium_version}")
-                })
-                .unwrap(),
-            },
-            PackageRequirement {
                 package: "fs".into(),
                 version_requirement: VersionReq::parse(&if melodium_version.pre.is_empty() {
                     melodium_version.to_string()

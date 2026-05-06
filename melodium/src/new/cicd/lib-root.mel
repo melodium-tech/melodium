@@ -1,5 +1,4 @@
 use cicd/runners::CicdDispatchEngine
-use cicd/logging::manageLogs
 use cicd/naive::simpleStep
 use cicd/naive::simpleStepWithInput
 use process/command::|command
@@ -14,19 +13,16 @@ use std/engine/util::startup
 
   - `api_token`: service key provided to access Mélodium work distribution API;
   - `work_location`: location where dispatched runners take place (default throught API, can be set to `"compose"` for local run);
-  - `output_directory`: directory where output files (including logs) are wrote;
   - `repository_clone_url`: URL to process Git clone;
   - `repository_clone_ref`: Git reference (sha or tag) to clone.
 
   All the other parameters are present to handle integration with CI services.
 */
-treatment main(const api_token: string, const work_location: string = "api", output_directory: string, repository_clone_url: string, repository_clone_ref: string, ci_service_token: string = "", ci_service_project: string = "", ci_service_ref: string = "", ci_service_sha: string = "", ci_service_pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
+treatment main(const api_token: string, const work_location: string = "api", repository_clone_url: string, repository_clone_ref: string, ci_service_token: string = "", ci_service_project: string = "", ci_service_ref: string = "", ci_service_sha: string = "", ci_service_pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
   // Model used to dispatch work among Mélodium engines.
   model cicd: CicdDispatchEngine(api_token=api_token, location=work_location)
 {
     startup()
-
-    manageLogs(output_directory=output_directory)
 
     build: simpleStep[dispatcher=cicd](
       name="build",
@@ -58,5 +54,5 @@ treatment main(const api_token: string, const work_location: string = "api", out
     )
 
     startup.trigger -> build.trigger,data -> test.data
-    startup.trigger -----------------------> test.trigger,finished -> manageLogs.stop
+    startup.trigger -----------------------> test.trigger
 }
