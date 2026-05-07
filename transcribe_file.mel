@@ -1,0 +1,69 @@
+#!/usr/bin/env melodium
+#! name = transcribe_file
+#! version = 0.1.0
+#! require = std:0.10.1
+#! require = audio:0.10.1
+#! require = ml:0.10.1
+#! require = fs:0.10.1
+
+use std/engine/util::startup
+use std/engine/log::logInfos
+use std/engine/log::logError
+use std/engine/log::logErrors
+use std/engine/log::logErrorMessage
+use audio/decode::decodeMono
+use ml/repos/hf::HfHub
+use ml/repos/hf::fetch
+use ml/models/whisper::Whisper
+use ml/models/whisper::load
+use ml/models/whisper::decode
+use fs/local::readLocal
+use fs/local::writeTextLocal
+
+treatment main(
+    const input_file:  string,
+    const output_file: string = "transcription.txt"
+)
+  model hub:     HfHub(repo_id = "openai/whisper-tiny")
+  model whisper: Whisper()
+{
+    startup()
+    fetch[hub=hub]()
+    load[whisper=whisper]()
+    decode[whisper=whisper]()
+    read:         readLocal(path = input_file)
+    audioDecode:  decodeMono(hint="wav")
+    log:          logInfos(label = "transcription")
+    write:        writeTextLocal(path = output_file, append = false)
+
+    fetchFailed:  logErrorMessage(label = "fetch",  message = "fetch failed")
+    fetchError:   logError(label = "fetch")
+    loadFailed:   logErrorMessage(label = "load",   message = "load failed")
+    loadError:    logError(label = "load")
+    readFailed:   logErrorMessage(label = "read",   message = "read failed")
+    readErrors:   logErrors(label = "read")
+    decodeFailed: logErrorMessage(label = "decode", message = "audio decode failed")
+    decodeErrors: logErrors(label = "decode")
+    writeFailed:  logErrorMessage(label = "write",  message = "write failed")
+    writeErrors:  logErrors(label = "write")
+
+    startup.trigger        -> fetch.trigger
+    load.loaded        -> read.trigger
+    fetch.safetensors      -> load.safetensors
+    fetch.tokenizer        -> load.tokenizer
+    fetch.failed           -> fetchFailed.trigger
+    fetch.error            -> fetchError.message
+    load.loaded            -> decode.ready
+    load.failed            -> loadFailed.trigger
+    load.error             -> loadError.message
+    read.data              -> audioDecode.data
+    read.failed            -> readFailed.trigger
+    read.errors            -> readErrors.messages
+    audioDecode.signal     -> decode.audio
+    audioDecode.failed     -> decodeFailed.trigger
+    audioDecode.errors     -> decodeErrors.messages
+    decode.transcribed     --> log.messages
+    decode.transcribed     --> write.text
+    write.failed           -> writeFailed.trigger
+    write.errors           -> writeErrors.messages
+}

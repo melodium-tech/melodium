@@ -1,0 +1,59 @@
+#!/usr/bin/env melodium
+#! name = generate
+#! version = 0.1.0
+#! require = std:0.10.1
+#! require = ml:0.10.1
+#! require = fs:0.10.1
+
+use std/engine/util::startup
+use std/engine/log::logInfos
+use std/engine/log::logError
+use std/engine/log::logErrors
+use std/engine/log::logErrorMessage
+use std/flow::emit
+use std/flow::stream
+use ml/repos/hf::HfHub
+use ml/repos/hf::fetch
+use ml/models/mistral::Mistral
+use ml/models/mistral::load
+use ml/models/mistral::generate
+use fs/local::writeTextLocal
+
+treatment main(
+    const prompt:      string = "Once upon a time",
+    const output_file: string = "generation.txt"
+)
+  model hub:     HfHub(repo_id = "mistralai/Mistral-7B-v0.1")
+  model mistral: Mistral()
+{
+    startup()
+    fetch[hub=hub]()
+    load[mistral=mistral]()
+    generate[mistral=mistral]()
+    emit<string>(value=prompt)
+    stream<string>()
+    log:          logInfos(label = "generation")
+    write:        writeTextLocal(path = output_file, append = false)
+
+    fetchFailed:  logErrorMessage(label = "fetch",  message = "fetch failed")
+    fetchError:   logError(label = "fetch")
+    loadFailed:   logErrorMessage(label = "load",   message = "load failed")
+    loadError:    logError(label = "load")
+    writeFailed:  logErrorMessage(label = "write",  message = "write failed")
+    writeErrors:  logErrors(label = "write")
+
+    startup.trigger    -> fetch.trigger
+    startup.trigger    -> emit.trigger
+    fetch.safetensors  -> load.safetensors
+    fetch.tokenizer    -> load.tokenizer
+    fetch.failed       -> fetchFailed.trigger
+    fetch.error        -> fetchError.message
+    load.failed        -> loadFailed.trigger
+    load.error         -> loadError.message
+    emit.emit          -> stream.block
+    stream.stream      -> generate.prompt
+    generate.generated --> log.messages
+    generate.generated --> write.text
+    write.failed       -> writeFailed.trigger
+    write.errors       -> writeErrors.messages
+}

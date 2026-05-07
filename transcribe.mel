@@ -1,0 +1,58 @@
+#!/usr/bin/env melodium
+#! name = transcribe
+#! version = 0.10.1
+#! require = std:0.10.1
+#! require = audio:0.10.1
+#! require = ml:0.10.1
+#! require = fs:0.10.1
+
+use std/engine/util::startup
+use std/engine/log::logInfos
+use std/engine/log::logError
+use std/engine/log::logErrors
+use std/engine/log::logErrorMessage
+use audio/record::recordMono
+use ml/repos/hf::HfHub
+use ml/repos/hf::fetch
+use ml/models/whisper::Whisper
+use ml/models/whisper::load
+use ml/models/whisper::decode
+use fs/local::writeTextLocal
+
+treatment main(const output_file: string = "transcription.txt")
+  model hub:     HfHub(repo_id = "openai/whisper-tiny")
+  model whisper: Whisper()
+{
+    startup()
+    fetch[hub=hub]()
+    load[whisper=whisper]()
+    decode[whisper=whisper]()
+    recordMono(device=_)
+    log:          logInfos(label = "transcription")
+    write:        writeTextLocal(path = output_file, append = true)
+
+    fetchFailed:  logErrorMessage(label = "fetch",  message = "fetch failed")
+    fetchError:   logError(label = "fetch")
+    loadFailed:   logErrorMessage(label = "load",   message = "load failed")
+    loadError:    logError(label = "load")
+    recordFailed: logErrorMessage(label = "record", message = "record failed")
+    recordErrors: logErrors(label = "record")
+    writeFailed:  logErrorMessage(label = "write",  message = "write failed")
+    writeErrors:  logErrors(label = "write")
+
+    startup.trigger        -> fetch.trigger
+    fetch.safetensors      -> load.safetensors
+    fetch.tokenizer        -> load.tokenizer
+    fetch.failed           -> fetchFailed.trigger
+    fetch.error            -> fetchError.message
+    load.loaded            -> decode.ready
+    load.failed            -> loadFailed.trigger
+    load.error             -> loadError.message
+    recordMono.signal      -> decode.audio
+    recordMono.failed      -> recordFailed.trigger
+    recordMono.errors      -> recordErrors.messages
+    decode.transcribed     --> log.messages
+    decode.transcribed     --> write.text
+    write.failed           -> writeFailed.trigger
+    write.errors           -> writeErrors.messages
+}

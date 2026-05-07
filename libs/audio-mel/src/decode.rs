@@ -177,11 +177,14 @@ pub async fn decode_mono(hint: Option<string>) {
             };
             let _ = async_std::task::block_on(info_sender.send(audio_info));
 
-            let mut f32_buf: AudioBuffer<f32> = AudioBuffer::unused();
-
             loop {
                 let packet = match format_reader.next_packet() {
                     Ok(p) => p,
+                    Err(Error::IoError(e))
+                        if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+                    {
+                        break;
+                    }
                     Err(Error::IoError(e)) => {
                         let _ = async_std::task::block_on(
                             err_sender.send((true, format!("I/O error: {e}")))
@@ -219,6 +222,10 @@ pub async fn decode_mono(hint: Option<string>) {
                     }
                 };
 
+                let mut f32_buf = AudioBuffer::<f32>::new(
+                    audio_buf.capacity() as u64,
+                    *audio_buf.spec(),
+                );
                 audio_buf.convert(&mut f32_buf);
 
                 let planes = f32_buf.planes();
