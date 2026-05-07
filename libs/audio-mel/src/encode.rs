@@ -71,9 +71,13 @@ pub async fn encode_mono_wav(sample_rate: u32) {
                 let mut writer = hound::WavWriter::new(&mut buf, spec)
                     .map_err(|e| format!("WAV writer init failed: {e}"))?;
                 for &s in &all_samples {
-                    writer.write_sample(s).map_err(|e| format!("WAV write failed: {e}"))?;
+                    writer
+                        .write_sample(s)
+                        .map_err(|e| format!("WAV write failed: {e}"))?;
                 }
-                writer.finalize().map_err(|e| format!("WAV finalize failed: {e}"))?;
+                writer
+                    .finalize()
+                    .map_err(|e| format!("WAV finalize failed: {e}"))?;
                 Ok(buf.into_inner())
             })();
 
@@ -164,20 +168,15 @@ pub async fn encode_mono_flac(sample_rate: u32) {
                     .map(|&s| (s.clamp(-1.0, 1.0) * SCALE) as i32)
                     .collect();
 
-                let source = flacenc::source::MemSource::from_samples(
-                    &pcm,
-                    1,
-                    24,
-                    sample_rate as usize,
-                );
+                let source =
+                    flacenc::source::MemSource::from_samples(&pcm, 1, 24, sample_rate as usize);
 
                 let config = flacenc::config::Encoder::default()
                     .into_verified()
                     .map_err(|(_, e)| format!("FLAC config error: {e}"))?;
 
-                let flac_stream =
-                    flacenc::encode_with_fixed_block_size(&config, source, 4096)
-                        .map_err(|e| format!("FLAC encode failed: {e}"))?;
+                let flac_stream = flacenc::encode_with_fixed_block_size(&config, source, 4096)
+                    .map_err(|e| format!("FLAC encode failed: {e}"))?;
 
                 let mut sink = flacenc::bitsink::ByteSink::new();
                 flacenc::component::BitRepr::write(&flac_stream, &mut sink)
