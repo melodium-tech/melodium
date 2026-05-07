@@ -252,15 +252,17 @@ fn worker_loop(
     let eos_token = tokenizer.token_to_id("</s>").unwrap_or(u32::MAX);
     let apply_repeat_penalty = repeat_penalty != 1.0;
 
-    // Conversation state that lives between turns.
-    let mut hot_id: Option<u64> = None;
-    let mut hot_seqlen_offset: usize = 0;
-    let mut hot_all_tokens: Vec<u32> = Vec::new();
-    let mut hot_logits_processor = LogitsProcessor::new(
+    let make_processor = || LogitsProcessor::new(
         42,
         if temperature == 0.0 { None } else { Some(temperature) },
         if top_p == 0.0 { None } else { Some(top_p) },
     );
+
+    // Conversation state that lives between turns.
+    let mut hot_id: Option<u64> = None;
+    let mut hot_seqlen_offset: usize = 0;
+    let mut hot_all_tokens: Vec<u32> = Vec::new();
+    let mut hot_logits_processor = make_processor();
     let mut snapshots: HashMap<u64, KvSnapshot> = HashMap::new();
 
     for msg in rx.iter() {
@@ -272,6 +274,7 @@ fn worker_loop(
                     hot_id = None;
                     hot_seqlen_offset = 0;
                     hot_all_tokens.clear();
+                    hot_logits_processor = make_processor();
                 } else {
                     snapshots.remove(&id);
                 }
@@ -284,14 +287,7 @@ fn worker_loop(
         if hot_id != Some(req.conversation_id) {
             // Save current hot state (if any).
             if let Some(id) = hot_id {
-                let saved_processor = std::mem::replace(
-                    &mut hot_logits_processor,
-                    LogitsProcessor::new(
-                        42,
-                        if temperature == 0.0 { None } else { Some(temperature) },
-                        if top_p == 0.0 { None } else { Some(top_p) },
-                    ),
-                );
+                let saved_processor = std::mem::replace(&mut hot_logits_processor, make_processor());
                 snapshots.insert(id, KvSnapshot {
                     model: model.clone(),
                     seqlen_offset: hot_seqlen_offset,
@@ -310,11 +306,7 @@ fn worker_loop(
                 model.clear_kv_cache();
                 hot_seqlen_offset = 0;
                 hot_all_tokens.clear();
-                hot_logits_processor = LogitsProcessor::new(
-                    42,
-                    if temperature == 0.0 { None } else { Some(temperature) },
-                    if top_p == 0.0 { None } else { Some(top_p) },
-                );
+                hot_logits_processor = make_processor();
             }
             hot_id = Some(req.conversation_id);
         }
@@ -549,9 +541,10 @@ pub async fn load() {
 /// for a single prompt ends when the model produces `</s>` or when `max_new_tokens` is
 /// reached.  The next prompt is then dequeued.
 ///
-/// Each concurrent track gets its own independent reply channel and is processed in
-/// arrival order on a dedicated OS thread, so the async executor is never blocked during
-/// inference.
+/// Conversation history is preserved across turns within the same `generate` instance:
+/// each prompt extends the KV cache rather than resetting it.  Multiple concurrent
+/// `generate` instances share the single worker thread; KV state is saved and restored
+/// on context switches, with no save/restore cost when only one conversation is active.
 ///
 /// ℹ️ `load` must have completed successfully before any prompt is sent, otherwise prompts
 /// are silently discarded.

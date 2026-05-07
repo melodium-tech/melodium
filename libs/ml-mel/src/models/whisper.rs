@@ -78,11 +78,8 @@ struct DecodeStream {
 #[derive(Debug)]
 pub struct Whisper {
     model: Weak<WhisperModel>,
-    // The loaded candle model, held behind a Mutex so load() can replace it
-    // and enqueue_stream() can clone the config to spawn per-track workers.
-    // None until load() is called successfully.
     #[cfg(feature = "real")]
-    loaded: std::sync::Mutex<Option<whisper_model::model::Whisper>>,
+    loaded: std::sync::Mutex<Option<(whisper_model::model::Whisper, tokenizers::Tokenizer)>>,
 }
 
 impl Whisper {
@@ -100,7 +97,7 @@ impl Whisper {
 
     /// Load weights from `shard_paths` into the model, replacing any previously loaded weights.
     #[cfg(feature = "real")]
-    pub fn load(&self, shard_paths: Vec<String>) -> Result<(), String> {
+    pub fn load(&self, shard_paths: Vec<String>, tokenizer_path: String) -> Result<(), String> {
         let model_ref = self.model.upgrade().ok_or("model dropped")?;
 
         let config = Config {
@@ -129,7 +126,10 @@ impl Whisper {
         let candle_model = whisper_model::model::Whisper::load(&vb, config)
             .map_err(|e| e.to_string())?;
 
-        *self.loaded.lock().unwrap() = Some(candle_model);
+        let tokenizer = tokenizers::Tokenizer::from_file(&tokenizer_path)
+            .map_err(|e| e.to_string())?;
+
+        *self.loaded.lock().unwrap() = Some((candle_model, tokenizer));
         Ok(())
     }
 
@@ -140,13 +140,13 @@ impl Whisper {
     pub fn enqueue_stream(&self) -> Option<DecodeStream> {
         // Clone the candle model so each worker thread owns its own copy of
         // the weights and KV cache — no sharing, no serialisation between tracks.
-        let candle_model = self.loaded.lock().unwrap().clone()?;
+        let (candle_model, tokenizer) = self.loaded.lock().unwrap().clone()?;
 
         let (chunk_tx, chunk_rx) = flume::unbounded::<AudioChunk>();
         let (text_tx,  text_rx)  = flume::unbounded::<String>();
 
         std::thread::spawn(move || {
-            worker_loop(candle_model, chunk_rx, text_tx);
+            worker_loop(candle_model, tokenizer, chunk_rx, text_tx);
         });
 
         Some(DecodeStream { chunk_tx, text_rx })
@@ -156,37 +156,51 @@ impl Whisper {
 // Runs on a dedicated OS thread; never touches the async executor.
 //
 // Strategy: maintain a sliding sample buffer.  Once it reaches N_SAMPLES
-// (the 30-second Whisper window), encode-decode it, emit results, then slide
-// forward by N_SAMPLES so the next window starts fresh (no overlap needed for
-// transcription without timestamps).  When the chunk channel closes (end of
-// stream), flush whatever remains.
+// (the 30-second Whisper window), encode-decode it, emit one decoded text
+// string, then slide forward.  When the chunk channel closes (end of stream),
+// flush whatever remains.
 #[cfg(feature = "real")]
 fn worker_loop(
     mut model: whisper_model::model::Whisper,
+    tokenizer: tokenizers::Tokenizer,
     chunk_rx: flume::Receiver<AudioChunk>,
     text_tx: flume::Sender<String>,
 ) {
     let device = Device::Cpu;
-    let n_samples = whisper_model::N_SAMPLES; // 480 000 samples = 30 s @ 16 kHz
+    let n_samples = whisper_model::N_SAMPLES;
     let n_mels    = model.config.num_mel_bins;
-    let n_fft     = whisper_model::N_FFT;
-    let n_fft_bins = 1 + n_fft / 2;
 
-    // Trivial mel filterbank — consumers using real HF weights should supply proper filters.
-    let filters: Vec<f32> = (0..n_mels * n_fft_bins)
-        .map(|i| if i % n_fft_bins == i / n_mels { 1.0f32 } else { 0.0 })
-        .collect();
+    // Load the pre-computed mel filterbank that ships with the candle whisper example.
+    // These are raw little-endian f32 values, shape [n_mels × (1 + N_FFT/2)].
+    let mel_bytes: &[u8] = match n_mels {
+        80  => include_bytes!("melfilters.bytes"),
+        128 => include_bytes!("melfilters128.bytes"),
+        n   => { eprintln!("unsupported num_mel_bins {n}"); return; }
+    };
+    let mut mel_filters = vec![0f32; mel_bytes.len() / 4];
+    use std::io::Read;
+    let mut cursor = std::io::Cursor::new(mel_bytes);
+    for v in mel_filters.iter_mut() {
+        let mut buf = [0u8; 4];
+        cursor.read_exact(&mut buf).unwrap();
+        *v = f32::from_le_bytes(buf);
+    }
 
-    // Special token ids (multilingual Whisper vocabulary).
-    let sot_token     = 50258u32; // <|startoftranscript|>
-    let transcribe    = 50359u32; // <|transcribe|>
-    let no_timestamps = 50363u32; // <|notimestamps|>
-    let eot_token     = 50256u32; // <|endoftext|>
+    // Resolve special token ids through the tokenizer so they match the vocab
+    // of whichever model variant (multilingual vs .en) is actually loaded.
+    let tok = |s: &str| tokenizer.token_to_id(s).unwrap_or(u32::MAX);
+    let sot_token        = tok(whisper_model::SOT_TOKEN);
+    let transcribe_token = tok(whisper_model::TRANSCRIBE_TOKEN);
+    let no_ts_token      = tok(whisper_model::NO_TIMESTAMPS_TOKEN);
+    let eot_token        = tok(whisper_model::EOT_TOKEN);
+    // Multilingual models require a language token between sot and transcribe.
+    // Default to English; tok() returns u32::MAX if not found (English-only models).
+    let lang_token       = tok("<|en|>");
 
     let mut buffer: Vec<f32> = Vec::with_capacity(n_samples * 2);
 
-    // Encode and greedy-decode `window`, emit tokens through `text_tx`.
-    // Returns false if the text channel has been closed (no consumers left).
+    // Encode one window of PCM samples and greedy-decode to text.
+    // Returns false if the text channel has been closed.
     let mut decode_window = |model: &mut whisper_model::model::Whisper,
                               window: &[f32]| -> bool {
         model.reset_kv_cache();
@@ -198,59 +212,68 @@ fn worker_loop(
             .and_then(|t| t.narrow(2, 0, n_frames))
         {
             Ok(t) => t,
-            Err(_) => return true,
+            Err(e) => { eprintln!("mel tensor error: {e}"); return true; }
         };
 
         let audio_features = match model.encoder.forward(&mel_tensor, true) {
             Ok(f) => f,
-            Err(_) => return true,
+            Err(e) => { eprintln!("encoder error: {e}"); return true; }
         };
 
-        let mut tokens: Vec<u32> = vec![sot_token, transcribe, no_timestamps];
+        // Prompt: [sot, <|en|>, transcribe, no_timestamps] for multilingual models,
+        // [sot, transcribe, no_timestamps] for English-only models (lang_token == u32::MAX).
+        let mut tokens: Vec<u32> = if lang_token != u32::MAX {
+            vec![sot_token, lang_token, transcribe_token, no_ts_token]
+        } else {
+            vec![sot_token, transcribe_token, no_ts_token]
+        };
 
-        for _ in 0..model.config.max_target_positions {
-            let token_tensor = match Tensor::new(tokens.as_slice(), &device)
+        let sample_len = model.config.max_target_positions / 2;
+        for i in 0..sample_len {
+            // Feed the full token sequence every step (non-incremental).
+            // flush=true on every call resets the KV cache so the full context is used.
+            let tokens_t = match Tensor::new(tokens.as_slice(), &device)
                 .and_then(|t| t.unsqueeze(0))
             {
                 Ok(t) => t,
                 Err(_) => break,
             };
 
-            let flush = tokens.len() == 3;
-            let logits = match model.decoder.forward(&token_tensor, &audio_features, flush) {
+            let ys = match model.decoder.forward(&tokens_t, &audio_features, i == 0) {
                 Ok(l) => l,
                 Err(_) => break,
             };
 
-            let last_logits = match model.decoder.final_linear(&logits) {
+            let (_, seq_len, _) = match ys.dims3() {
+                Ok(d) => d,
+                Err(_) => break,
+            };
+            let logits = match model.decoder.final_linear(&ys.i((..1, seq_len - 1..)).unwrap())
+                .and_then(|l| l.i(0))
+                .and_then(|l| l.i(0))
+            {
                 Ok(l) => l,
                 Err(_) => break,
             };
 
-            let last_pos = last_logits.dims()[1].saturating_sub(1);
-            let step_logits: Tensor = match last_logits.i((0, last_pos)) {
-                Ok(l) => l,
-                Err(_) => break,
-            };
-
-            let next_token = match step_logits.argmax(candle_core::D::Minus1) {
-                Ok(t) => match t.to_scalar::<u32>() {
-                    Ok(v) => v,
-                    Err(_) => break,
-                },
+            let next_token = match logits.argmax(candle_core::D::Minus1)
+                .and_then(|t| t.to_scalar::<u32>())
+            {
+                Ok(v) => v,
                 Err(_) => break,
             };
 
             if next_token == eot_token {
                 break;
             }
-
             tokens.push(next_token);
+        }
 
-            let piece = format!("[{}]", next_token);
-            if text_tx.send(piece).is_err() {
-                return false; // receiver dropped — treatment gone
-            }
+        // Decode the full token sequence at once (skip special tokens so BPE
+        // pieces merge correctly and control tokens are stripped).
+        let text = tokenizer.decode(&tokens, true).unwrap_or_default();
+        if !text.is_empty() && text_tx.send(text).is_err() {
+            return false;
         }
         true
     };
@@ -322,6 +345,7 @@ fn worker_loop(
 #[mel_treatment(
     model whisper Whisper
     input  safetensors Stream<string>
+    input  tokenizer   Block<string>
     output loaded      Block<void>
     output failed      Block<void>
     output error       Block<string>
@@ -337,11 +361,27 @@ pub async fn load() {
         }
     }
 
+    let tokenizer_path = match tokenizer.recv_one().await {
+        Ok(val) => match GetData::<String>::try_data(val) {
+            Ok(path) => path,
+            Err(_) => {
+                let _ = failed.send_one(().into()).await;
+                let _ = error.send_one(Value::String("invalid tokenizer path".into())).await;
+                return;
+            }
+        },
+        Err(_) => {
+            let _ = failed.send_one(().into()).await;
+            let _ = error.send_one(Value::String("tokenizer input closed".into())).await;
+            return;
+        }
+    };
+
     #[cfg(feature = "real")]
     {
         let model_arc2 = model_arc.clone();
         let result = async_std::task::spawn_blocking(move || {
-            model_arc2.inner().load(shard_paths)
+            model_arc2.inner().load(shard_paths, tokenizer_path)
         })
         .await;
 
@@ -356,7 +396,7 @@ pub async fn load() {
 
     #[cfg(not(feature = "real"))]
     {
-        let _ = (shard_paths, whisper_struct);
+        let _ = (shard_paths, tokenizer_path, whisper_struct);
         let _ = loaded.send_one(().into()).await;
     }
 }
@@ -431,27 +471,27 @@ pub async fn decode() {
         // Spawn a dedicated worker for this track. Each track gets its own
         // candle model clone, KV cache, sample buffer, and channel pair —
         // fully independent of every other concurrent decode track.
-        let stream = match whisper_struct.enqueue_stream() {
-            Some(s) => s,
+        let (chunk_tx, text_rx) = match whisper_struct.enqueue_stream() {
+            Some(s) => (s.chunk_tx, s.text_rx),
             None => return,
         };
 
-        let feed = async {
+        let feed = async move {
             while let Ok(batch) = audio
                 .recv_many()
                 .await
                 .map(|v| TryInto::<Vec<f32>>::try_into(v).unwrap_or_default())
             {
                 // Sending fails only if the worker panicked — treat as done.
-                if stream.chunk_tx.send(AudioChunk(batch)).is_err() {
+                if chunk_tx.send(AudioChunk(batch)).is_err() {
                     break;
                 }
             }
-            // Dropping chunk_tx here closes the channel; the worker flushes and exits.
+            // chunk_tx is dropped here, closing the channel and signalling EOF to the worker.
         };
 
         let drain = async {
-            while let Ok(segment) = stream.text_rx.recv_async().await {
+            while let Ok(segment) = text_rx.recv_async().await {
                 if transcribed.send_one(Value::String(segment)).await.is_err() {
                     break;
                 }
