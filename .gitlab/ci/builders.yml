@@ -19,6 +19,20 @@
       - .cargo/
       policy: pull-push
 
+.cache:cargo-alsa-musl:
+  variables:
+    CARGO_INCREMENTAL: 0
+    CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  cache:
+    - key: cargo-$CI_JOB_NAME_SLUG
+      paths:
+      - .cargo/
+      policy: pull-push
+    - key: alsa-musl-$CI_JOB_NAME_SLUG
+      paths:
+      - .alsa-musl/
+      policy: pull-push
+
 .cache:cargo-osxcross:
   variables:
     CARGO_INCREMENTAL: 0
@@ -55,14 +69,28 @@
 .builder:linux:x86_64-unknown-linux-musl:
   extends:
     - .host:debian
-    - .cache:cargo
+    - .cache:cargo-alsa-musl
   before_script:
     - apt-get update
-    - apt-get install -y musl-tools libasound2-dev
+    - apt-get install -y musl-tools make
+    - |
+      if [ ! -f "$CI_PROJECT_DIR/.alsa-musl/lib/libasound.a" ]; then
+        apt-get install -y wget
+        wget -q https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.12.tar.bz2
+        tar xf alsa-lib-1.2.12.tar.bz2
+        cd alsa-lib-1.2.12
+        CC=musl-gcc ./configure --host=x86_64-linux-musl --prefix=$CI_PROJECT_DIR/.alsa-musl --enable-static --disable-shared --disable-python --disable-alisp --without-debug
+        make -j$(nproc)
+        make install
+        cd ..
+        rm -rf alsa-lib-1.2.12 alsa-lib-1.2.12.tar.bz2
+      fi
     - rustup target add x86_64-unknown-linux-musl
     - export CARGO_BUILD_TARGET=x86_64-unknown-linux-musl
+    - export PKG_CONFIG_PATH=$CI_PROJECT_DIR/.alsa-musl/lib/pkgconfig
+    - export PKG_CONFIG_ALLOW_CROSS=1
     - rustc --version
-    - cargo --version 
+    - cargo --version
 
 .builder:linux:i686-unknown-linux-gnu:
   extends:
@@ -82,22 +110,34 @@
 .builder:linux:i686-unknown-linux-musl:
   extends:
     - .host:debian
-    - .cache:cargo
+    - .cache:cargo-alsa-musl
   before_script:
    - dpkg --add-architecture i386
    - apt-get update
-   - apt-get install -y gcc-multilib libasound2-dev:i386
+   - apt-get install -y gcc-multilib make wget
    - wget https://repo.melodium.tech/tooling/musl/i686-linux-musl-cross.tar.gz
    - tar --extract --gzip --file i686-linux-musl-cross.tar.gz --directory /usr/local
    - ln -s /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc_s.so.1 /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc.so
+   - |
+     if [ ! -f "$CI_PROJECT_DIR/.alsa-musl/lib/libasound.a" ]; then
+       wget -q https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.12.tar.bz2
+       tar xf alsa-lib-1.2.12.tar.bz2
+       cd alsa-lib-1.2.12
+       CC=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-gcc ./configure --host=i686-linux-musl --prefix=$CI_PROJECT_DIR/.alsa-musl --enable-static --disable-shared --disable-python --disable-alisp --without-debug
+       make -j$(nproc)
+       make install
+       cd ..
+       rm -rf alsa-lib-1.2.12 alsa-lib-1.2.12.tar.bz2
+     fi
    - rustup target add i686-unknown-linux-musl
    - export PATH="$CARGO_HOME/bin:$PATH"
-   - export PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config
    - export CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_LINKER=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-ld
    - export CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_AR=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-ar
    - export TARGET_CC=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-gcc
    - export TARGET_AR=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-gcc-ar
    - export CARGO_BUILD_TARGET=i686-unknown-linux-musl
+   - export PKG_CONFIG_PATH=$CI_PROJECT_DIR/.alsa-musl/lib/pkgconfig
+   - export PKG_CONFIG_ALLOW_CROSS=1
    - rustc --version
    - cargo --version
 
@@ -125,23 +165,35 @@
 .builder:linux:aarch64-unknown-linux-musl:
   extends:
     - .host:debian
-    - .cache:cargo
+    - .cache:cargo-alsa-musl
   before_script:
    - dpkg --add-architecture arm64
    - apt-get update
-   - apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross musl-tools libc-dev:arm64 libasound2-dev:arm64
+   - apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross musl-tools libc-dev:arm64 make wget
    - wget https://repo.melodium.tech/tooling/musl/aarch64-linux-musl-cross.tar.gz
    - tar --extract --gzip --file aarch64-linux-musl-cross.tar.gz --directory /usr/local
    - ln -s /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc_s.so.1 /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc.so
+   - |
+     if [ ! -f "$CI_PROJECT_DIR/.alsa-musl/lib/libasound.a" ]; then
+       wget -q https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.12.tar.bz2
+       tar xf alsa-lib-1.2.12.tar.bz2
+       cd alsa-lib-1.2.12
+       CC=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc ./configure --host=aarch64-linux-musl --prefix=$CI_PROJECT_DIR/.alsa-musl --enable-static --disable-shared --disable-python --disable-alisp --without-debug
+       make -j$(nproc)
+       make install
+       cd ..
+       rm -rf alsa-lib-1.2.12 alsa-lib-1.2.12.tar.bz2
+     fi
    - rustup target add aarch64-unknown-linux-musl
    - export PATH="$CARGO_HOME/bin:$PATH"
-   - export PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config
    - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-ld
    - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_AR=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-ar
    - export LD_LIBRARY_PATH="/usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/:$LD_LIBRARY_PATH"
    - export TARGET_CC=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc
    - export TARGET_AR=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc-ar
    - export CARGO_BUILD_TARGET=aarch64-unknown-linux-musl
+   - export PKG_CONFIG_PATH=$CI_PROJECT_DIR/.alsa-musl/lib/pkgconfig
+   - export PKG_CONFIG_ALLOW_CROSS=1
    - rustc --version
    - cargo --version
 
