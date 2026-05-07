@@ -49,6 +49,7 @@ use std::sync::Weak;
 )]
 #[derive(Debug)]
 pub struct HfHub {
+    #[allow(unused)]
     model: Weak<HfHubModel>,
 }
 
@@ -143,54 +144,60 @@ pub async fn fetch() {
             Repo, RepoType,
         };
 
-        let repo_id   = model_arc.get_repo_id();
+        let repo_id = model_arc.get_repo_id();
         let repo_type = model_arc.get_repo_type();
-        let revision  = model_arc.get_revision();
-        let endpoint  = model_arc.get_endpoint();
+        let revision = model_arc.get_revision();
+        let endpoint = model_arc.get_endpoint();
         let cache_dir = model_arc.get_cache_dir();
         let token_str = model_arc.get_token();
 
         // Hub calls are blocking I/O — run off the async executor.
-        let result = async_std::task::spawn_blocking(move || -> Result<(Vec<String>, String), String> {
-            let repo_type = match repo_type.as_str() {
-                "dataset" => RepoType::Dataset,
-                "space"   => RepoType::Space,
-                _         => RepoType::Model,
-            };
+        let result =
+            async_std::task::spawn_blocking(move || -> Result<(Vec<String>, String), String> {
+                let repo_type = match repo_type.as_str() {
+                    "dataset" => RepoType::Dataset,
+                    "space" => RepoType::Space,
+                    _ => RepoType::Model,
+                };
 
-            let mut builder = ApiBuilder::new()
-                .with_endpoint(endpoint)
-                .with_token(if token_str.is_empty() { None } else { Some(token_str) });
+                let mut builder =
+                    ApiBuilder::new()
+                        .with_endpoint(endpoint)
+                        .with_token(if token_str.is_empty() {
+                            None
+                        } else {
+                            Some(token_str)
+                        });
 
-            if !cache_dir.is_empty() {
-                builder = builder.with_cache_dir(std::path::PathBuf::from(cache_dir));
-            }
+                if !cache_dir.is_empty() {
+                    builder = builder.with_cache_dir(std::path::PathBuf::from(cache_dir));
+                }
 
-            let api   = builder.build().map_err(|e| e.to_string())?;
-            let repo  = api.repo(Repo::with_revision(repo_id, repo_type, revision));
-            let info  = repo.info().map_err(|e: ApiError| e.to_string())?;
+                let api = builder.build().map_err(|e| e.to_string())?;
+                let repo = api.repo(Repo::with_revision(repo_id, repo_type, revision));
+                let info = repo.info().map_err(|e: ApiError| e.to_string())?;
 
-            let mut shard_paths: Vec<String> = info
-                .siblings
-                .iter()
-                .filter(|s| s.rfilename.ends_with(".safetensors"))
-                .map(|s| {
-                    repo.get(&s.rfilename)
-                        .map(|p| p.to_string_lossy().into_owned())
-                        .map_err(|e: ApiError| e.to_string())
-                })
-                .collect::<Result<Vec<_>, _>>()?;
+                let mut shard_paths: Vec<String> = info
+                    .siblings
+                    .iter()
+                    .filter(|s| s.rfilename.ends_with(".safetensors"))
+                    .map(|s| {
+                        repo.get(&s.rfilename)
+                            .map(|p| p.to_string_lossy().into_owned())
+                            .map_err(|e: ApiError| e.to_string())
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
 
-            shard_paths.sort();
+                shard_paths.sort();
 
-            let tokenizer_path = repo
-                .get("tokenizer.json")
-                .map(|p| p.to_string_lossy().into_owned())
-                .map_err(|e: ApiError| e.to_string())?;
+                let tokenizer_path = repo
+                    .get("tokenizer.json")
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .map_err(|e: ApiError| e.to_string())?;
 
-            Ok((shard_paths, tokenizer_path))
-        })
-        .await;
+                Ok((shard_paths, tokenizer_path))
+            })
+            .await;
 
         match result {
             Ok((shard_paths, tokenizer_path)) => {

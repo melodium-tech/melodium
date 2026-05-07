@@ -1,7 +1,7 @@
 use candle_core::{DType, Device, Tensor};
 use candle_nn::VarBuilder;
-use candle_transformers::models::mistral::{Config, Model};
 use candle_transformers::generation::LogitsProcessor;
+use candle_transformers::models::mistral::{Config, Model};
 use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_treatment};
 use std::collections::HashMap;
@@ -142,41 +142,40 @@ impl Mistral {
     /// the inference worker thread.  Returns `Err` with a description on any failure.
     /// Calling `load` a second time replaces the previous worker (the old one drains and exits).
     #[cfg(feature = "real")]
-    pub fn load(
-        &self,
-        shard_paths: Vec<String>,
-        tokenizer_path: String,
-    ) -> Result<(), String> {
+    pub fn load(&self, shard_paths: Vec<String>, tokenizer_path: String) -> Result<(), String> {
         let model_ref = self.model.upgrade().ok_or("model dropped")?;
 
-        let tokenizer = Tokenizer::from_file(&tokenizer_path)
-            .map_err(|e| e.to_string())?;
+        let tokenizer = Tokenizer::from_file(&tokenizer_path).map_err(|e| e.to_string())?;
 
         let sliding_window_val = model_ref.get_sliding_window();
         let config = Config {
-            vocab_size:              model_ref.get_vocab_size() as usize,
-            hidden_size:             model_ref.get_hidden_size() as usize,
-            intermediate_size:       model_ref.get_intermediate_size() as usize,
-            num_hidden_layers:       model_ref.get_num_hidden_layers() as usize,
-            num_attention_heads:     model_ref.get_num_attention_heads() as usize,
-            head_dim:                None,
-            num_key_value_heads:     model_ref.get_num_key_value_heads() as usize,
-            hidden_act:              candle_nn::Activation::Silu,
+            vocab_size: model_ref.get_vocab_size() as usize,
+            hidden_size: model_ref.get_hidden_size() as usize,
+            intermediate_size: model_ref.get_intermediate_size() as usize,
+            num_hidden_layers: model_ref.get_num_hidden_layers() as usize,
+            num_attention_heads: model_ref.get_num_attention_heads() as usize,
+            head_dim: None,
+            num_key_value_heads: model_ref.get_num_key_value_heads() as usize,
+            hidden_act: candle_nn::Activation::Silu,
             max_position_embeddings: model_ref.get_max_position_embeddings() as usize,
-            rms_norm_eps:            model_ref.get_rms_norm_eps(),
-            rope_theta:              model_ref.get_rope_theta(),
-            sliding_window:          if sliding_window_val == 0 {
-                                         None
-                                     } else {
-                                         Some(sliding_window_val as usize)
-                                     },
+            rms_norm_eps: model_ref.get_rms_norm_eps(),
+            rope_theta: model_ref.get_rope_theta(),
+            sliding_window: if sliding_window_val == 0 {
+                None
+            } else {
+                Some(sliding_window_val as usize)
+            },
             use_flash_attn: false,
         };
 
         let device = Device::Cpu;
         let vb = unsafe {
             VarBuilder::from_mmaped_safetensors(
-                shard_paths.iter().map(|s| s.as_str()).collect::<Vec<_>>().as_slice(),
+                shard_paths
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .as_slice(),
                 DType::F32,
                 &device,
             )
@@ -185,10 +184,10 @@ impl Mistral {
 
         let candle_model = Model::new(&config, vb).map_err(|e| e.to_string())?;
 
-        let temperature    = model_ref.get_temperature();
-        let top_p          = model_ref.get_top_p();
+        let temperature = model_ref.get_temperature();
+        let top_p = model_ref.get_top_p();
         let repeat_penalty = model_ref.get_repeat_penalty();
-        let repeat_last_n  = model_ref.get_repeat_last_n() as usize;
+        let repeat_last_n = model_ref.get_repeat_last_n() as usize;
         let max_new_tokens = model_ref.get_max_new_tokens() as usize;
 
         let (tx, rx) = flume::unbounded::<WorkerMsg>();
@@ -218,7 +217,13 @@ impl Mistral {
     pub fn enqueue(&self, conversation_id: u64, prompt: String) -> Option<flume::Receiver<String>> {
         let (reply_tx, reply_rx) = flume::unbounded();
         let tx = self.request_tx.lock().unwrap();
-        tx.as_ref()?.send(WorkerMsg::Infer(InferRequest { conversation_id, prompt, reply: reply_tx })).ok()?;
+        tx.as_ref()?
+            .send(WorkerMsg::Infer(InferRequest {
+                conversation_id,
+                prompt,
+                reply: reply_tx,
+            }))
+            .ok()?;
         Some(reply_rx)
     }
 
@@ -252,11 +257,17 @@ fn worker_loop(
     let eos_token = tokenizer.token_to_id("</s>").unwrap_or(u32::MAX);
     let apply_repeat_penalty = repeat_penalty != 1.0;
 
-    let make_processor = || LogitsProcessor::new(
-        42,
-        if temperature == 0.0 { None } else { Some(temperature) },
-        if top_p == 0.0 { None } else { Some(top_p) },
-    );
+    let make_processor = || {
+        LogitsProcessor::new(
+            42,
+            if temperature == 0.0 {
+                None
+            } else {
+                Some(temperature)
+            },
+            if top_p == 0.0 { None } else { Some(top_p) },
+        )
+    };
 
     // Conversation state that lives between turns.
     let mut hot_id: Option<u64> = None;
@@ -287,13 +298,17 @@ fn worker_loop(
         if hot_id != Some(req.conversation_id) {
             // Save current hot state (if any).
             if let Some(id) = hot_id {
-                let saved_processor = std::mem::replace(&mut hot_logits_processor, make_processor());
-                snapshots.insert(id, KvSnapshot {
-                    model: model.clone(),
-                    seqlen_offset: hot_seqlen_offset,
-                    all_tokens: std::mem::take(&mut hot_all_tokens),
-                    logits_processor: saved_processor,
-                });
+                let saved_processor =
+                    std::mem::replace(&mut hot_logits_processor, make_processor());
+                snapshots.insert(
+                    id,
+                    KvSnapshot {
+                        model: model.clone(),
+                        seqlen_offset: hot_seqlen_offset,
+                        all_tokens: std::mem::take(&mut hot_all_tokens),
+                        logits_processor: saved_processor,
+                    },
+                );
             }
 
             // Restore or initialise target conversation.
@@ -322,12 +337,11 @@ fn worker_loop(
         hot_all_tokens.extend_from_slice(&tokens);
 
         // Forward the whole new prompt to extend the KV cache.
-        let prompt_tensor = match Tensor::new(tokens.as_slice(), &device)
-            .and_then(|t| t.unsqueeze(0))
-        {
-            Ok(t) => t,
-            Err(_) => continue,
-        };
+        let prompt_tensor =
+            match Tensor::new(tokens.as_slice(), &device).and_then(|t| t.unsqueeze(0)) {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
 
         let logits = match model.forward(&prompt_tensor, hot_seqlen_offset) {
             Ok(l) => l,
@@ -479,9 +493,6 @@ fn emit_token(tokenizer: &Tokenizer, token: u32, reply: &flume::Sender<String>) 
     output error       Block<string>
 )]
 pub async fn load() {
-    let model_arc = MistralModel::into(mistral);
-    let mistral_struct = model_arc.inner();
-
     // Collect all shard paths from the stream.
     let mut shard_paths: Vec<String> = Vec::new();
     while let Ok(val) = safetensors.recv_one().await {
@@ -496,19 +507,25 @@ pub async fn load() {
             Ok(p) => p,
             Err(_) => {
                 let _ = failed.send_one(().into()).await;
-                let _ = error.send_one(Value::String("invalid tokenizer path value".into())).await;
+                let _ = error
+                    .send_one(Value::String("invalid tokenizer path value".into()))
+                    .await;
                 return;
             }
         },
         Err(_) => {
             let _ = failed.send_one(().into()).await;
-            let _ = error.send_one(Value::String("tokenizer path not received".into())).await;
+            let _ = error
+                .send_one(Value::String("tokenizer path not received".into()))
+                .await;
             return;
         }
     };
 
     #[cfg(feature = "real")]
     {
+        let model_arc = MistralModel::into(mistral);
+
         // load() is sync but does heavy I/O (mmap) and CPU work (model init);
         // run it on a blocking thread so the async executor is not stalled.
         // Clone the Arc so the model stays alive inside the blocking closure.
@@ -519,7 +536,9 @@ pub async fn load() {
         .await;
 
         match result {
-            Ok(()) => { let _ = loaded.send_one(().into()).await; }
+            Ok(()) => {
+                let _ = loaded.send_one(().into()).await;
+            }
             Err(e) => {
                 let _ = failed.send_one(().into()).await;
                 let _ = error.send_one(Value::String(e)).await;
