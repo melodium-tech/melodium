@@ -191,9 +191,18 @@ fn worker_loop(
                               window: &[f32]| -> bool {
         model.reset_kv_cache();
 
+<<<<<<< Updated upstream
         let mel = audio::pcm_to_mel(&model.config, window, &filters);
         let n_frames = mel.len() / n_mels;
         let mel_tensor = match Tensor::from_vec(mel, (1, n_mels, n_frames), &device) {
+=======
+        let mel = audio::pcm_to_mel(&model.config, window, &mel_filters);
+        let mel_total_frames = mel.len() / n_mels;
+        let n_frames = mel_total_frames.min(whisper_model::N_FRAMES);
+        let mel_tensor = match Tensor::from_vec(mel, (1, n_mels, mel_total_frames), &device)
+            .and_then(|t| t.narrow(2, 0, n_frames))
+        {
+>>>>>>> Stashed changes
             Ok(t) => t,
             Err(_) => return true,
         };

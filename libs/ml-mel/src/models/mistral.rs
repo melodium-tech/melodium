@@ -5,16 +5,33 @@ use candle_transformers::generation::LogitsProcessor;
 use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_treatment};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Weak;
 use tokenizers::Tokenizer;
+
+#[cfg(feature = "real")]
+enum WorkerMsg {
+    Infer(InferRequest),
+    Drop(u64),
+}
 
 // A request sent to the inference worker thread.
 // The worker sends back individual token strings through `reply`; dropping the
 // sender signals that generation is finished.
 #[cfg(feature = "real")]
 struct InferRequest {
+    conversation_id: u64,
     prompt: String,
     reply: flume::Sender<String>,
+}
+
+// Saved state for a conversation that is not currently "hot" in the model.
+#[cfg(feature = "real")]
+struct KvSnapshot {
+    model: Model,
+    seqlen_offset: usize,
+    all_tokens: Vec<u32>,
+    logits_processor: LogitsProcessor,
 }
 
 /// Mistral large language model configuration.
@@ -92,10 +109,9 @@ struct InferRequest {
 #[derive(Debug)]
 pub struct Mistral {
     model: Weak<MistralModel>,
-    // Sending end of the request queue. The worker thread owns the receiving end.
-    // None until load() is called successfully.
     #[cfg(feature = "real")]
-    request_tx: std::sync::Mutex<Option<flume::Sender<InferRequest>>>,
+    request_tx: std::sync::Mutex<Option<flume::Sender<WorkerMsg>>>,
+    next_conversation_id: AtomicU64,
 }
 
 impl Mistral {
@@ -104,11 +120,11 @@ impl Mistral {
             model,
             #[cfg(feature = "real")]
             request_tx: std::sync::Mutex::new(None),
+            next_conversation_id: AtomicU64::new(1),
         }
     }
 
     fn shutdown(&self) {
-        // Dropping the sender closes the channel; the worker loop exits cleanly.
         #[cfg(feature = "real")]
         {
             *self.request_tx.lock().unwrap() = None;
@@ -116,6 +132,11 @@ impl Mistral {
     }
 
     fn invoke_source(&self, _source: &str, _params: HashMap<String, Value>) {}
+
+    #[cfg(feature = "real")]
+    pub fn alloc_conversation_id(&self) -> u64 {
+        self.next_conversation_id.fetch_add(1, Ordering::Relaxed)
+    }
 
     /// Load weights from `shard_paths` and a tokenizer from `tokenizer_path`, then start
     /// the inference worker thread.  Returns `Err` with a description on any failure.
@@ -170,11 +191,8 @@ impl Mistral {
         let repeat_last_n  = model_ref.get_repeat_last_n() as usize;
         let max_new_tokens = model_ref.get_max_new_tokens() as usize;
 
-        // Unbounded channel: callers enqueue immediately, the worker drains sequentially.
-        let (tx, rx) = flume::unbounded::<InferRequest>();
+        let (tx, rx) = flume::unbounded::<WorkerMsg>();
 
-        // The worker thread owns the model and the receiving end of the channel.
-        // It processes requests one at a time, resetting the KV cache between them.
         std::thread::spawn(move || {
             worker_loop(
                 candle_model,
@@ -188,8 +206,8 @@ impl Mistral {
             );
         });
 
-        // Replacing the sender drops the old one, which closes the old channel and
-        // causes the previous worker (if any) to drain and exit naturally.
+        // Replacing the sender drops the old one, closing the old channel so the
+        // previous worker (if any) drains and exits naturally.
         *self.request_tx.lock().unwrap() = Some(tx);
         Ok(())
     }
@@ -197,21 +215,33 @@ impl Mistral {
     /// Enqueue a generation request and return a receiver for the token stream.
     /// Returns `None` if the model has not been loaded yet.
     #[cfg(feature = "real")]
-    pub fn enqueue(&self, prompt: String) -> Option<flume::Receiver<String>> {
+    pub fn enqueue(&self, conversation_id: u64, prompt: String) -> Option<flume::Receiver<String>> {
         let (reply_tx, reply_rx) = flume::unbounded();
         let tx = self.request_tx.lock().unwrap();
-        tx.as_ref()?.send(InferRequest { prompt, reply: reply_tx }).ok()?;
+        tx.as_ref()?.send(WorkerMsg::Infer(InferRequest { conversation_id, prompt, reply: reply_tx })).ok()?;
         Some(reply_rx)
+    }
+
+    /// Notify the worker that this conversation is over so it can free the snapshot.
+    #[cfg(feature = "real")]
+    pub fn drop_conversation(&self, conversation_id: u64) {
+        let tx = self.request_tx.lock().unwrap();
+        if let Some(tx) = tx.as_ref() {
+            let _ = tx.send(WorkerMsg::Drop(conversation_id));
+        }
     }
 }
 
 // Runs on a dedicated OS thread; never touches the async executor.
-// Processes one request at a time, resets KV cache between requests.
+// Processes one request at a time. KV state is kept per conversation:
+// when the incoming request belongs to the conversation already hot in the
+// model the cache is used as-is; otherwise the hot conversation is saved and
+// the target conversation is restored before running inference.
 #[cfg(feature = "real")]
 fn worker_loop(
     mut model: Model,
     tokenizer: Tokenizer,
-    rx: flume::Receiver<InferRequest>,
+    rx: flume::Receiver<WorkerMsg>,
     temperature: f64,
     top_p: f64,
     repeat_penalty: f32,
@@ -220,10 +250,74 @@ fn worker_loop(
 ) {
     let device = Device::Cpu;
     let eos_token = tokenizer.token_to_id("</s>").unwrap_or(u32::MAX);
+    let apply_repeat_penalty = repeat_penalty != 1.0;
 
-    for req in rx.iter() {
-        // Always reset before a new request so previous KV state is gone.
-        model.clear_kv_cache();
+    // Conversation state that lives between turns.
+    let mut hot_id: Option<u64> = None;
+    let mut hot_seqlen_offset: usize = 0;
+    let mut hot_all_tokens: Vec<u32> = Vec::new();
+    let mut hot_logits_processor = LogitsProcessor::new(
+        42,
+        if temperature == 0.0 { None } else { Some(temperature) },
+        if top_p == 0.0 { None } else { Some(top_p) },
+    );
+    let mut snapshots: HashMap<u64, KvSnapshot> = HashMap::new();
+
+    for msg in rx.iter() {
+        let req = match msg {
+            WorkerMsg::Drop(id) => {
+                if hot_id == Some(id) {
+                    // The hot conversation ended — clear the model cache.
+                    model.clear_kv_cache();
+                    hot_id = None;
+                    hot_seqlen_offset = 0;
+                    hot_all_tokens.clear();
+                } else {
+                    snapshots.remove(&id);
+                }
+                continue;
+            }
+            WorkerMsg::Infer(r) => r,
+        };
+
+        // Switch conversations when needed.
+        if hot_id != Some(req.conversation_id) {
+            // Save current hot state (if any).
+            if let Some(id) = hot_id {
+                let saved_processor = std::mem::replace(
+                    &mut hot_logits_processor,
+                    LogitsProcessor::new(
+                        42,
+                        if temperature == 0.0 { None } else { Some(temperature) },
+                        if top_p == 0.0 { None } else { Some(top_p) },
+                    ),
+                );
+                snapshots.insert(id, KvSnapshot {
+                    model: model.clone(),
+                    seqlen_offset: hot_seqlen_offset,
+                    all_tokens: std::mem::take(&mut hot_all_tokens),
+                    logits_processor: saved_processor,
+                });
+            }
+
+            // Restore or initialise target conversation.
+            if let Some(snap) = snapshots.remove(&req.conversation_id) {
+                model = snap.model;
+                hot_seqlen_offset = snap.seqlen_offset;
+                hot_all_tokens = snap.all_tokens;
+                hot_logits_processor = snap.logits_processor;
+            } else {
+                model.clear_kv_cache();
+                hot_seqlen_offset = 0;
+                hot_all_tokens.clear();
+                hot_logits_processor = LogitsProcessor::new(
+                    42,
+                    if temperature == 0.0 { None } else { Some(temperature) },
+                    if top_p == 0.0 { None } else { Some(top_p) },
+                );
+            }
+            hot_id = Some(req.conversation_id);
+        }
 
         let tokens = match tokenizer
             .encode(req.prompt.as_str(), true)
@@ -233,17 +327,9 @@ fn worker_loop(
             Err(_) => continue,
         };
 
-        let mut logits_processor = LogitsProcessor::new(
-            42,
-            if temperature == 0.0 { None } else { Some(temperature) },
-            if top_p == 0.0 { None } else { Some(top_p) },
-        );
+        hot_all_tokens.extend_from_slice(&tokens);
 
-        let apply_repeat_penalty = repeat_penalty != 1.0;
-        let mut all_tokens = tokens.clone();
-        let mut seqlen_offset = 0usize;
-
-        // Forward the whole prompt in one shot to fill the KV cache.
+        // Forward the whole new prompt to extend the KV cache.
         let prompt_tensor = match Tensor::new(tokens.as_slice(), &device)
             .and_then(|t| t.unsqueeze(0))
         {
@@ -251,26 +337,26 @@ fn worker_loop(
             Err(_) => continue,
         };
 
-        let logits = match model.forward(&prompt_tensor, seqlen_offset) {
+        let logits = match model.forward(&prompt_tensor, hot_seqlen_offset) {
             Ok(l) => l,
             Err(_) => continue,
         };
-        seqlen_offset += all_tokens.len();
+        hot_seqlen_offset += tokens.len();
 
         let mut next_token = match step(
             logits,
-            &all_tokens,
+            &hot_all_tokens,
             apply_repeat_penalty,
             repeat_penalty,
             repeat_last_n,
-            &mut logits_processor,
+            &mut hot_logits_processor,
         ) {
             Some(t) => t,
             None => continue,
         };
 
         emit_token(&tokenizer, next_token, &req.reply);
-        all_tokens.push(next_token);
+        hot_all_tokens.push(next_token);
 
         for _ in 1..max_new_tokens {
             if next_token == eos_token {
@@ -282,26 +368,26 @@ fn worker_loop(
                 Err(_) => break,
             };
 
-            let logits = match model.forward(&input, seqlen_offset) {
+            let logits = match model.forward(&input, hot_seqlen_offset) {
                 Ok(l) => l,
                 Err(_) => break,
             };
-            seqlen_offset += 1;
+            hot_seqlen_offset += 1;
 
             next_token = match step(
                 logits,
-                &all_tokens,
+                &hot_all_tokens,
                 apply_repeat_penalty,
                 repeat_penalty,
                 repeat_last_n,
-                &mut logits_processor,
+                &mut hot_logits_processor,
             ) {
                 Some(t) => t,
                 None => break,
             };
 
             emit_token(&tokenizer, next_token, &req.reply);
-            all_tokens.push(next_token);
+            hot_all_tokens.push(next_token);
         }
         // Dropping `req.reply` here closes the receiver on the async side.
     }
@@ -515,12 +601,15 @@ pub async fn generate() {
     let model_arc = MistralModel::into(mistral);
     let mistral_struct = model_arc.inner();
 
+    #[cfg(feature = "real")]
+    let conversation_id = mistral_struct.alloc_conversation_id();
+
     while let Ok(val) = prompt.recv_one().await {
         let text = GetData::<String>::try_data(val).unwrap_or_default();
 
         #[cfg(feature = "real")]
         {
-            if let Some(reply_rx) = mistral_struct.enqueue(text) {
+            if let Some(reply_rx) = mistral_struct.enqueue(conversation_id, text) {
                 // recv_async() yields to the executor between tokens;
                 // the OS thread runs inference concurrently.
                 while let Ok(word) = reply_rx.recv_async().await {
@@ -534,4 +623,8 @@ pub async fn generate() {
             let _ = &text;
         }
     }
+
+    // Prompt stream closed: release the KV snapshot held for this conversation.
+    #[cfg(feature = "real")]
+    mistral_struct.drop_conversation(conversation_id);
 }
