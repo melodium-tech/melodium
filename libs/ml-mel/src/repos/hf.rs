@@ -141,8 +141,58 @@ pub async fn fetch() {
     {
         use hf_hub::{
             api::sync::{ApiBuilder, ApiError},
+            api::Progress,
             Repo, RepoType,
         };
+
+        #[allow(unused)]
+        struct ShardProgress {
+            shard_index: usize,
+            shard_total: usize,
+            file_downloaded: usize,
+            file_total: usize,
+            filename: String,
+        }
+
+        impl Progress for ShardProgress {
+            fn init(&mut self, size: usize, filename: &str) {
+                self.file_downloaded = 0;
+                self.file_total = size;
+                self.filename = filename.to_string();
+            }
+
+            fn update(&mut self, size: usize) {
+                self.file_downloaded += size;
+                /*let file_pct = if self.file_total > 0 {
+                    self.file_downloaded * 100 / self.file_total
+                } else {
+                    0
+                };
+                // Global percentage: completed shards + current shard progress.
+                let global_pct = if self.shard_total > 0 {
+                    (self.shard_index * 100 + file_pct) / self.shard_total
+                } else {
+                    0
+                };
+                 eprintln!(
+                    "[fetch] shard {}/{} — {} {}% — overall {}%",
+                    self.shard_index + 1,
+                    self.shard_total,
+                    self.filename,
+                    file_pct,
+                    global_pct,
+                ); */
+            }
+
+            fn finish(&mut self) {
+                /*                 eprintln!(
+                    "[fetch] shard {}/{} — {} done",
+                    self.shard_index + 1,
+                    self.shard_total,
+                    self.filename,
+                ); */
+            }
+        }
 
         let repo_id = model_arc.get_repo_id();
         let repo_type = model_arc.get_repo_type();
@@ -160,14 +210,14 @@ pub async fn fetch() {
                     _ => RepoType::Model,
                 };
 
-                let mut builder =
-                    ApiBuilder::new()
-                        .with_endpoint(endpoint)
-                        .with_token(if token_str.is_empty() {
-                            None
-                        } else {
-                            Some(token_str)
-                        });
+                let mut builder = ApiBuilder::new()
+                    .with_progress(false)
+                    .with_endpoint(endpoint)
+                    .with_token(if token_str.is_empty() {
+                        None
+                    } else {
+                        Some(token_str)
+                    });
 
                 if !cache_dir.is_empty() {
                     builder = builder.with_cache_dir(std::path::PathBuf::from(cache_dir));
@@ -177,21 +227,46 @@ pub async fn fetch() {
                 let repo = api.repo(Repo::with_revision(repo_id, repo_type, revision));
                 let info = repo.info().map_err(|e: ApiError| e.to_string())?;
 
-                let mut shard_paths: Vec<String> = info
+                let shard_names: Vec<&str> = info
                     .siblings
                     .iter()
                     .filter(|s| s.rfilename.ends_with(".safetensors"))
-                    .map(|s| {
-                        repo.get(&s.rfilename)
-                            .map(|p| p.to_string_lossy().into_owned())
-                            .map_err(|e: ApiError| e.to_string())
+                    .map(|s| s.rfilename.as_str())
+                    .collect();
+                let shard_total = shard_names.len() + 1; // +1 for tokenizer
+
+                let mut shard_paths: Vec<String> = shard_names
+                    .iter()
+                    .enumerate()
+                    .map(|(i, name)| {
+                        repo.download_with_progress(
+                            name,
+                            ShardProgress {
+                                shard_index: i,
+                                shard_total,
+                                file_downloaded: 0,
+                                file_total: 0,
+                                filename: String::new(),
+                            },
+                        )
+                        .map(|p| p.to_string_lossy().into_owned())
+                        .map_err(|e: ApiError| e.to_string())
                     })
                     .collect::<Result<Vec<_>, _>>()?;
 
                 shard_paths.sort();
 
                 let tokenizer_path = repo
-                    .get("tokenizer.json")
+                    .download_with_progress(
+                        "tokenizer.json",
+                        ShardProgress {
+                            shard_index: shard_total - 1,
+                            shard_total,
+                            file_downloaded: 0,
+                            file_total: 0,
+                            filename: String::new(),
+                        },
+                    )
                     .map(|p| p.to_string_lossy().into_owned())
                     .map_err(|e: ApiError| e.to_string())?;
 
