@@ -11,8 +11,8 @@ use melodium_core::{executive::*, *};
 use melodium_macro::{check, mel_data, mel_function, mel_package, mel_treatment};
 use std::sync::Arc;
 
-pub(crate) mod channels;
 pub mod audio_info;
+pub(crate) mod channels;
 pub mod decode;
 pub mod encode;
 pub mod record;

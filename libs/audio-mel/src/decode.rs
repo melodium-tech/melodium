@@ -1,3 +1,5 @@
+use crate::audio_info::*;
+use crate::channels::*;
 use async_channel::bounded;
 use melodium_core::*;
 use melodium_macro::mel_treatment;
@@ -11,8 +13,6 @@ use symphonia::core::{
     meta::MetadataOptions,
     probe::Hint,
 };
-use crate::audio_info::*;
-use crate::channels::*;
 
 /// Decode an audio stream of any supported format into a normalised mono `f32` signal.
 ///
@@ -130,7 +130,7 @@ pub async fn decode_mono(hint: Option<string>) {
                 Ok(r) => r,
                 Err(e) => {
                     let _ = async_std::task::block_on(
-                        err_sender.send((true, format!("format detection failed: {e}")))
+                        err_sender.send((true, format!("format detection failed: {e}"))),
                     );
                     return;
                 }
@@ -142,26 +142,27 @@ pub async fn decode_mono(hint: Option<string>) {
                 Some(t) => t.clone(),
                 None => {
                     let _ = async_std::task::block_on(
-                        err_sender.send((true, "no audio track found".to_string()))
+                        err_sender.send((true, "no audio track found".to_string())),
                     );
                     return;
                 }
             };
 
             let codec_registry = symphonia::default::get_codecs();
-            let mut decoder = match codec_registry
-                .make(&track.codec_params, &DecoderOptions::default())
-            {
-                Ok(d) => d,
-                Err(e) => {
-                    let _ = async_std::task::block_on(
-                        err_sender.send((true, format!("unsupported codec: {e}")))
-                    );
-                    return;
-                }
-            };
+            let mut decoder =
+                match codec_registry.make(&track.codec_params, &DecoderOptions::default()) {
+                    Ok(d) => d,
+                    Err(e) => {
+                        let _ = async_std::task::block_on(
+                            err_sender.send((true, format!("unsupported codec: {e}"))),
+                        );
+                        return;
+                    }
+                };
 
-            let duration_seconds = track.codec_params.time_base
+            let duration_seconds = track
+                .codec_params
+                .time_base
                 .zip(track.codec_params.n_frames)
                 .map(|(tb, n)| {
                     let t = tb.calc_time(n);
@@ -169,7 +170,9 @@ pub async fn decode_mono(hint: Option<string>) {
                 });
             let audio_info = AudioInfo {
                 codec: format!("{}", track.codec_params.codec),
-                channels: track.codec_params.channels
+                channels: track
+                    .codec_params
+                    .channels
                     .map(|c| c.count() as u32)
                     .unwrap_or(0),
                 sample_rate: track.codec_params.sample_rate.unwrap_or(0),
@@ -184,20 +187,20 @@ pub async fn decode_mono(hint: Option<string>) {
                     Ok(p) => p,
                     Err(Error::IoError(e)) => {
                         let _ = async_std::task::block_on(
-                            err_sender.send((true, format!("I/O error: {e}")))
+                            err_sender.send((true, format!("I/O error: {e}"))),
                         );
                         break;
                     }
                     Err(Error::ResetRequired) => break,
                     Err(Error::DecodeError(e)) => {
                         let _ = async_std::task::block_on(
-                            err_sender.send((false, format!("packet skipped: {e}")))
+                            err_sender.send((false, format!("packet skipped: {e}"))),
                         );
                         continue;
                     }
                     Err(e) => {
                         let _ = async_std::task::block_on(
-                            err_sender.send((true, format!("demux error: {e}")))
+                            err_sender.send((true, format!("demux error: {e}"))),
                         );
                         break;
                     }
@@ -207,13 +210,13 @@ pub async fn decode_mono(hint: Option<string>) {
                     Ok(buf) => buf,
                     Err(Error::DecodeError(e)) => {
                         let _ = async_std::task::block_on(
-                            err_sender.send((false, format!("packet skipped: {e}")))
+                            err_sender.send((false, format!("packet skipped: {e}"))),
                         );
                         continue;
                     }
                     Err(e) => {
                         let _ = async_std::task::block_on(
-                            err_sender.send((true, format!("decode error: {e}")))
+                            err_sender.send((true, format!("decode error: {e}"))),
                         );
                         break;
                     }
@@ -236,9 +239,7 @@ pub async fn decode_mono(hint: Option<string>) {
                 } else {
                     let inv = 1.0_f32 / num_channels as f32;
                     (0..num_frames)
-                        .map(|frame| {
-                            channel_slices.iter().map(|ch| ch[frame]).sum::<f32>() * inv
-                        })
+                        .map(|frame| channel_slices.iter().map(|ch| ch[frame]).sum::<f32>() * inv)
                         .collect()
                 };
 
