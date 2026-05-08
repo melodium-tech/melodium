@@ -16,6 +16,7 @@ pub(crate) mod channels;
 pub mod decode;
 pub mod encode;
 pub mod record;
+pub mod transform;
 
 /// JSON data.
 ///
