@@ -79,7 +79,8 @@
         wget -q https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.12.tar.bz2
         tar xf alsa-lib-1.2.12.tar.bz2
         cd alsa-lib-1.2.12
-        CC=musl-gcc CFLAGS="-I/usr/include/x86_64-linux-gnu" ./configure --host=x86_64-linux-musl --prefix=$CI_PROJECT_DIR/.alsa-musl --enable-static --disable-shared --disable-python --disable-alisp --without-debug
+        ln -s /usr/include/x86_64-linux-gnu/asm /usr/include/asm
+        CC=musl-gcc CFLAGS="-I/usr/include" ./configure --host=x86_64-linux-musl --prefix=$CI_PROJECT_DIR/.alsa-musl --enable-static --disable-shared --disable-python --disable-alisp --without-debug
         make -j$(nproc)
         make install
         cd ..
@@ -270,6 +271,8 @@
     - export TARGET_AR=aarch64-apple-darwin23.2-ar
     - export CARGO_BUILD_TARGET=aarch64-apple-darwin
     - export CFLAGS_aarch64_apple_darwin=-fuse-ld=aarch64-apple-darwin23.2-ld
+    - export SDKROOT="$CI_PROJECT_DIR/osxcross/target/SDK/MacOSX14.2.sdk"
+    - export MACOSX_DEPLOYMENT_TARGET=14.2
     - rustc --version
     - cargo --version
 
