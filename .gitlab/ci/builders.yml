@@ -72,7 +72,7 @@
     - .cache:cargo-alsa-musl
   before_script:
     - apt-get update
-    - apt-get install -y musl-tools make
+    - apt-get install -y musl-tools make linux-libc-dev
     - |
       if [ ! -f "$CI_PROJECT_DIR/.alsa-musl/lib/libasound.a" ]; then
         apt-get install -y wget
