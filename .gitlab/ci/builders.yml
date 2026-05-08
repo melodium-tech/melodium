@@ -270,6 +270,8 @@
     - export TARGET_AR=aarch64-apple-darwin23.2-ar
     - export CARGO_BUILD_TARGET=aarch64-apple-darwin
     - export CFLAGS_aarch64_apple_darwin=-fuse-ld=aarch64-apple-darwin23.2-ld
+    - export SDKROOT="$CI_PROJECT_DIR/osxcross/target/SDK/MacOSX14.2.sdk"
+    - export MACOSX_DEPLOYMENT_TARGET=14.2
     - rustc --version
     - cargo --version
 
