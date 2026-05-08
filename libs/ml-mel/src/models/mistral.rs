@@ -548,7 +548,7 @@ pub async fn load() {
 
     #[cfg(not(feature = "real"))]
     {
-        let _ = (shard_paths, tokenizer_path, mistral_struct);
+        let _ = (shard_paths, tokenizer_path);
         let _ = loaded.send_one(().into()).await;
     }
 }
