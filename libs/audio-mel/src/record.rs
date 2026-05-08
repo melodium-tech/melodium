@@ -21,11 +21,16 @@ use std::sync::Arc;
 /// parameter can be set to the name of a specific input device to use instead of the
 /// system default. When `none`, the system default input device is used.
 ///
+/// The optional `sample_rate` parameter requests a specific capture rate (e.g. `16000`,
+/// `44100`, `48000`). The device must support the requested rate; if it does not, a fatal
+/// error is emitted and capture does not start. When `none`, the device default rate is used.
+///
 /// `errors` emits a message for every problem encountered during capture:
 /// - recoverable problems (a transient stream error reported by the driver) produce one
 ///   message and capture continues;
-/// - fatal problems (no input device available, unsupported sample format, stream build
-///   failure) produce one message, trigger `failed`, and close all outputs immediately.
+/// - fatal problems (no input device available, unsupported sample format, unsupported
+///   sample rate, stream build failure) produce one message, trigger `failed`, and close all
+///   outputs immediately.
 ///
 /// `failed` triggers if and only if capture cannot continue at all, regardless of whether
 /// any samples were already emitted on `signal` before the failure occurred.
@@ -53,7 +58,7 @@ use std::sync::Arc;
     output failed Block<void>
     output errors Stream<string>
 )]
-pub async fn record_mono(device: Option<string>) {
+pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
     if let Ok(_) = trigger.recv_one().await {
         // Trigger received, start capture. We ignore the value since it's just a signal.
         // Channel carrying interleaved f32 batches from the cpal callback to the async side.
@@ -114,8 +119,34 @@ pub async fn record_mono(device: Option<string>) {
                 };
 
                 let num_channels = config.channels() as usize;
-                let stream_config = config.config();
                 let sample_format = config.sample_format();
+
+                let stream_config = if let Some(rate) = sample_rate {
+                    // Verify the device supports the requested rate and build a matching config.
+                    let supported = input_device
+                        .supported_input_configs()
+                        .ok()
+                        .and_then(|mut iter| {
+                            iter.find(|r| {
+                                r.channels() as usize == num_channels
+                                    && r.sample_format() == sample_format
+                                    && r.min_sample_rate() <= rate
+                                    && rate <= r.max_sample_rate()
+                            })
+                        });
+                    match supported {
+                        Some(range) => range.with_sample_rate(rate).config(),
+                        None => {
+                            let _ = async_std::task::block_on(err_sender.send((
+                                true,
+                                format!("requested sample rate {rate} not supported by device"),
+                            )));
+                            return;
+                        }
+                    }
+                } else {
+                    config.config()
+                };
 
                 let stream_result = build_stream(
                     &input_device,

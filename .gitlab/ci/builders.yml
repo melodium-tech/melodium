@@ -72,14 +72,14 @@
     - .cache:cargo-alsa-musl
   before_script:
     - apt-get update
-    - apt-get install -y musl-tools make
+    - apt-get install -y musl-tools make linux-libc-dev
     - |
       if [ ! -f "$CI_PROJECT_DIR/.alsa-musl/lib/libasound.a" ]; then
         apt-get install -y wget
         wget -q https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.12.tar.bz2
         tar xf alsa-lib-1.2.12.tar.bz2
         cd alsa-lib-1.2.12
-        CC=musl-gcc ./configure --host=x86_64-linux-musl --prefix=$CI_PROJECT_DIR/.alsa-musl --enable-static --disable-shared --disable-python --disable-alisp --without-debug
+        CC=musl-gcc CFLAGS="-I/usr/include/x86_64-linux-gnu" ./configure --host=x86_64-linux-musl --prefix=$CI_PROJECT_DIR/.alsa-musl --enable-static --disable-shared --disable-python --disable-alisp --without-debug
         make -j$(nproc)
         make install
         cd ..
@@ -257,19 +257,19 @@
         tar --extract --gzip --file osxcross-611675b.tar.gz
         mv osxcross-master osxcross
         cd osxcross
-        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX11.3.sdk.tar.xz
-        mv MacOSX11.3.sdk.tar.xz tarballs/
-        UNATTENDED=yes OSX_VERSION_MIN=11.3 ./build.sh
-        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin20.4-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
+        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX14.2.sdk.tar.xz
+        mv MacOSX14.2.sdk.tar.xz tarballs/
+        UNATTENDED=yes OSX_VERSION_MIN=14.2 ./build.sh
+        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
         cd "$base"
       fi
     - export PATH="$CI_PROJECT_DIR/osxcross/target/bin:$PATH"
-    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=aarch64-apple-darwin20.4-clang
-    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=aarch64-apple-darwin20.4-ar
-    - export TARGET_CC=aarch64-apple-darwin20.4-cc
-    - export TARGET_AR=aarch64-apple-darwin20.4-ar
+    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=aarch64-apple-darwin23.2-clang
+    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=aarch64-apple-darwin23.2-ar
+    - export TARGET_CC=aarch64-apple-darwin23.2-cc
+    - export TARGET_AR=aarch64-apple-darwin23.2-ar
     - export CARGO_BUILD_TARGET=aarch64-apple-darwin
-    - export CFLAGS_aarch64_apple_darwin=-fuse-ld=aarch64-apple-darwin20.4-ld
+    - export CFLAGS_aarch64_apple_darwin=-fuse-ld=aarch64-apple-darwin23.2-ld
     - rustc --version
     - cargo --version
 
