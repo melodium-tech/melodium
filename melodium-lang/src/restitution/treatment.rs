@@ -5,7 +5,7 @@ use melodium_common::descriptor::{
     Treatment as TreatmentDescriptor,
 };
 use melodium_engine::design::{Connection, Treatment as TreatmentDesign, IO};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 pub struct Treatment {
     design: TreatmentDesign,
@@ -305,38 +305,299 @@ impl Treatment {
 
         implementation.push_str("\n");
 
-        for connection in &self.design.connections {
-            for (name, attribute) in connection.attributes() {
-                implementation.push_str("    #[");
-                implementation.push_str(name);
-                implementation.push_str("(");
-                implementation.push_str(&attribute);
-                implementation.push_str(")]\n");
-            }
-            implementation.push_str("    ");
-            implementation.push_str(&Self::connection(connection));
-            implementation.push_str("\n");
-        }
+        implementation.push_str(&Self::render_connections(&self.design.connections));
 
         implementation.push_str("}\n\n");
 
         implementation
     }
 
-    fn connection(connection: &Connection) -> String {
-        format!(
-            "{source}.{output} -> {receiver}.{input}",
-            source = Self::io(&connection.output_treatment),
-            output = connection.output_name,
-            receiver = Self::io(&connection.input_treatment),
-            input = connection.input_name,
-        )
-    }
-
-    fn io(io: &IO) -> &str {
+    fn io_name(io: &IO) -> &str {
         match io {
             IO::Sequence() => "Self",
             IO::Treatment(name) => name,
+        }
+    }
+
+    // Key identifying one side of a connection: (treatment_name, port_name).
+    // Used as map keys — must be cheaply comparable.
+    fn src_key(conn: &Connection) -> (String, String) {
+        (
+            Self::io_name(&conn.output_treatment).to_string(),
+            conn.output_name.clone(),
+        )
+    }
+
+    fn dst_key(conn: &Connection) -> (String, String) {
+        (
+            Self::io_name(&conn.input_treatment).to_string(),
+            conn.input_name.clone(),
+        )
+    }
+
+    fn render_connections(connections: &[Connection]) -> String {
+        if connections.is_empty() {
+            return String::new();
+        }
+
+        // out_edges: (src_treatment, src_output) -> sorted list of connection indices
+        let mut out_edges: HashMap<(String, String), Vec<usize>> = HashMap::new();
+
+        for (i, conn) in connections.iter().enumerate() {
+            out_edges
+                .entry(Self::src_key(conn))
+                .or_default()
+                .push(i);
+        }
+
+        // Sort each fan-out list alphabetically by (receiver_treatment, receiver_input)
+        for list in out_edges.values_mut() {
+            list.sort_by(|&a, &b| {
+                Self::dst_key(&connections[a]).cmp(&Self::dst_key(&connections[b]))
+            });
+        }
+
+        // A connection is an inline continuation (non-root) iff:
+        //   - it has no attributes
+        //   - its (src_treatment, src_output) has exactly one outgoing connection (itself)
+        //   - some attribute-free connection arrives at its src_treatment
+        //     (meaning src is an intermediate node, not a source)
+        let is_inline_continuation = |idx: usize| -> bool {
+            let conn = &connections[idx];
+            if !conn.attributes().is_empty() {
+                return false;
+            }
+            let fan_out = out_edges
+                .get(&Self::src_key(conn))
+                .map(|v| v.len())
+                .unwrap_or(0);
+            if fan_out != 1 {
+                return false;
+            }
+            let src_name = Self::io_name(&conn.output_treatment);
+            connections.iter().any(|p| {
+                p.attributes().is_empty() && Self::io_name(&p.input_treatment) == src_name
+            })
+        };
+
+        // Roots: connections that start a new chain line.
+        // Ordered: Self-sourced first, then by (src_treatment, src_output, dst_treatment, dst_input).
+        let mut roots: Vec<usize> = (0..connections.len())
+            .filter(|&i| !is_inline_continuation(i))
+            .collect();
+
+        roots.sort_by(|&a, &b| {
+            let ca = &connections[a];
+            let cb = &connections[b];
+            let a_self = matches!(ca.output_treatment, IO::Sequence());
+            let b_self = matches!(cb.output_treatment, IO::Sequence());
+            b_self
+                .cmp(&a_self)
+                .then_with(|| Self::src_key(ca).cmp(&Self::src_key(cb)))
+                .then_with(|| Self::dst_key(ca).cmp(&Self::dst_key(cb)))
+        });
+
+        let mut visited: HashSet<usize> = HashSet::new();
+        let mut output = String::new();
+
+        for root_idx in roots {
+            if visited.contains(&root_idx) {
+                continue;
+            }
+            Self::render_chain(
+                root_idx,
+                connections,
+                &out_edges,
+                &mut visited,
+                &mut output,
+                "    ",
+                0,
+            );
+        }
+
+        // Safety net: emit any connection missed by the greedy walk as a plain line.
+        for i in 0..connections.len() {
+            if !visited.contains(&i) {
+                let conn = &connections[i];
+                for (name, attribute) in conn.attributes() {
+                    output.push_str("    #[");
+                    output.push_str(name);
+                    output.push('(');
+                    output.push_str(attribute);
+                    output.push_str(")]\n");
+                }
+                output.push_str("    ");
+                output.push_str(Self::io_name(&conn.output_treatment));
+                output.push('.');
+                output.push_str(&conn.output_name);
+                output.push_str(" -> ");
+                output.push_str(Self::io_name(&conn.input_treatment));
+                output.push('.');
+                output.push_str(&conn.input_name);
+                output.push('\n');
+                visited.insert(i);
+            }
+        }
+
+        output
+    }
+
+    // Renders one chain starting at `start_idx`.
+    // `align_col`: when >0, pad the source name to this width (fan-out group continuation).
+    fn render_chain(
+        start_idx: usize,
+        connections: &[Connection],
+        out_edges: &HashMap<(String, String), Vec<usize>>,
+        visited: &mut HashSet<usize>,
+        output: &mut String,
+        indent: &str,
+        align_col: usize,
+    ) {
+        if visited.contains(&start_idx) {
+            return;
+        }
+
+        let conn = &connections[start_idx];
+        for (name, attribute) in conn.attributes() {
+            output.push_str(indent);
+            output.push_str("#[");
+            output.push_str(name);
+            output.push('(');
+            output.push_str(attribute);
+            output.push_str(")]\n");
+        }
+
+        let src_part = format!(
+            "{}.{}",
+            Self::io_name(&conn.output_treatment),
+            conn.output_name
+        );
+
+        let mut chain_line = if align_col > 0 && src_part.len() < align_col {
+            format!("{:<width$}", src_part, width = align_col)
+        } else {
+            src_part
+        };
+
+        let mut current_idx = start_idx;
+
+        loop {
+            visited.insert(current_idx);
+            let cur = &connections[current_idx];
+            let dst_name = Self::io_name(&cur.input_treatment);
+
+            chain_line.push_str(" -> ");
+            chain_line.push_str(dst_name);
+            chain_line.push('.');
+            chain_line.push_str(&cur.input_name);
+
+            // Collect all output ports of dst_name that have outgoing connections
+            let successors: Vec<(String, Vec<usize>)> = out_edges
+                .iter()
+                .filter(|((t, _), _)| t == dst_name)
+                .map(|((_, port), idxs)| (port.clone(), idxs.clone()))
+                .sorted_by_key(|(port, _)| port.clone())
+                .collect();
+
+            if successors.is_empty() {
+                break;
+            }
+
+            if successors.len() == 1 {
+                let (ref out_port, ref idxs) = successors[0];
+                if idxs.len() == 1 && connections[idxs[0]].attributes().is_empty() {
+                    // Single unambiguous continuation — extend inline
+                    chain_line.push(',');
+                    chain_line.push_str(out_port);
+                    current_idx = idxs[0];
+                    continue;
+                } else {
+                    // Single port but fan-out or attribute break
+                    chain_line.push(',');
+                    chain_line.push_str(out_port);
+                    output.push_str(indent);
+                    output.push_str(&chain_line);
+                    output.push('\n');
+                    let fan_src = format!("{}.{}", dst_name, out_port);
+                    let idxs = idxs.clone();
+                    Self::render_fanout_group(
+                        &fan_src,
+                        &idxs,
+                        connections,
+                        out_edges,
+                        visited,
+                        output,
+                        indent,
+                    );
+                    return;
+                }
+            } else {
+                // Multiple output ports — end chain, render each as a group
+                output.push_str(indent);
+                output.push_str(&chain_line);
+                output.push('\n');
+                for (out_port, idxs) in &successors {
+                    let fan_src = format!("{}.{}", dst_name, out_port);
+                    Self::render_fanout_group(
+                        &fan_src,
+                        idxs,
+                        connections,
+                        out_edges,
+                        visited,
+                        output,
+                        indent,
+                    );
+                }
+                return;
+            }
+        }
+
+        output.push_str(indent);
+        output.push_str(&chain_line);
+        output.push('\n');
+    }
+
+    // Renders all branches of a fan-out group, with their source names padded to the
+    // same column so arrows align visually.
+    fn render_fanout_group(
+        src_port: &str,
+        idxs: &[usize],
+        connections: &[Connection],
+        out_edges: &HashMap<(String, String), Vec<usize>>,
+        visited: &mut HashSet<usize>,
+        output: &mut String,
+        indent: &str,
+    ) {
+        let src_len = src_port.len();
+        let branch_indices: Vec<usize> = idxs
+            .iter()
+            .filter(|&&i| !visited.contains(&i))
+            .copied()
+            .collect();
+
+        for idx in branch_indices {
+            if visited.contains(&idx) {
+                continue;
+            }
+            let conn = &connections[idx];
+            for (name, attribute) in conn.attributes() {
+                output.push_str(indent);
+                output.push_str(&" ".repeat(src_len + 1));
+                output.push_str("#[");
+                output.push_str(name);
+                output.push('(');
+                output.push_str(attribute);
+                output.push_str(")]\n");
+            }
+            Self::render_chain(
+                idx,
+                connections,
+                out_edges,
+                visited,
+                output,
+                indent,
+                src_len,
+            );
         }
     }
 }
