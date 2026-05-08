@@ -19,7 +19,7 @@ use std::sync::Weak;
 /// ℹ️ Use `HfHub` together with `fetch` — `HfHub` holds the configuration while `fetch`
 /// performs the actual network and cache operations when triggered.
 ///
-/// ```
+/// ```mel
 /// use ml/repos/hf::HfHub
 /// use ml/repos/hf::fetch
 /// use ml/models/mistral::Mistral
@@ -94,7 +94,7 @@ impl HfHub {
 ///     style E fill:#ffff,stroke:#ffff
 /// ```
 ///
-/// ```
+/// ```mel
 /// use ml/repos/hf::HfHub
 /// use ml/repos/hf::fetch
 /// use ml/models/mistral::Mistral
