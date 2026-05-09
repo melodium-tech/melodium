@@ -1,0 +1,12 @@
+name    = "meeting_summary_service"
+version = "0.1.0"
+
+[dependencies]
+std      = "0.10.1"
+http     = "0.10.1"
+net      = "0.10.1"
+encoding = "0.10.1"
+ml       = "0.10.1"
+
+[entrypoints]
+main = "meeting_summary_service/main::main"

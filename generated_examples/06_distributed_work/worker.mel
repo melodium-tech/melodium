@@ -1,0 +1,38 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/text/compose::split
+use std/text/compose::format
+use std/flow/vec::flatten
+use std/data/string_map::entry
+use encoding::decode
+use encoding::encode
+
+//
+// Worker entrypoint — run this on the remote node.
+//
+// Receives raw bytes, decodes them to UTF-8, prepends "[WORKER] " to every
+// line, re-encodes, and streams the bytes back.
+//
+// This treatment is referenced by name in the DistributionEngine model
+// in main.mel: "distributed_work/worker::process".
+//
+
+treatment runWorker() {
+    startup()
+    log: logInfoMessage(label="worker", message="worker node ready")
+    startup.trigger -> log.trigger
+}
+
+treatment process()
+  input  data: Stream<byte>
+  output data: Stream<byte>
+{
+    decode()
+    split(delimiter="\n", inclusive=false)
+    flatten<string>()
+    wrapEntry: entry(key="line")
+    fmt:       format(format="[WORKER] {line}")
+    encode()
+
+    Self.data -> decode.data,text -> split.text,splitted -> flatten.vector,value -> wrapEntry.value,map -> fmt.entries,formatted -> encode.text,data -> Self.data
+}

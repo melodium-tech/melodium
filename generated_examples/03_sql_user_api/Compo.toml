@@ -1,0 +1,13 @@
+name    = "sql_user_api"
+version = "0.1.0"
+
+[dependencies]
+std  = "0.10.1"
+http = "0.10.1"
+net  = "0.10.1"
+json = "0.10.1"
+sql  = "0.10.1"
+encoding = "0.10.1"
+
+[entrypoints]
+main = "sql_user_api/main::main"

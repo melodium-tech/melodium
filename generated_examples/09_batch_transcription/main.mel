@@ -1,0 +1,74 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logErrorMessage
+use std/engine/log::logError
+use std/engine/log::logErrors
+use std/flow::stream
+use std/flow::check
+use fs/local::readLocal
+use fs/local::writeTextLocal
+use ml/remote/stt::RemoteStt
+use ml/remote/stt::transcribe
+
+//
+// Audio File Transcription
+//
+// Reads a local audio file and transcribes it with the remote OpenAI Whisper API,
+// then writes the transcript to a text file.
+//
+// The transcription request is one-shot: the full audio file is uploaded and
+// a single transcript block is received back.  Supported formats: WAV, MP3, FLAC,
+// MP4, OGG, WEBM (anything accepted by Whisper).
+//
+// Usage:
+//   melodium run Compo.toml -- \
+//     --input  meeting.wav \
+//     --output transcript.txt \
+//     --openai_key sk-...
+//
+
+model Stt(const openai_key: string) : RemoteStt {
+    backend = "openai"
+    model   = "whisper-1"
+}
+
+treatment main(
+    const input:      string,
+    const output:     string = "transcript.txt",
+    const openai_key: string
+)
+  model stt: Stt(openai_key=openai_key)
+{
+    startup()
+    logStart: logInfoMessage(label="stt", message="reading audio file…")
+    startup.trigger -> logStart.trigger
+
+    read: readLocal(path=input)
+    startup.trigger -> read.trigger
+
+    readFailed: logErrorMessage(label="read", message="audio file could not be read")
+    readErrors: logErrors(label="read")
+    read.failed -> readFailed.trigger
+    read.errors -> readErrors.messages
+
+    transcribe[stt=stt]()
+    read.data -> transcribe.audio
+
+    sttFailed: logErrorMessage(label="stt", message="transcription failed")
+    sttError:  logError(label="stt")
+    transcribe.failed -> sttFailed.trigger
+    transcribe.error  -> sttError.message
+
+    logDone:   logInfoMessage(label="stt", message="transcription complete")
+    checkDone: check<string>()
+    sttStream: stream<string>()
+    write:     writeTextLocal(path=output)
+
+    transcribe.transcript --> checkDone.value,check -> logDone.trigger
+    transcribe.transcript --> sttStream.block,stream -> write.text
+
+    writeFailed: logErrorMessage(label="write", message="output write failed")
+    writeErrors: logErrors(label="write")
+    write.failed -> writeFailed.trigger
+    write.errors -> writeErrors.messages
+}

@@ -213,6 +213,41 @@ This reads: `startup.trigger` → `emit.trigger`; `emit.emit` → `generate.leng
 - `string` — UTF-8 text of variable size; not a vector of chars.
 - `void` — carries no value, only signals existence.
 
+### String literals
+
+Mélodium has two string literal forms:
+
+| Form | Syntax | Escaping |
+|------|--------|----------|
+| Standard | `"…"` | Backslash escapes required (`\\n`, `\\"`, etc.) |
+| Raw block | `${{…}}` | No escaping — content is taken verbatim |
+
+The raw block delimiter can use any number of repeated `{` / `}` pairs (without spaces) to avoid conflicts with the content:
+
+```mel
+// All equivalent string literal forms:
+"hello\nworld"
+
+${{hello
+world
+}}
+
+${{{{hello
+world
+}}}}
+```
+
+Use raw block strings whenever the content contains backslashes, newlines, curly braces, or embedded code (especially JavaScript):
+
+```mel
+model Transformer() : JavaScriptEngine {
+    code = ${{function process(line) {
+        return line.split(/\s+/).reverse().join(' ');
+    }
+}}
+}
+```
+
 ### Parameterised types
 
 `Vec<T>`, `Option<T>` are built-in. Common library types: `Map<K,V>` (`std/data/map`), `StringMap` (`std/data/string_map`), `Json` (`json`), `HttpStatus` (`http/status`), etc.

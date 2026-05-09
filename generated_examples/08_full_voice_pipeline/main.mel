@@ -1,0 +1,148 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logErrorMessage
+use std/engine/log::logError
+use std/engine/log::logErrors
+use std/flow::stream
+use std/text/compose::format
+use std/data/string_map::entry
+use audio/record::recordMono
+use audio/encode::encodeMonoWav
+use audio/decode::decodeMono
+use audio/transform::resampleMono
+use ml/remote/stt::RemoteStt
+use ml/remote/stt::transcribe
+use ml/remote/llm::RemoteLlm
+use ml/remote/llm::chat
+use ml/remote/tts::RemoteTts
+use ml/remote/tts::synthesize
+use fs/local::writeLocal
+use fs/local::readLocal
+
+//
+// Full Remote Voice Pipeline
+//
+// Reads an audio file → RemoteStt (OpenAI Whisper API) → RemoteLlm (GPT-4o) →
+// RemoteTts (ElevenLabs) → writes synthesised speech to output WAV.
+//
+// This example shows the complete speech-in / speech-out loop using cloud APIs.
+// All three API keys are required.
+//
+// Usage:
+//   melodium run Compo.toml -- \
+//     --input_file question.wav \
+//     --output_file answer.mp3 \
+//     --openai_key sk-... \
+//     --elevenlabs_key el-... \
+//     --elevenlabs_voice JBFqnCBsd6RMkjVDRZzb
+//
+
+model Stt(const openai_key: string) : RemoteStt {
+    backend = "openai"
+    model   = "whisper-1"
+}
+
+model Llm(const openai_key: string) : RemoteLlm {
+    backend     = "openai"
+    model       = "gpt-4o"
+    system      = "You are a helpful voice assistant. Answer briefly and clearly."
+    max_tokens  = 256
+    temperature = 0.7
+}
+
+model Tts(const elevenlabs_key: string, const voice: string) : RemoteTts {
+    backend = "elevenlabs"
+    model   = "eleven_multilingual_v2"
+}
+
+treatment main(
+    const input_file:       string,
+    const output_file:      string = "answer.mp3",
+    const openai_key:       string,
+    const elevenlabs_key:   string,
+    const elevenlabs_voice: string = "JBFqnCBsd6RMkjVDRZzb"
+)
+  model stt: Stt(openai_key=openai_key)
+  model llm: Llm(openai_key=openai_key)
+  model tts: Tts(elevenlabs_key=elevenlabs_key, voice=elevenlabs_voice)
+{
+    startup()
+
+    logStart: logInfoMessage(label="pipeline", message="starting voice pipeline…")
+    startup.trigger -> logStart.trigger
+
+    read: readLocal(path=input_file)
+    startup.trigger -> read.trigger
+
+    readFailed:  logErrorMessage(label="read", message="audio file read failed")
+    readErrors:  logErrors(label="read")
+    read.failed -> readFailed.trigger
+    read.errors -> readErrors.messages
+
+    sttTranscribe[stt=stt]()
+    read.data -> sttTranscribe.audio
+
+    llmRespond[llm=llm]()
+    sttTranscribe.transcript -> llmRespond.question
+
+    ttsSpeak[tts=tts]()
+    llmRespond.answer -> ttsSpeak.text
+
+    write: writeLocal(path=output_file)
+    ttsSpeak.audio -> write.data
+
+    logDone:     logInfoMessage(label="pipeline", message="answer written")
+    writeFailed: logErrorMessage(label="write",   message="write failed")
+    writeErrors: logErrors(label="write")
+    write.completed -> logDone.trigger
+    write.failed    -> writeFailed.trigger
+    write.errors    -> writeErrors.messages
+}
+
+// Collect all audio bytes, send to remote STT, emit transcript as a stream.
+treatment sttTranscribe[stt: RemoteStt]()
+  input  audio:      Stream<byte>
+  output transcript: Stream<string>
+{
+    transcribe[stt=stt]()
+    transcriptAsStream: stream<string>()
+
+    sttFailed: logErrorMessage(label="stt", message="transcription failed")
+    sttError:  logError(label="stt")
+
+    Self.audio -> transcribe.audio
+
+    transcribe.transcript -> transcriptAsStream.block,stream -> Self.transcript
+    transcribe.failed     -> sttFailed.trigger
+    transcribe.error      -> sttError.message
+}
+
+// Wrap each transcription in a prompt, send to chat LLM, emit response as stream.
+treatment llmRespond[llm: RemoteLlm]()
+  input  question: Stream<string>
+  output answer:   Stream<string>
+{
+    wrapEntry: entry(key="q")
+    fmt:       format(format="User asked: {q}\nPlease answer helpfully.")
+    chat[llm=llm]()
+
+    llmErrors: logErrors(label="llm")
+
+    Self.question -> wrapEntry.value,map -> fmt.entries,formatted -> chat.prompt,response -> Self.answer
+
+    chat.error -> llmErrors.messages
+}
+
+// Synthesise each answer string to audio bytes via TTS.
+treatment ttsSpeak[tts: RemoteTts]()
+  input  text:  Stream<string>
+  output audio: Stream<byte>
+{
+    synthesize[tts=tts]()
+
+    ttsErrors: logErrors(label="tts")
+
+    Self.text -> synthesize.text,audio -> Self.audio
+
+    synthesize.error -> ttsErrors.messages
+}

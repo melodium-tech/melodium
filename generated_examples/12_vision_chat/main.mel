@@ -1,0 +1,173 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logInfos
+use std/engine/log::logErrors
+use std/flow::emit
+use std/flow::stream
+use std/flow::trigger
+use std/data/string_map::StringMap
+use std/data/string_map::|map
+use std/data/string_map::|insert as |smInsert
+use std/text/compose::format
+use std/ops/option::unwrapOr
+use std/conv::tryToString
+use http/server::HttpServer
+use http/server::start
+use http/server::connection
+use http/method::|post
+use http/status::|ok
+use http/status::HttpStatus
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use encoding::decode
+use encoding::encode
+use fs/local::writeTextLocal
+use json::toJson
+use json::Json
+use json/value::|null
+use javascript::JavaScriptEngine
+use javascript::process
+use ml/remote/llm::RemoteLlm
+use ml/remote/llm::chat
+
+//
+// Vision Chat (URL-based)
+//
+// Sends an image URL with a question to a vision-capable LLM (GPT-4o).
+// The prompt instructs the model to describe the image at the given URL.
+//
+// Two entrypoints:
+//
+//   main   : sends a single image URL and question from CLI, logs and writes the response.
+//            melodium run Compo.toml -- \
+//              --image_url "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png" \
+//              --question "What do you see in this image?" \
+//              --openai_key sk-...
+//
+//   server : HTTP server accepting POST /describe with JSON body
+//            {"url":"…","question":"…"} and returning the LLM description.
+//            melodium run Compo.toml server -- --openai_key sk-... --port 8080
+//
+//   curl -X POST http://127.0.0.1:8080/describe \
+//        -H "Content-Type: application/json" \
+//        -d '{"url":"https://example.com/photo.jpg","question":"Describe this image."}'
+//
+
+model Vision(const openai_key: string) : RemoteLlm {
+    backend    = "openai"
+    model      = "gpt-4o"
+    system     = "You are an expert image analyst. Describe images clearly and in detail."
+    max_tokens = 512
+}
+
+// Extracts url and question from a JSON body, concatenates them into a single prompt string.
+model PromptBuilder() : JavaScriptEngine {
+    code = ${{function buildPrompt(body) {
+        var obj = typeof body === 'string' ? JSON.parse(body) : body;
+        var url      = (obj.url      || '').toString();
+        var question = (obj.question || 'What do you see in this image?').toString();
+        return 'Please analyse the image at this URL: ' + url + '\n\nQuestion: ' + question;
+    }
+}}
+}
+
+// --- entrypoint: single image URL from CLI ---
+
+treatment main(
+    const image_url:  string,
+    const question:   string = "What do you see in this image?",
+    const output:     string = "description.txt",
+    const openai_key: string
+)
+  model llm: Vision(openai_key=openai_key)
+{
+    startup()
+    logStart: logInfoMessage(label="vision", message="sending image URL to LLM…")
+    startup.trigger -> logStart.trigger
+
+    describeUrl[llm=llm](image_url=image_url, question=question)
+    startup.trigger -> describeUrl.trigger
+
+    logDesc: logInfos(label="description")
+    write:   writeTextLocal(path=output)
+    done:    logInfoMessage(label="vision", message="description written")
+
+    describeUrl.description --> logDesc.messages
+    describeUrl.description --> write.text
+    write.completed          -> done.trigger
+}
+
+// --- entrypoint: HTTP server ---
+
+treatment server(
+    const openai_key: string,
+    const port:       u16 = 8080
+)
+  model server: HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port)
+  model llm:    Vision(openai_key=openai_key)
+{
+    startup()
+    start[http_server=server]()
+    logReady: logInfoMessage(label="server", message="vision chat server ready")
+
+    startup.trigger -> start.trigger
+    startup.trigger -> logReady.trigger
+
+    connection[http_server=server](method=|post(), route="/describe")
+
+    status:      emit<HttpStatus>(value=|ok())
+    headers:     emit<StringMap>(value=|map([]))
+    bodyTrigger: trigger<byte>()
+
+    connection.data -> bodyTrigger.stream,start --> status.trigger,emit  -> connection.status
+                       bodyTrigger.start --------> headers.trigger,emit -> connection.headers
+
+    handleDescribe[llm=llm]()
+    connection.data -> handleDescribe.body,response -> connection.data
+}
+
+// Handles one POST /describe: decode body → JS builds prompt → chat LLM → encode response.
+treatment handleDescribe[llm: RemoteLlm]()
+  model promptBuilder: PromptBuilder()
+  input  body:     Stream<byte>
+  output response: Stream<byte>
+{
+    decode()
+    toJson()
+    unwrapBody:   unwrapOr<Json>(default=|null())
+    buildPrompt:  process[engine=promptBuilder](code="buildPrompt(value)")
+    unwrapPrompt: unwrapOr<Json>(default=|null())
+    promptStr:    tryToString<Json>()
+    promptOr:     unwrapOr<string>(default="")
+
+    Self.body -> decode.data,text -> toJson.text,json -> unwrapBody.option,value -> buildPrompt.value,result -> unwrapPrompt.option,value -> promptStr.value,into -> promptOr.option,value -> doChat.prompt
+
+    doChat: chat[llm=llm]()
+
+    llmError: logErrors(label="vision")
+    doChat.error -> llmError.messages
+
+    encode()
+    doChat.response -> encode.text,data -> Self.response
+}
+
+// Sends a single image-URL + question prompt to the LLM and streams back the description.
+treatment describeUrl[llm: RemoteLlm](const image_url: string, const question: string)
+  input  trigger:     Block<void>
+  output description: Stream<string>
+{
+    emitParams: emit<StringMap>(value=|smInsert(|smInsert(|map([]), "url", image_url), "q", question))
+    streamParams: stream<StringMap>()
+
+    Self.trigger -> emitParams.trigger,emit -> streamParams.block,stream -> fmt.entries
+
+    fmt:  format(format="Please analyse the image at this URL: {url}\n\nQuestion: {q}")
+
+    doChat: chat[llm=llm]()
+    fmt.formatted -> doChat.prompt
+
+    llmError: logErrors(label="vision")
+    doChat.error -> llmError.messages
+
+    doChat.response -> Self.description
+}

@@ -1,0 +1,119 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logInfos
+use std/engine/log::logErrorMessage
+use std/engine/log::logError
+use std/engine/log::logErrors
+use std/text/compose::format
+use std/data/string_map::entry
+use audio/record::recordMono
+use ml/repos/hf::HfHub
+use ml/repos/hf::fetch
+use ml/models/whisper::Whisper
+use ml/models/whisper::load as loadWhisper
+use ml/models/whisper::decode
+use ml/models/mistral::Mistral
+use ml/models/mistral::load as loadMistral
+use ml/models/mistral::generate
+use fs/local::writeTextLocal
+
+//
+// Voice Q&A (fully local, no API key needed)
+//
+// Pipeline:
+//   microphone → Whisper tiny (speech-to-text) → Mistral 7B (text generation) → log + file
+//
+// Both models are downloaded from HuggingFace on the first run and cached locally.
+// Whisper listens continuously; every transcribed segment becomes a Mistral prompt.
+//
+// Usage:
+//   melodium run Compo.toml -- --output qa.txt
+//
+
+model WhisperHub() : HfHub   { repo_id = "openai/whisper-tiny" }
+model MistralHub() : HfHub   { repo_id = "mistralai/Mistral-7B-v0.1" }
+model Asr()        : Whisper {}
+model Llm()        : Mistral {
+    temperature    = 0.7
+    top_p          = 0.9
+    max_new_tokens = 256
+}
+
+treatment main(const output: string = "qa.txt")
+  model whisperHub: WhisperHub()
+  model mistralHub: MistralHub()
+  model asr:        Asr()
+  model llm:        Llm()
+{
+    startup()
+    fetchAsr:  fetch[hub=whisperHub]()
+    fetchLlm:  fetch[hub=mistralHub]()
+    loadAsr:   loadWhisper[whisper=asr]()
+    loadLlm:   loadMistral[mistral=llm]()
+
+    startup.trigger      -> fetchAsr.trigger
+    startup.trigger      -> fetchLlm.trigger
+    fetchAsr.safetensors -> loadAsr.safetensors
+    fetchAsr.tokenizer   -> loadAsr.tokenizer
+    fetchLlm.safetensors -> loadLlm.safetensors
+    fetchLlm.tokenizer   -> loadLlm.tokenizer
+
+    fetchAsrFailed: logErrorMessage(label="fetch-asr", message="Whisper fetch failed")
+    fetchAsrError:  logError(label="fetch-asr")
+    fetchLlmFailed: logErrorMessage(label="fetch-llm", message="Mistral fetch failed")
+    fetchLlmError:  logError(label="fetch-llm")
+    loadAsrFailed:  logErrorMessage(label="load-asr",  message="Whisper load failed")
+    loadAsrError:   logError(label="load-asr")
+    loadLlmFailed:  logErrorMessage(label="load-llm",  message="Mistral load failed")
+    loadLlmError:   logError(label="load-llm")
+
+    fetchAsr.failed -> fetchAsrFailed.trigger
+    fetchAsr.error  -> fetchAsrError.message
+    fetchLlm.failed -> fetchLlmFailed.trigger
+    fetchLlm.error  -> fetchLlmError.message
+    loadAsr.failed  -> loadAsrFailed.trigger
+    loadAsr.error   -> loadAsrError.message
+    loadLlm.failed  -> loadLlmFailed.trigger
+    loadLlm.error   -> loadLlmError.message
+
+    logReady: logInfoMessage(label="pipeline", message="both models ready — listening…")
+    loadLlm.loaded -> logReady.trigger
+
+    asrDecode:  decode[whisper=asr]()
+    record:     recordMono(device=_, sample_rate=_)
+
+    loadAsr.loaded -> record.trigger
+    loadAsr.loaded -> asrDecode.ready
+    record.signal  -> asrDecode.audio
+
+    recFailed:  logErrorMessage(label="record", message="microphone error")
+    recErrors:  logErrors(label="record")
+    record.failed -> recFailed.trigger
+    record.errors -> recErrors.messages
+
+    promptLlm[llm=llm]()
+    asrDecode.transcribed -> promptLlm.question
+
+    logAnswer:   logInfos(label="answer")
+    write:       writeTextLocal(path=output, append=true)
+    writeFailed: logErrorMessage(label="write", message="write failed")
+    writeErrors: logErrors(label="write")
+
+    promptLlm.answer --> logAnswer.messages
+    promptLlm.answer --> write.text
+    write.failed     -> writeFailed.trigger
+    write.errors     -> writeErrors.messages
+}
+
+// Wraps each transcribed question in the Mistral [INST] prompt format and
+// sends it to the local Mistral model for generation.
+treatment promptLlm[llm: Mistral]()
+  input  question: Stream<string>
+  output answer:   Stream<string>
+{
+    wrapEntry: entry(key="q")
+    fmt:       format(format="[INST] {q} [/INST]")
+    generate[mistral=llm]()
+
+    Self.question -> wrapEntry.value,map -> fmt.entries,formatted -> generate.prompt,generated -> Self.answer
+}
