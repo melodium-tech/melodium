@@ -80,7 +80,7 @@
         tar xf alsa-lib-1.2.12.tar.bz2
         cd alsa-lib-1.2.12
         ln -s /usr/include/x86_64-linux-gnu/asm /usr/include/asm
-        CC=musl-gcc CFLAGS="-I/usr/include" ./configure --host=x86_64-linux-musl --prefix=$CI_PROJECT_DIR/.alsa-musl --enable-static --disable-shared --disable-python --disable-alisp --without-debug
+        CC=musl-gcc CFLAGS="-I/usr/include/x86_64-linux-gnu" ./configure --host=x86_64-linux-musl --prefix=$CI_PROJECT_DIR/.alsa-musl --enable-static --disable-shared --disable-python --disable-alisp --without-debug
         make -j$(nproc)
         make install
         cd ..
@@ -225,19 +225,21 @@
         tar --extract --gzip --file osxcross-611675b.tar.gz
         mv osxcross-master osxcross
         cd osxcross
-        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX10.12.sdk.tar.xz
-        mv MacOSX10.12.sdk.tar.xz tarballs/
-        UNATTENDED=yes OSX_VERSION_MIN=10.12 ./build.sh
-        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin16-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
+        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX14.2.sdk.tar.xz
+        mv MacOSX14.2.sdk.tar.xz tarballs/
+        UNATTENDED=yes OSX_VERSION_MIN=14.2 ./build.sh
+        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin23.2-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
         cd "$base"
       fi
     - export PATH="$CI_PROJECT_DIR/osxcross/target/bin:$PATH"
-    - export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=x86_64-apple-darwin16-clang
-    - export CARGO_TARGET_X86_64_APPLE_DARWIN_AR=x86_64-apple-darwin16-ar
-    - export TARGET_CC=x86_64-apple-darwin16-cc
-    - export TARGET_AR=x86_64-apple-darwin16-ar
+    - export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin23.2-clang
+    - export CARGO_TARGET_X86_64_APPLE_DARWIN_AR=$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin23.2-ar
+    - export CC_x86_64_apple_darwin=$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin23.2-cc
+    - export AR_x86_64_apple_darwin=$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin23.2-ar
     - export CARGO_BUILD_TARGET=x86_64-apple-darwin
-    - export CFLAGS_x86_64_apple_darwin=-fuse-ld=x86_64-apple-darwin16-ld
+    - export CFLAGS_x86_64_apple_darwin=-fuse-ld=$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin23.2-ld
+    - export SDKROOT="$CI_PROJECT_DIR/osxcross/target/SDK/MacOSX14.2.sdk"
+    - export MACOSX_DEPLOYMENT_TARGET=14.2
     - rustc --version
     - cargo --version
 
@@ -265,12 +267,12 @@
         cd "$base"
       fi
     - export PATH="$CI_PROJECT_DIR/osxcross/target/bin:$PATH"
-    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=aarch64-apple-darwin23.2-clang
-    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=aarch64-apple-darwin23.2-ar
-    - export TARGET_CC=aarch64-apple-darwin23.2-cc
-    - export TARGET_AR=aarch64-apple-darwin23.2-ar
+    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-clang
+    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-ar
+    - export CC_aarch64_apple_darwin=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-cc
+    - export AR_aarch64_apple_darwin=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-ar
     - export CARGO_BUILD_TARGET=aarch64-apple-darwin
-    - export CFLAGS_aarch64_apple_darwin=-fuse-ld=aarch64-apple-darwin23.2-ld
+    - export CFLAGS_aarch64_apple_darwin=-fuse-ld=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-ld
     - export SDKROOT="$CI_PROJECT_DIR/osxcross/target/SDK/MacOSX14.2.sdk"
     - export MACOSX_DEPLOYMENT_TARGET=14.2
     - rustc --version
