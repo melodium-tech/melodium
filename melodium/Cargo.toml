@@ -53,12 +53,13 @@ json-mel = { path = "../libs/json-mel", version = "0.10.1", optional = true }
 ml-mel = { path = "../libs/ml-mel", version = "0.10.1", optional = true }
 net-mel = { path = "../libs/net-mel", version = "0.10.1", optional = true }
 process-mel = { path = "../libs/process-mel", version = "0.10.1", optional = true }
+record-mel = { path = "../libs/record-mel", version = "0.10.1", optional = true }
 regex-mel = { path = "../libs/regex-mel", version = "0.10.1", optional = true }
 sql-mel = { path = "../libs/sql-mel", version = "0.10.1", optional = true }
 work-mel = { path = "../libs/work-mel", version = "0.10.1", optional = true }
 
 [features]
-default = ["cli", "standard-edition", "audio-mel/real"]
+default = ["cli", "standard-edition", "audio-mel/real", "record-mel/real"]
 cli = ["clap"]
 jeu = ["melodium-loader/jeu"]
 cicd = ["distribution", "fs", "network", "cicd-mel/real"]
@@ -72,7 +73,7 @@ sql = ["sql-mel/real"]
 ml = ["ml-mel/real"]
 standard-edition = ["jeu", "doc", "cicd", "distribution", "fs", "network", "text", "javascript", "sql", "ml", "std-mel/real"]
 container-edition = ["standard-edition", "work-mel/kubernetes"]
-webassembly-edition = ["melodium-share/webassembly", "jeu", "doc", "std-mel/mock", "audio-mel/mock", "cicd-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "ml-mel/mock", "sql-mel/mock", "distrib-mel/mock", "work-mel/mock", "uuid/js", "fs-mel/mock", "process-mel/mock", "net-mel/mock", "http-mel/mock"]
+webassembly-edition = ["melodium-share/webassembly", "jeu", "doc", "std-mel/mock", "audio-mel/mock", "cicd-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "ml-mel/mock", "sql-mel/mock", "distrib-mel/mock", "work-mel/mock", "uuid/js", "fs-mel/mock", "process-mel/mock", "record-mel/mock", "net-mel/mock", "http-mel/mock"]
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.2", features = ["js"] }

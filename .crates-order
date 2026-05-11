@@ -22,6 +22,8 @@ ml-mel
 sql-mel
 javascript-mel
 work-mel
+audio-mel
+record-mel
 distrib-mel
 cicd-mel
 melodium

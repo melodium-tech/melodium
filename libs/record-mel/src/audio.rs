@@ -1,4 +1,4 @@
-use crate::audio_info::*;
+use audio_mel::audio_info::*;
 use async_channel::bounded;
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
