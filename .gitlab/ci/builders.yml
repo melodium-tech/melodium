@@ -19,20 +19,6 @@
       - .cargo/
       policy: pull-push
 
-.cache:cargo-alsa-musl:
-  variables:
-    CARGO_INCREMENTAL: 0
-    CARGO_HOME: $CI_PROJECT_DIR/.cargo
-  cache:
-    - key: cargo-$CI_JOB_NAME_SLUG
-      paths:
-      - .cargo/
-      policy: pull-push
-    - key: alsa-musl-$CI_JOB_NAME_SLUG
-      paths:
-      - .alsa-musl/
-      policy: pull-push
-
 .cache:cargo-osxcross:
   variables:
     CARGO_INCREMENTAL: 0
@@ -60,8 +46,6 @@
     - .host:debian
     - .cache:cargo
   before_script:
-    - apt-get update
-    - apt-get install -y libasound2-dev
     - export CARGO_BUILD_TARGET=x86_64-unknown-linux-gnu
     - rustc --version
     - cargo --version 
@@ -69,30 +53,14 @@
 .builder:linux:x86_64-unknown-linux-musl:
   extends:
     - .host:debian
-    - .cache:cargo-alsa-musl
+    - .cache:cargo
   before_script:
     - apt-get update
-    - apt-get install -y musl-tools make linux-libc-dev
-    - |
-      if [ ! -f "$CI_PROJECT_DIR/.alsa-musl/lib/libasound.a" ]; then
-        apt-get install -y wget
-        wget -q https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.12.tar.bz2
-        tar xf alsa-lib-1.2.12.tar.bz2
-        cd alsa-lib-1.2.12
-        ln -sf /usr/include/x86_64-linux-gnu/asm /usr/include/asm
-        ln -sf /usr/include/x86_64-linux-gnu/linux /usr/include/linux
-        CC=musl-gcc ./configure --host=x86_64-linux-musl --prefix=$CI_PROJECT_DIR/.alsa-musl --enable-static --disable-shared --disable-python --disable-alisp --without-debug
-        make -j$(nproc)
-        make install
-        cd ..
-        rm -rf alsa-lib-1.2.12 alsa-lib-1.2.12.tar.bz2
-      fi
+    - apt-get install -y musl-tools
     - rustup target add x86_64-unknown-linux-musl
     - export CARGO_BUILD_TARGET=x86_64-unknown-linux-musl
-    - export PKG_CONFIG_PATH=$CI_PROJECT_DIR/.alsa-musl/lib/pkgconfig
-    - export PKG_CONFIG_ALLOW_CROSS=1
     - rustc --version
-    - cargo --version
+    - cargo --version 
 
 .builder:linux:i686-unknown-linux-gnu:
   extends:
@@ -101,7 +69,7 @@
   before_script:
     - dpkg --add-architecture i386
     - apt-get update
-    - apt-get install -y gcc-multilib libasound2-dev:i386
+    - apt-get install -y gcc-multilib
     - rustup target add i686-unknown-linux-gnu
     - export PATH="$CARGO_HOME/bin:$PATH"
     - export PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config
@@ -112,34 +80,22 @@
 .builder:linux:i686-unknown-linux-musl:
   extends:
     - .host:debian
-    - .cache:cargo-alsa-musl
+    - .cache:cargo
   before_script:
    - dpkg --add-architecture i386
    - apt-get update
-   - apt-get install -y gcc-multilib make wget
+   - apt-get install -y gcc-multilib
    - wget https://repo.melodium.tech/tooling/musl/i686-linux-musl-cross.tar.gz
    - tar --extract --gzip --file i686-linux-musl-cross.tar.gz --directory /usr/local
    - ln -s /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc_s.so.1 /usr/local/i686-linux-musl-cross/i686-linux-musl/lib/libgcc.so
-   - |
-     if [ ! -f "$CI_PROJECT_DIR/.alsa-musl/lib/libasound.a" ]; then
-       wget -q https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.12.tar.bz2
-       tar xf alsa-lib-1.2.12.tar.bz2
-       cd alsa-lib-1.2.12
-       CC=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-gcc ./configure --host=i686-linux-musl --prefix=$CI_PROJECT_DIR/.alsa-musl --enable-static --disable-shared --disable-python --disable-alisp --without-debug
-       make -j$(nproc)
-       make install
-       cd ..
-       rm -rf alsa-lib-1.2.12 alsa-lib-1.2.12.tar.bz2
-     fi
    - rustup target add i686-unknown-linux-musl
    - export PATH="$CARGO_HOME/bin:$PATH"
+   - export PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config
    - export CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_LINKER=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-ld
    - export CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_AR=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-ar
    - export TARGET_CC=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-gcc
    - export TARGET_AR=/usr/local/i686-linux-musl-cross/bin/i686-linux-musl-gcc-ar
    - export CARGO_BUILD_TARGET=i686-unknown-linux-musl
-   - export PKG_CONFIG_PATH=$CI_PROJECT_DIR/.alsa-musl/lib/pkgconfig
-   - export PKG_CONFIG_ALLOW_CROSS=1
    - rustc --version
    - cargo --version
 
@@ -151,7 +107,7 @@
     - saas-linux-medium-arm64
   before_script:
    - apt-get update
-   - apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev libasound2-dev
+   - apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev
    #- ln -s /usr/aarch64-linux-gnu/lib/libgcc_s.so.1 /usr/aarch64-linux-gnu/lib/libgcc_s.so
    #- rustup target add aarch64-unknown-linux-gnu
    - export PATH="$CARGO_HOME/bin:$PATH"
@@ -167,35 +123,23 @@
 .builder:linux:aarch64-unknown-linux-musl:
   extends:
     - .host:debian
-    - .cache:cargo-alsa-musl
+    - .cache:cargo
   before_script:
    - dpkg --add-architecture arm64
    - apt-get update
-   - apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross musl-tools libc-dev:arm64 make wget
+   - apt-get install -y gcc-multilib binutils-aarch64-linux-gnu libgcc1-arm64-cross musl-tools libc-dev:arm64
    - wget https://repo.melodium.tech/tooling/musl/aarch64-linux-musl-cross.tar.gz
    - tar --extract --gzip --file aarch64-linux-musl-cross.tar.gz --directory /usr/local
    - ln -s /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc_s.so.1 /usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/libgcc.so
-   - |
-     if [ ! -f "$CI_PROJECT_DIR/.alsa-musl/lib/libasound.a" ]; then
-       wget -q https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.12.tar.bz2
-       tar xf alsa-lib-1.2.12.tar.bz2
-       cd alsa-lib-1.2.12
-       CC=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc ./configure --host=aarch64-linux-musl --prefix=$CI_PROJECT_DIR/.alsa-musl --enable-static --disable-shared --disable-python --disable-alisp --without-debug
-       make -j$(nproc)
-       make install
-       cd ..
-       rm -rf alsa-lib-1.2.12 alsa-lib-1.2.12.tar.bz2
-     fi
    - rustup target add aarch64-unknown-linux-musl
    - export PATH="$CARGO_HOME/bin:$PATH"
+   - export PKG_CONFIG=/usr/bin/aarch64-linux-gnu-pkg-config
    - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-ld
    - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_AR=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-ar
    - export LD_LIBRARY_PATH="/usr/local/aarch64-linux-musl-cross/aarch64-linux-musl/lib/:$LD_LIBRARY_PATH"
    - export TARGET_CC=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc
    - export TARGET_AR=/usr/local/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc-ar
    - export CARGO_BUILD_TARGET=aarch64-unknown-linux-musl
-   - export PKG_CONFIG_PATH=$CI_PROJECT_DIR/.alsa-musl/lib/pkgconfig
-   - export PKG_CONFIG_ALLOW_CROSS=1
    - rustc --version
    - cargo --version
 
@@ -226,21 +170,19 @@
         tar --extract --gzip --file osxcross-611675b.tar.gz
         mv osxcross-master osxcross
         cd osxcross
-        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX14.2.sdk.tar.xz
-        mv MacOSX14.2.sdk.tar.xz tarballs/
-        UNATTENDED=yes OSX_VERSION_MIN=14.2 ./build.sh
-        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin23.2-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
+        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX10.12.sdk.tar.xz
+        mv MacOSX10.12.sdk.tar.xz tarballs/
+        UNATTENDED=yes OSX_VERSION_MIN=10.12 ./build.sh
+        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin16-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
         cd "$base"
       fi
     - export PATH="$CI_PROJECT_DIR/osxcross/target/bin:$PATH"
-    - export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin23.2-clang
-    - export CARGO_TARGET_X86_64_APPLE_DARWIN_AR=$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin23.2-ar
-    - export CC_x86_64_apple_darwin=$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin23.2-cc
-    - export AR_x86_64_apple_darwin=$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin23.2-ar
+    - export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=x86_64-apple-darwin16-clang
+    - export CARGO_TARGET_X86_64_APPLE_DARWIN_AR=x86_64-apple-darwin16-ar
+    - export TARGET_CC=x86_64-apple-darwin16-cc
+    - export TARGET_AR=x86_64-apple-darwin16-ar
     - export CARGO_BUILD_TARGET=x86_64-apple-darwin
-    - export CFLAGS_x86_64_apple_darwin=-fuse-ld=$CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin23.2-ld
-    - export SDKROOT="$CI_PROJECT_DIR/osxcross/target/SDK/MacOSX14.2.sdk"
-    - export MACOSX_DEPLOYMENT_TARGET=14.2
+    - export CFLAGS_x86_64_apple_darwin=-fuse-ld=x86_64-apple-darwin16-ld
     - rustc --version
     - cargo --version
 
@@ -261,21 +203,19 @@
         tar --extract --gzip --file osxcross-611675b.tar.gz
         mv osxcross-master osxcross
         cd osxcross
-        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX14.2.sdk.tar.xz
-        mv MacOSX14.2.sdk.tar.xz tarballs/
-        UNATTENDED=yes OSX_VERSION_MIN=14.2 ./build.sh
-        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
+        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX11.3.sdk.tar.xz
+        mv MacOSX11.3.sdk.tar.xz tarballs/
+        UNATTENDED=yes OSX_VERSION_MIN=11.3 ./build.sh
+        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin20.4-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
         cd "$base"
       fi
     - export PATH="$CI_PROJECT_DIR/osxcross/target/bin:$PATH"
-    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-clang
-    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-ar
-    - export CC_aarch64_apple_darwin=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-cc
-    - export AR_aarch64_apple_darwin=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-ar
+    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=aarch64-apple-darwin20.4-clang
+    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=aarch64-apple-darwin20.4-ar
+    - export TARGET_CC=aarch64-apple-darwin20.4-cc
+    - export TARGET_AR=aarch64-apple-darwin20.4-ar
     - export CARGO_BUILD_TARGET=aarch64-apple-darwin
-    - export CFLAGS_aarch64_apple_darwin=-fuse-ld=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-ld
-    - export SDKROOT="$CI_PROJECT_DIR/osxcross/target/SDK/MacOSX14.2.sdk"
-    - export MACOSX_DEPLOYMENT_TARGET=14.2
+    - export CFLAGS_aarch64_apple_darwin=-fuse-ld=aarch64-apple-darwin20.4-ld
     - rustc --version
     - cargo --version
 
