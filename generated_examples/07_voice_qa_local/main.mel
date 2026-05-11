@@ -6,7 +6,7 @@ use std/engine/log::logError
 use std/engine/log::logErrors
 use std/text/compose::format
 use std/data/string_map::entry
-use audio/record::recordMono
+use record/audio::recordMono
 use ml/repos/hf::HfHub
 use ml/repos/hf::fetch
 use ml/models/whisper::Whisper

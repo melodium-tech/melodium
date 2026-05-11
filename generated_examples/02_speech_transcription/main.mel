@@ -4,7 +4,7 @@ use std/engine/log::logInfoMessage
 use std/engine/log::logErrorMessage
 use std/engine/log::logError
 use std/engine/log::logErrors
-use audio/record::recordMono
+use record/audio::recordMono
 use audio/decode::decodeMono
 use ml/repos/hf::HfHub
 use ml/repos/hf::fetch

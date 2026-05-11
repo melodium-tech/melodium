@@ -4,6 +4,7 @@ version = "0.1.0"
 [dependencies]
 std   = "0.10.1"
 audio = "0.10.1"
+record = "0.10.1"
 ml    = "0.10.1"
 
 [entrypoints]

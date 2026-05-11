@@ -6,7 +6,7 @@ use std/engine/log::logErrors
 use std/flow::stream
 use std/text/compose::format
 use std/data/string_map::entry
-use audio/record::recordMono
+use record/audio::recordMono
 use audio/encode::encodeMonoWav
 use audio/decode::decodeMono
 use audio/transform::resampleMono

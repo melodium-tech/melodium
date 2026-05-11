@@ -3,6 +3,7 @@
 #! version = 0.10.1
 #! require = std:0.10.1
 #! require = audio:0.10.1
+#! require = record:0.10.1
 #! require = ml:0.10.1
 #! require = fs:0.10.1
 
@@ -11,7 +12,7 @@ use std/engine/log::logInfos
 use std/engine/log::logError
 use std/engine/log::logErrors
 use std/engine/log::logErrorMessage
-use audio/record::recordMono
+use record/audio::recordMono
 use ml/repos/hf::HfHub
 use ml/repos/hf::fetch
 use ml/models/whisper::Whisper
