@@ -454,6 +454,8 @@ pub fn core_packages() -> Vec<Arc<dyn Package>> {
     packages.push(net_mel::__mel_package::package());
     #[cfg(feature = "process-mel")]
     packages.push(process_mel::__mel_package::package());
+    #[cfg(feature = "record-mel")]
+    packages.push(record_mel::__mel_package::package());
     #[cfg(feature = "regex-mel")]
     packages.push(regex_mel::__mel_package::package());
     #[cfg(feature = "sql-mel")]

@@ -11,6 +11,7 @@ members = [
     "libs/json-mel",
     "libs/net-mel",
     "libs/process-mel",
+    "libs/record-mel",
     "libs/regex-mel",
     "libs/sql-mel",
     "libs/std-mel",
