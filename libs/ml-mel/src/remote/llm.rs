@@ -215,17 +215,18 @@ pub async fn chat() {
                         check!(response.send_one(Value::String(text)).await);
                     }
                     Err(e) => {
-                        check!(failed.send_one(().into()).await);
-                        check!(error.send_one(Value::String(e.to_string())).await);
+                        failed.send_one(().into()).await;
+                        error.send_one(Value::String(e.to_string())).await;
+                        break;
                     }
                 }
             } else {
-                check!(failed.send_one(().into()).await);
-                check!(
-                    error
-                        .send_one(Value::String("provider not initialized".into()))
-                        .await
-                );
+                failed.send_one(().into()).await;
+
+                error
+                    .send_one(Value::String("provider not initialized".into()))
+                    .await;
+                break;
             }
         }
 
@@ -304,25 +305,25 @@ pub async fn stream() {
                                     check!(token.send_one(Value::String(t)).await);
                                 }
                                 Err(e) => {
-                                    check!(failed.send_one(().into()).await);
-                                    check!(error.send_one(Value::String(e.to_string())).await);
+                                    failed.send_one(().into()).await;
+                                    error.send_one(Value::String(e.to_string())).await;
                                     break;
                                 }
                             }
                         }
                     }
                     Err(e) => {
-                        check!(failed.send_one(().into()).await);
-                        check!(error.send_one(Value::String(e.to_string())).await);
+                        failed.send_one(().into()).await;
+                        error.send_one(Value::String(e.to_string())).await;
+                        break;
                     }
                 }
             } else {
-                check!(failed.send_one(().into()).await);
-                check!(
-                    error
-                        .send_one(Value::String("provider not initialized".into()))
-                        .await
-                );
+                failed.send_one(().into()).await;
+                error
+                    .send_one(Value::String("provider not initialized".into()))
+                    .await;
+                break;
             }
         }
 
