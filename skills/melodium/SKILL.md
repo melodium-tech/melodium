@@ -534,8 +534,6 @@ If dealing with Mélodium elements written in Rust, read the specific [Mélodium
 
 If dealing with Mélodium documentation, either being instructed to write some or to explore some, read the specific [Mélodium Documentation](references/documentation.md) guide.
 
-If generating or reviewing Mélodium source code that contains connection declarations inside treatment bodies, read the specific [Connection Restitution Rules](references/connection-restitution.md) guide.
-
 ### Migrations
 
 If you are asked to migrate code from Github Actions, read the specific [Github Actions migration](references/github-migration.md) guide.
