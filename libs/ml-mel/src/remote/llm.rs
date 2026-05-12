@@ -17,22 +17,36 @@ use llm::{
 /// Remote LLM provider configuration.
 ///
 /// Holds connection and inference parameters for a remote large language model service.
-/// Supports any backend provided by the `llm` crate: OpenAI, Anthropic, Google, Ollama,
-/// Groq, Mistral API, DeepSeek, xAI, Cohere, OpenRouter, HuggingFace, Azure OpenAI,
-/// and AWS Bedrock.
 ///
-/// - `backend`: provider name — one of `"openai"`, `"anthropic"`, `"ollama"`, `"google"`,
-///   `"groq"`, `"mistral"`, `"deepseek"`, `"xai"`, `"cohere"`, `"openrouter"`,
-///   `"huggingface"`, `"azure-openai"`, `"aws-bedrock"` (default `"openai"`).
-/// - `api_key`: API key for authentication (leave empty for Ollama or unauthenticated endpoints).
-/// - `base_url`: override the provider base URL — required for Ollama (e.g. `"http://localhost:11434"`),
-///   Azure OpenAI, or custom OpenAI-compatible endpoints.
-/// - `model`: model identifier, e.g. `"gpt-4o"`, `"claude-sonnet-4-6"`, `"llama3.2"`.
+/// - `backend`: provider name (default `"mistral"`); see the table below.
+/// - `api_key`: API key for authentication (omit for Ollama or unauthenticated endpoints).
+/// - `base_url`: override the provider base URL — required for Ollama, Azure OpenAI,
+///   or custom OpenAI-compatible endpoints; see the table below.
+/// - `model`: model identifier — see the table below for recommended values per backend.
 /// - `system`: system prompt injected at the start of every conversation.
-/// - `max_tokens`: maximum tokens to generate per response (default `1024`).
-/// - `temperature`: sampling temperature, 0.0–1.0 (default `0.8`).
-/// - `top_p`: nucleus sampling cutoff, 0.0–1.0 (default `1.0`).
-/// - `timeout`: request timeout in seconds (default `60`).
+/// - `max_tokens`: maximum tokens to generate per response (omit to use the backend default).
+/// - `temperature`: sampling temperature 0.0–2.0 (omit to use the backend default; some
+///   backends reject `temperature` and `top_p` being set simultaneously).
+/// - `top_p`: nucleus sampling cutoff 0.0–1.0 (omit to use the backend default).
+/// - `timeout`: request timeout in seconds (omit to use the backend default).
+///
+/// ## Backends
+///
+/// | `backend`        | `api_key`         | `base_url`                              | Example `model`               | Model list                                                                                  |
+/// |------------------|-------------------|-----------------------------------------|-------------------------------|---------------------------------------------------------------------------------------------|
+/// | `"mistral"`      | Mistral API key   | *(built-in)*                            | `"mistral-small-latest"`      | <https://docs.mistral.ai/getting-started/models/models_overview/>                          |
+/// | `"openai"`       | OpenAI API key    | *(built-in)*                            | `"gpt-4.1-nano"`              | <https://platform.openai.com/docs/models>                                                   |
+/// | `"anthropic"`    | Anthropic API key | *(built-in)*                            | `"claude-sonnet-4-6"`         | <https://docs.anthropic.com/en/docs/about-claude/models/all-models>                         |
+/// | `"google"`       | Google API key    | *(built-in)*                            | `"gemini-2.5-flash"`          | <https://ai.google.dev/gemini-api/docs/models>                                              |
+/// | `"groq"`         | Groq API key      | *(built-in)*                            | `"llama-3.3-70b-versatile"`   | <https://console.groq.com/docs/models>                                                      |
+/// | `"deepseek"`     | DeepSeek API key  | *(built-in)*                            | `"deepseek-chat"`             | <https://api-docs.deepseek.com/quick_start/pricing>                                         |
+/// | `"xai"`          | xAI API key       | *(built-in)*                            | `"grok-2-latest"`             | <https://docs.x.ai/docs/models>                                                             |
+/// | `"cohere"`       | Cohere API key    | *(built-in)*                            | `"command-a-03-2025"`         | <https://docs.cohere.com/docs/models>                                                       |
+/// | `"openrouter"`   | OpenRouter key    | *(built-in)*                            | `"provider/model-name"`       | <https://openrouter.ai/models>                                                              |
+/// | `"huggingface"`  | HF token          | *(built-in)*                            | any HF Inference model ID     | <https://huggingface.co/models?pipeline_tag=text-generation&inference=warm>                 |
+/// | `"ollama"`       | *(omit)*          | `"http://localhost:11434"`              | `"llama3.2"`                  | <https://ollama.com/library>                                                                |
+/// | `"azure-openai"` | Azure API key     | `"https://<resource>.openai.azure.com"` | `"gpt-4o"`                    | <https://learn.microsoft.com/azure/ai-services/openai/concepts/models>                      |
+/// | `"aws-bedrock"`  | *(AWS env vars)*  | *(built-in)*                            | Bedrock model ARN or ID       | <https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html>                |
 ///
 /// ℹ️ Use `RemoteLlm` together with `chat`, `stream`, or `visionChat`.
 ///
@@ -43,11 +57,11 @@ use llm::{
 ///
 /// treatment example()
 ///   model llm: RemoteLlm(
-///     backend     = "anthropic",
-///     api_key     = "sk-ant-...",
-///     model       = "claude-sonnet-4-6",
-///     system      = "You are a helpful assistant.",
-///     max_tokens  = 2048
+///     backend    = "mistral",
+///     api_key    = "...",
+///     model      = "mistral-small-latest",
+///     system     = "You are a helpful assistant.",
+///     max_tokens = 2048
 ///   )
 ///   input  prompt: Stream<string>
 ///   output token:  Stream<string>
@@ -57,15 +71,15 @@ use llm::{
 /// }
 /// ```
 #[mel_model(
-    param backend     string  "openai"
-    param api_key     string  ""
-    param base_url    string  ""
-    param model       string  ""
-    param system      string  ""
-    param max_tokens  u64     1024
-    param temperature f32     0.8
-    param top_p       f32     1.0
-    param timeout     u64     60
+    param backend     string       "mistral"
+    param api_key     Option<string> none
+    param base_url    string       ""
+    param model       string       ""
+    param system      string       ""
+    param max_tokens  Option<u64>  none
+    param temperature Option<f32>  none
+    param top_p       Option<f32>  none
+    param timeout     Option<u64>  none
     initialize initialize
     shutdown shutdown
 )]
@@ -107,23 +121,15 @@ impl RemoteLlm {
                 }
             };
 
-            let api_key = model_ref.get_api_key();
             let base_url = model_ref.get_base_url();
             let model_id = model_ref.get_model();
             let system = model_ref.get_system();
-            let max_tokens = model_ref.get_max_tokens() as u32;
-            let temperature = model_ref.get_temperature();
-            //let top_p = model_ref.get_top_p();
-            let timeout = model_ref.get_timeout();
 
-            let mut builder = LLMBuilder::new()
-                .backend(backend)
-                .api_key(api_key)
-                .max_tokens(max_tokens)
-                .temperature(temperature)
-                //.top_p(top_p)
-                .timeout_seconds(timeout);
+            let mut builder = LLMBuilder::new().backend(backend);
 
+            if let Some(api_key) = model_ref.get_api_key() {
+                builder = builder.api_key(api_key);
+            }
             if !base_url.is_empty() {
                 builder = builder.base_url(base_url);
             }
@@ -132,6 +138,18 @@ impl RemoteLlm {
             }
             if !system.is_empty() {
                 builder = builder.system(system);
+            }
+            if let Some(max_tokens) = model_ref.get_max_tokens() {
+                builder = builder.max_tokens(max_tokens as u32);
+            }
+            if let Some(temperature) = model_ref.get_temperature() {
+                builder = builder.temperature(temperature);
+            }
+            if let Some(top_p) = model_ref.get_top_p() {
+                builder = builder.top_p(top_p);
+            }
+            if let Some(timeout) = model_ref.get_timeout() {
+                builder = builder.timeout_seconds(timeout);
             }
 
             match builder.build() {
@@ -183,7 +201,7 @@ impl RemoteLlm {
 /// use ml/remote/llm::chat
 ///
 /// treatment example()
-///   model llm: RemoteLlm(backend = "openai", api_key = "sk-...", model = "gpt-4o")
+///   model llm: RemoteLlm(backend = "mistral", api_key = "...", model = "mistral-small-latest")
 ///   input  prompt:   Stream<string>
 ///   output response: Stream<string>
 /// {
@@ -271,7 +289,7 @@ pub async fn chat() {
 /// use ml/remote/llm::stream
 ///
 /// treatment example()
-///   model llm: RemoteLlm(backend = "ollama", base_url = "http://localhost:11434", model = "llama3.2")
+///   model llm: RemoteLlm(backend = "mistral", api_key = "...", model = "mistral-small-latest")
 ///   input  prompt: Stream<string>
 ///   output token:  Stream<string>
 /// {

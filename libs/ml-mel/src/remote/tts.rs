@@ -14,14 +14,19 @@ use llm::{
 
 /// Remote text-to-speech provider configuration.
 ///
-/// Holds the connection parameters for a remote text-to-speech service.  Currently
-/// ElevenLabs is the only backend with a real implementation.
+/// Holds the connection parameters for a remote text-to-speech service.
 ///
-/// - `backend`: provider name (default `"elevenlabs"`).
-/// - `api_key`: API key for authentication.
+/// - `backend`: provider name (default `"elevenlabs"`); see the table below.
+/// - `api_key`: API key for authentication (omit for unauthenticated endpoints).
 /// - `base_url`: override the provider base URL (optional).
-/// - `model`: model identifier (ElevenLabs model ID, e.g. `"eleven_multilingual_v2"`).
-/// - `voice`: voice identifier (ElevenLabs voice ID).
+/// - `model`: model identifier — see the table below for recommended values per backend.
+/// - `voice`: voice identifier (required for ElevenLabs; omit for other backends).
+///
+/// ## Backends
+///
+/// | `backend`      | `api_key`      | Example `model`            | `voice`             | Model & voice list                                          |
+/// |----------------|----------------|----------------------------|---------------------|-------------------------------------------------------------|
+/// | `"elevenlabs"` | ElevenLabs key | `"eleven_multilingual_v2"` | ElevenLabs voice ID | <https://elevenlabs.io/docs/text-to-speech>                 |
 ///
 /// ℹ️ Use `RemoteTts` together with `synthesize`.
 ///
@@ -44,11 +49,11 @@ use llm::{
 /// }
 /// ```
 #[mel_model(
-    param backend  string  "elevenlabs"
-    param api_key  string  ""
-    param base_url string  ""
-    param model    string  ""
-    param voice    string  ""
+    param backend  string         "elevenlabs"
+    param api_key  Option<string> none
+    param base_url string         ""
+    param model    string         ""
+    param voice    string         ""
     initialize initialize
     shutdown shutdown
 )]
@@ -90,13 +95,15 @@ impl RemoteTts {
                 }
             };
 
-            let api_key = model_ref.get_api_key();
             let base_url = model_ref.get_base_url();
             let model_id = model_ref.get_model();
             let voice = model_ref.get_voice();
 
-            let mut builder = LLMBuilder::new().backend(backend).api_key(api_key);
+            let mut builder = LLMBuilder::new().backend(backend);
 
+            if let Some(api_key) = model_ref.get_api_key() {
+                builder = builder.api_key(api_key);
+            }
             if !base_url.is_empty() {
                 builder = builder.base_url(base_url);
             }

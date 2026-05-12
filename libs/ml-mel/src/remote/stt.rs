@@ -13,15 +13,19 @@ use llm::{
 
 /// Remote speech-to-text provider configuration.
 ///
-/// Holds the connection parameters for a remote speech-to-text service.  Currently
-/// two backends provide a real implementation:
-/// - `"openai"` — OpenAI Whisper API (`whisper-1`).
-/// - `"elevenlabs"` — ElevenLabs speech-to-text endpoint.
+/// Holds the connection parameters for a remote speech-to-text service.
 ///
-/// - `backend`: provider name (default `"openai"`).
-/// - `api_key`: API key for authentication.
+/// - `backend`: provider name (default `"openai"`); see the table below.
+/// - `api_key`: API key for authentication (omit for unauthenticated endpoints).
 /// - `base_url`: override the provider base URL (optional).
-/// - `model`: model identifier, e.g. `"whisper-1"` for OpenAI.
+/// - `model`: model identifier — see the table below for recommended values per backend.
+///
+/// ## Backends
+///
+/// | `backend`      | `api_key`       | Example `model`  | Model list                                                             |
+/// |----------------|-----------------|------------------|------------------------------------------------------------------------|
+/// | `"openai"`     | OpenAI API key  | `"whisper-1"`    | <https://platform.openai.com/docs/models>                              |
+/// | `"elevenlabs"` | ElevenLabs key  | `"scribe_v1"`    | <https://elevenlabs.io/docs/speech-to-text>                            |
 ///
 /// ℹ️ Use `RemoteStt` together with `transcribe`.
 ///
@@ -39,10 +43,10 @@ use llm::{
 /// }
 /// ```
 #[mel_model(
-    param backend  string  "openai"
-    param api_key  string  ""
-    param base_url string  ""
-    param model    string  ""
+    param backend  string         "openai"
+    param api_key  Option<string> none
+    param base_url string         ""
+    param model    string         ""
     initialize initialize
     shutdown shutdown
 )]
@@ -84,12 +88,14 @@ impl RemoteStt {
                 }
             };
 
-            let api_key = model_ref.get_api_key();
             let base_url = model_ref.get_base_url();
             let model_id = model_ref.get_model();
 
-            let mut builder = LLMBuilder::new().backend(backend).api_key(api_key);
+            let mut builder = LLMBuilder::new().backend(backend);
 
+            if let Some(api_key) = model_ref.get_api_key() {
+                builder = builder.api_key(api_key);
+            }
             if !base_url.is_empty() {
                 builder = builder.base_url(base_url);
             }
