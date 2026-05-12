@@ -222,8 +222,8 @@
       if [ ! -d $CI_PROJECT_DIR/osxcross ]
       then
         base="$PWD"
-        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-611675b.tar.gz
-        tar --extract --gzip --file osxcross-611675b.tar.gz
+        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-e6ab3fa.tar.gz
+        tar --extract --gzip --file osxcross-e6ab3fa.tar.gz
         mv osxcross-master osxcross
         cd osxcross
         wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX14.2.sdk.tar.xz
@@ -257,8 +257,8 @@
       if [ ! -d $CI_PROJECT_DIR/osxcross ]
       then
         base="$PWD"
-        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-611675b.tar.gz
-        tar --extract --gzip --file osxcross-611675b.tar.gz
+        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-e6ab3fa.tar.gz
+        tar --extract --gzip --file osxcross-e6ab3fa.tar.gz
         mv osxcross-master osxcross
         cd osxcross
         wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX14.2.sdk.tar.xz
