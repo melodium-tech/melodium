@@ -1,5 +1,6 @@
 use std/engine/util::startup
 use std/engine/log::logInfoMessage
+use std/engine/log::logInfos
 use std/engine/log::logErrors
 use std/flow::emit
 use std/flow::trigger
@@ -23,14 +24,16 @@ use ml/remote/llm::stream as llmStream
 // remote LLM and streams the token-by-token response back to the caller.
 //
 // Usage:
-//   melodium run Compo.toml -- --api_key sk-... --model gpt-4o
+//   melodium run Compo.toml -- --api_key sk-... --model claude-sonnet-4-6
 //
 // Then:
 //   curl -X POST http://127.0.0.1:8080/chat -d "What is Mélodium?"
 //
 
 model ChatLlm(const api_key: string, const model: string) : RemoteLlm {
-    backend     = "openai"
+    api_key     = api_key
+    backend     = "anthropic"
+    model       = model
     system      = "You are a helpful assistant. Answer concisely."
     max_tokens  = 512
     temperature = 0.7
@@ -38,7 +41,7 @@ model ChatLlm(const api_key: string, const model: string) : RemoteLlm {
 
 treatment main(
     const api_key: string,
-    const model:   string = "gpt-4o",
+    const model:   string = "claude-sonnet-4-6",
     const port:    u16    = 8080
 )
   model server: HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port)
@@ -71,9 +74,11 @@ treatment chat[llm: RemoteLlm]()
     llmStream[llm=llm]()
     encode()
 
+    llmPrompt: logInfos(label="llm")
     llmErrors: logErrors(label="llm")
 
     Self.data -> decode.data,text -> llmStream.prompt,token -> encode.text,data -> Self.data
 
+    decode.text -> llmPrompt.messages
     llmStream.error -> llmErrors.messages
 }

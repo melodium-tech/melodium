@@ -17,7 +17,7 @@ crate-type = ["lib", "cdylib"]
 name = "ml_mel"
 
 [dependencies]
-async-std = { version = "1.13" }
+async-std = { version = "1.13", features = ["tokio1"] }
 candle-core = { version = "0.10.2" }
 candle-nn = { version = "0.10.2" }
 candle-transformers = { version = "0.10.2" }

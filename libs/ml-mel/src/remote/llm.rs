@@ -113,7 +113,7 @@ impl RemoteLlm {
             let system = model_ref.get_system();
             let max_tokens = model_ref.get_max_tokens() as u32;
             let temperature = model_ref.get_temperature();
-            let top_p = model_ref.get_top_p();
+            //let top_p = model_ref.get_top_p();
             let timeout = model_ref.get_timeout();
 
             let mut builder = LLMBuilder::new()
@@ -121,7 +121,7 @@ impl RemoteLlm {
                 .api_key(api_key)
                 .max_tokens(max_tokens)
                 .temperature(temperature)
-                .top_p(top_p)
+                //.top_p(top_p)
                 .timeout_seconds(timeout);
 
             if !base_url.is_empty() {
@@ -215,17 +215,18 @@ pub async fn chat() {
                         check!(response.send_one(Value::String(text)).await);
                     }
                     Err(e) => {
-                        check!(failed.send_one(().into()).await);
-                        check!(error.send_one(Value::String(e.to_string())).await);
+                        failed.send_one(().into()).await;
+                        error.send_one(Value::String(e.to_string())).await;
+                        break;
                     }
                 }
             } else {
-                check!(failed.send_one(().into()).await);
-                check!(
+                failed.send_one(().into()).await;
+                
                     error
                         .send_one(Value::String("provider not initialized".into()))
                         .await
-                );
+                ;
             }
         }
 
@@ -290,7 +291,7 @@ pub async fn stream() {
 
     while let Ok(val) = prompt.recv_one().await {
         let text = GetData::<String>::try_data(val).unwrap_or_default();
-
+        eprintln!("[RemoteLlm] received prompt: {}", text);
         #[cfg(feature = "real")]
         {
             let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
@@ -299,30 +300,36 @@ pub async fn stream() {
                 match provider.chat_stream(&messages).await {
                     Ok(mut s) => {
                         while let Some(chunk) = s.next().await {
+                            eprintln!("[RemoteLlm] received token: {:?}", chunk);
                             match chunk {
                                 Ok(t) => {
+                                    eprintln!("[RemoteLlm] sending token: {}", t);
                                     check!(token.send_one(Value::String(t)).await);
                                 }
                                 Err(e) => {
-                                    check!(failed.send_one(().into()).await);
-                                    check!(error.send_one(Value::String(e.to_string())).await);
+                                    eprintln!("[RemoteLlm] stream error: {}", e);
+                                    failed.send_one(().into()).await;
+                                    error.send_one(Value::String(e.to_string())).await;
                                     break;
                                 }
                             }
                         }
                     }
                     Err(e) => {
-                        check!(failed.send_one(().into()).await);
-                        check!(error.send_one(Value::String(e.to_string())).await);
+                        eprintln!("[RemoteLlm] failed to start stream: {}", e);
+                        failed.send_one(().into()).await;
+                        error.send_one(Value::String(e.to_string())).await;
+                        break;
                     }
                 }
             } else {
-                check!(failed.send_one(().into()).await);
-                check!(
+                failed.send_one(().into()).await;
+                
                     error
                         .send_one(Value::String("provider not initialized".into()))
                         .await
-                );
+                ;
+            break;
             }
         }
 
