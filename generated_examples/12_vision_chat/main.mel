@@ -29,6 +29,7 @@ use javascript::JavaScriptEngine
 use javascript::process
 use ml/remote/llm::RemoteLlm
 use ml/remote/llm::chat
+use std/ops/option::|wrap
 
 //
 // Vision Chat (URL-based)
@@ -54,10 +55,15 @@ use ml/remote/llm::chat
 //
 
 model Vision(const openai_key: string) : RemoteLlm {
-    backend    = "openai"
-    model      = "gpt-4o"
-    system     = "You are an expert image analyst. Describe images clearly and in detail."
-    max_tokens = 512
+    backend     = "openai"
+    api_key     = |wrap<string>(openai_key)
+    base_url    = ""
+    model       = "gpt-4o"
+    system      = "You are an expert image analyst. Describe images clearly and in detail."
+    max_tokens  = |wrap<u64>(512)
+    temperature = _
+    top_p       = _
+    timeout     = _
 }
 
 // Extracts url and question from a JSON body, concatenates them into a single prompt string.

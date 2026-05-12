@@ -24,6 +24,7 @@ use ml/remote/stt::RemoteStt
 use ml/remote/stt::transcribe
 use ml/remote/llm::RemoteLlm
 use ml/remote/llm::chat
+use std/ops/option::|wrap
 
 //
 // Meeting Summary Service
@@ -47,16 +48,22 @@ use ml/remote/llm::chat
 //
 
 model Stt(const openai_key: string) : RemoteStt {
-    backend = "openai"
-    model   = "whisper-1"
+    backend  = "openai"
+    api_key  = |wrap<string>(openai_key)
+    base_url = ""
+    model    = "whisper-1"
 }
 
 model Llm(const openai_key: string) : RemoteLlm {
     backend     = "openai"
+    api_key     = |wrap<string>(openai_key)
+    base_url    = ""
     model       = "gpt-4o"
     system      = "You are an expert meeting assistant. Given a raw transcript, produce a concise, structured summary with: key decisions, action items, and a one-paragraph overview."
-    max_tokens  = 512
-    temperature = 0.4
+    max_tokens  = |wrap<u64>(512)
+    temperature = |wrap<f32>(0.4)
+    top_p       = _
+    timeout     = _
 }
 
 treatment main(

@@ -15,6 +15,7 @@ use ml/models/whisper::load as loadWhisper
 use ml/models/whisper::decode
 use ml/remote/llm::RemoteLlm
 use ml/remote/llm::stream as llmStream
+use std/ops/option::|wrap
 
 //
 // Real-time Voice Assistant
@@ -39,10 +40,14 @@ model Asr()        : Whisper {}
 
 model RemoteAssistant(const openai_key: string) : RemoteLlm {
     backend     = "openai"
+    api_key     = |wrap<string>(openai_key)
+    base_url    = ""
     model       = "gpt-4o"
     system      = "You are a concise voice assistant. Answer in plain text, one short paragraph."
-    max_tokens  = 256
-    temperature = 0.6
+    max_tokens  = |wrap<u64>(256)
+    temperature = |wrap<f32>(0.6)
+    top_p       = _
+    timeout     = _
 }
 
 // --- entrypoint: local Whisper + remote LLM ---

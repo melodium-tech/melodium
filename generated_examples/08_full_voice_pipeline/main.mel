@@ -16,6 +16,7 @@ use ml/remote/llm::RemoteLlm
 use ml/remote/llm::chat
 use ml/remote/tts::RemoteTts
 use ml/remote/tts::synthesize
+use std/ops/option::|wrap
 use fs/local::writeLocal
 use fs/local::readLocal
 
@@ -38,21 +39,30 @@ use fs/local::readLocal
 //
 
 model Stt(const openai_key: string) : RemoteStt {
-    backend = "openai"
-    model   = "whisper-1"
+    backend  = "openai"
+    api_key  = |wrap<string>(openai_key)
+    base_url = ""
+    model    = "whisper-1"
 }
 
 model Llm(const openai_key: string) : RemoteLlm {
     backend     = "openai"
+    api_key     = |wrap<string>(openai_key)
+    base_url    = ""
     model       = "gpt-4o"
     system      = "You are a helpful voice assistant. Answer briefly and clearly."
-    max_tokens  = 256
-    temperature = 0.7
+    max_tokens  = |wrap<u64>(256)
+    temperature = |wrap<f32>(0.7)
+    top_p       = _
+    timeout     = _
 }
 
 model Tts(const elevenlabs_key: string, const voice: string) : RemoteTts {
-    backend = "elevenlabs"
-    model   = "eleven_multilingual_v2"
+    backend  = "elevenlabs"
+    api_key  = |wrap<string>(elevenlabs_key)
+    base_url = ""
+    model    = "eleven_multilingual_v2"
+    voice    = voice
 }
 
 treatment main(

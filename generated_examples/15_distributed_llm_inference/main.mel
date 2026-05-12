@@ -52,11 +52,15 @@ use distrib::recvStream
 
 // LLM model used by the remote runner.
 model Assistant(const openai_key: string) : RemoteLlm {
-    backend    = "openai"
-    api_key    = openai_key
-    model      = "gpt-4o-mini"
-    system     = "You are a concise and helpful assistant."
-    max_tokens = 1024
+    backend     = "openai"
+    api_key     = |wrap<string>(openai_key)
+    base_url    = ""
+    model       = "gpt-4o-mini"
+    system      = "You are a concise and helpful assistant."
+    max_tokens  = |wrap<u64>(1024)
+    temperature = _
+    top_p       = _
+    timeout     = _
 }
 
 treatment server(

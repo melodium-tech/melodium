@@ -9,6 +9,7 @@ use fs/local::readLocal
 use fs/local::writeTextLocal
 use ml/remote/stt::RemoteStt
 use ml/remote/stt::transcribe
+use std/ops/option::|wrap
 
 //
 // Audio File Transcription
@@ -28,8 +29,10 @@ use ml/remote/stt::transcribe
 //
 
 model Stt(const openai_key: string) : RemoteStt {
-    backend = "openai"
-    model   = "whisper-1"
+    backend  = "openai"
+    api_key  = |wrap<string>(openai_key)
+    base_url = ""
+    model    = "whisper-1"
 }
 
 treatment main(

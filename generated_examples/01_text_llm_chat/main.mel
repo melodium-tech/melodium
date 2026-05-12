@@ -18,6 +18,7 @@ use std/data/string_map::StringMap
 use std/data/string_map::|map
 use ml/remote/llm::RemoteLlm
 use ml/remote/llm::stream as llmStream
+use std/ops/option::|wrap
 
 //
 // Text LLM Chat — HTTP server that forwards each POST body as a prompt to a
@@ -31,12 +32,15 @@ use ml/remote/llm::stream as llmStream
 //
 
 model ChatLlm(const api_key: string, const model: string) : RemoteLlm {
-    api_key     = api_key
     backend     = "anthropic"
+    api_key     = |wrap<string>(api_key)
+    base_url    = ""
     model       = model
     system      = "You are a helpful assistant. Answer concisely."
     max_tokens  = 512
     temperature = 0.7
+    top_p       = _
+    timeout     = _
 }
 
 treatment main(
