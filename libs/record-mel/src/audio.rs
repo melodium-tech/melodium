@@ -1,5 +1,5 @@
-use audio_mel::audio_info::*;
 use async_channel::bounded;
+use audio_mel::audio_info::*;
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     FromSample, SampleFormat, SizedSample,
@@ -123,17 +123,18 @@ pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
 
                 let stream_config = if let Some(rate) = sample_rate {
                     // Verify the device supports the requested rate and build a matching config.
-                    let supported = input_device
-                        .supported_input_configs()
-                        .ok()
-                        .and_then(|mut iter| {
-                            iter.find(|r| {
-                                r.channels() as usize == num_channels
-                                    && r.sample_format() == sample_format
-                                    && r.min_sample_rate() <= rate
-                                    && rate <= r.max_sample_rate()
-                            })
-                        });
+                    let supported =
+                        input_device
+                            .supported_input_configs()
+                            .ok()
+                            .and_then(|mut iter| {
+                                iter.find(|r| {
+                                    r.channels() as usize == num_channels
+                                        && r.sample_format() == sample_format
+                                        && r.min_sample_rate() <= rate
+                                        && rate <= r.max_sample_rate()
+                                })
+                            });
                     match supported {
                         Some(range) => range.with_sample_rate(rate).config(),
                         None => {

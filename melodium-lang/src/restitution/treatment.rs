@@ -344,10 +344,7 @@ impl Treatment {
         let mut out_edges: HashMap<(String, String), Vec<usize>> = HashMap::new();
 
         for (i, conn) in connections.iter().enumerate() {
-            out_edges
-                .entry(Self::src_key(conn))
-                .or_default()
-                .push(i);
+            out_edges.entry(Self::src_key(conn)).or_default().push(i);
         }
 
         // Sort each fan-out list alphabetically by (receiver_treatment, receiver_input)
@@ -375,9 +372,9 @@ impl Treatment {
                 return false;
             }
             let src_name = Self::io_name(&conn.output_treatment);
-            connections.iter().any(|p| {
-                p.attributes().is_empty() && Self::io_name(&p.input_treatment) == src_name
-            })
+            connections
+                .iter()
+                .any(|p| p.attributes().is_empty() && Self::io_name(&p.input_treatment) == src_name)
         };
 
         // Roots: connections that start a new chain line.

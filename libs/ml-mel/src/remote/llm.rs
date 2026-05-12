@@ -222,11 +222,11 @@ pub async fn chat() {
                 }
             } else {
                 failed.send_one(().into()).await;
-                
-                    error
-                        .send_one(Value::String("provider not initialized".into()))
-                        .await
-                ;
+
+                error
+                    .send_one(Value::String("provider not initialized".into()))
+                    .await;
+                break;
             }
         }
 
@@ -307,7 +307,6 @@ pub async fn stream() {
                                     check!(token.send_one(Value::String(t)).await);
                                 }
                                 Err(e) => {
-                                    eprintln!("[RemoteLlm] stream error: {}", e);
                                     failed.send_one(().into()).await;
                                     error.send_one(Value::String(e.to_string())).await;
                                     break;
@@ -316,7 +315,6 @@ pub async fn stream() {
                         }
                     }
                     Err(e) => {
-                        eprintln!("[RemoteLlm] failed to start stream: {}", e);
                         failed.send_one(().into()).await;
                         error.send_one(Value::String(e.to_string())).await;
                         break;
@@ -324,12 +322,10 @@ pub async fn stream() {
                 }
             } else {
                 failed.send_one(().into()).await;
-                
-                    error
-                        .send_one(Value::String("provider not initialized".into()))
-                        .await
-                ;
-            break;
+                error
+                    .send_one(Value::String("provider not initialized".into()))
+                    .await;
+                break;
             }
         }
 

@@ -331,7 +331,7 @@
     - .cache:cargo
   before_script:
     - apt-get update
-    - apt-get install -y mingw-w64
+    - apt-get install -y mingw-w64 nasm
     - rustup target add i686-pc-windows-gnu
     - export PATH="$CARGO_HOME/bin:$PATH"
     - export CARGO_BUILD_TARGET=i686-pc-windows-gnu
