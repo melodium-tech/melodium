@@ -3,7 +3,7 @@
 # Builders follows syntax [host os]/[target triple]
 
 .host:debian:
-  image: rust:1.91-bullseye
+  image: rust:1.91-bookworm
 
 .host:windows:
   tags:
@@ -211,7 +211,7 @@
 
 .builder:linux:x86_64-apple-darwin:
   extends:
-    - .host:debian
+    - .host:debian-bookworm
     - .cache:cargo-osxcross
   before_script:
     - apt-get update
@@ -247,7 +247,7 @@
 
 .builder:linux:aarch64-apple-darwin:
   extends:
-    - .host:debian
+    - .host:debian-bookworm
     - .cache:cargo-osxcross
   before_script:
     - apt-get update
