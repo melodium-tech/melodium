@@ -219,8 +219,9 @@
     - rustup target add x86_64-apple-darwin
     - export PATH="$CARGO_HOME/bin:$PATH"
     - |
-      if [ ! -d $CI_PROJECT_DIR/osxcross ]
+      if [ ! -f $CI_PROJECT_DIR/osxcross/target/bin/x86_64-apple-darwin23.2-cc ]
       then
+        rm -rf $CI_PROJECT_DIR/osxcross
         base="$PWD"
         wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-e6ab3fa.tar.gz
         tar --extract --gzip --file osxcross-e6ab3fa.tar.gz
@@ -254,8 +255,9 @@
     - rustup target add aarch64-apple-darwin
     - export PATH="$CARGO_HOME/bin:$PATH"
     - |
-      if [ ! -d $CI_PROJECT_DIR/osxcross ]
+      if [ ! -f $CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-cc ]
       then
+        rm -rf $CI_PROJECT_DIR/osxcross
         base="$PWD"
         wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-e6ab3fa.tar.gz
         tar --extract --gzip --file osxcross-e6ab3fa.tar.gz
