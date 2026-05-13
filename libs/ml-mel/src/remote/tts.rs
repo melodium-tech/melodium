@@ -184,6 +184,9 @@ pub async fn synthesize() {
 
     while let Ok(val) = text.recv_one().await {
         let text_str = GetData::<String>::try_data(val).unwrap_or_default();
+        if text_str.is_empty() {
+            continue;
+        }
 
         #[cfg(feature = "real")]
         {

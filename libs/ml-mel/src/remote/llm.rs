@@ -309,7 +309,9 @@ pub async fn stream() {
 
     while let Ok(val) = prompt.recv_one().await {
         let text = GetData::<String>::try_data(val).unwrap_or_default();
-        eprintln!("[RemoteLlm] received prompt: {}", text);
+        if text.is_empty() {
+            continue;
+        }
         #[cfg(feature = "real")]
         {
             let maybe_provider = model_arc.inner().provider.lock().unwrap().clone();
@@ -318,10 +320,8 @@ pub async fn stream() {
                 match provider.chat_stream(&messages).await {
                     Ok(mut s) => {
                         while let Some(chunk) = s.next().await {
-                            eprintln!("[RemoteLlm] received token: {:?}", chunk);
                             match chunk {
                                 Ok(t) => {
-                                    eprintln!("[RemoteLlm] sending token: {}", t);
                                     check!(token.send_one(Value::String(t)).await);
                                 }
                                 Err(e) => {
