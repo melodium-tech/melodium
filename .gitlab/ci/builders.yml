@@ -211,7 +211,7 @@
 
 .builder:linux:x86_64-apple-darwin:
   extends:
-    - .host:debian-bookworm
+    - .host:debian
     - .cache:cargo-osxcross
   before_script:
     - apt-get update
@@ -247,7 +247,7 @@
 
 .builder:linux:aarch64-apple-darwin:
   extends:
-    - .host:debian-bookworm
+    - .host:debian
     - .cache:cargo-osxcross
   before_script:
     - apt-get update
