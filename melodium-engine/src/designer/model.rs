@@ -244,11 +244,6 @@ impl Model {
                     .parameters
                     .iter()
                     .map(|(name, param)| {
-                        eprintln!(
-                            "Designing parameter {} with value {:?}",
-                            name,
-                            param.read().unwrap().value()
-                        );
                         (
                             name.clone(),
                             ParameterDesign {
