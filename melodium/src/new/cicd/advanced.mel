@@ -9,7 +9,6 @@ use cicd/runners::CicdDispatchEngine
 use cicd/runners::CicdRunnerEngine
 use cicd/runners::setupRunner
 use cicd/runners::stopRunner
-use cicd/logging::manageLogs
 use cicd/steps::stepOn
 use cicd/steps::stepOnWithInput
 use process/command::|command
@@ -35,19 +34,17 @@ use work/resources::|mount
 
   All the other parameters are present to handle integration with CI services.
 */
-treatment main(const api_token: string, const work_location: string = "api", output_directory: string, repository_clone_url: string, repository_clone_ref: string, ci_service_token: string = "", ci_service_project: string = "", ci_service_ref: string = "", ci_service_sha: string = "", ci_service_pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
+treatment main(const api_token: string, const work_location: string = "api", repository_clone_url: string, repository_clone_ref: string, ci_service_token: string = "", ci_service_project: string = "", ci_service_ref: string = "", ci_service_sha: string = "", ci_service_pipeline: string = "", on_github: bool = false, on_gitlab: bool = false)
   // Model used to dispatch work among Mélodium engines.
   model cicd: CicdDispatchEngine(api_token=api_token, location=work_location)
 {
     startup()
 
-    manageLogs(output_directory=output_directory)
-
     build[cicd=cicd](repository_clone_url=repository_clone_url, repository_clone_ref=repository_clone_ref)
     test[cicd=cicd]()
 
     startup.trigger -> build.trigger,data -> test.data
-    startup.trigger -----------------------> test.trigger,finished -> manageLogs.stop
+    startup.trigger -----------------------> test.trigger
 }
 
 /**

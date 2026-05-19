@@ -55,16 +55,18 @@ else
 fi
 
 # Download URL
-if [ "$OS" = "linux" ] || [ "$OS" = "darwin" ]; then
-    EXT="sh"
-    TARGET="${ARCH}-unknown-linux-musl"
-elif [ "$OS" = "mingw" ] || [ "$OS" = "msys" ] || [ "$OS" = "cygwin" ]; then
-    EXT="msi"
-    TARGET="${ARCH}-pc-windows-gnu"
-else
-    echo "No installer available for $OS"
-    exit 1
-fi
+case $OS in
+    linux|darwin)
+        EXT="sh"
+        ;;
+    mingw*|msys*|cygwin*)
+        EXT="msi"
+        ;;
+    *)
+        echo "No installer available for $OS"
+        exit 1
+        ;;
+esac
 
 URL="https://repo.melodium.tech/install/${VERSION}/melodium-${VERSION}_${TARGET}.${EXT}"
 
@@ -86,8 +88,7 @@ if [ "$EXT" = "sh" ]; then
     chmod +x "$TEMP_FILE"
     "$TEMP_FILE"
 elif [ "$EXT" = "msi" ]; then
-    echo "Downloaded MSI installer to $TEMP_FILE"
-    echo "Please run the MSI file manually to install Mélodium."
+    msiexec /i "$TEMP_FILE" /quiet /norestart
 else
     echo "Unknown extension: $EXT"
     exit 1

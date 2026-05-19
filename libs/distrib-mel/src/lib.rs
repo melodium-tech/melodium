@@ -12,9 +12,8 @@ use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::io::{Read, Write};
 #[cfg(feature = "real")]
 use async_std::net::{SocketAddr, TcpStream};
-use async_std::sync::{
-    Arc as AsyncArc, Barrier as AsyncBarrier, Mutex as AsyncMutex, RwLock as AsyncRwLock,
-};
+use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
+use event_listener::{Event, IntoNotification};
 use common::descriptor::{Entry, Treatment};
 use common::descriptor::{Identifier, Version};
 use core::str::FromStr;
@@ -124,13 +123,14 @@ impl Write for NetworkStream {
 )]
 pub struct DistributionEngine {
     model: Weak<DistributionEngineModel>,
-    //protocol: AsyncRwLock<Option<AsyncArc<Protocol<TlsStream<TcpStream>>>>>,
     #[cfg(feature = "real")]
     protocol: AsyncRwLock<Option<AsyncArc<Protocol<NetworkStream>>>>,
     treatment: AsyncRwLock<Option<Arc<dyn Treatment>>>,
     tracks: AsyncRwLock<HashMap<u64, AsyncArc<AsyncRwLock<Track>>>>,
-    protocol_barrier: AsyncMutex<(bool, Option<AsyncArc<AsyncBarrier>>)>,
-    started_once: AtomicBool,
+    start_attempted: AtomicBool,
+    protocol_ready: Event,
+    protocol_ready_fired: AtomicBool,
+    stop_requested: AtomicBool,
     distant_run_id: AsyncRwLock<Option<Uuid>>,
 }
 
@@ -142,8 +142,10 @@ impl DistributionEngine {
             protocol: AsyncRwLock::new(None),
             treatment: AsyncRwLock::new(None),
             tracks: AsyncRwLock::new(HashMap::new()),
-            protocol_barrier: AsyncMutex::new((false, Some(AsyncArc::new(AsyncBarrier::new(2))))),
-            started_once: AtomicBool::new(false),
+            start_attempted: AtomicBool::new(false),
+            protocol_ready: Event::new(),
+            protocol_ready_fired: AtomicBool::new(false),
+            stop_requested: AtomicBool::new(false),
             distant_run_id: AsyncRwLock::new(None),
         }
     }
@@ -151,24 +153,22 @@ impl DistributionEngine {
 
 #[cfg(feature = "real")]
 impl DistributionEngine {
-    pub async fn protocol_barrier(&self) {
-        let barrier = {
-            let mut lock = self.protocol_barrier.lock().await;
-            if lock.0 {
-                lock.1.take()
-            } else {
-                lock.0 = true;
-                lock.1.as_ref().map(|barrier| AsyncArc::clone(barrier))
-            }
-        };
-        if let Some(barrier) = barrier {
-            barrier.wait().await;
+    fn fire_protocol_ready(&self) {
+        self.protocol_ready_fired.store(true, Ordering::SeqCst);
+        self.protocol_ready.notify(usize::MAX.additional());
+    }
+
+    async fn wait_protocol_ready(&self) {
+        let listener = self.protocol_ready.listen();
+        if self.protocol_ready_fired.load(Ordering::SeqCst) {
+            return;
         }
+        listener.await;
     }
 
     pub async fn fuse(&self) {
-        if self.started_once.load(Ordering::Relaxed) {
-            self.protocol_barrier().await;
+        if self.start_attempted.load(Ordering::SeqCst) {
+            self.wait_protocol_ready().await;
         }
     }
 
@@ -177,10 +177,21 @@ impl DistributionEngine {
         access: &work_mel::api::CommonAccess,
         params: HashMap<String, Value>,
     ) -> Result<(), String> {
-        if self.started_once.swap(true, Ordering::Relaxed) {
+        if self.start_attempted.swap(true, Ordering::SeqCst) {
+            self.wait_protocol_ready().await;
             return Ok(());
         }
 
+        let result = self.do_start(access, params).await;
+        self.fire_protocol_ready();
+        result
+    }
+
+    async fn do_start(
+        &self,
+        access: &work_mel::api::CommonAccess,
+        params: HashMap<String, Value>,
+    ) -> Result<(), String> {
         let model = self.model.upgrade().unwrap();
 
         let entrypoint = match Identifier::from_str(&model.get_treatment()) {
@@ -294,7 +305,6 @@ impl DistributionEngine {
                         Ok(Message::LaunchStatus(status)) => match status {
                             melodium_distribution::LaunchStatus::Ok => {
                                 *protocol_lock = Some(AsyncArc::new(protocol));
-                                self.protocol_barrier().await;
                                 Ok(())
                             }
                             melodium_distribution::LaunchStatus::Failure(err) => {
@@ -326,13 +336,15 @@ impl DistributionEngine {
     }
 
     pub async fn stop(&self) {
+        self.wait_protocol_ready().await;
+
+        if self.stop_requested.swap(true, Ordering::SeqCst) {
+            return;
+        }
+
         if let Some(protocol) = self.protocol.read().await.as_ref() {
             let _ = protocol.send_message(Message::Ended).await;
             protocol.close().await;
-        } else if !self.started_once.load(Ordering::Relaxed) {
-            self.protocol_barrier().await;
-        } else {
-            self.fuse().await;
         }
     }
 
@@ -477,7 +489,7 @@ impl DistributionEngine {
     }
 
     async fn continuous(&self) {
-        self.protocol_barrier().await;
+        self.wait_protocol_ready().await;
         let world = self.model.upgrade().map(|model| model.world().clone());
 
         let mut ended = false;
@@ -636,6 +648,7 @@ impl DistributionEngine {
             if let Some(protocol) = (*self.protocol.read().await).as_ref().cloned() {
                 let _ = protocol.send_message(Message::Ended).await;
             }
+            self.fire_protocol_ready();
         });
     }
 
