@@ -21,6 +21,7 @@ http-mel
 ml-mel
 sql-mel
 javascript-mel
+audio-mel
 work-mel
 distrib-mel
 cicd-mel
