@@ -47,7 +47,7 @@ melodium-macro = { path = "../../melodium-macro", version = "0.10.1" }
 [features]
 mock = []
 plugin = []
-real = []
+real = [ "async-std/tokio1" ]
 
 [package.metadata.docs.rs]
 features = ["mock"]
