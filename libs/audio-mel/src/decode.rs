@@ -70,7 +70,7 @@ use symphonia::core::{
 ///     style F fill:#ffff,stroke:#ffff
 /// ```
 ///
-/// ```
+/// ```mel
 /// use audio/decode::decodeMono
 /// use fs/local::readLocal
 /// use std/engine/util::startup

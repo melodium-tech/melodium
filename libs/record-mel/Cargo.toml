@@ -19,7 +19,7 @@ name = "record_mel"
 [dependencies]
 async-std = "1.13"
 async-channel = "2"
-cpal = "0.17"
+cpal = { version = "0.17", optional = true }
 futures = "0.3.28"
 melodium-core = { path = "../../melodium-core", version = "0.10.1" }
 melodium-macro = { path = "../../melodium-macro", version = "0.10.1" }
@@ -29,7 +29,7 @@ audio-mel = { path = "../audio-mel", version = "0.10.1" }
 [features]
 mock = []
 plugin = []
-real = []
+real = ["cpal"]
 
 [package.metadata.docs.rs]
 all-features = true
