@@ -1,9 +1,5 @@
-use audio_mel::audio_info::*;
 use async_channel::bounded;
-use cpal::{
-    traits::{DeviceTrait, HostTrait, StreamTrait},
-    FromSample, SampleFormat, SizedSample,
-};
+use audio_mel::audio_info::*;
 use melodium_core::*;
 use melodium_macro::mel_treatment;
 use std::sync::Arc;
@@ -59,7 +55,9 @@ use std::sync::Arc;
     output errors Stream<string>
 )]
 pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
+    #[cfg(feature = "real")]
     if let Ok(_) = trigger.recv_one().await {
+        use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
         // Trigger received, start capture. We ignore the value since it's just a signal.
         // Channel carrying interleaved f32 batches from the cpal callback to the async side.
         let (mono_sender, mono_receiver) = bounded::<Vec<f32>>(256);
@@ -123,17 +121,18 @@ pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
 
                 let stream_config = if let Some(rate) = sample_rate {
                     // Verify the device supports the requested rate and build a matching config.
-                    let supported = input_device
-                        .supported_input_configs()
-                        .ok()
-                        .and_then(|mut iter| {
-                            iter.find(|r| {
-                                r.channels() as usize == num_channels
-                                    && r.sample_format() == sample_format
-                                    && r.min_sample_rate() <= rate
-                                    && rate <= r.max_sample_rate()
-                            })
-                        });
+                    let supported =
+                        input_device
+                            .supported_input_configs()
+                            .ok()
+                            .and_then(|mut iter| {
+                                iter.find(|r| {
+                                    r.channels() as usize == num_channels
+                                        && r.sample_format() == sample_format
+                                        && r.min_sample_rate() <= rate
+                                        && rate <= r.max_sample_rate()
+                                })
+                            });
                     match supported {
                         Some(range) => range.with_sample_rate(rate).config(),
                         None => {
@@ -232,16 +231,30 @@ pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
 
         futures::join!(capture_fut, forward_fut, info_fut, error_fut);
     }
+    #[cfg(feature = "mock")]
+    if let Ok(_) = trigger.recv_one().await {
+        let _ = failed.send_one(().into()).await;
+        let _ = errors
+            .send_one(
+                "Live recording is not available because the 'record' package is in mock mode"
+                    .to_string()
+                    .into(),
+            )
+            .await;
+    }
 }
 
+#[cfg(feature = "real")]
 fn build_stream(
     device: &cpal::Device,
     config: &cpal::StreamConfig,
-    sample_format: SampleFormat,
+    sample_format: cpal::SampleFormat,
     num_channels: usize,
     mono_sender: async_channel::Sender<Vec<f32>>,
     err_sender: async_channel::Sender<(bool, String)>,
 ) -> Result<cpal::Stream, String> {
+    use cpal::traits::DeviceTrait;
+    use cpal::{FromSample, SampleFormat, SizedSample};
     macro_rules! build {
         ($t:ty) => {{
             let sender = mono_sender.clone();
@@ -281,11 +294,13 @@ fn build_stream(
     }
 }
 
+#[cfg(feature = "real")]
 fn mix_to_mono<T>(data: &[T], num_channels: usize) -> Vec<f32>
 where
-    T: SizedSample,
-    f32: FromSample<T>,
+    T: cpal::SizedSample,
+    f32: cpal::FromSample<T>,
 {
+    use cpal::FromSample;
     if num_channels <= 1 {
         return data.iter().map(|&s| f32::from_sample_(s)).collect();
     }
