@@ -12,6 +12,7 @@ use melodium_macro::{check, mel_data, mel_function, mel_package, mel_treatment};
 use std::sync::Arc;
 
 pub mod audio_info;
+#[cfg(feature = "real")]
 pub(crate) mod channels;
 pub mod decode;
 pub mod encode;
