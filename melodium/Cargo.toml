@@ -76,7 +76,8 @@ container-edition = ["standard-edition", "work-mel/kubernetes"]
 webassembly-edition = ["melodium-share/webassembly", "jeu", "doc", "std-mel/mock", "audio-mel/mock", "cicd-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "ml-mel/mock", "sql-mel/mock", "distrib-mel/mock", "work-mel/mock", "uuid/js", "fs-mel/mock", "process-mel/mock", "net-mel/mock", "http-mel/mock"]
 
 [target.wasm32-unknown-unknown.dependencies]
-getrandom = { version = "0.2", features = ["js"] }
+getrandom_0_2 = { package = "getrandom", version = "0.2", features = ["js"] }
+getrandom_0_3 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
 wasm-bindgen = "0.2.100"
 serde-wasm-bindgen = "0.6"
 serde = { version = "1.0", features = ["derive"] }
