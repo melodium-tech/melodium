@@ -3,7 +3,9 @@ use melodium_macro::{check, mel_model, mel_treatment};
 use std::collections::HashMap;
 #[cfg(feature = "real")]
 use std::sync::Mutex;
-use std::sync::{Arc, Weak};
+#[cfg(feature = "real")]
+use std::sync::Arc;
+use std::sync::Weak;
 
 #[cfg(feature = "real")]
 use futures::StreamExt;
@@ -84,6 +86,7 @@ use llm::{
     shutdown shutdown
 )]
 pub struct RemoteLlm {
+    #[allow(dead_code)]
     model: Weak<RemoteLlmModel>,
     #[cfg(feature = "real")]
     provider: Mutex<Option<Arc<Box<dyn LLMProvider>>>>,
@@ -233,15 +236,15 @@ pub async fn chat() {
                         check!(response.send_one(Value::String(text)).await);
                     }
                     Err(e) => {
-                        failed.send_one(().into()).await;
-                        error.send_one(Value::String(e.to_string())).await;
+                        let _ = failed.send_one(().into()).await;
+                        let _ = error.send_one(Value::String(e.to_string())).await;
                         break;
                     }
                 }
             } else {
-                failed.send_one(().into()).await;
+                let _ = failed.send_one(().into()).await;
 
-                error
+                let _ = error
                     .send_one(Value::String("provider not initialized".into()))
                     .await;
                 break;
@@ -323,22 +326,22 @@ pub async fn stream() {
                                     check!(token.send_one(Value::String(t)).await);
                                 }
                                 Err(e) => {
-                                    failed.send_one(().into()).await;
-                                    error.send_one(Value::String(e.to_string())).await;
+                                    let _ = failed.send_one(().into()).await;
+                                    let _ = error.send_one(Value::String(e.to_string())).await;
                                     break;
                                 }
                             }
                         }
                     }
                     Err(e) => {
-                        failed.send_one(().into()).await;
-                        error.send_one(Value::String(e.to_string())).await;
+                        let _ = failed.send_one(().into()).await;
+                        let _ = error.send_one(Value::String(e.to_string())).await;
                         break;
                     }
                 }
             } else {
-                failed.send_one(().into()).await;
-                error
+                let _ = failed.send_one(().into()).await;
+                let _ = error
                     .send_one(Value::String("provider not initialized".into()))
                     .await;
                 break;

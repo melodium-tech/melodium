@@ -1,5 +1,8 @@
+#[cfg(feature = "real")]
 use candle_core::{DType, Device, IndexOp, Tensor};
+#[cfg(feature = "real")]
 use candle_nn::VarBuilder;
+#[cfg(feature = "real")]
 use candle_transformers::models::whisper::{self as whisper_model, audio, Config};
 use melodium_core::*;
 use melodium_macro::{mel_model, mel_treatment};
@@ -77,6 +80,7 @@ struct DecodeStream {
 )]
 #[derive(Debug)]
 pub struct Whisper {
+    #[allow(dead_code)]
     model: Weak<WhisperModel>,
     #[cfg(feature = "real")]
     loaded: std::sync::Mutex<Option<(whisper_model::model::Whisper, tokenizers::Tokenizer)>>,
@@ -372,6 +376,7 @@ pub async fn load() {
         }
     }
 
+    #[allow(unused_variables)]
     let tokenizer_path = match tokenizer.recv_one().await {
         Ok(val) => match GetData::<String>::try_data(val) {
             Ok(path) => path,
