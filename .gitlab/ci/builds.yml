@@ -155,7 +155,7 @@ build:release:aarch64-apple-darwin:
 build:release:x86_64-pc-windows-gnu:
   stage: build
   extends:
-    - .build-release-or-test
+    - .build-release
     - .builder:linux:x86_64-pc-windows-gnu
   script:
     - cargo build --package melodium --locked --profile pc-windows-gnu
@@ -182,7 +182,7 @@ build:release:x86_64-pc-windows-gnu:
 build:release:i686-pc-windows-gnu:
   stage: build
   extends:
-    - .build-release-or-test
+    - .build-release
     - .builder:linux:i686-pc-windows-gnu
   script:
     - cargo build --package melodium --locked --profile pc-windows-gnu
