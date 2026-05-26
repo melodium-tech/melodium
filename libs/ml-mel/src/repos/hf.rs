@@ -1,7 +1,7 @@
 use melodium_core::*;
-use melodium_macro::{mel_model, mel_treatment};
 #[cfg(feature = "real")]
 use melodium_macro::check;
+use melodium_macro::{mel_model, mel_treatment};
 use std::collections::HashMap;
 use std::sync::Weak;
 

@@ -2,9 +2,9 @@ use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_treatment};
 use std::collections::HashMap;
 #[cfg(feature = "real")]
-use std::sync::Mutex;
-#[cfg(feature = "real")]
 use std::sync::Arc;
+#[cfg(feature = "real")]
+use std::sync::Mutex;
 use std::sync::Weak;
 
 #[cfg(feature = "real")]

@@ -7,9 +7,9 @@ use candle_transformers::generation::LogitsProcessor;
 #[cfg(feature = "real")]
 use candle_transformers::models::mistral::{Config, Model};
 use melodium_core::*;
-use melodium_macro::{mel_model, mel_treatment};
 #[cfg(feature = "real")]
 use melodium_macro::check;
+use melodium_macro::{mel_model, mel_treatment};
 use std::collections::HashMap;
 use std::sync::atomic::AtomicU64;
 #[cfg(feature = "real")]

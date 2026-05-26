@@ -1,10 +1,7 @@
-#[cfg(feature = "real")]
-use {
-    async_channel::bounded,
-    flacenc::error::Verify,
-};
 use melodium_core::*;
 use melodium_macro::mel_treatment;
+#[cfg(feature = "real")]
+use {async_channel::bounded, flacenc::error::Verify};
 
 /// Encode a normalised mono `f32` signal into a WAV byte stream.
 ///
@@ -112,7 +109,13 @@ pub async fn encode_mono_wav(sample_rate: u32) {
     #[cfg(feature = "mock")]
     {
         while signal.recv_many().await.is_ok() {}
-        let _ = errors.send_one("WAV encoding is not available in this build".to_string().into()).await;
+        let _ = errors
+            .send_one(
+                "WAV encoding is not available in this build"
+                    .to_string()
+                    .into(),
+            )
+            .await;
         let _ = failed.send_one(().into()).await;
     }
 }
@@ -224,7 +227,13 @@ pub async fn encode_mono_flac(sample_rate: u32) {
     #[cfg(feature = "mock")]
     {
         while signal.recv_many().await.is_ok() {}
-        let _ = errors.send_one("FLAC encoding is not available in this build".to_string().into()).await;
+        let _ = errors
+            .send_one(
+                "FLAC encoding is not available in this build"
+                    .to_string()
+                    .into(),
+            )
+            .await;
         let _ = failed.send_one(().into()).await;
     }
 }

@@ -1,4 +1,6 @@
 use crate::audio_info::*;
+use melodium_core::*;
+use melodium_macro::mel_treatment;
 #[cfg(feature = "real")]
 use {
     crate::channels::*,
@@ -14,8 +16,6 @@ use {
         probe::Hint,
     },
 };
-use melodium_core::*;
-use melodium_macro::mel_treatment;
 
 /// Decode an audio stream of any supported format into a normalised mono `f32` signal.
 ///
@@ -244,7 +244,9 @@ pub async fn decode_mono(hint: Option<string>) {
                     } else {
                         let inv = 1.0_f32 / num_channels as f32;
                         (0..num_frames)
-                            .map(|frame| channel_slices.iter().map(|ch| ch[frame]).sum::<f32>() * inv)
+                            .map(|frame| {
+                                channel_slices.iter().map(|ch| ch[frame]).sum::<f32>() * inv
+                            })
                             .collect()
                     };
 
@@ -306,7 +308,13 @@ pub async fn decode_mono(hint: Option<string>) {
     #[cfg(feature = "mock")]
     {
         while data.recv_many().await.is_ok() {}
-        let _ = errors.send_one("audio decoding is not available in this build".to_string().into()).await;
+        let _ = errors
+            .send_one(
+                "audio decoding is not available in this build"
+                    .to_string()
+                    .into(),
+            )
+            .await;
         let _ = failed.send_one(().into()).await;
     }
 }

@@ -13,12 +13,12 @@ use async_std::io::{Read, Write};
 #[cfg(feature = "real")]
 use async_std::net::{SocketAddr, TcpStream};
 use async_std::sync::{Arc as AsyncArc, Barrier as AsyncBarrier, RwLock as AsyncRwLock};
-use event_listener::{Event, IntoNotification};
 use common::descriptor::{Entry, Treatment};
 use common::descriptor::{Identifier, Version};
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
+use event_listener::{Event, IntoNotification};
 use futures::{pin_mut, select, FutureExt};
 #[cfg(feature = "real")]
 use futures_rustls::client::TlsStream;
