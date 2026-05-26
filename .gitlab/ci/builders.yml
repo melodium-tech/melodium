@@ -71,7 +71,7 @@
   before_script:
     - dpkg --add-architecture i386
     - apt-get update
-    - apt-get install -y gcc-multilib libasound2-dev
+    - apt-get install -y gcc-multilib
     - rustup target add i686-unknown-linux-gnu
     - export PATH="$CARGO_HOME/bin:$PATH"
     - export PKG_CONFIG=/usr/bin/i686-linux-gnu-pkg-config
@@ -218,6 +218,7 @@
     - export CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=aarch64-apple-darwin20.4-ar
     - export TARGET_CC=aarch64-apple-darwin20.4-cc
     - export TARGET_AR=aarch64-apple-darwin20.4-ar
+    - export MACOSX_DEPLOYMENT_TARGET=11.3
     - export CARGO_BUILD_TARGET=aarch64-apple-darwin
     - export CFLAGS_aarch64_apple_darwin=-fuse-ld=aarch64-apple-darwin20.4-ld
     - rustc --version

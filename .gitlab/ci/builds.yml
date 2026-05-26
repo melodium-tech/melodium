@@ -49,7 +49,7 @@ build:release:i686-unknown-linux-gnu:
     - .build-release
     - .builder:linux:i686-unknown-linux-gnu
   script:
-    - cargo build --package melodium --no-default-features --features desktop-edition --locked --release 
+    - cargo build --package melodium --locked --release 
     - ls target/i686-unknown-linux-gnu/release
   artifacts:
     paths:
@@ -131,7 +131,7 @@ build:release:x86_64-apple-darwin:
     - .build-release
     - .builder:linux:x86_64-apple-darwin
   script:
-   - cargo build --package melodium --no-default-features --features desktop-edition --locked --release 
+   - cargo build --package melodium --locked --release 
    - ls target/x86_64-apple-darwin/release
   artifacts:
     paths:
