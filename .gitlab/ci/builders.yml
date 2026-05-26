@@ -199,28 +199,28 @@
     - rustup target add aarch64-apple-darwin
     - export PATH="$CARGO_HOME/bin:$PATH"
     - |
-      if [ ! -f $CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-cc ]
+      if [ ! -d $CI_PROJECT_DIR/osxcross ]
       then
-        rm -rf $CI_PROJECT_DIR/osxcross
         base="$PWD"
-        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-e6ab3fa.tar.gz
-        tar --extract --gzip --file osxcross-e6ab3fa.tar.gz
+        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-611675b.tar.gz
+        tar --extract --gzip --file osxcross-611675b.tar.gz
         mv osxcross-master osxcross
         cd osxcross
-        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX11.3.sdk.tar.xz
-        mv MacOSX11.3.sdk.tar.xz tarballs/
-        UNATTENDED=yes OSX_VERSION_MIN=11.3 ./build.sh
-        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin20.4-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
+        wget --no-clobber https://repo.melodium.tech/tooling/osxcross/MacOSX14.2.sdk.tar.xz
+        mv MacOSX14.2.sdk.tar.xz tarballs/
+        UNATTENDED=yes OSX_VERSION_MIN=14.2 ./build.sh
+        ln -s "$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-strip" "$CI_PROJECT_DIR/osxcross/target/bin/strip"
         cd "$base"
       fi
     - export PATH="$CI_PROJECT_DIR/osxcross/target/bin:$PATH"
-    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=aarch64-apple-darwin20.4-clang
-    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=aarch64-apple-darwin20.4-ar
-    - export TARGET_CC=aarch64-apple-darwin20.4-cc
-    - export TARGET_AR=aarch64-apple-darwin20.4-ar
-    - export MACOSX_DEPLOYMENT_TARGET=11.3
+    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-clang
+    - export CARGO_TARGET_AARCH64_APPLE_DARWIN_AR=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-ar
+    - export CC_aarch64_apple_darwin=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-cc
+    - export AR_aarch64_apple_darwin=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-ar
     - export CARGO_BUILD_TARGET=aarch64-apple-darwin
-    - export CFLAGS_aarch64_apple_darwin=-fuse-ld=aarch64-apple-darwin20.4-ld
+    - export CFLAGS_aarch64_apple_darwin=-fuse-ld=$CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-ld
+    - export SDKROOT="$CI_PROJECT_DIR/osxcross/target/SDK/MacOSX14.2.sdk"
+    - export MACOSX_DEPLOYMENT_TARGET=14.2
     - rustc --version
     - cargo --version
 

@@ -4,7 +4,7 @@ include:
 
 doc:melodium:reference:
   stage: doc
-  image: rust:bullseye
+  image: rust:bookworm
   rules:
     - allow_failure: true
   variables:
