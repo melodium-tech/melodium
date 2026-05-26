@@ -1,0 +1,10 @@
+name    = "batch_transcription"
+version = "0.1.0"
+
+[dependencies]
+std   = "0.10.1"
+fs    = "0.10.1"
+ml    = "0.10.1"
+
+[entrypoints]
+main = "batch_transcription/main::main"

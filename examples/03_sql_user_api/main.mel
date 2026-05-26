@@ -1,0 +1,142 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logErrorMessage
+use std/engine/log::logError
+use std/engine/log::logDataInfos
+use std/flow::emit
+use std/flow::trigger
+use std/flow::stream
+use std/flow::check
+use std/data/map::Map
+use std/data/map::|map
+use std/data/map::|entry
+use std/data/string_map::StringMap
+use std/data/string_map::|map as |smap
+use std/ops/option::unwrapOr
+use http/server::HttpServer
+use http/server::start
+use http/server::connection
+use http/method::|get
+use http/method::|post
+use http/status::|ok
+use http/status::HttpStatus
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use json::Json
+use json/value::|null
+use json::toJson
+use encoding::decode
+use encoding::encode
+use std/conv::toString
+use sql::SqlPool
+use sql::connect
+use sql::connected
+use sql::executeRaw
+use sql::fetch as sqlFetch
+
+//
+// SQL User API — a minimal REST API backed by SQLite / PostgreSQL.
+//
+// Endpoints:
+//   GET  /users      → list all users (rows logged as info; returns "OK\n")
+//   POST /users      → echo the JSON body back as text
+//
+// Usage:
+//   melodium run Compo.toml -- --db_url sqlite://users.db
+//
+
+model AppDb(const db_url: string) : SqlPool {
+    url             = db_url
+    min_connections = 1
+    max_connections = 5
+}
+
+treatment main(
+    const db_url: string = "sqlite://users.db",
+    const port:   u16    = 8080
+)
+  model db:     AppDb(db_url=db_url)
+  model server: HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port)
+{
+    startup()
+    connect[sql_pool=db]()
+    startup.trigger -> connect.trigger
+
+    connected[sql_pool=db]()
+    createTable[db=db]()
+    connected.trigger -> createTable.trigger
+
+    start[http_server=server]()
+    logReady: logInfoMessage(label="server", message="SQL user API ready")
+    createTable.done -> start.trigger
+    createTable.done -> logReady.trigger
+
+    listUsers[db=db, http_server=server]()
+    echoCreate[http_server=server]()
+}
+
+// Create the users table if it does not exist.
+treatment createTable[db: SqlPool]()
+  input  trigger: Block<void>
+  output done:    Block<void>
+{
+    executeRaw[sql_pool=db](sql="CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL)")
+    checkAffected: check<u64>()
+    emitDone:      emit<void>(value=_)
+
+    Self.trigger -> executeRaw.trigger,affected -> checkAffected.value,check -> emitDone.trigger,emit -> Self.done
+}
+
+// GET /users — query all rows, log them, return "OK\n".
+treatment listUsers[db: SqlPool, http_server: HttpServer]() {
+    connection[http_server=http_server](method=|get(), route="/users")
+
+    status:      emit<HttpStatus>(value=|ok())
+    headers:     emit<StringMap>(value=|smap([]))
+    bodyTrigger: trigger<byte>()
+
+    connection.data -> bodyTrigger.stream,start --> status.trigger,emit  -> connection.status
+                       bodyTrigger.start --------> headers.trigger,emit -> connection.headers
+
+    queryUsers[db=db]()
+    bodyTrigger.start -> queryUsers.trigger
+
+    logRows: logDataInfos<Map>(label="users")
+    queryUsers.rows -> logRows.data
+
+    okMsg:     emit<string>(value="OK\n")
+    streamMsg: stream<string>()
+    encode()
+    bodyTrigger.start -> okMsg.trigger,emit -> streamMsg.block,stream -> encode.text,data -> connection.data
+}
+
+// Execute SELECT and stream the result rows.
+treatment queryUsers[db: SqlPool]()
+  input  trigger: Block<void>
+  output rows:    Stream<Map>
+{
+    emitBind: emit<Map>(value=|map([]))
+    sqlFetch[sql_pool=db](sql="SELECT id, name, email FROM users ORDER BY id", bindings=[])
+
+    Self.trigger -> emitBind.trigger,emit -> sqlFetch.bind,data -> Self.rows
+}
+
+// POST /users — decode body as JSON, convert to string, echo back.
+treatment echoCreate[http_server: HttpServer]() {
+    connection[http_server=http_server](method=|post(), route="/users")
+
+    status:  emit<HttpStatus>(value=|ok())
+    headers: emit<StringMap>(value=|smap([]))
+    bodyTrigger: trigger<byte>()
+
+    connection.data -> bodyTrigger.stream,start --> status.trigger,emit  -> connection.status
+                       bodyTrigger.start --------> headers.trigger,emit -> connection.headers
+
+    decode()
+    toJson()
+    unwrapBody: unwrapOr<Json>(default=|null())
+    toString<Json>()
+    encode()
+
+    connection.data -> decode.data,text -> toJson.text,json -> unwrapBody.option,value -> toString.value,into -> encode.text,data -> connection.data
+}

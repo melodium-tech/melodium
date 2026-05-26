@@ -1,0 +1,13 @@
+name    = "text_llm_chat"
+version = "0.1.0"
+
+[dependencies]
+std  = "0.10.1"
+http = "0.10.1"
+net  = "0.10.1"
+json = "0.10.1"
+encoding = "0.10.1"
+ml   = "0.10.1"
+
+[entrypoints]
+main = "text_llm_chat/main::main"

@@ -1,0 +1,12 @@
+name    = "http_json_pipeline"
+version = "0.1.0"
+
+[dependencies]
+std      = "0.10.1"
+http     = "0.10.1"
+json     = "0.10.1"
+fs       = "0.10.1"
+encoding = "0.10.1"
+
+[entrypoints]
+main = "http_json_pipeline/main::main"
