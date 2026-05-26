@@ -306,6 +306,7 @@ pub async fn request_reporting(
     request: ReportingRequest,
     version: &Version,
     mode: ModeRequest,
+    tags: Option<Vec<String>>,
 ) -> Result<(Reporting, StatusReporting), String> {
     Err("Mock mode".to_string())
 }

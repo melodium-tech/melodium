@@ -2,8 +2,10 @@ use melodium_core::*;
 use melodium_macro::{check, mel_model, mel_treatment};
 use std::collections::HashMap;
 #[cfg(feature = "real")]
+use std::sync::Arc;
+#[cfg(feature = "real")]
 use std::sync::Mutex;
-use std::sync::{Arc, Weak};
+use std::sync::Weak;
 
 #[cfg(feature = "real")]
 use llm::{
@@ -51,6 +53,7 @@ use llm::{
     shutdown shutdown
 )]
 pub struct RemoteStt {
+    #[allow(dead_code)]
     model: Weak<RemoteSttModel>,
     #[cfg(feature = "real")]
     provider: Mutex<Option<Arc<Box<dyn LLMProvider>>>>,
@@ -289,14 +292,14 @@ pub async fn transcribe_continuous() {
                         check!(transcript.send_one(Value::String(text)).await);
                     }
                     Err(e) => {
-                        failed.send_one(().into()).await;
-                        error.send_one(Value::String(e.to_string())).await;
+                        let _ = failed.send_one(().into()).await;
+                        let _ = error.send_one(Value::String(e.to_string())).await;
                         break;
                     }
                 }
             } else {
-                failed.send_one(().into()).await;
-                error
+                let _ = failed.send_one(().into()).await;
+                let _ = error
                     .send_one(Value::String("provider not initialized".into()))
                     .await;
                 break;

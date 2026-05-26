@@ -38,6 +38,7 @@ melodium-distribution = { path = "../melodium-distribution", version = "0.10.1",
 melodium-doc = { path = "../melodium-doc", version = "0.10.1", optional = true }
 melodium-share = { path = "../melodium-share", version = "0.10.1" }
 uuid = { version = "1.5.0", features = ["serde"], optional = true }
+rustls = { version = "0.23", default-features = false, optional = true }
 serde_json = "1"
 
 std-mel = { path = "../libs/std-mel", version = "0.10.1" }
@@ -66,7 +67,7 @@ audio = ["audio-mel/real"]
 cicd = ["distribution", "fs", "network", "cicd-mel/real"]
 distribution = ["melodium-distribution", "distrib-mel/real", "work-mel/real", "uuid"]
 doc = ["melodium-doc", "melodium-engine/doc", "melodium-core/doc"]
-network = ["net-mel/real", "http-mel/real", "melodium-loader/network"]
+network = ["net-mel/real", "http-mel/real", "melodium-loader/network", "rustls/ring"]
 fs = ["fs-mel/real", "process-mel/real", "melodium-loader/filesystem"]
 text = ["encoding-mel/real", "regex-mel/real"]
 javascript = ["javascript-mel/real", "json-mel/real"]
@@ -78,7 +79,8 @@ container-edition = ["standard-edition", "record-mel/mock", "work-mel/kubernetes
 webassembly-edition = ["melodium-share/webassembly", "jeu", "doc", "std-mel/mock", "audio-mel/mock", "cicd-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "ml-mel/mock", "sql-mel/mock", "distrib-mel/mock", "work-mel/mock", "uuid/js", "fs-mel/mock", "process-mel/mock", "record-mel/mock", "net-mel/mock", "http-mel/mock"]
 
 [target.wasm32-unknown-unknown.dependencies]
-getrandom = { version = "0.2", features = ["js"] }
+getrandom_0_2 = { package = "getrandom", version = "0.2", features = ["js"] }
+getrandom_0_3 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
 wasm-bindgen = "0.2.100"
 serde-wasm-bindgen = "0.6"
 serde = { version = "1.0", features = ["derive"] }

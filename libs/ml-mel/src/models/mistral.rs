@@ -1,12 +1,21 @@
+#[cfg(feature = "real")]
 use candle_core::{DType, Device, Tensor};
+#[cfg(feature = "real")]
 use candle_nn::VarBuilder;
+#[cfg(feature = "real")]
 use candle_transformers::generation::LogitsProcessor;
+#[cfg(feature = "real")]
 use candle_transformers::models::mistral::{Config, Model};
 use melodium_core::*;
-use melodium_macro::{check, mel_model, mel_treatment};
+#[cfg(feature = "real")]
+use melodium_macro::check;
+use melodium_macro::{mel_model, mel_treatment};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
+#[cfg(feature = "real")]
+use std::sync::atomic::Ordering;
 use std::sync::Weak;
+#[cfg(feature = "real")]
 use tokenizers::Tokenizer;
 
 #[cfg(feature = "real")]
@@ -108,9 +117,11 @@ struct KvSnapshot {
 )]
 #[derive(Debug)]
 pub struct Mistral {
+    #[allow(dead_code)]
     model: Weak<MistralModel>,
     #[cfg(feature = "real")]
     request_tx: std::sync::Mutex<Option<flume::Sender<WorkerMsg>>>,
+    #[allow(dead_code)]
     next_conversation_id: AtomicU64,
 }
 
@@ -611,6 +622,7 @@ pub async fn load() {
 )]
 pub async fn generate() {
     let model_arc = MistralModel::into(mistral);
+    #[allow(unused_variables)]
     let mistral_struct = model_arc.inner();
 
     #[cfg(feature = "real")]

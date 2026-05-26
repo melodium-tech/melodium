@@ -207,10 +207,10 @@ test:melodium:aarch64-unknown-linux-gnu:
     - .runner:debian:aarch64
     - .service:postgresql
   needs:
-    - build:debug:aarch64-unknown-linux-gnu
+    - build:release:aarch64-unknown-linux-gnu
     - testers:rust:aarch64-unknown-linux-gnu
   script:
-    - export PATH="$CI_PROJECT_DIR/target/aarch64-unknown-linux-gnu/debug:$PATH"
+    - export PATH="$CI_PROJECT_DIR/target/aarch64-unknown-linux-gnu/release:$PATH"
     - cd tests/
     - |
       OK=0
@@ -234,10 +234,10 @@ test:melodium:aarch64-unknown-linux-musl:
     - .runner:alpine:aarch64
     - .service:postgresql
   needs:
-    - build:debug:aarch64-unknown-linux-musl
+    - build:release:aarch64-unknown-linux-musl
     - testers:rust:aarch64-unknown-linux-musl
   script:
-    - export PATH="$CI_PROJECT_DIR/target/aarch64-unknown-linux-musl/debug:$PATH"
+    - export PATH="$CI_PROJECT_DIR/target/aarch64-unknown-linux-musl/release:$PATH"
     - cd tests/
     - |
       OK=0
@@ -261,10 +261,10 @@ test:melodium:x86_64-unknown-linux-gnu:
     - .runner:debian:x86_64
     - .service:postgresql
   needs:
-    - build:debug:x86_64-unknown-linux-gnu
+    - build:release:x86_64-unknown-linux-gnu
     - testers:rust:x86_64-unknown-linux-gnu
   script:
-    - export PATH="$CI_PROJECT_DIR/target/x86_64-unknown-linux-gnu/debug:$PATH"
+    - export PATH="$CI_PROJECT_DIR/target/x86_64-unknown-linux-gnu/release:$PATH"
     - cd tests/
     - |
       OK=0
@@ -288,10 +288,10 @@ test:melodium:x86_64-unknown-linux-musl:
     - .runner:alpine:x86_64
     - .service:postgresql
   needs:
-    - build:debug:x86_64-unknown-linux-musl
+    - build:release:x86_64-unknown-linux-musl
     - testers:rust:x86_64-unknown-linux-musl
   script:
-    - export PATH="$CI_PROJECT_DIR/target/x86_64-unknown-linux-musl/debug:$PATH"
+    - export PATH="$CI_PROJECT_DIR/target/x86_64-unknown-linux-musl/release:$PATH"
     - cd tests/
     - |
       OK=0
@@ -315,13 +315,13 @@ test:melodium:i686-unknown-linux-gnu:
     - .runner:debian:x86_64
     - .service:postgresql
   needs:
-    - build:debug:i686-unknown-linux-gnu
+    - build:release:i686-unknown-linux-gnu
     - testers:rust:i686-unknown-linux-gnu
   script:
     - dpkg --add-architecture i386
     - apt-get update
     - apt-get install -y libc6:i386 libstdc++6:i386
-    - export PATH="$CI_PROJECT_DIR/target/i686-unknown-linux-gnu/debug:$PATH"
+    - export PATH="$CI_PROJECT_DIR/target/i686-unknown-linux-gnu/release:$PATH"
     - cd tests/
     - |
       OK=0
@@ -345,10 +345,10 @@ test:melodium:i686-unknown-linux-musl:
     - .runner:alpine:x86_64
     - .service:postgresql
   needs:
-    - build:debug:i686-unknown-linux-musl
+    - build:release:i686-unknown-linux-musl
     - testers:rust:i686-unknown-linux-musl
   script:
-    - export PATH="$CI_PROJECT_DIR/target/i686-unknown-linux-musl/debug:$PATH"
+    - export PATH="$CI_PROJECT_DIR/target/i686-unknown-linux-musl/release:$PATH"
     - cd tests/
     - |
       OK=0
@@ -371,7 +371,7 @@ test:melodium:aarch64-apple-darwin:
     - .run-tests
     - .runner:mac:aarch64
   needs:
-    - build:debug:aarch64-apple-darwin
+    - build:release:aarch64-apple-darwin
     - testers:rust:aarch64-apple-darwin
   variables:
     # On Mac, services cannot be used, so defining global PG stuff.
@@ -405,7 +405,7 @@ test:melodium:aarch64-apple-darwin:
     #     TABLESPACE = pg_default
     #     CONNECTION LIMIT = -1
     #     IS_TEMPLATE = False;"
-    - export PATH="$CI_PROJECT_DIR/target/aarch64-apple-darwin/debug:$PATH"
+    - export PATH="$CI_PROJECT_DIR/target/aarch64-apple-darwin/release:$PATH"
     - cd tests/
     - |
       OK=0

@@ -11,16 +11,16 @@ doc:melodium:reference:
     MELODIUM_DOC_TITLE: 'Mélodium Standard Reference'
     MELODIUM_DOC_AUTHOR: 'Quentin VIGNAUD'
   needs:
-    - build:debug:x86_64-unknown-linux-gnu
+    - build:release:x86_64-unknown-linux-gnu
   dependencies:
-    - build:debug:x86_64-unknown-linux-gnu
+    - build:release:x86_64-unknown-linux-gnu
   before_script:
     - mkdir bin
     - export PATH=$PWD/bin:$PATH
     - curl -sSL https://repo.melodium.tech/tooling/mdbook/mdbook-v0.4.43-x86_64-unknown-linux-gnu.tar.bz2 | tar -xj --directory=bin
     - curl -sSL https://repo.melodium.tech/tooling/mdbook-mermaid/mdbook-mermaid-v0.14.1-x86_64-unknown-linux-gnu.tar.bz2 | tar -xj --directory=bin
   script:
-    - target/x86_64-unknown-linux-gnu/debug/melodium doc doc/
+    - target/x86_64-unknown-linux-gnu/release/melodium doc doc/
     - mkdir doc/theme
     - mv .gitlab/ci/doc.stats doc/theme/head.hbs
     - bin/mdbook-mermaid install doc/
