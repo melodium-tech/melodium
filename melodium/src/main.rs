@@ -264,6 +264,9 @@ pub fn main() {
 
     let cli = Cli::parse();
 
+    #[cfg(feature = "network")]
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     if let Some(file) = cli.file {
         let args = Run {
             path: Vec::new(),

@@ -4390,6 +4390,7 @@ dependencies = [
  "net-mel",
  "process-mel",
  "regex-mel",
+ "rustls 0.23.37",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
