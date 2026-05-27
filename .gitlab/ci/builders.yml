@@ -199,7 +199,7 @@
     - rustup target add aarch64-apple-darwin
     - export PATH="$CARGO_HOME/bin:$PATH"
     - |
-      if [ ! -d $CI_PROJECT_DIR/osxcross ]
+      if [ ! -e $CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-cc ]
       then
         base="$PWD"
         wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-611675b.tar.gz
