@@ -202,6 +202,7 @@
       if [ ! -e $CI_PROJECT_DIR/osxcross/target/bin/aarch64-apple-darwin23.2-cc ]
       then
         base="$PWD"
+        rm -rf osxcross/
         wget --no-clobber https://repo.melodium.tech/tooling/osxcross/osxcross-611675b.tar.gz
         tar --extract --gzip --file osxcross-611675b.tar.gz
         mv osxcross-master osxcross
