@@ -23,6 +23,8 @@ sql-mel
 javascript-mel
 audio-mel
 work-mel
+audio-mel
+record-mel
 distrib-mel
 cicd-mel
 melodium

@@ -8,7 +8,7 @@
 .runner:debian:aarch64:
   tags:
     - saas-linux-medium-arm64
-  image: debian:bullseye
+  image: debian:bookworm
   before_script:
     - apt-get update 
     - apt-get install -y ca-certificates
@@ -17,7 +17,7 @@
   image: alpine:3.18
 
 .runner:debian:x86_64:
-  image: debian:bullseye
+  image: debian:bookworm
   before_script:
     - apt-get update 
     - apt-get install -y ca-certificates
