@@ -29,8 +29,11 @@ esac
 # Map OS
 case $OS in
     linux)
-        # Prefer MUSL for better compatibility
-        TARGET="${ARCH}-unknown-linux-musl"
+        if ldconfig -p 2>/dev/null | grep -q "libasound" || [ -f /usr/lib/libasound.so ] || [ -f /usr/lib64/libasound.so ]; then
+            TARGET="${ARCH}-unknown-linux-gnu"
+        else
+            TARGET="${ARCH}-unknown-linux-musl"
+        fi
         ;;
     darwin)
         TARGET="${ARCH}-apple-darwin"
