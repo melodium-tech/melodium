@@ -7,9 +7,7 @@
 ))]
 compile_error!("One of the two features 'real' or 'mock' must be enabled");
 
-use melodium_core::{executive::*, *};
 use melodium_macro::mel_package;
-use std::sync::Arc;
 
 pub mod audio;
 

@@ -1,8 +1,6 @@
-use async_channel::bounded;
 use audio_mel::audio_info::*;
 use melodium_core::*;
 use melodium_macro::mel_treatment;
-use std::sync::Arc;
 
 /// Record from the default audio input device as a normalised mono `f32` signal.
 ///
