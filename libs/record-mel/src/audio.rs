@@ -56,13 +56,14 @@ pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
     #[cfg(feature = "real")]
     if let Ok(_) = trigger.recv_one().await {
         use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+        use std::sync::Arc;
         // Trigger received, start capture. We ignore the value since it's just a signal.
         // Channel carrying interleaved f32 batches from the cpal callback to the async side.
-        let (mono_sender, mono_receiver) = bounded::<Vec<f32>>(256);
+        let (mono_sender, mono_receiver) = async_channel::bounded::<Vec<f32>>(256);
         // Channel carrying error messages: (fatal, message).
-        let (err_sender, err_receiver) = bounded::<(bool, String)>(64);
+        let (err_sender, err_receiver) = async_channel::bounded::<(bool, String)>(64);
         // Channel carrying AudioInfo — sent once after the stream starts successfully.
-        let (info_sender, info_receiver) = bounded::<AudioInfo>(1);
+        let (info_sender, info_receiver) = async_channel::bounded::<AudioInfo>(1);
 
         // Future A: set up cpal and run the stream on the audio thread.
         // cpal stream callbacks are synchronous and run on a dedicated audio thread.
@@ -252,7 +253,7 @@ fn build_stream(
     err_sender: async_channel::Sender<(bool, String)>,
 ) -> Result<cpal::Stream, String> {
     use cpal::traits::DeviceTrait;
-    use cpal::{FromSample, SampleFormat, SizedSample};
+    use cpal::SampleFormat;
     macro_rules! build {
         ($t:ty) => {{
             let sender = mono_sender.clone();

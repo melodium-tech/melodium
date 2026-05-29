@@ -35,10 +35,17 @@ include:
     - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,distribution,std-mel/real
     - cargo check --package melodium --locked --no-default-features --features cli,jeu,fs,network,text,javascript,distribution,std-mel/real
     - cargo check --package melodium --locked --no-default-features --features std-mel/real
+    - |
+      if [ "$TEST_DESKTOP_EDITION" == "true" ]; then
+      cargo check --package melodium --locked --no-default-features --features desktop-edition
+      fi
+    # standard-edition
     - cargo check --package melodium --locked
 
 build:check:x86_64-unknown-linux-gnu:
   stage: build
+  variables:
+    TEST_DESKTOP_EDITION: "true"
   extends:
     - .check-builds
     - .builder:linux:x86_64-unknown-linux-gnu
@@ -53,6 +60,8 @@ build:check:x86_64-unknown-linux-musl:
 
 build:check:i686-unknown-linux-gnu:
   stage: build
+  variables:
+    TEST_DESKTOP_EDITION: "true"
   extends:
     - .check-builds
     - .builder:linux:i686-unknown-linux-gnu
@@ -67,6 +76,8 @@ build:check:i686-unknown-linux-musl:
 
 build:check:aarch64-unknown-linux-gnu:
   stage: build
+  variables:
+    TEST_DESKTOP_EDITION: "true"
   extends:
     - .check-builds
     - .builder:linux:aarch64-unknown-linux-gnu
@@ -81,6 +92,8 @@ build:check:aarch64-unknown-linux-musl:
 
 build:check:x86_64-apple-darwin:
   stage: build
+  variables:
+    TEST_DESKTOP_EDITION: "true"
   extends:
     - .check-builds
     - .builder:linux:x86_64-apple-darwin
@@ -88,6 +101,8 @@ build:check:x86_64-apple-darwin:
 
 build:check:aarch64-apple-darwin:
   stage: build
+  variables:
+    TEST_DESKTOP_EDITION: "true"
   extends:
     - .check-builds
     - .builder:linux:aarch64-apple-darwin
@@ -95,6 +110,8 @@ build:check:aarch64-apple-darwin:
 
 build:check:x86_64-pc-windows-gnu:
   stage: build
+  variables:
+    TEST_DESKTOP_EDITION: "true"
   extends:
     - .check-builds
     - .builder:linux:x86_64-pc-windows-gnu
@@ -109,6 +126,8 @@ build:check:x86_64-pc-windows-gnu:
 
 build:check:i686-pc-windows-gnu:
   stage: build
+  variables:
+    TEST_DESKTOP_EDITION: "true"
   extends:
     - .check-builds
     - .builder:linux:i686-pc-windows-gnu
