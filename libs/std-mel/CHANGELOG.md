@@ -1,11 +1,7 @@
 
 # Changelog
 
-## [v0.9.1]
-
-- Adding `flow/closeBlock`, `ops/block/equal`, and `ops/block/equalTo` treatments.
-
-## [v0.10.1] (2026-04-16)
+## [v0.10.1] (2026-05-29)
 
 - No changes in this crate.
 
@@ -17,6 +13,10 @@
 ## [v0.9.2] (2026-01-15)
 
 - Fixing flow status notification.
+
+## [v0.9.1]
+
+- Adding `flow/closeBlock`, `ops/block/equal`, and `ops/block/equalTo` treatments.
 
 ## [v0.9.0]
 
