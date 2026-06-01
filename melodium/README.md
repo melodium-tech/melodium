@@ -56,6 +56,54 @@ melodium help
 Please refer to the [Mélodium Project](https://melodium.tech/), [Mélodium Book](https://doc.melodium.tech/book/en/),
 or [Mélodium Documentation](https://doc.melodium.tech/latest/en/) for usage and more examples.
 
+## Editions
+
+Mélodium is available in several editions, each targeting a different use case.
+
+### Standard Edition (default)
+
+The default edition, suited for server-side and headless execution. Includes all libraries except real audio recording (which runs in mock mode).
+
+```shell
+cargo install melodium
+```
+or
+```shell
+cargo build --package melodium
+```
+
+### Desktop Edition
+
+Extends the standard edition with real audio recording support, intended for workstation use where microphone access is available.
+
+```shell
+cargo install melodium --no-default-features --features desktop-edition
+```
+or
+```shell
+cargo build --package melodium --no-default-features --features desktop-edition
+```
+
+### Container Edition
+
+Extends the standard edition with Kubernetes integration, designed for containerized and orchestrated environments.
+
+```shell
+cargo install melodium --features container-edition
+```
+or
+```shell
+cargo build --package melodium --features container-edition
+```
+
+### WebAssembly Edition
+
+A library-only build targeting `wasm32-unknown-unknown`, with all platform-specific libraries running in mock mode.
+
+```shell
+cargo build --package melodium --target wasm32-unknown-unknown --no-default-features --features webassembly-edition
+```
+
 ## Compilation
 
 ### Compile from source
@@ -72,14 +120,6 @@ Mélodium can also be directly installed from [crates.io](https://crates.io/crat
 ```shell
 cargo install melodium
 ```
-
-### Compile for WASM
-
-Mélodium can be compiled for WASM with specific subset of features.
-```shell
-cargo build --package melodium --target wasm32-unknown-unknown --no-default-features --features webassembly-edition
-```
-
 
 ## Development
 
