@@ -24,6 +24,7 @@ doc:melodium:reference:
     - target/x86_64-unknown-linux-gnu/release/melodium doc doc/
     - mkdir doc/theme
     - mv .gitlab/ci/head.hbs doc/theme/head.hbs
+    - cp .gitlab/ci/highlight.js doc/theme/highlight.js
     - bin/mdbook-mermaid install doc/
     - bin/mdbook build doc/
     - mkdir reference
