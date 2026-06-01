@@ -1,0 +1,92 @@
+<script>
+  var _paq = window._paq = window._paq || [];
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u="//stats.melodium.tech/matomo/";
+    _paq.push(['setTrackerUrl', u+'matomo.php']);
+    _paq.push(['setSiteId', '3']);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<script>
+  function melodiumHighlight(hljs) {
+    const KEYWORDS = {
+      keyword: ['Self', 'treatment', 'model', 'use', 'require', 'input', 'output', 'var', 'const'],
+      literal: ['true', 'false'],
+      type: ['void', 'byte', 'bool', 'char', 'string', 'u8', 'u16', 'u32', 'u64', 'u128', 'i8', 'i16', 'i32', 'i64', 'i128', 'f32', 'f64', 'Vec', 'Option'],
+    };
+
+    const BLOCK_COMMENT = hljs.COMMENT('/\\*', '\\*/');
+    const DOC_COMMENT = hljs.COMMENT('///', '$');
+    DOC_COMMENT.className = 'doctag';
+
+    const STRING = {
+      scope: 'string',
+      begin: '"', end: '"',
+      contains: [{ scope: 'char.escape', match: /\\(?:x[0-7][\da-fA-F]|u\{[\da-fA-F]{4,6}\}|.)/ }]
+    };
+
+    const BRACED_STRING = { scope: 'string', begin: /\$\{/, end: /\}/ };
+
+    const NUMBER = {
+      scope: 'number',
+      variants: [
+        { match: /\b0x[\da-fA-F_]+(i128|i16|i32|i64|i8|u128|u16|u32|u64|u8)?\b/ },
+        { match: /\b0o[0-7_]+(i128|i16|i32|i64|i8|u128|u16|u32|u64|u8)?\b/ },
+        { match: /\b0b[01_]+(i128|i16|i32|i64|i8|u128|u16|u32|u64|u8)?\b/ },
+        { match: /\b\d[\d_]*\.?[\d_]*(?:[Ee][+-]?[\d_]+)?(f32|f64|i128|i16|i32|i64|i8|u128|u16|u32|u64|u8)?\b/ },
+      ]
+    };
+
+    const ATTRIBUTE = {
+      scope: 'meta',
+      match: /#!.*$/
+    };
+
+    const NAMESPACE = {
+      scope: 'title.class',
+      match: /(?<![A-Za-z0-9_])(?:[A-Za-z0-9_]+::)([A-Za-z0-9_]+)(?!::)/
+    };
+
+    const FLOW_VAR = {
+      scope: 'variable',
+      match: /\|[A-Za-z_][A-Za-z0-9_]*/
+    };
+
+    const CONTEXT_VAR = {
+      scope: 'variable.constant',
+      match: /@[A-Za-z_][A-Za-z0-9_]*/
+    };
+
+    const ARROW = { scope: 'operator', match: /-+>/ };
+
+    return {
+      name: 'Mélodium',
+      aliases: ['melodium', 'mel', 'mélodium', 'mél'],
+      keywords: KEYWORDS,
+      contains: [
+        ATTRIBUTE,
+        BLOCK_COMMENT,
+        DOC_COMMENT,
+        hljs.C_LINE_COMMENT_MODE,
+        STRING,
+        BRACED_STRING,
+        NUMBER,
+        NAMESPACE,
+        FLOW_VAR,
+        CONTEXT_VAR,
+        ARROW,
+      ]
+    };
+  }
+  window.onload = (function() {
+    hljs.registerLanguage('Mélodium', melodiumHighlight);
+    if (typeof hljs.highlightAll === "function") { 
+      hljs.highlightAll();
+    } else if (typeof hljs.initHighlighting === "function") {
+      hljs.initHighlighting();
+    }
+  });
+</script>

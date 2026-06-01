@@ -83,17 +83,17 @@ impl HfHub {
 /// ```mermaid
 /// graph LR
 ///     T("fetch()")
-///     B["〈🟦〉"]           -->|trigger|     T
-///     T -->|safetensors|   S["🟩 🟩 🟩 …"]
-///     T -->|tokenizer|     K["〈🟨〉"]
-///     T -->|failed|        F["〈🟦〉"]
-///     T -->|error|         E["〈🟨〉"]
+///     B["〈🟦〉"] -->|trigger| T
+///     T -->|safetensors| S["🟩 🟩 🟩 …"]
+///     T -->|tokenizer| K["〈🟨〉"]
+///     T -->|failed| F["〈🟦〉"]
+///     T -->|error| E["〈🟨〉"]
 ///
-///     style B fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
-///     style K fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style K fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel

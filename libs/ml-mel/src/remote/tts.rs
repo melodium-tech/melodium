@@ -147,15 +147,15 @@ impl RemoteTts {
 /// ```mermaid
 /// graph LR
 ///     T("synthesize()")
-///     X["🟩 🟩 …"] -->|text|  T
-///     T -->|audio|  A["🟩 🟩 🟩 🟩 …"]
+///     X["🟩 🟩 …"] -->|text| T
+///     T -->|audio| A["🟩 🟩 🟩 🟩 …"]
 ///     T -->|failed| F["🟩 🟩 …"]
-///     T -->|error|  E["🟩 🟩 …"]
+///     T -->|error| E["🟩 🟩 …"]
 ///
-///     style X fill:#ffff,stroke:#ffff
-///     style A fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style X fill:#ffffff,stroke:#ffffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel

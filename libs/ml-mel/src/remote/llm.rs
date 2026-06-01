@@ -188,15 +188,15 @@ impl RemoteLlm {
 /// ```mermaid
 /// graph LR
 ///     T("chat()")
-///     P["🟩 🟩 …"] -->|prompt|   T
+///     P["🟩 🟩 …"] -->|prompt| T
 ///     T -->|response| R["🟩 🟩 …"]
-///     T -->|failed|   F["🟩 🟩 …"]
-///     T -->|error|    E["🟩 🟩 …"]
+///     T -->|failed| F["🟩 🟩 …"]
+///     T -->|error| E["🟩 🟩 …"]
 ///
-///     style P fill:#ffff,stroke:#ffff
-///     style R fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style P fill:#ffffff,stroke:#ffffff
+///     style R fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel
@@ -277,14 +277,14 @@ pub async fn chat() {
 /// graph LR
 ///     T("stream()")
 ///     P["🟩 🟩 …"] -->|prompt| T
-///     T -->|token|  K["🟩 🟩 🟩 🟩 …"]
+///     T -->|token| K["🟩 🟩 🟩 🟩 …"]
 ///     T -->|failed| F["🟩 🟩 …"]
-///     T -->|error|  E["🟩 🟩 …"]
+///     T -->|error| E["🟩 🟩 …"]
 ///
-///     style P fill:#ffff,stroke:#ffff
-///     style K fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style P fill:#ffffff,stroke:#ffffff
+///     style K fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel
@@ -373,19 +373,19 @@ pub async fn stream() {
 /// ```mermaid
 /// graph LR
 ///     T("visionChat()")
-///     I["〈🟦〉"] -->|image|    T
-///     M["〈🟨〉"] -->|mime|     T
-///     P["〈🟨〉"] -->|prompt|   T
+///     I["〈🟦〉"] -->|image| T
+///     M["〈🟨〉"] -->|mime| T
+///     P["〈🟨〉"] -->|prompt| T
 ///     T -->|response| R["〈🟨〉"]
-///     T -->|failed|   F["〈🟦〉"]
-///     T -->|error|    E["〈🟨〉"]
+///     T -->|failed| F["〈🟦〉"]
+///     T -->|error| E["〈🟨〉"]
 ///
-///     style I fill:#ffff,stroke:#ffff
-///     style M fill:#ffff,stroke:#ffff
-///     style P fill:#ffff,stroke:#ffff
-///     style R fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style I fill:#ffffff,stroke:#ffffff
+///     style M fill:#ffffff,stroke:#ffffff
+///     style P fill:#ffffff,stroke:#ffffff
+///     style R fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     model llm RemoteLlm

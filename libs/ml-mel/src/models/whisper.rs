@@ -333,12 +333,12 @@ fn worker_loop(
 ///     S["🟩 🟩 🟩 …"] -->|safetensors| T
 ///     T -->|loaded| L["〈🟦〉"]
 ///     T -->|failed| F["〈🟦〉"]
-///     T -->|error|  E["〈🟨〉"]
+///     T -->|error| E["〈🟨〉"]
 ///
-///     style S fill:#ffff,stroke:#ffff
-///     style L fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style L fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel
@@ -433,13 +433,13 @@ pub async fn load() {
 /// ```mermaid
 /// graph LR
 ///     T("decode()")
-///     R["〈🟦〉"]     -->|ready|       T
-///     A["🟩 🟩 🟩 …"] -->|audio|      T
-///     T              -->|transcribed| X["🟩 🟩 …"]
+///     R["〈🟦〉"] -->|ready| T
+///     A["🟩 🟩 🟩 …"] -->|audio| T
+///     T -->|transcribed| X["🟩 🟩 …"]
 ///
-///     style R fill:#ffff,stroke:#ffff
-///     style A fill:#ffff,stroke:#ffff
-///     style X fill:#ffff,stroke:#ffff
+///     style R fill:#ffffff,stroke:#ffffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style X fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel

@@ -463,16 +463,16 @@ fn emit_token(tokenizer: &Tokenizer, token: u32, reply: &flume::Sender<String>) 
 /// graph LR
 ///     T("load()")
 ///     S["🟩 🟩 🟩 …"] -->|safetensors| T
-///     K["〈🟨〉"]       -->|tokenizer|   T
+///     K["〈🟨〉"] -->|tokenizer| T
 ///     T -->|loaded| L["〈🟦〉"]
 ///     T -->|failed| F["〈🟦〉"]
-///     T -->|error|  E["〈🟨〉"]
+///     T -->|error| E["〈🟨〉"]
 ///
-///     style S fill:#ffff,stroke:#ffff
-///     style K fill:#ffff,stroke:#ffff
-///     style L fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style K fill:#ffffff,stroke:#ffffff
+///     style L fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel
@@ -582,11 +582,11 @@ pub async fn load() {
 /// ```mermaid
 /// graph LR
 ///     T("generate()")
-///     P["🟩 🟩 …"] -->|prompt|    T
-///     T            -->|generated| G["🟩 🟩 🟩 🟩 …"]
+///     P["🟩 🟩 …"] -->|prompt| T
+///     T -->|generated| G["🟩 🟩 🟩 🟩 …"]
 ///
-///     style P fill:#ffff,stroke:#ffff
-///     style G fill:#ffff,stroke:#ffff
+///     style P fill:#ffffff,stroke:#ffffff
+///     style G fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel

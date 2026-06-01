@@ -140,15 +140,15 @@ impl RemoteStt {
 /// ```mermaid
 /// graph LR
 ///     T("transcribe()")
-///     A["🟩 🟩 🟩 …"] -->|audio|      T
+///     A["🟩 🟩 🟩 …"] -->|audio| T
 ///     T -->|transcript| R["〈🟨〉"]
-///     T -->|failed|     F["〈🟦〉"]
-///     T -->|error|      E["〈🟨〉"]
+///     T -->|failed| F["〈🟦〉"]
+///     T -->|error| E["〈🟨〉"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style R fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style R fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel
@@ -233,15 +233,15 @@ pub async fn transcribe() {
 /// ```mermaid
 /// graph LR
 ///     T("transcribeContinuous()")
-///     S["🟩 🟩 🟩 …"] -->|segments|   T
+///     S["🟩 🟩 🟩 …"] -->|segments| T
 ///     T -->|transcript| R["🟩 🟩 🟩 …"]
-///     T -->|failed|     F["🟩 🟩 🟩 …"]
-///     T -->|error|      E["🟩 🟩 🟩 …"]
+///     T -->|failed| F["🟩 🟩 🟩 …"]
+///     T -->|error| E["🟩 🟩 🟩 …"]
 ///
-///     style S fill:#ffff,stroke:#ffff
-///     style R fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style R fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel
