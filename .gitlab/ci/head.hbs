@@ -81,12 +81,8 @@
       ]
     };
   }
-  window.onload = (function() {
+  document.addEventListener('DOMContentLoaded', function() {
     hljs.registerLanguage('mel', melodiumHighlight);
-    if (typeof hljs.highlightAll === "function") { 
-      hljs.highlightAll();
-    } else if (typeof hljs.initHighlighting === "function") {
-      hljs.initHighlighting();
-    }
+    hljs.highlightAll();
   });
 </script>
