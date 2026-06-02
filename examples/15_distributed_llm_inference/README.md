@@ -64,7 +64,7 @@ graph LR
 
     subgraph cloud["Cloud ML Runner (provisioned on demand)"]
         INFER["inferText treatment\n(const openai_key)"]
-        LLM["Assistant model\n(RemoteLlm -> GPT-4o-mini)"]
+        LLM["Assistant model\n(RemoteLlm → GPT-4o-mini)"]
         INFER -->|chat| LLM
         LLM -->|OpenAI API| OPENAI[("OpenAI\nAPI")]
     end

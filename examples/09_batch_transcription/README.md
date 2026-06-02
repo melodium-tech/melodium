@@ -32,25 +32,24 @@ melodium run Compo.toml -- \
 ### Data flow
 
 ```
-startup -> logStart
-        -> readLocal (audio file)
-               | data: Stream<byte>
-           transcribe[stt]  (Whisper API call)
-               | transcript: Block<string>  (fan-out)
-           +-------+--------------------------------------------+
-           check<string> -> logDone                  sttStream: stream<string>
-           (Block<void>  -> log trigger)              -> write.text: Stream<string>
-                                                           -> writeTextLocal
+startup → logStart
+        → readLocal (audio file)
+              ↓ data: Stream<byte>
+              ↓ transcript: Block<string>  (fan-out)
+          ┌───┴────────────────────────────────────┐
+          check<string> → logDone                  sttStream: stream<string>
+          (Block<void>  → log trigger)              → write.text: Stream<string>
+                                                        → writeTextLocal
 ```
 
 Error paths:
 ```
-readLocal.failed  -> readFailed  (log message)
-readLocal.errors  -> readErrors  (log errors stream)
-transcribe.failed -> sttFailed   (log message)
-transcribe.error  -> sttError    (log error)
-write.failed      -> writeFailed (log message)
-write.errors      -> writeErrors (log errors stream)
+readLocal.failed  → readFailed  (log message)
+readLocal.errors  → readErrors  (log errors stream)
+transcribe.failed → sttFailed   (log message)
+transcribe.error  → sttError    (log error)
+write.failed      → writeFailed (log message)
+write.errors      → writeErrors (log errors stream)
 ```
 
 ## Runtime behaviour

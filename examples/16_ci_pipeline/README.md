@@ -53,7 +53,7 @@ graph TD
     end
 
     subgraph cloud1["Cloud container: rust:1.82-slim\n(Stage 1 -- build)"]
-        BUILD_CMD["git clone + cargo build\n-> /mnt/data/binary"]
+        BUILD_CMD["git clone + cargo build\n→ /mnt/data/binary"]
     end
 
     subgraph cloud2["Cloud container: rust:1.82-slim\n(Stage 2 -- test)"]
@@ -65,7 +65,7 @@ graph TD
     end
 
     subgraph cloud3["Cloud container: debian:bookworm-slim\n(Stage 3 -- package)"]
-        PKG_CMD["tar -czf artifact.tar.gz binary\n<- /mnt/data/binary (input)"]
+        PKG_CMD["tar -czf artifact.tar.gz binary\n← /mnt/data/binary (input)"]
     end
 
     MAIN -->|trigger -- parallel| cloud1

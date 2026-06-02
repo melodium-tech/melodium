@@ -42,34 +42,34 @@ melodium run Compo.toml localOnly
 
 **`localAnswer[llm: Mistral]`** wraps the question in `"[INST] {q} [/INST]"` (Mistral instruction format), calls `generate`, and streams the generated text.
 
-Both sub-treatments share the same interface (`question: Stream<string>` -> `tokens: Stream<string>`), making the entrypoints structurally identical apart from the model backend.
+Both sub-treatments share the same interface (`question: Stream<string>` → `tokens: Stream<string>`), making the entrypoints structurally identical apart from the model backend.
 
 ### Data flow: `main`
 
 ```
-startup -> fetchAsr (Whisper weights) -> loadAsr
-                   | loaded
+startup → fetchAsr (Whisper weights) → loadAsr
+                   ↓ loaded
               record (mic) + decode[whisper]
-                   | transcribed: Stream<string>  (fan-out)
+                   ↓ transcribed: Stream<string>  (fan-out)
               logQuestion ("you")
               remoteAnswer[llm]
-                entry("q") -> format -> llmStream[llm]
-                   | token: Stream<string>
+                entry("q") → format → llmStream[llm]
+                   ↓ token: Stream<string>
               logAnswer ("assistant")
 ```
 
 ### Data flow: `localOnly`
 
 ```
-startup --> fetchAsr -> loadAsr
-        +-> fetchLlm -> loadLlm (-> logReady when done)
-                  | loadAsr.loaded
+startup ──→ fetchAsr → loadAsr
+        └─→ fetchLlm → loadLlm (→ logReady when done)
+                 ↓ loadAsr.loaded
               record (mic) + decode[whisper]
-                   | transcribed: Stream<string>  (fan-out)
+                   ↓ transcribed: Stream<string>  (fan-out)
               logQuestion ("you")
               localAnswer[llm]
-                entry("q") -> format -> generate[mistral]
-                   | tokens: Stream<string>
+                entry("q") → format → generate[mistral]
+                   ↓ tokens: Stream<string>
               logAnswer ("assistant")
 ```
 

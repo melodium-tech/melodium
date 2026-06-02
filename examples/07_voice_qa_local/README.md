@@ -34,16 +34,15 @@ melodium run Compo.toml -- --output qa.txt
 ### Data flow
 
 ```
-startup --> fetchAsr (Whisper weights) -> loadAsr
-        +-> fetchLlm (Mistral weights) -> loadLlm
-                                               | loaded (logReady)
+startup ──→ fetchAsr (Whisper weights) → loadAsr
+        └─→ fetchLlm (Mistral weights) → loadLlm
+                                              ↓ loaded (logReady)
 
-loadAsr.loaded --> record (microphone)
-              +--> decode[whisper]
-                       | transcribed: Stream<string>
-                   promptLlm[mistral]
-                     entry("q") -> format("[INST] {q} [/INST]") -> generate
-                       | answer: Stream<string>
+loadAsr.loaded ──→ record (microphone)
+              └──→ decode[whisper]
+                       ↓ transcribed: Stream<string>
+                     entry("q") → format("[INST] {q} [/INST]") → generate
+                       ↓ answer: Stream<string>
                    logInfos ("answer") + writeTextLocal (qa.txt, append)
 ```
 

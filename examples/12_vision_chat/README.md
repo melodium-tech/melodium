@@ -46,38 +46,38 @@ The `PromptBuilder` JS function `buildPrompt(body)` accepts either a JSON string
 
 **`describeUrl[llm]`** is the CLI path. It emits a `StringMap` with `url` and `question` keys, converts it to a stream, formats the prompt via `format`, and calls `chat[llm]`. Output is `description: Stream<string>`.
 
-**`handleDescribe[llm]`** is the server path. It decodes the request bytes, parses JSON, calls JS `buildPrompt`, extracts the string, calls `chat[llm]`, encodes the response, and returns bytes.
+**`handleDescribe[llm]`** is the server path. It decodes the request bytes → JSON → JS `buildPrompt` → string → `chat[llm]` → encode → response bytes.
 
 ### Data flow: `main` (CLI)
 
 ```
-startup -> logStart
-        -> describeUrl[llm](image_url=..., question=...)
-               emit<StringMap> -> stream<StringMap>
-               -> format("Please analyse the image at: {url}\n\nQuestion: {q}")
-               -> chat[llm]
-                  | response: Stream<string>
-           logDesc (console) + write (description.txt) -> done
+startup → logStart
+        → describeUrl[llm](image_url=..., question=...)
+            emit<StringMap> → stream<StringMap>
+            → format("Please analyse the image at: {url}\n\nQuestion: {q}")
+            → chat[llm]
+              ↓ response: Stream<string>
+          logDesc (console) + write (description.txt) → done
 ```
 
 ### Data flow: `server` (HTTP)
 
 ```
-startup -> start[server] + logReady
+startup → start[server] + logReady
 
 POST /describe per-request track:
-  connection.data -> bodyTrigger -> status 200 + headers
-  connection.data -> handleDescribe[llm]
-                       decode -> toJson -> unwrapOr<Json>
-                       -> process (JS: buildPrompt(value))
-                       -> unwrapOr<Json>
-                       -> tryToString<Json>
-                       -> unwrapOr<string> (default "")
-                       -> chat[llm]
-                          | response: Stream<string>
-                       encode
-                          | data: Stream<byte>
-                       -> connection.data
+  connection.data → bodyTrigger → status 200 + headers
+  connection.data → handleDescribe[llm]
+                      decode → toJson → unwrapOr<Json>
+                      → process (JS: buildPrompt(value))
+                      → unwrapOr<Json>
+                      → tryToString<Json>
+                      → unwrapOr<string> (default "")
+                      → chat[llm]
+                        ↓ response: Stream<string>
+                      encode
+                        ↓ data: Stream<byte>
+                      → connection.data
 ```
 
 ## Runtime behaviour

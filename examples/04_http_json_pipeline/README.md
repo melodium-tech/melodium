@@ -31,21 +31,20 @@ This example has no models: it is a pure dataflow pipeline with no stateful reso
 ### Data flow
 
 ```
-startup --> logFetch ("fetching posts...")
-        +-> fetchPosts (GET request)
-                 | data: Stream<byte>
-            parsePosts
-              decode -> toJson -> unwrapOr<Json> -> toString<Json>
-                 | text: Stream<string>
+startup ──→ logFetch ("fetching posts…")
+        └─→ fetchPosts (GET request)
+                 ↓ data: Stream<byte>
+              decode → toJson → unwrapOr<Json> → toString<Json>
+                 ↓ text: Stream<string>
             writeTextLocal (output file)
-                 | finished
+                 ↓ finished
             logDone ("done")
 ```
 
 Error paths:
 ```
-fetchPosts.failed -> fetchFailed (log message)
-fetchPosts.error  -> fetchError  (log error)
+fetchPosts.failed → fetchFailed (log message)
+fetchPosts.error  → fetchError  (log error)
 ```
 
 ## Runtime behaviour

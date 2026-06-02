@@ -15,7 +15,7 @@ melodium run Compo.toml -- --port 8080
 curl -X POST http://127.0.0.1:8080/transform \
      -H "Content-Type: application/json" \
      -d '{"name":"Alice","score":42}'
-# -> {"name":"Alice","score":42,"grade":"F","note":"processed by Mélodium JS engine"}
+# → {"name":"Alice","score":42,"grade":"F","note":"processed by Mélodium JS engine"}
 ```
 
 ## How it is built
@@ -45,17 +45,17 @@ The `Transformer` model holds a JavaScript function `transform(input)` that insp
 ### Data flow
 
 ```
-startup -> start[server] + logReady
+startup → start[server] + logReady
 
 POST /transform per-request track:
-  connection.data -> bodyTrigger -> status 200 + headers
-  connection.data -> jsTransform
-                       decode -> toJson -> unwrap<Json>
-                              -> process (JS: transform(value))
-                              -> unwrapOr<Json>
-                              -> toString<Json>
-                              -> encode
-                              -> response
+  connection.data → bodyTrigger → status 200 + headers
+  connection.data → jsTransform
+                      decode → toJson → unwrap<Json>
+                             → process (JS: transform(value))
+                             → unwrapOr<Json>
+                             → toString<Json>
+                             → encode
+                             → response
 ```
 
 ## Runtime behaviour
@@ -64,7 +64,7 @@ POST /transform per-request track:
 2. The HTTP server starts after `startup.trigger`.
 3. For each incoming `POST /transform`:
    - A new track is created; `bodyTrigger` collects the byte stream and gates status and headers.
-   - The JSON body flows through the transform pipeline: parse -> JS eval -> serialise -> encode.
+   - The JSON body flows through the transform pipeline: parse → JS eval → serialise → encode.
    - `process` invokes `transform(value)` synchronously in the embedded JS engine.
    - The result is streamed back as the response body.
 4. Concurrent requests each get their own track; the shared `Transformer` model handles them without duplicating compilation cost.

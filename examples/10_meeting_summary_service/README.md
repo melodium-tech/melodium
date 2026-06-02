@@ -48,23 +48,22 @@ The LLM system prompt instructs GPT-4o to produce key decisions, action items, a
 ### Data flow
 
 ```
-startup -> start[server] + logReady
+startup → start[server] + logReady
 
 POST /summarise per-request track:
-  connection.data -> bodyTrigger -> status 200 + headers
-  connection.data -> summariseRequest[stt, llm]
-                       transcribe[stt]             (Whisper API)
-                         | transcript: Block<string>
-                       stream<string>()             (Block -> Stream)
-                         | transcript: Stream<string>
-                       buildSummaryPrompt
-                         entry("t") -> format (prompt template)
-                         | prompt: Stream<string>
-                       chat[llm]                   (GPT-4o)
-                         | response: Stream<string>
-                       encode
-                         | data: Stream<byte>
-                       -> connection.data (streamed HTTP response)
+  connection.data → bodyTrigger → status 200 + headers
+  connection.data → summariseRequest[stt, llm]
+                        transcribe[stt]             (Whisper API)
+                          ↓ transcript: Block<string>
+                        stream<string>()             (Block → Stream)
+                          ↓ transcript: Stream<string>
+                          entry("t") → format (prompt template)
+                          ↓ prompt: Stream<string>
+                        chat[llm]                   (GPT-4o)
+                          ↓ response: Stream<string>
+                        encode
+                          ↓ data: Stream<byte>
+                      → connection.data (streamed HTTP response)
 ```
 
 ## Runtime behaviour

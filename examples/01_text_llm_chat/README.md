@@ -33,9 +33,9 @@ Both models are instantiated once at program start and shared across all concurr
 ### Data flow inside `chat`
 
 ```
-request bytes  ->  decode  ->  llmStream (token stream)  ->  encode  ->  response bytes
-                                   |  (errors)
-                               logErrors
+request bytes  →  decode  →  llmStream (token stream)  →  encode  →  response bytes
+                                  ↓ (errors)
+                              logErrors
 ```
 
 ## Runtime behaviour
@@ -45,7 +45,7 @@ request bytes  ->  decode  ->  llmStream (token stream)  ->  encode  ->  respons
 3. For each incoming `POST /chat`:
    - The HTTP framework creates a new **track** (an isolated execution context).
    - `bodyTrigger` fires when the first byte arrives; status 200 and empty headers are sent immediately so the response begins streaming.
-   - The request bytes flow through `decode` -> `llmStream` -> `encode` -> back into `connection.data`.
+   - The request bytes flow through `decode`, `llmStream`, `encode`, and back into `connection.data`.
    - Tokens appear in the HTTP response body as soon as the LLM emits them.
 4. The server remains live indefinitely; each request track is independent and concurrent.
 

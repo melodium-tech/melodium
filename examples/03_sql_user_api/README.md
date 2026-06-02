@@ -32,7 +32,7 @@ curl -X POST http://127.0.0.1:8080/users \
 
 ### Treatments
 
-**`main`** is the entry point. It sequences startup -> connect -> createTable -> HTTP start, then wires the two route handlers.
+**`main`** is the entry point. It sequences startup → connect → createTable → HTTP start, then wires the two route handlers.
 
 **`createTable`** runs `CREATE TABLE IF NOT EXISTS users ...` via `executeRaw`. It converts the `affected: Block<u64>` count to a `Block<void>` trigger using `check<u64>()`, then emits `done`.
 
@@ -40,32 +40,32 @@ curl -X POST http://127.0.0.1:8080/users \
 
 **`queryUsers`** runs `SELECT id, name, email FROM users ORDER BY id`. It emits an empty `Map` binding, passes it to `sqlFetch`, and streams resulting `Map` rows as output.
 
-**`echoCreate`** handles `POST /users`. It decodes request bytes, parses JSON, converts to string, and encodes back to bytes.
+**`echoCreate`** handles `POST /users`. It decodes request bytes → parses JSON → converts to string → encodes back to bytes.
 
 ### Data flow
 
 ```
 startup
-  -> connect[db]
-  -> createTable[db]
-       -> executeRaw (CREATE TABLE)
-       -> check<u64>  (discard u64, keep void trigger)
-       -> emit<void>
-  -> start[server]   (HTTP up)
-  -> listUsers[db, server]
-  -> echoCreate[server]
+  → connect[db]
+  → createTable[db]
+    → executeRaw (CREATE TABLE)
+    → check<u64>  (discard u64, keep void trigger)
+    → emit<void>
+  → start[server]   (HTTP up)
+  → listUsers[db, server]
+  → echoCreate[server]
 ```
 
 **`GET /users` per-request track:**
 ```
-connection.data -> bodyTrigger -> status 200 + headers
-               -> queryUsers -> logDataInfos<Map>
-               -> emit "OK\n" -> stream<string> -> encode -> response
+connection.data → bodyTrigger → status 200 + headers
+               → queryUsers → logDataInfos<Map>
+               → emit "OK\n" → stream<string> → encode → response
 ```
 
 **`POST /users` per-request track:**
 ```
-connection.data -> decode -> toJson -> unwrapOr -> toString<Json> -> encode -> response
+connection.data → decode → toJson → unwrapOr → toString<Json> → encode → response
 ```
 
 ## Runtime behaviour

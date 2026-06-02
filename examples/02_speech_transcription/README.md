@@ -50,19 +50,19 @@ melodium run Compo.toml fromFile --input_file speech.wav --output transcription.
 ### Data flow: `main` (microphone)
 
 ```
-startup -> fetch (Hub) -> load (Whisper engine)
-                              |
-                         recordMono --> decode[whisper] -> logInfos
-                                                        -> writeTextLocal
+startup → fetch (Hub) → load (Whisper engine)
+                             ↓
+                        recordMono ──→ decode[whisper] → logInfos
+                                                       → writeTextLocal
 ```
 
 ### Data flow: `fromFile`
 
 ```
-startup -> fetch (Hub) -> load (Whisper engine)
-                              |
-                         readLocal -> decodeMono -> decode[whisper] -> logInfos
-                                                                    -> writeTextLocal
+startup → fetch (Hub) → load (Whisper engine)
+                             ↓
+                        readLocal → decodeMono → decode[whisper] → logInfos
+                                                                 → writeTextLocal
 ```
 
 ## Runtime behaviour
@@ -70,7 +70,7 @@ startup -> fetch (Hub) -> load (Whisper engine)
 1. Both entrypoints start by fetching the model. `fetch` emits `safetensors` and `tokenizer` as block values when each download completes.
 2. `load` blocks until both are received, then emits `loaded` once the engine is ready.
 3. **`main`**: `loaded` simultaneously starts `recordMono` and arms `decode`. The microphone streams audio frames; each processed 30-second window yields a `transcribed: Block<string>` value.
-4. **`fromFile`**: `loaded` triggers `readLocal`; bytes flow through `decodeMono` -> `decode`. After a single transcript block is emitted, the pipeline completes and the process exits.
+4. **`fromFile`**: `loaded` triggers `readLocal`; bytes flow through `decodeMono` → `decode`. After a single transcript block is emitted, the pipeline completes and the process exits.
 5. All error paths (`fetch.failed`, `load.failed`, `record.failed`, etc.) are individually logged but do not abort the pipeline.
 
 ### Key Mélodium patterns used

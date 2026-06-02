@@ -18,7 +18,7 @@ melodium run Compo.toml -- \
 curl -X POST http://127.0.0.1:8080/process \
      -H "Content-Type: text/plain" \
      -d "hello world"
-# -> [WORKER] hello world
+# → [WORKER] hello world
 ```
 
 ## How it is built
@@ -67,7 +67,7 @@ graph LR
     end
 
     subgraph cloud["Cloud Runner (provisioned on demand)"]
-        PROCESS["process treatment\n(decode -> split -> format -> encode)"]
+        PROCESS["process treatment\n(decode → split → format → encode)"]
     end
 
     USER["HTTP client"] -->|POST /process| HTTP

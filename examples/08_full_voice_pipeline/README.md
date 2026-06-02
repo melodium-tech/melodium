@@ -31,7 +31,7 @@ melodium run Compo.toml -- \
 
 ### Treatments
 
-**`main`** is the entry point. It sequences file read -> STT -> LLM -> TTS -> file write as a linear pipeline, delegating each stage to a sub-treatment.
+**`main`** is the entry point. It sequences file read → STT → LLM → TTS → file write as a linear pipeline, delegating each stage to a sub-treatment.
 
 **`sttTranscribe[stt]`** sends audio bytes to `transcribe[stt]`. The result is a `Block<string>`; `stream<string>()` converts it to `Stream<string>` for downstream streaming inputs.
 
@@ -42,20 +42,20 @@ melodium run Compo.toml -- \
 ### Data flow
 
 ```
-startup -> read (audio file)
-               | data: Stream<byte>
-           sttTranscribe[stt]
-             transcribe -> stream<string>
-               | transcript: Stream<string>
-           llmRespond[llm]
-             entry("q") -> format -> chat[llm]
-               | answer: Stream<string>
-           ttsSpeak[tts]
-             synthesize[tts]
-               | audio: Stream<byte>
-           writeLocal (output file)
-               | completed
-           logDone
+startup → read (audio file)
+              ↓ data: Stream<byte>
+            sttTranscribe[stt]
+              transcribe → stream<string>
+              ↓ transcript: Stream<string>
+            llmRespond[llm]
+              entry("q") → format → chat[llm]
+              ↓ answer: Stream<string>
+            ttsSpeak[tts]
+              synthesize[tts]
+              ↓ audio: Stream<byte>
+            writeLocal (output file)
+              ↓ completed
+            logDone
 ```
 
 ## Runtime behaviour

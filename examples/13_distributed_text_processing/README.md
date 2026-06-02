@@ -18,7 +18,7 @@ melodium run Compo.toml -- \
 curl -X POST http://127.0.0.1:8080/process \
      -H "Content-Type: text/plain" \
      -d "hello world from melodium"
-# -> HELLO WORLD FROM MELODIUM
+# → HELLO WORLD FROM MELODIUM
 ```
 
 ## How it is built
@@ -91,6 +91,6 @@ graph LR
 ### Key Mélodium patterns used
 
 - **`Uppercaser` as a model on the remote side**: the JavaScript engine is instantiated once on the cloud runner and shared across all distribution requests routed to that runner.
-- **`fromString<string>` -> `process` -> `tryToString<Json>`**: the standard bridge pattern for feeding plain strings through the `JavaScriptEngine.process` treatment, which operates on `Json` values.
+- **`fromString<string>` → `process` → `tryToString<Json>`**: the standard bridge pattern for feeding plain strings through the `JavaScriptEngine.process` treatment, which operates on `Json` values.
 - **Named streams matching port names**: `sendStream<byte>(name="data")` and `recvStream<byte>(name="data")` use `"data"` to match `processText`'s `input data` and `output data` port names.
 - **`distribStart.ready` as server gate**: prevents the HTTP server from accepting connections before the remote worker is ready.
