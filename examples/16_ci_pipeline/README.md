@@ -4,10 +4,10 @@ A three-stage CI pipeline that provisions cloud containers on demand, runs a ful
 
 ## What it does
 
-1. **Stage 1 — build** (concurrent): provisions a `rust:1.82-slim` container, clones the repo, runs `cargo build --release`, streams the binary back.
-2. **Stage 2 — test** (concurrent with stage 1): provisions a `rust:1.82-slim` container **with a `postgres:16` service container** as a network sidecar, clones the repo, runs `cargo test` with `DATABASE_URL` pointing at the Postgres sidecar.
+1. **Stage 1 (build)** runs concurrently: provisions a `rust:1.82-slim` container, clones the repo, runs `cargo build --release`, and streams the binary back.
+2. **Stage 2 (test)** runs concurrently with stage 1: provisions a `rust:1.82-slim` container with a `postgres:16` service container as a network sidecar, clones the repo, and runs `cargo test` with `DATABASE_URL` pointing at the Postgres sidecar.
 3. Waits for both stages to finish.
-4. **Stage 3 — package**: provisions a `debian:bookworm-slim` container, receives the binary from stage 1 as input, bundles it into a `tar.gz` archive, streams it back.
+4. **Stage 3 (package)**: provisions a `debian:bookworm-slim` container, receives the binary from stage 1 as input, bundles it into a `tar.gz` archive, and streams it back.
 5. Writes the archive locally.
 
 Stages 1 and 2 run in parallel. Stage 3 starts only after both complete.
@@ -30,17 +30,17 @@ melodium run Compo.toml -- \
 
 ### Treatments
 
-**`main`** — Entry point. Fires both `build` and `test` from `startup.trigger` (parallel). Chains two `one<void>` instances to merge four error/failure signals into a single abort log. Uses `flock<void>` to wait for both stages to finish, then `trigger<void>()` to convert the resulting `Stream<void>` to a `Block<void>` gate for `package`.
+**`main`** is the entry point. It fires both `build` and `test` from `startup.trigger` (parallel). It chains two `one<void>` instances to merge four error/failure signals into a single abort log. It uses `flock<void>` to wait for both stages to finish, then `trigger<void>()` to convert the resulting `Stream<void>` to a `Block<void>` gate for `package`.
 
-**`build[dispatcher]`** — Thin wrapper around `simpleStep`. Runs four shell commands in `rust:1.82-slim`: installs git, clones the repo, compiles, copies the binary to `/mnt/data/binary`. The `out_file = "binary"` parameter causes `simpleStep` to extract and stream that file back as `data: Stream<byte>`.
+**`build[dispatcher]`** is a thin wrapper around `simpleStep`. It runs four shell commands in `rust:1.82-slim`: installs git, clones the repo, compiles, and copies the binary to `/mnt/data/binary`. The `out_file = "binary"` parameter causes `simpleStep` to extract and stream that file back as `data: Stream<byte>`.
 
-**`test[dispatcher]`** — Thin wrapper around `simpleStep`. Same container image as `build`, but adds a `postgres:16` **service container** with environment variables `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`. The `DATABASE_URL` variable in the main container points at `postgres://ci:ci@postgres/ci_test`. No `out_file` — only success/failure matters.
+**`test[dispatcher]`** is a thin wrapper around `simpleStep`. It uses the same container image as `build`, but adds a `postgres:16` service container with environment variables `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`. The `DATABASE_URL` variable in the main container points at `postgres://ci:ci@postgres/ci_test`. No `out_file` is needed; only success or failure matters.
 
-**`package[dispatcher]`** — Thin wrapper around `simpleStepWithInput`. Receives the binary bytes as `data: Stream<byte>` (from `build.data`), writes them to `/mnt/data/binary` on a `debian:bookworm-slim` container (`in_file = "binary"`), then runs `tar` to archive it. The archive is extracted via `out_file = "artifact.tar.gz"` and streamed back.
+**`package[dispatcher]`** is a thin wrapper around `simpleStepWithInput`. It receives the binary bytes as `data: Stream<byte>` (from `build.data`), writes them to `/mnt/data/binary` on a `debian:bookworm-slim` container (`in_file = "binary"`), then runs `tar` to archive it. The archive is extracted via `out_file = "artifact.tar.gz"` and streamed back.
 
 ### Source file layout
 
-Everything is in `main.mel` — the three stage treatments are local wrappers, keeping the file self-contained.
+Everything is in `main.mel`: the three stage treatments are local wrappers, keeping the file self-contained.
 
 ## Distribution architecture
 
@@ -52,11 +52,11 @@ graph TD
         DISPATCH["CicdDispatchEngine\n(Dispatcher)"]
     end
 
-    subgraph cloud1["Cloud container: rust:1.82-slim\n(Stage 1 — build)"]
-        BUILD_CMD["git clone + cargo build\n→ /mnt/data/binary"]
+    subgraph cloud1["Cloud container: rust:1.82-slim\n(Stage 1 -- build)"]
+        BUILD_CMD["git clone + cargo build\n-> /mnt/data/binary"]
     end
 
-    subgraph cloud2["Cloud container: rust:1.82-slim\n(Stage 2 — test)"]
+    subgraph cloud2["Cloud container: rust:1.82-slim\n(Stage 2 -- test)"]
         TEST_CMD["git clone + cargo test"]
         subgraph svc["Service container"]
             PG["postgres:16\n(DATABASE_URL sidecar)"]
@@ -64,12 +64,12 @@ graph TD
         TEST_CMD -.->|network| PG
     end
 
-    subgraph cloud3["Cloud container: debian:bookworm-slim\n(Stage 3 — package)"]
-        PKG_CMD["tar -czf artifact.tar.gz binary\n← /mnt/data/binary (input)"]
+    subgraph cloud3["Cloud container: debian:bookworm-slim\n(Stage 3 -- package)"]
+        PKG_CMD["tar -czf artifact.tar.gz binary\n<- /mnt/data/binary (input)"]
     end
 
-    MAIN -->|trigger — parallel| cloud1
-    MAIN -->|trigger — parallel| cloud2
+    MAIN -->|trigger -- parallel| cloud1
+    MAIN -->|trigger -- parallel| cloud2
     BUILD_CMD -->|Stream byte: binary| MAIN
     cloud1 -->|finished| MAIN
     cloud2 -->|finished| MAIN
@@ -84,7 +84,7 @@ graph TD
 
 ## Runtime behaviour
 
-1. `startup` fires; `logStart` logs; `build` and `test` are triggered simultaneously — two separate container provisioning requests go out concurrently.
+1. `startup` fires; `logStart` logs; `build` and `test` are triggered simultaneously: two separate container provisioning requests go out concurrently.
 
 2. **Stage 1** (`build`):
    - `CicdDispatchEngine` provisions a `rust:1.82-slim` container with 2 CPU cores, 4 GB RAM, 8 GB storage.
@@ -93,10 +93,10 @@ graph TD
    - `finished` fires when the container is stopped.
 
 3. **Stage 2** (`test`):
-   - A `rust:1.82-slim` container is provisioned, alongside a `postgres:16` **service container**.
-   - The service container receives `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` as environment variables and is reachable from the main container under the hostname `"postgres"`.
+   - A `rust:1.82-slim` container is provisioned alongside a `postgres:16` service container.
+   - The service container receives `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` as environment variables and is reachable from the main container under the hostname `"postgres"`.
    - `cargo test` runs with `DATABASE_URL=postgres://ci:ci@postgres/ci_test`.
-   - No output file — only `success` / `error` matter.
+   - No output file: only `success` / `error` matter.
    - `finished` fires when the container is stopped.
 
 4. `flock<void>()` waits until both `build.finished` and `test.finished` have fired. Its output is `Stream<void>`; `trigger<void>()` converts it to a `Block<void>` start signal for `package`.
@@ -108,13 +108,13 @@ graph TD
 
 6. `writeLocal` writes the archive bytes to the local `--output` path. `logDone` fires on completion.
 
-7. If any stage fails or exits with a non-zero code, `one<void>` chains merge the signals into a single `logAbort` message. The `package` stage still starts (it gates on `flock` not on success), but will receive no binary data if `build` failed — `simpleStepWithInput` will error when it tries to extract the missing `in_file`.
+7. If any stage fails or exits with a non-zero code, `one<void>` chains merge the signals into a single `logAbort` message. The `package` stage still starts (it gates on `flock` not on success), but will receive no binary data if `build` failed; `simpleStepWithInput` will error when it tries to extract the missing `in_file`.
 
 ### Key Mélodium patterns used
 
-- **`simpleStep` / `simpleStepWithInput`** — the `cicd` package's high-level API: one treatment call handles container provisioning, command execution, optional file input/output, and cleanup. No `DistantEngine` or `DistributionEngine` wiring needed.
-- **`service_container`** — a sidecar container (`postgres:16`) running alongside the main container, reachable by hostname. Environment variables configure the database; `DATABASE_URL` in the main container points at it.
-- **`|wrap<StringMap>(...)`** — `simpleStep`'s `variables` and `|service_container`'s `env` parameters are `Option<StringMap>`; `|wrap<StringMap>` promotes a plain `StringMap`.
-- **Parallel stages with `flock`** — `flock<void>()` collects two `finished` signals (one per stage) and emits a stream element when both have arrived, enabling a fork-join pattern without explicit synchronisation code.
-- **`trigger<void>()`** — converts `Stream<void>` (from `flock.stream`) to a `Block<void>` start signal, bridging the stream-to-block boundary needed for `package.trigger`.
-- **Binary pipe between stages** — `build.data: Stream<byte>` is connected directly to `package.data: Stream<byte>`, so the binary bytes flow from the build container to the package container without being buffered on disk locally.
+- **`simpleStep` / `simpleStepWithInput`**: the `cicd` package's high-level API: one treatment call handles container provisioning, command execution, optional file input/output, and cleanup. No `DistantEngine` or `DistributionEngine` wiring needed.
+- **`service_container`**: a sidecar container (`postgres:16`) running alongside the main container, reachable by hostname. Environment variables configure the database; `DATABASE_URL` in the main container points at it.
+- **`|wrap<StringMap>(...)`**: `simpleStep`'s `variables` and `|service_container`'s `env` parameters are `Option<StringMap>`; `|wrap<StringMap>` promotes a plain `StringMap`.
+- **Parallel stages with `flock`**: `flock<void>()` collects two `finished` signals (one per stage) and emits a stream element when both have arrived, enabling a fork-join pattern without explicit synchronisation code.
+- **`trigger<void>()`**: converts `Stream<void>` (from `flock.stream`) to a `Block<void>` start signal, bridging the stream-to-block boundary needed for `package.trigger`.
+- **Binary pipe between stages**: `build.data: Stream<byte>` is connected directly to `package.data: Stream<byte>`, so the binary bytes flow from the build container to the package container without being buffered on disk locally.

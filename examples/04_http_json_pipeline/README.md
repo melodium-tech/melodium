@@ -16,36 +16,36 @@ melodium run Compo.toml -- --output results.txt
 
 ## How it is built
 
-This example has no models — it is a pure dataflow pipeline with no stateful resources.
+This example has no models: it is a pure dataflow pipeline with no stateful resources.
 
 ### Treatments
 
-**`main`** — Entry point. Triggers both `logFetch` and `fetchPosts` simultaneously on startup, then pipes the response bytes into `parsePosts`, writes the output, and logs completion.
+**`main`** is the entry point. It triggers both `logFetch` and `fetchPosts` simultaneously on startup, then pipes the response bytes into `parsePosts`, writes the output, and logs completion.
 
-**`parsePosts`** — Reusable sub-pipeline that receives raw bytes and produces a string:
-- `decode` — UTF-8 bytes → text string.
-- `toJson` — text → `Option<Json>` (parse attempt).
-- `unwrapOr<Json>` — provides `|null()` as fallback if parsing fails.
-- `toString<Json>` — converts the `Json` value to its string form.
+**`parsePosts`** is a reusable sub-pipeline that receives raw bytes and produces a string:
+- `decode` converts UTF-8 bytes to a text string.
+- `toJson` parses text into `Option<Json>`.
+- `unwrapOr<Json>` provides `|null()` as fallback if parsing fails.
+- `toString<Json>` converts the `Json` value to its string form.
 
 ### Data flow
 
 ```
-startup ──→ logFetch ("fetching posts…")
-        └─→ fetchPosts (GET request)
-                 ↓ data: Stream<byte>
+startup --> logFetch ("fetching posts...")
+        +-> fetchPosts (GET request)
+                 | data: Stream<byte>
             parsePosts
-              decode → toJson → unwrapOr<Json> → toString<Json>
-                 ↓ text: Stream<string>
+              decode -> toJson -> unwrapOr<Json> -> toString<Json>
+                 | text: Stream<string>
             writeTextLocal (output file)
-                 ↓ finished
+                 | finished
             logDone ("done")
 ```
 
 Error paths:
 ```
-fetchPosts.failed → fetchFailed (log message)
-fetchPosts.error  → fetchError  (log error)
+fetchPosts.failed -> fetchFailed (log message)
+fetchPosts.error  -> fetchError  (log error)
 ```
 
 ## Runtime behaviour
@@ -59,7 +59,7 @@ fetchPosts.error  → fetchError  (log error)
 
 ### Key Mélodium patterns used
 
-- **No models** — demonstrates that simple pipelines need no stateful resources.
-- **`toString<Json>()`** — the `Json` type implements `ToString`, so this generic treatment can serialise any parsed JSON back to text.
-- **`unwrapOr<Json>(default=|null())`** — graceful JSON parse failure: if the API returns malformed data, the pipeline continues with a JSON null value instead of stalling.
-- **Linear chain syntax** — `Self.data -> decode.data,text -> toJson.text,json -> unwrapOr.option,value -> toString.value,into -> Self.text` shows how multiple treatments are chained in a single connection statement.
+- **No models**: demonstrates that simple pipelines need no stateful resources.
+- **`toString<Json>()`**: the `Json` type implements `ToString`, so this generic treatment can serialise any parsed JSON back to text.
+- **`unwrapOr<Json>(default=|null())`**: graceful JSON parse failure handling; if the API returns malformed data, the pipeline continues with a JSON null value instead of stalling.
+- **Linear chain syntax**: `Self.data -> decode.data,text -> toJson.text,json -> unwrapOr.option,value -> toString.value,into -> Self.text` shows how multiple treatments are chained in a single connection statement.

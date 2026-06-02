@@ -1,6 +1,6 @@
 # Distributed Work
 
-An HTTP server that dispatches each incoming request body to a remote cloud worker for processing. The worker prefixes every line with `[WORKER]` and streams the result back. The cloud runner is provisioned on demand by `DistantEngine` — no second process needs to be started manually.
+An HTTP server that dispatches each incoming request body to a remote cloud worker for processing. The worker prefixes every line with `[WORKER]` and streams the result back. The cloud runner is provisioned on demand by `DistantEngine`; no second process needs to be started manually.
 
 ## What it does
 
@@ -18,7 +18,7 @@ melodium run Compo.toml -- \
 curl -X POST http://127.0.0.1:8080/process \
      -H "Content-Type: text/plain" \
      -d "hello world"
-# → [WORKER] hello world
+# -> [WORKER] hello world
 ```
 
 ## How it is built
@@ -40,15 +40,15 @@ curl -X POST http://127.0.0.1:8080/process \
 
 ### Treatments
 
-**`main`** — Entry point. Provisions the runner, connects the distributor, starts the HTTP server, and wires connections to `dispatchToWorker`.
+**`main`** is the entry point. It provisions the runner, connects the distributor, starts the HTTP server, and wires connections to `dispatchToWorker`.
 
-**`dispatchToWorker[distributor]`** — Per-request bridge:
+**`dispatchToWorker[distributor]`** is the per-request bridge:
 1. `trigger<byte>()` fires when the first request byte arrives.
 2. `distribute` creates a distribution slot and emits a `distribution_id`.
 3. `sendStream<byte>` forwards the request bytes to the remote worker under that ID.
 4. `recvStream<byte>` collects the response bytes from the same ID and forwards them as output.
 
-**`process`** (in `worker.mel`) — Runs remotely:
+**`process`** (in `worker.mel`) runs remotely:
 1. Decodes bytes to UTF-8 text.
 2. Splits on newlines.
 3. Flattens the `Vec<string>` into individual strings.
@@ -67,7 +67,7 @@ graph LR
     end
 
     subgraph cloud["Cloud Runner (provisioned on demand)"]
-        PROCESS["process treatment\n(decode → split → format → encode)"]
+        PROCESS["process treatment\n(decode -> split -> format -> encode)"]
     end
 
     USER["HTTP client"] -->|POST /process| HTTP
@@ -99,7 +99,7 @@ graph LR
 
 ### Key Mélodium patterns used
 
-- **`DistantEngine` + `DistributionEngine`** — separation of concerns: `DistantEngine` handles infrastructure (provisioning, networking), `DistributionEngine` handles work routing (distribution IDs, send/recv channels).
-- **`|wrap<string>(...)`** — `DistantEngine`'s `api_url` and `api_token` params are `Option<string>`; `|wrap<string>` promotes a plain string to `Some(string)`.
-- **`distribStart.ready` as HTTP gate** — the HTTP server only starts listening after the distributor confirms the remote worker is reachable, preventing requests from arriving before the worker is ready.
-- **Named streams** — `sendStream<byte>(name="data")` and `recvStream<byte>(name="data")` use the same name `"data"` to match the `process` treatment's input/output port names.
+- **`DistantEngine` + `DistributionEngine`**: separation of concerns: `DistantEngine` handles infrastructure (provisioning, networking), `DistributionEngine` handles work routing (distribution IDs, send/recv channels).
+- **`|wrap<string>(...)`**: `DistantEngine`'s `api_url` and `api_token` params are `Option<string>`; `|wrap<string>` promotes a plain string to `Some(string)`.
+- **`distribStart.ready` as HTTP gate**: the HTTP server only starts listening after the distributor confirms the remote worker is reachable, preventing requests from arriving before the worker is ready.
+- **Named streams**: `sendStream<byte>(name="data")` and `recvStream<byte>(name="data")` use the same name `"data"` to match the `process` treatment's input and output port names.
