@@ -148,7 +148,7 @@ pub async fn to_json() {
 
 /// Validate each string in the stream as JSON, emitting `true` if valid and `false` otherwise.
 ///
-/// Unlike `toJson`, this treatment discards the parsed value — it only checks validity.
+/// Unlike `toJson`, this treatment discards the parsed value and only checks validity.
 ///
 /// ```mermaid
 /// graph LR

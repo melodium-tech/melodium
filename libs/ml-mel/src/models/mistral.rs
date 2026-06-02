@@ -46,7 +46,7 @@ struct KvSnapshot {
 /// Mistral large language model configuration.
 ///
 /// Holds the architecture and inference hyper-parameters for a Mistral model.  Weights and
-/// tokenizer are not embedded here — use an `HfHub` model together with `fetch` and `load`
+/// tokenizer are not embedded here; use an `HfHub` model together with `fetch` and `load`
 /// to supply them at runtime, then call `generate` to run inference.
 ///
 /// Architecture parameters (defaults match Mistral-7B-v0.1):
@@ -291,7 +291,7 @@ fn worker_loop(
         let req = match msg {
             WorkerMsg::Drop(id) => {
                 if hot_id == Some(id) {
-                    // The hot conversation ended — clear the model cache.
+                    // The hot conversation ended; clear the model cache.
                     model.clear_kv_cache();
                     hot_id = None;
                     hot_seqlen_offset = 0;
@@ -451,8 +451,8 @@ fn emit_token(tokenizer: &Tokenizer, token: u32, reply: &flume::Sender<String>) 
 /// received, memory-maps the weight shards and starts the inference worker thread inside the
 /// `Mistral` model.
 ///
-/// `loaded` is emitted when the model is ready to accept prompts.  If any step fails —
-/// file not found, incompatible weights, tokenizer parse error — `failed` and `error` are
+/// `loaded` is emitted when the model is ready to accept prompts.  If any step fails
+/// (file not found, incompatible weights, tokenizer parse error), `failed` and `error` are
 /// emitted instead and `loaded` is never sent.
 ///
 /// ℹ️ Wire `safetensors` and `tokenizer` directly from a `fetch` treatment.
@@ -567,7 +567,7 @@ pub async fn load() {
 /// Generate text from a Mistral model, one token fragment per stream item.
 ///
 /// For each string received on `prompt`, enqueues an inference request and emits the
-/// decoded token strings on `generated` as they arrive — one string per token.  Generation
+/// decoded token strings on `generated` as they arrive, one string per token.  Generation
 /// for a single prompt ends when the model produces `</s>` or when `max_new_tokens` is
 /// reached.  The next prompt is then dequeued.
 ///

@@ -22,14 +22,14 @@ use llm::{
 ///
 /// - `backend`: provider name (default `"mistral"`); see the table below.
 /// - `api_key`: API key for authentication (omit for Ollama or unauthenticated endpoints).
-/// - `base_url`: override the provider base URL — required for Ollama, Azure OpenAI,
-///   or custom OpenAI-compatible endpoints; see the table below.
-/// - `model`: model identifier — see the table below for recommended values per backend.
+/// - `base_url`: override the provider base URL (required for Ollama, Azure OpenAI,
+///   or custom OpenAI-compatible endpoints; see the table below).
+/// - `model`: model identifier; see the table below for recommended values per backend.
 /// - `system`: system prompt injected at the start of every conversation.
 /// - `max_tokens`: maximum tokens to generate per response (omit to use the backend default).
-/// - `temperature`: sampling temperature 0.0–2.0 (omit to use the backend default; some
+/// - `temperature`: sampling temperature from 0.0 to 2.0 (omit to use the backend default; some
 ///   backends reject `temperature` and `top_p` being set simultaneously).
-/// - `top_p`: nucleus sampling cutoff 0.0–1.0 (omit to use the backend default).
+/// - `top_p`: nucleus sampling cutoff from 0.0 to 1.0 (omit to use the backend default).
 /// - `timeout`: request timeout in seconds (omit to use the backend default).
 ///
 /// ## Backends
@@ -182,7 +182,7 @@ impl RemoteLlm {
 /// configured provider and emits the full response text on `response`.  If the
 /// request fails, `failed` and `error` are emitted instead.
 ///
-/// ℹ️ `load` is not required — the provider is initialised when the program starts.
+/// ℹ️ `load` is not required; the provider is initialised when the program starts.
 /// Use `stream` instead if you want token-by-token output.
 ///
 /// ```mermaid

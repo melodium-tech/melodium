@@ -27,7 +27,7 @@ pub struct Environment {
 
 /// Build an `Environment` value from explicit parameters.
 ///
-/// - `variables`: key–value pairs to expose to the subprocess.
+/// - `variables`: key-value pairs to expose to the subprocess.
 /// - `working_directory`: optional working directory.
 /// - `expand_variables`: expand `${VAR}` references in variable values.
 /// - `clear_env`: inherit no variables from the parent process.
@@ -48,7 +48,7 @@ pub fn environment(
 
 /// Convert a `StringMap` block into an `Environment` block.
 ///
-/// `variables` supplies the key–value pairs; other environment properties come from the
+/// `variables` supplies the key-value pairs; other environment properties come from the
 /// constant parameters `clear_env`, `expand_variables`, and `working_directory`.
 ///
 /// ```mermaid

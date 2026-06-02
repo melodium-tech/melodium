@@ -23,7 +23,7 @@ struct DecodeStream {
 /// Whisper automatic speech recognition model configuration.
 ///
 /// Holds the architecture parameters for a Whisper model.  Weights are not embedded
-/// here — use an `HfHub` model together with `fetch` and `load` to supply them at
+/// here; use an `HfHub` model together with `fetch` and `load` to supply them at
 /// runtime, then call `decode` to transcribe a stream of PCM audio samples.
 ///
 /// Architecture parameters (defaults match `openai/whisper-tiny`):
@@ -147,7 +147,7 @@ impl Whisper {
     #[cfg(feature = "real")]
     pub(self) fn enqueue_stream(&self) -> Option<DecodeStream> {
         // Clone the candle model so each worker thread owns its own copy of
-        // the weights and KV cache — no sharing, no serialisation between tracks.
+        // the weights and KV cache, with no sharing or serialisation between tracks.
         let (candle_model, tokenizer) = self.loaded.lock().unwrap().clone()?;
 
         let (chunk_tx, chunk_rx) = flume::unbounded::<AudioChunk>();
@@ -487,7 +487,7 @@ pub async fn decode() {
         let whisper_struct = model_arc.inner();
 
         // Spawn a dedicated worker for this track. Each track gets its own
-        // candle model clone, KV cache, sample buffer, and channel pair —
+        // candle model clone, KV cache, sample buffer, and channel pair,
         // fully independent of every other concurrent decode track.
         let (chunk_tx, text_rx) = match whisper_struct.enqueue_stream() {
             Some(s) => (s.chunk_tx, s.text_rx),
@@ -500,7 +500,7 @@ pub async fn decode() {
                 .await
                 .map(|v| TryInto::<Vec<f32>>::try_into(v).unwrap_or_default())
             {
-                // Sending fails only if the worker panicked — treat as done.
+                // Sending fails only if the worker panicked; treat as done.
                 if chunk_tx.send(AudioChunk(batch)).is_err() {
                     break;
                 }

@@ -21,7 +21,7 @@ use llm::{
 /// - `backend`: provider name (default `"elevenlabs"`); see the table below.
 /// - `api_key`: API key for authentication (omit for unauthenticated endpoints).
 /// - `base_url`: override the provider base URL (optional).
-/// - `model`: model identifier — see the table below for recommended values per backend.
+/// - `model`: model identifier; see the table below for recommended values per backend.
 /// - `voice`: voice identifier (required for ElevenLabs; omit for other backends).
 ///
 /// ## Backends

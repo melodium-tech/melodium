@@ -8,17 +8,17 @@ use std::sync::Weak;
 /// HuggingFace Hub repository configuration.
 ///
 /// Holds the connection and repository parameters needed to reach a repository on the
-/// HuggingFace Hub.  Does no work by itself — use the `fetch` treatment to trigger the
+/// HuggingFace Hub.  Does no work by itself; use the `fetch` treatment to trigger the
 /// actual resolution and download of files.
 ///
 /// - `repo_id`: repository identifier, e.g. `"mistralai/Mistral-7B-v0.1"`.
 /// - `repo_type`: `"model"` (default), `"dataset"`, or `"space"`.
-/// - `revision`: git revision to pin — branch, tag, or commit hash (default `"main"`).
+/// - `revision`: git revision to pin: branch, tag, or commit hash (default `"main"`).
 /// - `endpoint`: Hub API base URL (default `"https://huggingface.co"`; override for mirrors).
 /// - `cache_dir`: local cache directory (empty string uses the default `~/.cache/huggingface/hub`).
 /// - `token`: HuggingFace access token for private repositories (empty string means no token).
 ///
-/// ℹ️ Use `HfHub` together with `fetch` — `HfHub` holds the configuration while `fetch`
+/// ℹ️ Use `HfHub` together with `fetch`: `HfHub` holds the configuration while `fetch`
 /// performs the actual network and cache operations when triggered.
 ///
 /// ```mel
@@ -69,7 +69,7 @@ impl HfHub {
 /// lists all `.safetensors` shards and `tokenizer.json` in the configured repository,
 /// downloads any files not already cached, then emits their local filesystem paths.
 ///
-/// `safetensors` emits one path per shard in sorted order — this covers both single-file
+/// `safetensors` emits one path per shard in sorted order, covering both single-file
 /// and multi-shard models transparently.  `tokenizer` emits the single path to
 /// `tokenizer.json`.  If any network or cache error occurs, `failed` and `error` are
 /// emitted instead and `safetensors` / `tokenizer` remain empty.
@@ -203,7 +203,7 @@ pub async fn fetch() {
         let cache_dir = model_arc.get_cache_dir();
         let token_str = model_arc.get_token();
 
-        // Hub calls are blocking I/O — run off the async executor.
+        // Hub calls are blocking I/O; run off the async executor.
         let result =
             async_std::task::spawn_blocking(move || -> Result<(Vec<String>, String), String> {
                 let repo_type = match repo_type.as_str() {
