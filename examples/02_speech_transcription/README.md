@@ -4,13 +4,13 @@ Two-entrypoint program that transcribes audio to text using a local Whisper mode
 
 ## What it does
 
-**`main` entrypoint** — live microphone transcription:
+**`main` entrypoint** runs live microphone transcription:
 - Downloads `openai/whisper-tiny` from Hugging Face (cached after first run).
 - Loads the model into a local `Whisper` engine.
 - Records mono audio from the default microphone.
 - Decodes each audio window into a transcript string, appends it to a file, and logs it.
 
-**`fromFile` entrypoint** — audio file transcription:
+**`fromFile` entrypoint** transcribes an audio file:
 - Same model download and load sequence.
 - Reads a local audio file (WAV, MP3, FLAC, etc.) instead of recording.
 - Decodes the audio container format before passing samples to Whisper.
@@ -35,19 +35,19 @@ melodium run Compo.toml fromFile --input_file speech.wav --output transcription.
 
 ### Treatments
 
-**`main`** — microphone path:
+**`main`** is the microphone path:
 1. `fetch` downloads safetensors weights and tokenizer from the Hub.
 2. `load` initialises the Whisper engine with those weights.
 3. Once loaded, `recordMono` starts microphone capture and `decode` starts listening for audio signals.
 4. `decode.transcribed` fans out to `logInfos` (console) and `writeTextLocal` (file, append mode).
 
-**`fromFile`** — file path:
-1. Same fetch + load sequence.
+**`fromFile`** is the file path:
+1. Same fetch and load sequence.
 2. `readLocal` reads the audio file bytes.
-3. `decodeMono` parses the audio container (WAV/MP3/…) into raw samples.
+3. `decodeMono` parses the audio container (WAV, MP3, ...) into raw samples.
 4. Samples are fed to `decode[whisper]`; transcription fans out to log and file (overwrite mode).
 
-### Data flow — `main` (microphone)
+### Data flow: `main` (microphone)
 
 ```
 startup → fetch (Hub) → load (Whisper engine)
@@ -56,7 +56,7 @@ startup → fetch (Hub) → load (Whisper engine)
                                                        → writeTextLocal
 ```
 
-### Data flow — `fromFile`
+### Data flow: `fromFile`
 
 ```
 startup → fetch (Hub) → load (Whisper engine)
@@ -75,6 +75,6 @@ startup → fetch (Hub) → load (Whisper engine)
 
 ### Key Mélodium patterns used
 
-- **Model fan-out with `loaded`** — the same `Block<void>` drives both `record.trigger` and `decode.ready`, ensuring the mic starts only after the model is ready.
-- **Dual fan-out on `transcribed`** — `-->` (multi-dash) connects one output to two inputs: `logInfos` and `writeTextLocal`, both receive every transcript string independently.
-- **`decodeMono` container parsing** — sits between raw file bytes and the Whisper engine, handling format detection transparently.
+- **Model fan-out with `loaded`**: the same `Block<void>` drives both `record.trigger` and `decode.ready`, ensuring the mic starts only after the model is ready.
+- **Dual fan-out on `transcribed`**: `-->` (multi-dash) connects one output to two inputs, so `logInfos` and `writeTextLocal` both receive every transcript string independently.
+- **`decodeMono` container parsing**: sits between raw file bytes and the Whisper engine, handling format detection transparently.

@@ -389,7 +389,7 @@ impl HttpServer {
 /// Blocks until `trigger` is received, then releases the HTTP server launch barrier so
 /// that the server begins accepting connections.
 ///
-/// ℹ️ Use this treatment together with `connection` — `start` unblocks the server, while
+/// ℹ️ Use this treatment together with `connection`: `start` unblocks the server, while
 /// each `connection` track handles an individual request.
 ///
 /// ```mermaid
@@ -413,7 +413,7 @@ pub async fn start() {
 
 /// Send an HTTP response for a specific connection.
 ///
-/// Low-level counterpart to `connection` — sends `status`, `headers`, and streams the body
+/// Low-level counterpart to `connection`, sending `status`, `headers`, and streaming the body
 /// `data` back to the client identified by `id`.
 ///
 /// `status` and `headers` must both arrive before any body data is forwarded; if either is

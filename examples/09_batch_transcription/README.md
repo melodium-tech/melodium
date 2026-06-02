@@ -27,7 +27,7 @@ melodium run Compo.toml -- \
 
 ### Treatments
 
-**`main`** — Entry point. Triggers the file read on startup, passes bytes directly to `transcribe[stt]`, and handles both the success and error paths.
+**`main`** is the entry point. It triggers the file read on startup, passes bytes directly to `transcribe[stt]`, and handles both the success and error paths.
 
 ### Data flow
 
@@ -35,7 +35,6 @@ melodium run Compo.toml -- \
 startup → logStart
         → readLocal (audio file)
               ↓ data: Stream<byte>
-          transcribe[stt]  (Whisper API call)
               ↓ transcript: Block<string>  (fan-out)
           ┌───┴────────────────────────────────────┐
           check<string> → logDone                  sttStream: stream<string>
@@ -55,7 +54,7 @@ write.errors      → writeErrors (log errors stream)
 
 ## Runtime behaviour
 
-1. `startup` fires; `logStart` logs "reading audio file…"; `readLocal` opens and streams the file bytes.
+1. `startup` fires; `logStart` logs "reading audio file..."; `readLocal` opens and streams the file bytes.
 2. `transcribe[stt]` receives the byte stream and sends the complete audio to the Whisper API. Whisper processes the full file server-side; this is a blocking network call (no streaming).
 3. When the API responds, `transcript: Block<string>` carries the full transcript text. This single block fans out to two paths:
    - `check<string>()` discards the value and emits a `Block<void>` to drive `logDone`.
@@ -64,7 +63,7 @@ write.errors      → writeErrors (log errors stream)
 
 ### Key Mélodium patterns used
 
-- **`check<T>()`** — discards the value in a `Block<T>` and emits `Block<void>`, useful when only the event matters (here: "transcription succeeded, log it").
-- **`stream<T>()`** — converts `Block<T>` to `Stream<T>` to satisfy stream-typed inputs. `writeTextLocal.text` expects `Stream<string>`, but `transcribe.transcript` is `Block<string>`.
-- **Fan-out from a single `Block`** — `transcribe.transcript` drives both `check` (for logging) and `sttStream` (for writing) simultaneously using `-->` (multi-arrow fan-out syntax).
-- **`RemoteStt` vs local Whisper** — no model download required; the API handles inference, at the cost of network latency and an API key.
+- **`check<T>()`**: discards the value in a `Block<T>` and emits `Block<void>`, useful when only the event matters (here: "transcription succeeded, log it").
+- **`stream<T>()`**: converts `Block<T>` to `Stream<T>` to satisfy stream-typed inputs. `writeTextLocal.text` expects `Stream<string>`, but `transcribe.transcript` is `Block<string>`.
+- **Fan-out from a single `Block`**: `transcribe.transcript` drives both `check` (for logging) and `sttStream` (for writing) simultaneously using `-->` (multi-arrow fan-out syntax).
+- **`RemoteStt` vs local Whisper**: no model download required; the API handles inference, at the cost of network latency and an API key.

@@ -1,6 +1,6 @@
 # Full Remote Voice Pipeline
 
-A complete speech-in / speech-out loop using three cloud APIs: OpenAI Whisper for transcription, GPT-4o for response generation, and ElevenLabs for speech synthesis. Reads an audio file, answers the question it contains, and writes the synthesised answer as an audio file.
+A complete speech-in / speech-out pipeline using three cloud APIs: OpenAI Whisper for transcription, GPT-4o for response generation, and ElevenLabs for speech synthesis. Reads an audio file, answers the question it contains, and writes the synthesised answer as an audio file.
 
 ## What it does
 
@@ -31,31 +31,31 @@ melodium run Compo.toml -- \
 
 ### Treatments
 
-**`main`** — Entry point. Sequences file read → STT → LLM → TTS → file write as a linear pipeline, delegating each stage to a sub-treatment.
+**`main`** is the entry point. It sequences file read → STT → LLM → TTS → file write as a linear pipeline, delegating each stage to a sub-treatment.
 
-**`sttTranscribe[stt]`** — Sends audio bytes to `transcribe[stt]`. The result is a `Block<string>`; `stream<string>()` converts it to `Stream<string>` for downstream streaming inputs.
+**`sttTranscribe[stt]`** sends audio bytes to `transcribe[stt]`. The result is a `Block<string>`; `stream<string>()` converts it to `Stream<string>` for downstream streaming inputs.
 
-**`llmRespond[llm]`** — Wraps each transcript string in a user prompt via `entry` + `format`, then calls `chat[llm]` which streams response tokens.
+**`llmRespond[llm]`** wraps each transcript string in a user prompt via `entry` + `format`, then calls `chat[llm]` which streams response tokens.
 
-**`ttsSpeak[tts]`** — Passes each response string to `synthesize[tts]`, which streams back raw audio bytes.
+**`ttsSpeak[tts]`** passes each response string to `synthesize[tts]`, which streams back raw audio bytes.
 
 ### Data flow
 
 ```
 startup → read (audio file)
               ↓ data: Stream<byte>
-          sttTranscribe[stt]
-            transcribe → stream<string>
+            sttTranscribe[stt]
+              transcribe → stream<string>
               ↓ transcript: Stream<string>
-          llmRespond[llm]
-            entry("q") → format → chat[llm]
+            llmRespond[llm]
+              entry("q") → format → chat[llm]
               ↓ answer: Stream<string>
-          ttsSpeak[tts]
-            synthesize[tts]
+            ttsSpeak[tts]
+              synthesize[tts]
               ↓ audio: Stream<byte>
-          writeLocal (output file)
+            writeLocal (output file)
               ↓ completed
-          logDone
+            logDone
 ```
 
 ## Runtime behaviour
@@ -68,7 +68,7 @@ startup → read (audio file)
 
 ### Key Mélodium patterns used
 
-- **`stream<string>()`** — bridges the Block/Stream boundary: `transcribe` returns a single `Block<string>`, but downstream treatments (LLM prompt, TTS) expect `Stream<string>`. The `stream` treatment converts one into the other.
-- **Three-API chaining without threading** — the three cloud API calls form a natural dataflow chain. Mélodium schedules each call as soon as its upstream data is available, without any explicit async code.
-- **`entry` + `format` prompt construction** — builds structured prompts from dynamic values using a template string, avoiding string interpolation or concatenation.
-- **Error isolation by stage** — each sub-treatment (`sttTranscribe`, `llmRespond`, `ttsSpeak`) handles its own error logging, keeping error handling co-located with the stage that can fail.
+- **`stream<string>()`**: bridges the Block/Stream boundary: `transcribe` returns a single `Block<string>`, but downstream treatments (LLM prompt, TTS) expect `Stream<string>`. The `stream` treatment converts one into the other.
+- **Three-API chaining without threading**: the three cloud API calls form a natural dataflow chain. Mélodium schedules each call as soon as its upstream data is available, without any explicit async code.
+- **`entry` + `format` prompt construction**: builds structured prompts from dynamic values using a template string, avoiding string interpolation or concatenation.
+- **Error isolation by stage**: each sub-treatment (`sttTranscribe`, `llmRespond`, `ttsSpeak`) handles its own error logging, keeping error handling co-located with the stage that can fail.

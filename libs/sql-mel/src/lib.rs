@@ -334,7 +334,7 @@ pub async fn close() {
 /// `completed` and `affected` are emitted on success; `failed` and `error` on failure.
 /// `finished` is always emitted.
 ///
-/// ⚠️ This treatment does not sanitise `sql` — only use it with trusted, static SQL strings.
+/// ⚠️ This treatment does not sanitise `sql`; only use it with trusted, static SQL strings.
 ///
 /// ```mermaid
 /// graph LR

@@ -105,7 +105,7 @@ pub async fn decode_mono(hint: Option<string>) {
         // Channel carrying error messages from the blocking thread back to the async side.
         // Each item is (fatal: bool, message: String). A fatal message is always the last one sent.
         let (err_sender, err_receiver) = bounded::<(bool, String)>(64);
-        // Channel carrying AudioInfo from the blocking thread — sent exactly once after probing.
+        // Channel carrying AudioInfo from the blocking thread, sent exactly once after probing.
         let (info_sender, info_receiver) = bounded::<AudioInfo>(1);
 
         let mut symphonia_hint = Hint::new();

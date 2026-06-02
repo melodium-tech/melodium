@@ -6,10 +6,10 @@ use melodium_macro::mel_data;
 /// `AudioInfo` is produced by decoding treatments and carries the properties of the source
 /// audio that were detected during format probing and codec initialisation.
 ///
-/// - `codec` — short name of the audio codec (e.g. `"pcm_s16le"`, `"flac"`, `"mp3"`, `"aac"`).
-/// - `channels` — number of audio channels in the original stream (e.g. `1` for mono, `2` for stereo).
-/// - `sample_rate` — number of samples per second (e.g. `44100`, `48000`).
-/// - `duration_seconds` — total duration of the stream in seconds, when known. `none` if the
+/// - `codec`: short name of the audio codec (e.g. `"pcm_s16le"`, `"flac"`, `"mp3"`, `"aac"`).
+/// - `channels`: number of audio channels in the original stream (e.g. `1` for mono, `2` for stereo).
+/// - `sample_rate`: number of samples per second (e.g. `44100`, `48000`).
+/// - `duration_seconds`: total duration of the stream in seconds, when known. `none` if the
 ///   container does not report a frame count (e.g. raw streams, some network sources).
 #[mel_data(traits(ToString Display Serialize Deserialize))]
 #[derive(Debug, Clone, Serialize, Deserialize)]

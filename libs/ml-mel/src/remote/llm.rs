@@ -22,14 +22,14 @@ use llm::{
 ///
 /// - `backend`: provider name (default `"mistral"`); see the table below.
 /// - `api_key`: API key for authentication (omit for Ollama or unauthenticated endpoints).
-/// - `base_url`: override the provider base URL — required for Ollama, Azure OpenAI,
-///   or custom OpenAI-compatible endpoints; see the table below.
-/// - `model`: model identifier — see the table below for recommended values per backend.
+/// - `base_url`: override the provider base URL (required for Ollama, Azure OpenAI,
+///   or custom OpenAI-compatible endpoints; see the table below).
+/// - `model`: model identifier; see the table below for recommended values per backend.
 /// - `system`: system prompt injected at the start of every conversation.
 /// - `max_tokens`: maximum tokens to generate per response (omit to use the backend default).
-/// - `temperature`: sampling temperature 0.0–2.0 (omit to use the backend default; some
+/// - `temperature`: sampling temperature from 0.0 to 2.0 (omit to use the backend default; some
 ///   backends reject `temperature` and `top_p` being set simultaneously).
-/// - `top_p`: nucleus sampling cutoff 0.0–1.0 (omit to use the backend default).
+/// - `top_p`: nucleus sampling cutoff from 0.0 to 1.0 (omit to use the backend default).
 /// - `timeout`: request timeout in seconds (omit to use the backend default).
 ///
 /// ## Backends
@@ -182,21 +182,21 @@ impl RemoteLlm {
 /// configured provider and emits the full response text on `response`.  If the
 /// request fails, `failed` and `error` are emitted instead.
 ///
-/// ℹ️ `load` is not required — the provider is initialised when the program starts.
+/// ℹ️ `load` is not required; the provider is initialised when the program starts.
 /// Use `stream` instead if you want token-by-token output.
 ///
 /// ```mermaid
 /// graph LR
 ///     T("chat()")
-///     P["🟩 🟩 …"] -->|prompt|   T
+///     P["🟩 🟩 …"] -->|prompt| T
 ///     T -->|response| R["🟩 🟩 …"]
-///     T -->|failed|   F["🟩 🟩 …"]
-///     T -->|error|    E["🟩 🟩 …"]
+///     T -->|failed| F["🟩 🟩 …"]
+///     T -->|error| E["🟩 🟩 …"]
 ///
-///     style P fill:#ffff,stroke:#ffff
-///     style R fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style P fill:#ffffff,stroke:#ffffff
+///     style R fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel
@@ -277,14 +277,14 @@ pub async fn chat() {
 /// graph LR
 ///     T("stream()")
 ///     P["🟩 🟩 …"] -->|prompt| T
-///     T -->|token|  K["🟩 🟩 🟩 🟩 …"]
+///     T -->|token| K["🟩 🟩 🟩 🟩 …"]
 ///     T -->|failed| F["🟩 🟩 …"]
-///     T -->|error|  E["🟩 🟩 …"]
+///     T -->|error| E["🟩 🟩 …"]
 ///
-///     style P fill:#ffff,stroke:#ffff
-///     style K fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style P fill:#ffffff,stroke:#ffffff
+///     style K fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel
@@ -373,19 +373,19 @@ pub async fn stream() {
 /// ```mermaid
 /// graph LR
 ///     T("visionChat()")
-///     I["〈🟦〉"] -->|image|    T
-///     M["〈🟨〉"] -->|mime|     T
-///     P["〈🟨〉"] -->|prompt|   T
+///     I["〈🟦〉"] -->|image| T
+///     M["〈🟨〉"] -->|mime| T
+///     P["〈🟨〉"] -->|prompt| T
 ///     T -->|response| R["〈🟨〉"]
-///     T -->|failed|   F["〈🟦〉"]
-///     T -->|error|    E["〈🟨〉"]
+///     T -->|failed| F["〈🟦〉"]
+///     T -->|error| E["〈🟨〉"]
 ///
-///     style I fill:#ffff,stroke:#ffff
-///     style M fill:#ffff,stroke:#ffff
-///     style P fill:#ffff,stroke:#ffff
-///     style R fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style I fill:#ffffff,stroke:#ffffff
+///     style M fill:#ffffff,stroke:#ffffff
+///     style P fill:#ffffff,stroke:#ffffff
+///     style R fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     model llm RemoteLlm

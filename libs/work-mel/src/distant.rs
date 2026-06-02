@@ -17,7 +17,7 @@ use uuid::Uuid;
 /// deployment, waits for the worker to become available, and provides an `Access` value for
 /// establishing a distribution connection.
 ///
-/// - `location`: where to submit the request — `"api"` (default) for Mélodium Services, or `"compose"` for a local Docker/Podman Compose deployment.
+/// - `location`: where to submit the request: `"api"` (default) for Mélodium Services, or `"compose"` for a local Docker/Podman Compose deployment.
 /// - `api_url`: base URL of the Mélodium Services API; defaults to the built-in endpoint.
 /// - `api_token`: authentication token for the API; can also be set via the `MELODIUM_API_TOKEN` environment variable.
 ///

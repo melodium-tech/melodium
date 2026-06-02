@@ -62,7 +62,7 @@ pub async fn record_mono(device: Option<string>, sample_rate: Option<u32>) {
         let (mono_sender, mono_receiver) = async_channel::bounded::<Vec<f32>>(256);
         // Channel carrying error messages: (fatal, message).
         let (err_sender, err_receiver) = async_channel::bounded::<(bool, String)>(64);
-        // Channel carrying AudioInfo — sent once after the stream starts successfully.
+        // Channel carrying AudioInfo, sent once after the stream starts successfully.
         let (info_sender, info_receiver) = async_channel::bounded::<AudioInfo>(1);
 
         // Future A: set up cpal and run the stream on the audio thread.
@@ -264,7 +264,7 @@ fn build_stream(
                     move |data: &[$t], _: &cpal::InputCallbackInfo| {
                         let mono = mix_to_mono::<$t>(data, num_channels);
                         if async_std::task::block_on(sender.send(mono)).is_err() {
-                            // receiver gone — stream will be dropped when capture_fut exits
+                            // receiver gone; stream will be dropped when capture_fut exits
                         }
                     },
                     move |e| {

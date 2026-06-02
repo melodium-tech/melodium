@@ -20,7 +20,7 @@ use llm::{
 /// - `backend`: provider name (default `"openai"`); see the table below.
 /// - `api_key`: API key for authentication (omit for unauthenticated endpoints).
 /// - `base_url`: override the provider base URL (optional).
-/// - `model`: model identifier — see the table below for recommended values per backend.
+/// - `model`: model identifier; see the table below for recommended values per backend.
 ///
 /// ## Backends
 ///
@@ -134,21 +134,21 @@ impl RemoteStt {
 /// `transcript`.  If the request fails, `failed` and `error` are emitted instead.
 ///
 /// ℹ️ The audio stream should be closed by the sender once all audio data has been
-/// sent — `transcribe` waits for the stream to close before submitting the request.
+/// sent; `transcribe` waits for the stream to close before submitting the request.
 /// Common audio formats: WAV, MP3, FLAC (format support depends on the backend).
 ///
 /// ```mermaid
 /// graph LR
 ///     T("transcribe()")
-///     A["🟩 🟩 🟩 …"] -->|audio|      T
+///     A["🟩 🟩 🟩 …"] -->|audio| T
 ///     T -->|transcript| R["〈🟨〉"]
-///     T -->|failed|     F["〈🟦〉"]
-///     T -->|error|      E["〈🟨〉"]
+///     T -->|failed| F["〈🟦〉"]
+///     T -->|error| E["〈🟨〉"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style R fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style R fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel
@@ -221,7 +221,7 @@ pub async fn transcribe() {
 /// decodable audio clip to the configured provider and emits the resulting text on
 /// `transcript`.  The treatment runs until `segments` is closed.
 ///
-/// Each item on `segments` must be a self-contained audio blob — the caller is
+/// Each item on `segments` must be a self-contained audio blob; the caller is
 /// responsible for producing meaningful segment boundaries (e.g. one WAV blob per
 /// utterance from a voice-activity detector, one chunk per WebSocket message from a
 /// streaming API, etc.).  Splitting at the raw byte level within an encoded format
@@ -233,15 +233,15 @@ pub async fn transcribe() {
 /// ```mermaid
 /// graph LR
 ///     T("transcribeContinuous()")
-///     S["🟩 🟩 🟩 …"] -->|segments|   T
+///     S["🟩 🟩 🟩 …"] -->|segments| T
 ///     T -->|transcript| R["🟩 🟩 🟩 …"]
-///     T -->|failed|     F["🟩 🟩 🟩 …"]
-///     T -->|error|      E["🟩 🟩 🟩 …"]
+///     T -->|failed| F["🟩 🟩 🟩 …"]
+///     T -->|error| E["🟩 🟩 🟩 …"]
 ///
-///     style S fill:#ffff,stroke:#ffff
-///     style R fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style R fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel

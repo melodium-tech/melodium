@@ -178,7 +178,7 @@ pub async fn concentrateBlock() {
 
 /// Wait for `trigger` then drain the `Concentrator` channel for type `T` on the current track, re-emitting all accumulated values through `data`.
 ///
-/// `trigger` must carry a value of the same type `T` as the accumulated data; the value itself is ignored — only its arrival matters.
+/// `trigger` must carry a value of the same type `T` as the accumulated data; the value itself is ignored and only its arrival matters.
 #[mel_treatment(
     model concentrator Concentrator
     generic T ()

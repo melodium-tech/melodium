@@ -26,7 +26,7 @@ melodium run Compo.toml -- \
 |---|---|---|
 | `runner` | `DistantEngine` | Provisions cloud runner via Mélodium Services API |
 | `distributor` | `DistributionEngine` | Routes work to `cloud_worker_pipeline/main::transform` |
-| `WordCounter` | `JavaScriptEngine` | JS function `countWords(line)` — instantiated on the remote runner |
+| `WordCounter` | `JavaScriptEngine` | JS function `countWords(line)` instantiated on the remote runner |
 
 ### Source file
 
@@ -34,7 +34,7 @@ Everything is in `main.mel`: the entry point, the dispatch bridge treatment, and
 
 ### Treatments
 
-**`main`** — Entry point:
+**`main`** is the entry point:
 1. Provisions the runner.
 2. Connects the distributor.
 3. Reads the input file once the distributor is ready.
@@ -42,20 +42,20 @@ Everything is in `main.mel`: the entry point, the dispatch bridge treatment, and
 5. Writes result strings locally.
 6. Stops the distributor when writing completes.
 
-**`dispatch[distributor]`** — Bridge treatment:
+**`dispatch[distributor]`** is the bridge treatment:
 - `trigger<byte>()` fires when the first input byte arrives.
 - `distribute` allocates a distribution slot (`distribution_id`).
 - `sendStream<byte>(name="data")` tunnels the input bytes to the remote `transform`.
 - `recvStream<string>(name="result")` collects the per-line word counts.
 
-**`transform`** — Executes remotely:
-1. `decode` — bytes to UTF-8 strings.
-2. `fromString<string>` — wraps each string as a `Json` value.
-3. `process[counter]` — calls `countWords(value)` in the JS engine.
-4. `unwrapOr<Json>` + `tryToString<Json>` + `unwrapOr<string>` — extracts the count string, defaulting to `"0"`.
+**`transform`** executes remotely:
+1. `decode` converts bytes to UTF-8 strings.
+2. `fromString<string>` wraps each string as a `Json` value.
+3. `process[counter]` calls `countWords(value)` in the JS engine.
+4. `unwrapOr<Json>` + `tryToString<Json>` + `unwrapOr<string>` extract the count string, defaulting to `"0"`.
 5. Output is `result: Stream<string>`.
 
-The `countWords` JavaScript function: trims whitespace, returns `"0"` for blank lines, otherwise returns the number of space-separated tokens as a string.
+The `countWords` JavaScript function trims whitespace, returns `"0"` for blank lines, and otherwise returns the number of space-separated tokens as a string.
 
 ## Distribution architecture
 
@@ -93,25 +93,21 @@ graph TD
 
 2. **Distribution connect**: `provisionRunner.access` flows to `distribStart.access`. The `DistributionEngine` connects to the runner and emits `ready`. `logProvisioned` fires at this point.
 
-3. **File reading**: `read.trigger` fires when `distribStart.ready` fires — the input file is read only after the runner is confirmed live. `read.data` (a `Stream<byte>`) flows directly into `dispatch.data`.
+3. **File reading**: `read.trigger` fires when `distribStart.ready` fires: the input file is read only after the runner is confirmed live. `read.data` (a `Stream<byte>`) flows directly into `dispatch.data`.
 
 4. **Remote processing**: `dispatch` calls `distribute` to get a `distribution_id`, then simultaneously tunnels:
    - The input bytes to `transform.data` via `sendStream<byte>(name="data")`.
    - Receives `transform.result` via `recvStream<string>(name="result")`.
-   
+
    On the runner, `transform` decodes lines, counts words via JavaScript, and streams count strings back.
 
-5. **Local write**: Result strings stream into `writeTextLocal`. When writing completes (`completed`), `distribStop.trigger` fires — the distributor sends a stop signal to the runner, releasing the cloud resource. `logDone` fires concurrently.
+5. **Local write**: Result strings stream into `writeTextLocal`. When writing completes (`completed`), `distribStop.trigger` fires: the distributor sends a stop signal to the runner, releasing the cloud resource. `logDone` fires concurrently.
 
 6. **Cleanup**: The runner is provisioned for at most 600 seconds (`max_duration`); `stop` releases it early when the pipeline finishes.
 
-### Key Mermaid note
-
-The `sendStream` and `recvStream` treatments use different type parameters (`byte` for input, `string` for result) and different names (`"data"` and `"result"`), matching the `transform` treatment's declared port names.
-
 ### Key Mélodium patterns used
 
-- **`stop[distributor]` for resource cleanup** — explicitly stops the distribution engine (and releases the cloud runner) after work completes. Without this, the runner would run until `max_duration` expires.
-- **Different send/recv types** — input bytes (`Stream<byte>`) are sent to the remote treatment, but results come back as strings (`Stream<string>`). The `name` parameter must match the remote treatment's port name exactly.
-- **`distribStart.ready` as file-read gate** — the local file is read only after the remote worker is confirmed ready, avoiding sending data into a closed channel.
-- **`JavaScriptEngine` on the runner** — the Mélodium runtime natively supports `JavaScriptEngine`; no special container image or system dependency is needed on the remote node.
+- **`stop[distributor]` for resource cleanup**: explicitly stops the distribution engine (and releases the cloud runner) after work completes. Without this, the runner would run until `max_duration` expires.
+- **Different send/recv types**: input bytes (`Stream<byte>`) are sent to the remote treatment, but results come back as strings (`Stream<string>`). The `name` parameter must match the remote treatment's port name exactly.
+- **`distribStart.ready` as file-read gate**: the local file is read only after the remote worker is confirmed ready, avoiding sending data into a closed channel.
+- **`JavaScriptEngine` on the runner**: the Mélodium runtime natively supports `JavaScriptEngine`; no special container image or system dependency is needed on the remote node.
