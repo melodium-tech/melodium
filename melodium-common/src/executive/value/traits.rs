@@ -2861,6 +2861,8 @@ impl core::fmt::Display for Value {
                     .any(|c| c.is_control() && c != '\n' && c != '\t' && c != '\r')
                     || v.contains(['\0'])
                     || !v.contains(['\n', '\t', '\r'])
+                    || v.starts_with('{')
+                    || v.ends_with('}')
                 {
                     write!(
                         f,
@@ -2879,12 +2881,21 @@ impl core::fmt::Display for Value {
                             .collect::<String>()
                     )
                 } else {
-                    let mut start_braces: String = "{".into();
-                    let mut end_braces: String = "}".into();
-                    while v.contains(&start_braces) || v.contains(&end_braces) {
-                        start_braces.push('{');
-                        end_braces.push('}');
-                    }
+                    let longest_run = |ch: char| -> usize {
+                        v.chars()
+                            .fold((0usize, 0usize), |(longest, current), c| {
+                                if c == ch {
+                                    let current = current + 1;
+                                    (longest.max(current), current)
+                                } else {
+                                    (longest, 0)
+                                }
+                            })
+                            .0
+                    };
+                    let width = longest_run('{').max(longest_run('}')) + 1;
+                    let start_braces = "{".repeat(width);
+                    let end_braces = "}".repeat(width);
                     write!(f, "${start_braces}{v}{end_braces}")
                 }
             }
@@ -2906,5 +2917,122 @@ impl core::fmt::Display for Value {
 
             Value::Data(obj) => write!(f, "/* {} */", obj.descriptor().identifier().name()),
         }
+    }
+}
+
+#[cfg(test)]
+mod string_display_tests {
+    use super::Value;
+
+    /// Mirrors `manage_string` in `melodium-lang/src/text/word.rs`, which counts every
+    /// consecutive `{` right after `$` as the delimiter width, with no separator between
+    /// delimiter and content.
+    fn parse_raw_block(rendered: &str) -> Option<String> {
+        let text = rendered.strip_prefix('$')?;
+        let num_braces = text.chars().take_while(|c| *c == '{').count();
+        if num_braces == 0 {
+            return None;
+        }
+        let end_braces = "}".repeat(num_braces);
+        let rest = &text[num_braces..];
+        let end_position = rest.find(&end_braces)?;
+        Some(rest[..end_position].to_string())
+    }
+
+    fn parse_quoted(rendered: &str) -> Option<String> {
+        let inner = rendered.strip_prefix('"')?.strip_suffix('"')?;
+        let mut out = String::new();
+        let mut chars = inner.chars();
+        while let Some(c) = chars.next() {
+            if c == '\\' {
+                match chars.next()? {
+                    'n' => out.push('\n'),
+                    'r' => out.push('\r'),
+                    't' => out.push('\t'),
+                    '\\' => out.push('\\'),
+                    '0' => out.push('\0'),
+                    '"' => out.push('"'),
+                    other => out.push(other),
+                }
+            } else {
+                out.push(c);
+            }
+        }
+        Some(out)
+    }
+
+    fn assert_roundtrip(v: &str) {
+        let rendered = Value::String(v.to_string()).to_string();
+        let recovered = if rendered.starts_with('"') {
+            parse_quoted(&rendered)
+        } else {
+            parse_raw_block(&rendered)
+        };
+        assert_eq!(
+            recovered.as_deref(),
+            Some(v),
+            "round-trip failed for {v:?}, rendered as {rendered:?}"
+        );
+    }
+
+    #[test]
+    fn roundtrips_plain_multiline_string_as_raw_block() {
+        let rendered = Value::String("plain\ntext".to_string()).to_string();
+        assert_eq!(rendered, "${plain\ntext}");
+        assert_roundtrip("plain\ntext");
+    }
+
+    #[test]
+    fn roundtrips_single_line_string_as_quoted() {
+        let rendered = Value::String("plain text".to_string()).to_string();
+        assert_eq!(rendered, "\"plain text\"");
+        assert_roundtrip("plain text");
+    }
+
+    #[test]
+    fn roundtrips_interior_brace_runs_as_raw_block() {
+        // Braces appear only in the interior, never touching the string edges.
+        assert_roundtrip("multi\nline{ok}\nstill fine");
+        assert_roundtrip("a{b}}c{{{d\nmore");
+    }
+
+    #[test]
+    fn falls_back_to_quoted_when_leading_open_brace() {
+        let rendered = Value::String("{{{".to_string()).to_string();
+        assert_eq!(rendered, "\"{{{\"");
+        assert_roundtrip("{{{");
+        assert_roundtrip("\n{starts with brace");
+    }
+
+    #[test]
+    fn falls_back_to_quoted_when_trailing_close_brace() {
+        let rendered = Value::String("}}}".to_string()).to_string();
+        assert_eq!(rendered, "\"}}}\"");
+        assert_roundtrip("}}}");
+        assert_roundtrip("ends with brace\n}");
+    }
+
+    #[test]
+    fn falls_back_to_quoted_when_wrapped_entirely_in_braces() {
+        assert_roundtrip("{ok}");
+        assert_roundtrip("{}");
+        assert_roundtrip("{");
+        assert_roundtrip("}");
+    }
+
+    #[test]
+    fn roundtrips_empty_and_newline_only_strings() {
+        assert_roundtrip("");
+        assert_roundtrip("\n");
+    }
+
+    #[test]
+    fn raw_block_delimiter_width_exceeds_longest_interior_brace_run() {
+        // Longest interior run is 3 ('{{{'), so the delimiter must use 4 braces on each side
+        // to stay unambiguous — this was the original bug (lockstep counting produced a
+        // mismatched/insufficient width for asymmetric runs).
+        let rendered = Value::String("x{{{y\n".to_string()).to_string();
+        assert_eq!(rendered, "${{{{x{{{y\n}}}}");
+        assert_roundtrip("x{{{y\n");
     }
 }
