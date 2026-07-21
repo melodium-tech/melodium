@@ -489,8 +489,28 @@ impl DistributionEngine {
     }
 
     async fn continuous(&self) {
-        self.wait_protocol_ready().await;
         let world = self.model.upgrade().map(|model| model.world().clone());
+
+        // `start()` may never be called at all - e.g. the treatment
+        // instance responsible for it never receives its `access` input, so
+        // its track simply completes without ever calling `start`. Racing
+        // against `wait_no_more_tracks` instead of only waiting on
+        // `wait_protocol_ready` avoids blocking the whole engine forever in
+        // that case: once no track is running or pending anymore, `start`
+        // genuinely never will be called, so there is nothing left to wait
+        // for and this continuous task can safely end.
+        if let Some(world) = &world {
+            select! {
+                _ = self.wait_protocol_ready().fuse() => {},
+                _ = world.wait_no_more_tracks().fuse() => {
+                    if !self.protocol_ready_fired.load(Ordering::SeqCst) {
+                        return;
+                    }
+                },
+            }
+        } else {
+            self.wait_protocol_ready().await;
+        }
 
         let mut ended = false;
         let mut log_ended = false;

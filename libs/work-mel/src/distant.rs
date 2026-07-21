@@ -217,10 +217,9 @@ impl DistantEngine {
             Ok((access, mut child)) => {
                 let finish_notification = async move {
                     let mut possible_errors = Vec::new();
-                    let status =
-                        async_std::future::timeout(Duration::from_secs(10), child.status()).await;
+                    let status = child.status().await;
                     match status {
-                        Ok(Ok(exit)) => {
+                        Ok(exit) => {
                             if let (Some(run_api_id), Some(api_url), Some(api_token)) =
                                 (run_api_id, api_url, api_token)
                             {
@@ -262,7 +261,7 @@ impl DistantEngine {
                                 }
                             }
                         }
-                        Ok(Err(err)) => {
+                        Err(err) => {
                             if let (Some(run_api_id), Some(api_url), Some(api_token)) =
                                 (run_api_id, api_url, api_token)
                             {
@@ -288,35 +287,6 @@ impl DistantEngine {
                                 .await;
 
                                 possible_errors.push(err.to_string());
-                            }
-                        }
-                        Err(err) => {
-                            if let (Some(run_api_id), Some(api_url), Some(api_token)) =
-                                (run_api_id, api_url, api_token)
-                            {
-                                let _ = generic_async_http_client::Request::post(&format!(
-                                    "{api_url}/execution/run/ended"
-                                ))
-                                .add_header("User-Agent", crate::USER_AGENT)?
-                                .add_header(
-                                    "Authorization",
-                                    format!("Bearer {api_token}").as_bytes(),
-                                )?
-                                .add_header("Content-Type", "application/json")?
-                                .body(
-                                    serde_json::to_string(&api::LocalEnd {
-                                        run_id: run_api_id,
-                                        result: api::DistributionResult::Success(Some(vec![
-                                            format!("Compose exit timeout: {}", err.to_string()),
-                                        ])),
-                                    })
-                                    .unwrap(),
-                                )?
-                                .exec()
-                                .await;
-
-                                possible_errors
-                                    .push(format!("Compose exit timeout: {}", err.to_string()));
                             }
                         }
                     }

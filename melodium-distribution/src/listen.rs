@@ -26,12 +26,28 @@ use melodium_loader::Loader;
 use melodium_share::{ProgramDump, SharingError, SharingResult};
 use std::{
     collections::{HashMap, VecDeque},
-    sync::Arc,
+    sync::{Arc, OnceLock},
 };
 use uuid::Uuid;
 
 const CERTIFICATE_CHAIN: &[u8; 4715] = include_bytes!("../melodium-chain.pem");
 const LOCALHOST_KEY: &[u8; 3272] = include_bytes!("../melodium-localhost.key.pem");
+const DEFAULT_TEARDOWN_TIMEOUT_SECS: u64 = 60;
+
+/// Grace period, after the distributed engine and connection are expected to
+/// be done, before forcing teardown of the connection and log/debug channels.
+/// Overridable through `MELODIUM_DIST_TEARDOWN_TIMEOUT_SECS`, mainly to allow
+/// tests to exercise this safety net without waiting a full minute.
+fn teardown_timeout() -> Duration {
+    static TEARDOWN_TIMEOUT: OnceLock<Duration> = OnceLock::new();
+    *TEARDOWN_TIMEOUT.get_or_init(|| {
+        std::env::var("MELODIUM_DIST_TEARDOWN_TIMEOUT_SECS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .map(Duration::from_secs)
+            .unwrap_or(Duration::from_secs(DEFAULT_TEARDOWN_TIMEOUT_SECS))
+    })
+}
 
 pub async fn launch_listen(
     bind: SocketAddr,
@@ -377,12 +393,14 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     for log_sender in logs_senders {
         engine.add_logs_listener(log_sender);
     }
+    let watchdog_logs_receiver = logs_receiver.clone();
 
     let (debug_sender, debug_receiver) = unbounded();
     engine.add_debug_listener(debug_sender);
     for debug_sender in debug_senders {
         engine.add_debug_listener(debug_sender);
     }
+    let watchdog_debug_receiver = debug_receiver.clone();
 
     if let Err(fail) = engine
         .genesis(&entrypoint.try_into().unwrap(), parameters)
@@ -709,8 +727,29 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
 
     let probe = async_std::task::spawn(probe);
 
+    // Safety net: `run`/`logs`/`debug` normally end once the engine reports it
+    // ended (peer sends `Message::Ended`, or protocol errors out) and the
+    // log/debug channels close. If the peer never confirms and the connection
+    // stays silently open, none of those futures would otherwise ever resolve,
+    // leaving this whole function - and therefore the process - stuck forever
+    // even though the engine itself is done. Race a watchdog alongside the
+    // real teardown that forces everything closed after a grace period, so
+    // the still-running futures unblock and join naturally.
+    let watchdog = {
+        let engine = Arc::clone(&engine);
+        let protocol = Arc::clone(&protocol);
+        async_std::task::spawn(async move {
+            async_std::task::sleep(teardown_timeout()).await;
+            engine.end().await;
+            protocol.close().await;
+            watchdog_logs_receiver.close();
+            watchdog_debug_receiver.close();
+        })
+    };
+
     futures::join!(limit, live, run, logs, debug);
 
+    watchdog.cancel().await;
     protocol.close().await;
     probe.cancel().await;
 

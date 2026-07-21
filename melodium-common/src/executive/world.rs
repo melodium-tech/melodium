@@ -35,4 +35,12 @@ pub trait World: Debug + Send + Sync {
     async fn log(&self, level: Level, label: String, message: String, track_id: Option<TrackId>);
     async fn inject_log(&self, log: Log) -> Result<(), ()>;
     async fn inject_debug(&self, run_id: Uuid, data: String) -> Result<(), ()>;
+    /// Resolves once no track is running nor pending anymore (having run at
+    /// least one first), independently of whether the engine will actually
+    /// auto-end. Lets a continuous task that is itself waiting on some event
+    /// only fired in reaction to a track running (e.g. a model waiting to be
+    /// started by a treatment instance that may never run) detect that no
+    /// track will ever run again, instead of waiting forever or relying on
+    /// an arbitrary timeout.
+    async fn wait_no_more_tracks(&self);
 }

@@ -2,12 +2,15 @@
 resolver = "2"
 members = [
     "complex_call",
+    "distribution_engine_never_started",
     "fs",
     "generics",
     "http_client",
     "http_distributed",
     "http_javascript",
     "process",
+    "process_distributed",
+    "process_distributed_hang",
     "regex",
     "sql",
 ]

@@ -75,6 +75,17 @@ pub struct World {
     continous_ended: AtomicBool,
     continous_ended_barrier: Barrier,
     closing: AtomicBool,
+
+    // Closed once no track is running nor pending, independently of
+    // `continous_ended`/`auto_end`. Lets a continuous task (which may itself
+    // be the only reason `continous_ended` never becomes true, e.g. one
+    // waiting on an event only fired once, in reaction to some track having
+    // run) find out that no track will ever run again, without relying on an
+    // arbitrary timeout.
+    no_more_tracks_sender: Sender<()>,
+    no_more_tracks_receiver: Receiver<()>,
+    no_more_tracks_signaled: AtomicBool,
+    has_run_any_track: AtomicBool,
 }
 
 impl Debug for World {
@@ -99,6 +110,7 @@ impl World {
         let (continuous_tasks_sender, continuous_tasks_receiver) = unbounded();
         let (logs_sender, logs_receiver) = unbounded();
         let (debug_sender, debug_receiver) = unbounded();
+        let (no_more_tracks_sender, no_more_tracks_receiver) = unbounded();
 
         Arc::new_cyclic(|me| Self {
             collection,
@@ -131,6 +143,10 @@ impl World {
             continous_ended: AtomicBool::new(false),
             continous_ended_barrier: Barrier::new(2),
             closing: AtomicBool::new(false),
+            no_more_tracks_sender,
+            no_more_tracks_receiver,
+            no_more_tracks_signaled: AtomicBool::new(false),
+            has_run_any_track: AtomicBool::new(false),
         })
     }
 
@@ -330,6 +346,7 @@ impl World {
         loop {
             select! {
                 received_track = tracks_receiver.select_next_some() => {
+                    self.has_run_any_track.store(true, Ordering::Relaxed);
                     let _ = self.tracks_running.fetch_add(1, Ordering::Relaxed);
                     futures.push(track_future(received_track));
 
@@ -368,11 +385,15 @@ impl World {
     async fn check_closing(&self) {
         let tracks_recv = self.tracks_receiver.len();
         let tracks_run = self.tracks_running.load(Ordering::Relaxed);
-        if self.auto_end()
-            && self.continous_ended.load(Ordering::Relaxed)
+        let no_more_tracks = self.has_run_any_track.load(Ordering::Relaxed)
             && tracks_recv == 0
-            && tracks_run == 0
-        {
+            && tracks_run == 0;
+
+        if no_more_tracks && !self.no_more_tracks_signaled.swap(true, Ordering::SeqCst) {
+            self.no_more_tracks_sender.close();
+        }
+
+        if self.auto_end() && self.continous_ended.load(Ordering::Relaxed) && no_more_tracks {
             self.end().await;
         }
     }
@@ -899,5 +920,10 @@ impl ExecutiveWorld for World {
             .send(Event::new(EventKind::Distant { run_id, text: data }))
             .await
             .map_err(|_| ())
+    }
+
+    async fn wait_no_more_tracks(&self) {
+        let mut receiver = self.no_more_tracks_receiver.clone();
+        let _ = receiver.next().await;
     }
 }
