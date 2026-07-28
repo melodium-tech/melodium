@@ -2,10 +2,10 @@ name    = "realtime_voice_assistant"
 version = "0.1.0"
 
 [dependencies]
-std   = "0.10.1"
-audio = "0.10.1"
-record = "0.10.1"
-ml    = "0.10.1"
+std   = "0.10.2"
+audio = "0.10.2"
+record = "0.10.2"
+ml    = "0.10.2"
 
 [entrypoints]
 main      = "realtime_voice_assistant/main::main"

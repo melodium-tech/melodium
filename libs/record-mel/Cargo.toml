@@ -1,6 +1,6 @@
 [package]
 name = "record-mel"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -21,10 +21,10 @@ async-std = "1.13"
 async-channel = "2"
 cpal = { version = "0.17", optional = true }
 futures = "0.3.28"
-melodium-core = { path = "../../melodium-core", version = "0.10.1" }
-melodium-macro = { path = "../../melodium-macro", version = "0.10.1" }
-std-mel = { path = "../std-mel", version = "0.10.1" }
-audio-mel = { path = "../audio-mel", version = "0.10.1" }
+melodium-core = { path = "../../melodium-core", version = "0.10.2" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.2" }
+std-mel = { path = "../std-mel", version = "0.10.2" }
+audio-mel = { path = "../audio-mel", version = "0.10.2" }
 
 [features]
 mock = []
