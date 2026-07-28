@@ -2,13 +2,13 @@ name    = "distributed_llm_inference"
 version = "0.1.0"
 
 [dependencies]
-std      = "0.10.1"
-http     = "0.10.1"
-net      = "0.10.1"
-encoding = "0.10.1"
-work     = "0.10.1"
-distrib  = "0.10.1"
-ml       = "0.10.1"
+std      = "0.10.2"
+http     = "0.10.2"
+net      = "0.10.2"
+encoding = "0.10.2"
+work     = "0.10.2"
+distrib  = "0.10.2"
+ml       = "0.10.2"
 
 [entrypoints]
 main = "distributed_llm_inference/main::server"

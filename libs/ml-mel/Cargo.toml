@@ -1,6 +1,6 @@
 [package]
 name = "ml-mel"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
 rust-version = "1.83"
 edition = "2021"
@@ -43,8 +43,8 @@ llm = { version = "1.3", optional = true, default-features = false, features = [
     "huggingface",
     "bedrock"
 ]}
-melodium-core = { path = "../../melodium-core", version = "0.10.1" }
-melodium-macro = { path = "../../melodium-macro", version = "0.10.1" }
+melodium-core = { path = "../../melodium-core", version = "0.10.2" }
+melodium-macro = { path = "../../melodium-macro", version = "0.10.2" }
 
 [features]
 mock = []

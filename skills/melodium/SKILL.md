@@ -291,9 +291,9 @@ name    = "my_project"
 version = "0.1.0"
 
 [dependencies]
-std  = "0.10.1"
-http = "0.10.1"
-fs   = "0.10.1"
+std  = "0.10.2"
+http = "0.10.2"
+fs   = "0.10.2"
 
 [entrypoints]
 main   = "my_project/main::main"
@@ -301,8 +301,8 @@ server = "my_project/server::serve"
 ```
 
 - `std` must be declared explicitly even though it is the standard library.
-- Version strings follow SemVer compatibility rules (Cargo-style): `"0.10.1"` allows `>=0.10.1, <0.11.0`.
-- Other operators: `~0.10.1` (patch only), `0.10.*` (wildcard), `>= 0.9, < 0.11` (range).
+- Version strings follow SemVer compatibility rules (Cargo-style): `"0.10.2"` allows `>=0.10.2, <0.11.0`.
+- Other operators: `~0.10.2` (patch only), `0.10.*` (wildcard), `>= 0.9, < 0.11` (range).
 
 ### Entrypoints
 
@@ -322,7 +322,7 @@ Single-file scripts with a mandatory shebang and metadata header:
 #!/usr/bin/env melodium
 #! name    = my_script
 #! version = 0.1.0
-#! require = std:0.10.1 fs:0.10.1
+#! require = std:0.10.2 fs:0.10.2
 
 // Usual Mélodium code…
 // Must have exactly one treatment named "main".

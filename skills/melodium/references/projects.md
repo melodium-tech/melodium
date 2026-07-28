@@ -37,10 +37,10 @@ name    = "my_project"
 version = "0.1.0"
 
 [dependencies]
-std  = "0.10.1"
-http = "0.10.1"
-fs   = "0.10.1"
-json = "0.10.1"
+std  = "0.10.2"
+http = "0.10.2"
+fs   = "0.10.2"
+json = "0.10.2"
 
 [entrypoints]
 main   = "my_project/main::main"
@@ -58,12 +58,12 @@ server = "my_project/server::serve"
 
 | Syntax | Meaning |
 |--------|---------|
-| `"0.10.1"` | `>=0.10.1, <0.11.0` (minor-compatible) |
-| `"~0.10.1"` | `>=0.10.1, <0.10.2` (patch-only) |
+| `"0.10.2"` | `>=0.10.2, <0.11.0` (minor-compatible) |
+| `"~0.10.2"` | `>=0.10.2, <0.10.2` (patch-only) |
 | `"0.10.*"` | Any patch of `0.10` |
 | `">= 0.9, < 0.11"` | Explicit range |
 
-For active Mélodium development, prefer `"0.10.1"` (minor-compatible). All standard-library packages share the same version number as the engine.
+For active Mélodium development, prefer `"0.10.2"` (minor-compatible). All standard-library packages share the same version number as the engine.
 
 ### Common dependency set
 
@@ -71,10 +71,10 @@ For most projects start with:
 
 ```toml
 [dependencies]
-std  = "0.10.1"   # always required
-fs   = "0.10.1"   # file I/O
-http = "0.10.1"   # HTTP client/server
-json = "0.10.1"   # JSON
+std  = "0.10.2"   # always required
+fs   = "0.10.2"   # file I/O
+http = "0.10.2"   # HTTP client/server
+json = "0.10.2"   # JSON
 ```
 
 Add `process`, `sql`, `regex`, `net`, `javascript`, `distrib`, `work`, `cicd` only when needed.
@@ -347,7 +347,7 @@ For single-file scripts that do not need a project directory:
 #!/usr/bin/env melodium
 #! name    = my_script
 #! version = 0.1.0
-#! require = std:0.10.1 fs:0.10.1
+#! require = std:0.10.2 fs:0.10.2
 
 use std/engine/util::startup
 use fs/file::read

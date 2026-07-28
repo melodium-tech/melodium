@@ -2,12 +2,12 @@ name    = "javascript_transform"
 version = "0.1.0"
 
 [dependencies]
-std        = "0.10.1"
-http       = "0.10.1"
-net        = "0.10.1"
-json       = "0.10.1"
-encoding   = "0.10.1"
-javascript = "0.10.1"
+std        = "0.10.2"
+http       = "0.10.2"
+net        = "0.10.2"
+json       = "0.10.2"
+encoding   = "0.10.2"
+javascript = "0.10.2"
 
 [entrypoints]
 main = "javascript_transform/main::main"
