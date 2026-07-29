@@ -332,18 +332,23 @@ pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
                     let mut fields = fields.clone();
                     fields.insert("key".to_string(), format!("{path}/logs_{batch_index}.json"));
 
-                    if let Err(err) = send_logs_to_s3(&uri, fields, &buffer_logs).await {
-                        eprintln!("Failed to send logs to S3: {err}");
+                    match send_logs_to_s3(&uri, fields, &buffer_logs).await {
+                        Ok(()) => {
+                            buffer_logs.clear();
+                            batch_index += 1;
+
+                            if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
+                                eprintln!("Failed to send logs chunk to API: {err}");
+                            }
+                        }
+                        Err(err) => {
+                            eprintln!(
+                                "Failed to send logs to S3, will retry with next batch: {err}"
+                            );
+                        }
                     }
 
-                    buffer_logs.clear();
                     timestamp = std::time::SystemTime::now();
-
-                    batch_index += 1;
-
-                    if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
-                        eprintln!("Failed to send debug chunk to API: {err}");
-                    }
                 }
             }
             // Send any remaining logs
@@ -351,14 +356,17 @@ pub async fn report_logs(specs: PushSpecs, logs: Receiver<Log>) {
                 let mut fields = fields.clone();
                 fields.insert("key".to_string(), format!("{path}/logs_{batch_index}.json"));
 
-                if let Err(err) = send_logs_to_s3(&uri, fields, &buffer_logs).await {
-                    eprintln!("Failed to send logs to S3: {err}");
-                }
+                match send_logs_to_s3(&uri, fields, &buffer_logs).await {
+                    Ok(()) => {
+                        batch_index += 1;
 
-                batch_index += 1;
-
-                if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
-                    eprintln!("Failed to send debug chunk to API: {err}");
+                        if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
+                            eprintln!("Failed to send logs chunk to API: {err}");
+                        }
+                    }
+                    Err(err) => {
+                        eprintln!("Failed to send final logs batch to S3: {err}");
+                    }
                 }
             }
         }
@@ -392,18 +400,23 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
                         format!("{path}/debug_{batch_index}.json"),
                     );
 
-                    if let Err(err) = send_debug_to_s3(&uri, fields, &buffer_events).await {
-                        eprintln!("Failed to send debug events to S3: {err}");
+                    match send_debug_to_s3(&uri, fields, &buffer_events).await {
+                        Ok(()) => {
+                            buffer_events.clear();
+                            batch_index += 1;
+
+                            if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
+                                eprintln!("Failed to send debug chunk to API: {err}");
+                            }
+                        }
+                        Err(err) => {
+                            eprintln!(
+                                "Failed to send debug events to S3, will retry with next batch: {err}"
+                            );
+                        }
                     }
 
-                    buffer_events.clear();
                     timestamp = std::time::SystemTime::now();
-
-                    batch_index += 1;
-
-                    if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
-                        eprintln!("Failed to send debug chunk to API: {err}");
-                    }
                 }
             }
             // Send any remaining logs
@@ -414,14 +427,17 @@ pub async fn report_debug(specs: PushSpecs, events: Receiver<melodium_engine::de
                     format!("{path}/debug_{batch_index}.json"),
                 );
 
-                if let Err(err) = send_debug_to_s3(&uri, fields, &buffer_events).await {
-                    eprintln!("Failed to send debug events to S3: {err}");
-                }
+                match send_debug_to_s3(&uri, fields, &buffer_events).await {
+                    Ok(()) => {
+                        batch_index += 1;
 
-                batch_index += 1;
-
-                if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
-                    eprintln!("Failed to send debug chunk to API: {err}");
+                        if let Err(err) = chunks_update(&chunks_update_uri, batch_index).await {
+                            eprintln!("Failed to send debug chunk to API: {err}");
+                        }
+                    }
+                    Err(err) => {
+                        eprintln!("Failed to send final debug batch to S3: {err}");
+                    }
                 }
             }
         }
@@ -603,19 +619,28 @@ async fn send_debug_to_s3(
 
 #[cfg(feature = "real")]
 async fn chunks_update(uri: &str, chunks: u128) -> Result<(), String> {
-    CLIENT
-        .as_ref()?
-        .post(uri)
-        .bearer_auth(
-            crate::API_TOKEN
-                .as_ref()
-                .map(|token| token.as_str())
-                .unwrap_or(&""),
-        )
-        .header("Content-Type", "application/json")
-        .body(serde_json::to_string(&ReportingChunks { chunks }).unwrap())
-        .send()
-        .await
-        .map(|_| ())
-        .map_err(|err| err.to_string())
+    let mut result = Ok(());
+    for _ in 0..REQUESTS_RETRY {
+        result = CLIENT
+            .as_ref()?
+            .post(uri)
+            .bearer_auth(
+                crate::API_TOKEN
+                    .as_ref()
+                    .map(|token| token.as_str())
+                    .unwrap_or(&""),
+            )
+            .header("Content-Type", "application/json")
+            .body(serde_json::to_string(&ReportingChunks { chunks }).unwrap())
+            .send()
+            .await
+            .map(|_| ())
+            .map_err(|err| err.to_string());
+
+        if result.is_ok() {
+            break;
+        }
+    }
+
+    result
 }

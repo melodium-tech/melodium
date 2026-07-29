@@ -385,9 +385,8 @@ impl World {
     async fn check_closing(&self) {
         let tracks_recv = self.tracks_receiver.len();
         let tracks_run = self.tracks_running.load(Ordering::Relaxed);
-        let no_more_tracks = self.has_run_any_track.load(Ordering::Relaxed)
-            && tracks_recv == 0
-            && tracks_run == 0;
+        let no_more_tracks =
+            self.has_run_any_track.load(Ordering::Relaxed) && tracks_recv == 0 && tracks_run == 0;
 
         if no_more_tracks && !self.no_more_tracks_signaled.swap(true, Ordering::SeqCst) {
             self.no_more_tracks_sender.close();
@@ -640,10 +639,10 @@ impl Engine for World {
 
         // TODO for WASM
         #[cfg(not(target_os = "unknown"))]
-        {
-            async_std::task::spawn(logs_transmission);
-            async_std::task::spawn(debug_transmission);
-        }
+        let (logs_transmission, debug_transmission) = (
+            async_std::task::spawn(logs_transmission),
+            async_std::task::spawn(debug_transmission),
+        );
 
         self.continuous_tasks_sender.close();
 
@@ -651,6 +650,12 @@ impl Engine for World {
 
         me.logs_receiver.close();
         me.debug_receiver.close();
+
+        // Wait for the transmission tasks to actually forward every already-emitted
+        // log/debug event to all registered listeners and close those listeners, so
+        // callers that treat `live()` returning as "everything has been delivered"
+        // (e.g. reporting listeners, or an "ended" signal sent right after) are correct.
+        join!(logs_transmission, debug_transmission);
     }
 
     async fn instanciate(&self, callback: Option<DirectCreationCallback>) -> LogicResult<()> {

@@ -49,6 +49,10 @@ fn teardown_timeout() -> Duration {
     })
 }
 
+/// Returns `true` if the run actually launched and went through its lifecycle (so the
+/// caller should, once it has also made sure any log/debug/program reporting it is
+/// separately draining has finished, signal the run as ended); `false` if launch never
+/// happened (in which case there is nothing to report as ended).
 pub async fn launch_listen(
     bind: SocketAddr,
     certificate_chain: &[u8],
@@ -70,10 +74,7 @@ pub async fn launch_listen(
                 -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
         >,
     >,
-    ended: Option<
-        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
-    >,
-) {
+) -> bool {
     let acceptor = acceptor(certificate_chain, key).unwrap();
     let listener = TcpListener::bind(bind).await.unwrap();
 
@@ -94,7 +95,7 @@ pub async fn launch_listen(
                 if let Some(launched) = launched {
                     launched(Err("Distribution timeout".to_string())).await;
                 }
-                return;
+                return false;
             }
         }
     } else {
@@ -112,11 +113,14 @@ pub async fn launch_listen(
         debug_senders,
         program_dump_sender,
         launched,
-        ended,
     )
     .await
 }
 
+/// Returns `true` if the run actually launched and went through its lifecycle (so the
+/// caller should, once it has also made sure any log/debug/program reporting it is
+/// separately draining has finished, signal the run as ended); `false` if launch never
+/// happened (in which case there is nothing to report as ended).
 pub async fn launch_listen_localcert(
     bind: SocketAddr,
     version: &Version,
@@ -136,10 +140,7 @@ pub async fn launch_listen_localcert(
                 -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
         >,
     >,
-    ended: Option<
-        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
-    >,
-) {
+) -> bool {
     launch_listen(
         bind,
         CERTIFICATE_CHAIN.as_slice(),
@@ -154,11 +155,14 @@ pub async fn launch_listen_localcert(
         debug_senders,
         program_dump_sender,
         launched,
-        ended,
     )
     .await
 }
 
+/// Returns `true` if the run actually launched and went through its lifecycle (so the
+/// caller should, once it has also made sure any log/debug/program reporting it is
+/// separately draining has finished, signal the run as ended); `false` if launch never
+/// happened (in which case there is nothing to report as ended).
 pub async fn launch_listen_unsecure(
     bind: SocketAddr,
     version: &Version,
@@ -178,10 +182,7 @@ pub async fn launch_listen_unsecure(
                 -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
         >,
     >,
-    ended: Option<
-        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
-    >,
-) {
+) -> bool {
     let listener = TcpListener::bind(bind).await.unwrap();
 
     let accept_stream = async {
@@ -197,7 +198,7 @@ pub async fn launch_listen_unsecure(
                 if let Some(launched) = launched {
                     launched(Err("Distribution timeout".to_string())).await;
                 }
-                return;
+                return false;
             }
         }
     } else {
@@ -215,11 +216,14 @@ pub async fn launch_listen_unsecure(
         debug_senders,
         program_dump_sender,
         launched,
-        ended,
     )
     .await
 }
 
+/// Returns `true` if the run actually launched and went through its lifecycle (so the
+/// caller should, once it has also made sure any log/debug/program reporting it is
+/// separately draining has finished, signal the run as ended); `false` if launch never
+/// happened (in which case there is nothing to report as ended).
 async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     stream: S,
     version: &Version,
@@ -238,10 +242,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                 -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
         >,
     >,
-    ended: Option<
-        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
-    >,
-) {
+) -> bool {
     let protocol = Arc::new(Protocol::new(stream));
 
     match protocol.recv_message().await {
@@ -266,14 +267,14 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                 if let Some(launched) = launched {
                     launched(Err("Distribution refused".to_string())).await;
                 }
-                return;
+                return false;
             }
         }
         _ => {
             if let Some(launched) = launched {
                 launched(Err("No distribution asked".to_string())).await;
             }
-            return;
+            return false;
         }
     }
 
@@ -299,7 +300,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             if let Some(launched) = launched {
                 launched(Err("No load provided".to_string())).await;
             }
-            return;
+            return false;
         }
     };
 
@@ -415,7 +416,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         if let Some(launched) = launched {
             launched(Err(fail.to_string())).await;
         }
-        return;
+        return false;
     }
 
     protocol
@@ -753,9 +754,7 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     protocol.close().await;
     probe.cancel().await;
 
-    if let Some(ended) = ended {
-        ended().await;
-    }
+    true
 }
 
 fn acceptor(
