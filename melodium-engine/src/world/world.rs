@@ -347,12 +347,18 @@ impl World {
             select! {
                 received_track = tracks_receiver.select_next_some() => {
                     self.has_run_any_track.store(true, Ordering::Relaxed);
-                    let _ = self.tracks_running.fetch_add(1, Ordering::Relaxed);
+                    let running = self.tracks_running.fetch_add(1, Ordering::Relaxed) + 1;
+                    eprintln!("[TRACE run_tracks] track {} received, tracks_running now {}", received_track.id, running);
                     futures.push(track_future(received_track));
 
                 },
                 result = futures.select_next_some() => {
-                    let _ = self.tracks_running.fetch_sub(1, Ordering::Relaxed);
+                    let running = self.tracks_running.fetch_sub(1, Ordering::Relaxed) - 1;
+                    let (id, ok) = match &result {
+                        TrackResult::AllOk(id) => (*id, true),
+                        TrackResult::NotAllOk(id, _) => (*id, false),
+                    };
+                    eprintln!("[TRACE run_tracks] track {} future exhausted (all_ok={}), tracks_running now {}", id, ok, running);
                     let track_info = match result {
                         TrackResult::AllOk(id) => {
                             if let Some(info) = self.tracks_info.lock().await.get_mut(&id) {
@@ -375,24 +381,32 @@ impl World {
                     self.check_closing().await;
                 },
                 _result = continous_ended_barrier => {
+                    eprintln!("[TRACE run_tracks] continous_ended_barrier resolved");
                     self.check_closing().await;
                 },
-                complete => break,
+                complete => { eprintln!("[TRACE run_tracks] select complete, exiting run_tracks loop"); break },
             }
         }
+        eprintln!("[TRACE run_tracks] run_tracks() returning");
     }
 
     async fn check_closing(&self) {
         let tracks_recv = self.tracks_receiver.len();
         let tracks_run = self.tracks_running.load(Ordering::Relaxed);
-        let no_more_tracks =
-            self.has_run_any_track.load(Ordering::Relaxed) && tracks_recv == 0 && tracks_run == 0;
+        let has_run_any = self.has_run_any_track.load(Ordering::Relaxed);
+        let no_more_tracks = has_run_any && tracks_recv == 0 && tracks_run == 0;
+        let continous_ended = self.continous_ended.load(Ordering::Relaxed);
+        let auto_end = self.auto_end();
+
+        eprintln!("[TRACE check_closing] has_run_any={has_run_any} tracks_recv={tracks_recv} tracks_run={tracks_run} no_more_tracks={no_more_tracks} continous_ended={continous_ended} auto_end={auto_end}");
 
         if no_more_tracks && !self.no_more_tracks_signaled.swap(true, Ordering::SeqCst) {
+            eprintln!("[TRACE check_closing] signaling no_more_tracks_sender.close()");
             self.no_more_tracks_sender.close();
         }
 
-        if self.auto_end() && self.continous_ended.load(Ordering::Relaxed) && no_more_tracks {
+        if auto_end && continous_ended && no_more_tracks {
+            eprintln!("[TRACE check_closing] calling self.end() (auto_end && continous_ended && no_more_tracks)");
             self.end().await;
         }
     }

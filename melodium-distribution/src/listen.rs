@@ -435,20 +435,25 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let barrier = Arc::clone(&barrier);
         let expired = Arc::clone(&expired);
         async move {
+            eprintln!("[TRACE worker limit] entering, max_duration={:?}", max_duration);
             if let Some(max_duration) = max_duration {
-                futures::future::select_all([
+                let winner = futures::future::select_all([
                     async {
                         barrier.wait().await;
+                        "barrier"
                     }
                     .boxed(),
                     async {
                         async_std::task::sleep(max_duration).await;
                         expired.store(true, core::sync::atomic::Ordering::Relaxed);
+                        "timeout"
                     }
                     .boxed(),
                 ])
                 .await;
+                eprintln!("[TRACE worker limit] select_all resolved via: {}", winner.0);
                 engine.end().await;
+                eprintln!("[TRACE worker limit] engine.end() called from limit");
             } else {
                 barrier.wait().await;
             }
@@ -458,8 +463,11 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let engine = Arc::clone(&engine);
         let protocol = Arc::clone(&protocol);
         async move {
+            eprintln!("[TRACE worker live] calling engine.live().await");
             engine.live().await;
+            eprintln!("[TRACE worker live] engine.live() returned, sending Message::Ended");
             let _ = protocol.send_message(Message::Ended).await;
+            eprintln!("[TRACE worker live] Message::Ended sent, expired={}", expired.load(core::sync::atomic::Ordering::Relaxed));
             if !expired.load(core::sync::atomic::Ordering::Relaxed) {
                 barrier.wait().await;
             }
@@ -728,29 +736,31 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
 
     let probe = async_std::task::spawn(probe);
 
-    // Safety net: `run`/`logs`/`debug` normally end once the engine reports it
-    // ended (peer sends `Message::Ended`, or protocol errors out) and the
-    // log/debug channels close. If the peer never confirms and the connection
-    // stays silently open, none of those futures would otherwise ever resolve,
-    // leaving this whole function - and therefore the process - stuck forever
-    // even though the engine itself is done. Race a watchdog alongside the
-    // real teardown that forces everything closed after a grace period, so
-    // the still-running futures unblock and join naturally.
-    let watchdog = {
-        let engine = Arc::clone(&engine);
-        let protocol = Arc::clone(&protocol);
-        async_std::task::spawn(async move {
-            async_std::task::sleep(teardown_timeout()).await;
-            engine.end().await;
-            protocol.close().await;
-            watchdog_logs_receiver.close();
-            watchdog_debug_receiver.close();
-        })
-    };
+    // `limit`/`live`/`run` complete once real work is genuinely done: `max_duration`
+    // elapsing, the engine reporting itself ended, or the peer confirming `Ended` /
+    // the protocol erroring out. None of them are time-bounded by anything shorter
+    // than the run's own `max_duration`, so joining them here can legitimately take
+    // as long as the distributed work does.
+    futures::join!(limit, live, run);
 
-    futures::join!(limit, live, run, logs, debug);
+    // Only past this point is `logs`/`debug` draining expected to finish quickly:
+    // `engine.end()` has already run (via `limit`/`live`/`run` above), which closes
+    // the listeners those two futures are reading from. If the peer never confirms
+    // and the connection stays silently open, they could otherwise hang forever -
+    // so only this remaining, genuinely-bounded tail is raced against the watchdog,
+    // instead of the watchdog racing the actual distributed work from the start.
+    if timeout(teardown_timeout(), async {
+        futures::join!(logs, debug);
+    })
+    .await
+    .is_err()
+    {
+        engine.end().await;
+        protocol.close().await;
+        watchdog_logs_receiver.close();
+        watchdog_debug_receiver.close();
+    }
 
-    watchdog.cancel().await;
     protocol.close().await;
     probe.cancel().await;
 

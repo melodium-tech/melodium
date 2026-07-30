@@ -16,7 +16,9 @@ use std/data/string_map::|map
 use std/flow::one
 use std/flow::emit
 use std/flow::stream
+use std/flow::close
 use std/flow::closeBlock
+use std/flow::merge
 use std/flow/vec::flatten
 use std/ops/num::|saturating_add
 use std/ops/num::|div
@@ -408,20 +410,33 @@ treatment simpleStepTerminable[dispatcher: CicdDispatchEngine](
         description=description,
         log_response=log_service_response
     )
-  
+
   oneFailed: one<void>()
   setupRunner.failed -> oneFailed.a,value -> Self.failed
   stepOnTerminable.failed ------> oneFailed.b
 
+  // `setupRunner.ready` never fires when `setupRunner.failed` does (they come from a
+  // `one<void>` gate), so `stepOnTerminable` never even starts on that path, and its
+  // `finished`/`data` never fire either. Without this, `Self.finished`/`Self.data` would
+  // stay forever unresolved whenever the runner fails to dispatch, leaving this track -
+  // and the whole engine - hanging indefinitely instead of reporting the failure.
+  finishedOnSetupFailure: one<void>()
+  oneFailed.value -> finishedOnSetupFailure.a,value -> Self.finished
+
+  closeDataOnSetupFailure: close<byte>()
+  oneFailed.value -> closeDataOnSetupFailure.trigger
+  mergeData: merge<byte>()
+  closeDataOnSetupFailure.closed -> mergeData.a
+  stepOnTerminable.data --------> mergeData.b,value -> Self.data
+
   stepOnTerminable.finished -> stopRunner.trigger
 
-  Self.trigger -> setupRunner.trigger,ready -> stepOnTerminable.trigger,finished ---------------> Self.finished
+  Self.trigger -> setupRunner.trigger,ready -> stepOnTerminable.trigger,finished ---------------> finishedOnSetupFailure.b
   Self.terminate ----------------------------> stepOnTerminable.terminate,terminated -----------> Self.terminated
                                                stepOnTerminable.completed ----------------------> Self.completed
                                                stepOnTerminable.started ------------------------> Self.started
                                                stepOnTerminable.success ------------------------> Self.success
                                                stepOnTerminable.error --------------------------> Self.error
-                                               stepOnTerminable.data ---------------------------> Self.data
 
   Self.trigger ----------------> setServiceState.pending
   stepOnTerminable.started ----> setServiceState.running
@@ -666,16 +681,29 @@ treatment simpleStepTerminableWithInput[dispatcher: CicdDispatchEngine](
   setupRunner.failed ----------> oneFailed.a,value -> Self.failed
   stepOnTerminableWithInput.failed ------> oneFailed.b
 
+  // `setupRunner.ready` never fires when `setupRunner.failed` does (they come from a
+  // `one<void>` gate), so `stepOnTerminableWithInput` never even starts on that path, and
+  // its `finished`/`data` never fire either. Without this, `Self.finished`/`Self.data`
+  // would stay forever unresolved whenever the runner fails to dispatch, leaving this
+  // track - and the whole engine - hanging indefinitely instead of reporting the failure.
+  finishedOnSetupFailure: one<void>()
+  oneFailed.value -> finishedOnSetupFailure.a,value -> Self.finished
+
+  closeDataOnSetupFailure: close<byte>()
+  oneFailed.value -> closeDataOnSetupFailure.trigger
+  mergeData: merge<byte>()
+  closeDataOnSetupFailure.closed -----> mergeData.a
+  stepOnTerminableWithInput.data --> mergeData.b,value -> Self.data
+
   stepOnTerminableWithInput.finished -> stopRunner.trigger
 
-  Self.trigger -> setupRunner.trigger,ready -> stepOnTerminableWithInput.trigger,finished ----> Self.finished
+  Self.trigger -> setupRunner.trigger,ready -> stepOnTerminableWithInput.trigger,finished ----> finishedOnSetupFailure.b
   Self.terminate ----------------------------> stepOnTerminableWithInput.terminate
   Self.data ---------------------------------> stepOnTerminableWithInput.data
                                                stepOnTerminableWithInput.completed -----------> Self.completed
                                                stepOnTerminableWithInput.started -------------> Self.started
                                                stepOnTerminableWithInput.success -------------> Self.success
                                                stepOnTerminableWithInput.error ---------------> Self.error
-                                               stepOnTerminableWithInput.data ----------------> Self.data
                                                stepOnTerminableWithInput.terminated ----------> Self.terminated
 
   Self.trigger -------------------------> setServiceState.pending

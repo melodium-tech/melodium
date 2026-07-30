@@ -336,7 +336,17 @@ impl DistributionEngine {
     }
 
     pub async fn stop(&self) {
-        self.wait_protocol_ready().await;
+        // Only wait for a `start()` that has actually been attempted (or is in flight) to
+        // settle before touching the protocol - mirrors the guard in `fuse()`. If `start()`
+        // was never called (e.g. the `access` input closed without ever providing data,
+        // because worker dispatch itself failed upstream), there is nothing that will ever
+        // call `fire_protocol_ready()` for this instance, so waiting unconditionally here
+        // would hang forever: `stop()` can be reached independently of `start()` (both the
+        // `start` treatment's own failure fallback and the separate `stop` treatment can
+        // call it), and previously did exactly that whenever a worker never got dispatched.
+        if self.start_attempted.load(Ordering::SeqCst) {
+            self.wait_protocol_ready().await;
+        }
 
         if self.stop_requested.swap(true, Ordering::SeqCst) {
             return;

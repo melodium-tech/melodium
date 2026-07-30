@@ -472,6 +472,14 @@ treatment spawnCommands(var label: string)
     spawnTerminable.stderr -> logSpawnErrsString.stdio,lines --> logSpawnErrs.messages
     spawnTerminable.stdout -> logSpawnInfosString.stdio,lines -> logSpawnInfos.messages
 
+    // `filterExit.rejected` fires when the last command's exit code is non-zero: the
+    // commands themselves ran (unlike `failed`, which is an executor-level failure), but
+    // the step still didn't succeed. Without this, that case was silent at `error` log
+    // level - only visible, if at all, in the per-command stdout/stderr debug logs above,
+    // with nothing summarizing that the step ultimately failed.
+    logCommandsError: logErrorMessage(label=label, message="Commands failed (non-zero exit)")
+    filterExit.rejected -> logCommandsError.trigger
+
     spawnTerminable.started ------------------> Self.started
     spawnTerminable.finished -----------------> Self.finished
     executorOrSpawnFailed.value --------------> Self.failed
