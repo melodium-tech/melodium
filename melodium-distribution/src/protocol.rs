@@ -9,15 +9,7 @@ use futures::AsyncWriteExt;
 
 type Result<T> = std::result::Result<T, Error>;
 
-// Both sides send a `Message::Probe` every 10s specifically to keep this timeout from
-// firing on an otherwise-idle-but-healthy connection (e.g. a worker silently compiling
-// for a while with nothing new to log). This needs real margin over that 10s interval:
-// under load - several simultaneous distributed connections competing for CPU/IO on
-// either end - the probe task itself can be delayed by scheduling jitter, and 20s left
-// far too little room, causing `recv_message` to time out and tear down a perfectly
-// healthy connection mid-run. 60s gives a 6x margin while still detecting a genuinely
-// dead peer in a reasonable time.
-const TIMEOUT: u64 = 60;
+const TIMEOUT: u64 = 20;
 
 #[derive(Debug)]
 pub enum Error {
