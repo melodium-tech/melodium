@@ -217,9 +217,15 @@ impl DistantEngine {
             Ok((access, mut child)) => {
                 let finish_notification = async move {
                     let mut possible_errors = Vec::new();
-                    let status = child.status().await;
+                    // Once whatever signals shutdown (the container's own worker process
+                    // exiting) has happened, the container itself (a `trap : TERM INT; sleep
+                    // ...d & wait` loop) should tear down near-instantly - this timeout guards
+                    // that teardown handshake, not the job's actual runtime, which this
+                    // `.await` otherwise spans in full.
+                    let status =
+                        async_std::future::timeout(Duration::from_secs(10), child.status()).await;
                     match status {
-                        Ok(exit) => {
+                        Ok(Ok(exit)) => {
                             if let (Some(run_api_id), Some(api_url), Some(api_token)) =
                                 (run_api_id, api_url, api_token)
                             {
@@ -261,7 +267,7 @@ impl DistantEngine {
                                 }
                             }
                         }
-                        Err(err) => {
+                        Ok(Err(err)) => {
                             if let (Some(run_api_id), Some(api_url), Some(api_token)) =
                                 (run_api_id, api_url, api_token)
                             {
@@ -287,6 +293,40 @@ impl DistantEngine {
                                 .await;
 
                                 possible_errors.push(err.to_string());
+                            }
+                        }
+                        // The container never tore down within the timeout after the job
+                        // finished: report the run as ended anyway (rather than leaving the
+                        // API waiting forever for a call that will never come), flagging the
+                        // stuck teardown as a warning rather than a job failure, since the
+                        // actual work already completed successfully by this point.
+                        Err(err) => {
+                            if let (Some(run_api_id), Some(api_url), Some(api_token)) =
+                                (run_api_id, api_url, api_token)
+                            {
+                                let _ = generic_async_http_client::Request::post(&format!(
+                                    "{api_url}/execution/run/ended"
+                                ))
+                                .add_header("User-Agent", crate::USER_AGENT)?
+                                .add_header(
+                                    "Authorization",
+                                    format!("Bearer {api_token}").as_bytes(),
+                                )?
+                                .add_header("Content-Type", "application/json")?
+                                .body(
+                                    serde_json::to_string(&api::LocalEnd {
+                                        run_id: run_api_id,
+                                        result: api::DistributionResult::Success(Some(vec![
+                                            format!("Compose exit timeout: {}", err.to_string()),
+                                        ])),
+                                    })
+                                    .unwrap(),
+                                )?
+                                .exec()
+                                .await;
+
+                                possible_errors
+                                    .push(format!("Compose exit timeout: {}", err.to_string()));
                             }
                         }
                     }

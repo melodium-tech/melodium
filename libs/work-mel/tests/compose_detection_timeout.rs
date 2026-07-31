@@ -19,10 +19,8 @@ use work_mel::compose::compose;
 async fn detection_does_not_hang_when_executor_is_unresponsive() {
     std::env::set_var("MELODIUM_COMPOSE_DETECTION_TIMEOUT_SECS", "2");
 
-    let fake_bin_dir = std::env::temp_dir().join(format!(
-        "melodium-compose-test-{}",
-        uuid::Uuid::new_v4()
-    ));
+    let fake_bin_dir =
+        std::env::temp_dir().join(format!("melodium-compose-test-{}", uuid::Uuid::new_v4()));
     fs::create_dir_all(&fake_bin_dir).expect("failed to create fake bin dir");
     let fake_podman = fake_bin_dir.join("podman");
     {

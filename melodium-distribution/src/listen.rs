@@ -33,6 +33,12 @@ use uuid::Uuid;
 const CERTIFICATE_CHAIN: &[u8; 4715] = include_bytes!("../melodium-chain.pem");
 const LOCALHOST_KEY: &[u8; 3272] = include_bytes!("../melodium-localhost.key.pem");
 const DEFAULT_TEARDOWN_TIMEOUT_SECS: u64 = 60;
+/// Number of attempts made to send a keepalive `Probe` before treating the connection as
+/// genuinely dead. See the comment at the probe retry loop for why a single failure isn't
+/// trusted on its own.
+const PROBE_RETRY_ATTEMPTS: u32 = 3;
+/// Delay between probe retry attempts.
+const PROBE_RETRY_DELAY: Duration = Duration::from_secs(2);
 
 /// Grace period, after the distributed engine and connection are expected to
 /// be done, before forcing teardown of the connection and log/debug channels.
@@ -49,10 +55,12 @@ fn teardown_timeout() -> Duration {
     })
 }
 
-/// Returns `true` if the run actually launched and went through its lifecycle (so the
-/// caller should, once it has also made sure any log/debug/program reporting it is
-/// separately draining has finished, signal the run as ended); `false` if launch never
-/// happened (in which case there is nothing to report as ended).
+/// Returns `true` if the run actually launched and went through its lifecycle; `false` if
+/// launch never happened. `ended`, if given, is called once that lifecycle is genuinely over
+/// (protocol/engine teardown complete), before this function returns - mirroring how the
+/// caller's own logs/debug monitoring is drained afterward, so a caller reporting run status
+/// downstream (e.g. to an API) sees "ended" exactly when this connection's work is done, not
+/// deferred behind unrelated bookkeeping.
 pub async fn launch_listen(
     bind: SocketAddr,
     certificate_chain: &[u8],
@@ -73,6 +81,9 @@ pub async fn launch_listen(
             )
                 -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
         >,
+    >,
+    ended: Option<
+        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
     >,
 ) -> bool {
     let acceptor = acceptor(certificate_chain, key).unwrap();
@@ -113,14 +124,14 @@ pub async fn launch_listen(
         debug_senders,
         program_dump_sender,
         launched,
+        ended,
     )
     .await
 }
 
-/// Returns `true` if the run actually launched and went through its lifecycle (so the
-/// caller should, once it has also made sure any log/debug/program reporting it is
-/// separately draining has finished, signal the run as ended); `false` if launch never
-/// happened (in which case there is nothing to report as ended).
+/// Returns `true` if the run actually launched and went through its lifecycle; `false` if
+/// launch never happened. `ended`, if given, is called once that lifecycle is genuinely over,
+/// before this function returns.
 pub async fn launch_listen_localcert(
     bind: SocketAddr,
     version: &Version,
@@ -140,6 +151,9 @@ pub async fn launch_listen_localcert(
                 -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
         >,
     >,
+    ended: Option<
+        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
+    >,
 ) -> bool {
     launch_listen(
         bind,
@@ -155,14 +169,14 @@ pub async fn launch_listen_localcert(
         debug_senders,
         program_dump_sender,
         launched,
+        ended,
     )
     .await
 }
 
-/// Returns `true` if the run actually launched and went through its lifecycle (so the
-/// caller should, once it has also made sure any log/debug/program reporting it is
-/// separately draining has finished, signal the run as ended); `false` if launch never
-/// happened (in which case there is nothing to report as ended).
+/// Returns `true` if the run actually launched and went through its lifecycle; `false` if
+/// launch never happened. `ended`, if given, is called once that lifecycle is genuinely over,
+/// before this function returns.
 pub async fn launch_listen_unsecure(
     bind: SocketAddr,
     version: &Version,
@@ -181,6 +195,9 @@ pub async fn launch_listen_unsecure(
             )
                 -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
         >,
+    >,
+    ended: Option<
+        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
     >,
 ) -> bool {
     let listener = TcpListener::bind(bind).await.unwrap();
@@ -216,14 +233,14 @@ pub async fn launch_listen_unsecure(
         debug_senders,
         program_dump_sender,
         launched,
+        ended,
     )
     .await
 }
 
-/// Returns `true` if the run actually launched and went through its lifecycle (so the
-/// caller should, once it has also made sure any log/debug/program reporting it is
-/// separately draining has finished, signal the run as ended); `false` if launch never
-/// happened (in which case there is nothing to report as ended).
+/// Returns `true` if the run actually launched and went through its lifecycle; `false` if
+/// launch never happened. `ended`, if given, is called once that lifecycle is genuinely over
+/// (protocol/engine teardown complete), before this function returns.
 async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     stream: S,
     version: &Version,
@@ -241,6 +258,9 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
             )
                 -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
         >,
+    >,
+    ended: Option<
+        Box<dyn FnOnce() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
     >,
 ) -> bool {
     let protocol = Arc::new(Protocol::new(stream));
@@ -717,7 +737,25 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         async move {
             loop {
                 async_std::task::sleep(Duration::from_secs(10)).await;
-                if protocol.send_message(Message::Probe).await.is_err() {
+                // A single failed probe send doesn't prove the connection is dead: it can
+                // just as well be a transient hiccup over a real network (TLS
+                // renegotiation, a brief stall, ordinary internet jitter) on an otherwise
+                // healthy connection. Forcibly ending the engine's own still-running work
+                // over that alone would cut a genuinely in-progress job short. Give the
+                // connection a few more chances before actually giving up on it.
+                let mut attempts = 0;
+                let mut succeeded = false;
+                while attempts < PROBE_RETRY_ATTEMPTS {
+                    if protocol.send_message(Message::Probe).await.is_ok() {
+                        succeeded = true;
+                        break;
+                    }
+                    attempts += 1;
+                    if attempts < PROBE_RETRY_ATTEMPTS {
+                        async_std::task::sleep(PROBE_RETRY_DELAY).await;
+                    }
+                }
+                if !succeeded {
                     engine.end().await;
                     break;
                 }
@@ -753,6 +791,10 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     watchdog.cancel().await;
     protocol.close().await;
     probe.cancel().await;
+
+    if let Some(ended) = ended {
+        ended().await;
+    }
 
     true
 }

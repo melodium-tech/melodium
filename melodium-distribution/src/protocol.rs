@@ -132,11 +132,7 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
                     writer.write_all(&(data.len() as u32).to_be_bytes()),
                 )
                 .await?;
-                timeout(
-                    Duration::from_secs(timeout_secs()),
-                    writer.write_all(&data),
-                )
-                .await?;
+                timeout(Duration::from_secs(timeout_secs()), writer.write_all(&data)).await?;
                 timeout(Duration::from_secs(timeout_secs()), writer.flush()).await?;
                 Ok(())
             }

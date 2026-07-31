@@ -38,6 +38,15 @@ use std_mel::data::map::*;
 use uuid::Uuid;
 use work_mel::access::*;
 
+/// Number of attempts made to send a keepalive `Probe` before treating the connection as
+/// genuinely dead. See the comment at the probe retry loop for why a single failure isn't
+/// trusted on its own.
+#[cfg(feature = "real")]
+const PROBE_RETRY_ATTEMPTS: u32 = 3;
+/// Delay between probe retry attempts.
+#[cfg(feature = "real")]
+const PROBE_RETRY_DELAY: Duration = Duration::from_secs(2);
+
 #[derive(Debug)]
 struct Track {
     pub instancied: AtomicBool,
@@ -629,7 +638,27 @@ impl DistributionEngine {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
                 loop {
                     async_std::task::sleep(Duration::from_secs(10)).await;
-                    if protocol.send_message(Message::Probe).await.is_err() {
+                    // A single failed probe send doesn't prove the connection is dead: it
+                    // can just as well be a transient hiccup over a real network (TLS
+                    // renegotiation, a brief stall, ordinary internet jitter) on an otherwise
+                    // healthy, still-working connection. Treating that one failure as "the
+                    // worker is done" would silently close every channel exactly as if it
+                    // had cleanly finished - with no way for anything downstream to tell the
+                    // difference from a real completion. Give the connection a few more
+                    // chances before actually giving up on it.
+                    let mut attempts = 0;
+                    let mut succeeded = false;
+                    while attempts < PROBE_RETRY_ATTEMPTS {
+                        if protocol.send_message(Message::Probe).await.is_ok() {
+                            succeeded = true;
+                            break;
+                        }
+                        attempts += 1;
+                        if attempts < PROBE_RETRY_ATTEMPTS {
+                            async_std::task::sleep(PROBE_RETRY_DELAY).await;
+                        }
+                    }
+                    if !succeeded {
                         break;
                     }
                 }

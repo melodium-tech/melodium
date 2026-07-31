@@ -631,7 +631,6 @@ fn dist(args: Dist) {
     let program_dump_sender;
     let signal_launched;
     let signal_ended;
-    let mut reporting_join = None;
     if args.api_report {
         let (
             given_program_dump_sender,
@@ -645,13 +644,7 @@ fn dist(args: Dist) {
             work_mel::api::ModeRequest::Distribution,
             None,
         ));
-        // Kept separate from `monitoring`: it carries the S3/API upload of logs,
-        // debug events, and program dump, which is what a caller (or an operator
-        // reading `execution/report/*` on the API) actually needs to know finished
-        // before trusting the reported data is complete. Bundling it with the
-        // generic display/file-write tasks would let a stuck upload be silently
-        // discarded by the same short timeout as everything else below.
-        reporting_join = Some(full_join);
+        monitoring.push(full_join);
         logs_senders.push(logs_report_sender);
         debug_senders.push(debug_report_sender);
         program_dump_sender = Some(given_program_dump_sender);
@@ -663,13 +656,7 @@ fn dist(args: Dist) {
         signal_ended = None;
     }
 
-    // `launch_listen*` only tells us whether the run actually launched and went
-    // through its lifecycle; it no longer calls `signal_ended` itself. We call it
-    // below, once `reporting_join` (the S3/API upload of that run's logs/debug/dump)
-    // has also completed, so the API only ever sees a run reported as "ended" once
-    // its report is genuinely done being uploaded - and can safely tear down any
-    // provider VM backing it without racing that upload.
-    let launched_and_ran = if args.localhost {
+    if args.localhost {
         match (args.disable_tls, args.certificate, args.key) {
             (false, None, None) => {
                 async_std::task::block_on(melodium_distribution::launch_listen_localcert(
@@ -687,7 +674,8 @@ fn dist(args: Dist) {
                     debug_senders,
                     program_dump_sender,
                     signal_launched,
-                ))
+                    signal_ended,
+                ));
             }
             (false, Some(certificate), Some(key)) => {
                 let cert_content = match std::fs::read(&certificate) {
@@ -721,7 +709,8 @@ fn dist(args: Dist) {
                     debug_senders,
                     program_dump_sender,
                     signal_launched,
-                ))
+                    signal_ended,
+                ));
             }
             (false, _, _) => {
                 eprintln!(
@@ -746,7 +735,8 @@ fn dist(args: Dist) {
                     debug_senders,
                     program_dump_sender,
                     signal_launched,
-                ))
+                    signal_ended,
+                ));
             }
             (true, Some(_), Some(_)) | (true, None, Some(_)) | (true, Some(_), None) => {
                 eprintln!(
@@ -787,7 +777,8 @@ fn dist(args: Dist) {
                     debug_senders,
                     program_dump_sender,
                     signal_launched,
-                ))
+                    signal_ended,
+                ));
             }
             (false, _, _, _) => {
                 eprintln!(
@@ -809,7 +800,8 @@ fn dist(args: Dist) {
                     debug_senders,
                     program_dump_sender,
                     signal_launched,
-                ))
+                    signal_ended,
+                ));
             }
             (true, _, Some(_), Some(_)) | (true, _, Some(_), None) | (true, _, None, Some(_)) => {
                 eprintln!(
@@ -826,17 +818,17 @@ fn dist(args: Dist) {
                 return;
             }
         }
-    };
+    }
 
     async_std::task::block_on(async move {
         use futures::StreamExt;
-        // `monitoring` only drains once every logs/debug forwarding task observes
-        // its channel close; that's expected to happen shortly after the engine
-        // and distribution connection are done. As a safety net against any of
-        // those tasks getting stuck, don't let it hold this otherwise-finished
-        // process alive forever. Overridable through
-        // `MELODIUM_DIST_MONITORING_TIMEOUT_SECS`, mainly so tests can exercise
-        // this safety net without waiting a full minute.
+        // `monitoring` only drains once every logs/debug forwarding task (including
+        // the API/S3 reporting join, when enabled) observes its channel close; that's
+        // expected to happen shortly after the engine and distribution connection are
+        // done. As a safety net against any of those tasks getting stuck, don't let it
+        // hold this otherwise-finished process alive forever. Overridable through
+        // `MELODIUM_DIST_MONITORING_TIMEOUT_SECS`, mainly so tests can exercise this
+        // safety net without waiting a full minute.
         let monitoring_timeout = std::env::var("MELODIUM_DIST_MONITORING_TIMEOUT_SECS")
             .ok()
             .and_then(|value| value.parse().ok())
@@ -853,40 +845,6 @@ fn dist(args: Dist) {
                 "warning".bold().yellow()
             );
             std::process::exit(0);
-        }
-
-        // The API/S3 reporting task is awaited separately, with its own timeout,
-        // so a slow-but-eventually-successful final upload isn't cut off by the
-        // same short fuse as the generic monitoring above, and so a forced exit
-        // here is logged as a reporting-specific data-loss event rather than a
-        // generic "monitoring stuck" message. Overridable through
-        // `MELODIUM_DIST_REPORTING_TIMEOUT_SECS`.
-        if let Some(reporting_join) = reporting_join {
-            let reporting_timeout = std::env::var("MELODIUM_DIST_REPORTING_TIMEOUT_SECS")
-                .ok()
-                .and_then(|value| value.parse().ok())
-                .map(Duration::from_secs)
-                .unwrap_or(Duration::from_secs(300));
-            if async_std::future::timeout(reporting_timeout, reporting_join)
-                .await
-                .is_err()
-            {
-                eprintln!(
-                    "{}: logs/debug/program reporting to the API did not complete in time, \
-                     some data may be missing from the run report; forcing exit",
-                    "warning".bold().yellow()
-                );
-                std::process::exit(0);
-            }
-        }
-
-        // Only now that reporting has genuinely finished (or was never enabled) do
-        // we tell the API the run ended, so it can safely terminate any provider VM
-        // backing it without cutting off the report upload.
-        if launched_and_ran {
-            if let Some(ended) = signal_ended {
-                ended().await;
-            }
         }
     });
 }
