@@ -30,9 +30,13 @@ authentication. The body carries `state`, `ref`, `pipeline`, `name`, `descriptio
 link back to the Mélodium execution dashboard as `target_url`.
 When `log_response` is `true`, the raw response body is logged at info level under the
 "GitLab API" label; errors are always logged.
+
+`finished` is emitted once the request has completed, regardless of outcome, so callers can
+sequence successive status updates.
 */
 treatment postGitlabState(root_url: string, token: string, project: string, sha: string, state: StepState, ref: string, pipeline: string, name: string, description: string, log_response: bool = false)
     input trigger: Block<void>
+    output finished: Block<void>
 {
     post(
         headers=|wrap<StringMap>(|map([
@@ -53,6 +57,7 @@ treatment postGitlabState(root_url: string, token: string, project: string, sha:
     post.data -> passInfos.stream,passed -> fromUtf8.encoded,text -> logInfos.messages
     logError(label="GitLab API")
     post.error -> logError.message
+    post.finished -> Self.finished
 
     emit<Json>(value=|unwrap_or<Json>(|to_json(
         |format(

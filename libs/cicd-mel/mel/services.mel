@@ -10,8 +10,10 @@ use local/github::|success as |github_success
 use local/github::|failure as |github_failure
 use local/github::|error as |github_error
 use std/flow::passBlock
+use std/flow::releaseBlock
 use std/flow::one
 use std/ops/bin::|and
+use std/ops/bin::|not
 
 /**
 Report a CI/CD step state to one or more service integrations.
@@ -25,6 +27,13 @@ forwards the corresponding state to GitHub and/or GitLab commit status APIs depe
 - `log_response`: when `true`, logs the raw API response body at info level.
 - `github_token`, `github_project`, `github_sha`: credentials and target for GitHub status API.
 - `gitlab_root_url`, `gitlab_token`, `gitlab_project_id`, `gitlab_sha`, `gitlab_ref`, `gitlab_pipeline_id`: credentials and target for GitLab commit status API.
+
+⚠️ GitHub and GitLab both reject (or silently drop) a state registration query received while a
+previous one for the same commit is still in flight, so each provider's queries are sent strictly
+one after another: `running` is held back until the `pending` query has completed, and the
+terminal state (`success`, `error`, `failed` or `canceled`) is held back until the `running` query
+has completed. A query is considered "completed" whether it was actually sent or skipped
+(`report`/`github`/`gitlab` being `false`), so a disabled report never stalls the sequence.
 */
 treatment setServiceState(
     report: bool = true,
@@ -50,7 +59,10 @@ treatment setServiceState(
   input failed:   Block<void>
   input canceled: Block<void>
 {
+    // --- GitLab: pending -> running -> terminal (success | failed/error | canceled) ---
+
     passPendingGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
+    bypassPendingGitlab: passBlock<void>(cond=|not<bool>(|and<bool>(report, gitlab)))
     pendingGitlab: postGitlabState(
         root_url=gitlab_root_url,
         token=gitlab_token,
@@ -63,7 +75,15 @@ treatment setServiceState(
         state=|gitlab_pending(),
         log_response=log_response
     )
+    pendingSettledGitlab: one<void>()
+
+    Self.pending -> passPendingGitlab.block,passed ------> pendingGitlab.trigger
+    Self.pending -> bypassPendingGitlab.block,passed ----------------------------> pendingSettledGitlab.b
+    pendingGitlab.finished --------------------------------------------------> pendingSettledGitlab.a
+
+    releaseRunningGitlab: releaseBlock<void>()
     passRunningGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
+    bypassRunningGitlab: passBlock<void>(cond=|not<bool>(|and<bool>(report, gitlab)))
     runningGitlab: postGitlabState(
         root_url=gitlab_root_url,
         token=gitlab_token,
@@ -76,6 +96,14 @@ treatment setServiceState(
         state=|gitlab_running(),
         log_response=log_response
     )
+    runningSettledGitlab: one<void>()
+
+    pendingSettledGitlab.value -> releaseRunningGitlab.leverage,released -> passRunningGitlab.block,passed ---> runningGitlab.trigger
+    releaseRunningGitlab.released ----------------------------------------> bypassRunningGitlab.block,passed -------------------------> runningSettledGitlab.b
+    runningGitlab.finished ---------------------------------------------------------------------------------------------------------> runningSettledGitlab.a
+    Self.running -> releaseRunningGitlab.data
+
+    releaseSuccessGitlab: releaseBlock<void>()
     passSuccessGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
     successGitlab: postGitlabState(
         root_url=gitlab_root_url,
@@ -89,6 +117,8 @@ treatment setServiceState(
         state=|gitlab_success(),
         log_response=log_response
     )
+    releaseErrorGitlab: releaseBlock<void>()
+    releaseFailedGitlab: releaseBlock<void>()
     passFailedGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
     failedGitlab: postGitlabState(
         root_url=gitlab_root_url,
@@ -102,6 +132,7 @@ treatment setServiceState(
         state=|gitlab_failed(),
         log_response=log_response
     )
+    releaseCanceledGitlab: releaseBlock<void>()
     passCanceledGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
     canceledGitlab: postGitlabState(
         root_url=gitlab_root_url,
@@ -116,7 +147,23 @@ treatment setServiceState(
         log_response=log_response
     )
 
+    errorOrFailedGitlab: one<void>()
+
+    runningSettledGitlab.value -> releaseSuccessGitlab.leverage
+    Self.success -----------------> releaseSuccessGitlab.data,released -> passSuccessGitlab.block,passed -> successGitlab.trigger
+
+    runningSettledGitlab.value -> releaseErrorGitlab.leverage
+    Self.error --------------------> releaseErrorGitlab.data,released ----> errorOrFailedGitlab.a,value -> passFailedGitlab.block,passed -> failedGitlab.trigger
+    runningSettledGitlab.value -> releaseFailedGitlab.leverage
+    Self.failed -------------------> releaseFailedGitlab.data,released ---> errorOrFailedGitlab.b
+
+    runningSettledGitlab.value -> releaseCanceledGitlab.leverage
+    Self.canceled -----------------> releaseCanceledGitlab.data,released -> passCanceledGitlab.block,passed -> canceledGitlab.trigger
+
+    // --- GitHub: pending -> terminal (success | error/canceled | failure) ---
+
     passPendingGithub: passBlock<void>(cond=|and<bool>(report, github))
+    bypassPendingGithub: passBlock<void>(cond=|not<bool>(|and<bool>(report, github)))
     pendingGithub: postGithubState(
         token=github_token,
         project=github_project,
@@ -126,6 +173,13 @@ treatment setServiceState(
         state=|github_pending(),
         log_response=log_response
     )
+    pendingSettledGithub: one<void>()
+
+    Self.pending -> passPendingGithub.block,passed ------> pendingGithub.trigger
+    Self.pending -> bypassPendingGithub.block,passed ----------------------------> pendingSettledGithub.b
+    pendingGithub.finished --------------------------------------------------> pendingSettledGithub.a
+
+    releaseSuccessGithub: releaseBlock<void>()
     passSuccessGithub: passBlock<void>(cond=|and<bool>(report, github))
     successGithub: postGithubState(
         token=github_token,
@@ -136,6 +190,8 @@ treatment setServiceState(
         state=|github_success(),
         log_response=log_response
     )
+    releaseErrorGithub: releaseBlock<void>()
+    releaseCanceledGithub: releaseBlock<void>()
     passErrorGithub: passBlock<void>(cond=|and<bool>(report, github))
     errorGithub: postGithubState(
         token=github_token,
@@ -146,6 +202,7 @@ treatment setServiceState(
         state=|github_error(),
         log_response=log_response
     )
+    releaseFailureGithub: releaseBlock<void>()
     passFailureGithub: passBlock<void>(cond=|and<bool>(report, github))
     failureGithub: postGithubState(
         token=github_token,
@@ -157,20 +214,16 @@ treatment setServiceState(
         log_response=log_response
     )
 
-    errorOrFailedGitlab: one<void>()
-
-    Self.pending --> passPendingGitlab.block,passed -> pendingGitlab.trigger
-    Self.running --> passRunningGitlab.block,passed -> runningGitlab.trigger
-    Self.success --> passSuccessGitlab.block,passed -> successGitlab.trigger
-    Self.error ----> errorOrFailedGitlab.a,value -> passFailedGitlab.block,passed -> failedGitlab.trigger
-    Self.failed ---> errorOrFailedGitlab.b
-    Self.canceled -> passCanceledGitlab.block,passed -> canceledGitlab.trigger
-
     errorOrCanceledGithub: one<void>()
 
-    Self.pending -> passPendingGithub.block,passed -> pendingGithub.trigger
-    Self.success -> passSuccessGithub.block,passed -> successGithub.trigger
-    Self.error ----> errorOrCanceledGithub.a,value -> passErrorGithub.block,passed -> errorGithub.trigger
-    Self.canceled -> errorOrCanceledGithub.b
-    Self.failed --> passFailureGithub.block,passed -> failureGithub.trigger
+    pendingSettledGithub.value -> releaseSuccessGithub.leverage
+    Self.success ----------------> releaseSuccessGithub.data,released -> passSuccessGithub.block,passed -> successGithub.trigger
+
+    pendingSettledGithub.value -> releaseErrorGithub.leverage
+    Self.error -------------------> releaseErrorGithub.data,released ----> errorOrCanceledGithub.a,value -> passErrorGithub.block,passed -> errorGithub.trigger
+    pendingSettledGithub.value -> releaseCanceledGithub.leverage
+    Self.canceled -----------------> releaseCanceledGithub.data,released -> errorOrCanceledGithub.b
+
+    pendingSettledGithub.value -> releaseFailureGithub.leverage
+    Self.failed ------------------> releaseFailureGithub.data,released -> passFailureGithub.block,passed -> failureGithub.trigger
 }
