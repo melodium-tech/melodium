@@ -3,14 +3,18 @@ resolver = "2"
 members = [
     "complex_call",
     "distribution_engine_never_started",
+    "distribution_engine_stop_without_start",
     "fs",
     "generics",
     "http_client",
     "http_distributed",
     "http_javascript",
+    "logs_live_flush",
     "process",
     "process_distributed",
     "process_distributed_hang",
+    "protocol_timeout_survives_jitter",
     "regex",
     "sql",
+    "stop_before_data_drained",
 ]

@@ -1,0 +1,34 @@
+#!/usr/bin/env melodium
+#! name = logs_live_flush
+#! version = 0.10.2
+#! require = std:0.10.2 process:0.10.2
+
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/flow::close
+use process/command::|command
+use process/local::spawnOnce
+
+// Regression test: `write_logs`/`write_debug` (melodium/src/lib.rs) used to
+// only flush their file once, right at the very end of the whole run. A
+// caller tailing the log/debug file live during a long run would see nothing
+// until the process exited, even though lines had already been written to
+// the in-memory buffer minutes earlier. This program logs one line, then
+// blocks for a few real seconds (via a spawned `sleep`) before logging a
+// second line and exiting - the harness checks the log/debug files contain
+// the first line's content while the process is still in that sleep, proving
+// each line is flushed to disk as it is written rather than only at exit.
+treatment main()
+{
+    startup()
+    logFirst: logInfoMessage(label="phase", message="first-line-written")
+    delay: spawnOnce(command=|command("sleep", ["4"]))
+
+    startup.trigger -> logFirst.trigger
+    startup.trigger -> delay.launch
+    closeStdin: close<byte>()
+    startup.trigger -> closeStdin.trigger,closed -> delay.stdin
+
+    logSecond: logInfoMessage(label="phase", message="second-line-written")
+    delay.finished -> logSecond.trigger
+}

@@ -34,6 +34,13 @@ const PROXY_PORT: u16 = 28018;
 // larger write in practice, but allow a little slack).
 const ORCHESTRATOR_WRITES_ALLOWED: usize = 6;
 const TEARDOWN_TIMEOUT_SECS: u64 = 3;
+// `recv_message`'s own internal read timeout: it blocks on the OS read half, which
+// `protocol.close()` (called by the teardown watchdog above) cannot interrupt - it only
+// closes the write half - so a `recv_message` in flight when the watchdog fires keeps
+// blocking until this elapses on its own. Shortened here so the test stays fast; in
+// production this is much longer to tolerate scheduling jitter under load without
+// tearing down healthy connections (see `MELODIUM_DIST_PROTOCOL_TIMEOUT_SECS`).
+const PROTOCOL_TIMEOUT_SECS: u64 = 3;
 const DIST_EXIT_TIMEOUT: Duration = Duration::from_secs(30);
 
 fn main() {
@@ -54,6 +61,10 @@ fn main() {
         .env(
             "MELODIUM_DIST_MONITORING_TIMEOUT_SECS",
             TEARDOWN_TIMEOUT_SECS.to_string(),
+        )
+        .env(
+            "MELODIUM_DIST_PROTOCOL_TIMEOUT_SECS",
+            PROTOCOL_TIMEOUT_SECS.to_string(),
         )
         .arg("dist")
         .arg("--localhost")

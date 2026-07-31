@@ -27,6 +27,26 @@ use uuid::Uuid;
 
 static IMAGES_PULL_SOURCE: OnceLock<String> = OnceLock::new();
 
+/// Grace period for the initial `podman`/`docker` detection and socket-lookup calls.
+/// Without this, an unresponsive container engine daemon (stuck service, hung
+/// pull already in progress from another process, etc.) leaves `compose()` - and
+/// therefore the whole distributed run - blocked forever with no way to notice or
+/// recover, since these are the very first subprocess calls this function makes,
+/// before anything else has a chance to run. Overridable through
+/// `MELODIUM_COMPOSE_DETECTION_TIMEOUT_SECS`, mainly so tests can exercise this
+/// without waiting a full 30s.
+#[cfg(feature = "real")]
+fn detection_timeout() -> Duration {
+    static TIMEOUT: OnceLock<Duration> = OnceLock::new();
+    *TIMEOUT.get_or_init(|| {
+        std::env::var("MELODIUM_COMPOSE_DETECTION_TIMEOUT_SECS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .map(Duration::from_secs)
+            .unwrap_or(Duration::from_secs(30))
+    })
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Executor {
     Podman,
@@ -70,18 +90,31 @@ pub async fn compose(mut request: Request) -> Result<(Access, Child), Vec<String
         ]);
     }*/
 
-    let executor = if let Ok(_output) = Command::new("podman").args(&["version"]).output().await {
+    let executor = if let Ok(Ok(_output)) = async_std::future::timeout(
+        detection_timeout(),
+        Command::new("podman").args(&["version"]).output(),
+    )
+    .await
+    {
         Executor::Podman
-    } else if let Ok(_output) = Command::new("docker").args(&["version"]).output().await {
+    } else if let Ok(Ok(_output)) = async_std::future::timeout(
+        detection_timeout(),
+        Command::new("docker").args(&["version"]).output(),
+    )
+    .await
+    {
         Executor::Docker
     } else {
         return Err(vec!["No executor available".to_string()]);
     };
 
-    let socket = if let Ok(output) = Command::new(executor.to_string())
-        .args(&["info", "--format", "{{ .Host.RemoteSocket.Path }}"])
-        .output()
-        .await
+    let socket = if let Ok(Ok(output)) = async_std::future::timeout(
+        detection_timeout(),
+        Command::new(executor.to_string())
+            .args(&["info", "--format", "{{ .Host.RemoteSocket.Path }}"])
+            .output(),
+    )
+    .await
     {
         if output.status.success() {
             Some(

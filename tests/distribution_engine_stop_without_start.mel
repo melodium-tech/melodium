@@ -1,0 +1,31 @@
+#!/usr/bin/env melodium
+#! name = distribution_engine_stop_without_start
+#! version = 0.10.2
+#! require = std:0.10.2 distrib:0.10.2
+
+use std/engine/util::startup
+use distrib::DistributionEngine
+use distrib::stop
+
+// Regression test: `distrib::stop` (and therefore `DistributionEngine::stop()`)
+// reached without `start()` ever having been called on that same model instance.
+// This is the real-world shape used by `cicd/naive::setupRunner`: when dispatch
+// fails before `start` even runs, the failure fallback calls `stop` directly to
+// clean up. Before the fix, `stop()` unconditionally awaited `protocol_ready`,
+// which only `start()`/`fuse()` ever fire - so a `stop()` reached without any
+// `start()` attempt would wait forever on a signal nothing would ever send,
+// hanging the whole program. The program must now terminate on its own.
+treatment main()
+  model distributor: DistributionEngine(treatment="distribution_engine_stop_without_start::echo", version="0.10.2")
+{
+    startup()
+    stopNow: stop[distributor=distributor]()
+    startup.trigger -> stopNow.trigger
+}
+
+treatment echo()
+  input data: Block<string>
+  output data: Block<string>
+{
+    Self.data -> Self.data
+}
