@@ -337,8 +337,23 @@ treatment stepOnTerminableWithInput[runner: CicdRunnerEngine](var name: string, 
     streamFinished: stream<void>()
     triggerAllFinished: trigger<void>()
 
+    // `finished` (commands exited) and the `data` stream (out_file being sent back)
+    // are two independent forwarding tasks over the same connection, with no ordering
+    // guarantee between them (see `distrib::distribute`/`sendStream`/`recvStream`).
+    // Reporting `finished` before `data` has fully drained lets a caller downstream
+    // (`stopRunner`) tear down the runner's connection while `out_file` bytes are
+    // still in flight, silently truncating them instead of failing loudly. So `Self.finished`
+    // waits for both signals before firing.
+    triggerDataDrained: trigger<byte>()
+    recvData.data -> triggerDataDrained.stream
+
+    waitFinishedAndData: waitBlock<void>()
+    triggerAllFinished.end -> waitFinishedAndData.a
+    triggerDataDrained.end -> waitFinishedAndData.b
+
     recvStarted.data ------------------------------------------------------------------> Self.started
-    recvFinished.data -> streamFinished.block,stream -> triggerAllFinished.stream,end -> Self.finished
+    recvFinished.data -> streamFinished.block,stream -> triggerAllFinished.stream
+    waitFinishedAndData.awaited ---------------------------------------------------------> Self.finished
     recvFailed.data ------------------------------------> distribOrStepFailed.b,value -> Self.failed
     recvCompleted.data ----------------------------------------------------------------> Self.completed
     recvTerminated.data ---------------------------------------------------------------> Self.terminated
