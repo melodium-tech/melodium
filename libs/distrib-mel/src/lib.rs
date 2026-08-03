@@ -345,7 +345,6 @@ impl DistributionEngine {
     }
 
     pub async fn stop(&self) {
-        eprintln!("[MELDBG {:?}] orchestrator stop(): called", std::time::SystemTime::now());
         // Only wait for a `start()` that has actually been attempted (or is in flight) to
         // settle before touching the protocol - mirrors the guard in `fuse()`. If `start()`
         // was never called (e.g. the `access` input closed without ever providing data,
@@ -359,12 +358,10 @@ impl DistributionEngine {
         }
 
         if self.stop_requested.swap(true, Ordering::SeqCst) {
-            eprintln!("[MELDBG {:?}] orchestrator stop(): already requested, no-op return", std::time::SystemTime::now());
             return;
         }
 
         if let Some(protocol) = self.protocol.read().await.as_ref() {
-            eprintln!("[MELDBG {:?}] orchestrator stop(): sending Message::Ended to worker", std::time::SystemTime::now());
             let _ = protocol.send_message(Message::Ended).await;
             protocol.close().await;
         }
@@ -590,7 +587,6 @@ impl DistributionEngine {
                             }
                         }
                         Ok(Message::CloseOutput(close_output)) => {
-                            eprintln!("[MELDBG {:?}] orchestrator exec: received Message::CloseOutput track={} name={:?}", std::time::SystemTime::now(), close_output.id, close_output.name);
                             let track = self.tracks.read().await.get(&close_output.id).cloned();
                             if let Some(track) = track {
                                 if let Some(output) =
@@ -613,7 +609,6 @@ impl DistributionEngine {
                             }
                         }
                         Ok(Message::Ended) => {
-                            eprintln!("[MELDBG {:?}] orchestrator exec: received Message::Ended from worker", std::time::SystemTime::now());
                             self.close_all().await;
                             ended = true;
                         }
@@ -875,7 +870,6 @@ pub async fn recv_stream(name: string) {
         let distributor = model.inner();
         let collection = distributor.model.upgrade().unwrap().world().collection();
 
-        eprintln!("[MELDBG {:?}] orchestrator recv_stream({:?}, track={}): starting to receive", std::time::SystemTime::now(), name, distribution_id);
         if let Some(receiver) = distributor.get_output(&distribution_id, &name).await {
             while let Ok(recv_data) = receiver.recv().await {
                 let recv_data: Vec<_> = recv_data
@@ -900,7 +894,6 @@ pub async fn recv_stream(name: string) {
                     receiver.close();
                 }
             }
-            eprintln!("[MELDBG {:?}] orchestrator recv_stream({:?}, track={}): receiver closed, loop exited (this is what triggerDataDrained waits on)", std::time::SystemTime::now(), name, distribution_id);
         }
     }
 }
@@ -929,7 +922,6 @@ pub async fn recv_block(name: string) {
         let distributor = model.inner();
         let collection = distributor.model.upgrade().unwrap().world().collection();
 
-        eprintln!("[MELDBG {:?}] orchestrator recv_block({:?}, track={}): starting to receive", std::time::SystemTime::now(), name, distribution_id);
         if let Some(receiver) = distributor.get_output(&distribution_id, &name).await {
             while let Ok(recv_data) = receiver.recv().await {
                 if let Some(value) = recv_data.first() {
@@ -941,7 +933,6 @@ pub async fn recv_block(name: string) {
                     receiver.close();
                 }
             }
-            eprintln!("[MELDBG {:?}] orchestrator recv_block({:?}, track={}): receiver closed, loop exited", std::time::SystemTime::now(), name, distribution_id);
         }
     }
 }

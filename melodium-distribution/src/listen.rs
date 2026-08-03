@@ -478,15 +478,11 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let engine = Arc::clone(&engine);
         let protocol = Arc::clone(&protocol);
         async move {
-            eprintln!("[MELDBG {:?}] worker live: calling engine.live().await", std::time::SystemTime::now());
             engine.live().await;
-            eprintln!("[MELDBG {:?}] worker live: engine.live() RETURNED, sending Message::Ended to orchestrator", std::time::SystemTime::now());
             let _ = protocol.send_message(Message::Ended).await;
-            eprintln!("[MELDBG {:?}] worker live: Message::Ended sent, now waiting on barrier (expired={})", std::time::SystemTime::now(), expired.load(core::sync::atomic::Ordering::Relaxed));
             if !expired.load(core::sync::atomic::Ordering::Relaxed) {
                 barrier.wait().await;
             }
-            eprintln!("[MELDBG {:?}] worker live: barrier released, live future done", std::time::SystemTime::now());
         }
     };
     let run = async {
@@ -681,11 +677,9 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
 
                     match message {
                         Ok(Message::Ended) => {
-                            eprintln!("[MELDBG {:?}] worker run: received Message::Ended from orchestrator -> BREAK", std::time::SystemTime::now());
                             break;
                         }
-                        Err(ref err) => {
-                            eprintln!("[MELDBG {:?}] worker run: recv_message() FAILED with {:?} -> BREAK", std::time::SystemTime::now(), err);
+                        Err(_err) => {
                             break;
                         }
                         Ok(msg) => {
@@ -694,21 +688,16 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     }
                 }
                 () = messages_futures.select_next_some() => {}
-                complete => {
-                    eprintln!("[MELDBG {:?}] worker run: select! complete arm hit -> BREAK", std::time::SystemTime::now());
-                    break
-                },
+                complete => break,
             }
         }
 
-        eprintln!("[MELDBG {:?}] worker run: loop exited, closing track outputs and calling engine.end()", std::time::SystemTime::now());
         for (_, outputs) in tracks_entry_outputs.read().await.iter() {
             for (_, output) in outputs {
                 output.close().await;
             }
         }
         engine.end().await;
-        eprintln!("[MELDBG {:?}] worker run: run future done", std::time::SystemTime::now());
     };
     let logs = {
         let protocol = Arc::clone(&protocol);
