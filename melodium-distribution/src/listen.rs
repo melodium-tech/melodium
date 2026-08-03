@@ -766,29 +766,33 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
 
     let probe = async_std::task::spawn(probe);
 
-    // Safety net: `run`/`logs`/`debug` normally end once the engine reports it
-    // ended (peer sends `Message::Ended`, or protocol errors out) and the
-    // log/debug channels close. If the peer never confirms and the connection
-    // stays silently open, none of those futures would otherwise ever resolve,
-    // leaving this whole function - and therefore the process - stuck forever
-    // even though the engine itself is done. Race a watchdog alongside the
-    // real teardown that forces everything closed after a grace period, so
-    // the still-running futures unblock and join naturally.
-    let watchdog = {
-        let engine = Arc::clone(&engine);
-        let protocol = Arc::clone(&protocol);
-        async_std::task::spawn(async move {
-            async_std::task::sleep(teardown_timeout()).await;
-            engine.end().await;
-            protocol.close().await;
-            watchdog_logs_receiver.close();
-            watchdog_debug_receiver.close();
-        })
-    };
+    // `limit`/`live`/`run` complete once real work is genuinely done: `max_duration`
+    // elapsing, the engine reporting itself ended, or the peer confirming `Ended` /
+    // the protocol erroring out (including via the probe retry loop above giving up).
+    // None of them are time-bounded by anything shorter than the run's own
+    // `max_duration`, so joining them here can legitimately take as long as the
+    // distributed work does - a job that runs for hours must not have its connection
+    // torn out from under it by an unrelated fixed timer.
+    futures::join!(limit, live, run);
 
-    futures::join!(limit, live, run, logs, debug);
+    // Only past this point is `logs`/`debug` draining expected to finish quickly:
+    // `engine.end()` has already run (via `limit`/`live`/`run` above), which closes
+    // the listeners those two futures are reading from. If the peer never confirms
+    // and the connection stays silently open, they could otherwise hang forever - so
+    // only this remaining, genuinely-bounded tail is raced against the watchdog,
+    // instead of the watchdog racing the actual distributed work from the start.
+    if timeout(teardown_timeout(), async {
+        futures::join!(logs, debug);
+    })
+    .await
+    .is_err()
+    {
+        engine.end().await;
+        protocol.close().await;
+        watchdog_logs_receiver.close();
+        watchdog_debug_receiver.close();
+    }
 
-    watchdog.cancel().await;
     protocol.close().await;
     probe.cancel().await;
 

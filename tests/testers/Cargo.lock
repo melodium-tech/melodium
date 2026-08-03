@@ -290,6 +290,10 @@ name = "process_distributed_hang"
 version = "0.1.0"
 
 [[package]]
+name = "process_distributed_slow"
+version = "0.1.0"
+
+[[package]]
 name = "protocol_timeout_survives_jitter"
 version = "0.1.0"
 

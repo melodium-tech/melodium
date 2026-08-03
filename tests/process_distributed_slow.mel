@@ -1,0 +1,96 @@
+#!/usr/bin/env melodium
+#! name = process_distributed_slow
+#! version = 0.10.2
+#! require = std:0.10.2 work:0.10.2 distrib:0.10.2 process:0.10.2 fs:0.10.2 net:0.10.2
+
+use std/flow::emit
+use std/flow::stream
+use std/flow::releaseBlock
+use std/flow::close
+use std/flow::check
+use std/data/map::|map
+use std/engine/util::startup
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use work/access::Access
+use work/access::|new_access
+use fs/local::writeTextLocal
+use process/command::|command
+use process/local::spawnOnce
+
+// Regression test for the "connection torn down after a fixed grace period regardless
+// of whether real work is still in progress" bug: the worker's own distributed track
+// runs a genuinely slow (but healthy) command - longer than the shortened teardown
+// watchdog window configured by the harness - before replying. The connection and
+// engine must survive past that window as long as real work is progressing; only a
+// truly silent/stalled connection should ever be torn down by the watchdog. If the
+// watchdog fires on a healthy-but-slow run, `reply.log` never gets written and the
+// process hangs or exits without the expected reply.
+treatment main(const distrib_port: u16, var remote_key: string, var self_key: string, const message: string = "Pingouin")
+  model distributor: DistributionEngine(treatment="process_distributed_slow::slowEcho", version="0.10.2")
+{
+    startup()
+    emitAccess: emit<Access>(value=|new_access([|from_ipv4(|localhost_ipv4())], distrib_port, remote_key, self_key))
+    start[distributor=distributor](params=|map([]))
+    stop[distributor=distributor]()
+    distributedEcho[distributor=distributor](message=message)
+    startup.trigger -> emitAccess.trigger,emit -> start.access
+
+    emitOk: emit<string>(value="ok")
+    streamOk: stream<string>()
+    writeOk: writeTextLocal(path = "ok.log")
+    writeFailure: writeTextLocal(path = "failure.log")
+    streamFailure: stream<string>()
+
+    start.error -> streamFailure.block,stream --> writeFailure.text
+    start.ready -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
+
+    streamReply: stream<string>()
+    writeReply: writeTextLocal(path = "reply.log")
+
+    start.ready -> distributedEcho.trigger
+    distributedEcho.reply -> streamReply.block,stream -> writeReply.text,finished -> stop.trigger
+}
+
+treatment slowEcho()
+  input data: Block<string>
+  output data: Block<string>
+{
+    delay: spawnOnce(command=|command("sleep", ["8"]))
+    closeStdin: close<byte>()
+    checkData: check<string>()
+
+    Self.data -> checkData.value,check -> delay.launch
+    checkData.check -> closeStdin.trigger,closed -> delay.stdin
+
+    releaseReply: releaseBlock<string>()
+    delay.finished -> releaseReply.leverage
+    Self.data -> releaseReply.data,released -> Self.data
+}
+
+use distrib::DistributionEngine
+use distrib::distribute
+use distrib::start
+use distrib::stop
+use distrib::sendBlock
+use distrib::recvBlock
+
+treatment distributedEcho[distributor: DistributionEngine](message: string)
+  input trigger: Block<void>
+  output reply: Block<string>
+{
+  emitMessage: emit<string>(value=message)
+  distribute[distributor=distributor]()
+
+  Self.trigger -> distribute.trigger
+  Self.trigger -> emitMessage.trigger
+
+  sendBlock<string>[distributor=distributor](name="data")
+  recvBlock<string>[distributor=distributor](name="data")
+
+  distribute.distribution_id -> sendBlock.distribution_id
+  distribute.distribution_id -> recvBlock.distribution_id
+
+  emitMessage.emit -> sendBlock.data
+  recvBlock.data -> Self.reply
+}
