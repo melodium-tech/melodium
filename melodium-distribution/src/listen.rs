@@ -478,11 +478,15 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
         let engine = Arc::clone(&engine);
         let protocol = Arc::clone(&protocol);
         async move {
+            eprintln!("[MELDBG {:?}] worker live: calling engine.live().await", std::time::SystemTime::now());
             engine.live().await;
+            eprintln!("[MELDBG {:?}] worker live: engine.live() RETURNED, sending Message::Ended to orchestrator", std::time::SystemTime::now());
             let _ = protocol.send_message(Message::Ended).await;
+            eprintln!("[MELDBG {:?}] worker live: Message::Ended sent, now waiting on barrier (expired={})", std::time::SystemTime::now(), expired.load(core::sync::atomic::Ordering::Relaxed));
             if !expired.load(core::sync::atomic::Ordering::Relaxed) {
                 barrier.wait().await;
             }
+            eprintln!("[MELDBG {:?}] worker live: barrier released, live future done", std::time::SystemTime::now());
         }
     };
     let run = async {
@@ -677,9 +681,11 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
 
                     match message {
                         Ok(Message::Ended) => {
+                            eprintln!("[MELDBG {:?}] worker run: received Message::Ended from orchestrator -> BREAK", std::time::SystemTime::now());
                             break;
                         }
-                        Err(_err) => {
+                        Err(ref err) => {
+                            eprintln!("[MELDBG {:?}] worker run: recv_message() FAILED with {:?} -> BREAK", std::time::SystemTime::now(), err);
                             break;
                         }
                         Ok(msg) => {
@@ -688,16 +694,21 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                     }
                 }
                 () = messages_futures.select_next_some() => {}
-                complete => break,
+                complete => {
+                    eprintln!("[MELDBG {:?}] worker run: select! complete arm hit -> BREAK", std::time::SystemTime::now());
+                    break
+                },
             }
         }
 
+        eprintln!("[MELDBG {:?}] worker run: loop exited, closing track outputs and calling engine.end()", std::time::SystemTime::now());
         for (_, outputs) in tracks_entry_outputs.read().await.iter() {
             for (_, output) in outputs {
                 output.close().await;
             }
         }
         engine.end().await;
+        eprintln!("[MELDBG {:?}] worker run: run future done", std::time::SystemTime::now());
     };
     let logs = {
         let protocol = Arc::clone(&protocol);
@@ -766,6 +777,14 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
 
     let probe = async_std::task::spawn(probe);
 
+    // `logs`/`debug` are spawned as independent tasks, not joined alongside
+    // `limit`/`live`/`run` below: they must be actively polled and forwarding to the
+    // peer for the whole duration of the run, not just after the real work is done -
+    // otherwise log/debug events only get sent once the job already finished, instead
+    // of arriving live while it's in progress.
+    let logs = async_std::task::spawn(logs);
+    let debug = async_std::task::spawn(debug);
+
     // `limit`/`live`/`run` complete once real work is genuinely done: `max_duration`
     // elapsing, the engine reporting itself ended, or the peer confirming `Ended` /
     // the protocol erroring out (including via the probe retry loop above giving up).
@@ -775,12 +794,13 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
     // torn out from under it by an unrelated fixed timer.
     futures::join!(limit, live, run);
 
-    // Only past this point is `logs`/`debug` draining expected to finish quickly:
-    // `engine.end()` has already run (via `limit`/`live`/`run` above), which closes
-    // the listeners those two futures are reading from. If the peer never confirms
-    // and the connection stays silently open, they could otherwise hang forever - so
-    // only this remaining, genuinely-bounded tail is raced against the watchdog,
-    // instead of the watchdog racing the actual distributed work from the start.
+    // Only past this point do we bound how long we wait for `logs`/`debug` to finish
+    // flushing whatever's left: `engine.end()` has already run (via `limit`/`live`/`run`
+    // above), which closes the listeners those two tasks are reading from, so they
+    // should wrap up quickly on their own. If the peer never confirms and the
+    // connection stays silently open, they could otherwise hang forever - so only this
+    // remaining, genuinely-bounded tail is raced against the watchdog, instead of the
+    // watchdog racing the actual distributed work from the start.
     if timeout(teardown_timeout(), async {
         futures::join!(logs, debug);
     })

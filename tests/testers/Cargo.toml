@@ -13,6 +13,7 @@ members = [
     "process",
     "process_distributed",
     "process_distributed_hang",
+    "process_distributed_logs_live",
     "process_distributed_slow",
     "protocol_timeout_survives_jitter",
     "regex",

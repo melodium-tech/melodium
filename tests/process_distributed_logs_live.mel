@@ -1,0 +1,100 @@
+#!/usr/bin/env melodium
+#! name = process_distributed_logs_live
+#! version = 0.10.2
+#! require = std:0.10.2 work:0.10.2 distrib:0.10.2 process:0.10.2 fs:0.10.2 net:0.10.2
+
+use std/flow::emit
+use std/flow::stream
+use std/flow::releaseBlock
+use std/flow::close
+use std/flow::check
+use std/engine/log::logInfoMessage
+use std/data/map::|map
+use std/engine/util::startup
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use work/access::Access
+use work/access::|new_access
+use fs/local::writeTextLocal
+use process/command::|command
+use process/local::spawnOnce
+
+// Regression test for the bug where `logs`/`debug` forwarding from a distributed
+// worker back to the orchestrator was only polled once the run's real work
+// (`limit`/`live`/`run`) already finished, instead of concurrently throughout -
+// silently delaying every log/debug event until the job was already over instead of
+// delivering them live. The worker here logs a distinctive message immediately, then
+// spends several seconds on an unrelated slow (but healthy) command before replying.
+// The orchestrator's `--logs` file must contain that message while the worker is
+// still in that slow phase, not only once the whole run has completed.
+treatment main(const distrib_port: u16, var remote_key: string, var self_key: string, const message: string = "Pingouin")
+  model distributor: DistributionEngine(treatment="process_distributed_logs_live::slowLogEcho", version="0.10.2")
+{
+    startup()
+    emitAccess: emit<Access>(value=|new_access([|from_ipv4(|localhost_ipv4())], distrib_port, remote_key, self_key))
+    start[distributor=distributor](params=|map([]))
+    stop[distributor=distributor]()
+    distributedEcho[distributor=distributor](message=message)
+    startup.trigger -> emitAccess.trigger,emit -> start.access
+
+    emitOk: emit<string>(value="ok")
+    streamOk: stream<string>()
+    writeOk: writeTextLocal(path = "ok.log")
+    writeFailure: writeTextLocal(path = "failure.log")
+    streamFailure: stream<string>()
+
+    start.error -> streamFailure.block,stream --> writeFailure.text
+    start.ready -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
+
+    streamReply: stream<string>()
+    writeReply: writeTextLocal(path = "reply.log")
+
+    start.ready -> distributedEcho.trigger
+    distributedEcho.reply -> streamReply.block,stream -> writeReply.text,finished -> stop.trigger
+}
+
+treatment slowLogEcho()
+  input data: Block<string>
+  output data: Block<string>
+{
+    logInfoMessage(label="worker", message="worker-received-request")
+    checkData: check<string>()
+    Self.data -> checkData.value,check -> logInfoMessage.trigger
+
+    delay: spawnOnce(command=|command("sleep", ["6"]))
+    closeStdin: close<byte>()
+
+    checkData.check -> delay.launch
+    checkData.check -> closeStdin.trigger,closed -> delay.stdin
+
+    releaseReply: releaseBlock<string>()
+    delay.finished -> releaseReply.leverage
+    Self.data -> releaseReply.data,released -> Self.data
+}
+
+use distrib::DistributionEngine
+use distrib::distribute
+use distrib::start
+use distrib::stop
+use distrib::sendBlock
+use distrib::recvBlock
+
+treatment distributedEcho[distributor: DistributionEngine](message: string)
+  input trigger: Block<void>
+  output reply: Block<string>
+{
+  emitMessage: emit<string>(value=message)
+  distribute[distributor=distributor]()
+
+  Self.trigger -> distribute.trigger
+  Self.trigger -> emitMessage.trigger
+
+  sendBlock<string>[distributor=distributor](name="data")
+  recvBlock<string>[distributor=distributor](name="data")
+
+  distribute.distribution_id -> sendBlock.distribution_id
+  distribute.distribution_id -> recvBlock.distribution_id
+
+  emitMessage.emit -> sendBlock.data
+  recvBlock.data -> Self.reply
+}
