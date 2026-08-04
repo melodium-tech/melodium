@@ -32,8 +32,6 @@ use llm::{
 /// - `top_p`: nucleus sampling cutoff from 0.0 to 1.0 (omit to use the backend default).
 /// - `timeout`: request timeout in seconds (omit to use the backend default).
 ///
-/// ## Backends
-///
 /// | `backend`        | `api_key`         | `base_url`                              | Example `model`               | Model list                                                                                  |
 /// |------------------|-------------------|-----------------------------------------|-------------------------------|---------------------------------------------------------------------------------------------|
 /// | `"mistral"`      | Mistral API key   | *(built-in)*                            | `"mistral-small-latest"`      | <https://docs.mistral.ai/getting-started/models/models_overview/>                          |

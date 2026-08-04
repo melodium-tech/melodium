@@ -130,14 +130,16 @@ Functions appear as argument expressions, not as wired nodes. Show them in a par
 /// use std/engine/log::logBlock
 /// use std/engine/log::|debug
 /// use std/engine::Engine
+/// use std/flow::emit
 ///
 /// treatment example()
 ///   model engine: Engine()
 ///   input trigger: Block<void>
 /// {
+///     emit<string>(value="result")
 ///     logBlock[engine=engine](level=|debug(), label="result")
 ///
-///     Self.trigger -> logBlock.message
+///     Self.trigger -> emit.trigger,emit -> logBlock.message
 /// }
 /// ```
 ````

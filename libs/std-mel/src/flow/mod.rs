@@ -17,9 +17,9 @@ pub mod vec;
 ///     
 ///     T -->|chained| O["… 🟪 🟪 🟪 🟨 🟨 🟨 🟨 🟨 🟨"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style O fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -59,11 +59,11 @@ pub async fn chain() {
 ///     T -->|last| L["〈🟥〉"]
 ///     T -->|end| E["〈🟦〉"]
 ///
-///     style B fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style L fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style L fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -114,8 +114,8 @@ pub async fn trigger() {
 ///         
 ///     T -->|check| S["〈🟦〉"]
 ///     
-///     style B fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -139,8 +139,8 @@ pub async fn check() {
 ///         
 ///     T -->|uncheck| S["〈🟦〉"]
 ///     
-///     style B fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -164,8 +164,8 @@ pub async fn uncheck() {
 ///         
 ///     T -->|emit| S["〈🟨〉"]
 ///     
-///     style B fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -188,8 +188,8 @@ pub async fn emit(value: T) {
 ///     T -->|stream| S["🟦"]
 ///     
 ///     
-///     style B fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -217,9 +217,9 @@ pub async fn stream() {
 ///
 ///     T -->|value| V["… 🟦 🟧 🟪 🟫 🟨 …"]
 ///
-///     style V fill:#ffff,stroke:#ffff
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style V fill:#ffffff,stroke:#ffffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -274,10 +274,10 @@ pub async fn merge() {
 ///
 ///     T -->|value| V["… 🟦 🟧 🟪 🟫 🟨 …"]
 ///
-///     style V fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style V fill:#ffffff,stroke:#ffffff
+///     style O fill:#ffffff,stroke:#ffffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -320,8 +320,8 @@ pub async fn arrange() {
 ///
 /// T -->|filled| O["… 🟧 🟧 🟧 …"]
 ///
-/// style B fill:#ffff,stroke:#ffff
-/// style O fill:#ffff,stroke:#ffff
+/// style B fill:#ffffff,stroke:#ffffff
+/// style O fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -351,10 +351,10 @@ pub async fn fill(value: T) {
 ///     T -->|accepted| A["… 🟦 🟫 …"]
 ///     T -->|rejected| R["… 🟧 🟪 🟨 …"]
 ///
-///     style V fill:#ffff,stroke:#ffff
-///     style D fill:#ffff,stroke:#ffff
-///     style A fill:#ffff,stroke:#ffff
-///     style R fill:#ffff,stroke:#ffff
+///     style V fill:#ffffff,stroke:#ffffff
+///     style D fill:#ffffff,stroke:#ffffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style R fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -404,10 +404,10 @@ pub async fn filter() {
 ///     T -->|accepted| A["〈🟦〉"]
 ///     T -->|rejected| R[" "]
 ///
-///     style V fill:#ffff,stroke:#ffff
-///     style D fill:#ffff,stroke:#ffff
-///     style A fill:#ffff,stroke:#ffff
-///     style R fill:#ffff,stroke:#ffff
+///     style V fill:#ffffff,stroke:#ffffff
+///     style D fill:#ffffff,stroke:#ffffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style R fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -439,9 +439,9 @@ pub async fn filterBlock() {
 ///     
 ///     T -->|fitted| O["🟨 🟨 🟨 🟨"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style O fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -476,8 +476,8 @@ pub async fn fit() {
 ///     
 ///     T -->|count| P["1️⃣ 2️⃣ 3️⃣ …"]
 ///
-///     style V fill:#ffff,stroke:#ffff
-///     style P fill:#ffff,stroke:#ffff
+///     style V fill:#ffffff,stroke:#ffffff
+///     style P fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -507,8 +507,8 @@ pub async fn count() {
 ///     T -->|stream| S["… 🟦 🟦 🟦 🟦 🟦 🟦"]
 ///     
 ///     
-///     style B fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -547,8 +547,8 @@ pub async fn generate(data: T) {
 ///     T -->|stream| S["… 🟦 🟦 🟦 🟦 🟦 🟦"]
 ///     
 ///     
-///     style B fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -583,9 +583,9 @@ pub async fn generate_indefinitely(data: T) {
 ///
 ///     T -->|output| V["… 🟦 🟧 🟦 🟦 🟦 …"]
 ///
-///     style V fill:#ffff,stroke:#ffff
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style V fill:#ffffff,stroke:#ffffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -633,9 +633,9 @@ pub async fn insert() {
 ///
 ///     T -->|stream| V["🟧 🟦"]
 ///
-///     style V fill:#ffff,stroke:#ffff
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style V fill:#ffffff,stroke:#ffffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -683,9 +683,9 @@ pub async fn flock() {
 ///
 ///     T -->|value| V["〈🟧〉"]
 ///
-///     style V fill:#ffff,stroke:#ffff
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style V fill:#ffffff,stroke:#ffffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()

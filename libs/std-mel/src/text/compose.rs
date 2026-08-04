@@ -61,8 +61,8 @@ pub async fn rescale(delimiter: string) {
 ///     
 ///     T -->|value| O["［🟦 🟦 🟦］"]
 ///
-///     style B fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style O fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     default inclusive true

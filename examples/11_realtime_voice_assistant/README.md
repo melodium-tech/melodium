@@ -21,7 +21,7 @@ Two-entrypoint program for a voice-driven conversational assistant. Both entrypo
 melodium run Compo.toml -- --openai_key sk-...
 
 # Fully local (no API key, needs ~14 GB RAM)
-melodium run Compo.toml localOnly
+melodium run Compo.toml localonly
 ```
 
 ## How it is built

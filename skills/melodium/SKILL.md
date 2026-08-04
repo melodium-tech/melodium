@@ -332,7 +332,7 @@ Single-file scripts with a mandatory shebang and metadata header:
 
 ### Package format (`.jeu`)
 
-Built with `melodium jeu build <project_dir> <output.jeu>`. Already LZMA2-compressed; do not re-compress. Directly executable on any system with Mélodium installed.
+Built with `melodium jeu build <project_dir> <output.jeu>`. Already bzip2-compressed; do not re-compress. Directly executable on any system with Mélodium installed.
 
 ---
 
@@ -369,6 +369,9 @@ Built with `melodium jeu build <project_dir> <output.jeu>`. Already LZMA2-compre
 | `distrib`    | Distributed-computing coordination                    |
 | `work`       | Work queues and resource management                   |
 | `cicd`       | CI/CD pipeline utilities                              |
+| `ml`         | Machine learning: local (Whisper, Mistral) and remote (LLM chat/stream, speech-to-text, text-to-speech) models, HuggingFace Hub fetch |
+| `audio`      | Audio data processing: decode, encode, channel/format transforms |
+| `record`     | Audio recording from an input device (mock mode when no real device is available) |
 
 Always check https://doc.melodium.tech/latest/en/ for the exact treatment/function signatures.
 

@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.10.2] (2026-08-04)
+
+- Adding a detection timeout (overridable via `MELODIUM_COMPOSE_DETECTION_TIMEOUT_SECS`) so an unresponsive `podman`/`docker` daemon can no longer block `compose()`, and the whole distributed run, forever.
+- Retrying the same batch instead of dropping it and advancing when sending logs or debug events to S3 fails.
+
 ## [v0.10.1] (2026-05-29)
 
 - Adding program details to execution reporting (#106).

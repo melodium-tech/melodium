@@ -66,11 +66,11 @@ use {
 ///     T -->|errors| E["…"]
 ///     T -->|failed| F["⬛"]
 ///
-///     style D fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
-///     style I fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
+///     style D fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style I fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel

@@ -107,9 +107,9 @@ pub fn to_json(text: string) -> Option<Json> {
 ///     T -->|json| B["〈🟦〉 … 〈none〉"]
 ///     T -->|error| E["〈none〉 … 〈🟥〉"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input text Stream<string>
@@ -156,8 +156,8 @@ pub async fn to_json() {
 ///     A["🟦 … 🟨"] -->|text| T
 ///     T -->|is_json| B["true … false"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input {content(json)} text Stream<string>

@@ -289,7 +289,7 @@ impl SqlPool {
 /// graph LR
 ///     T("connect()")
 ///     B["〈🟦〉"] -->|trigger| T
-///     style B fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     model sql_pool SqlPool
@@ -313,7 +313,7 @@ pub async fn connect() {
 /// graph LR
 ///     T("close()")
 ///     B["〈🟦〉"] -->|trigger| T
-///     style B fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     model sql_pool SqlPool
@@ -345,12 +345,12 @@ pub async fn close() {
 ///     T -->|failed| F["〈🟥〉"]
 ///     T -->|error| E["〈🟫〉"]
 ///     T -->|finished| FN["〈🟦〉"]
-///     style B fill:#ffff,stroke:#ffff
-///     style C fill:#ffff,stroke:#ffff
-///     style A fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
-///     style FN fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style C fill:#ffffff,stroke:#ffffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
+///     style FN fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input trigger Block<void>
@@ -399,12 +399,12 @@ pub async fn execute_raw(sql: string) {
 ///     T -->|failed| F["〈🟥〉"]
 ///     T -->|error| E["〈🟫〉"]
 ///     T -->|finished| FN["〈🟦〉"]
-///     style B fill:#ffff,stroke:#ffff
-///     style C fill:#ffff,stroke:#ffff
-///     style A fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
-///     style FN fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style C fill:#ffffff,stroke:#ffffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
+///     style FN fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input bind Block<Map>
@@ -476,12 +476,12 @@ pub async fn execute(sql: string, bindings: Vec<string>, bind_symbol: string) {
 ///     T -->|failed| F["〈🟥〉"]
 ///     T -->|errors| E["🟫 …"]
 ///     T -->|finished| FN["〈🟦〉"]
-///     style B fill:#ffff,stroke:#ffff
-///     style A fill:#ffff,stroke:#ffff
-///     style C fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
-///     style FN fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style C fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
+///     style FN fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input bind Stream<Map>
@@ -572,12 +572,12 @@ pub async fn execute_each(
 ///     T -->|failed| F["〈🟥〉"]
 ///     T -->|errors| E["🟫 …"]
 ///     T -->|finished| FN["〈🟦〉"]
-///     style B fill:#ffff,stroke:#ffff
-///     style A fill:#ffff,stroke:#ffff
-///     style C fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
-///     style FN fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style C fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
+///     style FN fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     default separator ", "
@@ -694,12 +694,12 @@ pub async fn execute_batch(
 ///     T -->|failed| F["〈🟥〉"]
 ///     T -->|errors| E["🟫 …"]
 ///     T -->|finished| FN["〈🟦〉"]
-///     style B fill:#ffff,stroke:#ffff
-///     style D fill:#ffff,stroke:#ffff
-///     style C fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
-///     style FN fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style D fill:#ffffff,stroke:#ffffff
+///     style C fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
+///     style FN fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input bind Block<Map>
@@ -782,12 +782,12 @@ pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
 ///     T -->|failed| F["〈🟥〉"]
 ///     T -->|errors| E["🟫 …"]
 ///     T -->|finished| FN["〈🟦〉"]
-///     style B fill:#ffff,stroke:#ffff
-///     style D fill:#ffff,stroke:#ffff
-///     style C fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
-///     style FN fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style D fill:#ffffff,stroke:#ffffff
+///     style C fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
+///     style FN fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     default separator ", "

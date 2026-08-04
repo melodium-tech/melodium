@@ -732,7 +732,7 @@ Sources:
 | Treatment | Inputs | Outputs | Notes |
 |-----------|--------|---------|-------|
 | `start[http_server: HttpServer]` | `trigger Block<void>` | *(none)* | Starts listening |
-| `connection[http_server: HttpServer](method: HttpMethod, route: string)` | `status Block<HttpStatus>`, `headers Block<StringMap>`, `data Stream<byte>` | `data Stream<byte>` | High-level: handles one route bidirectionally |
+| `connection[http_server: HttpServer](method: HttpMethod, route: string)` | `status Block<HttpStatus>`, `headers Block<StringMap>`, `data Stream<byte>` | `started Block<void>`, `headers Block<StringMap>`, `data Stream<byte>`, `failed Block<void>`, `error Block<string>` | High-level: handles one route bidirectionally |
 | `outgoing(id: u128)[http_server: HttpServer]` | `status Block<HttpStatus>`, `headers Block<StringMap>`, `data Stream<byte>` | *(none)* | Low-level response writer |
 
 The `connection` treatment is the standard way to handle HTTP routes. It wraps `incoming` + `outgoing`.

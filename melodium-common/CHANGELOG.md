@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.10.2] (2026-08-04)
+
+- Adding `World::wait_no_more_tracks` to let continuous tasks detect that no track will ever run again, instead of relying on an arbitrary timeout.
+- Fixing multiline string display for values starting with `{` or ending with `}`.
+
 ## [v0.10.1] (2026-05-29)
 
 - No changes in this crate.

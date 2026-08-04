@@ -21,10 +21,10 @@ use {async_channel::bounded, flacenc::error::Verify};
 ///     T -->|errors| E["…"]
 ///     T -->|failed| F["⬛"]
 ///
-///     style S fill:#ffff,stroke:#ffff
-///     style D fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style D fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input signal Stream<f32>
@@ -141,10 +141,10 @@ pub async fn encode_mono_wav(sample_rate: u32) {
 ///     T -->|errors| E["…"]
 ///     T -->|failed| F["⬛"]
 ///
-///     style S fill:#ffff,stroke:#ffff
-///     style D fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style D fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input signal Stream<f32>

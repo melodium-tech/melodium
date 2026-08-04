@@ -22,8 +22,6 @@ use llm::{
 /// - `base_url`: override the provider base URL (optional).
 /// - `model`: model identifier; see the table below for recommended values per backend.
 ///
-/// ## Backends
-///
 /// | `backend`      | `api_key`       | Example `model`  | Model list                                                             |
 /// |----------------|-----------------|------------------|------------------------------------------------------------------------|
 /// | `"openai"`     | OpenAI API key  | `"whisper-1"`    | <https://platform.openai.com/docs/models>                              |

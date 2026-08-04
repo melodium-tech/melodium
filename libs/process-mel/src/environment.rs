@@ -56,8 +56,8 @@ pub fn environment(
 ///     T("mapEnvironment()")
 ///     V["〈🟦〉"] -->|variables| T
 ///     T -->|environment| E["〈🟨〉"]
-///     style V fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style V fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input variables Block<StringMap>
@@ -101,9 +101,9 @@ pub async fn map_environment(
 ///     V["〈🟦〉"] -->|variables| T
 ///     W["〈🟨〉"] -->|working_directory| T
 ///     T -->|environment| E["〈🟩〉"]
-///     style V fill:#ffff,stroke:#ffff
-///     style W fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style V fill:#ffffff,stroke:#ffffff
+///     style W fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input variables Block<StringMap>

@@ -27,9 +27,9 @@ use std::sync::Arc;
 ///     I["AudioInfo"] -->|info| T
 ///     T -->|resampled| R["−0.3 … 0.7 @ 16000 Hz"]
 ///
-///     style S fill:#ffff,stroke:#ffff
-///     style I fill:#ffff,stroke:#ffff
-///     style R fill:#ffff,stroke:#ffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style I fill:#ffffff,stroke:#ffffff
+///     style R fill:#ffffff,stroke:#ffffff
 /// ```
 ///
 /// ```mel
