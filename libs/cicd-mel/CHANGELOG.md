@@ -1,6 +1,13 @@
 
 # Changelog
 
+## [v0.10.2] (2026-08-04)
+
+- Fixing `simpleStepTerminable`/`simpleStepTerminableWithInput` hanging the whole engine when the runner fails to dispatch.
+- Fixing `stepOnTerminableWithInput` reporting `finished` before its `data` stream had fully drained, which could truncate `out_file`.
+- Sequencing GitHub/GitLab status reporting so a state change can no longer race with, and be dropped alongside, the previous one.
+- Adding a summary error log when a step's commands exit with a non-zero code.
+
 ## [v0.10.1] (2026-05-29)
 
 - No changes in this crate.

@@ -138,8 +138,8 @@ Embed the diagram as a fenced code block with the `mermaid` language tag:
 ///     B["〈🟦〉"] -->|trigger| T
 ///     T -->|emit| S["〈🟨〉"]
 ///
-///     style B fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
 /// ```
 ````
 
@@ -196,9 +196,9 @@ T -->|value| V["… 🟦 🟧 🟪 🟫 🟨 …"]
 All input and output data nodes should have their borders removed so they don't draw attention away from the treatment node and the port labels:
 
 ```
-style A fill:#ffff,stroke:#ffff
-style B fill:#ffff,stroke:#ffff
-style O fill:#ffff,stroke:#ffff
+style A fill:#ffffff,stroke:#ffffff
+style B fill:#ffffff,stroke:#ffffff
+style O fill:#ffffff,stroke:#ffffff
 ```
 
 Apply this `style` line for every non-treatment node in the diagram.
@@ -213,9 +213,9 @@ Apply this `style` line for every non-treatment node in the diagram.
 ///     B["… 🟪 🟪 🟪"] -->|second| T
 ///     T -->|chained| O["… 🟪 🟪 🟪 🟨 🟨 🟨 🟨 🟨 🟨"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style O fill:#ffffff,stroke:#ffffff
 /// ```
 ````
 
@@ -232,11 +232,11 @@ Apply this `style` line for every non-treatment node in the diagram.
 ///     T -->|last| L["〈🟥〉"]
 ///     T -->|end| E["〈🟦〉"]
 ///
-///     style B fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style L fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style L fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
 /// ```
 ````
 
@@ -566,7 +566,7 @@ When writing documentation for a Mélodium element, verify:
 - [ ] `finished`/`completed`/`failed` outputs are explained if present.
 - [ ] Notes and warnings use `ℹ️` / `⚠️` prefixes.
 - [ ] A Mermaid `graph LR` diagram is included for treatments with inputs and outputs.
-- [ ] All non-treatment nodes in the diagram have `style X fill:#ffff,stroke:#ffff`.
+- [ ] All non-treatment nodes in the diagram have `style X fill:#ffffff,stroke:#ffffff`.
 - [ ] Data tokens in the diagram use emoji squares/circles consistent within the diagram.
 - [ ] A code example is included when wiring is non-trivial or usage is not obvious.
 - [ ] No section headers (`##`, `###`) inside the doc comment body.

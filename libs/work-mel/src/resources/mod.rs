@@ -23,10 +23,10 @@ use std_mel::data::string_map::*;
 ///     T -->|executor| E["〈🟩〉"]
 ///     T -->|error| ER["〈🟫〉"]
 ///     T -->|failed| F["〈🟥〉"]
-///     style N fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
-///     style ER fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
+///     style N fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
+///     style ER fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input name Block<Option<string>>
@@ -124,10 +124,10 @@ pub async fn getExecutor() {
 ///     T -->|filesystem| FS["〈🟩〉"]
 ///     T -->|error| ER["〈🟫〉"]
 ///     T -->|failed| F["〈🟥〉"]
-///     style N fill:#ffff,stroke:#ffff
-///     style FS fill:#ffff,stroke:#ffff
-///     style ER fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
+///     style N fill:#ffffff,stroke:#ffffff
+///     style FS fill:#ffffff,stroke:#ffffff
+///     style ER fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input name Block<string>

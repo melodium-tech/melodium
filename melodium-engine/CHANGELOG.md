@@ -1,6 +1,11 @@
 
 # Changelog
 
+## [v0.10.2] (2026-08-04)
+
+- Implementing `World::wait_no_more_tracks`, fixing continuous tasks hanging forever when waiting on an event tied to a track that never runs.
+- Waiting for log/debug transmission tasks to fully drain before `live()` returns, so listeners can rely on it as "everything has been delivered".
+
 ## [v0.10.1] (2026-05-29)
 
 - No changes in this crate.

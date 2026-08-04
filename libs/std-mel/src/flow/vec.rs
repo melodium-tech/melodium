@@ -11,8 +11,8 @@ use melodium_macro::{check, mel_treatment};
 ///     
 ///     T -->|value| O["🟦 🟦 🟦 🟦 🟦 🟦"]
 ///
-///     style B fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style O fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -45,8 +45,8 @@ pub async fn flatten() {
 ///     
 ///     T -->|pattern| O["… ［🟦 🟦］［🟦］［🟦 🟦 🟦］"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style O fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -83,9 +83,9 @@ pub async fn pattern() {
 ///     
 ///     T -->|fitted| O["［🟨 🟨］［🟨］［🟨 🟨 🟨］"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
+///     style O fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -128,8 +128,8 @@ pub async fn fit() {
 ///
 /// T -->|filled| O["…［🟧 🟧］［🟧］［🟧 🟧 🟧］…"]
 ///
-/// style B fill:#ffff,stroke:#ffff
-/// style O fill:#ffff,stroke:#ffff
+/// style B fill:#ffffff,stroke:#ffffff
+/// style O fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -165,8 +165,8 @@ pub async fn fill(value: T) {
 ///     
 ///     T -->|size| P["2️⃣ 1️⃣ 0️⃣ 3️⃣ …"]
 ///
-///     style V fill:#ffff,stroke:#ffff
-///     style P fill:#ffff,stroke:#ffff
+///     style V fill:#ffffff,stroke:#ffffff
+///     style P fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()
@@ -206,9 +206,9 @@ pub async fn size() {
 ///     
 ///     T -->|resized| P["［🟦 🟦 🟨］［🟦 🟨］［🟨 🟨 🟨］［🟦 🟦］…"]
 ///
-///     style V fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
-///     style P fill:#ffff,stroke:#ffff
+///     style V fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style P fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic T ()

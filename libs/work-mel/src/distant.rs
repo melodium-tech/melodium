@@ -11,6 +11,7 @@ use std::{
 };
 use uuid::Uuid;
 
+#[derive(Debug)]
 /// Model for requesting and connecting to a distant Mélodium worker.
 ///
 /// `DistantEngine` sends a worker request to the Mélodium Services API or a local Compose
@@ -22,7 +23,6 @@ use uuid::Uuid;
 /// - `api_token`: authentication token for the API; can also be set via the `MELODIUM_API_TOKEN` environment variable.
 ///
 /// Use the `distant` treatment to trigger a worker request.
-#[derive(Debug)]
 #[mel_model(
     param location string "api"
     param api_url Option<string> none

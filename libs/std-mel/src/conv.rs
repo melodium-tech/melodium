@@ -27,7 +27,6 @@ pub async fn to_void() {
 ///
 /// ℹ️ While this conversion is infaillible, resulting vector may be empty.
 /// Content format and length of vector is totally dependent on data type given, and might not be constant (like for `char` or `string` types).
-
 #[mel_function(
     generic T ()
 )]

@@ -21,7 +21,7 @@ Two-entrypoint program that transcribes audio to text using a local Whisper mode
 melodium run Compo.toml -- --output transcription.txt
 
 # From file
-melodium run Compo.toml fromFile --input_file speech.wav --output transcription.txt
+melodium run Compo.toml fromfile --input_file speech.wav --output transcription.txt
 ```
 
 ## How it is built

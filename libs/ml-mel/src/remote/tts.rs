@@ -24,8 +24,6 @@ use llm::{
 /// - `model`: model identifier; see the table below for recommended values per backend.
 /// - `voice`: voice identifier (required for ElevenLabs; omit for other backends).
 ///
-/// ## Backends
-///
 /// | `backend`      | `api_key`      | Example `model`            | `voice`             | Model & voice list                                          |
 /// |----------------|----------------|----------------------------|---------------------|-------------------------------------------------------------|
 /// | `"elevenlabs"` | ElevenLabs key | `"eleven_multilingual_v2"` | ElevenLabs voice ID | <https://elevenlabs.io/docs/text-to-speech>                 |

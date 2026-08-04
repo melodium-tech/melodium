@@ -396,7 +396,7 @@ impl HttpServer {
 /// graph LR
 ///     T("start()")
 ///     B["〈🟦〉"] -->|trigger| T
-///     style B fill:#ffff,stroke:#ffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     model http_server HttpServer
@@ -428,9 +428,9 @@ pub async fn start() {
 ///     ST["〈🟦〉"] -->|status| T
 ///     H["〈🟨〉"] -->|headers| T
 ///     D["🟩 …"] -->|data| T
-///     style ST fill:#ffff,stroke:#ffff
-///     style H fill:#ffff,stroke:#ffff
-///     style D fill:#ffff,stroke:#ffff
+///     style ST fill:#ffffff,stroke:#ffffff
+///     style H fill:#ffffff,stroke:#ffffff
+///     style D fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input status Block<HttpStatus>

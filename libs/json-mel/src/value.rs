@@ -16,8 +16,8 @@ pub fn null() -> Json {
 ///     A["🟦 … 🟨"] -->|ticks| T
 ///     T -->|nulls| B["null … null"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input ticks Stream<void>
@@ -51,8 +51,8 @@ pub fn from_bool(value: B) -> Json {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|json| B["true … false"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic B (ToBool)
@@ -93,8 +93,8 @@ pub fn from_number_i64(value: I) -> Json {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|json| B["🟦 … 🟨"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic I (ToI64)
@@ -135,8 +135,8 @@ pub fn from_number_u64(value: U) -> Json {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|json| B["🟦 … 🟨"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic U (ToU64)
@@ -185,8 +185,8 @@ pub fn try_from_number_f64(value: F) -> Option<Json> {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|json| B["〈🟦〉 … 〈none〉"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic F (ToF64)
@@ -243,8 +243,8 @@ pub fn from_number_f64(value: F, replacement: Json) -> Json {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|json| B["🟦 … 🟥"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic F (ToF64)
@@ -291,8 +291,8 @@ pub fn from_string(value: S) -> Json {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|json| B["🟦 … 🟨"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic S (ToString)
@@ -338,8 +338,8 @@ pub fn from_string_map(map: StringMap) -> Json {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|json| B["🟦 … 🟨"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input value Stream<StringMap>
@@ -383,8 +383,8 @@ pub fn from_option_bool(value: Option<B>) -> Json {
 ///     A["〈🟦〉 … 〈none〉"] -->|value| T
 ///     T -->|json| B["true … null"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic B (ToBool)
@@ -434,8 +434,8 @@ pub fn from_option_number_i64(value: Option<I>) -> Json {
 ///     A["〈🟦〉 … 〈none〉"] -->|value| T
 ///     T -->|json| B["🟦 … null"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic I (ToI64)
@@ -485,8 +485,8 @@ pub fn from_option_number_u64(value: Option<U>) -> Json {
 ///     A["〈🟦〉 … 〈none〉"] -->|value| T
 ///     T -->|json| B["🟦 … null"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic U (ToU64)
@@ -544,8 +544,8 @@ pub fn try_from_option_number_f64(value: Option<F>) -> Option<Json> {
 ///     A["〈🟦〉 … 〈none〉"] -->|value| T
 ///     T -->|json| B["〈🟦〉 … 〈null〉 … 〈none〉"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic F (ToF64)
@@ -611,8 +611,8 @@ pub fn from_option_number_f64(value: Option<F>, replacement: Json) -> Json {
 ///     A["〈🟦〉 … 〈none〉"] -->|value| T
 ///     T -->|json| B["🟦 … null … 🟥"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic F (ToF64)
@@ -666,8 +666,8 @@ pub fn from_option_string(value: Option<S>) -> Json {
 ///     A["〈🟦〉 … 〈none〉"] -->|value| T
 ///     T -->|json| B["🟦 … null"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     generic S (ToString)
@@ -711,8 +711,8 @@ pub fn is_null(value: Json) -> bool {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|is_null| B["false … true"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input value Stream<Json>
@@ -757,8 +757,8 @@ pub fn is_bool(value: Json) -> bool {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|is_bool| B["false … true"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input value Stream<Json>
@@ -803,8 +803,8 @@ pub fn is_string(value: Json) -> bool {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|is_string| B["false … true"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input value Stream<Json>
@@ -849,8 +849,8 @@ pub fn is_number(value: Json) -> bool {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|is_number| B["false … true"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input value Stream<Json>
@@ -895,8 +895,8 @@ pub fn is_i64(value: Json) -> bool {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|is_i64| B["false … true"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input value Stream<Json>
@@ -941,8 +941,8 @@ pub fn is_u64(value: Json) -> bool {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|is_u64| B["false … true"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input value Stream<Json>
@@ -987,8 +987,8 @@ pub fn is_f64(value: Json) -> bool {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|is_f64| B["false … true"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input value Stream<Json>
@@ -1033,8 +1033,8 @@ pub fn is_vec(value: Json) -> bool {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|is_vector| B["false … true"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input value Stream<Json>
@@ -1079,8 +1079,8 @@ pub fn is_object(value: Json) -> bool {
 ///     A["🟦 … 🟨"] -->|value| T
 ///     T -->|is_object| B["false … true"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input value Stream<Json>

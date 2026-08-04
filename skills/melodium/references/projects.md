@@ -59,7 +59,7 @@ server = "my_project/server::serve"
 | Syntax | Meaning |
 |--------|---------|
 | `"0.10.2"` | `>=0.10.2, <0.11.0` (minor-compatible) |
-| `"~0.10.2"` | `>=0.10.2, <0.10.2` (patch-only) |
+| `"~0.10.2"` | `>=0.10.2, <0.11.0` (patch-only) |
 | `"0.10.*"` | Any patch of `0.10` |
 | `">= 0.9, < 0.11"` | Explicit range |
 

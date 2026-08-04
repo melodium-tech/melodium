@@ -40,10 +40,10 @@ use melodium_macro::mel_treatment;
 ///     T -->|errors| E["…"]
 ///     T -->|failed| F["⬛"]
 ///
-///     style S fill:#ffff,stroke:#ffff
-///     style I fill:#ffff,stroke:#ffff
-///     style E fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style I fill:#ffffff,stroke:#ffffff
+///     style E fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input trigger Block<void>,

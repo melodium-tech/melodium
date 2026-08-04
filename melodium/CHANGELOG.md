@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.10.2] (2026-08-04)
+
+- Fixing several hangs/deadlocks in distributed execution: idle connections being torn down under load, `stop`/`continuous` blocking forever when a worker is never dispatched, and CI/CD steps hanging the engine when a runner fails to set up.
+- Flushing live log and debug files on every line/event instead of only at the end of the run.
+- Documenting Standard, Desktop, Container, and WebAssembly editions in the README.
+
 ## [v0.10.1] (2026-05-29)
 
 - Adding program details to execution reporting (#106).

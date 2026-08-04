@@ -77,8 +77,8 @@ pub fn from_ipv6(ipv6: Ipv6) -> Ip {
 ///     A["〈🟦〉 … 〈🟨〉"] -->|ipv4| T
 ///     T -->|ip| B["〈🟦〉 … 〈🟨〉"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input ipv4 Stream<Ipv4>
@@ -115,8 +115,8 @@ pub async fn from_ipv4() {
 ///     A["〈🟦〉 … 〈🟨〉"] -->|ipv6| T
 ///     T -->|ip| B["〈🟦〉 … 〈🟨〉"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input ipv6 Stream<Ipv6>
@@ -175,8 +175,8 @@ pub fn as_ipv6(ip: Ip) -> Option<Ipv6> {
 ///     A["〈🟦〉 … 〈🟨〉"] -->|ip| T
 ///     T -->|ipv4| B["〈🟦〉 … 〈none〉"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input ip Stream<Ip>
@@ -220,8 +220,8 @@ pub async fn as_ipv4() {
 ///     A["〈🟦〉 … 〈🟨〉"] -->|ip| T
 ///     T -->|ipv6| B["〈🟦〉 … 〈none〉"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input ip Stream<Ip>
@@ -275,8 +275,8 @@ pub fn is_ipv6(ip: Ip) -> bool {
 ///     A["〈🟦〉 … 〈🟨〉"] -->|ip| T
 ///     T -->|ipv4| B["true … false"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input ip Stream<Ip>
@@ -312,8 +312,8 @@ pub async fn is_ipv4() {
 ///     A["〈🟦〉 … 〈🟨〉"] -->|ip| T
 ///     T -->|ipv6| B["true … false"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input ip Stream<Ip>
@@ -363,8 +363,8 @@ pub fn to_ipv4(text: string) -> Option<Ipv4> {
 ///     A["🟦 … 🟨"] -->|text| T
 ///     T -->|ipv4| B["〈🟦〉 … 〈none〉"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input text Stream<string>
@@ -452,8 +452,8 @@ pub fn to_ipv6(text: string) -> Option<Ipv6> {
 ///     A["🟦 … 🟨"] -->|text| T
 ///     T -->|ipv6| B["〈🟦〉 … 〈none〉"]
 ///
-///     style A fill:#ffff,stroke:#ffff
-///     style B fill:#ffff,stroke:#ffff
+///     style A fill:#ffffff,stroke:#ffffff
+///     style B fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input text Stream<string>

@@ -86,8 +86,8 @@ pub fn error() -> StepState {
 ///     T("githubMapEval()")
 ///     M["〈🟦〉"] -->|map| T
 ///     T -->|evaluated| O["〈🟦〉"]
-///     style M fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
+///     style M fill:#ffffff,stroke:#ffffff
+///     style O fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     model contexts JavaScriptEngine
@@ -128,8 +128,8 @@ pub async fn github_map_eval(assume: bool, local_context: Json) {
 ///     T("githubStringEval()")
 ///     I["〈🟨〉"] -->|value| T
 ///     T -->|evaluated| O["〈🟨〉"]
-///     style I fill:#ffff,stroke:#ffff
-///     style O fill:#ffff,stroke:#ffff
+///     style I fill:#ffffff,stroke:#ffffff
+///     style O fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     model contexts JavaScriptEngine
@@ -180,9 +180,9 @@ pub async fn github_string_eval(assume: bool, local_context: Json) {
 ///     S["〈🟦〉"] -->|shell| T
 ///     R["〈🟨〉"] -->|run| T
 ///     T -->|command| C["🟩 …"]
-///     style S fill:#ffff,stroke:#ffff
-///     style R fill:#ffff,stroke:#ffff
-///     style C fill:#ffff,stroke:#ffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style R fill:#ffffff,stroke:#ffffff
+///     style C fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input shell Block<Option<string>>
@@ -340,9 +340,9 @@ pub async fn github_command() {
 ///     W["〈🟦〉"] -->|workflow_id| T
 ///     S["〈🟨〉"] -->|step_id| T
 ///     T -->|variables| V["〈🟩〉"]
-///     style W fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
-///     style V fill:#ffff,stroke:#ffff
+///     style W fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style V fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input workflow_id Block<string>
@@ -401,11 +401,11 @@ pub async fn github_get_env() {
 ///     T -->|success| S["〈🟩〉"]
 ///     T -->|failure| F["〈🟥〉"]
 ///     T -->|finished| FN["〈🟦〉"]
-///     style TR fill:#ffff,stroke:#ffff
-///     style R fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
-///     style FN fill:#ffff,stroke:#ffff
+///     style TR fill:#ffffff,stroke:#ffffff
+///     style R fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
+///     style FN fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     model contexts JavaScriptEngine
@@ -485,14 +485,14 @@ pub async fn github_job_result(name: string, outputs: StringMap, local_context: 
 ///     T -->|step_completed| O1["〈🟦〉"]
 ///     T -->|step_failed| O2["〈🟥〉"]
 ///     T -->|step_continue| O3["〈🟩〉"]
-///     style W fill:#ffff,stroke:#ffff
-///     style S fill:#ffff,stroke:#ffff
-///     style C fill:#ffff,stroke:#ffff
-///     style SC fill:#ffff,stroke:#ffff
-///     style SF fill:#ffff,stroke:#ffff
-///     style O1 fill:#ffff,stroke:#ffff
-///     style O2 fill:#ffff,stroke:#ffff
-///     style O3 fill:#ffff,stroke:#ffff
+///     style W fill:#ffffff,stroke:#ffffff
+///     style S fill:#ffffff,stroke:#ffffff
+///     style C fill:#ffffff,stroke:#ffffff
+///     style SC fill:#ffffff,stroke:#ffffff
+///     style SF fill:#ffffff,stroke:#ffffff
+///     style O1 fill:#ffffff,stroke:#ffffff
+///     style O2 fill:#ffffff,stroke:#ffffff
+///     style O3 fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     model contexts JavaScriptEngine
@@ -622,8 +622,8 @@ pub async fn github_set_outputs() {
 ///     T("githubGetEnvFiles()")
 ///     W["〈🟦〉"] -->|workflow_id| T
 ///     T -->|filename| F["〈🟨〉"]
-///     style W fill:#ffff,stroke:#ffff
-///     style F fill:#ffff,stroke:#ffff
+///     style W fill:#ffffff,stroke:#ffffff
+///     style F fill:#ffffff,stroke:#ffffff
 /// ```
 #[mel_treatment(
     input workflow_id Block<string>
