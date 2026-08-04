@@ -1,8 +1,8 @@
 use melodium_core::*;
 use melodium_macro::{mel_data, mel_function};
 
-/// A command with its executable name and argument list.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Serialize, Deserialize)]
+/// A command with its executable name and argument list.
 #[mel_data(traits(Serialize Deserialize PartialEquality PartialOrder Equality Order))]
 pub struct Command {
     pub command: String,

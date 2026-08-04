@@ -350,6 +350,35 @@ Built with `melodium jeu build <project_dir> <output.jeu>`. Already bzip2-compre
 | `melodium jeu extract <input.jeu> <output>`  | Extract a `.jeu` archive                       |
 | `melodium dist`                              | Start a distribution engine node               |
 
+### Common flags per command
+
+`melodium run <file> [command] [prog_args…]`
+- `--path <dir>` — additional path(s) to look for packages (repeatable).
+- `--force-entry <IDENTIFIER>` — force a specific identifier as entrypoint, bypassing the named command.
+- `--logs <path>` / `--debug <path>` — write logs / debug data to a file.
+- `--api-report` — report execution to the Mélodium Services API (needs `MELODIUM_API_TOKEN`, and `MELODIUM_API_URL` if not the default endpoint); `--api-report-disable-status` / `--api-report-disable-logs` narrow what gets reported.
+- `--parse-arguments` — parse `prog_args` following Mélodium syntax/typing instead of passing them as raw strings.
+
+`melodium check [--all] [--path <dir>] [--force-entry <IDENTIFIER>] <file> [prog_cmd]`
+- `--all` — check every element in the required packages, ignoring the entrypoint.
+
+`melodium info [--path <dir>] <name>` — same `--path` semantics as `run`.
+
+`melodium new <name> [--version <v>] [--path <dir>] [--template raw|cicd]`
+- `--template cicd` — scaffold a CI/CD-oriented project (uses the `cicd` package) instead of the default empty (`raw`) template.
+
+`melodium doc [--full] [--packages <pkg>…] [--file <file>] [--path <dir>] <output>`
+- `--full` — document every loaded package (default behaviour when neither `--file` nor `--packages` is given).
+- `--packages <pkg>` — document specific packages by name (repeatable).
+- `--file <file>` — document a single `.mel` or `.jeu` package file.
+
+`melodium dist --port <port> --recv-key <uuid> --send-key <uuid> [--ip <ip>] [--localhost] [--disable-tls] [--certificate <pem>] [--key <pem>] [--wait <secs>] [--duration <secs>] [--logs <path>] [--debug <path>] [--api-report ...]`
+- `--localhost` — listen on localhost using the embedded certificate (when `--ip` isn't set).
+- `--disable-tls` — run without TLS.
+- `--wait <secs>` — how long to wait for a distant engine to connect.
+- `--duration <secs>` — maximum duration allowed for the work.
+- `--api-report` and its `--api-report-disable-*` variants behave as in `run`.
+
 ---
 
 ## Standard library packages
@@ -501,6 +530,8 @@ If asked to create or modify a Mélodium project, read the specific [Mélodium P
 If dealing with Mélodium elements written in Rust, read the specific [Mélodium Elements in Rust](references/rust.md) guide.
 
 If dealing with Mélodium documentation, either being instructed to write some or to explore some, read the specific [Mélodium Documentation](references/documentation.md) guide.
+
+If generating or reviewing Mélodium source code that contains connection declarations inside treatment bodies, read the specific [Connection Restitution Rules](references/connection-restitution.md) guide.
 
 ### Migrations
 

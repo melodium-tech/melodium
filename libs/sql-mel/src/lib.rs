@@ -120,6 +120,7 @@ fn get_row_as_map(row: &AnyRow) -> Map {
     Map::new_with(map)
 }
 
+#[derive(Debug)]
 /// SQL connection pool.
 ///
 /// Manages a pool of database connections for a single database URL.
@@ -136,7 +137,6 @@ fn get_row_as_map(row: &AnyRow) -> Map {
 /// The `connected` source fires a track once the pool is ready;
 /// `failure` fires a track when the connection attempt fails;
 /// `closed` fires a track when the pool is drained.
-#[derive(Debug)]
 #[mel_model(
     param url string none
     param max_connections u32 10

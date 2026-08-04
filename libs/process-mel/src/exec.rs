@@ -74,11 +74,11 @@ pub trait ExecutorEngine: Debug + Send + Sync {
     );
 }
 
+#[derive(Debug, Serialize)]
 /// Provides execution engine for external commands.
 ///
 /// `Executor` is provided by functions, such as `|local_executor`,
 /// and is aimed to be used with the `exec` and `spawn` treatments.
-#[derive(Debug, Serialize)]
 #[mel_data]
 pub struct Executor {
     #[serde(skip)]

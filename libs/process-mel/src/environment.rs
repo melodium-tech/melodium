@@ -10,13 +10,13 @@ pub fn environment_variable_regex() -> &'static Regex {
     VAR_REGEX.get_or_init(|| Regex::new(r#"\$\{([a-zA-Z_][0-9a-zA-Z_]*)\}"#).unwrap())
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 /// Execution environment for a subprocess.
 ///
 /// - `working_directory`: optional directory to set as the process working directory.
 /// - `clear_env`: when `true`, the subprocess inherits no environment variables from the parent process.
 /// - `variables`: the environment variables to set.
 /// - `expand_variables`: when `true`, `${VAR}` references in variable values are expanded using the parent environment.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[mel_data(traits(Serialize Deserialize PartialEquality Equality))]
 pub struct Environment {
     pub working_directory: Option<string>,
