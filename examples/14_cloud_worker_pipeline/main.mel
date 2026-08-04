@@ -54,7 +54,7 @@ treatment main(
     const input:     string,
     const output:    string = "word_counts.txt"
 )
-  model runner: DistantEngine(api_url=|wrap<string>("https://api-staging.melodium.tech/0.1"), api_token=|wrap<string>(api_token))
+  model runner: DistantEngine(api_url=|wrap<string>("https://api.melodium.tech/0.1"), api_token=|wrap<string>(api_token))
   model distributor: DistributionEngine(
     treatment = "cloud_worker_pipeline/main::transform",
     version   = "0.1.0"
