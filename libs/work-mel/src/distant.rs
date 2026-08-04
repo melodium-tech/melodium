@@ -217,6 +217,11 @@ impl DistantEngine {
             Ok((access, mut child)) => {
                 let finish_notification = async move {
                     let mut possible_errors = Vec::new();
+                    // Once whatever signals shutdown (the container's own worker process
+                    // exiting) has happened, the container itself (a `trap : TERM INT; sleep
+                    // ...d & wait` loop) should tear down near-instantly - this timeout guards
+                    // that teardown handshake, not the job's actual runtime, which this
+                    // `.await` otherwise spans in full.
                     let status =
                         async_std::future::timeout(Duration::from_secs(10), child.status()).await;
                     match status {
@@ -290,6 +295,11 @@ impl DistantEngine {
                                 possible_errors.push(err.to_string());
                             }
                         }
+                        // The container never tore down within the timeout after the job
+                        // finished: report the run as ended anyway (rather than leaving the
+                        // API waiting forever for a call that will never come), flagging the
+                        // stuck teardown as a warning rather than a job failure, since the
+                        // actual work already completed successfully by this point.
                         Err(err) => {
                             if let (Some(run_api_id), Some(api_url), Some(api_token)) =
                                 (run_api_id, api_url, api_token)

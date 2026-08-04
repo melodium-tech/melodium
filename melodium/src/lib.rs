@@ -546,7 +546,7 @@ pub async fn write_logs(path: PathBuf, receiver: Receiver<Log>) {
 
         while let Ok(log) = receiver.recv().await {
             let line = format!(
-                "[{}] {}: {}: {}",
+                "[{}] {}: {}: {}\n",
                 log.timestamp
                     .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
                 log.level,
@@ -554,9 +554,12 @@ pub async fn write_logs(path: PathBuf, receiver: Receiver<Log>) {
                 log.message,
             );
             let _ = log_file.write(line.as_bytes()).await;
+            // Flushed on every line rather than only once the whole run ends: this file is
+            // meant to be readable live (e.g. `tail -f`) while a run is in progress, and
+            // `BufWriter`'s default buffer only fills - and becomes visible on disk - after
+            // many lines, which on sparse early output can silently sit unflushed for minutes.
+            let _ = log_file.flush().await;
         }
-
-        let _ = log_file.flush().await;
     }
 }
 
@@ -586,6 +589,10 @@ pub async fn write_debug(path: PathBuf, receiver: Receiver<Event>) {
             let line = serde_json::to_string(&event)
                 .unwrap_or_else(|_| "\"<failed to serialize debug event>\"".to_string());
             let _ = debug_file.write(line.as_bytes()).await;
+            // Flushed on every event rather than only once the whole run ends: see the
+            // matching comment in `write_logs` - the file is meant to reflect what has
+            // happened so far while the run is still in progress.
+            let _ = debug_file.flush().await;
         }
         let _ = debug_file.write("]".as_bytes()).await;
 

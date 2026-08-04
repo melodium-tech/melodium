@@ -1,0 +1,110 @@
+#!/usr/bin/env melodium
+#! name = stop_before_data_drained
+#! version = 0.10.2
+#! require = std:0.10.2 work:0.10.2 distrib:0.10.2 net:0.10.2 fs:0.10.2
+
+use std/flow::emit
+use std/flow::trigger
+use std/flow::waitBlock
+use std/flow::generate
+use std/data/map::|map
+use std/engine/util::startup
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use work/access::Access
+use work/access::|new_access
+use fs/local::writeLocal
+use fs/local::writeTextLocal
+use std/flow::stream
+
+// Regression test for the "finished fires before the output data stream has
+// drained" bug fixed in `libs/cicd-mel/mel/steps.mel` (`waitFinishedAndData`/
+// `triggerDataDrained`): the orchestrator must not consider a distributed step
+// done - and must not therefore tear down the connection - before all of the
+// step's streamed output has actually arrived, even though a separate,
+// near-instant `finished` signal reports "commands done" much earlier.
+//
+// `distributedGenerate`'s worker side sends `finished` immediately, then
+// separately streams a several-megabyte payload; on real localhost TCP the
+// block signal arrives essentially at once while the byte stream takes real,
+// measurable transfer time. `Self.trigger` (this orchestrator's analogue of
+// `stopRunner.trigger`) only fires once both `finished` and the fully drained
+// `data` stream are observed (mirroring the fixed `steps.mel` wiring), so
+// `received.bin` on disk must always match the full expected size.
+treatment main(const distrib_port: u16, var remote_key: string, var self_key: string)
+  model distributor: DistributionEngine(treatment="stop_before_data_drained::generateData", version="0.10.2")
+{
+    startup()
+    emitAccess: emit<Access>(value=|new_access([|from_ipv4(|localhost_ipv4())], distrib_port, remote_key, self_key))
+    start[distributor=distributor](params=|map([]))
+    stop[distributor=distributor]()
+    distributedGenerate[distributor=distributor]()
+    startup.trigger -> emitAccess.trigger,emit -> start.access
+
+    writeDistribError: writeTextLocal(path = "distrib_error.log")
+    streamDistribError: stream<string>()
+    distributedGenerate.error -> streamDistribError.block,stream -> writeDistribError.text
+
+    writeStartError: writeTextLocal(path = "start_error.log")
+    streamStartError: stream<string>()
+    start.error -> streamStartError.block,stream -> writeStartError.text
+
+    start.ready -> distributedGenerate.trigger
+
+    writeReceived: writeLocal(path = "received.bin")
+    distributedGenerate.data -> writeReceived.data
+
+    triggerDataDrained: trigger<byte>()
+    distributedGenerate.data -> triggerDataDrained.stream
+
+    waitFinishedAndData: waitBlock<void>()
+    distributedGenerate.finished -> waitFinishedAndData.a
+    triggerDataDrained.end -> waitFinishedAndData.b
+
+    waitFinishedAndData.awaited -> stop.trigger
+}
+
+treatment generateData()
+  input trigger: Block<void>
+  output finished: Block<void>
+  output data: Stream<byte>
+{
+    generateBytes: generate<byte>(data=0)
+    emitLength: emit<u128>(value=8388608)
+
+    Self.trigger -> Self.finished
+    Self.trigger -> emitLength.trigger,emit -> generateBytes.length,stream -> Self.data
+}
+
+use distrib::DistributionEngine
+use distrib::distribute
+use distrib::start
+use distrib::stop
+use distrib::sendBlock
+use distrib::recvBlock
+use distrib::recvStream
+
+treatment distributedGenerate[distributor: DistributionEngine]()
+  input trigger: Block<void>
+  output finished: Block<void>
+  output data: Stream<byte>
+  output error: Block<string>
+{
+  distribute[distributor=distributor]()
+
+  Self.trigger -> distribute.trigger
+  distribute.error -> Self.error
+
+  sendBlock<void>[distributor=distributor](name="trigger")
+  Self.trigger -> sendBlock.data
+  distribute.distribution_id -> sendBlock.distribution_id
+
+  recvBlock<void>[distributor=distributor](name="finished")
+  recvStream<byte>[distributor=distributor](name="data")
+
+  distribute.distribution_id -> recvBlock.distribution_id
+  distribute.distribution_id -> recvStream.distribution_id
+
+  recvBlock.data -> Self.finished
+  recvStream.data -> Self.data
+}

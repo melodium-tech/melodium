@@ -1,0 +1,77 @@
+#!/usr/bin/env melodium
+#! name = process_distributed
+#! version = 0.10.1
+#! require = std:0.10.1 work:0.10.1 distrib:0.10.1 fs:0.10.1 net:0.10.1
+
+use std/flow::emit
+use std/flow::stream
+use std/flow::passBlock
+use std/data/map::|map
+use std/engine/util::startup
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use work/access::Access
+use work/access::|new_access
+use fs/local::writeTextLocal
+
+treatment main(const distrib_port: u16, var remote_key: string, var self_key: string, const message: string = "Pingouin")
+  model distributor: DistributionEngine(treatment="process_distributed::echo", version="0.10.1")
+{
+    startup()
+    emitAccess: emit<Access>(value=|new_access([|from_ipv4(|localhost_ipv4())], distrib_port, remote_key, self_key))
+    start[distributor=distributor](params=|map([]))
+    stop[distributor=distributor]()
+    distributedEcho[distributor=distributor](message=message)
+    startup.trigger -> emitAccess.trigger,emit -> start.access
+
+    emitOk: emit<string>(value="ok")
+    streamOk: stream<string>()
+    writeOk: writeTextLocal(path = "ok.log")
+    writeFailure: writeTextLocal(path = "failure.log")
+    streamFailure: stream<string>()
+
+    start.error -> streamFailure.block,stream --> writeFailure.text
+    start.ready -> emitOk.trigger,emit -> streamOk.block,stream -> writeOk.text
+
+    streamReply: stream<string>()
+    writeReply: writeTextLocal(path = "reply.log")
+
+    start.ready -> distributedEcho.trigger
+    distributedEcho.reply -> streamReply.block,stream -> writeReply.text,finished -> stop.trigger
+}
+
+treatment echo()
+  input data: Block<string>
+  output data: Block<string>
+{
+    passBlock<string>(cond=true)
+
+    Self.data -> passBlock.block,passed -> Self.data
+}
+
+use distrib::DistributionEngine
+use distrib::distribute
+use distrib::start
+use distrib::stop
+use distrib::sendBlock
+use distrib::recvBlock
+
+treatment distributedEcho[distributor: DistributionEngine](message: string)
+  input trigger: Block<void>
+  output reply: Block<string>
+{
+  emitMessage: emit<string>(value=message)
+  distribute[distributor=distributor]()
+
+  Self.trigger -> distribute.trigger
+  Self.trigger -> emitMessage.trigger
+
+  sendBlock<string>[distributor=distributor](name="data")
+  recvBlock<string>[distributor=distributor](name="data")
+
+  distribute.distribution_id -> sendBlock.distribution_id
+  distribute.distribution_id -> recvBlock.distribution_id
+
+  emitMessage.emit -> sendBlock.data
+  recvBlock.data -> Self.reply
+}

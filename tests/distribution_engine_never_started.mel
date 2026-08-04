@@ -1,0 +1,31 @@
+#!/usr/bin/env melodium
+#! name = distribution_engine_never_started
+#! version = 0.10.1
+#! require = std:0.10.1 distrib:0.10.1
+
+use std/engine/util::startup
+use std/flow::emit
+
+// Regression test: a `DistributionEngine` model is declared but its `start`
+// treatment is never instantiated/triggered anywhere in the graph. Before
+// the fix, `DistributionEngine::continuous()` blocked forever waiting for
+// `start()` to fire `protocol_ready`, which in turn kept the engine's
+// `continous_ended` flag from ever becoming true, which kept `Engine::end()`
+// from ever being reached - a genuine circular deadlock that hung the whole
+// program indefinitely. The program must now terminate on its own.
+treatment main()
+  model distributor: DistributionEngine(treatment="distribution_engine_never_started::echo", version="0.10.1")
+{
+    startup()
+    emitDone: emit<string>(value="done")
+    startup.trigger -> emitDone.trigger
+}
+
+treatment echo()
+  input data: Block<string>
+  output data: Block<string>
+{
+    Self.data -> Self.data
+}
+
+use distrib::DistributionEngine

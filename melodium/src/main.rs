@@ -675,7 +675,7 @@ fn dist(args: Dist) {
                     program_dump_sender,
                     signal_launched,
                     signal_ended,
-                ))
+                ));
             }
             (false, Some(certificate), Some(key)) => {
                 let cert_content = match std::fs::read(&certificate) {
@@ -710,7 +710,7 @@ fn dist(args: Dist) {
                     program_dump_sender,
                     signal_launched,
                     signal_ended,
-                ))
+                ));
             }
             (false, _, _) => {
                 eprintln!(
@@ -736,7 +736,7 @@ fn dist(args: Dist) {
                     program_dump_sender,
                     signal_launched,
                     signal_ended,
-                ))
+                ));
             }
             (true, Some(_), Some(_)) | (true, None, Some(_)) | (true, Some(_), None) => {
                 eprintln!(
@@ -778,7 +778,7 @@ fn dist(args: Dist) {
                     program_dump_sender,
                     signal_launched,
                     signal_ended,
-                ))
+                ));
             }
             (false, _, _, _) => {
                 eprintln!(
@@ -801,7 +801,7 @@ fn dist(args: Dist) {
                     program_dump_sender,
                     signal_launched,
                     signal_ended,
-                ))
+                ));
             }
             (true, _, Some(_), Some(_)) | (true, _, Some(_), None) | (true, _, None, Some(_)) => {
                 eprintln!(
@@ -822,7 +822,30 @@ fn dist(args: Dist) {
 
     async_std::task::block_on(async move {
         use futures::StreamExt;
-        while let Some(_) = monitoring.next().await {}
+        // `monitoring` only drains once every logs/debug forwarding task (including
+        // the API/S3 reporting join, when enabled) observes its channel close; that's
+        // expected to happen shortly after the engine and distribution connection are
+        // done. As a safety net against any of those tasks getting stuck, don't let it
+        // hold this otherwise-finished process alive forever. Overridable through
+        // `MELODIUM_DIST_MONITORING_TIMEOUT_SECS`, mainly so tests can exercise this
+        // safety net without waiting a full minute.
+        let monitoring_timeout = std::env::var("MELODIUM_DIST_MONITORING_TIMEOUT_SECS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .map(Duration::from_secs)
+            .unwrap_or(Duration::from_secs(60));
+        if async_std::future::timeout(monitoring_timeout, async {
+            while let Some(_) = monitoring.next().await {}
+        })
+        .await
+        .is_err()
+        {
+            eprintln!(
+                "{}: monitoring tasks did not complete in time, forcing exit",
+                "warning".bold().yellow()
+            );
+            std::process::exit(0);
+        }
     });
 }
 

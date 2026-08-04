@@ -337,8 +337,23 @@ treatment stepOnTerminableWithInput[runner: CicdRunnerEngine](var name: string, 
     streamFinished: stream<void>()
     triggerAllFinished: trigger<void>()
 
+    // `finished` (commands exited) and the `data` stream (out_file being sent back)
+    // are two independent forwarding tasks over the same connection, with no ordering
+    // guarantee between them (see `distrib::distribute`/`sendStream`/`recvStream`).
+    // Reporting `finished` before `data` has fully drained lets a caller downstream
+    // (`stopRunner`) tear down the runner's connection while `out_file` bytes are
+    // still in flight, silently truncating them instead of failing loudly. So `Self.finished`
+    // waits for both signals before firing.
+    triggerDataDrained: trigger<byte>()
+    recvData.data -> triggerDataDrained.stream
+
+    waitFinishedAndData: waitBlock<void>()
+    triggerAllFinished.end -> waitFinishedAndData.a
+    triggerDataDrained.end -> waitFinishedAndData.b
+
     recvStarted.data ------------------------------------------------------------------> Self.started
-    recvFinished.data -> streamFinished.block,stream -> triggerAllFinished.stream,end -> Self.finished
+    recvFinished.data -> streamFinished.block,stream -> triggerAllFinished.stream
+    waitFinishedAndData.awaited ---------------------------------------------------------> Self.finished
     recvFailed.data ------------------------------------> distribOrStepFailed.b,value -> Self.failed
     recvCompleted.data ----------------------------------------------------------------> Self.completed
     recvTerminated.data ---------------------------------------------------------------> Self.terminated
@@ -471,6 +486,14 @@ treatment spawnCommands(var label: string)
     spawnTerminable.error --> logSpawnErr.message
     spawnTerminable.stderr -> logSpawnErrsString.stdio,lines --> logSpawnErrs.messages
     spawnTerminable.stdout -> logSpawnInfosString.stdio,lines -> logSpawnInfos.messages
+
+    // `filterExit.rejected` fires when the last command's exit code is non-zero: the
+    // commands themselves ran (unlike `failed`, which is an executor-level failure), but
+    // the step still didn't succeed. Without this, that case was silent at `error` log
+    // level - only visible, if at all, in the per-command stdout/stderr debug logs above,
+    // with nothing summarizing that the step ultimately failed.
+    logCommandsError: logErrorMessage(label=label, message="Commands failed (non-zero exit)")
+    filterExit.rejected -> logCommandsError.trigger
 
     spawnTerminable.started ------------------> Self.started
     spawnTerminable.finished -----------------> Self.finished

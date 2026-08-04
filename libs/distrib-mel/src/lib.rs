@@ -38,6 +38,15 @@ use std_mel::data::map::*;
 use uuid::Uuid;
 use work_mel::access::*;
 
+/// Number of attempts made to send a keepalive `Probe` before treating the connection as
+/// genuinely dead. See the comment at the probe retry loop for why a single failure isn't
+/// trusted on its own.
+#[cfg(feature = "real")]
+const PROBE_RETRY_ATTEMPTS: u32 = 3;
+/// Delay between probe retry attempts.
+#[cfg(feature = "real")]
+const PROBE_RETRY_DELAY: Duration = Duration::from_secs(2);
+
 #[derive(Debug)]
 struct Track {
     pub instancied: AtomicBool,
@@ -336,7 +345,17 @@ impl DistributionEngine {
     }
 
     pub async fn stop(&self) {
-        self.wait_protocol_ready().await;
+        // Only wait for a `start()` that has actually been attempted (or is in flight) to
+        // settle before touching the protocol - mirrors the guard in `fuse()`. If `start()`
+        // was never called (e.g. the `access` input closed without ever providing data,
+        // because worker dispatch itself failed upstream), there is nothing that will ever
+        // call `fire_protocol_ready()` for this instance, so waiting unconditionally here
+        // would hang forever: `stop()` can be reached independently of `start()` (both the
+        // `start` treatment's own failure fallback and the separate `stop` treatment can
+        // call it), and previously did exactly that whenever a worker never got dispatched.
+        if self.start_attempted.load(Ordering::SeqCst) {
+            self.wait_protocol_ready().await;
+        }
 
         if self.stop_requested.swap(true, Ordering::SeqCst) {
             return;
@@ -489,8 +508,28 @@ impl DistributionEngine {
     }
 
     async fn continuous(&self) {
-        self.wait_protocol_ready().await;
         let world = self.model.upgrade().map(|model| model.world().clone());
+
+        // `start()` may never be called at all - e.g. the treatment
+        // instance responsible for it never receives its `access` input, so
+        // its track simply completes without ever calling `start`. Racing
+        // against `wait_no_more_tracks` instead of only waiting on
+        // `wait_protocol_ready` avoids blocking the whole engine forever in
+        // that case: once no track is running or pending anymore, `start`
+        // genuinely never will be called, so there is nothing left to wait
+        // for and this continuous task can safely end.
+        if let Some(world) = &world {
+            select! {
+                _ = self.wait_protocol_ready().fuse() => {},
+                _ = world.wait_no_more_tracks().fuse() => {
+                    if !self.protocol_ready_fired.load(Ordering::SeqCst) {
+                        return;
+                    }
+                },
+            }
+        } else {
+            self.wait_protocol_ready().await;
+        }
 
         let mut ended = false;
         let mut log_ended = false;
@@ -599,7 +638,27 @@ impl DistributionEngine {
             if let Some(protocol) = self.protocol.read().await.as_ref() {
                 loop {
                     async_std::task::sleep(Duration::from_secs(10)).await;
-                    if protocol.send_message(Message::Probe).await.is_err() {
+                    // A single failed probe send doesn't prove the connection is dead: it
+                    // can just as well be a transient hiccup over a real network (TLS
+                    // renegotiation, a brief stall, ordinary internet jitter) on an otherwise
+                    // healthy, still-working connection. Treating that one failure as "the
+                    // worker is done" would silently close every channel exactly as if it
+                    // had cleanly finished - with no way for anything downstream to tell the
+                    // difference from a real completion. Give the connection a few more
+                    // chances before actually giving up on it.
+                    let mut attempts = 0;
+                    let mut succeeded = false;
+                    while attempts < PROBE_RETRY_ATTEMPTS {
+                        if protocol.send_message(Message::Probe).await.is_ok() {
+                            succeeded = true;
+                            break;
+                        }
+                        attempts += 1;
+                        if attempts < PROBE_RETRY_ATTEMPTS {
+                            async_std::task::sleep(PROBE_RETRY_DELAY).await;
+                        }
+                    }
+                    if !succeeded {
                         break;
                     }
                 }

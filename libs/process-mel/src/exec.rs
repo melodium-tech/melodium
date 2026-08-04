@@ -509,6 +509,14 @@ pub async fn spawn_terminable() {
         let mut first = true;
         let mut success = true;
         let mut send_terminated = false;
+        // Set once a command's own exit code is non-zero: the commands themselves ran
+        // (unlike `success = false`, which is an executor-level failure - the process
+        // couldn't even be spawned), but a failed command means every subsequent one in
+        // the sequence is almost always meaningless to still run (e.g. `git clone`
+        // failing shouldn't be followed by `git push` against a repository that was
+        // never cloned) and can waste significant time - so stop here rather than
+        // running the rest of the list regardless.
+        let mut nonzero_exit = false;
         while let Ok(command) = commands.recv_one().await.map(|val| {
             GetData::<Arc<dyn Data>>::try_data(val)
                 .unwrap()
@@ -554,7 +562,11 @@ pub async fn spawn_terminable() {
                     Box::new(|code: Option<i32>| {
                         Box::pin({
                             let exit = &exit;
+                            let nonzero_exit = &mut nonzero_exit;
                             async move {
+                                if code != Some(0) {
+                                    *nonzero_exit = true;
+                                }
                                 let _ = exit.send_one(code.into()).await;
                             }
                         })
@@ -579,7 +591,7 @@ pub async fn spawn_terminable() {
                     Box::new(|| Box::pin(async {})),
                 )
                 .await;
-            if !success || send_terminated {
+            if !success || send_terminated || nonzero_exit {
                 break;
             }
         }
