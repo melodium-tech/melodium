@@ -1,0 +1,40 @@
+[package]
+name = "melodium-mcp"
+version = "0.10.2"
+authors = ["Quentin VIGNAUD <quentin.vignaud@melodium.tech>"]
+rust-version = "1.83"
+edition = "2018"
+license = "EUPL-1.2"
+homepage = "https://melodium.tech"
+repository = "https://gitlab.com/melodium/melodium"
+readme = "README.md"
+description = "MCP server exposing Mélodium program validation and reference lookup"
+keywords = ["dataflow", "mcp", "model-context-protocol"]
+categories = ["compilers", "science"]
+
+[[bin]]
+name = "melodium-mcp"
+path = "src/main.rs"
+
+[dependencies]
+melodium = { path = "../melodium", version = "0.10.2", default-features = false, features = ["mock-edition"] }
+melodium-common = { path = "../melodium-common", version = "0.10.2" }
+melodium-loader = { path = "../melodium-loader", version = "0.10.2" }
+
+rmcp = { version = "3.1", features = ["server", "macros", "transport-io"] }
+schemars = "1"
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std"] }
+anyhow = "1"
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "docsrs"]
+default-target = "x86_64-unknown-linux-gnu"
+targets = [
+    "aarch64-unknown-linux-gnu",
+    "aarch64-unknown-linux-musl",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "aarch64-apple-darwin",
+    "x86_64-pc-windows-gnu",
+]

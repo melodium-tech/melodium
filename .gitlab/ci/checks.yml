@@ -38,6 +38,7 @@ include:
     - |
       if [ "$TEST_DESKTOP_EDITION" == "true" ]; then
       cargo check --package melodium --locked --no-default-features --features desktop-edition
+      cargo check --package melodium-mcp --locked
       fi
     # standard-edition
     - cargo check --package melodium --locked

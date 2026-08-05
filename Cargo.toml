@@ -28,6 +28,7 @@ members = [
     "melodium-lib",
     "melodium-loader",
     "melodium-macro",
+    "melodium-mcp",
     "melodium-repository",
     "melodium-share",
     ]
