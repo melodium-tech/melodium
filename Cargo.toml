@@ -28,11 +28,43 @@ members = [
     "melodium-lib",
     "melodium-loader",
     "melodium-macro",
+    "melodium-mcp",
+    "melodium-repository",
+    "melodium-share",
+    ]
+default-members = [
+    "libs/audio-mel",
+    "libs/cicd-mel",
+    "libs/distrib-mel",
+    "libs/encoding-mel",
+    "libs/fs-mel",
+    "libs/http-mel",
+    "libs/javascript-mel",
+    "libs/json-mel",
+    "libs/ml-mel",
+    "libs/net-mel",
+    "libs/process-mel",
+    "libs/record-mel",
+    "libs/regex-mel",
+    "libs/sql-mel",
+    "libs/std-mel",
+    "libs/work-mel",
+    "melodium",
+    "melodium-certs",
+    "melodium-common",
+    "melodium-core",
+    "melodium-distribution",
+    "melodium-doc",
+    "melodium-engine",
+    "melodium-lang",
+    "melodium-lib",
+    "melodium-loader",
+    "melodium-macro",
     "melodium-repository",
     "melodium-share",
     ]
 exclude = [
-    "tests/*"
+    "tests/*",
     ]
 
 [profile.release]

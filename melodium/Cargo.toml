@@ -78,6 +78,7 @@ standard-edition = ["jeu", "doc", "audio", "cicd", "distribution", "fs", "networ
 desktop-edition = ["cli", "jeu", "doc", "audio", "cicd", "distribution", "fs", "network", "text", "javascript", "sql", "ml", "std-mel/real", "record"]
 container-edition = ["standard-edition", "record-mel/mock", "work-mel/kubernetes"]
 webassembly-edition = ["melodium-share/webassembly", "jeu", "doc", "std-mel/mock", "audio-mel/mock", "cicd-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "ml-mel/mock", "sql-mel/mock", "distrib-mel/mock", "work-mel/mock", "uuid/js", "fs-mel/mock", "process-mel/mock", "record-mel/mock", "net-mel/mock", "http-mel/mock"]
+mock-edition = ["jeu", "doc", "std-mel/mock", "audio-mel/mock", "cicd-mel/mock", "encoding-mel/mock", "regex-mel/mock", "javascript-mel/mock", "json-mel/mock", "ml-mel/mock", "sql-mel/mock", "distrib-mel/mock", "work-mel/mock", "fs-mel/mock", "process-mel/mock", "record-mel/mock", "net-mel/mock", "http-mel/mock"]
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom_0_2 = { package = "getrandom", version = "0.2", features = ["js"] }
