@@ -90,7 +90,7 @@ build:release:aarch64-unknown-linux-gnu:
     - .build-release
     - .builder:linux:aarch64-unknown-linux-gnu
   script:
-   - cargo build --package melodium --no-default-features --features desktop-edition --locked --release 
+   - cargo build --package melodium --no-default-features --features desktop-edition --locked --release
    - ls target/aarch64-unknown-linux-gnu/release
   artifacts:
     paths:
@@ -131,7 +131,7 @@ build:release:x86_64-apple-darwin:
     - .build-release
     - .builder:linux:x86_64-apple-darwin
   script:
-   - cargo build --package melodium --locked --release 
+   - cargo build --package melodium --locked --release
    - ls target/x86_64-apple-darwin/release
   artifacts:
     paths:
@@ -144,7 +144,7 @@ build:release:aarch64-apple-darwin:
     - .build-release
     - .builder:linux:aarch64-apple-darwin
   script:
-    - cargo build --package melodium --no-default-features --features desktop-edition --locked --release 
+    - cargo build --package melodium --no-default-features --features desktop-edition --locked --release
     - ls target/aarch64-apple-darwin/release
   artifacts:
     paths:
@@ -190,6 +190,86 @@ build:release:i686-pc-windows-gnu:
   artifacts:
     paths:
       - target/i686-pc-windows-gnu/release/melodium.exe
+    expire_in: 1 hour
+
+build:release:melodium-mcp:x86_64-unknown-linux-gnu:
+  stage: build
+  extends:
+    - .build-release
+    - .builder:linux:x86_64-unknown-linux-gnu
+  script:
+    - cargo build --package melodium-mcp --locked --release
+    - ls target/x86_64-unknown-linux-gnu/release
+  artifacts:
+    paths:
+      - target/x86_64-unknown-linux-gnu/release/melodium-mcp
+    expire_in: 1 hour
+
+build:release:melodium-mcp:aarch64-unknown-linux-gnu:
+  stage: build
+  extends:
+    - .build-release
+    - .builder:linux:aarch64-unknown-linux-gnu
+  script:
+    - cargo build --package melodium-mcp --locked --release
+    - ls target/aarch64-unknown-linux-gnu/release
+  artifacts:
+    paths:
+      - target/aarch64-unknown-linux-gnu/release/melodium-mcp
+    expire_in: 1 hour
+
+build:release:melodium-mcp:x86_64-apple-darwin:
+  stage: build
+  extends:
+    - .build-release
+    - .builder:linux:x86_64-apple-darwin
+  script:
+    - cargo build --package melodium-mcp --locked --release
+    - ls target/x86_64-apple-darwin/release
+  artifacts:
+    paths:
+      - target/x86_64-apple-darwin/release/melodium-mcp
+    expire_in: 1 hour
+
+build:release:melodium-mcp:aarch64-apple-darwin:
+  stage: build
+  extends:
+    - .build-release
+    - .builder:linux:aarch64-apple-darwin
+  script:
+    - cargo build --package melodium-mcp --locked --release
+    - ls target/aarch64-apple-darwin/release
+  artifacts:
+    paths:
+      - target/aarch64-apple-darwin/release/melodium-mcp
+    expire_in: 1 hour
+
+build:release:melodium-mcp:x86_64-pc-windows-gnu:
+  stage: build
+  extends:
+    - .build-release
+    - .builder:linux:x86_64-pc-windows-gnu
+  script:
+    - cargo build --package melodium-mcp --locked --profile pc-windows-gnu
+    - mv target/x86_64-pc-windows-gnu/pc-windows-gnu target/x86_64-pc-windows-gnu/release
+    - ls target/x86_64-pc-windows-gnu/release
+  artifacts:
+    paths:
+      - target/x86_64-pc-windows-gnu/release/melodium-mcp.exe
+    expire_in: 1 hour
+
+build:release:melodium-mcp:i686-pc-windows-gnu:
+  stage: build
+  extends:
+    - .build-release
+    - .builder:linux:i686-pc-windows-gnu
+  script:
+    - cargo build --package melodium-mcp --locked --profile pc-windows-gnu
+    - mv target/i686-pc-windows-gnu/pc-windows-gnu target/i686-pc-windows-gnu/release
+    - ls target/i686-pc-windows-gnu/release
+  artifacts:
+    paths:
+      - target/i686-pc-windows-gnu/release/melodium-mcp.exe
     expire_in: 1 hour
 
 # build:release:i686-pc-windows-msvc:
