@@ -1,8 +1,16 @@
 use cicd/runners::CicdDispatchEngine
 use fs/local::writeLocal
+use process/command::|command
 use root/build::buildTarget
+use root/test::buildTesters
+use root/test::testTarget
+use root/test::unitTests
+use std/data/string_map::|entry
+use std/data/string_map::|map
 use std/engine/util::startup
+use std/flow::waitBlock
 use work/resources/arch::|amd64
+use work/resources/arch::|arm64
 
 treatment main(
     const gitlab_token: string,
@@ -16,10 +24,7 @@ treatment main(
 {
     startup()
 
-    build: buildTarget[cicd=dispatcher](
-        target="x86_64-unknown-linux-gnu",
-        image="rust:1.91-bookworm",
-        arch=|amd64(),
+    unit: unitTests[cicd=dispatcher](
         repository_url=repository_url,
         ref=gitlab_ref,
         gitlab_token=gitlab_token,
@@ -27,8 +32,183 @@ treatment main(
         gitlab_sha=gitlab_sha,
         gitlab_pipeline_id=gitlab_pipeline_id
     )
-    write: writeLocal(path="melodium-x86_64-unknown-linux-gnu", create=true)
+    startup.trigger -> unit.trigger
 
-    startup.trigger -> build.trigger
-    build.binary -> write.data
+    // -- x86_64-unknown-linux-gnu --
+
+    buildX86_64Gnu: buildTarget[cicd=dispatcher](
+        target="x86_64-unknown-linux-gnu",
+        image="rust:1.91-bookworm",
+        arch=|amd64(),
+        cargo_args="--no-default-features --features desktop-edition",
+        environment_variables=|map([]),
+        repository_url=repository_url,
+        ref=gitlab_ref,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+    writeX86_64Gnu: writeLocal(path="melodium-x86_64-unknown-linux-gnu", create=true)
+
+    testersX86_64Gnu: buildTesters[cicd=dispatcher](
+        target="x86_64-unknown-linux-gnu",
+        arch=|amd64(),
+        environment_variables=|map([]),
+        repository_url=repository_url,
+        ref=gitlab_ref,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+
+    testX86_64Gnu: testTarget[cicd=dispatcher](
+        target="x86_64-unknown-linux-gnu",
+        test_image="debian:bookworm",
+        arch=|amd64(),
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+    awaitTestX86_64Gnu: waitBlock<void>()
+
+    startup.trigger -> buildX86_64Gnu.trigger
+    startup.trigger -> testersX86_64Gnu.trigger
+
+    buildX86_64Gnu.binary -> writeX86_64Gnu.data
+    buildX86_64Gnu.binary -> testX86_64Gnu.binary
+    testersX86_64Gnu.data -> testX86_64Gnu.testers
+
+    buildX86_64Gnu.completed   -> awaitTestX86_64Gnu.a
+    testersX86_64Gnu.completed -> awaitTestX86_64Gnu.b
+    awaitTestX86_64Gnu.awaited -> testX86_64Gnu.trigger
+
+    // -- i686-unknown-linux-gnu --
+
+    buildI686Gnu: buildTarget[cicd=dispatcher](
+        target="i686-unknown-linux-gnu",
+        image="rust:1.91-bookworm",
+        arch=|amd64(),
+        cargo_args="",
+        environment_variables=|map([|entry("PKG_CONFIG", "/usr/bin/i686-linux-gnu-pkg-config")]),
+        pre_commands=[
+            |command("dpkg", ["--add-architecture", "i386"]),
+            |command("apt-get", ["update"]),
+            |command("apt-get", ["install", "-y", "gcc-multilib"]),
+            |command("rustup", ["target", "add", "i686-unknown-linux-gnu"])
+        ],
+        repository_url=repository_url,
+        ref=gitlab_ref,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+    writeI686Gnu: writeLocal(path="melodium-i686-unknown-linux-gnu", create=true)
+
+    testersI686Gnu: buildTesters[cicd=dispatcher](
+        target="i686-unknown-linux-gnu",
+        arch=|amd64(),
+        environment_variables=|map([|entry("PKG_CONFIG", "/usr/bin/i686-linux-gnu-pkg-config")]),
+        pre_commands=[
+            |command("dpkg", ["--add-architecture", "i386"]),
+            |command("apt-get", ["update"]),
+            |command("apt-get", ["install", "-y", "gcc-multilib"]),
+            |command("rustup", ["target", "add", "i686-unknown-linux-gnu"])
+        ],
+        repository_url=repository_url,
+        ref=gitlab_ref,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+
+    testI686Gnu: testTarget[cicd=dispatcher](
+        target="i686-unknown-linux-gnu",
+        test_image="debian:bookworm",
+        arch=|amd64(),
+        extra_install_commands=[
+            |command("dpkg", ["--add-architecture", "i386"]),
+            |command("apt-get", ["update"]),
+            |command("apt-get", ["install", "-y", "libc6:i386", "libstdc++6:i386"])
+        ],
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+    awaitTestI686Gnu: waitBlock<void>()
+
+    startup.trigger -> buildI686Gnu.trigger
+    startup.trigger -> testersI686Gnu.trigger
+
+    buildI686Gnu.binary -> writeI686Gnu.data
+    buildI686Gnu.binary -> testI686Gnu.binary
+    testersI686Gnu.data -> testI686Gnu.testers
+
+    buildI686Gnu.completed   -> awaitTestI686Gnu.a
+    testersI686Gnu.completed -> awaitTestI686Gnu.b
+    awaitTestI686Gnu.awaited -> testI686Gnu.trigger
+
+    // -- aarch64-unknown-linux-gnu --
+
+    buildAarch64Gnu: buildTarget[cicd=dispatcher](
+        target="aarch64-unknown-linux-gnu",
+        image="rust:1.91-bookworm",
+        arch=|arm64(),
+        cargo_args="--no-default-features --features desktop-edition",
+        environment_variables=|map([]),
+        pre_commands=[
+            |command("apt-get", ["update"]),
+            |command("apt-get", ["install", "-y", "binutils-aarch64-linux-gnu", "libgcc1-arm64-cross", "gcc-aarch64-linux-gnu", "libc-dev", "libasound2-dev"])
+        ],
+        repository_url=repository_url,
+        ref=gitlab_ref,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+    writeAarch64Gnu: writeLocal(path="melodium-aarch64-unknown-linux-gnu", create=true)
+
+    testersAarch64Gnu: buildTesters[cicd=dispatcher](
+        target="aarch64-unknown-linux-gnu",
+        arch=|arm64(),
+        environment_variables=|map([]),
+        pre_commands=[
+            |command("apt-get", ["update"]),
+            |command("apt-get", ["install", "-y", "binutils-aarch64-linux-gnu", "libgcc1-arm64-cross", "gcc-aarch64-linux-gnu", "libc-dev", "libasound2-dev"])
+        ],
+        repository_url=repository_url,
+        ref=gitlab_ref,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+
+    testAarch64Gnu: testTarget[cicd=dispatcher](
+        target="aarch64-unknown-linux-gnu",
+        test_image="debian:bookworm",
+        arch=|arm64(),
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+    awaitTestAarch64Gnu: waitBlock<void>()
+
+    startup.trigger -> buildAarch64Gnu.trigger
+    startup.trigger -> testersAarch64Gnu.trigger
+
+    buildAarch64Gnu.binary -> writeAarch64Gnu.data
+    buildAarch64Gnu.binary -> testAarch64Gnu.binary
+    testersAarch64Gnu.data -> testAarch64Gnu.testers
+
+    buildAarch64Gnu.completed   -> awaitTestAarch64Gnu.a
+    testersAarch64Gnu.completed -> awaitTestAarch64Gnu.b
+    awaitTestAarch64Gnu.awaited -> testAarch64Gnu.trigger
 }

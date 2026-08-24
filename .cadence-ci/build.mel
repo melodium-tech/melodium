@@ -1,31 +1,23 @@
+use cicd/naive::simpleStep
 use cicd/runners::CicdDispatchEngine
-use cicd/runners::CicdRunnerEngine
-use cicd/runners::setupRunner
-use cicd/runners::stopRunner
-use cicd/services::setServiceState
-use cicd/steps::stepOn
 use process/command::Command
 use process/command::|command
-use process/environment::Environment
-use process/environment::|environment
+use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
-use std/flow::closeBlock
 use std/flow::one
 use std/ops/option::|wrap
 use std/ops/vec::|concat
 use std/text/compose::|format
-use work/resources::|container
-use work/resources::|mount
-use work/resources::|volume
 use work/resources/arch::Arch
-use root/common::cloneRepo
 
 treatment buildTarget[cicd: CicdDispatchEngine](
     var target: string,
     var image: string,
     var arch: Arch,
     var pre_commands: Vec<Command> = [],
+    var cargo_args: string = "",
+    var environment_variables: StringMap,
     var container_cpu: u32 = 6000,
     var container_memory: u32 = 10000,
     var container_storage: u32 = 20000,
@@ -36,14 +28,31 @@ treatment buildTarget[cicd: CicdDispatchEngine](
     var gitlab_sha: string,
     var gitlab_pipeline_id: string
 )
-  model runner: CicdRunnerEngine()
   input trigger: Block<void>
   output binary: Stream<byte>
   output completed: Block<void>
   output failed: Block<void>
 {
-    report: setServiceState(
+    compile: simpleStep[dispatcher=cicd](
         name=target,
+        image=image,
+        arch=|wrap<Arch>(arch),
+        cpu=container_cpu,
+        memory=container_memory,
+        storage=container_storage,
+        variables=|wrap<StringMap>(environment_variables),
+        commands=|concat<Command>(pre_commands, [
+            |command("sh", ["-c", |format(
+                ${{git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source && cargo build --package melodium --target {target} {cargo_args} --locked --release && mv target/{target}/release/melodium /mnt/data/melodium}},
+                |map([
+                    |entry("ref", ref),
+                    |entry("repository_url", repository_url),
+                    |entry("target", target),
+                    |entry("cargo_args", cargo_args)
+                ])
+            )])
+        ]),
+        out_file=|wrap<string>("melodium"),
         report=true,
         gitlab=true,
         gitlab_token=gitlab_token,
@@ -51,64 +60,15 @@ treatment buildTarget[cicd: CicdDispatchEngine](
         gitlab_sha=gitlab_sha,
         gitlab_ref=ref,
         gitlab_pipeline_id=gitlab_pipeline_id,
-        log_response=true,
+        log_service_response=true,
         description=|format("Build target {target}", |entry("target", target))
     )
-    noCancel: closeBlock<void>()
 
-    setupRunner[dispatcher=cicd, runner=runner](
-        name=target,
-        cpu=200, memory=200, storage=700,
-        arch=|wrap<Arch>(arch),
-        volumes=[|volume("result", 500)],
-        containers=[
-            |container("build", container_cpu, container_memory, container_storage, arch, [|mount("result", "/mounted/result")], image, _)
-        ]
-    )
-
-    clone: cloneRepo[runner=runner](
-        executor_name=|wrap<string>("build"),
-        repository_url=repository_url,
-        ref=ref
-    )
-
-    compile: stepOn[runner=runner](
-        name="compile",
-        executor_name=|wrap<string>("build"),
-        environment=|wrap<Environment>(|environment(|map([]), |wrap<string>("/source"), false, false)),
-        commands=|concat<Command>(pre_commands, [
-            |command("rustc", ["--version"]),
-            |command("cargo", ["--version"]),
-            |command("cargo", ["build", "--package", "melodium", "--target", target, "--locked", "--release"]),
-            |command("mv", [|format("target/{target}/release/melodium", |entry("target", target)), "/mounted/result/melodium"])
-        ]),
-        out_filesystem=|wrap<string>("result"),
-        out_file=|wrap<string>("melodium")
-    )
-
-    stopRunner[runner=runner]()
+    Self.trigger -> compile.trigger,data -> Self.binary
+    compile.success -> Self.completed
 
     compileFailure: one<void>()
     compile.error  -> compileFailure.a
     compile.failed -> compileFailure.b
-
-    setupOrCloneFailure: one<void>()
-    setupRunner.failed -> setupOrCloneFailure.a
-    clone.failed        -> setupOrCloneFailure.b
-
-    buildFailure: one<void>()
-    setupOrCloneFailure.value -> buildFailure.a
-    compileFailure.value      -> buildFailure.b
-
-    Self.trigger -> setupRunner.trigger,ready -> clone.trigger,completed -> compile.trigger,data -> Self.binary
-    compile.finished    -> stopRunner.trigger
-    compile.success     -> Self.completed
-    buildFailure.value  -> Self.failed
-
-    Self.trigger        -> report.pending
-    setupRunner.ready   -> report.running
-    compile.success     -> report.success
-    compile.error       -> report.error
-    buildFailure.value  -> report.failed
-    Self.trigger        -> noCancel.trigger,closed -> report.canceled
+    compileFailure.value -> Self.failed
 }

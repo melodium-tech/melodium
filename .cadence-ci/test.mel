@@ -1,0 +1,271 @@
+use cicd/naive::simpleStep
+use cicd/runners::CicdDispatchEngine
+use cicd/runners::CicdRunnerEngine
+use cicd/runners::setupRunner
+use cicd/runners::stopRunner
+use cicd/services::setServiceState
+use cicd/steps::stepOn
+use cicd/steps::stepOnWithInput
+use process/command::Command
+use process/command::|command
+use process/environment::Environment
+use process/environment::|environment
+use std/data/string_map::StringMap
+use std/data/string_map::|entry
+use std/data/string_map::|map
+use std/flow::closeBlock
+use std/flow::one
+use std/ops/option::|wrap
+use std/ops/vec::|concat
+use std/text/compose::|format
+use work/resources::|container
+use work/resources::|mount
+use work/resources::|service_container
+use work/resources::|volume
+use work/resources/arch::Arch
+use work/resources/arch::|amd64
+
+treatment unitTests[cicd: CicdDispatchEngine](
+    var repository_url: string,
+    var ref: string,
+    var gitlab_token: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string
+)
+  input trigger: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    unitTest: simpleStep[dispatcher=cicd](
+        name="unit-tests",
+        image="rust:1.91-bookworm",
+        arch=|wrap<Arch>(|amd64()),
+        cpu=6000, memory=10000, storage=20000,
+        commands=[
+            |command("sh", ["-c", |format(
+                ${{git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source && apt-get update && apt-get install -y libasound2-dev && cargo test --locked --verbose}},
+                |map([|entry("ref", ref), |entry("repository_url", repository_url)])
+            )])
+        ],
+        report=true,
+        gitlab=true,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        log_service_response=true,
+        description="Rust unit tests"
+    )
+
+    Self.trigger -> unitTest.trigger
+    unitTest.success -> Self.completed
+
+    unitTestFailure: one<void>()
+    unitTest.error  -> unitTestFailure.a
+    unitTest.failed -> unitTestFailure.b
+    unitTestFailure.value -> Self.failed
+}
+
+treatment buildTesters[cicd: CicdDispatchEngine](
+    var target: string,
+    var arch: Arch,
+    var pre_commands: Vec<Command> = [],
+    var environment_variables: StringMap,
+    var repository_url: string,
+    var ref: string,
+    var gitlab_token: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string
+)
+  input trigger: Block<void>
+  output data: Stream<byte>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    testers: simpleStep[dispatcher=cicd](
+        name=|format("testers:{target}", |entry("target", target)),
+        image="rust:1.91-bookworm",
+        arch=|wrap<Arch>(arch),
+        cpu=6000, memory=10000, storage=20000,
+        variables=|wrap<StringMap>(environment_variables),
+        commands=|concat<Command>(pre_commands, [
+            |command("sh", ["-c", |format(
+                ${{git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source/tests/testers && cargo build --locked --target {target} && for f in ../*.mel; do tar --append --file testers.tar "$f"; done && for f in target/{target}/debug/*; do [ -f "$f" ] && [ -x "$f" ] && tar --append --file testers.tar "$f"; done && gzip testers.tar && mv testers.tar.gz /mnt/data/testers.tar.gz}},
+                |map([
+                    |entry("ref", ref),
+                    |entry("repository_url", repository_url),
+                    |entry("target", target)
+                ])
+            )])
+        ]),
+        out_file=|wrap<string>("testers.tar.gz"),
+        report=true,
+        gitlab=true,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=ref,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        log_service_response=true,
+        description=|format("Build testers for {target}", |entry("target", target))
+    )
+
+    Self.trigger -> testers.trigger,data -> Self.data
+    testers.success -> Self.completed
+
+    testersFailure: one<void>()
+    testers.error  -> testersFailure.a
+    testers.failed -> testersFailure.b
+    testersFailure.value -> Self.failed
+}
+
+treatment testTarget[cicd: CicdDispatchEngine](
+    var target: string,
+    var test_image: string,
+    var arch: Arch,
+    var extra_install_commands: Vec<Command> = [],
+    var gitlab_token: string,
+    var gitlab_project_id: string,
+    var gitlab_sha: string,
+    var gitlab_pipeline_id: string
+)
+  model runner: CicdRunnerEngine()
+  input trigger: Block<void>
+  input binary: Stream<byte>
+  input testers: Stream<byte>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    report: setServiceState(
+        name=|format("test:{target}", |entry("target", target)),
+        report=true,
+        gitlab=true,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_ref=target,
+        gitlab_pipeline_id=gitlab_pipeline_id,
+        log_response=true,
+        description=|format("Run tests on {target}", |entry("target", target))
+    )
+    noCancel: closeBlock<void>()
+
+    setupRunner[dispatcher=cicd, runner=runner](
+        name=|format("test:{target}", |entry("target", target)),
+        cpu=200, memory=200, storage=1500,
+        arch=|wrap<Arch>(arch),
+        volumes=[|volume("binaries", 700)],
+        containers=[
+            |container("test", 1000, 1000, 2000, arch, [|mount("binaries", "/mounted/binaries")], test_image, _)
+        ],
+        service_containers=[
+            |service_container("postgres", 500, 500, 1000, arch, [], "postgres:16", _, |wrap<StringMap>(|map([
+                |entry("POSTGRES_DB", "test_db"),
+                |entry("POSTGRES_USER", "test_user"),
+                |entry("POSTGRES_PASSWORD", "test_pAs$w0rD"),
+                |entry("POSTGRES_HOST_AUTH_METHOD", "trust")
+            ])), _)
+        ]
+    )
+
+    installBinary: stepOnWithInput[runner=runner](
+        name="install-melodium",
+        executor_name=|wrap<string>("test"),
+        in_filesystem=|wrap<string>("binaries"),
+        in_file=|wrap<string>("melodium"),
+        commands=|concat<Command>([
+            |command("apt-get", ["update"]),
+            |command("apt-get", ["install", "-y", "ca-certificates", "libasound2"])
+        ], |concat<Command>(extra_install_commands, [
+            |command("mv", ["/mounted/binaries/melodium", "/usr/local/bin/melodium"]),
+            |command("chmod", ["+x", "/usr/local/bin/melodium"])
+        ]))
+    )
+
+    installTesters: stepOnWithInput[runner=runner](
+        name="install-testers",
+        executor_name=|wrap<string>("test"),
+        in_filesystem=|wrap<string>("binaries"),
+        in_file=|wrap<string>("testers.tar.gz"),
+        environment=|wrap<Environment>(|environment(|map([]), |wrap<string>("/mounted/binaries"), false, false)),
+        commands=[
+            |command("tar", ["--extract", "--gzip", "--file", "/mounted/binaries/testers.tar.gz"])
+        ]
+    )
+
+    runTests: stepOn[runner=runner](
+        name="run-tests",
+        executor_name=|wrap<string>("test"),
+        environment=|wrap<Environment>(|environment(|map([
+            |entry("POSTGRES_DB", "test_db"),
+            |entry("POSTGRES_USER", "test_user"),
+            |entry("POSTGRES_PASSWORD", "test_pAs$w0rD"),
+            |entry("POSTGRES_HOST", "postgres"),
+            |entry("POSTGRES_HOST_AUTH_METHOD", "trust")
+        ]), |wrap<string>("/mounted/binaries"), false, false)),
+        commands=[
+            |command("./complex_call", []),
+            |command("./fs", []),
+            |command("./generics", []),
+            |command("./http_client", []),
+            |command("./http_javascript", []),
+            |command("./process", []),
+            |command("./regex", []),
+            |command("./sql", []),
+            |command("./http_distributed", []),
+            |command("./process_distributed", []),
+            |command("./process_distributed_hang", []),
+            |command("./process_distributed_slow", []),
+            |command("./process_distributed_logs_live", []),
+            |command("./distribution_engine_never_started", []),
+            |command("./distribution_engine_stop_without_start", []),
+            |command("./logs_live_flush", []),
+            |command("./stop_before_data_drained", []),
+            |command("./protocol_timeout_survives_jitter", [])
+        ],
+        stop_on_failure=false
+    )
+
+    stopRunner[runner=runner]()
+
+    installFailure: one<void>()
+    installBinary.error  -> installFailure.a
+    installBinary.failed -> installFailure.b
+
+    installTestersFailure: one<void>()
+    installTesters.error  -> installTestersFailure.a
+    installTesters.failed -> installTestersFailure.b
+
+    runFailure: one<void>()
+    runTests.error  -> runFailure.a
+    runTests.failed -> runFailure.b
+
+    setupOrInstallFailure: one<void>()
+    setupRunner.failed   -> setupOrInstallFailure.a
+    installFailure.value -> setupOrInstallFailure.b
+
+    installOrRunFailure: one<void>()
+    installTestersFailure.value -> installOrRunFailure.a
+    runFailure.value            -> installOrRunFailure.b
+
+    testFailure: one<void>()
+    setupOrInstallFailure.value -> testFailure.a
+    installOrRunFailure.value   -> testFailure.b
+
+    Self.binary  -> installBinary.data
+    Self.testers -> installTesters.data
+
+    Self.trigger -> setupRunner.trigger,ready -> installBinary.trigger,completed -> installTesters.trigger,completed -> runTests.trigger,finished -> stopRunner.trigger
+    runTests.success   -> Self.completed
+    testFailure.value  -> Self.failed
+
+    Self.trigger       -> report.pending
+    setupRunner.ready  -> report.running
+    runTests.success   -> report.success
+    runTests.error     -> report.error
+    testFailure.value  -> report.failed
+    Self.trigger       -> noCancel.trigger,closed -> report.canceled
+}
