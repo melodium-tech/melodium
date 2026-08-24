@@ -6,7 +6,10 @@ use cicd/services::setServiceState
 use cicd/steps::stepOn
 use process/command::Command
 use process/command::|command
+use process/environment::Environment
+use process/environment::|environment
 use std/data/string_map::|entry
+use std/data/string_map::|map
 use std/flow::closeBlock
 use std/flow::one
 use std/ops/option::|wrap
@@ -48,6 +51,7 @@ treatment buildTarget[cicd: CicdDispatchEngine](
         gitlab_sha=gitlab_sha,
         gitlab_ref=ref,
         gitlab_pipeline_id=gitlab_pipeline_id,
+        log_response=true,
         description=|format("Build target {target}", |entry("target", target))
     )
     noCancel: closeBlock<void>()
@@ -71,6 +75,7 @@ treatment buildTarget[cicd: CicdDispatchEngine](
     compile: stepOn[runner=runner](
         name="compile",
         executor_name=|wrap<string>("build"),
+        environment=|wrap<Environment>(|environment(|map([]), |wrap<string>("/source"), false, false)),
         commands=|concat<Command>(pre_commands, [
             |command("rustc", ["--version"]),
             |command("cargo", ["--version"]),
