@@ -11,7 +11,7 @@ include:
       - if: '$CADENCE == "true"'
     inputs:
       job_name: cadence:trigger
-      stage: melodium
+      stage: build
       command: run --api-report .cadence-ci/Compo.toml main --gitlab_token "$API_TOKEN" --gitlab_project_id "$CI_PROJECT_ID" --gitlab_sha "$CI_COMMIT_SHA" --gitlab_ref "$CI_COMMIT_REF_NAME" --gitlab_pipeline_id "$CI_PIPELINE_ID" --repository_url "$CI_REPOSITORY_URL"
       melodium_api_token: $CADENCE_API_TOKEN
 
