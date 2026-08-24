@@ -1,0 +1,34 @@
+use cicd/runners::CicdDispatchEngine
+use fs/local::writeLocal
+use root/build::buildTarget
+use std/engine/util::startup
+use work/resources/arch::|amd64
+
+treatment main(
+    const gitlab_token: string,
+    const gitlab_project_id: string,
+    const gitlab_sha: string,
+    const gitlab_ref: string,
+    const gitlab_pipeline_id: string,
+    const repository_url: string
+)
+  model dispatcher: CicdDispatchEngine(location="api")
+{
+    startup()
+
+    build: buildTarget[cicd=dispatcher](
+        target="x86_64-unknown-linux-gnu",
+        image="rust:1.91-bookworm",
+        arch=|amd64(),
+        repository_url=repository_url,
+        ref=gitlab_ref,
+        gitlab_token=gitlab_token,
+        gitlab_project_id=gitlab_project_id,
+        gitlab_sha=gitlab_sha,
+        gitlab_pipeline_id=gitlab_pipeline_id
+    )
+    write: writeLocal(path="melodium-x86_64-unknown-linux-gnu", create=true)
+
+    startup.trigger -> build.trigger
+    build.binary -> write.data
+}

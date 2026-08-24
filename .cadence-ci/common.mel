@@ -1,0 +1,26 @@
+use cicd/runners::CicdRunnerEngine
+use cicd/steps::stepOn
+use process/command::|command
+use std/flow::one
+
+treatment cloneRepo[runner: CicdRunnerEngine](var executor_name: Option<string>, var repository_url: string, var ref: string)
+  input trigger: Block<void>
+  output completed: Block<void>
+  output failed: Block<void>
+{
+    clone: stepOn[runner=runner](
+        name="clone",
+        executor_name=executor_name,
+        commands=[
+            |command("git", ["config", "--global", "url.https://.insteadOf", "git://"]),
+            |command("git", ["clone", "--branch", ref, "--depth", "1", "--shallow-submodules", repository_url, "source"])
+        ]
+    )
+
+    oneFailed: one<void>()
+    clone.error  -> oneFailed.a
+    clone.failed -> oneFailed.b
+
+    Self.trigger -> clone.trigger,success -> Self.completed
+    oneFailed.value -> Self.failed
+}
