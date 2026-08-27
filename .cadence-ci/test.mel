@@ -86,7 +86,7 @@ treatment buildTesters[cicd: CicdDispatchEngine](
   output failed: Block<void>
 {
     testers: simpleStep[dispatcher=cicd](
-        name=|format("testers:{target}", |entry("target", target)),
+        name=|format("testers-{target}", |entry("target", target)),
         image="rust:1.91-bookworm",
         arch=|wrap<Arch>(arch),
         cpu=6000, memory=10000, storage=20000,
@@ -140,7 +140,7 @@ treatment testTarget[cicd: CicdDispatchEngine](
   output failed: Block<void>
 {
     report: setServiceState(
-        name=|format("test:{target}", |entry("target", target)),
+        name=|format("test-{target}", |entry("target", target)),
         report=true,
         gitlab=true,
         gitlab_token=gitlab_token,
@@ -154,7 +154,7 @@ treatment testTarget[cicd: CicdDispatchEngine](
     noCancel: closeBlock<void>()
 
     setupRunner[dispatcher=cicd, runner=runner](
-        name=|format("test:{target}", |entry("target", target)),
+        name=|format("test-{target}", |entry("target", target)),
         cpu=200, memory=200, storage=1500,
         arch=|wrap<Arch>(arch),
         volumes=[|volume("binaries", 700)],

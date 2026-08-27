@@ -208,7 +208,9 @@ pub struct Container(pub api::Container);
 
 /// Build a `Container` specification.
 ///
-/// - `name`: unique name for this container within the request.
+/// - `name`: unique name for this container within the request. Becomes an actual container
+///   name, not just a label: use only lowercase letters, digits, and `-`, starting and ending
+///   with an alphanumeric character.
 /// - `memory`: memory allocated in megabytes.
 /// - `cpu`: CPU allocated in millicores.
 /// - `storage`: ephemeral storage in megabytes.
@@ -249,7 +251,9 @@ pub struct ServiceContainer(pub api::ServiceContainer);
 
 /// Build a `ServiceContainer` specification.
 ///
-/// - `name`: unique name for this service container.
+/// - `name`: unique name for this service container. Becomes an actual container
+///   name, not just a label: use only lowercase letters, digits, and `-`, starting and ending
+///   with an alphanumeric character.
 /// - `memory`, `cpu`, `storage`, `arch`, `mounts`, `image`, `pull_secret`: same as `|container`.
 /// - `env`: optional environment variables for the container.
 /// - `command`: optional entrypoint override.
