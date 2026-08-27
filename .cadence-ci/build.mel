@@ -1,13 +1,11 @@
 use cicd/naive::simpleStep
 use cicd/runners::CicdDispatchEngine
-use process/command::Command
 use process/command::|command
 use std/data/string_map::StringMap
 use std/data/string_map::|entry
 use std/data/string_map::|map
 use std/flow::one
 use std/ops/option::|wrap
-use std/ops/vec::|concat
 use std/text/compose::|format
 use work/resources/arch::Arch
 
@@ -15,7 +13,7 @@ treatment buildTarget[cicd: CicdDispatchEngine](
     var target: string,
     var image: string,
     var arch: Arch,
-    var pre_commands: Vec<Command> = [],
+    var pre_commands: string = "",
     var cargo_args: string = "",
     var environment_variables: StringMap,
     var container_cpu: u32 = 6000,
@@ -41,17 +39,21 @@ treatment buildTarget[cicd: CicdDispatchEngine](
         memory=container_memory,
         storage=container_storage,
         variables=|wrap<StringMap>(environment_variables),
-        commands=|concat<Command>(pre_commands, [
+        // `pre_commands` is a shell fragment ending in "&& " (or empty), spliced in before
+        // the clone/build sequence below; `set -x` makes every command in the script (in
+        // `pre_commands` too) echo to stderr as it runs.
+        commands=[
             |command("sh", ["-c", |format(
-                ${{git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source && cargo build --package melodium --target {target} {cargo_args} --locked --release && mv target/{target}/release/melodium /mnt/data/melodium}},
+                ${{set -x; {pre_commands}git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source && cargo build --package melodium --target {target} {cargo_args} --locked --release && mv target/{target}/release/melodium /mnt/data/melodium}},
                 |map([
+                    |entry("pre_commands", pre_commands),
                     |entry("ref", ref),
                     |entry("repository_url", repository_url),
                     |entry("target", target),
                     |entry("cargo_args", cargo_args)
                 ])
             )])
-        ]),
+        ],
         out_file=|wrap<string>("melodium"),
         report=true,
         gitlab=true,

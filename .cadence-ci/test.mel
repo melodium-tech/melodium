@@ -6,7 +6,6 @@ use cicd/runners::stopRunner
 use cicd/services::setServiceState
 use cicd/steps::stepOn
 use cicd/steps::stepOnWithInput
-use process/command::Command
 use process/command::|command
 use process/environment::Environment
 use process/environment::|environment
@@ -16,7 +15,6 @@ use std/data/string_map::|map
 use std/flow::closeBlock
 use std/flow::one
 use std/ops/option::|wrap
-use std/ops/vec::|concat
 use std/text/compose::|format
 use work/resources::|container
 use work/resources::|mount
@@ -44,7 +42,7 @@ treatment unitTests[cicd: CicdDispatchEngine](
         cpu=6000, memory=10000, storage=20000,
         commands=[
             |command("sh", ["-c", |format(
-                ${{git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source && apt-get update && apt-get install -y libasound2-dev && cargo test --locked --verbose}},
+                ${{set -x; git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source && apt-get update && apt-get install -y libasound2-dev && cargo test --locked --verbose}},
                 |map([|entry("ref", ref), |entry("repository_url", repository_url)])
             )])
         ],
@@ -71,7 +69,7 @@ treatment unitTests[cicd: CicdDispatchEngine](
 treatment buildTesters[cicd: CicdDispatchEngine](
     var target: string,
     var arch: Arch,
-    var pre_commands: Vec<Command> = [],
+    var pre_commands: string = "",
     var environment_variables: StringMap,
     var repository_url: string,
     var ref: string,
@@ -91,16 +89,17 @@ treatment buildTesters[cicd: CicdDispatchEngine](
         arch=|wrap<Arch>(arch),
         cpu=6000, memory=10000, storage=20000,
         variables=|wrap<StringMap>(environment_variables),
-        commands=|concat<Command>(pre_commands, [
+        commands=[
             |command("sh", ["-c", |format(
-                ${{git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source/tests/testers && cargo build --locked --target {target} && for f in ../*.mel; do tar --append --file testers.tar "$f"; done && for f in target/{target}/debug/*; do [ -f "$f" ] && [ -x "$f" ] && tar --append --file testers.tar "$f"; done && gzip testers.tar && mv testers.tar.gz /mnt/data/testers.tar.gz}},
+                ${{set -x; {pre_commands}git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source/tests/testers && cargo build --locked --target {target} && for f in ../*.mel; do tar --append --file testers.tar "$f"; done && for f in target/{target}/debug/*; do [ -f "$f" ] && [ -x "$f" ] && tar --append --file testers.tar "$f"; done && gzip testers.tar && mv testers.tar.gz /mnt/data/testers.tar.gz}},
                 |map([
+                    |entry("pre_commands", pre_commands),
                     |entry("ref", ref),
                     |entry("repository_url", repository_url),
                     |entry("target", target)
                 ])
             )])
-        ]),
+        ],
         out_file=|wrap<string>("testers.tar.gz"),
         report=true,
         gitlab=true,
@@ -126,7 +125,7 @@ treatment testTarget[cicd: CicdDispatchEngine](
     var target: string,
     var test_image: string,
     var arch: Arch,
-    var extra_install_commands: Vec<Command> = [],
+    var extra_install_script: string = "",
     var gitlab_token: string,
     var gitlab_project_id: string,
     var gitlab_sha: string,
@@ -176,13 +175,13 @@ treatment testTarget[cicd: CicdDispatchEngine](
         executor_name=|wrap<string>("test"),
         in_filesystem=|wrap<string>("binaries"),
         in_file=|wrap<string>("melodium"),
-        commands=|concat<Command>([
-            |command("apt-get", ["update"]),
-            |command("apt-get", ["install", "-y", "ca-certificates", "libasound2"])
-        ], |concat<Command>(extra_install_commands, [
-            |command("mv", ["/mounted/binaries/melodium", "/usr/local/bin/melodium"]),
-            |command("chmod", ["+x", "/usr/local/bin/melodium"])
-        ]))
+        // `extra_install_script` is a shell fragment ending in "&& " (or empty).
+        commands=[
+            |command("sh", ["-c", |format(
+                ${{set -x; apt-get update && apt-get install -y ca-certificates libasound2 && {extra_install_script}mv /mounted/binaries/melodium /usr/local/bin/melodium && chmod +x /usr/local/bin/melodium}},
+                |map([|entry("extra_install_script", extra_install_script)])
+            )])
+        ]
     )
 
     installTesters: stepOnWithInput[runner=runner](
@@ -192,7 +191,7 @@ treatment testTarget[cicd: CicdDispatchEngine](
         in_file=|wrap<string>("testers.tar.gz"),
         environment=|wrap<Environment>(|environment(|map([]), |wrap<string>("/mounted/binaries"), false, false)),
         commands=[
-            |command("tar", ["--extract", "--gzip", "--file", "/mounted/binaries/testers.tar.gz"])
+            |command("sh", ["-c", "set -x; tar --extract --gzip --file /mounted/binaries/testers.tar.gz"])
         ]
     )
 
@@ -206,27 +205,16 @@ treatment testTarget[cicd: CicdDispatchEngine](
             |entry("POSTGRES_HOST", "postgres"),
             |entry("POSTGRES_HOST_AUTH_METHOD", "trust")
         ]), |wrap<string>("/mounted/binaries"), false, false)),
+        // Run every test regardless of individual failures, tracking overall status in $OK
+        // (matching the legacy GitLab job's loop); `set -x` echoes each `./name` as it runs.
         commands=[
-            |command("./complex_call", []),
-            |command("./fs", []),
-            |command("./generics", []),
-            |command("./http_client", []),
-            |command("./http_javascript", []),
-            |command("./process", []),
-            |command("./regex", []),
-            |command("./sql", []),
-            |command("./http_distributed", []),
-            |command("./process_distributed", []),
-            |command("./process_distributed_hang", []),
-            |command("./process_distributed_slow", []),
-            |command("./process_distributed_logs_live", []),
-            |command("./distribution_engine_never_started", []),
-            |command("./distribution_engine_stop_without_start", []),
-            |command("./logs_live_flush", []),
-            |command("./stop_before_data_drained", []),
-            |command("./protocol_timeout_survives_jitter", [])
-        ],
-        stop_on_failure=false
+            |command("sh", ["-c", ${{set -x
+OK=0
+for t in complex_call fs generics http_client http_javascript process regex sql http_distributed process_distributed process_distributed_hang process_distributed_slow process_distributed_logs_live distribution_engine_never_started distribution_engine_stop_without_start logs_live_flush stop_before_data_drained protocol_timeout_survives_jitter; do
+  ./$t || OK=1
+done
+exit $OK}}])
+        ]
     )
 
     stopRunner[runner=runner]()

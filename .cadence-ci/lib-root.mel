@@ -1,6 +1,5 @@
 use cicd/runners::CicdDispatchEngine
 use fs/local::writeLocal
-use process/command::|command
 use root/build::buildTarget
 use root/test::buildTesters
 use root/test::testTarget
@@ -93,12 +92,7 @@ treatment main(
         arch=|amd64(),
         cargo_args="",
         environment_variables=|map([|entry("PKG_CONFIG", "/usr/bin/i686-linux-gnu-pkg-config")]),
-        pre_commands=[
-            |command("dpkg", ["--add-architecture", "i386"]),
-            |command("apt-get", ["update"]),
-            |command("apt-get", ["install", "-y", "gcc-multilib"]),
-            |command("rustup", ["target", "add", "i686-unknown-linux-gnu"])
-        ],
+        pre_commands="dpkg --add-architecture i386 && apt-get update && apt-get install -y gcc-multilib && rustup target add i686-unknown-linux-gnu && ",
         repository_url=repository_url,
         ref=gitlab_ref,
         gitlab_token=gitlab_token,
@@ -112,12 +106,7 @@ treatment main(
         target="i686-unknown-linux-gnu",
         arch=|amd64(),
         environment_variables=|map([|entry("PKG_CONFIG", "/usr/bin/i686-linux-gnu-pkg-config")]),
-        pre_commands=[
-            |command("dpkg", ["--add-architecture", "i386"]),
-            |command("apt-get", ["update"]),
-            |command("apt-get", ["install", "-y", "gcc-multilib"]),
-            |command("rustup", ["target", "add", "i686-unknown-linux-gnu"])
-        ],
+        pre_commands="dpkg --add-architecture i386 && apt-get update && apt-get install -y gcc-multilib && rustup target add i686-unknown-linux-gnu && ",
         repository_url=repository_url,
         ref=gitlab_ref,
         gitlab_token=gitlab_token,
@@ -130,11 +119,7 @@ treatment main(
         target="i686-unknown-linux-gnu",
         test_image="debian:bookworm",
         arch=|amd64(),
-        extra_install_commands=[
-            |command("dpkg", ["--add-architecture", "i386"]),
-            |command("apt-get", ["update"]),
-            |command("apt-get", ["install", "-y", "libc6:i386", "libstdc++6:i386"])
-        ],
+        extra_install_script="dpkg --add-architecture i386 && apt-get update && apt-get install -y libc6:i386 libstdc++6:i386 && ",
         gitlab_token=gitlab_token,
         gitlab_project_id=gitlab_project_id,
         gitlab_sha=gitlab_sha,
@@ -161,10 +146,7 @@ treatment main(
         arch=|arm64(),
         cargo_args="--no-default-features --features desktop-edition",
         environment_variables=|map([]),
-        pre_commands=[
-            |command("apt-get", ["update"]),
-            |command("apt-get", ["install", "-y", "binutils-aarch64-linux-gnu", "libgcc1-arm64-cross", "gcc-aarch64-linux-gnu", "libc-dev", "libasound2-dev"])
-        ],
+        pre_commands="apt-get update && apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev libasound2-dev && ",
         repository_url=repository_url,
         ref=gitlab_ref,
         gitlab_token=gitlab_token,
@@ -178,10 +160,7 @@ treatment main(
         target="aarch64-unknown-linux-gnu",
         arch=|arm64(),
         environment_variables=|map([]),
-        pre_commands=[
-            |command("apt-get", ["update"]),
-            |command("apt-get", ["install", "-y", "binutils-aarch64-linux-gnu", "libgcc1-arm64-cross", "gcc-aarch64-linux-gnu", "libc-dev", "libasound2-dev"])
-        ],
+        pre_commands="apt-get update && apt-get install -y binutils-aarch64-linux-gnu libgcc1-arm64-cross gcc-aarch64-linux-gnu libc-dev libasound2-dev && ",
         repository_url=repository_url,
         ref=gitlab_ref,
         gitlab_token=gitlab_token,

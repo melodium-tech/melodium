@@ -12,6 +12,7 @@ use local/github::|error as |github_error
 use std/flow::passBlock
 use std/flow::releaseBlock
 use std/flow::one
+use std/flow::uncheck
 use std/ops/bin::|and
 use std/ops/bin::|not
 
@@ -34,6 +35,8 @@ one after another: `running` is held back until the `pending` query has complete
 terminal state (`success`, `error`, `failed` or `canceled`) is held back until the `running` query
 has completed. A query is considered "completed" whether it was actually sent or skipped
 (`report`/`github`/`gitlab` being `false`), so a disabled report never stalls the sequence.
+If `running` never arrives at all (the step failed before reaching that stage), the terminal
+state is sent right after `pending` completes instead of waiting forever.
 */
 treatment setServiceState(
     report: bool = true,
@@ -102,6 +105,15 @@ treatment setServiceState(
     releaseRunningGitlab.released ----------------------------------------> bypassRunningGitlab.block,passed -------------------------> runningSettledGitlab.b
     runningGitlab.finished ---------------------------------------------------------------------------------------------------------> runningSettledGitlab.a
     Self.running -> releaseRunningGitlab.data
+    Self.running -> runningNeverComingGitlab.value
+
+    runningNeverComingGitlab: uncheck<void>()
+    bypassRunningSettledGitlab: releaseBlock<void>()
+    terminalReadyGitlab: one<void>()
+
+    runningNeverComingGitlab.uncheck -> bypassRunningSettledGitlab.leverage
+    pendingSettledGitlab.value -------> bypassRunningSettledGitlab.data,released -> terminalReadyGitlab.b
+    runningSettledGitlab.value ------------------------------------------------------------------------> terminalReadyGitlab.a
 
     releaseSuccessGitlab: releaseBlock<void>()
     passSuccessGitlab: passBlock<void>(cond=|and<bool>(report, gitlab))
@@ -149,16 +161,16 @@ treatment setServiceState(
 
     errorOrFailedGitlab: one<void>()
 
-    runningSettledGitlab.value -> releaseSuccessGitlab.leverage
-    Self.success -----------------> releaseSuccessGitlab.data,released -> passSuccessGitlab.block,passed -> successGitlab.trigger
+    terminalReadyGitlab.value -> releaseSuccessGitlab.leverage
+    Self.success ------------------> releaseSuccessGitlab.data,released -> passSuccessGitlab.block,passed -> successGitlab.trigger
 
-    runningSettledGitlab.value -> releaseErrorGitlab.leverage
-    Self.error --------------------> releaseErrorGitlab.data,released ----> errorOrFailedGitlab.a,value -> passFailedGitlab.block,passed -> failedGitlab.trigger
-    runningSettledGitlab.value -> releaseFailedGitlab.leverage
-    Self.failed -------------------> releaseFailedGitlab.data,released ---> errorOrFailedGitlab.b
+    terminalReadyGitlab.value -> releaseErrorGitlab.leverage
+    Self.error ---------------------> releaseErrorGitlab.data,released ----> errorOrFailedGitlab.a,value -> passFailedGitlab.block,passed -> failedGitlab.trigger
+    terminalReadyGitlab.value -> releaseFailedGitlab.leverage
+    Self.failed ---------------------> releaseFailedGitlab.data,released ---> errorOrFailedGitlab.b
 
-    runningSettledGitlab.value -> releaseCanceledGitlab.leverage
-    Self.canceled -----------------> releaseCanceledGitlab.data,released -> passCanceledGitlab.block,passed -> canceledGitlab.trigger
+    terminalReadyGitlab.value -> releaseCanceledGitlab.leverage
+    Self.canceled ------------------> releaseCanceledGitlab.data,released -> passCanceledGitlab.block,passed -> canceledGitlab.trigger
 
     // --- GitHub: pending -> terminal (success | error/canceled | failure) ---
 
