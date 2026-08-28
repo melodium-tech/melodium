@@ -39,7 +39,7 @@ treatment unitTests[cicd: CicdDispatchEngine](
         name="unit-tests",
         image="rust:1.91-bookworm",
         arch=|wrap<Arch>(|amd64()),
-        cpu=6000, memory=10000, storage=20000,
+        cpu=6000, memory=10000, storage=50000,
         commands=[
             |command("sh", ["-c", |format(
                 ${{set -x; git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source && apt-get update && apt-get install -y libasound2-dev && cargo test --locked --verbose}},
@@ -91,7 +91,7 @@ treatment buildTesters[cicd: CicdDispatchEngine](
         variables=|wrap<StringMap>(environment_variables),
         commands=[
             |command("sh", ["-c", |format(
-                ${{set -x; {pre_commands}git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source/tests/testers && cargo build --locked --target {target} && for f in ../*.mel; do tar --append --file testers.tar "$f"; done && for f in target/{target}/debug/*; do [ -f "$f" ] && [ -x "$f" ] && tar --append --file testers.tar "$f"; done && gzip testers.tar && mv testers.tar.gz /mnt/data/testers.tar.gz}},
+                ${{set -x; {pre_commands}git config --global url."https://".insteadOf git:// && git clone --branch "{ref}" --depth 1 --shallow-submodules "{repository_url}" source && cd source/tests/testers && cargo build --locked --target {target} && for f in ../*.mel; do tar --append --file testers.tar "$f"; done && for f in target/{target}/debug/*; do if [ -f "$f" ] && [ -x "$f" ]; then tar --append --file testers.tar "$f"; fi; done && gzip testers.tar && mv testers.tar.gz /mnt/data/testers.tar.gz}},
                 |map([
                     |entry("pre_commands", pre_commands),
                     |entry("ref", ref),
