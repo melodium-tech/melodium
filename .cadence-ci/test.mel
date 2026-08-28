@@ -161,7 +161,7 @@ treatment testTarget[cicd: CicdDispatchEngine](
             |container("test", 1000, 1000, 2000, arch, [|mount("binaries", "/mounted/binaries")], test_image, _)
         ],
         service_containers=[
-            |service_container("postgres", 500, 1000, 2000, arch, [], "postgres:16", _, |wrap<StringMap>(|map([
+            |service_container("postgres", 2000, 1000, 2000, arch, [], "postgres:16", _, |wrap<StringMap>(|map([
                 |entry("POSTGRES_DB", "test_db"),
                 |entry("POSTGRES_USER", "test_user"),
                 |entry("POSTGRES_PASSWORD", "test_pAs$w0rD"),
