@@ -8,7 +8,7 @@
 ))]
 compile_error!("One of the two features 'real' or 'mock' must be enabled");
 
-use async_std::channel::{unbounded, Receiver, Sender};
+use async_std::channel::{bounded, Receiver, Sender};
 use async_std::io::{Read, Write};
 #[cfg(feature = "real")]
 use async_std::net::{SocketAddr, TcpStream};
@@ -46,6 +46,17 @@ const PROBE_RETRY_ATTEMPTS: u32 = 3;
 /// Delay between probe retry attempts.
 #[cfg(feature = "real")]
 const PROBE_RETRY_DELAY: Duration = Duration::from_secs(2);
+
+/// Capacity of the per-port input/output data channels backing a distributed track.
+///
+/// In practice each of these channels holds at most one pending batch: the sending side always
+/// awaits a full drain-and-network-send right after pushing onto it (see `send_data`), and the
+/// receiving side (`Message::OutputData` handling in `continuous`) awaits the channel directly,
+/// so a full channel already back-pressures the connection's message-read loop. The bound here
+/// exists so that stays true - a bounded channel with real, deliberate slack instead of an
+/// unbounded one that could otherwise grow without limit if either assumption ever changes.
+#[cfg(feature = "real")]
+const DATA_CHANNEL_CAPACITY: usize = 8;
 
 #[derive(Debug)]
 struct Track {
@@ -384,14 +395,14 @@ impl DistributionEngine {
 
                 let mut io = 0;
                 for (name, _) in treatment.inputs() {
-                    let (sender, receiver) = unbounded();
+                    let (sender, receiver) = bounded(DATA_CHANNEL_CAPACITY);
                     inputs_senders.insert(name.clone(), sender);
                     inputs_receivers.insert(name.clone(), receiver);
                     io += 1;
                 }
 
                 for (name, _) in treatment.outputs() {
-                    let (sender, receiver) = unbounded();
+                    let (sender, receiver) = bounded(DATA_CHANNEL_CAPACITY);
                     outputs_senders.insert(name.clone(), sender);
                     outputs_receivers.insert(name.clone(), receiver);
                     io += 1;
