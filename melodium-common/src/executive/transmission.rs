@@ -250,6 +250,33 @@ impl TransmissionValue {
         }
     }
 
+    /// Rough memory footprint of the whole batch, in bytes. See `Value::estimated_size`
+    /// for why this is an estimate rather than an exact figure. The optimized variants
+    /// (fixed-size scalars, packed `Byte`) are O(1); `String` and `Other` are O(n) since
+    /// their elements don't have a uniform size.
+    pub fn estimated_size(&self) -> usize {
+        match self {
+            TransmissionValue::Void(data) => data.len() * std::mem::size_of::<()>(),
+            TransmissionValue::I8(data) => data.len() * std::mem::size_of::<i8>(),
+            TransmissionValue::I16(data) => data.len() * std::mem::size_of::<i16>(),
+            TransmissionValue::I32(data) => data.len() * std::mem::size_of::<i32>(),
+            TransmissionValue::I64(data) => data.len() * std::mem::size_of::<i64>(),
+            TransmissionValue::I128(data) => data.len() * std::mem::size_of::<i128>(),
+            TransmissionValue::U8(data) => data.len() * std::mem::size_of::<u8>(),
+            TransmissionValue::U16(data) => data.len() * std::mem::size_of::<u16>(),
+            TransmissionValue::U32(data) => data.len() * std::mem::size_of::<u32>(),
+            TransmissionValue::U64(data) => data.len() * std::mem::size_of::<u64>(),
+            TransmissionValue::U128(data) => data.len() * std::mem::size_of::<u128>(),
+            TransmissionValue::F32(data) => data.len() * std::mem::size_of::<f32>(),
+            TransmissionValue::F64(data) => data.len() * std::mem::size_of::<f64>(),
+            TransmissionValue::Bool(data) => data.len() * std::mem::size_of::<bool>(),
+            TransmissionValue::Byte(data) => data.len(),
+            TransmissionValue::Char(data) => data.len() * std::mem::size_of::<char>(),
+            TransmissionValue::String(data) => data.iter().map(String::len).sum(),
+            TransmissionValue::Other(data) => data.iter().map(Value::estimated_size).sum(),
+        }
+    }
+
     pub fn push(&mut self, value: Value) {
         match (self, value) {
             (TransmissionValue::Void(data), Value::Void(value)) => data.push_back(value),
@@ -1227,5 +1254,35 @@ impl TryInto<Vec<String>> for TransmissionValue {
             }
             _ => Err(()),
         }
+    }
+}
+
+#[cfg(test)]
+mod estimated_size_tests {
+    use super::*;
+
+    #[test]
+    fn packed_byte_variant_costs_one_byte_per_element() {
+        let batch = TransmissionValue::Byte(VecDeque::from(vec![0u8; 4096]));
+        assert_eq!(batch.estimated_size(), 4096);
+    }
+
+    #[test]
+    fn fixed_size_scalar_variant_scales_with_type_size() {
+        let batch = TransmissionValue::U64(VecDeque::from(vec![0u64; 10]));
+        assert_eq!(batch.estimated_size(), 10 * std::mem::size_of::<u64>());
+    }
+
+    #[test]
+    fn string_variant_sums_actual_string_lengths() {
+        let batch =
+            TransmissionValue::String(VecDeque::from(vec!["ab".to_string(), "cde".to_string()]));
+        assert_eq!(batch.estimated_size(), 2 + 3);
+    }
+
+    #[test]
+    fn other_variant_delegates_to_value_estimated_size() {
+        let batch = TransmissionValue::Other(VecDeque::from(vec![Value::Byte(1), Value::Byte(2)]));
+        assert_eq!(batch.estimated_size(), 2 * std::mem::size_of::<Value>());
     }
 }
