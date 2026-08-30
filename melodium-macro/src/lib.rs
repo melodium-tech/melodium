@@ -12,8 +12,8 @@ use proc_macro2::{token_stream::IntoIter as IntoIterTokenStream, TokenTree};
 use quote::quote;
 use std::collections::HashMap;
 use syn::{
-    parse, parse_file, Fields, FnArg, GenericArgument, Item, ItemFn, ItemStruct, Pat,
-    PathArguments, ReturnType, Type,
+    parse, parse_file, parse_macro_input, Fields, FnArg, GenericArgument, Item, ItemFn,
+    ItemStruct, Pat, PathArguments, ReturnType, Type,
 };
 
 fn into_mel_type(ty: &Type) -> Vec<String> {
@@ -2599,6 +2599,100 @@ pub fn check(item: TokenStream) -> TokenStream {
         if let Err(_) = {#item} {
             break;
         }
+    };
+
+    TokenStream::from(expanded)
+}
+
+/// Input to the `recv!` macro: `['label,] let IDENT: TYPE = EXPR`, mirroring `check!`'s
+/// optional leading label.
+struct RecvInput {
+    label: Option<syn::Lifetime>,
+    ident: syn::Ident,
+    ty: syn::Type,
+    expr: syn::Expr,
+}
+
+impl syn::parse::Parse for RecvInput {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let label = if input.peek(syn::Lifetime) {
+            let label = input.parse()?;
+            input.parse::<syn::Token![,]>()?;
+            Some(label)
+        } else {
+            None
+        };
+
+        input.parse::<syn::Token![let]>()?;
+        let ident: syn::Ident = input.parse()?;
+        input.parse::<syn::Token![:]>()?;
+        let ty: syn::Type = input.parse()?;
+        input.parse::<syn::Token![=]>()?;
+        let expr: syn::Expr = input.parse()?;
+
+        Ok(RecvInput {
+            label,
+            ident,
+            ty,
+            expr,
+        })
+    }
+}
+
+/// Receives one value (or, when `TYPE` is `Vec<T>`, the next batch of values) and casts it
+/// to `TYPE`, breaking the enclosing loop instead of panicking when either the source is
+/// closed or the received value's runtime type doesn't match — the receive-side
+/// counterpart to `check!`, closing the asymmetry where the send path already had this but
+/// the receive path required a hand-written `GetData`/`TryInto` cast ending in `.unwrap()`.
+///
+/// ```ignore
+/// recv!(let value: string = data);
+/// recv!(let values: Vec<string> = data);       // batch form, via recv_many_as
+/// recv!('outer, let value: string = data);     // labeled break, like check!
+/// ```
+#[proc_macro]
+pub fn recv(item: TokenStream) -> TokenStream {
+    let RecvInput {
+        label,
+        ident,
+        ty,
+        expr,
+    } = parse_macro_input!(item as RecvInput);
+
+    let break_stmt = if let Some(label) = &label {
+        quote! { break #label }
+    } else {
+        quote! { break }
+    };
+
+    // `Vec<T>` selects the batch form (`recv_many_as::<T>`); anything else is a single
+    // value (`recv_one_as::<TYPE>`).
+    let many_inner_type = if let syn::Type::Path(type_path) = &ty {
+        type_path.path.segments.last().and_then(|segment| {
+            if segment.ident == "Vec" {
+                if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+                    if let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() {
+                        return Some(inner_ty.clone());
+                    }
+                }
+            }
+            None
+        })
+    } else {
+        None
+    };
+
+    let call = if let Some(inner_ty) = many_inner_type {
+        quote! { #expr.recv_many_as::<#inner_ty>().await }
+    } else {
+        quote! { #expr.recv_one_as::<#ty>().await }
+    };
+
+    let expanded = quote! {
+        let #ident: #ty = match #call {
+            Ok(value) => value,
+            Err(_) => #break_stmt,
+        };
     };
 
     TokenStream::from(expanded)

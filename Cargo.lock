@@ -4634,6 +4634,7 @@ version = "0.10.2"
 name = "melodium-common"
 version = "0.10.2"
 dependencies = [
+ "async-std",
  "async-trait",
  "chrono",
  "downcast-rs",

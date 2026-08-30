@@ -26,6 +26,9 @@ serde = { version = "1", features = ["derive", "rc"] }
 uuid = { version = "1.7", features = ["serde"] }
 erased-serde = "0.4"
 
+[dev-dependencies]
+async-std = "1.13"
+
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"

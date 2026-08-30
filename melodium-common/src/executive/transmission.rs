@@ -7,6 +7,10 @@ pub enum TransmissionError {
     NoReceiver,
     EverythingClosed,
     NoData,
+    /// A received value's runtime type didn't match the type it was cast to (see
+    /// `InputExt::recv_one_as`/`recv_many_as`). Replaces what used to be an `.unwrap()`
+    /// panic at call sites doing this cast by hand.
+    TypeMismatch,
 }
 
 pub type SendResult = Result<(), TransmissionError>;

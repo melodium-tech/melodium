@@ -1,5 +1,5 @@
 use melodium_core::*;
-use melodium_macro::{check, mel_function, mel_treatment};
+use melodium_macro::{check, mel_function, mel_treatment, recv};
 
 /// Convert stream of string into chars.
 ///
@@ -9,11 +9,9 @@ use melodium_macro::{check, mel_function, mel_treatment};
     output chars Stream<Vec<char>>
 )]
 pub async fn to_char() {
-    while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    loop {
+        recv!(let text: Vec<string> = text);
+
         let output = text
             .into_iter()
             .map(|text| Value::Vec(text.chars().map(|c| Value::Char(c)).collect()))
@@ -74,11 +72,9 @@ pub fn from_char(chars: Vec<char>) -> string {
     output encoded Stream<byte>
 )]
 pub async fn to_utf8() {
-    while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    loop {
+        recv!(let text: Vec<string> = text);
+
         let mut output = VecDeque::new();
         for text in text {
             output.extend(text.as_bytes());
@@ -102,11 +98,9 @@ pub fn to_utf8(text: string) -> Vec<byte> {
     output text Stream<string>
 )]
 pub async fn from_utf8() {
-    while let Ok(encoded) = encoded
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<byte>>::try_into(values).unwrap())
-    {
+    loop {
+        recv!(let encoded: Vec<byte> = encoded);
+
         let output = String::from_utf8_lossy(&encoded).to_string();
 
         check!(text.send_one(output.into()).await);
