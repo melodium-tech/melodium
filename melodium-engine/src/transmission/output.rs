@@ -1,5 +1,5 @@
 use crate::debug::{DataContent, Event, EventKind, TransmissionDebug, TransmissionDetails};
-use crate::transmission::Input;
+use crate::transmission::{own, Input};
 use async_std::channel::{Sender, TrySendError};
 use async_std::sync::Mutex as AsyncMutex;
 use async_trait::async_trait;
@@ -15,7 +15,7 @@ const LIMIT: usize = 2usize.pow(20);
 
 #[derive(Debug)]
 pub struct Output {
-    senders: Mutex<Arc<Vec<(Sender<TransmissionValue>, Option<TransmissionDetails>)>>>,
+    senders: Mutex<Arc<Vec<(Sender<Arc<TransmissionValue>>, Option<TransmissionDetails>)>>>,
     count_receivers: AtomicUsize,
     buffer: AsyncMutex<Option<TransmissionValue>>,
     flow: Flow,
@@ -79,6 +79,10 @@ impl Output {
         if buffer_len > 0 {
             // We can unwrap the `take` because buffer_len must be > 0, so buffer have value.
             let data = self.buffer.lock().await.take().unwrap();
+            // Wrapped once here rather than cloned per receiver below: fan-out sends hand
+            // out cheap `Arc::clone`s of this single allocation instead of deep-cloning the
+            // whole batch once per receiver (see `own`, used on the receiving end).
+            let data = Arc::new(data);
             if self.flow == Flow::Block || buffer_len >= LIMIT || force {
                 match self.count_receivers.load(Ordering::Relaxed) {
                     0 => Err(TransmissionError::NoReceiver),
@@ -209,7 +213,7 @@ impl Output {
                                     Ok(())
                                 }
                                 Err(TrySendError::Full(data)) => {
-                                    self.buffer.lock().await.replace(data);
+                                    self.buffer.lock().await.replace(own(data));
                                     Ok(())
                                 }
                                 Err(TrySendError::Closed(_)) => {
@@ -282,7 +286,7 @@ impl Output {
                                 Err(TransmissionError::EverythingClosed)
                             }
                         } else {
-                            self.buffer.lock().await.replace(data);
+                            self.buffer.lock().await.replace(own(data));
                             Ok(())
                         }
                     }
@@ -398,5 +402,49 @@ impl From<Input> for Output {
         let o = Output::new(*value.flow(), *value.track_id(), TransmissionDebug::None);
         o.add_transmission(&vec![value]);
         o
+    }
+}
+
+#[cfg(test)]
+mod fan_out_tests {
+    use super::*;
+    use melodium_common::executive::{Input as ExecutiveInput, Output as ExecutiveOutput};
+
+    #[test]
+    fn single_receiver_gets_sent_value() {
+        async_std::task::block_on(async {
+            let input = Input::new(Flow::Stream, 0, TransmissionDebug::None);
+            let output = Output::new(Flow::Stream, 0, TransmissionDebug::None);
+            output.add_transmission(&vec![input.clone()]);
+
+            output.send_one(Value::U8(7)).await.unwrap();
+
+            assert_eq!(input.recv_one().await.unwrap(), Value::U8(7));
+        });
+    }
+
+    // Every receiver must see the full, correct batch even though the underlying
+    // TransmissionValue is now shared (Arc-cloned) across receivers rather than
+    // deep-cloned once per receiver — this is the correctness guard for that change.
+    #[test]
+    fn every_fan_out_receiver_gets_the_full_correct_batch() {
+        async_std::task::block_on(async {
+            let input_a = Input::new(Flow::Stream, 0, TransmissionDebug::None);
+            let input_b = Input::new(Flow::Stream, 0, TransmissionDebug::None);
+            let output = Output::new(Flow::Stream, 0, TransmissionDebug::None);
+            output.add_transmission(&vec![input_a.clone(), input_b.clone()]);
+
+            // Sends are interleaved with receives: Output only retries a locally
+            // buffered batch on the next send/close call, there's no background
+            // flush, so a second send before both receivers drain the first would
+            // sit buffered forever in this single-task test.
+            output.send_one(Value::U8(1)).await.unwrap();
+            assert_eq!(input_a.recv_one().await.unwrap(), Value::U8(1));
+            assert_eq!(input_b.recv_one().await.unwrap(), Value::U8(1));
+
+            output.send_one(Value::U8(2)).await.unwrap();
+            assert_eq!(input_a.recv_one().await.unwrap(), Value::U8(2));
+            assert_eq!(input_b.recv_one().await.unwrap(), Value::U8(2));
+        });
     }
 }
