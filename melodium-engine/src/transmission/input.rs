@@ -1,4 +1,5 @@
 use crate::debug::{DataContent, Event, EventKind, TransmissionDebug};
+use crate::transmission::own;
 use async_std::channel::{bounded, Receiver, Sender};
 use async_std::sync::Mutex as AsyncMutex;
 use async_trait::async_trait;
@@ -6,11 +7,16 @@ use melodium_common::descriptor::Flow;
 use melodium_common::executive::{
     Input as ExecutiveInput, RecvResult, TrackId, TransmissionError, TransmissionValue, Value,
 };
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Input {
-    receiver: Receiver<TransmissionValue>,
-    sender: Sender<TransmissionValue>,
+    // Carries `Arc<TransmissionValue>` rather than an owned batch so a fan-out `Output`
+    // can hand every receiver a cheap refcount bump instead of a deep clone of the whole
+    // batch. Ownership is reclaimed lazily on receive (see `own`): whichever `Input`
+    // happens to be the last to read a given batch gets it for free via `Arc::try_unwrap`.
+    receiver: Receiver<Arc<TransmissionValue>>,
+    sender: Sender<Arc<TransmissionValue>>,
     buffer: AsyncMutex<Option<TransmissionValue>>,
     flow: Flow,
     track_id: TrackId,
@@ -30,7 +36,7 @@ impl Input {
         }
     }
 
-    pub fn sender(&self) -> &Sender<TransmissionValue> {
+    pub fn sender(&self) -> &Sender<Arc<TransmissionValue>> {
         &self.sender
     }
 
@@ -69,7 +75,7 @@ impl ExecutiveInput for Input {
             data
         } else {
             match self.receiver.recv().await {
-                Ok(data) => data,
+                Ok(data) => own(data),
                 Err(_) => return Err(TransmissionError::EverythingClosed),
             }
         };
@@ -97,7 +103,8 @@ impl ExecutiveInput for Input {
             data.pop_front().ok_or(TransmissionError::NoData)
         } else {
             match self.receiver.recv().await {
-                Ok(mut data) => {
+                Ok(data) => {
+                    let mut data = own(data);
                     let value = data.pop_front().ok_or(TransmissionError::NoData);
                     *lock = Some(data);
                     value
