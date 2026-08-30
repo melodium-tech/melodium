@@ -73,6 +73,27 @@ impl Value {
             Value::Data(obj) => DataType::Data(obj.descriptor()),
         }
     }
+
+    /// Rough memory footprint of this value, in bytes.
+    ///
+    /// Used to bound how much data a transmission buffer accumulates before flushing
+    /// (see `melodium-engine`'s `Output`), so it favors being cheap to compute over being
+    /// exact. Every `Value` occupies `size_of::<Value>()` inline regardless of variant
+    /// (the enum is sized for its largest payload) plus whatever content it owns on the
+    /// heap; `Data` has no cheap way to know its real size without serializing it, so a
+    /// conservative fixed estimate stands in for it.
+    pub fn estimated_size(&self) -> usize {
+        const DATA_ESTIMATE: usize = 128;
+
+        std::mem::size_of::<Value>()
+            + match self {
+                Value::String(value) => value.len(),
+                Value::Vec(values) => values.iter().map(Value::estimated_size).sum(),
+                Value::Option(Some(value)) => value.estimated_size(),
+                Value::Data(_) => DATA_ESTIMATE,
+                _ => 0,
+            }
+    }
 }
 
 impl PartialEq for Value {
@@ -114,5 +135,49 @@ impl PartialEq for Value {
             }
             _ => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod estimated_size_tests {
+    use super::Value;
+
+    #[test]
+    fn scalar_costs_only_the_enum_footprint() {
+        let base = std::mem::size_of::<Value>();
+        assert_eq!(Value::U64(42).estimated_size(), base);
+        assert_eq!(Value::Void(()).estimated_size(), base);
+    }
+
+    #[test]
+    fn string_costs_enum_footprint_plus_its_bytes() {
+        let base = std::mem::size_of::<Value>();
+        let text = "hello world".to_string();
+        let expected = base + text.len();
+        assert_eq!(Value::String(text).estimated_size(), expected);
+    }
+
+    #[test]
+    fn vec_sums_enum_footprint_of_every_element() {
+        let base = std::mem::size_of::<Value>();
+        let vec = Value::Vec(vec![Value::Byte(1), Value::Byte(2), Value::Byte(3)]);
+        // Outer Vec's own footprint, plus one full Value-sized slot per byte:
+        // this is exactly the ~30x-per-byte blow-up a packed `Value::Bytes` would avoid.
+        assert_eq!(vec.estimated_size(), base + 3 * base);
+    }
+
+    #[test]
+    fn none_option_costs_only_the_enum_footprint() {
+        let base = std::mem::size_of::<Value>();
+        assert_eq!(Value::Option(None).estimated_size(), base);
+    }
+
+    #[test]
+    fn some_option_adds_the_inner_values_size() {
+        let base = std::mem::size_of::<Value>();
+        let text = "abcdef".to_string();
+        let inner_size = base + text.len();
+        let value = Value::Option(Some(Box::new(Value::String(text))));
+        assert_eq!(value.estimated_size(), base + inner_size);
     }
 }
