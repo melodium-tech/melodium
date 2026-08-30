@@ -73,6 +73,19 @@ impl Value {
             Value::Data(obj) => DataType::Data(obj.descriptor()),
         }
     }
+
+    /// Casts to `T`, e.g. `value.try_data::<HttpStatus>()`. A thin forward to `GetData`,
+    /// but as an inherent method with `T` on the *method* rather than the trait, so the
+    /// turbofish goes where callers naturally reach for it and `GetData` doesn't need to
+    /// be imported just to call this directly (outside a generic context where `T` is
+    /// already fixed, e.g. `InputExt::recv_one_as`, this was previously only reachable via
+    /// the more awkward `GetData::<T>::try_data(value)`).
+    pub fn try_data<T>(self) -> Result<T, ()>
+    where
+        Self: GetData<T>,
+    {
+        GetData::<T>::try_data(self)
+    }
 }
 
 impl PartialEq for Value {

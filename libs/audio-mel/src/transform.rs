@@ -58,22 +58,14 @@ use std::sync::Arc;
 )]
 pub async fn resample_mono(to_rate: u32) {
     // Wait for AudioInfo to learn the source sample rate before consuming any signal samples.
-    let from_rate = match info.recv_one().await {
-        Ok(value) => {
-            let arc = GetData::<Arc<dyn Data>>::try_data(value).unwrap();
-            let audio_info = arc.downcast_arc::<AudioInfo>().unwrap();
-            audio_info.sample_rate
-        }
+    let from_rate = match info.recv_one_as::<Arc<AudioInfo>>().await {
+        Ok(audio_info) => audio_info.sample_rate,
         Err(_) => return,
     };
 
     if from_rate == to_rate || from_rate == 0 {
         // Passthrough: forward every batch unchanged.
-        while let Ok(batch) = signal
-            .recv_many()
-            .await
-            .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
-        {
+        while let Ok(batch) = signal.recv_many_as::<f32>().await {
             let out: VecDeque<f32> = batch.into_iter().collect();
             if resampled.send_many(out.into()).await.is_err() {
                 return;
@@ -91,11 +83,7 @@ pub async fn resample_mono(to_rate: u32) {
     // Fractional read position inside `buf`, in input-sample units.
     let mut phase: f64 = 0.0;
 
-    while let Ok(batch) = signal
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
-    {
+    while let Ok(batch) = signal.recv_many_as::<f32>().await {
         buf.extend_from_slice(&batch);
 
         let mut out: VecDeque<f32> = VecDeque::new();

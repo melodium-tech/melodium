@@ -42,11 +42,7 @@ pub async fn encode_mono_wav(sample_rate: u32) {
 
         // Future A: drain signal into samples_sender.
         let collect_fut = async move {
-            while let Ok(batch) = signal
-                .recv_many()
-                .await
-                .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
-            {
+            while let Ok(batch) = signal.recv_many_as::<f32>().await {
                 if samples_sender.send(batch).await.is_err() {
                     break;
                 }
@@ -159,11 +155,7 @@ pub async fn encode_mono_flac(sample_rate: u32) {
         let (result_sender, result_receiver) = bounded::<Result<Vec<u8>, String>>(1);
 
         let collect_fut = async move {
-            while let Ok(batch) = signal
-                .recv_many()
-                .await
-                .map(|values| TryInto::<Vec<f32>>::try_into(values).unwrap())
-            {
+            while let Ok(batch) = signal.recv_many_as::<f32>().await {
                 if samples_sender.send(batch).await.is_err() {
                     break;
                 }

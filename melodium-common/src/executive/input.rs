@@ -119,4 +119,23 @@ mod input_ext_tests {
             assert!(matches!(result, Err(TransmissionError::TypeMismatch)));
         });
     }
+
+    // Proves the direct `while let Ok(...) = input.recv_many_as::<T>().await` shape
+    // (the minimal-diff alternative to the `recv!` macro) compiles and behaves correctly:
+    // one batch flows through, then the loop exits cleanly once the source closes.
+    #[test]
+    fn recv_many_as_works_directly_in_a_while_let_loop() {
+        async_std::task::block_on(async {
+            let input = fake_input(TransmissionValue::String(std::collections::VecDeque::from(
+                vec!["hello".to_string(), "world".to_string()],
+            )));
+
+            let mut batches_seen = 0;
+            while let Ok(text) = input.recv_many_as::<String>().await {
+                assert_eq!(text, vec!["hello".to_string(), "world".to_string()]);
+                batches_seen += 1;
+            }
+            assert_eq!(batches_seen, 1);
+        });
+    }
 }

@@ -221,7 +221,7 @@ pub async fn chat() {
     let model_arc = RemoteLlmModel::into(llm);
 
     while let Ok(val) = prompt.recv_one().await {
-        let text = GetData::<String>::try_data(val).unwrap_or_default();
+        let text = val.try_data::<String>().unwrap_or_default();
 
         #[cfg(feature = "real")]
         {
@@ -309,7 +309,7 @@ pub async fn stream() {
     let model_arc = RemoteLlmModel::into(llm);
 
     while let Ok(val) = prompt.recv_one().await {
-        let text = GetData::<String>::try_data(val).unwrap_or_default();
+        let text = val.try_data::<String>().unwrap_or_default();
 
         #[cfg(feature = "real")]
         {
@@ -410,8 +410,8 @@ pub async fn vision_chat() {
         Err(_) => return,
     };
 
-    let prompt_text = GetData::<String>::try_data(prompt_val).unwrap_or_default();
-    let mime_str = GetData::<String>::try_data(mime_val).unwrap_or_default();
+    let prompt_text = prompt_val.try_data::<String>().unwrap_or_default();
+    let mime_str = mime_val.try_data::<String>().unwrap_or_default();
 
     #[cfg(feature = "real")]
     {

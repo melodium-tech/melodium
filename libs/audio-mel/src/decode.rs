@@ -260,11 +260,7 @@ pub async fn decode_mono(hint: Option<string>) {
 
         // Future B: receive data from Mélodium input and forward into byte_sender.
         let feed_fut = async move {
-            while let Ok(chunk) = data
-                .recv_many()
-                .await
-                .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
-            {
+            while let Ok(chunk) = data.recv_many_as::<u8>().await {
                 if byte_sender.send(chunk).await.is_err() {
                     break;
                 }

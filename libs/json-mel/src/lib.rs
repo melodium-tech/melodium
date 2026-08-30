@@ -117,11 +117,7 @@ pub fn to_json(text: string) -> Option<Json> {
     output error Stream<Option<string>>
 )]
 pub async fn to_json() {
-    'main: while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    'main: while let Ok(text) = text.recv_many_as::<string>().await {
         for t in text {
             let result = serde_json::from_str::<serde_json::Value>(&t);
             match result {
@@ -164,11 +160,7 @@ pub async fn to_json() {
     output is_json Stream<bool>
 )]
 pub async fn validate() {
-    while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(text) = text.recv_many_as::<string>().await {
         check!(
             is_json
                 .send_many(

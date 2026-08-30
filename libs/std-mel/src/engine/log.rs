@@ -12,11 +12,7 @@ use melodium_macro::{mel_data, mel_function, mel_treatment};
 pub async fn log_stream(level: Level, label: string) {
     let engine = EngineModel::into(engine);
 
-    while let Ok(msgs) = messages
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(msgs) = messages.recv_many_as::<string>().await {
         for msg in msgs {
             engine
                 .world()
@@ -37,16 +33,8 @@ pub async fn log_stream(level: Level, label: string) {
 pub async fn log_stream_label(level: Level) {
     let engine = EngineModel::into(engine);
 
-    if let Ok(label) = label
-        .recv_one()
-        .await
-        .map(|val| GetData::<String>::try_data(val).unwrap())
-    {
-        while let Ok(msgs) = messages
-            .recv_many()
-            .await
-            .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-        {
+    if let Ok(label) = label.recv_one_as::<String>().await {
+        while let Ok(msgs) = messages.recv_many_as::<string>().await {
             for msg in msgs {
                 engine
                     .world()
@@ -65,11 +53,7 @@ pub async fn log_stream_label(level: Level) {
 pub async fn log_block(level: Level, label: string) {
     let engine = EngineModel::into(engine);
 
-    if let Ok(msg) = message
-        .recv_one()
-        .await
-        .map(|val| GetData::<string>::try_data(val).unwrap())
-    {
+    if let Ok(msg) = message.recv_one_as::<string>().await {
         engine
             .world()
             .log(level.level, label, msg, Some(track_id))
@@ -88,16 +72,8 @@ pub async fn log_block(level: Level, label: string) {
 pub async fn log_block_label(level: Level) {
     let engine = EngineModel::into(engine);
 
-    if let Ok(label) = label
-        .recv_one()
-        .await
-        .map(|val| GetData::<String>::try_data(val).unwrap())
-    {
-        if let Ok(msg) = message
-            .recv_one()
-            .await
-            .map(|val| GetData::<string>::try_data(val).unwrap())
-        {
+    if let Ok(label) = label.recv_one_as::<String>().await {
+        if let Ok(msg) = message.recv_one_as::<string>().await {
             engine
                 .world()
                 .log(level.level, label, msg, Some(track_id))
@@ -141,11 +117,7 @@ pub async fn log_data_stream(level: Level, label: string) {
 pub async fn log_data_stream_label(level: Level) {
     let engine = EngineModel::into(engine);
 
-    if let Ok(label) = label
-        .recv_one()
-        .await
-        .map(|val| GetData::<String>::try_data(val).unwrap())
-    {
+    if let Ok(label) = label.recv_one_as::<String>().await {
         while let Ok(values) = display
             .recv_many()
             .await
@@ -190,11 +162,7 @@ pub async fn log_data_block(level: Level, label: string) {
 pub async fn log_data_block_label(level: Level) {
     let engine = EngineModel::into(engine);
 
-    if let Ok(label) = label
-        .recv_one()
-        .await
-        .map(|val| GetData::<String>::try_data(val).unwrap())
-    {
+    if let Ok(label) = label.recv_one_as::<String>().await {
         if let Ok(val) = display.recv_one().await {
             engine
                 .world()

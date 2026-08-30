@@ -102,15 +102,8 @@ impl HttpClient {
 )]
 pub async fn request(method: HttpMethod) {
     if let (Ok(url), Ok(req_headers)) = (
-        url.recv_one()
-            .await
-            .map(|val| GetData::<string>::try_data(val).unwrap()),
-        req_headers.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<StringMap>()
-                .unwrap()
-        }),
+        url.recv_one_as::<string>().await,
+        req_headers.recv_one_as::<Arc<StringMap>>().await,
     ) {
         if let Some(client) = HttpClientModel::into(client).inner().client() {
             match client
@@ -242,15 +235,8 @@ pub async fn request(method: HttpMethod) {
 )]
 pub async fn request_with_body(method: HttpMethod) {
     if let (Ok(url), Ok(req_headers)) = (
-        url.recv_one()
-            .await
-            .map(|val| GetData::<string>::try_data(val).unwrap()),
-        req_headers.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<StringMap>()
-                .unwrap()
-        }),
+        url.recv_one_as::<string>().await,
+        req_headers.recv_one_as::<Arc<StringMap>>().await,
     ) {
         if let Some(client) = HttpClientModel::into(client).inner().client() {
             match client

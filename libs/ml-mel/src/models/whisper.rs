@@ -371,14 +371,14 @@ fn worker_loop(
 pub async fn load() {
     let mut shard_paths: Vec<String> = Vec::new();
     while let Ok(val) = safetensors.recv_one().await {
-        if let Ok(path) = GetData::<String>::try_data(val) {
+        if let Ok(path) = val.try_data::<String>() {
             shard_paths.push(path);
         }
     }
 
     #[allow(unused_variables)]
     let tokenizer_path = match tokenizer.recv_one().await {
-        Ok(val) => match GetData::<String>::try_data(val) {
+        Ok(val) => match val.try_data::<String>() {
             Ok(path) => path,
             Err(_) => {
                 let _ = failed.send_one(().into()).await;
