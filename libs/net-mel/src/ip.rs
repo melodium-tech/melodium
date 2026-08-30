@@ -94,11 +94,7 @@ pub async fn from_ipv4() {
             ip.send_many(TransmissionValue::Other(
                 ips.into_iter()
                     .map(|ip| Value::Data(Arc::new(Ip(std::net::IpAddr::V4(
-                        GetData::<Arc<dyn Data>>::try_data(ip)
-                            .unwrap()
-                            .downcast_arc::<Ipv4>()
-                            .unwrap()
-                            .0
+                        ip.try_data::<Arc<Ipv4>>().unwrap().0
                     )))))
                     .collect()
             ))
@@ -132,11 +128,7 @@ pub async fn from_ipv6() {
             ip.send_many(TransmissionValue::Other(
                 ips.into_iter()
                     .map(|ip| Value::Data(Arc::new(Ip(std::net::IpAddr::V6(
-                        GetData::<Arc<dyn Data>>::try_data(ip)
-                            .unwrap()
-                            .downcast_arc::<Ipv6>()
-                            .unwrap()
-                            .0
+                        ip.try_data::<Arc<Ipv6>>().unwrap().0
                     )))))
                     .collect()
             ))
@@ -191,18 +183,13 @@ pub async fn as_ipv4() {
         check!(
             ipv4.send_many(TransmissionValue::Other(
                 ips.into_iter()
-                    .map(|ip| Value::Option(
-                        match GetData::<Arc<dyn Data>>::try_data(ip)
-                            .unwrap()
-                            .downcast_arc::<Ip>()
-                            .unwrap()
-                            .0
-                        {
+                    .map(
+                        |ip| Value::Option(match ip.try_data::<Arc<Ip>>().unwrap().0 {
                             std::net::IpAddr::V4(ip) =>
                                 Some(Box::new(Value::Data(Arc::new(Ipv4(ip))))),
                             std::net::IpAddr::V6(_) => None,
-                        }
-                    ))
+                        })
+                    )
                     .collect()
             ))
             .await
@@ -236,18 +223,13 @@ pub async fn as_ipv6() {
         check!(
             ipv6.send_many(TransmissionValue::Other(
                 ips.into_iter()
-                    .map(|ip| Value::Option(
-                        match GetData::<Arc<dyn Data>>::try_data(ip)
-                            .unwrap()
-                            .downcast_arc::<Ip>()
-                            .unwrap()
-                            .0
-                        {
+                    .map(
+                        |ip| Value::Option(match ip.try_data::<Arc<Ip>>().unwrap().0 {
                             std::net::IpAddr::V4(_) => None,
                             std::net::IpAddr::V6(ip) =>
                                 Some(Box::new(Value::Data(Arc::new(Ipv6(ip))))),
-                        }
-                    ))
+                        })
+                    )
                     .collect()
             ))
             .await
@@ -291,12 +273,7 @@ pub async fn is_ipv4() {
         check!(
             ipv4.send_many(TransmissionValue::Bool(
                 ips.into_iter()
-                    .map(|ip| GetData::<Arc<dyn Data>>::try_data(ip)
-                        .unwrap()
-                        .downcast_arc::<Ip>()
-                        .unwrap()
-                        .0
-                        .is_ipv4())
+                    .map(|ip| ip.try_data::<Arc<Ip>>().unwrap().0.is_ipv4())
                     .collect()
             ))
             .await
@@ -328,12 +305,7 @@ pub async fn is_ipv6() {
         check!(
             ipv6.send_many(TransmissionValue::Bool(
                 ips.into_iter()
-                    .map(|ip| GetData::<Arc<dyn Data>>::try_data(ip)
-                        .unwrap()
-                        .downcast_arc::<Ip>()
-                        .unwrap()
-                        .0
-                        .is_ipv6())
+                    .map(|ip| ip.try_data::<Arc<Ip>>().unwrap().0.is_ipv6())
                     .collect()
             ))
             .await
@@ -371,11 +343,7 @@ pub fn to_ipv4(text: string) -> Option<Ipv4> {
     output ipv4 Stream<Option<Ipv4>>
 )]
 pub async fn to_ipv4() {
-    while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(text) = text.recv_many_as::<string>().await {
         check!(
             ipv4.send_many(TransmissionValue::Other(
                 text.iter()
@@ -460,11 +428,7 @@ pub fn to_ipv6(text: string) -> Option<Ipv6> {
     output ipv6 Stream<Option<Ipv6>>
 )]
 pub async fn to_ipv6() {
-    while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(text) = text.recv_many_as::<string>().await {
         check!(
             ipv6.send_many(TransmissionValue::Other(
                 text.iter()

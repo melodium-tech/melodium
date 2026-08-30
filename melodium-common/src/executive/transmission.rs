@@ -1,12 +1,17 @@
-use super::{GetData, Value};
+use super::{Data, Value};
 use std::collections::VecDeque;
 use std::convert::TryInto;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum TransmissionError {
     NoReceiver,
     EverythingClosed,
     NoData,
+    /// A received value's runtime type didn't match the type it was cast to (see
+    /// `InputExt::recv_one_as`/`recv_many_as`). Replaces what used to be an `.unwrap()`
+    /// panic at call sites doing this cast by hand.
+    TypeMismatch,
 }
 
 pub type SendResult = Result<(), TransmissionError>;
@@ -559,6 +564,130 @@ mod conversion_tests {
         let batch = TransmissionValue::I64(VecDeque::from(vec![1]));
         let result: Result<Vec<String>, ()> = batch.try_into();
         assert!(result.is_err());
+    }
+}
+
+impl From<VecDeque<Arc<dyn Data>>> for TransmissionValue {
+    fn from(value: VecDeque<Arc<dyn Data>>) -> Self {
+        TransmissionValue::Other(value.into_iter().map(|value| value.into()).collect())
+    }
+}
+
+impl From<Vec<Arc<dyn Data>>> for TransmissionValue {
+    fn from(value: Vec<Arc<dyn Data>>) -> Self {
+        TransmissionValue::Other(value.into_iter().map(|value| value.into()).collect())
+    }
+}
+
+impl TryInto<VecDeque<Arc<dyn Data>>> for TransmissionValue {
+    type Error = ();
+
+    fn try_into(self) -> Result<VecDeque<Arc<dyn Data>>, Self::Error> {
+        match self {
+            TransmissionValue::Other(data) => {
+                let mut vec = VecDeque::with_capacity(data.len());
+                for val in data {
+                    if let Ok(val) = val.try_data() {
+                        vec.push_back(val);
+                    } else {
+                        return Err(());
+                    }
+                }
+                Ok(vec)
+            }
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryInto<Vec<Arc<dyn Data>>> for TransmissionValue {
+    type Error = ();
+
+    fn try_into(self) -> Result<Vec<Arc<dyn Data>>, Self::Error> {
+        match self {
+            TransmissionValue::Other(data) => {
+                let mut vec = Vec::with_capacity(data.len());
+                for val in data {
+                    if let Ok(val) = val.try_data() {
+                        vec.push(val);
+                    } else {
+                        return Err(());
+                    }
+                }
+                Ok(vec)
+            }
+            _ => Err(()),
+        }
+    }
+}
+
+/// Generic counterpart to the `Arc<dyn Data>` impls above, for a concrete `Data`
+/// implementor `D` — mirrors `GetData<Arc<D>> for Value` (see `value/data.rs`) at the
+/// batch level, so `recv_many_as::<Arc<D>>()` works the same way `recv_one_as::<Arc<D>>()`
+/// already does. Coexists with the `Arc<dyn Data>` impls above for the same reason
+/// `GetData<Arc<D>>` coexists with `GetData<Arc<dyn Data>>`: `D` carries an implicit
+/// `Sized` bound here, which the unsized `dyn Data` can never satisfy.
+impl<D: Data> From<VecDeque<Arc<D>>> for TransmissionValue {
+    fn from(value: VecDeque<Arc<D>>) -> Self {
+        TransmissionValue::Other(
+            value
+                .into_iter()
+                .map(|value| (value as Arc<dyn Data>).into())
+                .collect(),
+        )
+    }
+}
+
+impl<D: Data> From<Vec<Arc<D>>> for TransmissionValue {
+    fn from(value: Vec<Arc<D>>) -> Self {
+        TransmissionValue::Other(
+            value
+                .into_iter()
+                .map(|value| (value as Arc<dyn Data>).into())
+                .collect(),
+        )
+    }
+}
+
+impl<D: Data> TryInto<VecDeque<Arc<D>>> for TransmissionValue {
+    type Error = ();
+
+    fn try_into(self) -> Result<VecDeque<Arc<D>>, Self::Error> {
+        match self {
+            TransmissionValue::Other(data) => {
+                let mut vec = VecDeque::with_capacity(data.len());
+                for val in data {
+                    if let Ok(val) = val.try_data::<Arc<D>>() {
+                        vec.push_back(val);
+                    } else {
+                        return Err(());
+                    }
+                }
+                Ok(vec)
+            }
+            _ => Err(()),
+        }
+    }
+}
+
+impl<D: Data> TryInto<Vec<Arc<D>>> for TransmissionValue {
+    type Error = ();
+
+    fn try_into(self) -> Result<Vec<Arc<D>>, Self::Error> {
+        match self {
+            TransmissionValue::Other(data) => {
+                let mut vec = Vec::with_capacity(data.len());
+                for val in data {
+                    if let Ok(val) = val.try_data::<Arc<D>>() {
+                        vec.push(val);
+                    } else {
+                        return Err(());
+                    }
+                }
+                Ok(vec)
+            }
+            _ => Err(()),
+        }
     }
 }
 

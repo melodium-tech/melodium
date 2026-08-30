@@ -748,12 +748,7 @@ pub async fn start(params: Map) {
     let params = params.map.clone();
 
     #[cfg(feature = "real")]
-    if let Ok(access) = access.recv_one().await.map(|val| {
-        GetData::<Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<Access>()
-            .unwrap()
-    }) {
+    if let Ok(access) = access.recv_one_as::<Arc<Access>>().await {
         match distributor.start(&access.0, params).await {
             Ok(_) => {
                 let _ = ready.send_one(().into()).await;
@@ -861,11 +856,7 @@ pub async fn recv_stream(name: string) {
     let datatype = D;
 
     #[cfg(feature = "real")]
-    if let Ok(distribution_id) = distribution_id
-        .recv_one()
-        .await
-        .map(|val| GetData::<u64>::try_data(val).unwrap())
-    {
+    if let Ok(distribution_id) = distribution_id.recv_one_as::<u64>().await {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
         let collection = distributor.model.upgrade().unwrap().world().collection();
@@ -913,11 +904,7 @@ pub async fn recv_block(name: string) {
     let datatype = D;
 
     #[cfg(feature = "real")]
-    if let Ok(distribution_id) = distribution_id
-        .recv_one()
-        .await
-        .map(|val| GetData::<u64>::try_data(val).unwrap())
-    {
+    if let Ok(distribution_id) = distribution_id.recv_one_as::<u64>().await {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
         let collection = distributor.model.upgrade().unwrap().world().collection();
@@ -951,11 +938,7 @@ pub async fn recv_block(name: string) {
 )]
 pub async fn send_stream(name: string) {
     #[cfg(feature = "real")]
-    if let Ok(distribution_id) = distribution_id
-        .recv_one()
-        .await
-        .map(|val| GetData::<u64>::try_data(val).unwrap())
-    {
+    if let Ok(distribution_id) = distribution_id.recv_one_as::<u64>().await {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
 
@@ -1004,11 +987,7 @@ pub async fn send_stream(name: string) {
 )]
 pub async fn send_block(name: string) {
     #[cfg(feature = "real")]
-    if let Ok(distribution_id) = distribution_id
-        .recv_one()
-        .await
-        .map(|val| GetData::<u64>::try_data(val).unwrap())
-    {
+    if let Ok(distribution_id) = distribution_id.recv_one_as::<u64>().await {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
 

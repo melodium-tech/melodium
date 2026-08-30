@@ -361,16 +361,18 @@ impl HttpServer {
     fn invoke_source(&self, source: &str, params: HashMap<String, Value>) {
         match source {
             "incoming" => {
-                let method: Arc<HttpMethod> = melodium_core::GetData::<Arc<dyn Data>>::try_data(
-                    params.get("method").unwrap().clone(),
-                )
-                .unwrap()
-                .downcast_arc()
-                .unwrap();
-                let route = melodium_core::GetData::<String>::try_data(
-                    params.get("route").unwrap().clone(),
-                )
-                .unwrap();
+                let method = params
+                    .get("method")
+                    .unwrap()
+                    .clone()
+                    .try_data::<Arc<HttpMethod>>()
+                    .unwrap();
+                let route = params
+                    .get("route")
+                    .unwrap()
+                    .clone()
+                    .try_data::<String>()
+                    .unwrap();
 
                 self.routes.write().unwrap().push((method, route));
             }
@@ -464,31 +466,18 @@ pub async fn outgoing(id: u128) {
     if let (Some(mut out_status), Some(mut out_headers), Some(mut output)) =
         (out_status, out_headers, output)
     {
-        if let (Ok(status), Ok(headers)) = (
-            status.recv_one().await.map(|val| {
-                GetData::<Arc<dyn Data>>::try_data(val)
-                    .unwrap()
-                    .downcast_arc::<HttpStatus>()
-                    .unwrap()
-            }),
-            headers.recv_one().await.map(|val| {
-                GetData::<Arc<dyn Data>>::try_data(val)
-                    .unwrap()
-                    .downcast_arc::<StringMap>()
-                    .unwrap()
-            }),
+        if let Ok((status, headers)) = futures::try_join!(
+            status.recv_one_as::<Arc<HttpStatus>>(),
+            headers.recv_one_as::<Arc<StringMap>>(),
         ) {
             match futures::join!(
                 out_status.push(status.0),
                 out_headers.push(Arc::unwrap_or_clone(headers))
             ) {
                 (Ok(_), Ok(_)) => {
-                    while let (Ok(data), false) = (
-                        data.recv_many()
-                            .await
-                            .map(|values| TryInto::<Vec<byte>>::try_into(values).unwrap()),
-                        output.is_closed(),
-                    ) {
+                    while let (Ok(data), false) =
+                        (data.recv_many_as::<byte>().await, output.is_closed())
+                    {
                         match output.push_iter(data.into_iter()).await {
                             Ok(_) => {}
                             Err(_) => break,

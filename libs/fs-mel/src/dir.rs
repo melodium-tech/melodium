@@ -21,15 +21,8 @@ use std::sync::Arc;
 )]
 pub async fn create(recursive: bool) {
     if let (Ok(filesystem), Ok(path)) = (
-        filesystem.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<FileSystem>()
-                .unwrap()
-        }),
-        path.recv_one()
-            .await
-            .map(|val| GetData::<string>::try_data(val).unwrap()),
+        filesystem.recv_one_as::<Arc<FileSystem>>().await,
+        path.recv_one_as::<string>().await,
     ) {
         filesystem
             .filesystem
@@ -81,15 +74,8 @@ pub async fn create(recursive: bool) {
 )]
 pub async fn scan(recursive: bool, follow_links: bool) {
     if let (Ok(filesystem), Ok(path)) = (
-        filesystem.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<FileSystem>()
-                .unwrap()
-        }),
-        path.recv_one()
-            .await
-            .map(|val| GetData::<string>::try_data(val).unwrap()),
+        filesystem.recv_one_as::<Arc<FileSystem>>().await,
+        path.recv_one_as::<string>().await,
     ) {
         filesystem
             .filesystem

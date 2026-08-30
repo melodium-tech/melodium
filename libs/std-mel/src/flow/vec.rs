@@ -217,11 +217,7 @@ pub async fn size() {
     output resized Stream<Vec<T>>
 )]
 pub async fn resize(default: T) {
-    while let Ok(size) = size
-        .recv_one()
-        .await
-        .map(|val| GetData::<u64>::try_data(val).unwrap())
-    {
+    while let Ok(size) = size.recv_one_as::<u64>().await {
         if let Ok(vec) = vector.recv_one().await {
             match vec {
                 Value::Vec(mut vec) => {

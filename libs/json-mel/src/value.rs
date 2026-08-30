@@ -346,12 +346,7 @@ pub fn from_string_map(map: StringMap) -> Json {
     output json Stream<Json>
 )]
 pub async fn from_string_map() {
-    while let Ok(value) = value.recv_one().await.map(|val| {
-        GetData::<Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<StringMap>()
-            .unwrap()
-    }) {
+    while let Ok(value) = value.recv_one_as::<Arc<StringMap>>().await {
         let object = Json(serde_json::Value::Object(
             value
                 .map

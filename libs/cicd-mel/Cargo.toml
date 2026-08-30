@@ -19,6 +19,7 @@ name = "cicd_mel"
 [dependencies]
 async-std = "1.13"
 dotenvy = "0.15"
+futures = "0.3"
 melodium-core = { path = "../../melodium-core", version = "0.10.2" }
 melodium-macro = { path = "../../melodium-macro", version = "0.10.2" }
 std-mel = { path = "../std-mel", version = "0.10.2" }
