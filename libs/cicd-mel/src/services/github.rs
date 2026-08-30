@@ -505,10 +505,7 @@ pub async fn github_set_outputs() {
         let continue_after;
         let completed;
         let failed;
-        match (
-            spawn_completed.recv_one().await,
-            spawn_failed.recv_one().await,
-        ) {
+        match futures::join!(spawn_completed.recv_one(), spawn_failed.recv_one()) {
             (Ok(_), Err(_)) => {
                 conclusion = serde_json::Value::String("success".to_string());
                 outcome = serde_json::Value::String("success".to_string());

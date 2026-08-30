@@ -466,9 +466,9 @@ pub async fn outgoing(id: u128) {
     if let (Some(mut out_status), Some(mut out_headers), Some(mut output)) =
         (out_status, out_headers, output)
     {
-        if let (Ok(status), Ok(headers)) = (
-            status.recv_one_as::<Arc<HttpStatus>>().await,
-            headers.recv_one_as::<Arc<StringMap>>().await,
+        if let Ok((status, headers)) = futures::try_join!(
+            status.recv_one_as::<Arc<HttpStatus>>(),
+            headers.recv_one_as::<Arc<StringMap>>(),
         ) {
             match futures::join!(
                 out_status.push(status.0),

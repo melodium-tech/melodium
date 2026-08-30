@@ -1734,6 +1734,7 @@ dependencies = [
  "distrib-mel",
  "dotenvy",
  "fs-mel",
+ "futures",
  "http-mel",
  "javascript-mel",
  "json-mel",
