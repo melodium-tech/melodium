@@ -32,11 +32,7 @@ pub async fn matches(#[mel(content(regex))] regex: string) {
         Ok(regex) => {
             error.close().await;
 
-            while let Ok(text) = text
-                .recv_many()
-                .await
-                .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-            {
+            while let Ok(text) = text.recv_many_as::<string>().await {
                 check!(
                     matches
                         .send_many(
@@ -87,11 +83,7 @@ pub async fn find(#[mel(content(regex))] regex: string) {
         Ok(regex) => {
             error.close().await;
 
-            while let Ok(text) = text
-                .recv_many()
-                .await
-                .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-            {
+            while let Ok(text) = text.recv_many_as::<string>().await {
                 let mut vec_found = VecDeque::with_capacity(text.len());
 
                 for text in text {
@@ -144,11 +136,7 @@ pub async fn capture(#[mel(content(regex))] regex: string) {
         Ok(regex) => {
             error.close().await;
 
-            while let Ok(text) = text
-                .recv_many()
-                .await
-                .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-            {
+            while let Ok(text) = text.recv_many_as::<string>().await {
                 let mut vec_captured = VecDeque::with_capacity(text.len());
 
                 for text in text {
@@ -235,11 +223,7 @@ pub async fn replace(#[mel(content(regex))] regex: string, replacer: string) {
         Ok(regex) => {
             error.close().await;
 
-            while let Ok(text) = text
-                .recv_many()
-                .await
-                .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-            {
+            while let Ok(text) = text.recv_many_as::<string>().await {
                 let mut vec_replaced = Vec::with_capacity(text.len());
 
                 for text in text {

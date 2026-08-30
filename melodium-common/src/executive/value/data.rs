@@ -308,3 +308,29 @@ impl GetData<Arc<dyn Data>> for Value {
         }
     }
 }
+
+/// Casts straight to a concrete `Data` implementor, folding the two-step
+/// `GetData::<Arc<dyn Data>>::try_data(val).unwrap().downcast_arc::<D>().unwrap()` idiom
+/// (used throughout `libs/*-mel` for every custom data type) into one call — and, via
+/// `recv_one_as`, into one non-panicking `RecvResult`. Coexists with the `Arc<dyn Data>`
+/// impl above without conflict: `D` carries an implicit `Sized` bound here, which the
+/// unsized `dyn Data` can never satisfy, so the two can never overlap for the same type.
+impl<D: Data> GetData<Arc<D>> for Value {
+    fn try_data(self) -> Result<Arc<D>, ()> {
+        let data: Arc<dyn Data> = GetData::<Arc<dyn Data>>::try_data(self)?;
+        data.downcast_arc::<D>().map_err(|_| ())
+    }
+}
+
+#[cfg(test)]
+mod arc_data_getdata_tests {
+    use super::*;
+
+    // Type-check only: does the recursive Vec<T>/Option<T> machinery compose with the new
+    // Arc<D: Data> impl for free, without any additional impl written for these shapes?
+    fn _assert_composes<D: Data>()
+    where
+        Value: GetData<Vec<Arc<D>>> + GetData<Option<Arc<D>>> + GetData<Vec<Option<Arc<D>>>>,
+    {
+    }
+}

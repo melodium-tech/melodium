@@ -9,11 +9,7 @@ use std::sync::Arc;
     output map Block<StringMap>
 )]
 pub async fn entry(key: string) {
-    if let Ok(value) = value
-        .recv_one()
-        .await
-        .map(|val| GetData::<String>::try_data(val).unwrap())
-    {
+    if let Ok(value) = value.recv_one_as::<String>().await {
         let mut new_map = HashMap::new();
         new_map.insert(key.clone(), value);
         let new_map = StringMap { map: new_map };
@@ -29,12 +25,7 @@ pub async fn entry(key: string) {
     output value Block<Option<string>>
 )]
 pub async fn get(key: string) {
-    if let Ok(map) = map.recv_one().await.map(|val| {
-        GetData::<Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<StringMap>()
-            .unwrap()
-    }) {
+    if let Ok(map) = map.recv_one_as::<Arc<StringMap>>().await {
         let _ = value.send_one(map.map.get(&key).cloned().into()).await;
     }
 }
@@ -47,16 +38,8 @@ pub async fn get(key: string) {
 )]
 pub async fn insert(key: string) {
     if let (Ok(base), Ok(value)) = (
-        base.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<StringMap>()
-                .unwrap()
-        }),
-        value
-            .recv_one()
-            .await
-            .map(|val| GetData::<String>::try_data(val).unwrap()),
+        base.recv_one_as::<Arc<StringMap>>().await,
+        value.recv_one_as::<String>().await,
     ) {
         let mut new_map = Arc::unwrap_or_clone(base);
         new_map.map.insert(key.clone(), value);
@@ -75,18 +58,8 @@ pub async fn insert(key: string) {
     output merged Block<StringMap>
 )]
 pub async fn merge() {
-    if let Ok(base) = base.recv_one().await.map(|val| {
-        GetData::<Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<StringMap>()
-            .unwrap()
-    }) {
-        if let Ok(entries) = entries.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<StringMap>()
-                .unwrap()
-        }) {
+    if let Ok(base) = base.recv_one_as::<Arc<StringMap>>().await {
+        if let Ok(entries) = entries.recv_one_as::<Arc<StringMap>>().await {
             let mut new_map = Arc::unwrap_or_clone(base);
             for (key, value) in &entries.map {
                 new_map.map.insert(key.clone(), value.clone());

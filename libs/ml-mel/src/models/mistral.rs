@@ -507,14 +507,14 @@ pub async fn load() {
     // Collect all shard paths from the stream.
     let mut shard_paths: Vec<String> = Vec::new();
     while let Ok(val) = safetensors.recv_one().await {
-        if let Ok(path) = GetData::<String>::try_data(val) {
+        if let Ok(path) = val.try_data::<String>() {
             shard_paths.push(path);
         }
     }
 
     // Receive the single tokenizer path.
     let tokenizer_path = match tokenizer.recv_one().await {
-        Ok(val) => match GetData::<String>::try_data(val) {
+        Ok(val) => match val.try_data::<String>() {
             Ok(p) => p,
             Err(_) => {
                 let _ = failed.send_one(().into()).await;
@@ -629,7 +629,7 @@ pub async fn generate() {
     let conversation_id = mistral_struct.alloc_conversation_id();
 
     while let Ok(val) = prompt.recv_one().await {
-        let text = GetData::<String>::try_data(val).unwrap_or_default();
+        let text = val.try_data::<String>().unwrap_or_default();
 
         #[cfg(feature = "real")]
         {

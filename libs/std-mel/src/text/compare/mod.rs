@@ -15,11 +15,7 @@ pub fn contains(text: string, substring: string) -> bool {
     output contains Stream<bool>
 )]
 pub async fn contains(substring: string) {
-    while let Ok(values) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(values) = text.recv_many_as::<string>().await {
         check!(
             contains
                 .send_many(
@@ -40,11 +36,7 @@ pub async fn contains(substring: string) {
     output matches Stream<bool>
 )]
 pub async fn exact(pattern: string) {
-    while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values: TransmissionValue| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(text) = text.recv_many_as::<string>().await {
         check!(
             matches
                 .send_many(
@@ -70,11 +62,7 @@ pub fn exact(text: string, pattern: string) -> bool {
     output matches Stream<bool>
 )]
 pub async fn starts_with(pattern: string) {
-    while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values: TransmissionValue| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(text) = text.recv_many_as::<string>().await {
         check!(
             matches
                 .send_many(
@@ -100,11 +88,7 @@ pub fn starts_with(text: string, pattern: string) -> bool {
     output matches Stream<bool>
 )]
 pub async fn ends_with(pattern: string) {
-    while let Ok(text) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(text) = text.recv_many_as::<string>().await {
         check!(
             matches
                 .send_many(

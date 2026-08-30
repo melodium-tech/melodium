@@ -184,7 +184,7 @@ pub async fn synthesize() {
     let model_arc = RemoteTtsModel::into(tts);
 
     while let Ok(val) = text.recv_one().await {
-        let text_str = GetData::<String>::try_data(val).unwrap_or_default();
+        let text_str = val.try_data::<String>().unwrap_or_default();
 
         #[cfg(feature = "real")]
         {
