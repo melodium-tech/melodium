@@ -9,7 +9,7 @@ homepage = "https://melodium.tech"
 repository = "https://gitlab.com/melodium/melodium"
 readme = "README.md"
 description = "MCP server exposing Mélodium program validation and reference lookup"
-keywords = ["dataflow", "mcp", "model-context-protocol"]
+keywords = ["dataflow", "mcp"]
 categories = ["compilers", "science"]
 
 [[bin]]

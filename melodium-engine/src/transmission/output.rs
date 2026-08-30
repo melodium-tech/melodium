@@ -9,15 +9,52 @@ use melodium_common::descriptor::Flow;
 use melodium_common::executive::{
     Output as ExecutiveOutput, SendResult, TrackId, TransmissionError, TransmissionValue, Value,
 };
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
-const LIMIT: usize = 2usize.pow(20);
+const DEFAULT_MAX_BUFFERED_BYTES: usize = 8 * 1024 * 1024;
+
+/// How many bytes an `Output` accumulates (across however many elements that takes) before
+/// a `Stream` flow is forced to wait for a receiver instead of continuing to buffer locally.
+/// Byte-based rather than element-based so a stream of large values (big strings, buffers,
+/// structured data) can't grow unboundedly just because it hasn't reached an element-count
+/// threshold yet. Overridable through `MELODIUM_TRANSMISSION_MAX_BUFFERED_BYTES`, mainly for
+/// tests that want to exercise the backpressure path without pushing megabytes of data.
+fn max_buffered_bytes() -> usize {
+    static LIMIT: OnceLock<usize> = OnceLock::new();
+    *LIMIT.get_or_init(|| {
+        std::env::var("MELODIUM_TRANSMISSION_MAX_BUFFERED_BYTES")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(DEFAULT_MAX_BUFFERED_BYTES)
+    })
+}
+
+/// Buffered batch awaiting transmission, together with its estimated byte size so
+/// `check_send` doesn't have to re-walk the whole batch on every call to decide whether
+/// the byte watermark has been crossed.
+#[derive(Debug, Default)]
+struct Buffer {
+    data: Option<TransmissionValue>,
+    bytes: usize,
+}
+
+impl Buffer {
+    fn take(&mut self) -> Option<TransmissionValue> {
+        self.bytes = 0;
+        self.data.take()
+    }
+
+    fn replace(&mut self, data: TransmissionValue) {
+        self.bytes = data.estimated_size();
+        self.data.replace(data);
+    }
+}
 
 #[derive(Debug)]
 pub struct Output {
     senders: Mutex<Arc<Vec<(Sender<Arc<TransmissionValue>>, Option<TransmissionDetails>)>>>,
     count_receivers: AtomicUsize,
-    buffer: AsyncMutex<Option<TransmissionValue>>,
+    buffer: AsyncMutex<Buffer>,
     flow: Flow,
     track_id: TrackId,
     debug: TransmissionDebug,
@@ -28,7 +65,7 @@ impl Output {
         Self {
             senders: Mutex::new(Arc::new(Vec::new())),
             count_receivers: AtomicUsize::new(0),
-            buffer: AsyncMutex::new(None),
+            buffer: AsyncMutex::new(Buffer::default()),
             flow,
             track_id,
             debug,
@@ -68,13 +105,13 @@ impl Output {
     }
 
     async fn check_send(&self, force: bool) -> SendResult {
-        let buffer_len = self
-            .buffer
-            .lock()
-            .await
-            .as_ref()
-            .map(|buf| buf.len())
-            .unwrap_or(0);
+        let (buffer_len, buffer_bytes) = {
+            let buffer = self.buffer.lock().await;
+            (
+                buffer.data.as_ref().map(|buf| buf.len()).unwrap_or(0),
+                buffer.bytes,
+            )
+        };
 
         if buffer_len > 0 {
             // We can unwrap the `take` because buffer_len must be > 0, so buffer have value.
@@ -83,7 +120,7 @@ impl Output {
             // out cheap `Arc::clone`s of this single allocation instead of deep-cloning the
             // whole batch once per receiver (see `own`, used on the receiving end).
             let data = Arc::new(data);
-            if self.flow == Flow::Block || buffer_len >= LIMIT || force {
+            if self.flow == Flow::Block || buffer_bytes >= max_buffered_bytes() || force {
                 match self.count_receivers.load(Ordering::Relaxed) {
                     0 => Err(TransmissionError::NoReceiver),
                     1 => {
@@ -346,11 +383,13 @@ impl ExecutiveOutput for Output {
 
         {
             let mut lock = self.buffer.lock().await;
-            if let Some(buf) = lock.as_mut() {
+            let incoming_bytes = data.estimated_size();
+            if let Some(buf) = lock.data.as_mut() {
                 buf.append(data);
             } else {
-                *lock = Some(data);
+                lock.data = Some(data);
             }
+            lock.bytes += incoming_bytes;
         }
 
         self.check_send(false).await
@@ -383,11 +422,13 @@ impl ExecutiveOutput for Output {
 
         {
             let mut lock = self.buffer.lock().await;
-            if let Some(buf) = lock.as_mut() {
+            let incoming_bytes = data.estimated_size();
+            if let Some(buf) = lock.data.as_mut() {
                 buf.push(data);
             } else {
-                *lock = Some(TransmissionValue::new(data));
+                lock.data = Some(TransmissionValue::new(data));
             }
+            lock.bytes += incoming_bytes;
         }
         self.check_send(false).await
     }
@@ -445,6 +486,67 @@ mod fan_out_tests {
             output.send_one(Value::U8(2)).await.unwrap();
             assert_eq!(input_a.recv_one().await.unwrap(), Value::U8(2));
             assert_eq!(input_b.recv_one().await.unwrap(), Value::U8(2));
+        });
+    }
+}
+
+#[cfg(test)]
+mod backpressure_tests {
+    use super::*;
+    use async_std::future::timeout;
+    use melodium_common::executive::{Input as ExecutiveInput, Output as ExecutiveOutput};
+    use std::collections::VecDeque;
+    use std::time::Duration;
+
+    fn wire_pair() -> (Output, Input) {
+        let input = Input::new(Flow::Stream, 0, TransmissionDebug::None);
+        let output = Output::new(Flow::Stream, 0, TransmissionDebug::None);
+        output.add_transmission(&vec![input.clone()]);
+        (output, input)
+    }
+
+    // Below the byte watermark, a full receiver slot must not block the producer: the
+    // batch stays in Output's local buffer and is retried opportunistically instead.
+    #[test]
+    fn small_batch_does_not_block_once_receiver_slot_is_full() {
+        async_std::task::block_on(async {
+            let (output, _input) = wire_pair();
+
+            // Occupy the receiver's single buffered slot.
+            output.send_one(Value::Byte(1)).await.unwrap();
+
+            let result = timeout(Duration::from_millis(200), output.send_one(Value::Byte(2))).await;
+            assert!(
+                result.is_ok(),
+                "a send small enough to stay under the byte watermark must not block \
+                 waiting for a receiver, even if the receiver hasn't drained yet"
+            );
+        });
+    }
+
+    // Once buffered bytes cross the watermark, Output must switch from opportunistic
+    // buffering to actually waiting for the receiver — this is the core backpressure
+    // guarantee that bounds memory regardless of how large individual values are.
+    #[test]
+    fn crossing_byte_watermark_blocks_until_receiver_drains() {
+        async_std::task::block_on(async {
+            let (output, input) = wire_pair();
+
+            // Occupy the receiver's single buffered slot.
+            output.send_one(Value::Byte(1)).await.unwrap();
+
+            let big =
+                TransmissionValue::Byte(VecDeque::from(vec![0u8; DEFAULT_MAX_BUFFERED_BYTES + 1]));
+            let result = timeout(Duration::from_millis(200), output.send_many(big)).await;
+            assert!(
+                result.is_err(),
+                "a send crossing the byte watermark must block waiting for the receiver \
+                 to drain, instead of buffering unbounded bytes locally"
+            );
+
+            // Drain so the test doesn't leave a task hanging; not asserted further since
+            // the send above was already cancelled by the timeout.
+            let _ = input.recv_one().await;
         });
     }
 }
