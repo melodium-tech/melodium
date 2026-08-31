@@ -213,6 +213,23 @@ impl RawValue {
             other => other.try_into().ok(),
         }
     }
+
+    /// Rough on-wire footprint of this value, in bytes — used to keep a single
+    /// `InputData`/`OutputData` message bounded (see `melodium-distribution`'s framing),
+    /// so it favors being cheap to compute over being exact. Every `RawValue` occupies
+    /// `size_of::<RawValue>()` inline regardless of variant, plus whatever it owns on the
+    /// heap. `Data` is the one case this can size exactly rather than estimate: it already
+    /// carries its own pre-serialized CBOR bytes.
+    pub fn estimated_size(&self) -> usize {
+        std::mem::size_of::<RawValue>()
+            + match self {
+                RawValue::String(value) => value.len(),
+                RawValue::Vec(values) => values.iter().map(RawValue::estimated_size).sum(),
+                RawValue::Option(Some(value)) => value.estimated_size(),
+                RawValue::Data(_, value) => value.as_ref().map(Vec::len).unwrap_or(0),
+                _ => 0,
+            }
+    }
 }
 
 impl From<CommonValue> for RawValue {
@@ -325,5 +342,49 @@ impl TryInto<CommonValue> for &RawValue {
             }
             RawValue::Data(_, _) => Err(()),
         }
+    }
+}
+
+#[cfg(test)]
+mod estimated_size_tests {
+    use super::*;
+
+    #[test]
+    fn scalar_costs_only_the_enum_footprint() {
+        let base = std::mem::size_of::<RawValue>();
+        assert_eq!(RawValue::U64(42).estimated_size(), base);
+    }
+
+    #[test]
+    fn string_costs_enum_footprint_plus_its_bytes() {
+        let base = std::mem::size_of::<RawValue>();
+        let text = "hello world".to_string();
+        assert_eq!(
+            RawValue::String(text.clone()).estimated_size(),
+            base + text.len()
+        );
+    }
+
+    #[test]
+    fn vec_sums_enum_footprint_of_every_element() {
+        let base = std::mem::size_of::<RawValue>();
+        let value = RawValue::Vec(vec![
+            RawValue::Byte(1),
+            RawValue::Byte(2),
+            RawValue::Byte(3),
+        ]);
+        assert_eq!(value.estimated_size(), base + 3 * base);
+    }
+
+    #[test]
+    fn data_uses_its_actual_serialized_length_not_an_estimate() {
+        let base = std::mem::size_of::<RawValue>();
+        let identifier = Identifier {
+            version: None,
+            path: vec!["root".to_string()],
+            name: "Name".to_string(),
+        };
+        let value = RawValue::Data(identifier, Some(vec![0u8; 42]));
+        assert_eq!(value.estimated_size(), base + 42);
     }
 }
