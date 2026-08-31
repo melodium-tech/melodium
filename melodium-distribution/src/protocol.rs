@@ -1,3 +1,4 @@
+use crate::framing::max_frame_bytes;
 use crate::messages::Message;
 use async_std::io::{timeout, BufReader, BufWriter, Read, Write};
 use async_std::sync::Mutex;
@@ -36,6 +37,13 @@ pub enum Error {
     Io(async_std::io::Error),
     Deserialization(ciborium::de::Error<std::io::Error>),
     Serialization(ciborium::ser::Error<std::io::Error>),
+    /// A peer claimed a frame length above `max_frame_bytes()`. Rejected before any
+    /// allocation happens — previously this length was trusted as-is, up to `u32::MAX`
+    /// (~4 GiB), making it a peer-controlled unbounded-allocation vector.
+    FrameTooLarge {
+        claimed: usize,
+        max: usize,
+    },
 }
 
 impl Display for Error {
@@ -44,6 +52,10 @@ impl Display for Error {
             Error::Io(err) => write!(f, "{err}"),
             Error::Deserialization(err) => write!(f, "{err}"),
             Error::Serialization(err) => write!(f, "{err}"),
+            Error::FrameTooLarge { claimed, max } => write!(
+                f,
+                "peer claimed a frame of {claimed} bytes, above the {max}-byte limit"
+            ),
         }
     }
 }
@@ -54,6 +66,7 @@ impl std::error::Error for Error {
             Error::Io(err) => Some(err),
             Error::Deserialization(err) => Some(err),
             Error::Serialization(err) => Some(err),
+            Error::FrameTooLarge { .. } => None,
         }
     }
 }
@@ -102,6 +115,14 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
         .await?;
         let expected_size = u32::from_be_bytes(expected_size) as usize;
 
+        let max = max_frame_bytes();
+        if expected_size > max {
+            return Err(Error::FrameTooLarge {
+                claimed: expected_size,
+                max,
+            });
+        }
+
         let mut data = vec![0u8; expected_size];
         timeout(
             Duration::from_secs(timeout_secs()),
@@ -143,7 +164,9 @@ impl<R: Read + Write + Unpin + Send> Protocol<R> {
 
 #[cfg(test)]
 mod tests {
-    use super::DEFAULT_TIMEOUT_SECS;
+    use super::*;
+    use crate::framing::max_frame_bytes;
+    use async_std::os::unix::net::UnixStream;
 
     /// Both sides probe every 10s to keep an idle-but-healthy connection from
     /// tripping the read timeout. Regression guard: the default timeout must stay
@@ -159,5 +182,35 @@ mod tests {
             "DEFAULT_TIMEOUT_SECS ({DEFAULT_TIMEOUT_SECS}) must stay at least 3x the probe \
              interval ({PROBE_INTERVAL_SECS}s) to tolerate real scheduling jitter"
         );
+    }
+
+    // Proves the rejection happens at the length-prefix check itself, before any
+    // allocation: a peer claiming a frame far above the limit gets `FrameTooLarge`
+    // immediately, over a real socket, rather than the read hanging (which it would if
+    // recv_message tried to read `expected_size` bytes that never arrive) or the process
+    // attempting the multi-gigabyte allocation the old code trusted blindly.
+    #[test]
+    fn oversized_claimed_frame_is_rejected_without_reading_its_body() {
+        async_std::task::block_on(async {
+            let (mut client, server) = UnixStream::pair().unwrap();
+            let server_protocol = Protocol::new(server);
+
+            // Peer claims a frame bigger than the limit, but never actually sends that many
+            // bytes — if `recv_message` tried to read the body before checking the size,
+            // this would hang (and eventually time out) instead of failing fast.
+            let claimed = (max_frame_bytes() + 1) as u32;
+            {
+                use futures::AsyncWriteExt;
+                client.write_all(&claimed.to_be_bytes()).await.unwrap();
+            }
+
+            match server_protocol.recv_message().await {
+                Err(Error::FrameTooLarge { claimed: c, max }) => {
+                    assert_eq!(c, claimed as usize);
+                    assert_eq!(max, max_frame_bytes());
+                }
+                other => panic!("expected FrameTooLarge, got {other:?}"),
+            }
+        });
     }
 }
