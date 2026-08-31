@@ -95,7 +95,11 @@ const DEFAULT_MAX_CONCURRENT_MESSAGES: usize = 64;
 /// stops pulling new messages until one finishes - so a slow consumer now visibly throttles the
 /// connection's read side instead of growing memory. Overridable through
 /// `MELODIUM_DIST_MAX_CONCURRENT_MESSAGES`.
-fn max_concurrent_messages() -> usize {
+///
+/// Shared between the server's message loop here and the client's in `distrib-mel` (which
+/// mirrors this same dispatch pattern), so `pub` and re-exported from the crate root — one
+/// setting governs the same policy on both sides of the connection.
+pub fn max_concurrent_messages() -> usize {
     static LIMIT: OnceLock<usize> = OnceLock::new();
     *LIMIT.get_or_init(|| {
         std::env::var("MELODIUM_DIST_MAX_CONCURRENT_MESSAGES")
