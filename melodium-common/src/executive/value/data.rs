@@ -289,6 +289,25 @@ where
                 }
                 Ok(result)
             }
+            // Correctness fallback for a `Value::Packed` extracted through this generic
+            // `Vec<T>` path: expands back into one `Value` per element and reuses the
+            // same per-element extraction as above. This reintroduces the per-element
+            // boxing `Packed` exists to avoid, so it only matters transiently, at the
+            // point something needs an owned `Vec<T>` anyway (e.g. a mel function
+            // parameter) — the steady-state buffering/transmission win `Packed` provides
+            // is unaffected. Callers that can accept `Arc<[T]>` instead should extract
+            // through `GetData<Arc<[T]>>` (see `packed.rs`), which stays zero-copy.
+            Value::Packed(arr) => {
+                let val = arr.into_values();
+                let mut result = Vec::with_capacity(val.len());
+                for val in val {
+                    match val.try_data() {
+                        Ok(val) => result.push(val),
+                        Err(_) => return Err(()),
+                    }
+                }
+                Ok(result)
+            }
             _ => Err(()),
         }
     }

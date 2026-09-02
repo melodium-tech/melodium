@@ -2819,6 +2819,105 @@ impl serde::Serialize for Value {
                     serializer.serialize_none()
                 }
             }
+            // Mirrors `Value::Vec`'s encoding element-for-element, so a `Packed` array
+            // serializes identically to the equivalent boxed `Vec` — it's purely an
+            // internal representation choice. `U8`/`Byte` go through `serialize_bytes`
+            // (a native byte string) instead of a sequence, the same special case
+            // `Value::Byte` already gets above, just for the whole array at once rather
+            // than one byte at a time.
+            Value::Packed(super::PackedArray::U8(me))
+            | Value::Packed(super::PackedArray::Byte(me)) => serializer.serialize_bytes(me),
+            Value::Packed(super::PackedArray::I8(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::I16(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::I32(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::I64(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::I128(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::U16(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::U32(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::U64(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::U128(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::F32(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::F64(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::Bool(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
+            Value::Packed(super::PackedArray::Char(me)) => {
+                let mut ser = serializer.serialize_seq(Some(me.len()))?;
+                for val in me.iter() {
+                    ser.serialize_element(val)?;
+                }
+                ser.end()
+            }
             Value::Data(data) => serde::Serialize::serialize(&data, serializer),
         }
     }
@@ -2910,6 +3009,18 @@ impl core::fmt::Display for Value {
                 f,
                 "[{}]",
                 v.iter()
+                    .map(|val| ToString::to_string(val))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            // Prints identically to the equivalent `Value::Vec` — `Packed` is purely an
+            // internal representation choice, invisible here just like in `datatype()`.
+            Value::Packed(arr) => write!(
+                f,
+                "[{}]",
+                arr.clone()
+                    .into_values()
+                    .iter()
                     .map(|val| ToString::to_string(val))
                     .collect::<Vec<_>>()
                     .join(", ")

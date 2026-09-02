@@ -30,5 +30,5 @@ pub use output::{Output, Outputs};
 pub use result_status::ResultStatus;
 pub use transmission::{RecvResult, SendResult, TransmissionError, TransmissionValue};
 pub use treatment::Treatment;
-pub use value::{GetData, Value};
+pub use value::{GetData, PackedArray, Value};
 pub use world::{DirectCreationCallback, TrackCreationCallback, TrackId, World};

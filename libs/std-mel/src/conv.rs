@@ -54,6 +54,11 @@ pub fn to_bytes(value: T) -> Vec<byte> {
             Value::Char(val) => val.to_string().as_bytes().iter().map(|v| *v).collect(),
             Value::String(val) => val.as_bytes().iter().map(|v| *v).collect(),
             Value::Vec(_vals) => Vec::new(),
+            // Same convention as `Value::Vec` just above: an aggregate value has no
+            // single well-defined flat byte representation, so it maps to an empty
+            // buffer. `Packed` is purely an internal representation choice for a
+            // `Vec<T>`-shaped value, not a distinct case semantically.
+            Value::Packed(_arr) => Vec::new(),
             Value::Option(val) => match val {
                 Some(val) => to_bytes(*val),
                 None => Vec::new(),
@@ -120,6 +125,15 @@ fn value_to_byte(value: Value) -> Value {
         ),
         Value::String(val) => Value::Vec(val.as_bytes().iter().map(|v| Value::Byte(*v)).collect()),
         Value::Vec(vals) => Value::Vec(vals.into_iter().map(|val| value_to_byte(val)).collect()),
+        // Mirrors the `Value::Vec` arm above: expand and recurse per element.
+        // `Packed` is purely an internal representation choice for the same
+        // `Vec<T>`-shaped value, not a distinct case semantically.
+        Value::Packed(arr) => Value::Vec(
+            arr.into_values()
+                .into_iter()
+                .map(|val| value_to_byte(val))
+                .collect(),
+        ),
         Value::Option(val) => match val {
             Some(val) => value_to_byte(*val),
             None => Value::Vec(Vec::new()),

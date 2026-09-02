@@ -58,6 +58,13 @@ fn bind_value<'q>(
         Value::Char(c) => query.bind(c.to_string()),
         Value::String(s) => query.bind(s.clone()),
         Value::Vec(_) => query.bind(None::<bool>),
+        // `byte`/`u8` packed arrays bind as a real BLOB, mirroring `Value::Byte`'s single-
+        // byte case above — this is the same data, just batched. Other packed scalar
+        // types have no natural column mapping, same as `Value::Vec` just above.
+        Value::Packed(PackedArray::Byte(arr)) | Value::Packed(PackedArray::U8(arr)) => {
+            query.bind(arr.to_vec())
+        }
+        Value::Packed(_) => query.bind(None::<bool>),
         Value::Option(o) => match o {
             None => query.bind(None::<bool>),
             Some(v) => bind_value(query, v),
@@ -112,7 +119,7 @@ fn get_row_as_map(row: &AnyRow) -> Map {
                     .unwrap_or_else(|_| Value::Option(None)),
                 AnyTypeInfoKind::Blob => row
                     .try_get::<Vec<u8>, _>(column.ordinal())
-                    .map(|d| Value::Vec(d.into_iter().map(|v| Value::Byte(v)).collect()))
+                    .map(|d| Value::Packed(PackedArray::Byte(Arc::from(d))))
                     .unwrap_or_else(|_| Value::Option(None)),
             },
         );
