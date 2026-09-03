@@ -14,7 +14,14 @@ For every valid incoming HTTP request to `http_server`, a new track with all the
 In order to start sending response to the requester, `status` and `headers` inputs must be filled.
 `status` can be any valid HTTP code, for more informations please see the [MDN Documentation](https://developer.mozilla.org/docs/Web/HTTP/Status).
 
+⚠️ Drive `status`/`headers`/`data` (the response) from `started`, not from a trigger derived
+from the incoming `data` (the request body). A request with no body (`GET`, `HEAD`, an empty
+`POST`, …) never sends anything on `data`, so anything waiting for a first body value never
+fires and the response is never sent. `started` is emitted as soon as the connection is
+accepted, independently of whether the request has a body at all.
+
 Outputs:
+    - `started`: emitted as soon as the connection is accepted, before any request body is read.
     - `headers`: headers send in request.
     - `data`: the raw body data received in the request.
     - `failed`: emitted if a failure occurs during the processing of request.
