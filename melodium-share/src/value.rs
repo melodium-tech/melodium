@@ -2,7 +2,7 @@ use crate::{DescribedType, Identifier, SharingError, SharingResult};
 use cbor4ii::core::utils::SliceReader;
 use melodium_common::{
     descriptor::{Collection, Entry as CommonEntry, Identifier as CommonIdentifier},
-    executive::{PackedArray as CommonPackedArray, Value as CommonValue},
+    executive::Value as CommonValue,
 };
 use melodium_engine::{design::Value as DesignedValue, LogicError};
 use serde::{Deserialize, Serialize};
@@ -171,31 +171,6 @@ pub enum RawValue {
     Vec(Vec<RawValue>),
     Option(Option<Box<RawValue>>),
 
-    // The `Packed*` variants below are the wire counterpart of `CommonValue::Packed`
-    // (see melodium-common's `PackedArray`, ticket #116): one `RawValue` for a whole
-    // homogeneous scalar array instead of one `RawValue` per element. `Bytes` is the
-    // one case with its own native CBOR encoding (a byte string, via `serde_bytes`)
-    // rather than a plain array — that's where the per-element CBOR tag overhead is
-    // worst (up to 2x for a 1-byte payload), and CBOR already has a type built for it.
-    // The others just save the `RawValue` enum overhead per element (no more per-array
-    // CBOR tag/discriminant multiplied by array length) without a custom binary layout.
-    #[serde(with = "serde_bytes")]
-    Bytes(Vec<u8>),
-    PackedI8(Vec<i8>),
-    PackedI16(Vec<i16>),
-    PackedI32(Vec<i32>),
-    PackedI64(Vec<i64>),
-    PackedI128(Vec<i128>),
-    PackedU8(Vec<u8>),
-    PackedU16(Vec<u16>),
-    PackedU32(Vec<u32>),
-    PackedU64(Vec<u64>),
-    PackedU128(Vec<u128>),
-    PackedF32(Vec<f32>),
-    PackedF64(Vec<f64>),
-    PackedBool(Vec<bool>),
-    PackedChar(Vec<char>),
-
     Data(Identifier, Option<Vec<u8>>),
 }
 
@@ -251,21 +226,6 @@ impl RawValue {
                 RawValue::String(value) => value.len(),
                 RawValue::Vec(values) => values.iter().map(RawValue::estimated_size).sum(),
                 RawValue::Option(Some(value)) => value.estimated_size(),
-                RawValue::Bytes(value) => value.len(),
-                RawValue::PackedI8(value) => value.len() * std::mem::size_of::<i8>(),
-                RawValue::PackedI16(value) => value.len() * std::mem::size_of::<i16>(),
-                RawValue::PackedI32(value) => value.len() * std::mem::size_of::<i32>(),
-                RawValue::PackedI64(value) => value.len() * std::mem::size_of::<i64>(),
-                RawValue::PackedI128(value) => value.len() * std::mem::size_of::<i128>(),
-                RawValue::PackedU8(value) => value.len() * std::mem::size_of::<u8>(),
-                RawValue::PackedU16(value) => value.len() * std::mem::size_of::<u16>(),
-                RawValue::PackedU32(value) => value.len() * std::mem::size_of::<u32>(),
-                RawValue::PackedU64(value) => value.len() * std::mem::size_of::<u64>(),
-                RawValue::PackedU128(value) => value.len() * std::mem::size_of::<u128>(),
-                RawValue::PackedF32(value) => value.len() * std::mem::size_of::<f32>(),
-                RawValue::PackedF64(value) => value.len() * std::mem::size_of::<f64>(),
-                RawValue::PackedBool(value) => value.len() * std::mem::size_of::<bool>(),
-                RawValue::PackedChar(value) => value.len() * std::mem::size_of::<char>(),
                 RawValue::Data(_, value) => value.as_ref().map(Vec::len).unwrap_or(0),
                 _ => 0,
             }
@@ -294,23 +254,21 @@ impl From<CommonValue> for RawValue {
             CommonValue::String(s) => RawValue::String(s),
             CommonValue::Vec(v) => RawValue::Vec(v.into_iter().map(|v| v.into()).collect()),
             CommonValue::Option(v) => RawValue::Option(v.map(|v| Box::new((*v).into()))),
-            CommonValue::Packed(arr) => match arr {
-                CommonPackedArray::I8(a) => RawValue::PackedI8(a.to_vec()),
-                CommonPackedArray::I16(a) => RawValue::PackedI16(a.to_vec()),
-                CommonPackedArray::I32(a) => RawValue::PackedI32(a.to_vec()),
-                CommonPackedArray::I64(a) => RawValue::PackedI64(a.to_vec()),
-                CommonPackedArray::I128(a) => RawValue::PackedI128(a.to_vec()),
-                CommonPackedArray::U8(a) => RawValue::PackedU8(a.to_vec()),
-                CommonPackedArray::U16(a) => RawValue::PackedU16(a.to_vec()),
-                CommonPackedArray::U32(a) => RawValue::PackedU32(a.to_vec()),
-                CommonPackedArray::U64(a) => RawValue::PackedU64(a.to_vec()),
-                CommonPackedArray::U128(a) => RawValue::PackedU128(a.to_vec()),
-                CommonPackedArray::F32(a) => RawValue::PackedF32(a.to_vec()),
-                CommonPackedArray::F64(a) => RawValue::PackedF64(a.to_vec()),
-                CommonPackedArray::Bool(a) => RawValue::PackedBool(a.to_vec()),
-                CommonPackedArray::Byte(a) => RawValue::Bytes(a.to_vec()),
-                CommonPackedArray::Char(a) => RawValue::PackedChar(a.to_vec()),
-            },
+            // `RawValue` intentionally stays canonical — one variant per mel scalar
+            // type, `Vec`/`Option`/`Data` for aggregates, nothing else. It's exposed
+            // directly over WASM (`tsify`, `into_wasm_abi`/`from_wasm_abi` below) and
+            // used for saved program designs, so it's a public contract, not an
+            // internal wire-optimization detail: `Packed` is purely an in-process
+            // representation choice (see `PackedArray`) that should never leak into
+            // what an external consumer has to pattern-match on. A packed array
+            // expands back to one `RawValue` per element here, exactly what
+            // `Value::Vec` would have produced for the same content.
+            CommonValue::Packed(arr) => RawValue::Vec(
+                arr.into_values()
+                    .into_iter()
+                    .map(|value| value.into())
+                    .collect(),
+            ),
             CommonValue::Data(d) => {
                 let data = cbor4ii::serde::to_vec(Vec::new(), &d).ok();
                 RawValue::Data(d.descriptor().identifier().into(), data)
@@ -343,23 +301,22 @@ impl From<&CommonValue> for RawValue {
             CommonValue::Option(v) => {
                 RawValue::Option(v.as_ref().map(|v| Box::new(v.as_ref().into())))
             }
-            CommonValue::Packed(arr) => match arr {
-                CommonPackedArray::I8(a) => RawValue::PackedI8(a.to_vec()),
-                CommonPackedArray::I16(a) => RawValue::PackedI16(a.to_vec()),
-                CommonPackedArray::I32(a) => RawValue::PackedI32(a.to_vec()),
-                CommonPackedArray::I64(a) => RawValue::PackedI64(a.to_vec()),
-                CommonPackedArray::I128(a) => RawValue::PackedI128(a.to_vec()),
-                CommonPackedArray::U8(a) => RawValue::PackedU8(a.to_vec()),
-                CommonPackedArray::U16(a) => RawValue::PackedU16(a.to_vec()),
-                CommonPackedArray::U32(a) => RawValue::PackedU32(a.to_vec()),
-                CommonPackedArray::U64(a) => RawValue::PackedU64(a.to_vec()),
-                CommonPackedArray::U128(a) => RawValue::PackedU128(a.to_vec()),
-                CommonPackedArray::F32(a) => RawValue::PackedF32(a.to_vec()),
-                CommonPackedArray::F64(a) => RawValue::PackedF64(a.to_vec()),
-                CommonPackedArray::Bool(a) => RawValue::PackedBool(a.to_vec()),
-                CommonPackedArray::Byte(a) => RawValue::Bytes(a.to_vec()),
-                CommonPackedArray::Char(a) => RawValue::PackedChar(a.to_vec()),
-            },
+            // `RawValue` intentionally stays canonical — one variant per mel scalar
+            // type, `Vec`/`Option`/`Data` for aggregates, nothing else. It's exposed
+            // directly over WASM (`tsify`, `into_wasm_abi`/`from_wasm_abi` below) and
+            // used for saved program designs, so it's a public contract, not an
+            // internal wire-optimization detail: `Packed` is purely an in-process
+            // representation choice (see `PackedArray`) that should never leak into
+            // what an external consumer has to pattern-match on. A packed array
+            // expands back to one `RawValue` per element here, exactly what
+            // `Value::Vec` would have produced for the same content.
+            CommonValue::Packed(arr) => RawValue::Vec(
+                arr.clone()
+                    .into_values()
+                    .into_iter()
+                    .map(|value| value.into())
+                    .collect(),
+            ),
             CommonValue::Data(d) => {
                 let data = cbor4ii::serde::to_vec(Vec::new(), &d).ok();
                 RawValue::Data(d.descriptor().identifier().into(), data)
@@ -414,51 +371,6 @@ impl TryInto<CommonValue> for &RawValue {
                     Ok(CommonValue::Option(None))
                 }
             }
-            RawValue::Bytes(v) => Ok(CommonValue::Packed(CommonPackedArray::Byte(
-                Arc::from(v.clone()),
-            ))),
-            RawValue::PackedI8(v) => Ok(CommonValue::Packed(CommonPackedArray::I8(Arc::from(
-                v.clone(),
-            )))),
-            RawValue::PackedI16(v) => Ok(CommonValue::Packed(CommonPackedArray::I16(Arc::from(
-                v.clone(),
-            )))),
-            RawValue::PackedI32(v) => Ok(CommonValue::Packed(CommonPackedArray::I32(Arc::from(
-                v.clone(),
-            )))),
-            RawValue::PackedI64(v) => Ok(CommonValue::Packed(CommonPackedArray::I64(Arc::from(
-                v.clone(),
-            )))),
-            RawValue::PackedI128(v) => Ok(CommonValue::Packed(CommonPackedArray::I128(
-                Arc::from(v.clone()),
-            ))),
-            RawValue::PackedU8(v) => Ok(CommonValue::Packed(CommonPackedArray::U8(Arc::from(
-                v.clone(),
-            )))),
-            RawValue::PackedU16(v) => Ok(CommonValue::Packed(CommonPackedArray::U16(Arc::from(
-                v.clone(),
-            )))),
-            RawValue::PackedU32(v) => Ok(CommonValue::Packed(CommonPackedArray::U32(Arc::from(
-                v.clone(),
-            )))),
-            RawValue::PackedU64(v) => Ok(CommonValue::Packed(CommonPackedArray::U64(Arc::from(
-                v.clone(),
-            )))),
-            RawValue::PackedU128(v) => Ok(CommonValue::Packed(CommonPackedArray::U128(
-                Arc::from(v.clone()),
-            ))),
-            RawValue::PackedF32(v) => Ok(CommonValue::Packed(CommonPackedArray::F32(Arc::from(
-                v.clone(),
-            )))),
-            RawValue::PackedF64(v) => Ok(CommonValue::Packed(CommonPackedArray::F64(Arc::from(
-                v.clone(),
-            )))),
-            RawValue::PackedBool(v) => Ok(CommonValue::Packed(CommonPackedArray::Bool(
-                Arc::from(v.clone()),
-            ))),
-            RawValue::PackedChar(v) => Ok(CommonValue::Packed(CommonPackedArray::Char(
-                Arc::from(v.clone()),
-            ))),
             RawValue::Data(_, _) => Err(()),
         }
     }
@@ -506,86 +418,51 @@ mod estimated_size_tests {
         let value = RawValue::Data(identifier, Some(vec![0u8; 42]));
         assert_eq!(value.estimated_size(), base + 42);
     }
-
-    #[test]
-    fn packed_bytes_has_no_per_element_overhead() {
-        let base = std::mem::size_of::<RawValue>();
-        let value = RawValue::Bytes(vec![0u8; 4096]);
-        assert_eq!(value.estimated_size(), base + 4096);
-    }
-
-    #[test]
-    fn packed_fixed_size_scalar_scales_with_type_size() {
-        let base = std::mem::size_of::<RawValue>();
-        let value = RawValue::PackedF64(vec![0f64; 10]);
-        assert_eq!(value.estimated_size(), base + 10 * std::mem::size_of::<f64>());
-    }
 }
 
 #[cfg(test)]
-mod packed_wire_tests {
+mod packed_value_stays_canonical_tests {
     use super::*;
+    use melodium_common::executive::PackedArray as CommonPackedArray;
 
-    // The entire point of `RawValue::Bytes`: it must encode as CBOR's native byte
-    // string (major type 2), not as an array of per-element-tagged integers like
-    // `RawValue::Vec(Vec<RawValue::Byte>)` or even `RawValue::PackedU8` would. A byte
-    // string's header is a single length-prefixed tag for the whole buffer, so the
-    // encoded size should track the payload almost exactly, not scale with a
-    // per-element tax.
+    // `RawValue` deliberately has no `Packed` counterpart (see the comment on the
+    // `CommonValue::Packed` match arm above) — a packed in-process `Value` must still
+    // convert to the exact same `RawValue::Vec` shape a boxed `Value::Vec` would,
+    // so nothing external (WASM bindings, saved designs, ...) can tell the two apart.
     #[test]
-    fn bytes_encodes_as_a_native_cbor_byte_string_not_a_tagged_array() {
-        let payload = vec![0u8; 1000];
-        let encoded = cbor4ii::serde::to_vec(Vec::new(), &RawValue::Bytes(payload.clone()))
-            .expect("serialization must succeed");
+    fn common_value_packed_converts_to_the_same_raw_shape_as_the_boxed_equivalent() {
+        let packed = CommonValue::Packed(CommonPackedArray::Byte(Arc::new(vec![1u8, 2, 3])));
+        let boxed = CommonValue::Vec(vec![
+            CommonValue::Byte(1),
+            CommonValue::Byte(2),
+            CommonValue::Byte(3),
+        ]);
 
-        // A CBOR array of 1000 individually-tagged small integers would run to several
-        // thousand bytes (1-2 bytes of header per element); a native byte string of
-        // 1000 zero bytes is the payload plus a handful of header/enum-tag bytes.
-        assert!(
-            encoded.len() < payload.len() + 32,
-            "expected near-payload-sized encoding for a native byte string, got {} bytes for a {}-byte payload",
-            encoded.len(),
-            payload.len()
-        );
-
-        let decoded: RawValue = cbor4ii::serde::from_slice(&encoded).expect("must round-trip");
-        assert_eq!(decoded, RawValue::Bytes(payload));
-    }
-
-    // Non-byte packed types intentionally do NOT get the custom-encoding treatment —
-    // they're a plain CBOR array of the native type, which already collapses the
-    // per-element `RawValue` enum tag (the dominant cost) without needing a bespoke
-    // binary layout. This just confirms the roundtrip holds for one such type.
-    #[test]
-    fn packed_f64_roundtrips_as_a_plain_cbor_array() {
-        let payload = vec![1.5f64, 2.5, 3.5];
-        let encoded = cbor4ii::serde::to_vec(Vec::new(), &RawValue::PackedF64(payload.clone()))
-            .expect("serialization must succeed");
-        let decoded: RawValue = cbor4ii::serde::from_slice(&encoded).expect("must round-trip");
-        assert_eq!(decoded, RawValue::PackedF64(payload));
-    }
-
-    #[test]
-    fn common_value_packed_byte_converts_to_raw_value_bytes() {
-        let common = CommonValue::Packed(CommonPackedArray::Byte(Arc::from(vec![1u8, 2, 3])));
-        let raw: RawValue = common.into();
-        assert_eq!(raw, RawValue::Bytes(vec![1, 2, 3]));
-    }
-
-    #[test]
-    fn common_value_packed_i64_converts_to_raw_value_packed_i64() {
-        let common = CommonValue::Packed(CommonPackedArray::I64(Arc::from(vec![1i64, 2, 3])));
-        let raw: RawValue = common.into();
-        assert_eq!(raw, RawValue::PackedI64(vec![1, 2, 3]));
-    }
-
-    #[test]
-    fn raw_value_bytes_converts_back_to_common_value_packed_byte() {
-        let raw = RawValue::Bytes(vec![1u8, 2, 3]);
-        let common: CommonValue = raw.try_into().unwrap();
+        let raw_from_packed: RawValue = packed.into();
+        let raw_from_boxed: RawValue = boxed.into();
+        assert_eq!(raw_from_packed, raw_from_boxed);
         assert_eq!(
-            common,
-            CommonValue::Packed(CommonPackedArray::Byte(Arc::from(vec![1u8, 2, 3])))
+            raw_from_packed,
+            RawValue::Vec(vec![
+                RawValue::Byte(1),
+                RawValue::Byte(2),
+                RawValue::Byte(3)
+            ])
+        );
+    }
+
+    #[test]
+    fn common_value_packed_roundtrips_through_raw_value_as_a_boxed_vec() {
+        let packed = CommonValue::Packed(CommonPackedArray::I64(Arc::new(vec![1, 2, 3])));
+        let raw: RawValue = packed.into();
+        let back: CommonValue = raw.try_into().unwrap();
+        assert_eq!(
+            back,
+            CommonValue::Vec(vec![
+                CommonValue::I64(1),
+                CommonValue::I64(2),
+                CommonValue::I64(3)
+            ])
         );
     }
 }

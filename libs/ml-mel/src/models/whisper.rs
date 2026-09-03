@@ -381,17 +381,17 @@ pub async fn load() {
         Ok(val) => match val.try_data::<String>() {
             Ok(path) => path,
             Err(_) => {
-                let _ = failed.send_one(().into()).await;
+                let _ = failed.send_one_as(()).await;
                 let _ = error
-                    .send_one(Value::String("invalid tokenizer path".into()))
+                    .send_one_as("invalid tokenizer path".to_string())
                     .await;
                 return;
             }
         },
         Err(_) => {
-            let _ = failed.send_one(().into()).await;
+            let _ = failed.send_one_as(()).await;
             let _ = error
-                .send_one(Value::String("tokenizer input closed".into()))
+                .send_one_as("tokenizer input closed".to_string())
                 .await;
             return;
         }
@@ -409,11 +409,11 @@ pub async fn load() {
 
         match result {
             Ok(()) => {
-                let _ = loaded.send_one(().into()).await;
+                let _ = loaded.send_one_as(()).await;
             }
             Err(e) => {
-                let _ = failed.send_one(().into()).await;
-                let _ = error.send_one(Value::String(e)).await;
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(e).await;
             }
         }
     }
@@ -510,7 +510,7 @@ pub async fn decode() {
 
         let drain = async {
             while let Ok(segment) = text_rx.recv_async().await {
-                if transcribed.send_one(Value::String(segment)).await.is_err() {
+                if transcribed.send_one_as(segment).await.is_err() {
                     break;
                 }
             }

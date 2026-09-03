@@ -18,12 +18,11 @@ pub async fn contains(substring: string) {
     while let Ok(values) = text.recv_many_as::<string>().await {
         check!(
             contains
-                .send_many(
+                .send_many_as(
                     values
                         .iter()
                         .map(|val| val.contains(&substring))
-                        .collect::<VecDeque<bool>>()
-                        .into()
+                        .collect::<Vec<bool>>()
                 )
                 .await
         )
@@ -39,11 +38,10 @@ pub async fn exact(pattern: string) {
     while let Ok(text) = text.recv_many_as::<string>().await {
         check!(
             matches
-                .send_many(
+                .send_many_as(
                     text.into_iter()
                         .map(|txt| txt == pattern)
-                        .collect::<VecDeque<_>>()
-                        .into()
+                        .collect::<Vec<_>>()
                 )
                 .await
         );
@@ -65,11 +63,10 @@ pub async fn starts_with(pattern: string) {
     while let Ok(text) = text.recv_many_as::<string>().await {
         check!(
             matches
-                .send_many(
+                .send_many_as(
                     text.into_iter()
                         .map(|txt| txt.starts_with(&pattern))
-                        .collect::<VecDeque<_>>()
-                        .into()
+                        .collect::<Vec<_>>()
                 )
                 .await
         );
@@ -91,11 +88,10 @@ pub async fn ends_with(pattern: string) {
     while let Ok(text) = text.recv_many_as::<string>().await {
         check!(
             matches
-                .send_many(
+                .send_many_as(
                     text.into_iter()
                         .map(|txt| txt.ends_with(&pattern))
-                        .collect::<VecDeque<_>>()
-                        .into()
+                        .collect::<Vec<_>>()
                 )
                 .await
         );

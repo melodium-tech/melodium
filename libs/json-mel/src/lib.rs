@@ -123,16 +123,16 @@ pub async fn to_json() {
             match result {
                 Ok(json_value) => {
                     if let (Err(_), Err(_)) = futures::join!(
-                        json.send_one(Some(Arc::new(Json(json_value)) as Arc<dyn Data>).into()),
-                        error.send_one(Option::<string>::None.into())
+                        json.send_one_as(Some(Arc::new(Json(json_value)) as Arc<dyn Data>)),
+                        error.send_one_as(Option::<string>::None)
                     ) {
                         break 'main;
                     }
                 }
                 Err(err) => {
                     if let (Err(_), Err(_)) = futures::join!(
-                        json.send_one(Option::<Arc<dyn Data>>::None.into()),
-                        error.send_one(Some(err.to_string()).into())
+                        json.send_one_as(Option::<Arc<dyn Data>>::None),
+                        error.send_one_as(Some(err.to_string()))
                     ) {
                         break 'main;
                     }
@@ -163,14 +163,13 @@ pub async fn validate() {
     while let Ok(text) = text.recv_many_as::<string>().await {
         check!(
             is_json
-                .send_many(
+                .send_many_as(
                     text.iter()
                         .map(|t| match serde_json::from_str::<serde::de::IgnoredAny>(t) {
                             Ok(_) => true,
                             Err(_) => false,
                         })
-                        .collect::<VecDeque<_>>()
-                        .into()
+                        .collect::<Vec<_>>()
                 )
                 .await
         );

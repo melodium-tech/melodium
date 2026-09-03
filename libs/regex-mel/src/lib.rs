@@ -35,18 +35,17 @@ pub async fn matches(#[mel(content(regex))] regex: string) {
             while let Ok(text) = text.recv_many_as::<string>().await {
                 check!(
                     matches
-                        .send_many(
+                        .send_many_as(
                             text.into_iter()
                                 .map(|txt| regex.is_match(&txt))
-                                .collect::<VecDeque<_>>()
-                                .into()
+                                .collect::<Vec<_>>()
                         )
                         .await
                 );
             }
         }
         Err(err) => {
-            let _ = error.send_one(err.to_string().into()).await;
+            let _ = error.send_one_as(err.to_string()).await;
         }
     }
 }
@@ -101,7 +100,7 @@ pub async fn find(#[mel(content(regex))] regex: string) {
             }
         }
         Err(err) => {
-            let _ = error.send_one(err.to_string().into()).await;
+            let _ = error.send_one_as(err.to_string()).await;
         }
     }
 }
@@ -171,7 +170,7 @@ pub async fn capture(#[mel(content(regex))] regex: string) {
             }
         }
         Err(err) => {
-            let _ = error.send_one(err.to_string().into()).await;
+            let _ = error.send_one_as(err.to_string()).await;
         }
     }
 }
@@ -230,11 +229,11 @@ pub async fn replace(#[mel(content(regex))] regex: string, replacer: string) {
                     vec_replaced.push(regex.replace(&text, &replacer).to_string());
                 }
 
-                check!(replaced.send_many(vec_replaced.into()).await);
+                check!(replaced.send_many_as(vec_replaced).await);
             }
         }
         Err(err) => {
-            let _ = error.send_one(err.to_string().into()).await;
+            let _ = error.send_one_as(err.to_string()).await;
         }
     }
 }

@@ -2755,6 +2755,14 @@ impl DataTrait for Value {
             Value::Char(me) => me.hash(&mut state),
             Value::String(me) => me.hash(&mut state),
             Value::Vec(me) => me.iter().for_each(|elmt| elmt.hash(&mut state)),
+            // Hashes identically to the equivalent `Value::Vec` - `Packed` is purely an
+            // internal representation choice, invisible here just like everywhere else
+            // it's handled (`datatype()`, `Serialize`, `Display`, ...).
+            Value::Packed(me) => me
+                .clone()
+                .into_values()
+                .iter()
+                .for_each(|elmt| elmt.hash(&mut state)),
             Value::Option(me) => {
                 if let Some(elmt) = me {
                     elmt.hash(&mut state)

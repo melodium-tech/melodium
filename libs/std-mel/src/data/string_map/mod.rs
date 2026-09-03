@@ -84,7 +84,7 @@ pub fn get(map: StringMap, key: string) -> Option<string> {
 )]
 pub async fn get(key: string) {
     while let Ok(map) = map.recv_one_as::<Arc<StringMap>>().await {
-        check!(value.send_one(map.map.get(&key).cloned().into()).await)
+        check!(value.send_one_as(map.map.get(&key).cloned()).await)
     }
 }
 

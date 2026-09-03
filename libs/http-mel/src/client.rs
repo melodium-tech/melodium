@@ -130,9 +130,7 @@ pub async fn request(method: HttpMethod) {
                     Ok(mut conn) => {
                         if let Some(recv_status) = conn.status() {
                             let _ = status
-                                .send_one(Value::Data(
-                                    Arc::new(HttpStatus(recv_status)) as Arc<dyn Data>
-                                ))
+                                .send_one_as(Arc::new(HttpStatus(recv_status)) as Arc<dyn Data>)
                                 .await;
 
                             let headers = conn
@@ -145,11 +143,12 @@ pub async fn request(method: HttpMethod) {
                                 })
                                 .collect();
 
-                            let _ = res_headers
-                                .send_one(Value::Data(
-                                    Arc::new(StringMap::new_with(headers)) as Arc<dyn Data>
-                                ))
-                                .await;
+                            let _ =
+                                res_headers
+                                    .send_one_as(
+                                        Arc::new(StringMap::new_with(headers)) as Arc<dyn Data>
+                                    )
+                                    .await;
 
                             status.close().await;
                             res_headers.close().await;
@@ -161,7 +160,7 @@ pub async fn request(method: HttpMethod) {
                             let _ = futures::join!(
                                 async {
                                     let _ = async_std::io::copy(response_body, prod).await;
-                                    let _ = completed.send_one(().into()).await;
+                                    let _ = completed.send_one_as(()).await;
                                 },
                                 async {
                                     loop {
@@ -190,16 +189,16 @@ pub async fn request(method: HttpMethod) {
                         }
                     }
                     Err(err) => {
-                        let _ = failed.send_one(().into()).await;
-                        let _ = error.send_one(err.to_string().into()).await;
+                        let _ = failed.send_one_as(()).await;
+                        let _ = error.send_one_as(err.to_string()).await;
                     }
                 },
                 Err(err) => {
-                    let _ = failed.send_one(().into()).await;
-                    let _ = error.send_one(err.to_string().into()).await;
+                    let _ = failed.send_one_as(()).await;
+                    let _ = error.send_one_as(err.to_string()).await;
                 }
             }
-            let _ = finished.send_one(().into()).await;
+            let _ = finished.send_one_as(()).await;
         }
     }
 }
@@ -283,9 +282,7 @@ pub async fn request_with_body(method: HttpMethod) {
                         (_, Ok(mut conn)) => {
                             if let Some(recv_status) = conn.status() {
                                 let _ = status
-                                    .send_one(Value::Data(
-                                        Arc::new(HttpStatus(recv_status)) as Arc<dyn Data>
-                                    ))
+                                    .send_one_as(Arc::new(HttpStatus(recv_status)) as Arc<dyn Data>)
                                     .await;
 
                                 let headers = conn
@@ -298,9 +295,9 @@ pub async fn request_with_body(method: HttpMethod) {
                                     })
                                     .collect();
                                 let _ = res_headers
-                                    .send_one(Value::Data(
+                                    .send_one_as(
                                         Arc::new(StringMap::new_with(headers)) as Arc<dyn Data>
-                                    ))
+                                    )
                                     .await;
 
                                 status.close().await;
@@ -313,7 +310,7 @@ pub async fn request_with_body(method: HttpMethod) {
                                 let _ = futures::join!(
                                     async {
                                         let _ = async_std::io::copy(response_body, out_prod).await;
-                                        let _ = completed.send_one(().into()).await;
+                                        let _ = completed.send_one_as(()).await;
                                     },
                                     async {
                                         loop {
@@ -341,17 +338,17 @@ pub async fn request_with_body(method: HttpMethod) {
                             }
                         }
                         (_, Err(err)) => {
-                            let _ = failed.send_one(().into()).await;
-                            let _ = error.send_one(err.to_string().into()).await;
+                            let _ = failed.send_one_as(()).await;
+                            let _ = error.send_one_as(err.to_string()).await;
                         }
                     }
                 }
                 Err(err) => {
-                    let _ = failed.send_one(().into()).await;
-                    let _ = error.send_one(err.to_string().into()).await;
+                    let _ = failed.send_one_as(()).await;
+                    let _ = error.send_one_as(err.to_string()).await;
                 }
             }
-            let _ = finished.send_one(().into()).await;
+            let _ = finished.send_one_as(()).await;
         }
     }
 }

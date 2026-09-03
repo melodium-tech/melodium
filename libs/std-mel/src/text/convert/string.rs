@@ -40,19 +40,22 @@ pub async fn from_char() {
     {
         let output = chars
             .into_iter()
-            .map(|text| match text {
-                Value::Vec(text) => text
-                    .into_iter()
+            .map(|text| {
+                let text = match text {
+                    Value::Vec(text) => text,
+                    Value::Packed(arr) => arr.into_values(),
+                    _ => panic!("Vec<char> expected"),
+                };
+                text.into_iter()
                     .map(|c| match c {
                         Value::Char(c) => c,
                         _ => panic!("char expected"),
                     })
-                    .collect::<String>(),
-                _ => panic!("Vec<char> expected"),
+                    .collect::<String>()
             })
-            .collect::<VecDeque<_>>();
+            .collect::<Vec<_>>();
 
-        check!(text.send_many(output.into()).await);
+        check!(text.send_many_as(output).await);
     }
 }
 
@@ -97,7 +100,7 @@ pub async fn from_utf8() {
     while let Ok(encoded) = encoded.recv_many_as::<byte>().await {
         let output = String::from_utf8_lossy(&encoded).to_string();
 
-        check!(text.send_one(output.into()).await);
+        check!(text.send_one_as(output).await);
     }
 }
 

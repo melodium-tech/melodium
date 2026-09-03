@@ -13,7 +13,7 @@ pub mod descriptor;
 pub mod executive;
 
 pub use melodium_common::executive::{
-    Data, DataTrait, GetData, InputExt, PackedArray, TransmissionValue, Value,
+    Data, DataTrait, GetData, InputExt, OutputExt, PackedArray, TransmissionValue, Value,
 };
 pub use std::collections::VecDeque;
 pub type u8 = core::primitive::u8;

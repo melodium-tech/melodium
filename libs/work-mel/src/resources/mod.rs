@@ -43,18 +43,15 @@ pub async fn getExecutor() {
                     match crate::container::ContainerExecutor::try_new(name).await {
                         Ok(container_exec) => {
                             let _ = executor
-                                .send_one(
-                                    (std::sync::Arc::new(Executor {
-                                        executor: std::sync::Arc::new(container_exec),
-                                    })
-                                        as std::sync::Arc<dyn Data>)
-                                        .into(),
-                                )
+                                .send_one_as(std::sync::Arc::new(Executor {
+                                    executor: std::sync::Arc::new(container_exec),
+                                })
+                                    as std::sync::Arc<dyn Data>)
                                 .await;
                         }
                         Err(err) => {
-                            let _ = failed.send_one(().into()).await;
-                            let _ = error.send_one(err.into()).await;
+                            let _ = failed.send_one_as(()).await;
+                            let _ = error.send_one_as(err).await;
                         }
                     }
                 }
@@ -64,45 +61,37 @@ pub async fn getExecutor() {
                         match crate::kube::KubeExecutor::try_new(name).await {
                             Ok(kube_exec) => {
                                 let _ = executor
-                                    .send_one(
-                                        (std::sync::Arc::new(Executor {
-                                            executor: std::sync::Arc::new(kube_exec),
-                                        })
-                                            as std::sync::Arc<dyn Data>)
-                                            .into(),
-                                    )
+                                    .send_one_as(std::sync::Arc::new(Executor {
+                                        executor: std::sync::Arc::new(kube_exec),
+                                    })
+                                        as std::sync::Arc<dyn Data>)
                                     .await;
                             }
                             Err(err) => {
-                                let _ = failed.send_one(().into()).await;
-                                let _ = error.send_one(err.into()).await;
+                                let _ = failed.send_one_as(()).await;
+                                let _ = error.send_one_as(err).await;
                             }
                         }
                     }
                     #[cfg(not(feature = "kubernetes"))]
                     {
-                        let _ = failed.send_one(().into()).await;
-                        let _ = error
-                            .send_one("Executor name not set".to_string().into())
-                            .await;
+                        let _ = failed.send_one_as(()).await;
+                        let _ = error.send_one_as("Executor name not set".to_string()).await;
                     }
                 }
             }
         } else {
             let _ = executor
-                .send_one(
-                    (std::sync::Arc::new(Executor {
-                        executor: std::sync::Arc::new(process_mel::local::LocalExecutorEngine {}),
-                    }) as std::sync::Arc<dyn Data>)
-                        .into(),
-                )
+                .send_one_as(std::sync::Arc::new(Executor {
+                    executor: std::sync::Arc::new(process_mel::local::LocalExecutorEngine {}),
+                }) as std::sync::Arc<dyn Data>)
                 .await;
         }
     }
     #[cfg(feature = "mock")]
     {
-        let _ = failed.send_one(().into()).await;
-        let _ = error.send_one("Mock mode".to_string().into()).await;
+        let _ = failed.send_one_as(()).await;
+        let _ = error.send_one_as("Mock mode".to_string()).await;
     }
 }
 
@@ -139,17 +128,14 @@ pub async fn getFileSystem() {
                 match crate::container::ContainerFileSystem::try_new(name).await {
                     Ok(container_fs) => {
                         let _ = filesystem
-                            .send_one(
-                                (std::sync::Arc::new(FileSystem {
-                                    filesystem: std::sync::Arc::new(container_fs),
-                                }) as std::sync::Arc<dyn Data>)
-                                    .into(),
-                            )
+                            .send_one_as(std::sync::Arc::new(FileSystem {
+                                filesystem: std::sync::Arc::new(container_fs),
+                            }) as std::sync::Arc<dyn Data>)
                             .await;
                     }
                     Err(err) => {
-                        let _ = failed.send_one(().into()).await;
-                        let _ = error.send_one(err.into()).await;
+                        let _ = failed.send_one_as(()).await;
+                        let _ = error.send_one_as(err).await;
                     }
                 }
             }
@@ -159,26 +145,23 @@ pub async fn getFileSystem() {
                     match crate::kube::KubeFileSystem::try_new(name).await {
                         Ok(kube_fs) => {
                             let _ = filesystem
-                                .send_one(
-                                    (std::sync::Arc::new(FileSystem {
-                                        filesystem: std::sync::Arc::new(kube_fs),
-                                    })
-                                        as std::sync::Arc<dyn Data>)
-                                        .into(),
-                                )
+                                .send_one_as(std::sync::Arc::new(FileSystem {
+                                    filesystem: std::sync::Arc::new(kube_fs),
+                                })
+                                    as std::sync::Arc<dyn Data>)
                                 .await;
                         }
                         Err(err) => {
-                            let _ = failed.send_one(().into()).await;
-                            let _ = error.send_one(err.into()).await;
+                            let _ = failed.send_one_as(()).await;
+                            let _ = error.send_one_as(err).await;
                         }
                     }
                 }
                 #[cfg(not(feature = "kubernetes"))]
                 {
-                    let _ = failed.send_one(().into()).await;
+                    let _ = failed.send_one_as(()).await;
                     let _ = error
-                        .send_one(format!("No volume '{name}' available").into())
+                        .send_one_as(format!("No volume '{name}' available"))
                         .await;
                 }
             }
@@ -186,8 +169,8 @@ pub async fn getFileSystem() {
     }
     #[cfg(feature = "mock")]
     {
-        let _ = failed.send_one(().into()).await;
-        let _ = error.send_one("Mock mode".to_string().into()).await;
+        let _ = failed.send_one_as(()).await;
+        let _ = error.send_one_as("Mock mode".to_string()).await;
     }
 }
 

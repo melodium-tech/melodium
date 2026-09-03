@@ -17,7 +17,7 @@ pub enum TransmissionError {
 pub type SendResult = Result<(), TransmissionError>;
 pub type RecvResult<T> = Result<T, TransmissionError>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TransmissionValue {
     Void(VecDeque<()>),
 
@@ -47,24 +47,24 @@ pub enum TransmissionValue {
     // scalar variants above (`I8`, `U8`, ...) even for the same `T` — flattening a
     // `Stream<Vec<byte>>` into the same buffer as a `Stream<byte>` would destroy the
     // boundary between ticks (each array can be a different length). See ticket #116.
-    PackedI8(VecDeque<Arc<[i8]>>),
-    PackedI16(VecDeque<Arc<[i16]>>),
-    PackedI32(VecDeque<Arc<[i32]>>),
-    PackedI64(VecDeque<Arc<[i64]>>),
-    PackedI128(VecDeque<Arc<[i128]>>),
+    PackedI8(VecDeque<Arc<Vec<i8>>>),
+    PackedI16(VecDeque<Arc<Vec<i16>>>),
+    PackedI32(VecDeque<Arc<Vec<i32>>>),
+    PackedI64(VecDeque<Arc<Vec<i64>>>),
+    PackedI128(VecDeque<Arc<Vec<i128>>>),
 
-    PackedU8(VecDeque<Arc<[u8]>>),
-    PackedU16(VecDeque<Arc<[u16]>>),
-    PackedU32(VecDeque<Arc<[u32]>>),
-    PackedU64(VecDeque<Arc<[u64]>>),
-    PackedU128(VecDeque<Arc<[u128]>>),
+    PackedU8(VecDeque<Arc<Vec<u8>>>),
+    PackedU16(VecDeque<Arc<Vec<u16>>>),
+    PackedU32(VecDeque<Arc<Vec<u32>>>),
+    PackedU64(VecDeque<Arc<Vec<u64>>>),
+    PackedU128(VecDeque<Arc<Vec<u128>>>),
 
-    PackedF32(VecDeque<Arc<[f32]>>),
-    PackedF64(VecDeque<Arc<[f64]>>),
+    PackedF32(VecDeque<Arc<Vec<f32>>>),
+    PackedF64(VecDeque<Arc<Vec<f64>>>),
 
-    PackedBool(VecDeque<Arc<[bool]>>),
-    PackedByte(VecDeque<Arc<[u8]>>),
-    PackedChar(VecDeque<Arc<[char]>>),
+    PackedBool(VecDeque<Arc<Vec<bool>>>),
+    PackedByte(VecDeque<Arc<Vec<u8>>>),
+    PackedChar(VecDeque<Arc<Vec<char>>>),
 
     /// This variant handle all non-optimized cases.
     ///
@@ -487,9 +487,10 @@ impl TransmissionValue {
             TransmissionValue::Byte(data) => data.len(),
             TransmissionValue::Char(data) => data.len() * std::mem::size_of::<char>(),
             TransmissionValue::String(data) => data.iter().map(String::len).sum(),
-            TransmissionValue::PackedI8(data) => {
-                data.iter().map(|arr| arr.len() * std::mem::size_of::<i8>()).sum()
-            }
+            TransmissionValue::PackedI8(data) => data
+                .iter()
+                .map(|arr| arr.len() * std::mem::size_of::<i8>())
+                .sum(),
             TransmissionValue::PackedI16(data) => data
                 .iter()
                 .map(|arr| arr.len() * std::mem::size_of::<i16>())
@@ -506,9 +507,10 @@ impl TransmissionValue {
                 .iter()
                 .map(|arr| arr.len() * std::mem::size_of::<i128>())
                 .sum(),
-            TransmissionValue::PackedU8(data) => {
-                data.iter().map(|arr| arr.len() * std::mem::size_of::<u8>()).sum()
-            }
+            TransmissionValue::PackedU8(data) => data
+                .iter()
+                .map(|arr| arr.len() * std::mem::size_of::<u8>())
+                .sum(),
             TransmissionValue::PackedU16(data) => data
                 .iter()
                 .map(|arr| arr.len() * std::mem::size_of::<u16>())
@@ -937,29 +939,29 @@ impl TryInto<Vec<u8>> for TransmissionValue {
     }
 }
 
-// `Arc<[T]>` counterpart of `transmission_scalar_type!` above, for the `Packed*`
+// `Arc<Vec<T>>` counterpart of `transmission_scalar_type!` above, for the `Packed*`
 // variants: same generated shape (`From<VecDeque<_>>`, `From<Vec<_>>`, `TryInto<VecDeque<_>>`,
 // `TryInto<Vec<_>>`), one array per queue entry instead of one scalar. `U8`/`Byte` are
 // kept hand-written below for the same reason as their scalar counterparts: `From`
 // must stay unambiguous (always produces `PackedU8`), while extraction accepts both.
 macro_rules! transmission_packed_scalar_type {
     ($variant:ident, $ty:ty) => {
-        impl From<VecDeque<Arc<[$ty]>>> for TransmissionValue {
-            fn from(value: VecDeque<Arc<[$ty]>>) -> Self {
+        impl From<VecDeque<Arc<Vec<$ty>>>> for TransmissionValue {
+            fn from(value: VecDeque<Arc<Vec<$ty>>>) -> Self {
                 TransmissionValue::$variant(value)
             }
         }
 
-        impl From<Vec<Arc<[$ty]>>> for TransmissionValue {
-            fn from(value: Vec<Arc<[$ty]>>) -> Self {
+        impl From<Vec<Arc<Vec<$ty>>>> for TransmissionValue {
+            fn from(value: Vec<Arc<Vec<$ty>>>) -> Self {
                 TransmissionValue::$variant(value.into())
             }
         }
 
-        impl TryInto<VecDeque<Arc<[$ty]>>> for TransmissionValue {
+        impl TryInto<VecDeque<Arc<Vec<$ty>>>> for TransmissionValue {
             type Error = ();
 
-            fn try_into(self) -> Result<VecDeque<Arc<[$ty]>>, Self::Error> {
+            fn try_into(self) -> Result<VecDeque<Arc<Vec<$ty>>>, Self::Error> {
                 match self {
                     TransmissionValue::$variant(data) => Ok(data),
                     TransmissionValue::Other(data) => {
@@ -978,10 +980,10 @@ macro_rules! transmission_packed_scalar_type {
             }
         }
 
-        impl TryInto<Vec<Arc<[$ty]>>> for TransmissionValue {
+        impl TryInto<Vec<Arc<Vec<$ty>>>> for TransmissionValue {
             type Error = ();
 
-            fn try_into(self) -> Result<Vec<Arc<[$ty]>>, Self::Error> {
+            fn try_into(self) -> Result<Vec<Arc<Vec<$ty>>>, Self::Error> {
                 match self {
                     TransmissionValue::$variant(data) => Ok(data.into()),
                     TransmissionValue::Other(data) => {
@@ -1016,22 +1018,22 @@ transmission_packed_scalar_type!(PackedF64, f64);
 transmission_packed_scalar_type!(PackedBool, bool);
 transmission_packed_scalar_type!(PackedChar, char);
 
-impl From<VecDeque<Arc<[u8]>>> for TransmissionValue {
-    fn from(value: VecDeque<Arc<[u8]>>) -> Self {
+impl From<VecDeque<Arc<Vec<u8>>>> for TransmissionValue {
+    fn from(value: VecDeque<Arc<Vec<u8>>>) -> Self {
         TransmissionValue::PackedU8(value)
     }
 }
 
-impl From<Vec<Arc<[u8]>>> for TransmissionValue {
-    fn from(value: Vec<Arc<[u8]>>) -> Self {
+impl From<Vec<Arc<Vec<u8>>>> for TransmissionValue {
+    fn from(value: Vec<Arc<Vec<u8>>>) -> Self {
         TransmissionValue::PackedU8(value.into())
     }
 }
 
-impl TryInto<VecDeque<Arc<[u8]>>> for TransmissionValue {
+impl TryInto<VecDeque<Arc<Vec<u8>>>> for TransmissionValue {
     type Error = ();
 
-    fn try_into(self) -> Result<VecDeque<Arc<[u8]>>, Self::Error> {
+    fn try_into(self) -> Result<VecDeque<Arc<Vec<u8>>>, Self::Error> {
         match self {
             TransmissionValue::PackedU8(data) => Ok(data),
             TransmissionValue::PackedByte(data) => Ok(data),
@@ -1051,10 +1053,10 @@ impl TryInto<VecDeque<Arc<[u8]>>> for TransmissionValue {
     }
 }
 
-impl TryInto<Vec<Arc<[u8]>>> for TransmissionValue {
+impl TryInto<Vec<Arc<Vec<u8>>>> for TransmissionValue {
     type Error = ();
 
-    fn try_into(self) -> Result<Vec<Arc<[u8]>>, Self::Error> {
+    fn try_into(self) -> Result<Vec<Arc<Vec<u8>>>, Self::Error> {
         match self {
             TransmissionValue::PackedU8(data) => Ok(data.into()),
             TransmissionValue::PackedByte(data) => Ok(data.into()),
@@ -1108,12 +1110,12 @@ mod conversion_tests {
     // sanity check on `transmission_packed_scalar_type!`.
     #[test]
     fn packed_macro_generated_type_roundtrips_preserving_tick_boundaries() {
-        let tick_one: Arc<[i64]> = Arc::from(vec![1, 2, 3]);
-        let tick_two: Arc<[i64]> = Arc::from(vec![4, 5]);
+        let tick_one: Arc<Vec<i64>> = Arc::from(vec![1, 2, 3]);
+        let tick_two: Arc<Vec<i64>> = Arc::from(vec![4, 5]);
         let batch: TransmissionValue = vec![Arc::clone(&tick_one), Arc::clone(&tick_two)].into();
         assert!(matches!(batch, TransmissionValue::PackedI64(_)));
         assert_eq!(batch.len(), 2);
-        let back: Vec<Arc<[i64]>> = batch.try_into().unwrap();
+        let back: Vec<Arc<Vec<i64>>> = batch.try_into().unwrap();
         assert_eq!(back, vec![tick_one, tick_two]);
     }
 
@@ -1121,9 +1123,8 @@ mod conversion_tests {
     // `Output`/`Input` channel would use them.
     #[test]
     fn packed_value_roundtrips_through_new_push_and_pop_front() {
-        let mut batch = TransmissionValue::new(Value::Packed(PackedArray::Byte(Arc::from(
-            vec![1u8, 2, 3],
-        ))));
+        let mut batch =
+            TransmissionValue::new(Value::Packed(PackedArray::Byte(Arc::from(vec![1u8, 2, 3]))));
         batch.push(Value::Packed(PackedArray::Byte(Arc::from(vec![4u8, 5]))));
         assert_eq!(batch.len(), 2);
         assert_eq!(
@@ -1146,8 +1147,8 @@ mod conversion_tests {
         let as_byte =
             TransmissionValue::PackedByte(VecDeque::from(vec![Arc::from(vec![4u8, 5, 6])]));
 
-        let from_u8: Vec<Arc<[u8]>> = as_u8.try_into().unwrap();
-        let from_byte: Vec<Arc<[u8]>> = as_byte.try_into().unwrap();
+        let from_u8: Vec<Arc<Vec<u8>>> = as_u8.try_into().unwrap();
+        let from_byte: Vec<Arc<Vec<u8>>> = as_byte.try_into().unwrap();
 
         assert_eq!(from_u8, vec![Arc::from(vec![1u8, 2, 3])]);
         assert_eq!(from_byte, vec![Arc::from(vec![4u8, 5, 6])]);
@@ -1155,7 +1156,7 @@ mod conversion_tests {
 
     #[test]
     fn packed_construction_always_produces_packed_u8_not_packed_byte() {
-        let batch: TransmissionValue = vec![Arc::<[u8]>::from(vec![1u8, 2, 3])].into();
+        let batch: TransmissionValue = vec![Arc::<Vec<u8>>::from(vec![1u8, 2, 3])].into();
         assert!(matches!(batch, TransmissionValue::PackedU8(_)));
     }
 

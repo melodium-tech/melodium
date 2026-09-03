@@ -68,7 +68,7 @@ pub async fn exists() {
         for path in paths {
             results.push(PathBuf::from(path).exists().await);
         }
-        check!(exists.send_many(results.into()).await);
+        check!(exists.send_many_as(results).await);
     }
 }
 
@@ -100,9 +100,9 @@ pub async fn meta() {
             }
         }
         if let (Err(_), Err(_), Err(_)) = futures::join!(
-            is_dir.send_many(are_dirs.into()),
-            is_file.send_many(are_files.into()),
-            length.send_many(lengths.into())
+            is_dir.send_many_as(are_dirs),
+            is_file.send_many_as(are_files),
+            length.send_many_as(lengths)
         ) {
             break;
         }

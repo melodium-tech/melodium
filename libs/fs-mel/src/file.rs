@@ -40,7 +40,7 @@ pub async fn read() {
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = reached.send_one(().into()).await;
+                        let _ = reached.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
@@ -50,21 +50,21 @@ pub async fn read() {
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = completed.send_one(().into()).await;
+                        let _ = completed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = failed.send_one(().into()).await;
+                        let _ = failed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = finished.send_one(().into()).await;
+                        let _ = finished.send_one_as(()).await;
                     })
                 }),
                 Box::new(|msg: String| {
-                    Box::pin(async { errors.send_one(msg.into()).await.map_err(|_| ()) })
+                    Box::pin(async { errors.send_one_as(msg).await.map_err(|_| ()) })
                 }),
             )
             .await
@@ -112,27 +112,27 @@ pub async fn write(append: bool, create: bool, new: bool) {
                 Box::new(|amt: u128| {
                     Box::pin({
                         let amount = &amount;
-                        async move { amount.send_one(amt.into()).await.map_err(|_| ()) }
+                        async move { amount.send_one_as(amt).await.map_err(|_| ()) }
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = completed.send_one(().into()).await;
+                        let _ = completed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = failed.send_one(().into()).await;
+                        let _ = failed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = finished.send_one(().into()).await;
+                        let _ = finished.send_one_as(()).await;
                     })
                 }),
                 Box::new(|msg: String| {
                     Box::pin(async {
-                        let _ = errors.send_one(msg.into()).await.map_err(|_| ());
+                        let _ = errors.send_one_as(msg).await.map_err(|_| ());
                         errors.force_send().await;
                         Ok(())
                     })

@@ -26,7 +26,7 @@ pub use future::TrackFuture;
 pub use input::{Input, InputExt};
 pub use log::{Level, Log};
 pub use model::{Model, ModelId};
-pub use output::{Output, Outputs};
+pub use output::{Output, OutputExt, Outputs};
 pub use result_status::ResultStatus;
 pub use transmission::{RecvResult, SendResult, TransmissionError, TransmissionValue};
 pub use treatment::Treatment;
