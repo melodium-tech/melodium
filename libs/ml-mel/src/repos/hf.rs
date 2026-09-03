@@ -279,13 +279,13 @@ pub async fn fetch() {
         match result {
             Ok((shard_paths, tokenizer_path)) => {
                 for path in shard_paths {
-                    check!(safetensors.send_one(Value::String(path)).await);
+                    check!(safetensors.send_one_as(path).await);
                 }
-                let _ = tokenizer.send_one(Value::String(tokenizer_path)).await;
+                let _ = tokenizer.send_one_as(tokenizer_path).await;
             }
             Err(err) => {
-                let _ = failed.send_one(().into()).await;
-                let _ = error.send_one(Value::String(err)).await;
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(err).await;
             }
         }
     }

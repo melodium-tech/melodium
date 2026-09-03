@@ -1,5 +1,5 @@
 use melodium_common::{descriptor::Version, executive::Log};
-use melodium_share::{Collection, Identifier, RawValue};
+use melodium_share::{Collection, Identifier, RawValue, TransmissionValue};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -72,7 +72,7 @@ pub enum InstanciateStatus {
 pub struct InputData {
     pub id: u64,
     pub name: String,
-    pub data: Vec<RawValue>,
+    pub data: TransmissionValue,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -85,7 +85,7 @@ pub struct CloseInput {
 pub struct OutputData {
     pub id: u64,
     pub name: String,
-    pub data: Vec<RawValue>,
+    pub data: TransmissionValue,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

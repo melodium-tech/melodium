@@ -26,7 +26,7 @@ pub async fn entry(key: string) {
 )]
 pub async fn get(key: string) {
     if let Ok(map) = map.recv_one_as::<Arc<StringMap>>().await {
-        let _ = value.send_one(map.map.get(&key).cloned().into()).await;
+        let _ = value.send_one_as(map.map.get(&key).cloned()).await;
     }
 }
 

@@ -1,5 +1,5 @@
 use futures::{pin_mut, select, FutureExt};
-use melodium_core::common::executive::{InputExt, Value};
+use melodium_core::common::executive::{InputExt, OutputExt, Value};
 use melodium_macro::{check, mel_treatment};
 use std::collections::VecDeque;
 
@@ -77,7 +77,7 @@ pub async fn trigger() {
     let mut last_value = None;
 
     if let Ok(mut values) = stream.recv_many().await {
-        let _ = start.send_one(().into()).await;
+        let _ = start.send_one_as(()).await;
         if let Some(val) = values.pop_front() {
             let _ = first.send_one(val.clone()).await;
             last_value = Some(val);
@@ -93,7 +93,7 @@ pub async fn trigger() {
         last_value = Into::<VecDeque<Value>>::into(values).pop_back();
     }
 
-    let _ = end.send_one(().into()).await;
+    let _ = end.send_one_as(()).await;
     if let Some(val) = last_value {
         let _ = last.send_one(val).await;
     }
@@ -124,7 +124,7 @@ pub async fn trigger() {
 )]
 pub async fn check() {
     if let Ok(_) = value.recv_one().await {
-        let _ = check.send_one(().into()).await;
+        let _ = check.send_one_as(()).await;
     }
 }
 
@@ -149,7 +149,7 @@ pub async fn check() {
 )]
 pub async fn uncheck() {
     if let Err(_) = value.recv_one().await {
-        let _ = uncheck.send_one(().into()).await;
+        let _ = uncheck.send_one_as(()).await;
     }
 }
 
@@ -480,11 +480,7 @@ pub async fn count() {
     let mut i: u128 = 0;
     while let Ok(iter) = stream.recv_many().await {
         let next_i = i + iter.len() as u128;
-        check!(
-            count
-                .send_many((i..next_i).collect::<VecDeque<_>>().into())
-                .await
-        );
+        check!(count.send_many_as((i..next_i).collect::<Vec<_>>()).await);
         i = next_i;
     }
 }
@@ -878,6 +874,6 @@ pub async fn waitBlock() {
     });
 
     if a && b {
-        let _ = awaited.send_one(().into()).await;
+        let _ = awaited.send_one_as(()).await;
     }
 }

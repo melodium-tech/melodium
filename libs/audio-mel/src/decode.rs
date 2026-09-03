@@ -271,8 +271,7 @@ pub async fn decode_mono(hint: Option<string>) {
         // Future C: forward decoded mono chunks to the Mélodium signal output.
         let forward_fut = async {
             while let Ok(mono) = mono_receiver.recv().await {
-                let batch: VecDeque<f32> = mono.into_iter().collect();
-                if signal.send_many(batch.into()).await.is_err() {
+                if signal.send_many_as(mono).await.is_err() {
                     break;
                 }
             }
@@ -288,9 +287,9 @@ pub async fn decode_mono(hint: Option<string>) {
         // Future E: forward error messages; trigger `failed` on the first fatal one.
         let error_fut = async {
             while let Ok((fatal, msg)) = err_receiver.recv().await {
-                let _ = errors.send_one(msg.into()).await;
+                let _ = errors.send_one_as(msg).await;
                 if fatal {
-                    let _ = failed.send_one(().into()).await;
+                    let _ = failed.send_one_as(()).await;
                     break;
                 }
             }
@@ -305,12 +304,8 @@ pub async fn decode_mono(hint: Option<string>) {
     {
         while data.recv_many().await.is_ok() {}
         let _ = errors
-            .send_one(
-                "audio decoding is not available in this build"
-                    .to_string()
-                    .into(),
-            )
+            .send_one_as("audio decoding is not available in this build".to_string())
             .await;
-        let _ = failed.send_one(().into()).await;
+        let _ = failed.send_one_as(()).await;
     }
 }

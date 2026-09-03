@@ -25,11 +25,11 @@ use futures_rustls::client::TlsStream;
 use melodium_core::*;
 #[cfg(feature = "real")]
 use melodium_distribution::{
-    chunk_raw_values, max_batch_chunk_bytes, AskDistribution, CloseInput, CloseOutput, InputData,
-    Instanciate, InstanciateStatus, LoadAndLaunch, Message, Protocol,
+    max_batch_chunk_bytes, AskDistribution, CloseInput, CloseOutput, InputData, Instanciate,
+    InstanciateStatus, LoadAndLaunch, Message, Protocol,
 };
 use melodium_macro::{mel_model, mel_package, mel_treatment};
-use melodium_share::{Collection, RawValue};
+use melodium_share::{Collection, TransmissionValue as WireTransmissionValue};
 use std::{
     collections::HashMap,
     sync::{Arc, Weak},
@@ -52,10 +52,10 @@ struct Track {
     pub instancied: AtomicBool,
     pub instanciation_barrier: AsyncArc<AsyncBarrier>,
     pub instanciation_barrier_validated: AsyncArc<AtomicBool>,
-    pub inputs_senders: HashMap<String, Sender<Vec<RawValue>>>,
-    pub inputs_receivers: HashMap<String, Receiver<Vec<RawValue>>>,
-    pub outputs_senders: HashMap<String, Sender<Vec<RawValue>>>,
-    pub outputs_receivers: HashMap<String, Receiver<Vec<RawValue>>>,
+    pub inputs_senders: HashMap<String, Sender<WireTransmissionValue>>,
+    pub inputs_receivers: HashMap<String, Receiver<WireTransmissionValue>>,
+    pub outputs_senders: HashMap<String, Sender<WireTransmissionValue>>,
+    pub outputs_receivers: HashMap<String, Receiver<WireTransmissionValue>>,
     pub io_barrier: AsyncBarrier,
 }
 
@@ -443,7 +443,7 @@ impl DistributionEngine {
         &self,
         distribution_id: &u64,
         name: &String,
-    ) -> Option<Sender<Vec<RawValue>>> {
+    ) -> Option<Sender<WireTransmissionValue>> {
         let track = self.tracks.read().await.get(&distribution_id).cloned();
         if let Some(track) = track {
             track.read().await.io_barrier.wait().await;
@@ -457,7 +457,7 @@ impl DistributionEngine {
         &self,
         distribution_id: &u64,
         name: &String,
-    ) -> Option<Receiver<Vec<RawValue>>> {
+    ) -> Option<Receiver<WireTransmissionValue>> {
         let track = self.tracks.read().await.get(&distribution_id).cloned();
         if let Some(track) = track {
             track.read().await.io_barrier.wait().await;
@@ -478,7 +478,7 @@ impl DistributionEngine {
                     // see `Message::InputData` handling in listen.rs) needs no reassembly
                     // logic at all — N smaller messages are transparently equivalent to
                     // this sender having flushed N smaller batches instead of one big one.
-                    for chunk in chunk_raw_values(data.into(), max_batch_chunk_bytes()) {
+                    for chunk in data.chunked(max_batch_chunk_bytes()) {
                         if let Some(protocol) = self.protocol.read().await.as_ref() {
                             if let Err(_) = protocol
                                 .send_message(Message::InputData(InputData {
@@ -759,11 +759,11 @@ pub async fn start(params: Map) {
     if let Ok(access) = access.recv_one_as::<Arc<Access>>().await {
         match distributor.start(&access.0, params).await {
             Ok(_) => {
-                let _ = ready.send_one(().into()).await;
+                let _ = ready.send_one_as(()).await;
             }
             Err(err) => {
-                let _ = failed.send_one(().into()).await;
-                let _ = error.send_one(err.into()).await;
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(err).await;
                 distributor.fuse().await;
             }
         }
@@ -772,8 +772,8 @@ pub async fn start(params: Map) {
     }
     #[cfg(feature = "mock")]
     {
-        let _ = failed.send_one(().into()).await;
-        let _ = error.send_one("Mock mode".to_string().into()).await;
+        let _ = failed.send_one_as(()).await;
+        let _ = error.send_one_as("Mock mode".to_string()).await;
     }
 }
 
@@ -822,25 +822,21 @@ pub async fn distribute() {
                 barrier.wait().await;
                 validation.store(true, Ordering::Relaxed);
                 if distributor.is_ok(&id).await {
-                    let _ = distribution_id.send_one(id.into()).await;
+                    let _ = distribution_id.send_one_as(id).await;
                 } else {
-                    let _ = failed.send_one(().into()).await;
-                    let _ = error
-                        .send_one("Instanciation failed".to_string().into())
-                        .await;
+                    let _ = failed.send_one_as(()).await;
+                    let _ = error.send_one_as("Instanciation failed".to_string()).await;
                 }
             }
         } else {
-            let _ = failed.send_one(().into()).await;
-            let _ = error
-                .send_one("Distribution failed".to_string().into())
-                .await;
+            let _ = failed.send_one_as(()).await;
+            let _ = error.send_one_as("Distribution failed".to_string()).await;
         }
     }
     #[cfg(feature = "mock")]
     {
-        let _ = failed.send_one(().into()).await;
-        let _ = error.send_one("Mock mode".to_string().into()).await;
+        let _ = failed.send_one_as(()).await;
+        let _ = error.send_one_as("Mock mode".to_string()).await;
     }
 }
 
@@ -871,25 +867,28 @@ pub async fn recv_stream(name: string) {
 
         if let Some(receiver) = distributor.get_output(&distribution_id, &name).await {
             while let Ok(recv_data) = receiver.recv().await {
-                let recv_data: Vec<_> = recv_data
-                    .into_iter()
-                    .map(|v| v.to_value(&collection))
-                    .collect();
-                if recv_data
-                    .iter()
-                    .any(|d| d.as_ref().map(|v| v.datatype() != datatype).unwrap_or(true))
-                {
+                // Converts the whole batch at once, preserving whatever packed shape it
+                // arrived in — unlike the old per-`RawValue` conversion this replaced,
+                // which always boxed every tick into `Value` individually before the
+                // datatype check even ran.
+                let Some(recv_data) = recv_data.to_transmission_value(&collection) else {
+                    receiver.close();
+                    break;
+                };
+
+                // The datatype check still needs one `Value` per tick (a batch's ticks
+                // could, in principle, come from a misbehaving/mismatched-version peer
+                // even though they're always homogeneous from a well-behaved one) - but
+                // `Into<Vec<Value>>` only ever boxes one `Value` per tick, packed arrays
+                // included (see `TransmissionValue::Into<Vec<Value>>`), so this stays
+                // cheap regardless of how large each individual array is.
+                let values: Vec<Value> = recv_data.clone().into();
+                if values.iter().any(|v| v.datatype() != datatype) {
                     receiver.close();
                     break;
                 }
 
-                let recv_data = recv_data.into_iter().map(|v| v.unwrap()).collect();
-
-                if data
-                    .send_many(TransmissionValue::Other(recv_data))
-                    .await
-                    .is_err()
-                {
+                if data.send_many(recv_data).await.is_err() {
                     receiver.close();
                 }
             }
@@ -919,10 +918,12 @@ pub async fn recv_block(name: string) {
 
         if let Some(receiver) = distributor.get_output(&distribution_id, &name).await {
             while let Ok(recv_data) = receiver.recv().await {
-                if let Some(value) = recv_data.first() {
-                    if let Some(value) = value.to_value(&collection) {
-                        if value.datatype() == datatype {
-                            let _ = data.send_one(value).await;
+                if !recv_data.is_empty() {
+                    if let Some(mut recv_data) = recv_data.to_transmission_value(&collection) {
+                        if let Some(value) = recv_data.pop_front() {
+                            if value.datatype() == datatype {
+                                let _ = data.send_one(value).await;
+                            }
                         }
                     }
                     receiver.close();
@@ -952,16 +953,12 @@ pub async fn send_stream(name: string) {
 
         if let Some(sender) = distributor.get_input(&distribution_id, &name).await {
             let mut voluntary_close = true;
-            while let Ok(data) = data
-                .recv_many()
-                .await
-                .map(|values| TryInto::<Vec<Value>>::try_into(values).unwrap())
-            {
-                if sender
-                    .send(data.into_iter().map(|v| v.into()).collect())
-                    .await
-                    .is_err()
-                {
+            // Converts the already-packed local batch directly into the wire batch
+            // type, preserving whatever shape `recv_many` produced instead of exploding
+            // it into one `Value`/`RawValue` per tick first.
+            while let Ok(data) = data.recv_many().await {
+                let data: WireTransmissionValue = data.into();
+                if sender.send(data).await.is_err() {
                     voluntary_close = false;
                     break;
                 }
@@ -1002,7 +999,8 @@ pub async fn send_block(name: string) {
         if let Some(sender) = distributor.get_input(&distribution_id, &name).await {
             let mut voluntary_close = true;
             if let Ok(data) = data.recv_one().await {
-                if sender.send(vec![data.into()]).await.is_err() {
+                let data: WireTransmissionValue = TransmissionValue::new(data).into();
+                if sender.send(data).await.is_err() {
                     voluntary_close = false;
                 } else {
                     if distributor
