@@ -37,12 +37,12 @@ pub async fn rescale(delimiter: string) {
             if previous.ends_with(&delimiter) {
                 let sendable = previous;
                 previous = String::new();
-                check!('main, scaled.send_one(sendable.into()).await);
+                check!('main, scaled.send_one_as(sendable).await);
             }
         }
     }
     if !previous.is_empty() {
-        let _ = scaled.send_one(previous.into()).await;
+        let _ = scaled.send_one_as(previous).await;
     }
 }
 
@@ -119,7 +119,7 @@ pub async fn trim() {
     while let Ok(mut text) = text.recv_many_as::<string>().await {
         text.iter_mut().for_each(|t| *t = t.trim().to_string());
 
-        check!(trimmed.send_many(text.into()).await);
+        check!(trimmed.send_many_as(text).await);
     }
 }
 
@@ -144,7 +144,7 @@ pub async fn trim_end() {
     while let Ok(mut text) = text.recv_many_as::<string>().await {
         text.iter_mut().for_each(|t| *t = t.trim_end().to_string());
 
-        check!(trimmed.send_many(text.into()).await);
+        check!(trimmed.send_many_as(text).await);
     }
 }
 
@@ -170,7 +170,7 @@ pub async fn trim_start() {
         text.iter_mut()
             .for_each(|t| *t = t.trim_start().to_string());
 
-        check!(trimmed.send_many(text.into()).await);
+        check!(trimmed.send_many_as(text).await);
     }
 }
 
@@ -220,13 +220,9 @@ pub async fn format(format: string) {
         let formatted_str = maps
             .into_iter()
             .map(|map| strfmt::strfmt(&format, &map.map).unwrap_or_default())
-            .collect::<VecDeque<_>>();
+            .collect::<Vec<_>>();
 
-        check!(
-            formatted
-                .send_many(TransmissionValue::String(formatted_str))
-                .await
-        );
+        check!(formatted.send_many_as(formatted_str).await);
     }
 }
 

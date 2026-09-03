@@ -91,13 +91,13 @@ pub async fn from_ipv4() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            ip.send_many(TransmissionValue::Other(
+            ip.send_many_as(
                 ips.into_iter()
-                    .map(|ip| Value::Data(Arc::new(Ip(std::net::IpAddr::V4(
+                    .map(|ip| Arc::new(Ip(std::net::IpAddr::V4(
                         ip.try_data::<Arc<Ipv4>>().unwrap().0
-                    )))))
-                    .collect()
-            ))
+                    ))))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -125,13 +125,13 @@ pub async fn from_ipv6() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            ip.send_many(TransmissionValue::Other(
+            ip.send_many_as(
                 ips.into_iter()
-                    .map(|ip| Value::Data(Arc::new(Ip(std::net::IpAddr::V6(
+                    .map(|ip| Arc::new(Ip(std::net::IpAddr::V6(
                         ip.try_data::<Arc<Ipv6>>().unwrap().0
-                    )))))
-                    .collect()
-            ))
+                    ))))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -271,11 +271,11 @@ pub async fn is_ipv4() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            ipv4.send_many(TransmissionValue::Bool(
+            ipv4.send_many_as(
                 ips.into_iter()
                     .map(|ip| ip.try_data::<Arc<Ip>>().unwrap().0.is_ipv4())
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -303,11 +303,11 @@ pub async fn is_ipv6() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            ipv6.send_many(TransmissionValue::Bool(
+            ipv6.send_many_as(
                 ips.into_iter()
                     .map(|ip| ip.try_data::<Arc<Ip>>().unwrap().0.is_ipv6())
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }

@@ -255,24 +255,24 @@ impl HttpServer {
 
                                     vec![Box::new(Box::pin(async move {
                                         if let Some(occured_failure) = occured_failure {
-                                            let _ = failed.send_one(().into()).await;
-                                            let _ = error.send_one(occured_failure.into()).await;
+                                            let _ = failed.send_one_as(()).await;
+                                            let _ = error.send_one_as(occured_failure).await;
                                         } else {
-                                            let _ = started.send_one(().into()).await;
+                                            let _ = started.send_one_as(()).await;
                                             started.close().await;
                                             let _ = headers
-                                                .send_one(Value::Data(
-                                                    Arc::new(StringMap::new_with(incoming_headers))
-                                                        as Arc<dyn Data>,
+                                                .send_one_as(Arc::new(StringMap::new_with(
+                                                    incoming_headers,
                                                 ))
+                                                    as Arc<dyn Data>)
                                                 .await;
                                             headers.close().await;
                                             let _ = data
                                                 .send_many(TransmissionValue::Byte(content.into()))
                                                 .await;
-                                            let _ = completed.send_one(().into()).await;
+                                            let _ = completed.send_one_as(()).await;
                                         }
-                                        let _ = finished.send_one(().into()).await;
+                                        let _ = finished.send_one_as(()).await;
 
                                         headers.close().await;
                                         data.close().await;
@@ -342,8 +342,8 @@ impl HttpServer {
                             let error = outputs.get("error");
                             let failed = outputs.get("failed");
                             vec![Box::new(Box::pin(async move {
-                                let _ = failed.send_one(().into()).await;
-                                let _ = error.send_one(err.to_string().into()).await;
+                                let _ = failed.send_one_as(()).await;
+                                let _ = error.send_one_as(err.to_string()).await;
                                 failed.close().await;
                                 error.close().await;
                                 ResultStatus::Ok

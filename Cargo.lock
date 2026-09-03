@@ -4790,6 +4790,7 @@ dependencies = [
  "melodium-common",
  "melodium-engine",
  "serde",
+ "serde_bytes",
  "tsify",
  "uuid",
  "wasm-bindgen",

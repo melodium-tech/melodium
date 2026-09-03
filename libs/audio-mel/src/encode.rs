@@ -89,12 +89,11 @@ pub async fn encode_mono_wav(sample_rate: u32) {
             if let Ok(result) = result_receiver.recv().await {
                 match result {
                     Ok(bytes) => {
-                        let batch: VecDeque<u8> = bytes.into_iter().collect();
-                        let _ = data.send_many(batch.into()).await;
+                        let _ = data.send_many_as(bytes).await;
                     }
                     Err(msg) => {
-                        let _ = errors.send_one(msg.into()).await;
-                        let _ = failed.send_one(().into()).await;
+                        let _ = errors.send_one_as(msg).await;
+                        let _ = failed.send_one_as(()).await;
                     }
                 }
             }
@@ -106,13 +105,9 @@ pub async fn encode_mono_wav(sample_rate: u32) {
     {
         while signal.recv_many().await.is_ok() {}
         let _ = errors
-            .send_one(
-                "WAV encoding is not available in this build"
-                    .to_string()
-                    .into(),
-            )
+            .send_one_as("WAV encoding is not available in this build".to_string())
             .await;
-        let _ = failed.send_one(().into()).await;
+        let _ = failed.send_one_as(()).await;
     }
 }
 
@@ -203,12 +198,11 @@ pub async fn encode_mono_flac(sample_rate: u32) {
             if let Ok(result) = result_receiver.recv().await {
                 match result {
                     Ok(bytes) => {
-                        let batch: VecDeque<u8> = bytes.into_iter().collect();
-                        let _ = data.send_many(batch.into()).await;
+                        let _ = data.send_many_as(bytes).await;
                     }
                     Err(msg) => {
-                        let _ = errors.send_one(msg.into()).await;
-                        let _ = failed.send_one(().into()).await;
+                        let _ = errors.send_one_as(msg).await;
+                        let _ = failed.send_one_as(()).await;
                     }
                 }
             }
@@ -220,12 +214,8 @@ pub async fn encode_mono_flac(sample_rate: u32) {
     {
         while signal.recv_many().await.is_ok() {}
         let _ = errors
-            .send_one(
-                "FLAC encoding is not available in this build"
-                    .to_string()
-                    .into(),
-            )
+            .send_one_as("FLAC encoding is not available in this build".to_string())
             .await;
-        let _ = failed.send_one(().into()).await;
+        let _ = failed.send_one_as(()).await;
     }
 }

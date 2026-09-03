@@ -72,15 +72,12 @@ pub async fn map_environment(
 ) {
     if let Ok(variables) = variables.recv_one_as::<std::sync::Arc<StringMap>>().await {
         let _ = environment
-            .send_one(
-                (std::sync::Arc::new(Environment {
-                    working_directory,
-                    variables: (*variables).clone(),
-                    expand_variables,
-                    clear_env,
-                }) as std::sync::Arc<dyn Data>)
-                    .into(),
-            )
+            .send_one_as(std::sync::Arc::new(Environment {
+                working_directory,
+                variables: (*variables).clone(),
+                expand_variables,
+                clear_env,
+            }) as std::sync::Arc<dyn Data>)
             .await;
     }
 }
@@ -113,15 +110,12 @@ pub async fn map_full_environment(clear_env: bool, expand_variables: bool) {
         variables.recv_one_as::<std::sync::Arc<StringMap>>().await,
     ) {
         let _ = environment
-            .send_one(
-                (std::sync::Arc::new(Environment {
-                    working_directory,
-                    variables: (*variables).clone(),
-                    expand_variables,
-                    clear_env,
-                }) as std::sync::Arc<dyn Data>)
-                    .into(),
-            )
+            .send_one_as(std::sync::Arc::new(Environment {
+                working_directory,
+                variables: (*variables).clone(),
+                expand_variables,
+                clear_env,
+            }) as std::sync::Arc<dyn Data>)
             .await;
     }
 }

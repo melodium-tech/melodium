@@ -102,9 +102,7 @@ pub async fn github_map_eval(assume: bool, local_context: Json) {
         let updated_map = map_eval(&map.map, &local_context.0, &engine, assume);
 
         let _ = evaluated
-            .send_one(Value::Data(
-                Arc::new(StringMap { map: updated_map }) as Arc<dyn Data>
-            ))
+            .send_one_as(Arc::new(StringMap { map: updated_map }) as Arc<dyn Data>)
             .await;
     }
 }
@@ -152,7 +150,7 @@ pub async fn github_string_eval(assume: bool, local_context: Json) {
             regex.replace_all(&value, &var_replacer).to_string()
         };
 
-        let _ = evaluated.send_one(result.into()).await;
+        let _ = evaluated.send_one_as(result).await;
     }
 }
 
@@ -428,10 +426,10 @@ pub async fn github_job_result(name: string, outputs: StringMap, local_context: 
     {
         match job_result[&name]["result"].as_str() {
             Some("success") => {
-                let _ = success.send_one(().into()).await;
+                let _ = success.send_one_as(()).await;
             }
             Some("failure") => {
-                let _ = failure.send_one(().into()).await;
+                let _ = failure.send_one_as(()).await;
             }
             _ => {}
         }
@@ -440,7 +438,7 @@ pub async fn github_job_result(name: string, outputs: StringMap, local_context: 
             .send_one(Value::Data(Arc::new(Json(job_result))))
             .await;
     }
-    let _ = finished.send_one(().into()).await;
+    let _ = finished.send_one_as(()).await;
 }
 
 /// Record step outputs and advance the GitHub Actions step state machine.
@@ -571,13 +569,13 @@ pub async fn github_set_outputs() {
             .await;
 
         if completed {
-            let _ = step_completed.send_one(().into()).await;
+            let _ = step_completed.send_one_as(()).await;
         }
         if failed {
-            let _ = step_failed.send_one(().into()).await;
+            let _ = step_failed.send_one_as(()).await;
         }
         if continue_after {
-            let _ = step_continue.send_one(().into()).await;
+            let _ = step_continue.send_one_as(()).await;
         }
     }
 }
@@ -601,7 +599,7 @@ pub async fn github_set_outputs() {
 )]
 pub async fn github_get_env_files() {
     if let Ok(workflow_id) = workflow_id.recv_one_as::<String>().await {
-        let _ = filename.send_one(env_file(&workflow_id).into()).await;
+        let _ = filename.send_one_as(env_file(&workflow_id)).await;
     }
 }
 
