@@ -112,27 +112,9 @@ pub struct Executor {
 )]
 pub async fn exec_one_terminable() {
     if let (Ok(executor), Ok(command), Ok(environment)) = (
-        executor.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Executor>()
-                .unwrap()
-        }),
-        command.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Command>()
-                .unwrap()
-        }),
-        environment.recv_one().await.map(|val| match val {
-            Value::Option(val) => val.map(|val| {
-                GetData::<Arc<dyn Data>>::try_data(*val)
-                    .unwrap()
-                    .downcast_arc::<Environment>()
-                    .unwrap()
-            }),
-            _ => unreachable!(),
-        }),
+        executor.recv_one_as::<Arc<Executor>>().await,
+        command.recv_one_as::<Arc<Command>>().await,
+        environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
         let mut send_terminated = false;
         executor
@@ -219,31 +201,13 @@ pub async fn exec_one_terminable() {
 )]
 pub async fn exec_terminable() {
     if let (Ok(executor), Ok(environment)) = (
-        executor.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Executor>()
-                .unwrap()
-        }),
-        environment.recv_one().await.map(|val| match val {
-            Value::Option(val) => val.map(|val| {
-                GetData::<Arc<dyn Data>>::try_data(*val)
-                    .unwrap()
-                    .downcast_arc::<Environment>()
-                    .unwrap()
-            }),
-            _ => unreachable!(),
-        }),
+        executor.recv_one_as::<Arc<Executor>>().await,
+        environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
         let mut first = true;
         let mut success = true;
         let mut send_terminated = false;
-        while let Ok(command) = commands.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Command>()
-                .unwrap()
-        }) {
+        while let Ok(command) = commands.recv_one_as::<Arc<Command>>().await {
             executor
                 .executor
                 .exec(
@@ -338,27 +302,9 @@ pub async fn exec_terminable() {
 )]
 pub async fn spawn_one_terminable() {
     if let (Ok(executor), Ok(command), Ok(environment)) = (
-        executor.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Executor>()
-                .unwrap()
-        }),
-        command.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Command>()
-                .unwrap()
-        }),
-        environment.recv_one().await.map(|val| match val {
-            Value::Option(val) => val.map(|val| {
-                GetData::<Arc<dyn Data>>::try_data(*val)
-                    .unwrap()
-                    .downcast_arc::<Environment>()
-                    .unwrap()
-            }),
-            _ => unreachable!(),
-        }),
+        executor.recv_one_as::<Arc<Executor>>().await,
+        command.recv_one_as::<Arc<Command>>().await,
+        environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
         let mut send_terminated = false;
         executor
@@ -410,15 +356,7 @@ pub async fn spawn_one_terminable() {
                         }
                     })
                 }),
-                Box::new(|| {
-                    Box::pin(async {
-                        stdin
-                            .recv_many()
-                            .await
-                            .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
-                            .map_err(|_| ())
-                    })
-                }),
+                Box::new(|| Box::pin(async { stdin.recv_many_as::<u8>().await.map_err(|_| ()) })),
                 Box::new(|| {
                     Box::pin(async {
                         stdin.close();
@@ -490,21 +428,8 @@ pub async fn spawn_one_terminable() {
 )]
 pub async fn spawn_terminable() {
     if let (Ok(executor), Ok(environment)) = (
-        executor.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Executor>()
-                .unwrap()
-        }),
-        environment.recv_one().await.map(|val| match val {
-            Value::Option(val) => val.map(|val| {
-                GetData::<Arc<dyn Data>>::try_data(*val)
-                    .unwrap()
-                    .downcast_arc::<Environment>()
-                    .unwrap()
-            }),
-            _ => unreachable!(),
-        }),
+        executor.recv_one_as::<Arc<Executor>>().await,
+        environment.recv_one_as::<Option<Arc<Environment>>>().await,
     ) {
         let mut first = true;
         let mut success = true;
@@ -517,12 +442,7 @@ pub async fn spawn_terminable() {
         // never cloned) and can waste significant time - so stop here rather than
         // running the rest of the list regardless.
         let mut nonzero_exit = false;
-        while let Ok(command) = commands.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<Command>()
-                .unwrap()
-        }) {
+        while let Ok(command) = commands.recv_one_as::<Arc<Command>>().await {
             executor
                 .executor
                 .spawn_out(

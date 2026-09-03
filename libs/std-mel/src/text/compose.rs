@@ -1,6 +1,7 @@
 use crate::data::string_map::*;
 use melodium_core::*;
 use melodium_macro::{check, mel_function, mel_treatment};
+use std::sync::Arc;
 
 /// Rescale stream of strings.
 ///
@@ -29,11 +30,7 @@ use melodium_macro::{check, mel_function, mel_treatment};
 )]
 pub async fn rescale(delimiter: string) {
     let mut previous = String::new();
-    'main: while let Ok(input) = unscaled
-        .recv_one()
-        .await
-        .map(|val| GetData::<string>::try_data(val).unwrap())
-    {
+    'main: while let Ok(input) = unscaled.recv_one_as::<string>().await {
         let splits: Vec<&str> = input.split_inclusive(&delimiter).collect();
         for split in splits {
             previous.push_str(split);
@@ -70,11 +67,7 @@ pub async fn rescale(delimiter: string) {
     output splitted Stream<Vec<string>>
 )]
 pub async fn split(delimiter: string, inclusive: bool) {
-    while let Ok(input) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(input) = text.recv_many_as::<string>().await {
         let mut output = VecDeque::with_capacity(input.len());
 
         if inclusive {
@@ -123,11 +116,7 @@ pub fn split(text: string, delimiter: string, inclusive: bool) -> Vec<string> {
     output trimmed Stream<string>
 )]
 pub async fn trim() {
-    while let Ok(mut text) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(mut text) = text.recv_many_as::<string>().await {
         text.iter_mut().for_each(|t| *t = t.trim().to_string());
 
         check!(trimmed.send_many(text.into()).await);
@@ -152,11 +141,7 @@ pub fn trim(text: string) -> string {
     output trimmed Stream<string>
 )]
 pub async fn trim_end() {
-    while let Ok(mut text) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(mut text) = text.recv_many_as::<string>().await {
         text.iter_mut().for_each(|t| *t = t.trim_end().to_string());
 
         check!(trimmed.send_many(text.into()).await);
@@ -181,11 +166,7 @@ pub fn trim_end(text: string) -> string {
     output trimmed Stream<string>
 )]
 pub async fn trim_start() {
-    while let Ok(mut text) = text
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<string>>::try_into(values).unwrap())
-    {
+    while let Ok(mut text) = text.recv_many_as::<string>().await {
         text.iter_mut()
             .for_each(|t| *t = t.trim_start().to_string());
 
@@ -235,19 +216,9 @@ pub fn checked_format(format: string, entries: StringMap) -> Option<string> {
     output formatted Stream<string>
 )]
 pub async fn format(format: string) {
-    while let Ok(maps) = entries
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<Value>>::try_into(values).unwrap())
-    {
+    while let Ok(maps) = entries.recv_many_as::<Arc<StringMap>>().await {
         let formatted_str = maps
             .into_iter()
-            .map(|map| {
-                GetData::<std::sync::Arc<dyn Data>>::try_data(map)
-                    .unwrap()
-                    .downcast_arc::<StringMap>()
-                    .unwrap()
-            })
             .map(|map| strfmt::strfmt(&format, &map.map).unwrap_or_default())
             .collect::<VecDeque<_>>();
 
@@ -270,19 +241,9 @@ pub async fn format(format: string) {
     output formatted Stream<Option<string>>
 )]
 pub async fn checked_format(format: string) {
-    while let Ok(maps) = entries
-        .recv_many()
-        .await
-        .map(|values| TryInto::<Vec<Value>>::try_into(values).unwrap())
-    {
+    while let Ok(maps) = entries.recv_many_as::<Arc<StringMap>>().await {
         let formatted_str = maps
             .into_iter()
-            .map(|map| {
-                GetData::<std::sync::Arc<dyn Data>>::try_data(map)
-                    .unwrap()
-                    .downcast_arc::<StringMap>()
-                    .unwrap()
-            })
             .map(|map| {
                 Value::Option(
                     strfmt::strfmt(&format, &map.map)

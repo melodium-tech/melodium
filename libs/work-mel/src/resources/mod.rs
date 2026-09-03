@@ -36,11 +36,7 @@ use std_mel::data::string_map::*;
 )]
 pub async fn getExecutor() {
     #[cfg(feature = "real")]
-    if let Ok(name) = name
-        .recv_one()
-        .await
-        .map(|val| GetData::<Option<String>>::try_data(val).unwrap())
-    {
+    if let Ok(name) = name.recv_one_as::<Option<String>>().await {
         if let Some(name) = name {
             match std::env::var("MELODIUM_RUN_EXECUTOR").as_deref() {
                 Ok("podman") | Ok("docker") => {
@@ -137,11 +133,7 @@ pub async fn getExecutor() {
 )]
 pub async fn getFileSystem() {
     #[cfg(feature = "real")]
-    if let Ok(name) = name
-        .recv_one()
-        .await
-        .map(|val| GetData::<String>::try_data(val).unwrap())
-    {
+    if let Ok(name) = name.recv_one_as::<String>().await {
         match std::env::var("MELODIUM_RUN_EXECUTOR").as_deref() {
             Ok("podman") | Ok("docker") => {
                 match crate::container::ContainerFileSystem::try_new(name).await {

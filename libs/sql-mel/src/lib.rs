@@ -417,12 +417,7 @@ pub async fn execute_raw(sql: string) {
     model sql_pool SqlPool
 )]
 pub async fn execute(sql: string, bindings: Vec<string>, bind_symbol: string) {
-    if let Ok(bind) = bind.recv_one().await.map(|val| {
-        GetData::<Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<Map>()
-            .unwrap()
-    }) {
+    if let Ok(bind) = bind.recv_one_as::<Arc<Map>>().await {
         match SqlPoolModel::into(sql_pool).inner().pool().await {
             Ok(pool) => {
                 let sql = match pool.connect_options().database_url.scheme() {
@@ -503,12 +498,7 @@ pub async fn execute_each(
     match SqlPoolModel::into(sql_pool).inner().pool().await {
         Ok(pool) => {
             let mut success = true;
-            while let Ok(bind) = bind.recv_one().await.map(|val| {
-                GetData::<Arc<dyn Data>>::try_data(val)
-                    .unwrap()
-                    .downcast_arc::<Map>()
-                    .unwrap()
-            }) {
+            while let Ok(bind) = bind.recv_one_as::<Arc<Map>>().await {
                 let sql = match pool.connect_options().database_url.scheme() {
                     "postgres" => postgres_bind_replace(sql.clone(), &bind_symbol),
                     _ => sql.clone(),
@@ -612,12 +602,7 @@ pub async fn execute_batch(
 
                 let mut full_batch = Vec::with_capacity(batch_max as usize);
                 for _ in 0..batch_max {
-                    if let Ok(bind) = bind.recv_one().await.map(|val| {
-                        GetData::<Arc<dyn Data>>::try_data(val)
-                            .unwrap()
-                            .downcast_arc::<Map>()
-                            .unwrap()
-                    }) {
+                    if let Ok(bind) = bind.recv_one_as::<Arc<Map>>().await {
                         full_batch.push(bind);
                     } else {
                         break;
@@ -712,12 +697,7 @@ pub async fn execute_batch(
     model sql_pool SqlPool
 )]
 pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
-    if let Ok(bind) = bind.recv_one().await.map(|val| {
-        GetData::<Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<Map>()
-            .unwrap()
-    }) {
+    if let Ok(bind) = bind.recv_one_as::<Arc<Map>>().await {
         match SqlPoolModel::into(sql_pool).inner().pool().await {
             Ok(pool) => {
                 let sql = match pool.connect_options().database_url.scheme() {
@@ -822,12 +802,7 @@ pub async fn fetch_batch(
 
                 let mut full_batch = Vec::with_capacity(batch_max as usize);
                 for _ in 0..batch_max {
-                    if let Ok(bind) = bind.recv_one().await.map(|val| {
-                        GetData::<Arc<dyn Data>>::try_data(val)
-                            .unwrap()
-                            .downcast_arc::<Map>()
-                            .unwrap()
-                    }) {
+                    if let Ok(bind) = bind.recv_one_as::<Arc<Map>>().await {
                         full_batch.push(bind);
                     } else {
                         break;

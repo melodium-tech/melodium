@@ -1,12 +1,17 @@
-use super::{GetData, Value};
+use super::{Data, Value};
 use std::collections::VecDeque;
 use std::convert::TryInto;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum TransmissionError {
     NoReceiver,
     EverythingClosed,
     NoData,
+    /// A received value's runtime type didn't match the type it was cast to (see
+    /// `InputExt::recv_one_as`/`recv_many_as`). Replaces what used to be an `.unwrap()`
+    /// panic at call sites doing this cast by hand.
+    TypeMismatch,
 }
 
 pub type SendResult = Result<(), TransmissionError>;
@@ -250,6 +255,33 @@ impl TransmissionValue {
         }
     }
 
+    /// Rough memory footprint of the whole batch, in bytes. See `Value::estimated_size`
+    /// for why this is an estimate rather than an exact figure. The optimized variants
+    /// (fixed-size scalars, packed `Byte`) are O(1); `String` and `Other` are O(n) since
+    /// their elements don't have a uniform size.
+    pub fn estimated_size(&self) -> usize {
+        match self {
+            TransmissionValue::Void(data) => data.len() * std::mem::size_of::<()>(),
+            TransmissionValue::I8(data) => data.len() * std::mem::size_of::<i8>(),
+            TransmissionValue::I16(data) => data.len() * std::mem::size_of::<i16>(),
+            TransmissionValue::I32(data) => data.len() * std::mem::size_of::<i32>(),
+            TransmissionValue::I64(data) => data.len() * std::mem::size_of::<i64>(),
+            TransmissionValue::I128(data) => data.len() * std::mem::size_of::<i128>(),
+            TransmissionValue::U8(data) => data.len() * std::mem::size_of::<u8>(),
+            TransmissionValue::U16(data) => data.len() * std::mem::size_of::<u16>(),
+            TransmissionValue::U32(data) => data.len() * std::mem::size_of::<u32>(),
+            TransmissionValue::U64(data) => data.len() * std::mem::size_of::<u64>(),
+            TransmissionValue::U128(data) => data.len() * std::mem::size_of::<u128>(),
+            TransmissionValue::F32(data) => data.len() * std::mem::size_of::<f32>(),
+            TransmissionValue::F64(data) => data.len() * std::mem::size_of::<f64>(),
+            TransmissionValue::Bool(data) => data.len() * std::mem::size_of::<bool>(),
+            TransmissionValue::Byte(data) => data.len(),
+            TransmissionValue::Char(data) => data.len() * std::mem::size_of::<char>(),
+            TransmissionValue::String(data) => data.iter().map(String::len).sum(),
+            TransmissionValue::Other(data) => data.iter().map(Value::estimated_size).sum(),
+        }
+    }
+
     pub fn push(&mut self, value: Value) {
         match (self, value) {
             (TransmissionValue::Void(data), Value::Void(value)) => data.push_back(value),
@@ -332,341 +364,89 @@ impl Into<Vec<Value>> for TransmissionValue {
     }
 }
 
-impl From<VecDeque<()>> for TransmissionValue {
-    fn from(value: VecDeque<()>) -> Self {
-        TransmissionValue::Void(value)
-    }
-}
-
-impl From<Vec<()>> for TransmissionValue {
-    fn from(value: Vec<()>) -> Self {
-        TransmissionValue::Void(value.into())
-    }
-}
-
-impl TryInto<VecDeque<()>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<VecDeque<()>, Self::Error> {
-        match self {
-            TransmissionValue::Void(data) => Ok(data),
-            TransmissionValue::Other(data) => {
-                let mut vec = VecDeque::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push_back(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
+// The conversions below (`From<VecDeque<T>>`, `From<Vec<T>>`, `TryInto<VecDeque<T>>`,
+// `TryInto<Vec<T>>`) follow the exact same shape for every scalar type that maps 1:1 to a
+// `TransmissionValue` variant, so they're generated rather than hand-duplicated per type —
+// see ticket #120. `U8` is the one exception kept hand-written below: it's not a clean 1:1
+// mapping, since `TryInto<Vec<u8>>`/`TryInto<VecDeque<u8>>` must also accept the `Byte`
+// variant (bytes and small unsigned integers are interchangeable on extraction), while
+// `Byte` itself has no corresponding `From` — it's only ever produced via `Value::Byte`
+// going through `TransmissionValue::new`/`push`, not through a top-level `From<Vec<u8>>`.
+macro_rules! transmission_scalar_type {
+    ($variant:ident, $ty:ty) => {
+        impl From<VecDeque<$ty>> for TransmissionValue {
+            fn from(value: VecDeque<$ty>) -> Self {
+                TransmissionValue::$variant(value)
             }
-            _ => Err(()),
         }
-    }
-}
 
-impl TryInto<Vec<()>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<Vec<()>, Self::Error> {
-        match self {
-            TransmissionValue::Void(data) => Ok(data.into()),
-            TransmissionValue::Other(data) => {
-                let mut vec = Vec::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
+        impl From<Vec<$ty>> for TransmissionValue {
+            fn from(value: Vec<$ty>) -> Self {
+                TransmissionValue::$variant(value.into())
             }
-            _ => Err(()),
         }
-    }
-}
 
-impl From<VecDeque<i8>> for TransmissionValue {
-    fn from(value: VecDeque<i8>) -> Self {
-        TransmissionValue::I8(value)
-    }
-}
+        impl TryInto<VecDeque<$ty>> for TransmissionValue {
+            type Error = ();
 
-impl From<Vec<i8>> for TransmissionValue {
-    fn from(value: Vec<i8>) -> Self {
-        TransmissionValue::I8(value.into())
-    }
-}
-
-impl TryInto<VecDeque<i8>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<VecDeque<i8>, Self::Error> {
-        match self {
-            TransmissionValue::I8(data) => Ok(data),
-            TransmissionValue::Other(data) => {
-                let mut vec = VecDeque::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push_back(val);
-                    } else {
-                        return Err(());
+            fn try_into(self) -> Result<VecDeque<$ty>, Self::Error> {
+                match self {
+                    TransmissionValue::$variant(data) => Ok(data),
+                    TransmissionValue::Other(data) => {
+                        let mut vec = VecDeque::with_capacity(data.len());
+                        for val in data {
+                            if let Ok(val) = val.try_data() {
+                                vec.push_back(val);
+                            } else {
+                                return Err(());
+                            }
+                        }
+                        Ok(vec)
                     }
+                    _ => Err(()),
                 }
-                Ok(vec)
             }
-            _ => Err(()),
         }
-    }
-}
 
-impl TryInto<Vec<i8>> for TransmissionValue {
-    type Error = ();
+        impl TryInto<Vec<$ty>> for TransmissionValue {
+            type Error = ();
 
-    fn try_into(self) -> Result<Vec<i8>, Self::Error> {
-        match self {
-            TransmissionValue::I8(data) => Ok(data.into()),
-            TransmissionValue::Other(data) => {
-                let mut vec = Vec::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push(val);
-                    } else {
-                        return Err(());
+            fn try_into(self) -> Result<Vec<$ty>, Self::Error> {
+                match self {
+                    TransmissionValue::$variant(data) => Ok(data.into()),
+                    TransmissionValue::Other(data) => {
+                        let mut vec = Vec::with_capacity(data.len());
+                        for val in data {
+                            if let Ok(val) = val.try_data() {
+                                vec.push(val);
+                            } else {
+                                return Err(());
+                            }
+                        }
+                        Ok(vec)
                     }
+                    _ => Err(()),
                 }
-                Ok(vec)
             }
-            _ => Err(()),
         }
-    }
+    };
 }
 
-impl From<VecDeque<i16>> for TransmissionValue {
-    fn from(value: VecDeque<i16>) -> Self {
-        TransmissionValue::I16(value)
-    }
-}
-
-impl From<Vec<i16>> for TransmissionValue {
-    fn from(value: Vec<i16>) -> Self {
-        TransmissionValue::I16(value.into())
-    }
-}
-
-impl TryInto<VecDeque<i16>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<VecDeque<i16>, Self::Error> {
-        match self {
-            TransmissionValue::I16(data) => Ok(data),
-            TransmissionValue::Other(data) => {
-                let mut vec = VecDeque::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push_back(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryInto<Vec<i16>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<Vec<i16>, Self::Error> {
-        match self {
-            TransmissionValue::I16(data) => Ok(data.into()),
-            TransmissionValue::Other(data) => {
-                let mut vec = Vec::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl From<VecDeque<i32>> for TransmissionValue {
-    fn from(value: VecDeque<i32>) -> Self {
-        TransmissionValue::I32(value)
-    }
-}
-
-impl From<Vec<i32>> for TransmissionValue {
-    fn from(value: Vec<i32>) -> Self {
-        TransmissionValue::I32(value.into())
-    }
-}
-
-impl TryInto<VecDeque<i32>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<VecDeque<i32>, Self::Error> {
-        match self {
-            TransmissionValue::I32(data) => Ok(data),
-            TransmissionValue::Other(data) => {
-                let mut vec = VecDeque::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push_back(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryInto<Vec<i32>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<Vec<i32>, Self::Error> {
-        match self {
-            TransmissionValue::I32(data) => Ok(data.into()),
-            TransmissionValue::Other(data) => {
-                let mut vec = Vec::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl From<VecDeque<i64>> for TransmissionValue {
-    fn from(value: VecDeque<i64>) -> Self {
-        TransmissionValue::I64(value)
-    }
-}
-
-impl From<Vec<i64>> for TransmissionValue {
-    fn from(value: Vec<i64>) -> Self {
-        TransmissionValue::I64(value.into())
-    }
-}
-
-impl TryInto<VecDeque<i64>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<VecDeque<i64>, Self::Error> {
-        match self {
-            TransmissionValue::I64(data) => Ok(data),
-            TransmissionValue::Other(data) => {
-                let mut vec = VecDeque::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push_back(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryInto<Vec<i64>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<Vec<i64>, Self::Error> {
-        match self {
-            TransmissionValue::I64(data) => Ok(data.into()),
-            TransmissionValue::Other(data) => {
-                let mut vec = Vec::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl From<VecDeque<i128>> for TransmissionValue {
-    fn from(value: VecDeque<i128>) -> Self {
-        TransmissionValue::I128(value)
-    }
-}
-
-impl From<Vec<i128>> for TransmissionValue {
-    fn from(value: Vec<i128>) -> Self {
-        TransmissionValue::I128(value.into())
-    }
-}
-
-impl TryInto<VecDeque<i128>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<VecDeque<i128>, Self::Error> {
-        match self {
-            TransmissionValue::I128(data) => Ok(data),
-            TransmissionValue::Other(data) => {
-                let mut vec = VecDeque::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push_back(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryInto<Vec<i128>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<Vec<i128>, Self::Error> {
-        match self {
-            TransmissionValue::I128(data) => Ok(data.into()),
-            TransmissionValue::Other(data) => {
-                let mut vec = Vec::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
+transmission_scalar_type!(Void, ());
+transmission_scalar_type!(I8, i8);
+transmission_scalar_type!(I16, i16);
+transmission_scalar_type!(I32, i32);
+transmission_scalar_type!(I64, i64);
+transmission_scalar_type!(I128, i128);
+transmission_scalar_type!(U16, u16);
+transmission_scalar_type!(U32, u32);
+transmission_scalar_type!(U64, u64);
+transmission_scalar_type!(U128, u128);
+transmission_scalar_type!(F32, f32);
+transmission_scalar_type!(F64, f64);
+transmission_scalar_type!(Bool, bool);
+transmission_scalar_type!(Char, char);
+transmission_scalar_type!(String, String);
 
 impl From<VecDeque<u8>> for TransmissionValue {
     fn from(value: VecDeque<u8>) -> Self {
@@ -726,24 +506,84 @@ impl TryInto<Vec<u8>> for TransmissionValue {
     }
 }
 
-impl From<VecDeque<u16>> for TransmissionValue {
-    fn from(value: VecDeque<u16>) -> Self {
-        TransmissionValue::U16(value)
+#[cfg(test)]
+mod conversion_tests {
+    use super::*;
+
+    // A macro-generated type, as a roundtrip sanity check on the generator itself.
+    #[test]
+    fn macro_generated_type_roundtrips() {
+        let batch: TransmissionValue = vec![1i64, 2, 3].into();
+        assert!(matches!(batch, TransmissionValue::I64(_)));
+        let back: Vec<i64> = batch.try_into().unwrap();
+        assert_eq!(back, vec![1, 2, 3]);
+    }
+
+    // Values boxed as `Other` (e.g. after arriving through a non-optimized path) must
+    // still extract correctly through the generated `TryInto`, via `Value::try_data`.
+    #[test]
+    fn macro_generated_type_extracts_from_other_variant() {
+        let boxed = TransmissionValue::Other(VecDeque::from(vec![Value::I64(10), Value::I64(20)]));
+        let extracted: Vec<i64> = boxed.try_into().unwrap();
+        assert_eq!(extracted, vec![10, 20]);
+    }
+
+    // Void's `()` payload exercises the macro too, not just numeric/string types.
+    #[test]
+    fn void_roundtrips_through_the_macro() {
+        let batch: TransmissionValue = vec![(), (), ()].into();
+        let back: Vec<()> = batch.try_into().unwrap();
+        assert_eq!(back, vec![(), (), ()]);
+    }
+
+    // This is the one case the ticket kept hand-written rather than folding into the
+    // macro: extraction must accept both `U8` and `Byte`, even though only `U8` is ever
+    // produced by `From`. Losing either arm here would silently break byte-stream reads.
+    #[test]
+    fn u8_extraction_accepts_both_u8_and_byte_variants() {
+        let as_u8 = TransmissionValue::U8(VecDeque::from(vec![1u8, 2, 3]));
+        let as_byte = TransmissionValue::Byte(VecDeque::from(vec![4u8, 5, 6]));
+
+        let from_u8: Vec<u8> = as_u8.try_into().unwrap();
+        let from_byte: Vec<u8> = as_byte.try_into().unwrap();
+
+        assert_eq!(from_u8, vec![1, 2, 3]);
+        assert_eq!(from_byte, vec![4, 5, 6]);
+    }
+
+    // From<Vec<u8>> must still only ever produce U8, never Byte — that asymmetry is
+    // exactly why U8 couldn't go through the generic macro.
+    #[test]
+    fn u8_construction_always_produces_u8_variant_not_byte() {
+        let batch: TransmissionValue = vec![1u8, 2, 3].into();
+        assert!(matches!(batch, TransmissionValue::U8(_)));
+    }
+
+    #[test]
+    fn mismatched_type_extraction_fails() {
+        let batch = TransmissionValue::I64(VecDeque::from(vec![1]));
+        let result: Result<Vec<String>, ()> = batch.try_into();
+        assert!(result.is_err());
     }
 }
 
-impl From<Vec<u16>> for TransmissionValue {
-    fn from(value: Vec<u16>) -> Self {
-        TransmissionValue::U16(value.into())
+impl From<VecDeque<Arc<dyn Data>>> for TransmissionValue {
+    fn from(value: VecDeque<Arc<dyn Data>>) -> Self {
+        TransmissionValue::Other(value.into_iter().map(|value| value.into()).collect())
     }
 }
 
-impl TryInto<VecDeque<u16>> for TransmissionValue {
+impl From<Vec<Arc<dyn Data>>> for TransmissionValue {
+    fn from(value: Vec<Arc<dyn Data>>) -> Self {
+        TransmissionValue::Other(value.into_iter().map(|value| value.into()).collect())
+    }
+}
+
+impl TryInto<VecDeque<Arc<dyn Data>>> for TransmissionValue {
     type Error = ();
 
-    fn try_into(self) -> Result<VecDeque<u16>, Self::Error> {
+    fn try_into(self) -> Result<VecDeque<Arc<dyn Data>>, Self::Error> {
         match self {
-            TransmissionValue::U16(data) => Ok(data),
             TransmissionValue::Other(data) => {
                 let mut vec = VecDeque::with_capacity(data.len());
                 for val in data {
@@ -760,12 +600,11 @@ impl TryInto<VecDeque<u16>> for TransmissionValue {
     }
 }
 
-impl TryInto<Vec<u16>> for TransmissionValue {
+impl TryInto<Vec<Arc<dyn Data>>> for TransmissionValue {
     type Error = ();
 
-    fn try_into(self) -> Result<Vec<u16>, Self::Error> {
+    fn try_into(self) -> Result<Vec<Arc<dyn Data>>, Self::Error> {
         match self {
-            TransmissionValue::U16(data) => Ok(data.into()),
             TransmissionValue::Other(data) => {
                 let mut vec = Vec::with_capacity(data.len());
                 for val in data {
@@ -782,28 +621,43 @@ impl TryInto<Vec<u16>> for TransmissionValue {
     }
 }
 
-impl From<VecDeque<u32>> for TransmissionValue {
-    fn from(value: VecDeque<u32>) -> Self {
-        TransmissionValue::U32(value)
+/// Generic counterpart to the `Arc<dyn Data>` impls above, for a concrete `Data`
+/// implementor `D` — mirrors `GetData<Arc<D>> for Value` (see `value/data.rs`) at the
+/// batch level, so `recv_many_as::<Arc<D>>()` works the same way `recv_one_as::<Arc<D>>()`
+/// already does. Coexists with the `Arc<dyn Data>` impls above for the same reason
+/// `GetData<Arc<D>>` coexists with `GetData<Arc<dyn Data>>`: `D` carries an implicit
+/// `Sized` bound here, which the unsized `dyn Data` can never satisfy.
+impl<D: Data> From<VecDeque<Arc<D>>> for TransmissionValue {
+    fn from(value: VecDeque<Arc<D>>) -> Self {
+        TransmissionValue::Other(
+            value
+                .into_iter()
+                .map(|value| (value as Arc<dyn Data>).into())
+                .collect(),
+        )
     }
 }
 
-impl From<Vec<u32>> for TransmissionValue {
-    fn from(value: Vec<u32>) -> Self {
-        TransmissionValue::U32(value.into())
+impl<D: Data> From<Vec<Arc<D>>> for TransmissionValue {
+    fn from(value: Vec<Arc<D>>) -> Self {
+        TransmissionValue::Other(
+            value
+                .into_iter()
+                .map(|value| (value as Arc<dyn Data>).into())
+                .collect(),
+        )
     }
 }
 
-impl TryInto<VecDeque<u32>> for TransmissionValue {
+impl<D: Data> TryInto<VecDeque<Arc<D>>> for TransmissionValue {
     type Error = ();
 
-    fn try_into(self) -> Result<VecDeque<u32>, Self::Error> {
+    fn try_into(self) -> Result<VecDeque<Arc<D>>, Self::Error> {
         match self {
-            TransmissionValue::U32(data) => Ok(data),
             TransmissionValue::Other(data) => {
                 let mut vec = VecDeque::with_capacity(data.len());
                 for val in data {
-                    if let Ok(val) = val.try_data() {
+                    if let Ok(val) = val.try_data::<Arc<D>>() {
                         vec.push_back(val);
                     } else {
                         return Err(());
@@ -816,16 +670,15 @@ impl TryInto<VecDeque<u32>> for TransmissionValue {
     }
 }
 
-impl TryInto<Vec<u32>> for TransmissionValue {
+impl<D: Data> TryInto<Vec<Arc<D>>> for TransmissionValue {
     type Error = ();
 
-    fn try_into(self) -> Result<Vec<u32>, Self::Error> {
+    fn try_into(self) -> Result<Vec<Arc<D>>, Self::Error> {
         match self {
-            TransmissionValue::U32(data) => Ok(data.into()),
             TransmissionValue::Other(data) => {
                 let mut vec = Vec::with_capacity(data.len());
                 for val in data {
-                    if let Ok(val) = val.try_data() {
+                    if let Ok(val) = val.try_data::<Arc<D>>() {
                         vec.push(val);
                     } else {
                         return Err(());
@@ -838,394 +691,32 @@ impl TryInto<Vec<u32>> for TransmissionValue {
     }
 }
 
-impl From<VecDeque<u64>> for TransmissionValue {
-    fn from(value: VecDeque<u64>) -> Self {
-        TransmissionValue::U64(value)
+#[cfg(test)]
+mod estimated_size_tests {
+    use super::*;
+
+    #[test]
+    fn packed_byte_variant_costs_one_byte_per_element() {
+        let batch = TransmissionValue::Byte(VecDeque::from(vec![0u8; 4096]));
+        assert_eq!(batch.estimated_size(), 4096);
     }
-}
 
-impl From<Vec<u64>> for TransmissionValue {
-    fn from(value: Vec<u64>) -> Self {
-        TransmissionValue::U64(value.into())
+    #[test]
+    fn fixed_size_scalar_variant_scales_with_type_size() {
+        let batch = TransmissionValue::U64(VecDeque::from(vec![0u64; 10]));
+        assert_eq!(batch.estimated_size(), 10 * std::mem::size_of::<u64>());
     }
-}
 
-impl TryInto<VecDeque<u64>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<VecDeque<u64>, Self::Error> {
-        match self {
-            TransmissionValue::U64(data) => Ok(data),
-            TransmissionValue::Other(data) => {
-                let mut vec = VecDeque::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push_back(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
+    #[test]
+    fn string_variant_sums_actual_string_lengths() {
+        let batch =
+            TransmissionValue::String(VecDeque::from(vec!["ab".to_string(), "cde".to_string()]));
+        assert_eq!(batch.estimated_size(), 2 + 3);
     }
-}
 
-impl TryInto<Vec<u64>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<Vec<u64>, Self::Error> {
-        match self {
-            TransmissionValue::U64(data) => Ok(data.into()),
-            TransmissionValue::Other(data) => {
-                let mut vec = Vec::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl From<VecDeque<u128>> for TransmissionValue {
-    fn from(value: VecDeque<u128>) -> Self {
-        TransmissionValue::U128(value)
-    }
-}
-
-impl From<Vec<u128>> for TransmissionValue {
-    fn from(value: Vec<u128>) -> Self {
-        TransmissionValue::U128(value.into())
-    }
-}
-
-impl TryInto<VecDeque<u128>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<VecDeque<u128>, Self::Error> {
-        match self {
-            TransmissionValue::U128(data) => Ok(data),
-            TransmissionValue::Other(data) => {
-                let mut vec = VecDeque::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push_back(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryInto<Vec<u128>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<Vec<u128>, Self::Error> {
-        match self {
-            TransmissionValue::U128(data) => Ok(data.into()),
-            TransmissionValue::Other(data) => {
-                let mut vec = Vec::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl From<VecDeque<f32>> for TransmissionValue {
-    fn from(value: VecDeque<f32>) -> Self {
-        TransmissionValue::F32(value)
-    }
-}
-
-impl From<Vec<f32>> for TransmissionValue {
-    fn from(value: Vec<f32>) -> Self {
-        TransmissionValue::F32(value.into())
-    }
-}
-
-impl TryInto<VecDeque<f32>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<VecDeque<f32>, Self::Error> {
-        match self {
-            TransmissionValue::F32(data) => Ok(data),
-            TransmissionValue::Other(data) => {
-                let mut vec = VecDeque::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push_back(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryInto<Vec<f32>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<Vec<f32>, Self::Error> {
-        match self {
-            TransmissionValue::F32(data) => Ok(data.into()),
-            TransmissionValue::Other(data) => {
-                let mut vec = Vec::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl From<VecDeque<f64>> for TransmissionValue {
-    fn from(value: VecDeque<f64>) -> Self {
-        TransmissionValue::F64(value)
-    }
-}
-
-impl From<Vec<f64>> for TransmissionValue {
-    fn from(value: Vec<f64>) -> Self {
-        TransmissionValue::F64(value.into())
-    }
-}
-
-impl TryInto<VecDeque<f64>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<VecDeque<f64>, Self::Error> {
-        match self {
-            TransmissionValue::F64(data) => Ok(data),
-            TransmissionValue::Other(data) => {
-                let mut vec = VecDeque::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push_back(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryInto<Vec<f64>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<Vec<f64>, Self::Error> {
-        match self {
-            TransmissionValue::F64(data) => Ok(data.into()),
-            TransmissionValue::Other(data) => {
-                let mut vec = Vec::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl From<VecDeque<bool>> for TransmissionValue {
-    fn from(value: VecDeque<bool>) -> Self {
-        TransmissionValue::Bool(value)
-    }
-}
-
-impl From<Vec<bool>> for TransmissionValue {
-    fn from(value: Vec<bool>) -> Self {
-        TransmissionValue::Bool(value.into())
-    }
-}
-
-impl TryInto<VecDeque<bool>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<VecDeque<bool>, Self::Error> {
-        match self {
-            TransmissionValue::Bool(data) => Ok(data),
-            TransmissionValue::Other(data) => {
-                let mut vec = VecDeque::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push_back(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryInto<Vec<bool>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<Vec<bool>, Self::Error> {
-        match self {
-            TransmissionValue::Bool(data) => Ok(data.into()),
-            TransmissionValue::Other(data) => {
-                let mut vec = Vec::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl From<VecDeque<char>> for TransmissionValue {
-    fn from(value: VecDeque<char>) -> Self {
-        TransmissionValue::Char(value)
-    }
-}
-
-impl From<Vec<char>> for TransmissionValue {
-    fn from(value: Vec<char>) -> Self {
-        TransmissionValue::Char(value.into())
-    }
-}
-
-impl TryInto<VecDeque<char>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<VecDeque<char>, Self::Error> {
-        match self {
-            TransmissionValue::Char(data) => Ok(data),
-            TransmissionValue::Other(data) => {
-                let mut vec = VecDeque::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push_back(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryInto<Vec<char>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<Vec<char>, Self::Error> {
-        match self {
-            TransmissionValue::Char(data) => Ok(data.into()),
-            TransmissionValue::Other(data) => {
-                let mut vec = Vec::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl From<VecDeque<String>> for TransmissionValue {
-    fn from(value: VecDeque<String>) -> Self {
-        TransmissionValue::String(value)
-    }
-}
-
-impl From<Vec<String>> for TransmissionValue {
-    fn from(value: Vec<String>) -> Self {
-        TransmissionValue::String(value.into())
-    }
-}
-
-impl TryInto<VecDeque<String>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<VecDeque<String>, Self::Error> {
-        match self {
-            TransmissionValue::String(data) => Ok(data),
-            TransmissionValue::Other(data) => {
-                let mut vec = VecDeque::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push_back(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryInto<Vec<String>> for TransmissionValue {
-    type Error = ();
-
-    fn try_into(self) -> Result<Vec<String>, Self::Error> {
-        match self {
-            TransmissionValue::String(data) => Ok(data.into()),
-            TransmissionValue::Other(data) => {
-                let mut vec = Vec::with_capacity(data.len());
-                for val in data {
-                    if let Ok(val) = val.try_data() {
-                        vec.push(val);
-                    } else {
-                        return Err(());
-                    }
-                }
-                Ok(vec)
-            }
-            _ => Err(()),
-        }
+    #[test]
+    fn other_variant_delegates_to_value_estimated_size() {
+        let batch = TransmissionValue::Other(VecDeque::from(vec![Value::Byte(1), Value::Byte(2)]));
+        assert_eq!(batch.estimated_size(), 2 * std::mem::size_of::<Value>());
     }
 }

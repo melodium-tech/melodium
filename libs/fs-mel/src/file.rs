@@ -24,15 +24,8 @@ use std::sync::Arc;
 )]
 pub async fn read() {
     if let (Ok(filesystem), Ok(path)) = (
-        filesystem.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<FileSystem>()
-                .unwrap()
-        }),
-        path.recv_one()
-            .await
-            .map(|val| GetData::<string>::try_data(val).unwrap()),
+        filesystem.recv_one_as::<Arc<FileSystem>>().await,
+        path.recv_one_as::<string>().await,
     ) {
         filesystem
             .filesystem
@@ -105,15 +98,8 @@ pub async fn read() {
 )]
 pub async fn write(append: bool, create: bool, new: bool) {
     if let (Ok(filesystem), Ok(path)) = (
-        filesystem.recv_one().await.map(|val| {
-            GetData::<Arc<dyn Data>>::try_data(val)
-                .unwrap()
-                .downcast_arc::<FileSystem>()
-                .unwrap()
-        }),
-        path.recv_one()
-            .await
-            .map(|val| GetData::<string>::try_data(val).unwrap()),
+        filesystem.recv_one_as::<Arc<FileSystem>>().await,
+        path.recv_one_as::<string>().await,
     ) {
         filesystem
             .filesystem
@@ -122,14 +108,7 @@ pub async fn write(append: bool, create: bool, new: bool) {
                 append,
                 create,
                 new,
-                Box::new(|| {
-                    Box::pin(async {
-                        data.recv_many()
-                            .await
-                            .map(|values| TryInto::<Vec<u8>>::try_into(values).unwrap())
-                            .map_err(|_| ())
-                    })
-                }),
+                Box::new(|| Box::pin(async { data.recv_many_as::<u8>().await.map_err(|_| ()) })),
                 Box::new(|amt: u128| {
                     Box::pin({
                         let amount = &amount;

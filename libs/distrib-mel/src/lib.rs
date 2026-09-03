@@ -29,8 +29,8 @@ use futures_rustls::client::TlsStream;
 use melodium_core::*;
 #[cfg(feature = "real")]
 use melodium_distribution::{
-    max_concurrent_messages, AskDistribution, CloseInput, CloseOutput, InputData, Instanciate,
-    InstanciateStatus, LoadAndLaunch, Message, Protocol,
+    chunk_raw_values, max_batch_chunk_bytes, max_concurrent_messages, AskDistribution, CloseInput,
+    CloseOutput, InputData, Instanciate, InstanciateStatus, LoadAndLaunch, Message, Protocol,
 };
 use melodium_macro::{mel_model, mel_package, mel_treatment};
 use melodium_share::{Collection, RawValue};
@@ -487,19 +487,27 @@ impl DistributionEngine {
         if let Some(track) = track {
             if let Some(data_recv) = track.read().await.inputs_receivers.get(name) {
                 while let Ok(data) = data_recv.try_recv() {
-                    if let Some(protocol) = self.protocol.read().await.as_ref() {
-                        if let Err(_) = protocol
-                            .send_message(Message::InputData(InputData {
-                                id: *distribution_id,
-                                name: name.clone(),
-                                data: data.into(),
-                            }))
-                            .await
-                        {
+                    // Split before constructing the message rather than after: each chunk
+                    // becomes its own complete, self-contained InputData, so the receiving
+                    // side (which already forwards each InputData's data independently,
+                    // see `Message::InputData` handling in listen.rs) needs no reassembly
+                    // logic at all — N smaller messages are transparently equivalent to
+                    // this sender having flushed N smaller batches instead of one big one.
+                    for chunk in chunk_raw_values(data.into(), max_batch_chunk_bytes()) {
+                        if let Some(protocol) = self.protocol.read().await.as_ref() {
+                            if let Err(_) = protocol
+                                .send_message(Message::InputData(InputData {
+                                    id: *distribution_id,
+                                    name: name.clone(),
+                                    data: chunk,
+                                }))
+                                .await
+                            {
+                                return Err(());
+                            }
+                        } else {
                             return Err(());
                         }
-                    } else {
-                        return Err(());
                     }
                 }
                 return Ok(());
@@ -867,12 +875,7 @@ pub async fn start(params: Map) {
     let params = params.map.clone();
 
     #[cfg(feature = "real")]
-    if let Ok(access) = access.recv_one().await.map(|val| {
-        GetData::<Arc<dyn Data>>::try_data(val)
-            .unwrap()
-            .downcast_arc::<Access>()
-            .unwrap()
-    }) {
+    if let Ok(access) = access.recv_one_as::<Arc<Access>>().await {
         match distributor.start(&access.0, params).await {
             Ok(_) => {
                 let _ = ready.send_one(().into()).await;
@@ -980,11 +983,7 @@ pub async fn recv_stream(name: string) {
     let datatype = D;
 
     #[cfg(feature = "real")]
-    if let Ok(distribution_id) = distribution_id
-        .recv_one()
-        .await
-        .map(|val| GetData::<u64>::try_data(val).unwrap())
-    {
+    if let Ok(distribution_id) = distribution_id.recv_one_as::<u64>().await {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
         let collection = distributor.model.upgrade().unwrap().world().collection();
@@ -1032,11 +1031,7 @@ pub async fn recv_block(name: string) {
     let datatype = D;
 
     #[cfg(feature = "real")]
-    if let Ok(distribution_id) = distribution_id
-        .recv_one()
-        .await
-        .map(|val| GetData::<u64>::try_data(val).unwrap())
-    {
+    if let Ok(distribution_id) = distribution_id.recv_one_as::<u64>().await {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
         let collection = distributor.model.upgrade().unwrap().world().collection();
@@ -1070,11 +1065,7 @@ pub async fn recv_block(name: string) {
 )]
 pub async fn send_stream(name: string) {
     #[cfg(feature = "real")]
-    if let Ok(distribution_id) = distribution_id
-        .recv_one()
-        .await
-        .map(|val| GetData::<u64>::try_data(val).unwrap())
-    {
+    if let Ok(distribution_id) = distribution_id.recv_one_as::<u64>().await {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
 
@@ -1123,11 +1114,7 @@ pub async fn send_stream(name: string) {
 )]
 pub async fn send_block(name: string) {
     #[cfg(feature = "real")]
-    if let Ok(distribution_id) = distribution_id
-        .recv_one()
-        .await
-        .map(|val| GetData::<u64>::try_data(val).unwrap())
-    {
+    if let Ok(distribution_id) = distribution_id.recv_one_as::<u64>().await {
         let model = DistributionEngineModel::into(distributor);
         let distributor = model.inner();
 

@@ -1,4 +1,5 @@
 use crate::error::DistributionResult;
+use crate::framing::{chunk_raw_values, max_batch_chunk_bytes};
 use crate::protocol::Protocol;
 use crate::{messages, messages::*, VERSION};
 use async_std::channel::{bounded, Sender};
@@ -23,7 +24,7 @@ use melodium_engine::debug::{DebugLevel, Event};
 use melodium_engine::descriptor::{Model, Treatment};
 use melodium_engine::execution_group_id;
 use melodium_loader::Loader;
-use melodium_share::{ProgramDump, SharingError, SharingResult};
+use melodium_share::{ProgramDump, RawValue, SharingError, SharingResult};
 use std::{
     collections::{HashMap, VecDeque},
     sync::{Arc, OnceLock},
@@ -577,34 +578,53 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                             let protocol = Arc::clone(&protocol);
                                             let input = Arc::new(input);
                                             inputs_storage.insert(name.clone(), Arc::clone(&input));
-                                            let listener =
-                                                async move {
-                                                    while let Ok(data) = input.recv_many().await {
+                                            let listener = async move {
+                                                'recv: while let Ok(data) = input.recv_many().await
+                                                {
+                                                    let data: Vec<RawValue> =
+                                                        Into::<VecDeque<Value>>::into(data)
+                                                            .into_iter()
+                                                            .map(|val| val.into())
+                                                            .collect();
+
+                                                    // Split before constructing the
+                                                    // message, same reasoning as
+                                                    // `distrib-mel`'s `send_data`: each
+                                                    // chunk is a complete, independent
+                                                    // OutputData, and the receiving side
+                                                    // already forwards each one on its
+                                                    // own (see `Message::OutputData`
+                                                    // handling), so no reassembly is
+                                                    // needed on receipt.
+                                                    for chunk in chunk_raw_values(
+                                                        data,
+                                                        max_batch_chunk_bytes(),
+                                                    ) {
                                                         if protocol
-                                                .send_message(Message::OutputData(OutputData {
-                                                    id: track_id,
-                                                    name: name.clone(),
-                                                    data: Into::<VecDeque<Value>>::into(data)
-                                                        .into_iter()
-                                                        .map(|val| val.into())
-                                                        .collect(),
-                                                }))
-                                                .await
-                                                .is_err()
-                                            {
-                                                input.close();
-                                                break;
-                                            }
+                                                            .send_message(Message::OutputData(
+                                                                OutputData {
+                                                                    id: track_id,
+                                                                    name: name.clone(),
+                                                                    data: chunk,
+                                                                },
+                                                            ))
+                                                            .await
+                                                            .is_err()
+                                                        {
+                                                            input.close();
+                                                            break 'recv;
+                                                        }
                                                     }
-                                                    let _ = protocol
-                                                        .send_message(Message::CloseOutput(
-                                                            CloseOutput {
-                                                                id: track_id,
-                                                                name: name.clone(),
-                                                            },
-                                                        ))
-                                                        .await;
-                                                };
+                                                }
+                                                let _ = protocol
+                                                    .send_message(Message::CloseOutput(
+                                                        CloseOutput {
+                                                            id: track_id,
+                                                            name: name.clone(),
+                                                        },
+                                                    ))
+                                                    .await;
+                                            };
                                             inputs_management.push(Box::new(Box::pin(listener)));
                                         }
 

@@ -23,7 +23,7 @@ pub use data::Data;
 pub use data_traits::DataTrait;
 pub use future::ContinuousFuture;
 pub use future::TrackFuture;
-pub use input::Input;
+pub use input::{Input, InputExt};
 pub use log::{Level, Log};
 pub use model::{Model, ModelId};
 pub use output::{Output, Outputs};
