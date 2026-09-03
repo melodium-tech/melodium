@@ -9,7 +9,7 @@ use melodium_macro::{check, mel_function, mel_treatment};
 pub async fn to_string() {
     while let Ok(chars) = chars.recv_many_as::<char>().await {
         check!(
-            text.send_one(chars.into_iter().collect::<String>().into())
+            text.send_one_as(chars.into_iter().collect::<String>())
                 .await
         );
     }
@@ -27,7 +27,7 @@ pub async fn from_string() {
             output.extend(text.chars());
         }
 
-        check!(chars.send_many(output.into()).await);
+        check!(chars.send_many_as(output).await);
     }
 }
 

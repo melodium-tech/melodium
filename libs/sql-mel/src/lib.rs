@@ -58,6 +58,13 @@ fn bind_value<'q>(
         Value::Char(c) => query.bind(c.to_string()),
         Value::String(s) => query.bind(s.clone()),
         Value::Vec(_) => query.bind(None::<bool>),
+        // `byte`/`u8` packed arrays bind as a real BLOB, mirroring `Value::Byte`'s single-
+        // byte case above — this is the same data, just batched. Other packed scalar
+        // types have no natural column mapping, same as `Value::Vec` just above.
+        Value::Packed(PackedArray::Byte(arr)) | Value::Packed(PackedArray::U8(arr)) => {
+            query.bind(arr.to_vec())
+        }
+        Value::Packed(_) => query.bind(None::<bool>),
         Value::Option(o) => match o {
             None => query.bind(None::<bool>),
             Some(v) => bind_value(query, v),
@@ -112,7 +119,7 @@ fn get_row_as_map(row: &AnyRow) -> Map {
                     .unwrap_or_else(|_| Value::Option(None)),
                 AnyTypeInfoKind::Blob => row
                     .try_get::<Vec<u8>, _>(column.ordinal())
-                    .map(|d| Value::Vec(d.into_iter().map(|v| Value::Byte(v)).collect()))
+                    .map(|d| Value::Packed(PackedArray::Byte(Arc::from(d))))
                     .unwrap_or_else(|_| Value::Option(None)),
             },
         );
@@ -204,7 +211,7 @@ impl SqlPool {
                             Some(Box::new(move |mut outputs| {
                                 let trigger = outputs.get("trigger");
                                 vec![Box::new(Box::pin(async move {
-                                    let _ = trigger.send_one(().into()).await;
+                                    let _ = trigger.send_one_as(()).await;
                                     trigger.close().await;
                                     ResultStatus::Ok
                                 }))]
@@ -222,8 +229,8 @@ impl SqlPool {
                                 let failed = outputs.get("failed");
                                 let error = outputs.get("error");
                                 vec![Box::new(Box::pin(async move {
-                                    let _ = failed.send_one(().into()).await;
-                                    let _ = error.send_one(Value::String(err)).await;
+                                    let _ = failed.send_one_as(()).await;
+                                    let _ = error.send_one_as(err).await;
                                     failed.close().await;
                                     error.close().await;
                                     ResultStatus::Ok
@@ -250,7 +257,7 @@ impl SqlPool {
                     Some(Box::new(move |mut outputs| {
                         let trigger = outputs.get("trigger");
                         vec![Box::new(Box::pin(async move {
-                            let _ = trigger.send_one(().into()).await;
+                            let _ = trigger.send_one_as(()).await;
                             trigger.close().await;
                             ResultStatus::Ok
                         }))]
@@ -365,20 +372,20 @@ pub async fn execute_raw(sql: string) {
     match SqlPoolModel::into(sql_pool).inner().pool().await {
         Ok(pool) => match sqlx::raw_sql(&sql).execute(&*pool).await {
             Ok(result) => {
-                let _ = completed.send_one(().into()).await;
-                let _ = affected.send_one(Value::U64(result.rows_affected())).await;
+                let _ = completed.send_one_as(()).await;
+                let _ = affected.send_one_as(result.rows_affected()).await;
             }
             Err(err) => {
-                let _ = failed.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(err.to_string()).await;
             }
         },
         Err(err) => {
-            let _ = failed.send_one(().into()).await;
-            let _ = error.send_one(err.to_string().into()).await;
+            let _ = failed.send_one_as(()).await;
+            let _ = error.send_one_as(err.to_string()).await;
         }
     }
-    let _ = finished.send_one(().into()).await;
+    let _ = finished.send_one_as(()).await;
 }
 
 /// Execute a parameterised SQL statement with a single binding map.
@@ -436,21 +443,21 @@ pub async fn execute(sql: string, bindings: Vec<string>, bind_symbol: string) {
 
                 match query.execute(&*pool).await {
                     Ok(result) => {
-                        let _ = completed.send_one(().into()).await;
-                        let _ = affected.send_one(Value::U64(result.rows_affected())).await;
+                        let _ = completed.send_one_as(()).await;
+                        let _ = affected.send_one_as(result.rows_affected()).await;
                     }
                     Err(err) => {
-                        let _ = failed.send_one(().into()).await;
-                        let _ = error.send_one(err.to_string().into()).await;
+                        let _ = failed.send_one_as(()).await;
+                        let _ = error.send_one_as(err.to_string()).await;
                     }
                 }
             }
             Err(err) => {
-                let _ = failed.send_one(().into()).await;
-                let _ = error.send_one(err.to_string().into()).await;
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(err.to_string()).await;
             }
         }
-        let _ = finished.send_one(().into()).await;
+        let _ = finished.send_one_as(()).await;
     }
 }
 
@@ -515,11 +522,11 @@ pub async fn execute_each(
 
                 match query.execute(&*pool).await {
                     Ok(result) => {
-                        let _ = affected.send_one(Value::U64(result.rows_affected())).await;
+                        let _ = affected.send_one_as(result.rows_affected()).await;
                     }
                     Err(error) => {
                         success = false;
-                        let _ = errors.send_one(error.to_string().into()).await;
+                        let _ = errors.send_one_as(error.to_string()).await;
                         if stop_on_failure {
                             break;
                         }
@@ -527,16 +534,16 @@ pub async fn execute_each(
                 }
             }
             if success {
-                let _ = completed.send_one(().into()).await;
+                let _ = completed.send_one_as(()).await;
             } else {
-                let _ = failed.send_one(().into()).await;
+                let _ = failed.send_one_as(()).await;
             }
-            let _ = finished.send_one(().into()).await;
+            let _ = finished.send_one_as(()).await;
         }
         Err(error) => {
-            let _ = failed.send_one(().into()).await;
-            let _ = errors.send_one(error.to_string().into()).await;
-            let _ = finished.send_one(().into()).await;
+            let _ = failed.send_one_as(()).await;
+            let _ = errors.send_one_as(error.to_string()).await;
+            let _ = finished.send_one_as(()).await;
         }
     }
 }
@@ -638,11 +645,11 @@ pub async fn execute_batch(
 
                 match query.execute(&*pool).await {
                     Ok(result) => {
-                        let _ = affected.send_one(Value::U64(result.rows_affected())).await;
+                        let _ = affected.send_one_as(result.rows_affected()).await;
                     }
                     Err(error) => {
                         success = false;
-                        let _ = errors.send_one(error.to_string().into()).await;
+                        let _ = errors.send_one_as(error.to_string()).await;
                         if stop_on_failure {
                             break 'main;
                         }
@@ -650,16 +657,16 @@ pub async fn execute_batch(
                 }
             }
             if success {
-                let _ = completed.send_one(().into()).await;
+                let _ = completed.send_one_as(()).await;
             } else {
-                let _ = failed.send_one(().into()).await;
+                let _ = failed.send_one_as(()).await;
             }
-            let _ = finished.send_one(().into()).await;
+            let _ = finished.send_one_as(()).await;
         }
         Err(error) => {
-            let _ = failed.send_one(().into()).await;
-            let _ = errors.send_one(error.to_string().into()).await;
-            let _ = finished.send_one(().into()).await;
+            let _ = failed.send_one_as(()).await;
+            let _ = errors.send_one_as(error.to_string()).await;
+            let _ = finished.send_one_as(()).await;
         }
     }
 }
@@ -720,30 +727,27 @@ pub async fn fetch(sql: string, bindings: Vec<string>, bind_symbol: string) {
                     match row {
                         Ok(row) => {
                             let map = get_row_as_map(&row);
-                            check!(
-                                data.send_one(Value::Data(Arc::new(map) as Arc<dyn Data>))
-                                    .await
-                            )
+                            check!(data.send_one_as(Arc::new(map) as Arc<dyn Data>).await)
                         }
                         Err(error) => {
                             success = false;
-                            let _ = errors.send_one(error.to_string().into()).await;
+                            let _ = errors.send_one_as(error.to_string()).await;
                             break;
                         }
                     }
                 }
                 if success {
-                    let _ = completed.send_one(().into()).await;
+                    let _ = completed.send_one_as(()).await;
                 } else {
-                    let _ = failed.send_one(().into()).await;
+                    let _ = failed.send_one_as(()).await;
                 }
             }
             Err(error) => {
-                let _ = failed.send_one(().into()).await;
-                let _ = errors.send_one(error.to_string().into()).await;
+                let _ = failed.send_one_as(()).await;
+                let _ = errors.send_one_as(error.to_string()).await;
             }
         }
-        let _ = finished.send_one(().into()).await;
+        let _ = finished.send_one_as(()).await;
     }
 }
 
@@ -842,13 +846,11 @@ pub async fn fetch_batch(
                         Ok(row) => {
                             let map = get_row_as_map(&row);
 
-                            let _ = data
-                                .send_one(Value::Data(Arc::new(map) as Arc<dyn Data>))
-                                .await;
+                            let _ = data.send_one_as(Arc::new(map) as Arc<dyn Data>).await;
                         }
                         Err(error) => {
                             success = false;
-                            let _ = errors.send_one(error.to_string().into()).await;
+                            let _ = errors.send_one_as(error.to_string()).await;
                             if stop_on_failure {
                                 break 'main;
                             } else {
@@ -859,16 +861,16 @@ pub async fn fetch_batch(
                 }
             }
             if success {
-                let _ = completed.send_one(().into()).await;
+                let _ = completed.send_one_as(()).await;
             } else {
-                let _ = failed.send_one(().into()).await;
+                let _ = failed.send_one_as(()).await;
             }
-            let _ = finished.send_one(().into()).await;
+            let _ = finished.send_one_as(()).await;
         }
         Err(error) => {
-            let _ = failed.send_one(().into()).await;
-            let _ = errors.send_one(error.to_string().into()).await;
-            let _ = finished.send_one(().into()).await;
+            let _ = failed.send_one_as(()).await;
+            let _ = errors.send_one_as(error.to_string()).await;
+            let _ = finished.send_one_as(()).await;
         }
     }
 }

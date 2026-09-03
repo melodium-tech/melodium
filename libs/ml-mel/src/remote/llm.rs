@@ -231,19 +231,19 @@ pub async fn chat() {
                 match provider.chat(&messages).await {
                     Ok(resp) => {
                         let text = resp.text().unwrap_or_default();
-                        check!(response.send_one(Value::String(text)).await);
+                        check!(response.send_one_as(text).await);
                     }
                     Err(e) => {
-                        let _ = failed.send_one(().into()).await;
-                        let _ = error.send_one(Value::String(e.to_string())).await;
+                        let _ = failed.send_one_as(()).await;
+                        let _ = error.send_one_as(e.to_string()).await;
                         break;
                     }
                 }
             } else {
-                let _ = failed.send_one(().into()).await;
+                let _ = failed.send_one_as(()).await;
 
                 let _ = error
-                    .send_one(Value::String("provider not initialized".into()))
+                    .send_one_as("provider not initialized".to_string())
                     .await;
                 break;
             }
@@ -253,11 +253,7 @@ pub async fn chat() {
         {
             let _ = &text;
             let _ = &model_arc;
-            check!(
-                response
-                    .send_one(Value::String("[mock response]".into()))
-                    .await
-            );
+            check!(response.send_one_as("[mock response]".to_string()).await);
         }
     }
 }
@@ -321,26 +317,26 @@ pub async fn stream() {
                         while let Some(chunk) = s.next().await {
                             match chunk {
                                 Ok(t) => {
-                                    check!(token.send_one(Value::String(t)).await);
+                                    check!(token.send_one_as(t).await);
                                 }
                                 Err(e) => {
-                                    let _ = failed.send_one(().into()).await;
-                                    let _ = error.send_one(Value::String(e.to_string())).await;
+                                    let _ = failed.send_one_as(()).await;
+                                    let _ = error.send_one_as(e.to_string()).await;
                                     break;
                                 }
                             }
                         }
                     }
                     Err(e) => {
-                        let _ = failed.send_one(().into()).await;
-                        let _ = error.send_one(Value::String(e.to_string())).await;
+                        let _ = failed.send_one_as(()).await;
+                        let _ = error.send_one_as(e.to_string()).await;
                         break;
                     }
                 }
             } else {
-                let _ = failed.send_one(().into()).await;
+                let _ = failed.send_one_as(()).await;
                 let _ = error
-                    .send_one(Value::String("provider not initialized".into()))
+                    .send_one_as("provider not initialized".to_string())
                     .await;
                 break;
             }
@@ -350,7 +346,7 @@ pub async fn stream() {
         {
             let _ = &text;
             let _ = &model_arc;
-            check!(token.send_one(Value::String("[mock token]".into())).await);
+            check!(token.send_one_as("[mock token]".to_string()).await);
         }
     }
 }
@@ -415,19 +411,11 @@ pub async fn vision_chat() {
 
     #[cfg(feature = "real")]
     {
-        let image_bytes: Vec<u8> = match image_val {
-            Value::Vec(items) => items
-                .iter()
-                .filter_map(|v| match v {
-                    Value::Byte(b) => Some(*b),
-                    _ => None,
-                })
-                .collect(),
-            _ => {
-                let _ = failed.send_one(().into()).await;
-                let _ = error
-                    .send_one(Value::String("invalid image value".into()))
-                    .await;
+        let image_bytes: Vec<u8> = match image_val.try_data() {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as("invalid image value".to_string()).await;
                 return;
             }
         };
@@ -438,9 +426,9 @@ pub async fn vision_chat() {
             "gif" => ImageMime::GIF,
             "webp" => ImageMime::WEBP,
             other => {
-                let _ = failed.send_one(().into()).await;
+                let _ = failed.send_one_as(()).await;
                 let _ = error
-                    .send_one(Value::String(format!("unsupported mime type: {}", other)))
+                    .send_one_as(format!("unsupported mime type: {}", other))
                     .await;
                 return;
             }
@@ -456,17 +444,17 @@ pub async fn vision_chat() {
             match provider.chat(&messages).await {
                 Ok(resp) => {
                     let text = resp.text().unwrap_or_default();
-                    let _ = response.send_one(Value::String(text)).await;
+                    let _ = response.send_one_as(text).await;
                 }
                 Err(e) => {
-                    let _ = failed.send_one(().into()).await;
-                    let _ = error.send_one(Value::String(e.to_string())).await;
+                    let _ = failed.send_one_as(()).await;
+                    let _ = error.send_one_as(e.to_string()).await;
                 }
             }
         } else {
-            let _ = failed.send_one(().into()).await;
+            let _ = failed.send_one_as(()).await;
             let _ = error
-                .send_one(Value::String("provider not initialized".into()))
+                .send_one_as("provider not initialized".to_string())
                 .await;
         }
     }
@@ -475,7 +463,7 @@ pub async fn vision_chat() {
     {
         let _ = (&model_arc, &prompt_text, &mime_str, &image_val);
         let _ = response
-            .send_one(Value::String("[mock vision response]".into()))
+            .send_one_as("[mock vision response]".to_string())
             .await;
     }
 }

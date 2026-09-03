@@ -54,6 +54,11 @@ pub fn to_bytes(value: T) -> Vec<byte> {
             Value::Char(val) => val.to_string().as_bytes().iter().map(|v| *v).collect(),
             Value::String(val) => val.as_bytes().iter().map(|v| *v).collect(),
             Value::Vec(_vals) => Vec::new(),
+            // Same convention as `Value::Vec` just above: an aggregate value has no
+            // single well-defined flat byte representation, so it maps to an empty
+            // buffer. `Packed` is purely an internal representation choice for a
+            // `Vec<T>`-shaped value, not a distinct case semantically.
+            Value::Packed(_arr) => Vec::new(),
             Value::Option(val) => match val {
                 Some(val) => to_bytes(*val),
                 None => Vec::new(),
@@ -120,6 +125,15 @@ fn value_to_byte(value: Value) -> Value {
         ),
         Value::String(val) => Value::Vec(val.as_bytes().iter().map(|v| Value::Byte(*v)).collect()),
         Value::Vec(vals) => Value::Vec(vals.into_iter().map(|val| value_to_byte(val)).collect()),
+        // Mirrors the `Value::Vec` arm above: expand and recurse per element.
+        // `Packed` is purely an internal representation choice for the same
+        // `Vec<T>`-shaped value, not a distinct case semantically.
+        Value::Packed(arr) => Value::Vec(
+            arr.into_values()
+                .into_iter()
+                .map(|val| value_to_byte(val))
+                .collect(),
+        ),
         Value::Option(val) => match val {
             Some(val) => value_to_byte(*val),
             None => Value::Vec(Vec::new()),
@@ -151,9 +165,12 @@ pub async fn to_i8() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::I8(
-                values.into_iter().map(|val| val.to_i8()).collect()
-            ))
+            into.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.to_i8())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -182,9 +199,12 @@ pub async fn to_i16() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::I16(
-                values.into_iter().map(|val| val.to_i16()).collect()
-            ))
+            into.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.to_i16())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -213,9 +233,12 @@ pub async fn to_i32() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::I32(
-                values.into_iter().map(|val| val.to_i32()).collect()
-            ))
+            into.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.to_i32())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -244,9 +267,12 @@ pub async fn to_i64() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::I64(
-                values.into_iter().map(|val| val.to_i64()).collect()
-            ))
+            into.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.to_i64())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -275,9 +301,12 @@ pub async fn to_i128() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::I128(
-                values.into_iter().map(|val| val.to_i128()).collect()
-            ))
+            into.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.to_i128())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -306,9 +335,12 @@ pub async fn to_u8() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::U8(
-                values.into_iter().map(|val| val.to_u8()).collect()
-            ))
+            into.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.to_u8())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -337,9 +369,12 @@ pub async fn to_u16() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::U16(
-                values.into_iter().map(|val| val.to_u16()).collect()
-            ))
+            into.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.to_u16())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -368,9 +403,12 @@ pub async fn to_u32() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::U32(
-                values.into_iter().map(|val| val.to_u32()).collect()
-            ))
+            into.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.to_u32())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -399,9 +437,12 @@ pub async fn to_u64() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::U64(
-                values.into_iter().map(|val| val.to_u64()).collect()
-            ))
+            into.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.to_u64())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -430,9 +471,12 @@ pub async fn to_u128() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::U128(
-                values.into_iter().map(|val| val.to_u128()).collect()
-            ))
+            into.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.to_u128())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -461,9 +505,12 @@ pub async fn to_f32() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::F32(
-                values.into_iter().map(|val| val.to_f32()).collect()
-            ))
+            into.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.to_f32())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -492,9 +539,12 @@ pub async fn to_f64() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::F64(
-                values.into_iter().map(|val| val.to_f64()).collect()
-            ))
+            into.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.to_f64())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -523,9 +573,12 @@ pub async fn to_bool() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::Bool(
-                values.into_iter().map(|val| val.to_bool()).collect()
-            ))
+            into.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.to_bool())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -585,9 +638,12 @@ pub async fn to_char() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::Char(
-                values.into_iter().map(|val| val.to_char()).collect()
-            ))
+            into.send_many_as(
+                values
+                    .into_iter()
+                    .map(|val| val.to_char())
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -616,12 +672,12 @@ pub async fn to_string() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::String(
+            into.send_many_as(
                 values
                     .into_iter()
                     .map(|val| DataTrait::to_string(&val))
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -1250,12 +1306,12 @@ pub async fn saturating_to_i8() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::I8(
+            into.send_many_as(
                 values
                     .into_iter()
                     .map(|val| val.saturating_to_i8())
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -1292,12 +1348,12 @@ pub async fn saturating_to_i16() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::I16(
+            into.send_many_as(
                 values
                     .into_iter()
                     .map(|val| val.saturating_to_i16())
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -1334,12 +1390,12 @@ pub async fn saturating_to_i32() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::I32(
+            into.send_many_as(
                 values
                     .into_iter()
                     .map(|val| val.saturating_to_i32())
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -1376,12 +1432,12 @@ pub async fn saturating_to_i64() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::I64(
+            into.send_many_as(
                 values
                     .into_iter()
                     .map(|val| val.saturating_to_i64())
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -1418,12 +1474,12 @@ pub async fn saturating_to_i128() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::I128(
+            into.send_many_as(
                 values
                     .into_iter()
                     .map(|val| val.saturating_to_i128())
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -1460,12 +1516,12 @@ pub async fn saturating_to_u8() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::U8(
+            into.send_many_as(
                 values
                     .into_iter()
                     .map(|val| val.saturating_to_u8())
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -1502,12 +1558,12 @@ pub async fn saturating_to_u16() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::U16(
+            into.send_many_as(
                 values
                     .into_iter()
                     .map(|val| val.saturating_to_u16())
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -1544,12 +1600,12 @@ pub async fn saturating_to_u32() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::U32(
+            into.send_many_as(
                 values
                     .into_iter()
                     .map(|val| val.saturating_to_u32())
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -1586,12 +1642,12 @@ pub async fn saturating_to_u64() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::U64(
+            into.send_many_as(
                 values
                     .into_iter()
                     .map(|val| val.saturating_to_u64())
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -1628,12 +1684,12 @@ pub async fn saturating_to_u128() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::U128(
+            into.send_many_as(
                 values
                     .into_iter()
                     .map(|val| val.saturating_to_u128())
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -1668,12 +1724,12 @@ pub async fn saturating_to_f32() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::F32(
+            into.send_many_as(
                 values
                     .into_iter()
                     .map(|val| val.saturating_to_f32())
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }
@@ -1708,12 +1764,12 @@ pub async fn saturating_to_f64() {
         .map(|values| Into::<VecDeque<Value>>::into(values))
     {
         check!(
-            into.send_many(TransmissionValue::F64(
+            into.send_many_as(
                 values
                     .into_iter()
                     .map(|val| val.saturating_to_f64())
-                    .collect()
-            ))
+                    .collect::<Vec<_>>()
+            )
             .await
         )
     }

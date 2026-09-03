@@ -254,6 +254,21 @@ impl From<CommonValue> for RawValue {
             CommonValue::String(s) => RawValue::String(s),
             CommonValue::Vec(v) => RawValue::Vec(v.into_iter().map(|v| v.into()).collect()),
             CommonValue::Option(v) => RawValue::Option(v.map(|v| Box::new((*v).into()))),
+            // `RawValue` intentionally stays canonical — one variant per mel scalar
+            // type, `Vec`/`Option`/`Data` for aggregates, nothing else. It's exposed
+            // directly over WASM (`tsify`, `into_wasm_abi`/`from_wasm_abi` below) and
+            // used for saved program designs, so it's a public contract, not an
+            // internal wire-optimization detail: `Packed` is purely an in-process
+            // representation choice (see `PackedArray`) that should never leak into
+            // what an external consumer has to pattern-match on. A packed array
+            // expands back to one `RawValue` per element here, exactly what
+            // `Value::Vec` would have produced for the same content.
+            CommonValue::Packed(arr) => RawValue::Vec(
+                arr.into_values()
+                    .into_iter()
+                    .map(|value| value.into())
+                    .collect(),
+            ),
             CommonValue::Data(d) => {
                 let data = cbor4ii::serde::to_vec(Vec::new(), &d).ok();
                 RawValue::Data(d.descriptor().identifier().into(), data)
@@ -286,6 +301,22 @@ impl From<&CommonValue> for RawValue {
             CommonValue::Option(v) => {
                 RawValue::Option(v.as_ref().map(|v| Box::new(v.as_ref().into())))
             }
+            // `RawValue` intentionally stays canonical — one variant per mel scalar
+            // type, `Vec`/`Option`/`Data` for aggregates, nothing else. It's exposed
+            // directly over WASM (`tsify`, `into_wasm_abi`/`from_wasm_abi` below) and
+            // used for saved program designs, so it's a public contract, not an
+            // internal wire-optimization detail: `Packed` is purely an in-process
+            // representation choice (see `PackedArray`) that should never leak into
+            // what an external consumer has to pattern-match on. A packed array
+            // expands back to one `RawValue` per element here, exactly what
+            // `Value::Vec` would have produced for the same content.
+            CommonValue::Packed(arr) => RawValue::Vec(
+                arr.clone()
+                    .into_values()
+                    .into_iter()
+                    .map(|value| value.into())
+                    .collect(),
+            ),
             CommonValue::Data(d) => {
                 let data = cbor4ii::serde::to_vec(Vec::new(), &d).ok();
                 RawValue::Data(d.descriptor().identifier().into(), data)
@@ -386,5 +417,52 @@ mod estimated_size_tests {
         };
         let value = RawValue::Data(identifier, Some(vec![0u8; 42]));
         assert_eq!(value.estimated_size(), base + 42);
+    }
+}
+
+#[cfg(test)]
+mod packed_value_stays_canonical_tests {
+    use super::*;
+    use melodium_common::executive::PackedArray as CommonPackedArray;
+
+    // `RawValue` deliberately has no `Packed` counterpart (see the comment on the
+    // `CommonValue::Packed` match arm above) — a packed in-process `Value` must still
+    // convert to the exact same `RawValue::Vec` shape a boxed `Value::Vec` would,
+    // so nothing external (WASM bindings, saved designs, ...) can tell the two apart.
+    #[test]
+    fn common_value_packed_converts_to_the_same_raw_shape_as_the_boxed_equivalent() {
+        let packed = CommonValue::Packed(CommonPackedArray::Byte(Arc::new(vec![1u8, 2, 3])));
+        let boxed = CommonValue::Vec(vec![
+            CommonValue::Byte(1),
+            CommonValue::Byte(2),
+            CommonValue::Byte(3),
+        ]);
+
+        let raw_from_packed: RawValue = packed.into();
+        let raw_from_boxed: RawValue = boxed.into();
+        assert_eq!(raw_from_packed, raw_from_boxed);
+        assert_eq!(
+            raw_from_packed,
+            RawValue::Vec(vec![
+                RawValue::Byte(1),
+                RawValue::Byte(2),
+                RawValue::Byte(3)
+            ])
+        );
+    }
+
+    #[test]
+    fn common_value_packed_roundtrips_through_raw_value_as_a_boxed_vec() {
+        let packed = CommonValue::Packed(CommonPackedArray::I64(Arc::new(vec![1, 2, 3])));
+        let raw: RawValue = packed.into();
+        let back: CommonValue = raw.try_into().unwrap();
+        assert_eq!(
+            back,
+            CommonValue::Vec(vec![
+                CommonValue::I64(1),
+                CommonValue::I64(2),
+                CommonValue::I64(3)
+            ])
+        );
     }
 }

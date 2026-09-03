@@ -135,41 +135,41 @@ pub async fn exec_one_terminable() {
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = started.send_one(().into()).await;
+                        let _ = started.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = finished.send_one(().into()).await;
+                        let _ = finished.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = completed.send_one(().into()).await;
+                        let _ = completed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = failed.send_one(().into()).await;
+                        let _ = failed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|msg: String| {
                     Box::pin(async {
-                        let _ = error.send_one(msg.into()).await;
+                        let _ = error.send_one_as(msg).await;
                     })
                 }),
                 Box::new(|code: Option<i32>| {
                     Box::pin({
                         let exit = &exit;
                         async move {
-                            let _ = exit.send_one(code.into()).await;
+                            let _ = exit.send_one_as(code).await;
                         }
                     })
                 }),
             )
             .await;
         if send_terminated {
-            let _ = terminated.send_one(().into()).await;
+            let _ = terminated.send_one_as(()).await;
         }
     }
 }
@@ -227,7 +227,7 @@ pub async fn exec_terminable() {
                     Box::new(|| {
                         Box::pin(async {
                             if first {
-                                let _ = started.send_one(().into()).await;
+                                let _ = started.send_one_as(()).await;
                                 first = false;
                             }
                         })
@@ -241,14 +241,14 @@ pub async fn exec_terminable() {
                     }),
                     Box::new(|msg: String| {
                         Box::pin(async {
-                            let _ = error.send_one(msg.into()).await;
+                            let _ = error.send_one_as(msg).await;
                         })
                     }),
                     Box::new(|code: Option<i32>| {
                         Box::pin({
                             let exit = &exit;
                             async move {
-                                let _ = exit.send_one(code.into()).await;
+                                let _ = exit.send_one_as(code).await;
                             }
                         })
                     }),
@@ -259,13 +259,13 @@ pub async fn exec_terminable() {
             }
         }
         if success && !send_terminated {
-            let _ = completed.send_one(().into()).await;
+            let _ = completed.send_one_as(()).await;
         } else if !success && !send_terminated {
-            let _ = failed.send_one(().into()).await;
+            let _ = failed.send_one_as(()).await;
         } else if send_terminated {
-            let _ = terminated.send_one(().into()).await;
+            let _ = terminated.send_one_as(()).await;
         }
-        let _ = finished.send_one(().into()).await;
+        let _ = finished.send_one_as(()).await;
     }
 }
 
@@ -325,34 +325,34 @@ pub async fn spawn_one_terminable() {
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = started.send_one(().into()).await;
+                        let _ = started.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = finished.send_one(().into()).await;
+                        let _ = finished.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = completed.send_one(().into()).await;
+                        let _ = completed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|| {
                     Box::pin(async {
-                        let _ = failed.send_one(().into()).await;
+                        let _ = failed.send_one_as(()).await;
                     })
                 }),
                 Box::new(|msg: String| {
                     Box::pin(async {
-                        let _ = error.send_one(msg.into()).await;
+                        let _ = error.send_one_as(msg).await;
                     })
                 }),
                 Box::new(|code: Option<i32>| {
                     Box::pin({
                         let exit = &exit;
                         async move {
-                            let _ = exit.send_one(code.into()).await;
+                            let _ = exit.send_one_as(code).await;
                         }
                     })
                 }),
@@ -391,7 +391,7 @@ pub async fn spawn_one_terminable() {
             )
             .await;
         if send_terminated {
-            let _ = terminated.send_one(().into()).await;
+            let _ = terminated.send_one_as(()).await;
         }
     }
 }
@@ -462,7 +462,7 @@ pub async fn spawn_terminable() {
                     Box::new(|| {
                         Box::pin(async {
                             if first {
-                                let _ = started.send_one(().into()).await;
+                                let _ = started.send_one_as(()).await;
                                 first = false;
                             }
                         })
@@ -476,7 +476,7 @@ pub async fn spawn_terminable() {
                     }),
                     Box::new(|msg: String| {
                         Box::pin(async {
-                            let _ = error.send_one(msg.into()).await;
+                            let _ = error.send_one_as(msg).await;
                         })
                     }),
                     Box::new(|code: Option<i32>| {
@@ -487,7 +487,7 @@ pub async fn spawn_terminable() {
                                 if code != Some(0) {
                                     *nonzero_exit = true;
                                 }
-                                let _ = exit.send_one(code.into()).await;
+                                let _ = exit.send_one_as(code).await;
                             }
                         })
                     }),
@@ -516,12 +516,12 @@ pub async fn spawn_terminable() {
             }
         }
         if success && !send_terminated {
-            let _ = completed.send_one(().into()).await;
+            let _ = completed.send_one_as(()).await;
         } else if !success && !send_terminated {
-            let _ = failed.send_one(().into()).await;
+            let _ = failed.send_one_as(()).await;
         } else if send_terminated {
-            let _ = terminated.send_one(().into()).await;
+            let _ = terminated.send_one_as(()).await;
         }
-        let _ = finished.send_one(().into()).await;
+        let _ = finished.send_one_as(()).await;
     }
 }

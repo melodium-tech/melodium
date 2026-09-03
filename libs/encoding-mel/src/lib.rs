@@ -45,7 +45,7 @@ pub async fn decode(encoding: string) {
 
         result.shrink_to_fit();
 
-        check!(text.send_one(result.into()).await);
+        check!(text.send_one_as(result).await);
     }
 }
 

@@ -1,5 +1,5 @@
 use crate::error::DistributionResult;
-use crate::framing::{chunk_raw_values, max_batch_chunk_bytes};
+use crate::framing::max_batch_chunk_bytes;
 use crate::protocol::Protocol;
 use crate::{messages, messages::*, VERSION};
 use async_std::channel::{bounded, Sender};
@@ -18,15 +18,17 @@ use futures_rustls::TlsAcceptor;
 use melodium_common::executive::{Level, Log};
 use melodium_common::{
     descriptor::{Entry, Identifier, Model as CommonModel, Treatment as CommonTreatment, Version},
-    executive::{ResultStatus, TransmissionValue, Value},
+    executive::ResultStatus,
 };
 use melodium_engine::debug::{DebugLevel, Event};
 use melodium_engine::descriptor::{Model, Treatment};
 use melodium_engine::execution_group_id;
 use melodium_loader::Loader;
-use melodium_share::{ProgramDump, RawValue, SharingError, SharingResult};
+use melodium_share::{
+    ProgramDump, SharingError, SharingResult, TransmissionValue as WireTransmissionValue,
+};
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::HashMap,
     sync::{Arc, OnceLock},
 };
 use uuid::Uuid;
@@ -581,11 +583,12 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                             let listener = async move {
                                                 'recv: while let Ok(data) = input.recv_many().await
                                                 {
-                                                    let data: Vec<RawValue> =
-                                                        Into::<VecDeque<Value>>::into(data)
-                                                            .into_iter()
-                                                            .map(|val| val.into())
-                                                            .collect();
+                                                    // Converts the already-packed local
+                                                    // batch directly into the wire batch
+                                                    // type, instead of exploding it into
+                                                    // one `RawValue` per tick first — see
+                                                    // `melodium_share::TransmissionValue`.
+                                                    let data: WireTransmissionValue = data.into();
 
                                                     // Split before constructing the
                                                     // message, same reasoning as
@@ -596,10 +599,9 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                                     // own (see `Message::OutputData`
                                                     // handling), so no reassembly is
                                                     // needed on receipt.
-                                                    for chunk in chunk_raw_values(
-                                                        data,
-                                                        max_batch_chunk_bytes(),
-                                                    ) {
+                                                    for chunk in
+                                                        data.chunked(max_batch_chunk_bytes())
+                                                    {
                                                         if protocol
                                                             .send_message(Message::OutputData(
                                                                 OutputData {
@@ -672,16 +674,25 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                 tracks_entry_outputs.read().await.get(&input_data.id)
                             {
                                 if let Some(output) = outputs.get(&input_data.name) {
-                                    match output
-                                        .send_many(TransmissionValue::Other(
-                                            input_data
-                                                .data
-                                                .into_iter()
-                                                .map(|val| val.to_value(&collection).unwrap())
-                                                .collect::<VecDeque<Value>>(),
-                                        ))
-                                        .await
-                                    {
+                                    // Converts the wire batch directly back to the local
+                                    // packed representation, preserving whatever shape it
+                                    // arrived in (scalar batch, packed-array batch, or
+                                    // mixed `Other`) instead of boxing everything through
+                                    // `TransmissionValue::Other`.
+                                    let data =
+                                        match input_data.data.to_transmission_value(&collection) {
+                                            Some(data) => data,
+                                            None => {
+                                                let _ = protocol
+                                                    .send_message(Message::CloseInput(CloseInput {
+                                                        id: input_data.id,
+                                                        name: input_data.name.clone(),
+                                                    }))
+                                                    .await;
+                                                return;
+                                            }
+                                        };
+                                    match output.send_many(data).await {
                                         Ok(_) => {}
                                         Err(_) => {
                                             let _ = protocol

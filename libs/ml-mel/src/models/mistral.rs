@@ -517,17 +517,17 @@ pub async fn load() {
         Ok(val) => match val.try_data::<String>() {
             Ok(p) => p,
             Err(_) => {
-                let _ = failed.send_one(().into()).await;
+                let _ = failed.send_one_as(()).await;
                 let _ = error
-                    .send_one(Value::String("invalid tokenizer path value".into()))
+                    .send_one_as("invalid tokenizer path value".to_string())
                     .await;
                 return;
             }
         },
         Err(_) => {
-            let _ = failed.send_one(().into()).await;
+            let _ = failed.send_one_as(()).await;
             let _ = error
-                .send_one(Value::String("tokenizer path not received".into()))
+                .send_one_as("tokenizer path not received".to_string())
                 .await;
             return;
         }
@@ -548,11 +548,11 @@ pub async fn load() {
 
         match result {
             Ok(()) => {
-                let _ = loaded.send_one(().into()).await;
+                let _ = loaded.send_one_as(()).await;
             }
             Err(e) => {
-                let _ = failed.send_one(().into()).await;
-                let _ = error.send_one(Value::String(e)).await;
+                let _ = failed.send_one_as(()).await;
+                let _ = error.send_one_as(e).await;
             }
         }
     }
@@ -560,7 +560,7 @@ pub async fn load() {
     #[cfg(not(feature = "real"))]
     {
         let _ = (shard_paths, tokenizer_path);
-        let _ = loaded.send_one(().into()).await;
+        let _ = loaded.send_one_as(()).await;
     }
 }
 
@@ -637,7 +637,7 @@ pub async fn generate() {
                 // recv_async() yields to the executor between tokens;
                 // the OS thread runs inference concurrently.
                 while let Ok(word) = reply_rx.recv_async().await {
-                    check!(generated.send_one(Value::String(word)).await);
+                    check!(generated.send_one_as(word).await);
                 }
             }
         }
