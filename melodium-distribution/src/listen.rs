@@ -728,6 +728,19 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
 
         let mut messages_futures = FuturesUnordered::new();
 
+        // `InputData`/`CloseInput` messages for the same (id, name) port are read off the wire
+        // in order, but dispatched as independent, concurrently-polled futures below -
+        // `FuturesUnordered` makes no completion-order guarantee between them. `InputData`
+        // writes into the entry's local engine `Output`, which (per its byte-size watermark) can
+        // genuinely suspend when the local consumer is behind; if a same-port `CloseInput` -
+        // whose own `.close()` call has comparatively little to await - gets polled first, it
+        // closes that `Output` out from under a still-pending write, silently dropping the
+        // tail of the data (see the client-side twin of this fix in `distrib-mel` for the full
+        // story - this is the same race, mirrored). This map chains same-key messages so each
+        // one explicitly awaits the previous one for that key before doing its own work,
+        // restoring wire order without serializing unrelated ports against each other.
+        let mut port_chains = HashMap::new();
+
         let unfold_protocol = unfold(true, |still_valid| {
             let protocol = Arc::clone(&protocol);
             async move {
@@ -759,7 +772,26 @@ async fn launch_listen_stream<S: Read + Write + Unpin + Send + 'static>(
                                 break;
                             }
                             Ok(msg) => {
-                                messages_futures.push(manage_message(msg));
+                                let key = match &msg {
+                                    Message::InputData(id) => Some((id.id, id.name.clone())),
+                                    Message::CloseInput(ci) => Some((ci.id, ci.name.clone())),
+                                    _ => None,
+                                };
+                                let prev =
+                                    key.as_ref().and_then(|k| port_chains.get(k).cloned());
+                                let fut = manage_message(msg);
+                                let chained = async move {
+                                    if let Some(prev) = prev {
+                                        prev.await;
+                                    }
+                                    fut.await;
+                                }
+                                .boxed()
+                                .shared();
+                                if let Some(key) = key {
+                                    port_chains.insert(key, chained.clone());
+                                }
+                                messages_futures.push(chained);
                             }
                         }
                     }

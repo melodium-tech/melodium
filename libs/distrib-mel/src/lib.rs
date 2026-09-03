@@ -688,6 +688,19 @@ impl DistributionEngine {
 
                 let mut messages_futures = FuturesUnordered::new();
 
+                // `OutputData`/`CloseOutput` messages for the same (id, name) port are read off
+                // the wire in order, but dispatched as independent, concurrently-polled futures
+                // below - `FuturesUnordered` makes no completion-order guarantee between them.
+                // Since the per-port channel `OutputData` writes into is now bounded (see
+                // `DATA_CHANNEL_CAPACITY`), its `send()` can genuinely suspend when the local
+                // consumer is behind; if a same-port `CloseOutput` (whose `.close()` has no
+                // await point of its own) gets polled first, it closes the channel out from
+                // under that still-pending send, silently dropping the data. This map chains
+                // same-key messages so each one explicitly awaits the previous one for that key
+                // before doing its own work, restoring wire order without serializing unrelated
+                // ports against each other.
+                let mut port_chains = HashMap::new();
+
                 // Unlike the server's equivalent unfold (which stops polling once it sees
                 // `Message::Ended`, since that's genuinely the last thing a server connection
                 // ever needs), this side keeps reading after `Ended` - it still needs to see
@@ -721,7 +734,30 @@ impl DistributionEngine {
                                         break;
                                     }
                                     Ok(msg) => {
-                                        messages_futures.push(manage_message(msg));
+                                        let key = match &msg {
+                                            Message::OutputData(od) => {
+                                                Some((od.id, od.name.clone()))
+                                            }
+                                            Message::CloseOutput(co) => {
+                                                Some((co.id, co.name.clone()))
+                                            }
+                                            _ => None,
+                                        };
+                                        let prev =
+                                            key.as_ref().and_then(|k| port_chains.get(k).cloned());
+                                        let fut = manage_message(msg);
+                                        let chained = async move {
+                                            if let Some(prev) = prev {
+                                                prev.await;
+                                            }
+                                            fut.await;
+                                        }
+                                        .boxed()
+                                        .shared();
+                                        if let Some(key) = key {
+                                            port_chains.insert(key, chained.clone());
+                                        }
+                                        messages_futures.push(chained);
                                     }
                                 }
                             }
