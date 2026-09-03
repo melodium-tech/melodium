@@ -1,0 +1,309 @@
+use std/engine/util::startup
+use std/engine/log::logInfoMessage
+use std/engine/log::logInfos
+use std/engine/log::logErrors
+use std/flow::emit
+use std/flow::stream
+use std/flow::trigger
+use std/flow::filterBlock
+use std/flow::filter
+use std/flow::merge
+use std/ops/bin::not
+use std/ops/block::equalTo
+use std/text/compare::exact
+use std/data/string_map::StringMap
+use std/data/string_map::|map
+use std/ops/option::unwrapOr
+use std/ops/option::|wrap
+use std/conv::toString
+use std/conv::tryToString
+use http/server::HttpServer
+use http/server::start
+use http/server::connection
+use http/method::|post
+use http/status::|ok
+use http/status::HttpStatus
+use net/ip::|localhost_ipv4
+use net/ip::|from_ipv4
+use encoding::decode
+use encoding::encode
+use json::Json
+use json::toJson
+use json/value::fromString
+use json/value::|null
+use javascript::JavaScriptEngine
+use javascript::process
+use ml/remote/llm::RemoteLlm
+use ml/remote/llm::stream as llmStream
+
+//
+// Smart LLM Router: showcase
+//
+// Not a tutorial step: a JavaScript decision function reads each incoming
+// prompt, estimates how complex it actually is, and routes it to one of
+// three pre-configured `RemoteLlm` tiers (a cheap/fast model with a small
+// token budget for simple requests, up to the most capable model with a
+// larger budget for genuinely demanding ones), instead of always paying
+// for the biggest model and the largest response budget regardless of what
+// was actually asked.
+//
+// Mélodium's `RemoteLlm` sets `model` and `max_tokens` once, per model
+// instance, not per request, so "optimise the token budget for this
+// request" cannot mean "compute an arbitrary number every time"; it means
+// "pick the right one of a few pre-defined (model, budget) tiers". That is
+// exactly what the JavaScript function below decides.
+//
+// This example requires a real LLM provider API key. It is type-checked
+// with `melodium check`, and its decision logic (the JavaScript part, with
+// no LLM call involved) was run and verified with `melodium run`, but the
+// full request was not run against a live provider for this tutorial.
+//
+// Usage:
+//   melodium run Compo.toml --api_key sk-...
+//
+//   curl -X POST http://127.0.0.1:8080/chat -d "What year is it?"
+//   curl -X POST http://127.0.0.1:8080/chat -d "Can you summarize the main differences between REST and GraphQL APIs?"
+//   curl -X POST http://127.0.0.1:8080/chat -d "Explain, step by step, how a hash map resizes, and compare it to a B-tree's rebalancing cost."
+//
+// Verified with `melodium run` against the decision function alone: the
+// first request (short, factual) is routed to the economy tier; the
+// second (moderate length, one complexity keyword) to standard; the third
+// (multiple complexity signals: "explain", "step by step", "compare") to
+// premium. The server log prints the router's decision and its reasoning
+// for every request.
+//
+
+// The decision function, and the small helper that reads its `tier` field
+// back out (there is no field-by-field access into a parsed `Json` value
+// outside JavaScript, see 08_javascript_transform).
+model Router() : JavaScriptEngine {
+    code = ${{function decide(text) {
+        var trimmed = text.trim();
+        var words = trimmed.length ? trimmed.split(/\s+/) : [];
+        var wordCount = words.length;
+
+        // Rough, backend-agnostic estimate: about 4 characters per token.
+        var estimatedInputTokens = Math.ceil(text.length / 4);
+
+        // \w* suffixes so stems like "summar" also catch "summarize",
+        // "summary", etc.; counted (not just tested) so a request naming
+        // several distinct complexity signals scores higher than one
+        // naming only one.
+        var complexityKeywords = /\b(explain\w*|analyz\w*|analys\w*|compar\w*|design\w*|architecture\w*|prov\w*|deriv\w*|debug\w*|refactor\w*|summar\w*|step by step|in detail|pros and cons)\b/gi;
+        var keywordMatches = (text.match(complexityKeywords) || []).length;
+        var looksLikeCode = /```|function\s*\(|class\s+\w+|SELECT\s+.+FROM/i.test(text);
+        var questionMarks = (text.match(/\?/g) || []).length;
+
+        var score = 0;
+        score += Math.min(keywordMatches, 3);
+        if (looksLikeCode) score += 2;
+        if (questionMarks > 1) score += 1;
+        if (wordCount > 60) score += 1;
+        if (wordCount <= 8 && !looksLikeCode) score -= 1;
+
+        var tier, reason;
+        if (score >= 3 || wordCount > 120) {
+            tier = "premium";
+            reason = "long or explicitly complex request";
+        } else if (score >= 1 || wordCount > 25) {
+            tier = "standard";
+            reason = "moderate length or complexity";
+        } else {
+            tier = "economy";
+            reason = "short, simple request";
+        }
+
+        return {
+            tier: tier,
+            word_count: wordCount,
+            complexity_score: score,
+            estimated_input_tokens: estimatedInputTokens,
+            reason: reason
+        };
+    }
+
+    function pickTier(decision) {
+        return decision.tier;
+    }
+}}
+}
+
+// Fast, cheap tier: short factual answers, small token budget.
+model EconomyLlm(const api_key: string, const model: string) : RemoteLlm {
+    backend     = "anthropic"
+    api_key     = |wrap<string>(api_key)
+    base_url    = ""
+    model       = model
+    system      = "You are a fast, concise assistant. Answer as briefly and directly as accuracy allows."
+    max_tokens  = |wrap<u64>(200)
+    temperature = _
+    top_p       = _
+    timeout     = _
+}
+
+// Balanced default tier.
+model StandardLlm(const api_key: string, const model: string) : RemoteLlm {
+    backend     = "anthropic"
+    api_key     = |wrap<string>(api_key)
+    base_url    = ""
+    model       = model
+    system      = "You are a helpful, clear assistant."
+    max_tokens  = |wrap<u64>(600)
+    temperature = _
+    top_p       = _
+    timeout     = _
+}
+
+// Most capable tier: thorough, detailed answers, larger token budget.
+model PremiumLlm(const api_key: string, const model: string) : RemoteLlm {
+    backend     = "anthropic"
+    api_key     = |wrap<string>(api_key)
+    base_url    = ""
+    model       = model
+    system      = "You are a thorough, expert assistant. Explain your reasoning fully and precisely."
+    max_tokens  = |wrap<u64>(1500)
+    temperature = _
+    top_p       = _
+    timeout     = _
+}
+
+treatment chat(
+    const api_key:        string,
+    const economy_model:  string = "claude-haiku-4-5",
+    const standard_model: string = "claude-sonnet-4-6",
+    const premium_model:  string = "claude-opus-4-1",
+    const port:           u16    = 8080
+)
+  model server:      HttpServer(host=|from_ipv4(|localhost_ipv4()), port=port)
+  model router:       Router()
+  model economyLlm:   EconomyLlm(api_key=api_key, model=economy_model)
+  model standardLlm:  StandardLlm(api_key=api_key, model=standard_model)
+  model premiumLlm:   PremiumLlm(api_key=api_key, model=premium_model)
+{
+    startup()
+    start[http_server=server]()
+    logReady: logInfoMessage(label="server", message="smart LLM router ready")
+    startup.trigger -> start.trigger
+    startup.trigger -> logReady.trigger
+
+    connection[http_server=server](method=|post(), route="/chat")
+
+    status:  emit<HttpStatus>(value=|ok())
+    headers: emit<StringMap>(value=|map([]))
+    connection.started -> status.trigger,emit  -> connection.status
+    connection.started -> headers.trigger,emit -> connection.headers
+
+    respond[router=router, economyLlm=economyLlm, standardLlm=standardLlm, premiumLlm=premiumLlm]()
+    connection.data -> respond.data,data -> connection.data
+}
+
+treatment respond[router: JavaScriptEngine, economyLlm: RemoteLlm, standardLlm: RemoteLlm, premiumLlm: RemoteLlm]()
+  input  data: Stream<byte>
+  output data: Stream<byte>
+{
+    decoded: decode()
+    Self.data -> decoded.data
+
+    // Drop a possible trailing empty chunk before using the body, see
+    // 05_http_client.
+    isBlank:  exact(pattern="")
+    notBlank: not<bool>()
+    nonBlank: filter<string>()
+    decoded.text    -> isBlank.text
+    isBlank.matches -> notBlank.value
+    decoded.text    -> nonBlank.value
+    notBlank.not    -> nonBlank.select
+
+    // Collapse the (one-item) request text to a single block, the same
+    // idiom as the totals in 03_text_and_files.
+    promptLast: trigger<string>()
+    nonBlank.accepted -> promptLast.stream
+
+    // --- Ask the router to analyse the request. ---
+    asStream1: stream<string>()
+    promptLast.last -> asStream1.block
+    asJson: fromString<string>()
+    asStream1.stream -> asJson.value
+
+    decideCall: process[engine=router](code="decide(value)")
+    asJson.json -> decideCall.value
+    decisionOpt: unwrapOr<Json>(default=|null())
+    decideCall.result -> decisionOpt.option
+
+    logDecision: logInfos(label="router")
+    decisionText: toString<Json>()
+    decisionOpt.value -> decisionText.value,into -> logDecision.messages
+
+    decisionLast: trigger<Json>()
+    decisionOpt.value -> decisionLast.stream
+
+    // --- Extract just the chosen tier from the decision. ---
+    asStream2: stream<Json>()
+    decisionLast.last -> asStream2.block
+    pickTierCall: process[engine=router](code="pickTier(value)")
+    asStream2.stream -> pickTierCall.value
+    tierJsonOpt: unwrapOr<Json>(default=|null())
+    pickTierCall.result -> tierJsonOpt.option
+    tierStrOpt: tryToString<Json>()
+    tierJsonOpt.value -> tierStrOpt.value
+    tierStr: unwrapOr<string>(default="standard")
+    tierStrOpt.into -> tierStr.option
+
+    tierLast: trigger<string>()
+    tierStr.value -> tierLast.stream
+
+    // --- Route the prompt to exactly one of the three tiers. ---
+    isEconomy: equalTo<string>(value="economy")
+    tierLast.last -> isEconomy.data
+    gateEconomy: filterBlock<string>()
+    promptLast.last -> gateEconomy.value
+    isEconomy.result -> gateEconomy.select
+
+    isPremium: equalTo<string>(value="premium")
+    tierLast.last -> isPremium.data
+    gatePremium: filterBlock<string>()
+    promptLast.last -> gatePremium.value
+    isPremium.result -> gatePremium.select
+
+    isStandard: equalTo<string>(value="standard")
+    tierLast.last -> isStandard.data
+    gateStandard: filterBlock<string>()
+    promptLast.last -> gateStandard.value
+    isStandard.result -> gateStandard.select
+
+    // Each of the three prompt streams below is empty unless its tier was
+    // the one chosen: no call is made, and nothing is spent, on the two
+    // tiers that were not picked.
+    economyPrompt: stream<string>()
+    gateEconomy.accepted -> economyPrompt.block
+    economyReply: llmStream[llm=economyLlm]()
+    economyPrompt.stream -> economyReply.prompt
+    economyErrors: logErrors(label="router-economy")
+    economyReply.error -> economyErrors.messages
+
+    standardPrompt: stream<string>()
+    gateStandard.accepted -> standardPrompt.block
+    standardReply: llmStream[llm=standardLlm]()
+    standardPrompt.stream -> standardReply.prompt
+    standardErrors: logErrors(label="router-standard")
+    standardReply.error -> standardErrors.messages
+
+    premiumPrompt: stream<string>()
+    gatePremium.accepted -> premiumPrompt.block
+    premiumReply: llmStream[llm=premiumLlm]()
+    premiumPrompt.stream -> premiumReply.prompt
+    premiumErrors: logErrors(label="router-premium")
+    premiumReply.error -> premiumErrors.messages
+
+    // Exactly one of the three branches actually produced tokens.
+    mergeEconomyStandard: merge<string>()
+    economyReply.token -> mergeEconomyStandard.a
+    standardReply.token -> mergeEconomyStandard.b
+
+    mergeAll: merge<string>()
+    mergeEconomyStandard.value -> mergeAll.a
+    premiumReply.token         -> mergeAll.b
+
+    encoded: encode()
+    mergeAll.value -> encoded.text,data -> Self.data
+}

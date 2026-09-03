@@ -32,11 +32,11 @@ The table below is a map of what Mélodium (and its standard library packages) c
 | HTTP client | `http/client` | [tutorial/05](tutorial/05_http_client/) |
 | HTTP server, routing, `@HttpRequest` context | `http/server` | [tutorial/06](tutorial/06_http_server_api/) |
 | SQL: connection pools, `fetch`, `execute` | `sql` | [tutorial/07](tutorial/07_sql_crud_api/) |
-| Embedded JavaScript execution | `javascript` | [tutorial/08](tutorial/08_javascript_transform/) |
+| Embedded JavaScript execution | `javascript` | [tutorial/08](tutorial/08_javascript_transform/), [showcase/smart_llm_router](showcase/smart_llm_router/) |
 | External process execution | `process` | [tutorial/09](tutorial/09_process_pipeline/) |
 | Distributed dataflow: running a treatment on another engine | `distrib` | [tutorial/10](tutorial/10_distributed_computation/), [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/) |
 | On-demand cloud workers | `work` | [tutorial/10](tutorial/10_distributed_computation/), [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/), [showcase/ci_pipeline](showcase/ci_pipeline/) |
-| Remote LLM chat (streaming & non-streaming) | `ml/remote/llm` | [showcase/ai_voice_assistant](showcase/ai_voice_assistant/), [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/) |
+| Remote LLM chat (streaming & non-streaming) | `ml/remote/llm` | [showcase/ai_voice_assistant](showcase/ai_voice_assistant/), [showcase/distributed_llm_cluster](showcase/distributed_llm_cluster/), [showcase/smart_llm_router](showcase/smart_llm_router/) |
 | Local speech-to-text (Whisper) & remote text-to-speech | `ml/models/whisper`, `ml/remote/tts`, `record/audio` | [showcase/ai_voice_assistant](showcase/ai_voice_assistant/) |
 | HuggingFace Hub model download | `ml/repos/hf` | [showcase/ai_voice_assistant](showcase/ai_voice_assistant/) |
 | CI/CD pipelines, containerised steps, service containers | `cicd` | [showcase/ci_pipeline](showcase/ci_pipeline/) |
